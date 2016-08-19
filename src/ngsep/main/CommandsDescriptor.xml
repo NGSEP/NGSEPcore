@@ -1,0 +1,625 @@
+<NGSEP version="3.0.1" date="02-08-2016">
+<title>Next Generation Sequencing Experience Platform</title>
+
+<command id="FindVariants" class="ngsep.discovery.VariantsDetector">
+<intro>The main module of NGSEP is the variants detector.</intro>
+<title>Calling variants with the Variants detector</title>
+<description>
+Main module of NGSEP. Requires an alignments file in SAM or BAM format,
+and the reference genome that was used to produce the alignments.
+</description>
+<argument>OPTIONS</argument>
+<argument>REFERENCE</argument>
+<argument>INPUT_FILE</argument>
+<argument>OUTPUT_PREFIX</argument>
+<option id="h" type="FLOAT" default="0.001">
+Heterozygosity rate
+</option>
+<option id="querySeq" type="STRING">
+Call variants just for this sequence.
+</option>
+<option id="first" type="INT">
+Call variants just from this position in the given query sequence.
+</option>
+<option id="last" type="INT">
+Call variants just until this position in the given query sequence.
+</option>
+<option id="ignoreLowerCaseRef">
+Ignore sites where the reference allele is lower case.
+</option>
+<option id="maxAlnsPerStartPos" type="INT" default="5">
+Maximum number of alignments allowed to start
+at the same reference site.
+</option> 
+<option id="s">
+Consider secondary alignments while calling SNVs.
+</option>
+<option id="minAltCoverage" type="INT" default="0">
+Minimum coverage of the alternative allele to call a SNV.
+</option>
+<option id="maxAltCoverage" type="INT" default="0 (No filter)">
+Maximum coverage of the alternative allele to call a SNV.
+</option>
+<option id="minQuality" type="INT" default="0">
+Minimum genotype quality to accept a SNV call.
+</option>
+<option id="maxBaseQS" type="INT" default="0 (No limit)">
+Maximum value allowed for a base quality score. Larger values will be equalized to this value.
+</option>
+<option id="ignore5" type="INT" default="0">
+Ignore this many base pairs from the 5' end of the reads.
+</option>
+<option id="ignore3" type="INT" default="0">
+Ignore this many base pairs from the 3' end of the reads.
+</option>
+<option id="ploidy" type="INT" default="2">
+Ploidy of the sample.
+</option>
+<option id="knownSVs" type="FILE">
+File with coordinates of known structural variants in GFF format.
+</option>
+<option id="knownSTRs" type="FILE">
+File with known short tandem repeats (STRs). This is a text file with at least three
+columns: chromosome, first position and last position. Positions should be 1-based and
+inclusive.
+</option>
+<option id="embeddedSNVs">
+Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
+no SNV will be called within an STR.
+</option>
+<option id="minSVQuality" type="INT" default="20">
+Minimum quality score (in PHRED scale) for structural variants.
+</option>
+<option id="genomeSize" type="INT">
+Total size of the genome to use during detection of CNVs. For partial references.
+</option>
+<option id="binSize" type="INT" default="100">
+Size of the bins to analyze read depth.
+</option>
+<option id="algCNV" type="STRING" default="CNVnator">
+Comma-separated list of read depth algorithms to run. (e.g. CNVnator,EWT).
+</option>
+<option id="maxPCTOverlapCNVs" type="INT" default="100 (No filter)">
+Maximum percentage of overlap of a new CNV with an input CNV to include it in the output.
+</option>
+<option id="maxLenDeletion" type="INT" default="1000000">
+Maximum length of deletions that the read-pair analysis can identify.
+</option>
+<option id="sizeSRSeed" type="INT" default="8">
+Size of the seed to look for split-read alignments.
+</option>
+<option id="ignoreProperPairFlag">
+The proper pair flag will be ignored when deciding if the ends of each fragment are 
+properly aligned. By default, the estimation of the insert length distribution only 
+account reads with the proper pair flag.
+</option>
+<option id="ignoreXS">
+Ignores the XS field to decide if an alignment is unique. This flag should always be
+used to process BAM files made with BWA-MEM and BWA-SW.
+</option>
+<option id="sampleId" type="STRING">
+Id of the sample for the VCF file.
+</option>
+<option id="psp">
+Print id and ploidy of the sample in the VCF header.
+</option>
+<option id="knownVariants" type="FILE">
+VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
+</option>
+<option id="genotypeAll">
+Report all covered sites in the genome. CAUTION: For WGS samples, and even for RAD/GBS
+samples in organisms with medium to large genomes this produces a huge file.
+</option>
+<option id="noRep">
+Turn off multiple alignments analysis to identify repetitive regions.
+</option>
+<option id="noRD">
+Turn off read depth analysis to identify CNVs.
+</option>
+<option id="noRP">
+Turn off read pair analysis to identify large indels and inversions.
+</option>
+<option id="noSNVS">
+Turn off SNV detection.
+</option>
+<option id="noNewCNV">
+Turn off finding new CNVs with the read depth analysis.
+</option>
+</command>
+
+<command id="MergeVariants" class="ngsep.vcf.IndividualSampleVariantsMerge">
+<intro>
+Generates a VCF file including the whole set of variants called in at least one of the given samples.
+</intro>
+<title>Merging variants from individual samples</title>
+<description>
+First step merging variants from different samples into an integrated VCF file.
+Generates a file including the whole set of variants called in at least one sample.
+The sequence names file is a text file with the ids of the sequences in the reference.
+</description>
+<argument>SEQUENCE_NAMES_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<argument multiple="true">VARIANTS_FILE</argument>
+</command>
+
+<command id="MergeVCF" class="ngsep.vcf.ConsistentVCFFilesMerge">
+<intro>
+Writes a final VCF file with the genotype calls for each variant on each sample.
+</intro>
+<title>Merging variants from individual samples</title>
+<description>
+Last step to merge genotype calls from different samples into an integrated VCF file.
+Generates a file including the whole set of variants called for all samples.
+The sequence names file is a text file with the ids of the sequences in the reference.
+Writes to the standard output.
+</description>
+<argument>SEQUENCE_NAMES_FILE</argument>
+<argument multiple="true">GENOTYPED_VARIANTS_FILE</argument>
+</command>
+
+<command id="Annotate" class="ngsep.vcf.VCFFunctionalAnnotator">
+<intro>Generates a VCF file which includes the functional information related with each variant.
+</intro>
+<title>Functional annotation of variants</title>
+<description>
+Generates a VCF file including the functional information related with each variant.
+Requires a VCF file, a gff3 file with gene annotations, and the reference genome in fasta format.
+</description>
+<argument>OPTIONS</argument>
+<argument>VARIANTS_FILE</argument>
+<argument>TRANSCRIPTOME_MAP</argument>
+<argument>REFERENCE_FILE</argument>
+<option id="u" type="INT" default="1000">
+Maximum bp before a gene to classify a variant as Upstream.
+</option>
+<option id="d" type="INT" default="300">
+Maximum bp after a gene to classify a variant as Downstream.
+</option>
+</command>
+
+<command id="FilterVCF" class="ngsep.vcf.VCFFilter">
+<intro>Implements different filters on VCF files with genotype information</intro>
+<title>Filtering VCF files</title>
+<description>
+Implement different filters on VCF files with genotype information.
+first, it executes the distance filter (-d), then the filtering of
+samples and genotypes (-saf, -fs, -q and -minC). Finally, it 
+recalculates the number of samples genotyped, the number of alleles
+called and the MAF to execute the remaining filters. Writes to the standard output.
+</description>
+<argument>OPTIONS</argument>
+<argument>INPUT_FILE</argument>
+<option id="frs" type="FILE">
+File with genomic regions in which variants should be filtered out.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="srs" type="FILE">
+File with genomic regions in which variants should be selected.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="d" type="INT" default="0 (No filter)">
+Minimum distance between variants.
+</option>
+<option id="g" type="FILE">
+File with the reference genome to calculate the GC-Content of the region surrounding the variant.
+</option>
+<option id="minGC" type="FLOAT">
+Minimum percentage of GC of the 100bp region surrounding the variant.
+</option>
+<option id="maxGC" type="FLOAT">
+Maximum percentage of GC of the 100bp region surrounding the variant.
+</option>
+<option id="q" type="INT">
+Minimum genotyping quality score (GQ field in the VCF).
+</option>
+<option id="s">
+Keep only biallelic SNVs.
+</option>
+<option id="fi">
+Filter out sites in which only one allele is observed.
+</option>
+<option id="fir">
+Filter sites in which only the reference allele is observed.
+</option>
+<option id="fia">
+Filter out sites in which only one alternative allele is observed.
+</option>
+<option id="minI" type="INT" default="0">
+Minimum number of individuals genotyped to keep the variant.
+</option>
+<option id="minC" type="INT" default="0">
+Minimum coverage to keep a genotype call.
+</option>
+<option id="minMAF" type="FLOAT" default="0">
+Minimum minor allele frequency over the samples in the VCF.
+</option>
+<option id="maxMAF" type="FLOAT" default="0.5 (No filter)">
+Maximum minor allele frequency over the samples in the VCF.
+</option>
+<option id="minOH" type="FLOAT" default="0">
+Minimum observed heterozygosity over the samples in the VCF.
+</option>
+<option id="maxOH" type="FLOAT" default="1 (No filter)">
+Maximum observed heterozygosity over the samples in the VCF.
+</option>
+<option id="maxCNVs" type="INT" default="No filter">
+Maximum number of samples with copy number variation in the region where the variant is located.
+</option>
+<option id="gene" type="STRING">
+Id of the gene or the transcript related with the variant.
+</option>
+<option id="a" type="STRING">
+Types of functional annotations (Missense, Nonsense, Synonymous, etc) related with the variant.
+More than one annotation can be set as a comma-separated list.
+</option>
+<option id="saf" type="FILE">
+File with the ids of the samples to be selected (or filtered, see -fs option).
+The file should have one line per sample, being the first column the sample id.
+Other columns in the file are ignored.
+</option>
+<option id="fs">
+Filter the samples provided with the -saf option instead of selecting them.
+</option> 
+</command>
+
+<command id="ConvertVCF" class="ngsep.vcf.VCFConverter">
+<intro>Converts genotype calls in VCF format to other formats</intro>
+<title>Convert VCF files to other formats</title>
+<description>
+Convert genotype calls in VCF format to other formats commonly used to perform
+different kinds of analysis
+</description>
+<argument>OPTIONS</argument>
+<argument>INPUT_FILE</argument>
+<argument>OUTPUT_PREFIX</argument>
+<option id="printStructure">
+Prints input format for structure
+</option>
+<option id="printFasta">
+Prints a virtual multiple sequence alignment
+in fasta format. Useful to build distance based dendograms
+</option>
+<option id="printrrBLUP">
+Prints input format for rrBLUP
+</option>
+<option id="printMatrix">
+Prints genotypes in a simple ACGT format which can be imported to excel
+</option>
+<option id="printHapmap">
+Prints Hapmap format, which can be used in programs such as Tassel
+</option>
+<option id="printSpagedi">
+Prints the input files for Spagedi
+</option>
+<option id="printPlink">
+Prints the input files for Plink
+</option>
+<option id="printHaploview">
+Prints the input files for Haploview
+</option>
+<option id="printEmma">
+Prints the input files for Emma
+</option>
+<option id="printPowerMarker">
+Prints the input files for PowerMarker
+</option>
+<option id="printEigensoft">
+Prints the input files for Eigensoft
+</option>
+<option id="printFlapjack">
+Prints the input files for Flapjack
+</option>
+<option id="printDarwin">
+Prints the input files for DarWin
+</option>
+<option id="printTreeMix">
+Prints the input files for TreeMix.
+The option -p is required for this format
+</option>
+<option id="printJoinMap">
+Prints the input file to build genetic maps with JoinMap.
+The options -p1 and -p2 are required for this format
+</option>
+<option id="printPhase">
+Prints the input files for Phase.
+The option -s is required for this format
+</option>
+<option id="p" type="FILE">
+File with population assignments for the samples.
+A two column text file with the sample ids in the
+first column and the ids of the populations in the
+second column. Required for conversion to TreeMix
+</option>
+<option id="p1" type="STRING">
+Id of the first parent for conversion to JoinMap
+</option>
+<option id="p2" type="STRING">
+Id of the second parent for conversion to JoinMap
+</option>
+<option id="s" type="STRING">
+Name of the sequence (chromosome) for conversion to PHASE.
+</option>
+</command>
+
+<command id="QualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator">
+<intro> Detects sequencing error biases</intro>
+<title>Calculating coverage statistics</title>
+<description>
+This module takes one or more sets of alignments and a reference genome and
+counts the number of mismatches with the reference for each read position from
+5' to 3' end. This report is useful to detect sequencing error biases.
+Requires alignment files to be in SAM|BAM format, and the reference genome that
+was used to produce the alignments.
+</description>
+<argument>OPTIONS</argument>
+<argument>REFERENCE_FILE</argument>
+<argument multiple="true">ALIGNMENTS_FILE</argument>
+<option id="ignoreXS">
+Ignores the XS field to decide if an alignment is unique. This flag should always be
+used to process BAM files made with BWA-MEM and BWA-SW.
+</option>
+</command>
+
+<command id="CoverageStats" class="ngsep.discovery.CoverageStatisticsCalculator">
+<intro>Shows the uniformity of the sequencing process over the genome</intro>
+<title>Calculating coverage statistics</title>
+<description>
+This module calculates the number of base pairs that are covered by reads at
+each coverage level from 1 to a maximum. Alignments must be in SAM|BAM format.
+</description>
+<argument>ALIGNMENTS_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+</command>
+
+<command id="CompareVCF" class="ngsep.vcf.VCFComparator">
+<intro>Compares the genotype calls included in two different VCF files</intro>
+<title>Comparing VCF files</title>
+<description>
+Compare the genotype calls included in two different VCF files.
+Calculate the number and percentage of homozygous and heterozygous
+differences between every pair of samples.
+The sequence names file is a text file with the ids of the sequences in the reference.
+Writes to the standard output.
+</description>
+<argument>OPTIONS</argument>
+<argument>SEQUENCE_NAMES_FILE</argument>
+<argument>FIRST_VCF_FILE</argument>
+<argument>SECOND_VCF_FILE</argument>
+<option id="g" type="FLOAT" default="50">
+Minimum percentage (0-100) of variants genotyped in both samples
+</option>
+<option id="d" type="FLOAT" default="5">
+Maximum percentage (0-100) of differences between the pair of samples
+</option>
+</command>
+
+<command id="SummaryStats" class="ngsep.vcf.VCFSummaryStatisticsCalculator">
+<intro>Generates a report with the numbers of variants included in a VCF file for different categories.</intro>
+<title>Calculating summary statistics</title>
+<description>
+Generate a report with the variants included in a VCF file for different categories.
+It is specially useful when a complete population is being processed and merged into a
+single annotated file. Writes to the standard output
+</description>
+<argument>OPTIONS</argument>
+<argument>INPUT_FILE</argument>
+<option id="m" type="INT" default="20">
+Minimum number of samples genotyped to accurately calculate the minor allele frequency
+</option>
+</command>
+
+<command id="DiversityStats" class="ngsep.vcf.VCFDiversityCalculator">
+<intro>
+Calculates basic diversity statistics for each variant in a VCF file.
+</intro>
+<title>Calculating diversity statistics per site</title>
+<description>
+Calculate basic diversity statistics for each variant in a VCF file.
+The populations file is a tab-delimited text file with two columns: sample id and population id.
+Writes to the standard output. See the README.txt file for details on the output. 
+</description>
+<argument>INPUT_FILE</argument>
+<argument>POPULATIONS_FILE</argument>
+</command>
+
+<command id="AlleleSharingStats" class="ngsep.vcf.AlleleSharingStatsCalculator">
+<intro>
+Calculates allele sharing diversity statistics, either through windows or through genes
+for inbred populations
+</intro>
+<title>Calculating allele sharing statistics</title>
+<description>
+Calculates allele sharing diversity statistics, either through windows across the genome 
+or through the genes catalog of the species. This program calculates the pairwise differences between
+every pair of samples in the VCF file and uses that information to calculate diversity statistics such
+as the average number of pairwise differences per Kbp, Fst and Tajima D. This functionality should only
+be applied to VCFs containing populations of inbred samples. Each group can either be one or more than
+populations wthin the populations file. Multiple population names within one group should be separated
+by comma (without white spaces).
+The populations file is a tab-delimited text file with two columns: sample id and population id.
+Writes to the standard output. See the README.txt file for details on the output.
+</description>
+<argument>VCF_FILE</argument>
+<argument>POPULATIONS_FILE</argument>
+<argument>GROUP_1</argument>
+<argument>GROUP_2</argument>
+<option id="t" type="FILE">
+GFF3 file with the transcriptome. If this file is provided, statistics will be provided by gene and
+not by window.
+</option>
+<option id="i">
+If set, introns will be included in the calculation of pairwise differences. Only useful if the
+-t option is set
+</option>
+<option id="w" type="INT" default="100000">
+Length of each genomic window to calculate pairwise differences between samples. 
+</option>
+<option id="s" type="INT" default="10000">
+Step between windows to calculate pairwise differences between samples.
+</option>
+</command>
+
+<command id="ImputeVCF" class="ngsep.variants.imputation.GenotypeImputer">
+<intro>
+Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
+</intro>
+<title>Genotype imputation (In progress)</title>
+<description>
+Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
+* Only reliable in populations of samples with low heterozygosity (autogamous or double-haploids).
+* Only biallelic SNPs are imputed and included in the output VCF file.
+* Current implementation does not produce heterozygous imputed genotypes.
+</description>
+<argument>OPTIONS</argument>
+<argument>VCF_FILE</argument>
+<argument>OUT_PREFIX</argument>
+<option id="p" type="STRING">
+Comma-separated list of sample ids of the parents of the population.
+Only to be used for bi-parental or multi-parental breeding populations.
+</option>
+<option id="k" type="INT" default="20">
+Maximum number of groups in which local haplotypes will be clustered.
+For bi-parental or multi-parental breeding populations please set explicitly
+the number of parents of the population even if the list of parents is provided with the
+-p option. This allows to take into account cases of populations in which some of
+the parents are missing
+</option>
+<option id="c" type="FLOAT" default="0.001">
+Estimated average number of centiMorgans per Kbp on euchromatic regions of the genome.
+Typical values of this parameter are 0.001 for human populations, 0.004 for rice and 0.35
+for yeast populations
+</option>
+<option id="t">
+If set, transition probabilities in the HMM will NOT be updated during the Baum-Welch
+training of the HMM. Not recommended unless the -c option is set to a value allowing a
+reasonable initial estimation of the transition probabilities.
+</option>
+</command>
+
+<command id="IntrogressionAnalysis" class="ngsep.vcf.VCFWindowIntrogressionAnalysis">
+<intro>Runs a window-based haplotype introgression analysis.</intro>
+<title>Finding haplotype introgressions</title>
+<description>
+Runs a window-based analysis to identify the most common haplotype within each of the
+populations described in the given populations file and then identify common haplotypes
+of one population introgressed in samples of a different population. Although it can be
+run on any VCF file, it is particularly designed to work with populations of inbred
+samples. 
+</description>
+<argument>OPTIONS</argument>
+<argument>VCF_FILE</argument>
+<argument>POPULATIONS_FILE</argument>
+<argument>OUT_PREFIX</argument>
+<option id="p" type="DOUBLE" default="80" attribute="minPctGenotyped">
+Minimum percentage of samples genotyped within a population to identify the most common
+allele.
+</option>
+<option id="d" type="DOUBLE" default="0.6" attribute="minDiffAF">
+Minimum difference between reference allele frequencies of at least two populations
+to consider a variant discriminative.
+</option>
+<option id="m" type="DOUBLE" default="0.4" attribute="maxMAFWithin">
+Maximum minor allele frequency within a population to consider the major allele of a
+variant as representative allele for such population.
+</option>
+<option id="w" type="INT" default="50" attribute="windowSize">
+Window size as number of variants within each window
+</option>
+<option id="o" type="INT" default="0" attribute="overlap">
+Overlap as number of variants shared between neighbor windows
+</option>
+<option id="a" type="INT" default="1" attribute="matchScore">
+Score given of a match between homozygous genotypes comparing haplotypes
+</option>
+<option id="i" type="INT" default="-1" attribute="mismatchScore">
+Score given of a mismatch between homozygous genotypes comparing haplotypes
+</option>
+<option id="s" type="INT" default="30" attribute="minScore">
+Minimum score to match an individual haplotype with a population-derived haplotype
+</option>
+<option id="v" type="BOOLEAN" attribute="printVCF">
+Outputs a VCF file with the biallelic variants that showed segregation between at least one
+pair of groups and hence were selected for the analysis. 
+</option>
+<option id="u" type="BOOLEAN" attribute="printUnassigned">
+If set, reports introgression events for unassigned haplotypes according to the minimum score defined by
+the options -a -i and -s
+</option>
+</command>
+
+<command id="Deconvolute" class="ngsep.sequences.ReadsDemultiplex">
+<intro>
+Builds individual fastq files for different samples from
+a single file containing reads from a whole sequencing lane.
+</intro>
+<title>Deconvoluting reads</title>
+<description>
+Build individual fastq files for different samples from a single file containing the reads
+for a whole sequencing lane in which several samples were barcoded and sequenced.
+INDEX_FILE is a tab-delimited file with four columns: flowcell, lane, barcode and sampleID.
+It must have a header line. The same index file can be used to deconvolute several FASTQ files.
+FASTQ files can be gzip compressed
+</description>
+<argument>OPTIONS</argument>
+<argument>INDEX_FILE</argument>
+<argument>FASTQ_FILE_1</argument>
+<argument>FASTQ_FILE_2</argument>
+<option id="o" type="DIR">
+Directory where the output fastq files will be saved.
+</option>
+<option id="t" type="STRING">
+If this sequence is found within a read, the read will be trimmed up to the start of this sequence.
+</option>
+<option id="u">
+Output uncompressed files.
+</option>
+<option id="d" type="FILE">
+Tab-delimited file listing the files to be deconvoluted. Columns are: Flowcell, lane and
+fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.
+If the reads sequenced for one lane are split in multiple files, each file (or each pair of files)
+should be included in a separate row. If this option is used, the options -f, -l and the input fastq
+file(s) are ignored
+</option>
+<option id="f" type="STRING">
+Id of the flowcell corresponding to the input fastq file(s). Required if -d option is not specified.
+</option>
+<option id="l" type="STRING">
+Id of the lane corresponding to the input fastq file(s). Required if the -d option is not specified.
+</option>
+</command>
+
+<command id="CompareRD" class="ngsep.discovery.rd.CNVseqAlgorithm">
+<intro>
+Compares the read depth of two samples
+</intro>
+<title>Comparing read depth between samples</title>
+<description>
+Compares the read depth between two samples to identify copy number variation.
+</description>
+<argument>OPTIONS</argument>
+<argument>ALIGNMENTS_FILE_1</argument>
+<argument>ALIGNMENTS_FILE_2</argument>
+<argument>REFERENCE</argument>
+<argument>OUT_PREFIX</argument>
+<option id="binSize" type="INT" default="100">
+Window size to be used during the read depth comparison.
+</option>
+<option id="p" type="FLOAT" default="0.001">
+Maximum p-value. Only the windows with a p-value
+lower than that specified will be reported.
+</option>
+<option id="w">
+Output an entry for every window in the genome.
+</option>
+<option id="g">
+Perform GC-correction of the read depth.
+</option>
+<option id="b">
+Perform the Bonferroni correction for multiple testing.
+</option>
+
+</command>
+
+</NGSEP>

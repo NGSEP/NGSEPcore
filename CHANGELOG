@@ -1,0 +1,182 @@
+v3.0.1 08-08-2016
+- New command called IntrogressionAnalysis which makes a window-based analysis
+  to identify haplotypes common within one population and introgressed in
+  samples of a different population. See the README.txt for usage details.
+- FindVariants: Solved concurrency issue that made the read pair (RP)
+  analysis fail on the Multi variants detector option in the graphical
+  interface.
+- FindVariants: Improved selection of possible alleles for indel or
+  complex calls to improve speed on high coverage datasets
+- FindVariants: Fixed error loading the NUF field having the number of
+  uniquely aligned fragments for the repeats saved in the GFF format for
+  structural variants. The field was saved as double but it was loaded as an
+  integer. The field is now saved as an integer but now can be loaded as a
+  double for backwards compatibility.
+- Annotate: Fixed error that made the process fail with entries without
+  alternative alleles. Now these sites are just written back to the output
+  VCF as they, by definition, do not store any variation to annotate.
+
+v3.0.0 07-07-2016
+- The parent package name for the complete aplication was changed from
+  "net.sf.ngstools" to "ngsep". Several improvements in the object model were
+  performed to improve memory management and in some cases reduce running
+  times. The classes from picard for management of SAM/BAM files were updated
+  to the latest version, now called htslib. Dependency to these classes was
+  reduced to facilitate future updates.
+- Added the command "AlleleSharingStats" to calculate allele sharing diversity
+  statistics on populations of inbred samples
+- Input VCF files over the whole application can now be gzip compressed.
+- FilterVCF: Added filters of minimum and maximum observed heterozygosity.
+- ConvertVCF: Conversion to treemix consumes much less memory and only outputs
+  counts for biallelic variants
+- ConvertVCF: Added header with number of samples and number of alleles to the
+  DARWin format, as specified in v6.0  
+- DiversityStats: Added informative headers
+- Fixed error that produced comma instead of dot for decimal separator
+  depending on the language configurations
+- The "Clip" command is no longer available
+
+v2.1.5 26-01-2016
+- Deconvolute: This function can now receive a tab-delimited file
+  describing locations of several fastq files (See README.txt for details).
+  This is useful to deconvolute more than one lane in one command and to merge
+  automatically reads from samples sequenced more than one time. The flowcell,
+  lane and fastq input files are now optional and are ignored if a file
+  descriptor for multilane decolnvolution is provided.
+- Deconvolute: Input fastq files can now be gzip compressed.
+- Deconvolute: Lanes sequenced in paired-end mode can now be deconvoluted. In
+  this mode, two files should be provided and two files are generated for each
+  sample to preserve the read pair information.
+- Deconvolute: The barcode index file now must have a header line
+- FindVariants: Added read pair analysis within duplications predicted by read
+  depth to predict if the duplication is in tandem or is interspersed. Added
+  info fields to the output GFF file to indicate for each CNV if is a deletion,
+  a tandem duplication or an interspersed (trans) duplication and to provide 
+  the number of reads supporting these predictions (See README.txt for details)
+- FindVariants: Fixed error in detection of inversions
+
+v2.1.4 19-10-2015
+- FindVariants: Users can now add a file with short tandem repeat regions.
+  These regions will now be called as one single region instead of individual
+  pileups
+- FindVariants: Improved algorithm for indel realignment
+- FindVariants: Added a TYPE attribute to the variants different than biallelic
+  SNVs
+- FindVariants: Information on copy number variation within the VCF file has
+  been moved out of the GT field and now is stored in the format field ACN 
+  (allele copy number). The field LPL was also removed.
+- In the VCF format field, the fields with read counts per allele,
+  previously called AC and AAC now are called ADP and BSDP respectively.
+- ConvertVCF: In the converter to Plink, changed genotype format from 1,2,3,4
+  to ACGT 
+
+v2.1.3 14-07-2015
+- Output fastq files after deconvolution are now gzip compressed. 
+  Added option "-u" to keep them uncompressed (Mainly for windows).
+  
+v2.1.2 30-04-2015
+- The distribution jar file now has version number
+- Added the options -maxPCTOverlapCNVs, -maxLenDeletion, -minSVQuality
+  and -sizeSRSeed to control the behavior of the read pair analysis.
+  SEE README.txt for details of each parameter 
+- ConvertVCF: In the conversion to Plink, chromosomes in the .map file 
+  have now numerical indexes  
+- ConvertVCF: Added option to convert to rrBLUP
+- Command line help is now available for every command using the --help option
+- FindVariants: Implemented the algorithm EWT to call CNVs using read depth
+  information. Added the option -algCNV to decide which read depth algorithms
+  should be called
+- Added breakpoint resolution to the read-pair analysis to find large indels
+  based on realignment of reads likely to span the breakpoint site
+- Fixed error with the header in the conversion to DARWin 
+
+v2.1.1 13-02-15
+- ImputeVCF: Fixed error when a SNP has only heterozygous genotypes
+- ImputeVCF: Genotypes of unrelated inbred varieties can now be imputed
+- ImputeVCF: Removed options -m and -e for percentages of missing data and
+  heterozygous. Now these parameters are estimated from the data. Added option
+  -k to specify the number of haplotype clusters (or the number of parents
+  for breeding populations) 
+- DiversityStats: Added support to standard input
+
+v2.1.0 22-12-14
+- Added new command to compare two VCF files.
+- Added new command to impute missing genotypes in inbred multiparental populations.
+- Added new command to identify significant differences between the read depth
+  distributions of two samples. We implemented the algorithm called CNVSeq
+  (See http://www.biomedcentral.com/1471-2105/10/80)
+- VCFConverter can now convert to Darwin, Joinmap and TreeMix
+- Added the options -u and -d to the functional annotator to control the offsets before
+  and after each gene to classify a variant as upstream or downstream
+- QualStats now can receive multiple bam files. The read length is now calculated from
+  the alignments so it does not need to be provided. Added the option "-ignoreXS" to
+  ignore this field in the bam file  as an indicator for a read with multiple alignments
+  (Same behavior as that within the variants detector)
+- VCFFilter now allows to select more than one annotation with the -a parameter.
+  Annotations should be comma-separated
+- Added option -ignoreProperPairFlag to the variants detector to ignore this flag
+  while running the read pair algorithm
+- The options -noStructural and -noNewCNV have been replaced with -noRP and -noRD
+  respectively to reflect better that they are used to turn down the read pair
+  and read depth analysis but both produce structural variants. The option -noNewCNV
+  still exists but has a new meaning. By default, the read depth analysis genotypes
+  input CNVs and repeats and then tries to find new CNVs. Using the option -noNewCNV
+  the variants detector still builds the read depth distribution and genotypes input
+  CNVs but it does not try to find new CNVs 
+- Eliminated output file .cnv with CNVs and repeats in the variants detector.
+  The option -knownCNVs has been replaced with -knownSVs and the format of the
+  input file for this option is now GFF. 
+- MergeVCF now does not try to merge variants in the same location with different
+  alleles. A warning is logged everytime this situation is identified and two
+  variants are reported in the output VCF. This eliminates entries with
+  inconsistent information between the variant alleles and the calls.
+
+v2.0.7 22-09-14
+- Added module to calculate diversity statistics per site including a
+  Chi-square test for deviation from HWE and F-statistics.
+- Included total alignment counts for each length in the quality statistics to
+  deal with reads having variable lengths
+- Fixed error in the VCFFilter processing VCF files not generated by NGSEP
+- Added an option to the variants detector to ignore the XS field as an
+  indicator for a read with multiple alignments. The XS field was used by
+  default in previous versions because bowtie2 outputs this filed only for reads
+  with more than one alignment. However bwa-mem and bwa-sw output this field
+  for every aligment, which produced errors in the algorithms to identify
+  CNVs, repeats and structural variation.
+
+v 2.0.6 04-08-2014
+- Added conversion to PHASE for statistical phasing
+- Added a new command to produce summary statistics based on a VCF file
+- Added the options -saf and -fs to the FilterVCF command to select or filter
+  samples with ids loaded from a text file
+- Changed the default behavior of FilterVCF regarding quality and fixed alleles.
+  Now the program by default will not perform any filtering. Because the option
+  -v loss meaning under this behavior, it was replaced by the options -fi, -fir
+  and -fia to filter respectively all the invariant sites, invariant sites
+  having only the reference allele, and invariant sites having only an
+  alternative allele 
+- Added an optional header with sample id and ploidy to the VCF file. This header
+  is later used by the FilterVCF command to recalculate properly the number of
+  samples with CNVs while filtering samples
+- Added a format field to the VCF files indicating for each genotype the local
+  ploidy of the region surrounding the variant
+
+v 2.0.5 27-01-2014
+- Improved speed loading vcf files
+- Added conversion to MapDisto
+- Variant ids in VCF files are now properly loaded
+- MergeVariants now keeps in the output vcf file SNVs within indels
+
+v 2.0.4. 07-10-2013
+- Changed default min coverage in the filter to avoid filtering variants without
+  coverage information
+- Added parameter in the filter to select variants within a set of regions
+- Conversion to matrix and to hapmap now consumes much less memory
+- Fixed error writing vcf files when allele count information is not available
+- Fixed error loading SNVs when the reference allele is N (e.g. VCF files produced
+  by samtools)
+- Fixed error loading genotypes from a VCF file in which the number of fields per
+  genotype does not match the number of fields in the genotype format column
+- Fixed error loading genotypes from a VCF file in which the genotype quality
+  or the coverage is not available.
+- VCFMerge now keeps sites in which all called genotypes are homozygous reference

@@ -1,0 +1,32 @@
+<tool id="NGSEP_Annotate" name="Functional Annotation" version="3.0.1">
+  <description> of variants in a VCF file</description>
+  <command>
+java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.1.jar Annotate -u $u -d $d $input $map $ref > $output
+  </command>
+  <inputs>
+    <param name="input" type="data" format="vcf" label="Input VCF File"/>
+    <param name="map" type="data" format="gff3" label="Gene Annotation (GFF3 file)"/>
+    <param name="ref" type="data" format="fasta" label="Reference Genome"/>
+    <param name="u" type="integer" min="0" value="1000" label="Maximum distance before a gene to be classified as Upstream"/>
+    <param name="d" type="integer" min="0" value="300" label="Maximum distance after a gene to be classified as Downstream"/>
+  </inputs>
+  <outputs>
+    <data name="output" format="vcf" label="Annotated $input.display_name"/>
+  </outputs>
+  <help>
+
+**What it does**
+
+This module annotates genomic variants in a VCF file using a custonm GFF3 gene description, it generates a VCF file including the functional information related with each variant.
+
+-----
+
+.. class:: infomark
+
+For details about this tool, please visit https://sourceforge.net/projects/ngsep/
+
+  </help>
+  <citations>
+    <citation type="doi">10.1093/nar/gkt1381</citation>
+  </citations>
+</tool>

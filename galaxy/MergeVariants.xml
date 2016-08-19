@@ -1,0 +1,44 @@
+<tool id="NGSEP_MergeVariants" name="Merge Variant" version="3.0.1">
+  <description> positions from several VCF files</description>
+  <command>
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.1.jar MergeVariants $seq_names ./prefix
+  #for $i in $vcf_files
+      $i.input
+  #end for
+  > ./log 2>&amp;1
+  </command>
+  <inputs>
+    <param name="population" type="text" label="Name (or id) of the Population"/>
+    <param name="seq_names" type="data" format="txt" label="Sequence Names File"/>
+    <repeat name="vcf_files" min="1" title="VCF Files">
+      <param name="input" type="data" format="vcf" label="Input File"/>
+    </repeat>
+  </inputs>
+  <outputs>
+    <data name="output" format="vcf" label="Variants List from $population population" from_work_dir="prefix"/>
+  </outputs>
+  <help>
+
+**What it does**
+
+Collect and output all variants positions from different samples into an integrated vcf file.
+
+The Sequence Names file is a text file which just has the ids of the sequences in the reference. It is used to determine the order of the reference sequences.
+
+-----
+
+**Output format**
+
+The output file of this merge program is a vcf with the union of variants reported by the input files but without any genotype information.
+
+-----
+
+.. class:: infomark
+
+For details about this tool, please visit https://sourceforge.net/projects/ngsep/
+
+  </help>
+  <citations>
+    <citation type="doi">10.1093/nar/gkt1381</citation>
+  </citations>
+</tool>

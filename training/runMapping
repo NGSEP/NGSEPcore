@@ -1,0 +1,28 @@
+p=$1;
+i=$2;
+x=$3;
+o=$4;
+
+ # input files
+f1=../reads/${p}_1.fastq.gz;
+f2=../reads/${p}_2.fastq.gz;
+REFERENCE=/path/to/reference/reference.fa;
+
+ # software variables. Write paths only if you can not install the programs or can not use installed versions
+BOWTIE2=/path/to/bowtie2;
+SAMTOOLS=/path/to/samtools
+JAVA="/path/to/java -d64 -XX:MaxHeapSize=1g";
+
+ # jars for java packages
+PICARD=/path/to/picard.jar;
+NGSEP=/path/to/NGSEPcore.jar;
+
+ # map the reads and sort the alignment
+mkdir ${p}_tmpdir;
+${BOWTIE2} --rg-id ${p} --rg SM:${p} --rg PL:ILLUMINA -I ${i} -X ${x} ${o} -k 3 -t -x ${REFERENCE} -1 ${f1} -2 ${f2} 2> ${p}_bowtie2.log | ${JAVA} -Xmx4g -jar ${PICARD} SortSam MAX_RECORDS_IN_RAM=1000000 SO=coordinate CREATE_INDEX=true TMP_DIR=${p}_tmpdir I=/dev/stdin O=${p}_bowtie2_sorted.bam >& ${p}_bowtie2_sort.log;
+rm -rf ${p}_tmpdir;
+
+ # calculate statistics from the alignments file
+${JAVA} -Xmx3g -jar ${NGSEP} QualStats ${REFERENCE} ${p}_bowtie2_sorted.bam >& ${p}_bowtie2_readpos.stats;
+${JAVA} -Xmx3g -jar ${NGSEP} CoverageStats ${p}_bowtie2_sorted.bam ${p}_bowtie2_coverage.stats >& ${p}_bowtie2_coverage.log;
+${SAMTOOLS} view -F 268 ${p}_bowtie2_sorted.bam | awk '{l=$9;if(l>=0){i=sprintf("%d",l/25)+1;if(i<100)a[i]++;else aM++}}END{for(i=1;i<100;i++)print (i-1)*25,a[i];print "More",aM}' >> ${p}_insertLength.stats;

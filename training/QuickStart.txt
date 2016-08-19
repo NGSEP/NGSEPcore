@@ -1,0 +1,501 @@
+                                 QUICK START
+                              ~~~~~~~~~~~~~~~~~
+A. Requirements
+B. GBS pipeline
+    Start here if you received one or more compressed FASTQ files, from a GBS 
+    experiment, and want to start using NGSEP.
+C. WGS pipeline
+    Start here if you have a directory full of FASTQ files, each for a Whole 
+    Genome Sequencing experiment of a different sample.
+D. Production pipeline
+    We offer bash scripts for parallelizing processes when working with a big 
+    amount of samples.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                          ~~~~~ Requirements ~~~~~
+
+- For basic usage:
+    - Java 1.8    (for using the latest version of picard, otherwise 1.6 is OK)
+    - Reference genome: in FASTA format
+    - Sample files, this can be:
+        - FASTQ files: one for single-end reads or two for paired-end reads;
+                    a single one for all your samples or one for each sample; 
+                    compressed or not.
+        - BAM files: if mapping was already done, the BAM/SAM files for each 
+                    sample.
+- For mapping:
+    - Bowtie2    (sourceforge.net/projects/bowtie-bio/files/bowtie2)
+    - Picard     (github.com/broadinstitute/picard/releases/latest)
+- For annotation:
+    - GFF3 file: corresponding to the reference genome 
+    (as specified in www.sequenceontology.org/gff3.shtml)
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                          ~~~~~ GBS pipeline ~~~~~
+_________________
+0. Deconvolution:
+    {INPUT: single or paired end FASTQ files directly from the sequencer - 
+                     - OUTPUT: one or two FASTQ files for each of your samples}
+
+    - If you haven't done this already, you probably have a huge FASTQ file 
+    with all your samples mixed in it, so the first step would be to classify 
+    them according to their Barcodes, Lane, and Flowcell. If you already have 
+    one FASTQ file per sample, skip this step.
+
+        $ java -jar NGSEPcore_<VERSION>.jar Deconvolute -t <TRIM_SEQ> -o <DIR> -d <LANE_DESCRIPTOR> <INDEX_FILE> >& deconvolution.log
+
+    <FASTQ_FILE> : That huge FASTQ file as it came out from the sequencer.
+    <TRIM_SEQ>   : Adapter sequence for trimming at the end of the reads; IUPAC
+    <DIR>        : Directory where you want to keep your FASTQ files.
+    <INDEX_FILE> : The file containing the classification of each sample, 
+                   it should look like this:
+                  _________________________________________________ 
+                  |Flowcell      Lane      Barcode    sampleID    ...
+                  |CXXKGTWETC    7         ACTCA      SMPL_A      ...
+                  |CXXKGTWETC    7         ACTCG      SMPL_B      ...
+                  |...           ...       ...        ...         ...
+
+    <LANE_DESCRIPTOR> : Tab-delimited File with the location of the files to be
+                        deconvoluted. Columns are: Flowcell, lane, fastq file
+                        (which can be gzip compressed) and a second fastq for 
+                        paired-end reads. looking like this:
+       _________________________________________________ 
+       |CXXKGTWETC    7       /gbs/CXXKGTWETC.fq.gz   
+       |CXKTRDLFJF    3       /gbs/CXKTRDLFJF_1.fq.gz   /gbs/CXKTRDLFJF_2.fq.gz
+       |...           ...     ...                       ...
+       
+___________
+1. Mapping:
+    {INPUT: one or two FASTQ files for each of your samples - 
+                               - OUTPUT: one BAM file for each of your samples}
+
+    - First, build an index of the reference genome. Has to be done only once:
+
+        $ bowtie2-build <REF.fa> <REF_ix>
+
+    - Second, map each of the FASTQ files to the reference genome, and
+    - Third, sort the reads by position in the reference genome:
+
+        * For Paired-End, Illumina reads:
+
+        $ bowtie2 --rg-id <SMPL> --rg <SMPL> --rg PL:ILLUMINA -I <minFL> -X <maxFL> -t -x <REF_ix> -1 <SMPL>_1.fastq -2 <SMPL>_2.fastq 2> <SMPL>_bowtie2.log | java -jar picard.jar SortSam SO=coordinate I=/dev/stdin O=<SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_sort.log
+
+        * For Single-End, Illumina reads:
+
+        $ bowtie2 --rg-id <SMPL> --rg <SMPL> --rg PL:ILLUMINA -t -x <REF_ix> -U <SMPL>.fastq 2> <SMPL>_bowtie2.log | java -jar picard.jar SortSam SO=coordinate I=/dev/stdin O=<SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_sort.log
+
+    - Fourth, check the quality and fragment size of the alignment:
+
+        $ java -jar NGSEPcore_<VERSION>.jar QualStats <REF.fa> <SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_readpos.stats
+    (only for paired end:)
+        $ java -jar picard.jar CollectInsertSizeMetrics I=<SMPL>_bowtie2_sorted.bam O=<SMPL>_bowtie2_insertLength.stats H=<SMPL>_bowtie2_insertLength.pdf
+
+    <REF.fa> : The FASTA file of the reference genome.
+    <REF_ix> : A prefix for the index of the genome; Can be same as <REF.fa>
+    <SMPL>   : The ID of the sample.
+    <minFL>  : Min Fragment Length for valid paired-end alignment, default 0.
+    <maxFL>  : Max Fragment Length for valid paired-end alignment, default 500.
+               (see below: 'runTestInsertLength' to estimate this parameters)
+____________________________________
+2. Variants Detecion and Genotyping:
+    {INPUT: one BAM file for each of your samples -
+         - OUTPUT: a single VCF file with all the variation in your population}
+
+    - First, find all high-quality SNPs in the population, running 
+    the following command for each sample:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+
+        * if you are not sure of how many bases to ignore at each end of the 
+          read, run this command on each of your readpos.stats files:
+
+        $ awk 'BEGIN{n=100}{if ($1=="Alignments"){if(n>l)n=l;x=x/($3*n);print "Average first",n,"bases:",x;print "Read length:",l;for(i=1;i<=l;i++){y=a[i]/$3;if(y>2*x && y>0.02) printf(" %d",i);}print "";} else if ($1!="Bases" && $2>0){a[$1]=$3;if($1<=n)x+=$3;l=$1}}' <SMPL>_bowtie2_readpos.stats
+
+    - Second, collect the position of all the high-quality variants in the 
+    population:
+
+        $ java -jar NGSEPcore_<VERSION>.jar MergeVariants <SEQ_NAMES> variants_list.vcf <VCF_FILES>* >& variants_list.log
+
+    - Third, genotype all your samples in the high-quality positions:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+
+    - Fourth, merge all the genotyped samples in a single VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar MergeVCF <SEQ_NAMES> <VCF_FILES>* 1> population.vcf 2> population.log
+
+    <REF.fa>     : The FASTA file of the reference genome.
+    <SMPL>       : The ID of the sample.
+    <TRIM_5'>    : Number of low quality nucleotides to trim from the 5' end.
+    <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
+    <BWA_ALN>    : For alignments done with BWA or BWA-MEM, include '-ignoreXS'
+    <VCF_FILES>* : List of all the VCF files from the FindVariants step.
+    <SEQ_NAMES>  : File with the name of all the sequences present in the 
+                   reference genome, generate it by running:
+                        $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REF.fa> > <SEQ_NAMES>
+                   it should look like this:
+                   ____________
+                   |Chr1
+                   |Chr2
+                   |Chr3
+                   |...
+______________
+3. Annotation:
+    {INPUT: a single VCF file with all the variation in your population -
+              - OUTPUT: the annotated VCF file with useful statistics about it}
+
+    - Annotate the variants present in the population VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1>population_annotated.vcf
+
+    - Calculate the Summary Statistics for your annotated VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1>population_summary.stats
+
+    - Compare differences between your samples and find possible duplicates:
+
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <SEQ_NAMES> population.vcf population.vcf 1>population_sampleComparation.txt
+
+    <REF.fa>    : The FASTA file of the reference genome.
+    <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
+    <SEQ_NAMES> : File with the name of all the sequences present in the 
+                  reference genome.
+__________
+4. Filter:
+    {INPUT: an annotated VCF file with all the variation in your population -
+              - OUTPUT: a filtered and annotated VCF file from your population}
+
+    - Apply filters as you wish, the following are only some suggestions:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FilterVCF -d 20 -q 20 -s -fi -minI <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs population_annotated.vcf 1> population_annotated_filtered.vcf
+
+    - Check the effects of the filters in the VCF:
+
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 2 population_annotated_filtered.vcf 1>population_filtered_summary.stats
+______________
+5. Imputation:
+    {INPUT: a filtered VCF file from your population -
+                          - OUTPUT: a full VCF file, without any missing value}
+
+    - If you are willing to reduce the number of missing data points in a VCF, 
+    NGSEP offers a module for haplotype imputation:
+
+        $ java -jar NGSEPcore_<VERSION>.jar ImputeVCF population_annotated_filtered.vcf population_annotated_filtered >& population_imputation.log
+__________
+6. Export:
+    {INPUT: a filtered and annotated VCF file from your population -
+         - OUTPUT: the information from your population in any format you want}
+
+    - That's it! at this point you have the full VCF for your study population,
+    it has:
+        - high quality SNPs
+        - no duplicate samples
+        - functional annotation
+        - no missing data points
+    - For further analysis, export your VCF file into one of the most common 
+    formats for NGS analysis:
+
+        $ java -jar NGSEPcore_<VERSION>.jar ConvertVCF -print<FORMAT> population_annotated_filtered_imputed.vcf population
+
+    <FORMAT> : Any of the following formats: Structure, Fasta, rrBLUP, Matrix, 
+               HapMap, Spagedi, Plink, Haploview, Emma, PowerMarker, Eigensoft,
+               Flapjack, Darwin, TreeMix, JoinMap, Phase.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                          ~~~~~ WGS pipeline ~~~~~
+___________
+1. Mapping:
+    {INPUT: one or two FASTQ files for each of your samples -
+                               - OUTPUT: one BAM file for each of your samples}
+
+    - First, build an index of the reference genome. Has to be done only once:
+
+        $ bowtie2-build <REF.fa> <REF_ix>
+
+    - Second, map each of the FASTQ files to the reference genome, and
+    - Third, sort the reads by position in the reference genome:
+
+        * For Paired-End, Illumina reads:
+
+        $ bowtie2 --rg-id <SMPL> --rg <SMPL> --rg PL:ILLUMINA -I <minFL> -X <maxFL> -k 3 -t -x <REF_ix> -1 <SMPL>_1.fastq -2 <SMPL>_2.fastq 2> <SMPL>_bowtie2.log | java -jar picard.jar SortSam SO=coordinate I=/dev/stdin O=<SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_sort.log
+
+        * For Single-End, Illumina reads:
+
+        $ bowtie2 --rg-id <SMPL> --rg <SMPL> --rg PL:ILLUMINA -k 3 -t -x <REF_ix> -U <SMPL>.fastq 2> <SMPL>_bowtie2.log | java -jar picard.jar SortSam SO=coordinate I=/dev/stdin O=<SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_sort.log
+
+    - Fourth, check the quality and fragment size of the alignment:
+
+        $ java -jar NGSEPcore_<VERSION>.jar QualStats <REF.fa> <SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_readpos.stats
+        $ java -jar NGSEPcore_<VERSION>.jar CoverageStats <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_coverage.stats >& <SMPL>_bowtie2_coverage.log
+        $ java -jar picard.jar CollectInsertSizeMetrics I=<SMPL>_bowtie2_sorted.bam O=<SMPL>_bowtie2_insertLength.stats H=<SMPL>_bowtie2_insertLength.pdf
+
+    <REF.fa> : The FASTA file of the reference genome.
+    <REF_ix> : A prefix for the index of the genome; Can be same as <REF.fa>
+    <SMPL>   : The ID of the sample.
+    <minFL>  : Min Fragment Length for valid paired-end alignment, default 0.
+    <maxFL>  : Max Fragment Length for valid paired-end alignment, default 500.
+               (see below: 'runTestInsertLength' to estimate this parameters)
+____________________________________
+2. Variants Detecion and Genotyping:
+    {INPUT: one BAM file for each of your samples -
+         - OUTPUT: a single VCF file with all the variation in your population}
+
+    - First, find all high-quality SNPs in the population, running the 
+    following command for each sample:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+
+        * if you are not sure of how many bases to ignore at each end of the 
+          read, run this command on each of your readpos.stats files:
+
+        $ awk '{if($5>0){a[$1]=$3;l=$1}if($1=="Alignments"){print "Read length:",l;print "Positions to ignore:";for(i=1;i<=l;i++){y=a[i]/$3;if(y>0.02)printf(" %d",i);}print "";}}' <SMPL>_bowtie2_readpos.stats
+
+    - Second, collect the position of all the high-quality variants in the 
+    population:
+
+        $ java -jar NGSEPcore_<VERSION>.jar MergeVariants <SEQ_NAMES> variants_list.vcf <VCF_FILES>* >& variants_list.log
+
+    - Third, genotype all your samples in the high-quality positions:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -algCNV CNVnator,EWT -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+
+    - Fourth, merge all the genotyped samples in a single VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar MergeVCF <SEQ_NAMES> <VCF_FILES>* 1> population.vcf 2> population.log
+
+    <REF.fa>     : The FASTA file of the reference genome.
+    <SMPL>       : The ID of the sample.
+    <TRIM_5'>    : Number of low quality nucleotides to trim from the 5' end.
+    <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
+    <BWA_ALN>    : For alignments done with BWA or BWA-MEM, include '-ignoreXS'
+    <VCF_FILES>* : List of all the VCF files from the FindVariants step.
+    <SEQ_NAMES>  : File with the name of all the sequences present in the 
+                   reference genome, generate it by running:
+                        $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REF.fa> > <SEQ_NAMES>
+                   It should look like this:
+                   ____________
+                   |Chr1
+                   |Chr2
+                   |Chr3
+                   |...
+______________
+3. Annotation:
+    {INPUT: a single VCF file with all the variation in your population -
+              - OUTPUT: the annotated VCF file with useful statistics about it}
+
+    - Annotate the variants present in the population VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1>population_annotated.vcf
+
+    - Calculate the Summary Statistics for your annotated VCF file:
+
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1>population_summary.stats
+
+    - Compare differences between your samples and find possible duplicates:
+
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <SEQ_NAMES> population.vcf population.vcf 1>population_sampleComparation.txt
+
+    <REF.fa>    : The FASTA file of the reference genome.
+    <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
+    <SEQ_NAMES> : File with the name of all the sequences present in the 
+                  reference genome.
+__________
+4. Filter:
+    {INPUT: an annotated VCF file with all the variation in your population -
+              - OUTPUT: a filtered and annotated VCF file from your population}
+
+    - Apply filters as you wish, the following are only some suggestions:
+
+        $ java -jar NGSEPcore_<VERSION>.jar FilterVCF -d 20 -q 40 -s -fi -minI <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs population_annotated.vcf 1> population_annotated_filtered.vcf
+
+    - Check the effects of the filters in the VCF:
+
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m <85%_of_samples> population_annotated_filtered.vcf 1>population_filtered_summary.stats
+__________
+5. Export:
+    {INPUT: a filtered and annotated VCF file from your population -
+         - OUTPUT: the information from your population in any format you want}
+
+    - That's it! at this point you have the full VCF for your study population,
+    it has:
+        - high quality SNPs
+        - no duplicate samples
+        - functional annotation
+        - few missing data points
+    - For further analysis, export your VCF file into one of the most common 
+    formats for NGS analysis:
+
+        $ java -jar NGSEPcore_<VERSION>.jar ConvertVCF -print<FORMAT> population_annotated_filtered_imputed.vcf population
+
+    <FORMAT> : Any of the following formats: Structure, Fasta, rrBLUP, Matrix, 
+               HapMap, Spagedi, Plink, Haploview, Emma, PowerMarker, Eigensoft,
+               Flapjack, Darwin, TreeMix, JoinMap, Phase.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                        ~~~~~ Production pipeline ~~~~~
+
+To perfom each of the above mentioned tasks in a large number of samples, 
+a list of scripts are available at:
+
+        https://sourceforge.net/projects/ngsep/files/Library/scripts/
+
+The available scripts are:
+  for mapping:                                       	runMapping
+  for variants discovery:                            	runNGSEP
+  for samples genotyping:                            	runGenotyping
+  for estimating the insert length of a sample:     	runTestInsertLength
+  for obtaining low quality positions from statistics:  calculateReadposStatsPeaks
+
+These scripts facilitate running the NGSEP pipeline in a bash environment. 
+
+> Before running these scripts, the following set up steps must be performed: <
+_____
+1. Create a directory called "reads" and locate your fastq files in this 
+directory. The scripts assume that reads are paired-end, fastq files are 
+compressed (with gzip), and for each sample the file names have the following 
+format:
+<SAMPLE_NAME>_1.fastq.gz
+<SAMPLE_NAME>_2.fastq.gz
+_____
+2. Create a subdirectory at the same level of the "reads" directory 
+(usually called "mapping"), and place the scripts in this directory.
+_____
+3. Download and decompress bowtie2, in any directory:
+http://sourceforge.net/projects/bowtie-bio/files/bowtie2
+The scripts do not require that you install it, which is convinient for cases 
+when you do not have root access. Edit the scripts "runTestInsertLength" and 
+"runMapping" and change the value of the variable "BOWTIE2" to indicate the
+full path where bowtie2 is located.
+_____
+4. Save the reference in a single fasta file and index it with bowtie2-build 
+using the following command:
+
+  $ /path/to/bowtie2/bowtie2-2.2.4/bowtie2-build reference.fa reference.fa
+
+This can be done at any directory in the file system but this directory needs 
+to be set changing the variable "REFERENCE" in each script. Also, create a 
+separate text file with the chromosome (scaffold) names, like this:
+
+  $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' reference.fa > reference_seqNames.txt
+
+This file will be used during the merging steps.
+_____
+5. Download the jar file NGSEPcore_<VERSION>.jar from the NGSEP site:
+http://sourceforge.net/projects/ngsep/files/Library/ 
+and picard.jar from the Picard site, you will need java 1.8 to run picard:
+https://github.com/broadinstitute/picard/releases/latest 
+and place them in a convenient directory. Again this can be any directory but it needs 
+to be indicated to the scripts changing the variables "PICARD" and "NGSEP". 
+The scripts "runMapping", "runNGSEP" and "runGenotyping" do not have a version 
+number for the file NGSEPcore.jar; either create a symbolic link without the 
+version number:
+
+  $ ln -s NGSEPcore_<VERSION>.jar NGSEPcore.jar
+
+or set the right version in the variable "NGSEP" of each script.
+_____
+6. Grant execution parameters to every script using the following command;
+
+  $ chmod 755 run* calculateReadposStatsPeaks
+
+Finally, the scripts assume that you are working in a 64 bit environment and 
+that both java and bowtie2 are downloaded and run in 64-bit mode.
+
+        _____________________________________________________________
+  #     These are the steps we usually follow to process FASTQ files:      #
+_____
+1. Estimate the insert size distribution. 
+The script for this is "runTestInsertLength". It requires only one parameter, 
+which is the sample name. Usage is as follows:
+
+  $ ./runTestInsertLength <SAMPLE_NAME>
+
+This script takes the first 250000 fragments, aligns them to the genome and 
+provides a distribution of the observed insert lengths based on the alignments.
+This distribution can be used to decide the minimum and maximum insert lengths 
+for the next step. 
+The script has a second optional parameter which can be used to indicate 
+bowtie2 that base quality scores are in phred+64 format. 
+In that case, the usage is:
+
+  $ ./runTestInsertLength <SAMPLE_NAME> --phred64
+_____
+2. Align reads to the reference and sort alignments. 
+This scripts receives the sample name, the minimum insert length and the 
+maximum insert length. For example, if the minimum and maximum insert lengths 
+obtained in the previous step are 200 and 400 respectively, the command is:
+
+  $ ./runMapping <SAMPLE_NAME> 200 400
+
+This script also has an optional parameter to indicate bowtie2 that base 
+quality scores are in phred+64 format. In that case, the usage is:
+
+  $ ./runMapping <SAMPLE_NAME> 200 400 --phred64
+
+Besides the bam files with the aligned reads and with the sorted aligned reads,
+this script creates the following files: 
+  <SAMPLE_NAME>_bowtie2_readpos.stats  
+  <SAMPLE_NAME>_bowtie2_coverage.stats 
+with quality statistics (differences against the reference genome) and with 
+the coverage distribution. The quality statistics can be inspected manually to 
+determine how many bases should be ignored in the 5' end and/or in the 3' end 
+respectively to call variants. This information can also be calculated using 
+the script "calculateReadposStatsPeaks". 
+This script calculates the average percentage of differences in the first 75 bp
+and then reports read positions (from 5' to 3') in which the percentage of 
+differences with the reference is more than 2% and more than two times the 
+average. The usage is as follows:
+
+  $ ./calculateReadposStatsPeaks <SAMPLE_NAME>_bowtie2_readpos.stats
+_____
+3. Call variants against the reference using NGSEP. 
+The script runNGSEP has three parameters: sample name, number of bases to 
+ignore in the 5' end and number of bases to ignore in the 3' end. 
+For example, if the previous step suggests that we should ignore 2bp in the 5' 
+end and 4bp in the 3' end, the command would be:
+
+  $ ./runNGSEP <SAMPLE_NAME> 2 4
+
+If all base calls should be taken into account, just include two zeros:
+
+  $ ./runNGSEP <SAMPLE_NAME> 0 0
+_____
+4. Merge variants from different samples. 
+This step is used to determine the sites in which at least one sample has 
+a genotype different than the reference. More stringent filters can be done 
+at later stages. The command for this is MergeVariants, should look like this:
+
+  $ java -jar /path/to/NGSEPcore_<VERSION>.jar MergeVariants /path/to/reference/reference_seqNames.txt AllSamples_variants.vcf *_NGSEP.vcf
+
+The file "AllSamples_variants.vcf" is the output file containing all genomic 
+locations with some evidence of variation, as explained above. This file still 
+does not contain any genotype call for any sample. 
+The file can have any name but this name should be updated in the script 
+"runGenotyping" (variable KNOWN_VARS) in order to run the next step.
+_____
+5. Genotype samples on the sites identified in the previous step. 
+This is done with the script "runGenotyping", which has the same usage of 
+"runNGSEP":
+
+  $ ./runGenotyping <SAMPLE_NAME> 2 4
+
+This should be executed sample by sample. At the end, the files *_NGSEP_gt.vcf 
+will contain genotype calls for all sites identified in the step 4 (including 
+reference calls).
+Usually we do not include quality filters at this stage to retain as much 
+information as possible. The quality filter can be done with the FilterVCF 
+command of NGSEP.
+_____
+6. Final merge of the genotype files. 
+This is done with the MergeVCF command of NGSEP as follows:
+
+  $ java -jar /path/to/NGSEPcore_<VERSION>.jar MergeVCF /path/to/reference/reference_seqNames.txt *_NGSEP_gt.vcf > AllSamples_genotypes.vcf
+
+The file "AllSamples_genotypes.vcf" will be the final file with genotype calls 
+for every site identified in the step 4 and for every sample analyzed. 
+This file can be annotated, filtered and converted to other formats using NGSEP
+as explained in the README

@@ -1,0 +1,94 @@
+<tool id="NGSEP_ConvertVCF" name="Convert VCF Files" version="3.0.1">
+  <description> to other file formats</description>
+  <command>
+java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.1.jar ConvertVCF 
+  #if str($formats) != "None":
+      #for $format in str($formats).split(','):
+          -print${format}
+      #end for
+  #end if
+
+  #if $treemix_file
+      -p $treemix_file
+  #end if
+  #if $parent1
+      -p1 $parent1
+  #end if
+  #if $parent2
+      -p2 $parent2
+  #end if
+  #if $sequence
+      -s $sequence
+  #end if
+
+  $input ./prefix >log 2>&amp;1
+  </command>
+  <inputs>
+    <param name="input" type="data" format="vcf" label="Input VCF File"/>
+    <param name="formats" type="select" label="Select file formats to convert genotype calls" multiple="true" display="checkboxes">
+      <option value="Structure">Structure</option>
+      <option value="Fasta">FASTA</option>
+      <option value="rrBLUP">rrBLUP</option>
+      <option value="Matrix">matrix</option>
+      <option value="Hapmap">HapMap</option>
+      <option value="Spagedi">SPAGeDI</option>
+      <option value="Plink">PLINK</option>
+      <option value="Haploview">Haploview</option>
+      <option value="Emma">EMMA</option>
+      <option value="PowerMarker">PowerMarker</option>
+      <option value="Eigensoft">EIGENSOFT</option>
+      <option value="Flapjack">Flapjack</option>
+      <option value="Darwin">DARwin</option>
+      <option value="TreeMix">TreeMix (*aditional input required,see below)</option>
+      <option value="JoinMap">JoinMap (*aditional input required,see below)</option>
+      <option value="Phase">PHASE (*aditional input required,see below)</option>
+    </param>
+
+    <param name="treemix_file" type="data" format="txt" optional="true" label="File with population assignments for each sample" help="file should have two columns: sample ids and populations ids"/>
+    <param name="parent1" type="text" label="Id of the first parent for conversion to JoinMap"/>
+    <param name="parent2" type="text" label="Id of the second parent for conversion to JoinMap"/>
+    <param name="sequence" type="text" label="Name of the sequence (chromosome) for conversion to PHASE "/>
+
+  </inputs>
+  <outputs>
+    <data format="snpmatrix" name="output_structure" label="VCF to Structure $input.display_name" from_work_dir="prefix_structure.in"/>
+    <data format="fasta" name="output_fasta" label="VCF to FASTA $input.display_name" from_work_dir="prefix_aln.fa"/>
+    <data format="txt" name="output_rrBLUP1" label="VCF to rrBLUP (.in) $input.display_name" from_work_dir="prefix_rrBLUP.in"/>
+    <data format="txt" name="output_rrBLUP2" label="VCF to rrBLUP (.samples) $input.display_name" from_work_dir="prefix_rrBLUP_samples.txt"/>
+    <data format="txt" name="output_matrix" label="VCF to matrix $input.display_name" from_work_dir="prefix_genotypes.txt"/>
+    <data format="txt" name="output_hapmap" label="VCF to HapMap $input.display_name" from_work_dir="prefix_hmp.txt"/>
+    <data format="txt" name="output_spagedi" label="VCF to SPAGeDI $input.display_name" from_work_dir="prefix_spagedi.in"/>
+    <data format="txt" name="output_plink1" label="VCF to PLINK (.map) $input.display_name" from_work_dir="prefix.map"/>
+    <data format="txt" name="output_plink2" label="VCF to PLINK (.ped) $input.display_name" from_work_dir="prefix.ped"/>
+    <data format="txt" name="output_haploview" label="VCF to Haploview $input.display_name" from_work_dir="prefix.info"/>
+    <data format="txt" name="output_emma" label="VCF to EMMA $input.display_name" from_work_dir="prefix_emma.in"/>
+    <data format="txt" name="output_powerMarker1" label="VCF to PowerMarker (.in) $input.display_name" from_work_dir="prefix_powermarker.in"/>
+    <data format="txt" name="output_powerMarker2" label="VCF to PowerMarker (.snp) $input.display_name" from_work_dir="prefix_powermarker.snp"/>
+    <data format="txt" name="output_eigensoft1" label="VCF to EIGENSOFT (.geno) $input.display_name" from_work_dir="prefix_eigensoft.geno"/>
+    <data format="txt" name="output_eigensoft2" label="VCF to EIGENSOFT (.snp) $input.display_name" from_work_dir="prefix_eigensoft.snp"/>
+    <data format="txt" name="output_eigensoft3" label="VCF to EIGENSOFT (.ind) $input.display_name" from_work_dir="prefix_eigensoft.ind"/>
+    <data format="txt" name="output_flapjack1" label="VCF to Flapjack (.map) $input.display_name" from_work_dir="prefix_flapjack.map"/>
+    <data format="txt" name="output_flapjack2" label="VCF to Flapjack (.gen) $input.display_name" from_work_dir="prefix_flapjack.gen"/>
+    <data format="txt" name="output_darwin1" label="VCF to DARwin (.in) $input.display_name" from_work_dir="prefix_Darwin.in"/>
+    <data format="tabular" name="output_darwin2" label="VCF to DARwin (.snp) $input.display_name" from_work_dir="prefix_Darwin.snp"/>
+    <data format="txt" name="output_treemix" label="VCF to TreeMix $input.display_name" from_work_dir="prefix_tree.txt"/>
+    <data format="txt" name="output_joinmap" label="VCF to JoinMap $input.display_name" from_work_dir="prefix.txt"/>
+    <data format="txt" name="output_phase" label="VCF to Phase $input.display_name" from_work_dir="prefix_Chr01_phase.inp"/>
+  </outputs>
+  <help>
+
+**What it does**
+
+Export genotype calls from VCF format to other formats commonly used in downstream analysis.
+
+-----
+
+.. class:: infomark
+
+For details about this tool, please visit https://sourceforge.net/projects/ngsep/
+
+  </help>
+  <citations>
+    <citation type="doi">10.1093/nar/gkt1381</citation>
+  </citations>
+</tool>

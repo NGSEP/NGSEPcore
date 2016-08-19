@@ -1,0 +1,1 @@
+awk 'BEGIN{n=60}{if(NF==5 && $5>0){p=$3/$5;a[$1]=p;if($1<=n)x+=p;l=$1}else if ($1=="Alignments"){if(n>l)n=l;x=x/n;print "Average first",n,"bases:",x;print "Read length:",l;for (i=1;i<=l;i++){y=a[i];if(y>2*x && y>0.02) printf(" %d",i);}print "";}}' $1;

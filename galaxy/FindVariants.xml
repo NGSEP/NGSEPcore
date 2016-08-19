@@ -1,0 +1,297 @@
+<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.0.1">
+  <description> Call SNVs, indels, and Structural Variation</description>
+  <command>
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.1.jar FindVariants 
+      -h $h
+      -ploidy $ploidy
+      $psp
+  #if len(str($sampleId)) == 0
+      -sampleId $input.display_name
+  #else
+      -sampleId $sampleId
+  #end if
+      $ignoreXS
+
+  #if $mode.analysis_mode == "genotype"
+      -knownVariants $mode.knownVariants
+  #end if
+  #if $knownSVs
+      -knownSVs $knownSVs
+  #end if
+  #if $knownSTRs
+      -knownSTRs $knownSTRs
+  #end if
+
+  #if $reference.ref_params == "all"
+      -genotypeAll
+  #else if $reference.ref_params == "region"
+      -querySeq $reference.querySeq
+      #if $reference.first
+          -first $reference.first
+      #end if
+      #if $reference.last
+          -last $reference.last
+      #end if
+  #end if
+      $ignoreLowerCaseRef
+
+  #if $reads.read_params == "default"
+      -maxBaseQS 30
+  #else if $reads.read_params == "advanced"
+      -maxBaseQS $reads.maxBaseQS
+      -ignore5 $reads.ignore5
+      -ignore3 $reads.ignore3
+      $reads.s    
+  #end if
+
+  #if $calls.run_params == "gbs"
+      -noRep -noRD -noRP
+
+      #if $calls.SNVs_gbs.runSNVs_gbs == "default"
+          #if $mode.analysis_mode == "discover"
+              -minQuality 40
+          #end if
+          -maxAlnsPerStartPos 100
+      #else if $calls.SNVs_gbs.runSNVs_gbs == "advanced"
+          -minQuality $calls.SNVs_gbs.minQuality
+          -minAltCoverage $calls.SNVs_gbs.minAltCoverage
+          -maxAltCoverage $calls.SNVs_gbs.maxAltCoverage
+          -maxAlnsPerStartPos $calls.SNVs_gbs.maxAlnsPerStartPos
+          $calls.SNVs_gbs.embeddedSNVs
+      #end if
+
+  #else if $calls.run_params == "wgs"
+
+      #if $calls.SNVs_wgs.runSNVs_wgs == "no"
+          -noSNVS
+      #else if $calls.SNVs_wgs.runSNVs_wgs == "default"
+          #if $mode.analysis_mode == "discover"
+              -minQuality 40
+          #end if
+          -maxAlnsPerStartPos 2
+      #else if $calls.SNVs_wgs.runSNVs_wgs == "advanced"
+          -minQuality $calls.SNVs_wgs.minQuality
+          -minAltCoverage $calls.SNVs_wgs.minAltCoverage
+          -maxAltCoverage $calls.SNVs_wgs.maxAltCoverage
+          -maxAlnsPerStartPos $calls.SNVs_wgs.maxAlnsPerStartPos
+          $calls.SNVs_wgs.embeddedSNVs
+      #end if
+
+      #if $calls.SVs.runSVs
+          -minSVQuality $calls.SVs.minSVQuality
+          $calls.SVs.noRep
+          #if $calls.SVs.RD_analysis.noRD == "no"
+              -noRD
+          #else if $calls.SVs.RD_analysis.noRD == "advanced"
+              #if $calls.SVs.RD_analysis.noNewCNV == "old"
+                  -noNewCNV
+              #end if
+              #if $calls.SVs.RD_analysis.genomeSize
+                  -genomeSize $calls.SVs.RD_analysis.genomeSize
+              #end if
+              -binSize $calls.SVs.RD_analysis.binSize
+              -maxPCTOverlapCNVs $calls.SVs.RD_analysis.overlap
+              -algCNV $calls.SVs.RD_analysis.algorithm
+          #end if
+          #if $calls.SVs.RP_analysis.noRP == "no"
+              -noRP
+          #else if $calls.SVs.RP_analysis.noRP == "advanced"
+              #if $calls.SVs.RP_analysis.ignoreProperPairFlag
+                  -ignoreProperPairFlag
+              #end if
+              -maxLenDeletion $calls.SVs.RP_analysis.maxLenDeletion
+              -sizeSRSeed $calls.SVs.RP_analysis.sizeSRSeed
+          #end if
+      #else
+          -noRep -noRD -noRP
+      #end if
+
+  #end if
+
+  $ref $input ./prefix 1> ./log 2>&amp;1
+  </command>
+  <inputs>
+    <param name="input" type="data" format="bam" label="Input Alignments File (BAM format)"/>
+    <param name="ref" type="data" format="fasta" label="Input Reference Genome (FASTA format)"/>
+    <param name="sampleId" type="text" label="* Sample Id (mandatory)" help="don't include whitespaces"/>
+    <param name="h" type="float" min="0" value="0.001" label="Heterozygosity rate"/>
+    <param name="ploidy" type="integer" min="1" value="2" label="Ploidy"/>
+    <param name="psp" type="boolean" truevalue="-psp" falsevalue="" label="Print sample ploidy" help="include this information in the header of the VCF file"/>
+    <param name="ignoreXS" type="boolean" truevalue="-ignoreXS" falsevalue="" label="Ignore optional field XS in BAM alignment" help="*necessary to process BAM files made with BWA-MEM and BWA-SW*"/>
+    
+    <conditional name="mode">
+      <param name="analysis_mode" type="select" label="What kind of analysis will be performed?">
+        <option value="discover">Variants Discovery</option>
+        <option value="genotype">Variants Genotyping</option>
+      </param>
+      <when value="genotype">
+        <param name="knownVariants" type="data" format="vcf" optional="true" label="Known Variants database (VCF)"/>
+      </when>
+    </conditional>
+    <param name="knownSVs" type="data" format="gff" optional="true" label="Known Structural Variants file (GFF)"/>
+    <param name="knownSTRs" type="data" format="txt" optional="true" label="Known Short Tandem Repeats (STRs)" help="text file with three columns: chromosome, first and last position. Positions are 1-based and inclusive"/>
+    
+    <conditional name="reference">
+      <param name="ref_params" type="select" label="Reference Genome Parameters">
+        <option value="default">Standard genotyping (only variant positions)</option>
+        <option value="all">Genotype all positions in the reference (*Caution! HUGE output)</option>
+        <option value="region">Genotype only a region of the genome</option>
+      </param>
+      <when value="region">
+        <param name="querySeq" type="text" label="Query sequence name" help="chromosome or scaffold name"/>
+        <param name="first" type="integer" optional="true" min="1" label="Start position"/>
+        <param name="last" type="integer" optional="true" label="End position"/>
+      </when>
+    </conditional>
+    <param name="ignoreLowerCaseRef" type="boolean" truevalue="-ignoreLowerCaseRef" falsevalue="" label="Ignore lowercase positions in the reference (soft-masked)" help="hard-mask them"/>
+
+    <conditional name="reads">
+      <param name="read_params" type="select" label="Reads and Alingment Quality Parameters">
+        <option value="default">Default parameters</option>
+        <option value="advanced">Advanced parameters</option>
+      </param>
+      <when value="advanced">
+        <param name="maxBaseQS" type="integer" optional="true" value="30" label="Maximum base quality"/>
+        <param name="ignore5" type="integer" min="0" optional="true" value="0" label="Ignore bases on the 5' end of the read"/>
+        <param name="ignore3" type="integer" min="0" optional="true" value="0" label="Ignore bases on the 3' end of the read"/>
+        <param name="s" type="boolean" truevalue="-s" falsevalue="" label="Include secondary alignments"/>
+      </when>
+    </conditional>
+    
+    <conditional name="calls">
+      <param name="run_params" type="select" label="Variant Calling Parameters">
+        <option value="gbs">Genotyping by Sequencing (GBS) Analysis</option>
+        <option value="wgs">Whole Genome Sequencing (WGS) Analysis</option> 
+      </param>
+      <when value="gbs">
+
+        <conditional name="SNVs_gbs">
+          <param name="runSNVs_gbs" type="select" label="Single Nucleotide Variation (SNV) and small indel detection">
+            <option value="default">Default Parameters</option>
+            <option value="advanced">Advanced Parameters</option>
+          </param>
+          <when value="advanced">
+            <param name="minQuality" type="integer" min="0" value="40" label="Minimum genotype quality"/>
+            <param name="minAltCoverage" type="integer" min="0" optional="true" value="0" label="Minimum alternative allele coverage"/>
+            <param name="maxAltCoverage" type="integer" optional="true" value="0" label="Maximum alternative allele coverage"/>
+            <param name="maxAlnsPerStartPos" type="integer" min="0" optional="true" value="100" label="Maximum number of alignments per start position"/>
+            <param name="embeddedSNVs" type="boolean" truevalue="-embeddedSNVs" falsevalue="" label="Call SNVs within Short Tandem Repeats (STRs)" help="by default STRs are treated as a single locus, and no SNV are called within them"/>
+          </when>
+        </conditional>
+
+      </when>
+      <when value="wgs">
+
+        <conditional name="SNVs_wgs">
+          <param name="runSNVs_wgs" type="select" label="Single Nucleotide Variation (SNV) and small indel detection">
+            <option value="default">Default Parameters</option>
+            <option value="advanced">Advanced Parameters</option>
+            <option value="no">Skip Analysis</option>
+          </param>
+          <when value="advanced">
+            <param name="minQuality" type="integer" min="0" value="40" label="Minimum genotype quality"/>
+            <param name="minAltCoverage" type="integer" min="0" optional="true" value="0" label="Minimum alternative allele coverage"/>
+            <param name="maxAltCoverage" type="integer" optional="true" value="0" label="Maximum alternative allele coverage"/>
+            <param name="maxAlnsPerStartPos" type="integer" min="0" optional="true" value="2" label="Maximum number of alignments per start position"/>
+            <param name="embeddedSNVs" type="boolean" truevalue="-embeddedSNVs" falsevalue="" label="Call SNVs within Short Tandem Repeats (STRs)" help="by default STRs are treated as a single locus, and no SNV are called within them"/>
+          </when>
+        </conditional>
+
+        <conditional name="SVs">
+          <param name="runSVs" type="boolean" checked="true" label="Structural Variants (SV) detection (repeats, large indels, inversions and CNVs)"/>
+          <when value="true">
+            <param name="minSVQuality" type="integer" min="0" value="20" label="Minimum quality to report Structural Variations"/>
+            <param name="noRep" type="boolean" checked="true" truevalue="" falsevalue="-noRep" label="Repetitive regions analysis"/>
+            
+            <conditional name="RD_analysis">
+              <param name="noRD" type="select" label="Read-Depth analysis to identify Copy Number Variations (CNVs)">
+                <option value="default">Default Parameters</option>
+                <option value="advanced">Advanced Parameters</option>
+                <option value="no">Skip Analysis</option>
+              </param>
+              <when value="advanced">
+                <param name="noNewCNV" type="select" label="CNVs detection">
+                  <option value="new">Find new CNVs</option>
+                  <option value="old">Genotype only known CNVs (from gff file, see above)</option>
+                </param>
+                <param name="binSize" type="integer" min="0" value="100" label="Bin size"/>
+                <param name="genomeSize" type="integer" optional="true" label="Genome size" help="necessary for partial genome analysis (e.g. only Chr1)"/>
+                <param name="overlap" type="integer" min="0" max="100" value="100" label="Report CNVs overlapping with repetitive regions in Maximum X% of their length" help="X=100 reports all CNVs"/>
+                <param name="algorithm" type="select" display="checkboxes" multiple="true" label="Select algorithm for CNV detection">
+                  <option value="CNVnator" selected="true">CNVnator</option>
+                  <option value="EWT">EWT (RDXplorer)</option>
+                </param>
+              </when>
+            </conditional>
+            
+            <conditional name="RP_analysis">
+              <param name="noRP" type="select" label="Read-Pair analysis to identify Structural Variants">
+                <option value="default">Default Parameters</option>
+                <option value="advanced">Advanced Parameters</option>
+                <option value="no">Skip Analysis</option>
+              </param>
+              <when value="advanced">
+                <param name="ignoreProperPairFlag" type="boolean" truevalue="-ignoreProperPairFlag" falsevalue="" label="Ignore proper-pair flag from SAM/BAM alignment"/>
+                <param name="maxLenDeletion" type="integer" min="0" value="1000000" label="Maximum size for deletions"/>
+                <param name="sizeSRSeed" type="integer" min="0" value="8" label="Seed size for Split-Read analysis"/>
+              </when>
+            </conditional>
+            
+          </when>
+        </conditional>
+
+      </when>
+    </conditional>
+
+  </inputs>
+  <outputs>
+    <data name="output_log" format="txt" label="Log Variants Detector in $input.display_name $sampleId" from_work_dir="log"/>
+    <data name="output_gff" format="gff" label="NGSEP GFF $sampleId ($mode.analysis_mode)" from_work_dir="prefix_SV.gff"/>
+          <filter>$calls.SVs.runSVs</filter>
+    <data name="output_vcf" format="vcf" label="NGSEP VCF $sampleId ($mode.analysis_mode)" from_work_dir="prefix.vcf"/>
+  </outputs>
+  <help>
+
+**What it does**
+
+The Variants Detector, performs accurate detection and genotyping of Single Nucleotide Variants (SNVs), small and large indels, and Copy Number Variants (CNVs).
+
+-----
+
+**Input format**
+
+  1. Alignments should be provided in the binary version of the SAM V-0.1.2 format: BAM_
+  2. Reference genome should be provided in FASTA format.
+
+.. _BAM: http://samtools.sourceforge.net
+
+**Output format**
+
+ 1. Single Nucleotide Variants (SNVs) and small Indels are reported in a VCF_ file. 
+ 2. Structural Variants, including large Indels, Inversions and Copy Number Variations (CNVs) are reported in a GFF_ file. 
+
+.. _VCF: http://www.1000genomes.org/node/101
+.. _GFF: http://www.sequenceontology.org/gff3.shtml
+
+-----
+
+.. class:: infomark
+
+VCF files produced by the variants detector include the custom field CNV in the INFO column for each SNV or small indel, which in general reports the number of samples in which a CNV covers the SNV or small indel. SNV calls also include the genotype field AAC which will report the number of As, Cs, Gs , and Ts observed in the reads.
+
+.. class:: infomark
+
+Besides the genomic coordinates and the quality information, this gff will contain the algorithm that originated each variant call, which allows to differentiate calls from the repetas detector, the read depth analysis, and the read pair analysis. This gff can be directly loaded as a custom annotation file in gbrowse or in the UCSC genome browser to visualize the genomic regions with structural variants and to relate them with functional elements. This file can also be used as a parameter of the variants detector (option "-knownSVs") which is useful to avoid recalculation of structural variants while genotyping known variants.
+
+.. class:: infomark
+
+For details about this tool, please visit https://sourceforge.net/projects/ngsep/
+
+  </help>
+  <citations>
+    <citation type="doi">10.1093/nar/gkt1381</citation>
+    <citation type="doi">10.1186/1471-2164-13-S2-S6</citation>
+    <citation type="doi">10.1101/gr.114876.110</citation>
+    <citation type="doi">10.1101/gr.092981.109</citation>
+  </citations>
+</tool>

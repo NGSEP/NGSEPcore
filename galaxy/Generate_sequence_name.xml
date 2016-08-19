@@ -1,0 +1,24 @@
+<tool id="NGSEP_GetSequenceName" name="Get sequence names" version="3.0.1">
+  <description> from a FASTA file</description>
+  <command>
+awk '{ if( substr($1,1,1) == ">" ) print substr($1,2) }' $ref >$output
+  </command>
+  <inputs>
+    <param name="ref" type="data" format="fasta" label="Reference genome"/>
+  </inputs>
+  <outputs>
+    <data name="output" format="txt" label="Sequence Names of $ref.display_name"/>
+  </outputs>
+  <help>
+
+**What it does**
+
+The sequence names file is a text file which has the ids of the sequences in the reference. It is used by the
+program to determine the order of the reference sequences.
+
+.. class:: informark
+
+This file is required for some analyses in the NGSEP pipeline.
+
+  </help>
+</tool>

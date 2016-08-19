@@ -1,0 +1,16 @@
+p=$1;
+f=$2;
+t=$3;
+
+ # input files
+REFERENCE=/path/to/reference/reference.fa;
+KNOWN_VARS=AllSamples_variants.vcf;
+
+ # software variables. Write paths only if you can not install the programs or can not use installed versions
+JAVA="/path/to/java -d64 -XX:MaxHeapSize=1g";
+
+ # jars for java packages
+NGSEP=/path/to/NGSEPcore.jar;
+
+ #
+$JAVA -Xmx7g -jar ${NGSEP} FindVariants -noRep -noRD -noRP -ignore5 ${f} -ignore3 ${t} -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId ${p} -knownVariants ${KNOWN_VARS} ${REFERENCE} ${p}_bowtie2_sorted.bam ${p}_bowtie2_NGSEP_gt >& ${p}_bowtie2_NGSEP_gt.log;
