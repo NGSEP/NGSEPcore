@@ -36,6 +36,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+/**
+ * Class to handle the different commands available in NGSEP
+ * @author Jorge Duitama
+ *
+ */
 public class CommandsDescriptor {
 	public static final String ATTRIBUTE_VERSION="version";
 	public static final String ATTRIBUTE_DATE="date";
@@ -59,12 +64,18 @@ public class CommandsDescriptor {
 	private Map<String,Command> commands = new TreeMap<String,Command>();
 	private Map<String,Command> commandsByClass = new TreeMap<String,Command>();
 	public static CommandsDescriptor instance = new CommandsDescriptor();
+	/**
+	 * Private constructor to implement the singleton pattern
+	 */
 	private CommandsDescriptor () {
 		load();
 	}
 	public static CommandsDescriptor getInstance() {
 		return instance;
 	}
+	/**
+	 * Loads the commands descriptor XML
+	 */
 	private void load() {
 		InputStream is = null;
 		Document doc;
@@ -90,6 +101,10 @@ public class CommandsDescriptor {
 		loadSoftwareDescription(rootElement);
 		
 	}
+	/**
+	 * Loads the description of the software
+	 * @param parent
+	 */
 	private void loadSoftwareDescription(Element parent) {
 		NodeList offspring = parent.getChildNodes(); 
 		for(int i=0;i<offspring.getLength();i++){  
@@ -113,6 +128,11 @@ public class CommandsDescriptor {
 		}
 		
 	}
+	/**
+	 * Loads the information of a specific command
+	 * @param cmdElem XML element with the command description
+	 * @return Command
+	 */
 	private Command loadCommand(Element cmdElem) {
 		String id = cmdElem.getAttribute(ATTRIBUTE_ID);
 		if(id==null) throw new RuntimeException("Every command must have an id");
@@ -163,6 +183,11 @@ public class CommandsDescriptor {
 		}
 		return cmd;
 	}
+	/**
+	 * Loads a text node as a String
+	 * @param elem Text element
+	 * @return String loaded text
+	 */
 	private String loadText(Element elem) {
 		NodeList offspring = elem.getChildNodes();
 		for (int i=0; i < offspring.getLength(); i++) {
@@ -187,7 +212,9 @@ public class CommandsDescriptor {
 	public Command getCommand(String name) {
 		return commands.get(name);
 	}
-	
+	/**
+	 * Prints the general usage including the command names and intro information
+	 */
 	public void printUsage(){
 		System.err.println();
 		printVersionHeader();
@@ -207,10 +234,17 @@ public class CommandsDescriptor {
 		System.err.println("See http://sourceforge.net/projects/ngsep/files/Library/ for more details.");
 		System.err.println();		
 	}
+	/**
+	 * Prints the software version
+	 */
 	private void printVersionHeader() {
 		System.err.println(" NGSEP - "+swTitle);
 		System.err.println(" Version " + swVersion + " ("+releaseDate+")");
 	}
+	/**
+	 * Prints the help for a specific program. Locates the command from the Class where the program is implemented
+	 * @param program
+	 */
 	public void printHelp(Class<?> program) {
 		Command c = commandsByClass.get(program.getName());
 		int titleLength = c.getTitle().length();
@@ -254,12 +288,19 @@ public class CommandsDescriptor {
 		}
 		return max;
 	}
-	
+	/**
+	 * Prints a general description
+	 * @param desc Description to be printed in standard error
+	 * @param startColumn for formatting
+	 */
 	private void printDescription(String desc, int startColumn) {
 		//TODO: Print in a command line friendly format
 		System.err.println(desc);
 		
 	}
+	/**
+	 * Prints the version plus general usage
+	 */
 	public void printVersion() {
 		System.err.println();
 		printVersionHeader();
@@ -269,7 +310,9 @@ public class CommandsDescriptor {
 		System.err.println(" For citing type     java -jar NGSEPcore_"+swVersion+".jar --citing");
 		System.err.println();
 	}
-	
+	/**
+	 * Prints the citing information
+	 */
 	public void printCiting(){
 		System.err.println("------");
 		System.err.println("Citing");
@@ -285,6 +328,12 @@ public class CommandsDescriptor {
 		System.err.println();
 	}
 	
+	/**
+	 * Loads the optional fields of a program
+	 * @param programInstance Object of a program implementing one command
+	 * @param args Arguments sent by the user
+	 * @return int Next index to be processed in the arguments array
+	 */
 	public int loadOptions(Object programInstance, String [] args ) {
 		if (args.length == 0 || args[0].equals("-h") ||args[0].equals("--help")){
 			CommandsDescriptor.getInstance().printHelp(programInstance.getClass());
