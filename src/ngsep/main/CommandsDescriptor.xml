@@ -622,4 +622,29 @@ Perform the Bonferroni correction for multiple testing.
 
 </command>
 
+<command id="KmersCount" class="ngsep.kmerscount.KmersCount">
+<intro>
+K-mers count from sequence file.
+</intro>
+<title>K-mers count from sequence file</title>
+<description>
+Generate k-mers spectrum file from fastq o fasta entry.
+</description>
+<argument>OPTIONS</argument>
+<argument>SEQUENCES_FILE</argument>
+<option id="C">
+Use both strands on k-mer count.
+</option>
+<option id="mer" type="INT" default="31">
+K-mer length (all possible subsequence of length k).
+</option>
+<option id="fasta">
+Input is a fasta file.
+</option>
+<option id="omitFirstBases" type="INT" default="0">
+Generate k-mer spectrum starting from this frequency value.
+</option>
+
+</command>
+
 </NGSEP>
