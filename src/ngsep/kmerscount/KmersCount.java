@@ -183,7 +183,7 @@ public class KmersCount {
 		    if(kmerSpectrum.kmerDistribution.containsKey(value)){
 		    	kmerSpectrum.kmerDistribution.put(value, kmerSpectrum.kmerDistribution.get(value) + 1);
 		    	
-		    	if(maxValue < kmerSpectrum.kmerDistribution.get(value) && value > 5){
+		    	if(maxValue < kmerSpectrum.kmerDistribution.get(value) && value > 100){
 		    		maxValue = kmerSpectrum.kmerDistribution.get(value);
 		    		handicap = value;
 		    	}
