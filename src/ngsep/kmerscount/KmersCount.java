@@ -193,7 +193,7 @@ public class KmersCount {
 			}
 		}
 		
-		if(handicap < 5){
+		if(handicap < 100){
 			handicap = 100;
 		} else {
 			handicap =  handicap + (int)Math.round(handicap * 1.5);
