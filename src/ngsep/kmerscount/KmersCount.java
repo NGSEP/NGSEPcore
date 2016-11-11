@@ -203,7 +203,12 @@ public class KmersCount {
 		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
 		
 		for(int i= kmerSpectrum.getOmitFirstBases(); i < handicap; i++){
-			out.println(i+"\t"+kmerSpectrum.kmerDistribution.get(i));
+			if(kmerSpectrum.kmerDistribution.get(i) == null){
+				out.println(i+"\t"+0);
+			} else {
+				out.println(i+"\t"+kmerSpectrum.kmerDistribution.get(i));
+			}
+			
 		}
 		
 		
