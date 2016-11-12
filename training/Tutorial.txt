@@ -104,7 +104,7 @@ Tutorial:
 
         $ cd ../mapping/
         $ mkdir tmpdir_sort_ER7A
-        $ bowtie2 --rg-id ER7A --rg SM:ER7A --rg PL:ILLUMINA -I 300 -X 700 -k 3 -t -x ../reference/Saccharomyces_cerevisiae.fa -1 ../reads/ER7A_1.fastq.gz -2 ../reads/ER7A_2.fastq.gz -S ER7A_bowtie2.sam >& ER7A_bowtie2.log
+        $ bowtie2 --rg-id ER7A --rg SM:ER7A --rg PL:ILLUMINA -X 700 -k 3 -t -x ../reference/Saccharomyces_cerevisiae.fa -1 ../reads/ER7A_1.fastq.gz -2 ../reads/ER7A_2.fastq.gz -S ER7A_bowtie2.sam >& ER7A_bowtie2.log
 	$java -jar ~/javaPrograms/picard.jar SortSam SO=coordinate CREATE_INDEX=true TMP_DIR=tmpdir_sort_ER7A I=ER7A_bowtie2.sam O=ER7A_bowtie2_sorted.bam
 
     Now you should have a BAM file in the mapping directory, this is a binary file that contains the same reads that were present in the FASTQ files, but aligned to the reference genome. The reads are sorted according to their position in the reference genome.        
