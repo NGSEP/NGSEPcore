@@ -136,26 +136,8 @@ public class KmersCount {
 			return;
 		}
 		//Parameters
-		int k=0;
+		int k=CommandsDescriptor.getInstance().loadOptions(kmerSpectrum, args);
 		
-		while(k<args.length && args[k].charAt(0)=='-') {
-			if ("-C".equals(args[k])) {
-				kmerSpectrum.setBothStrands(true);
-			} else if ("-mer".equals(args[k])) {
-				k++;
-				kmerSpectrum.setKmerSize(Integer.parseInt(args[k]));
-			} else if ("-fasta".equals(args[k])) {
-				kmerSpectrum.setFasta(true);
-			} else if ("-omitFirstBases".equals(args[k])) {
-				k++;
-				kmerSpectrum.setOmitFirstBases(Integer.parseInt(args[k]));
-			}  else {
-				System.err.println("Unrecognized option: "+args[k]);
-				CommandsDescriptor.getInstance().printHelp(KmersCount.class);
-				return;
-			}
-			k++;
-		}
 		//Is fasta or fastq? and read it
 		String sequenceFile = args[k];
 		kmerSpectrum.processFile(sequenceFile);
@@ -215,28 +197,32 @@ public class KmersCount {
 		
 	}
 	 
-	boolean isBothStrands() {
+	public boolean isBothStrands() {
 		return bothStrands;
 	}
-	void setBothStrands(boolean bothStrands) {
+	public void setBothStrands(boolean bothStrands) {
 		this.bothStrands = bothStrands;
 	}
-	boolean isFasta() {
+	public void setBothStrands(Boolean bothStrands) {
+		this.setBothStrands(bothStrands.booleanValue());
+	}
+	
+	public boolean isFasta() {
 		return fasta;
 	}
-	void setFasta(boolean fasta) {
+	public void setFasta(boolean fasta) {
 		this.fasta = fasta;
 	}
-	int getKmerSize() {
+	public int getKmerSize() {
 		return kmerSize;
 	}
-	void setKmerSize(int kmerSize) {
+	public void setKmerSize(int kmerSize) {
 		this.kmerSize = kmerSize;
 	}
-	int getOmitFirstBases() {
+	public int getOmitFirstBases() {
 		return omitFirstBases;
 	}
-	void setOmitFirstBases(int omitFirstBases) {
+	public void setOmitFirstBases(int omitFirstBases) {
 		this.omitFirstBases = omitFirstBases;
 	}
 

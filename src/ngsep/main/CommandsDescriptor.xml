@@ -632,7 +632,7 @@ Generate k-mers spectrum file from fastq o fasta entry.
 </description>
 <argument>OPTIONS</argument>
 <argument>SEQUENCES_FILE</argument>
-<option id="C">
+<option id="C" type="BOOLEAN" attribute="bothStrands">
 Use both strands on k-mer count.
 </option>
 <option id="mer" type="INT" default="31">
