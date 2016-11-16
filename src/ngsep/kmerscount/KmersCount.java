@@ -9,6 +9,7 @@ import java.util.Hashtable;
 import java.util.Map;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
@@ -55,16 +56,18 @@ public class KmersCount {
 		QualifiedSequenceList answer = new QualifiedSequenceList();
 		FileInputStream fis = null;
 		BufferedReader in = null;
-				
-		fis = new FileInputStream(filename);
-		//Open buffer
-		in = new BufferedReader(new InputStreamReader (fis));
-		//Read sequences
-		while(in.ready()){
-			QualifiedSequence sequences = RawRead.load(in);
-			answer.add(sequences);
-		}
-			
+		try {
+			fis = new FileInputStream(filename);
+			//Open buffer
+			in = new BufferedReader(new InputStreamReader (fis));
+			//Read sequences
+			while(in.ready()){
+				QualifiedSequence sequences = RawRead.load(in);
+				answer.add(sequences);
+			}
+		} finally {
+			if(fis!=null) fis.close();
+		}	
 		return answer;
 		
 	 }
@@ -165,9 +168,7 @@ public class KmersCount {
 			kmerSpectrum.addKmersCount(newHashKmers);
 			//Reverse complement
 			if(kmerSpectrum.isBothStrands()){
-				String reverseSequence = "";
-				ReverseComplement reverseComplement = new ReverseComplement(sequence);
-				reverseSequence = reverseComplement.makeReverseComplement();
+				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 				newHashKmers = kmerSpectrum.getFileKmers(reverseSequence, kmerSpectrum.getKmerSize());
 				kmerSpectrum.addKmersCount(newHashKmers);
 			}
