@@ -152,4 +152,11 @@ public class Distribution {
 			out.println(""+binMinimum+" "+distribution[i]);
 		}
 	}
+	public void printDistributionInt(PrintStream out,double maxValue) {
+		int valueBin = (int)((maxValue-minValueDistribution)/binLength);
+		for(int i=0;i<distribution.length && i<=valueBin;i++) {
+			int binMinimum = (int)(minValueDistribution+i*binLength);
+			out.println(""+binMinimum+" "+(int)distribution[i]);
+		}
+	}
 }
