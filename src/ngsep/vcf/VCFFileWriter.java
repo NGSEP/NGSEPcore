@@ -222,7 +222,10 @@ public class VCFFileWriter {
 						out.print(report.getCount(alleles[i]));
 					}
 				} else {
-					out.print(VCFFileReader.NO_INFO_CHAR);
+					for(int i=0;i<alleles.length;i++) {
+						if(i>0) out.print(",");
+						out.print("0");
+					}
 				}
 			} else if (formatIdx == VCFRecord.FORMAT_IDX_BSDP) {
 				if(var==null) {
@@ -231,7 +234,7 @@ public class VCFFileWriter {
 				}
 				int [] allCounts = var.getAllCounts();
 				if(allCounts == null) {
-					out.print(VCFFileReader.NO_INFO_CHAR);
+					out.print("0,0,0,0");
 					continue;
 				}
 				for(int i=0;i<allCounts.length;i++) {
