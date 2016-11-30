@@ -102,7 +102,7 @@ public class VCFDiversityCalculator {
 		List<String> sampleIdsVCF = in.getSampleIds();
 		Map<String, List<Integer>> groupSampleIdxs = Sample.getGroupsWithSampleIdxs(samplesMap, sampleIdsVCF);
 		printDefaultHeader(out);
-		out.print("Chr\tfirst\tLast\tAll");
+		out.print("Chr\tfirst\tLast\tRef\tAll");
 		for(String groupId:groupSampleIdxs.keySet()) {
 			out.print("\t"+groupId);
 		}
@@ -131,23 +131,23 @@ public class VCFDiversityCalculator {
 		out.println("#3. Observed heterozygosity");
 		out.println("#4. F-statistic (1-OH/EH)");
 		out.println("#5. Minor allele frequency (MAF)");
-		out.println("#6. Chi-square value of departure from HWE");
-		out.println("#7. Uncorrected p-value of the Chi-square test for departure from HWE");
-		
-		
+		out.println("#6. Reference allele frequency");
+		out.println("#7. Chi-square value of departure from HWE");
+		out.println("#8. Uncorrected p-value of the Chi-square test for departure from HWE");
 	}
 
 	private void printStats(GenomicVariant v,List<DiversityStatistics> groupsStats, PrintStream out) {
-		out.print(v.getSequenceName()+"\t"+v.getFirst()+"\t"+v.getLast());
+		out.print(v.getSequenceName()+"\t"+v.getFirst()+"\t"+v.getLast()+"\t"+v.getReference());
 		for(DiversityStatistics stats:groupsStats) {
 			if(stats == null) {
-				out.print("\t0:0:0:0:0:0:0");
+				out.print("\t0:0:0:0:0:0:0:0");
 			} else {
 				out.print("\t"+stats.getNumSamplesGenotyped());
 				out.print(":"+fmt.format(stats.getExpectedHeterozygosity()));
 				out.print(":"+fmt.format(stats.getObservedHeterozygosity()));
 				out.print(":"+fmt.format(stats.getfStatistic()));
 				out.print(":"+fmt.format(stats.getMaf()));
+				out.print(":"+fmt.format(stats.getAlleleFrequencies()[0]));
 				out.print(":"+fmt.format(stats.getChiSquareValue()));
 				out.print(":"+fmt.format(stats.getChiSquarePValue()));
 			}

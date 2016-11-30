@@ -1,6 +1,13 @@
-v3.0.2 31-10-2016
-
-
+v3.0.2 12-12-2016
+- New command called RelativeAlleleCounts to calculate distributions of
+  relative allele counts from BAM files and infer ploidy
+- New command called KmerCounter to perform counting of kmers in either fasta
+  or fastq files
+- The VCF file writer was improved to print zeros in the fields BSDP and ADP
+  when counts are not available. This improves compliance with the vcf validator
+  of EBI
+- DiversityStats: Added reference allele and frequency of the reference allele
+  for each population
 
 v3.0.1 08-08-2016
 - New command called IntrogressionAnalysis which makes a window-based analysis
