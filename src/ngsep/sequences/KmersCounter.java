@@ -7,8 +7,10 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastaSequencesHandler;
 
@@ -16,14 +18,31 @@ import ngsep.sequences.io.FastaSequencesHandler;
 
 public class KmersCounter {
 	
-	Map<String, Integer> hashKmers;
+	private Logger log = Logger.getLogger(KmersCounter.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	private String outputPrefix;
+	private Map<String, Integer> hashKmers;
 	private boolean bothStrands = false;
 	private boolean fasta = false;
 	private int kmerSize = 31;
-	private int omitFirstBases = 0;
-	QualifiedSequenceList sequenceList;
-	int handicap = 0;
-	Distribution kmerSpectrum;
+	private QualifiedSequenceList sequenceList;
+	private Distribution kmerSpectrum;
+	
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
 	
 	public KmersCounter(){
 		
@@ -33,24 +52,7 @@ public class KmersCounter {
 		
 		
 	}
-	/**
-	 * Add the kmers of a sequence to an object that will store kmers of all sequences
-	 * @param newHashKmers Kmers of a sequence.
-	 */
-	public void addKmersCount(Hashtable<String, Integer> newHashKmers){
-		
-		for (Map.Entry<String, Integer> entry : newHashKmers.entrySet()) {
-		    String key = entry.getKey();
-		    Integer value = entry.getValue();
-
-		    if(hashKmers.containsKey(key)){
-				hashKmers.put(key, hashKmers.get(key) + value);
-			} else {
-				hashKmers.put(key, value);
-			}
-		}
-		
-	}
+	
 	/**
 	 * Process a fastq file to get kmers count sequence by sequence until the end of file.
 	 * @param filename Fastq filename.
@@ -71,13 +73,11 @@ public class KmersCounter {
 				
 				//Kmers Counter Per Sequence
 				//Forward		
-				Hashtable<String, Integer> newHashKmers = getSequenceKmers(sequence, getKmerSize());
-				addKmersCount(newHashKmers);
+				getSequenceKmers(sequence, getKmerSize());
 				//Reverse complement
 				if(isBothStrands()){
 					String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-					newHashKmers = getSequenceKmers(reverseSequence, getKmerSize());
-					addKmersCount(newHashKmers);
+					getSequenceKmers(reverseSequence, getKmerSize());
 				}
 			}
 		} finally {
@@ -120,13 +120,11 @@ public class KmersCounter {
 			for(int i=0; i < sequenceList.size(); i++){
 				//Forward		
 				String sequence = sequenceList.get(i).getCharacters().toString();
-				Hashtable<String, Integer> newHashKmers = getSequenceKmers(sequence, getKmerSize());
-				addKmersCount(newHashKmers);
+				getSequenceKmers(sequence, getKmerSize());
 				//Reverse complement
 				if(isBothStrands()){
 					String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-					newHashKmers = getSequenceKmers(reverseSequence, getKmerSize());
-					addKmersCount(newHashKmers);
+					getSequenceKmers(reverseSequence, getKmerSize());
 				}
 			}	
 		}
@@ -142,12 +140,11 @@ public class KmersCounter {
 		    
 		}
 		
-		double maxValue = Math.round(kmerSpectrum.getMaxValueDistribution());
-		if(kmerSpectrum.getMaxValueDistribution() < 100){
-			handicap = 100;
-		} else {
-			handicap =  (int) (maxValue + Math.round(maxValue * 1.5));
-		}
+		//printResult
+		
+		PrintStream out = new PrintStream(getOutputPrefix()+"_kmerSpectrum.txt");
+		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
+		kmerSpectrum.printDistributionInt(out);
 		
 	}
 	
@@ -158,9 +155,8 @@ public class KmersCounter {
 	 * @return Hashtable<String, Integer> hashtable with the kmers count of the given sequence
 	 */
 	//Count kmer per sequence
-	public Hashtable<String, Integer> getSequenceKmers(String seq, int length)
+	public void getSequenceKmers(String seq, int length)
 	{
-		Hashtable<String, Integer> hashKmers = new Hashtable<>();
 		int seqLength = seq.length();
 		
 		if(seqLength > length) {
@@ -178,7 +174,6 @@ public class KmersCounter {
 			System.out.println(seq);
 		}
 		
-		return hashKmers;
 	}
 	 
 	/**
@@ -198,11 +193,8 @@ public class KmersCounter {
 		int k=CommandsDescriptor.getInstance().loadOptions(kmersCounter, args);
 		
 		String sequenceFile = args[k++];
+		kmersCounter.setOutputPrefix(args[k++]);
 		kmersCounter.processFile(sequenceFile);
-			
-		PrintStream out = System.out;
-		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
-		kmersCounter.kmerSpectrum.printDistributionInt(out, kmersCounter.handicap);
 		
 	}
 	 
@@ -236,14 +228,13 @@ public class KmersCounter {
 		this.setKmerSize(kmerSize.intValue());
 	}
 	
-	public int getOmitFirstBases() {
-		return omitFirstBases;
+
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
 	}
-	public void setOmitFirstBases(int omitFirstBases) {
-		this.omitFirstBases = omitFirstBases;
-	}
-	public void setOmitFirstBases(Integer omitFirstBases) {
-		this.setOmitFirstBases(omitFirstBases.intValue());
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
 	}
 
 	 
