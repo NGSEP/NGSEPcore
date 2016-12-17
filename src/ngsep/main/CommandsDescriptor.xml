@@ -632,6 +632,7 @@ Generate k-mers spectrum file from fastq o fasta entry.
 </description>
 <argument>OPTIONS</argument>
 <argument>SEQUENCES_FILE</argument>
+<argument>OUTPUT_PREFIX</argument>
 <option id="C" type="BOOLEAN" attribute="bothStrands">
 Use both strands in k-mer counter.
 </option>
@@ -640,9 +641,6 @@ K-mer length (all possible subsequence of length k).
 </option>
 <option id="fasta" type="BOOLEAN" attribute="fasta">
 Input is a fasta file.
-</option>
-<option id="omitFirstBases" type="INT" default="0" attribute="omitFirstBases">
-Generate k-mer spectrum starting from this frequency value.
 </option>
 
 </command>
