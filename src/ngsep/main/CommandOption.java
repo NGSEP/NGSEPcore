@@ -27,6 +27,7 @@ public class CommandOption {
 	public static final String TYPE_FLOAT = "FLOAT";
 	public static final String TYPE_DOUBLE = "DOUBLE";
 	public static final String TYPE_STRING = "STRING";
+	public static final String TYPE_FILE = "FILE";
 	public static final String TYPE_BOOLEAN = "BOOLEAN";
 	
 	private String id;
@@ -77,9 +78,12 @@ public class CommandOption {
 	public void setAttribute(String attribute) {
 		this.attribute = attribute;
 	}
+	public boolean printType () {
+		return type!=null && !TYPE_BOOLEAN.equals(type); 
+	}
 	public int getPrintLength() {
 		int length = id.length()+9;
-		if(type!=null) length+=type.length()+1;
+		if(printType()) length+=type.length()+1;
 		return length;
 	}
 	public Method findGetMethod (Object instance) {
@@ -121,6 +125,9 @@ public class CommandOption {
 		if(TYPE_STRING.equals(type)) {
 			return String.class;
 		}
+		if(TYPE_FILE.equals(type)) {
+			return String.class;
+		}
 		throw new RuntimeException("Can not decode option of unrecognized type: "+type);
 	}
 	public Object decodeValue (String value) {
@@ -137,6 +144,9 @@ public class CommandOption {
 			return Double.parseDouble(value);
 		}
 		if(TYPE_STRING.equals(type)) {
+			return value;
+		}
+		if(TYPE_FILE.equals(type)) {
 			return value;
 		}
 		throw new RuntimeException("Can not decode value of unrecognized type: "+type);

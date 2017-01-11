@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.0.2 (31-10-2016)
+Version 3.0.2 (15-01-2017)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -679,9 +679,9 @@ OPTIONS:
 	-d FLOAT	: Maximum percentage (0-100) of differences between the
 			  pair of samples. Default: 5.
 
----------------------------------
-Genotype imputation (In progress)
----------------------------------
+------------------------------------
+Genotype imputation (Inbred species)
+------------------------------------
 This module allows imputation of missing genotypes from unphased multilocus
 SNP genotype data in a VCF. The current version is a reimplementation of the
 Hidden Markov Model (HMM) implemented in the package fastPHASE
@@ -887,16 +887,78 @@ OPTIONS:
 	-b		: Perform the Bonferroni correction for multiple 
 			  testing
 
+----------------------------------------
+Obtaining k-mers spectrum from sequences
+----------------------------------------
+
+Generate a distribution of k-mer abundances from a file of DNA sequences either
+in fastq or in fasta format.
+
+USAGE:
+
+java -jar NGSEPcore_3.0.2.jar KmersCounter <OPTIONS> <SEQUENCES_FILE> <OUTPUT_PREFIX>
+
+OPTIONS:
+
+        -C		: Use both strands in k-mer counter.
+        -mer INT	: K-mer length (all possible subsequence of length k).
+			  Default: 31
+        -fasta		: Input is a fasta file.
+
+----------------------------------------------------------
+Obtaining relative allele counts from read alignment files
+----------------------------------------------------------
+
+Calculates a distribution of relative allele counts for sites showing base calls
+for more than one nucleotide from read alignment files in BAM format. This
+analysis is useful to predict the ploidy of a sequenced sample.
+
+USAGE:
+
+java -jar NGSEPcore_3.0.2.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
+
+OPTIONS:
+
+        -m INT	: Minimum read depth Default: 10
+        -M INT	: Maximum read depth Default: 1000
+        -q INT	: Minimum base quality score (Phred scale) Default: 20
+        -r FILE : File with repeats (or any kind of genomic regions) that
+		  should not be taken into account in the analysis. The format
+		  of this file should contain three columns: Sequence name
+		  (chromosome), first position in the sequence, and last
+		  position in the sequence. Both positions are assumed to be
+		  1-based.
+        -f FILE : File with genomic regions that should be taken into account
+		  in the analysis. The format of this file should contain three
+		  columns: Sequence name (chromosome), first position in the
+		  sequence, and last position in the sequence. Both positions
+		  are assumed to be 1-based.
+        -s      : Consider secondary alignments. By default, only primary
+		  alignments are processed
+
+
+
+
 ------------------------------
 Citing and supporting packages
 ------------------------------
 
-A manuscript with the description of the main modules of NGSEP is available at Nucleic Acids research:
+A manuscript with the description of the main modules of NGSEP is available at
+Nucleic Acids research:
 
 Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
 An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
 Nucleic Acids Research. 42(6): e44. doi: 10.1093/nar/gkt1381
 http://nar.oxfordjournals.org/content/42/6/e44.full
+
+A description of some of the latest modules and recent benchmarks with other
+tools for variants detection on Genotype-By-Sequencing (GBS) data is available
+at BMC Genomics:
+
+Perea C, Hoz JFDL, Cruz DF, Lobaton JD, Izquierdo P, Quintero JC, Raatz B and Duitama J. (2016).
+Bioinformatic analysis of genotype by sequencing (GBS) data with NGSEP.
+BMC Genomics, 17:498. doi:10.1186/s12864-016-2827-7
+http://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-016-2827-7
 
 Details of variant detection algorithms implemented in NGSEP can be found in
 the following publications:

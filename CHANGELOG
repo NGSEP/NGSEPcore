@@ -1,4 +1,4 @@
-v3.0.2 12-12-2016
+v3.0.2 15-01-2017
 - New command called RelativeAlleleCounts to calculate distributions of
   relative allele counts from BAM files and infer ploidy
 - New command called KmerCounter to perform counting of kmers in either fasta

@@ -20,6 +20,7 @@
 package ngsep.math;
 
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +43,8 @@ public class Distribution {
 	private double minValueDistribution;
 	private double maxValueDistribution;
 	private double binLength;
+	
+	private static DecimalFormat format = new DecimalFormat("##0.0#");
 	public Distribution(double minValueDistribution, double maxValueDistribution, double binLength) {
 		super();
 		this.minValueDistribution = minValueDistribution;
@@ -142,14 +145,14 @@ public class Distribution {
 	public void printDistribution(PrintStream out) {
 		for(int i=0;i<distribution.length;i++) {
 			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+binMinimum+" "+distribution[i]);
+			out.println(""+format.format(binMinimum)+" "+format.format(distribution[i]));
 		}
 	}
 	public void printDistribution(PrintStream out,double maxValue) {
 		int valueBin = (int)((maxValue-minValueDistribution)/binLength);
 		for(int i=0;i<distribution.length && i<=valueBin;i++) {
 			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+binMinimum+" "+distribution[i]);
+			out.println(""+format.format(binMinimum)+" "+format.format(distribution[i]));
 		}
 	}
 	public void printDistributionInt(PrintStream out) {

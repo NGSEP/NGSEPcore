@@ -619,16 +619,15 @@ Perform GC-correction of the read depth.
 <option id="b">
 Perform the Bonferroni correction for multiple testing.
 </option>
-
 </command>
 
 <command id="KmersCounter" class="ngsep.sequences.KmersCounter">
 <intro>
-K-mers counter from sequence file.
+Obtains the distribution of k-mer abundances
 </intro>
-<title>K-mers counter from sequence file</title>
+<title>Obtaining k-mers spectrum from sequences</title>
 <description>
-Generate k-mers spectrum file from fastq o fasta entry.
+Generate a distribution of k-mer abundances from a file of DNA sequences either in fastq or in fasta format.
 </description>
 <argument>OPTIONS</argument>
 <argument>SEQUENCES_FILE</argument>
@@ -642,7 +641,42 @@ K-mer length (all possible subsequence of length k).
 <option id="fasta" type="BOOLEAN" attribute="fasta">
 Input is a fasta file.
 </option>
+</command>
 
+<command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator">
+<intro>
+Calculates the distribution of relative allele counts 
+</intro>
+<title>Obtaining relative allele counts from read alignment files</title>
+<description>
+Calculates a distribution of relative allele counts for sites showing base calls for more than one
+nucleotide from read alignment files in BAM format. This analysis is useful to predict the ploidy
+of a sequenced sample.
+</description>
+<argument>OPTIONS</argument>
+<argument>ALIGNMENTS_FILE</argument>
+<option id="m" type="INT" default="10" attribute="minRD">
+Minimum read depth
+</option>
+<option id="M" type="INT" default="1000" attribute="maxRD">
+Maximum read depth
+</option>
+<option id="q" type="INT" default="20" attribute="minBaseQualityScore">
+Minimum base quality score (Phred scale)
+</option>
+<option id="r" type="FILE" attribute="repeatsFile">
+File with repeats (or any kind of genomic regions) that should not be taken into account in the analysis.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="f" type="FILE" attribute="selectedRegionsFile">
+File with genomic regions that should be taken into account in the analysis.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="s" type="BOOLEAN" attribute="secondaryAlns">
+Consider secondary alignments. By default, only primary alignments are processed
+</option>
 </command>
 
 </NGSEP>

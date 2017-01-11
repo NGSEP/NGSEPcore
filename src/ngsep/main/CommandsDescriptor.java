@@ -268,7 +268,7 @@ public class CommandsDescriptor {
 		int longerOpt = getLongerOption(options);
 		for(CommandOption option:options) {
 			System.err.print("        -"+option.getId());
-			if(option.getType()!=null) System.err.print(" "+option.getType());
+			if(option.printType() ) System.err.print(" "+option.getType());
 			int optLength = option.getPrintLength();
 			int diff = longerOpt-optLength;
 			for(int i=0;i<diff+1;i++)System.err.print(" ");

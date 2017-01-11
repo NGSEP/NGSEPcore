@@ -1,7 +1,7 @@
-<tool id="NGSEP_MergeVariants" name="Merge Variant" version="3.0.1">
+<tool id="NGSEP_MergeVariants" name="Merge Variant" version="3.0.2">
   <description> positions from several VCF files</description>
   <command>
-java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.1.jar MergeVariants $seq_names ./prefix
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.2.jar MergeVariants $seq_names ./prefix
   #for $i in $vcf_files
       $i.input
   #end for

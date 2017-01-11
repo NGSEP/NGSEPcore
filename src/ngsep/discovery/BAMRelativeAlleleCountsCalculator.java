@@ -1,11 +1,16 @@
 package ngsep.discovery;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 
 
@@ -13,14 +18,24 @@ import ngsep.math.Distribution;
 
 public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 
-	private Distribution distProp = new Distribution(0, 0.5, 0.01);
-	private Distribution distNumAlleles = new Distribution(0, 10, 1);
+	private Logger log = Logger.getLogger(BAMRelativeAlleleCountsCalculator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	private long coveredGenomeSize = 0;
+	private AlignmentsPileupGenerator generator;
 	private GenomicRegionSortedCollection<GenomicRegion> repeats;
 	private GenomicRegionSortedCollection<GenomicRegion> selectedRegions;
 	
-	private int minCoverage = 10;
-	private int maxCoverage = 1000;
+	
+	private int minRD = 10;
+	private int maxRD = 1000;
 	private int minBaseQualityScore = 20;
+	private String repeatsFile = null;
+	private String selectedRegionsFile = null;
+	private boolean secondaryAlns = false;
+	
+	private Distribution distProp = new Distribution(0, 0.5, 0.01);
+	private Distribution distNumAlleles = new Distribution(1, 10, 1);
 	
 	
 	/**
@@ -28,51 +43,116 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	 */
 	public static void main(String[] args) throws Exception {
 		BAMRelativeAlleleCountsCalculator instance = new BAMRelativeAlleleCountsCalculator();
-		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-		generator.addListener(instance);
-		String repeatsFile = null;
-		String selectedRegionsFile = null;
-		int i=0;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-m".equalsIgnoreCase(args[i])) {
-				i++;
-				instance.minCoverage = Integer.parseInt(args[i]);
-			} else if("-M".equalsIgnoreCase(args[i])) {
-				i++;
-				instance.maxCoverage = Integer.parseInt(args[i]);
-			} else if("-q".equalsIgnoreCase(args[i])) {
-				i++;
-				instance.minBaseQualityScore = Integer.parseInt(args[i]);
-			} else if("-r".equalsIgnoreCase(args[i])) {
-				i++;
-				repeatsFile = args[i];
-			}  else if("-f".equalsIgnoreCase(args[i])) {
-				i++;
-				selectedRegionsFile = args[i];
-			} else if ("-s".equalsIgnoreCase(args[i])) {
-				generator.setProcessSecondaryAlignments(true);
-			}
-			i++;
-		}
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		if(i<0) return;
 		String filename = args[i++];
-		generator.setMaxAlnsPerStartPos(instance.maxCoverage);
+		instance.runProcess(filename);
+		instance.printResults(System.out);
+	}
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public int getMinRD() {
+		return minRD;
+	}
+
+	public void setMinRD(int minRD) {
+		this.minRD = minRD;
+	}
+	
+	public void setMinRD(Integer minRD) {
+		this.setMinRD(minRD.intValue());
+	}
+
+	public int getMaxRD() {
+		return maxRD;
+	}
+
+	public void setMaxRD(int maxRD) {
+		this.maxRD = maxRD;
+	}
+
+	public void setMaxRD(Integer maxRD) {
+		this.setMaxRD(maxRD.intValue());
+	}
+	
+	public int getMinBaseQualityScore() {
+		return minBaseQualityScore;
+	}
+
+	public void setMinBaseQualityScore(int minBaseQualityScore) {
+		this.minBaseQualityScore = minBaseQualityScore;
+	}
+	
+	public void setMinBaseQualityScore(Integer minBaseQualityScore) {
+		this.setMinBaseQualityScore(minBaseQualityScore.intValue());
+	}
+
+	public String getRepeatsFile() {
+		return repeatsFile;
+	}
+
+	public void setRepeatsFile(String repeatsFile) {
+		this.repeatsFile = repeatsFile;
+	}
+
+	public String getSelectedRegionsFile() {
+		return selectedRegionsFile;
+	}
+	
+	public void setSelectedRegionsFile(String selectedRegionsFile) {
+		this.selectedRegionsFile = selectedRegionsFile;
+	}
+
+	public boolean isSecondaryAlns() {
+		return secondaryAlns;
+	}
+
+	public void setSecondaryAlns(boolean secondaryAlns) {
+		this.secondaryAlns = secondaryAlns;
+	}
+	
+	public void setSecondaryAlns(Boolean secondaryAlns) {
+		this.setSecondaryAlns(secondaryAlns.booleanValue());
+	}
+	
+	public void runProcess (String filename) throws IOException {
+		coveredGenomeSize = 0;
+		generator = new AlignmentsPileupGenerator();
+		generator.addListener(this);
+		generator.setLog(log);
+		generator.setProcessSecondaryAlignments(secondaryAlns);
+		generator.setMaxAlnsPerStartPos(maxRD);
 		if(repeatsFile!=null) {
+			repeats = new GenomicRegionSortedCollection<GenomicRegion>();
 			SimpleGenomicRegionFileHandler grfh = new SimpleGenomicRegionFileHandler();
-			List<GenomicRegion> repeats = grfh.loadRegions(repeatsFile);
-			instance.repeats = new GenomicRegionSortedCollection<GenomicRegion>();
-			instance.repeats.addAll(repeats);
+			repeats.addAll(grfh.loadRegions(repeatsFile));
 		}
 		if(selectedRegionsFile!=null) {
 			SimpleGenomicRegionFileHandler grfh = new SimpleGenomicRegionFileHandler();
-			List<GenomicRegion> regionsList = grfh.loadRegions(selectedRegionsFile);
-			instance.selectedRegions = new GenomicRegionSortedCollection<GenomicRegion>();
-			instance.selectedRegions.addAll(regionsList);
+			selectedRegions = new GenomicRegionSortedCollection<GenomicRegion>();
+			selectedRegions.addAll(grfh.loadRegions(selectedRegionsFile));
 		}
 		generator.processFile(filename);
-		System.out.println("Distribution of allele proportions");
-		instance.distProp.printDistribution(System.out);
-		System.out.println("Distribution of number of alleles");
-		instance.distNumAlleles.printDistribution(System.out);
+		
+	}
+	public void printResults (PrintStream out) {
+		out.println("Distribution of allele proportions");
+		distProp.printDistribution(out);
+		out.println("Distribution of number of alleles");
+		distNumAlleles.printDistributionInt(out);
 	}
 
 	@Override
@@ -86,7 +166,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 			if(spanningRegions.size()==0) return;
 		}
 		List<String> calls = pileup.getAlleleCalls(1);
-		if(calls.size()<2*minCoverage) return;
+		if(calls.size()<2*minRD) return;
 		Map<String, Integer> alleleCounts = new TreeMap<String, Integer>();
 		for(int i=0;i<calls.size();i+=2) {
 			String call = calls.get(i);
@@ -102,6 +182,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 			}
 			
 		}
+		if(alleleCounts.size()==0) return;
 		distNumAlleles.processDatapoint(alleleCounts.size());
 		String alleleMax = getMaximum (alleleCounts,null);
 		
@@ -115,6 +196,11 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		if(countMax>0) {
 			double prop = (double)countSecondMax/(countMax+countSecondMax);
 			distProp.processDatapoint(prop);
+		}
+		coveredGenomeSize++;
+		if(progressNotifier!=null && coveredGenomeSize%10000==0) {
+			int progress = (int)(coveredGenomeSize/10000);
+			generator.setKeepRunning(progressNotifier.keepRunning(progress));
 		}
 	}
 
@@ -135,13 +221,13 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 
 	@Override
 	public void onSequenceStart(String sequenceName) {
-		// TODO Auto-generated method stub
+		//log.info("Starting sequence: "+sequenceName);
 		
 	}
 
 	@Override
 	public void onSequenceEnd(String sequenceName) {
-		// TODO Auto-generated method stub
+		//log.info("Finished sequence: "+sequenceName);
 		
 	}
 	
