@@ -21,13 +21,11 @@ public class KmersCounter {
 	private Logger log = Logger.getLogger(KmersCounter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private String outputPrefix;
-	private Map<String, Integer> hashKmers;
+	private Map<String, Integer> hashKmers = new Hashtable<>();
 	private boolean bothStrands = false;
 	private boolean fasta = false;
-	private int kmerSize = 31;
-	private QualifiedSequenceList sequenceList;
-	private Distribution kmerSpectrum;
+	private int kmerSize = 21;
+	private Distribution kmerSpectrum = new Distribution(1, 200, 1);
 	
 	
 	public Logger getLog() {
@@ -44,21 +42,13 @@ public class KmersCounter {
 		this.progressNotifier = progressNotifier;
 	}
 	
-	public KmersCounter(){
-		
-		hashKmers = new Hashtable<>();
-		sequenceList = new QualifiedSequenceList();
-		kmerSpectrum = new Distribution(1, 10000, 1);
-		
-		
-	}
 	
 	/**
 	 * Process a fastq file to get kmers count sequence by sequence until the end of file.
 	 * @param filename Fastq filename.
 	 * @throws IOException
 	 */
-    public void processFastqSequences(String filename) throws IOException {
+    public void processFastqFile(String filename) throws IOException {
 		 
 		FileInputStream fis = null;
 		BufferedReader in = null;
@@ -73,11 +63,11 @@ public class KmersCounter {
 				
 				//Kmers Counter Per Sequence
 				//Forward		
-				getSequenceKmers(sequence, getKmerSize());
+				countSequenceKmers(sequence);
 				//Reverse complement
 				if(isBothStrands()){
 					String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-					getSequenceKmers(reverseSequence, getKmerSize());
+					countSequenceKmers(reverseSequence);
 				}
 			}
 		} finally {
@@ -86,23 +76,26 @@ public class KmersCounter {
 		
 		
 	 }
-	 //fasta file reader
     /**
-	 * Upload in memory the sequences of a fasta file
+	 * Processes a fasta file to get kmers count sequence by sequence until the end of file.
 	 * @param filename A fasta filename.
 	 * @throws IOException
-	 * @return QualifiedSequenceList The list of the fasta sequence given in the file.
 	 */
-	 public QualifiedSequenceList loadFastaSequences(String filename) throws IOException {
-		 
-		FastaSequencesHandler fastaSequencesHandler = new FastaSequencesHandler();
-		QualifiedSequenceList sequenceList;
-		
-		sequenceList = fastaSequencesHandler.loadSequences(filename);
-		
-		return sequenceList;	
-		
-	 }
+    private void processFastaFile(String filename) throws IOException {
+    	FastaSequencesHandler fastaSequencesHandler = new FastaSequencesHandler();
+		QualifiedSequenceList sequences = fastaSequencesHandler.loadSequences(filename);
+		//Kmer Count Per File
+		for(QualifiedSequence seq:sequences){
+			//Forward		
+			String sequence = seq.getCharacters().toString();
+			countSequenceKmers(sequence);
+			//Reverse complement
+			if(isBothStrands()){
+				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
+				countSequenceKmers(reverseSequence);
+			}
+		}
+	}
 	 
 	 /**
 	 * Read the input as fasta or fastq and get the kmers count, then make the kmers spectrum as a distribution
@@ -113,20 +106,9 @@ public class KmersCounter {
 		
 		//Is fasta or fastq? and read it
 		if(!isFasta()){
-			processFastqSequences(sequenceFileName);
+			processFastqFile(sequenceFileName);
 		} else {
-			sequenceList = loadFastaSequences(sequenceFileName);
-			//Kmer Count Per File
-			for(int i=0; i < sequenceList.size(); i++){
-				//Forward		
-				String sequence = sequenceList.get(i).getCharacters().toString();
-				getSequenceKmers(sequence, getKmerSize());
-				//Reverse complement
-				if(isBothStrands()){
-					String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-					getSequenceKmers(reverseSequence, getKmerSize());
-				}
-			}	
+			processFastaFile(sequenceFileName);	
 		}
 		
 		
@@ -134,18 +116,14 @@ public class KmersCounter {
 		
 		for (Map.Entry<String, Integer> entry : hashKmers.entrySet()) {
 		    Integer value = entry.getValue();
-		    if(value <= 10000){
-		    	kmerSpectrum.processDatapoint(value);	
-		    }
-		    
+		    kmerSpectrum.processDatapoint(value);
 		}
-		
-		//printResult
-		
-		PrintStream out = new PrintStream(getOutputPrefix()+"_kmerSpectrum.txt");
+	}
+	
+	public void printResults (PrintStream out) {
 		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
 		kmerSpectrum.printDistributionInt(out);
-		
+		out.println("More:\t"+kmerSpectrum.getOutliers().size());
 	}
 	
 	/**
@@ -155,14 +133,14 @@ public class KmersCounter {
 	 * @return Hashtable<String, Integer> hashtable with the kmers count of the given sequence
 	 */
 	//Count kmer per sequence
-	public void getSequenceKmers(String seq, int length)
+	public void countSequenceKmers(String seq)
 	{
 		int seqLength = seq.length();
 		
-		if(seqLength > length) {
-			for(int i = 0; i < seqLength - length + 1; i++)
+		if(seqLength > kmerSize) {
+			for(int i = 0; i < seqLength - kmerSize + 1; i++)
 			{
-				String kmer = seq.substring(i,length + i);
+				String kmer = seq.substring(i,kmerSize + i);
 				if(hashKmers.containsKey(kmer)) {
 					hashKmers.put(kmer, hashKmers.get(kmer) + 1);
 				} else {
@@ -171,7 +149,7 @@ public class KmersCounter {
 			
 			}
 		} else {
-			System.out.println(seq);
+			log.warning("Sequence "+seq+" smaller than k-mer size");
 		}
 		
 	}
@@ -193,8 +171,8 @@ public class KmersCounter {
 		int k=CommandsDescriptor.getInstance().loadOptions(kmersCounter, args);
 		
 		String sequenceFile = args[k++];
-		kmersCounter.setOutputPrefix(args[k++]);
 		kmersCounter.processFile(sequenceFile);
+		kmersCounter.printResults(System.out);
 		
 	}
 	 
@@ -226,17 +204,5 @@ public class KmersCounter {
 	}
 	public void setKmerSize(Integer kmerSize) {
 		this.setKmerSize(kmerSize.intValue());
-	}
-	
-
-	
-	public String getOutputPrefix() {
-		return outputPrefix;
-	}
-	public void setOutputPrefix(String outputPrefix) {
-		this.outputPrefix = outputPrefix;
-	}
-
-	 
-	
+	}	
 }

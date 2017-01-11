@@ -892,18 +892,18 @@ Obtaining k-mers spectrum from sequences
 ----------------------------------------
 
 Generate a distribution of k-mer abundances from a file of DNA sequences either
-in fastq or in fasta format.
+in fastq or in fasta format. Writes to standard output the number of k-mers
+obtained at each specific read depth.
 
 USAGE:
 
-java -jar NGSEPcore_3.0.2.jar KmersCounter <OPTIONS> <SEQUENCES_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar KmersCounter <OPTIONS> <SEQUENCES_FILE>
 
 OPTIONS:
 
-        -C		: Use both strands in k-mer counter.
-        -mer INT	: K-mer length (all possible subsequence of length k).
-			  Default: 31
-        -fasta		: Input is a fasta file.
+        -b     : Count k-mers from both strands.
+        -k INT : K-mer length. Default: 21
+        -fasta : Input is a fasta file.
 
 ----------------------------------------------------------
 Obtaining relative allele counts from read alignment files
@@ -915,7 +915,7 @@ analysis is useful to predict the ploidy of a sequenced sample.
 
 USAGE:
 
-java -jar NGSEPcore_3.0.2.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
+java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
 
 OPTIONS:
 

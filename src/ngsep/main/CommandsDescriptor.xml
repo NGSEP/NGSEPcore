@@ -628,15 +628,15 @@ Obtains the distribution of k-mer abundances
 <title>Obtaining k-mers spectrum from sequences</title>
 <description>
 Generate a distribution of k-mer abundances from a file of DNA sequences either in fastq or in fasta format.
+Writes to standard output the number of k-mers obtained at each specific read depth
 </description>
 <argument>OPTIONS</argument>
 <argument>SEQUENCES_FILE</argument>
-<argument>OUTPUT_PREFIX</argument>
-<option id="C" type="BOOLEAN" attribute="bothStrands">
-Use both strands in k-mer counter.
+<option id="b" type="BOOLEAN" attribute="bothStrands">
+Count k-mers from both strands.
 </option>
-<option id="mer" type="INT" default="31" attribute="kmerSize">
-K-mer length (all possible subsequence of length k).
+<option id="k" type="INT" default="21" attribute="kmerSize">
+K-mer length
 </option>
 <option id="fasta" type="BOOLEAN" attribute="fasta">
 Input is a fasta file.
