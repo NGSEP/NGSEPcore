@@ -243,8 +243,15 @@ public class AlignmentsPileupGenerator {
 		if(alignmentStart==currentReferencePos) return;
 		processSameReadPileups(alignmentStart);
 		while(currentReferencePos<alignmentStart) {
-			processCurrentPosition();
+			if(!processCurrentPosition()) {
+				updatePendingAlns();
+				if(pendingAlignments.size()==0) currentReferencePos = alignmentStart;
+			}
 		}
+		updatePendingAlns();
+	}
+
+	private void updatePendingAlns() {
 		List<ReadAlignment> alnsToKeep = new ArrayList<ReadAlignment>();
 		for(ReadAlignment aln:pendingAlignments) {
 			if(aln.getLast()>=currentReferencePos) alnsToKeep.add(aln);
@@ -282,23 +289,24 @@ public class AlignmentsPileupGenerator {
 		sameStartSecondaryAlignments.clear();
 	}
 
-	private void processCurrentPosition() {
+	private boolean processCurrentPosition() {
 		int posPrint = -1;
 		if(pendingAlignments.size()==0) {
 			currentReferencePos++;
-			return;
+			return false;
 		}
 		if(currentReferencePos==posPrint) System.out.println("Number of pending alignments: "+pendingAlignments.size()+". time: "+System.currentTimeMillis());
 		
 		PileupRecord pileup = new PileupRecord(currentReferenceName, currentReferencePos);
 		for(ReadAlignment aln:pendingAlignments) {
+			if(currentReferencePos==posPrint)System.out.println("Next pending: "+aln.getReadName()+" located at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+". time: "+System.currentTimeMillis());
 			pileup.addAlignment(aln);
 		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments()+". time: "+System.currentTimeMillis());
 		processPileup(pileup);
 		if(currentReferencePos==posPrint)System.out.println("Processed pileup. time: "+System.currentTimeMillis());
 		currentReferencePos++;
-		return;
+		return pileup.getNumAlignments()>0;
 	}
 
 	private void processPileup(PileupRecord pileup) {
