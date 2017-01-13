@@ -3,6 +3,7 @@ package ngsep.sequences;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Hashtable;
@@ -11,6 +12,7 @@ import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastaSequencesHandler;
 
@@ -51,31 +53,42 @@ public class KmersCounter {
     public void processFastqFile(String filename) throws IOException {
 		 
 		FileInputStream fis = null;
-		BufferedReader in = null;
 		try {
 			fis = new FileInputStream(filename);
-			//Open buffer
-			in = new BufferedReader(new InputStreamReader (fis));
-			//Read sequences
-			while(in.ready()){
-				QualifiedSequence qsequence = RawRead.load(in);
-				String sequence = qsequence.getCharacters().toString();
-				
-				//Kmers Counter Per Sequence
-				//Forward		
-				countSequenceKmers(sequence);
-				//Reverse complement
-				if(isBothStrands()){
-					String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-					countSequenceKmers(reverseSequence);
-				}
+			if(filename.toLowerCase().endsWith(".gz")) {
+				//log.info("Processing compressed fastq file: "+filename);
+				processFastqFile (new ConcatGZIPInputStream(fis));
+			} else {
+				processFastqFile(fis);
 			}
 		} finally {
 			if(fis!=null) fis.close();
-		}	
-		
-		
+		}
 	 }
+    /**
+     * Process the given input stream to get kmers count sequence by sequence
+     * @param fis Input stream in fastq format
+     * @throws IOException
+     */
+	public void processFastqFile(InputStream fis) throws IOException {
+		BufferedReader in = new BufferedReader(new InputStreamReader (fis));
+		//Read sequences
+		QualifiedSequence qsequence = RawRead.load(in);
+		while(qsequence!=null){
+			
+			String sequence = qsequence.getCharacters().toString();
+			
+			//Kmers Counter Per Sequence
+			//Forward		
+			countSequenceKmers(sequence);
+			//Reverse complement
+			if(isBothStrands()){
+				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
+				countSequenceKmers(reverseSequence);
+			}
+			qsequence = RawRead.load(in);
+		}
+	}
     /**
 	 * Processes a fasta file to get kmers count sequence by sequence until the end of file.
 	 * @param filename A fasta filename.
@@ -105,10 +118,10 @@ public class KmersCounter {
 	public void processFile(String sequenceFileName) throws IOException {
 		
 		//Is fasta or fastq? and read it
-		if(!isFasta()){
-			processFastqFile(sequenceFileName);
+		if(isFasta()){
+			processFastaFile(sequenceFileName);
 		} else {
-			processFastaFile(sequenceFileName);	
+			processFastqFile(sequenceFileName);	
 		}
 		
 		

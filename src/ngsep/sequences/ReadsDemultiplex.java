@@ -247,7 +247,7 @@ public class ReadsDemultiplex {
 		FileInputStream fis = null;
 		try {
 			fis = new FileInputStream(filename);
-			if(filename.endsWith(".gz")) {
+			if(filename.toLowerCase().endsWith(".gz")) {
 				demultiplex (new ConcatGZIPInputStream(fis));
 			} else {
 				demultiplex(fis);
