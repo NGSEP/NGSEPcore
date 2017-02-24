@@ -109,14 +109,18 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	 */
 	public boolean isHomozygousReference();
 	/**
-	 * Estimates the copy numbers of the called alleles based on the allele depths and the given totalCopyNumber
+	 * Estimates the copy numbers of the called alleles based on the allele read depth and the given totalCopyNumber
+	 * POST: The copy number of each allele is updated with the estimated values. 
+	 * The phasing information should be unset because it can become inconsistent with the new total copy number
 	 * @param totalCopyNumber predicted copy number of the region surrounding the variant 
 	 */
 	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber);
 	/**
 	 * Changes the alleles copy number
 	 * PRE: The copy number per allele should be consistent with this genotype
-	 * Only indexes of called alleles should contain values different than zero 
+	 * Only indexes of called alleles should contain values different than zero
+	 * POST: The copy number of each allele is updated. The phasing information should be
+	 * unset because it can become inconsistent with the new total copy number
 	 * @param allelesCN Array with the copy number of each allele 
 	 */
 	public void setAllelesCopyNumber(byte [] allelesCN);
@@ -130,4 +134,19 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	 * @return int [] Array with counts which do not need to match the number of alleles of the variant
 	 */
 	public int[] getAllCounts();
+	/**
+	 * @return true if the variant is phased
+	 */
+	public boolean isPhased();
+	
+	/**
+	 * Returns the phasing of the alleles called for this sample
+	 * @return String [] Alleles observed in the sample, sorted according with the phasing
+	 */
+	public String [] getPhasedAlleles();
+	/**
+	 * Returns the phased alleles as a byte array
+	 * @return byte [] indexes in the alleles array of the called alleles sorted according to their phase
+	 */
+	public byte [] getIndexesPhasedAlleles ();
 }

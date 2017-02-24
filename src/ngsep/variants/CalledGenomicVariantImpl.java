@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
+public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	private GenomicVariant variant;
 	private String sampleId;
 	//Positions in the list of called alleles
@@ -184,6 +184,8 @@ public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
 		} else {
 			allelesCopyNumber = Arrays.copyOf(allelesCN, allelesCN.length);
 		}
+		//Remove phasing
+		indexesPhasedAlleles = new byte [0];
 	}
 	
 	@Override
@@ -220,7 +222,7 @@ public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
 			if(calledAlleleReadCounts[i]==0) calledAlleleReadCounts[i]=1; 
 			totalReadCount+=calledAlleleReadCounts[i];
 		}
-		//Normalize by total ploidy
+		//Normalize by total copy number
 		int totalCount=0;
 		for(int i=0;i<nCalledAlleles;i++) {
 			int j = indexesCalledAlleles[i];
@@ -239,6 +241,8 @@ public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
 				excess -=toRemove;
 			}
 		}
+		//Remove phasing
+		indexesPhasedAlleles = new byte [0];
 	}
 
 	@Override
@@ -335,6 +339,19 @@ public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
 		}
 		return answer;
 	}
+	@Override
+	public byte[] getIndexesPhasedAlleles() {
+		return indexesPhasedAlleles;
+	}
+	/**
+	 * PRE: length of phased alleles coincides with total copy number
+	 * All input alleles are valid for the variant
+	 * @param phasedAlleles
+	 */
+	public void setPhasedAlleles(byte [] phasedAlleles) {
+		if(phasedAlleles.length!=totalCopyNumber) return;
+		this.indexesPhasedAlleles = Arrays.copyOf(phasedAlleles, phasedAlleles.length);
+	}
 
 	@Override
 	public boolean isCompatible(GenomicVariant variant) {
@@ -361,4 +378,6 @@ public class CalledGenomicVariantImpl implements PhasedGenomicVariant {
 	public void setType(byte type) {
 		variant.setType(type);
 	}
+
+	
 }

@@ -320,7 +320,9 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		String genotypeStr=knownItemsSample[VCFRecord.FORMAT_IDX_GT];
 		if(genotypeStr==null) genotypeStr = ".";
 		String [] callItems = ParseUtils.parseString(genotypeStr, '|', '/');
+		boolean phased = callItems.length>1 && genotypeStr.charAt(callItems[0].length())=='|';
 		byte [] allelesCNG = new byte[numAlleles];
+		byte [] phasedAlleles = new byte[callItems.length];
 		byte totalCNG = (byte)Math.min(CalledGenomicVariant.MAX_NUM_COPIES, callItems.length);
 		Arrays.fill(allelesCNG, (byte)0);
 		Set<Byte> uniqueAlleles = new TreeSet<Byte>();
@@ -341,9 +343,11 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				}
 				uniqueAlleles.add(nextAlleleId);
 				allelesCNG[nextAlleleId]++;
+				phasedAlleles [j] = nextAlleleId;
 			}
 		}
 		byte [] calledAlleleIds = new byte[uniqueAlleles.size()];
+		if(calledAlleleIds.length==0) phased = false;
 		Iterator<Byte> it = uniqueAlleles.iterator();
 		for(int j=0;it.hasNext();j++)  {
 			byte nextAlleleId = it.next();
@@ -373,7 +377,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				snv.setCountAlternative(counts[1]);
 			}
 			if(logConditionals!=null) snv.setRefAltGenotypeLogConditionals(logConditionals);
-		} else if (variant.getType() ==GenomicVariant.TYPE_CNV) {
+		} else if (variant.getType() == GenomicVariant.TYPE_CNV) {
 			CalledCNV cnv;
 			if (calledAlleleIds.length==1) {
 				//If the genotype field is not empty, then it is interpreted as the number of copies
@@ -430,6 +434,26 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				answer.updateAllelesCopyNumberFromCounts((byte)totalCopyNumber);
 			}
 		}
+		//Load phasing
+		if(phased) {
+			int copyNumber = answer.getCopyNumber();
+			if(copyNumber == phasedAlleles.length) {
+				//TODO: Load SNVs with  
+				if(answer instanceof CalledSNV && copyNumber == 2) {
+					CalledSNV csnv = (CalledSNV)answer;
+					csnv.setPhasingCN2(phasedAlleles[0]==1);
+				} else if (answer instanceof CalledGenomicVariantImpl) {
+					CalledGenomicVariantImpl call = (CalledGenomicVariantImpl)answer;
+					call.setPhasedAlleles(phasedAlleles);
+				} else {
+					log.severe("Can not load phasing information for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". Phasing of SNVs with high copy number still not supported");
+				}
+				
+			} else {
+				log.severe("Can not load phasing information for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". Number of phased alleles inconsistent with total copy number");
+			}
+		}
+		
 		return answer;
 		
 	}

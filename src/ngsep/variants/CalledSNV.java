@@ -20,6 +20,7 @@
 package ngsep.variants;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 
 
 /**
@@ -27,7 +28,7 @@ import java.util.Arrays;
  * @author Jorge Duitama
  *
  */
-public class CalledSNV implements PhasedGenomicVariant {
+public class CalledSNV implements CalledGenomicVariant {
 	
 	private SNV snv;
 	private String sampleId;
@@ -48,6 +49,9 @@ public class CalledSNV implements PhasedGenomicVariant {
 	
 	//The copy number of the alternative allele. 
 	private byte refCopyNumber = 0;
+	
+	//Phasing as a bit array
+	private byte phasing = -1;
 	
 	
 	/**
@@ -119,7 +123,8 @@ public class CalledSNV implements PhasedGenomicVariant {
 		} else {
 			this.refCopyNumber = allelesCN[0];
 		}
-		
+		//Unphase variant because the copy number changed
+		phasing = -1;
 	}
 	
 	@Override
@@ -145,6 +150,8 @@ public class CalledSNV implements PhasedGenomicVariant {
 		this.refCopyNumber = (byte) Math.round(refProp*totalCopyNumber);
 		if(this.refCopyNumber==0) this.refCopyNumber = 1;
 		else if (this.refCopyNumber>=totalCopyNumber) this.refCopyNumber = (byte) (totalCopyNumber-1);
+		//Unphase variant because the copy number changed
+		phasing = -1;
 	}
 	
 	@Override
@@ -268,6 +275,7 @@ public class CalledSNV implements PhasedGenomicVariant {
 		genotype = GENOTYPE_UNDECIDED;
 		genotypeQuality = 0;
 		refCopyNumber = (byte)0;
+		phasing = -1;
 	}
 	@Override
 	public boolean isUndecided () {
@@ -417,24 +425,41 @@ public class CalledSNV implements PhasedGenomicVariant {
 	}
 	@Override
 	public boolean isPhased() {
-		// TODO Auto-generated method stub
-		return false;
+		return phasing >=0;
 	}
 	@Override
 	public String[] getPhasedAlleles() {
-		throw new RuntimeException("Method still not implemented");
-		/*if(this.isHomozygous()) {
-			return getCalledAlleles();
-		}
+		if(!isPhased()) return null;
+		
 		String [] alleles = snv.getAlleles();
 		LinkedList<String> answer = new LinkedList<String>();
 		byte p = this.phasing;
-		for(int i=0;i<ploidy;i++) {
-			answer.add(0, alleles[p%2]);
+		for(int i=0;i<totalCopyNumber;i++) {
+			answer.add(0,alleles[p%2]);
 			p/=2;
 		}
 		return answer.toArray(new String [0]);
-		*/
+	}
+	@Override
+	public byte[] getIndexesPhasedAlleles() {
+		if(!isPhased()) return null;
+		byte[] answer = new byte [totalCopyNumber];
+		byte p = this.phasing;
+		for(int i=0;i<totalCopyNumber;i++) {
+			answer[totalCopyNumber - i - 1] = (byte)(p%2);
+			p/=2;
+		}
+		return answer;
+	}
+	public void setPhasingCN2 (boolean alternativeFirst) {
+		if(totalCopyNumber!=2) {
+			throw new RuntimeException("This method should not be called with a copy number different than 2");
+		}
+		if(genotype == GENOTYPE_UNDECIDED) return;
+		else if (genotype == GENOTYPE_HOMOREF) phasing = 0;
+		else if (genotype == GENOTYPE_HOMOALT) phasing = 3;
+		else if (alternativeFirst) phasing = 2;
+		else phasing = 1;
 	}
 	@Override
 	public int [] getAllCounts () {
@@ -474,6 +499,7 @@ public class CalledSNV implements PhasedGenomicVariant {
 	public void setType(byte type) {
 		snv.setType(type);
 	}
+	
 	
 	
 		

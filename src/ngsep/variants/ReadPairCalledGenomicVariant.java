@@ -314,4 +314,28 @@ public class ReadPairCalledGenomicVariant implements CalledGenomicVariant {
 	}
 
 
+
+	@Override
+	public boolean isPhased() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+
+
+	@Override
+	public String[] getPhasedAlleles() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+	@Override
+	public byte[] getIndexesPhasedAlleles() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
 }

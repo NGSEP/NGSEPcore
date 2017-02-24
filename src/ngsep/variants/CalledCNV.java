@@ -348,4 +348,19 @@ public class CalledCNV implements CalledGenomicVariant {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	@Override
+	public boolean isPhased() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	@Override
+	public String[] getPhasedAlleles() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public byte[] getIndexesPhasedAlleles() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

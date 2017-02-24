@@ -162,6 +162,7 @@ public class VCFFileWriter {
 			if(f>0) out.print(":");
 			int formatIdx = format[f];
 			if(formatIdx == VCFRecord.FORMAT_IDX_GT) {
+				boolean phased = var.isPhased();
 				if (idxsCalledAlleles.length == 0) {
 					//Undecided call
 					out.print(".");
@@ -173,13 +174,15 @@ public class VCFFileWriter {
 					//Homozygous call
 					int idAllele = idxsCalledAlleles[0];
 					out.print(""+idAllele);
-					if(ploidy>1) out.print ("/"+idAllele);
+					if(ploidy>1) out.print ((phased?"|":"/")+idAllele);
 				} else {
 					//Heterozygous call
-					for(int i=0;i<idxsCalledAlleles.length;i++) {
+					byte [] finalAlleles = idxsCalledAlleles;
+					if(phased) finalAlleles = var.getIndexesPhasedAlleles();
+					for(int i=0;i<finalAlleles.length;i++) {
 						//Since v2.1.4, alleles are not explicitly written with copy number anymore. Allele copy numbers are saved in the new format field Local Allele Copy Numbers (ACN)
-						int idAllele = idxsCalledAlleles[i];
-						if(i>0) out.print("/");
+						int idAllele = finalAlleles[i];
+						if(i>0) out.print((phased?"|":"/"));
 						out.print(""+idAllele);
 					}
 				}
