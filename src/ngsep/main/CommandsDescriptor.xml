@@ -679,4 +679,22 @@ Consider secondary alignments. By default, only primary alignments are processed
 </option>
 </command>
 
+<command id="DistanceMatrix" class="ngsep.vcf.DistanceMatrixCalculator">
+<intro>
+Calculate a genetic distance matrix from SNVs in a given VCF file
+</intro>
+<title>Calculating genetic distance matrix from VCF file</title>
+<description>
+Generate a distance matrix from a variants file in VCF format.
+The matrix is calculate using the basic IBS (Identity by state) algorithm with a modification to allow a precisely 
+calculation for polyploids samples.
+Writes to standard output the genetic distances matrix in a generic format.
+</description>
+<argument>OPTIONS</argument>
+<argument>VCF_FILE</argument>
+<option id="ploidy" type="INT" default="2" attribute="ploidy">
+K-mer length
+</option>
+</command>
+
 </NGSEP>
