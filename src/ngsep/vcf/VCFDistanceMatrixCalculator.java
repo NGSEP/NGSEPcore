@@ -2,14 +2,12 @@ package ngsep.vcf;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
-import ngsep.sequences.KmersCounter;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.DistanceMatrix;
