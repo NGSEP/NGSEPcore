@@ -12,17 +12,15 @@ import ngsep.main.ProgressNotifier;
 import ngsep.sequences.KmersCounter;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
+import ngsep.variants.DistanceMatrix;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFRecord;
 
 
-public class DistanceMatrixCalculator {
+public class VCFDistanceMatrixCalculator {
 
-	private Logger log = Logger.getLogger(KmersCounter.class.getName());
+	private Logger log = Logger.getLogger(VCFDistanceMatrixCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	
-	private ArrayList<String> matrix = new ArrayList<>();
-	private List<String> samples;
 	
 	private int ploidy = 2;
 
@@ -43,18 +41,18 @@ public class DistanceMatrixCalculator {
 	
 	 public static void main (String [ ] args) throws IOException {
 
-		DistanceMatrixCalculator dmCalculator = new DistanceMatrixCalculator();
+		VCFDistanceMatrixCalculator dmCalculator = new VCFDistanceMatrixCalculator();
 		
 		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(DistanceMatrixCalculator.class);
+			CommandsDescriptor.getInstance().printHelp(VCFDistanceMatrixCalculator.class);
 			return;
 		}
 		//Parameters
 		int k=CommandsDescriptor.getInstance().loadOptions(dmCalculator, args);
 		
 		String vcfFile = args[k++];
-		dmCalculator.generateMatrix(vcfFile);
-		dmCalculator.printMatrix(System.out);
+		DistanceMatrix dm = dmCalculator.generateMatrix(vcfFile);
+		dmCalculator.printMatrix(dm, System.out);
 		
 	 }
 	
@@ -63,11 +61,11 @@ public class DistanceMatrixCalculator {
 		 * @param vcfFile VCF filename.
 		 * @throws IOException
 	 */
-	 public float[][] generateMatrix (String vcfFile) throws IOException{
+	 public DistanceMatrix generateMatrix (String vcfFile) throws IOException{
 
 		VCFFileReader vcfFileReader = new VCFFileReader(vcfFile);
 		Iterator<VCFRecord> iteratorRecords = vcfFileReader.iterator();
-		samples = vcfFileReader.getSampleIds();
+		List<String> samples = vcfFileReader.getSampleIds();
 		float distanceMatrix[][] = new float[samples.size()][samples.size()];
 		int genotypePerSamplesComparison[][] = new int[samples.size()][samples.size()];
 		
@@ -76,7 +74,7 @@ public class DistanceMatrixCalculator {
 		
 		//generate ploidy range for individual from dosage data
 		for(int y=0; y < ploidy;y++){
-			ploidyLevels[y] = (ploidy/1) * y;
+			ploidyLevels[y] = (1/ploidy) * y;
 		}
 		
 		//Iterate over every variant in VCF file
@@ -119,20 +117,15 @@ public class DistanceMatrixCalculator {
 		
 		//Normalize genetic distance value depending number of samples x samples per Variant found genotyped (Omit missing values)
 		for(int j=0;j<samples.size();j++){
-			String row = "";
     		for(int k=0;k<samples.size();k++){
     			distanceMatrix[j][k] = distanceMatrix[j][k]/genotypePerSamplesComparison[j][k];
-    			
-    			row+=distanceMatrix[j][k];
-    			row+=" ";
-    			
 	    	}
-    		matrix.add(row);
     	}
-
+		
+		DistanceMatrix dMatrix = new DistanceMatrix(samples, distanceMatrix);
 		vcfFileReader.close();
 		
-		return distanceMatrix;
+		return dMatrix;
 	
 	}
 	 
@@ -162,12 +155,18 @@ public class DistanceMatrixCalculator {
 	  * @param out matrix in generic format.
 	  * @throws IOException
 	*/
-	public void printMatrix (PrintStream out) {
+	public void printMatrix (DistanceMatrix dm, PrintStream out) {
 		//print number of samples of the matrix
-	    out.println(matrix.size());
+	    out.println(dm.getnSamples());
 	    // print samples x samples distance matrix
-	    for(int p=0;p<matrix.size();p++){
-	    	out.println(samples.get(p)+" "+matrix.get(p));
+	    for(int j=0;j<dm.getnSamples();j++){
+	    	String row = "";
+    		for(int k=0;k<dm.getnSamples();k++){
+    			row += dm.getDistanceMatrix()[j][k];
+    			row += " ";
+	    	}
+    		
+	    	out.println(dm.getSamples().get(j)+" "+row);
     	}
 
 	}

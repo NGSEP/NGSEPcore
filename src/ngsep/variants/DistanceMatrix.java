@@ -1,4 +1,4 @@
-package ngsep.vcf;
+package ngsep.variants;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -54,27 +54,27 @@ public class DistanceMatrix {
 		this.setnSamples(samples.size());
 	}
 
-	List<String> getSamples() {
+	public List<String> getSamples() {
 		return samples;
 	}
 
-	void setSamples(List<String> samples) {
+	public void setSamples(List<String> samples) {
 		this.samples = samples;
 	}
 
-	float[][] getDistanceMatrix() {
+	public float[][] getDistanceMatrix() {
 		return distanceMatrix;
 	}
 
-	void setDistanceMatrix(float distanceMatrix[][]) {
+	public void setDistanceMatrix(float distanceMatrix[][]) {
 		this.distanceMatrix = distanceMatrix;
 	}
 
-	int getnSamples() {
+	public int getnSamples() {
 		return nSamples;
 	}
 
-	void setnSamples(int nSamples) {
+	public void setnSamples(int nSamples) {
 		this.nSamples = nSamples;
 	}
 	
