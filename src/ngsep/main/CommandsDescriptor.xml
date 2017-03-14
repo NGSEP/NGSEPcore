@@ -679,7 +679,7 @@ Consider secondary alignments. By default, only primary alignments are processed
 </option>
 </command>
 
-<command id="DistanceMatrix" class="ngsep.vcf.DistanceMatrixCalculator">
+<command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
 <intro>
 Calculate a genetic distance matrix from SNVs in a given VCF file
 </intro>
@@ -693,7 +693,7 @@ Writes to standard output the genetic distances matrix in a generic format.
 <argument>OPTIONS</argument>
 <argument>VCF_FILE</argument>
 <option id="ploidy" type="INT" default="2" attribute="ploidy">
-K-mer length
+Ploidy
 </option>
 </command>
 
