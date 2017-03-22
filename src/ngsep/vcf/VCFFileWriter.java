@@ -36,6 +36,11 @@ import ngsep.variants.VariantCallReport;
 
 public class VCFFileWriter {
 	
+	public void printVCFRecords (List<VCFRecord> records, PrintStream out) {
+		for(VCFRecord record:records) {
+			printVCFRecord(record, out);
+		}
+	}
 	public void printVCFRecord (VCFRecord record, PrintStream out) {
 		GenomicVariant var = record.getVariant();
 		//Add type as annotation if still not added
