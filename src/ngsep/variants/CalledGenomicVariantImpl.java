@@ -35,7 +35,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	private byte [] allelesCopyNumber;
 	private VariantCallReport callReport;
 	private int [] allCounts;
-	private byte [] indexesPhasedAlleles;
+	private byte [] indexesPhasedAlleles = new byte [0];
 	
 	public CalledGenomicVariantImpl (String sequenceName, int position, List<String> alleles, byte[] indexesCalledAlleles) {
 		variant = new GenomicVariantImpl(sequenceName, position, alleles);
