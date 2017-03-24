@@ -11,6 +11,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.DistanceMatrix;
+import ngsep.variants.SNV;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFRecord;
 
@@ -79,38 +80,41 @@ public class VCFDistanceMatrixCalculator {
 		while(iteratorRecords.hasNext()){
 			VCFRecord vcfRecord = iteratorRecords.next();
 			//The variant is a SNV
-			if(vcfRecord.getVariant().isSNV()){
-				
-				List<CalledGenomicVariant> genotyped = vcfRecord.getCalls();
-				float genotypes[] = new float[genotyped.size()];
-		    	//Calculate dosage for each sample
-		    	for (int i=0;i<genotyped.size();i++) {
-		    		CalledSNV snv = (CalledSNV) genotyped.get(i);
-		    		genotypes[i] = snv.getGenotype();
-		    		if(genotypes[i] == 1){
-		    			int countRef = snv.getCountReference();
-			    		int countAlt = snv.getCountAlternative();
-			    		
-			    		//Depends of ploidy assign a value to dosage
-			    	    float dosage = countRef / (countRef + countAlt);
-			    	    genotypes[i] = roundToArray(dosage, ploidyLevels);
-			    		
-		    		}
-		    	}
-		    	
-		    	//calculate distance samples x samples for all SNVs
-		    	for(int j=0;j<samples.size();j++){
-		    		for(int k=0;k<samples.size();k++){
-		    			if(!(genotypes[j]==-1||genotypes[k]==-1)){
-		    				//distance between pair of genotypes for a single SNV
-		    				distanceMatrix[j][k] += (float)Math.abs(genotypes[j]-genotypes[k]);
-		    				//matrix need to save value by how divide
-		    				genotypePerSamplesComparison[j][k]++;
-		    			}
-			    	}
-		    	}		    	
-				
+			if(!(vcfRecord.getVariant() instanceof SNV)){
+				//Process only biallelic SNVs
+				continue;
 			}
+				
+			List<CalledGenomicVariant> genotypeCalls = vcfRecord.getCalls();
+			float genotypes[] = new float[genotypeCalls.size()];
+	    	//Calculate dosage for each sample
+	    	for (int i=0;i<genotypeCalls.size();i++) {
+	    		CalledGenomicVariant call = genotypeCalls.get(i);
+	    		if(!(call instanceof CalledSNV)) {
+	    			continue;
+	    		}
+	    		CalledSNV snv = (CalledSNV) call;
+	    		genotypes[i] = snv.getGenotype();
+	    		if(genotypes[i] == CalledSNV.GENOTYPE_HETERO){
+	    			int countRef = snv.getCountReference();
+		    		int countAlt = snv.getCountAlternative();
+		    		//Depends of ploidy assign a value to dosage
+		    	    float dosage = countRef / (countRef + countAlt);
+		    	    genotypes[i] = roundToArray(dosage, ploidyLevels);
+	    		}
+	    	}
+	    	
+	    	//calculate distance samples x samples for all SNVs
+	    	for(int j=0;j<samples.size();j++){
+	    		for(int k=0;k<samples.size();k++){
+	    			if(!(genotypes[j]==-1||genotypes[k]==-1)){
+	    				//distance between pair of genotypes for a single SNV
+	    				distanceMatrix[j][k] += (float)Math.abs(genotypes[j]-genotypes[k]);
+	    				//matrix need to save value by how divide
+	    				genotypePerSamplesComparison[j][k]++;
+	    			}
+		    	}
+	    	}		    	
 		}
 		
 		//Normalize genetic distance value depending number of samples x samples per Variant found genotyped (Omit missing values)
