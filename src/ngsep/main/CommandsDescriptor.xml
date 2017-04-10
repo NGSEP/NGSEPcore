@@ -695,6 +695,9 @@ Writes to standard output the genetic distances matrix in a generic format.
 <option id="ploidy" type="INT" default="2" attribute="ploidy">
 Ploidy
 </option>
+<option id="matrixType" type="INT" default="0" attribute="matrixType">
+Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
+</option>
 </command>
 
 </NGSEP>

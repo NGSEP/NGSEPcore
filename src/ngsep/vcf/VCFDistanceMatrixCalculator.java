@@ -1,7 +1,6 @@
 package ngsep.vcf;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -12,6 +11,7 @@ import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.DistanceMatrix;
 import ngsep.variants.SNV;
+import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFRecord;
 
@@ -22,6 +22,7 @@ public class VCFDistanceMatrixCalculator {
 	private ProgressNotifier progressNotifier=null;
 	
 	private int ploidy = 2;
+	private int matrixType = 0;
 
 	public Logger getLog() {
 		return log;
@@ -51,7 +52,7 @@ public class VCFDistanceMatrixCalculator {
 		
 		String vcfFile = args[k++];
 		DistanceMatrix dm = dmCalculator.generateMatrix(vcfFile);
-		dmCalculator.printMatrix(dm, System.out);
+		dm.printMatrix(System.out);
 		
 	 }
 	
@@ -64,16 +65,19 @@ public class VCFDistanceMatrixCalculator {
 
 		VCFFileReader vcfFileReader = new VCFFileReader(vcfFile);
 		Iterator<VCFRecord> iteratorRecords = vcfFileReader.iterator();
-		List<String> samples = vcfFileReader.getSampleIds();
+		List<Sample> samples = vcfFileReader.getHeader().getSamples();
 		float distanceMatrix[][] = new float[samples.size()][samples.size()];
 		int genotypePerSamplesComparison[][] = new int[samples.size()][samples.size()];
 		
+		if(ploidy<2){
+			ploidy = 2;
+		}
 		
-		float ploidyLevels[] = new float[ploidy];
 		
+		float ploidyLevels[] = new float[ploidy+1];
 		//generate ploidy range for individual from dosage data
-		for(int y=0; y < ploidy;y++){
-			ploidyLevels[y] = (1/ploidy) * y;
+		for(int y=0; y <= ploidy;y++){
+			ploidyLevels[y] = (1.0f/ploidy) * y;
 		}
 		
 		//Iterate over every variant in VCF file
@@ -95,21 +99,54 @@ public class VCFDistanceMatrixCalculator {
 	    		}
 	    		CalledSNV snv = (CalledSNV) call;
 	    		genotypes[i] = snv.getGenotype();
-	    		if(genotypes[i] == CalledSNV.GENOTYPE_HETERO){
-	    			int countRef = snv.getCountReference();
-		    		int countAlt = snv.getCountAlternative();
+	    		if(genotypes[i] != CalledSNV.GENOTYPE_UNDECIDED){
+	    			float countRef = snv.getCountReference();
+		    		float countAlt = snv.getCountAlternative();
 		    		//Depends of ploidy assign a value to dosage
-		    	    float dosage = countRef / (countRef + countAlt);
-		    	    genotypes[i] = roundToArray(dosage, ploidyLevels);
+		    		if((countRef + countAlt) == 0){
+	    				genotypes[i]=CalledSNV.GENOTYPE_UNDECIDED;
+	    			} else {
+	    				
+	    				if(ploidy != 2){
+	    					float dosage = countRef / (countRef + countAlt);
+				    	    genotypes[i] = roundToArray(dosage, ploidyLevels);
+	    				} else {
+	    					if(genotypes[i]==CalledSNV.GENOTYPE_HOMOREF){
+		    					genotypes[i] = 1.0f;
+		    				}else if(genotypes[i]==CalledSNV.GENOTYPE_HOMOALT){
+		    					genotypes[i] = 0.0f;
+		    				} else if(genotypes[i]==CalledSNV.GENOTYPE_HETERO){
+		    					genotypes[i] = 0.5f;
+		    				}
+	    				}
+
+	    			}
+		    	    
 	    		}
 	    	}
 	    	
 	    	//calculate distance samples x samples for all SNVs
 	    	for(int j=0;j<samples.size();j++){
 	    		for(int k=0;k<samples.size();k++){
-	    			if(!(genotypes[j]==-1||genotypes[k]==-1)){
+	    			if(!(genotypes[j]==CalledSNV.GENOTYPE_UNDECIDED || 
+	    				genotypes[k]==CalledSNV.GENOTYPE_UNDECIDED )){
 	    				//distance between pair of genotypes for a single SNV
-	    				distanceMatrix[j][k] += (float)Math.abs(genotypes[j]-genotypes[k]);
+	    				
+	    			    if(ploidy != 2){
+	    			    	distanceMatrix[j][k] += Math.abs(genotypes[j]-genotypes[k]);
+	    			    } else {
+	    			    	if(j==k){
+	    						distanceMatrix[j][k] += 1;
+	    					} else if(genotypes[j]==genotypes[k] && genotypes[k]!=0.5){
+		    					distanceMatrix[j][k] += 1;
+		    				} else if(genotypes[j]==0.0 && genotypes[k] == 1.0 ||
+		    						genotypes[j]==1.0 && genotypes[k] == 0.0 ){
+		    					distanceMatrix[j][k] += 0;
+		    				} else if(genotypes[j] == 0.5 || genotypes[k]== 0.5){
+		    					distanceMatrix[j][k] += 0.5;
+		    				}
+	    			    }
+
 	    				//matrix need to save value by how divide
 	    				genotypePerSamplesComparison[j][k]++;
 	    			}
@@ -120,11 +157,21 @@ public class VCFDistanceMatrixCalculator {
 		//Normalize genetic distance value depending number of samples x samples per Variant found genotyped (Omit missing values)
 		for(int j=0;j<samples.size();j++){
     		for(int k=0;k<samples.size();k++){
-    			distanceMatrix[j][k] = distanceMatrix[j][k]/genotypePerSamplesComparison[j][k];
+    			
+    				if(genotypePerSamplesComparison[j][k] > 0){
+    					if(ploidy!=2){
+    						distanceMatrix[j][k] = distanceMatrix[j][k]/genotypePerSamplesComparison[j][k];
+    					} else {
+    						distanceMatrix[j][k] = 1 - (distanceMatrix[j][k]/genotypePerSamplesComparison[j][k]);
+    					}
+
+    				}
+		
 	    	}
     	}
 		
 		DistanceMatrix dMatrix = new DistanceMatrix(samples, distanceMatrix);
+		dMatrix.setMatrixType(matrixType);
 		vcfFileReader.close();
 		
 		return dMatrix;
@@ -141,37 +188,19 @@ public class VCFDistanceMatrixCalculator {
 	public float roundToArray(float value, float [] array){
 		 
 		 float best_abs = 1.0f;
+		 float rounded = value;
 		 
 		 for(int i=0; i < array.length; i++){
 			 if(best_abs > Math.abs(value-array[i]))
 			 {
-				 best_abs = array[i];
+				 best_abs = value-array[i];
+				 rounded = array[i];
 			 }		 
 		 }
-		 
-		 return best_abs;
+		 return rounded;
 	 }
 	
-	/**
-	  * Print distance matrix.
-	  * @param out matrix in generic format.
-	  * @throws IOException
-	*/
-	public void printMatrix (DistanceMatrix dm, PrintStream out) {
-		//print number of samples of the matrix
-	    out.println(dm.getnSamples());
-	    // print samples x samples distance matrix
-	    for(int j=0;j<dm.getnSamples();j++){
-	    	String row = "";
-    		for(int k=0;k<dm.getnSamples();k++){
-    			row += dm.getDistanceMatrix()[j][k];
-    			row += " ";
-	    	}
-    		
-	    	out.println(dm.getSamples().get(j)+" "+row);
-    	}
 
-	}
 	
 	public int getPloidy() {
 		return ploidy;
@@ -183,6 +212,15 @@ public class VCFDistanceMatrixCalculator {
 		this.setPloidy(ploidy.intValue());
 	}	
 	
+	public int getMatrixType() {
+		return matrixType;
+	}
+	public void setMatrixType(int matrixType) {
+		this.matrixType = matrixType;
+	}
+	public void setMatrixType(Integer matrixType) {
+		this.setMatrixType(matrixType.intValue());
+	}	
 	
 	
 }

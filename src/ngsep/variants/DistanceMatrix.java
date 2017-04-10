@@ -2,14 +2,16 @@ package ngsep.variants;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
 public class DistanceMatrix {
 
-	private List<String> samples;
+	private List<Sample> samples;
 	private float distanceMatrix[][];
 	private int nSamples;
+	private int matrixType;
 	
 	/**
 	 * Construct a DistanceMatrix object from a file which represent a matrix in a generic format.
@@ -19,7 +21,7 @@ public class DistanceMatrix {
 	*/
 	public DistanceMatrix(String filename) throws IOException, NumberFormatException{
 		BufferedReader br = new BufferedReader(new FileReader(filename));
-		samples = new ArrayList<String>();
+		samples = new ArrayList<Sample>();
 		try {
 			this.setnSamples(Integer.parseInt(br.readLine()));
 			this.setDistanceMatrix(new float[this.getnSamples()][this.getnSamples()]);
@@ -29,7 +31,7 @@ public class DistanceMatrix {
 		    while (matrixRow != null) {
 		        
 		    	String[] matrixCell  = matrixRow.split("\\s+");
-		    	this.getSamples().add(matrixCell[0]);
+		    	this.getSamples().add(new Sample(matrixCell[0]));
 		    	for(int column = 1; column < (this.getnSamples()+1); column++){
 		    		this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
 		    	}
@@ -48,17 +50,53 @@ public class DistanceMatrix {
 	 * @param samples Identifier of the sample in the matrix.
 	 * @param distanceMatrix Values of distances between the samples
 	*/
-	public DistanceMatrix(List<String> samples,float distanceMatrix[][] ){
+	public DistanceMatrix(List<Sample> samples,float distanceMatrix[][] ){
 		this.setSamples(samples);
 		this.setDistanceMatrix(distanceMatrix);
 		this.setnSamples(samples.size());
 	}
+	
+	/**
+	  * Print distance matrix.
+	  * matrixType:
+	  *  0 = full matrix
+	  *  1 = Lower-left matrix
+	  *  2 = Upper-right matrix
+	  * @param out matrix in generic format.
+	  * @throws IOException
+	*/
+	public void printMatrix (PrintStream out) {
+		//print number of samples of the matrix
+	    out.println(this.getnSamples());
+	    // print samples x samples distance matrix
+	    for(int j=0;j<this.getnSamples();j++){
+	    	String row = "";
+    		for(int k=0;k<this.getnSamples();k++){
+    			if(this.getMatrixType() == 0 || (this.getMatrixType() == 1 && j>k) || (this.getMatrixType() == 2 && k>j) ){
+    				
+    				row += this.getDistanceMatrix()[j][k];
+        			row += " ";
+        			
+    			} else if(this.getMatrixType() == 2 && j>k){
+        			row += " ";
+    			}
+    			
+    			
+	    	}
+    		
+	    	out.println(this.getSamples().get(j)+" "+row);
+    	}
 
-	public List<String> getSamples() {
+	}
+	
+
+	
+
+	public List<Sample> getSamples() {
 		return samples;
 	}
 
-	public void setSamples(List<String> samples) {
+	public void setSamples(List<Sample> samples) {
 		this.samples = samples;
 	}
 
@@ -76,6 +114,14 @@ public class DistanceMatrix {
 
 	public void setnSamples(int nSamples) {
 		this.nSamples = nSamples;
+	}
+
+	public int getMatrixType() {
+		return matrixType;
+	}
+
+	public void setMatrixType(int matrixType) {
+		this.matrixType = matrixType;
 	}
 	
 	
