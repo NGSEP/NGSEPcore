@@ -110,14 +110,6 @@ public class VCFDistanceMatrixCalculator {
 	    				if(ploidy != 2){
 	    					float dosage = countRef / (countRef + countAlt);
 				    	    genotypes[i] = roundToArray(dosage, ploidyLevels);
-	    				} else {
-	    					if(genotypes[i]==CalledSNV.GENOTYPE_HOMOREF){
-		    					genotypes[i] = 1.0f;
-		    				}else if(genotypes[i]==CalledSNV.GENOTYPE_HOMOALT){
-		    					genotypes[i] = 0.0f;
-		    				} else if(genotypes[i]==CalledSNV.GENOTYPE_HETERO){
-		    					genotypes[i] = 0.5f;
-		    				}
 	    				}
 
 	    			}
@@ -137,12 +129,12 @@ public class VCFDistanceMatrixCalculator {
 	    			    } else {
 	    			    	if(j==k){
 	    						distanceMatrix[j][k] += 1;
-	    					} else if(genotypes[j]==genotypes[k] && genotypes[k]!=0.5){
+	    					} else if(genotypes[j]==genotypes[k] && genotypes[k]!= CalledSNV.GENOTYPE_HETERO){
 		    					distanceMatrix[j][k] += 1;
-		    				} else if(genotypes[j]==0.0 && genotypes[k] == 1.0 ||
-		    						genotypes[j]==1.0 && genotypes[k] == 0.0 ){
+		    				} else if(genotypes[j]==CalledSNV.GENOTYPE_HOMOREF && genotypes[k] == CalledSNV.GENOTYPE_HOMOALT ||
+		    						genotypes[j]==CalledSNV.GENOTYPE_HOMOALT && genotypes[k] == CalledSNV.GENOTYPE_HOMOREF ){
 		    					distanceMatrix[j][k] += 0;
-		    				} else if(genotypes[j] == 0.5 || genotypes[k]== 0.5){
+		    				} else if(genotypes[j] == CalledSNV.GENOTYPE_HETERO || genotypes[k]== CalledSNV.GENOTYPE_HETERO){
 		    					distanceMatrix[j][k] += 0.5;
 		    				}
 	    			    }
@@ -171,7 +163,7 @@ public class VCFDistanceMatrixCalculator {
     	}
 		
 		DistanceMatrix dMatrix = new DistanceMatrix(samples, distanceMatrix);
-		dMatrix.setMatrixType(matrixType);
+		dMatrix.setmatrixOutputType(matrixType);
 		vcfFileReader.close();
 		
 		return dMatrix;

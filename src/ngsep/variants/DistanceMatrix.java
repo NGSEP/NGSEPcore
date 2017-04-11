@@ -11,7 +11,7 @@ public class DistanceMatrix {
 	private List<Sample> samples;
 	private float distanceMatrix[][];
 	private int nSamples;
-	private int matrixType;
+	private int matrixOutputType;
 	
 	/**
 	 * Construct a DistanceMatrix object from a file which represent a matrix in a generic format.
@@ -22,6 +22,7 @@ public class DistanceMatrix {
 	public DistanceMatrix(String filename) throws IOException, NumberFormatException{
 		BufferedReader br = new BufferedReader(new FileReader(filename));
 		samples = new ArrayList<Sample>();
+		int fileMatrixType = 0;
 		try {
 			this.setnSamples(Integer.parseInt(br.readLine()));
 			this.setDistanceMatrix(new float[this.getnSamples()][this.getnSamples()]);
@@ -32,9 +33,37 @@ public class DistanceMatrix {
 		        
 		    	String[] matrixCell  = matrixRow.split("\\s+");
 		    	this.getSamples().add(new Sample(matrixCell[0]));
-		    	for(int column = 1; column < (this.getnSamples()+1); column++){
-		    		this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
+		    	
+
+		    	
+		    	if(row ==0 && matrixCell.length < (this.getnSamples()+1)){
+		    		fileMatrixType = 3; //needs to determinate which type of matrix, upper or lower triangle
 		    	}
+		    	
+		    	if(fileMatrixType == 3){
+		    		if(matrixCell.length > 2){ // row three of matrix have more than 2 columns ?
+		    			fileMatrixType = 2; //upper
+		    		} else {
+		    			fileMatrixType = 1; //lower
+		    		}
+		    	}
+		    	
+		    	
+		    	//indent to convert build upper matrix to lower
+	    		int indent = (this.getnSamples()+1) - matrixCell.length;
+	    		
+	    		for(int column = 1; column < matrixCell.length; column++){
+	    			if(fileMatrixType == 0){ // full matrix
+	    				this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
+	    			} else if(fileMatrixType == 1){ // lower
+	    				this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
+		    			this.getDistanceMatrix()[column-1][row]=Float.parseFloat(matrixCell[column]);
+		    		} else if(fileMatrixType == 2){ // upper
+		    			this.getDistanceMatrix()[column-1+indent][row]=Float.parseFloat(matrixCell[column]);
+		    			this.getDistanceMatrix()[row][column-1+indent]=Float.parseFloat(matrixCell[column]);
+		    		}
+		    	}
+
 		    	
 		    	matrixRow = br.readLine();
 		    	row++;
@@ -80,11 +109,10 @@ public class DistanceMatrix {
     			} else if(this.getMatrixType() == 2 && j>k){
         			row += " ";
     			}
-    			
-    			
+	
 	    	}
     		
-	    	out.println(this.getSamples().get(j)+" "+row);
+	    	out.println(this.getSamples().get(j).getId()+" "+row);
     	}
 
 	}
@@ -117,12 +145,11 @@ public class DistanceMatrix {
 	}
 
 	public int getMatrixType() {
-		return matrixType;
+		return matrixOutputType;
 	}
 
-	public void setMatrixType(int matrixType) {
-		this.matrixType = matrixType;
+	public void setmatrixOutputType(int matrixOutputType) {
+		this.matrixOutputType = matrixOutputType;
 	}
-	
 	
 }
