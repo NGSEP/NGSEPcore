@@ -26,7 +26,7 @@ public class RecombinationHMM extends VariableTransitionHMM {
 	
 	private List<Integer> positions = null;
 	private Double avgCMPerKbp = null;
-	private boolean fixedTransitions = false;
+	
 	
 	public RecombinationHMM(List<? extends HMMState> states, int numMarkers) {
 		super(states,numMarkers);
@@ -45,13 +45,7 @@ public class RecombinationHMM extends VariableTransitionHMM {
 		this.avgCMPerKbp = avgCMPerKbp;
 	}
 	
-	public boolean isFixedTransitions() {
-		return fixedTransitions;
-	}
-
-	public void setFixedTransitions(boolean fixedTransitions) {
-		this.fixedTransitions = fixedTransitions;
-	}
+	
 
 	public void estimateHaldaneTransitions() {
 		getLog().info("Estimating initial transitions from physical distance. avgCMPerKbp: "+avgCMPerKbp);
@@ -66,10 +60,10 @@ public class RecombinationHMM extends VariableTransitionHMM {
 			double dMorgans = 0.01*avgCMPerKbp*dKbp;
 			//Use Haldane's formula to estimate probability of crossover between the sites
 			double recombP = 0.5*(1 - Math.exp(-2.0*dMorgans));
-			if(!fixedTransitions) recombP = r.nextGaussian()*0.01 + recombP;
-			if(recombP > 0.5) recombP = 0.5;
-			if(recombP <=0.001) recombP = 0.001;
-			if(recombP>0.05) getLog().info("WARN: High probability of recombination at position: "+positions.get(i)+" Distance: "+distance+" recomb prob: "+recombP+ " dMorgans: "+dMorgans);
+			if(recombP <0.0001) recombP = 0.0001;
+			if(!isSkipTransitionsTraining()) recombP = r.nextGaussian()*recombP + recombP;
+			if(recombP > 0.25) recombP = 0.25;
+			if(recombP>0.1) getLog().warning("High probability of recombination at position: "+positions.get(i)+" Distance: "+distance+" recombination probability: "+recombP+ " Morgans: "+dMorgans);
 			
 			recombinationProbabilities[i]=recombP;
 		}

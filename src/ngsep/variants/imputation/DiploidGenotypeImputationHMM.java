@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import ngsep.hmm.RecombinationHMM;
 import ngsep.math.LogMath;
@@ -36,8 +35,6 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 	//private int startsBaumWelch = HaplotypeClustersHMM.DEF_STARTS_BAUM_WELCH;
 	private int startsBaumWelch = 1;
 	
-	private Double [][] forwardLogs=new Double[0][0];
-	private Double [][] backwardLogs=new Double[0][0];
 	private HaplotypeClustersHMM haploidBaseHMM;
 	public DiploidGenotypeImputationHMM(HaplotypeClustersHMM baseHMM, List<? extends HaplotypePairHMMState> states, int numMarkers, List<Integer> positions) {
 		super(states, numMarkers, positions);
@@ -90,13 +87,13 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		haploidBaseHMM.setAvgCMPerKbp(avgCMPerKbp);
 	}
 
-	public boolean isFixedTransitions() {
-		return haploidBaseHMM.isFixedTransitions();
+	public boolean isSkipTransitionsTraining() {
+		return haploidBaseHMM.isSkipTransitionsTraining();
 	}
 
-	public void setFixedTransitions(boolean fixedTransitions) {
-		super.setFixedTransitions(fixedTransitions);
-		haploidBaseHMM.setFixedTransitions(fixedTransitions);
+	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
+		super.setSkipTransitionsTraining(skipTransitionsTraining);
+		haploidBaseHMM.setSkipTransitionsTraining(skipTransitionsTraining);
 	}
 	
 	public void imputeGenotypes (Map<String, List<CalledSNV>> genotypes) {
@@ -141,7 +138,7 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			//assignments.put(sampleId, calculateFinalAssignments(sumStateProbs[i]));
 		}
 	}
-	private void train() {
+	public void train() {
 		//TODO: Decide when to train
 		//haploidBaseHMM.train();
 		haploidBaseHMM.setRandomTransitions();
@@ -173,9 +170,8 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 	public void calculateGenotypePosteriors(List<CalledSNV> genotypes, double[][] genotypePosteriors) {
 		int m = genotypes.size();
 		int k = getNumStates();
-		initArrays(k, m);
-		calculateForward(genotypes, forwardLogs);
-		calculateBackward(genotypes, backwardLogs);
+		Double [][] forwardLogs=calculateForward(genotypes);
+		Double [][] backwardLogs=calculateBackward(genotypes);
 		for(int i=0;i<m;i++) {
 			Double log0 = null;
 			Double log1 = null;
@@ -227,19 +223,6 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			}
 		}
 		getLog().info("Imputed: "+imputed+" inconsistent: "+inconsistent);
-	}
-	
-	
-	
-	private void initArrays(int k, int m) {
-		if(forwardLogs.length!=m || forwardLogs[0].length!=k) {
-			getLog().info("Creating array for forward probabilities of dimensions "+m+" x "+k);
-			forwardLogs = new Double[m][k];
-		}
-		if(backwardLogs.length!=m || backwardLogs[0].length!=k) {
-			getLog().info("Creating array for backward probabilities of dimensions "+m+" x "+k);
-			backwardLogs = new Double[m][k];
-		}
 	}
 
 

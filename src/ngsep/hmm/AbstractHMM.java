@@ -28,6 +28,9 @@ import ngsep.math.LogMath;
 
 public abstract class AbstractHMM implements HMM {
 	
+	public static final int DEF_STARTS_BAUM_WELCH = 5;
+	public static final int DEF_ITER_BAUM_WELCH = 10;
+	
 	private Logger log = Logger.getLogger(AbstractHMM.class.getName());
 	private Double [][] forwardLogs=new Double[0][0];
 	private Double [][] backwardLogs=new Double[0][0];
@@ -52,15 +55,8 @@ public abstract class AbstractHMM implements HMM {
 	@Override
 	public Double calculatePosteriors(List<? extends Object> observations,Double[][] posteriorLogs) {
 		int m = observations.size();
-		int n = getNumStates();
-		if(forwardLogs.length!=m || forwardLogs[0].length!=n) {
-			log.info("Creating matrix for forward probabilities of dimensions "+m+" x "+n);
-			forwardLogs = new Double[m][n];
-		}
-		if(backwardLogs.length!=m || backwardLogs[0].length!=n) {
-			log.info("Creating matrix for backward probabilities of dimensions "+m+" x "+n);
-			backwardLogs = new Double[m][n];
-		}
+		int k = getNumStates();
+		initArrays(m,k);
 		Double logProb = calculateForward(observations,forwardLogs);
 		calculateBackward(observations,backwardLogs);
 		
@@ -108,8 +104,32 @@ public abstract class AbstractHMM implements HMM {
 			}	
 		}
 		//Calculate final probability
+		return getSequenceLogProb(observations, forwardLogs);
+	}
+	
+	/**
+	 * Method that recalculates forward probabilities and returns the internal array where they get saved
+	 * @param observations
+	 * @return Double [][] array with forward probabilities with as many rows as observations and as many columns as states
+	 */
+	protected Double [][] calculateForward (List<? extends Object> observations) {
+		int m = observations.size();
+		int k = getNumStates();
+		initArrays(m, k);
+		calculateForward(observations,forwardLogs);
+		return forwardLogs;
+	}
+	
+	/**
+	 * Calculates the total probability of the given observations
+	 * @param observations list of m observations
+	 * @param forwardLogs precalculated forward logs
+	 * @return Double log of the total probability of the sequence of observations
+	 */
+	protected Double getSequenceLogProb(List<? extends Object> observations, Double [][] forwardLogs) {
 		Double logProb = null;
-		for(int j=0;j<n;j++) {
+		int m = observations.size();
+		for(int j=0;j<forwardLogs[m-1].length;j++) {
 			Double f = forwardLogs[m-1][j];
 			Double e = getEmission(j, observations.get(m-1), m-1);
 			logProb=LogMath.logSum(logProb, LogMath.logProduct(f,e));
@@ -145,6 +165,19 @@ public abstract class AbstractHMM implements HMM {
 			}	
 		}
 	}
+	
+	/**
+	 * Method that recalculates backward probabilities and returns the internal array where they get saved
+	 * @param observations
+	 * @return Double [][] array with backward probabilities with as many rows as observations and as many columns as states
+	 */
+	protected Double [][] calculateBackward (List<? extends Object> observations) {
+		int m = observations.size();
+		int k = getNumStates();
+		initArrays(m, k);
+		calculateBackward(observations, backwardLogs);
+		return backwardLogs;
+	}
 
 	@Override
 	public double getViterbiPath(List<Object> observations, int[] path) {
@@ -166,6 +199,16 @@ public abstract class AbstractHMM implements HMM {
 				if(j==k) transitions[j][k] = logNoChange;
 				else transitions[j][k] = logChange1;
 			}
+		}
+	}
+	private void initArrays(int m, int k) {
+		if(forwardLogs.length!=m || forwardLogs[0].length!=k) {
+			getLog().info("Creating array for forward probabilities of dimensions "+m+" x "+k);
+			forwardLogs = new Double[m][k];
+		}
+		if(backwardLogs.length!=m || backwardLogs[0].length!=k) {
+			getLog().info("Creating array for backward probabilities of dimensions "+m+" x "+k);
+			backwardLogs = new Double[m][k];
 		}
 	}
 	

@@ -68,7 +68,6 @@ public class GenotypeImputationHMM extends HaplotypeClustersHMM {
 		if(m!=getSteps()) throw new IllegalArgumentException("Number of variants: "+m+" in the set of genotypes does not coincide with steps of the HMM: "+getSteps());
 		double [][][] sumAlleleProbs = new double [n][m][2];
 		double [][][] nextAlleleProbs = new double [n][m][2];
-		//TODO: Check memory and use for diploid imputation
 		double [][][] sumStateProbs = new double [n][m][getNumStates()];
 		double [][][] nextStateProbs = new double [n][m][getNumStates()];
 		for(int i=0;i<n;i++) {
@@ -77,7 +76,7 @@ public class GenotypeImputationHMM extends HaplotypeClustersHMM {
 				Arrays.fill(sumStateProbs[i][j], 0.0);
 			}
 		}
-		if(getReferenceHaplotypes() == null) setReferenceHaplotypes(makeHaplotypesWithHomozygous(genotypes));
+		if(getTrainingData() == null) setTrainingData(makeTrainingDataWithHomozygous(genotypes));
 		for(int h=0;h<startsBaumWelch;h++) {
 			getLog().info("Training and sampling iteration: "+h);
 			train();
@@ -154,10 +153,10 @@ public class GenotypeImputationHMM extends HaplotypeClustersHMM {
 		return assignments;
 	}
 	
-	private List<List<Byte>> makeHaplotypesWithHomozygous(Map<String, List<CalledSNV>> genotypes) {
-		List<List<Byte>> haplotypes = new ArrayList<>();
+	private List<List<? extends Object>> makeTrainingDataWithHomozygous(Map<String, List<CalledSNV>> genotypes) {
+		List<List<? extends Object>> haplotypes = new ArrayList<>();
 		for (List<CalledSNV> genotypesSample:genotypes.values()) {
-			List<Byte> hapSample = makeHaplotypeWithHomozygous(genotypesSample);
+			List<? extends Object> hapSample = makeHaplotypeWithHomozygous(genotypesSample);
 			haplotypes.add(hapSample);
 		}
 		return haplotypes;

@@ -49,7 +49,7 @@ public class GenotypeImputer {
 	private ProgressNotifier progressNotifier=null;
 	private int progress = 0;
 	private Double avgCMPerKbp = null;
-	private boolean fixedTransitions = false;
+	private boolean skipTransitionsTraining = false;
 	private boolean inbredParents = false;
 	private boolean inbredSamples = false;
 	private List<String> parentIds = new ArrayList<String>() ;
@@ -79,7 +79,7 @@ public class GenotypeImputer {
 				i++;
 				instance.setK(Integer.parseInt(args[i]));
 			} else if("-t".equals(args[i])) {
-				instance.setFixedTransitions(true);
+				instance.setSkipTransitionsTraining(true);
 			} else {
 				System.err.println("Unrecognized option: "+args[i]);
 				CommandsDescriptor.getInstance().printHelp(GenotypeImputer.class);
@@ -144,12 +144,14 @@ public class GenotypeImputer {
 		this.k = k;
 	}
 	
-	public boolean isFixedTransitions() {
-		return fixedTransitions;
+	
+
+	public boolean isSkipTransitionsTraining() {
+		return skipTransitionsTraining;
 	}
 
-	public void setFixedTransitions(boolean fixedTransitions) {
-		this.fixedTransitions = fixedTransitions;
+	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
+		this.skipTransitionsTraining = skipTransitionsTraining;
 	}
 
 	public PrintStream getOutAssignments() {
@@ -248,7 +250,7 @@ public class GenotypeImputer {
 		//TODO: Make inbred parents a parameter
 		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
 		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
-		hmm.setFixedTransitions(fixedTransitions);
+		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
 		hmm.setLog(log);
 		
 		if(progressNotifier!=null) {
@@ -264,7 +266,7 @@ public class GenotypeImputer {
 		//TODO: Make inbred parents a parameter
 		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
 		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
-		hmm.setFixedTransitions(fixedTransitions);
+		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
 		hmm.setLog(log);
 		
 		if(progressNotifier!=null) {
