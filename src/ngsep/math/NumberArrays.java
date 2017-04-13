@@ -67,6 +67,14 @@ public class NumberArrays {
 			}
 		}
 	}
+	public static void accumulate(double[][] cumulative, double[][] next) {
+		for(int i=0;i<cumulative.length;i++) {
+			for(int j=0;j<cumulative[i].length;j++) {
+				cumulative[i][j]+=next[i][j];
+			}
+		}
+		
+	}
 	public static int getIndexMaximum (int [] numbers, int ignoreIndex) {
 		int idxMax = -1;
 		for(int i=0;i<numbers.length;i++) {

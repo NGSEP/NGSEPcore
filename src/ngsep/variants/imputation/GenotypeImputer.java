@@ -50,9 +50,10 @@ public class GenotypeImputer {
 	private int progress = 0;
 	private Double avgCMPerKbp = null;
 	private boolean fixedTransitions = false;
+	private boolean inbredParents = false;
+	private boolean inbredSamples = false;
 	private List<String> parentIds = new ArrayList<String>() ;
 	private int k = DEF_K;
-	//private PrintStream outFounders;
 	private PrintStream outAssignments;
 	private PrintStream outGenotypes;
 	 
@@ -88,20 +89,16 @@ public class GenotypeImputer {
 		}
 		String vcfFile = args[i++];
 		String outPrefix = args[i++];
-		//String fileFounders = outPrefix+"_founders.txt";
 		String fileAssignments = outPrefix+"_assignments.txt";
 		String fileGenotypes = outPrefix+"_imputed.vcf";
 		
-		//instance.outFounders = null;
 		instance.outAssignments = null;
 		instance.outGenotypes = null;
 		try {
-			//instance.outFounders = new PrintStream(fileFounders);
 			instance.outAssignments = new PrintStream(fileAssignments);
 			instance.outGenotypes = new PrintStream(fileGenotypes);
 			instance.impute(vcfFile);
 		} finally {
-			//if(instance.outFounders!=null) instance.outFounders.close();
 			if(instance.outAssignments!=null) instance.outAssignments.close();
 		}
 
@@ -243,12 +240,13 @@ public class GenotypeImputer {
 
 	public void imputeGenotypes(Map<String,List<CalledSNV>> genotypes) {
 		progress = 0;
-		imputeGenotypesHMM(genotypes);
+		if(inbredSamples) imputeGenotypesHMMInbreds(genotypes);
+		else  imputeGenotypesHMMDiploid(genotypes);
 	}
 
-	public void imputeGenotypesHMM(Map<String, List<CalledSNV>> genotypes) {
-		
-		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k);
+	public void imputeGenotypesHMMInbreds(Map<String, List<CalledSNV>> genotypes) {
+		//TODO: Make inbred parents a parameter
+		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
 		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setFixedTransitions(fixedTransitions);
 		hmm.setLog(log);
@@ -260,6 +258,20 @@ public class GenotypeImputer {
 		List<CalledSNV> snvs = genotypes.values().iterator().next();
 		Map<String, List<Integer>> assignments = hmm.imputeGenotypes(genotypes); 
 		printAssignments(snvs,assignments,hmm);
+	}
+	
+	public void imputeGenotypesHMMDiploid(Map<String, List<CalledSNV>> genotypes) {
+		//TODO: Make inbred parents a parameter
+		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
+		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
+		hmm.setFixedTransitions(fixedTransitions);
+		hmm.setLog(log);
+		
+		if(progressNotifier!=null) {
+			progress++;
+			if(!progressNotifier.keepRunning(progress)) return;
+		}
+		hmm.imputeGenotypes(genotypes);
 	}
 	
 	private void printAssignments(List<CalledSNV> snvs, Map<String, List<Integer>> assignments,GenotypeImputationHMM hmm) {

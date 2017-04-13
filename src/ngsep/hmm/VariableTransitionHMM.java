@@ -41,6 +41,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 		this.states = states;
 		numStates = states.size();
 		this.steps = steps;
+		getLog().info("Creating array for transitions of dimensions "+numStates+" x "+numStates+" x "+(steps-1));
 		transitions = new Double [numStates][numStates][steps-1];
 	}
 	
@@ -69,6 +70,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 	}
 	
 	public void calculateUniformChangeTransitions(double[] changeProbabilities) {
+		getLog().info("Using change probabilities to infer transitions. First probability: "+changeProbabilities[0]);
 		int n = this.getNumStates();
 		int m = getSteps();
 		if(m-1!=changeProbabilities.length) throw new IllegalArgumentException("Length of changes vector "+changeProbabilities.length+" is not consistent with the number of steps "+m+". It should be "+(m-1));
@@ -77,6 +79,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 			double p = changeProbabilities[i];
 			AbstractHMM.calculateUniformChangeTransitions(p, transitions);
 			setTransitions(transitions, i);
+			//if (i==0) System.out.println("Transition between "+states.get(0).getId()+" and "+states.get(1).getId()+": "+this.transitions[0][1][0]);
 		}	
 	}
 

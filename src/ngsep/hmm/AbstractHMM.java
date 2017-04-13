@@ -21,14 +21,25 @@ package ngsep.hmm;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import ngsep.math.LogMath;
 
 
 public abstract class AbstractHMM implements HMM {
 	
+	private Logger log = Logger.getLogger(AbstractHMM.class.getName());
 	private Double [][] forwardLogs=new Double[0][0];
 	private Double [][] backwardLogs=new Double[0][0];
+	
+	public Logger getLog() {
+		return log;
+	}
+	
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
 	@Override
 	public Double getEmission(int state, Object value, int step) {
 		return getState(state).getEmission(value,step);
@@ -42,8 +53,14 @@ public abstract class AbstractHMM implements HMM {
 	public Double calculatePosteriors(List<? extends Object> observations,Double[][] posteriorLogs) {
 		int m = observations.size();
 		int n = getNumStates();
-		if(forwardLogs.length!=m || forwardLogs[0].length!=n) forwardLogs = new Double[m][n];
-		if(backwardLogs.length!=m || backwardLogs[0].length!=n) backwardLogs = new Double[m][n];
+		if(forwardLogs.length!=m || forwardLogs[0].length!=n) {
+			log.info("Creating matrix for forward probabilities of dimensions "+m+" x "+n);
+			forwardLogs = new Double[m][n];
+		}
+		if(backwardLogs.length!=m || backwardLogs[0].length!=n) {
+			log.info("Creating matrix for backward probabilities of dimensions "+m+" x "+n);
+			backwardLogs = new Double[m][n];
+		}
 		Double logProb = calculateForward(observations,forwardLogs);
 		calculateBackward(observations,backwardLogs);
 		

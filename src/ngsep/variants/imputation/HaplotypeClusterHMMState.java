@@ -19,8 +19,10 @@
  *******************************************************************************/
 package ngsep.variants.imputation;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import ngsep.hmm.HMMState;
@@ -29,22 +31,36 @@ import ngsep.math.PhredScoreHelper;
 import ngsep.variants.CalledSNV;
 
 
-public class SNPHaplotypeFounderHMMState implements HMMState {
+public class HaplotypeClusterHMMState implements HMMState {
 	private String id = null;
 	private byte [] haplotype = new byte [0]; //-1 for undecided, 0 for allele zero, 1 for allele 1
 	private Double [] allele0Logs = new Double [0];
 	private Double [] allele1Logs = new Double [0];
 	private Double logStart=null;
 	
-	public SNPHaplotypeFounderHMMState(int haplotypeLength) {
+	public static final Double LOGPROB_UNEXPECTED = Math.log10(0.01);
+	public static final Double LOGPROB_EXPECTED = Math.log10(0.99);
+	
+	public HaplotypeClusterHMMState(int haplotypeLength) {
 		initArrays(haplotypeLength);
 	}
-	public SNPHaplotypeFounderHMMState(List<CalledSNV> calls) {
+	
+	private void initArrays(int m) {
+		if(haplotype.length!=m) {
+			haplotype = new byte [m];
+			allele0Logs = new Double [m];
+			allele1Logs = new Double [m];
+		}
+		Arrays.fill(haplotype, (byte)-1);
+		setRandomEmissions(true);
+	}
+	public void fillEmissionsWithGenotypes(String id, List<CalledSNV> calls) {
 		int m = calls.size();
-		initArrays(m);
+		this.id = id;
 		for(int i=0;i<m;i++) {
 			CalledSNV call = calls.get(i);
-			double successProb = 1.0 - PhredScoreHelper.calculateProbability(call.getGenotypeQuality());
+			double successProb = 0.99;
+			if(call.getGenotypeQuality()>0) successProb = 1.0 - PhredScoreHelper.calculateProbability(call.getGenotypeQuality());
 			//TODO: Improve handling
 			if(successProb > 0.999) successProb = 0.999;
 			byte g = call.getGenotype();
@@ -62,16 +78,37 @@ public class SNPHaplotypeFounderHMMState implements HMMState {
 			}
 		}
 	}
-
-	private void initArrays(int m) {
-		if(haplotype.length!=m) {
-			haplotype = new byte [m];
-			allele0Logs = new Double [m];
-			allele1Logs = new Double [m];
+	
+	public void fillEmissionsWithHaplotype(String id, List<CalledSNV> calls, int hapId) {
+		int m = calls.size();
+		this.id = id;
+		for(int i=0;i<m;i++) {
+			CalledSNV call = calls.get(i);
+			if(!call.isPhased()) continue;
+			if(call.getCopyNumber()<=hapId) continue;
+			//TODO: Read haplotype qualities
+			double successProb = 0.99;
+			if(call.getGenotypeQuality()>0) successProb = 1.0 - PhredScoreHelper.calculateProbability(call.getGenotypeQuality());
+			//TODO: Improve handling
+			if(successProb > 0.999) successProb = 0.999;
+			byte [] idsPhasedAlleles = call.getIndexesPhasedAlleles();
+			byte phasedAllele = idsPhasedAlleles[hapId];
+			Double logError = LogMath.log10(1.0-successProb);
+			Double logNoError = LogMath.log10(successProb);
+			if(phasedAllele == 0) {
+				haplotype[i] = 0;
+				allele0Logs [i] = logNoError;
+				allele1Logs [i] = logError;
+			}
+			else {
+				haplotype[i] = 1;
+				allele0Logs [i] = logError;
+				allele1Logs [i] = logNoError;
+			}
 		}
-		Arrays.fill(haplotype, (byte)-1);
-		setRandomEmissions(true);
 	}
+
+	
 
 	public String getId() {
 		return id;
@@ -122,22 +159,51 @@ public class SNPHaplotypeFounderHMMState implements HMMState {
 	@Override
 	public Double getEmission(Object value, int step) {
 		if(value == null) return null;
-		byte b = getGenotype(value);
+		byte b = (byte) value;
 		//TODO: take into account genotype quality
-		//System.out.println("Genotype: "+b+" allele 0 log: "+allele0Logs[step]+" allele 1 log: "+allele1Logs[step]);
-		if(b==CalledSNV.GENOTYPE_HOMOREF) return allele0Logs[step];
-		if(b==CalledSNV.GENOTYPE_HOMOALT) return allele1Logs[step];
-		return null;
+		//System.out.println("Allele: "+b+" allele 0 log: "+allele0Logs[step]+" allele 1 log: "+allele1Logs[step]);
+		Double answer = null;
+		if(b==0) answer = allele0Logs[step];
+		else if(b==1) answer = allele1Logs[step];
+		if(answer == null) {
+			answer = HaplotypeClusterHMMState.LOGPROB_UNEXPECTED;
+		} else {
+			answer = LogMath.logProduct(answer, HaplotypeClusterHMMState.LOGPROB_EXPECTED);
+		}
+		return answer;
 	}
 
-	public static byte getGenotype(Object value) {
-		byte b = -1;
-		if (value instanceof Byte) {
-			b = (Byte)value;
-		} else if (value instanceof CalledSNV) {
-			b = ((CalledSNV)value).getGenotype();
+	public static List<HaplotypeClusterHMMState> createEmptyStates(int m, int k) {
+		List<HaplotypeClusterHMMState> states = new ArrayList<HaplotypeClusterHMMState>();
+		for(int i=0;i<k;i++) {
+			HaplotypeClusterHMMState state = new HaplotypeClusterHMMState(m);
+			states.add(state);
 		}
-		return b;
+		return states;
+	}
+	
+	public static void fillHMMStatesInbred(List<HaplotypeClusterHMMState> states, Map<String, List<CalledSNV>> genotypes, List<String> parentIds) {
+		int i=0;
+		for(String parentId:parentIds) {
+			HaplotypeClusterHMMState state = states.get(i);
+			state.fillEmissionsWithGenotypes(parentId, genotypes.get(parentId));
+			i++;
+		}
+	}
+
+	
+	
+	public static void fillHMMStatesPhasedDiploid(List<HaplotypeClusterHMMState> states, Map<String, List<CalledSNV>> genotypes, List<String> parentIds) {
+		int i=0;
+		for(String parentId:parentIds) {
+			List<CalledSNV> genotypesParent = genotypes.get(parentId);
+			HaplotypeClusterHMMState state0 = states.get(i);
+			state0.fillEmissionsWithHaplotype(parentId+"_0", genotypesParent, 0);
+			i++;
+			HaplotypeClusterHMMState state1 = states.get(i);
+			state1.fillEmissionsWithHaplotype(parentId+"_1", genotypesParent, 1);
+			i++;
+		}
 	}
 
 
