@@ -184,7 +184,7 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 				Double fTimesB = LogMath.logProduct(forwardLogs[i][j], backwardLogs[i][j]);
 				log0 = LogMath.logSum(log0, LogMath.logProduct(fTimesB, getEmission(j, CalledSNV.GENOTYPE_HOMOREF, i)));
 				log1 = LogMath.logSum(log1, LogMath.logProduct(fTimesB, getEmission(j, CalledSNV.GENOTYPE_HETERO, i)));
-				log2 = LogMath.logSum(log1, LogMath.logProduct(fTimesB, getEmission(j, CalledSNV.GENOTYPE_HOMOALT, i)));
+				log2 = LogMath.logSum(log2, LogMath.logProduct(fTimesB, getEmission(j, CalledSNV.GENOTYPE_HOMOALT, i)));
 			}
 			//Normalize and raise to calculate final probabilities of genotypes
 			Double logSum = LogMath.logSum(log0, log1);
