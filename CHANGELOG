@@ -1,3 +1,11 @@
+v3.0.3 15-05-2017
+- The VCF I/O now interprets correctly phasing information
+- ImputeVCF: The imputation module now can impute genotypes and perform
+  statistical phasing on heterozygus individuals. Parents can now be phased
+  heterozygous individuals
+- New command called VCFDistanceMatrixCalculator to calculate IBS distance
+  matrices from a VCF
+  
 v3.0.2 15-01-2017
 - New command called RelativeAlleleCounts to calculate distributions of
   relative allele counts from BAM files and infer ploidy

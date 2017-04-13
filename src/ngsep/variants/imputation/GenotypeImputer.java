@@ -80,6 +80,10 @@ public class GenotypeImputer {
 				instance.setK(Integer.parseInt(args[i]));
 			} else if("-t".equals(args[i])) {
 				instance.setSkipTransitionsTraining(true);
+			} else if("-ip".equals(args[i])) {
+				instance.setInbredParents(true);
+			} else if("-is".equals(args[i])) {
+				instance.setInbredSamples(true);
 			} else {
 				System.err.println("Unrecognized option: "+args[i]);
 				CommandsDescriptor.getInstance().printHelp(GenotypeImputer.class);
@@ -120,11 +124,11 @@ public class GenotypeImputer {
 		this.progressNotifier = progressNotifier;
 	}
 
-	public double getAvgCMPerKbp() {
+	public Double getAvgCMPerKbp() {
 		return avgCMPerKbp;
 	}
-
-	public void setAvgCMPerKbp(double avgCMPerKbp) {
+	
+	public void setAvgCMPerKbp(Double avgCMPerKbp) {
 		this.avgCMPerKbp = avgCMPerKbp;
 	}
 	
@@ -144,6 +148,22 @@ public class GenotypeImputer {
 		this.k = k;
 	}
 	
+	public boolean isInbredParents() {
+		return inbredParents;
+	}
+
+	public void setInbredParents(boolean inbredParents) {
+		this.inbredParents = inbredParents;
+	}
+
+	public boolean isInbredSamples() {
+		return inbredSamples;
+	}
+
+	public void setInbredSamples(boolean inbredSamples) {
+		this.inbredSamples = inbredSamples;
+	}
+
 	
 
 	public boolean isSkipTransitionsTraining() {
@@ -247,7 +267,6 @@ public class GenotypeImputer {
 	}
 
 	public void imputeGenotypesHMMInbreds(Map<String, List<CalledSNV>> genotypes) {
-		//TODO: Make inbred parents a parameter
 		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
 		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
@@ -263,7 +282,6 @@ public class GenotypeImputer {
 	}
 	
 	public void imputeGenotypesHMMDiploid(Map<String, List<CalledSNV>> genotypes) {
-		//TODO: Make inbred parents a parameter
 		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
 		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
