@@ -34,6 +34,9 @@ public abstract class AbstractHMM implements HMM {
 	private Logger log = Logger.getLogger(AbstractHMM.class.getName());
 	private Double [][] forwardLogs=new Double[0][0];
 	private Double [][] backwardLogs=new Double[0][0];
+	private Double [][] posteriorLogs=new Double[0][0];
+	private Double [][] viterbiLogs = new Double [0][0];
+	private int [][] viterbiBacktrace = new int [0][0];
 	
 	public Logger getLog() {
 		return log;
@@ -53,7 +56,7 @@ public abstract class AbstractHMM implements HMM {
 		return getState(state).getLogStart();
 	}
 	@Override
-	public Double calculatePosteriors(List<? extends Object> observations,Double[][] posteriorLogs) {
+	public Double calculatePosteriorLogs(List<? extends Object> observations,Double[][] posteriorLogs) {
 		int m = observations.size();
 		int k = getNumStates();
 		initArrays(m,k);
@@ -71,6 +74,23 @@ public abstract class AbstractHMM implements HMM {
 			}
 		}
 		return logProb;
+	}
+	protected Double [][] calculatePosteriorLogs (List<? extends Object> observations) {
+		calculatePosteriorLogs(observations,posteriorLogs);
+		return posteriorLogs;
+	}
+	
+	
+
+	@Override
+	public void calculatePosteriors(List<? extends Object> observations, double[][] posteriors) {
+		calculatePosteriorLogs(observations,posteriorLogs);
+		for(int i=0;i<posteriorLogs.length;i++) {
+			LogMath.normalizeLogs(posteriorLogs[i]);
+			for(int j=0;j<posteriorLogs[i].length;j++) {
+				posteriors[i][j] = LogMath.power10(posteriorLogs[i][j]);
+			}
+		}
 	}
 
 	@Override
@@ -180,9 +200,62 @@ public abstract class AbstractHMM implements HMM {
 	}
 
 	@Override
-	public double getViterbiPath(List<Object> observations, int[] path) {
-		// TODO Auto-generated method stub
-		return 0;
+	public Double getViterbiPath(List<? extends Object> observations, int [] path) {
+		int m = observations.size();
+		int n = getNumStates();
+		initArraysViterbi(m, n);
+		//Array to precalculate viterbi times emission
+		Double [] vTimesE = new Double[n];
+		for(int i=0;i<m;i++) {
+			Object lastO = null;
+			if(i>0) {
+				lastO = observations.get(i-1);
+				Arrays.fill(vTimesE, null);
+				for(int k=0;k<n;k++) {
+					Double e = getEmission(k, lastO, i-1);
+					vTimesE[k] = LogMath.logProduct(viterbiLogs[i-1][k],e);
+				}
+			}
+			
+			for(int j=0;j<n;j++) {
+				if(lastO==null) {
+					viterbiLogs[i][j] = getStart(j);
+					viterbiBacktrace[i][j] = -1;
+				}
+				else {
+					//The max probabilities starts with zero which in logarithm is represented as null
+					viterbiLogs[i][j] = null;
+					viterbiBacktrace[i][j] = -1;
+					for(int k=0;k<n;k++) {
+						Double t = getTransition(k, j, i-1);
+						Double prob = LogMath.logProduct(vTimesE[k],t);
+						if(prob != null && (viterbiLogs[i][j] == null || viterbiLogs[i][j] < prob) ) {
+							viterbiLogs[i][j] = prob;
+							viterbiBacktrace[i][j] = k;
+						}
+					}
+				}
+			}	
+		}
+		Double bestP = null;
+		int bestState = -1;
+		for(int j=0;j<n;j++) {
+			Double p = viterbiLogs[m-1][j];
+			p = LogMath.logProduct(p,getEmission(j, observations.get(m-1), m-1));
+			if(p!=null && (bestP == null || bestP < p)) {
+				bestState = j;
+				bestP = p;
+			}
+		}
+		if(bestP == null) {
+			return bestP;
+		}
+		//Backtrace best path
+		for(int i=m-1;i>=0;i--) {
+			path[i] = bestState;
+			bestState = viterbiBacktrace[i][bestState];
+		}
+		return bestP;
 	}
 	
 
@@ -209,6 +282,20 @@ public abstract class AbstractHMM implements HMM {
 		if(backwardLogs.length!=m || backwardLogs[0].length!=k) {
 			getLog().info("Creating array for backward probabilities of dimensions "+m+" x "+k);
 			backwardLogs = new Double[m][k];
+		}
+		if(posteriorLogs.length!=m || posteriorLogs[0].length!=k) {
+			getLog().info("Creating array for posterior probabilities of dimensions "+m+" x "+k);
+			posteriorLogs = new Double[m][k];
+		}
+	}
+	private void initArraysViterbi(int m, int k) {
+		if(viterbiLogs.length!=m || viterbiLogs[0].length!=k) {
+			getLog().info("Creating array for viterbi probabilities of dimensions "+m+" x "+k);
+			viterbiLogs = new Double[m][k];
+		}
+		if(viterbiBacktrace.length!=m || viterbiBacktrace[0].length!=k) {
+			getLog().info("Creating array for viterbi backtrack of dimensions "+m+" x "+k);
+			viterbiBacktrace = new int[m][k];
 		}
 	}
 	

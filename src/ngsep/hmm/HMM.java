@@ -71,9 +71,20 @@ public interface HMM {
 	 * @return Double log10 of the probability of the data given the HMM
 	 * Null if the probability is zero   
 	 */
-	public Double calculatePosteriors (List<? extends Object> observations,Double [][] posteriorLogs);
+	public Double calculatePosteriorLogs (List<? extends Object> observations, Double [][] posteriorLogs);
+	
 	/**
-	 * Calculate forward probabilities for each state at each step
+	 * Run the forward-backward algorithm to calculate posterior probabilities of states given a set of observations
+	 * @param observations List of observed values
+	 * @param posteriors Output matrix with as many rows as observations and as many columns as states. It is
+	 * designed as a parameter instead of a return value to avoid constant reallocation and to allow returning the
+	 * probability of the data as a return value. Unlike the method calculatePosteriorLogs, these are actual probabilities
+	 * normalized row by row
+	 */
+	public void calculatePosteriors (List<? extends Object> observations, double [][] posteriors);
+	
+	/**
+	 * Calculate forward log probabilities for each state at each step
 	 * @param observations List of observed values
 	 * @param forwardLogs Output matrix with as many rows as observations and as many columns as states.
 	 * It is designed as a parameter instead of a return value to avoid constant reallocation
@@ -83,7 +94,7 @@ public interface HMM {
 	 */
 	public Double calculateForward(List<? extends Object> observations, Double [][] forwardLogs);
 	/**
-	 * Calculate backward probabilities for each state at each step
+	 * Calculate backward log probabilities for each state at each step
 	 * @param observations List of observed values
 	 * @param backwardLogs Output matrix with as many rows as observations and as many columns as states.
 	 * It is designed as a parameter instead of a return value to avoid constant reallocation
@@ -91,11 +102,11 @@ public interface HMM {
 	public void calculateBackward(List<? extends Object> observations, Double [][] backwardLogs);
 	/**
 	 * 
-	 * @param observations
-	 * @param path
-	 * @return
+	 * @param observations to calculate the path with the best probability
+	 * @param path Output path
+	 * @return Double Logarithm of th probability of the best path. Null if all paths have zero probability
 	 */
-	public double getViterbiPath (List<Object> observations, int [] path );
+	public Double getViterbiPath (List<? extends Object> observations, int [] path );
 	
 	
 	

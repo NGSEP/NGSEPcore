@@ -130,7 +130,7 @@ public abstract class AbstractHMMReadDepthAlgorithm implements SingleSampleReadD
 		int n = hmm.getNumStates();
 		Double [] [] posteriorLogs = new Double [m][n];
 		List<Double> observations = buildObservations(seqBins);
-		hmm.calculatePosteriors(observations, posteriorLogs);
+		hmm.calculatePosteriorLogs(observations, posteriorLogs);
 		//hmm.calculateBackward(observations, posteriorLogs);
 		if("chrI".equals(seqName)) printLogProbs(posteriorLogs);
 		List<CalledCNV> answer = new ArrayList<CalledCNV>();

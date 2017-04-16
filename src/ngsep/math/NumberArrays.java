@@ -75,7 +75,23 @@ public class NumberArrays {
 		}
 		
 	}
+	public static int getIndexMaximum (int [] numbers) {
+		return getIndexMaximum(numbers,-1);
+	}
 	public static int getIndexMaximum (int [] numbers, int ignoreIndex) {
+		int idxMax = -1;
+		for(int i=0;i<numbers.length;i++) {
+			if(i!=ignoreIndex && (idxMax==-1 || numbers[idxMax]<numbers[i])) {
+				idxMax = i;
+			}
+		}
+		return idxMax;
+	}
+	
+	public static int getIndexMaximum (double [] numbers) {
+		return getIndexMaximum(numbers,-1);
+	}
+	public static int getIndexMaximum (double [] numbers, int ignoreIndex) {
 		int idxMax = -1;
 		for(int i=0;i<numbers.length;i++) {
 			if(i!=ignoreIndex && (idxMax==-1 || numbers[idxMax]<numbers[i])) {
