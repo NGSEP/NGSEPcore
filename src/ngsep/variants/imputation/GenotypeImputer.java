@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
+import ngsep.hmm.RecombinationHMM;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
@@ -45,10 +46,12 @@ import ngsep.vcf.VCFRecord;
 
 public class GenotypeImputer {
 	public static final int DEF_K = 20;
+	public static final double DEF_CMPERKBP = 0.001;
+	
 	private Logger log = Logger.getLogger(GenotypeImputer.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	private int progress = 0;
-	private Double avgCMPerKbp = null;
+	private double avgCMPerKbp = DEF_CMPERKBP;
 	private boolean skipTransitionsTraining = false;
 	private boolean inbredParents = false;
 	private boolean inbredSamples = false;
@@ -104,6 +107,7 @@ public class GenotypeImputer {
 			instance.impute(vcfFile);
 		} finally {
 			if(instance.outAssignments!=null) instance.outAssignments.close();
+			if(instance.outGenotypes!=null) instance.outGenotypes.close();
 		}
 
 	}
@@ -256,7 +260,7 @@ public class GenotypeImputer {
 	
 	private void logParameters(String filename) {
 		log.info("Running imputation for VCF file: "+filename);
-		if(avgCMPerKbp!=null) log.info("Average cm per kbp: "+avgCMPerKbp);
+		log.info("Average centimorgans per Kbp: "+avgCMPerKbp);
 		if(parentIds!=null) log.info("Number of parents: "+parentIds.size());
 	}
 
@@ -268,50 +272,66 @@ public class GenotypeImputer {
 
 	public void imputeGenotypesHMMInbreds(Map<String, List<CalledSNV>> genotypes) {
 		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
-		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
+		hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
 		hmm.setLog(log);
-		
+		hmm.setTrainingData(makeTrainingDataWithHomozygous(genotypes));
 		if(progressNotifier!=null) {
 			progress++;
 			if(!progressNotifier.keepRunning(progress)) return;
 		}
+		
+		int [][][] outClusters = new int [hmm.getStartsBaumWelch()][genotypes.size()][hmm.getSteps()];
+		hmm.imputeGenotypes(genotypes,outClusters);
 		List<CalledSNV> snvs = genotypes.values().iterator().next();
-		Map<String, List<Integer>> assignments = hmm.imputeGenotypes(genotypes); 
-		printAssignments(snvs,assignments,hmm);
+		//TODO: Conciliate more than one run of the Baum-Welch
+		if(parentIds!=null && parentIds.size()>1) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
 	}
 	
 	public void imputeGenotypesHMMDiploid(Map<String, List<CalledSNV>> genotypes) {
 		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
-		if(avgCMPerKbp!=null) hmm.setAvgCMPerKbp(avgCMPerKbp);
+		hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
 		hmm.setLog(log);
+		hmm.setTrainingData(makeTrainingDataWithHomozygous(genotypes));
 		
 		if(progressNotifier!=null) {
 			progress++;
 			if(!progressNotifier.keepRunning(progress)) return;
 		}
-		hmm.imputeGenotypes(genotypes);
+		int [][][] outClusters = new int [hmm.getStartsBaumWelch()][genotypes.size()][hmm.getSteps()];
+		hmm.imputeGenotypes(genotypes,outClusters);
+		List<CalledSNV> snvs = genotypes.values().iterator().next();
+		//TODO: Conciliate more than one run of the Baum-Welch
+		if(parentIds!=null && parentIds.size()>1) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
 	}
 	
-	private void printAssignments(List<CalledSNV> snvs, Map<String, List<Integer>> assignments,GenotypeImputationHMM hmm) {
-		Set<String> sampleIds = assignments.keySet();
-		int m = snvs.size();
+	private void printClusters(Set<String>sampleIds, List<CalledSNV> snvs, int [][] outClusters,RecombinationHMM hmm) {
+		int m = hmm.getSteps();
 		outAssignments.print("Chr\tPos");
 		for(String sampleId:sampleIds) outAssignments.print("\t"+sampleId);
 		outAssignments.println();
-		for (int i=0;i<m;i++) {
-			CalledSNV snv = snvs.get(i);
+		for (int j=0;j<m;j++) {
+			CalledSNV snv = snvs.get(j);
 			outAssignments.print(snv.getSequenceName()+"\t"+snv.getPosition());
-			for(String sampleId: sampleIds) {
-				int assignment = assignments.get(sampleId).get(i);
+			
+			for(int i=0;i<sampleIds.size();i++) {
+				int assignment = outClusters[i][j];
 				String stateId = hmm.getState(assignment).getId();
 				if(stateId==null) outAssignments.print("\t"+assignment);
 				else outAssignments.print("\t"+stateId);
 			}
 			outAssignments.println();
 		}
-		
+	}
+	
+	private List<List<? extends Object>> makeTrainingDataWithHomozygous(Map<String, List<CalledSNV>> genotypes) {
+		List<List<? extends Object>> haplotypes = new ArrayList<>();
+		for (List<CalledSNV> genotypesSample:genotypes.values()) {
+			List<? extends Object> hapSample = HaplotypeClustersHMM.makeHaplotypeWithHomozygous(genotypesSample);
+			haplotypes.add(hapSample);
+		}
+		return haplotypes;
 	}
 	
 }

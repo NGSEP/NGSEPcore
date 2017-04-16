@@ -20,7 +20,6 @@
 package ngsep.variants.imputation;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +70,7 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			for (int j=0;j<haploidStates.size();j++) {
 				HaplotypeClusterHMMState state2 = haploidStates.get(j);
 				HaplotypePairHMMState pairState = new HaplotypePairHMMState(i,state1, j,state2);
+				if(state1.getId()!=null && state2.getId()!=null) pairState.setId(state1.getId()+"/"+state2.getId());
 				pairState.setLogStart(logStart);
 				pairStates.add(pairState);
 			}
@@ -78,17 +78,9 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		return pairStates;
 	}
 
-	public double getAvgCMPerKbp() {
-		return haploidBaseHMM.getAvgCMPerKbp();
-	}
-
 	public void setAvgCMPerKbp(double avgCMPerKbp) {
 		super.setAvgCMPerKbp(avgCMPerKbp);
 		haploidBaseHMM.setAvgCMPerKbp(avgCMPerKbp);
-	}
-
-	public boolean isSkipTransitionsTraining() {
-		return haploidBaseHMM.isSkipTransitionsTraining();
 	}
 
 	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
@@ -96,25 +88,35 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		haploidBaseHMM.setSkipTransitionsTraining(skipTransitionsTraining);
 	}
 	
-	public void imputeGenotypes (Map<String, List<CalledSNV>> genotypes) {
+	public void setTrainingData(List<List<? extends Object>> trainingData) {
+		super.setTrainingData(trainingData);
+		haploidBaseHMM.setTrainingData(trainingData);
+	}
+	
+	public int getStartsBaumWelch() {
+		return startsBaumWelch;
+	}
+
+	public void setStartsBaumWelch(int startsBaumWelch) {
+		this.startsBaumWelch = startsBaumWelch;
+	}
+
+	public void imputeGenotypes (Map<String, List<CalledSNV>> genotypes, int [][][] outClusters) {
 		List<String> sampleIds = new ArrayList<String>();
 		sampleIds.addAll(genotypes.keySet());
 		int n = sampleIds.size();
-		
 		int m = genotypes.values().iterator().next().size();
+		int k = getNumStates();
+		
 		if(m!=getSteps()) throw new IllegalArgumentException("Number of variants: "+m+" in the set of genotypes does not coincide with steps of the HMM: "+getSteps());
 		double [][][] sumGenotypeProbs = new double [n][m][3];
 		double [][][] nextGenotypeProbs = new double [n][m][3];
-		//TODO: Check memory and use for diploid imputation
-		//double [][][] sumStateProbs = new double [n][m][getNumStates()];
-		//Double [][][] nextStateLogProbs = new Double [n][m][getNumStates()];
+		
+		double [][] nextPosteriorsSample = new double [m][k];
+		int [] nextViterbiPathSample = new int [m];
 		for(int i=0;i<n;i++) {
-			for(int j=0;j<m;j++) {
-				Arrays.fill(sumGenotypeProbs[i][j], 0.0);
-				//Arrays.fill(sumStateProbs[i][j], 0.0);
-			}
+			NumberArrays.initializeDoubleMatrix(sumGenotypeProbs[i]);
 		}
-		//if(getReferenceHaplotypes() == null) setReferenceHaplotypes(makeHaplotypesWithHomozygous(genotypes));
 		for(int h=0;h<startsBaumWelch;h++) {
 			getLog().info("Training and sampling iteration: "+h);
 			train();
@@ -123,9 +125,16 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 				String sampleId = sampleIds.get(i);
 				List<CalledSNV> genotypesSample = genotypes.get(sampleId);
 				calculateGenotypePosteriors(genotypesSample, nextGenotypeProbs[i]);
-				//calculatePosteriors(genotypesSample, nextStateLogProbs[i]);
 				NumberArrays.accumulate(sumGenotypeProbs[i],nextGenotypeProbs[i]);
-				//NumberArrays.accumulate(sumStateProbs[i],nextStateProbs[i]);
+				
+				//State posteriors for assignments
+				calculatePosteriors(genotypesSample, nextPosteriorsSample);
+				
+				//Best viterbi path
+				getViterbiPath(genotypesSample, nextViterbiPathSample);
+				
+				//Conciliate viterbi with posterior
+				assignClusters (sampleId, genotypesSample, nextPosteriorsSample,nextViterbiPathSample,outClusters[h][i]);
 				getLog().info("Calculated posteriors for sample: "+sampleId);
 				
 			}
@@ -138,11 +147,12 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			//assignments.put(sampleId, calculateFinalAssignments(sumStateProbs[i]));
 		}
 	}
+
+
 	public void train() {
 		//TODO: Decide when to train
-		//haploidBaseHMM.train();
-		haploidBaseHMM.setRandomTransitions();
-		//TODO: Update transitions this HMM
+		haploidBaseHMM.setIterationsBaumWelch(0);
+		haploidBaseHMM.train();
 		getLog().info("Trained haploid model ");
 		int n = getSteps();
 		int kD = getNumStates();
@@ -195,6 +205,60 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			genotypePosteriors[i][0] = prob0;
 			genotypePosteriors[i][1] = prob1;
 			genotypePosteriors[i][2] = prob2;
+		}
+	}
+
+	/**
+	 * 
+	 * @param nextPosteriors mxk posteriors per site per state
+	 * @param viterbiPath m size pat over the states
+	 * @param outClusters That will correspond to the states
+	 */
+	private void assignClusters(String sampleId, List<CalledSNV> genotypesSample, double[][] nextPosteriors, int[] viterbiPath, int[] outClusters) {
+		if(viterbiPath[0]==-1) {
+			getLog().warning("Sample "+sampleId+" Viterbi state not found.");
+			return;
+		}
+		Byte a0 = 0;
+		Byte a1 = 1;
+		
+		for(int i=0;i<nextPosteriors.length;i++) {
+			outClusters[i] = viterbiPath[i];
+			CalledSNV call = genotypesSample.get(i);
+			HaplotypePairHMMState bestState = (HaplotypePairHMMState) getState(outClusters[i]);
+			HaplotypeClusterHMMState hapState1 = bestState.getState1();
+			HaplotypeClusterHMMState hapState2 = bestState.getState2();
+			if(i>0 && outClusters[i]!=outClusters[i-1]) {
+				getLog().info("Crossover predicted for sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Previous state: "+outClusters[i-1]+":"+getState(outClusters[i-1]).getId()+" new state "+outClusters[i]+":"+bestState.getId());
+			}
+			int idxMaxPos = NumberArrays.getIndexMaximum(nextPosteriors[i]);
+			
+			if(idxMaxPos==-1) {
+				getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" best posterior state not found");
+			} else if(idxMaxPos==viterbiPath[i]) {
+				//Phase het variants
+				if(call.isHeterozygous() && !call.isPhased()) {
+					Double lp1 = LogMath.logProduct(hapState1.getEmission(a0, i),hapState2.getEmission(a1, i));
+					Double lp2 = LogMath.logProduct(hapState1.getEmission(a1, i),hapState2.getEmission(a0, i));
+					double p1 = LogMath.power10(lp1);
+					double p2 = LogMath.power10(lp2);
+					double pMax = Math.max(p1, p2);
+					call.setPhasingCN2(p2>p1);
+					if( pMax < 0.5) {
+						getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Phasing with low probability "+pMax+" allele probabilities chosen states: "+hapState1.getEmission(a0, i)+" "+hapState1.getEmission(a1, i)+" "+hapState2.getEmission(a0, i)+" "+hapState2.getEmission(a1, i));
+					}	
+				} else if (call.isHomozygous()) {
+					call.setPhasingCN2(!call.isHomozygousReference());
+				}
+				
+			} else {
+				double pViterbiState = nextPosteriors[i][viterbiPath[i]];
+				double pMaxPosterior = nextPosteriors[i][idxMaxPos];
+				if(pMaxPosterior-pViterbiState>0.05) {
+					getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" different than best posterior state "+idxMaxPos+" viterbiProb: "+pViterbiState+"posterior prob: "+pMaxPosterior);
+				}
+			}
+			
 		}
 	}
 	

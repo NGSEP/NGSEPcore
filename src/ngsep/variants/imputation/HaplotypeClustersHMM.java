@@ -1,9 +1,12 @@
 package ngsep.variants.imputation;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import ngsep.hmm.RecombinationHMM;
 import ngsep.math.LogMath;
+import ngsep.math.NumberArrays;
+import ngsep.variants.CalledSNV;
 
 public class HaplotypeClustersHMM extends RecombinationHMM {
 
@@ -94,26 +97,17 @@ public class HaplotypeClustersHMM extends RecombinationHMM {
 		}
 	}
 	
-	public void calculateStatePosteriors(List<Byte> haplotype, double[][] statePosteriors) {
-		int m = haplotype.size();
-		int k = getNumStates();
-		Double [][] forwardLogs=calculateForward(haplotype);
-		Double [][] backwardLogs=calculateBackward(haplotype);
-		Double [] stateLogPosteriors = new Double [k];
-		for(int i=0;i<m;i++) {
-			byte allele = haplotype.get(i);
-			for(int j=0;j<k;j++) {
-				Double f = forwardLogs[i][j];
-				Double b = backwardLogs[i][j];
-				Double e = getEmission(j, allele, i);
-				Double fTimesE = LogMath.logProduct(f, e);
-				stateLogPosteriors[j] = LogMath.logProduct(fTimesE, b);
+	public static List<Byte> makeHaplotypeWithHomozygous(List<CalledSNV> genotypesSample) {
+		List<Byte> hapSample = new ArrayList<>();
+		for(CalledSNV call:genotypesSample) {
+			byte allele = -1;
+			if(call.isHomozygousReference()) {
+				allele = 0;
+			} else if (call.isHomozygous()) {
+				allele = 1;
 			}
-			LogMath.normalizeLogs(stateLogPosteriors);
-			for(int j=0;j<k;j++) {
-				statePosteriors[i][j] = LogMath.power10(stateLogPosteriors[j]);
-			}
+			hapSample.add(allele);
 		}
+		return hapSample;
 	}
-
 }

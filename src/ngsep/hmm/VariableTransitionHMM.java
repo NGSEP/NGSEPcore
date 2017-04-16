@@ -52,6 +52,16 @@ public class VariableTransitionHMM extends AbstractHMM {
 		logTransitions = new Double [steps-1][numStates][numStates];
 	}
 	
+	public int getIterationsBaumWelch() {
+		return iterationsBaumWelch;
+	}
+
+
+	public void setIterationsBaumWelch(int iterationsBaumWelch) {
+		this.iterationsBaumWelch = iterationsBaumWelch;
+	}
+
+
 	public boolean isSkipTransitionsTraining() {
 		return skipTransitionsTraining;
 	}
