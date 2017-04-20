@@ -63,6 +63,7 @@ USAGE:
 ```java -jar NGSEPcore.jar FindVariants <OPTIONS> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>```
 
 OPTIONS:	
+
 	-h FLOAT		: Heterozygosity rate. Default: 0.001
 	-querySeq STRING	: Call variants just for this sequence name 
 	-first INT		: Call variants just from this position in the
@@ -172,7 +173,7 @@ http://www.sequenceontology.org/gff3.shtml). This file can be used as a
 parameter of the variants detector (option "-knownSVs") which is useful to
 avoid recalculation of structural variants while genotyping known variants.
 
-DETAILS OF OUTPUT FILES: NGSEP uses standard output file formats such as VCF
+**DETAILS OF OUTPUT FILES**: NGSEP uses standard output file formats such as VCF
 and GFF to facilitate integration with other tools and visualization in
 web genome browsers such as jbrowse, gbrowse and the UCSC genome browser, or
 desktop browsers such as the Integrative Genomics Viewer (IGV). This allows
@@ -182,16 +183,16 @@ information on the variants and genotype calls. For each variant, NGSEP VCF
 files include the following custom fields in the INFO column
 (described also in the VCF header): 
 
-TYPE (STRING)	: Type of variant for variants different than biallelic SNVs.
+**TYPE (STRING)**	: Type of variant for variants different than biallelic SNVs.
 		  Possible types include MULTISNV, INDEL and STR (short tandem
 		  repeat). Also, SNVs called within INDELS or STRs are tagged
 		  with the EMBEDDED type
-CNV (INT)	: Number of samples with CNVs covering this variant
-NS (INT)	: Number of samples genotyped. Calculated by the MergeVCF and
+**CNV (INT)**	: Number of samples with CNVs covering this variant
+**NS (INT)**	: Number of samples genotyped. Calculated by the MergeVCF and
 		  the FilterVCF commands
-MAF (DOUBLE)	: Minor allele frequency. Calculated by the MergeVCF and the
+**MAF (DOUBLE)**	: Minor allele frequency. Calculated by the MergeVCF and the
 		  FilterVCF commands
-AN (INT)	: Number of different alleles observed in called genotypes.
+**AN (INT)**	: Number of different alleles observed in called genotypes.
 		  Calculated by the MergeVCF and the FilterVCF commands
 
 Additionally, the Annotate command adds the INFO fields TA, TID, TGN, and TCO
@@ -199,14 +200,14 @@ with the results of the functional annotation (See the Annotate command below
 for details). NGSEP VCFs also include custom format fields with the following
 information for each genotype call:
 
-ADP (INT,INT,...)	: Number of base calls (depth) for alleles, including
+**ADP (INT,INT,...)**	: Number of base calls (depth) for alleles, including
 			  the reference allele. The order of the counts is,
 			  first the depth of the reference allele and then the
 			  read depths of the alternative alleles in the order
 			  listed in the ALT field. 
-BSDP (INT,INT,INT,INT)	: For SNVs, number of base calls (depth) for the 4
+**BSDP (INT,INT,INT,INT)**	: For SNVs, number of base calls (depth) for the 4
 			  possible nucleotides, sorted as A,C,G,T.
-ACN (INT, INT, ...)	: Predicted copy number of each allele taking into
+**ACN (INT, INT, ...)**	: Predicted copy number of each allele taking into
 			  account the prediction of number of copies of the
 			  region surrounding the variant. The order is the same
 			  that in the ADP field
@@ -214,45 +215,45 @@ ACN (INT, INT, ...)	: Predicted copy number of each allele taking into
 Regarding structural variants, output GFF files provided by NGSEP include the
 following info fields:
 
-LENGTH (INT)	: Predicted length of the event. For insertions and deletions
+**LENGTH (INT)**	: Predicted length of the event. For insertions and deletions
 		  identified with read pair analysis, this length is not the
 		  reference span but the average of the lengths predicted by
 		  each read pair having an alignment with a predicted insert
 		  length significantly larger or shorter than the average
 		  fragment length.
-SOURCE (STRING)	: Algorithm that originated each variant call. Current values
+**SOURCE (STRING)**	: Algorithm that originated each variant call. Current values
 		  include MultiAlns for repeats, Readpairs for read pair
 		  analysis and CNVnator and EWT for read depth analysis.
-NSF (INT)	: Number of fragments supporting the structural variation
+**NSF (INT)**	: Number of fragments supporting the structural variation
 		  event. For read depth algorithms is the (raw) number of reads
 		  that can be aligned within the CNV. For read pair analysis
 		  is the number of fragments (read pairs) that support the
 		  indel or the inversion
-NC (DOUBLE)	: For CNVs called with the read depth algorithms this is the
+**NC (DOUBLE)**	: For CNVs called with the read depth algorithms this is the
 		  estimated number of copies. It is kept as a real number
 		  to allow users to filter by proximity to an integer value if
 		  needed. 
-HET (INT)	: For CNVs called with the read depth algorithms this is the
+**HET (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of heterozygous genotype calls in the VCF file
 		  enclosed within the CNV. Always zero if the option -noSNVS
 		  is used.
-NTADF (INT)	: For CNVs called with the read depth algorithms this is the
+**NTADF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments showing an alignment pattern
 		  consistent with a tandem duplication
-NTRDF (INT)	: For CNVs called with the read depth algorithms this is the
+**NTRDF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments in which one read aligns
 		  within the CNV and its pair aligns to another chromosome or
 		  with a very long insert length. These fragments are useful
 		  to classify the CNV as an interspersed (trans) duplication.
-TGEN (STRING)	: For CNVs called with the read depth algorithms this is a
+**TGEN (STRING)**	: For CNVs called with the read depth algorithms this is a
 		  qualitative evaluation of the genotype call based on the
 		  values of the fields NC, NTADF and NTRDF, and on the normal
 		  ploidy of the sample. Possible values are DEL, TANDEMDUP
 		  and TRANSDUP.
-NSR (INT)	: Number of reads with split alignments supporting an insertion
+**NSR (INT)**	: Number of reads with split alignments supporting an insertion
 		  or deletion. Events supported only by split-read analysis
 		  have NSF=0 and NSR>0.
-NUF (INT)	: For repeats identified from reads aligning to multiple
+**NUF (INT)**	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
 
@@ -288,6 +289,7 @@ USAGE:
 ```java -jar NGSEPcore.jar QualStats <OPTIONS> <REFERENCE_FILE> <ALIGNMENTS_FILE>* ```
 
 OPTIONS:
+
 	-ignoreXS	: Ignores the optional field XS to decide if an
 			  alignment is unique. See the same option in
 			  the variants detector for more details
@@ -339,6 +341,7 @@ USAGE:
 ```java -jar NGSEPcore.jar Annotate <OPTIONS> <VARIANTS_FILE> <TRANSCRIPTOME_MAP> <REFERENCE_FILE>```
 
 OPTIONS:
+
 	-u INT	: Maximum bp before a gene to classify a variant as Upstream.
 		  Default: 1000
 	-d INT	: Maximum bp after a gene to classify a variant as Downstream.
@@ -347,14 +350,14 @@ OPTIONS:
 The vcf file with functional annotations is written in the standard output.
 Annotations are included using the following custom fields in the INFO column:
 
-TA (STRING): 	Annotation based on a gene model. Possible annotations include
+**TA (STRING):** 	Annotation based on a gene model. Possible annotations include
 		Intergenic, Intron, FivePrimeUTR, ThreePrimeUTR, Upstream, 
 		Downstream, NCRNA, Synonymous, Missense, Nonsense, Frameshift,
 		and ExonJunction
-TID (STRING):	Id of the transcript related with the gene annotation in the TA
+**TID (STRING):**	Id of the transcript related with the gene annotation in the TA
 		field
-TGN (STRING): 	Name of the gene related with the annotation in the TA field
-TCO (FLOAT):	For variants in coding regions, position in the aminoacid
+**TGN (STRING):** 	Name of the gene related with the annotation in the TA field
+**TCO (FLOAT):**	For variants in coding regions, position in the aminoacid
 		sequence where the variant is located. The integer part is the
 		1-based position of the mutated codon. The decimal part is the
 		codon position.
@@ -427,6 +430,7 @@ USAGE:
 ```java -jar NGSEPcore.jar FilterVCF <OPTIONS> <INPUT_FILE> ```
 
 OPTIONS:
+
 	-frs FILE	: File with genomic regions in which variants should be
 			  filtered out. The format of this file should contain
 			  at least three columns: Sequence name (chromosome),
@@ -491,6 +495,7 @@ USAGE:
 ```java -jar NGSEPcore.jar ConvertVCF <OPTIONS> <INPUT_FILE> <OUTPUT_PREFIX>```
 
 OPTIONS:
+
 	-printStructure		: Prints input format for structure
 	-printFasta		: Prints a virtual multiple sequence alignment
 				  in fasta format. Useful to build phylogenetic
@@ -545,6 +550,7 @@ USAGE:
 ```java -jar NGSEPcore.jar SummaryStats <OPTIONS> <INPUT_FILE> ```
 
 OPTIONS:
+
 	-m INT			: Minimum number of samples genotyped to
 				  accurately calculate the minor allele
 				  frequency. Default: 20
@@ -595,6 +601,7 @@ USAGE:
 ```java -jar NGSEPcore.jar AlleleSharingStats <VCF_FILE> <POPULATIONS_FILE> <GROUP_1> <GROUP_2>```
 
 OPTIONS:
+
 	-t FILE		: GFF3 file with the transcriptome. If this file is
 			  provided, statistics will be provided by gene and not
 			  by window.
@@ -807,6 +814,7 @@ USAGE:
 ```java -jar NGSEPcore.jar Deconvolute <OPTIONS> <INDEX_FILE> <FIRST_FASTQ_FILE> (<SECOND_FASTQ_FILE>) ```
 
 OPTIONS: 
+
 	-o DIRECTORY	: Directory where the output fastq files will be saved
 	-t STRING	: If this sequence is found within a read, the read
 			  will be trimmed up to the start of this sequence.
@@ -976,9 +984,8 @@ Benchmarking with other tools is in progress.
 
 NGSEP is also supported by the following open source software packages:
 
-Bowtie2: [http://bowtie-bio.sourceforge.net/bowtie2/index.shtml](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
-Picard: [http://picard.sourceforge.net/](http://picard.sourceforge.net/)
-Jsci: [http://jsci.sourceforge.net/](http://jsci.sourceforge.net/)
-XChart: [http://xeiam.com/xchart/](http://xeiam.com/xchart/)
-Trimmomatic: [http://www.usadellab.org/cms/?page=trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic). We borrowed one
-class from Trimmomatic 0.35 to allow correct reading of gzip files
+- Bowtie2: [http://bowtie-bio.sourceforge.net/bowtie2/index.shtml](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+- Picard: [http://picard.sourceforge.net/](http://picard.sourceforge.net/)
+- Jsci: [http://jsci.sourceforge.net/](http://jsci.sourceforge.net/)
+- XChart: [http://xeiam.com/xchart/](http://xeiam.com/xchart/)
+- Trimmomatic: [http://www.usadellab.org/cms/?page=trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic). We borrowed one class from Trimmomatic 0.35 to allow correct reading of gzip files
