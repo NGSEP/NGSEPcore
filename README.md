@@ -221,38 +221,47 @@ following info fields:
 		  each read pair having an alignment with a predicted insert
 		  length significantly larger or shorter than the average
 		  fragment length.
+		  
 **SOURCE (STRING)**	: Algorithm that originated each variant call. Current values
 		  include MultiAlns for repeats, Readpairs for read pair
 		  analysis and CNVnator and EWT for read depth analysis.
+		  
 **NSF (INT)**	: Number of fragments supporting the structural variation
 		  event. For read depth algorithms is the (raw) number of reads
 		  that can be aligned within the CNV. For read pair analysis
 		  is the number of fragments (read pairs) that support the
 		  indel or the inversion
+		  
 **NC (DOUBLE)**	: For CNVs called with the read depth algorithms this is the
 		  estimated number of copies. It is kept as a real number
 		  to allow users to filter by proximity to an integer value if
 		  needed. 
+		  
 **HET (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of heterozygous genotype calls in the VCF file
 		  enclosed within the CNV. Always zero if the option -noSNVS
 		  is used.
+		  
 **NTADF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments showing an alignment pattern
 		  consistent with a tandem duplication
+		  
 **NTRDF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments in which one read aligns
 		  within the CNV and its pair aligns to another chromosome or
 		  with a very long insert length. These fragments are useful
 		  to classify the CNV as an interspersed (trans) duplication.
+		  
 **TGEN (STRING)**	: For CNVs called with the read depth algorithms this is a
 		  qualitative evaluation of the genotype call based on the
 		  values of the fields NC, NTADF and NTRDF, and on the normal
 		  ploidy of the sample. Possible values are DEL, TANDEMDUP
 		  and TRANSDUP.
+		  
 **NSR (INT)**	: Number of reads with split alignments supporting an insertion
 		  or deletion. Events supported only by split-read analysis
 		  have NSF=0 and NSR>0.
+		  
 **NUF (INT)**	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
@@ -354,9 +363,12 @@ Annotations are included using the following custom fields in the INFO column:
 		Intergenic, Intron, FivePrimeUTR, ThreePrimeUTR, Upstream, 
 		Downstream, NCRNA, Synonymous, Missense, Nonsense, Frameshift,
 		and ExonJunction
+		
 **TID (STRING):**	Id of the transcript related with the gene annotation in the TA
 		field
+		
 **TGN (STRING):** 	Name of the gene related with the annotation in the TA field
+
 **TCO (FLOAT):**	For variants in coding regions, position in the aminoacid
 		sequence where the variant is located. The integer part is the
 		1-based position of the mutated codon. The decimal part is the
