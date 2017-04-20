@@ -187,11 +187,15 @@ files include the following custom fields in the INFO column
 		  Possible types include MULTISNV, INDEL and STR (short tandem
 		  repeat). Also, SNVs called within INDELS or STRs are tagged
 		  with the EMBEDDED type
+		  
 **CNV (INT)**	: Number of samples with CNVs covering this variant
+
 **NS (INT)**	: Number of samples genotyped. Calculated by the MergeVCF and
 		  the FilterVCF commands
+		  
 **MAF (DOUBLE)**	: Minor allele frequency. Calculated by the MergeVCF and the
 		  FilterVCF commands
+		  
 **AN (INT)**	: Number of different alleles observed in called genotypes.
 		  Calculated by the MergeVCF and the FilterVCF commands
 
@@ -205,8 +209,10 @@ information for each genotype call:
 			  first the depth of the reference allele and then the
 			  read depths of the alternative alleles in the order
 			  listed in the ALT field. 
+			  
 **BSDP (INT,INT,INT,INT)**	: For SNVs, number of base calls (depth) for the 4
 			  possible nucleotides, sorted as A,C,G,T.
+			  
 **ACN (INT, INT, ...)**	: Predicted copy number of each allele taking into
 			  account the prediction of number of copies of the
 			  region surrounding the variant. The order is the same
