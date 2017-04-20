@@ -26,7 +26,9 @@ command line environment run the following commands in the directory where
 NGSEPcore_3.0.2.tar.gz is located:
 
 ```tar -xzvf NGSEPcore_3.0.2.tar.gz```
+
 ```cd NGSEPcore_3.0.2```
+
 ```make all```
 
 Note: Usage fields below do not include the version number. To remove the
