@@ -1,4 +1,4 @@
-**NGSEP - Next Generation Sequencing Experience Platform**
+# **NGSEP - Next Generation Sequencing Experience Platform**
 Version 3.0.2 (15-01-2017)
 
 
@@ -17,7 +17,7 @@ packages such as SAMTools (http://samtools.sourceforge.net/) or picard
 (http://picard.sourceforge.net/).
 
 
-**Building NGSEP**
+### **Building NGSEP**
 
 
 NGSEP has been compiled and run successfully on the standard jdk version
@@ -41,7 +41,7 @@ or just make a symbolic link:
 ```ln -s NGSEPcore_3.0.2.jar NGSEPcore.jar```
 
 
-**Asking for help**
+### **Asking for help**
 
 It is possible to obtain usage information for each module by typing:
 
@@ -52,7 +52,7 @@ General information and the list of modules can be obtained by typing:
 ```java -jar NGSEPcore.jar [ --help | --version | --citing ] ```
 
 
-**Calling variants with the Variants detector**
+## **Calling variants with the Variants detector**
 
 
 The main module of NGSEP is the variants detector. Basic usage requires an
@@ -294,7 +294,7 @@ conservative variant calling in RAD-Seq or GBS samples becomes:
 ```java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>```
   
   
-**Calculating mismatches statistics**
+## **Calculating mismatches statistics**
 
 This module takes one or more sets of alignments and a reference genome and
 writes to standard output a report counting the number of mismatches with the 
@@ -326,7 +326,7 @@ reference file in fasta format. The output is a text file with five columns:
   uniquely aligned reads is the ratio of column 3 divided by this column
 
 
-**Calculating coverage statistics**
+## **Calculating coverage statistics**
 
 This module calculates the number of base pairs that are covered by reads at
 each coverage level from 1 to a maximum. This statistic is useful to visualize
@@ -345,7 +345,7 @@ file with three columns:
   unique alignments)
 
 
-**Functional annotation of variants**
+## **Functional annotation of variants**
 
 This module takes a VCF file produced by NGSEP, the reference genome in fasta
 format, and a gff3 file with gene annotations related with the given genome
@@ -383,7 +383,7 @@ Annotations are included using the following custom fields in the INFO column:
 		codon position.
 
 
-**Merging variants from individual samples**
+## **Merging variants from individual samples**
 
 NGSEP can be used to merge variants from different samples into an
 integrated VCF file. The pipeline for this purpose is as follows.
@@ -434,7 +434,7 @@ for each sample using the option -genotypeAll in the variants detector. Then,
 only the third step will be needed to mix the VCF files generated in this mode.
 
 
-**Filtering VCF files**
+## **Filtering VCF files**
 
 This module implements different filters on VCF files with genotype
 information. It writes to standard output a VCF file with variants passing the
@@ -505,7 +505,7 @@ OPTIONS:
 			  option instead of selecting them. 
 
 
-**Convert VCF files to other formats**
+## **Convert VCF files to other formats**
 
 This module allows to convert genotype calls in VCF format to other formats
 commonly used to perform different kinds of analysis.
@@ -558,7 +558,7 @@ WARNING 3: To generate dendograms in Tassel, it is better to use the HapMap
 format.
 
 
-**Calculating summary statistics**
+## **Calculating summary statistics**
 
 This module writes to the standard output a report with the numbers of variants
 included in a VCF file for different categories. Although it can be called for
@@ -576,7 +576,7 @@ OPTIONS:
 				  frequency. Default: 20
 
 
-**Calculating diversity statistics per site**
+## **Calculating diversity statistics per site**
 
 This module produces basic diversity statistics for each variant in a VCF file.
 It receives a VCF file and an optional text file with population assignments for
@@ -604,7 +604,7 @@ The populations file is a tab-delimited text file with two columns: sample id
 and population id.
 
 
-**Calculating allele sharing statistics**
+## **Calculating allele sharing statistics**
 
 Calculates allele sharing diversity statistics, either through windows across
 the genome or through the genes catalog of the species. This program calculates
@@ -664,7 +664,7 @@ id and gene id respectively
 
 
 
-**Comparing VCF files**
+## **Comparing VCF files**
 
 This module allows to compare the genotype calls included in two different VCF
 files, calculating the number and percentage of homozygous and heterozygous
@@ -697,7 +697,7 @@ OPTIONS:
 			  pair of samples. Default: 5.
 
 
-**Genotype imputation (Inbred species)**
+## **Genotype imputation (Inbred species)**
 
 This module allows imputation of missing genotypes from unphased multilocus
 SNP genotype data in a VCF. The current version is a reimplementation of the
@@ -751,7 +751,7 @@ file. The second outputs for each SNP and each sample the index of the parent
 that most likely originated the observed haplotype of the individual.
 
 
-**Finding haplotype introgressions**
+## **Finding haplotype introgressions**
 
 This module runs a window-based analysis to identify the most common haplotype
 within each of the populations described in the given populations file and then
@@ -823,7 +823,7 @@ By default, this function outputs three files:
 
 
 
-**Deconvoluting reads**
+## **Deconvoluting reads**
 
 This option allows to build individual fastq files for different samples from
 a single file containing the reads for a whole sequencing lane in which several
@@ -869,7 +869,7 @@ as an alternative way to avoid uncompressing the input file in single-end mode:
 ```zcat <INPUT_FILE> | java -jar NGSEPcore.jar Deconvolute <OPTIONS> -f <FLOWCELL> -l <LANE> <INDEX_FILE> (-)```
 
 
-**Comparing read depth between samples**
+## **Comparing read depth between samples**
 
 This function compares the read depth of two samples. It takes two alignment
 files and a reference genome, splits the genome into windows, and for each
@@ -903,7 +903,7 @@ OPTIONS:
 			  testing
 
 
-**Obtaining k-mers spectrum from sequences**
+## **Obtaining k-mers spectrum from sequences**
 
 Generate a distribution of k-mer abundances from a file of DNA sequences either
 in fastq or in fasta format. Writes to standard output the number of k-mers
@@ -920,7 +920,7 @@ OPTIONS:
         -fasta : Input is a fasta file.
 
 
-**Obtaining relative allele counts from read alignment files**
+## **Obtaining relative allele counts from read alignment files**
 
 Calculates a distribution of relative allele counts for sites showing base calls
 for more than one nucleotide from read alignment files in BAM format. This
@@ -953,7 +953,7 @@ OPTIONS:
 
 
 
-**Citing and supporting packages**
+## **Citing and supporting packages**
 
 A manuscript with the description of the main modules of NGSEP is available at
 Nucleic Acids research:
