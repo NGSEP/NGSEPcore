@@ -1,6 +1,6 @@
-NGSEP - Next Generation Sequencing Experience Platform
+**NGSEP - Next Generation Sequencing Experience Platform**
 Version 3.0.2 (15-01-2017)
-===========================================================================
+
 
 NGSEP provides an object model to enable different kinds of
 analysis of Next Generation Sequencing (NGS) data. The most important
@@ -16,9 +16,9 @@ integrate NGSEP with commonly used mapping programs as Bowtie2
 packages such as SAMTools (http://samtools.sourceforge.net/) or picard
 (http://picard.sourceforge.net/).
 
---------------------
-Building NGSEP
---------------------
+
+**Building NGSEP**
+
 
 NGSEP has been compiled and run successfully on the standard jdk version
 1.8.0. To build the distribution library NGSEPcore.jar on a unix based
@@ -38,9 +38,8 @@ or just make a symbolic link:
 
 ln -s NGSEPcore_3.0.2.jar NGSEPcore.jar
 
----------------
-Asking for help
----------------
+
+**Asking for help**
 
 It is possible to obtain usage information for each module by typing:
 
@@ -48,11 +47,11 @@ java -jar NGSEPcore.jar <MODULE> --help
 
 General information and the list of modules can be obtained by typing:
 
-java -jar NGSEPcore.jar [ --help | --version | --citing ]
+```java -jar NGSEPcore.jar [ --help | --version | --citing ] ```
 
--------------------------------------------
-Calling variants with the Variants detector
--------------------------------------------
+
+**Calling variants with the Variants detector**
+
 
 The main module of NGSEP is the variants detector. Basic usage requires an
 alignments file in SAM or BAM format, the reference genome that was used to
@@ -61,7 +60,7 @@ follows:
 
 USAGE: 
 
-java -jar NGSEPcore.jar FindVariants <OPTIONS> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+```java -jar NGSEPcore.jar FindVariants <OPTIONS> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>```
 
 OPTIONS:	
 	-h FLOAT		: Heterozygosity rate. Default: 0.001
@@ -261,7 +260,7 @@ WARNING: Default parameters of the variants detector are designed to maximize
 the number of called variants which will generate false positives in samples
 with small coverage or high error rates. For conservative SNV calling use:
 
-java -jar NGSEPcore.jar FindVariants -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+```java -jar NGSEPcore.jar FindVariants -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>```
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions or use the
@@ -274,11 +273,10 @@ low sensitivity. We recommend to increase the value of the parameter to about
 Also, structural variants should not be called using these data. The usage for
 conservative variant calling in RAD-Seq or GBS samples becomes:
 
-java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+```java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>```
   
----------------------------------
-Calculating mismatches statistics
----------------------------------
+  
+**Calculating mismatches statistics**
 
 This module takes one or more sets of alignments and a reference genome and
 writes to standard output a report counting the number of mismatches with the 
@@ -287,7 +285,7 @@ detect sequencing error biases. The usage for this tool is the following:
 
 USAGE:
 
-java -jar NGSEPcore.jar QualStats <OPTIONS> <REFERENCE_FILE> <ALIGNMENTS_FILE>*
+```java -jar NGSEPcore.jar QualStats <OPTIONS> <REFERENCE_FILE> <ALIGNMENTS_FILE>* ```
 
 OPTIONS:
 	-ignoreXS	: Ignores the optional field XS to decide if an
@@ -308,9 +306,8 @@ reference file in fasta format. The output is a text file with five columns:
   than the position in the first column. The percentage of mismatches for
   uniquely aligned reads is the ratio of column 3 divided by this column
 
--------------------------------
-Calculating coverage statistics
--------------------------------
+
+**Calculating coverage statistics**
 
 This module calculates the number of base pairs that are covered by reads at
 each coverage level from 1 to a maximum. This statistic is useful to visualize
@@ -318,7 +315,7 @@ how uniform was the sequencing process over the genome. The usage is as follows
 
 USAGE:
 
-java -jar NGSEPcore.jar CoverageStats <ALIGNMENTS_FILE> <OUTPUT_FILE>
+```java -jar NGSEPcore.jar CoverageStats <ALIGNMENTS_FILE> <OUTPUT_FILE>```
 
 
 The alignments file must be given in SAM or BAM format. The output is a text
@@ -328,9 +325,8 @@ file with three columns:
 - Number of reference sites with this coverage (Considering only reads with 
   unique alignments)
 
----------------------------------
-Functional annotation of variants
----------------------------------
+
+**Functional annotation of variants**
 
 This module takes a VCF file produced by NGSEP, the reference genome in fasta
 format, and a gff3 file with gene annotations related with the given genome
@@ -340,7 +336,7 @@ The usage is as follows
 
 USAGE:
 
-java -jar NGSEPcore.jar Annotate <OPTIONS> <VARIANTS_FILE> <TRANSCRIPTOME_MAP> <REFERENCE_FILE>
+```java -jar NGSEPcore.jar Annotate <OPTIONS> <VARIANTS_FILE> <TRANSCRIPTOME_MAP> <REFERENCE_FILE>```
 
 OPTIONS:
 	-u INT	: Maximum bp before a gene to classify a variant as Upstream.
@@ -363,9 +359,8 @@ TCO (FLOAT):	For variants in coding regions, position in the aminoacid
 		1-based position of the mutated codon. The decimal part is the
 		codon position.
 
-----------------------------------------
-Merging variants from individual samples
-----------------------------------------
+
+**Merging variants from individual samples**
 
 NGSEP can be used to merge variants from different samples into an
 integrated VCF file. The pipeline for this purpose is as follows.
@@ -376,7 +371,7 @@ command as follows:
 
 USAGE:
 
-java -jar NGSEPcore.jar MergeVariants <SEQUENCE_NAMES_FILE> <OUTPUT_FILE> <VARIANTS_FILE>*
+```java -jar NGSEPcore.jar MergeVariants <SEQUENCE_NAMES_FILE> <OUTPUT_FILE> <VARIANTS_FILE>* ```
 
 
 The sequence names file is a text file which just has the ids of the sequences
@@ -384,7 +379,7 @@ in the reference. It is used by the program to determine the order of the
 reference sequences. In unix systems this file can be obtained running the
 following command on the fasta file with the reference genome:
 
-awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REFERENCE_FILE> > <SEQUENCE_NAMES_FILE>
+```awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REFERENCE_FILE> > <SEQUENCE_NAMES_FILE> ```
 
 The output file of this merge program is a vcf with the union of variants
 reported by the input files but without any genotype information. 
@@ -394,7 +389,7 @@ first step using the variants detector (See FindVariants command). For each
 sample, the command to execute at this stage (in conservative mode and assuming
 WGS data) should look like this:
 
-java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownSVs <SVS_FILE> -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+```java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownSVs <SVS_FILE> -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX> ```
 
 where SVS_FILE is the file with structural variation for the sample obtained
 during the first run of the variants detector, and VARS_FILE is the output file
@@ -405,7 +400,7 @@ to join these new vcf files using the following command:
 
 USAGE:
 
-java -jar NGSEPcore.jar MergeVCF <SEQUENCE_NAMES_FILE> <GENOTYPED_VARIANTS_FILE>*
+```java -jar NGSEPcore.jar MergeVCF <SEQUENCE_NAMES_FILE> <GENOTYPED_VARIANTS_FILE>* ```
 
 
 This command will write to standard output the final vcf file with the genotype
@@ -415,9 +410,8 @@ For organisms with small genomes, a VCF for the whole genome can be generated
 for each sample using the option -genotypeAll in the variants detector. Then,
 only the third step will be needed to mix the VCF files generated in this mode.
 
--------------------
-Filtering VCF files
--------------------
+
+**Filtering VCF files**
 
 This module implements different filters on VCF files with genotype
 information. It writes to standard output a VCF file with variants passing the
@@ -430,7 +424,7 @@ filters.
 
 USAGE:
 
-java -jar NGSEPcore.jar FilterVCF <OPTIONS> <INPUT_FILE>
+```java -jar NGSEPcore.jar FilterVCF <OPTIONS> <INPUT_FILE> ```
 
 OPTIONS:
 	-frs FILE	: File with genomic regions in which variants should be
@@ -486,16 +480,15 @@ OPTIONS:
 	-fs		: Flag to filter the samples provided with the -saf
 			  option instead of selecting them. 
 
-----------------------------------
-Convert VCF files to other formats
-----------------------------------
+
+**Convert VCF files to other formats**
 
 This module allows to convert genotype calls in VCF format to other formats
 commonly used to perform different kinds of analysis.
 
 USAGE:
 
-java -jar NGSEPcore.jar ConvertVCF <OPTIONS> <INPUT_FILE> <OUTPUT_PREFIX>
+```java -jar NGSEPcore.jar ConvertVCF <OPTIONS> <INPUT_FILE> <OUTPUT_PREFIX>```
 
 OPTIONS:
 	-printStructure		: Prints input format for structure
@@ -539,9 +532,8 @@ to reduce the number of chromosomes and to remove all scaffolds.
 WARNING 3: To generate dendograms in Tassel, it is better to use the HapMap 
 format.
 
-------------------------------
-Calculating summary statistics
-------------------------------
+
+**Calculating summary statistics**
 
 This module writes to the standard output a report with the numbers of variants
 included in a VCF file for different categories. Although it can be called for
@@ -550,16 +542,15 @@ complete population is being processed and merged into a single annotated file.
 
 USAGE:
 
-java -jar NGSEPcore.jar SummaryStats <OPTIONS> <INPUT_FILE> 
+```java -jar NGSEPcore.jar SummaryStats <OPTIONS> <INPUT_FILE> ```
 
 OPTIONS:
 	-m INT			: Minimum number of samples genotyped to
 				  accurately calculate the minor allele
 				  frequency. Default: 20
 
------------------------------------------
-Calculating diversity statistics per site
------------------------------------------
+
+**Calculating diversity statistics per site**
 
 This module produces basic diversity statistics for each variant in a VCF file.
 It receives a VCF file and an optional text file with population assignments for
@@ -580,15 +571,14 @@ column of statistics for the whole group and one column for each population.
 
 USAGE:
 
-java -jar NGSEPcore.jar DiversityStats <VCF_FILE> <POPULATIONS_FILE>
+```java -jar NGSEPcore.jar DiversityStats <VCF_FILE> <POPULATIONS_FILE> ```
 
 
 The populations file is a tab-delimited text file with two columns: sample id
 and population id.
 
--------------------------------------
-Calculating allele sharing statistics
--------------------------------------
+
+**Calculating allele sharing statistics**
 
 Calculates allele sharing diversity statistics, either through windows across
 the genome or through the genes catalog of the species. This program calculates
@@ -602,7 +592,7 @@ spaces).
 
 USAGE:
 
-java -jar NGSEPcore.jar AlleleSharingStats <VCF_FILE> <POPULATIONS_FILE> <GROUP_1> <GROUP_2>
+```java -jar NGSEPcore.jar AlleleSharingStats <VCF_FILE> <POPULATIONS_FILE> <GROUP_1> <GROUP_2>```
 
 OPTIONS:
 	-t FILE		: GFF3 file with the transcriptome. If this file is
@@ -646,9 +636,9 @@ id and gene id respectively
 
 
 
--------------------
-Comparing VCF files
--------------------
+
+**Comparing VCF files**
+
 This module allows to compare the genotype calls included in two different VCF
 files, calculating the number and percentage of homozygous and heterozygous
 diffrences between every pair of samples. Default values are thought for 
@@ -670,7 +660,7 @@ following fields:
 
 USAGE:
 
-java -jar NGSEPcore.jar CompareVCF <OPTIONS> <SEQUENCE_NAMES_FILE> <FIRST_VCF_FILE> <SECOND_VCF_FILE>
+```java -jar NGSEPcore.jar CompareVCF <OPTIONS> <SEQUENCE_NAMES_FILE> <FIRST_VCF_FILE> <SECOND_VCF_FILE>```
 
 OPTIONS: 
 
@@ -679,9 +669,9 @@ OPTIONS:
 	-d FLOAT	: Maximum percentage (0-100) of differences between the
 			  pair of samples. Default: 5.
 
-------------------------------------
-Genotype imputation (Inbred species)
-------------------------------------
+
+**Genotype imputation (Inbred species)**
+
 This module allows imputation of missing genotypes from unphased multilocus
 SNP genotype data in a VCF. The current version is a reimplementation of the
 Hidden Markov Model (HMM) implemented in the package fastPHASE
@@ -696,7 +686,7 @@ general cases and improve the imputation accuracy in future versions.
 
 USAGE:
 
-java -jar NGSEPcore.jar ImputeVCF <OPTIONS> <VCF_FILE> <OUT_PREFIX>
+```java -jar NGSEPcore.jar ImputeVCF <OPTIONS> <VCF_FILE> <OUT_PREFIX>```
 
 OPTIONS: 
 
@@ -733,9 +723,8 @@ genotypes for the datapoints having an undecided genotype call in the input
 file. The second outputs for each SNP and each sample the index of the parent
 that most likely originated the observed haplotype of the individual.
 
---------------------------------
-Finding haplotype introgressions
---------------------------------
+
+**Finding haplotype introgressions**
 
 This module runs a window-based analysis to identify the most common haplotype
 within each of the populations described in the given populations file and then
@@ -745,7 +734,7 @@ particularly designed to work with populations of inbred samples.
 
 USAGE:
 
-java -jar NGSEPcore.jar IntrogressionAnalysis <OPTIONS> <VCF_FILE> <POPULATIONS_FILE> <OUT_PREFIX>
+```java -jar NGSEPcore.jar IntrogressionAnalysis <OPTIONS> <VCF_FILE> <POPULATIONS_FILE> <OUT_PREFIX> ```
 
 OPTIONS:
 
@@ -806,9 +795,8 @@ By default, this function outputs three files:
    assigned to more than one population
 
 
--------------------
-Deconvoluting reads
--------------------
+
+**Deconvoluting reads**
 
 This option allows to build individual fastq files for different samples from
 a single file containing the reads for a whole sequencing lane in which several
@@ -816,7 +804,7 @@ samples were barcoded and sequenced.
 
 USAGE:
 
-java -jar NGSEPcore.jar Deconvolute <OPTIONS> <INDEX_FILE> <FIRST_FASTQ_FILE> (<SECOND_FASTQ_FILE>) 
+```java -jar NGSEPcore.jar Deconvolute <OPTIONS> <INDEX_FILE> <FIRST_FASTQ_FILE> (<SECOND_FASTQ_FILE>) ```
 
 OPTIONS: 
 	-o DIRECTORY	: Directory where the output fastq files will be saved
@@ -850,11 +838,10 @@ are not present or a "-" sign is provided as FIRST_FASTQ_FILE, then the reads
 will be read from the standard input. Hence, the zcat command can still be used
 as an alternative way to avoid uncompressing the input file in single-end mode:
 
-zcat <INPUT_FILE> | java -jar NGSEPcore.jar Deconvolute <OPTIONS> -f <FLOWCELL> -l <LANE> <INDEX_FILE> (-)
+```zcat <INPUT_FILE> | java -jar NGSEPcore.jar Deconvolute <OPTIONS> -f <FLOWCELL> -l <LANE> <INDEX_FILE> (-)```
 
-------------------------------------
-Comparing read depth between samples
-------------------------------------
+
+**Comparing read depth between samples**
 
 This function compares the read depth of two samples. It takes two alignment
 files and a reference genome, splits the genome into windows, and for each
@@ -873,7 +860,7 @@ contains the following columns:
 
 USAGE:
 
-java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2> <REFERENCE> <OUT_PREFIX>
+```java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2> <REFERENCE> <OUT_PREFIX>```
 
 OPTIONS:
 
@@ -887,9 +874,8 @@ OPTIONS:
 	-b		: Perform the Bonferroni correction for multiple 
 			  testing
 
-----------------------------------------
-Obtaining k-mers spectrum from sequences
-----------------------------------------
+
+**Obtaining k-mers spectrum from sequences**
 
 Generate a distribution of k-mer abundances from a file of DNA sequences either
 in fastq or in fasta format. Writes to standard output the number of k-mers
@@ -897,7 +883,7 @@ obtained at each specific read depth.
 
 USAGE:
 
-java -jar NGSEPcore.jar KmersCounter <OPTIONS> <SEQUENCES_FILE>
+```java -jar NGSEPcore.jar KmersCounter <OPTIONS> <SEQUENCES_FILE>```
 
 OPTIONS:
 
@@ -905,9 +891,8 @@ OPTIONS:
         -k INT : K-mer length. Default: 21
         -fasta : Input is a fasta file.
 
-----------------------------------------------------------
-Obtaining relative allele counts from read alignment files
-----------------------------------------------------------
+
+**Obtaining relative allele counts from read alignment files**
 
 Calculates a distribution of relative allele counts for sites showing base calls
 for more than one nucleotide from read alignment files in BAM format. This
@@ -915,7 +900,7 @@ analysis is useful to predict the ploidy of a sequenced sample.
 
 USAGE:
 
-java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
+```java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>```
 
 OPTIONS:
 
@@ -939,9 +924,8 @@ OPTIONS:
 
 
 
-------------------------------
-Citing and supporting packages
-------------------------------
+
+**Citing and supporting packages**
 
 A manuscript with the description of the main modules of NGSEP is available at
 Nucleic Acids research:
@@ -992,9 +976,9 @@ Benchmarking with other tools is in progress.
 
 NGSEP is also supported by the following open source software packages:
 
-Bowtie2: http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
-Picard: http://picard.sourceforge.net/
-Jsci: http://jsci.sourceforge.net/
-XChart: http://xeiam.com/xchart/
-Trimmomatic: http://www.usadellab.org/cms/?page=trimmomatic. We borrowed one
+Bowtie2: [http://bowtie-bio.sourceforge.net/bowtie2/index.shtml](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+Picard: [http://picard.sourceforge.net/](http://picard.sourceforge.net/)
+Jsci: [http://jsci.sourceforge.net/](http://jsci.sourceforge.net/)
+XChart: [http://xeiam.com/xchart/](http://xeiam.com/xchart/)
+Trimmomatic: [http://www.usadellab.org/cms/?page=trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic). We borrowed one
 class from Trimmomatic 0.35 to allow correct reading of gzip files
