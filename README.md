@@ -25,25 +25,25 @@ NGSEP has been compiled and run successfully on the standard jdk version
 command line environment run the following commands in the directory where
 NGSEPcore_3.0.2.tar.gz is located:
 
-tar -xzvf NGSEPcore_3.0.2.tar.gz
-cd NGSEPcore_3.0.2
-make all
+```tar -xzvf NGSEPcore_3.0.2.tar.gz```
+```cd NGSEPcore_3.0.2```
+```make all```
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_3.0.2.jar NGSEPcore.jar
+```cp NGSEPcore_3.0.2.jar NGSEPcore.jar```
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_3.0.2.jar NGSEPcore.jar
+```ln -s NGSEPcore_3.0.2.jar NGSEPcore.jar```
 
 
 **Asking for help**
 
 It is possible to obtain usage information for each module by typing:
 
-java -jar NGSEPcore.jar <MODULE> --help
+```java -jar NGSEPcore.jar <MODULE> --help```
 
 General information and the list of modules can be obtained by typing:
 
