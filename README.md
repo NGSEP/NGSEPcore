@@ -958,10 +958,10 @@ OPTIONS:
 A manuscript with the description of the main modules of NGSEP is available at
 Nucleic Acids research:
 
-**Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
+Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
 An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
 Nucleic Acids Research. 42(6): e44. doi: 10.1093/nar/gkt1381
-http://nar.oxfordjournals.org/content/42/6/e44.full**
+http://nar.oxfordjournals.org/content/42/6/e44.full
 
 A description of some of the latest modules and recent benchmarks with other
 tools for variants detection on Genotype-By-Sequencing (GBS) data is available
