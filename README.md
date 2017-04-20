@@ -185,20 +185,20 @@ information on the variants and genotype calls. For each variant, NGSEP VCF
 files include the following custom fields in the INFO column
 (described also in the VCF header): 
 
-**TYPE (STRING)**	: Type of variant for variants different than biallelic SNVs.
+> **TYPE (STRING)**	: Type of variant for variants different than biallelic SNVs.
 		  Possible types include MULTISNV, INDEL and STR (short tandem
 		  repeat). Also, SNVs called within INDELS or STRs are tagged
 		  with the EMBEDDED type
 		  
-**CNV (INT)**	: Number of samples with CNVs covering this variant
+> **CNV (INT)**	: Number of samples with CNVs covering this variant
 
-**NS (INT)**	: Number of samples genotyped. Calculated by the MergeVCF and
+> **NS (INT)**	: Number of samples genotyped. Calculated by the MergeVCF and
 		  the FilterVCF commands
 		  
-**MAF (DOUBLE)**	: Minor allele frequency. Calculated by the MergeVCF and the
+> **MAF (DOUBLE)**	: Minor allele frequency. Calculated by the MergeVCF and the
 		  FilterVCF commands
 		  
-**AN (INT)**	: Number of different alleles observed in called genotypes.
+> **AN (INT)**	: Number of different alleles observed in called genotypes.
 		  Calculated by the MergeVCF and the FilterVCF commands
 
 Additionally, the Annotate command adds the INFO fields TA, TID, TGN, and TCO
