@@ -206,16 +206,16 @@ with the results of the functional annotation (See the Annotate command below
 for details). NGSEP VCFs also include custom format fields with the following
 information for each genotype call:
 
-**ADP (INT,INT,...)**	: Number of base calls (depth) for alleles, including
+> **ADP (INT,INT,...)**	: Number of base calls (depth) for alleles, including
 			  the reference allele. The order of the counts is,
 			  first the depth of the reference allele and then the
 			  read depths of the alternative alleles in the order
 			  listed in the ALT field. 
 			  
-**BSDP (INT,INT,INT,INT)**	: For SNVs, number of base calls (depth) for the 4
+> **BSDP (INT,INT,INT,INT)**	: For SNVs, number of base calls (depth) for the 4
 			  possible nucleotides, sorted as A,C,G,T.
 			  
-**ACN (INT, INT, ...)**	: Predicted copy number of each allele taking into
+> **ACN (INT, INT, ...)**	: Predicted copy number of each allele taking into
 			  account the prediction of number of copies of the
 			  region surrounding the variant. The order is the same
 			  that in the ADP field
@@ -223,58 +223,58 @@ information for each genotype call:
 Regarding structural variants, output GFF files provided by NGSEP include the
 following info fields:
 
-**LENGTH (INT)**	: Predicted length of the event. For insertions and deletions
+> **LENGTH (INT)**	: Predicted length of the event. For insertions and deletions
 		  identified with read pair analysis, this length is not the
 		  reference span but the average of the lengths predicted by
 		  each read pair having an alignment with a predicted insert
 		  length significantly larger or shorter than the average
 		  fragment length.
 		  
-**SOURCE (STRING)**	: Algorithm that originated each variant call. Current values
+> **SOURCE (STRING)**	: Algorithm that originated each variant call. Current values
 		  include MultiAlns for repeats, Readpairs for read pair
 		  analysis and CNVnator and EWT for read depth analysis.
 		  
-**NSF (INT)**	: Number of fragments supporting the structural variation
+> **NSF (INT)**	: Number of fragments supporting the structural variation
 		  event. For read depth algorithms is the (raw) number of reads
 		  that can be aligned within the CNV. For read pair analysis
 		  is the number of fragments (read pairs) that support the
 		  indel or the inversion
 		  
-**NC (DOUBLE)**	: For CNVs called with the read depth algorithms this is the
+> **NC (DOUBLE)**	: For CNVs called with the read depth algorithms this is the
 		  estimated number of copies. It is kept as a real number
 		  to allow users to filter by proximity to an integer value if
 		  needed. 
 		  
-**HET (INT)**	: For CNVs called with the read depth algorithms this is the
+> **HET (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of heterozygous genotype calls in the VCF file
 		  enclosed within the CNV. Always zero if the option -noSNVS
 		  is used.
 		  
-**NTADF (INT)**	: For CNVs called with the read depth algorithms this is the
+> **NTADF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments showing an alignment pattern
 		  consistent with a tandem duplication
 		  
-**NTRDF (INT)**	: For CNVs called with the read depth algorithms this is the
+> **NTRDF (INT)**	: For CNVs called with the read depth algorithms this is the
 		  number of paired-end fragments in which one read aligns
 		  within the CNV and its pair aligns to another chromosome or
 		  with a very long insert length. These fragments are useful
 		  to classify the CNV as an interspersed (trans) duplication.
 		  
-**TGEN (STRING)**	: For CNVs called with the read depth algorithms this is a
+> **TGEN (STRING)**	: For CNVs called with the read depth algorithms this is a
 		  qualitative evaluation of the genotype call based on the
 		  values of the fields NC, NTADF and NTRDF, and on the normal
 		  ploidy of the sample. Possible values are DEL, TANDEMDUP
 		  and TRANSDUP.
 		  
-**NSR (INT)**	: Number of reads with split alignments supporting an insertion
+> **NSR (INT)**	: Number of reads with split alignments supporting an insertion
 		  or deletion. Events supported only by split-read analysis
 		  have NSF=0 and NSR>0.
 		  
-**NUF (INT)**	: For repeats identified from reads aligning to multiple
+> **NUF (INT)**	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
 
-WARNING: Default parameters of the variants detector are designed to maximize
+**WARNING**: Default parameters of the variants detector are designed to maximize
 the number of called variants which will generate false positives in samples
 with small coverage or high error rates. For conservative SNV calling use:
 
@@ -284,7 +284,7 @@ If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions or use the
 Clip command (see below)
 
-WARNING 2: For RAD Sequencing or GBS samples, using the default value of the
+**WARNING 2**: For RAD Sequencing or GBS samples, using the default value of the
 parameter to control for PCR duplicates (maxAlnsPerStartPos) will yield very
 low sensitivity. We recommend to increase the value of the parameter to about
 100 to retain high sensitivity while avoiding a severe penalty in memory usage.
@@ -367,17 +367,17 @@ OPTIONS:
 The vcf file with functional annotations is written in the standard output.
 Annotations are included using the following custom fields in the INFO column:
 
-**TA (STRING):** 	Annotation based on a gene model. Possible annotations include
+> **TA (STRING):** 	Annotation based on a gene model. Possible annotations include
 		Intergenic, Intron, FivePrimeUTR, ThreePrimeUTR, Upstream, 
 		Downstream, NCRNA, Synonymous, Missense, Nonsense, Frameshift,
 		and ExonJunction
 		
-**TID (STRING):**	Id of the transcript related with the gene annotation in the TA
+> **TID (STRING):**	Id of the transcript related with the gene annotation in the TA
 		field
 		
-**TGN (STRING):** 	Name of the gene related with the annotation in the TA field
+> **TGN (STRING):** 	Name of the gene related with the annotation in the TA field
 
-**TCO (FLOAT):**	For variants in coding regions, position in the aminoacid
+> **TCO (FLOAT):**	For variants in coding regions, position in the aminoacid
 		sequence where the variant is located. The integer part is the
 		1-based position of the mutated codon. The decimal part is the
 		codon position.
@@ -549,12 +549,12 @@ OPTIONS:
 				  and the ids of the populations in the second
 				  column. Required for conversion to TreeMix
 
-WARNING: FASTA convertion does not use IUPAC codes, heterozygous SNPs are 
+**WARNING**: FASTA convertion does not use IUPAC codes, heterozygous SNPs are 
 changed to N.
-WARNING 2: Plink is only designed for humans, therefore it will only work for
+**WARNING 2**: Plink is only designed for humans, therefore it will only work for
 22 sequences (chromosomes). If a sample exceeds this number, it is convenient 
 to reduce the number of chromosomes and to remove all scaffolds.
-WARNING 3: To generate dendograms in Tassel, it is better to use the HapMap 
+**WARNING 3**: To generate dendograms in Tassel, it is better to use the HapMap 
 format.
 
 
@@ -958,10 +958,10 @@ OPTIONS:
 A manuscript with the description of the main modules of NGSEP is available at
 Nucleic Acids research:
 
-Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
+**Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
 An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
 Nucleic Acids Research. 42(6): e44. doi: 10.1093/nar/gkt1381
-http://nar.oxfordjournals.org/content/42/6/e44.full
+http://nar.oxfordjournals.org/content/42/6/e44.full**
 
 A description of some of the latest modules and recent benchmarks with other
 tools for variants detection on Genotype-By-Sequencing (GBS) data is available
