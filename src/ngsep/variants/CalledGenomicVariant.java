@@ -26,6 +26,11 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	public static final byte GENOTYPE_HOMOREF=0;
 	public static final byte GENOTYPE_HETERO=1;
 	public static final byte GENOTYPE_HOMOALT=2;
+	
+	public static final byte ALLELE_UNDECIDED = -1;
+	public static final byte ALLELE_REFERENCE = 0;
+	public static final byte ALLELE_ALTERNATIVE = 1;
+	
 
 	/**
 	 * @return String sampleId for this call
