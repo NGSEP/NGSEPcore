@@ -148,5 +148,8 @@ public class HaplotypeBlock {
 	{
 		return 0;
 	}
-	
+	public void setHaplotype(byte [] haplotype)
+	{
+		
+	}
 }
