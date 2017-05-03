@@ -2,20 +2,20 @@ package ngsep.variants;
 
 public class HaplotypeFragment {
 	
-	private int firstColum;
+	private int firstColumn;
 	private byte calls [];
 	
 	
 	public HaplotypeFragment(int firstColum, byte[] calls) {
 		
-		this.firstColum = firstColum;
+		this.firstColumn = firstColum;
 		this.calls = calls;
 	}
 
 	
 	
-	public int getFirstColum() {
-		return firstColum;
+	public int getFirstColumn() {
+		return firstColumn;
 	}
 
 	public byte[] getCalls() {
@@ -25,7 +25,7 @@ public class HaplotypeFragment {
 	public byte getCall(int column)
 	{
 		byte call = CalledGenomicVariant.ALLELE_UNDECIDED;
-		int posIni = getFirstColum();
+		int posIni = getFirstColumn();
 		int length = calls.length;
 		int posLas = posIni + length - 1;
 		if (column >= posIni && column <= posLas)
@@ -35,6 +35,13 @@ public class HaplotypeFragment {
 		}
 		return call;	
 		
+	}
+	/**
+	 * Get last column
+	 */
+	public int getLastColumn()
+	{
+		return 0;
 	}
 	
 	
