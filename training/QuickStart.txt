@@ -106,7 +106,7 @@ ____________________________________
     - First, find all high-quality SNPs in the population, running 
     the following command for each sample:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
         * if you are not sure of how many bases to ignore at each end of the 
           read, run this command on each of your readpos.stats files:
@@ -120,7 +120,7 @@ ____________________________________
 
     - Third, genotype all your samples in the high-quality positions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
     - Fourth, merge all the genotyped samples in a single VCF file:
 
@@ -130,7 +130,6 @@ ____________________________________
     <SMPL>       : The ID of the sample.
     <TRIM_5'>    : Number of low quality nucleotides to trim from the 5' end.
     <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
-    <BWA_ALN>    : For alignments done with BWA or BWA-MEM, include '-ignoreXS'
     <VCF_FILES>* : List of all the VCF files from the FindVariants step.
     <SEQ_NAMES>  : File with the name of all the sequences present in the 
                    reference genome, generate it by running:
@@ -246,7 +245,7 @@ ____________________________________
     - First, find all high-quality SNPs in the population, running the 
     following command for each sample:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
         * if you are not sure of how many bases to ignore at each end of the 
           read, run this command on each of your readpos.stats files:
@@ -260,7 +259,7 @@ ____________________________________
 
     - Third, genotype all your samples in the high-quality positions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -algCNV CNVnator,EWT -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <BWA_ALN> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -algCNV CNVnator,EWT -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
     - Fourth, merge all the genotyped samples in a single VCF file:
 
@@ -270,7 +269,6 @@ ____________________________________
     <SMPL>       : The ID of the sample.
     <TRIM_5'>    : Number of low quality nucleotides to trim from the 5' end.
     <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
-    <BWA_ALN>    : For alignments done with BWA or BWA-MEM, include '-ignoreXS'
     <VCF_FILES>* : List of all the VCF files from the FindVariants step.
     <SEQ_NAMES>  : File with the name of all the sequences present in the 
                    reference genome, generate it by running:
