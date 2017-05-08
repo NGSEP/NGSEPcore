@@ -80,7 +80,7 @@ public class FragmentsCutBuilder {
 	}
 	public double getScore(HaplotypeBlock block, int row1, int row2, boolean useQualityScores) {
 		//if(!useQualityScores) {
-			int score = block.getHammingDistance(row1, row2);
+			int score = block.getHamming2(row1, row2);
 			return score;
 			/*int overlap = f1.getOverlappingCount(f2);
 			int disagree = f1.getHammingDistance(f2);
