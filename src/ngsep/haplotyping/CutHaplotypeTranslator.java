@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.haplotyping;
 
+import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.HaplotypeBlock;
 
 public class CutHaplotypeTranslator {
@@ -30,99 +31,52 @@ public class CutHaplotypeTranslator {
 		int numFragments = block.getNumFragments();
 		int numVariants = block.getNumVariants();
 		byte [] haplotype = new byte [numVariants];
-		/*int pos=b.getFirstPos();
-		int lastPos = b.getLastPos();
+		
 		int i=0;
-		for(;pos <=lastPos;pos++) {
-			while(i<numFragments && fragments.get(i).getLastPos()<pos) {
+		for(int j=0;j <numVariants;j++) {
+			while(i<numFragments && block.getLastColumn(i)<j) {
 				i++;
 			}
-			int votesAllele1 = 0;
+			int votesAlleleRef = 0;
 			int votes=0;
-			for(int j=i;j<numFragments;j++) {
+			for(int k=i; k<numFragments;k++) {
 				
-				if(f2.getFirstPos()>pos) {
+				if(block.getFirstColumn(k)>j) {
 					break;
 				}
-				byte call = block.getAllele(j, pos);
+				byte call = block.getAllele(k, j);
 				if(call != CalledGenomicVariant.ALLELE_UNDECIDED) {
 					if(consensusType == CONSENSUS_COMBINED) {
 						votes++;
-						if((call == CalledGenomicVariant.ALLELE_REFERENCE && !cut[j]) || (call != CalledGenomicVariant.ALLELE_REFERENCE && cut[j]) ) {
-							votesAllele1++;
+						if((call == CalledGenomicVariant.ALLELE_REFERENCE && !cut[k]) || (call != CalledGenomicVariant.ALLELE_REFERENCE && cut[k]) ) {
+							votesAlleleRef++;
 						}
-					} else if (consensusType == CONSENSUS_GROUP_1 && !cut[j]) {
+					} else if (consensusType == CONSENSUS_GROUP_1 && !cut[k]) {
 						votes++;
 						if(call == CalledGenomicVariant.ALLELE_REFERENCE) {
-							votesAllele1++;
+							votesAlleleRef++;
 						}
-					} else if (consensusType == CONSENSUS_GROUP_2 && cut[j]) {
+					} else if (consensusType == CONSENSUS_GROUP_2 && cut[k]) {
 						votes++;
 						if(call == CalledGenomicVariant.ALLELE_REFERENCE) {
-							votesAllele1++;
+							votesAlleleRef++;
 						}
 					} else if (consensusType == CONSENSUS_ALL) {
 						votes++;
 						if(call == CalledGenomicVariant.ALLELE_REFERENCE) {
-							votesAllele1++;
+							votesAlleleRef++;
 						}
 					}
 				}
 			}
-			//TODO: Check index
-			if (2*votesAllele1 < votes) {
-				haplotype[i] = CalledGenomicVariant.ALLELE_ALTERNATIVE;
-			} else if (2*votesAllele1 > votes){
-				haplotype[i] = CalledGenomicVariant.ALLELE_REFERENCE;
+			if (2*votesAlleleRef < votes) {
+				haplotype[j] = CalledGenomicVariant.ALLELE_ALTERNATIVE;
+			} else if (2*votesAlleleRef > votes){
+				haplotype[j] = CalledGenomicVariant.ALLELE_REFERENCE;
 			} else {
-				haplotype[i] = CalledGenomicVariant.ALLELE_UNDECIDED;
-			}
-		}*/
-		return haplotype;
-	}
-	/*public static String getHaplotype(Block b, boolean[] cut, double[] fragmentScores) {
-		
-		int pos=b.getFirstPos();
-		int lastPos = b.getLastPos();
-		StringBuilder haplotype = new StringBuilder(lastPos-pos+1);
-		List <Fragment> fragments = b.getFragments();
-		int i=0;
-		for(;pos <=lastPos;pos++) {
-			while(i<fragments.size() && fragments.get(i).getLastPos()<pos) {
-				i++;
-			}
-			double scoreAllele1=0;
-			double scoreAllele2=0;
-			int votesAllele1 = 0;
-			int votes=0;
-			for(int j=i;j<fragments.size();j++) {
-				Fragment f2 = fragments.get(j);
-				if(f2.getFirstPos()>pos) {
-					break;
-				}
-				char call = f2.getCall(pos);
-				if(call != Fragment.NODATACHAR) {
-					votes++;
-					if((call == Fragment.ALLELE1CHAR && !cut[j])|| (call!=Fragment.ALLELE1CHAR&& cut[j]) ) {
-						scoreAllele1+=fragmentScores[j];
-						votesAllele1++;
-					} else {
-						scoreAllele2+=fragmentScores[j];
-					}
-				}
-			}
-			if (scoreAllele1 > scoreAllele2) {
-				haplotype.append(Fragment.ALLELE1CHAR);
-			} else if (scoreAllele2 > scoreAllele1 ) {
-				haplotype.append(Fragment.ALLELE2CHAR);
-			} else if (2*votesAllele1 < votes) {
-				haplotype.append(Fragment.ALLELE2CHAR);
-			} else if (2*votesAllele1 > votes){
-				haplotype.append(Fragment.ALLELE1CHAR);
-			} else {
-				haplotype.append(Fragment.NODATACHAR);
+				haplotype[j] = CalledGenomicVariant.ALLELE_UNDECIDED;
 			}
 		}
-		return haplotype.toString();
-	}*/
+		return haplotype;
+	}
 }
