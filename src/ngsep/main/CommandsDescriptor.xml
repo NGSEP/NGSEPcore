@@ -700,4 +700,16 @@ Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right
 </option>
 </command>
 
+<command id="NeighborJoining" class="ngsep.variants.NeighborJoining">
+<intro>
+Construct a neighbor joining tree given a distance matrix file
+</intro>
+<title>Construct a tree using Neighbor Joining algorithm</title>
+<description>
+Construct a tree using Neighbor Joining algorithm, given a distance matrix file.
+Distance matrix could be an upper, lower or full matrix. The output tree is in Newick format.
+</description>
+<argument>MATRIX_FILE</argument>
+</command>
+
 </NGSEP>
