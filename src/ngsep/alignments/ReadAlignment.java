@@ -496,6 +496,7 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	public CharSequence getAlleleCall (int referenceFirst, int referenceLast) {
 		if(readCharacters == null) return null;
+		updateAlleleCallsInfo();
 		int readFirst = getReadPosition(referenceFirst);
 		int readLast = getReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0 || readLast < readFirst) return null;

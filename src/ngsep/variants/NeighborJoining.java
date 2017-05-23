@@ -1,0 +1,226 @@
+package ngsep.variants;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
+
+
+public class NeighborJoining {
+
+	private Logger log = Logger.getLogger(NeighborJoining.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	private DistanceMatrix distanceMatrix;
+	private int nSamples = 0;
+	private List<Sample> samples;
+	
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	
+	 
+	 public static void main (String [ ] args) throws IOException,NumberFormatException {
+			
+	 	NeighborJoining nj = new NeighborJoining();
+	 
+	 	if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
+			CommandsDescriptor.getInstance().printHelp(NeighborJoining.class);
+			return;
+		}
+		//Parameters
+		int k=CommandsDescriptor.getInstance().loadOptions(nj, args);
+	 
+		String matrixFile = args[k++];
+	 	DistanceMatrix dm = new DistanceMatrix(matrixFile);
+	 	nj.loadMatrix(dm);
+		Tree njTree = nj.constructNJTree();
+		njTree.printTree(System.out);	
+	}
+	
+
+	 /**
+	  * Load Distance matrix.
+	  * @param DistanceMatrix Distance matrix loading , will be used to construct tree.
+	*/
+	public void loadMatrix (DistanceMatrix distanceMatrix){
+		this.distanceMatrix = distanceMatrix;
+		nSamples = distanceMatrix.getnSamples();
+		samples = distanceMatrix.getSamples();
+
+	}
+	
+	
+	/**
+	  * Construct NJ tree and make newick out structure.
+	*/
+	public Tree constructNJTree(){
+	
+		float iterableMatrix[][] = distanceMatrix.getDistanceMatrix();
+		
+		int nodesToAssign = nSamples;
+		
+		Map<String, Tree> nodesMerged = new HashMap<>();
+		
+		Tree njTree = new Tree(null, null, "");
+		
+		ArrayList<String> nodesList = new ArrayList<>();
+		
+		//fill initial node list
+		for(int n=0;n<nSamples;n++){
+			nodesList.add(samples.get(n).getId());
+		}
+		
+		
+		while(nodesToAssign>2){
+			
+			float njMatrix[][]= new float[nodesToAssign][nodesToAssign];
+			float totalDistance[]= new float[nodesToAssign];
+			
+			//Calculate total distance array
+			for(int i=0;i < nodesToAssign; i++){
+				for(int j=0;j < nodesToAssign; j++){
+					totalDistance[i] += iterableMatrix[i][j];
+				}  
+			}
+			
+			//Compute Neighbor Joining matrix
+			for(int i=0;i < nodesToAssign; i++){
+				for(int j=0;j < i; j++){
+					njMatrix[i][j] = njMatrix[j][i] = ((nodesToAssign - 2) * iterableMatrix[i][j]) - totalDistance[i] - totalDistance[j];
+				}  
+			}
+			
+			int rowMin = -1;
+			int colMin = -1;
+			float minValue = Float.POSITIVE_INFINITY;
+			
+			//Minimum value in matrix
+			//need to be improve searching only in the triangle
+			for(int i=0;i < nodesToAssign; i++){
+				for(int j=0;j < nodesToAssign; j++){
+					if(njMatrix[i][j]<minValue && i != j){
+						rowMin = i;
+						colMin = j;
+						minValue = njMatrix[i][j];
+					}
+				}  
+			}
+			
+						
+			nodesToAssign--;
+			
+			if(nodesToAssign > 2){
+				//branch length estimation
+				float leftTreeDistance = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[rowMin] - totalDistance[colMin] ) / (2 * (nodesToAssign - 1)));
+				float rightTreeDistance  = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[colMin] - totalDistance[rowMin])/ (2 * (nodesToAssign - 1)));
+
+				//Central node join and newick formatting		
+				String nodeMergeId = "("+nodesList.get(rowMin) +":"+leftTreeDistance+","+ nodesList.get(colMin)+":"+rightTreeDistance+")";
+				
+				//Try to get back existing trees
+				Tree leftTree = nodesMerged.get(nodesList.get(rowMin)); 
+				Tree rightTree = nodesMerged.get(nodesList.get(colMin)); 
+				
+				//If trees not exist create new ones
+				if(leftTree == null){
+					leftTree = new Tree(null, null, nodesList.get(rowMin));
+				}
+				
+				if(rightTree == null){
+					rightTree = new Tree(null, null, nodesList.get(colMin));
+				}
+				
+				//Make a new tree with the two joined nodes
+				njTree = new Tree( leftTree, rightTree, nodeMergeId);			
+				nodesMerged.put(nodeMergeId, njTree);
+				
+				//Next iteration nodes positions
+				ArrayList<String> currentNodes = new ArrayList<>();
+				currentNodes.add(nodeMergeId);
+				for(int n=0;n<nodesList.size();n++){
+					if(n != rowMin && n != colMin){ //erase joined nodes from nodes list
+						currentNodes.add(nodesList.get(n));
+					}
+
+				}
+				
+				// distance matrix update
+				float updateDistanceMatrix[][] = new float[nodesToAssign][nodesToAssign];
+				
+				//adding new row, col and bringing back old distances
+				for(int i=1;i<nodesToAssign;i++){
+					for(int j=0;j<i;j++){
+						int index_i = nodesList.indexOf(currentNodes.get(i));
+						if(j==0){ //if new node, calculate distance
+							updateDistanceMatrix[j][i] = updateDistanceMatrix[i][j] = 0.5f * (iterableMatrix[rowMin][index_i]+iterableMatrix[colMin][index_i] - iterableMatrix[rowMin][colMin]);
+						} else { //else bring old ones
+							int index_j = nodesList.indexOf(currentNodes.get(j));
+							updateDistanceMatrix[j][i] = updateDistanceMatrix[i][j] = iterableMatrix[index_i][index_j];
+						}
+						
+					}
+					
+				}
+				
+			
+				nodesList= currentNodes;
+				
+				iterableMatrix = updateDistanceMatrix;
+				
+			} else { // FINAL JOIN ---------------------------------------------------------
+				
+				
+				float leftTreeDistance = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[1] - totalDistance[2]));
+				float rightTreeDistance  = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[2] - totalDistance[1]));
+				
+				float centralTreeDistance = 0.0f;
+				
+				//Calculate final distance between join node and the last two
+				if(rowMin!=0){
+					if(rowMin<colMin || colMin == 0){
+						centralTreeDistance = (0.5f * iterableMatrix[0][rowMin]) + (0.5f * (totalDistance[rowMin] - totalDistance[0]));
+					} else{
+						centralTreeDistance = (0.5f * iterableMatrix[0][colMin]) + (0.5f * (totalDistance[colMin] - totalDistance[0]));
+					}
+				} else{
+					centralTreeDistance = (0.5f * iterableMatrix[0][colMin]) + (0.5f * (totalDistance[colMin] - totalDistance[0]));
+				}
+				
+							
+				String nodeMergeId = nodesList.get(0);
+				
+				// Newick format
+				Tree leftTree = new Tree(null, null, "("+nodesList.get(2)+":"+rightTreeDistance+","+nodesList.get(1)+":"+leftTreeDistance+",");
+				Tree rightTree = new Tree(null, null, ");\n");
+			
+				njTree = new Tree(leftTree, rightTree, nodeMergeId+":"+centralTreeDistance);			
+
+			}
+			
+		}
+
+		
+		return njTree;
+	}
+
+	
+}
+

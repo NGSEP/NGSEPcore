@@ -25,6 +25,12 @@ import java.util.List;
 
 public class NumberArrays {
 
+	public static byte [] toByteArray (Collection<Byte> values) {
+		byte[] ret = new byte[values.size()];
+	    int i = 0;
+	    for (Byte e : values) ret[i++] = e.byteValue();
+	    return ret;
+	}
 	public static int [] toIntArray (Collection<Integer> values) {
 		int[] ret = new int[values.size()];
 	    int i = 0;
