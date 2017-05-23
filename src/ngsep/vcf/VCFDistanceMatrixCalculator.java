@@ -5,11 +5,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
+import ngsep.clustering.DistanceMatrix;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
-import ngsep.variants.DistanceMatrix;
 import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileReader;

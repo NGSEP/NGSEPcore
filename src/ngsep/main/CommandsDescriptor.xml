@@ -700,7 +700,7 @@ Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right
 </option>
 </command>
 
-<command id="NeighborJoining" class="ngsep.variants.NeighborJoining">
+<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining">
 <intro>
 Construct a neighbor joining tree given a distance matrix file
 </intro>

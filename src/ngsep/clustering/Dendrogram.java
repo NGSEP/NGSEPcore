@@ -1,13 +1,13 @@
-package ngsep.variants;
+package ngsep.clustering;
 
 import java.io.PrintStream;
 
 
 
-public class Tree {
+public class Dendrogram {
 
-  private Tree leftTree;
-  private Tree rightTree;
+  private Dendrogram leftDendro;
+  private Dendrogram rightDendro;
   //private double leftTreeDistance;
   //private double rightTreeDistance;
   private String label;
@@ -21,20 +21,20 @@ public class Tree {
     this.label = label;
   }*/
   
-  Tree(Tree leftTree, Tree rightTree,  String label) {
-    this.leftTree = leftTree;
-    this.rightTree = rightTree;
+  Dendrogram(Dendrogram leftDendro, Dendrogram rightDendro,  String label) {
+    this.leftDendro = leftDendro;
+    this.rightDendro = rightDendro;
     this.label = label;
   }
 
   public void printTree(final PrintStream ps) {
     
-	if (leftTree != null) {
-      leftTree.printTree(ps);
+	if (leftDendro != null) {
+		leftDendro.printTree(ps);
     }
     ps.print(label);
-    if (rightTree != null) {
-      rightTree.printTree(ps);
+    if (rightDendro != null) {
+    	rightDendro.printTree(ps);
     }
   }
 
