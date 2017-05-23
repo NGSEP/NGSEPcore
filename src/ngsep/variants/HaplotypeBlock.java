@@ -88,8 +88,9 @@ public class HaplotypeBlock {
 	/**
 	 * Returns Hamming distance between two fragments
 	 * <b> pre: </b> The matrix of fragments has been initialized.
-	 * @param row1. Row1 > Row2
+	 * @param row1. Row1 < Row2
 	 * @param row2.
+	 * tener en cuenta los maximos
 	 * @return Hamming distance between two fragments.
 	 */
 	public int getHammingDistance(int row1, int row2) 
@@ -99,7 +100,7 @@ public class HaplotypeBlock {
 		{
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
-			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED || allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
+			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
 			{
 				distance ++;
 			}
@@ -108,19 +109,25 @@ public class HaplotypeBlock {
 		return distance;
 	}
 	
-	/**
+	/**comparacon cruzada de primeros contra ultimos.
 	 * <b> pre: </b> The matrix of fragments has been initialized.
 	 * @param row1
 	 * @param row2
-	 * @return true when the two fragments overlap.
+	 * @return True when the two fragments overlap.
 	 */
 	public boolean overlap(int row1, int row2)
 	{
-		boolean overlap = false;		
+		boolean overlap = false;
 		int initPosRow1 = getFirstColumn(row1);
+		int lastPosRow1 = getLastColumn(row1);
 		int initPosRow2 = getFirstColumn(row2);
 		int lastPosRow2 = getLastColumn(row2);
-		if( initPosRow1 < lastPosRow2 && initPosRow1 > initPosRow2 )
+		int a = Math.min(initPosRow1, initPosRow2);
+		int b = Math.min(lastPosRow1, lastPosRow2);
+		int c = Math.max(initPosRow1, initPosRow2);
+		int d = Math.max(lastPosRow1, lastPosRow2);
+		
+		if( a < d && b > c )
 		{
 			overlap = true;
 		}
@@ -164,7 +171,7 @@ public class HaplotypeBlock {
 	* Calculates the score of two fragments according to their hamming distance.
 	* If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
 	* <b> pre: </b> The matrix of fragments has been initialized.
- 	* @param row1. row1 > row2
+ 	* @param row1. 
  	* @param row2.
  	* @return hamming score.
  	*/
@@ -175,12 +182,12 @@ public class HaplotypeBlock {
 		{
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
-			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED || allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
+			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
 			{
-				score += 1;
-			} else if (allele1 == allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED || allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
+				score ++;
+			} else if (allele1 == allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
 			{
-				score += -1;
+				score --;
 			}
 		}
 			
