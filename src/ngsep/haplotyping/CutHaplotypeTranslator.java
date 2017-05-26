@@ -20,7 +20,6 @@
 package ngsep.haplotyping;
 
 import ngsep.variants.CalledGenomicVariant;
-import ngsep.variants.HaplotypeBlock;
 
 public class CutHaplotypeTranslator {
 	public static final int CONSENSUS_GROUP_1 = 1;

@@ -1,15 +1,15 @@
 package ngsep.haplotyping;
 
-import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
 
+import ngsep.variants.CalledGenomicVariant;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
+import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
 
 public class SingleIndividualHaplotyper {
@@ -31,54 +31,62 @@ public class SingleIndividualHaplotyper {
 	 * @param out Output VCF
 	 */
 	public void process(String vcfFilename, String bamFilename, PrintStream out) throws Exception{
-		List<VCFRecord> sequenceRecords = new ArrayList<>();
+		List<VCFRecord> chromosomeVariants = new ArrayList<>();
 		//TODO: Hace un ciclo que recorre el VCF y va agregando los VCFRecord a la lista sequenceRecords
 		//Cada vez que cambias de cromosoma, procesas la lista y la desocupas
 		//Te puedes guiar por GenotypeImputer
 		VCFFileReader inputVCF = null;
-		FileInputStream inputBAM = null;
-		PrintStream outVCF = null;
+		VCFFileWriter vcfWriter = new VCFFileWriter();
 		try
 		{
 			inputVCF = new VCFFileReader(vcfFilename);
-			inputBAM = new FileInputStream(bamFilename);
-			out = new PrintStream(outVCF);
-			Iterator<VCFRecord> iter = inputVCF.iterator();
 			VCFFileHeader header = inputVCF.getHeader();
+			vcfWriter = new VCFFileWriter();
+			vcfWriter.printHeader(header, out);
+			String lastSeqName = null;
+			Iterator<VCFRecord> iter = inputVCF.iterator();
+			
 			while(iter.hasNext())
 			{
 				VCFRecord record = iter.next();
-			
+				if(record.getSequenceName().equals(lastSeqName)) {
+					if(chromosomeVariants.size()>0) {
+						processChromosomeVariants(lastSeqName, chromosomeVariants, bamFilename, vcfWriter, out);
+					}
+					chromosomeVariants.clear();
+					lastSeqName = record.getSequenceName();
+				}
+				chromosomeVariants.add(record);
 			}
-
+			if(chromosomeVariants.size()>0) {
+				processChromosomeVariants(lastSeqName, chromosomeVariants, bamFilename, vcfWriter, out);
+			}
 		}
 		finally{
 			if(inputVCF!=null) inputVCF.close();
-			if(inputBAM!=null) inputBAM.close();
 			if(out!=null)out.close();
 		}
-
+	}
+	private void processChromosomeVariants (String seqName, List<VCFRecord> chromosomeVariants, String bamFilename, VCFFileWriter vcfWriter, PrintStream out) {
+		List<CalledGenomicVariant> hetVars = extractHeterozygousVariants(chromosomeVariants);
+		System.out.println("Heterozygous variants: "+hetVars.size());
+		//Read bam file. Ignore alignments to chromosomes different than seqName
+		//Crear lista de ReadAlignment con los alineamientos del cromosoma y cuando acabes crear un solo 
+		//HaplotypeBlock llamando HaplotypeBlockBuilder
+		//Y luego pides que 
+		
+		
 
 	}
-	private void processChormosomeVariants (List<VCFRecord> chromosomeVariants, PrintStream out) {
-		//TODO: Por ahora solamente imprime el total de variantes y cuantas son heterocigotas
-		PrintStream outVariants = null;
-		int variants = 0;
-		try
+	private List<CalledGenomicVariant> extractHeterozygousVariants(List<VCFRecord> chromosomeVariants) {
+		List<CalledGenomicVariant> hetVars = new ArrayList<>();
+		for(VCFRecord record:chromosomeVariants)
 		{
-			out = new PrintStream(outVariants);
-			variants = chromosomeVariants.size();
-			for(int i = 0; i < variants; i++)
-			{
-				VCFRecord current = chromosomeVariants.get(i);
-						
-			}
+			CalledGenomicVariant call = record.getCalls().get(0);
+			if(call.isHeterozygous());
+			hetVars.add(call);
 		}
-		finally
-		{
-			if(outVariants!=null) outVariants.close();
-		}
-
+		return hetVars;
 	}
 
 }

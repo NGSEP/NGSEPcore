@@ -25,8 +25,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import ngsep.variants.HaplotypeBlock;
-
 public class FragmentsCutBuilder {
 	private List<Vertex> graph;
 	private List<Edge> allEdges;

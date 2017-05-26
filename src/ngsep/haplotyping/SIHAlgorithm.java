@@ -1,8 +1,6 @@
 
 package ngsep.haplotyping;
 
-import ngsep.variants.HaplotypeBlock;
-
 /**
  * Copied from SingleIndividualHaplotyper - Efficient heuristic algorithms for the SIH problem
  * @author Jorge Duitama

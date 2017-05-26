@@ -17,10 +17,13 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.variants;
+package ngsep.haplotyping;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.GenomicVariant;
 
 public class HaplotypeBlock {
 
@@ -32,7 +35,7 @@ public class HaplotypeBlock {
 	/**
 	 * Represents the list of variants.
 	 */
-	private List<GenomicVariant> variants;
+	private List<? extends GenomicVariant> variants;
 	
 	/**
 	 * Represents a haplotype.
@@ -43,12 +46,21 @@ public class HaplotypeBlock {
 	 * Constructor that initializes the attributes of a HaplotypeBlock with the given parameters.
 	 * @param variants.
 	 */
-	public HaplotypeBlock(List<GenomicVariant> variants) 
+	public HaplotypeBlock(List<? extends GenomicVariant> variants) 
 	{
 		this.variants = variants;
 		matrix = new ArrayList <HaplotypeFragment>();
 		haplotype = null;
 
+	}
+	/**
+	 * Add fragment to the matrix
+	 * @param firstColumn where valid allele calls are found
+	 * @param alleleCalls Calls starting from the given column
+	 */
+	public void addFragment(int firstColumn, byte[] alleleCalls) {
+		// TODO Auto-generated method stub
+		
 	}
 		
 	/**
@@ -211,4 +223,6 @@ public class HaplotypeBlock {
 	{
 		this.haplotype = haplotype;
 	}
+
+	
 }

@@ -17,7 +17,9 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.variants;
+package ngsep.haplotyping;
+
+import ngsep.variants.CalledGenomicVariant;
 
 public class HaplotypeFragment {
 	
