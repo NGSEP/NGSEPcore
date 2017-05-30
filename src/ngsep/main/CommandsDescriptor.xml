@@ -1,4 +1,4 @@
-<NGSEP version="3.0.2" date="31-10-2016">
+<NGSEP version="3.1.0" date="30-06-2017">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FindVariants" class="ngsep.discovery.VariantsDetector">
@@ -465,7 +465,7 @@ Step between windows to calculate pairwise differences between samples.
 <intro>
 Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
 </intro>
-<title>Genotype imputation (In progress)</title>
+<title>Genotype imputation</title>
 <description>
 Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
 * Only biallelic SNPs are imputed and included in the output VCF file.
@@ -483,6 +483,12 @@ For bi-parental or multi-parental breeding populations please set explicitly
 the number of parents of the population even if the list of parents is provided with the
 -p option. This allows to take into account cases of populations in which some of
 the parents are missing
+</option>
+<option id="w" type="INT" default="5000" attribute="windowSize">
+Size of the window to process variants at the same time
+</option>
+<option id="o" type="INT" default="50" attribute="overlap">
+Overlap between windows
 </option>
 <option id="c" type="DOUBLE" default="0.001" attribute="avgCMPerKbp">
 Estimated average number of centiMorgans per Kbp on euchromatic regions of the genome.

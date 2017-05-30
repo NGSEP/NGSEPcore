@@ -47,7 +47,7 @@ import ngsep.vcf.VCFRecord;
 public class GenotypeImputer {
 	public static final int DEF_K = 20;
 	public static final double DEF_CMPERKBP = 0.001;
-	public static final int DEF_WINDOW = 2000;
+	public static final int DEF_WINDOW = 5000;
 	public static final int DEF_OVERLAP = 50;
 	
 	private Logger log = Logger.getLogger(GenotypeImputer.class.getName());
