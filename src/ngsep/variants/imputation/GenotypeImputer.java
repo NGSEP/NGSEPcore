@@ -47,6 +47,8 @@ import ngsep.vcf.VCFRecord;
 public class GenotypeImputer {
 	public static final int DEF_K = 20;
 	public static final double DEF_CMPERKBP = 0.001;
+	public static final int DEF_WINDOW = 2000;
+	public static final int DEF_OVERLAP = 50;
 	
 	private Logger log = Logger.getLogger(GenotypeImputer.class.getName());
 	private ProgressNotifier progressNotifier=null;
@@ -57,6 +59,8 @@ public class GenotypeImputer {
 	private boolean inbredSamples = false;
 	private List<String> parentIds = new ArrayList<String>() ;
 	private int k = DEF_K;
+	private int windowSize = DEF_WINDOW;
+	private int overlap = DEF_OVERLAP;
 	private PrintStream outAssignments;
 	private PrintStream outGenotypes;
 	 
@@ -65,35 +69,9 @@ public class GenotypeImputer {
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(GenotypeImputer.class);
-			return;
-		}
 		GenotypeImputer instance = new GenotypeImputer();
-		int i=0;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-c".equals(args[i])) {
-				i++;
-				instance.setAvgCMPerKbp(Double.parseDouble(args[i]));
-			} else if("-p".equals(args[i])) {
-				i++;
-				instance.setParentIds(Arrays.asList(args[i].split(",")));
-			} else if("-k".equals(args[i])) {
-				i++;
-				instance.setK(Integer.parseInt(args[i]));
-			} else if("-t".equals(args[i])) {
-				instance.setSkipTransitionsTraining(true);
-			} else if("-ip".equals(args[i])) {
-				instance.setInbredParents(true);
-			} else if("-is".equals(args[i])) {
-				instance.setInbredSamples(true);
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(GenotypeImputer.class);
-				return;
-			}
-			i++;
-		}
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		if(i<0) return;
 		String vcfFile = args[i++];
 		String outPrefix = args[i++];
 		String fileAssignments = outPrefix+"_assignments.txt";
@@ -109,7 +87,6 @@ public class GenotypeImputer {
 			if(instance.outAssignments!=null) instance.outAssignments.close();
 			if(instance.outGenotypes!=null) instance.outGenotypes.close();
 		}
-
 	}
 	
 	public Logger getLog() {
@@ -144,6 +121,10 @@ public class GenotypeImputer {
 		this.parentIds = parentIds;
 	}
 	
+	public void setParentIds(String parentIdsStr) {
+		this.setParentIds(Arrays.asList(parentIdsStr.split(",")));
+	}
+	
 	public int getK() {
 		return k;
 	}
@@ -152,12 +133,45 @@ public class GenotypeImputer {
 		this.k = k;
 	}
 	
+	public void setK(Integer k) {
+		this.setK(k.intValue());
+	}
+	
+	
+	public int getWindowSize() {
+		return windowSize;
+	}
+
+	public void setWindowSize(int windowSize) {
+		this.windowSize = windowSize;
+	}
+	
+	public void setWindowSize(Integer windowSize) {
+		setWindowSize(windowSize.intValue());
+	}
+
+	public int getOverlap() {
+		return overlap;
+	}
+
+	public void setOverlap(int overlap) {
+		this.overlap = overlap;
+	}
+
+	public void setOverlap(Integer overlap) {
+		this.setOverlap(overlap.intValue());
+	}
+	
 	public boolean isInbredParents() {
 		return inbredParents;
 	}
 
 	public void setInbredParents(boolean inbredParents) {
 		this.inbredParents = inbredParents;
+	}
+	
+	public void setInbredParents(Boolean inbredParents) {
+		this.setInbredParents(inbredParents.booleanValue());
 	}
 
 	public boolean isInbredSamples() {
@@ -168,7 +182,9 @@ public class GenotypeImputer {
 		this.inbredSamples = inbredSamples;
 	}
 
-	
+	public void setInbredSamples(Boolean inbredSamples) {
+		this.setInbredSamples(inbredSamples.booleanValue());
+	}
 
 	public boolean isSkipTransitionsTraining() {
 		return skipTransitionsTraining;
@@ -176,6 +192,10 @@ public class GenotypeImputer {
 
 	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
 		this.skipTransitionsTraining = skipTransitionsTraining;
+	}
+	
+	public void setSkipTransitionsTraining(Boolean skipTransitionsTraining) {
+		this.setSkipTransitionsTraining(skipTransitionsTraining.booleanValue());
 	}
 
 	public PrintStream getOutAssignments() {
@@ -204,64 +224,109 @@ public class GenotypeImputer {
 
 	public void impute(String filename) throws IOException {
 		logParameters(filename);
-		Map<String, List<CalledSNV>> genotypes = new TreeMap<String, List<CalledSNV>>();
+		
 		List<VCFRecord> records = new ArrayList<VCFRecord>();
+		List<VCFRecord> lastRecords = new ArrayList<VCFRecord>();
 		VCFFileReader reader = null;
 		VCFFileWriter out = new VCFFileWriter();
 		try {
 			reader = new VCFFileReader(filename);
 			if(log!=null) reader.setLog(log);
-			reader.setLoadMode(VCFFileReader.LOAD_MODE_QUALITY);
 			//Ids of the samples
 			VCFFileHeader header = reader.getHeader();
 			out.printHeader(header,outGenotypes);
 			List<Sample> samples = header.getSamples();
-			for(Sample sample:samples) genotypes.put(sample.getId(), new ArrayList<CalledSNV>());
 			String lastSeqName = null;
 			Iterator<VCFRecord> it = reader.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
 				GenomicVariant var = record.getVariant();
 				if(!(var instanceof SNV)) continue;
-				
-				SNV snv = (SNV) var;
-				if(!var.getSequenceName().equals(lastSeqName)) {
+				boolean sequenceChange = !var.getSequenceName().equals(lastSeqName); 
+				if(sequenceChange || records.size() == windowSize) {
 					if(lastSeqName!=null) {
-						imputeGenotypes(genotypes);
+						processRecords(records,samples,lastRecords,out,sequenceChange);
 						for(VCFRecord r:records) out.printVCFRecord(r, outGenotypes);
 						progress++;
 						if(progressNotifier!=null && !progressNotifier.keepRunning(progress)) return;
 					}
 					lastSeqName = var.getSequenceName();
-					for(List<CalledSNV> genotypesSample:genotypes.values()) genotypesSample.clear();
-					records.clear();
 				}
 				records.add(record);
-				List<CalledGenomicVariant> genotypeCalls = record.getCalls();
-				for(int i=0;i<genotypeCalls.size();i++) {
-					String sampleId = samples.get(i).getId();
-					CalledGenomicVariant genotypeCall = genotypeCalls.get(i);
-					CalledSNV csnv;
-					if(genotypeCall instanceof CalledSNV) csnv = (CalledSNV)genotypeCall;
-					else csnv = new CalledSNV(snv, CalledSNV.GENOTYPE_UNDECIDED);
-					//LightweightCalledSNV lcsnv = new LightweightCalledSNV(csnv);
-					genotypes.get(sampleId).add(csnv);
-				}
-				
 			}
 			if(lastSeqName!=null) {
-				imputeGenotypes(genotypes);
-				for(VCFRecord r:records) out.printVCFRecord(r, outGenotypes);
+				processRecords(records, samples, lastRecords, out, true);
 			}
 		} finally {
 			if (reader!=null) reader.close();
 		}
 	}
 	
+	private void processRecords(List<VCFRecord> currentRecords, List<Sample> samples, List<VCFRecord> lastRecords, VCFFileWriter out, boolean sequenceChange) {
+		List<VCFRecord> recordsImpute = calculateRecordsImpute (currentRecords,lastRecords);
+		
+		
+		Map<String, List<CalledSNV>> genotypes = convertToCalledGenotypes(samples, recordsImpute);
+		imputeGenotypes(genotypes);
+		int printStart = 0;
+		if(lastRecords.size()>0) {
+			printStart+=overlap;
+		}
+		int printEnd = recordsImpute.size();
+		if(!sequenceChange) {
+			printEnd-=overlap;
+		}
+		
+		//Print records
+		for(int i = printStart;i<printEnd;i++) {
+			VCFRecord r = recordsImpute.get(i);
+			out.printVCFRecord(r, outGenotypes);
+		}
+		//Update last records
+		lastRecords.clear();
+		if(!sequenceChange) {
+			lastRecords.addAll(currentRecords);
+		}
+		//Clean records for next window
+		currentRecords.clear();
+	}
+
+	private List<VCFRecord> calculateRecordsImpute(List<VCFRecord> currentRecords, List<VCFRecord> lastRecords) {
+		List<VCFRecord> answer = new ArrayList<>(windowSize+2*overlap);
+		if(lastRecords.size()>0) {
+			for(int i=lastRecords.size()-2*overlap;i<lastRecords.size();i++) {
+				answer.add(lastRecords.get(i));
+			}
+		}
+		answer.addAll(currentRecords);
+		return answer;
+	}
+
+	private Map<String, List<CalledSNV>> convertToCalledGenotypes(List<Sample> samples, List<VCFRecord> recordsImpute) {
+		Map<String, List<CalledSNV>> genotypes = new TreeMap<String, List<CalledSNV>>();
+		for(Sample sample:samples) genotypes.put(sample.getId(), new ArrayList<CalledSNV>());
+		for(VCFRecord record:recordsImpute) {
+			GenomicVariant var = record.getVariant();
+			SNV snv = (SNV) var;
+			List<CalledGenomicVariant> genotypeCalls = record.getCalls();
+			for(int i=0;i<genotypeCalls.size();i++) {
+				String sampleId = samples.get(i).getId();
+				CalledGenomicVariant genotypeCall = genotypeCalls.get(i);
+				CalledSNV csnv;
+				if(genotypeCall instanceof CalledSNV) csnv = (CalledSNV)genotypeCall;
+				else csnv = new CalledSNV(snv, CalledSNV.GENOTYPE_UNDECIDED);
+				genotypes.get(sampleId).add(csnv);
+			}
+		}
+		return genotypes;
+	}
+
 	private void logParameters(String filename) {
 		log.info("Running imputation for VCF file: "+filename);
 		log.info("Average centimorgans per Kbp: "+avgCMPerKbp);
 		if(parentIds!=null) log.info("Number of parents: "+parentIds.size());
+		log.info("Window size: "+windowSize);
+		log.info("Overlap: "+overlap);
 	}
 
 	public void imputeGenotypes(Map<String,List<CalledSNV>> genotypes) {

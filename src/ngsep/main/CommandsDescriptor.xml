@@ -468,33 +468,37 @@ Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
 <title>Genotype imputation (In progress)</title>
 <description>
 Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
-* Only reliable in populations of samples with low heterozygosity (autogamous or double-haploids).
 * Only biallelic SNPs are imputed and included in the output VCF file.
-* Current implementation does not produce heterozygous imputed genotypes.
 </description>
 <argument>OPTIONS</argument>
 <argument>VCF_FILE</argument>
 <argument>OUT_PREFIX</argument>
-<option id="p" type="STRING">
+<option id="p" type="STRING" attribute="parentIds">
 Comma-separated list of sample ids of the parents of the population.
 Only to be used for bi-parental or multi-parental breeding populations.
 </option>
-<option id="k" type="INT" default="20">
+<option id="k" type="INT" default="20" attribute="k">
 Maximum number of groups in which local haplotypes will be clustered.
 For bi-parental or multi-parental breeding populations please set explicitly
 the number of parents of the population even if the list of parents is provided with the
 -p option. This allows to take into account cases of populations in which some of
 the parents are missing
 </option>
-<option id="c" type="FLOAT" default="0.001">
+<option id="c" type="DOUBLE" default="0.001" attribute="avgCMPerKbp">
 Estimated average number of centiMorgans per Kbp on euchromatic regions of the genome.
 Typical values of this parameter are 0.001 for human populations, 0.004 for rice and 0.35
 for yeast populations
 </option>
-<option id="t">
+<option id="t" type="BOOLEAN" attribute="skipTransitionsTraining">
 If set, transition probabilities in the HMM will NOT be updated during the Baum-Welch
 training of the HMM. Not recommended unless the -c option is set to a value allowing a
 reasonable initial estimation of the transition probabilities.
+</option>
+<option id="ip" type="BOOLEAN" attribute="inbredParents">
+Specifies that parents of the population are inbreds
+</option>
+<option id="is" type="BOOLEAN" attribute="inbredSamples">
+Specifies that the samples to impute are inbreds
 </option>
 </command>
 
