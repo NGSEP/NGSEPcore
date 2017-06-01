@@ -1,12 +1,19 @@
 package ngsep.haplotyping;
 
-import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
 
+import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.main.CommandsDescriptor;
+import ngsep.math.NumberArrays;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledSNV;
+import ngsep.variants.GenomicVariant;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
@@ -15,14 +22,14 @@ import ngsep.vcf.VCFRecord;
 public class SingleIndividualHaplotyper {
 
 	private String algorithmClassName = "ngsep.haplotyping.RefhapSIHAlgorithm";
-	private SIHAlgorithm algClass;
+	private SIHAlgorithm algorithm;
 	public static void main(String[] args) throws Exception {
 		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
-		String vcfFilename = args[0];
-		String bamFilename = args[1];
-		PrintStream out = new PrintStream(args[2]);
-		instance.process (vcfFilename,bamFilename,out);
-
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		if(i<0) return;
+		String vcfFilename = args[i++];
+		String bamFilename = args[i++];
+		instance.process (vcfFilename,bamFilename,System.out);
 	}
 	/**
 	 * 
@@ -30,12 +37,12 @@ public class SingleIndividualHaplotyper {
 	 * @param bamFilename Input BAM file
 	 * @param out Output VCF
 	 */
-	public void process(String vcfFilename, String bamFilename, PrintStream out) throws Exception{
-		List<VCFRecord> chromosomeVariants = new ArrayList<>();
-		//TODO: Hace un ciclo que recorre el VCF y va agregando los VCFRecord a la lista sequenceRecords
-		//Cada vez que cambias de cromosoma, procesas la lista y la desocupas
-		//Te puedes guiar por GenotypeImputer
+	public void process(String vcfFilename, String bamFilename, PrintStream out) throws IOException {
+		loadAlgorithm();
+		List<VCFRecord> records = new ArrayList<>();
+		List<CalledGenomicVariant> hetCalls = new ArrayList<>();
 		VCFFileReader inputVCF = null;
+		ReadAlignmentFileReader alnReader = null;
 		VCFFileWriter vcfWriter = new VCFFileWriter();
 		try
 		{
@@ -43,50 +50,111 @@ public class SingleIndividualHaplotyper {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);
+			alnReader = new ReadAlignmentFileReader(bamFilename);
+			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
+			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
+			alnReader.setFilterFlags(filterFlags);
+			Iterator<ReadAlignment> alnIt = alnReader.iterator();
+			ReadAlignment nextAln = alnIt.next();
 			String lastSeqName = null;
 			Iterator<VCFRecord> iter = inputVCF.iterator();
-			
 			while(iter.hasNext())
 			{
 				VCFRecord record = iter.next();
-				if(record.getSequenceName().equals(lastSeqName)) {
-					if(chromosomeVariants.size()>0) {
-						processChromosomeVariants(lastSeqName, chromosomeVariants, bamFilename, vcfWriter, out);
+				if(!record.getSequenceName().equals(lastSeqName)) {
+					if(records.size()>0) {
+						nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
+						vcfWriter.printVCFRecords(records, out);
 					}
-					chromosomeVariants.clear();
+					records.clear();
+					hetCalls.clear();
 					lastSeqName = record.getSequenceName();
 				}
-				chromosomeVariants.add(record);
+				records.add(record);
+				CalledGenomicVariant call = record.getCalls().get(0);
+				if(call.isBiallelic() && call.getCopyNumber()==2 && !call.isUndecided()) {
+					if(call.isHeterozygous()) hetCalls.add(call);
+					else if (call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(!call.isHomozygousReference());
+					//else if (call instanceof CalledGenomicVariantImpl) ((CalledGenomicVariantImpl)call).setPhasedAlleles(phasedAlleles);
+				}
+				
 			}
-			if(chromosomeVariants.size()>0) {
-				processChromosomeVariants(lastSeqName, chromosomeVariants, bamFilename, vcfWriter, out);
+			if(records.size()>0) {
+				phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
+				vcfWriter.printVCFRecords(records, out);
 			}
 		}
 		finally{
 			if(inputVCF!=null) inputVCF.close();
-			if(out!=null)out.close();
+			if(alnReader!=null) alnReader.close();
 		}
 	}
-	private void processChromosomeVariants (String seqName, List<VCFRecord> chromosomeVariants, String bamFilename, VCFFileWriter vcfWriter, PrintStream out) {
-		List<CalledGenomicVariant> hetVars = extractHeterozygousVariants(chromosomeVariants);
-		System.out.println("Heterozygous variants: "+hetVars.size());
-		//Read bam file. Ignore alignments to chromosomes different than seqName
-		//Crear lista de ReadAlignment con los alineamientos del cromosoma y cuando acabes crear un solo 
-		//HaplotypeBlock llamando HaplotypeBlockBuilder
-		//Y luego pides que 
-		
-		
-
-	}
-	private List<CalledGenomicVariant> extractHeterozygousVariants(List<VCFRecord> chromosomeVariants) {
-		List<CalledGenomicVariant> hetVars = new ArrayList<>();
-		for(VCFRecord record:chromosomeVariants)
-		{
-			CalledGenomicVariant call = record.getCalls().get(0);
-			if(call.isHeterozygous());
-			hetVars.add(call);
+	private void loadAlgorithm() throws IOException {
+		try {
+			algorithm = (SIHAlgorithm)Class.forName(algorithmClassName).newInstance();
+		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+			throw new IOException(e);
 		}
-		return hetVars;
+		
 	}
-
+	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) {
+		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
+		int i=0;
+		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
+			//Advance i
+			GenomicVariant firstHetVar = null;
+			while(i<hetCalls.size()) {
+				firstHetVar = hetCalls.get(i);
+				if(GenomicRegionPositionComparator.getInstance().compare(firstHetVar, nextAln)>=0) {
+					break;
+				}
+				i++;
+			}
+			if(i==hetCalls.size()) {
+				break;
+			}
+			//Extract relevant calls from alignment
+			int lastAln = nextAln.getLast();
+			List<Byte> calls = new ArrayList<>(50);
+			int first = i;
+			for(int j=i;j<hetCalls.size();j++) {
+				GenomicVariant var = hetCalls.get(j);
+				if(var.getFirst()>lastAln) {
+					break;
+				}
+				String [] alleles = var.getAlleles();
+				String call = nextAln.getAlleleCall(var.getFirst(), var.getLast()).toString();
+				if(alleles[0].equals(call)) {
+					calls.add(CalledGenomicVariant.ALLELE_REFERENCE);
+				} else if(alleles[1].equals(call)) {
+					calls.add(CalledGenomicVariant.ALLELE_ALTERNATIVE);
+				} else if (calls.size()==0) {
+					first=j+1;
+				} else {
+					calls.add(CalledGenomicVariant.ALLELE_UNDECIDED);
+				}
+			}
+			//Trim last undecided calls
+			for(int j=calls.size()-1;j>=0;j--) {
+				Byte call = calls.get(j);
+				if(call!=CalledGenomicVariant.ALLELE_UNDECIDED) {
+					break;
+				}
+				calls.remove(j);
+			}
+			
+			if(calls.size()>1) {
+				block.addFragment (first,NumberArrays.toByteArray(calls));
+			}
+			//Try to go to next alignment
+			if(alnIt.hasNext()) nextAln = alnIt.next();
+			else nextAln = null;
+		}
+		phaseBlockVariants (seqName, block,hetCalls);
+		return nextAln;
+	}
+	private void phaseBlockVariants(String seqName, HaplotypeBlock block, List<CalledGenomicVariant> hetCalls) {
+		algorithm.buildHaplotype(block);
+		block.phaseCallsWithHaplotype();
+	}
 }

@@ -20,9 +20,12 @@
 package ngsep.haplotyping;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 
 public class HaplotypeBlock {
@@ -35,20 +38,24 @@ public class HaplotypeBlock {
 	/**
 	 * Represents the list of variants.
 	 */
-	private List<? extends GenomicVariant> variants;
+	private List<CalledGenomicVariant> calls;
 	
 	/**
 	 * Represents a haplotype.
 	 */
 	private byte haplotype[];
+	/**
+	 * Indicates if the matrix is already sorted
+	 */
+	private boolean sorted = true;
 	
 	/**
 	 * Constructor that initializes the attributes of a HaplotypeBlock with the given parameters.
 	 * @param variants.
 	 */
-	public HaplotypeBlock(List<? extends GenomicVariant> variants) 
+	public HaplotypeBlock(List<CalledGenomicVariant> calls) 
 	{
-		this.variants = variants;
+		this.calls = calls;
 		matrix = new ArrayList <HaplotypeFragment>();
 		haplotype = null;
 
@@ -59,26 +66,28 @@ public class HaplotypeBlock {
 	 * @param alleleCalls Calls starting from the given column
 	 */
 	public void addFragment(int firstColumn, byte[] alleleCalls) {
-		// TODO Auto-generated method stub
-		
+		HaplotypeFragment fragment = new HaplotypeFragment(firstColumn, alleleCalls);
+		matrix.add(fragment);
+		sorted = false;
 	}
 		
 	/**
 	 * Returns the call in a given position in the matrix of fragments.
-	 * @param i
-	 * @param j
-	 * @return allele.
+	 * @param i row of the matrix
+	 * @param j column of the matrix
+	 * @return byte Allele call at position i,j
 	 */
 	public byte getAllele(int i, int j)
 	{
+		sort();
 		HaplotypeFragment row = matrix.get(i);
 		byte allele = row.getCall(j);
 		return allele;
 	}
 	
 	/**
-	 * Returns the haplotype.
-	 * @return haplotype.
+	 * Returns the haplotype phasing the variants.
+	 * @return byte [] haplotype configuration.
 	 */
 	public byte [] getHaplotype()
 	{
@@ -88,13 +97,12 @@ public class HaplotypeBlock {
 	/**
 	 * Returns the variant in the given position in the list of variants.
 	 * <b> pre: </b> The list of variants has been initialized.
-	 * @param i
-	 * @return genomic variant.
+	 * @param column of the matrix
+	 * @return GenomicVariant associated with the column
 	 */
-	public GenomicVariant getVariant(int i)
+	public GenomicVariant getVariant(int column)
 	{
-		GenomicVariant temp = variants.get(i);
-		return  temp;
+		return calls.get(column);
 	}
 	
 	/**
@@ -107,43 +115,59 @@ public class HaplotypeBlock {
 	 */
 	public int getHammingDistance(int row1, int row2) 
 	{
-		int distance = 0;
-		for(int i = getFirstColumn(row2) ; i < getLastColumn(row1); i++)
-		{
+		sort();
+		int score = 0;
+		int lastColRow1 = getLastColumn(row1);
+		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) {
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
-			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
-			{
-				distance ++;
+			if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
+				if( allele1 != allele2) {
+					score ++;
+				}
+			}
+			
+		}	
+		return score;
+	}
+	/**
+	* Calculates the score of two fragments according to their hamming distance.
+	* If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
+	* <b> pre: </b> The matrix of fragments has been initialized.
+ 	* @param row1. 
+ 	* @param row2.
+ 	* @return hamming score.
+ 	*/
+	public int getHamming2(int row1, int row2)
+	{
+		sort();
+		int score = 0;
+		int lastColRow1 = getLastColumn(row1);
+		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) {
+			byte allele1 = getAllele(row1, i);
+			byte allele2 = getAllele(row2, i);
+			if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
+				if( allele1 != allele2) {
+					score ++;
+				} else {
+					score --;
+				}
 			}
 		}
-			
-		return distance;
+		return score;
 	}
 	
-	/**comparacon cruzada de primeros contra ultimos.
+	/**
+	 * Checks if two fragments overlap
 	 * <b> pre: </b> The matrix of fragments has been initialized.
-	 * @param row1
-	 * @param row2
+	 * @param row1 First row to compare
+	 * @param row2 Second row to compare
 	 * @return True when the two fragments overlap.
 	 */
 	public boolean overlap(int row1, int row2)
 	{
-		boolean overlap = false;
-		int initPosRow1 = getFirstColumn(row1);
-		int lastPosRow1 = getLastColumn(row1);
-		int initPosRow2 = getFirstColumn(row2);
-		int lastPosRow2 = getLastColumn(row2);
-		int a = Math.min(initPosRow1, initPosRow2);
-		int b = Math.min(lastPosRow1, lastPosRow2);
-		int c = Math.max(initPosRow1, initPosRow2);
-		int d = Math.max(lastPosRow1, lastPosRow2);
-		
-		if( a < d && b > c )
-		{
-			overlap = true;
-		}
-		return overlap;
+		sort();
+		return getFirstColumn(row1) <= getLastColumn(row2) && getFirstColumn(row2) <= getLastColumn(row1);
 	}
 	
 	/**
@@ -153,6 +177,7 @@ public class HaplotypeBlock {
 	 */
 	public int getFirstColumn(int row)
 	{
+		sort();
 		HaplotypeFragment pos = matrix.get(row);
 		int firstColumn = pos.getFirstColumn();
 		return firstColumn;
@@ -165,9 +190,9 @@ public class HaplotypeBlock {
 	 */
 	public int getLastColumn(int row)
 	{
-		HaplotypeFragment pos = matrix.get(row);
-		int lastColumn = pos.getLastColumn();
-		return lastColumn;
+		sort();
+		HaplotypeFragment fragment = matrix.get(row);
+		return fragment.getLastColumn();
 	}
 	/**
 	 * Returns the number of fragments in the block.
@@ -175,36 +200,10 @@ public class HaplotypeBlock {
 	 */
 	public int getNumFragments()
 	{
-		int numberFragments = matrix.size();
-		return numberFragments;
+		return matrix.size();
 	}
 	
-	/**
-	* Calculates the score of two fragments according to their hamming distance.
-	* If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
-	* <b> pre: </b> The matrix of fragments has been initialized.
- 	* @param row1. 
- 	* @param row2.
- 	* @return hamming score.
- 	*/
-	public int getHamming2(int row1 , int row2)
-	{
-		int score = 0;
-		for(int i = getFirstColumn(row2) ; i < getLastColumn(row1); i++)
-		{
-			byte allele1 = getAllele(row1, i);
-			byte allele2 = getAllele(row2, i);
-			if( allele1 != allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
-			{
-				score ++;
-			} else if (allele1 == allele2 && (allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED))
-			{
-				score --;
-			}
-		}
-			
-		return score;
-	}
+
 	
 	/**
 	 * Returns the number of variants
@@ -212,17 +211,39 @@ public class HaplotypeBlock {
 	 */
 	public int getNumVariants()
 	{
-		return variants.size();
+		return calls.size();
 	}
 	
 	/**
-	 * Set haplotype. 
-	 * @param haplotype
+	 * Changes the haplotype corresponding to the given block. 
+	 * @param haplotype new haplotype
 	 */
 	public void setHaplotype(byte [] haplotype)
 	{
 		this.haplotype = haplotype;
 	}
+	/**
+	 * Sorts the matrix by first position of the fragment
+	 */
+	private void sort() {
+		if(sorted) return;
+		Collections.sort(matrix, new Comparator<HaplotypeFragment>() {
 
-	
+			@Override
+			public int compare(HaplotypeFragment f1, HaplotypeFragment f2) {
+				return f1.getFirstColumn()-f2.getFirstColumn();
+			}
+		});
+		sorted = true;
+		
+	}
+	/**
+	 * Phase the calls within the block using the given haplotype
+	 */
+	public void phaseCallsWithHaplotype() {
+		for(int i=0;i<haplotype.length;i++) {
+			CalledGenomicVariant call = calls.get(i);
+			if(call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(haplotype[i]==CalledGenomicVariant.ALLELE_ALTERNATIVE);
+		}
+	}
 }
