@@ -98,6 +98,7 @@ public class SingleIndividualHaplotyper {
 		
 	}
 	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) {
+		System.err.println("Sequence: "+seqName+" Phasing "+hetCalls.size()+" heterozygous calls");
 		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		int i=0;
 		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
@@ -123,7 +124,11 @@ public class SingleIndividualHaplotyper {
 					break;
 				}
 				String [] alleles = var.getAlleles();
-				String call = nextAln.getAlleleCall(var.getFirst(), var.getLast()).toString();
+				CharSequence callS = nextAln.getAlleleCall(var.getFirst(), var.getLast());
+				String call = null;
+				if(callS!=null) {
+					call = callS.toString();
+				}
 				if(alleles[0].equals(call)) {
 					calls.add(CalledGenomicVariant.ALLELE_REFERENCE);
 				} else if(alleles[1].equals(call)) {
@@ -145,11 +150,13 @@ public class SingleIndividualHaplotyper {
 			
 			if(calls.size()>1) {
 				block.addFragment (first,NumberArrays.toByteArray(calls));
+				if(block.getNumFragments()%100==0) System.err.println("Added "+block.getNumFragments()+" fragments");
 			}
 			//Try to go to next alignment
 			if(alnIt.hasNext()) nextAln = alnIt.next();
 			else nextAln = null;
 		}
+		System.err.println("Phasing sequence with "+block.getNumFragments()+" fragments");
 		phaseBlockVariants (seqName, block,hetCalls);
 		return nextAln;
 	}
