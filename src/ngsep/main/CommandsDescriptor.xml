@@ -735,6 +735,9 @@ Writes to standard output the phased VCF
 </description>
 <argument>VCF_FILE</argument>
 <argument>ALIGNMENTS_FILE</argument>
+<option id="a" type="STRING" default="Refhap" attribute="AlgorithmName">
+Algorithm for single individual haplotypiing. It can be Refhap or DGS
+</option>
 </command>
 
 </NGSEP>

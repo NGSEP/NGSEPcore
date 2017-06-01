@@ -121,23 +121,18 @@ public class HaplotypeBlock {
 		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) {
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
-			if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
-				if( allele1 != allele2) {
-					score ++;
-				}
-			}
-			
+			score+=getHammingScore(allele1, allele2, false);
 		}	
 		return score;
 	}
 	/**
-	* Calculates the score of two fragments according to their hamming distance.
-	* If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
-	* <b> pre: </b> The matrix of fragments has been initialized.
- 	* @param row1. 
- 	* @param row2.
- 	* @return hamming score.
- 	*/
+	 * Calculates the score of two fragments according to their hamming distance.
+	 * If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
+	 * <b> pre: </b> The matrix of fragments has been initialized.
+ 	 * @param row1. 
+ 	 * @param row2.
+ 	 * @return hamming score.
+ 	 */
 	public int getHamming2(int row1, int row2)
 	{
 		sort();
@@ -146,15 +141,41 @@ public class HaplotypeBlock {
 		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) {
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
-			if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
-				if( allele1 != allele2) {
-					score ++;
-				} else {
-					score --;
-				}
-			}
+			score+=getHammingScore(allele1, allele2, true);
 		}
 		return score;
+	}
+	
+	/**
+	 * Calculates the hamming2 score of a haplotype against a fragment
+	 * If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
+	 * <b> pre: </b> The matrix of fragments has been initialized.
+ 	 * @param haplotype with length equal to the number of variants 
+ 	 * @param row of the matrix to calculate the score
+ 	 * @return int Modified hamming distance score as defined above
+ 	 */
+	public int getHamming2(byte [] haplotype, int row)
+	{
+		sort();
+		int score = 0;
+		int lastColRow = getLastColumn(row);
+		for(int j = getFirstColumn(row) ; j <=lastColRow ; j++) {
+			byte allele1 = haplotype[j];
+			byte allele2 = getAllele(row, j);
+			score+=getHammingScore(allele1, allele2, true);
+		}
+		return score;
+	}
+	
+	private int getHammingScore (byte allele1, byte allele2, boolean type2) {
+		if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
+			if( allele1 != allele2) {
+				return 1;
+			} else if(type2){
+				return -1;
+			}
+		}
+		return 0;
 	}
 	
 	/**
@@ -212,6 +233,22 @@ public class HaplotypeBlock {
 	public int getNumVariants()
 	{
 		return calls.size();
+	}
+	/**
+	 * Return the number of non-undecided calls within a specific fragment
+	 * @param row where the fragment is located
+	 * @return int Number of non undecided calls
+	 */
+	public int getFragmentCalls(int row) {
+		int firstJ = getFirstColumn(row);
+		int lastJ = getLastColumn(row);
+		int count = 0;
+		for(int j=firstJ;j<=lastJ;j++) {
+			if(getAllele(row, j)!=CalledGenomicVariant.ALLELE_UNDECIDED) {
+				count++;
+			}
+		}
+		return count;
 	}
 	
 	/**

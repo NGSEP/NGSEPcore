@@ -31,6 +31,10 @@ public class SingleIndividualHaplotyper {
 		String bamFilename = args[i++];
 		instance.process (vcfFilename,bamFilename,System.out);
 	}
+	
+	public void setAlgorithmName(String name) {
+		algorithmClassName = "ngsep.haplotyping."+name+"SIHAlgorithm";
+	}
 	/**
 	 * 
 	 * @param vcfFilename Input VCF
@@ -93,12 +97,13 @@ public class SingleIndividualHaplotyper {
 		try {
 			algorithm = (SIHAlgorithm)Class.forName(algorithmClassName).newInstance();
 		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-			throw new IOException(e);
+			throw new IOException("Can not load algorithm with classname: "+algorithmClassName,e);
 		}
 		
 	}
 	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) {
-		System.err.println("Sequence: "+seqName+" Phasing "+hetCalls.size()+" heterozygous calls");
+		System.err.println("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
+		if(nextAln!=null) System.err.println("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
 		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		int i=0;
 		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
@@ -112,11 +117,15 @@ public class SingleIndividualHaplotyper {
 				i++;
 			}
 			if(i==hetCalls.size()) {
-				break;
+				//Try to go to next alignment
+				if(alnIt.hasNext()) nextAln = alnIt.next();
+				else nextAln = null;
+				continue;
 			}
 			//Extract relevant calls from alignment
 			int lastAln = nextAln.getLast();
 			List<Byte> calls = new ArrayList<>(50);
+			int realCalls = 0;
 			int first = i;
 			for(int j=i;j<hetCalls.size();j++) {
 				GenomicVariant var = hetCalls.get(j);
@@ -131,8 +140,10 @@ public class SingleIndividualHaplotyper {
 				}
 				if(alleles[0].equals(call)) {
 					calls.add(CalledGenomicVariant.ALLELE_REFERENCE);
+					realCalls++;
 				} else if(alleles[1].equals(call)) {
 					calls.add(CalledGenomicVariant.ALLELE_ALTERNATIVE);
+					realCalls++;
 				} else if (calls.size()==0) {
 					first=j+1;
 				} else {
@@ -148,20 +159,25 @@ public class SingleIndividualHaplotyper {
 				calls.remove(j);
 			}
 			
-			if(calls.size()>1) {
+			if(realCalls>1) {
 				block.addFragment (first,NumberArrays.toByteArray(calls));
-				if(block.getNumFragments()%100==0) System.err.println("Added "+block.getNumFragments()+" fragments");
+				if(block.getNumFragments()%1000==0) System.err.println("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
 			}
 			//Try to go to next alignment
 			if(alnIt.hasNext()) nextAln = alnIt.next();
 			else nextAln = null;
 		}
-		System.err.println("Phasing sequence with "+block.getNumFragments()+" fragments");
-		phaseBlockVariants (seqName, block,hetCalls);
+		System.err.println("Phasing sequence "+seqName+" with "+block.getNumFragments()+" fragments");
+		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
+		if(block.getNumFragments()>0) {
+			phaseBlockVariants (seqName, block,hetCalls);
+		}
+		
 		return nextAln;
 	}
 	private void phaseBlockVariants(String seqName, HaplotypeBlock block, List<CalledGenomicVariant> hetCalls) {
 		algorithm.buildHaplotype(block);
+		System.err.println("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
 		block.phaseCallsWithHaplotype();
 	}
 }
