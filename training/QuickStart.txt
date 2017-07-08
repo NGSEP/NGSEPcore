@@ -25,8 +25,9 @@ D. Production pipeline
         - BAM files: if mapping was already done, the BAM/SAM files for each 
                     sample.
 - For mapping:
-    - Bowtie2    (sourceforge.net/projects/bowtie-bio/files/bowtie2)
-    - Picard     (github.com/broadinstitute/picard/releases/latest)
+    - Bowtie2. Follow instructions at http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+    - File picard.jar. Download from http://github.com/broadinstitute/picard/releases/latest)
+    - Samtools. Follow instructions at http://samtools.sourceforge.net/
 - For annotation:
     - GFF3 file: corresponding to the reference genome 
     (as specified in www.sequenceontology.org/gff3.shtml)

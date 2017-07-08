@@ -193,16 +193,16 @@ public class VCFFileWriter {
 				}
 			} else if (formatIdx == VCFRecord.FORMAT_IDX_PL) {
 				//Phred likelihoods
-				if(report!=null && report.logConditionalsPresent()) {
-					for(int j=0;j<alleles.length;j++) {
-						for(int i=0;i<=j;i++) {
-							if(i>0 || j>0) out.print (",");
-							int condPhred = (int) Math.round(-10*report.getLogConditionalProbability(alleles[i], alleles[j]));
-							out.print(condPhred);
+				
+				for(int j=0;j<alleles.length;j++) {
+					for(int i=0;i<=j;i++) {
+						if(i>0 || j>0) out.print (",");
+						int condPhred = 0;
+						if(report!=null && report.logConditionalsPresent()) {
+							condPhred = (int) Math.round(-10*report.getLogConditionalProbability(alleles[i], alleles[j]));
 						}
+						out.print(condPhred);
 					}
-				} else {
-					out.print(VCFFileReader.NO_INFO_CHAR);
 				}
 			} else if (formatIdx == VCFRecord.FORMAT_IDX_GQ) {
 				//Phred of the genotype posterior

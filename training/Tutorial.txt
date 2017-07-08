@@ -3,8 +3,9 @@
 
 Requirements:
     - Java 1.8
-    - Bowtie2    (sourceforge.net/projects/bowtie-bio/files/bowtie2)
-    - Picard     (github.com/broadinstitute/picard/releases/latest)
+    - Bowtie2. Follow instructions at http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+    - File picard.jar. Download from http://github.com/broadinstitute/picard/releases/latest)
+    - Samtools. Follow instructions at http://samtools.sourceforge.net/  
 
 Tutorial:
   0. Create a Working Directory
@@ -103,9 +104,11 @@ Tutorial:
     To map the reads of the sequencing experiment to the reference genome go to the mapping directory and type the following commands:
 
         $ cd ../mapping/
-        $ mkdir tmpdir_sort_ER7A
+
         $ bowtie2 --rg-id ER7A --rg SM:ER7A --rg PL:ILLUMINA -X 700 -k 3 -t -x ../reference/Saccharomyces_cerevisiae.fa -1 ../reads/ER7A_1.fastq.gz -2 ../reads/ER7A_2.fastq.gz -S ER7A_bowtie2.sam >& ER7A_bowtie2.log
-	$java -jar ~/javaPrograms/picard.jar SortSam SO=coordinate CREATE_INDEX=true TMP_DIR=tmpdir_sort_ER7A I=ER7A_bowtie2.sam O=ER7A_bowtie2_sorted.bam
+        
+        $ mkdir tmpdir_sort_ER7A
+	$java -jar ~/javaPrograms/picard.jar SortSam SO=coordinate CREATE_INDEX=true TMP_DIR=tmpdir_sort_ER7A I=ER7A_bowtie2.sam O=ER7A_bowtie2_sorted.bam >& ER7A_bowtie2_sort.log 
 
     Now you should have a BAM file in the mapping directory, this is a binary file that contains the same reads that were present in the FASTQ files, but aligned to the reference genome. The reads are sorted according to their position in the reference genome.        
     Finally, it is a good idea to get some statistics about the sequencing experiment. The ones that are most useful are: sequencing quality of each position of the reads, average coverage of each nucleotide in the genome, and average fragment length. To get this statistics use the following commands.
