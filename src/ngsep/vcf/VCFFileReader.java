@@ -151,6 +151,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 	
 	private VCFRecord loadVCFRecord (String line) {
 		String [] items = ParseUtils.parseString(line,'\t');
+		//TODO: Allow VCFswithout FORMAT and genotype fields
 		if(items.length<9) {
 			log.severe("Could not load line: "+line+". Invalid format");
 			return null;

@@ -702,11 +702,18 @@ Writes to standard output the genetic distances matrix in a generic format.
 </description>
 <argument>OPTIONS</argument>
 <argument>VCF_FILE</argument>
-<option id="ploidy" type="INT" default="2" attribute="ploidy">
-Ploidy
-</option>
-<option id="matrixType" type="INT" default="0" attribute="matrixType">
+
+<option id="t" type="INT" default="0" attribute="matrixType">
 Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
+</option>
+<option id="s" type="INT" default="0" attribute="distanceSource">
+Source of information in the VCF file to calculate distances. 0 for simple genotype calls (GT format field),
+1 for allele copy number (ACN format field), 2 for total copy number (total of ACN format field),
+and 3 for raw allele depth (DP format field) 
+</option>
+<option id="p" type="INT" default="2" attribute="ploidy">
+Default ploidy of the samples. Used if the distance source (-d option) is the raw allele depths
+to recalculate allele dosage based on these counts 
 </option>
 </command>
 
