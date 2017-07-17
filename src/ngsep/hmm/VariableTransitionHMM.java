@@ -91,6 +91,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 	public void setRandomTransitions() {
 		Double[][] logRandom = new Double[numStates][numStates];
 		Random r = new Random();
+		//System.out.println("Random transitions for "+steps+" steps");
 		for(int i=0;i<steps-1;i++) {
 			for(int j=0;j<numStates;j++) {
 				for(int k=0;k<numStates;k++) {
@@ -100,6 +101,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 			}
 			setTransitions(logRandom, i);
 		}
+		//printTransitions(0);
 	}
 	
 	public void calculateUniformChangeTransitions(double[] changeProbabilities) {
@@ -153,7 +155,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 			runBaumWelchStep();
 		}
 		//printTransitions(0);
-		//printTransitions(2);
+		//printTransitions(2000);
 	}
 	
 	
@@ -162,13 +164,14 @@ public class VariableTransitionHMM extends AbstractHMM {
 	 */
 	protected void runBaumWelchStep() {
 		initArrays();
-		Arrays.fill(logStarts, 0.0);
+		Arrays.fill(logStarts, null);
 		for(int i=0;i<logTransitionsTrain.length;i++) {
 			for(int j=0;j<logTransitionsTrain[i].length;j++) {
 				Arrays.fill(logTransitionsTrain[i][j], null);
 			}
 		}
 		initEmissionsBaumWelch();
+		int datumIdx = 0;
 		for (List<? extends Object> trainingDatum:trainingData) {
 			Double [][] forwardLogs=calculateForward(trainingDatum);
 			Double [][] backwardLogs=calculateBackward(trainingDatum);
@@ -177,8 +180,10 @@ public class VariableTransitionHMM extends AbstractHMM {
 			for(int j=0;j<logStarts.length;j++) {
 				Object o = trainingDatum.get(0);
 				Double seqProduct = LogMath.logProduct(forwardLogs[0][j], backwardLogs[0][j]);
-				seqProduct = LogMath.logProduct(seqProduct, getEmission(j, o, 0));
+				Double emission = getEmission(j, o, 0);
+				seqProduct = LogMath.logProduct(seqProduct, emission);
 				seqProduct = LogMath.logProduct(seqProduct, -logProb);
+				//if(seqProduct>-0.5) System.out.println("Datum: "+datumIdx+". Next most likely start: "+j+" forward: "+forwardLogs[0][j]+" backward: "+backwardLogs[0][j]+" emission: "+emission+" logProb: "+logProb+"seq product: "+seqProduct);
 				logStarts[j] = LogMath.logSum(logStarts[j], seqProduct);
 			}
 			//Calculate new transitions
@@ -211,7 +216,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 					accumulateEmissionBaumWelch(i,j,o,seqProduct);
 				}
 			}
-			
+			datumIdx++;
 		}
 		//Normalize and update starts
 		Double total = null;
