@@ -392,8 +392,9 @@ public class GenotypeImputer {
 	
 	private List<List<? extends Object>> makeTrainingDataWithHomozygous(Map<String, List<CalledSNV>> genotypes) {
 		List<List<? extends Object>> haplotypes = new ArrayList<>();
-		for (List<CalledSNV> genotypesSample:genotypes.values()) {
-			List<? extends Object> hapSample = HaplotypeClustersHMM.makeHaplotypeWithHomozygous(genotypesSample);
+		for (String sampleId :genotypes.keySet()) {
+			//System.out.println("Next id training data: "+sampleId);
+			List<? extends Object> hapSample = HaplotypeClustersHMM.makeHaplotypeWithHomozygous(genotypes.get(sampleId));
 			haplotypes.add(hapSample);
 		}
 		return haplotypes;

@@ -55,6 +55,11 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		List<HaplotypePairHMMState> pairStates = createHaplotypePairStates(statesHaploid);
 		System.out.println("Created states for pairs of samples");
 		HaplotypeClustersHMM baseHMM = new HaplotypeClustersHMM(statesHaploid, m, positions);
+		//Special case to effectively avoid training if the parental haplotypes are known 
+		if((inbreds && k==parentIds.size()) || (!inbreds && 2*k==parentIds.size())) {
+			System.out.println("Parents complete. Disabling baum-welch iterations to infer emissions");
+			baseHMM.setIterationsBaumWelch(0);
+		}
 		System.out.println("Created haploid HMM");
 		DiploidGenotypeImputationHMM diploidHMM = new DiploidGenotypeImputationHMM(baseHMM, pairStates, m, positions);
 		System.out.println("Created diploid HMM");
@@ -150,10 +155,8 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 
 
 	public void train() {
-		//TODO: Decide when to train
-		haploidBaseHMM.setIterationsBaumWelch(0);
 		haploidBaseHMM.train();
-		getLog().info("Trained haploid model ");
+		getLog().info("Trained internal haploid model ");
 		int n = getSteps();
 		int kD = getNumStates();
 		Double [][] logTransitionsStep = new Double [kD][kD];
@@ -163,18 +166,26 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 				for(int j = 0;j<kD; j++) {
 					HaplotypePairHMMState statePair2 = (HaplotypePairHMMState)getState(j);
 					Double t1 = haploidBaseHMM.getTransition(statePair1.getIndex1(), statePair2.getIndex1(), step);
-					if(statePair1.getIndex1()!=statePair2.getIndex1() && t1 > -1) {
-						getLog().info("WARN: Abnormally high transition between: "+statePair1.getState1().getId()+" and "+statePair2.getState1().getId()+" at step: "+step+" value: "+t1);
+					if(t1==null) {
+						getLog().info("WARN: Zero transition between: "+statePair1.getIndex1()+" and "+statePair2.getIndex1()+" at step: "+step+" value: "+t1);
+					}
+					else if(statePair1.getIndex1()!=statePair2.getIndex1() && t1 > -1) {
+						getLog().info("WARN: Abnormally high transition between: "+statePair1.getIndex1()+" and "+statePair2.getIndex1()+" at step: "+step+" value: "+t1);
 					}
 					Double t2 = haploidBaseHMM.getTransition(statePair1.getIndex2(), statePair2.getIndex2(), step);
-					if(statePair1.getIndex2()!=statePair2.getIndex2() && t2 > -1) {
-						//getLog().info("WARN: Abnormally high transition between: "+statePair1.getState2().getId()+" and "+statePair2.getState2().getId()+" at step: "+step+" value: "+t2);
+					if(t2==null) {
+						getLog().info("WARN: Zero transition between: "+statePair1.getIndex2()+" and "+statePair2.getIndex2()+" at step: "+step+" value: "+t2);
+					}
+					else if(statePair1.getIndex2()!=statePair2.getIndex2() && t2 > -1) {
+						getLog().info("WARN: Abnormally high transition between: "+statePair1.getIndex2()+" and "+statePair2.getIndex2()+" at step: "+step+" value: "+t2);
 					}
 					logTransitionsStep[i][j] = LogMath.logProduct(t1, t2);
 				}
 			}
+			//getLog().info("Setting transitions for step: "+step);
 			setTransitions(logTransitionsStep, step);
-		}		
+		}
+		getLog().info("Trained diploid model ");
 	}
 
 	public void calculateGenotypePosteriors(List<CalledSNV> genotypes, double[][] genotypePosteriors) {
@@ -228,9 +239,9 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 			HaplotypePairHMMState bestState = (HaplotypePairHMMState) getState(outClusters[i]);
 			HaplotypeClusterHMMState hapState1 = bestState.getState1();
 			HaplotypeClusterHMMState hapState2 = bestState.getState2();
-			if(i>0 && outClusters[i]!=outClusters[i-1]) {
-				getLog().info("Crossover predicted for sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Previous state: "+outClusters[i-1]+":"+getState(outClusters[i-1]).getId()+" new state "+outClusters[i]+":"+bestState.getId());
-			}
+			//if(i>0 && outClusters[i]!=outClusters[i-1]) {
+				//getLog().info("Crossover predicted for sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Previous state: "+outClusters[i-1]+":"+getState(outClusters[i-1]).getId()+" new state "+outClusters[i]+":"+bestState.getId());
+			//}
 			int idxMaxPos = NumberArrays.getIndexMaximum(nextPosteriors[i]);
 			
 			if(idxMaxPos==-1) {
@@ -251,13 +262,13 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 					call.setPhasingCN2(!call.isHomozygousReference());
 				}
 				
-			} else {
+			} /*else {
 				double pViterbiState = nextPosteriors[i][viterbiPath[i]];
 				double pMaxPosterior = nextPosteriors[i][idxMaxPos];
 				if(pMaxPosterior-pViterbiState>0.05) {
-					getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" different than best posterior state "+idxMaxPos+" viterbiProb: "+pViterbiState+"posterior prob: "+pMaxPosterior);
+					//getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" different than best posterior state "+idxMaxPos+" viterbiProb: "+pViterbiState+"posterior prob: "+pMaxPosterior);
 				}
-			}
+			}*/
 			
 		}
 	}

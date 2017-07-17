@@ -126,7 +126,7 @@ public class GenotypeImputationHMM extends HaplotypeClustersHMM {
 			CalledSNV call = genotypesSample.get(i);
 			if(idxMaxPos==-1) {
 				getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" best posterior state not found");
-			} else if(idxMaxPos==viterbiPath[i]) {
+			}/* else if(idxMaxPos==viterbiPath[i]) {
 				if(i>0 && outClusters[i]!=outClusters[i-1]) {
 					getLog().info("Crossover predicted for sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Previous state: "+outClusters[i-1]+" new state: "+outClusters[i]);
 				}
@@ -136,7 +136,7 @@ public class GenotypeImputationHMM extends HaplotypeClustersHMM {
 				if(pMaxPosterior-pViterbiState>0.05) {
 					getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Viterbi state "+viterbiPath[i]+" different than best posterior state "+idxMaxPos+" viterbiProb: "+pViterbiState+"posterior prob: "+pMaxPosterior);
 				}
-			}
+			}*/
 		}
 	}
 
