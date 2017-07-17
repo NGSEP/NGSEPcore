@@ -61,7 +61,8 @@ public class RecombinationHMM extends VariableTransitionHMM {
 			//Use Haldane's formula to estimate probability of crossover between the sites
 			double recombP = 0.5*(1 - Math.exp(-2.0*dMorgans));
 			if(recombP <0.0001) recombP = 0.0001;
-			if(!isSkipTransitionsTraining()) recombP = r.nextGaussian()*recombP + recombP;
+			if(!isSkipTransitionsTraining()) recombP = r.nextGaussian()*recombP*0.1 + recombP;
+			if(recombP <0.0001) recombP = 0.0001;
 			if(recombP > 0.25) recombP = 0.25;
 			if(recombP>0.1) getLog().warning("High probability of recombination at position: "+positions.get(i)+" Distance: "+distance+" recombination probability: "+recombP+ " Morgans: "+dMorgans);
 			
