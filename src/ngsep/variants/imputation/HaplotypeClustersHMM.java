@@ -6,6 +6,7 @@ import java.util.List;
 import ngsep.hmm.RecombinationHMM;
 import ngsep.math.LogMath;
 import ngsep.math.NumberArrays;
+import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 
 public class HaplotypeClustersHMM extends RecombinationHMM {
@@ -58,13 +59,14 @@ public class HaplotypeClustersHMM extends RecombinationHMM {
 	protected void accumulateEmissionBaumWelch(int step, int stateIndex, Object datum, Double logPosterior) {
 		if(datum == null || !(datum instanceof Byte)) return;
 		byte allele = (Byte)datum;
-		if(allele != 0 || allele!=1) return;
+		if(allele != CalledGenomicVariant.ALLELE_REFERENCE && allele!=CalledGenomicVariant.ALLELE_ALTERNATIVE) return;
 		logEmissions[stateIndex][step][allele] = LogMath.logSum(logEmissions[stateIndex][step][allele], logPosterior);
 	}
 
 	@Override
 	protected void updateEmissionsBaumWelch(int stateIndex) {
 		HaplotypeClusterHMMState state = (HaplotypeClusterHMMState)getState(stateIndex);
+		//System.out.println("Emissions state "+stateIndex+": "+logEmissions[stateIndex][0][0]+" "+logEmissions[stateIndex][0][1]);
 		state.setEmissionLogProbs(logEmissions[stateIndex], updateEmissionKnownSites);
 	}
 
@@ -100,11 +102,11 @@ public class HaplotypeClustersHMM extends RecombinationHMM {
 	public static List<Byte> makeHaplotypeWithHomozygous(List<CalledSNV> genotypesSample) {
 		List<Byte> hapSample = new ArrayList<>();
 		for(CalledSNV call:genotypesSample) {
-			byte allele = -1;
+			byte allele = CalledGenomicVariant.ALLELE_UNDECIDED;
 			if(call.isHomozygousReference()) {
-				allele = 0;
+				allele = CalledGenomicVariant.ALLELE_REFERENCE;
 			} else if (call.isHomozygous()) {
-				allele = 1;
+				allele = CalledGenomicVariant.ALLELE_ALTERNATIVE;
 			}
 			hapSample.add(allele);
 		}
