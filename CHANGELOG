@@ -1,4 +1,4 @@
-v3.1.0 30-06-2017
+v3.1.0 26-07-2017
 - The VCF I/O now interprets correctly phasing information
 - ImputeVCF: The imputation module now can impute genotypes and perform
   statistical phasing on heterozygus individuals. Parents can now be phased

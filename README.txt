@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.1.0 (30-06-2017)
+Version 3.1.0 (26-07-2017)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -586,6 +586,50 @@ java -jar NGSEPcore.jar DiversityStats <VCF_FILE> <POPULATIONS_FILE>
 The populations file is a tab-delimited text file with two columns: sample id
 and population id.
 
+-------------------------------------------------------
+Calculation of genetic distance matrices from VCF files
+-------------------------------------------------------
+
+Generates a distance matrix from a variants file in VCF format. The matrix is
+calculated using the basic IBS (Identity by state) algorithm. However, four
+options to infer the genotype call information are implemented. In particular,
+users can choose predicted allele dosages of CNVs or direct estimations of
+allele dosage per site per individual based on relative allele-specific read
+counts. The latter option is useful to improve distance estimations in
+polyploids. It writes to standard output the matrix of genetic distances in a
+generic format.
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFDistanceMatrixCalculator <OPTIONS> <VCF_FILE>
+
+OPTIONS:
+
+	-t INT	: Matrix output format, 0 is full matrix, 1 lower-left matrix
+		  and 2 is upper right matrix. Default: 0
+	-s INT	: Source of information in the VCF file to calculate distances.
+		  0 for simple genotype calls (GT format field), 1 for allele
+		  copy number (ACN format field), 2 for total copy number
+		  (total of ACN format field), and 3 for raw allele depth (DP
+		  format field). Default: 0
+	-p INT	: Default ploidy of the samples. Used if the distance source
+		  (-s option) is the raw allele depths to recalculate allele
+		  dosage based on these counts. Default: 2
+
+--------------------------------------------------------
+Building dendograms using the Neighbor-Joining algorithm
+--------------------------------------------------------
+
+Given a distance matrix file, this command builds a dendogram for graphical
+display of genetic distances using the Neighbor Joining algorithm. The distance
+matrix can be provided as an upper, lower or full matrix. The dendogram is
+written to standard output in Newick format.
+
+USAGE:
+
+java -jar NGSEPcore.jar NeighborJoining <MATRIX_FILE>
+
+
 -------------------------------------
 Calculating allele sharing statistics
 -------------------------------------
@@ -679,20 +723,21 @@ OPTIONS:
 	-d FLOAT	: Maximum percentage (0-100) of differences between the
 			  pair of samples. Default: 5.
 
-------------------------------------
-Genotype imputation (Inbred species)
-------------------------------------
+-------------------
+Genotype imputation
+-------------------
 This module allows imputation of missing genotypes from unphased multilocus
 SNP genotype data in a VCF. The current version is a reimplementation of the
 Hidden Markov Model (HMM) implemented in the package fastPHASE
 (http://stephenslab.uchicago.edu/software.html). This implementation allows to
-process VCF files and produces its output also as a VCF. Because the current
-implementation treats the input genotypes in the vcf as haploid data, this
-module is only able to impute genotypes in populations of samples with low
-heterozygosity (autogamous or double-haploids). Only biallelic SNPs are imputed
-and included in the output VCF file. The current implementation of the model
-does not produce heterozygous imputed genotypes. We expect to include more
-general cases and improve the imputation accuracy in future versions.
+process VCF files and produces its output also as a VCF. However, only
+biallelic SNPs are imputed and included in the output VCF file. The current
+version supports imputation of either highly homozygous or heterozygous
+populations. Parental lines can be provided for both types of populations using
+the -p option. The options -ip and -is tell the model that either the parental
+accessions (-ip) or the entire population (-is) are inbred samples with low
+expected heterozygosity. In the latter mode, the model will only produce
+homozygous genotypes
 
 USAGE:
 
@@ -711,7 +756,10 @@ OPTIONS:
 			  parents of the population even if the list of parents
 			  is provided with the -p option. This allows to take
 			  into account cases of populations in which some of
-			  the parents are missing. Default: 20 
+			  the parents are missing. Default: 20
+	-w INT		: Size of the window to process variants at the same
+			  time. Default: 5000
+        -o INT		: Overlap between windows. Default: 50
 	-c FLOAT	: Estimated average number of centiMorgans per Kbp on
 			  euchromatic regions of the genome. This value is used
 			  by the model to estimate initial transitions between
@@ -726,6 +774,8 @@ OPTIONS:
 			  Not recommended unless the -c option is set to a
 			  value allowing a reasonable initial estimation of the
 			  transition probabilities.
+        -ip		: Specifies that parents of the population are inbreds
+        -is		: Specifies that the samples to impute are inbreds
 
 
 This module outputs two files, the first is a VCF file including the imputed
