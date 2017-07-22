@@ -53,12 +53,8 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		System.out.println("Filled states with parents");
 		List<HaplotypePairHMMState> pairStates = createHaplotypePairStates(statesHaploid);
 		System.out.println("Created states for pairs of samples");
-		HaplotypeClustersHMM baseHMM = new HaplotypeClustersHMM(statesHaploid, m, positions);
-		//Special case to effectively avoid training if the parental haplotypes are known 
-		if((inbreds && k==parentIds.size()) || (!inbreds && k==2*parentIds.size())) {
-			System.out.println("Parents complete. Disabling baum-welch iterations to infer emissions");
-			baseHMM.setIterationsBaumWelch(0);
-		}
+		HaplotypeClustersHMM baseHMM = new HaplotypeClustersHMM(statesHaploid, m, positions); 
+		
 		System.out.println("Created haploid HMM");
 		DiploidGenotypeImputationHMM diploidHMM = new DiploidGenotypeImputationHMM(baseHMM, pairStates, m, positions);
 		System.out.println("Created diploid HMM");

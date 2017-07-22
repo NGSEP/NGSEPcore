@@ -171,7 +171,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 			}
 		}
 		initEmissionsBaumWelch();
-		int datumIdx = 0;
+		//int datumIdx = 0;
 		for (List<? extends Object> trainingDatum:trainingData) {
 			Double [][] forwardLogs=calculateForward(trainingDatum);
 			Double [][] backwardLogs=calculateBackward(trainingDatum);
@@ -216,7 +216,7 @@ public class VariableTransitionHMM extends AbstractHMM {
 					accumulateEmissionBaumWelch(i,j,o,seqProduct);
 				}
 			}
-			datumIdx++;
+			//datumIdx++;
 		}
 		//Normalize and update starts
 		Double total = null;
