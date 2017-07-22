@@ -424,6 +424,50 @@ Writes to the standard output. See the README.txt file for details on the output
 <argument>POPULATIONS_FILE</argument>
 </command>
 
+<command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
+<intro>
+Calculates a genetic distance matrix from genomic variants in a given VCF file
+</intro>
+<title>Calculation of genetic distance matrices from VCF files</title>
+<description>
+Generates a distance matrix from a variants file in VCF format.
+The matrix is calculated using the basic IBS (Identity by state) algorithm. However, four
+options to infer the genotype call information are implemented. In particular, users can
+choose predicted allele dosages of CNVs or direct estimations of allele dosage per site
+per individual based on relative allele-specific read counts. The latter option is useful
+to improve distance estimations in polyploids.
+It writes to standard output the matrix of genetic distances in a generic format.
+</description>
+<argument>OPTIONS</argument>
+<argument>VCF_FILE</argument>
+
+<option id="t" type="INT" default="0" attribute="matrixType">
+Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
+</option>
+<option id="s" type="INT" default="0" attribute="distanceSource">
+Source of information in the VCF file to calculate distances. 0 for simple genotype calls (GT format field),
+1 for allele copy number (ACN format field), 2 for total copy number (total of ACN format field),
+and 3 for raw allele depth (DP format field) 
+</option>
+<option id="p" type="INT" default="2" attribute="ploidy">
+Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
+to recalculate allele dosage based on these counts 
+</option>
+</command>
+
+<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining">
+<intro>
+Construct a neighbor joining dendogram given a distance matrix file
+</intro>
+<title>Building dendograms using the Neighbor-Joining algorithm</title>
+<description>
+Given a distance matrix file, this command builds a dendogram for graphical display of genetic
+distances using the Neighbor Joining algorithm. The distance matrix can be provided as an upper, lower
+or full matrix. The dendogram is written to standard output in Newick format.
+</description>
+<argument>MATRIX_FILE</argument>
+</command>
+
 <command id="AlleleSharingStats" class="ngsep.vcf.AlleleSharingStatsCalculator">
 <intro>
 Calculates allele sharing diversity statistics, either through windows or through genes
@@ -689,44 +733,6 @@ Consider secondary alignments. By default, only primary alignments are processed
 </option>
 </command>
 
-<command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
-<intro>
-Calculate a genetic distance matrix from SNVs in a given VCF file
-</intro>
-<title>Calculating genetic distance matrix from VCF file</title>
-<description>
-Generate a distance matrix from a variants file in VCF format.
-The matrix is calculate using the basic IBS (Identity by state) algorithm with a modification to allow a precisely 
-calculation for polyploids samples.
-Writes to standard output the genetic distances matrix in a generic format.
-</description>
-<argument>OPTIONS</argument>
-<argument>VCF_FILE</argument>
 
-<option id="t" type="INT" default="0" attribute="matrixType">
-Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
-</option>
-<option id="s" type="INT" default="0" attribute="distanceSource">
-Source of information in the VCF file to calculate distances. 0 for simple genotype calls (GT format field),
-1 for allele copy number (ACN format field), 2 for total copy number (total of ACN format field),
-and 3 for raw allele depth (DP format field) 
-</option>
-<option id="p" type="INT" default="2" attribute="ploidy">
-Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
-to recalculate allele dosage based on these counts 
-</option>
-</command>
-
-<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining">
-<intro>
-Construct a neighbor joining tree given a distance matrix file
-</intro>
-<title>Construct a tree using Neighbor Joining algorithm</title>
-<description>
-Construct a tree using Neighbor Joining algorithm, given a distance matrix file.
-Distance matrix could be an upper, lower or full matrix. The output tree is in Newick format.
-</description>
-<argument>MATRIX_FILE</argument>
-</command>
 
 </NGSEP>
