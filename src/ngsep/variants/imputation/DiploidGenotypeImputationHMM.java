@@ -31,8 +31,7 @@ import ngsep.variants.CalledSNV;
 
 public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 	
-	//private int startsBaumWelch = HaplotypeClustersHMM.DEF_STARTS_BAUM_WELCH;
-	private int startsBaumWelch = 1;
+	private int startsBaumWelch = HaplotypeClustersHMM.DEF_STARTS_BAUM_WELCH;
 	
 	private HaplotypeClustersHMM haploidBaseHMM;
 	public DiploidGenotypeImputationHMM(HaplotypeClustersHMM baseHMM, List<? extends HaplotypePairHMMState> states, int numMarkers, List<Integer> positions) {
@@ -56,7 +55,7 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		System.out.println("Created states for pairs of samples");
 		HaplotypeClustersHMM baseHMM = new HaplotypeClustersHMM(statesHaploid, m, positions);
 		//Special case to effectively avoid training if the parental haplotypes are known 
-		if((inbreds && k==parentIds.size()) || (!inbreds && 2*k==parentIds.size())) {
+		if((inbreds && k==parentIds.size()) || (!inbreds && k==2*parentIds.size())) {
 			System.out.println("Parents complete. Disabling baum-welch iterations to infer emissions");
 			baseHMM.setIterationsBaumWelch(0);
 		}
@@ -253,11 +252,11 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 					Double lp2 = LogMath.logProduct(hapState1.getEmission(a1, i),hapState2.getEmission(a0, i));
 					double p1 = LogMath.power10(lp1);
 					double p2 = LogMath.power10(lp2);
-					double pMax = Math.max(p1, p2);
+					//double pMax = Math.max(p1, p2);
 					call.setPhasingCN2(p2>p1);
-					if( pMax < 0.5) {
+					/*if( pMax < 0.5) {
 						getLog().warning("Sample "+sampleId+" site "+call.getSequenceName()+":"+call.getFirst()+" Phasing with low probability "+pMax+" allele probabilities chosen states: "+hapState1.getEmission(a0, i)+" "+hapState1.getEmission(a1, i)+" "+hapState2.getEmission(a0, i)+" "+hapState2.getEmission(a1, i));
-					}	
+					}*/	
 				} else if (call.isHomozygous()) {
 					call.setPhasingCN2(!call.isHomozygousReference());
 				}
@@ -293,7 +292,7 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 				call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-prob));
 				imputed++;
 			} else if(g!=maxG) {
-				getLog().info("Genotype at "+call.getSequenceName()+":"+call.getFirst()+" inconsistent with prediction. Predicted: "+maxG+" given: "+g);
+				//getLog().info("Genotype at "+call.getSequenceName()+":"+call.getFirst()+" inconsistent with prediction. Predicted: "+maxG+" given: "+g);
 				inconsistent++;
 			}
 		}

@@ -29,7 +29,7 @@ import ngsep.math.LogMath;
 public abstract class AbstractHMM implements HMM {
 	
 	public static final int DEF_STARTS_BAUM_WELCH = 5;
-	public static final int DEF_ITER_BAUM_WELCH = 10;
+	public static final int DEF_ITER_BAUM_WELCH = 20;
 	
 	private Logger log = Logger.getLogger(AbstractHMM.class.getName());
 	private Double [][] forwardLogs=new Double[0][0];

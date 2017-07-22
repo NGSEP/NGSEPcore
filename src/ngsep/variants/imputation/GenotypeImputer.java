@@ -80,7 +80,7 @@ public class GenotypeImputer {
 		instance.outAssignments = null;
 		instance.outGenotypes = null;
 		try {
-			instance.outAssignments = new PrintStream(fileAssignments);
+			if(instance.parentIds!=null && instance.parentIds.size()>1)instance.outAssignments = new PrintStream(fileAssignments);
 			instance.outGenotypes = new PrintStream(fileGenotypes);
 			instance.impute(vcfFile);
 		} finally {
@@ -350,7 +350,7 @@ public class GenotypeImputer {
 		hmm.imputeGenotypes(genotypes,outClusters);
 		List<CalledSNV> snvs = genotypes.values().iterator().next();
 		//TODO: Conciliate more than one run of the Baum-Welch
-		if(parentIds!=null && parentIds.size()>1) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
+		if(outAssignments!=null) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
 	}
 	
 	public void imputeGenotypesHMMDiploid(Map<String, List<CalledSNV>> genotypes) {
@@ -368,7 +368,7 @@ public class GenotypeImputer {
 		hmm.imputeGenotypes(genotypes,outClusters);
 		List<CalledSNV> snvs = genotypes.values().iterator().next();
 		//TODO: Conciliate more than one run of the Baum-Welch
-		if(parentIds!=null && parentIds.size()>1) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
+		if(outAssignments!=null) printClusters(genotypes.keySet(),snvs,outClusters[0],hmm);
 	}
 	
 	private void printClusters(Set<String>sampleIds, List<CalledSNV> snvs, int [][] outClusters,RecombinationHMM hmm) {
