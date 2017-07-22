@@ -477,7 +477,7 @@ Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
 Comma-separated list of sample ids of the parents of the population.
 Only to be used for bi-parental or multi-parental breeding populations.
 </option>
-<option id="k" type="INT" default="20" attribute="k">
+<option id="k" type="INT" default="8" attribute="k">
 Maximum number of groups in which local haplotypes will be clustered.
 For bi-parental or multi-parental breeding populations please set explicitly
 the number of parents of the population even if the list of parents is provided with the
@@ -712,7 +712,7 @@ Source of information in the VCF file to calculate distances. 0 for simple genot
 and 3 for raw allele depth (DP format field) 
 </option>
 <option id="p" type="INT" default="2" attribute="ploidy">
-Default ploidy of the samples. Used if the distance source (-d option) is the raw allele depths
+Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
 to recalculate allele dosage based on these counts 
 </option>
 </command>
