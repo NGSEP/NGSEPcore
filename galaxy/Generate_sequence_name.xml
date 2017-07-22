@@ -1,4 +1,4 @@
-<tool id="NGSEP_GetSequenceName" name="Get sequence names" version="3.0.2">
+<tool id="NGSEP_GetSequenceName" name="Get sequence names" version="3.1.0">
   <description> from a FASTA file</description>
   <command>
 awk '{ if( substr($1,1,1) == ">" ) print substr($1,2) }' $ref >$output
