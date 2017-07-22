@@ -1,7 +1,7 @@
-<tool id="NGSEP_ImputeVCF" name="Impute Missing Data" version="3.0.2">
+<tool id="NGSEP_ImputeVCF" name="Impute Missing Data" version="3.1.0">
   <description> in VCF files</description>
   <command>
-java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.2.jar ImputeVCF
+java -Xmx8G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar ImputeVCF
   #if $p
       -p $p
   #end if
@@ -11,7 +11,15 @@ java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.2.jar ImputeVCF
   #if $c
       -c $c
   #end if
+  #if $w
+      -w $w
+  #end if
+  #if $o
+      -o $o
+  #end if
       $t
+      $ip
+      $is
   $input ./prefix >log 2>&amp;1
   </command>
   <inputs>
@@ -19,13 +27,22 @@ java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.0.2.jar ImputeVCF
     <param name="p" type="text" optional="true" 
       	label="Comma-separated list of sample ids of the parents of the breeding population" 
       	help="should only be used for bi-parental or multi-parental breeding populations"/>
-    <param name="k" type="integer" min="0" optional="true" value="20" 
+    <param name="k" type="integer" min="0" optional="true" value="8" 
       	label="Maximum number of groups in which local haplotypes will be clustered" 
       	help="This helps to take into account cases of populations in which some of the parents are missing"/>
+    <param name="w" type="integer" min="100" optional="true" value="5000"
+    	label="Size of the window to process variants at the same time" 
+      	help="This is used to limit the number of SNPs that will be taken into account in one single calculation of the HMM"/>
+    <param name="o" type="integer" min="0" optional="true" value="50"
+    	label="Overlap between windows" 
+      	help="This is helpful to avoid making genotype imputations from the extreme variants in an HMM run when possible"/>
     <param name="c" type="float" min="0" optional="true" value="0.001" 
       	label="Average number of centiMorgans per Kbp on euchromatic regions of the genome" 
       	help="Typical values are: 0.001 for humans, 0.004 for rice and 0.35 for yeast populations"/>
     <param name="t" type="boolean" checked="true" truevalue="" falsevalue="-t" label="Update transition probabilities in HMM during Baum-Welch training" help="Recommended, unless the 'Average numer of centiMorgans' option allows a reasonable initial estimation"/>
+    <param name="ip" type="boolean" checked="false" truevalue="-ip" falsevalue="" label="Specifies that parents of the population are inbreds"/>
+    <param name="is" type="boolean" checked="false" truevalue="-is" falsevalue="" label="Specifies that the samples to impute are inbreds"/>
+    
   </inputs>
   <outputs>
     <data format="txt" name="output_txt" label="Imputed Haplotypes (txt) from $input.display_name" from_work_dir="prefix_assignments.txt"/>
@@ -58,11 +75,6 @@ Two files are generated.
 *Only biallelic SNPs* are imputed and included in the output VCF.
 
 .. class:: warningmark
-
-Current implementation treats the input genotypes in the VCF as *haploid* data
-
-	- it is only able to impute genotypes in populations of samples with **low heterozygosity** (autogamous or double-haploids).
-	- it does not produce heterozygous imputed genotypes.
 
 -----
 
