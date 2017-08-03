@@ -22,6 +22,8 @@ package ngsep.discovery;
 import java.io.PrintStream;
 import java.util.Arrays;
 
+import ngsep.sequences.QualifiedSequence;
+
 
 public class CoverageStatsPileupListener implements PileupListener {
 	private int maxCoverage = 300;
@@ -97,13 +99,13 @@ public class CoverageStatsPileupListener implements PileupListener {
 
 	
 	@Override
-	public void onSequenceStart(String sequenceName) {
+	public void onSequenceStart(QualifiedSequence sequenceName) {
 		
 	}
 	
 
 	@Override
-	public void onSequenceEnd(String sequenceName) {
+	public void onSequenceEnd(QualifiedSequence sequenceName) {
 		
 	}
 

@@ -29,6 +29,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.math.CountsRankHelper;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -621,12 +622,12 @@ public class VariantPileupListener implements PileupListener {
 		}
 	}
 	@Override
-	public void onSequenceEnd(String sequenceName) {
+	public void onSequenceEnd(QualifiedSequence sequence) {
 		
 	}
 	@Override
-	public void onSequenceStart(String sequenceName) {
-		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequenceName).asList();
+	public void onSequenceStart(QualifiedSequence sequence) {
+		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
 		nextSIVIndex = 0;
 		lastIndelEnd = 0;
 	}

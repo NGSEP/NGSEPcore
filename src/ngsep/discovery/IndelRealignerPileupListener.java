@@ -31,6 +31,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.GenomicVariant;
 
 
@@ -109,15 +110,15 @@ public class IndelRealignerPileupListener implements PileupListener {
 	}
 
 	@Override
-	public void onSequenceStart(String sequenceName) {
+	public void onSequenceStart(QualifiedSequence sequence) {
 		if(inputVariants!=null) {
-			seqInputVariants = inputVariants.getSequenceRegions(sequenceName).asList();
+			seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
 			idxNextVariant = 0;
 		}
 	}
 
 	@Override
-	public void onSequenceEnd(String sequenceName) {
+	public void onSequenceEnd(QualifiedSequence sequence) {
 
 	}
 

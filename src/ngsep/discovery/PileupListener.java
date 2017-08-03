@@ -19,13 +19,14 @@
  *******************************************************************************/
 package ngsep.discovery;
 
+import ngsep.sequences.QualifiedSequence;
+
 //import net.sf.samtools.SAMFileHeader;
 //import net.sf.samtools.SAMRecord;
 
 public interface PileupListener {
-	//public void onHeader(SAMFileHeader header);
-	//public void onAlignment(SAMRecord aln);
+
 	public void onPileup(PileupRecord pileup);
-	public void onSequenceStart(String sequenceName);
-	public void onSequenceEnd(String sequenceName);
+	public void onSequenceStart(QualifiedSequence sequence);
+	public void onSequenceEnd(QualifiedSequence sequence);
 }

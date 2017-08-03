@@ -36,6 +36,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledCNV;
 import ngsep.variants.CalledGenomicVariant;
@@ -1042,12 +1043,12 @@ public class VariantsDetector implements PileupListener {
 
 	
 	@Override
-	public void onSequenceStart(String sequenceName) {
+	public void onSequenceStart(QualifiedSequence sequence) {
 	}
 
 	@Override
-	public void onSequenceEnd(String sequenceName) {
-		saveSequenceVariants(sequenceName);
+	public void onSequenceEnd(QualifiedSequence sequence) {
+		saveSequenceVariants(sequence.getName());
 	}
 	
 	private List<CalledGenomicVariant> runRPAnalysis() throws IOException {

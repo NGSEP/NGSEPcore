@@ -29,6 +29,8 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.GenomicVariant;
 
 
@@ -39,7 +41,7 @@ public class AlignmentsPileupGenerator {
 	
 	private List<GenomicVariant> seqInputVariants;
 	private int idxNextInputVariant = 0;
-	
+	private QualifiedSequenceList sequencesMetadata;
 	
 	private String querySeq=null;
 	private int queryFirst = 0;
@@ -47,7 +49,7 @@ public class AlignmentsPileupGenerator {
 	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
 	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
 	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
-	private String currentReferenceName = null;
+	private QualifiedSequence currentReferenceSequence = null;
 	private int currentReferencePos = 0;
 	private int currentReferenceLast = 0;
 	private boolean keepRunning = true;
@@ -155,6 +157,7 @@ public class AlignmentsPileupGenerator {
 			if(!processSecondaryAlignments ) filterFlags+=ReadAlignment.FLAG_SECONDARY;
 			reader.setFilterFlags(filterFlags);
 			reader.setIgnoreXSField(ignoreXSField);
+			sequencesMetadata = reader.getSequences();
 			boolean querySeqFound = false;
 			Iterator<ReadAlignment> it = reader.iterator();
 			//Sequence under processing
@@ -188,18 +191,18 @@ public class AlignmentsPileupGenerator {
 	public void processAlignment(ReadAlignment aln) {
 		if(!spanInputVariants(aln)) return;
 		
-		if(currentReferenceName!=null) {
-			if(!currentReferenceName.equals(aln.getSequenceName())) {
+		if(currentReferenceSequence!=null) {
+			if(!currentReferenceSequence.getName().equals(aln.getSequenceName())) {
 				processPileups(currentReferenceLast+1);
-				for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceName);
-				currentReferenceName=null;
+				for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
+				currentReferenceSequence=null;
 			} else {
 				processPileups(aln.getFirst());
 			}	
 		} 
-		if (currentReferenceName==null) {
+		if (currentReferenceSequence==null) {
 			startSequence(aln);
-			for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceName);
+			for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 		}
 		aln.collapseIndelEvents();
 		int alnLast = aln.getLast();
@@ -212,12 +215,16 @@ public class AlignmentsPileupGenerator {
 	}
 
 	private void startSequence(ReadAlignment aln) {
-		currentReferenceName = aln.getSequenceName();
+		String seqName = aln.getSequenceName();
+		currentReferenceSequence = sequencesMetadata.get(seqName);
+		if(currentReferenceSequence == null) {
+			currentReferenceSequence = new QualifiedSequence(seqName);
+		}
 		log.info("Processing sequence "+aln.getSequenceName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
 		if(inputVariants!=null) {
-			seqInputVariants = inputVariants.getSequenceRegions(currentReferenceName).asList();
+			seqInputVariants = inputVariants.getSequenceRegions(seqName).asList();
 			idxNextInputVariant = 0;
 		}
 	}
@@ -237,7 +244,7 @@ public class AlignmentsPileupGenerator {
 	
 	public void notifyEndOfAlignments() {
 		processPileups(currentReferenceLast+1);
-		for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceName);
+		for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
 	}
 	private void processPileups(int alignmentStart) {
 		if(alignmentStart==currentReferencePos) return;
@@ -297,7 +304,7 @@ public class AlignmentsPileupGenerator {
 		}
 		if(currentReferencePos==posPrint) System.out.println("Number of pending alignments: "+pendingAlignments.size()+". time: "+System.currentTimeMillis());
 		
-		PileupRecord pileup = new PileupRecord(currentReferenceName, currentReferencePos);
+		PileupRecord pileup = new PileupRecord(currentReferenceSequence.getName(), currentReferencePos);
 		for(ReadAlignment aln:pendingAlignments) {
 			if(currentReferencePos==posPrint)System.out.println("Next pending: "+aln.getReadName()+" located at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+". time: "+System.currentTimeMillis());
 			pileup.addAlignment(aln);

@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.QualifiedSequence;
 
 
 public class CoverageStatisticsCalculator implements PileupListener {
@@ -77,11 +78,11 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		
 	}
 	@Override
-	public void onSequenceStart(String sequenceName) {
+	public void onSequenceStart(QualifiedSequence sequenceName) {
 		
 	}
 	@Override
-	public void onSequenceEnd(String sequenceName) {
+	public void onSequenceEnd(QualifiedSequence sequenceName) {
 		
 	}
 	public ProgressNotifier getProgressNotifier() {
