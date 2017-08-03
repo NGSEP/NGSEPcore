@@ -1,6 +1,7 @@
 package ngsep.discovery;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -12,6 +13,7 @@ import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
+import ngsep.sequences.QualifiedSequence;
 
 
 
@@ -35,6 +37,9 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	private boolean secondaryAlns = false;
 	
 	private Distribution distProp = new Distribution(0, 0.5, 0.01);
+	private List<String> sequenceNamesList = new ArrayList<>();
+	private List<Distribution> distPropPerSequenceList = new ArrayList<>();
+	private Distribution currentSequencePropDist=null;
 	private Distribution distNumAlleles = new Distribution(1, 10, 1);
 	
 	
@@ -123,7 +128,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	public void setSecondaryAlns(boolean secondaryAlns) {
 		this.secondaryAlns = secondaryAlns;
 	}
-	
+
 	public void setSecondaryAlns(Boolean secondaryAlns) {
 		this.setSecondaryAlns(secondaryAlns.booleanValue());
 	}
@@ -153,6 +158,24 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		distProp.printDistribution(out);
 		out.println("Distribution of number of alleles");
 		distNumAlleles.printDistributionInt(out);
+		
+		if(sequenceNamesList.size()==0) return;
+		out.println("Distribution of allele proportions per sequence");
+		out.print("Proportion");
+		for(int i=0;i<sequenceNamesList.size();i++) {
+			out.print("\t"+sequenceNamesList.get(i));
+		}
+		out.println();
+		int nBins = distProp.getDistribution().length;
+		double min= 0;
+		for(int i=0;i<nBins;i++) {
+			out.print(""+min);
+			for(Distribution d:distPropPerSequenceList) {
+				out.print("\t"+d.getDistribution()[i]);
+			}
+			out.println();
+			min+=0.01;
+		}
 	}
 
 	@Override
@@ -196,6 +219,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		if(countMax>0) {
 			double prop = (double)countSecondMax/(countMax+countSecondMax);
 			distProp.processDatapoint(prop);
+			if(currentSequencePropDist!=null) currentSequencePropDist.processDatapoint(prop);
 		}
 		coveredGenomeSize++;
 		if(progressNotifier!=null && coveredGenomeSize%10000==0) {
@@ -219,14 +243,22 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		return max;
 	}
 
+	
 	@Override
-	public void onSequenceStart(String sequenceName) {
+	public void onSequenceStart(QualifiedSequence sequence) {
 		//log.info("Starting sequence: "+sequenceName);
+		if(sequence.getLength()>100000) {
+			sequenceNamesList.add(sequence.getName());
+			currentSequencePropDist = new Distribution(0, 0.5, 0.01);
+			distPropPerSequenceList.add(currentSequencePropDist);
+		} else {
+			currentSequencePropDist = null;
+		}
 		
 	}
 
 	@Override
-	public void onSequenceEnd(String sequenceName) {
+	public void onSequenceEnd(QualifiedSequence sequence) {
 		//log.info("Finished sequence: "+sequenceName);
 		
 	}

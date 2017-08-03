@@ -1,7 +1,7 @@
 all: clean compile copy jar
 
 clean: 
-	rm -f NGSEPcore_3.1.0.jar
+	rm -f NGSEPcore_3.1.1.jar
 	rm -rf bin
 	
 compile:
@@ -18,5 +18,5 @@ jar:
 	jar -xf lib/htsjdk.jar htsjdk
 	mv htsjdk dist/
 	cp -r bin/* dist/
-	jar -cfe NGSEPcore_3.1.0.jar ngsep.NGSEPcore -C dist . 
+	jar -cfe NGSEPcore_3.1.1.jar ngsep.NGSEPcore -C dist . 
 	rm -rf dist
