@@ -629,6 +629,9 @@ If this sequence is found within a read, the read will be trimmed up to the star
 <option id="u">
 Output uncompressed files.
 </option>
+<option id="a">
+Activate demultiplexing with dual barcoding.
+</option>
 <option id="d" type="FILE">
 Tab-delimited file listing the files to be deconvoluted. Columns are: Flowcell, lane and
 fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.

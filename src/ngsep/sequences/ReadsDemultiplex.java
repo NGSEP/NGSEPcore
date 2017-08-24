@@ -31,7 +31,9 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
@@ -56,6 +58,7 @@ public class ReadsDemultiplex {
 	private String trimSequence = null;
 	private int minReadLength = 40;
 	private boolean uncompressedOutput = false;
+	private boolean dualBarcode = false;
 	private ProgressNotifier progressNotifier = null;
 
 	public static void main(String[] args) throws Exception {
@@ -89,6 +92,8 @@ public class ReadsDemultiplex {
 			} else if ("-d".equals(args[i])) {
 				i++;
 				laneFilesDescriptor = args[i]; 
+			} else if ("-a".equals(args[i])) {
+				instance.dualBarcode = true; 
 			} else {
 				System.err.println("Unrecognized option :"+args[i]);
 				CommandsDescriptor.getInstance().printHelp(ReadsDemultiplex.class);
@@ -209,8 +214,14 @@ public class ReadsDemultiplex {
 					laneSamplesPerBarcode = new TreeMap<String, String>();
 					log.info("Loading barcode map for flowcell: "+flowcell+" lane: "+lane);
 				}
-				log.info("Barcode: "+items[2]+" sample: "+items[3]);
-				laneSamplesPerBarcode.put(items[2], items[3]);
+				if (dualBarcode) {
+					log.info("Barcode 1: "+items[2]+" barcode 2: "+items[3]+" sample: "+items[4]);
+					laneSamplesPerBarcode.put(items[2]+"-"+items[3], items[4]);
+				} else {
+					log.info("Barcode: "+items[2]+" sample: "+items[3]);
+					laneSamplesPerBarcode.put(items[2], items[3]);
+				}
+				
 				line = in.readLine();
 			}
 			if(flowcell!=null) barcodeMap.put(makeLaneKey(flowcell, lane), laneSamplesPerBarcode);
@@ -224,7 +235,20 @@ public class ReadsDemultiplex {
 		String key = makeLaneKey(flowcell,lane);
 		samplesPerBarcode = barcodeMap.get(key);
 		if(samplesPerBarcode == null) throw new IOException("Flowcell: "+flowcell+" and lane: "+lane+ " not found in barcode map");
-		sortedBarcodes = samplesPerBarcode.keySet().toArray(new String[0]);
+		Set<String> barcodeKeys = samplesPerBarcode.keySet();
+		
+		Set<String> barcodesSet;
+		if(dualBarcode) {
+			barcodesSet = new TreeSet<>();
+			for(String barcodeKey:barcodeKeys) {
+				int i = barcodeKey.indexOf('-');
+				barcodesSet.add(barcodeKey.substring(0, i));
+				barcodesSet.add(barcodeKey.substring(i+1));
+			}	
+		} else {
+			barcodesSet = barcodeKeys;
+		}
+		sortedBarcodes =  barcodesSet.toArray(new String[0]);
 		Arrays.sort(sortedBarcodes);
 		nucleotideStarts[0] = 0;
 		int j=1;
@@ -369,11 +393,26 @@ public class ReadsDemultiplex {
 		RawRead read2 = RawRead.load(in2);
 		while (read1 != null && read2 != null) {
 			total++;
-			String barcode = findBarcode(read1.getSequenceString());
-			if (barcode == null) {
+			String barcode1;
+			String barcode2=null;
+			String barcodeM=null;
+			if(dualBarcode) {
+				barcode1 = findBarcode(read1.getSequenceString());
+				barcode2 = findBarcode(read2.getSequenceString());
+				if(barcode1!=null && barcode2!=null) {
+					barcodeM = barcode1+"-"+barcode2;
+					if(!samplesPerBarcode.containsKey(barcodeM)) barcodeM = null;
+				}
+			} else {
+				barcode1 = findBarcode(read1.getSequenceString());
+				barcodeM = barcode1;
+			}
+			
+			if (barcodeM == null) {
 				notFound++;
 			} else {
-				String sampleId = samplesPerBarcode.get(barcode);
+				String sampleId = samplesPerBarcode.get(barcodeM);
+				if (sampleId == null) System.err.println("Sample not found with barcode key: "+barcodeM);
 				PrintStream out1 = outFiles1.get(sampleId);
 				PrintStream out2 = outFiles2.get(sampleId);
 				if(out1==null) {
@@ -382,9 +421,12 @@ public class ReadsDemultiplex {
 					outFiles1.put(sampleId, out1);
 					outFiles2.put(sampleId, out2);
 				}
-				int barcodeLength = barcode.length();
+				
 				//Trim barcode
-				read1.trimFirstNucleotides(barcodeLength);
+				read1.trimFirstNucleotides(barcode1.length());
+				if(dualBarcode) {
+					read2.trimFirstNucleotides(barcode2.length());
+				}
 				//Trim end if sequence appears
 				int l1 = read1.getLength();
 				read1.trimFromSequence(trimRegexp);

@@ -39,8 +39,11 @@ public class RawRead extends QualifiedSequence {
 	}
 	public void trimToLength(int newLength) {
 		String sequence = getSequenceString();
-		setCharacters(sequence.substring(0,newLength));
-		setQualityScores(getQualityScores().substring(0,newLength));
+		if(newLength<sequence.length()) {
+			setCharacters(sequence.substring(0,newLength));
+			setQualityScores(getQualityScores().substring(0,newLength));
+		}
+		
 	}
 	public void save (PrintStream out) {
 		out.println(this.getName());
