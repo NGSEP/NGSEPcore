@@ -1,4 +1,4 @@
-<NGSEP version="3.1.0" date="30-06-2017">
+<NGSEP version="3.1.1" date="31-10-2017">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FindVariants" class="ngsep.discovery.VariantsDetector">
@@ -124,6 +124,24 @@ Turn off SNV detection.
 </option>
 <option id="noNewCNV">
 Turn off finding new CNVs with the read depth analysis.
+</option>
+</command>
+
+<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper">
+<intro>
+Performs single individual molecular haplotyping
+</intro>
+<title>Molecular haplotyping of single individuals</title>
+<description>
+Performs molecular haplotyping on a single individual given a VCF and
+a set of alignments in BAM format. Although theoretically it can work with
+Illumina reads, it is designed to work fine with long (PacBio) reads.
+Writes to standard output the phased VCF
+</description>
+<argument>VCF_FILE</argument>
+<argument>ALIGNMENTS_FILE</argument>
+<option id="a" type="STRING" default="Refhap" attribute="AlgorithmName">
+Algorithm for single individual haplotypiing. It can be Refhap or DGS
 </option>
 </command>
 
