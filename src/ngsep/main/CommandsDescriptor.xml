@@ -621,18 +621,20 @@ the options -a -i and -s
 </option>
 </command>
 
-<command id="Deconvolute" class="ngsep.sequences.ReadsDemultiplex">
+<command id="Demultiplex" class="ngsep.sequences.ReadsDemultiplex">
 <intro>
 Builds individual fastq files for different samples from
-a single file containing reads from a whole sequencing lane.
+a single file containing reads from a whole sequencing lane (Former Deconvolute)
 </intro>
-<title>Deconvoluting reads</title>
+<title>Demultiplexing reads</title>
 <description>
 Build individual fastq files for different samples from a single file containing the reads
 for a whole sequencing lane in which several samples were barcoded and sequenced.
-INDEX_FILE is a tab-delimited file with four columns: flowcell, lane, barcode and sampleID.
-It must have a header line. The same index file can be used to deconvolute several FASTQ files.
-FASTQ files can be gzip compressed
+INDEX_FILE is a tab-delimited file with four columns by default: flowcell, lane, barcode
+and sampleID. If the -a option for dual barcode is activated, five columns are expected:
+flowcell, lane, barcode1, barcode2 and sampleID. The file must have a header line. The same
+index file can be used to demultiplex several FASTQ files. Out FASTQ files will be gzip
+compressed by default
 </description>
 <argument>OPTIONS</argument>
 <argument>INDEX_FILE</argument>
@@ -651,7 +653,7 @@ Output uncompressed files.
 Activate demultiplexing with dual barcoding.
 </option>
 <option id="d" type="FILE">
-Tab-delimited file listing the files to be deconvoluted. Columns are: Flowcell, lane and
+Tab-delimited file listing the lane FASTQ files to be demultiplexed. Columns are: Flowcell, lane and
 fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.
 If the reads sequenced for one lane are split in multiple files, each file (or each pair of files)
 should be included in a separate row. If this option is used, the options -f, -l and the input fastq

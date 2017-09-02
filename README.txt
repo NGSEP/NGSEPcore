@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.1.0 (26-07-2017)
+Version 3.1.1 (31-10-2017)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -857,7 +857,7 @@ By default, this function outputs three files:
 
 
 -------------------
-Deconvoluting reads
+Demultiplexing reads
 -------------------
 
 This option allows to build individual fastq files for different samples from
@@ -866,7 +866,7 @@ samples were barcoded and sequenced.
 
 USAGE:
 
-java -jar NGSEPcore.jar Deconvolute <OPTIONS> <INDEX_FILE> <FIRST_FASTQ_FILE> (<SECOND_FASTQ_FILE>) 
+java -jar NGSEPcore.jar Demultiplex <OPTIONS> <INDEX_FILE> <FASTQ_FILE_1> (<FASTQ_FILE_2>) 
 
 OPTIONS: 
 	-o DIRECTORY	: Directory where the output fastq files will be saved
@@ -874,8 +874,9 @@ OPTIONS:
 			  will be trimmed up to the start of this sequence.
 			  useful to remove adapter contamination
 	-u		: Output uncompressed files
+        -a		: Activate demultiplexing with dual barcoding.
 	-d FILE		: Tab-delimited file storing physical locations of the
-			  files to be deconvoluted. Columns of the file should
+			  files to be demultiplexed. Columns of the file should
 			  be Flowcell, lane and fastq file (which can be gzip
 			  compressed). A second fastq file can be specified if
 			  the lane was sequenced in paired-end mode. If the
@@ -891,16 +892,11 @@ OPTIONS:
 			  file(s). Ignored if the -d option is specified but
 			  required if the -d option is not specified.
 
-INDEX_FILE is a tab-delimited text file with four columns: flowcell, lane,
-barcode and sampleID. It must have a header line. If the "-d" option is not
-specified, the same index file can  be used to deconvolute different lanes in
-different processes, but each process will only deconvolute reads from the
-lane identified by the parameters -f and -l. In this mode, if the fastq files
-are not present or a "-" sign is provided as FIRST_FASTQ_FILE, then the reads
-will be read from the standard input. Hence, the zcat command can still be used
-as an alternative way to avoid uncompressing the input file in single-end mode:
-
-zcat <INPUT_FILE> | java -jar NGSEPcore.jar Deconvolute <OPTIONS> -f <FLOWCELL> -l <LANE> <INDEX_FILE> (-)
+INDEX_FILE is a tab-delimited text file with four columns by default: flowcell,
+lane, barcode and sampleID. If the -a option for dual barcode is activated,
+five columns are expected: flowcell, lane, barcode1, barcode2 and sampleID. The
+file must have a header line. The same index file can be used to demultiplex
+several FASTQ files. Out FASTQ files will be gzip compressed by default.
 
 ------------------------------------
 Comparing read depth between samples

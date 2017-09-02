@@ -328,7 +328,7 @@ public class ReadsDemultiplex {
 			s.flush();
 			s.close();
 		}
-		log.info("Deconvolution report");
+		log.info("Demultiplexing report");
 		log.info("Total reads\t"+total);
 		
 		for(String sampleName:counts.keySet()) {
@@ -356,7 +356,7 @@ public class ReadsDemultiplex {
 		return out;
 	}
 	public void demultiplex(String filename1, String filename2) throws IOException {
-		log.info("Deconvoluting paired end files "+filename1+" "+filename2);
+		log.info("Demultiplexing paired end files "+filename1+" "+filename2);
 		FileInputStream fis1 = null;
 		FileInputStream fis2 = null;
 		try {

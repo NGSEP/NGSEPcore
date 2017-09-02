@@ -36,7 +36,7 @@ D. Production pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                           ~~~~~ GBS pipeline ~~~~~
 _________________
-0. Deconvolution:
+0. Demultiplexing:
     {INPUT: single or paired end FASTQ files directly from the sequencer - 
                      - OUTPUT: one or two FASTQ files for each of your samples}
 
@@ -45,7 +45,7 @@ _________________
     them according to their Barcodes, Lane, and Flowcell. If you already have 
     one FASTQ file per sample, skip this step.
 
-        $ java -jar NGSEPcore_<VERSION>.jar Deconvolute -t <TRIM_SEQ> -o <DIR> -d <LANE_DESCRIPTOR> <INDEX_FILE> >& deconvolution.log
+        $ java -jar NGSEPcore_<VERSION>.jar Demultiplex -t <TRIM_SEQ> -o <DIR> -d <LANE_DESCRIPTOR> <INDEX_FILE> >& demultiplexing.log
 
     <FASTQ_FILE> : That huge FASTQ file as it came out from the sequencer.
     <TRIM_SEQ>   : Adapter sequence for trimming at the end of the reads; IUPAC
@@ -59,7 +59,7 @@ _________________
                   |...           ...       ...        ...         ...
 
     <LANE_DESCRIPTOR> : Tab-delimited File with the location of the files to be
-                        deconvoluted. Columns are: Flowcell, lane, fastq file
+                        demultiplexed. Columns are: Flowcell, lane, fastq file
                         (which can be gzip compressed) and a second fastq for 
                         paired-end reads. looking like this:
        _________________________________________________ 
