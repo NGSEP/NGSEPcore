@@ -59,59 +59,26 @@ public class ReadsDemultiplex {
 	private int minReadLength = 40;
 	private boolean uncompressedOutput = false;
 	private boolean dualBarcode = false;
+	private String laneFilesDescriptor = null;
+	private String flowcell = null;
+	private String lane = null;
+	
 	private ProgressNotifier progressNotifier = null;
 
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(ReadsDemultiplex.class);
-			return;
-		}
 		ReadsDemultiplex instance = new ReadsDemultiplex();
-		int i=0;
-		String flowcell = null;
-		String lane = null;
-		String laneFilesDescriptor = null;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-t".equals(args[i])) {
-				i++;
-				instance.trimSequence = args[i];
-			} else if ("-p".equals(args[i])) {
-				i++;
-				instance.prefix = args[i];
-			}  else if ("-o".equals(args[i])) {
-				i++;
-				instance.outDirectory = args[i];
-			} else if ("-u".equals(args[i])) {
-				instance.uncompressedOutput = true;
-			} else if ("-f".equals(args[i])) {
-				i++;
-				flowcell = args[i]; 
-			} else if ("-l".equals(args[i])) {
-				i++;
-				lane = args[i]; 
-			} else if ("-d".equals(args[i])) {
-				i++;
-				laneFilesDescriptor = args[i]; 
-			} else if ("-a".equals(args[i])) {
-				instance.dualBarcode = true; 
-			} else {
-				System.err.println("Unrecognized option :"+args[i]);
-				CommandsDescriptor.getInstance().printHelp(ReadsDemultiplex.class);
-				System.exit(1);
-			}
-			i++;
-		}
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String indexFile = args[i++];
 		instance.loadIndex(indexFile);
-		if(laneFilesDescriptor !=null) {
-			instance.demultiplexGroup(laneFilesDescriptor);
+		if(instance.laneFilesDescriptor !=null) {
+			instance.demultiplexGroup();
 			return;
 		}
-		if(flowcell== null || lane==null) {
+		if(instance.flowcell== null || instance.lane==null) {
 			System.err.println("Either a lane files descriptor or a flow cell and a lane should be provided");
 			System.exit(1);
 		}
-		instance.loadLaneInfo(flowcell, lane);
+		instance.loadLaneInfo(instance.flowcell,instance.lane);
 		if(i==args.length || "-".equals(args[i]) ) {
 			instance.demultiplex(System.in);
 		} else if(i+1==args.length){
@@ -123,7 +90,8 @@ public class ReadsDemultiplex {
 		}
 	}
 
-	public void demultiplexGroup(String laneFilesDescriptor) throws IOException {
+	public void demultiplexGroup() throws IOException {
+		if(laneFilesDescriptor==null) return;
 		FileInputStream fis = null;
 		BufferedReader in = null;
 		try {
@@ -150,6 +118,10 @@ public class ReadsDemultiplex {
 		this.progressNotifier = progressNotifier;
 	}
 	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	
 	public Logger getLog() {
 		return log;
 	}
@@ -167,7 +139,62 @@ public class ReadsDemultiplex {
 		this.outDirectory = outDirectory;
 	}
 	
+	public String getLaneFilesDescriptor() {
+		return laneFilesDescriptor;
+	}
+
+	public void setLaneFilesDescriptor(String laneFilesDescriptor) {
+		this.laneFilesDescriptor = laneFilesDescriptor;
+	}
 	
+
+	public String getFlowcell() {
+		return flowcell;
+	}
+
+	public void setFlowcell(String flowcell) {
+		this.flowcell = flowcell;
+	}
+
+	public String getLane() {
+		return lane;
+	}
+
+	public void setLane(String lane) {
+		this.lane = lane;
+	}
+
+	public String getPrefix() {
+		return prefix;
+	}
+
+	public void setPrefix(String prefix) {
+		this.prefix = prefix;
+	}
+
+	public int getMinReadLength() {
+		return minReadLength;
+	}
+
+	public void setMinReadLength(int minReadLength) {
+		this.minReadLength = minReadLength;
+	}
+	
+	public void setMinReadLength(Integer minReadLength) {
+		this.setMinReadLength(minReadLength.intValue());
+	}
+
+	public boolean isDualBarcode() {
+		return dualBarcode;
+	}
+
+	public void setDualBarcode(boolean dualBarcode) {
+		this.dualBarcode = dualBarcode;
+	}
+
+	public void setDualBarcode(Boolean dualBarcode) {
+		this.setDualBarcode(dualBarcode.booleanValue());
+	}
 
 	public String getTrimSequence() {
 		return trimSequence;

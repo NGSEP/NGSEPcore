@@ -640,29 +640,32 @@ compressed by default
 <argument>INDEX_FILE</argument>
 <argument>FASTQ_FILE_1</argument>
 <argument>FASTQ_FILE_2</argument>
-<option id="o" type="DIR">
+<option id="o" type="DIR" attribute="outDirectory">
 Directory where the output fastq files will be saved.
 </option>
-<option id="t" type="STRING">
+<option id="t" type="STRING" attribute="trimSequence">
 If this sequence is found within a read, the read will be trimmed up to the start of this sequence.
 </option>
-<option id="u">
+<option id="u" type="BOOLEAN" attribute="uncompressedOutput">
 Output uncompressed files.
 </option>
-<option id="a">
+<option id="r" type="INT" attribute="minReadLength">
+Minimum read length to keep a read after trimming adapter sequences
+</option>
+<option id="a" type="BOOLEAN" attribute="dualBarcode">
 Activate demultiplexing with dual barcoding.
 </option>
-<option id="d" type="FILE">
+<option id="d" type="FILE" attribute="laneFilesDescriptor" >
 Tab-delimited file listing the lane FASTQ files to be demultiplexed. Columns are: Flowcell, lane and
 fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.
 If the reads sequenced for one lane are split in multiple files, each file (or each pair of files)
 should be included in a separate row. If this option is used, the options -f, -l and the input fastq
 file(s) are ignored
 </option>
-<option id="f" type="STRING">
+<option id="f" type="STRING" attribute="flowcell">
 Id of the flowcell corresponding to the input fastq file(s). Required if -d option is not specified.
 </option>
-<option id="l" type="STRING">
+<option id="l" type="STRING" attribute="lane">
 Id of the lane corresponding to the input fastq file(s). Required if the -d option is not specified.
 </option>
 </command>
