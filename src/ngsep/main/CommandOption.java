@@ -28,6 +28,7 @@ public class CommandOption {
 	public static final String TYPE_DOUBLE = "DOUBLE";
 	public static final String TYPE_STRING = "STRING";
 	public static final String TYPE_FILE = "FILE";
+	public static final String TYPE_DIR = "DIR";
 	public static final String TYPE_BOOLEAN = "BOOLEAN";
 	
 	private String id;
@@ -128,6 +129,9 @@ public class CommandOption {
 		if(TYPE_FILE.equals(type)) {
 			return String.class;
 		}
+		if(TYPE_DIR.equals(type)) {
+			return String.class;
+		}
 		throw new RuntimeException("Can not decode option of unrecognized type: "+type);
 	}
 	public Object decodeValue (String value) {
@@ -147,6 +151,9 @@ public class CommandOption {
 			return value;
 		}
 		if(TYPE_FILE.equals(type)) {
+			return value;
+		}
+		if(TYPE_DIR.equals(type)) {
 			return value;
 		}
 		throw new RuntimeException("Can not decode value of unrecognized type: "+type);
