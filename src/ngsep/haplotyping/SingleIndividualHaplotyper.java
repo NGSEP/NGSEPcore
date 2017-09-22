@@ -26,7 +26,7 @@ public class SingleIndividualHaplotyper {
 	public static void main(String[] args) throws Exception {
 		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		if(i<0) return;
+		
 		String vcfFilename = args[i++];
 		String bamFilename = args[i++];
 		instance.process (vcfFilename,bamFilename,System.out);

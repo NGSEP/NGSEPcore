@@ -47,12 +47,12 @@ public class VCFDistanceMatrixCalculator {
 	}
 	
 	
-	 public static void main (String [ ] args) throws IOException {
+	 public static void main (String [ ] args) throws Exception {
 
 		VCFDistanceMatrixCalculator dmCalculator = new VCFDistanceMatrixCalculator();
 		//Parameters
 		int k=CommandsDescriptor.getInstance().loadOptions(dmCalculator, args);
-		if(k<0) return;
+		
 		String vcfFile = args[k++];
 		DistanceMatrix dm = dmCalculator.generateMatrix(vcfFile);
 		dm.printMatrix(System.out);

@@ -5,7 +5,6 @@ import java.util.List;
 
 import ngsep.hmm.RecombinationHMM;
 import ngsep.math.LogMath;
-import ngsep.math.NumberArrays;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 

@@ -204,7 +204,7 @@ public class VCFWindowIntrogressionAnalysis {
 	public static void main(String[] args) throws Exception {
 		VCFWindowIntrogressionAnalysis instance = new VCFWindowIntrogressionAnalysis();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		if(i<0) return;
+		
 		boolean systemInput = "-".equals(args[i]);
 		String vcfFile = null;
 		if(!systemInput) vcfFile = args[i++]; 

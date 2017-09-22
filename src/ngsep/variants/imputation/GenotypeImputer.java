@@ -71,7 +71,7 @@ public class GenotypeImputer {
 	public static void main(String[] args) throws Exception {
 		GenotypeImputer instance = new GenotypeImputer();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		if(i<0) return;
+		
 		String vcfFile = args[i++];
 		String outPrefix = args[i++];
 		String fileAssignments = outPrefix+"_assignments.txt";

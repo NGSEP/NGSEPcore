@@ -68,6 +68,7 @@ public class ReadsDemultiplex {
 	public static void main(String[] args) throws Exception {
 		ReadsDemultiplex instance = new ReadsDemultiplex();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		
 		String indexFile = args[i++];
 		instance.loadIndex(indexFile);
 		if(instance.laneFilesDescriptor !=null) {

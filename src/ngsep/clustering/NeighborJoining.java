@@ -1,6 +1,5 @@
 package ngsep.clustering;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,17 +37,12 @@ public class NeighborJoining {
 	
 	
 	 
-	 public static void main (String [ ] args) throws IOException,NumberFormatException {
+	 public static void main (String [ ] args) throws Exception {
 			
 	 	NeighborJoining nj = new NeighborJoining();
-	 
-	 	if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(NeighborJoining.class);
-			return;
-		}
 		//Parameters
 		int k=CommandsDescriptor.getInstance().loadOptions(nj, args);
-	 
+		
 		String matrixFile = args[k++];
 	 	DistanceMatrix dm = new DistanceMatrix(matrixFile);
 	 	nj.loadMatrix(dm);

@@ -170,16 +170,11 @@ public class KmersCounter {
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
 	 * @param args
-	 * @throws IOException 
+	 * @throws Exception 
 	 */
-	public static void main (String [ ] args) throws IOException {
+	public static void main (String [ ] args) throws Exception {
 
 		KmersCounter kmersCounter = new KmersCounter();
-		
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(KmersCounter.class);
-			return;
-		}
 		//Parameters
 		int k=CommandsDescriptor.getInstance().loadOptions(kmersCounter, args);
 		

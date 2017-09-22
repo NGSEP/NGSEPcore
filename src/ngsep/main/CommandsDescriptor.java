@@ -334,10 +334,10 @@ public class CommandsDescriptor {
 	 * @param args Arguments sent by the user
 	 * @return int Next index to be processed in the arguments array
 	 */
-	public int loadOptions(Object programInstance, String [] args ) {
+	public int loadOptions(Object programInstance, String [] args ) throws Exception {
 		if (args.length == 0 || args[0].equals("-h") ||args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(programInstance.getClass());
-			return -1;
+			printHelp(programInstance.getClass());
+			System.exit(1);
 		}
 		Command c = commandsByClass.get(programInstance.getClass().getName());
 		int i = 0;
@@ -346,22 +346,29 @@ public class CommandsDescriptor {
 			CommandOption o = c.getOption(args[i].substring(1));
 			if (o==null) {
 				System.err.println("Unrecognized option "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(programInstance.getClass());
-				return -1;
+				printHelp(programInstance.getClass());
+				System.exit(1);
 			}
 			Method setter = o.findSetMethod(programInstance);
-			Object value;
+			Object value=null;
 			if(CommandOption.TYPE_BOOLEAN.equals(o.getType())) {
 				value = true;
 			} else {
 				i++;
-				value = o.decodeValue(args[i]);
+				try {
+					value = o.decodeValue(args[i]);
+				} catch (NumberFormatException e) {
+					System.err.println("Error loading value \""+args[i]+"\" for option \""+o.getAttribute()+"\" of type "+o.getType()+": "+e.getMessage());
+					printHelp(programInstance.getClass());
+					System.exit(1);
+				}
 			}
 			try {
 				setter.invoke(programInstance, value);
 			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-				System.err.println("Error setting value "+value+" for option "+o.getId()+" of type: "+o.getType()+". Error: "+e.getMessage());
+				System.err.println("Error setting value \""+value+"\" for option \""+o.getId()+"\" of type: "+o.getType()+". "+e.getMessage());
 				e.printStackTrace();
+				System.exit(1);
 			}
 			i++;
 		}

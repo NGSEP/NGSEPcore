@@ -49,7 +49,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	public static void main(String[] args) throws Exception {
 		BAMRelativeAlleleCountsCalculator instance = new BAMRelativeAlleleCountsCalculator();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		if(i<0) return;
+		
 		String filename = args[i++];
 		instance.runProcess(filename);
 		instance.printResults(System.out);
