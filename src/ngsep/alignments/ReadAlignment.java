@@ -94,6 +94,14 @@ public class ReadAlignment implements GenomicRegion {
 	//Optional information stored
 	private String readGroup = null;
 	
+	/**
+	 * Creates a read alignment with the given information
+	 * @param sequenceName Name of the sequence (e.g. chromosome) to which the read aligned
+	 * @param first position of the sequence to which the read aligned
+	 * @param last position of the sequence to which the read aligned
+	 * @param readLength length of the read
+	 * @param flags indicating information of the alignment according to the SAM format
+	 */
 	public ReadAlignment(String sequenceName, int first, int last, int readLength, int flags) {
 		this.sequenceName = sequenceName;
 		this.first = first;
@@ -135,12 +143,18 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_READ_REVERSE_STRAND)!=0;
 	}
 	
-	
-	
+	/**
+	 * Information of the alignment according to the SAM format
+	 * @return int information flags
+	 */
 	public int getFlags() {
 		return flags;
 	}
 
+	/**
+	 * Changes the flags with information of the alignment
+	 * @param flags new flags
+	 */
 	public void setFlags(int flags) {
 		//TODO: Check consistency
 		this.flags = flags;
@@ -151,169 +165,327 @@ public class ReadAlignment implements GenomicRegion {
 		alleleCallsUpdated = false;
 	}
 	
+	/**
+	 * Provides the alignment quality as a phred score
+	 * @return short Alignment quality
+	 */
 	public short getAlignmentQuality() {
 		return alignmentQuality;
 	}
 
+	/**
+	 * Changes the alignment quality
+	 * @param alignmentQuality New Quality as a phred score
+	 */
 	public void setAlignmentQuality(short alignmentQuality) {
 		this.alignmentQuality = alignmentQuality;
 	}
-
+	
+	/**
+	 * Provides the sequence to which the mate of this read aligned
+	 * @return String Reference sequence name
+	 */
 	public String getMateSequenceName() {
 		return mateSequenceName;
 	}
 
+	/**
+	 * Changes the sequence to which the mate of this read aligned
+	 * @param mateSequenceName New reference sequence name for the mate
+	 */
 	public void setMateSequenceName(String mateSequenceName) {
 		this.mateSequenceName = mateSequenceName;
 	}
 
+	/**
+	 * Provides the position to which the mate of this read aligned
+	 * @return int Reference position
+	 */
 	public int getMateFirst() {
 		return mateFirst;
 	}
 
+	/**
+	 * Changes the position to which the mate of this read aligned
+	 * @param mateFirst New reference postion
+	 */
 	public void setMateFirst(int mateFirst) {
 		this.mateFirst = mateFirst;
 	}
 
+	/**
+	 * Provides the insert size inferred from the alignment of this read and its mate
+	 * @return int distance between the start of the left read and the end of the right read.
+	 * 0 if one read did not aligned or if the reads aligned to different chromosomes
+	 */
 	public int getInferredInsertSize() {
 		return inferredInsertSize;
 	}
 
+	/**
+	 * Changes the inferred insert size
+	 * @param inferredInsertSize New insert size
+	 */
 	public void setInferredInsertSize(int inferredInsertSize) {
 		this.inferredInsertSize = inferredInsertSize;
 	}
 
+	/**
+	 * Tells if this read is paired
+	 * @return boolean true if the read is paired
+	 */
 	public boolean isPaired() {
 		return (flags & FLAG_PAIRED)!=0;
 	}
 
+	/**
+	 * Tells if this read and its mate were properly aligned according to an expected distance and orientation
+	 * @return boolean true if the read and its mate were properly aligned
+	 */
 	public boolean isProperPair() {
 		return (flags & FLAG_PROPER)!=0;
 	}
-	
+	/**
+	 * Tells if this alignment is invalid because the read did not actually align to any position of the reference
+	 * @return boolean true if the read did not align to the reference
+	 */
 	public boolean isReadUnmapped() {
 		return (flags & FLAG_READ_UNMAPPED)!=0;
 	}
-	
+	/**
+	 * Tells if the mate of this read did not align to any position of the reference
+	 * @return boolean true if the mate did not align to the reference
+	 */
 	public boolean isMateUnmapped() {
 		return (flags & FLAG_MATE_UNMAPPED)!=0;
 	}
 	
+	/**
+	 * Tells if the mate aligned to the positive reference strand
+	 * @return true if the mate aligned to the positive reference strand
+	 */
 	public boolean isMatePositiveStrand() {
 		return (flags & FLAG_MATE_REVERSE_STRAND)==0;
 	}
+	
+	/**
+	 * Tells if the mate aligned to the negative reference strand
+	 * @return true if the mate aligned to the negative reference strand
+	 */
 	public boolean isMateNegativeStrand() {
 		return (flags & FLAG_MATE_REVERSE_STRAND)!=0;
 	}
 	
+	/**
+	 * Changes the mate negative strand status
+	 * @param mateNegativeStrand true if the mate aligned to the negative reference strand
+	 */
 	public void setMateNegativeStrand (boolean mateNegativeStrand) {
 		if(mateNegativeStrand) flags = flags | FLAG_MATE_REVERSE_STRAND;
 		else flags = flags & ~FLAG_MATE_REVERSE_STRAND;
 	}
+	
+	/**
+	 * Tells if this read is the first of its pair
+	 * @return boolean true if the read is the first of the pair
+	 */
 	public boolean isFirstOfPair () {
 		return (flags & FLAG_FIRST_OF_PAIR)!=0;
 	}
+	/**
+	 * Tells if this read is the second of its pair
+	 * @return boolean true if the read is the second of the pair
+	 */
 	public boolean isSecondOfPair () {
 		return (flags & FLAG_SECOND_OF_PAIR)!=0;
 	}
+	/**
+	 * Tells if the alignment is secondary
+	 * @return boolean true if the alignment is secondary
+	 */
 	public boolean isSecondary () {
 		return (flags & FLAG_SECONDARY)!=0;
 	}
+	/**
+	 * Tells if the alignment fails QC
+	 * @return boolean true if the alignment fails QC
+	 */
 	public boolean failsQC () {
 		return (flags & FLAG_FAILS_QC)!=0;
 	}
+	/**
+	 * Tells if the read is a PCR duplicate
+	 * @return boolean true if the read is marked as a PCR duplicate
+	 */
 	public boolean isPCRDuplicate () {
 		return (flags & FLAG_PCR_DUP)!=0;
 	}
+	/**
+	 * Tells if the alignment is supplementary
+	 * @return boolean true if the alignment is supplementary
+	 */
 	public boolean isSupplementary () {
 		return (flags & FLAG_SUPPLEMENTARY)!=0;
 	}
+	/**
+	 * Tells if the alignment is unique
+	 * @return boolean true if this alignment is unique
+	 */
 	public boolean isUnique () {
 		//TODO: Make rules to be unique part of the constructor
 		return (flags & FLAG_MULTIPLE_ALN)==0;
 	}
+	/**
+	 * Tells if the mate of this read aligned to a different sequence
+	 * @return boolean true if the mate of this read aligned to another sequence
+	 */
 	public boolean isMateDifferentSequence () {
 		return (flags & FLAG_MATE_DIFFERENT_SEQUENCE)!=0;
 	}
+	/**
+	 * Tells if the mate of this read aligned to the same sequence
+	 * @return boolean true if the mate of this read aligned to the same sequence
+	 */
 	public boolean isMateSameSequence () {
 		return (flags & FLAG_MATE_DIFFERENT_SEQUENCE)==0;
 	}
+	
+	/**
+	 * Provides the read name
+	 * @return String read name
+	 */
 	public String getReadName() {
 		if(readName == null) return null;
 		return new String (readName);
 	}
 
+	/**
+	 * Changes the read name
+	 * @param readName new name
+	 */
 	public void setReadName(String readName) {
 		if(readName == null) this.readName = null;
 		this.readName = readName.toCharArray();
 	}
 
+	/**
+	 * Provides the characters of the read as a CharSequence object
+	 * @return CharSequence read characters 
+	 */
 	public CharSequence getReadCharacters() {
 		return readCharacters;
 	}
 
+	/**
+	 * Changes the characters of this read
+	 * @param readCharacters new characters
+	 */
 	public void setReadCharacters(CharSequence readCharacters) {
 		if(readCharacters!=null && readLength>0 &&readCharacters.length()!=readLength) throw new IllegalArgumentException("Input Read length: "+readCharacters.length()+" inconsistent with the expected length "+readLength);		 
 		this.readCharacters = readCharacters;
 		if(readCharacters == null) this.qualityScores = null;
 	}
 	
+	/**
+	 * Provides the length of this read
+	 * @return int read length
+	 */
 	public int getReadLength() {
 		return readLength;
 	}
 
+	/**
+	 * Provides the base quality scores as a String object
+	 * @return String quality scores in phred+33 format according to the SAM format specification
+	 */
 	public String getQualityScores() {
 		if(qualityScores == null) return null;
 		return new String(qualityScores);
 	}
 
+	/**
+	 * Changes the base quality scores
+	 * @param qualityScores new quality scores in phred+33 format according to the SAM format specification
+	 */
 	public void setQualityScores(String qualityScores) {
 		if(qualityScores==null) this.qualityScores = null;
 		this.qualityScores = qualityScores.toCharArray();
 		if(readCharacters!=null) fillQualityScores();
 	}
 	
+	/**
+	 * Changes the basepairs to ignore close to an indel event
+	 * @param basesToIgnoreCloseToIndel new number of bases to ignore
+	 */
 	public void setBasesToIgnoreCloseToIndel(byte basesToIgnoreCloseToIndel) {
 		if(basesToIgnoreCloseToIndel<1) throw new IllegalArgumentException("Bases to ignore close to indel must be at least 1");
 		this.basesToIgnoreCloseToIndel = basesToIgnoreCloseToIndel;
 		this.alleleCallsUpdated = false;
 	}
 	
-
+	/**
+	 * Changes the base pairs to ignore at the 5 prime end of this read
+	 * @param basesToIgnore5P new number of base pairs to ignore
+	 */
 	public void setBasesToIgnore5P(short basesToIgnore5P) {
 		if(isNegativeStrand()) this.basesToIgnoreEnd = basesToIgnore5P;
 		else this.basesToIgnoreStart = basesToIgnore5P;
 		this.alleleCallsUpdated = false;
 	}
 
+	/**
+	 * Changes the base pairs to ignore at the 3 prime end of this read
+	 * @param basesToIgnore3P new number of base pairs to ignore
+	 */
 	public void setBasesToIgnore3P(short basesToIgnore3P) {
 		if(isNegativeStrand()) this.basesToIgnoreStart = basesToIgnore3P;
 		else this.basesToIgnoreEnd = basesToIgnore3P;
 		this.alleleCallsUpdated = false;
 	}
 	
+	/**
+	 * Provides the base pairs to ignore at the start of this alignment
+	 * @return short basePairs to ignore
+	 */
 	public short getBasesToIgnoreStart() {
 		return basesToIgnoreStart;
 	}
-
+	/**
+	 * Changes the base pairs to ignore at the start of this alignment
+	 * @param basesToIgnoreStart new number of base pairs to ignore
+	 */
 	public void setBasesToIgnoreStart(short basesToIgnoreStart) {
 		this.basesToIgnoreStart = basesToIgnoreStart;
 		this.alleleCallsUpdated = false;
 	}
 
+	/**
+	 * Provides the base pairs to ignore at the end of the alignment
+	 * @return short base pairs to ignore
+	 */
 	public short getBasesToIgnoreEnd() {
 		return basesToIgnoreEnd;
 	}
-	
+	/**
+	 * Changes the base pairs to ignore at the end of this alignment
+	 * @param basesToIgnoreEnd new number of base pairs to ignore
+	 */
 	public void setBasesToIgnoreEnd(short basesToIgnoreEnd) {
 		this.basesToIgnoreEnd = basesToIgnoreEnd;
 		this.alleleCallsUpdated = false;
 	}
-	
+	/**
+	 * Provides the read group of this read
+	 * @return String read group
+	 */
 	public String getReadGroup() {
 		return readGroup;
 	}
 
+	/**
+	 * Changes the read group of this read
+	 * @param readGroup New read group
+	 */
 	public void setReadGroup(String readGroup) {
 		this.readGroup = readGroup;
 	}
@@ -482,6 +654,13 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return -1;
 	}
+	/**
+	 * Provides the allele call (if any) at the given reference position taking into account possible
+	 * base pairs to ignore
+	 * @param referencePos Position to consider in the reference sequence to which this read aligned
+	 * @return CharSequence Object with the base pair(s) starting from the reference position.
+	 * It can be more than one character, especially in the case of insertions.  
+	 */
 	public CharSequence getAlleleCall (int referencePos) {
 		if(readCharacters ==null) return null;
 		int readPos = getReadPosition(referencePos);
@@ -494,6 +673,13 @@ public class ReadAlignment implements GenomicRegion {
 		//if(referencePos==-1) System.out.println("ReadAlignment. Read id: "+getReadName()+". Sequence: "+readCharacters.toString()+". readpos: "+readPos+". end: "+(readPos+length)+" subseq: "+readCharacters.subSequence(readPos, readPos+length)+". length subseq: "+readCharacters.subSequence(readPos, readPos+length).length());
 		return readCharacters.subSequence(readPos, readPos+length);
 	}
+	/**
+	 * Provides the allele call (if any) at the given reference coordinates taking into account possible
+	 * base pairs to ignore
+	 * @param referenceFirst First position to consider in the reference sequence to which this read aligned
+	 * @param referenceFirst Last position to consider in the reference sequence to which this read aligned
+	 * @return CharSequence Object with the base pair(s) aligning between the given reference positions.
+	 */
 	public CharSequence getAlleleCall (int referenceFirst, int referenceLast) {
 		if(readCharacters == null) return null;
 		updateAlleleCallsInfo();
@@ -503,13 +689,23 @@ public class ReadAlignment implements GenomicRegion {
 		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		return readCharacters.subSequence(readFirst, readLast+1);
 	}
+	/**
+	 * Returns the base quality score in phred+33 format of the base pair aligning to the given position
+	 * @param referencePos Position to consider in the reference sequence to which this read aligned
+	 * @return char base quality score
+	 */
 	public char getBaseQualityScore (int referencePos) {
 		if(qualityScores == null) return 33;
 		int readPos = getReadPosition(referencePos);
 		if(readPos<0) return 33;
 		return qualityScores[readPos];
 	}
-	
+	/**
+	 * Returns the base quality scores in phred+33 format of the base pairs aligning to the given coordinates
+	 * @param referenceFirst First position to consider in the reference sequence to which this read aligned
+	 * @param referenceFirst Last position to consider in the reference sequence to which this read aligned
+	 * @return String base quality scores
+	 */
 	public String getBaseQualityScores (int referenceFirst, int referenceLast) {
 		if(qualityScores == null) return null;
 		int readFirst = getReadPosition(referenceFirst);
@@ -521,11 +717,20 @@ public class ReadAlignment implements GenomicRegion {
 	private boolean withinIgnoreRegions (int readFirst, int readLast) {
 		return readFirst<basesToIgnoreStart || readLength - readLast <= basesToIgnoreEnd;
 	}
+	/**
+	 * Returns start sites in this alignment for indel events
+	 * @return Map<Integer,GenomicVariant> Map with reference positions as keys and indel events as values
+	 */
 	public Map<Integer,GenomicVariant> getIndelCalls () {
 		failIfReadUnmappedOrInconsistentAlignment();
 		updateAlleleCallsInfo();
 		return indelCalls;
 	}
+	/**
+	 * Provides the indel call (if any) at the given reference position
+	 * @param referencePos Position to consider in the reference sequence to which this read aligned
+	 * @return GenomicVariant object with the indel call
+	 */
 	public GenomicVariant getIndelCall(int referencePos) {
 		failIfReadUnmappedOrInconsistentAlignment();
 		updateAlleleCallsInfo();
@@ -533,6 +738,9 @@ public class ReadAlignment implements GenomicRegion {
 		return indelCalls.get(referencePos);
 	}
 	
+	/**
+	 * Modifies the alignment collapsing close indel events
+	 */
 	public void collapseIndelEvents() {
 		failIfReadUnmappedOrInconsistentAlignment();
 		List<Integer> newAlignmentList = new ArrayList<Integer>();
@@ -609,6 +817,12 @@ public class ReadAlignment implements GenomicRegion {
 		alleleCallsUpdated = false;
 	}
 	
+	/**
+	 * Modifies this alignment moving the start of a given indel event
+	 * @param indelRefPos Start position of the indel event to move
+	 * @param newIndelRefPos New start position of the indel event
+	 * @return boolean true if the indel could be safely moved
+	 */
 	public boolean moveIndelStart (int indelRefPos, int newIndelRefPos) {
 		int posPrint = -1;
 		failIfReadUnmappedOrInconsistentAlignment();
@@ -677,7 +891,10 @@ public class ReadAlignment implements GenomicRegion {
 	private boolean isMatchMismatch(byte operator) {
 		return operator == ALIGNMENT_MATCH || operator == ALIGNMENT_MISMATCH;
 	}
-	
+	/**
+	 * Provides the CIGAR describing the alignment as a String object
+	 * @return String CIGAR
+	 */
 	public String getCigarString() {
 		StringBuilder cigar = new StringBuilder();
 		for(int i=0;i<alignment.length;i++) {
@@ -688,7 +905,10 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return cigar.toString();
 	}
-	
+	/**
+	 * Changes this alignment according to the given CIGAR String
+	 * @param cigarString object describing the new alignment
+	 */
 	public void setCigarString(String cigarString) {
 		int posPrint = -1;
 		if(cigarString==null) {
