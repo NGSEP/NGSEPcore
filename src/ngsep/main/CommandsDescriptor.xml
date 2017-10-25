@@ -759,6 +759,41 @@ Consider secondary alignments. By default, only primary alignments are processed
 </option>
 </command>
 
+<command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
+<intro>
+Calculates the distribution of relative allele counts
+Align reads to a reference genome
+</intro>
+<title>Find genomic regions in a reference genome</title>
+<description>
+Calculates a list of genomic regions for sites where the reads can be find in the reference genome
+</description>
+<argument>FMINDEX_FILE</argument>
+<argument>READS_FILE</argument>
+<option id="r" type="FILE" attribute="fMIndexFile">
+File with the binaries of FMINDEX
+</option>
+<option id="f" type="FILE" attribute="readsFile">
+File with sequences that needed to search with FMINDEX
+</option>
+</command>
+
+<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
+<intro>
+Creates a FMINDEX for Indexing the genome
+Align reads to a reference genome
+</intro>
+<title>Create a binary file containing a FMINDEX from genome</title>
+<description>
+Creates a FMINDEX Structure from the file genome
+</description>
+<argument>GENOME_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="t" type="INT" default="5" attribute="tallyDistance">
+Distance between tally indexes
+</option>
+</command>
+
 
 
 </NGSEP>
