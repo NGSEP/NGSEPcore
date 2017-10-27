@@ -27,6 +27,7 @@ public class FMIndex implements Serializable
 		FMIndex fmIndex = new FMIndex();
 		ReferenceGenome referenceGenome = new ReferenceGenome(filename);
 		int n = referenceGenome.getNumSequences();
+		
 		for (int i = 0; i < n; i++) 
 		{
 			QualifiedSequence q = referenceGenome.getSequenceByIndex(i);
@@ -74,5 +75,6 @@ public class FMIndex implements Serializable
 		}
 		return alignments;
 	}
+
 	
 }
