@@ -217,55 +217,55 @@ File with genomic regions in which variants should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
-<option id="d" type="INT" default="0 (No filter)">
+<option id="d" type="INT" default="0" attribute="minDistance">
 Minimum distance between variants.
 </option>
-<option id="g" type="FILE">
+<option id="g" type="FILE" >
 File with the reference genome to calculate the GC-Content of the region surrounding the variant.
 </option>
-<option id="minGC" type="FLOAT">
+<option id="minGC" type="FLOAT" attribute="minGCContent">
 Minimum percentage of GC of the 100bp region surrounding the variant.
 </option>
-<option id="maxGC" type="FLOAT">
+<option id="maxGC" type="FLOAT" attribute="maxGCContent">
 Maximum percentage of GC of the 100bp region surrounding the variant.
 </option>
-<option id="q" type="INT">
+<option id="q" type="INT" attibute="minGenotypeQuality">
 Minimum genotyping quality score (GQ field in the VCF).
 </option>
-<option id="s">
+<option id="s" type="BOOLEAN" attribute="keepOnlySNVs">
 Keep only biallelic SNVs.
 </option>
-<option id="fi">
+<option id="fi" type="BOOLEAN" attribute="filterInvariant">
 Filter out sites in which only one allele is observed.
 </option>
-<option id="fir">
+<option id="fir" type="BOOLEAN" attribute="filterInvariantReference">
 Filter sites in which only the reference allele is observed.
 </option>
-<option id="fia">
+<option id="fia" type="BOOLEAN" attribute="filterInvariantAlternative">
 Filter out sites in which only one alternative allele is observed.
 </option>
-<option id="minI" type="INT" default="0">
+<option id="minI" type="INT" default="0" attribute="minIndividualsGenotyped">
 Minimum number of individuals genotyped to keep the variant.
 </option>
-<option id="minC" type="INT" default="0">
+<option id="minC" type="INT" default="0" attribute="minCoverage">
 Minimum coverage to keep a genotype call.
 </option>
-<option id="minMAF" type="FLOAT" default="0">
+<option id="minMAF" type="FLOAT" default="0" attribute="minMAF">
 Minimum minor allele frequency over the samples in the VCF.
 </option>
-<option id="maxMAF" type="FLOAT" default="0.5 (No filter)">
+<option id="maxMAF" type="FLOAT" default="0.5" attribute="maxMAF">
 Maximum minor allele frequency over the samples in the VCF.
 </option>
-<option id="minOH" type="FLOAT" default="0">
+<option id="minOH" type="FLOAT" default="0" attribute="minOH">
 Minimum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="maxOH" type="FLOAT" default="1 (No filter)">
+<option id="maxOH" type="FLOAT" default="1" attribute="maxOH">
 Maximum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="maxCNVs" type="INT" default="No filter">
+<option id="maxCNVs" type="INT" default="-1" attribute="maxCNVs">
 Maximum number of samples with copy number variation in the region where the variant is located.
 </option>
-<option id="gene" type="STRING">
+<option id="gene" type="STRING" attribute="geneId">
 Id of the gene or the transcript related with the variant.
 </option>
 <option id="a" type="STRING">
@@ -770,12 +770,6 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 </description>
 <argument>FMINDEX_FILE</argument>
 <argument>READS_FILE</argument>
-<option id="r" type="FILE" attribute="fMIndexFile">
-File with the binaries of FMINDEX
-</option>
-<option id="f" type="FILE" attribute="readsFile">
-File with sequences that needed to search with FMINDEX
-</option>
 </command>
 
 <command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
