@@ -1,13 +1,16 @@
 package ngsep.alignments;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.util.List;
 
-import ngsep.genome.GenomeIndexer;
 import ngsep.genome.GenomicRegion;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 public class ReadsAligner {
@@ -21,21 +24,24 @@ public class ReadsAligner {
 		String readsFile = args[i++];
 		
 		FMIndex fMIndex = instance.loadIndex(fMIndexFile);
-		FastaSequencesHandler fastaSequencesHandler = new FastaSequencesHandler();
-		QualifiedSequenceList sequences = fastaSequencesHandler.loadSequences(readsFile);
 		
-		
-		
-		for (int j = 0; j < sequences.size(); j++) 
+		FileInputStream fis = new FileInputStream(readsFile);
+		BufferedReader in = new BufferedReader(new InputStreamReader(fis));
+		RawRead read = RawRead.load(in);
+		while(read!=null) 
 		{
-			QualifiedSequence actual = sequences.get(j);
-			List<GenomicRegion> r = fMIndex.search(actual.getCharacters().toString());
-			System.out.println(actual.getName() +" found in:");
+			List<GenomicRegion> r = fMIndex.search(read.getCharacters().toString());
+			System.out.println(read.getName() +" found in:");
 			for (int k = 0; k < r.size(); k++) 
 			{
 				System.out.println(r.get(k).getSequenceName()+" "+r.get(k).getFirst()+" "+r.get(k).getLast());
 			}
+			read = RawRead.load(in);
 		}
+		
+		fis.close();
+		
+			
 	}
 	
 	public FMIndex loadIndex(String fMIndexFile) throws Exception 

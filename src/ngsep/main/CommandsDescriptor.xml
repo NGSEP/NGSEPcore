@@ -770,12 +770,6 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 </description>
 <argument>FMINDEX_FILE</argument>
 <argument>READS_FILE</argument>
-<option id="r" type="FILE" attribute="fMIndexFile">
-File with the binaries of FMINDEX
-</option>
-<option id="f" type="FILE" attribute="readsFile">
-File with sequences that needed to search with FMINDEX
-</option>
 </command>
 
 <command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
