@@ -863,6 +863,31 @@ public class ReadAlignment implements GenomicRegion {
 		alleleCallsUpdated = false;
 		return true;
 	}
+	/**
+	 * Gives the number of items making the alignment encoded by the CIGAR
+	 * For example, the number of items of the CIGAR 50M10I40M is 3
+	 * @return int number of CIGAR items 
+	 */
+	public int getNumCigarItems () {
+		return alignment.length;
+	}
+	/**
+	 * Returns the length of the CIGAR item with the given index
+	 * @param itemIndex (0-based) index of the item to query
+	 * @return int length of the element at position index of the CIGAR
+	 */
+	public int getCigarItemLength (int itemIndex) {
+		return getOperationLength(alignment[itemIndex]);
+	}
+	
+	/**
+	 * Returns the operator of the CIGAR item with the given index
+	 * @param itemIndex (0-based) index of the item to query
+	 * @return int operator of item at position index of the CIGAR. See constants ALIGNMENT*
+	 */
+	public int getCigarItemOperator (int itemIndex) {
+		return getOperator(alignment[itemIndex]);
+	}
 	//Alignment encoding / decoding methods
 	private int getOperationLength(int alnValue) {
 		return alnValue/8;
