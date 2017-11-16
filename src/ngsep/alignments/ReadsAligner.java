@@ -1,17 +1,18 @@
 package ngsep.alignments;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.FMIndex;
-import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
-import ngsep.sequences.io.FastaSequencesHandler;
 
 public class ReadsAligner {
 
@@ -28,12 +29,13 @@ public class ReadsAligner {
 		FileInputStream fis = new FileInputStream(readsFile);
 		BufferedReader in = new BufferedReader(new InputStreamReader(fis));
 		RawRead read = RawRead.load(in);
+		StringBuilder sB= new StringBuilder();
 		while(read!=null) 
 		{
 			List<GenomicRegion> r = fMIndex.search(read.getCharacters().toString());
 			for (int k = 0; k < r.size(); k++) 
 			{
-				System.out.println(
+				sB.append(
 						//1.query name
 						read.getName()+"\t"+
 								
@@ -65,7 +67,7 @@ public class ReadsAligner {
 						"*\t"+
 						
 						//11. QUAL
-						"*\t"
+						"*\t\n"
 						
 						);
 			}
@@ -73,10 +75,27 @@ public class ReadsAligner {
 		}
 		
 		fis.close();
-		
+		write(readsFile, sB.toString());
 			
 	}
 	
+	private static void write(String path, String content) throws IOException 
+	{
+
+        File file = new File(path+".sam");
+
+        // if file doesnt exists, then create it
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+
+        FileWriter fw = new FileWriter(file.getAbsoluteFile(),true);
+        BufferedWriter bw = new BufferedWriter(fw);
+        bw.write(content);
+        bw.close();
+        System.out.println("saved in: "+file.getAbsolutePath());
+	}
+
 	public FMIndex loadIndex(String fMIndexFile) throws Exception 
 	{
 		FMIndex f = FMIndex.loadFromBinaries(fMIndexFile);
