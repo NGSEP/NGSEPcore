@@ -31,10 +31,43 @@ public class ReadsAligner {
 		while(read!=null) 
 		{
 			List<GenomicRegion> r = fMIndex.search(read.getCharacters().toString());
-			System.out.println(read.getName() +" found in:");
 			for (int k = 0; k < r.size(); k++) 
 			{
-				System.out.println(r.get(k).getSequenceName()+" "+r.get(k).getFirst()+" "+r.get(k).getLast());
+				System.out.println(
+						//1.query name
+						read.getName()+"\t"+
+								
+						//2.Flag
+						"1\t"+
+						
+						//3.reference sequence name
+						r.get(k).getSequenceName()+"\t"+
+						
+						//4.POS
+						r.get(k).getFirst()+"\t"+
+						
+						//5.MAPQ
+						"255\t"+
+						
+						//6.CIGAR
+						"*\t"+
+						
+						//7. RNEXT
+						"*\t"+
+						
+						//8. PNEXT
+						"0\t"+
+						
+						//9. TLEN
+						"0\t"+
+						
+						//10. SEQ
+						"*\t"+
+						
+						//11. QUAL
+						"*\t"
+						
+						);
 			}
 			read = RawRead.load(in);
 		}
