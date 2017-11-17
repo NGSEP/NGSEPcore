@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.List;
 
 import ngsep.genome.GenomicRegion;
@@ -24,23 +26,29 @@ public class ReadsAligner {
 		String fMIndexFile = args[i++];
 		String readsFile = args[i++];
 		
-		FMIndex fMIndex = instance.loadIndex(fMIndexFile);
+		instance.alignReads(fMIndexFile, readsFile, System.out);
+			
+	}
+
+	private void alignReads( String fMIndexFile, String readsFile, PrintStream out)
+			throws Exception, FileNotFoundException, IOException 
+	{
+		FMIndex fMIndex = loadIndex(fMIndexFile);
 		
 		FileInputStream fis = new FileInputStream(readsFile);
 		BufferedReader in = new BufferedReader(new InputStreamReader(fis));
 		RawRead read = RawRead.load(in);
-		StringBuilder sB= new StringBuilder();
 		while(read!=null) 
 		{
 			List<GenomicRegion> r = fMIndex.search(read.getCharacters().toString());
 			for (int k = 0; k < r.size(); k++) 
 			{
-				sB.append(
+				out.println(
 						//1.query name
 						read.getName()+"\t"+
 								
 						//2.Flag
-						"1\t"+
+						"0\t"+
 						
 						//3.reference sequence name
 						r.get(k).getSequenceName()+"\t"+
@@ -52,7 +60,7 @@ public class ReadsAligner {
 						"255\t"+
 						
 						//6.CIGAR
-						"*\t"+
+						read.getLength()+"M\t"+
 						
 						//7. RNEXT
 						"*\t"+
@@ -64,10 +72,10 @@ public class ReadsAligner {
 						"0\t"+
 						
 						//10. SEQ
-						"*\t"+
+						read.getSequenceString()+"\t"+
 						
 						//11. QUAL
-						"*\t\n"
+						read.getQualityScores()+"*"
 						
 						);
 			}
@@ -75,26 +83,24 @@ public class ReadsAligner {
 		}
 		
 		fis.close();
-		write(readsFile, sB.toString());
-			
+		out.println();
 	}
 	
-	private static void write(String path, String content) throws IOException 
-	{
-
-        File file = new File(path+".sam");
-
-        // if file doesnt exists, then create it
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-
-        FileWriter fw = new FileWriter(file.getAbsoluteFile(),true);
-        BufferedWriter bw = new BufferedWriter(fw);
-        bw.write(content);
-        bw.close();
-        System.out.println("saved in: "+file.getAbsolutePath());
-	}
+//	private static void write(String path, String content) throws IOException 
+//	{
+//
+//        File file = new File(path+".sam");
+//
+//        // if file doesnt exists, then create it
+//        if (!file.exists()) {
+//            file.createNewFile();
+//        }
+//
+//        FileWriter fw = new FileWriter(file.getAbsoluteFile(),true);
+//        BufferedWriter bw = new BufferedWriter(fw);
+//        bw.write(content);
+//        bw.close();
+//	}
 
 	public FMIndex loadIndex(String fMIndexFile) throws Exception 
 	{

@@ -22,17 +22,21 @@ public class FMIndex implements Serializable
 	 * @param filename
 	 * @throws Exception 
 	 */
-	public static FMIndex create(String filename) throws Exception 
+	public static FMIndex create(String genomeFilename) throws Exception 
 	{
 		FMIndex fmIndex = new FMIndex();
-		ReferenceGenome referenceGenome = new ReferenceGenome(filename);
+		ReferenceGenome referenceGenome = new ReferenceGenome(genomeFilename);
 		int n = referenceGenome.getNumSequences();
 		
 		for (int i = 0; i < n; i++) 
 		{
 			QualifiedSequence q = referenceGenome.getSequenceByIndex(i);
-			FMIndexSingleSequence actual = new FMIndexSingleSequence(q);
-			fmIndex.singleSequenceIndexes.add(actual);
+			DNAMaskedSequence seqChars = (DNAMaskedSequence)q.getCharacters();
+			DNAMaskedSequence reverseComplement = seqChars.getReverseComplement();
+			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(q.getName()+"_F",seqChars);
+			fmIndex.singleSequenceIndexes.add(seqForward);
+			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(q.getName()+"_R",seqChars);
+			fmIndex.singleSequenceIndexes.add(seqReverse);
 		}
 		return fmIndex;
 	}
