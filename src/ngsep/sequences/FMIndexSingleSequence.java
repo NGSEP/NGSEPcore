@@ -16,8 +16,8 @@ public class FMIndexSingleSequence implements Serializable
 	private String sequenceName;
 	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
 	private List<Integer []> tallyIndexes = new ArrayList<>();
-	private int tallyDistance=5;
-	private int sufixDistance=3;
+	private int tallyDistance=50;
+	private int sufixDistance=30;
 	private String bwt;
 	private int [] characterCounts;
 	private String alphabet="";
