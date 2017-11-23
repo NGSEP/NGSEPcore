@@ -17,7 +17,9 @@ public class FMIndexSingleSequence implements Serializable
 	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
 	private List<Integer []> tallyIndexes = new ArrayList<>();
 	private int tallyDistance=50;
-	private int sufixDistance=30;
+	
+	private int suffixFraction=10;
+	
 	private String bwt;
 	private int [] characterCounts;
 	private String alphabet="";
@@ -106,15 +108,13 @@ public class FMIndexSingleSequence implements Serializable
 	private void createPartialSufixArray(ArrayList<Integer> sufixes) 
 	{
 		partialSuffixArray = new HashMap<Integer,Integer>();
-		
-		int n = sequence.length()-1;
-		
-		while(n>=0)
-		{
-			partialSuffixArray.put(sufixes.indexOf(n), n);
-			n-=sufixDistance;
+		int n = sufixes.size();
+		for(int i=0;i<n;i++) {
+			int startSeq = sufixes.get(i);
+			if(startSeq%suffixFraction==0) {
+				partialSuffixArray.put(i, startSeq);
+			}
 		}
-		partialSuffixArray.put(sufixes.indexOf(0), 0);
 	}
 	private void buildTally(ArrayList<Integer> sufixes) 
 	{
@@ -261,7 +261,6 @@ public class FMIndexSingleSequence implements Serializable
 				}
 
 				//				if(f.indexOf(siguiente)+tallyI+tallyF-1>=f.length())
-				//Acá está el error
 				//en el calculo de los tally hay error
 				if(getIndexInFirstOf(siguiente)+tallyI-1>=bwt.length())
 				{

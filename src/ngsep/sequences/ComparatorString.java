@@ -4,8 +4,8 @@ import java.lang.Math;
 
 public class ComparatorString implements Comparator<Integer> 
 {
-	private String word;
-	public ComparatorString(String word) 
+	private CharSequence word;
+	public ComparatorString(CharSequence word) 
 	{
 		super();
 		this.word = word;
