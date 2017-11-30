@@ -107,7 +107,7 @@ public class FMIndexSingleSequence implements Serializable
 		{
 			sufixes.add(i);
 		}
-		Collections.sort(sufixes, new ComparatorString(sequence));
+		Collections.sort(sufixes, new SuffixCharSequencePositionComparator(sequence));
 		return sufixes;
 	}
 	private void createPartialSufixArray(ArrayList<Integer> sufixes) 

@@ -2,10 +2,10 @@ package ngsep.sequences;
 import java.util.Comparator;
 import java.lang.Math;
 
-public class ComparatorString implements Comparator<Integer> 
+public class SuffixCharSequencePositionComparator implements Comparator<Integer> 
 {
 	private CharSequence word;
-	public ComparatorString(CharSequence word) 
+	public SuffixCharSequencePositionComparator(CharSequence word) 
 	{
 		super();
 		this.word = word;
