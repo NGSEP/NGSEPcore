@@ -189,113 +189,79 @@ public class FMIndexSingleSequence implements Serializable
 	public List<GenomicRegion> search (String searchSequence) 
 	{
 		List<GenomicRegion> alignments = new ArrayList<>();
-
-//				System.out.println("buscando: "+searchSequence);
-		ArrayList<Integer> range = getRange(searchSequence);
-
-		for (int i = 0; i < range.size(); i++) 
+		int[] range = getRange(searchSequence);
+		if (range !=null)
 		{
-			int begin=0;
-			int actual = range.get(i);
-			if(partialSuffixArray.containsKey(actual))
-			{
-				begin = partialSuffixArray.get(actual);
-			}
-			else
-			{
-				boolean encontrado = false;
-				int posible = 0;
-				int steps =0;
-				while(!encontrado)
-				{
-					//					System.out.println("ac " +actual);
-					posible = lfMap(actual);
-					encontrado=partialSuffixArray.containsKey(posible);
-					actual =posible;
-					steps++;
-				}
-				begin = partialSuffixArray.get(posible)+steps;
-			}
-			alignments.add(new GenomicRegionImpl(sequenceName,begin , begin+searchSequence.length()));
 
+			for (int i = range[0]; i <= range[1]; i++) 
+			{
+				int begin=0;
+				int actual = i;
+				if(partialSuffixArray.containsKey(actual))
+				{
+					begin = partialSuffixArray.get(actual);
+				}
+				else
+				{
+					boolean encontrado = false;
+					int posible = 0;
+					int steps =0;
+					while(!encontrado)
+					{
+						//					System.out.println("ac " +actual);
+						posible = lfMap(actual);
+						encontrado=partialSuffixArray.containsKey(posible);
+						actual =posible;
+						steps++;
+					}
+					begin = partialSuffixArray.get(posible)+steps;
+				}
+				alignments.add(new GenomicRegionImpl(sequenceName,begin , begin+searchSequence.length()));
+
+			}
 		}
 
 		return alignments;
 	}
-	private ArrayList<Integer> getRange(String searchSequence) 
+
+	public int[] getRange(String query)
 	{
-		int begin =0;
-		int fin = bwt.length()-1;
-		boolean parar = false;
-		//		System.out.println(wantedWord);
-		for (int i = searchSequence.length()-1 ; i >=0 && !parar; i--) 
+		char c = query.charAt(query.length()-1);
+		
+		int idxS=1;
+		int idxF=-1;
+		for(int i=0;i<alphabet.length();i++) 
 		{
-			Character actual = searchSequence.charAt(i);
-			if(!alphabet.contains(""+actual))
+			char ct = alphabet.charAt(i);
+			if(ct!=c) idxS += characterCounts[alphabet.indexOf(ct)];
+			else 
 			{
-				return new ArrayList<Integer>();
-			}
-			//			System.out.println(actual);
-			//			fin = fin>=f.length()?f.length()-1:fin;
-
-			int finCopy = fin;
-			for (int j = begin; j <= finCopy; j++) 
-			{
-				//				char actual2 = f.charAt(j);
-				char actual2 = getCharacterOfFirstAt(j);
-				if(actual2==actual)
-				{
-					if(begin==0)
-						begin=j;
-
-					fin=j;
-				}
-			}
-//						System.out.println("[ "+begin+", "+fin+"]");
-
-			if(i-1>=0)
-			{
-				char siguiente = searchSequence.charAt(i-1);
-				if(!alphabet.contains(""+siguiente))
-				{
-					return new ArrayList<Integer>();
-				}
-				int tallyI=getTallyOf(siguiente, begin-1);
-//				System.out.println(siguiente);
-//				System.out.println(fin);
-				int tallyF=getTallyOf(siguiente, fin);
-
-				int diferencia=tallyF-tallyI;
-				if(diferencia==0)
-				{
-					//					System.out.println("no");
-					return new ArrayList<Integer>();
-					//					throw new Exception("no existe");
-				}
-
-				//				if(f.indexOf(siguiente)+tallyI+tallyF-1>=f.length())
-				//en el calculo de los tally hay error
-				if(getIndexInFirstOf(siguiente)+tallyI-1>=bwt.length())
-				{
-					parar=true;
-				}
-				else
-				{
-
-					//					inicio=f.indexOf(siguiente)+tallyI;
-					begin=getIndexInFirstOf(siguiente)+tallyI;
-					fin=begin+diferencia-1;
-				}
+				idxF = idxS + characterCounts[alphabet.indexOf(ct)] - 1 ;
+				break;
 			}
 		}
-		ArrayList<Integer> r = new ArrayList<Integer>();
-		int finCopy = fin;
-		for (int j = begin; j <= finCopy; j++) 
-		{
-			r.add(j);
+		if(idxF==-1) {
+			return null;
 		}
-		return r;
+		for(int j=query.length()-2;j>=0;j--) {
+			c = query.charAt(j);
+			if(!alphabet.contains(""+c)) {
+				return null;
+			}
+			boolean add1 = (bwt.charAt(idxS)!=c); 
+			idxS = lfMapping(c, idxS);
+			if(add1) idxS++; 
+			idxF = lfMapping(c, idxF);
+			if(idxS>idxF) {
+				return null;
+			}
+		}
+
+		return new int[] {idxS, idxF };
 	}
+	
+	
+	
 	private Character getCharacterOfFirstAt(int j) 
 	{
 		if(j==0)
@@ -362,6 +328,23 @@ public class FMIndexSingleSequence implements Serializable
 		//		System.out.println(j);
 		return j<bwt.length()?bwt.charAt(j):'$';
 	}
+	
+	private int lfMapping(char c, int pos) 
+	{
+		int rank = getTallyOf(c, pos);
+		int idx = 1;
+		for(int i=0;i<alphabet.length();i++) 
+		{
+			char ct = alphabet.charAt(i); 
+			if(ct!=c) idx += characterCounts[alphabet.indexOf(ct)];
+			else {
+				idx += (rank-1);
+				break;
+			}
+		}
+		return idx;
+	}
+	
 	int lfMap (int indexOfBwt)
 	{
 		char c = getCharacterOfBWTAt(indexOfBwt);
@@ -385,5 +368,7 @@ public class FMIndexSingleSequence implements Serializable
 	public void setAlphabet(String alphabet) {
 		this.alphabet = alphabet;
 	}
+	
+	
 
 }
