@@ -13,105 +13,112 @@ import ngsep.genome.GenomicRegionImpl;
 
 public class FMIndexSingleSequence implements Serializable 
 {
+	//Name of the sequence
 	private String sequenceName;
-	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
-	private List<Integer []> tallyIndexes = new ArrayList<>();
-	private int tallyDistance=50;
-	
-	private int suffixFraction=10;
-	
-	private String bwt;
-	private int [] characterCounts;
-	private String alphabet="";
+
+	//Original sequence
 	private String sequence;
-	
+
+	//startSeq of some indexes  representing a partial suffix array
+	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
+
+	//Ranks in the bwt for each character in the alphabet
+	private List<Integer []> tallyIndexes = new ArrayList<>();
+
+	//1 of each tallyDistance is saved
+	private int tallyDistance=50;
+
+	// 1/suffixFraction indexes are saved
+	private int suffixFraction=10;
+
+	//Burrows Wheeler transform
+	private String bwt;
+
+	//times each character appears
+	private int [] characterCounts;
+
+	//Inferred alphabet of the sequence ordered lexicographical 
+	private String alphabet="";
+
 	public FMIndexSingleSequence(String seqName, CharSequence sequence) 
 	{
 		sequenceName=seqName;
 		this.sequence=sequence.toString();
-		
-		ArrayList<Character> alphabetArrayList = new ArrayList<>();
-		int n = this.sequence.length();
-		for (int j = 0; j < n; j++) 
-		{
-			Character a = sequence.charAt(j);
-			if(!alphabetArrayList.contains(a))
-			{
-				alphabetArrayList.add(a);
-			}
-		}
-		
-		Collections.sort(alphabetArrayList, new Comparator<Character>() 
-		{
-
-			@Override
-			public int compare(Character arg0, Character arg1) 
-			{
-				if(arg0==arg1)
-					return 0;
-				if(arg0>arg1)
-				return 1;
-				return -1;
-			}
-		});
-		
-		StringBuilder alphabetBuilder = new StringBuilder();
-		
-		for (int i = 0; i < alphabetArrayList.size(); i++) 
-		{
-			alphabetBuilder.append(alphabetArrayList.get(i));
-		}
-		alphabet=alphabetBuilder.toString();
 		this.sequence+="$";
-		
+
 		calculate();
 	}
+
 	private void calculate() 
 	{
+		ArrayList<Integer> sufixes = buildSuffixArray();
+		String[] lAndF = getLastAndFirst(sufixes);
+		//		System.out.println("l "+lAndF[0]);
+		//		System.out.println("f "+lAndF[1]);
+		//		printSuffixes();
+		bwt=lAndF[0];
+
+		ArrayList<Character> seen = new ArrayList<>();
+		ArrayList<Integer> counts= new ArrayList<>();
+
+		//iterate last column to know alphabet and counts...
+		int j =-1;
+		for (int i = 1; i < lAndF[1].length(); i++) 
+		{
+			Character c = lAndF[1].charAt(i);
+			if(!seen.contains(c))
+			{
+				j++;
+				counts.add(1);
+				seen.add(c);
+			}
+			else
+				counts.set(j, counts.get(j)+1);
+		}
+
+		buildAlphabet(seen);
+		buildCharacterCounts(counts);
+		buildTally(sufixes);
+		createPartialSufixArray(sufixes);
+
+	}
+
+	private void buildCharacterCounts(ArrayList<Integer> counts) 
+	{
+		characterCounts=new int[alphabet.length()];
+		for (int i = 0; i < counts.size(); i++) 
+		{
+			characterCounts[i]=counts.get(i);
+		}
+	}
+
+	private void buildAlphabet(ArrayList<Character> seen) 
+	{
+		StringBuilder alp=new StringBuilder();
+		for (int i = 0; i < seen.size(); i++) 
+		{
+			alp.append(seen.get(i));
+		}
+		alphabet=alp.toString();
+	}
+	private ArrayList<Integer> buildSuffixArray() {
 		ArrayList<Integer> sufixes = new ArrayList<Integer>();
 		for (int i = 0; i < sequence.length(); i++) 
 		{
 			sufixes.add(i);
 		}
 		Collections.sort(sufixes, new ComparatorString(sequence));
-		String[] lAndF = getLastAndFirst(sufixes);
-//		System.out.println("l "+lAndF[0]);
-//		System.out.println("f "+lAndF[1]);
-//		printSuffixes();
-		buildTally(sufixes);
-		bwt=lAndF[0];
-		createPartialSufixArray(sufixes);
-		
-		ArrayList<Character> vistos = new ArrayList<>();
-		characterCounts=new int[alphabet.length()];
-		int j =-1;
-		for (int i = 1; i < lAndF[1].length(); i++) 
-		{
-			Character c = lAndF[1].charAt(i);
-			if(!vistos.contains(c))
-			{
-				j++;
-				if(j<alphabet.length())
-				characterCounts[j]++;
-				vistos.add(c);
-			}
-			else if(j<alphabet.length())
-				characterCounts[j]++;
-		}
-		
-//		System.out.println("f comprex:");
-		for (int i = 0; i < alphabet.length(); i++) 
-		{
-//			System.out.println(alphabet.charAt(i)+" "+characterCounts[i]);
-		}
+		return sufixes;
 	}
 	private void createPartialSufixArray(ArrayList<Integer> sufixes) 
 	{
 		partialSuffixArray = new HashMap<Integer,Integer>();
 		int n = sufixes.size();
-		for(int i=0;i<n;i++) {
+		for(int i=0;i<n;i++) 
+		{
 			int startSeq = sufixes.get(i);
-			if(startSeq%suffixFraction==0) {
+			if(startSeq%suffixFraction==0) 
+			{
 				partialSuffixArray.put(i, startSeq);
 			}
 		}
@@ -131,7 +138,7 @@ public class FMIndexSingleSequence implements Serializable
 			if(n>=0)
 			{
 				Character actual = sequence.charAt(n);
-//				System.out.println(actual);
+				//				System.out.println(actual);
 				arr[alphabet.indexOf(actual)]++;
 			}
 
@@ -182,8 +189,8 @@ public class FMIndexSingleSequence implements Serializable
 	public List<GenomicRegion> search (String searchSequence) 
 	{
 		List<GenomicRegion> alignments = new ArrayList<>();
-		
-//		System.out.println("buscando: "+searchSequence);
+
+//				System.out.println("buscando: "+searchSequence);
 		ArrayList<Integer> range = getRange(searchSequence);
 
 		for (int i = 0; i < range.size(); i++) 
@@ -201,7 +208,7 @@ public class FMIndexSingleSequence implements Serializable
 				int steps =0;
 				while(!encontrado)
 				{
-//					System.out.println("ac " +actual);
+					//					System.out.println("ac " +actual);
 					posible = lfMap(actual);
 					encontrado=partialSuffixArray.containsKey(posible);
 					actual =posible;
@@ -212,7 +219,7 @@ public class FMIndexSingleSequence implements Serializable
 			alignments.add(new GenomicRegionImpl(sequenceName,begin , begin+searchSequence.length()));
 
 		}
-		
+
 		return alignments;
 	}
 	private ArrayList<Integer> getRange(String searchSequence) 
@@ -220,7 +227,7 @@ public class FMIndexSingleSequence implements Serializable
 		int begin =0;
 		int fin = bwt.length()-1;
 		boolean parar = false;
-//		System.out.println(wantedWord);
+		//		System.out.println(wantedWord);
 		for (int i = searchSequence.length()-1 ; i >=0 && !parar; i--) 
 		{
 			Character actual = searchSequence.charAt(i);
@@ -228,7 +235,7 @@ public class FMIndexSingleSequence implements Serializable
 			{
 				return new ArrayList<Integer>();
 			}
-//			System.out.println(actual);
+			//			System.out.println(actual);
 			//			fin = fin>=f.length()?f.length()-1:fin;
 
 			int finCopy = fin;
@@ -244,20 +251,26 @@ public class FMIndexSingleSequence implements Serializable
 					fin=j;
 				}
 			}
-//			System.out.println("[ "+inicio+", "+fin+"]");
+//						System.out.println("[ "+begin+", "+fin+"]");
 
 			if(i-1>=0)
 			{
 				char siguiente = searchSequence.charAt(i-1);
+				if(!alphabet.contains(""+siguiente))
+				{
+					return new ArrayList<Integer>();
+				}
 				int tallyI=getTallyOf(siguiente, begin-1);
+//				System.out.println(siguiente);
+//				System.out.println(fin);
 				int tallyF=getTallyOf(siguiente, fin);
 
 				int diferencia=tallyF-tallyI;
 				if(diferencia==0)
 				{
-//					System.out.println("no");
+					//					System.out.println("no");
 					return new ArrayList<Integer>();
-//					throw new Exception("no existe");
+					//					throw new Exception("no existe");
 				}
 
 				//				if(f.indexOf(siguiente)+tallyI+tallyF-1>=f.length())
@@ -296,7 +309,7 @@ public class FMIndexSingleSequence implements Serializable
 		}
 		return null;
 	}
-	
+
 	private int getIndexInFirstOf(char c) 
 	{
 		int indexOfChar = alphabet.indexOf(c);
@@ -314,9 +327,9 @@ public class FMIndexSingleSequence implements Serializable
 		int a = i/tallyDistance;
 		int b = a+1;
 
-		if( i-a*tallyDistance < Math.abs(i-b*tallyDistance)) 
+		if( i-a*tallyDistance < Math.abs(i-b*tallyDistance) || tallyIndexes.size()<=b) 
 		{
-			
+
 			int d = tallyIndexes.get(a)[alphabet.indexOf(c)];
 
 			for (int j = a*tallyDistance+1; j <= i; j++) 
@@ -346,13 +359,13 @@ public class FMIndexSingleSequence implements Serializable
 	}
 	private Character getCharacterOfBWTAt(int j) 
 	{
-//		System.out.println(j);
+		//		System.out.println(j);
 		return j<bwt.length()?bwt.charAt(j):'$';
- 	}
+	}
 	int lfMap (int indexOfBwt)
 	{
 		char c = getCharacterOfBWTAt(indexOfBwt);
-//		System.out.println(""+c);
+		//		System.out.println(""+c);
 		int count =getTallyOf(c, indexOfBwt)-1;
 		return getIndexInFirstOf(c)+count;
 	}
@@ -372,5 +385,5 @@ public class FMIndexSingleSequence implements Serializable
 	public void setAlphabet(String alphabet) {
 		this.alphabet = alphabet;
 	}
-	
+
 }
