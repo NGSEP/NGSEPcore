@@ -223,13 +223,13 @@ Minimum distance between variants.
 <option id="g" type="FILE" attribute="genome">
 File with the reference genome to calculate the GC-Content of the region surrounding the variant.
 </option>
-<option id="minGC" type="FLOAT" attribute="minGCContent">
+<option id="minGC" type="DOUBLE" attribute="minGCContent">
 Minimum percentage of GC of the 100bp region surrounding the variant.
 </option>
-<option id="maxGC" type="FLOAT" attribute="maxGCContent">
+<option id="maxGC" type="DOUBLE" attribute="maxGCContent">
 Maximum percentage of GC of the 100bp region surrounding the variant.
 </option>
-<option id="q" type="INT" attibute="minGenotypeQuality">
+<option id="q" type="INT" attribute="minGenotypeQuality">
 Minimum genotyping quality score (GQ field in the VCF).
 </option>
 <option id="s" type="BOOLEAN" attribute="keepOnlySNVs">
@@ -250,16 +250,16 @@ Minimum number of individuals genotyped to keep the variant.
 <option id="minC" type="INT" default="0" attribute="minCoverage">
 Minimum coverage to keep a genotype call.
 </option>
-<option id="minMAF" type="FLOAT" default="0" attribute="minMAF">
+<option id="minMAF" type="DOUBLE" default="0" attribute="minMAF">
 Minimum minor allele frequency over the samples in the VCF.
 </option>
-<option id="maxMAF" type="FLOAT" default="0.5" attribute="maxMAF">
+<option id="maxMAF" type="DOUBLE" default="0.5" attribute="maxMAF">
 Maximum minor allele frequency over the samples in the VCF.
 </option>
-<option id="minOH" type="FLOAT" default="0" attribute="minOH">
+<option id="minOH" type="DOUBLE" default="0" attribute="minOH">
 Minimum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="maxOH" type="FLOAT" default="1" attribute="maxOH">
+<option id="maxOH" type="DOUBLE" default="1" attribute="maxOH">
 Maximum observed heterozygosity over the samples in the VCF.
 </option>
 <option id="maxCNVs" type="INT" default="-1" attribute="maxCNVs">
