@@ -42,6 +42,10 @@ public class GenomicRegionSortedCollection<T extends GenomicRegion> implements C
 	public GenomicRegionSortedCollection () {
 		
 	}
+	
+	public GenomicRegionSortedCollection (Collection<T> regions) {
+		addAll(regions);
+	}
 	public GenomicRegionSortedCollection (QualifiedSequenceList sequences) {
 		this();
 		this.sequences.addAll(sequences);

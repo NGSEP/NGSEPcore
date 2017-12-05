@@ -20,10 +20,9 @@
 package ngsep.vcf;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,89 +77,11 @@ public class VCFFilter {
     
     private ProgressNotifier progressNotifier=null;
 
-    public static void main(String[] args) throws IOException {
-    	if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-    		CommandsDescriptor.getInstance().printHelp(VCFFilter.class);
-			return;
-		}
+    public static void main(String[] args) throws Exception {
 		VCFFilter filter = new VCFFilter();
-		int i=0;
-		boolean systemInput = false;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-frs".equals(args[i])) {
-				i++;
-				SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
-				filter.setRegionsToFilter(regionFileHandler.loadRegions(args[i]));
-			} else if("-srs".equals(args[i])) {
-				i++;
-				SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
-				filter.setRegionsToSelect(regionFileHandler.loadRegions(args[i]));
-			} else if ("-d".equals(args[i])) {
-				i++;
-				filter.minDistance = Integer.parseInt(args[i]);
-			} else if("-g".equals(args[i])) {
-				i++;
-				filter.genome = new ReferenceGenome(args[i]);
-			} else if ("-minGC".equals(args[i])) {
-				i++;
-				filter.minGCContent = Double.parseDouble(args[i]);
-			} else if ("-maxGC".equals(args[i])) {
-				i++;
-				filter.maxGCContent = Double.parseDouble(args[i]);
-			} else if ("-q".equals(args[i])) {
-				i++;
-				filter.minGenotypeQuality = Integer.parseInt(args[i]);
-			} else if ("-fi".equals(args[i])) {
-				filter.filterInvariant = true;
-			} else if ("-fir".equals(args[i])) {
-				filter.filterInvariantReference = true;
-			} else if ("-fia".equals(args[i])) {
-				filter.filterInvariantAlternative = true;
-			} else if ("-s".equals(args[i])) {
-				filter.keepOnlySNVs = true;
-			} else if ("-minI".equals(args[i])) {
-				i++;
-				filter.minIndividualsGenotyped = Integer.parseInt(args[i]);
-			} else if ("-minC".equals(args[i])) {
-				i++;
-				filter.minCoverage = Integer.parseInt(args[i]);
-			} else if ("-minMAF".equals(args[i])) {
-				i++;
-				filter.minMAF = Double.parseDouble(args[i]);
-			} else if ("-maxMAF".equals(args[i])) {
-				i++;
-				filter.maxMAF = Double.parseDouble(args[i]);
-			} else if ("-minOH".equals(args[i])) {
-				i++;
-				filter.minOH = Double.parseDouble(args[i]);
-			} else if ("-maxOH".equals(args[i])) {
-				i++;
-				filter.maxOH = Double.parseDouble(args[i]);
-			} else if ("-maxCNVs".equals(args[i])) {
-				i++;
-				filter.maxCNVs = Integer.parseInt(args[i]);
-			} else if ("-gene".equals(args[i])) {
-				i++;
-				filter.geneId = args[i];
-			}  else if ("-a".equals(args[i])) {
-				i++;
-				filter.annotations = new TreeSet<String>();
-				filter.annotations.addAll(Arrays.asList(args[i].split(",")));
-			} else if("-saf".equals(args[i])) {
-				i++;
-				filter.setSampleIds(loadSampleIds(args[i]));
-			} else if ("-fs".equals(args[i])) {
-				filter.filterSamples = true;
-			} else if ("-".equals(args[i])) {
-				systemInput=true;
-				break;
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(VCFFilter.class);
-				return;
-			}
-			i++;
-		}
+		int i=CommandsDescriptor.getInstance().loadOptions(filter, args);
+		boolean systemInput = "-".equals(args[i]);
+
 		if(systemInput) {
 			filter.processVariantsFile(System.in, System.out);
 		} else {
@@ -168,20 +89,14 @@ public class VCFFilter {
 			filter.processVariantsFile(vcfFile,System.out);
 		}
     }
+    
+    public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
 
-    public static Set<String> loadSampleIds (String filename) throws IOException {
-    	Set<String> sampleIds = new TreeSet<String>();
-    	FileInputStream fis = new FileInputStream(filename);
-		BufferedReader in = new BufferedReader(new InputStreamReader(fis));
-		String line = in.readLine();
-		while (line != null) {
-			String[] items = line.split("\t| ");
-			sampleIds.add(items[0]);
-			line = in.readLine();
-		}
-		fis.close();
-		return sampleIds;
-    }
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
     
     public Logger getLog() {
 		return log;
@@ -195,49 +110,49 @@ public class VCFFilter {
 		return minGenotypeQuality;
 	}
 
-
-
 	public void setMinGenotypeQuality(int minGenotypeQuality) {
 		this.minGenotypeQuality = minGenotypeQuality;
 	}
 
-
-
+	public void setMinGenotypeQuality(Integer minGenotypeQuality) {
+		this.setMinGenotypeQuality(minGenotypeQuality.intValue());
+	}
+	
 	public int getMinCoverage() {
 		return minCoverage;
 	}
-
-
 
 	public void setMinCoverage(int minCoverage) {
 		this.minCoverage = minCoverage;
 	}
 
-
-
+	public void setMinCoverage(Integer minCoverage) {
+		this.setMinCoverage(minCoverage.intValue());
+	}
+	
 	public int getMinDistance() {
 		return minDistance;
 	}
-
-
-
+	
 	public void setMinDistance(int minDistance) {
 		this.minDistance = minDistance;
 	}
-
-
+	
+	public void setMinDistance(Integer minDistance) {
+		this.setMinDistance(minDistance.intValue());
+	}
 
 	public int getMinIndividualsGenotyped() {
 		return minIndividualsGenotyped;
 	}
 
-
-
 	public void setMinIndividualsGenotyped(int minIndividualsGenotyped) {
 		this.minIndividualsGenotyped = minIndividualsGenotyped;
 	}
-
-
+	
+	public void setMinIndividualsGenotyped(Integer minIndividualsGenotyped) {
+		this.setMinIndividualsGenotyped(minIndividualsGenotyped.intValue());
+	}
 
 	public boolean isKeepOnlySNVs() {
 		return keepOnlySNVs;
@@ -246,8 +161,10 @@ public class VCFFilter {
 	public void setKeepOnlySNVs(boolean keepOnlySNVs) {
 		this.keepOnlySNVs = keepOnlySNVs;
 	}
-
-
+	
+	public void setKeepOnlySNVs(Boolean keepOnlySNVs) {
+		this.setKeepOnlySNVs(keepOnlySNVs.booleanValue());
+	}
 
 	public boolean isFilterInvariant() {
 		return filterInvariant;
@@ -255,6 +172,10 @@ public class VCFFilter {
 
 	public void setFilterInvariant(boolean filterInvariant) {
 		this.filterInvariant = filterInvariant;
+	}
+	
+	public void setFilterInvariant(Boolean filterInvariant) {
+		this.setFilterInvariant(filterInvariant.booleanValue());
 	}
 
 	public boolean isFilterInvariantReference() {
@@ -264,6 +185,10 @@ public class VCFFilter {
 	public void setFilterInvariantReference(boolean filterInvariantReference) {
 		this.filterInvariantReference = filterInvariantReference;
 	}
+	
+	public void setFilterInvariantReference(Boolean filterInvariantReference) {
+		this.setFilterInvariantReference(filterInvariantReference.booleanValue());
+	}
 
 	public boolean isFilterInvariantAlternative() {
 		return filterInvariantAlternative;
@@ -271,6 +196,22 @@ public class VCFFilter {
 
 	public void setFilterInvariantAlternative(boolean filterInvariantAlternative) {
 		this.filterInvariantAlternative = filterInvariantAlternative;
+	}
+	
+	public void setFilterInvariantAlternative(Boolean filterInvariantAlternative) {
+		this.filterInvariantAlternative = filterInvariantAlternative;
+	}
+	
+	public boolean isFilterSamples() {
+		return filterSamples;
+	}
+
+	public void setFilterSamples(boolean filterSamples) {
+		this.filterSamples = filterSamples;
+	}
+	
+	public void setFilterSamples(Boolean filterSamples) {
+		this.setFilterSamples(filterSamples.booleanValue());
 	}
 
 	public double getMinMAF() {
@@ -280,6 +221,10 @@ public class VCFFilter {
 	public void setMinMAF(double minMAF) {
 		this.minMAF = minMAF;
 	}
+	
+	public void setMinMAF(Double minMAF) {
+		this.setMinMAF(minMAF.doubleValue());
+	}
 
 	public double getMaxMAF() {
 		return maxMAF;
@@ -287,6 +232,10 @@ public class VCFFilter {
 
 	public void setMaxMAF(double maxMAF) {
 		this.maxMAF = maxMAF;
+	}
+	
+	public void setMaxMAF(Double maxMAF) {
+		this.setMaxMAF(maxMAF.doubleValue());
 	}
 
 	public double getMinOH() {
@@ -296,6 +245,10 @@ public class VCFFilter {
 	public void setMinOH(double minOH) {
 		this.minOH = minOH;
 	}
+	
+	public void setMinOH(Double minOH) {
+		this.setMinOH(minOH.doubleValue());
+	}
 
 	public double getMaxOH() {
 		return maxOH;
@@ -303,6 +256,10 @@ public class VCFFilter {
 
 	public void setMaxOH(double maxOH) {
 		this.maxOH = maxOH;
+	}
+	
+	public void setMaxOH(Double maxOH) {
+		this.setMaxOH(maxOH.doubleValue());
 	}
 
 	public double getMinGCContent() {
@@ -312,6 +269,10 @@ public class VCFFilter {
 	public void setMinGCContent(double minGCContent) {
 		this.minGCContent = minGCContent;
 	}
+	
+	public void setMinGCContent(Double minGCContent) {
+		this.setMinGCContent(minGCContent.doubleValue());
+	}
 
 	public double getMaxGCContent() {
 		return maxGCContent;
@@ -320,39 +281,21 @@ public class VCFFilter {
 	public void setMaxGCContent(double maxGCContent) {
 		this.maxGCContent = maxGCContent;
 	}
-
-	public ReferenceGenome getGenome() {
-		return genome;
-	}
-
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;
+	
+	public void setMaxGCContent(Double maxGCContent) {
+		this.setMaxGCContent(maxGCContent.doubleValue());
 	}
 	
-	public List<GenomicRegion> getRegionsToFilter() {
-		return regionsToFilter.asList();
-	}
-
-	public void setRegionsToFilter(List<GenomicRegion> regions) {
-		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>();
-		this.regionsToFilter.addAll(regions);
-	}
-
-	public List<GenomicRegion> getRegionsToSelect() {
-		return regionsToSelect.asList();
-	}
-
-	public void setRegionsToSelect(List<GenomicRegion> regions) {
-		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>();
-		this.regionsToSelect.addAll(regions);
-	}
-
 	public int getMaxCNVs() {
 		return maxCNVs;
 	}
 
 	public void setMaxCNVs(int maxCNVs) {
 		this.maxCNVs = maxCNVs;
+	}
+	
+	public void setMaxCNVs(Integer maxCNVs) {
+		this.setMaxCNVs(maxCNVs.intValue());
 	}
 
 	public String getGeneId() {
@@ -370,6 +313,62 @@ public class VCFFilter {
 	public void setAnnotations(Set<String> annotations) {
 		this.annotations = annotations;
 	}
+	
+	public void setAnnotations(String csAnns) {
+		annotations = new TreeSet<String>();
+		annotations.addAll(Arrays.asList(csAnns.split(",")));
+	}
+
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	
+	public void setGenome(String genomeFile) throws IOException {
+		if(genomeFile==null || genomeFile.length()==0) this.genome = null;
+		else this.genome = new ReferenceGenome(genomeFile);
+	}
+	
+	public List<GenomicRegion> getRegionsToFilter() {
+		return regionsToFilter.asList();
+	}
+
+	public void setRegionsToFilter(List<GenomicRegion> regions) {
+		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+	
+	public void setRegionsToFilter(String regionsFile) throws IOException {
+		if(regionsFile==null || regionsFile.length()==0) {
+			this.regionsToFilter = null;
+			return;
+		}
+		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
+		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
+		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+
+	public List<GenomicRegion> getRegionsToSelect() {
+		return regionsToSelect.asList();
+	}
+
+	public void setRegionsToSelect(List<GenomicRegion> regions) {
+		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+	
+	public void setRegionsToSelect(String regionsFile) throws IOException {
+		if(regionsFile==null || regionsFile.length()==0) {
+			this.regionsToSelect = null;
+			return;
+		}
+		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
+		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
+		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+
+	
 
 	public Set<String> getSampleIds() {
 		return sampleIds;
@@ -378,24 +377,27 @@ public class VCFFilter {
 	public void setSampleIds(Set<String> sampleIds) {
 		this.sampleIds = sampleIds;
 	}
-
-	public boolean isFilterSamples() {
-		return filterSamples;
+	
+	public void setSampleIds(String sampleIdsFile) throws IOException {
+		if(sampleIdsFile==null || sampleIdsFile.length()==0) {
+			sampleIds = null;
+			return;
+		}
+		sampleIds = new TreeSet<String>();
+		try ( FileReader fr = new FileReader(sampleIdsFile);
+				BufferedReader in = new BufferedReader(fr);
+		) {
+			String line = in.readLine();
+			while (line != null) {
+				String[] items = line.split("\t| ");
+				sampleIds.add(items[0]);
+				line = in.readLine();
+			}
+		} catch (IOException e) {
+			sampleIds = null;
+			throw e;
+		}
 	}
-
-	public void setFilterSamples(boolean filterSamples) {
-		this.filterSamples = filterSamples;
-	}
-
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-
 
 	public void processVariantsFile(String vcfFile, PrintStream out) throws IOException {
 		VCFFileReader reader = null;

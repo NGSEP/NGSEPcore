@@ -207,12 +207,12 @@ called and the MAF to execute the remaining filters. Writes to the standard outp
 </description>
 <argument>OPTIONS</argument>
 <argument>INPUT_FILE</argument>
-<option id="frs" type="FILE">
+<option id="frs" type="FILE" attribute="regionsToFilter">
 File with genomic regions in which variants should be filtered out.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
-<option id="srs" type="FILE">
+<option id="srs" type="FILE" attribute="regionsToSelect">
 File with genomic regions in which variants should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
@@ -220,7 +220,7 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 <option id="d" type="INT" default="0" attribute="minDistance">
 Minimum distance between variants.
 </option>
-<option id="g" type="FILE" >
+<option id="g" type="FILE" attribute="genome">
 File with the reference genome to calculate the GC-Content of the region surrounding the variant.
 </option>
 <option id="minGC" type="FLOAT" attribute="minGCContent">
@@ -268,16 +268,16 @@ Maximum number of samples with copy number variation in the region where the var
 <option id="gene" type="STRING" attribute="geneId">
 Id of the gene or the transcript related with the variant.
 </option>
-<option id="a" type="STRING">
+<option id="a" type="STRING" attribute="annotations">
 Types of functional annotations (Missense, Nonsense, Synonymous, etc) related with the variant.
 More than one annotation can be set as a comma-separated list.
 </option>
-<option id="saf" type="FILE">
+<option id="saf" type="FILE" attribute="sampleIds">
 File with the ids of the samples to be selected (or filtered, see -fs option).
 The file should have one line per sample, being the first column the sample id.
 Other columns in the file are ignored.
 </option>
-<option id="fs">
+<option id="fs" type="BOOLEAN" attribute="filterSamples">
 Filter the samples provided with the -saf option instead of selecting them.
 </option> 
 </command>
