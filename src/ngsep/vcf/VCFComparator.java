@@ -165,7 +165,7 @@ public class VCFComparator {
 			if(it1.hasNext()) r1 = it1.next();
 			if(it2.hasNext()) r2 = it2.next();
 			int n=0;
-			while (true) {
+			while (r1!=null && r2!=null) {
 				GenomicVariant g1 = r1.getVariant();
 				GenomicVariant g2 = r2.getVariant();
 				int cmp = comparator.compare(g1, g2);
