@@ -1,4 +1,6 @@
 v3.1.1
+- RelativeAlleleCounts: Statistics are now calculated not only for the entire
+  genome but also by chromosome
 - The name of the command Deconvolute is now Demultiplex. Added option "-a" to
   allow dual barcoding of paired-end reads. In this mode, the barcode map must
   have at least 5 columns, being column 3 and 4 the R1 and R2 barcodes and the
