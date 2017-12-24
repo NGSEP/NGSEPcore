@@ -81,18 +81,15 @@ public class GFF3TranscriptomeHandler {
 		else answer = new Transcriptome(sequenceNames);
 		Map<String,GFF3GenomicFeature> features = new TreeMap<String, GFF3GenomicFeature>();
 		List<GFF3GenomicFeature> featuresWithParent = new ArrayList<GFF3GenomicFeature>();
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			in = new BufferedReader(new InputStreamReader(fis)); 
+		try (FileInputStream fis = new FileInputStream(filename);
+			 BufferedReader in = new BufferedReader(new InputStreamReader(fis))) {
 			String line=in.readLine();
 			if(!line.startsWith("##gff")) throw new IOException("File "+filename+" does not have GFF format");
 			line=in.readLine();
 			while(line!=null) {
-				if("###".equals(line.trim())) break;
+				if("##FASTA".equals(line.trim())) break;
 				if(line.length()>0 && line.charAt(0)!='#') {
-					GFF3GenomicFeature feature ;
+					GFF3GenomicFeature feature;
 					try {
 						feature = loadFeature(line); 
 					} catch (RuntimeException e) {
@@ -100,8 +97,6 @@ public class GFF3TranscriptomeHandler {
 						line=in.readLine();
 						continue;
 					}
-					
-					if(feature == null) continue;
 					int idx = Arrays.binarySearch(supportedFeatureTypes, feature.getType());
 					if(idx>=0) {
 						//Memory saver for feature types
@@ -115,9 +110,6 @@ public class GFF3TranscriptomeHandler {
 				}
 				line=in.readLine();
 			}
-		} finally {
-			if(in!=null) in.close();
-			if(fis!=null)fis.close();
 		}
 		
 		//Assign parent for features with parent id
