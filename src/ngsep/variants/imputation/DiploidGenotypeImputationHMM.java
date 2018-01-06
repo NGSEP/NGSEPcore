@@ -231,6 +231,8 @@ public class DiploidGenotypeImputationHMM extends RecombinationHMM {
 		for(int i=0;i<nextPosteriors.length;i++) {
 			outClusters[i] = viterbiPath[i];
 			CalledSNV call = genotypesSample.get(i);
+			//TODO: Phase sites with CN!=2
+			if(call.getCopyNumber()!=2) continue;
 			HaplotypePairHMMState bestState = (HaplotypePairHMMState) getState(outClusters[i]);
 			HaplotypeClusterHMMState hapState1 = bestState.getState1();
 			HaplotypeClusterHMMState hapState2 = bestState.getState2();
