@@ -39,22 +39,18 @@ public class CoverageStatisticsCalculator implements PileupListener {
 	private ProgressNotifier progressNotifier = null;
 	private long coveredGenomeSize = 0;
 	private long genomeSizeBAMFile = 0;
-	PrintStream outFile = null;
+	private String outFilename = null;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(CoverageStatisticsCalculator.class);
-			return;
-		}
 		CoverageStatisticsCalculator calculator = new CoverageStatisticsCalculator();
-		calculator.outFile = new PrintStream(args[1]);
-		calculator.processFile(args[0]);
-		calculator.outFile.flush();
-		calculator.outFile.close();
+		int i = CommandsDescriptor.getInstance().loadOptions(calculator, args);
+		String inFile = args[i++];
+		calculator.outFilename = args[i++];
+		calculator.processFile(inFile);
 	}
 	
 	/**
@@ -91,7 +87,13 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		generator.addListener(listener);
 		generator.addListener(this);
 		generator.processFile(filename);
-		if(outFile!=null) listener.printCoverageStats(outFile);
+		if(outFilename!=null) {
+			try (PrintStream outFile = new PrintStream(outFilename)){
+				listener.printCoverageStats(outFile);
+			}
+		}
+		
+		 
 	}
 	@Override
 	public void onPileup(PileupRecord pileup) {
@@ -118,12 +120,34 @@ public class CoverageStatisticsCalculator implements PileupListener {
 	}
 	
 	
-	public PrintStream getOutFile() {
-		return outFile;
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
 	}
-	public void setOutFile(PrintStream outFile) {
-		this.outFile = outFile;
+
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
 	}
+
+	/**
+	 * @return the outFilename
+	 */
+	public String getOutFilename() {
+		return outFilename;
+	}
+
+	/**
+	 * @param outFilename the outFilename to set
+	 */
+	public void setOutFilename(String outFilename) {
+		this.outFilename = outFilename;
+	}
+
 	private void loadGenomeSize(String alignmentsFile) throws IOException {
 		//Load from the alignments file
 		ReadAlignmentFileReader reader = null;
