@@ -204,7 +204,10 @@ public class VariantsDetector implements PileupListener {
 				i++;
 				detector.setSplitReadSeed(Integer.parseInt(args[i]));
 			} else if("-ignoreXS".equals(args[i])) {
-				detector.setIgnoreXSField(true);
+				System.err.println("WARN: Deprecated option -ignoreXS. Use minMQ option to control which alignments are considered unique");
+			} else if("-minMQ".equals(args[i])) {
+				i++;
+				detector.setMinMQ(Integer.parseInt(args[i]));
 			} else if("-sampleId".equals(args[i])) {
 				i++;
 				detector.setSampleId(args[i]);
@@ -249,16 +252,11 @@ public class VariantsDetector implements PileupListener {
 	}
 
 	
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		mmRegsCalc.setIgnoreXSField(ignoreXSField);
-		generator.setIgnoreXSField(ignoreXSField);
-		rpAnalyzer.setIgnoreXSField(ignoreXSField);
+	public void setMinMQ(int minMQ) {
+		mmRegsCalc.setMinMQ(minMQ);
+		generator.setMinMQ(minMQ);
+		rpAnalyzer.setMinMQ(minMQ);
 	}
-	
-	public void setIgnoreXSField(Boolean ignoreXSField) {
-		setIgnoreXSField(ignoreXSField.booleanValue());
-	}
-	
 
 	public String getReferenceFile() {
 		return referenceFile;
@@ -742,7 +740,7 @@ public class VariantsDetector implements PileupListener {
 		log.info("Max length of deletions found with RP analysis : "+getMaxLengthDeletion());
 		log.info("Ignore proper pair flag for RP analysis : "+isIgnoreProperPairFlag());
 		log.info("Size of the seed for split-read alignments : "+getSplitReadSeed()); 
-		log.info("Ignore XS field: "+mmRegsCalc.isIgnoreXSField());
+		log.info("Minimum mapping quality to consider an alignment unique: "+mmRegsCalc.getMinMQ());
 		
 		log.info("Sample id: "+sampleId);
 		
@@ -771,7 +769,7 @@ public class VariantsDetector implements PileupListener {
 		log.info("Loaded bins. Assembly genome size: "+rdDistribution.getGenomeSize());
 		//Pass parameters
 		rdDistribution.setLog(this.getLog());
-		rdDistribution.setIgnoreXSField(generator.isIgnoreXSField());
+		rdDistribution.setMinMQ(generator.getMinMQ());
 		
 		
 		log.info("Processing alignments file: "+alignmentsFile);

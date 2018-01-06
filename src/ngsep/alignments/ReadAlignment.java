@@ -49,16 +49,18 @@ public class ReadAlignment implements GenomicRegion {
 	//Internal flag to know if the pair maps to a different chromosome
 	public static final int FLAG_MATE_DIFFERENT_SEQUENCE = 0x2000;
 	
-	public static byte ALIGNMENT_DELETION = 1; //D operation in SAM format
-	public static byte ALIGNMENT_MATCH = 3; //M and = operations in SAM format
-	public static byte ALIGNMENT_INSERTION = 2; //I  operation in SAM format
-	public static byte ALIGNMENT_MISMATCH = 7; //X operation in SAM format
-	public static byte ALIGNMENT_SKIPFROMREAD = 6; //S operation in SAM format
-	public static byte ALIGNMENT_SKIPFROMREF = 5; //N operation in SAM format
-	public static byte ALIGNMENT_HARDCLIP = 0; //H operation in SAM format
-	public static byte ALIGNMENT_PADDING = 4; //P operation in SAM format
+	public static final byte ALIGNMENT_DELETION = 1; //D operation in SAM format
+	public static final byte ALIGNMENT_MATCH = 3; //M and = operations in SAM format
+	public static final byte ALIGNMENT_INSERTION = 2; //I  operation in SAM format
+	public static final byte ALIGNMENT_MISMATCH = 7; //X operation in SAM format
+	public static final byte ALIGNMENT_SKIPFROMREAD = 6; //S operation in SAM format
+	public static final byte ALIGNMENT_SKIPFROMREF = 5; //N operation in SAM format
+	public static final byte ALIGNMENT_HARDCLIP = 0; //H operation in SAM format
+	public static final byte ALIGNMENT_PADDING = 4; //P operation in SAM format
 	
 	public static String ALIGNMENT_CHAR_CODES = "HDIMPNSX";
+	
+	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = 20; 
 	
 	
 	

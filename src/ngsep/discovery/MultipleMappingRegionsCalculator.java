@@ -39,7 +39,7 @@ public class MultipleMappingRegionsCalculator {
 	
 	public static final String SOURCE_MULTIPLE_ALNS = "MultiAlns";
 	private short minGenotypeQuality = 7;
-	private boolean ignoreXSField = false;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	
 	
@@ -50,12 +50,20 @@ public class MultipleMappingRegionsCalculator {
 	public void setMinGenotypeQuality(short minGenotypeQuality) {
 		this.minGenotypeQuality = minGenotypeQuality;
 	}
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
+	
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
 	}
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
 	}
+	
 	public List<CalledCNV> calculateMultipleMappingRegions(String alnsFile) throws IOException {
 		List<CalledCNV> multipleMappingRegions = new ArrayList<CalledCNV>();
 		GenomicRegionImpl lastRegion = null;
@@ -67,7 +75,7 @@ public class MultipleMappingRegionsCalculator {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			String currentSeqName = null;
 			Iterator<ReadAlignment> it = reader.iterator();
 			while(it.hasNext()) {

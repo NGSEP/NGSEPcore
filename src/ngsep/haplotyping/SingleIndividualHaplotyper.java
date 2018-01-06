@@ -23,6 +23,9 @@ public class SingleIndividualHaplotyper {
 
 	private String algorithmClassName = "ngsep.haplotyping.RefhapSIHAlgorithm";
 	private SIHAlgorithm algorithm;
+	
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	
 	public static void main(String[] args) throws Exception {
 		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -30,6 +33,27 @@ public class SingleIndividualHaplotyper {
 		String vcfFilename = args[i++];
 		String bamFilename = args[i++];
 		instance.process (vcfFilename,bamFilename,System.out);
+	}
+	
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
+	}
+
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
+	}
+	
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(Integer minMQ) {
+		this.setMinMQ(minMQ.intValue());
 	}
 	
 	public void setAlgorithmName(String name) {
@@ -56,7 +80,9 @@ public class SingleIndividualHaplotyper {
 			vcfWriter.printHeader(header, out);
 			alnReader = new ReadAlignmentFileReader(bamFilename);
 			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
+			alnReader.setMinMQ(minMQ);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
+			filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
 			alnReader.setFilterFlags(filterFlags);
 			Iterator<ReadAlignment> alnIt = alnReader.iterator();
 			ReadAlignment nextAln = alnIt.next();

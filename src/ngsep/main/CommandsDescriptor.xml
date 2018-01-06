@@ -1,4 +1,4 @@
-<NGSEP version="3.1.1" date="31-10-2017">
+<NGSEP version="3.1.1" date="16-01-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FindVariants" class="ngsep.discovery.VariantsDetector">
@@ -93,9 +93,11 @@ The proper pair flag will be ignored when deciding if the ends of each fragment 
 properly aligned. By default, the estimation of the insert length distribution only 
 account reads with the proper pair flag.
 </option>
-<option id="ignoreXS">
-Ignores the XS field to decide if an alignment is unique. This flag should always be
-used to process BAM files made with BWA-MEM and BWA-SW.
+<option id="ignoreXS" deprecated="true">
+Deprecated. Use minMQ option to control which alignments are considered unique
+</option>
+<option id="minMQ" type="INT" default="20">
+Minimum mapping quality to call an alignment unique
 </option>
 <option id="sampleId" type="STRING">
 Id of the sample for the VCF file.
@@ -363,7 +365,7 @@ Name of the sequence (chromosome) for conversion to PHASE.
 
 <command id="QualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator">
 <intro> Detects sequencing error biases</intro>
-<title>Calculating coverage statistics</title>
+<title>Calculating base quality statistics</title>
 <description>
 This module takes one or more sets of alignments and a reference genome and
 counts the number of mismatches with the reference for each read position from
@@ -374,9 +376,11 @@ was used to produce the alignments.
 <argument>OPTIONS</argument>
 <argument>REFERENCE_FILE</argument>
 <argument multiple="true">ALIGNMENTS_FILE</argument>
-<option id="ignoreXS">
-Ignores the XS field to decide if an alignment is unique. This flag should always be
-used to process BAM files made with BWA-MEM and BWA-SW.
+<option id="ignoreXS" deprecated="true">
+Deprecated. Use minMQ option to control which alignments are considered unique
+</option>
+<option id="minMQ" type="INT" default="20" attribute="minMQ">
+Minimum mapping quality to call an alignment unique
 </option>
 </command>
 
@@ -389,6 +393,9 @@ each coverage level from 1 to a maximum. Alignments must be in SAM|BAM format.
 </description>
 <argument>ALIGNMENTS_FILE</argument>
 <argument>OUTPUT_FILE</argument>
+<option id="minMQ" type="INT" default="20">
+Minimum mapping quality to call an alignment unique
+</option>
 </command>
 
 <command id="CompareVCF" class="ngsep.vcf.VCFComparator">

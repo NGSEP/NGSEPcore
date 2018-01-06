@@ -51,7 +51,6 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	
 	
 	private static final String ATTRIBUTE_NUMALNS="NH";
-	private static final String ATTRIBUTE_SCORE_SECOND_ALN="XS";
 	
 	private Logger log = Logger.getLogger(ReadAlignmentFileReader.class.getName());
 	
@@ -65,9 +64,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	private int filterFlags = 0;
 	//TODO: Change to false by default
 	private int loadMode = LOAD_MODE_FULL;
-	private boolean ignoreXSField = false;
 	private boolean validateHeader = true;
-	private int minMappingQualityUnique = 20;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	public ReadAlignmentFileReader (String filename) throws IOException {
 		init(null,new File(filename));
@@ -105,12 +103,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	public QualifiedSequenceList getSequences() {
 		return sequences;
 	}
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
-	}
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
-	}
+	
 	public List<String> getReadGroups() {
 		return readGroups.getNamesStringList();
 	}
@@ -120,6 +113,12 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	}
 	public void setLoadMode(int loadMode) {
 		this.loadMode = loadMode;
+	}
+	public int getMinMQ() {
+		return minMQ;
+	}
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
 	}
 	@Override
 	public void close() throws IOException {
@@ -185,7 +184,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			currentSequenceName = sequenceName;
 		}
 		int flags = alnRecord.getFlags();
-		if(!isUnique(alnRecord)) flags += ReadAlignment.FLAG_MULTIPLE_ALN;
+		if(isMultiple(alnRecord)) flags += ReadAlignment.FLAG_MULTIPLE_ALN;
 		String mateSequenceName = sequenceName;
 		boolean differentSequence = alnRecord.getReferenceIndex()!= alnRecord.getMateReferenceIndex();
 		if(differentSequence) {
@@ -229,17 +228,13 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		return sequenceName;
 	}
 	
-	private boolean isUnique(SAMRecord aln) {
-		if (aln.getNotPrimaryAlignmentFlag()) return false;
+	private boolean isMultiple(SAMRecord aln) {
+		if (aln.getNotPrimaryAlignmentFlag()) return true;
 		Integer alns = aln.getIntegerAttribute(ATTRIBUTE_NUMALNS);
-		if(alns!=null && alns > 1) return false;
-		if(alns!=null && alns == 1) return true;
-		if(!ignoreXSField) {
-			Integer scoreSecond = aln.getIntegerAttribute(ATTRIBUTE_SCORE_SECOND_ALN);
-			if(scoreSecond!=null) return false;
-		}
-		if (aln.getMappingQuality()<minMappingQualityUnique) return false;
-		return true;
+		if(alns!=null && alns > 1) return true;
+		if(alns!=null && alns == 1) return false;
+		if (aln.getMappingQuality()<minMQ) return true;
+		return false;
 	}
 	private static boolean isSameAlignment (SAMRecord aln1, SAMRecord aln2) {
 		if(aln1 == null) return aln2==null;

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Logger;
 
+import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
@@ -39,6 +40,7 @@ public class CoverageStatisticsCalculator implements PileupListener {
 	private long coveredGenomeSize = 0;
 	private long genomeSizeBAMFile = 0;
 	PrintStream outFile = null;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	/**
 	 * @param args
@@ -54,6 +56,28 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		calculator.outFile.flush();
 		calculator.outFile.close();
 	}
+	
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
+	}
+
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
+	}
+	
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(Integer minMQ) {
+		this.setMinMQ(minMQ.intValue());
+	}
+	
 	public void processFile(String filename) throws IOException {
 		CoverageStatsPileupListener listener = new CoverageStatsPileupListener();
 		coveredGenomeSize = 0;
@@ -63,6 +87,7 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		generator.setLog(log);
 		generator.setProcessSecondaryAlignments(true);
 		generator.setMaxAlnsPerStartPos(100);
+		generator.setMinMQ(minMQ);
 		generator.addListener(listener);
 		generator.addListener(this);
 		generator.processFile(filename);

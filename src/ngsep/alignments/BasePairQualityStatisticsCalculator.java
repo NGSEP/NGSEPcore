@@ -56,26 +56,11 @@ public class BasePairQualityStatisticsCalculator {
 	// Progress tracking for external control
 	private ProgressNotifier progressNotifier=null;
 	private ReferenceGenome genome;
-	private boolean ignoreXSField = false;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(BasePairQualityStatisticsCalculator.class);
-			return;
-		}
 		BasePairQualityStatisticsCalculator stats = new BasePairQualityStatisticsCalculator();
-		
-		int i=0;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-ignoreXS".equals(args[i])) {
-				stats.setIgnoreXSField(true);
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(BasePairQualityStatisticsCalculator.class);
-				return;
-			}
-			i++;
-		}
+		int i=CommandsDescriptor.getInstance().loadOptions(stats, args);
 		String reference = args[i++];
 		
 		stats.genome = new ReferenceGenome(reference);
@@ -94,16 +79,29 @@ public class BasePairQualityStatisticsCalculator {
 		this.log = log;
 	}
 
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
+	}
+
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
+	}
+	
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(Integer minMQ) {
+		this.setMinMQ(minMQ.intValue());
+	}
+
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
-	}
-
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
-	}
-
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
 	}
 	
 	public long getTotalAlignments() {
@@ -153,6 +151,7 @@ public class BasePairQualityStatisticsCalculator {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
+			reader.setMinMQ(minMQ);
 			Iterator<ReadAlignment> it = reader.iterator();
 			while (it.hasNext()) {
 				ReadAlignment aln = it.next();

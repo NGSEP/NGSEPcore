@@ -57,7 +57,7 @@ public class AlignmentsPileupGenerator {
 	private boolean processSecondaryAlignments = false;
 	private byte basesToIgnore5P = 0;
 	private byte basesToIgnore3P = 0;
-	private boolean ignoreXSField = false;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 
 	public void addListener(PileupListener listener) {
@@ -131,12 +131,17 @@ public class AlignmentsPileupGenerator {
 		this.basesToIgnore3P = basesToIgnore3P;
 	}
 	
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
 	}
-
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
 	}
 
 	public boolean isKeepRunning() {
@@ -156,7 +161,7 @@ public class AlignmentsPileupGenerator {
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			if(!processSecondaryAlignments ) filterFlags+=ReadAlignment.FLAG_SECONDARY;
 			reader.setFilterFlags(filterFlags);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			sequencesMetadata = reader.getSequences();
 			boolean querySeqFound = false;
 			Iterator<ReadAlignment> it = reader.iterator();

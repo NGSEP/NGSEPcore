@@ -49,6 +49,7 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_TYPE="type";
 	public static final String ATTRIBUTE_DEFAULT="default";
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
+	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ELEMENT_COMMAND="command";
 	public static final String ELEMENT_TITLE="title";
 	public static final String ELEMENT_INTRO="intro";
@@ -174,6 +175,8 @@ public class CommandsDescriptor {
 					if(optDefault!=null && optDefault.trim().length()>0) opt.setDefaultValue(optDefault);
 					String optAttribute = elem.getAttribute(ATTRIBUTE_ATTRIBUTE);
 					if(optAttribute!=null && optAttribute.trim().length()>0) opt.setAttribute(optAttribute);
+					String optDeprecated = elem.getAttribute(ATTRIBUTE_DEPRECATED);
+					if(optDeprecated!=null) opt.setDeprecated("true".equals(optDeprecated.trim().toLowerCase()));
 					String description = loadText(elem);
 					if(description==null || description.length()==0) throw new RuntimeException("Option "+optId+" does not have a description");
 					opt.setDescription(description);
@@ -265,24 +268,26 @@ public class CommandsDescriptor {
 		System.err.println("OPTIONS:");
 		System.err.println();
 		List<CommandOption> options = c.getOptionsList(); 
-		int longerOpt = getLongerOption(options);
+		int longestOpt = getLongestOption(options);
 		for(CommandOption option:options) {
+			if(option.isDeprecated()) continue;
 			System.err.print("        -"+option.getId());
 			if(option.printType() ) System.err.print(" "+option.getType());
 			int optLength = option.getPrintLength();
-			int diff = longerOpt-optLength;
+			int diff = longestOpt-optLength;
 			for(int i=0;i<diff+1;i++)System.err.print(" ");
 			System.err.print(": ");
 			String desc = option.getDescription();
 			if(option.getDefaultValue()!=null) desc+=" Default: "+option.getDefaultValue();
-			printDescription(desc,longerOpt+3);
+			printDescription(desc,longestOpt+3);
 		}
 		System.err.println();
 	}
 	
-	private int getLongerOption(List<CommandOption> options) {
+	private int getLongestOption(List<CommandOption> options) {
 		int max = 0;
 		for(CommandOption opt:options) {
+			if(opt.isDeprecated()) continue;
 			int l = opt.getPrintLength();
 			if(max<l) max = l;
 		}
@@ -348,6 +353,12 @@ public class CommandsDescriptor {
 				System.err.println("Unrecognized option "+args[i]);
 				printHelp(programInstance.getClass());
 				System.exit(1);
+			} else if (o.isDeprecated()) {
+				System.err.println("WARN: Deprecated option "+args[i]);
+				System.err.println(o.getDescription());
+				i++;
+				if(!CommandOption.TYPE_BOOLEAN.equals(o.getType())) i++;
+				continue;
 			}
 			Method setter = o.findSetMethod(programInstance);
 			Object value=null;

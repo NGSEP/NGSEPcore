@@ -52,7 +52,7 @@ public class ReadDepthDistribution {
 	//Parameters of the distribution of read depth
 	private double meanReadDepth=0;
 	private double sigmaReadDepth = 1;
-	private boolean ignoreXSField = false;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	
 	public Logger getLog() {
@@ -67,12 +67,17 @@ public class ReadDepthDistribution {
 		return genomeSize;
 	}
 
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
 	}
-
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
 	}
 
 	public QualifiedSequenceList getSequences() {
@@ -170,7 +175,7 @@ public class ReadDepthDistribution {
 			reader.setLog(log);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			Iterator<ReadAlignment> it = reader.iterator();
 			//Sequence under processing
 			while(it.hasNext()) {

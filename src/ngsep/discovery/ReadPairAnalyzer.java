@@ -55,7 +55,7 @@ public class ReadPairAnalyzer {
 	private int maxLengthDeletion = 1000000;
 	private boolean ignoreProperPairFlag = false;
 	private GenomicRegionSortedCollection<CalledCNV> duplications = new GenomicRegionSortedCollection<CalledCNV>();
-	private boolean ignoreXSField = false;
+	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	private int seedSize = 8;
 	
 	private ReferenceGenome reference;
@@ -101,12 +101,18 @@ public class ReadPairAnalyzer {
 		this.ignoreProperPairFlag = ignoreProperPairFlag;
 	}
 
-	public boolean isIgnoreXSField() {
-		return ignoreXSField;
+	/**
+	 * @return the minMQ
+	 */
+	public int getMinMQ() {
+		return minMQ;
 	}
 
-	public void setIgnoreXSField(boolean ignoreXSField) {
-		this.ignoreXSField = ignoreXSField;
+	/**
+	 * @param minMQ the minMQ to set
+	 */
+	public void setMinMQ(int minMQ) {
+		this.minMQ = minMQ;
 	}
 
 	public ReferenceGenome getReference() {
@@ -213,7 +219,7 @@ public class ReadPairAnalyzer {
 			filterFlags += ReadAlignment.FLAG_MATE_DIFFERENT_SEQUENCE;
 			reader.setFilterFlags(filterFlags);
 			reader.setRequiredFlags(ReadAlignment.FLAG_PAIRED);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			String currentSeqName = null;
 			List<String> readGroups = reader.getReadGroups();
 			for(String rg:readGroups) insertLengthDistributions.put(rg, new Distribution(1, 200000, 1));
@@ -344,7 +350,7 @@ public class ReadPairAnalyzer {
 			filterFlags += ReadAlignment.FLAG_MULTIPLE_ALN;
 			reader.setFilterFlags(filterFlags);
 			reader.setRequiredFlags(ReadAlignment.FLAG_PAIRED);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			String currentSeqName = null;
 			List<SameChromosomeAbnormalLengthAln> seqDelAlns=null;
 			List<SameChromosomeAbnormalLengthAln> seqInsAlns=null;
@@ -677,7 +683,7 @@ public class ReadPairAnalyzer {
 			reader = new ReadAlignmentFileReader(filename);
 			reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
 			reader.setRequiredFlags(ReadAlignment.FLAG_PAIRED);
-			reader.setIgnoreXSField(ignoreXSField);
+			reader.setMinMQ(minMQ);
 			int i = 0;
 			String currentSeqName = null;
 			Map<String, ReadAlignment> unmappedPairs = new TreeMap<String, ReadAlignment>();

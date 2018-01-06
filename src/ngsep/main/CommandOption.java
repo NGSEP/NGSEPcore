@@ -36,6 +36,7 @@ public class CommandOption {
 	private String defaultValue=null;
 	private String description;
 	private String attribute;
+	private boolean deprecated = false;
 	
 	public CommandOption(String id) {
 		super();
@@ -78,6 +79,13 @@ public class CommandOption {
 	}
 	public void setAttribute(String attribute) {
 		this.attribute = attribute;
+	}
+	
+	public boolean isDeprecated() {
+		return deprecated;
+	}
+	public void setDeprecated(boolean deprecated) {
+		this.deprecated = deprecated;
 	}
 	public boolean printType () {
 		return type!=null && !TYPE_BOOLEAN.equals(type); 

@@ -5,6 +5,12 @@ v3.1.1
   allow dual barcoding of paired-end reads. In this mode, the barcode map must
   have at least 5 columns, being column 3 and 4 the R1 and R2 barcodes and the
   5th column the sample ID
+- QualStats: Deprecated option "-ignoreXS". Added option "-minMQ" to set the
+  minimum mapping quality to consider an alignment unique
+- FindVariants: Deprecated option "-ignoreXS". Added option "-minMQ" to set the
+  minimum mapping quality to consider an alignment unique
+- CoverageStats: Added option "-minMQ" to set the minimum mapping quality to
+  consider an alignment unique
 
 v3.1.0 26-07-2017
 - The VCF I/O now interprets correctly phasing information
