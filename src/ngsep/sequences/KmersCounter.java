@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -23,7 +24,8 @@ public class KmersCounter {
 	private Logger log = Logger.getLogger(KmersCounter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private Map<String, Integer> hashKmers = new Hashtable<>();
+	private Map<CharSequence, Integer> hashKmers = new Hashtable<>();
+	//private DNAShortKmersTable<CharSequence, Integer> hashKmers = new DNAShortKmersTable<>();
 	private boolean bothStrands = false;
 	private boolean fasta = false;
 	private int kmerSize = 21;
@@ -74,6 +76,7 @@ public class KmersCounter {
 		BufferedReader in = new BufferedReader(new InputStreamReader (fis));
 		//Read sequences
 		QualifiedSequence qsequence = RawRead.load(in);
+		int i=0;
 		while(qsequence!=null){
 			
 			String sequence = qsequence.getCharacters().toString();
@@ -86,6 +89,8 @@ public class KmersCounter {
 				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 				countSequenceKmers(reverseSequence);
 			}
+			i++;
+			if(i%100000==0) System.err.println("Processed "+i+" reads");
 			qsequence = RawRead.load(in);
 		}
 	}
@@ -126,9 +131,11 @@ public class KmersCounter {
 		
 		
 		//Make kmer spectrum
-		
-		for (Map.Entry<String, Integer> entry : hashKmers.entrySet()) {
-		    Integer value = entry.getValue();
+		System.err.println("Building key set");
+		Set<CharSequence> keys = hashKmers.keySet();
+		System.err.println("Calculating distribution from "+keys.size()+" keys");
+		for (CharSequence key : keys) {
+		    Integer value = hashKmers.get(key);
 		    kmerSpectrum.processDatapoint(value);
 		}
 	}
@@ -141,28 +148,38 @@ public class KmersCounter {
 	
 	/**
 	 * Get the Kmers count of a sequence
-	 * @param seq Genomic sequence
-	 * @param length Mer length
-	 * @return Hashtable<String, Integer> hashtable with the kmers count of the given sequence
+	 * @param seq Sequence to count kmers
 	 */
 	//Count kmer per sequence
-	public void countSequenceKmers(String seq)
+	public void countSequenceKmers(CharSequence seq)
 	{
 		int seqLength = seq.length();
 		
-		if(seqLength > kmerSize) {
-			for(int i = 0; i < seqLength - kmerSize + 1; i++)
-			{
-				String kmer = seq.substring(i,kmerSize + i);
-				if(hashKmers.containsKey(kmer)) {
-					hashKmers.put(kmer, hashKmers.get(kmer) + 1);
-				} else {
-					hashKmers.put(kmer, 1);
-				}
-			
-			}
-		} else {
+		if(seqLength < kmerSize) {
 			log.warning("Sequence "+seq+" smaller than k-mer size");
+			return;
+		}
+		for(int i = 0; i < seqLength - kmerSize + 1; i++)
+		{
+			CharSequence kmer = seq.subSequence(i,kmerSize + i);
+			//TODO: Validate
+			try {
+				if(kmerSize<=30) {
+					kmer = new DNAShortKmer(kmer.toString());
+				} else {
+					kmer = new DNASequence(kmer.toString());
+				}
+			} catch (IllegalArgumentException e) {
+				//Kmer is not DNA
+				continue;
+			}
+			Integer count = hashKmers.get(kmer);
+			if(count!=null) {
+				hashKmers.put(kmer, count + 1);
+			} else {
+				hashKmers.put(kmer, 1);
+			}
+		
 		}
 		
 	}

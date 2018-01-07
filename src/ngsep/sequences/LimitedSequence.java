@@ -22,7 +22,7 @@ package ngsep.sequences;
  * Interface for sequences with a small defined character set
  * @author Jorge Duitama
  */
-public interface LimitedSequence extends CharSequence {
+public interface LimitedSequence extends CharSequence,Comparable<LimitedSequence> {
 	/**
 	 * Makes this sequence equals to the given sequence
 	 * @param sequence Sequence with data to copy

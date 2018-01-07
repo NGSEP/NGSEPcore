@@ -189,6 +189,28 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		}
 	}
 	@Override
+	public int compareTo (LimitedSequence sequence2) {
+		if(!(sequence2 instanceof AbstractLimitedSequence)) throw new RuntimeException("Default method only can compare AbstractLimitedSequence objects");
+		AbstractLimitedSequence s2 = (AbstractLimitedSequence)sequence2;
+		if(this.getAlphabet()!=s2.getAlphabet()) throw new RuntimeException("Attempt to compare two limited sequences with different alphabets");
+		int [] seq1 = this.sequence;
+		int [] seq2 = s2.sequence;
+		int i;
+		for(i=0;i<seq1.length -1 && i < seq2.length -1;i++) {
+			if(seq1[i]!=seq2[i]) return seq1[i]-seq2[i];
+		}
+		int hs1 = this.getHashSize(i);
+		int hs2 = s2.getHashSize(i);
+		char [] c1 = getSequence(seq1[i], hs1);
+		char [] c2 = getSequence(seq2[i], hs2);
+		for(int j=0;j<c1.length && j<c2.length;j++) {
+			if(c1[j]!=c2[j]) return getAlphabetIndex(c1[j])-getAlphabetIndex(c2[j]);
+		}
+		if(c1.length!=c2.length) return c1.length - c2.length;
+		if(seq1.length!=seq2.length) return seq1.length - seq2.length;
+		return 0;
+	}
+	@Override
 	public String toString() {
 		if(length()==0) return "";
 		StringBuffer answer = new StringBuffer();
@@ -197,6 +219,26 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 			answer.append(getSequence(sequence[i], size));
 		}
 		return answer.toString();
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(!(o instanceof AbstractLimitedSequence)) return false;
+		LimitedSequence seq2 = (LimitedSequence) o;
+ 		return compareTo(seq2)==0;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		if(sequence.length==0) return 0;
+		long absoluteNumber = (long)sequence[0]-(long)Integer.MIN_VALUE;
+		return ((int)(absoluteNumber%100000000));
 	}
 
 	private int getHashSize(int pos) {
@@ -227,7 +269,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 	 * @param seq Sequence to calculate hash
 	 * @param start Zero based first position
 	 * @param end Zero based last position
-	 * @return int Number representing the substring of seq between first and last, both included
+	 * @return int Number representing the substring of seq between start (included) and end (not included)
 	 */
 	private int getHash(CharSequence seq, int start, int end) {
 		long number =0;
@@ -247,7 +289,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		return (int)(number+Integer.MIN_VALUE);
 	}
 	/**
-	 * Gets the sequence corresponding withb the given hash and the given size
+	 * Gets the sequence corresponding with the given hash and the given size
 	 * @param number Hash number to decode
 	 * @param size Size of the sequence to return
 	 * @return char[] Decoded String as a char array
