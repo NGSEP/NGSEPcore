@@ -164,7 +164,7 @@ public class KmersCounter {
 			CharSequence kmer = seq.subSequence(i,kmerSize + i);
 			//TODO: Validate
 			try {
-				if(kmerSize<=30) {
+				if(kmerSize<=31) {
 					kmer = new DNAShortKmer(kmer.toString());
 				} else {
 					kmer = new DNASequence(kmer.toString());

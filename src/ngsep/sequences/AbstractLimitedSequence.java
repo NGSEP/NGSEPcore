@@ -272,20 +272,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 	 * @return int Number representing the substring of seq between start (included) and end (not included)
 	 */
 	private int getHash(CharSequence seq, int start, int end) {
-		long number =0;
-		int alpSize = getAlphabetSize();
-		for(int i=start;i<end;i++) {
-			number*=alpSize;
-			int index = getAlphabetIndex(seq.charAt(i));
-			if(index <0) {
-				index = getDefaultIndex();
-			}
-			if(index <0) {
-				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by sequence of type "+getClass().getName());
-			}
-			number+=index;
-			if(number<0) throw new RuntimeException("Encoding reached a long negative number for sequence: "+seq+" between "+start+" and "+end);
-		}
+		long number = getHash(seq, start, end, this);
 		return (int)(number+Integer.MIN_VALUE);
 	}
 	/**
@@ -295,14 +282,51 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 	 * @return char[] Decoded String as a char array
 	 */
 	private char [] getSequence(int number, int size) {
-		char [] answer = new char[size];
-		int alpSize = getAlphabetSize();
 		long absoluteNumber = (long)number-(long)Integer.MIN_VALUE;
+		return getSequence(absoluteNumber, size,this);
+	}
+	
+	/**
+	 * Returns the number corresponding with a suitable size substring of the given sequence 
+	 * @param seq Sequence to calculate hash
+	 * @param start Zero based first position
+	 * @param end Zero based last position
+	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
+	 */
+	public static long getHash(CharSequence seq, int start, int end, AbstractLimitedSequence targetSeq) {
+		long number =0;
+		int alpSize = targetSeq.getAlphabetSize();
+		for(int i=start;i<end;i++) {
+			number*=alpSize;
+			int index = targetSeq.getAlphabetIndex(seq.charAt(i));
+			if(index <0) {
+				index = targetSeq.getDefaultIndex();
+			}
+			if(index <0) {
+				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by sequence of type "+targetSeq.getClass().getName());
+			}
+			number+=index;
+			if(number<0) throw new RuntimeException("Encoding reached a long negative number for sequence: "+seq+" between "+start+" and "+end);
+		}
+		return number;
+	}
+	
+	/**
+	 * Gets the sequence corresponding with the given hash and the given size
+	 * @param number Hash number to decode
+	 * @param size Size of the sequence to return
+	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * @return char[] Decoded String as a char array
+	 */
+	public static char [] getSequence(long number, int size, AbstractLimitedSequence targetSeq) {
+		char [] answer = new char[size];
+		int alpSize = targetSeq.getAlphabetSize();
 		for(int i=0;i<size;i++) {
-			int nextDigit = (int)(absoluteNumber%alpSize);
+			int nextDigit = (int)(number%alpSize);
 			int index = size-i-1;
-			answer[index] = getAlphabetCharacter(nextDigit);
-			absoluteNumber = absoluteNumber/alpSize;
+			answer[index] = targetSeq.getAlphabetCharacter(nextDigit);
+			number = number/alpSize;
 		}
 		return answer;
 	}

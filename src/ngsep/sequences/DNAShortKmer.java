@@ -1,37 +1,29 @@
 package ngsep.sequences;
 
-public class DNAShortKmer implements CharSequence {
-	private int index1;
-	private int index2=0;
-	private byte l1;
-	private byte l2=0;
-	private static final String ALPHABET = DNASequence.BASES_STRING;
-	private static final int ALP_LENGTH = 4;
+public class DNAShortKmer implements CharSequence, Comparable<DNAShortKmer> {
+	private long index;
+	private byte length;
+	private static final DNASequence EMPTYDNASEQ = new DNASequence();
 	
-	public DNAShortKmer(CharSequence key) {
-		int k = key.length();
-		if(k>15) {
-			l1 = 15;
-			l2 = (byte) (k-15); 
-		} else {
-			l1 = (byte) k;
-		}
-		index1 = getHash(key, 0, l1);
-		if(l2>0)index2 = getHash(key, l1, l1+l2);
+	public DNAShortKmer(CharSequence kmerSeq) {
+		length = (byte) kmerSeq.length();
+		if(length>31) throw new IllegalArgumentException("The maximum k-mer size for this class is 31. Input k-mer: "+kmerSeq);
+		index = AbstractLimitedSequence.getHash(kmerSeq, 0, length,EMPTYDNASEQ);
 	}
 	
 	@Override
-	public char charAt(int arg0) {
-		throw new RuntimeException("Unimplemented method");
+	public char charAt(int i) {
+		char [] characters = AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ);
+		return characters[i];
 	}
 	@Override
 	public int length() {
-		// TODO Auto-generated method stub
-		return l1+l2;
+		return length;
 	}
 	@Override
-	public CharSequence subSequence(int arg0, int arg1) {
-		throw new RuntimeException("Unimplemented method");
+	public CharSequence subSequence(int start, int end) {
+		String s = new String (AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ));
+		return s.subSequence(start, end);
 	}
 	
 	/* (non-Javadoc)
@@ -41,7 +33,7 @@ public class DNAShortKmer implements CharSequence {
 	public boolean equals(Object o) {
 		if(!(o instanceof DNAShortKmer)) return false;
 		DNAShortKmer kmer2 = (DNAShortKmer) o;
- 		return l1== kmer2.l1 && index1==kmer2.index1 && l2==kmer2.l2 && index2==kmer2.index2; 
+ 		return length== kmer2.length && index==kmer2.index; 
 	}
 
 	/* (non-Javadoc)
@@ -49,43 +41,13 @@ public class DNAShortKmer implements CharSequence {
 	 */
 	@Override
 	public int hashCode() {
-		return index1%100000000;
+		return (int) (index%100000000);
 	}
-	
-	/**
-	 * Returns the number corresponding with a suitable size substring of the given sequence 
-	 * @param seq Sequence to calculate hash
-	 * @param start Zero based first position
-	 * @param end Zero based last position
-	 * @return int Number representing the substring of seq between start (included) and end (not included)
-	 */
-	private int getHash(CharSequence seq, int start, int end) {
-		int number =0;
-		for(int i=start;i<end;i++) {
-			number*=ALP_LENGTH;
-			int index = ALPHABET.indexOf(seq.charAt(i));
-			if(index <0) {
-				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by sequence of type "+getClass().getName());
-			}
-			number+=index;
-			if(number<0) throw new RuntimeException("Encoding reached a negative number for sequence: "+seq+" between "+start+" and "+end);
-		}
-		return number;
-	}
-	/**
-	 * Gets the sequence corresponding with the given hash and the given size
-	 * @param number Hash number to decode
-	 * @param size Size of the sequence to return
-	 * @return char[] Decoded String as a char array
-	 */
-	private char [] getSequence(int number, int size) {
-		char [] answer = new char[size];
-		for(int i=0;i<size;i++) {
-			int nextDigit = (int)(number%ALP_LENGTH);
-			int index = size-i-1;
-			answer[index] = ALPHABET.charAt(nextDigit);
-			number = number/ALP_LENGTH;
-		}
-		return answer;
+
+	@Override
+	public int compareTo(DNAShortKmer kmer2) {
+		if(length!=kmer2.length) return length - kmer2.length;
+		if(index == kmer2.index) return 0;
+		return (index<kmer2.index)?-1:1;
 	}
 }
