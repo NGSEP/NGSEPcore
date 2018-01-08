@@ -25,11 +25,12 @@ package ngsep.sequences;
 public class DNASequence extends AbstractLimitedSequence{
 	public static final String [] BASES_ARRAY = {"A","C","G","T"};
 	public static final String BASES_STRING = "ACGT";
+	
 	/**
 	 * Creates a new DNA sequence with the given bases
-	 * @param sequence String with the bases for the new sequence
+	 * @param sequence CharSequence with the bases for the new sequence
 	 */
-	public DNASequence(String sequence) {
+	public DNASequence(CharSequence sequence) {
 		this.setSequence(sequence);
 	}
 	/**
