@@ -1,15 +1,40 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2018 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.io.FastqFileReader;
 
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class FastqFileErrorCorrector {
-	
+	private Logger log = Logger.getLogger(FastqFileErrorCorrector.class.getName());
 	private Map<CharSequence, Short> kmersMap;
 	private int kmerSize = KmersCounter.DEFAULT_KMER_SIZE;
 	private int minCount = 5;
@@ -49,11 +74,13 @@ public class FastqFileErrorCorrector {
 		correctedErrors = 0;
 		System.out.println("Calculating k-mers map from: "+inFilename);
 		KmersCounter counter = new KmersCounter();
+		counter.setLog(log);
 		counter.setKmerSize(kmerSize);
 		counter.processFile(inFilename);
+		counter.filterKmers(minCount);
 		kmersMap = counter.getKmersMap();
 		kmerSize = counter.getKmerSize();
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: "+inFilename);
+		System.out.println("Extracted "+kmersMap.size()+" filtered k-mers from: "+inFilename);
 		System.out.println("Processing file: "+inFilename);
 		try (FastqFileReader reader = new FastqFileReader(inFilename);
 			PrintStream out = new PrintStream(outFilename)) {
@@ -92,6 +119,7 @@ public class FastqFileErrorCorrector {
 					lastRepresented = i;
 				}
 			}
+			corrected = corrected || correctErrors (readChars,lastRepresented,readChars.length);
 			if (corrected) {
 				read.setCharacters(new String(readChars));
 			} else break;

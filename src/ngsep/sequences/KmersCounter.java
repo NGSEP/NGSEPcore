@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2018 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
 import java.io.IOException;
@@ -5,11 +24,11 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -18,13 +37,18 @@ import ngsep.math.Distribution;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class KmersCounter {
 	
 	public static final int DEFAULT_KMER_SIZE = 15;
 	private Logger log = Logger.getLogger(KmersCounter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private Map<CharSequence, Short> hashKmers = new Hashtable<>();
+	private Map<CharSequence, Short> kmersMap = new HashMap<>();
 	//private DNAShortKmersTable<CharSequence, Integer> hashKmers = new DNAShortKmersTable<>();
 	private boolean bothStrands = false;
 	private boolean fasta = false;
@@ -79,7 +103,7 @@ public class KmersCounter {
 	 * @return the hashKmers
 	 */
 	public Map<CharSequence, Short> getKmersMap() {
-		return hashKmers;
+		return kmersMap;
 	}
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
@@ -176,6 +200,8 @@ public class KmersCounter {
 		QualifiedSequenceList sequences = fastaSequencesHandler.loadSequences(filename);
 		//Kmer Count Per File
 		for(QualifiedSequence seq:sequences){
+			log.info("Processing sequence "+seq.getName());
+			//TODO: Process in chuncks if too big
 			//Forward		
 			String sequence = seq.getCharacters().toString();
 			countSequenceKmers(sequence);
@@ -184,6 +210,7 @@ public class KmersCounter {
 				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 				countSequenceKmers(reverseSequence);
 			}
+			log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
 		}
 	}
 	
@@ -193,6 +220,7 @@ public class KmersCounter {
 	 */
 	public void countSequenceKmers(CharSequence seq)
 	{
+		
 		int seqLength = seq.length();
 		
 		if(seqLength < kmerSize) {
@@ -202,13 +230,28 @@ public class KmersCounter {
 		//TODO: Create option to process non DNA k-mers
 		CharSequence [] kmers = extractKmers(seq, kmerSize, true);
 		for(CharSequence kmer:kmers) {
-			Short count = hashKmers.get(kmer);
+			Short count = kmersMap.get(kmer);
 			if(count!=null && count < Short.MAX_VALUE) {
-				hashKmers.put(kmer, (short) (count + 1));
+				kmersMap.put(kmer, (short) (count + 1));
 			} else if (count == null) {
-				hashKmers.put(kmer, (short) 1);
+				kmersMap.put(kmer, (short) 1);
 			}
 		}	
+	}
+	/**
+	 * Filters the k-mers map leaving only k-mers with at least the given abundance
+	 * @param minAbundance Minimum abundance to keep the k-mer
+	 */
+	public void filterKmers (int minAbundance) {
+		log.info("Filtering from "+kmersMap.size()+" k-mers by minimum abundance: "+minAbundance);
+		Iterator<Entry<CharSequence, Short>> it = kmersMap.entrySet().iterator();
+		while (it.hasNext()) {
+			Entry<CharSequence, Short> entry = it.next();
+		    if(entry.getValue() < minAbundance) {
+		    	it.remove();
+		    }
+		}
+		log.info("The Map now has "+kmersMap.size()+" k-mers");
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence
@@ -262,11 +305,11 @@ public class KmersCounter {
 	}
 	public Distribution calculateAbundancesDistribution() {
 		Distribution kmerSpectrum = new Distribution(1, 200, 1);
-		log.info("Building key set");
-		Set<CharSequence> keys = hashKmers.keySet();
-		log.info("Calculating distribution from "+keys.size()+" keys");
-		for (CharSequence key : keys) {
-		    Short value = hashKmers.get(key);
+		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
+		Iterator<Entry<CharSequence, Short>> it = kmersMap.entrySet().iterator();
+		while (it.hasNext()) {
+			Entry<CharSequence, Short> entry = it.next();
+		    Short value = entry.getValue();
 		    kmerSpectrum.processDatapoint(value);
 		}
 		return kmerSpectrum;
