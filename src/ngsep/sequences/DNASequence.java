@@ -18,6 +18,9 @@
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
 package ngsep.sequences;
+
+import java.util.Random;
+
 /**
  * Implementation of AbstractSequence for DNA Sequences without degenerate bases
  * @author Jorge Duitama
@@ -48,6 +51,13 @@ public class DNASequence extends AbstractLimitedSequence{
 	}
 	public static boolean isInAlphabeth(char base) {
 		return BASES_STRING.indexOf(base)>=0;
+	}
+	
+	public static boolean isDNA (CharSequence sequence) {
+		for(int i=0;i<sequence.length();i++) {
+			if(!isInAlphabeth(sequence.charAt(i))) return false;
+		}
+		return true;
 	}
 	
 	
@@ -87,5 +97,93 @@ public class DNASequence extends AbstractLimitedSequence{
 	 */
 	public static String getReverseComplement(String sequence) {
 		return new DNASequence(sequence).getReverseComplement().toString();
+	}
+	/**
+	 * Test main for methods of AbstractLimitedSequence
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		StringBuilder randomSequence = new StringBuilder();
+		Random r = new Random();
+		int length = r.nextInt(10000)+100000;
+		for(int i=0;i<length;i++) {
+			int bpI = r.nextInt(4);
+			randomSequence.append(DNASequence.BASES_STRING.charAt(bpI));
+		}
+		DNASequence dna = new DNASequence(randomSequence);
+		if(!randomSequence.toString().equals(dna.toString())) throw new RuntimeException("Sequences not equal");
+		//System.out.println("Sequence: "+ randomSequence);
+		for(int i=0;i<randomSequence.length();i++) {
+			if(randomSequence.charAt(i)!=dna.charAt(i)) {
+				throw new RuntimeException("Error with charAt around position: "+i+" . Sequence: "+randomSequence.substring(Math.max(0, i-5),Math.min(randomSequence.length(), i+5))+" expected "+randomSequence.charAt(i)+" given "+dna.charAt(i));
+			}
+			char mutSeq = DNASequence.BASES_STRING.charAt(r.nextInt(4));
+			randomSequence.setCharAt(i, mutSeq);
+			dna.setCharAt(i, mutSeq);
+		}
+		if(!randomSequence.toString().equals(dna.toString())) throw new RuntimeException("Mutated sequences not equal");
+		System.out.println("charAt and setCharAt test finished");
+		for(int i=0;i<100;i++) {
+			int first = r.nextInt(length);
+			int end = Math.min(length, r.nextInt(length)+first);
+			String subseq1 = randomSequence.substring(first, end);
+			DNASequence subseq2DNA = (DNASequence) dna.subSequence(first, end);
+			String subseq2 = subseq2DNA.toString();
+			if(!subseq1.equals(subseq2)) throw new RuntimeException("Substrings from "+first+" to "+end+" not equal. expected: "+subseq1+ " given "+subseq2);
+			randomSequence.append(subseq1);
+			dna.append(subseq1);
+			
+			if(!randomSequence.toString().equals(dna.toString())) throw new RuntimeException("Appended strings are not equal expected: "+randomSequence.toString()+ " given "+dna);
+		}
+		System.out.println("subSequence and append test finished");
+		//Efficiency
+		String randomSeq = dna.getReverseComplement().toString();
+		long time1 = System.currentTimeMillis();
+		randomSequence = new StringBuilder(randomSeq);
+		long time2 = System.currentTimeMillis();
+		System.out.println("Time StringBuilder construction: "+ (time2 - time1));
+		time1 = time2;
+		dna = new DNASequence(randomSeq);
+		time2 = System.currentTimeMillis();
+		System.out.println("Time DNASequence construction: "+ (time2 - time1));
+		time1 = time2;
+		for(int i=0;i<randomSequence.length();i++) randomSequence.charAt(i);
+		time2 = System.currentTimeMillis();
+		System.out.println("Time StringBuilder charAt: "+ (time2 - time1));
+		time1 = time2;
+		for(int i=0;i<randomSequence.length();i++) dna.charAt(i);
+		time2 = System.currentTimeMillis();
+		System.out.println("Time DNASequence charAt: "+ (time2 - time1));
+		time1 = time2;
+		for(int i=0;i<100;i++) {
+			int first = r.nextInt(length);
+			int end = Math.min(length, r.nextInt(length)+first);
+			randomSequence.subSequence(first, end);
+		}
+		time2 = System.currentTimeMillis();
+		System.out.println("Time StringBuilder substring: "+ (time2 - time1));
+		time1 = time2;
+		for(int i=0;i<100;i++) {
+			int first = r.nextInt(length);
+			int end = Math.min(length, r.nextInt(length)+first);
+			dna.subSequence(first, end);
+		}
+		time2 = System.currentTimeMillis();
+		System.out.println("Time DNASequence substring: "+ (time2 - time1));
+		int first = r.nextInt(length);
+		int end = Math.min(length, r.nextInt(length)+first);
+		String seq = randomSequence.substring(first, end);
+		time1 = time2;
+		for(int i=0;i<100;i++) {
+			randomSequence.append(seq);
+		}
+		time2 = System.currentTimeMillis();
+		System.out.println("Time StringBuilder append: "+ (time2 - time1));
+		time1 = time2;
+		for(int i=0;i<100;i++) {
+			dna.append(seq);
+		}
+		time2 = System.currentTimeMillis();
+		System.out.println("Time DNASequence append: "+ (time2 - time1));
 	}
 }

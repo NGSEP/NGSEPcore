@@ -41,7 +41,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		int nHashNumbers = calculateHashNumbers(l);
 		this.sequence = new int [nHashNumbers];
 		if (l==0) lastHashSize = 0;
-		else this.lastHashSize = this.encodeAndAppendSequence(sequence, 0, this.sequence, 0);
+		else this.lastHashSize = encodeAndAppendSequence(sequence, 0, this.sequence, 0);
 		this.length = l;
 	}
 	
@@ -90,15 +90,15 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 	}
 	private byte encodeAndAppendSequence(CharSequence sequence, int firstPosAppend, int[] newSequence, int firstIndex) {
 		int nHashNumbers = newSequence.length;
-		byte maxHashSize = getMaxHashSize();
+		int maxHashSize = getMaxHashSize();
 		int j = firstPosAppend;
-		for(int i=firstIndex;i<nHashNumbers-1;i++) {
+		for(int i=firstIndex;i<nHashNumbers-1 && j<sequence.length();i++) {
 			newSequence[i]= getHash(sequence,j,j+maxHashSize);
 			j+=maxHashSize;
 		}
 		int lastStart = j;
 		byte lastHashS = (byte)(sequence.length() - lastStart);
-		newSequence[nHashNumbers-1]= getHash(sequence,lastStart,sequence.length());
+		if(lastHashS>0) newSequence[nHashNumbers-1]= getHash(sequence,lastStart,sequence.length());
 		return lastHashS;
 	}
 	
@@ -119,7 +119,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		if(end<start) {
 			throw new StringIndexOutOfBoundsException("End index "+end+" cannot be less than start index: "+start);
 		}
-		LimitedSequence answer;
+		AbstractLimitedSequence answer;
 		try {
 			answer = this.getClass().newInstance();
 		} catch (InstantiationException | IllegalAccessException e) {
@@ -132,11 +132,13 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		if (end % maxHashSize > 0) {
 			relEnd++;
 		}
+		answer.length = end-start;
+		int hashNumbers = calculateHashNumbers(answer.length);
+		answer.sequence = new int [hashNumbers];
+		int firstIndex = 0;
+		StringBuffer buffer = new StringBuffer();
 		for(int i=relStart;i<relEnd;i++) {
-			int hashSize = maxHashSize;
-			if(i == sequence.length-1) {
-				 hashSize = this.lastHashSize;
-			} 
+			int hashSize = getHashSize(i);
 			String s = String.valueOf(getSequence(sequence[i],hashSize));
 			int firstPos = maxHashSize*i;
 			int endPos = maxHashSize*i + hashSize ;
@@ -148,8 +150,18 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 			if(endPos > end) {
 				endSPos = end-firstPos; 
 			}
-			answer.append(s.substring(firstSPos, endSPos));
+			buffer.append(s.substring(firstSPos, endSPos));
+			int bl = buffer.length();
+			int blM = bl%maxHashSize;
+			int idxR = bl - blM;
+			if(buffer.length()>1000000) {
+				answer.encodeAndAppendSequence(buffer.substring(0, idxR), 0, answer.sequence, firstIndex);
+				firstIndex+=bl/maxHashSize;
+				buffer = new StringBuffer(buffer.substring(idxR));
+			}
 		}
+		answer.lastHashSize = answer.encodeAndAppendSequence(buffer, 0, answer.sequence, firstIndex);
+		
 		return answer;
 	}
 	public CharSequence subSequence (int start) {
