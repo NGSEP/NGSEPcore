@@ -19,11 +19,14 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.io.FastqFileReader;
@@ -62,8 +65,7 @@ public class FastqFileErrorCorrector {
 
 	public static void main(String[] args) throws Exception {
 		FastqFileErrorCorrector instance = new FastqFileErrorCorrector();
-		//int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		int i=0;
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String inFilename = args[i++];
 		String outFilename = args[i++];
 		instance.process(inFilename,outFilename);
@@ -83,7 +85,8 @@ public class FastqFileErrorCorrector {
 		System.out.println("Extracted "+kmersMap.size()+" filtered k-mers from: "+inFilename);
 		System.out.println("Processing file: "+inFilename);
 		try (FastqFileReader reader = new FastqFileReader(inFilename);
-			PrintStream out = new PrintStream(outFilename)) {
+			 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
+			 PrintStream out = new PrintStream(os)) {
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
