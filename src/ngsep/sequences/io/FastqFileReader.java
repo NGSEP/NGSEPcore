@@ -42,9 +42,24 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 
 	private Logger log = Logger.getLogger(FastqFileReader.class.getName());
 	
+	/**
+	 * Constant to load the read id, read sequence and quality information 
+	 */
+	public static final int LOAD_MODE_FULL = 0;
+	/**
+	 * Constant to load the read sequence and quality information of each read
+	 */
+	public static final int LOAD_MODE_QUALITY = 1;
+	/**
+	 * Constant to load only the read sequence of each read
+	 */
+	public static final int LOAD_MODE_MINIMAL = 2;
+	
 	private BufferedReader in;
 	
 	private FastqFileIterator currentIterator = null;
+	
+	private int loadMode = LOAD_MODE_FULL;
 	
 	public FastqFileReader (String filename) throws IOException {
 		init(null,new File(filename));
@@ -62,6 +77,13 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	public void setLog(Logger log) {
 		if (log == null) throw new NullPointerException("Log can not be null");
 		this.log = log;
+	}
+	
+	public int getLoadMode() {
+		return loadMode;
+	}
+	public void setLoadMode(int loadMode) {
+		this.loadMode = loadMode;
 	}
 	
 	@Override
@@ -91,6 +113,25 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		}
 		in = new BufferedReader(new InputStreamReader(stream));
 	}
+	/**
+	 * Loads a raw read from the given BufferedReader
+	 * @param in buffer to read
+	 * @return RawRead
+	 * @throws IOException if the buffer can not be read
+	 */
+	private RawRead load (BufferedReader in) throws IOException {
+		String id = in.readLine();
+		if(id==null) return null;
+		String seq = in.readLine();
+		if(seq==null) return null;
+		String plus = in.readLine();
+		if(plus==null) return null;
+		String qs = in.readLine();
+		if(qs==null) return null;
+		if(loadMode == LOAD_MODE_MINIMAL) return new RawRead(null, seq, null);
+		else if (loadMode == LOAD_MODE_QUALITY) return new RawRead(null, seq, qs);
+		else return new RawRead(id, seq, qs);
+	}
 	
 	private boolean passFilters (RawRead read) {
 		//TODO: Implement filters
@@ -119,7 +160,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 			RawRead read;
 			while(true) {
 				try {
-					read = RawRead.load(in);
+					read = load(in);
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}

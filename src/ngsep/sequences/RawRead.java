@@ -10,6 +10,13 @@ public class RawRead extends QualifiedSequence {
 	public RawRead(String id, CharSequence sequence, String qualityScores) {
 		super(id,sequence,qualityScores);
 	}
+	/**
+	 * Loads a raw read from the given BufferedReader
+	 * @param in buffer to read
+	 * @return RawRead
+	 * @throws IOException if the buffer can not be read
+	 * @deprecated See ngsep.sequences.FastqFileReader
+	 */
 	public static RawRead load(BufferedReader in) throws IOException {
 		String id = in.readLine();
 		if(id==null) return null;
