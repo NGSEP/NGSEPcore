@@ -1,7 +1,6 @@
 package ngsep.sequences;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -15,14 +14,18 @@ import ngsep.genome.ReferenceGenome;
 
 public class FMIndex implements Serializable 
 {
+	/**
+	 * Serial number
+	 */
+	private static final long serialVersionUID = 5577026857894649939L;
 	private List<FMIndexSingleSequence> singleSequenceIndexes = new ArrayList<>();
 
 	/**
-	 * 
-	 * @param filename
-	 * @throws Exception 
+	 * Loads the given genome in this FMIndex
+	 * @param filename with the genome to load
+	 * @throws IOException If the genome file can not be read
 	 */
-	public static FMIndex create(String genomeFilename) throws Exception 
+	public void loadGenome(String genomeFilename) throws IOException 
 	{
 		FMIndex fmIndex = new FMIndex();
 		ReferenceGenome referenceGenome = new ReferenceGenome(genomeFilename);
@@ -35,33 +38,40 @@ public class FMIndex implements Serializable
 			DNAMaskedSequence reverseComplement = seqChars.getReverseComplement();
 			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(q.getName()+"_F",seqChars);
 			fmIndex.singleSequenceIndexes.add(seqForward);
-			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(q.getName()+"_R",seqChars);
+			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(q.getName()+"_R",reverseComplement);
 			fmIndex.singleSequenceIndexes.add(seqReverse);
 		}
-		return fmIndex;
 	}
 	
-	public static FMIndex loadFromBinaries(String filename) throws Exception
+	public static FMIndex loadFromBinaries(String filename) throws IOException
 	{
 		FMIndex fmIndex = new FMIndex();
-		ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename));
-		fmIndex.singleSequenceIndexes= (List<FMIndexSingleSequence>) ois.readObject();
+		try (FileInputStream fis = new FileInputStream(filename);
+			 ObjectInputStream ois = new ObjectInputStream(fis);) {
+			fmIndex = (FMIndex) ois.readObject();
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("FMIndex class not found",e);
+		}
+		
 		return fmIndex;
 	}
-	
-	public void save (String filename) throws Exception 
+	/**
+	 * Saves this FM-Index as a serializable object
+	 * @param filename
+	 * @throws IOException
+	 */
+	public void save (String filename) throws IOException 
 	{
-		ObjectOutputStream oos = new ObjectOutputStream( new FileOutputStream( filename+".fmIndex" ) );
-		oos.writeObject( singleSequenceIndexes );
-		oos.close( ); 
+		try (FileOutputStream fos = new FileOutputStream( filename );
+			 ObjectOutputStream oos = new ObjectOutputStream( fos );) {
+			oos.writeObject( this );
+		}
 	}
 	
-	public List<GenomicRegion> search (String searchSequence) 
-	{
+	public List<GenomicRegion> search (String searchSequence) {
 		List<GenomicRegion> alignments = new ArrayList<>();
-		for (int i = 0; i < singleSequenceIndexes.size(); i++) 
-		{
-			List<GenomicRegion> actual = singleSequenceIndexes.get(i).search(searchSequence);
+		for (FMIndexSingleSequence idxSeq:singleSequenceIndexes) {
+			List<GenomicRegion> actual = idxSeq.search(searchSequence);
 			alignments.addAll(actual);
 		}
 		return alignments;
@@ -69,12 +79,11 @@ public class FMIndex implements Serializable
 	public List<GenomicRegion> search (String sequenceName, String searchSequence) 
 	{
 		List<GenomicRegion> alignments = new ArrayList<>();
-		for (int i = 0; i < singleSequenceIndexes.size(); i++) 
+		for (FMIndexSingleSequence idxSeq:singleSequenceIndexes) 
 		{
-			FMIndexSingleSequence actual = singleSequenceIndexes.get(i);
-			if(actual.getSequenceName().equals(searchSequence))
+			if(idxSeq.getSequenceName().equals(searchSequence))
 			{
-				return actual.search(searchSequence);
+				return idxSeq.search(searchSequence);
 			}
 		}
 		return alignments;

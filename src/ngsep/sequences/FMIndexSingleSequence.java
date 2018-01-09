@@ -3,7 +3,6 @@ package ngsep.sequences;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +12,11 @@ import ngsep.genome.GenomicRegionImpl;
 
 public class FMIndexSingleSequence implements Serializable 
 {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5981359942407474671L;
+
 	//Name of the sequence
 	private String sequenceName;
 
@@ -262,7 +266,7 @@ public class FMIndexSingleSequence implements Serializable
 	
 	
 	
-	private Character getCharacterOfFirstAt(int j) 
+	/*private Character getCharacterOfFirstAt(int j) 
 	{
 		if(j==0)
 			return '$';
@@ -274,7 +278,7 @@ public class FMIndexSingleSequence implements Serializable
 				return alphabet.charAt(i);
 		}
 		return null;
-	}
+	}*/
 
 	private int getIndexInFirstOf(char c) 
 	{

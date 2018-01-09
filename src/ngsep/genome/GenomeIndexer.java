@@ -1,5 +1,7 @@
 package ngsep.genome;
 
+import java.io.IOException;
+
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.FMIndex;
 
@@ -13,16 +15,16 @@ public class GenomeIndexer
 		GenomeIndexer instance = new GenomeIndexer();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String genomeFile=args[i++];
-		String outPutFile=args[i++];
-		instance.createIndex (genomeFile,outPutFile);
+		String outputFile=args[i++];
+		instance.createIndex (genomeFile,outputFile);
 		System.out.println(System.currentTimeMillis()-t);
 	}
 
-	public void createIndex(String genomeFile, String outPutFile) throws Exception 
-	{
+	public void createIndex(String genomeFile, String outputFile) throws IOException {
 		// TODO Auto-generated method stub
-		FMIndex fMIndex=FMIndex.create(genomeFile);
-		fMIndex.save(outPutFile);
+		FMIndex fMIndex= new FMIndex();
+		fMIndex.loadGenome(genomeFile);
+		fMIndex.save(outputFile);
 	}
 
 	public int getTallyDistance() {
