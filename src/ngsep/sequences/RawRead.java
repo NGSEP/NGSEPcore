@@ -76,7 +76,7 @@ public class RawRead extends QualifiedSequence {
 		
 	}
 	public void save (PrintStream out) {
-		out.println(this.getName());
+		out.println("@"+this.getName());
 		out.println(this.getCharacters());
 		out.println("+");
 		out.println(this.getQualityScores());

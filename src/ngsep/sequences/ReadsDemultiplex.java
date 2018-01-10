@@ -299,8 +299,8 @@ public class ReadsDemultiplex {
 		}
 		sortedBarcodes = barcodesSet.toArray(new String[0]);
 		for(int i=0;i<ntPairFirsts.length;i++) {
-			Arrays.fill(ntPairFirsts, -1);
-			Arrays.fill(ntPairLasts, -1);
+			Arrays.fill(ntPairFirsts[i], -1);
+			Arrays.fill(ntPairLasts[i], -1);
 		}
 		String alphabet = DNASequence.BASES_STRING;
 		for (int k=0;k<sortedBarcodes.length;k++) {
