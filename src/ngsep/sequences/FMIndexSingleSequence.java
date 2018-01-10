@@ -9,9 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import ngsep.genome.GenomicRegion;
-import ngsep.genome.GenomicRegionImpl;
-
 public class FMIndexSingleSequence implements Serializable 
 {
 	/**
@@ -23,10 +20,6 @@ public class FMIndexSingleSequence implements Serializable
 	private static final int DEFAULT_TALLY_DISTANCE = 100;
 	private static final int DEFAULT_SUFFIX_FRACTION = 50;
 	
-
-	//Name of the sequence
-	private String sequenceName;
-
 	//Start position in the original sequence of some rows of the BW matrix representing a partial suffix array
 	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
 
@@ -50,27 +43,18 @@ public class FMIndexSingleSequence implements Serializable
 
 	//Inferred alphabet of the sequence ordered lexicographical 
 	private String alphabet;
-	
-	public FMIndexSingleSequence(QualifiedSequence sequence) {
-		this (sequence.getName(),sequence.getCharacters(),DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
-	}
 
-	public FMIndexSingleSequence(String seqName, CharSequence sequence) 
+	public FMIndexSingleSequence(CharSequence sequence) 
 	{
-		this(seqName,sequence,DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
+		this(sequence,DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
 	}
 	
-	public FMIndexSingleSequence(String seqName, CharSequence sequence, int tallyDistance, int suffixFraction) {
+	public FMIndexSingleSequence(CharSequence sequence, int tallyDistance, int suffixFraction) {
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
-		sequenceName=seqName;
 		calculate(sequence);
 	}
 	
-	public String getSequenceName() 
-	{
-		return sequenceName;
-	}
 	public int getTallyDistance() {
 		return tallyDistance;
 	}
@@ -180,42 +164,23 @@ public class FMIndexSingleSequence implements Serializable
 		}
 	}
 	
-	public List<GenomicRegion> search (String searchSequence) 
+	public List<Integer> search (String searchSequence) 
 	{
-		List<GenomicRegion> alignments = new ArrayList<>();
+		List<Integer> startIndexes = new ArrayList<>();
 		int[] range = getRange(searchSequence);
-		if (range !=null)
-		{
-
-			for (int i = range[0]; i <= range[1]; i++) 
-			{
-				int begin=0;
-				int actual = i;
-				if(partialSuffixArray.containsKey(actual))
-				{
-					begin = partialSuffixArray.get(actual);
-				}
-				else
-				{
-					boolean found = false;
-					int possible = 0;
-					int steps =0;
-					while(!found)
-					{
-						//					System.out.println("ac " +actual);
-						possible = lfMapping(actual);
-						found=partialSuffixArray.containsKey(possible);
-						actual =possible;
-						steps++;
-					}
-					begin = partialSuffixArray.get(possible)+steps;
-				}
-				alignments.add(new GenomicRegionImpl(sequenceName,begin , begin+searchSequence.length()));
-
+		if (range ==null) return startIndexes;
+		for (int i = range[0]; i <= range[1]; i++) {
+			int row = i;
+			Integer begin=partialSuffixArray.get(row);
+			int steps;
+			for(steps =0; begin == null;steps++) {
+				row = lfMapping(row);
+				begin=partialSuffixArray.get(row);
 			}
+			begin += steps;
+			startIndexes.add(begin);
 		}
-
-		return alignments;
+		return startIndexes;
 	}
 
 	public int[] getRange(String query)

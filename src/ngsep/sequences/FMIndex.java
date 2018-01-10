@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import ngsep.genome.GenomicRegion;
+import ngsep.alignments.ReadAlignment;
 import ngsep.genome.ReferenceGenome;
 
 public class FMIndex implements Serializable 
@@ -18,7 +18,8 @@ public class FMIndex implements Serializable
 	 * Serial number
 	 */
 	private static final long serialVersionUID = 5577026857894649939L;
-	private List<FMIndexSingleSequence> singleSequenceIndexes = new ArrayList<>();
+	private List<FMIndexSingleSequence> internalIndexes = new ArrayList<>();
+	private List<List<SequenceMetadata>> realSequencesMap = new ArrayList<>();
 
 	/**
 	 * Loads the given genome in this FMIndex
@@ -34,21 +35,46 @@ public class FMIndex implements Serializable
 		{
 			QualifiedSequence q = referenceGenome.getSequenceByIndex(i);
 			DNAMaskedSequence seqChars = (DNAMaskedSequence)q.getCharacters();
-			DNAMaskedSequence reverseComplement = seqChars.getReverseComplement();
-			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(q.getName()+"_F",seqChars);
-			singleSequenceIndexes.add(seqForward);
-			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(q.getName()+"_R",reverseComplement);
-			singleSequenceIndexes.add(seqReverse);
+			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
+			internalIndexes.add(seqForward);
+			List<SequenceMetadata> metadata = new ArrayList<>();
+			metadata.add(new SequenceMetadata(q.getName(), q.getLength(), false));
+			realSequencesMap.add(metadata);
+			seqChars = seqChars.getReverseComplement();
+			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
+			internalIndexes.add(seqReverse);
+			metadata = new ArrayList<>();
+			metadata.add(new SequenceMetadata(q.getName(), q.getLength(), true));
+			realSequencesMap.add(metadata);
 		}
 	}
 	
 	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences) {
 		int n = sequences.size();
+		StringBuffer internalSequence = new StringBuffer();
+		List<SequenceMetadata> internalSequenceMetadata = new ArrayList<>();
 		for(int i=0;i<n;i++) {
-			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(groupName+"_"+i,sequences.get(i));
-			singleSequenceIndexes.add(seqForward);
-			if((i+1)%50 == 0) System.out.println("Built index for "+(i+1)+" sequences");
+			String next = sequences.get(i).toString();
+			if(internalSequence.length() + next.length() > 1000000000) {
+				System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
+				long time = System.currentTimeMillis();
+				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				internalIndexes.add(index);
+				realSequencesMap.add(internalSequenceMetadata);
+				internalSequence = new StringBuffer();
+				internalSequenceMetadata = new ArrayList<>();
+			}
+			internalSequence.append(next);
+			internalSequenceMetadata.add(new SequenceMetadata(groupName+"_"+i, next.length(), false));
+			
 		}
+		System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
+		long time = System.currentTimeMillis();
+		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+		System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+		internalIndexes.add(index);
+		realSequencesMap.add(internalSequenceMetadata);
 	}
 	
 	/**
@@ -82,15 +108,42 @@ public class FMIndex implements Serializable
 		}
 	}
 	
-	public List<GenomicRegion> search (String searchSequence) {
-		List<GenomicRegion> alignments = new ArrayList<>();
-		for (FMIndexSingleSequence idxSeq:singleSequenceIndexes) {
-			List<GenomicRegion> actual = idxSeq.search(searchSequence);
-			alignments.addAll(actual);
+	public List<ReadAlignment> search (String searchSequence) {
+		List<ReadAlignment> alignments = new ArrayList<>();
+		for (int i=0;i<internalIndexes.size();i++) {
+			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
+			List<Integer> matches = idxSeq.search(searchSequence);
+			for (int internalPosMatch:matches) {
+				ReadAlignment alignment = buildAlignmentFromMetadata(searchSequence, i,internalPosMatch);
+				if(alignment!=null) alignments.add(alignment);
+			}
 		}
 		return alignments;
 	}
-	public List<GenomicRegion> search (String sequenceName, String searchSequence) 
+	private ReadAlignment buildAlignmentFromMetadata(String searchSequence, int i, int internalPosMatch) {
+		List<SequenceMetadata> metadata = realSequencesMap.get(i);
+		int internalPostStartSeq = 0;
+		for(SequenceMetadata seqM:metadata) {
+			if(internalPostStartSeq + seqM.getLength() > internalPosMatch) {
+				String seqName = seqM.getSeqName();
+				int first = internalPosMatch-internalPostStartSeq;
+				int last = first + searchSequence.length() - 1;
+				int flags = 0;
+				if(seqM.isNegativeStrand()) {
+					last = seqM.getLength()-1-first;
+					first = last - searchSequence.length() + 1 ;
+					flags+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
+				}
+				if(first < 0) return null;
+				if(last>=seqM.getLength()) return null;
+				return new ReadAlignment(seqName, first, last,searchSequence.length(),flags);
+			}
+			internalPostStartSeq += seqM.getLength();
+		}
+		return null;
+	}
+
+	/*public List<GenomicRegion> search (String sequenceName, String searchSequence) 
 	{
 		List<GenomicRegion> alignments = new ArrayList<>();
 		for (FMIndexSingleSequence idxSeq:singleSequenceIndexes) 
@@ -101,7 +154,39 @@ public class FMIndex implements Serializable
 			}
 		}
 		return alignments;
-	}
+	}*/
 
+	
+}
+class SequenceMetadata {
+	private String seqName;
+	private int length;
+	private boolean negativeStrand;
+	public SequenceMetadata(String seqName, int length, boolean negativeStrand) {
+		super();
+		this.seqName = seqName;
+		this.length = length;
+		this.negativeStrand = negativeStrand;
+	}
+	/**
+	 * @return the seqName
+	 */
+	public String getSeqName() {
+		return seqName;
+	}
+	/**
+	 * @return the length
+	 */
+	public int getLength() {
+		return length;
+	}
+	/**
+	 * @return the negativeStrand
+	 */
+	public boolean isNegativeStrand() {
+		return negativeStrand;
+	}
+	
+	
 	
 }
