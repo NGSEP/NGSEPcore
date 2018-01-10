@@ -5,8 +5,8 @@ import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.List;
 
-import ngsep.genome.GenomicRegion;
 import ngsep.main.CommandsDescriptor;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
@@ -31,20 +31,26 @@ public class ReadsAligner {
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
-				List<GenomicRegion> r = fMIndex.search(read.getCharacters().toString());
-				for (int k = 0; k < r.size(); k++) {
+				List<ReadAlignment> alignments = fMIndex.search(read.getCharacters().toString());
+				for (ReadAlignment aln: alignments) {
+					String readSeq = read.getSequenceString();
+					String qual = read.getQualityScores();
+					if(aln.isNegativeStrand()) {
+						readSeq = DNAMaskedSequence.getReverseComplement(readSeq).toString();
+						qual = new StringBuilder(qual).reverse().toString();
+					}
 					out.println(
 							//1.query name
 							read.getName()+"\t"+
 									
 							//2.Flag
-							"0\t"+
+							aln.getFlags()+"\t"+
 							
 							//3.reference sequence name
-							r.get(k).getSequenceName()+"\t"+
+							aln.getSequenceName()+"\t"+
 							
 							//4.POS
-							r.get(k).getFirst()+"\t"+
+							aln.getFirst()+"\t"+
 							
 							//5.MAPQ
 							"255\t"+
@@ -62,10 +68,10 @@ public class ReadsAligner {
 							"0\t"+
 							
 							//10. SEQ
-							read.getSequenceString()+"\t"+
+							readSeq+"\t"+
 							
 							//11. QUAL
-							read.getQualityScores()+"*"
+							qual
 							
 							);
 				}
