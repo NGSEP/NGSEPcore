@@ -40,27 +40,27 @@ public class FastqFileErrorCorrector {
 	private Logger log = Logger.getLogger(FastqFileErrorCorrector.class.getName());
 	private Map<CharSequence, Short> kmersMap;
 	private int kmerSize = KmersCounter.DEFAULT_KMER_SIZE;
-	private int minCount = 5;
+	private int minAbundance = 5;
 	private int correctedErrors = 0;
 	/**
 	 * @return the minCount
 	 */
-	public int getMinCount() {
-		return minCount;
+	public int getMinAbundance() {
+		return minAbundance;
 	}
 
 	/**
-	 * @param minCount the minCount to set
+	 * @param minAbundance the minAbundance to set
 	 */
-	public void setMinCount(int minCount) {
-		this.minCount = minCount;
+	public void setMinAbundance(int minAbundance) {
+		this.minAbundance = minAbundance;
 	}
 	
 	/**
-	 * @param minCount the minCount to set
+	 * @param minAbundance the minAbundance to set
 	 */
-	public void setMinCount(Integer minCount) {
-		this.setMinCount(minCount.intValue());
+	public void setMinAbundance(Integer minAbundance) {
+		this.setMinAbundance(minAbundance.intValue());
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -79,7 +79,7 @@ public class FastqFileErrorCorrector {
 		counter.setLog(log);
 		counter.setKmerSize(kmerSize);
 		counter.processFile(inFilename);
-		counter.filterKmers(minCount);
+		counter.filterKmers(minAbundance);
 		kmersMap = counter.getKmersMap();
 		kmerSize = counter.getKmerSize();
 		System.out.println("Extracted "+kmersMap.size()+" filtered k-mers from: "+inFilename);
@@ -115,7 +115,7 @@ public class FastqFileErrorCorrector {
 			int lastRepresented= -1;
 			boolean corrected = false;
 			for(int i=0;i<readKmers.length;i++) {
-				if(readKmerCounts[i] >= minCount) {
+				if(readKmerCounts[i] >= minAbundance) {
 					if(i-1!=lastRepresented) {
 						corrected = corrected || correctErrors (readChars,lastRepresented,i);
 					}

@@ -768,10 +768,9 @@ Consider secondary alignments. By default, only primary alignments are processed
 
 <command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
 <intro>
-Calculates the distribution of relative allele counts
-Align reads to a reference genome
+Aligns sequencing reads to a reference genome
 </intro>
-<title>Find genomic regions in a reference genome</title>
+<title>Aligning reads to reference genomes</title>
 <description>
 Calculates a list of genomic regions for sites where the reads can be find in the reference genome
 </description>
@@ -782,11 +781,10 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 <command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
 <intro>
 Creates a FMINDEX for Indexing the genome
-Align reads to a reference genome
 </intro>
-<title>Create a binary file containing a FMINDEX from genome</title>
+<title>Indexing genome reference files</title>
 <description>
-Creates a FMINDEX Structure from the file genome
+Create a binary file containing a FMINDEX from genome
 </description>
 <argument>GENOME_FILE</argument>
 <argument>OUTPUT_FILE</argument>
@@ -795,6 +793,20 @@ Distance between tally indexes
 </option>
 </command>
 
+<command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector">
+<intro>
+Corrects errors in fastq files based on k-mer abundance
+</intro>
+<title>Fixing sequencing errors</title>
+<description>
+Builds a k-mer abundance profile and use this profile to identify and correct sequencing errors
+</description>
+<argument>FASTQ_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="m" type="INT" default="5" attribute="minCount">
+Minimum k-mer abundance to consider a k-mer real
+</option>
+</command>
 
 
 </NGSEP>
