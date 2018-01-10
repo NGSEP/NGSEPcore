@@ -790,7 +790,7 @@ Creates a FMINDEX Structure from the file genome
 </description>
 <argument>GENOME_FILE</argument>
 <argument>OUTPUT_FILE</argument>
-<option id="t" type="INT" default="5" attribute="tallyDistance">
+<option id="t" type="INT" default="100" attribute="tallyDistance">
 Distance between tally indexes
 </option>
 </command>
