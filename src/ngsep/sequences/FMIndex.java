@@ -27,7 +27,6 @@ public class FMIndex implements Serializable
 	 */
 	public void loadGenome(String genomeFilename) throws IOException 
 	{
-		FMIndex fmIndex = new FMIndex();
 		ReferenceGenome referenceGenome = new ReferenceGenome(genomeFilename);
 		int n = referenceGenome.getNumSequences();
 		
@@ -37,12 +36,27 @@ public class FMIndex implements Serializable
 			DNAMaskedSequence seqChars = (DNAMaskedSequence)q.getCharacters();
 			DNAMaskedSequence reverseComplement = seqChars.getReverseComplement();
 			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(q.getName()+"_F",seqChars);
-			fmIndex.singleSequenceIndexes.add(seqForward);
+			singleSequenceIndexes.add(seqForward);
 			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(q.getName()+"_R",reverseComplement);
-			fmIndex.singleSequenceIndexes.add(seqReverse);
+			singleSequenceIndexes.add(seqReverse);
 		}
 	}
 	
+	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences) {
+		int n = sequences.size();
+		for(int i=0;i<n;i++) {
+			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(groupName+"_"+i,sequences.get(i));
+			singleSequenceIndexes.add(seqForward);
+			if((i+1)%50 == 0) System.out.println("Built index for "+(i+1)+" sequences");
+		}
+	}
+	
+	/**
+	 * Loads an instance of the FMIndex from a serialized binary file
+	 * @param filename Binary file with the serialization of an FMIndex
+	 * @return FMIndex serialized in the given file
+	 * @throws IOException If there were errors reading the file
+	 */
 	public static FMIndex loadFromBinaries(String filename) throws IOException
 	{
 		FMIndex fmIndex = new FMIndex();

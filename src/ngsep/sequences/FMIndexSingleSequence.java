@@ -2,10 +2,12 @@ package ngsep.sequences;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
@@ -16,180 +18,168 @@ public class FMIndexSingleSequence implements Serializable
 	 * 
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
+	
+	private static final char SPECIAL_CHARACTER = '$';
+	private static final int DEFAULT_TALLY_DISTANCE = 100;
+	private static final int DEFAULT_SUFFIX_FRACTION = 50;
+	
 
 	//Name of the sequence
 	private String sequenceName;
 
-	//Original sequence
-	private String sequence;
-
-	//startSeq of some indexes  representing a partial suffix array
+	//Start position in the original sequence of some rows of the BW matrix representing a partial suffix array
 	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
 
-	//Ranks in the bwt for each character in the alphabet
-	private List<Integer []> tallyIndexes = new ArrayList<>();
+	//Ranks in the bwt for each character in the alphabet for some of the rows in the BW matrix
+	private int [][] tallyIndexes;
 
 	//1 of each tallyDistance is saved
-	private int tallyDistance=50;
+	private int tallyDistance;
 
 	// 1/suffixFraction indexes are saved
-	private int suffixFraction=10;
+	private int suffixFraction;
 
 	//Burrows Wheeler transform
-	private String bwt;
+	private char [] bwt;
 
-	//times each character appears
-	private int [] characterCounts;
+	//For each character tells the first time it appears in the left column of the BW matrix
+	private Map<Character,Integer> firstRowsInMatrix;
+	
+	//For each character tells the last time it appears in the left column of the BW matrix
+	private Map<Character,Integer> lastRowsInMatrix;
 
 	//Inferred alphabet of the sequence ordered lexicographical 
-	private String alphabet="";
+	private String alphabet;
+	
+	public FMIndexSingleSequence(QualifiedSequence sequence) {
+		this (sequence.getName(),sequence.getCharacters(),DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
+	}
 
 	public FMIndexSingleSequence(String seqName, CharSequence sequence) 
 	{
+		this(seqName,sequence,DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
+	}
+	
+	public FMIndexSingleSequence(String seqName, CharSequence sequence, int tallyDistance, int suffixFraction) {
+		this.tallyDistance = tallyDistance;
+		this.suffixFraction = suffixFraction;
 		sequenceName=seqName;
-		this.sequence=sequence.toString();
-		this.sequence+="$";
-
-		calculate();
+		calculate(sequence);
 	}
-
-	private void calculate() 
+	
+	public String getSequenceName() 
 	{
-		ArrayList<Integer> sufixes = buildSuffixArray();
-		String[] lAndF = getLastAndFirst(sufixes);
-		//		System.out.println("l "+lAndF[0]);
-		//		System.out.println("f "+lAndF[1]);
-		//		printSuffixes();
-		bwt=lAndF[0];
-
-		ArrayList<Character> seen = new ArrayList<>();
-		ArrayList<Integer> counts= new ArrayList<>();
-
-		//iterate last column to know alphabet and counts...
-		int j =-1;
-		for (int i = 1; i < lAndF[1].length(); i++) 
-		{
-			Character c = lAndF[1].charAt(i);
-			if(!seen.contains(c))
-			{
-				j++;
-				counts.add(1);
-				seen.add(c);
-			}
-			else
-				counts.set(j, counts.get(j)+1);
-		}
-
-		buildAlphabet(seen);
-		buildCharacterCounts(counts);
-		buildTally(sufixes);
-		createPartialSufixArray(sufixes);
-
+		return sequenceName;
+	}
+	public int getTallyDistance() {
+		return tallyDistance;
+	}
+	public void setTallyDistance(int tallyDistance) {
+		this.tallyDistance = tallyDistance;
 	}
 
-	private void buildCharacterCounts(ArrayList<Integer> counts) 
+	private void calculate(CharSequence sequence) 
 	{
-		characterCounts=new int[alphabet.length()];
-		for (int i = 0; i < counts.size(); i++) 
-		{
-			characterCounts[i]=counts.get(i);
-		}
-	}
+		List<Integer> suffixes = buildSuffixArray(sequence);
+		buildBWT(sequence, suffixes);
+		buildAlphabetAndCounts(sequence,suffixes);
+		buildTally();
+		createPartialSuffixArray(suffixes);
 
-	private void buildAlphabet(ArrayList<Character> seen) 
-	{
-		StringBuilder alp=new StringBuilder();
-		for (int i = 0; i < seen.size(); i++) 
-		{
-			alp.append(seen.get(i));
-		}
-		alphabet=alp.toString();
 	}
-	private ArrayList<Integer> buildSuffixArray() {
+	private List<Integer> buildSuffixArray(CharSequence sequence) {
 		ArrayList<Integer> sufixes = new ArrayList<Integer>();
-		for (int i = 0; i < sequence.length(); i++) 
-		{
+		for (int i = 0; i < sequence.length(); i++) {
 			sufixes.add(i);
 		}
 		Collections.sort(sufixes, new SuffixCharSequencePositionComparator(sequence));
 		return sufixes;
 	}
-	private void createPartialSufixArray(ArrayList<Integer> sufixes) 
+	
+	private void buildBWT(CharSequence sequence, List<Integer> suffixes) 
+	{
+		bwt = new char [sequence.length()+1];
+		bwt[0] = sequence.charAt(sequence.length()-1);
+		int j=1;
+		for (int i:suffixes) {
+			if(i>0) {
+				bwt[j] = sequence.charAt(i-1);
+			}
+			else {
+				bwt[j]= SPECIAL_CHARACTER;	
+			}
+			j++;
+		}
+	}
+	
+	private void buildAlphabetAndCounts(CharSequence seq, List<Integer> suffixArray) {
+		Map<Character,Integer> counts= new TreeMap<>();
+		firstRowsInMatrix = new TreeMap<>();
+		lastRowsInMatrix = new TreeMap<>();
+		char lastC = SPECIAL_CHARACTER;
+		StringBuilder alpB = new StringBuilder();
+		firstRowsInMatrix.put(lastC, 0);
+		lastRowsInMatrix.put(lastC, 0);
+		//iterate last column to know alphabet and counts...
+		for (int i = 0; i < suffixArray.size(); i++) 
+		{
+			int j = suffixArray.get(i);
+			char c = seq.charAt(j);
+			Integer countC = counts.get(c); 
+			if(countC == null) {
+				counts.put(c,1);	
+			} else {
+				counts.put(c, countC+1);
+			}
+			if(lastC != c) {
+				alpB.append(c);
+				firstRowsInMatrix.put(c, i+1);
+				lastRowsInMatrix.put(lastC, i+1);
+			}
+			lastC = c;
+		}
+		lastRowsInMatrix.put(lastC, suffixArray.size());
+		alphabet = alpB.toString();
+		
+	}
+	private void buildTally() 
+	{
+		int [] arr= new int[alphabet.length()];
+		Arrays.fill(arr, 0);
+		int tallyRows = bwt.length/tallyDistance;
+		if(bwt.length%tallyDistance>0)tallyRows++;
+		tallyIndexes = new int[tallyRows][arr.length];
+		int j=0;
+		for (int i=0;i<bwt.length;i++) {
+			char c = bwt[i];
+			if (c != SPECIAL_CHARACTER) {
+				int indexC = alphabet.indexOf(c);
+				if(indexC<0) throw new RuntimeException("Character "+c+" not found in the alphabet "+alphabet);
+				arr[indexC]++;
+			}
+			if(i%tallyDistance==0) {
+				int [] copy= Arrays.copyOf(arr, arr.length);
+				tallyIndexes[j] = copy;
+				j++;
+			}
+		}
+	}
+	
+	
+	private void createPartialSuffixArray(List<Integer> suffixes) 
 	{
 		partialSuffixArray = new HashMap<Integer,Integer>();
-		int n = sufixes.size();
+		int n = suffixes.size();
 		for(int i=0;i<n;i++) 
 		{
-			int startSeq = sufixes.get(i);
+			int startSeq = suffixes.get(i);
 			if(startSeq%suffixFraction==0) 
 			{
-				partialSuffixArray.put(i, startSeq);
+				partialSuffixArray.put(i+1, startSeq);
 			}
 		}
 	}
-	private void buildTally(ArrayList<Integer> sufixes) 
-	{
-		Integer[] arr= new Integer[alphabet.length()];
-		for (int i = 0; i < arr.length; i++) 
-		{
-			arr[i]=0;
-		}
-
-		for (int i = 0; i < sufixes.size(); i++) 
-		{
-
-			int n = sufixes.get(i)-1;
-			if(n>=0)
-			{
-				Character actual = sequence.charAt(n);
-				//				System.out.println(actual);
-				arr[alphabet.indexOf(actual)]++;
-			}
-
-			if(i%tallyDistance==0)
-			{
-				Integer[] copy= new Integer[alphabet.length()];
-				for (int j = 0; j < copy.length; j++) 
-				{
-					copy[j]=arr[j];
-				}
-				tallyIndexes.add(copy);
-			}
-		}
-	}
-	private String[] getLastAndFirst(ArrayList<Integer> sufixes) 
-	{
-		String[] lAndF = new String[2];
-
-		StringBuilder bwt = new StringBuilder();
-		StringBuilder f = new StringBuilder();
-
-		for (int i = 0; i < sufixes.size(); i++) 
-		{
-			int n = sufixes.get(i)-1;
-			if(n>=0)
-			{
-				//				System.out.println(word.charAt(n));
-				bwt.append(sequence.charAt(n));
-				Character c = sequence.charAt(n+1);
-				f.append(c);
-			}
-			else
-			{
-				bwt.append("$");
-				f.append(sequence.charAt(0));
-				//				System.out.println("$");	
-			}
-		}
-		lAndF[0]=bwt.toString();
-		lAndF[1]=f.toString();
-
-		return lAndF;
-	}
-	public FMIndexSingleSequence(QualifiedSequence sequence) 
-	{
-		this (sequence.getName(),sequence.getCharacters());
-	}
+	
 	public List<GenomicRegion> search (String searchSequence) 
 	{
 		List<GenomicRegion> alignments = new ArrayList<>();
@@ -207,18 +197,18 @@ public class FMIndexSingleSequence implements Serializable
 				}
 				else
 				{
-					boolean encontrado = false;
-					int posible = 0;
+					boolean found = false;
+					int possible = 0;
 					int steps =0;
-					while(!encontrado)
+					while(!found)
 					{
 						//					System.out.println("ac " +actual);
-						posible = lfMap(actual);
-						encontrado=partialSuffixArray.containsKey(posible);
-						actual =posible;
+						possible = lfMapping(actual);
+						found=partialSuffixArray.containsKey(possible);
+						actual =possible;
 						steps++;
 					}
-					begin = partialSuffixArray.get(posible)+steps;
+					begin = partialSuffixArray.get(possible)+steps;
 				}
 				alignments.add(new GenomicRegionImpl(sequenceName,begin , begin+searchSequence.length()));
 
@@ -232,145 +222,65 @@ public class FMIndexSingleSequence implements Serializable
 	{
 		char c = query.charAt(query.length()-1);
 		
-		int idxS=1;
-		int idxF=-1;
-		for(int i=0;i<alphabet.length();i++) 
-		{
-			char ct = alphabet.charAt(i);
-			if(ct!=c) idxS += characterCounts[alphabet.indexOf(ct)];
-			else 
-			{
-				idxF = idxS + characterCounts[alphabet.indexOf(ct)] - 1 ;
-				break;
-			}
-		}
-		if(idxF==-1) {
+		Integer rowS=firstRowsInMatrix.get(c);
+		Integer rowF=lastRowsInMatrix.get(c);
+		if(rowS == -1 || rowF==-1) {
 			return null;
 		}
 		for(int j=query.length()-2;j>=0;j--) {
 			c = query.charAt(j);
-			if(!alphabet.contains(""+c)) {
-				return null;
-			}
-			boolean add1 = (bwt.charAt(idxS)!=c); 
-			idxS = lfMapping(c, idxS);
-			if(add1) idxS++; 
-			idxF = lfMapping(c, idxF);
-			if(idxS>idxF) {
+			if(alphabet.indexOf(c)<0) return null;
+			boolean add1 = (bwt[rowS]!=c); 
+			rowS = lfMapping(c, rowS);
+			if(add1) rowS++; 
+			rowF = lfMapping(c, rowF);
+			if(rowS>rowF) {
 				return null;
 			}
 		}
 
-		return new int[] {idxS, idxF };
+		return new int[] {rowS, rowF };
 	}
 	
 	
-	
-	/*private Character getCharacterOfFirstAt(int j) 
-	{
-		if(j==0)
-			return '$';
-		int cuenta=0;
-		for (int i = 0; i < characterCounts.length; i++) 
-		{
-			cuenta+=characterCounts[i];
-			if(j<=cuenta)
-				return alphabet.charAt(i);
-		}
-		return null;
-	}*/
-
-	private int getIndexInFirstOf(char c) 
-	{
-		int indexOfChar = alphabet.indexOf(c);
-		int sum = 0;
-		for (int i = 0; i < indexOfChar; i++) 
-		{
-			sum+=characterCounts[i];
-		}
-		return sum+1;
-	}
-	public int getTallyOf(Character c, int i)
+	public int getTallyOf(char c, int row)
 	{
 		int r = 0;
 
-		int a = i/tallyDistance;
+		int a = row/tallyDistance;
 		int b = a+1;
 
-		if( i-a*tallyDistance < Math.abs(i-b*tallyDistance) || tallyIndexes.size()<=b) 
-		{
+		if( row-a*tallyDistance < b*tallyDistance-row || tallyIndexes.length<=b) {
+			//Recalculate from top record
+			r = tallyIndexes[a][alphabet.indexOf(c)];
 
-			int d = tallyIndexes.get(a)[alphabet.indexOf(c)];
-
-			for (int j = a*tallyDistance+1; j <= i; j++) 
-			{
-				//				Character cA = l.charAt(j);
-				Character cA = getCharacterOfBWTAt(j);
-				if(cA==c)
-					d++;
+			for (int j = a*tallyDistance+1; j <= row; j++) {
+				char cA = bwt[j];
+				if(cA==c) r++;
 			}
-			r=d;
-		}
-		else
-		{
-			int d = tallyIndexes.get(b)[alphabet.indexOf(c)];
-
-			for (int j = b*tallyDistance; j > i; j--) 
+		} else {
+			//Recalculate from bottom record
+			r = tallyIndexes[b][alphabet.indexOf(c)];
+			for (int j = b*tallyDistance; j > row; j--) 
 			{
-				Character cA = getCharacterOfBWTAt(j);
-				if(cA==c)
-					d--;
+				char cA = bwt[j];
+				if(cA==c) r--;
 			}
-			r=d;
 		}
-
-
 		return r;
 	}
-	private Character getCharacterOfBWTAt(int j) 
+	
+	private int lfMapping(char c, int row) 
 	{
-		//		System.out.println(j);
-		return j<bwt.length()?bwt.charAt(j):'$';
+		int rank = getTallyOf(c, row);
+		return firstRowsInMatrix.get(c) + rank - 1;
 	}
 	
-	private int lfMapping(char c, int pos) 
+	private int lfMapping (int row)
 	{
-		int rank = getTallyOf(c, pos);
-		int idx = 1;
-		for(int i=0;i<alphabet.length();i++) 
-		{
-			char ct = alphabet.charAt(i); 
-			if(ct!=c) idx += characterCounts[alphabet.indexOf(ct)];
-			else {
-				idx += (rank-1);
-				break;
-			}
-		}
-		return idx;
-	}
-	
-	int lfMap (int indexOfBwt)
-	{
-		char c = getCharacterOfBWTAt(indexOfBwt);
+		char c = bwt[row];
 		//		System.out.println(""+c);
-		int count =getTallyOf(c, indexOfBwt)-1;
-		return getIndexInFirstOf(c)+count;
-	}
-	public String getSequenceName() 
-	{
-		return sequenceName;
-	}
-	public int getTallyDistance() {
-		return tallyDistance;
-	}
-	public void setTallyDistance(int tallyDistance) {
-		this.tallyDistance = tallyDistance;
-	}
-	public String getAlphabet() {
-		return alphabet;
-	}
-	public void setAlphabet(String alphabet) {
-		this.alphabet = alphabet;
+		return lfMapping(c,row);
 	}
 	
 	
