@@ -1,10 +1,11 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import ngsep.genome.GenomicRegion;
+import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersCounter;
@@ -24,7 +25,7 @@ public class OverlapGraph {
 	
 	public static void main(String[] args) {
 		OverlapGraph instance = new OverlapGraph();
-		int numSequences = 2000;
+		int numSequences = 40;
 		int totalLength = 0;
 		long time1 = System.currentTimeMillis();
 		Random r = new Random();
@@ -59,12 +60,12 @@ public class OverlapGraph {
 		time1=time2;
 		for(int i=0;i<kmers.length;i++) {
 			String kmer = kmers[i].toString();
-			List<GenomicRegion> regions = index.search(kmer);
+			List<ReadAlignment> regions = index.search(kmer);
 			//System.out.println("Hits: "+regions.size());
 			/*for(GenomicRegion region:regions) {
 				int k = Integer.parseInt(region.getSequenceName().substring(1));
-				String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()).toString();
-				if(!seqOut.equals(kmer)) System.out.println("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
+				String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()+1).toString();
+				if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
 			}*/
 		}
 		//System.out.println("First k-mer: "+kmers[0]);
