@@ -42,7 +42,11 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.io.FastqFileReader;
 
-
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class ReadsDemultiplex {
 	
 	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());

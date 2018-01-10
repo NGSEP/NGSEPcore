@@ -1,6 +1,6 @@
 /*******************************************************************************
  * NGSEP - Next Generation Sequencing Experience Platform
- * Copyright 2018 Jorge Duitama
+ * Copyright 2016 Jorge Duitama
  *
  * This file is part of NGSEP.
  *
