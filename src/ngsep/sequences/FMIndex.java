@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
 import java.io.FileInputStream;
@@ -12,6 +31,11 @@ import java.util.List;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.ReferenceGenome;
 
+/**
+ * Class able to build FM indexes for multiple sequences
+ * @author German Andrade
+ * @author Jorge Duitama
+ */
 public class FMIndex implements Serializable 
 {
 	/**
@@ -136,7 +160,7 @@ public class FMIndex implements Serializable
 				}
 				if(first < 0) return null;
 				if(last>=seqM.getLength()) return null;
-				return new ReadAlignment(seqName, first, last,searchSequence.length(),flags);
+				return new ReadAlignment(seqName, first+1, last+1,searchSequence.length(),flags);
 			}
 			internalPostStartSeq += seqM.getLength();
 		}
@@ -158,7 +182,11 @@ public class FMIndex implements Serializable
 
 	
 }
-class SequenceMetadata {
+class SequenceMetadata implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4208212205942777492L;
 	private String seqName;
 	private int length;
 	private boolean negativeStrand;
