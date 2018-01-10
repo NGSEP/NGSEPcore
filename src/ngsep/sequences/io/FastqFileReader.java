@@ -1,6 +1,6 @@
 /*******************************************************************************
  * NGSEP - Next Generation Sequencing Experience Platform
- * Copyright 2018 Jorge Duitama
+ * Copyright 2016 Jorge Duitama
  *
  * This file is part of NGSEP.
  *
@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.RawRead;
 
 /**
@@ -130,7 +131,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		if(qs==null) return null;
 		if(loadMode == LOAD_MODE_MINIMAL) return new RawRead(null, seq, null);
 		else if (loadMode == LOAD_MODE_QUALITY) return new RawRead(null, seq, qs);
-		else return new RawRead(id, seq, qs);
+		else return new RawRead(id.substring(1), new DNAMaskedSequence(seq), qs);
 	}
 	
 	private boolean passFilters (RawRead read) {
