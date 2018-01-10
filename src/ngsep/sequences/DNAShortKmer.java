@@ -56,10 +56,19 @@ public class DNAShortKmer implements CharSequence, Comparable<DNAShortKmer>, Ser
 	}
 	@Override
 	public CharSequence subSequence(int start, int end) {
-		String s = new String (AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ));
+		String s = toString();
 		return s.subSequence(start, end);
 	}
 	
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return new String (AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ));
+	}
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
