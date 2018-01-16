@@ -151,7 +151,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 	
 	private VCFRecord loadVCFRecord (String line) {
 		String [] items = ParseUtils.parseString(line,'\t');
-		//TODO: Allow VCFswithout FORMAT and genotype fields
+		//TODO: Allow VCFs without FORMAT and genotype fields
 		if(items.length<9) {
 			log.severe("Could not load line: "+line+". Invalid format");
 			return null;
@@ -161,7 +161,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		List<String> filters = loadFilters(items[6]);
 		List<GenomicVariantAnnotation> infoFields = loadInfoField(variant, items[7]);
 		
-		if(variant.getType() == GenomicVariant.TYPE_UNDETERMINED && items[3].length()>1) variant.setType(GenomicVariant.TYPE_INDEL);
+		//if(variant.getType() == GenomicVariant.TYPE_UNDETERMINED && items[3].length()>1) variant.setType(GenomicVariant.TYPE_INDEL);
 		
 		int[] formatInput = loadInputFormat(items);
 		
@@ -268,9 +268,9 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 					byte type = GenomicVariantImpl.getVariantTypeId(value);
 					if(type>0 && type<=GenomicVariant.TYPE_INVERSION) {
 						variant.setType(type);
-					} else {
+					} /*else {
 						log.severe("Can not load type for genomic variant at "+variant.getSequenceName()+":"+variant.getFirst()+". Invalid type: "+value);
-					}
+					}*/
 				}
 				if(GenomicVariantAnnotation.ATTRIBUTE_END.equals(attribute) && (variant instanceof GenomicVariantImpl)) {
 					//Imprecise variant
