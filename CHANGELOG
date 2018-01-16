@@ -11,6 +11,10 @@ v3.1.1
   minimum mapping quality to consider an alignment unique
 - CoverageStats: Added option "-minMQ" to set the minimum mapping quality to
   consider an alignment unique
+- CompareVCF: Indel events in overlapping but not exact positions can now be
+  matched if their alleles are consistent. This improves the accuracy of the
+  comparison. To achieve this improvement, this module now requires the
+  complete reference sequence and not just the sequence names  
 
 v3.1.0 26-07-2017
 - The VCF I/O now interprets correctly phasing information
