@@ -50,6 +50,7 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_DEFAULT="default";
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
+	public static final String ATTRIBUTE_PRINTHELP="printHelp";
 	public static final String ELEMENT_COMMAND="command";
 	public static final String ELEMENT_TITLE="title";
 	public static final String ELEMENT_INTRO="intro";
@@ -152,6 +153,9 @@ public class CommandsDescriptor {
 			throw new RuntimeException("Class "+className+" for command: "+id+" can not be called",e);
 		}
 		Command cmd = new Command(id,program);
+		String printHelpStr = cmdElem.getAttribute(ATTRIBUTE_PRINTHELP);
+		cmd.setPrintHelp(!"false".equals(printHelpStr));
+		
 		NodeList offspring = cmdElem.getChildNodes(); 
 		for(int i=0;i<offspring.getLength();i++){  
 			Node node = offspring.item(i);
@@ -229,8 +233,10 @@ public class CommandsDescriptor {
 		System.err.println();
 		for(String commandName:commands.keySet()) {
 			Command c = commands.get(commandName);
-			System.err.println("  > " + commandName);
-			System.err.println("          "+c.getIntro());
+			if(c.isPrintHelp()) {
+				System.err.println("  > " + commandName);
+				System.err.println("          "+c.getIntro());
+			}
 		}
 		
 		System.err.println();
@@ -250,6 +256,7 @@ public class CommandsDescriptor {
 	 */
 	public void printHelp(Class<?> program) {
 		Command c = commandsByClass.get(program.getName());
+		//if(!c.isPrintHelp()) return;
 		int titleLength = c.getTitle().length();
 		for(int i=0;i<titleLength;i++)System.err.print("-");
 		System.err.println();
