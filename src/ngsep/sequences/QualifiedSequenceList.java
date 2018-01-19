@@ -21,8 +21,8 @@ package ngsep.sequences;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -40,12 +40,9 @@ import java.util.TreeSet;
  */
 public class QualifiedSequenceList implements List<QualifiedSequence> {
 	private List<QualifiedSequence> sequences = new ArrayList<QualifiedSequence>();
+	private Map<String, Integer> sequenceIndexesMap = new HashMap<String, Integer>();
 	
-	//Cache data to update
-	private Map<String, Integer> sequenceIndexes = new HashMap<String, Integer>();
-	private List<String> sequenceNames = new ArrayList<String>();
 	private long totalLength = 0;
-	private boolean sequenceDataUpdated = false;
 	
 	private boolean allowChanges = true;
 	
@@ -57,21 +54,6 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 		addAll(sequences);
 	}
 	
-	private void updateSequenceData() {
-		if(sequenceDataUpdated) return;
-		List<String> seqNames = new ArrayList<String>();
-		sequenceIndexes.clear();
-		totalLength = 0;
-		for(int i=0;i<sequences.size();i++) {
-			QualifiedSequence s = sequences.get(i); 
-			sequenceIndexes.put(s.getName(), i);
-			seqNames.add(s.getName());
-			totalLength += s.getLength();
-		}
-		sequenceNames = Collections.unmodifiableList(seqNames);
-		sequenceDataUpdated = true;
-	}
-	
 	public boolean isAllowChanges() {
 		return allowChanges;
 	}
@@ -79,19 +61,29 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 		this.allowChanges = allowChanges;
 	}
 	public void add(int index, QualifiedSequence element) {
-		validate(element);
+		Integer indexPresent = validate(element);
+		if(indexPresent!=null) throw new IllegalArgumentException("Can not add sequence in index "+index+". A sequence with name: "+element.getName()+" is already present in index "+indexPresent);
 		sequences.add(index, element);
-		sequenceDataUpdated = false;
+		updateSequenceIndexesMap();
+	}
+	private void updateSequenceIndexesMap() {
+		sequenceIndexesMap.clear();
+		totalLength = 0;
+		for(int i=0;i<sequences.size();i++) {
+			QualifiedSequence s = sequences.get(i); 
+			sequenceIndexesMap.put(s.getName(), i);
+			totalLength += s.getLength();
+		}
 	}
 	
 	public boolean add(QualifiedSequence e) {
-		if(e==null) return false;
-		String name = e.getName();
-		if(indexOf(name)>=0) return false;
+		Integer index = validate(e);
+		if(index!=null) return false;
 		failIfChangesDisabled();
+		//Attributes updated directly to make this operation in (amortized) constant time
 		sequences.add(e);
-		sequenceDataUpdated = false;
-		
+		sequenceIndexesMap.put(e.getName(), sequences.size()-1);
+		totalLength+=e.getLength();
 		return true;
 	}
 	
@@ -105,12 +97,12 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	public boolean addAll(int index, Collection<? extends QualifiedSequence> c) {
 		failIfChangesDisabled();
 		for(QualifiedSequence e:c) {
-			validate(e);
+			if(validate(e)!=null) throw new IllegalArgumentException("A sequence with name: "+e.getName()+" is already present in the list");
 			//Added temporarily to fail if two input sequences have the same name
-			sequenceIndexes.put(e.getName(), 0);
+			sequenceIndexesMap.put(e.getName(), 0);
 		}
 		boolean ret = sequences.addAll(index,c);
-		sequenceDataUpdated = false;
+		updateSequenceIndexesMap();
 		return ret;
 	}
 	/**
@@ -137,7 +129,7 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	public QualifiedSequence remove(int index) {
 		failIfChangesDisabled();
 		QualifiedSequence ret = sequences.remove(index);
-		sequenceDataUpdated = false;
+		if(ret!=null) updateSequenceIndexesMap();
 		return ret;
 	}
 	private void failIfChangesDisabled() {
@@ -146,24 +138,17 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	@Override
 	public boolean removeAll(Collection<?> c) {
 		//Calculate indexes to remove
-		Set<Integer> toRemove = new TreeSet<Integer>();
+		Set<Integer> toRemove = new HashSet<Integer>();
 		for(Object o:c) {
 			int nextIndex = indexOf(o);
 			if(nextIndex>=0) toRemove.add(nextIndex);
 		}
 		if(toRemove.size()==0) return false;
 		failIfChangesDisabled();
-		List<Integer> toRemoveList = new ArrayList<Integer>(toRemove);
-		//Parallel search to find indexes to retain
 		List<Integer> toRetain = new ArrayList<Integer>();
-		int j=0;
 		int l = sequences.size();
 		for(int i=0;i<l;i++) {
-			int nextIdxRemove =l;
-			if(j<toRemoveList.size()) nextIdxRemove = toRemoveList.get(j);
-			if(i<nextIdxRemove) toRetain.add(i);
-			else if(i==nextIdxRemove) j++;
-			else throw new RuntimeException("Unsorted index to remove "+nextIdxRemove);
+			if(!toRemove.contains(i)) toRetain.add(i);
 		}
 		retainIndexes(toRetain);
 		return true;
@@ -186,25 +171,34 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 			newList.add(sequences.get(i));
 		}
 		sequences = newList;
-		sequenceDataUpdated = false;
+		updateSequenceIndexesMap();
 	}
 	@Override
 	public QualifiedSequence set(int index, QualifiedSequence element) {
-		validate(element);
 		failIfChangesDisabled();
+		Integer indexPresent = validate(element);
+		if(indexPresent!=null && indexPresent!=index) {
+			throw new IllegalArgumentException("Can not set sequence in index "+index+" A sequence with name: "+element.getName()+" is already present in index "+indexPresent);
+		}
 		QualifiedSequence old = sequences.set(index, element);
-		sequenceDataUpdated = false;
+		updateSequenceIndexesMap();
 		return old;
 	}
 
-	private void validate(QualifiedSequence e) {
-		if(e==null || e.getName()==null) throw new IllegalArgumentException("Null values not allowed in QualifiedSequenceList");
-		if(sequenceIndexes.containsKey(e.getName())) throw new IllegalArgumentException("Sequence name "+e+ " already included in sequence list");
+	/**
+	 * Throws null pointer exceptions if the object has null elements. Returns true if the name of the given sequence is already in the list
+	 * @param e Qualified sequence to validate
+	 * @return Integer index where a sequence with the given name is present or null if the sequence is not present
+	 */
+	private Integer validate(QualifiedSequence e) {
+		if(e==null) throw new NullPointerException("Null sequences not allowed in QualifiedSequenceList");
+		if(e.getName()==null) throw new NullPointerException("Sequences with null names not allowed in QualifiedSequenceList");
+		return sequenceIndexesMap.get(e.getName());
 	}
 	public void clear() {
 		failIfChangesDisabled();
 		sequences.clear();
-		sequenceDataUpdated = false;
+		updateSequenceIndexesMap();
 	}
 	@Override
 	public boolean contains(Object o) {
@@ -219,7 +213,6 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	}
 	@Override
 	public QualifiedSequence get(int index) {
-		updateSequenceData();
 		return sequences.get(index);
 	}
 	/**
@@ -238,10 +231,9 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	public synchronized int indexOf(Object o) {
 		Integer ret = null;
 		if(o==null) return -1;
-		if(sequenceDataUpdated && (o==lastQuery || o.equals(lastQuery))) return lastIndex;
-		updateSequenceData();
-		if(o instanceof String) ret = sequenceIndexes.get(o);
-		else if (o instanceof QualifiedSequence) ret = sequenceIndexes.get(((QualifiedSequence)o).getName());
+		if(o==lastQuery || o.equals(lastQuery)) return lastIndex;
+		if(o instanceof String) ret = sequenceIndexesMap.get(o);
+		else if (o instanceof QualifiedSequence) ret = sequenceIndexesMap.get(((QualifiedSequence)o).getName());
 		if(ret == null) return -1;
 		lastQuery = o;
 		lastIndex = ret;
@@ -286,7 +278,6 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 		return sequences.toArray(a);
 	}
 	public long getTotalLength() {
-		updateSequenceData();
 		return totalLength;
 	}
 	public void setTotalLength(long totalLength) {
@@ -294,8 +285,9 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 	}
 	
 	public List<String> getNamesStringList () {
-		updateSequenceData();
-		return sequenceNames;
+		List<String> answer = new ArrayList<>();
+		for(QualifiedSequence seq:sequences) answer.add(seq.getName());
+		return answer;
 	}
 
 }
