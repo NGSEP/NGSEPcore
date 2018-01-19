@@ -19,6 +19,8 @@
  *******************************************************************************/
 package ngsep.transcriptome;
 
+import java.util.List;
+
 /**
  * Information for a Gene mapped to a reference genome
  * @author Jorge Duitama
@@ -26,6 +28,9 @@ package ngsep.transcriptome;
 public class Gene {
 	private String id;
 	private String name;
+	private List<String> ontologyTerms;
+	private List<String> databaseReferences;
+	
 	/**
 	 * Creates a new Gene with the given information
 	 * @param id Id of the gene
@@ -62,4 +67,31 @@ public class Gene {
 	public void setName(String name) {
 		this.name = name;
 	}
+	/**
+	 * @return List<String> Ontology terms associated with this gene
+	 */
+	public List<String> getOntologyTerms() {
+		return ontologyTerms;
+	}
+	/**
+	 * Changes the ontology terms associated with this gene
+	 * @param ontologyTerms New list
+	 */
+	public void setOntologyTerms(List<String> ontologyTerms) {
+		this.ontologyTerms = ontologyTerms;
+	}
+	/**
+	 * @return List<String> IDs of external databases associated with this gene
+	 */
+	public List<String> getDatabaseReferences() {
+		return databaseReferences;
+	}
+	/**
+	 * Changes the external database ids associated with this gene
+	 * @param databaseIds New list
+	 */
+	public void setDatabaseReferences(List<String> databaseReferences) {
+		this.databaseReferences = databaseReferences;
+	}
+	
 }

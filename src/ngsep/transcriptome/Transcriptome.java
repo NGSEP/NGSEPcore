@@ -53,6 +53,11 @@ public class Transcriptome {
 	public static final String ANNOTATION_NONSENSE="Nonsense";
 	public static final String ANNOTATION_FRAMESHIFT="Frameshift";
 	public static final String ANNOTATION_JUNCTION="ExonJunction";
+	public static final String ANNOTATION_SPLICE_DONOR="SpliceDonor";
+	public static final String ANNOTATION_SPLICE_ACCEPTOR="SpliceAcceptor";
+	public static final String ANNOTATION_SPLICE_REGION="SpliceRegion";
+	public static final String ANNOTATION_STOP_LOSS="StopLoss";
+	public static final String ANNOTATION_START_LOSS="StartLoss";
 	
 	
 	//Genes indexed by id
@@ -61,8 +66,7 @@ public class Transcriptome {
 	private Map<String, Transcript> transcriptsMap = new TreeMap<String, Transcript>();
 	//Transcripts sorted by absolute position and indexed by chromosome
 	private GenomicRegionSortedCollection<Transcript> sortedTranscripts;
-	//Transcripts sorted by absolute position and indexed by chromosome
-	private GenomicRegionSortedCollection<Exon> sortedExons;
+	
 	//Transcripts by gene
 	private Map<String, List<Transcript>> transcriptsByGene = new TreeMap<String, List<Transcript>>();
 	//RNA to protein translator
@@ -70,11 +74,9 @@ public class Transcriptome {
 	
 	public Transcriptome() {
 		sortedTranscripts = new GenomicRegionSortedCollection<Transcript>();
-		sortedExons = new GenomicRegionSortedCollection<Exon>();
 	}
 	public Transcriptome (QualifiedSequenceList sequenceNames) {
 		sortedTranscripts = new GenomicRegionSortedCollection<Transcript>(sequenceNames);
-		sortedExons = new GenomicRegionSortedCollection<Exon>(sequenceNames);
 	}
 	public Gene getGene (String id) {
 		return genesMap.get(id);
@@ -95,7 +97,6 @@ public class Transcriptome {
 			transcriptsG.add(t);
 			transcriptsMap.put(t.getId(), t);
 			sortedTranscripts.add(t);
-			sortedExons.addAll(t.getExons());
 		}
 	}
 	/**
@@ -162,43 +163,6 @@ public class Transcriptome {
 	public List<Transcript> getTranscriptsByGene(String geneId) {
 		return transcriptsByGene.get(geneId);
 	}
-	/**
-	 * Retrieves all exons in the given sequence
-	 * @param sequenceName Name of the sequence to look for
-	 * @return GenomicRegionSortedCollection<Exon> All exons in the given genomic sequence
-	 */
-	public GenomicRegionSortedCollection<Exon> getExons(String sequenceName) {
-		return sortedExons.getSequenceRegions(sequenceName);
-	}
-	/**
-	 * Retrieves all exons spanning a given genomic location
-	 * @param sequenceName Name of the sequence to look for 
-	 * @param position Genomic location to look for 
-	 * @return GenomicRegionSortedCollection<Exon> Exons spanning the given genomic coordinate
-	 */
-	public GenomicRegionSortedCollection<Exon> getExons(String sequenceName, int position) {
-		return sortedExons.findSpanningRegions(sequenceName, position);
-	}
-	/**
-	 * Retrieves all exons spanning the region delimited by the given criteria
-	 * @param sequenceName Name of the sequence to look for
-	 * @param first First genomic coordinate of the region to look for 
-	 * @param last Last genomic  coordinate of the region to look for
-	 * @return GenomicRegionSortedCollection<Exon> Exons spanning the genomic region defined by the input
-	 * parameters
-	 */
-	public GenomicRegionSortedCollection<Exon> getExons (String sequenceName, int first, int last) {
-		return sortedExons.findSpanningRegions(sequenceName, first, last);
-	}
-	/**
-	 * Retrieves all exons spanning the region delimited by the given criteria
-	 * @param genomicRegion Region to look for
-	 * @return GenomicRegionSortedCollection<Exon> Exons spanning the given genomic region
-	 * parameters
-	 */
-	public GenomicRegionSortedCollection<Exon> getExons (GenomicRegion region) {
-		return sortedExons.findSpanningRegions(region);
-	}
 	
 	/**
 	 * @return QualifiedSequenceList Names of the sequences in the transcriptome
@@ -260,39 +224,56 @@ public class Transcriptome {
 		int differenceBases = alternative.length() - reference.length();
 		int expectexProteinIncrease = differenceBases/3;
 		int maxOffset = Math.max(offsetUpstream, offsetDownstream);
-		List<GenomicVariantAnnotation> annotationCodingExon = new ArrayList<GenomicVariantAnnotation>();
+		List<GenomicVariantAnnotation> annotationCoding = new ArrayList<GenomicVariantAnnotation>();
 		List<GenomicVariantAnnotation> annotationUTR = new ArrayList<GenomicVariantAnnotation>();
 		List<GenomicVariantAnnotation> annotationNCRNA = new ArrayList<GenomicVariantAnnotation>();
 		List<GenomicVariantAnnotation> annotationClose = new ArrayList<GenomicVariantAnnotation>();
 		List<GenomicVariantAnnotation> annotationIntron = new ArrayList<GenomicVariantAnnotation>();
+		List<GenomicVariantAnnotation> annotationSplice = new ArrayList<GenomicVariantAnnotation>();
 		for(Transcript t:getTranscripts(variant.getSequenceName(), variant.getFirst()-maxOffset, variant.getLast()+maxOffset)) {
-			//System.out.println("Transcript: "+id+". Coding: "+coding+". Reverse: "+reverse);
-			Exon exStart = t.getExonByAbsolutePosition(variant.getFirst());
-			Exon exEnd = t.getExonByAbsolutePosition(variant.getLast());
-			if(exStart!=exEnd) {
-				annotationCodingExon = makeAnnotation(variant, ANNOTATION_JUNCTION, t, null);
-			} else if (exStart == null) {
+			//if(variant.getFirst()==1096) System.err.println("Transcript: "+t.getId()+". Coding: "+t.isCoding()+". Reverse: "+t.isNegativeStrand()+" at "+t.getSequenceName()+": "+t.getFirst()+"-"+t.getLast());
+			TranscriptSegment segmentStart = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst());
+			TranscriptSegment segmentEnd = t.getTranscriptSegmentByAbsolutePosition(variant.getLast());
+			if(segmentStart!=segmentEnd) {
+				annotationCoding = makeAnnotation(variant, ANNOTATION_JUNCTION, t);
+			} else if (segmentStart == null) {
 				//Cases outside the transcript or in introns
 				if(t.getFirst()<=variant.getFirst() && t.getLast()>=variant.getLast()) {
-					annotationIntron = makeAnnotation(variant, ANNOTATION_INTRON, t, null);
+					annotationIntron = makeAnnotation(variant, ANNOTATION_INTRON, t);
+					TranscriptSegment closeSegmentLeft = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst()-10);
+					TranscriptSegment closeSegmentRight = t.getTranscriptSegmentByAbsolutePosition(variant.getLast()+10);
+					if(closeSegmentLeft!=null) {
+						int distance = variant.getFirst()-closeSegmentLeft.getLast(); 
+						if(distance<=2) {
+							if(t.isNegativeStrand()) annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_ACCEPTOR, t);
+							else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_DONOR, t);
+						} else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_REGION, t);
+					} else if (closeSegmentRight!=null) {
+						int distance = closeSegmentRight.getFirst()-variant.getLast(); 
+						if (distance<=2) {
+							if(t.isNegativeStrand()) annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_DONOR, t);
+							else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_ACCEPTOR, t);
+						} else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_REGION, t);
+					}
+					
 				} else if (variant.getLast()<t.getFirst() ) {
 					//Variant before the transcript in genomic location. Check upstream for positive strand and downstream for negative strand
 					if(t.isPositiveStrand() && variant.getLast()>t.getFirst()-offsetUpstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t, null);
+						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t);
 					}
 					else if(annotationClose.isEmpty() && t.isNegativeStrand() && variant.getLast()>t.getFirst()-offsetDownstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t, null);
+						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t);
 					}
 				} else if (variant.getFirst()> t.getLast()) {
 					//Variant before the transcript in genomic location. Check upstream for negative strand and downstream for positive strand
 					if(annotationClose.isEmpty() && t.isPositiveStrand() && variant.getFirst()<t.getLast()+offsetDownstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t, null);
+						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t);
 					}
 					else if(t.isNegativeStrand() && variant.getFirst()<t.getLast()+offsetUpstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t, null);
+						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t);
 					}
 				}
-			} else if(exStart.isCoding()) {
+			} else if(segmentStart.isCoding()) {
 				int transcriptionStart = t.getCodingRelativeStart();
 				int absoluteFirst = variant.getFirst();
 				if(t.isNegativeStrand()) {
@@ -307,7 +288,7 @@ public class Transcriptome {
 				String codonStr = ""+codon+"."+(module+1);
 				if(differenceBases%3!=0){
 					//Frameshift mutation
-					annotationCodingExon = makeAnnotation(variant, ANNOTATION_FRAMESHIFT, t, codonStr);
+					annotationCoding = makeAnnotation(variant, ANNOTATION_FRAMESHIFT, t, codonStr, null);
 				} else {
 					DNAMaskedSequence cdnaSequence = t.getCDNASequence();
 					if(cdnaSequence!=null && varTranscriptStart<cdnaSequence.length()) {
@@ -321,37 +302,51 @@ public class Transcriptome {
 						//System.out.println("Ref: "+testReference+". Var: "+testVariant+". Transcript start:"+varTranscriptStart);
 						String refProt = proteinTranslator.getProteinSequence(testReference);
 						String varProt = proteinTranslator.getProteinSequence(testVariant);
+						String change=refProt+codon+varProt;
 						//System.out.println("Ref prot: "+refProt+". Varprot: "+varProt);
 						if(refProt.equals(varProt)) {
-							if(annotationCodingExon.isEmpty()) {
-								annotationCodingExon = makeAnnotation(variant, ANNOTATION_SYNONYMOUS, t, codonStr);
+							if(annotationCoding.isEmpty()) {
+								annotationCoding = makeAnnotation(variant, ANNOTATION_SYNONYMOUS, t, codonStr,null);
 							}
 						} else if (refProt.length()+expectexProteinIncrease==varProt.length()) {
-							annotationCodingExon = makeAnnotation(variant, ANNOTATION_MISSENSE, t, codonStr);
+							if(startTest==0 && (varProt.length()==0 || varProt.charAt(0)!='M')) {
+								annotationCoding = makeAnnotation(variant, ANNOTATION_START_LOSS, t, codonStr,change);
+							} else {
+								annotationCoding = makeAnnotation(variant, ANNOTATION_MISSENSE, t, codonStr,change);
+							}
+						} else if (refProt.length()==0 && varProt.length()>0) {
+							annotationCoding = makeAnnotation(variant, ANNOTATION_STOP_LOSS, t, codonStr,change);
 						} else {
-							annotationCodingExon = makeAnnotation(variant, ANNOTATION_NONSENSE, t, codonStr);
+							annotationCoding = makeAnnotation(variant, ANNOTATION_NONSENSE, t, codonStr,change);
 						}
-					} else if(annotationCodingExon.isEmpty()) {
-						annotationCodingExon = makeAnnotation(variant, ANNOTATION_CODING, t, codonStr);
+					} else if(annotationCoding.isEmpty()) {
+						annotationCoding = makeAnnotation(variant, ANNOTATION_CODING, t, codonStr, null);
 					}
 				}
-			} else if(exStart.getStatus()==Exon.STATUS_5P_UTR) {
-				annotationUTR = makeAnnotation(variant, ANNOTATION_5P_UTR, t, null);
-			} else if (annotationUTR.isEmpty() && exStart.getStatus()==Exon.STATUS_3P_UTR) {
-				annotationUTR = makeAnnotation(variant, ANNOTATION_3P_UTR, t, null);
-			} else if(exStart.getStatus()==Exon.STATUS_NCRNA)  {
-				annotationNCRNA = makeAnnotation(variant, ANNOTATION_NONCODINGRNA, t, null);
+			} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
+				annotationUTR = makeAnnotation(variant, ANNOTATION_5P_UTR, t);
+			} else if (annotationUTR.isEmpty() && segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
+				annotationUTR = makeAnnotation(variant, ANNOTATION_3P_UTR, t);
+			} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
+				annotationNCRNA = makeAnnotation(variant, ANNOTATION_NONCODINGRNA, t);
 			}
 		}
 		//Priority management
-		if(!annotationCodingExon.isEmpty()) return annotationCodingExon;
-		if (!annotationUTR.isEmpty()) return annotationUTR;
-		if (!annotationNCRNA.isEmpty()) return annotationNCRNA;
+		if(!annotationCoding.isEmpty()) return annotationCoding;
+		if(!annotationSplice.isEmpty()) return annotationSplice;
+		if(!annotationUTR.isEmpty()) return annotationUTR;
+		if(!annotationNCRNA.isEmpty()) return annotationNCRNA;
 		if(!annotationClose.isEmpty()) return annotationClose;
 		if(!annotationIntron.isEmpty()) return annotationIntron; 
-		return makeAnnotation(variant, ANNOTATION_INTERGENIC, null, null);
+		return makeAnnotation(variant, ANNOTATION_INTERGENIC);
 	}
-	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type, Transcript t, String codon) {
+	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type) {
+		return makeAnnotation(var, type,null,null,null);
+	}
+	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type, Transcript t) {
+		return makeAnnotation(var, type,t,null,null);
+	}
+	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type, Transcript t, String codon, String change) {
 		//Remove previous annotations
 		List<GenomicVariantAnnotation> answer = new ArrayList<GenomicVariantAnnotation>();
 		answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION, type));
@@ -359,20 +354,22 @@ public class Transcriptome {
 			answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ID, t.getId()));
 			answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_GENE_NAME, t.getGeneName()));
 			if(codon!=null) answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_CODON, codon));
+			if(change!=null) answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE, change));
 		}
 		return answer;
 	}
 	public void fillSequenceTranscripts(ReferenceGenome genome) {
+		if(sortedTranscripts==null)System.err.println("Null sorted transcripts");
 		for(Transcript t:sortedTranscripts) {
 			StringBuilder transcriptSeq = new StringBuilder();
-			boolean exonNotFound = false;
-			List<Exon> exons = new ArrayList<Exon>(t.getExons());
-			if(t.isNegativeStrand()) Collections.reverse(exons);
-			for (Exon e: exons) {
+			boolean segmentNotFound = false;
+			List<TranscriptSegment> segments = new ArrayList<TranscriptSegment>(t.getTranscriptSegments());
+			if(t.isNegativeStrand()) Collections.reverse(segments);
+			for (TranscriptSegment e: segments) {
 				CharSequence genomicSeq = genome.getReference(t.getSequenceName(),e.getFirst(),e.getLast());
 				if(genomicSeq == null) {
-					System.err.println("WARN: Exon in location "+t.getSequenceName()+":"+e.getFirst()+"-"+ e.getLast()+" not found for transcript: "+t.getId());
-					exonNotFound = true;
+					System.err.println("WARN: Transcript segment at genomic location "+t.getSequenceName()+":"+e.getFirst()+"-"+ e.getLast()+" not found for transcript: "+t.getId());
+					segmentNotFound = true;
 					break;
 				}
 				if(t.isNegativeStrand()) {
@@ -380,7 +377,7 @@ public class Transcriptome {
 				}
 				transcriptSeq.append(genomicSeq);
 			}
-			if(!exonNotFound) t.setCDNASequence(new DNAMaskedSequence(transcriptSeq.toString().toUpperCase()));
+			if(!segmentNotFound) t.setCDNASequence(new DNAMaskedSequence(transcriptSeq.toString().toUpperCase()));
 		}
 	}
 }

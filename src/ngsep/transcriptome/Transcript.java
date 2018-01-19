@@ -43,9 +43,9 @@ public class Transcript implements GenomicRegion {
 	private DNAMaskedSequence cdnaSequence;
 	private String proteinSequence;
 	private boolean coding=false;
-	private List<Exon> exons=new ArrayList<Exon>();
+	private List<TranscriptSegment> transcriptSegments=new ArrayList<TranscriptSegment>();
 	//Precalculated exons information
-	private List<Exon> exonsSortedTranscript=new ArrayList<Exon>();
+	private List<TranscriptSegment> segmentsSortedTranscript=new ArrayList<TranscriptSegment>();
 	private int codingRelativeStart = -1;
 	private int codingRelativeEnd = -1;
 	private int length = 0;
@@ -57,7 +57,7 @@ public class Transcript implements GenomicRegion {
 	 * @param start First position of the transcript in the sequence where the gene is located
 	 * @param end Last position of the transcript in the sequence where the gene is located
 	 * @param negativeStrand Tells if the transcription is done in the forward or in the reverse strand
-	 * @param exons List of exons making up the transcript
+	 * @param transcriptSegments List of exons making up the transcript
 	 */
 	public Transcript(String id, String sequenceName, int first, int last, boolean negativeStrand) {
 		super();
@@ -69,20 +69,35 @@ public class Transcript implements GenomicRegion {
 		this.setNegativeStrand(negativeStrand);
 	}
 	/**
-	 * Changes the list of exons making up the transcript
-	 * @param exons New list of exons making up the transcript
+	 * Changes the list of segments making up the transcript
+	 * @param exons New list of segments making up the transcript
 	 */
-	public void setExons(List<Exon> exons) {
-		this.exons.clear();
-		this.exons.addAll(exons);
-		Collections.sort(this.exons,GenomicRegionPositionComparator.getInstance());
-		this.exonsSortedTranscript.clear();
-		this.exonsSortedTranscript.addAll(this.exons);
-		if(negativeStrand) Collections.reverse(this.exonsSortedTranscript);
+	public void setTranscriptSegments(List<TranscriptSegment> segments) {
+		this.transcriptSegments.clear();
+		this.transcriptSegments.addAll(segments);
+		Collections.sort(this.transcriptSegments,GenomicRegionPositionComparator.getInstance());
+		//Add implied segments
+		TranscriptSegment firstSegment = segments.get(0);
+		//if("YBL092W_mRNA".equals(id)) System.err.println("Transcript start: "+this.first+" segment start: "+firstSegment.getFirst());
+		if(this.first<firstSegment.getFirst()) {
+			TranscriptSegment leftSegment = new TranscriptSegment(this, this.first, firstSegment.getFirst()-1);
+			leftSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_3P_UTR:TranscriptSegment.STATUS_5P_UTR);
+			this.transcriptSegments.add(0, leftSegment);
+		}
+		TranscriptSegment lastSegment = transcriptSegments.get(transcriptSegments.size()-1);
+		if(this.last>lastSegment.getLast()) {
+			TranscriptSegment rightSegment = new TranscriptSegment(this, lastSegment.getLast()+1, this.last);
+			rightSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_5P_UTR:TranscriptSegment.STATUS_3P_UTR);
+			this.transcriptSegments.add(rightSegment);
+		}
+		//if("YBL092W_mRNA".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus());
+		this.segmentsSortedTranscript.clear();
+		this.segmentsSortedTranscript.addAll(this.transcriptSegments);
+		if(negativeStrand) Collections.reverse(this.segmentsSortedTranscript);
 		length = 0;
 		codingRelativeStart = -1;
 		codingRelativeEnd = -1;
-		for(Exon e: exonsSortedTranscript) {
+		for(TranscriptSegment e: segmentsSortedTranscript) {
 			if(e.isCoding()) {
 				if(codingRelativeStart==-1) codingRelativeStart = length;
 				codingRelativeEnd = length+e.length()-1;
@@ -99,7 +114,7 @@ public class Transcript implements GenomicRegion {
 	 */
 	public int getRelativeTranscriptPosition (int absolutePosition) {
 		int answer = 0;
-		for(Exon e:exonsSortedTranscript) {
+		for(TranscriptSegment e:segmentsSortedTranscript) {
 			if(negativeStrand && e.getLast()< absolutePosition) {
 				return -1;
 			} else if (!negativeStrand && e.getFirst()> absolutePosition) {
@@ -124,7 +139,7 @@ public class Transcript implements GenomicRegion {
 	 * or equal than the transcript length 
 	 */
 	public int getAbsolutePosition(int relativeTranscriptPosition) {
-		for(Exon e:exonsSortedTranscript) {
+		for(TranscriptSegment e:segmentsSortedTranscript) {
 			if(relativeTranscriptPosition<e.length()) {
 				if(this.negativeStrand) {
 					return e.getLast() - relativeTranscriptPosition;
@@ -190,13 +205,13 @@ public class Transcript implements GenomicRegion {
 		}
 	}
 	/**
-	 * Returns the Exon spanning the given relative position 
+	 * Returns the transcript segment spanning the given relative position 
 	 * @param relativeTranscriptPosition Zero based position relative to the start of the transcript
-	 * @return Exon spanning the given position or null if the given position is invalid
+	 * @return TranscriptSegment spanning the given position or null if the given position is invalid
 	 */
-	public Exon getExon (int relativeTranscriptPosition) {
+	public TranscriptSegment getTranscriptSegment (int relativeTranscriptPosition) {
 		if(relativeTranscriptPosition<0) return null;
-		for(Exon e:exonsSortedTranscript) {
+		for(TranscriptSegment e:segmentsSortedTranscript) {
 			if(relativeTranscriptPosition<e.length()) {
 				return e;
 			} else {
@@ -206,16 +221,16 @@ public class Transcript implements GenomicRegion {
 		return null;
 	}
 	/**
-	 * Returns the Exon spanning the given position 
-	 * @param absolutePosition Position relative to the sequence where the transcript is located
-	 * @return Exon spanning the given position or null if the given position does not belong 
+	 * Returns the transcript segment spanning the given position 
+	 * @param absolutePosition Position relative to the genomic sequence where the transcript is located
+	 * @return TranscriptSegment spanning the given position or null if the given position does not belong 
 	 * to the transcript
 	 */
-	public Exon getExonByAbsolutePosition (int absolutePosition) {
+	public TranscriptSegment getTranscriptSegmentByAbsolutePosition (int absolutePosition) {
 		if(first > absolutePosition || last < absolutePosition) {
 			return null;
 		}
-		for(Exon e:exons) {
+		for(TranscriptSegment e:transcriptSegments) {
 			if(e.getFirst()<=absolutePosition && e.getLast()>=absolutePosition) {
 				return e;
 			} else if (e.getLast() > absolutePosition) {
@@ -225,14 +240,14 @@ public class Transcript implements GenomicRegion {
 		return null;
 	}
 	/**
-	 * Returns a list of exons overlapping the region delimited by the given start and end 
-	 * @param absoluteStart First position relative to the sequence where the transcript is located
-	 * @param absoluteEnd Last position relative to the sequence where the transcript is located
+	 * Returns a list of transcript segments overlapping the region delimited by the given start and end 
+	 * @param absoluteStart First position relative to the genomic sequence where the transcript is located
+	 * @param absoluteEnd Last position relative to the genomic sequence where the transcript is located
 	 * @return List<Exon> Exons in the transcript spanning the interval defined by the given coordinates
 	 */
-	public List<Exon> getExonsByAbsolute(int absoluteStart, int absoluteEnd) {
-		ArrayList<Exon> answer = new ArrayList<Exon>();
-		for(Exon e:exons) {
+	public List<TranscriptSegment> getTranscriptSegmentsByAbsolute(int absoluteStart, int absoluteEnd) {
+		ArrayList<TranscriptSegment> answer = new ArrayList<TranscriptSegment>();
+		for(TranscriptSegment e:transcriptSegments) {
 			if(e.getFirst()<=absoluteEnd && e.getLast() >= absoluteStart ) {
 				answer.add(e);
 			}
@@ -240,21 +255,21 @@ public class Transcript implements GenomicRegion {
 		return answer;
 	}
 	/**
-	 * @return int Length of the transcript calculated as the sum of the exons making up the transcript
+	 * @return int Length of the transcript calculated as the sum of the segments making up the transcript
 	 */
 	public int length() {
 		return length;
 	}
 	/**
-	 * Returns a list of exons overlapping the region delimited by the given start and end
+	 * Returns a list of transcript segments overlapping the region delimited by the given start and end
 	 * @param transcriptRelativeStart Zero based first position relative to the start of the transcript
 	 * @param transcriptRelativeEnd Zero based last position relative to the start of the transcript
-	 * @return List<Exon> Exons in the transcript spanning the interval defined by the given coordinates
+	 * @return List<TranscriptSegment> Segments in the transcript spanning the interval defined by the given coordinates
 	 */
-	public List<Exon> getExons(int transcriptRelativeStart, int transcriptRelativeEnd) {
-		ArrayList<Exon> answer = new ArrayList<Exon>();
+	public List<TranscriptSegment> getTranscriptSegments(int transcriptRelativeStart, int transcriptRelativeEnd) {
+		ArrayList<TranscriptSegment> answer = new ArrayList<TranscriptSegment>();
 		int exonStart=0;
-		for(Exon e:exonsSortedTranscript) {
+		for(TranscriptSegment e:segmentsSortedTranscript) {
 			int nextExonStart = exonStart+e.length();
 			if(transcriptRelativeStart<nextExonStart && transcriptRelativeEnd >= exonStart ) {
 				answer.add(e);
@@ -391,10 +406,10 @@ public class Transcript implements GenomicRegion {
 		return "";
 	}
 	/**
-	 * @return List<Exon> List of exons making up the transcript sorted by genomic position
+	 * @return List<TranscriptSegment> List of segments making up the transcript sorted by genomic position
 	 */
-	public List<Exon> getExons() {
-		return exons;
+	public List<TranscriptSegment> getTranscriptSegments() {
+		return transcriptSegments;
 	}
 	/**
 	 * @return Gene the gene to which the transcript belongs

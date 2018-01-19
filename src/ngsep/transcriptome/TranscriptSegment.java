@@ -27,7 +27,7 @@ import ngsep.genome.GenomicRegion;
  * should be created
  * @author Jorge Duitama
  */
-public class Exon implements GenomicRegion {
+public class TranscriptSegment implements GenomicRegion {
 	public static final int STATUS_CODING = 0;
 	public static final int STATUS_5P_UTR = 1;
 	public static final int STATUS_3P_UTR = 2;
@@ -42,7 +42,7 @@ public class Exon implements GenomicRegion {
 	 * @param first position of the exon in the sequence where the gene is located
 	 * @param last position of the exon in the sequence where the gene is located
 	 */
-	public Exon(Transcript t, int first, int last) {
+	public TranscriptSegment(Transcript t, int first, int last) {
 		this.transcript = t;
 		this.setFirst(first);
 		this.setLast(last);
