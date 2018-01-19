@@ -58,6 +58,7 @@ public class VCFFileHeader {
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ID, "\"Id of the transcript related to the variant annotation\"","1","String"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_GENE_NAME,"\"Name of the gene related to the variant annotation\"","1","String"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_CODON, "\"One based codon position of the start of the variant. The decimal is the codon position\"","1","Float"));
+		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE, "\"Description of the aminoacid change produced by a non-synonymous mutation. String encoded as reference aminoacid, position and mutated aminoacid\"","1","String"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, "\"Number of samples genotyped\"","1","Integer"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_MAF,"\"Minor allele frequency\"","1","Float"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES,"\"Number of alleles in called genotypes\"","1","Integer"));
@@ -200,7 +201,8 @@ public class VCFFileHeader {
 		printColumnNamesLine(out);
 	}
 	private void printColumnNamesLine(PrintStream out) {
-		out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT");
+		out.print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
+		if(samples.size()>0) out.print("\tFORMAT");
 		for(int i=0;i<samples.size();i++) {
 			out.print("\t"+samples.get(i).getId());
 		}

@@ -101,6 +101,7 @@ public class VCFRecord implements GenomicRegion {
 	public static final int FORMAT_IDX_NTRDF = 12;
 	public static final int FORMAT_IDX_TGEN = 13;
 	
+	public static final int [] DEF_FORMAT_ARRAY_NONE = {};
 	public static final int [] DEF_FORMAT_ARRAY_MINIMAL = {FORMAT_IDX_GT};
 	public static final int [] DEF_FORMAT_ARRAY_QUALITY = {FORMAT_IDX_GT,FORMAT_IDX_GQ};
 	public static final int [] DEF_FORMAT_ARRAY_NGSEP_SNV = {FORMAT_IDX_GT,FORMAT_IDX_PL,FORMAT_IDX_GQ,FORMAT_IDX_DP,FORMAT_IDX_BSDP,FORMAT_IDX_ACN};
