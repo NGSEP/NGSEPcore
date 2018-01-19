@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.io.ParseUtils;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -40,6 +41,7 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.TranscriptSegment;
 import ngsep.transcriptome.Gene;
+import ngsep.transcriptome.ProteinTranslator;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 
@@ -328,6 +330,17 @@ public class GFF3TranscriptomeHandler {
 			} else {
 				log.warning("Transcript not found with id: "+sequence.getName());
 			}
+		}
+	}
+	public static void main(String[] args) throws Exception {
+		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler();
+		Transcriptome transcriptome = handler.loadMap(args[0]);
+		transcriptome.fillSequenceTranscripts(new ReferenceGenome(args[1]));
+		ProteinTranslator translator = new ProteinTranslator();
+		for (Transcript t: transcriptome.getAllTranscripts()) {
+			System.out.println(">"+t.getId());
+			System.out.println(t.getProteinSequence(translator));
+			
 		}
 	}
 }
