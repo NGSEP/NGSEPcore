@@ -78,7 +78,7 @@ public class Transcript implements GenomicRegion {
 		Collections.sort(this.transcriptSegments,GenomicRegionPositionComparator.getInstance());
 		//Add implied segments
 		TranscriptSegment firstSegment = segments.get(0);
-		//if("YBL092W_mRNA".equals(id)) System.err.println("Transcript start: "+this.first+" segment start: "+firstSegment.getFirst());
+		//if("Eg01_t002210".equals(id)) System.err.println("Transcript start: "+this.first+" segment start: "+firstSegment.getFirst());
 		if(this.first<firstSegment.getFirst()) {
 			TranscriptSegment leftSegment = new TranscriptSegment(this, this.first, firstSegment.getFirst()-1);
 			leftSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_3P_UTR:TranscriptSegment.STATUS_5P_UTR);
@@ -90,26 +90,28 @@ public class Transcript implements GenomicRegion {
 			rightSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_5P_UTR:TranscriptSegment.STATUS_3P_UTR);
 			this.transcriptSegments.add(rightSegment);
 		}
-		//if("YBL092W_mRNA".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus());
+		//if("Eg01_t002210".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus()+" length: "+transcriptSegments.get(0).length());
 		this.segmentsSortedTranscript.clear();
 		this.segmentsSortedTranscript.addAll(this.transcriptSegments);
 		if(negativeStrand) Collections.reverse(this.segmentsSortedTranscript);
 		length = 0;
 		codingRelativeStart = -1;
 		codingRelativeEnd = -1;
+		int codingLength=0;
 		for(TranscriptSegment e: segmentsSortedTranscript) {
 			if(e.isCoding()) {
-				int posNextFirstCodon = codingRelativeEnd+1+e.getFirstCodonPositionOffset(); 
 				if(codingRelativeStart==-1) {
 					codingRelativeStart = length+e.getFirstCodonPositionOffset();
-				} else if(posNextFirstCodon%3!=0) {
-					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+e.getFirst()+"-"+e.getLast()+" looks inconsistent. Transcript position first bp "+(codingRelativeEnd+1)+" given offset: "+e.getFirstCodonPositionOffset());
+				} else if((codingLength+e.getFirstCodonPositionOffset())%3!=0) {
+					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+e.getFirst()+"-"+e.getLast()+" looks inconsistent. Coding length "+codingLength+" given offset: "+e.getFirstCodonPositionOffset());
 				}
 				codingRelativeEnd = length+e.length()-1;
+				codingLength+=e.length();
 				coding = true;
 			}
 			length+=e.length();
 		}
+		//if("Eg01_t002210".equals(id)) System.err.println("Coding relative start "+codingRelativeStart+" coding relative end: "+codingRelativeEnd+" total length: "+length);
 	}
 	/**
 	 * Calculates the position relative to the start of the transcript given the position relative to the sequence
@@ -404,6 +406,7 @@ public class Transcript implements GenomicRegion {
 	 * @return String Protein sequence after translation
 	 */
 	public String getProteinSequence(ProteinTranslator translator) {
+		if(cdnaSequence==null) return null;
 		int translationStart = getCodingRelativeStart();
 		if(translationStart>=0) {
 			return translator.getProteinSequence(cdnaSequence.subSequence(translationStart));
