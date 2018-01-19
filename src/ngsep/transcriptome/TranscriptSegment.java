@@ -28,14 +28,17 @@ import ngsep.genome.GenomicRegion;
  * @author Jorge Duitama
  */
 public class TranscriptSegment implements GenomicRegion {
-	public static final int STATUS_CODING = 0;
-	public static final int STATUS_5P_UTR = 1;
-	public static final int STATUS_3P_UTR = 2;
-	public static final int STATUS_NCRNA = 3;
+	public static final byte STATUS_CODING = 0;
+	public static final byte STATUS_5P_UTR = 1;
+	public static final byte STATUS_3P_UTR = 2;
+	public static final byte STATUS_NCRNA = 3;
 	private Transcript transcript;
 	private int first;
 	private int last; //Always greater or equal than start
-	private int status = STATUS_CODING;
+	private byte status = STATUS_CODING;
+	//For coding transcripts offset from first (or last if negative strand) where a first codon position is located
+	private byte firstCodonPositionOffset = 0;
+	
 	/**
 	 * Creates a new Exon with the given information
 	 * @param gene Gene where the exon is located
@@ -92,17 +95,32 @@ public class TranscriptSegment implements GenomicRegion {
 		return transcript.getSequenceName();
 	}
 	/**
-	 * @return int Exon status
+	 * @return int Segment status
 	 */
-	public int getStatus() {
+	public byte getStatus() {
 		return status;
 	}
 	/**
-	 * Changes the exon status
+	 * Changes the segment status
 	 * @param status new status
 	 */
-	public void setStatus(int status) {
+	public void setStatus(byte status) {
 		this.status = status;
+	}
+	
+	/**
+	 * @return byte the firstCodonPositionOffset
+	 */
+	public byte getFirstCodonPositionOffset() {
+		return firstCodonPositionOffset;
+	}
+	/**
+	 * Changes the offset at which a first codon position is located
+	 * @param firstCodonPositionOffset the new offset. It can be 0, 1 or 2
+	 */
+	public void setFirstCodonPositionOffset(byte offset) {
+		if(offset <0 || offset >2) throw new IllegalArgumentException("Invalid offset "+offset);
+		this.firstCodonPositionOffset = offset;
 	}
 	/**
 	 * @return Transcript where this exon is included
@@ -118,5 +136,8 @@ public class TranscriptSegment implements GenomicRegion {
 	public boolean isNegativeStrand() {
 		return transcript.isNegativeStrand();
 	}
+	
+	
+	
 	
 }

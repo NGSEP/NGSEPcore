@@ -69,7 +69,9 @@ public class GFF3TranscriptomeHandler {
 	
 	
 	
-	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_CDS,FEATURE_TYPE_5PUTR,FEATURE_TYPE_GENE,FEATURE_TYPE_MRNA,FEATURE_TYPE_3PUTR,FEATURE_TYPE_TRGENE};
+	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR};
+	//TODO: Use a file resource
+	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
 	private QualifiedSequenceList sequenceNames = new QualifiedSequenceList();
 	
 	private Logger log = Logger.getLogger(GFF3TranscriptomeHandler.class.getName());
@@ -113,6 +115,7 @@ public class GFF3TranscriptomeHandler {
 					try {
 						featureLine = loadFeatureLine(line,i); 
 					} catch (RuntimeException e) {
+						e.printStackTrace();
 						log.warning("Can not load genomic feature at line: "+line+". Unrecognized sequence name. "+e.getMessage());
 						line=in.readLine();
 						continue;
@@ -249,6 +252,7 @@ public class GFF3TranscriptomeHandler {
 				segments.add(segment);
 			} else if (FEATURE_TYPE_CDS.equals(featureType)) {
 				segment.setStatus(TranscriptSegment.STATUS_CODING);
+				segment.setFirstCodonPositionOffset(line.getPhase());
 				segments.add(segment);
 			}
 		}
@@ -258,12 +262,7 @@ public class GFF3TranscriptomeHandler {
 		String [] items = ParseUtils.parseString(line, '\t');
 		//Memory saver for sequenceNames
 		QualifiedSequence seq = sequenceNames.addOrLookupName(items[0]);
-		String type = items[2];
-		int idxType = Arrays.binarySearch(supportedFeatureTypes, type);
-		if(idxType>=0) {
-			//Memory saver for feature types
-			type = supportedFeatureTypes[idxType];
-		}
+		String type = loadType(items[2]);
 		GFF3GenomicFeatureLine answer = new GFF3GenomicFeatureLine(seq.getName(), Integer.parseInt(items[3]), Integer.parseInt(items[4]),type);
 		answer.setSource(items[1]);
 		answer.setLineNumber(lineNumber);
@@ -284,6 +283,31 @@ public class GFF3TranscriptomeHandler {
 			else answer.addAnnotation(annItems[i].substring(0,idx),annItems[i].substring(idx+1));
 		}
 		return answer;
+	}
+	/**
+	 * Returns the known feature type given the type string. This helps to save memory with feature types
+	 * @param typeStr Type to search
+	 * @return String If typeStr is a supported SOFA id, it returns the correspoonding name.
+	 * otherwise it returns a supported type equals to typeStr or typeStr itself if it is not a known type
+	 */
+	public String loadType(String typeStr) {
+		String type = typeStr;
+		int idxType = -1;
+		//Search type name
+		for(int i=0;i<supportedFeatureTypes.length && idxType == -1;i++) {
+			if(supportedFeatureTypes[i].equals(typeStr)) {
+				idxType = i;
+				type = supportedFeatureTypes[idxType];
+			}
+		}
+		//Search type id
+		for(int i=0;i<supportedFeatureTypesSOFAIDs.length && idxType == -1;i++) {
+			if(supportedFeatureTypesSOFAIDs[i].equals(typeStr)) {
+				idxType = i;
+				type = supportedFeatureTypes[idxType];
+			}
+		}
+		return type;
 	}
 	/**
 	 * Loads the transcripts sequences from the given fasta file 
