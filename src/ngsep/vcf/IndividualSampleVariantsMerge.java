@@ -38,7 +38,6 @@ import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.SimpleSequenceListLoader;
-import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
@@ -358,11 +357,9 @@ public class IndividualSampleVariantsMerge {
 		try {
 			out = new PrintStream(outFile);
 			VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
-			header.addDefaultSample("None");
 			writer.printHeader(header,out);
 			for(GenomicVariant variant:variants) {
-				CalledGenomicVariantImpl cv = new CalledGenomicVariantImpl(variant, new byte[0]);
-				VCFRecord record = new VCFRecord(variant, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, cv, header);
+				VCFRecord record = new VCFRecord(variant, VCFRecord.DEF_FORMAT_ARRAY_NONE, new ArrayList<>(), header);
 				writer.printVCFRecord(record, out);
 			}
 		} finally {

@@ -23,25 +23,34 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.sequences.io.SimpleSequenceListLoader;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.SNV;
 
+/**
+ * COmpares two VCF files looking for differences between the genotypes
+ * @author Jorge Duitama
+ *
+ */
 public class VCFComparator {
 	private Logger log = Logger.getLogger(VCFComparator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	// Sequence names
-	private QualifiedSequenceList seqNames;
+	private ReferenceGenome genome;
 	// Genotyped filter
 	private double minPCTGenotyped = 50;
 	// Differences filter
@@ -59,33 +68,14 @@ public class VCFComparator {
 	
 
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(VCFComparator.class);
-			return;
-		}
 		VCFComparator instance = new VCFComparator();
-		int i = 0;
-		while (i < args.length && args[i].charAt(0) == '-') {
-			if ("-g".equals(args[i])) {
-				i++;
-				instance.minPCTGenotyped = Double.parseDouble(args[i]);
-			} else if ("-d".equals(args[i])) {
-				i++;
-				instance.maxPCTDiffs = Double.parseDouble(args[i]);
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(VCFComparator.class);
-				return;
-			}
-			i++;
-		}
-		String seqNamesFile = args[i++];
+		
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		String referenceGenome = args[i++];
 		String vcf1 = args[i++];
 		String vcf2 = args[i++];
-		SimpleSequenceListLoader seqListHandler = new SimpleSequenceListLoader();
-		instance.seqNames = seqListHandler.loadSequences(seqNamesFile);
+		instance.genome = new ReferenceGenome(referenceGenome);
 		instance.calculateDifferences(vcf1, vcf2);
-		
 		instance.printReport(System.out);
 	}
 
@@ -117,6 +107,10 @@ public class VCFComparator {
 	public void setMinPCTGenotyped(double minPCTGenotyped) {
 		this.minPCTGenotyped = minPCTGenotyped;
 	}
+	
+	public void setMinPCTGenotyped(Double minPCTGenotyped) {
+		this.setMinPCTGenotyped(minPCTGenotyped.doubleValue());
+	}
 
 	public double getMaxPCTDiffs() {
 		return maxPCTDiffs;
@@ -126,33 +120,40 @@ public class VCFComparator {
 		this.maxPCTDiffs = maxPCTDiffs;
 	}
 	
-	public QualifiedSequenceList getSeqNames() {
-		return seqNames;
+	public void setMaxPCTDiffs(Double maxPCTDiffs) {
+		this.setMaxPCTDiffs(maxPCTDiffs.doubleValue());
 	}
 
-	public void setSeqNames(QualifiedSequenceList seqNames) {
-		this.seqNames = seqNames;
+	
+
+
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
 	}
 
 
 	public void calculateDifferences(String vcf1, String vcf2) throws IOException {
 		// VCF files
-		VCFFileReader in1 = null;
-		VCFFileReader in2 = null;
-		try {
-			in1 = new VCFFileReader(vcf1);
-			in2 = new VCFFileReader(vcf2);
+		
+		boolean debug = false;
+		try (VCFFileReader in1 = new VCFFileReader(vcf1);
+			 VCFFileReader in2 = new VCFFileReader(vcf2);){ 
 			if(log!=null) {
 				in1.setLog(log);
 				in2.setLog(log);
 			}
 			in1.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			in2.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
-			
+			QualifiedSequenceList seqNames = genome.getSequencesMetadata();
 			in1.setSequences(seqNames);
 			in2.setSequences(seqNames);
 		
-			GenomicRegionComparator comparator = new GenomicRegionComparator(seqNames);
+			AlleleCompatibilityGenomicVariantComparator comparator = new AlleleCompatibilityGenomicVariantComparator(seqNames);
 			// Samples ids (name sample)
 			samples1 = in1.getHeader().getSampleIds();
 			samples2 = in2.getHeader().getSampleIds();
@@ -179,6 +180,7 @@ public class VCFComparator {
 					}
 				} else if (cmp>0) {
 					processSingleRecord(r2,2);
+					if(debug) throw new RuntimeException("Variant at "+r2.getSequenceName()+":"+r2.getFirst()+"-"+r2.getLast()+" not found in first file. Next var f1 at "+r1.getSequenceName()+":"+r1.getFirst()+"-"+r1.getLast());
 					if(it2.hasNext()) r2 = it2.next();
 					else {
 						processSingleRecord(r1,1);
@@ -208,9 +210,6 @@ public class VCFComparator {
 				n++;
 				if (progressNotifier!=null && n%1000==0 && !progressNotifier.keepRunning(n/1000) ) return;
 			}
-		} finally {
-			if(in1!=null)in1.close();
-			if(in2!=null)in2.close();
 		}
 		
 	}
@@ -298,6 +297,49 @@ public class VCFComparator {
 			}
 		}
 	}
+	private class AlleleCompatibilityGenomicVariantComparator implements Comparator<GenomicVariant> {
 
-
+		private QualifiedSequenceList seqNames;
+		private GenomicRegionComparator internalComparator;
+		
+		public AlleleCompatibilityGenomicVariantComparator(QualifiedSequenceList sequenceNames) {
+			seqNames = sequenceNames;
+			internalComparator = new GenomicRegionComparator(sequenceNames);
+		}
+		@Override
+		public int compare(GenomicVariant v1, GenomicVariant v2) {
+			int cmp1 = internalComparator.compare(v1, v2);
+			if(cmp1>2 || cmp1<-2) return cmp1;
+			if(v1 instanceof SNV && v2 instanceof SNV) return cmp1;
+			//if(v2.getFirst()==753845) System.out.println("Variant 1: "+v1.getSequenceName()+":"+v1.getFirst()+"-"+v1.getLast()+"Comparator result: "+cmp1);
+			if(v2.getFirst() - v1.getLast() > 2 || v1.getFirst() - v2.getLast() > 2) return cmp1;
+			int firstRegion = Math.min(v1.getFirst(), v2.getFirst());
+			int lastRegion = Math.max(v1.getLast(), v2.getLast());
+			//if(v2.getFirst()==753845) System.out.println("Getting alleles between: "+firstRegion+" and "+lastRegion);
+			List<String> alleleStrs1 = new ArrayList<>(buildAlleleStrings(v1,firstRegion,lastRegion));
+			List<String> alleleStrs2 = new ArrayList<>(buildAlleleStrings(v2,firstRegion,lastRegion));
+			//if(v2.getFirst()==753845) System.out.println("Alleles 1: "+alleleStrs1.toString()+" Alleles 2: "+alleleStrs2.toString());
+			if(alleleStrs1.size()!=alleleStrs2.size()) return cmp1!=0?cmp1: alleleStrs1.size()-alleleStrs2.size();
+			for(int i=0;i<alleleStrs1.size();i++) {
+				String a1 = alleleStrs1.get(i);
+				String a2 = alleleStrs2.get(i);
+				if(!a1.equals(a2))  return cmp1!=0?cmp1:a1.compareTo(a2);
+			}
+			return 0;
+		}
+		private Set<String> buildAlleleStrings(GenomicVariant v, int firstRegion, int lastRegion) {
+			String seqName = v.getSequenceName();
+			String left = genome.getReference(seqName, Math.max(1, firstRegion-3), Math.max(1, v.getFirst()-1)).toString();
+			int length = seqNames.get(seqName).getLength();
+			String right = genome.getReference(seqName, Math.min(length, v.getLast()+1), Math.min(length, lastRegion+3)).toString();
+			Set<String> allelesSet = new TreeSet<>();
+			String [] alleles = v.getAlleles();
+			for(int i=0;i<alleles.length;i++) {
+				allelesSet.add((left+alleles[i]+right).toUpperCase());
+			}
+			return allelesSet;
+		}
+		
+	}
 }
+

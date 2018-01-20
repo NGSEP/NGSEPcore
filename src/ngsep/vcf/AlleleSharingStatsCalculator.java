@@ -307,7 +307,9 @@ public class AlleleSharingStatsCalculator {
 		if(includeIntrons && Transcriptome.ANNOTATION_INTRON.equals(role)) return 1;
 		if(Transcriptome.ANNOTATION_SYNONYMOUS.equals(role)) return 2;
 		if(Transcriptome.ANNOTATION_MISSENSE.equals(role)) return 3;
+		if(Transcriptome.ANNOTATION_START_LOSS.equals(role)) return 3;
 		if(Transcriptome.ANNOTATION_NONSENSE.equals(role)) return 4;
+		if(Transcriptome.ANNOTATION_STOP_LOSS.equals(role)) return 4;
 		if(Transcriptome.ANNOTATION_CODING.equals(role)) return 5;
 		if(Transcriptome.ANNOTATION_5P_UTR.equals(role)) return 6;
 		if(Transcriptome.ANNOTATION_3P_UTR.equals(role)) return 7;

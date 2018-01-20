@@ -151,9 +151,8 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 	
 	private VCFRecord loadVCFRecord (String line) {
 		String [] items = ParseUtils.parseString(line,'\t');
-		//TODO: Allow VCFswithout FORMAT and genotype fields
-		if(items.length<9) {
-			log.severe("Could not load line: "+line+". Invalid format");
+		if(items.length<8) {
+			log.severe("Could not load line: "+line+". VCF records must have at least 8 columns");
 			return null;
 		}
 		GenomicVariant variant = loadGenomicVariant(items);
@@ -161,12 +160,19 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		List<String> filters = loadFilters(items[6]);
 		List<GenomicVariantAnnotation> infoFields = loadInfoField(variant, items[7]);
 		
-		if(variant.getType() == GenomicVariant.TYPE_UNDETERMINED && items[3].length()>1) variant.setType(GenomicVariant.TYPE_INDEL);
-		
-		int[] formatInput = loadInputFormat(items);
-		
+		//if(variant.getType() == GenomicVariant.TYPE_UNDETERMINED && items[3].length()>1) variant.setType(GenomicVariant.TYPE_INDEL);
 		List<CalledGenomicVariant> calls = new ArrayList<CalledGenomicVariant>();
 		List<Sample> samples = header.getSamples();
+		
+		if(items.length==8) {
+			if (samples.size()>0) {
+				log.severe("Can not load genomic variant at "+items[0]+":"+items[1]+". Number of genotyped samples does not coincide with number of samples in the header");
+				return null;
+			}
+			return new VCFRecord(variant, filters, infoFields, new int [0], calls, header);
+		}
+		//If genotype information is present
+		int[] formatInput = loadInputFormat(items[8]);
 		if(items.length-9!=samples.size()) {
 			log.severe("Can not load genomic variant at "+items[0]+":"+items[1]+". Number of genotyped samples does not coincide with number of samples in the header");
 			return null;
@@ -179,7 +185,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 			calls.add(call);
 			if(call.getCopyNumber()!=CalledGenomicVariant.DEFAULT_PLOIDY) nonDefaultCN = true;
 		}
-		int [] formatLoad = makeLoadFormat (formatInput,loadMode!=LOAD_MODE_MINIMAL && nonDefaultCN && variant.getType()<=GenomicVariant.TYPE_STR);
+		int [] formatLoad = makeLoadFormat (formatInput,loadMode!=LOAD_MODE_MINIMAL && nonDefaultCN && variant.getType()<=GenomicVariant.TYPE_STR);	
 		return new VCFRecord(variant, filters, infoFields, formatLoad, calls, header);
 	}
 	
@@ -268,9 +274,9 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 					byte type = GenomicVariantImpl.getVariantTypeId(value);
 					if(type>0 && type<=GenomicVariant.TYPE_INVERSION) {
 						variant.setType(type);
-					} else {
+					} /*else {
 						log.severe("Can not load type for genomic variant at "+variant.getSequenceName()+":"+variant.getFirst()+". Invalid type: "+value);
-					}
+					}*/
 				}
 				if(GenomicVariantAnnotation.ATTRIBUTE_END.equals(attribute) && (variant instanceof GenomicVariantImpl)) {
 					//Imprecise variant
@@ -285,8 +291,8 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		return annotations;
 	}
 	
-	private int[] loadInputFormat(String[] items) {
-		String [] itemsFormat = ParseUtils.parseString(items[8], ':');
+	private int[] loadInputFormat(String formatStr) {
+		String [] itemsFormat = ParseUtils.parseString(formatStr, ':');
 		int [] answer = new int [itemsFormat.length];
 		Arrays.fill(answer, -1);
 		for(int i=0;i<itemsFormat.length;i++) {

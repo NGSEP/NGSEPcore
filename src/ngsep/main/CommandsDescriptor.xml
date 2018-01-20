@@ -1,6 +1,48 @@
 <NGSEP version="3.1.1" date="16-01-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
+<command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
+<intro>
+Corrects errors in fastq files based on k-mer abundance
+</intro>
+<title>Fixing sequencing errors</title>
+<description>
+Builds a k-mer abundance profile and use this profile to identify and correct sequencing errors
+</description>
+<argument>FASTQ_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="m" type="INT" default="5" attribute="minCount">
+Minimum k-mer abundance to consider a k-mer real
+</option>
+</command>
+
+<command id="ReadsAligner" class="ngsep.alignments.ReadsAligner" printHelp="false">
+<intro>
+Aligns sequencing reads to a reference genome
+</intro>
+<title>Aligning reads to reference genomes</title>
+<description>
+Calculates a list of genomic regions for sites where the reads can be find in the reference genome
+</description>
+<argument>FMINDEX_FILE</argument>
+<argument>READS_FILE</argument>
+</command>
+
+<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer" printHelp="false">
+<intro>
+Creates a FMINDEX for Indexing the genome
+</intro>
+<title>Indexing genome reference files</title>
+<description>
+Create a binary file containing a FMINDEX from genome
+</description>
+<argument>GENOME_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="t" type="INT" default="100" attribute="tallyDistance">
+Distance between tally indexes
+</option>
+</command>
+
 <command id="FindVariants" class="ngsep.discovery.VariantsDetector">
 <intro>The main module of NGSEP is the variants detector.</intro>
 <title>Calling variants with the Variants detector</title>
@@ -129,7 +171,7 @@ Turn off finding new CNVs with the read depth analysis.
 </option>
 </command>
 
-<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper">
+<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" printHelp="false">
 <intro>
 Performs single individual molecular haplotyping
 </intro>
@@ -391,6 +433,7 @@ Minimum mapping quality to call an alignment unique
 This module calculates the number of base pairs that are covered by reads at
 each coverage level from 1 to a maximum. Alignments must be in SAM|BAM format.
 </description>
+<argument>OPTIONS</argument>
 <argument>ALIGNMENTS_FILE</argument>
 <argument>OUTPUT_FILE</argument>
 <option id="minMQ" type="INT" default="20" attribute="minMQ">
@@ -405,17 +448,17 @@ Minimum mapping quality to call an alignment unique
 Compare the genotype calls included in two different VCF files.
 Calculate the number and percentage of homozygous and heterozygous
 differences between every pair of samples.
-The sequence names file is a text file with the ids of the sequences in the reference.
+The first required argument is the FASTA file with the reference genome used to generate the VCF files
 Writes to the standard output.
 </description>
 <argument>OPTIONS</argument>
-<argument>SEQUENCE_NAMES_FILE</argument>
+<argument>REFERENCE_FILE</argument>
 <argument>FIRST_VCF_FILE</argument>
 <argument>SECOND_VCF_FILE</argument>
-<option id="g" type="FLOAT" default="50">
+<option id="g" type="DOUBLE" default="50" attribute="minPCTGenotyped">
 Minimum percentage (0-100) of variants genotyped in both samples
 </option>
-<option id="d" type="FLOAT" default="5">
+<option id="d" type="DOUBLE" default="5" attribute="maxPCTDiffs">
 Maximum percentage (0-100) of differences between the pair of samples
 </option>
 </command>
@@ -763,48 +806,6 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 </option>
 <option id="s" type="BOOLEAN" attribute="secondaryAlns">
 Consider secondary alignments. By default, only primary alignments are processed
-</option>
-</command>
-
-<command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
-<intro>
-Aligns sequencing reads to a reference genome
-</intro>
-<title>Aligning reads to reference genomes</title>
-<description>
-Calculates a list of genomic regions for sites where the reads can be find in the reference genome
-</description>
-<argument>FMINDEX_FILE</argument>
-<argument>READS_FILE</argument>
-</command>
-
-<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
-<intro>
-Creates a FMINDEX for Indexing the genome
-</intro>
-<title>Indexing genome reference files</title>
-<description>
-Create a binary file containing a FMINDEX from genome
-</description>
-<argument>GENOME_FILE</argument>
-<argument>OUTPUT_FILE</argument>
-<option id="t" type="INT" default="100" attribute="tallyDistance">
-Distance between tally indexes
-</option>
-</command>
-
-<command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector">
-<intro>
-Corrects errors in fastq files based on k-mer abundance
-</intro>
-<title>Fixing sequencing errors</title>
-<description>
-Builds a k-mer abundance profile and use this profile to identify and correct sequencing errors
-</description>
-<argument>FASTQ_FILE</argument>
-<argument>OUTPUT_FILE</argument>
-<option id="m" type="INT" default="5" attribute="minCount">
-Minimum k-mer abundance to consider a k-mer real
 </option>
 </command>
 

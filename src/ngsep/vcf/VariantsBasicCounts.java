@@ -19,6 +19,10 @@
  *******************************************************************************/
 package ngsep.vcf;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import ngsep.transcriptome.Transcriptome;
 
 public class VariantsBasicCounts {
 	
@@ -26,12 +30,6 @@ public class VariantsBasicCounts {
 	public static final int GENOTYPE_STATUS_HOMOREF = 0;
 	public static final int GENOTYPE_STATUS_HETEROZYGOUS = 1;
 	public static final int GENOTYPE_STATUS_HOMOALT = 2;
-	
-	public static final int FUNCTIONAL_STATUS_GENERALCODING = 1;
-	public static final int FUNCTIONAL_STATUS_SYNONYMOUS = 2;
-	public static final int FUNCTIONAL_STATUS_MISSENSE = 3;
-	public static final int FUNCTIONAL_STATUS_NONSENSE = 4;
-	public static final int FUNCTIONAL_STATUS_FRAMESHIFT = 5;
 	
 	public static final int POPULATION_STATUS_GENPOP = 1;
 	public static final int POPULATION_STATUS_RARE = 2;
@@ -42,59 +40,34 @@ public class VariantsBasicCounts {
 	private int nonReference = 0;
 	private int homozygousAlternative = 0;
 	private int heterozygous = 0;
+	private int transitions = 0;
+	private int homozygousAlternativeTransitions = 0;
+	private int heterozygousTransitions = 0;
 	
-	private int coding = 0;
-	private int synonymous = 0;
-	private int missense = 0;
-	private int nonsense = 0;
-	private int frameshift = 0;
-	private int codingHeterozygous = 0;
-	private int synonymousHeterozygous = 0;
-	private int missenseHeterozygous = 0;
-	private int nonsenseHeterozygous = 0;
-	private int frameshiftHeterozygous = 0;
+	private Map<String, Integer> totalCountsPerAnnotation = new HashMap<>();
+	private Map<String, Integer> hetCountsPerAnnotation = new HashMap<>();
+	private Map<String, Integer> transitionCountsPerAnnotation = new HashMap<>();
 	
 	private int genotypedPopCounts = 0;
 	private int rareAllele = 0;
 	private int uniqueAllele = 0;
 	
-	private int transitions = 0;
-	private int homozygousAlternativeTransitions = 0;
-	private int heterozygousTransitions = 0;
-	private int synonymousTransitions = 0;
-	private int nonSynonymousTransitions = 0;
 	
-	
-	public void processGenotypeCall (int genotypingStatus, boolean isTransition, int functionalStatus, int populationStatus) {
+	public void processGenotypeCall (int genotypingStatus, boolean isTransition, String annotation, int populationStatus) {
 		if(genotypingStatus != GENOTYPE_STATUS_UNDECIDED) {
 			genotyped++;
 			if(genotypingStatus!=GENOTYPE_STATUS_HOMOREF) {
 				nonReference++;
-				if(isTransition) transitions++;
-				if(functionalStatus>0) {
-					coding++;
+				add1(totalCountsPerAnnotation,annotation);
+				if(isTransition) {
+					transitions++;
+					add1(transitionCountsPerAnnotation,annotation);
 				}
-				if(functionalStatus == FUNCTIONAL_STATUS_SYNONYMOUS) {
-					synonymous++;
-					if(isTransition) synonymousTransitions++;
-				}
-				if(functionalStatus == FUNCTIONAL_STATUS_MISSENSE) {
-					missense++;
-					if(isTransition) nonSynonymousTransitions++;
-				}
-				if(functionalStatus == FUNCTIONAL_STATUS_NONSENSE) {
-					nonsense++;
-					if(isTransition) nonSynonymousTransitions++;
-				}
-				if(functionalStatus == FUNCTIONAL_STATUS_FRAMESHIFT) frameshift++;
+				
 				if(genotypingStatus==GENOTYPE_STATUS_HETEROZYGOUS) {
 					heterozygous++;
 					if(isTransition) heterozygousTransitions++;
-					if(functionalStatus>0) codingHeterozygous++;
-					if(functionalStatus == FUNCTIONAL_STATUS_SYNONYMOUS) synonymousHeterozygous++;
-					if(functionalStatus == FUNCTIONAL_STATUS_MISSENSE) missenseHeterozygous++;
-					if(functionalStatus == FUNCTIONAL_STATUS_NONSENSE) nonsenseHeterozygous++;
-					if(functionalStatus == FUNCTIONAL_STATUS_FRAMESHIFT) frameshiftHeterozygous++;
+					add1(hetCountsPerAnnotation,annotation);
 				} else {
 					homozygousAlternative++;
 					if(isTransition) homozygousAlternativeTransitions++;
@@ -104,6 +77,14 @@ public class VariantsBasicCounts {
 			if(populationStatus == POPULATION_STATUS_RARE || populationStatus == POPULATION_STATUS_UNIQUE) rareAllele++;
 			if(populationStatus == POPULATION_STATUS_UNIQUE) uniqueAllele++;
 		}
+	}
+
+	private static void add1(Map<String, Integer> countsMap, String key) {
+		if(key==null) return;
+		Integer count = countsMap.get(key);
+		if(count == null) count = 0;
+		count++;
+		countsMap.put(key, count);
 	}
 
 
@@ -126,50 +107,23 @@ public class VariantsBasicCounts {
 		return heterozygous;
 	}
 
-	public int getCoding() {
-		return coding;
+	public int getTotalCount(String annotation) {
+		return getCount(totalCountsPerAnnotation, annotation);
 	}
-
-	public int getSynonymous() {
-		return synonymous;
+	
+	public int getHeterozygousCount(String annotation) {
+		return getCount(hetCountsPerAnnotation, annotation);
 	}
-
-
-	public int getMissense() {
-		return missense;
+	
+	public int getTransitionCount(String annotation) {
+		return getCount(transitionCountsPerAnnotation, annotation);
 	}
-
-
-	public int getNonsense() {
-		return nonsense;
-	}
-
-
-	public int getFrameshift() {
-		return frameshift;
-	}
-
-	public int getCodingHeterozygous() {
-		return codingHeterozygous;
-	}
-
-
-	public int getSynonymousHeterozygous() {
-		return synonymousHeterozygous;
-	}
-
-
-	public int getMissenseHeterozygous() {
-		return missenseHeterozygous;
-	}
-
-
-	public int getNonsenseHeterozygous() {
-		return nonsenseHeterozygous;
-	}
-
-	public int getFrameshiftHeterozygous() {
-		return frameshiftHeterozygous;
+	
+	private static int getCount (Map<String, Integer> countsMap, String key) {
+		if(key==null) return 0;
+		Integer count = countsMap.get(key);
+		if(count==null) return 0;
+		return count;
 	}
 
 	public int getGenotypedPopCounts() {
@@ -197,29 +151,48 @@ public class VariantsBasicCounts {
 	public int getHeterozygousTransitions() {
 		return heterozygousTransitions;
 	}
-	
-	public int getSynonymousTransitions() {
-		return synonymousTransitions;
+	public int getCodingTotalCount () {
+		return getCodingCount(totalCountsPerAnnotation);
 	}
-
-	public int getNonSynonymousTransitions() {
-		return nonSynonymousTransitions;
+	public int getCodingHeterozygousCount () {
+		return getCodingCount(hetCountsPerAnnotation);
 	}
-
-	public double getNonSynonymousToSynonymousRate () {
-		return safeDoubleRatio(missense+nonsense,synonymous);
+	public int getCodingTransitionCount () {
+		return getCodingCount(transitionCountsPerAnnotation);
 	}
-	
-	public double getNonSynonymousToSynonymousRateHeterozygous () {
-		return safeDoubleRatio(missenseHeterozygous+nonsenseHeterozygous,synonymousHeterozygous);
+	public int getNonSynonymousTotalCount () {
+		return getNonSynonymousCount(totalCountsPerAnnotation);
+	}
+	public int getNonSynonymousHeterozygousCount () {
+		return getNonSynonymousCount(hetCountsPerAnnotation);
+	}
+	public int getNonSynonymousTransitionCount () {
+		return getNonSynonymousCount(transitionCountsPerAnnotation);
+	}
+	private static int getCodingCount(Map<String, Integer> countsMap) {
+		int answer = 0;
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_SYNONYMOUS);
+		answer += getNonSynonymousCount(countsMap);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_CODING);
+		return answer;
+	}
+	public static int getNonSynonymousCount(Map<String, Integer> countsMap) {
+		int answer = 0;
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_START_LOSS);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_MISSENSE);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_STOP_LOSS);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_NONSENSE);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_FRAMESHIFT);
+		answer += getCount(countsMap,Transcriptome.ANNOTATION_JUNCTION);
+		return answer;
 	}
 	
 	public double getPCTFrameshift() {
-		return 100.0*safeDoubleRatio(frameshift, coding);
+		return 100.0*safeDoubleRatio(getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
 	}
 	
 	public double getPCTFrameshiftHeterozygous() {
-		return 100.0*safeDoubleRatio(frameshiftHeterozygous, codingHeterozygous);
+		return 100.0*safeDoubleRatio(getHeterozygousCount(Transcriptome.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
 	}
 	
 	public double getTrTvRatio() {
@@ -238,12 +211,14 @@ public class VariantsBasicCounts {
 	}
 	
 	public double getTrTvRatioSynonymous() {
-		int transversions = synonymous-synonymousTransitions;
-		return safeDoubleRatio(synonymousTransitions, transversions);
+		int synTransitions = getTransitionCount(Transcriptome.ANNOTATION_SYNONYMOUS);
+		int synTransversions = getTotalCount(Transcriptome.ANNOTATION_SYNONYMOUS)-synTransitions;
+		return safeDoubleRatio(synTransitions, synTransversions);
 	}
 	
 	public double getTrTvRatioNonSynonymous() {
-		int transversions = missense+nonsense-nonSynonymousTransitions;
+		int nonSynonymousTransitions = getNonSynonymousTransitionCount();
+		int transversions = getNonSynonymousTotalCount()-nonSynonymousTransitions;
 		return safeDoubleRatio(nonSynonymousTransitions, transversions);
 	}
 	

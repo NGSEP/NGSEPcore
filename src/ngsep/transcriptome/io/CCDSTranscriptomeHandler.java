@@ -30,7 +30,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
-import ngsep.transcriptome.Exon;
+import ngsep.transcriptome.TranscriptSegment;
 import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
@@ -93,15 +93,15 @@ public class CCDSTranscriptomeHandler {
 						Transcript transcript = new Transcript(items[4],seq.getName(),Integer.parseInt(items[7])+1,Integer.parseInt(items[8])+1,reverse);
 						String exonsStr = items[9].substring(1,items[9].length()-1);
 						String [] items2 = exonsStr.split(", ");
-						List<Exon> tExons = new ArrayList<Exon>();
+						List<TranscriptSegment> tExons = new ArrayList<TranscriptSegment>();
 						for(int i=0;i<items2.length;i++) {
 							int index2 = items2[i].indexOf('-');
 							int exonStart = Integer.parseInt(items2[i].substring(0,index2))+1;
 							int exonEnd = Integer.parseInt(items2[i].substring(index2+1))+1;
-							Exon exon = new Exon(transcript, exonStart,exonEnd);
+							TranscriptSegment exon = new TranscriptSegment(transcript, exonStart,exonEnd);
 							tExons.add(exon);
 						}
-						transcript.setExons(tExons);
+						transcript.setTranscriptSegments(tExons);
 						answer.addTranscript(transcript);
 					}
 				}

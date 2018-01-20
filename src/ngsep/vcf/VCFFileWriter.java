@@ -51,23 +51,26 @@ public class VCFFileWriter {
 		printFilters(record.getFilters(),out);
 		printInfoField(record.getInfoFields(), out);
 		List<CalledGenomicVariant> calls = record.getCalls();
-		
-		int [] outFormat = record.getFieldsFormat();
-		printGenotypeFormat(out,outFormat);
-		//Genotype
-		List<Sample> samples = null;
-		if(record.getHeader()!=null) samples = record.getHeader().getSamples();
-		for(int i=0;i<calls.size();i++) {
-			byte ploidy = GenomicVariant.DEFAULT_PLOIDY;
-			if(samples!=null) ploidy = samples.get(i).getNormalPloidy();
-			printGenotypeInfo(calls.get(i), out, outFormat,ploidy);
+		if(calls.size()>0) {
+			int [] outFormat = record.getFieldsFormat();
+			printGenotypeFormat(out,outFormat);
+			//Genotype
+			List<Sample> samples = null;
+			if(record.getHeader()!=null) samples = record.getHeader().getSamples();
+			for(int i=0;i<calls.size();i++) {
+				byte ploidy = GenomicVariant.DEFAULT_PLOIDY;
+				if(samples!=null) ploidy = samples.get(i).getNormalPloidy();
+				printGenotypeInfo(calls.get(i), out, outFormat,ploidy);
+			}
 		}
+		
 		out.println();
 	}
 	
 	private void printFilters(List<String> filters, PrintStream out) {
+		out.print("\t");
 		if(filters==null || filters.size()==0) {
-			out.print(VCFFileReader.NO_INFO_CHAR+"\t");
+			out.print(VCFFileReader.NO_INFO_CHAR);
 			return;
 		}
 		boolean printed = false;
@@ -76,7 +79,6 @@ public class VCFFileWriter {
 			printed = true;
 			out.print(filter);
 		}
-		out.print("\t");
 	}
 	private void printBasicVariantInfo(GenomicVariant var,PrintStream out) {
 		out.print(var.getSequenceName()+"\t");
@@ -98,9 +100,10 @@ public class VCFFileWriter {
 			}
 		}
 		out.print("\t");
-		out.print(var.getVariantQS()+"\t");
+		out.print(var.getVariantQS());
 	}
 	private void printInfoField(List<GenomicVariantAnnotation> info, PrintStream out) {
+		out.print("\t");
 		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
 		boolean printed = false;
 		for(GenomicVariantAnnotation ann:info) {
@@ -142,11 +145,10 @@ public class VCFFileWriter {
 			}
 		}
 		if(!printed) out.print(VCFFileReader.NO_INFO_CHAR);
-		out.print("\t");
-		
 	}
 	private void printGenotypeFormat(PrintStream out, int [] format) {
 		//Genotype format
+		out.print("\t");
 		for(int f=0;f<format.length;f++) {
 			if(f>0) out.print(":");
 			int formatIdx = format[f];

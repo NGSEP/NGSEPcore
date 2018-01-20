@@ -30,6 +30,7 @@ public class Command {
 	private String title;
 	private String intro;
 	private String description;
+	private boolean printHelp = true;
 	
 	private List<String> arguments = new ArrayList<String>();
 	private Map<String, CommandOption> options = new LinkedHashMap<String,CommandOption>();
@@ -67,6 +68,12 @@ public class Command {
 	}
 	public void setDescription(String description) {
 		this.description = description;
+	}
+	public boolean isPrintHelp() {
+		return printHelp;
+	}
+	public void setPrintHelp(boolean printHelp) {
+		this.printHelp = printHelp;
 	}
 	public List<String> getArguments() {
 		return arguments;

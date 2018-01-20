@@ -29,7 +29,7 @@ import java.util.List;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.transcriptome.Exon;
+import ngsep.transcriptome.TranscriptSegment;
 import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
@@ -103,52 +103,52 @@ public class UCSCTranscriptomeHandler {
 					transcript.setGene(gene);
 					String [] exonStarts = items[8].split(",");
 					String [] exonEnds = items[9].split(",");
-					List<Exon> tExons = new ArrayList<Exon>();
+					List<TranscriptSegment> tExons = new ArrayList<TranscriptSegment>();
 					for(int i=0;i<exonStarts.length;i++) {
 						int exonStart = Integer.parseInt(exonStarts[i])+1;
 						int exonEnd = Integer.parseInt(exonEnds[i]);
 						if(coding) {
 							//Split exon if it includes non coding and coding region
 							if(translationStart>exonStart && translationStart<exonEnd) {
-								Exon exon = new Exon(transcript,exonStart,translationStart-1);
+								TranscriptSegment exon = new TranscriptSegment(transcript,exonStart,translationStart-1);
 								if(reverse) {
-									exon.setStatus(Exon.STATUS_3P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_3P_UTR);
 								} else {
-									exon.setStatus(Exon.STATUS_5P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_5P_UTR);
 								}
 								tExons.add(exon);
 								exonStart = translationStart;
 							}
 							if(translationEnd>exonStart && translationEnd<exonEnd) {
-								Exon exon=new Exon(transcript, exonStart, translationEnd);
-								exon.setStatus(Exon.STATUS_CODING);
+								TranscriptSegment exon=new TranscriptSegment(transcript, exonStart, translationEnd);
+								exon.setStatus(TranscriptSegment.STATUS_CODING);
 								tExons.add(exon);
 								exonStart = translationEnd+1;
 							}
-							Exon exon = new Exon(transcript,exonStart,exonEnd);
+							TranscriptSegment exon = new TranscriptSegment(transcript,exonStart,exonEnd);
 							if(exonEnd < translationStart ) {
 								if(reverse) {
-									exon.setStatus(Exon.STATUS_3P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_3P_UTR);
 								} else {
-									exon.setStatus(Exon.STATUS_5P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_5P_UTR);
 								}
 							} else if (exonStart>translationEnd) {
 								if(reverse) {
-									exon.setStatus(Exon.STATUS_5P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_5P_UTR);
 								} else {
-									exon.setStatus(Exon.STATUS_3P_UTR);
+									exon.setStatus(TranscriptSegment.STATUS_3P_UTR);
 								}
 							} else {
-								exon.setStatus(Exon.STATUS_CODING);
+								exon.setStatus(TranscriptSegment.STATUS_CODING);
 							}
 							tExons.add(exon);
 						} else {
-							Exon exon = new Exon(transcript,exonStart,exonEnd);
-							exon.setStatus(Exon.STATUS_NCRNA);
+							TranscriptSegment exon = new TranscriptSegment(transcript,exonStart,exonEnd);
+							exon.setStatus(TranscriptSegment.STATUS_NCRNA);
 							tExons.add(exon);
 						}
 					}
-					transcript.setExons(tExons);
+					transcript.setTranscriptSegments(tExons);
 					answer.addTranscript(transcript);
 				}
 				line=in.readLine();

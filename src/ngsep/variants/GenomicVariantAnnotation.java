@@ -53,6 +53,10 @@ public class GenomicVariantAnnotation {
 	 */
 	public static final String ATTRIBUTE_TRANSCRIPT_CODON = "TCO";
 	/**
+	 * For non-synonymous coding variants, aminoacid change
+	 */
+	public static final String ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE = "TACH";
+	/**
 	 * Tells the number of samples with CNVs spanning this region
 	 */
 	public static final String ATTRIBUTE_IN_CNV = "CNV";
