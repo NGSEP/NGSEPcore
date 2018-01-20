@@ -255,7 +255,7 @@ public class BasePairQualityStatisticsCalculator {
 	 * @param statsFile File from which statistics are calculated
 	 * @param uniqueAlignments true if only unique alignments need to be taken into account
 	 * @return double [] Percentage [0 to 100] of reads/alignments having a base different than the reference for each read position from 5' to 3'
-	 * @throws IOException If the filoe can not be read 
+	 * @throws IOException If the file can not be read 
 	 */
 	public static double [] calculatePercentages(String statsFile, boolean uniqueAlignments) throws IOException {
 		List<Double> percentages = new ArrayList<Double>();
