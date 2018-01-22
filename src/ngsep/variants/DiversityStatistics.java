@@ -194,7 +194,6 @@ public class DiversityStatistics {
 			if(numCalledAlleles==1) answer.setWtIndex(maxACIdx);
 		} else {
 			answer.setMaf((double)minAC/sum);
-			if(minAC < maxAC) minACIdx = maxACIdx = -1;
 			answer.setMafIndex(minACIdx);
 			answer.setWtIndex(maxACIdx);
 		}
