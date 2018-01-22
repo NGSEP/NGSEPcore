@@ -257,6 +257,11 @@ public class VariantsDetector implements PileupListener {
 		generator.setMinMQ(minMQ);
 		rpAnalyzer.setMinMQ(minMQ);
 	}
+	
+	public void setMinMQ(Integer minMQ) {
+		this.setMinMQ(minMQ.intValue());
+		
+	}
 
 	public String getReferenceFile() {
 		return referenceFile;
