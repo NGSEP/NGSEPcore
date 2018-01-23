@@ -219,19 +219,22 @@ public class VCFSummaryStatisticsCalculator {
 			CalledGenomicVariant call = varCalls.get(i);
 			int genotypeStatus = calculateGenotypeStatus (call);
 			int popStatusSample = populationStatus;
+			//if(call.getFirst()==181922)System.err.println("Call: "+i+" MAF: "+maf+". MAF idx: "+mafIdx+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" status: "+popStatusSample);
 			if(popStatusSample== VariantsBasicCounts.POPULATION_STATUS_GENPOP && wtIdx>=0) {
 				byte [] calledAlleles = call.getIndexesCalledAlleles();
 				byte [] allelesCN = call.getAllelesCopyNumber();
 				
 				for(int j=0;j<calledAlleles.length;j++) {
-					if(calledAlleles[j] != wtIdx) {
+					int callIdx = calledAlleles[j]; 
+					if(callIdx != wtIdx) {
 						popStatusSample = VariantsBasicCounts.POPULATION_STATUS_RARE;
-						if(mafIdx >=0 && allelesCN[mafIdx] == alleleCounts[mafIdx]) {
+						if(mafIdx == callIdx && allelesCN[callIdx] == alleleCounts[mafIdx]) {
 							popStatusSample = VariantsBasicCounts.POPULATION_STATUS_UNIQUE;
 						}
 						break;
 					}
 				}
+				//if(call.getFirst()==181922)System.err.println("Call: "+i+" MAF: "+maf+". MAF idx: "+mafIdx+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" called: "+calledAlleles[0]+" hetero: "+ (calledAlleles.length>1)+ " ploidy a1: "+allelesCN[0]+" status: "+popStatusSample);
 				//if(isBiallelicSNV && calledAlleles.length>0)System.out.println("MAF: "+maf+". MAF idx: "+mafIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" called: "+calledAlleles[0]+" hetero: "+ (calledAlleles.length>1)+ " ploidy a1: "+calledAllelePloidies[0]+" status: "+populationStatus);
 			}
 			countsPerSample[idxVarType][i].processGenotypeCall(genotypeStatus, isTransition, annotation, popStatusSample);	
