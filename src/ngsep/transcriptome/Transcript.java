@@ -77,8 +77,8 @@ public class Transcript implements GenomicRegion {
 		this.transcriptSegments.addAll(segments);
 		Collections.sort(this.transcriptSegments,GenomicRegionPositionComparator.getInstance());
 		//Add implied segments
-		TranscriptSegment firstSegment = segments.get(0);
-		//if("Eg01_t002210".equals(id)) System.err.println("Transcript start: "+this.first+" segment start: "+firstSegment.getFirst());
+		TranscriptSegment firstSegment = transcriptSegments.get(0);
+		//if("PAC:27162177".equals(id)) System.err.println("Transcript start: "+this.first+" segment start: "+firstSegment.getFirst()+" Number of segments: "+transcriptSegments.size());
 		if(this.first<firstSegment.getFirst()) {
 			TranscriptSegment leftSegment = new TranscriptSegment(this, this.first, firstSegment.getFirst()-1);
 			leftSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_3P_UTR:TranscriptSegment.STATUS_5P_UTR);
@@ -90,7 +90,7 @@ public class Transcript implements GenomicRegion {
 			rightSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_5P_UTR:TranscriptSegment.STATUS_3P_UTR);
 			this.transcriptSegments.add(rightSegment);
 		}
-		//if("Eg01_t002210".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus()+" length: "+transcriptSegments.get(0).length());
+		//if("PAC:27162177".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus()+" length: "+transcriptSegments.get(0).length());
 		this.segmentsSortedTranscript.clear();
 		this.segmentsSortedTranscript.addAll(this.transcriptSegments);
 		if(negativeStrand) Collections.reverse(this.segmentsSortedTranscript);
@@ -111,7 +111,7 @@ public class Transcript implements GenomicRegion {
 			}
 			length+=e.length();
 		}
-		//if("Eg01_t002210".equals(id)) System.err.println("Coding relative start "+codingRelativeStart+" coding relative end: "+codingRelativeEnd+" total length: "+length);
+		//if("PAC:27162177".equals(id)) System.err.println("Coding relative start "+codingRelativeStart+" coding relative end: "+codingRelativeEnd+" total length: "+length);
 	}
 	/**
 	 * Calculates the position relative to the start of the transcript given the position relative to the sequence
