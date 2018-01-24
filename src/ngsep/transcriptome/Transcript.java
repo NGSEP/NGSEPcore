@@ -70,9 +70,11 @@ public class Transcript implements GenomicRegion {
 	}
 	/**
 	 * Changes the list of segments making up the transcript
-	 * @param exons New list of segments making up the transcript
+	 * @param exons New list of segments making up the transcript. It must have at least one segment
 	 */
 	public void setTranscriptSegments(List<TranscriptSegment> segments) {
+		if(segments==null) throw new NullPointerException("Null input segments: "+segments);
+		if(segments.size()==0) throw new IllegalArgumentException("Empty input segments: "+segments);
 		this.transcriptSegments.clear();
 		this.transcriptSegments.addAll(segments);
 		Collections.sort(this.transcriptSegments,GenomicRegionPositionComparator.getInstance());
@@ -90,6 +92,8 @@ public class Transcript implements GenomicRegion {
 			rightSegment.setStatus(this.negativeStrand?TranscriptSegment.STATUS_5P_UTR:TranscriptSegment.STATUS_3P_UTR);
 			this.transcriptSegments.add(rightSegment);
 		}
+		updateSegmentIntronsAround();
+		
 		//if("PAC:27162177".equals(id)) System.err.println("Number of segments: "+transcriptSegments.size()+" first segment start: "+transcriptSegments.get(0).getFirst()+" status: "+transcriptSegments.get(0).getStatus()+" length: "+transcriptSegments.get(0).length());
 		this.segmentsSortedTranscript.clear();
 		this.segmentsSortedTranscript.addAll(this.transcriptSegments);
@@ -98,20 +102,35 @@ public class Transcript implements GenomicRegion {
 		codingRelativeStart = -1;
 		codingRelativeEnd = -1;
 		int codingLength=0;
-		for(TranscriptSegment e: segmentsSortedTranscript) {
-			if(e.isCoding()) {
+		for(TranscriptSegment segment: segmentsSortedTranscript) {
+			if(segment.isCoding()) {
 				if(codingRelativeStart==-1) {
-					codingRelativeStart = length+e.getFirstCodonPositionOffset();
-				} else if((codingLength+e.getFirstCodonPositionOffset())%3!=0) {
-					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+e.getFirst()+"-"+e.getLast()+" looks inconsistent. Coding length "+codingLength+" given offset: "+e.getFirstCodonPositionOffset());
+					codingRelativeStart = length+segment.getFirstCodonPositionOffset();
+				} else if((codingLength+segment.getFirstCodonPositionOffset())%3!=0) {
+					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+segment.getFirst()+"-"+segment.getLast()+" looks inconsistent. Coding length "+codingLength+" given offset: "+segment.getFirstCodonPositionOffset());
 				}
-				codingRelativeEnd = length+e.length()-1;
-				codingLength+=e.length();
+				codingRelativeEnd = length+segment.length()-1;
+				codingLength+=segment.length();
 				coding = true;
 			}
-			length+=e.length();
+			length+=segment.length();
 		}
+		
 		//if("PAC:27162177".equals(id)) System.err.println("Coding relative start "+codingRelativeStart+" coding relative end: "+codingRelativeEnd+" total length: "+length);
+	}
+	private void updateSegmentIntronsAround() {
+		int n = transcriptSegments.size();
+		for(int i=0;i<n;i++) {
+			TranscriptSegment segment = transcriptSegments.get(i);
+			int distancePrev = 0;
+			int distanceNext = 0;
+			if(i>0) distancePrev = segment.getFirst()-transcriptSegments.get(i-1).getLast()-1;
+			if(i<n-1) distanceNext = transcriptSegments.get(i+1).getFirst()-segment.getLast()-1;
+			if(distancePrev>0) segment.setIntronsAround(distanceNext>0?TranscriptSegment.INTRONS_AROUND_BOTH:TranscriptSegment.INTRONS_AROUND_LEFT);
+			else if (distanceNext>0) segment.setIntronsAround(TranscriptSegment.INTRONS_AROUND_RIGHT);
+			else segment.setIntronsAround(TranscriptSegment.INTRONS_AROUND_NONE);
+		}
+		
 	}
 	/**
 	 * Calculates the position relative to the start of the transcript given the position relative to the sequence

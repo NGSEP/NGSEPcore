@@ -6,7 +6,7 @@ public class VariantAnnotationParameters {
 	public static final int DEF_SPLICE_DONOR=2;
 	public static final int DEF_SPLICE_ACCEPTOR=2;
 	public static final int DEF_SPLICE_REGION_INTRON=10;
-	public static final int DEF_SPLICE_REGION_EXON=5;
+	public static final int DEF_SPLICE_REGION_EXON=2;
 	
 	private int offsetUpstream = DEF_UPSTREAM;
 	private int offsetDownstream = DEF_DOWNSTREAM;

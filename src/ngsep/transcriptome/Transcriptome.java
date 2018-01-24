@@ -218,27 +218,43 @@ public class Transcriptome {
 					if(annotationClose!=null) annotations.add(annotationClose);
 				}
 					
-			} else if(segmentStart.isCoding()) {
-				annotations.addAll(makeCodingAnnotations(variant, segmentStart, parameters));
 			} else {
-				VariantFunctionalAnnotation annotation =null;
-				if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
-				} else if (segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
-				} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_NONCODINGRNA);
+				if(segmentStart.isCoding()) {
+					annotations.addAll(makeCodingAnnotations(variant, segmentStart, parameters));
+				} else {
+					VariantFunctionalAnnotation annotation =null;
+					if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
+						annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
+					} else if (segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
+						annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
+					} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
+						annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_NONCODINGRNA);
+					}
+					if(annotation!=null) {
+						annotation.setTranscript(t);
+						annotations.add(annotation);
+					}
 				}
-				if(annotation!=null) {
-					annotation.setTranscript(t);
-					annotations.add(annotation);
-				}
+				//Check Exon splice variant
+				VariantFunctionalAnnotation annotationExonSplice = makeAnnotationExonSplice(variant, segmentStart, parameters.getSpliceRegionExonOffset());
+				if(annotationExonSplice!=null) annotations.add(annotationExonSplice);
 			}
 		}
 		if(annotations.size()==0) {
 			annotations.add(new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_INTERGENIC));
 		}
 		return annotations;
+	}
+	private VariantFunctionalAnnotation makeAnnotationExonSplice(GenomicVariant variant, TranscriptSegment segment, int offset) {
+		int diffFirst = variant.getFirst() - segment.getFirst() + 1;
+		int diffLast = segment.getLast() - variant.getLast() + 1;
+		if(diffFirst>offset && diffLast>offset) return null;
+		if((diffFirst<=offset && segment.hasIntronLeft()) || (diffLast<=offset && segment.hasIntronRight()) ) {
+			VariantFunctionalAnnotation answer = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_EXONIC_SPLICE_REGION);
+			answer.setTranscript(segment.getTranscript());
+			return answer;
+		}
+		return null;
 	}
 	private List<VariantFunctionalAnnotation> makeCodingAnnotations(GenomicVariant variant, TranscriptSegment segment, VariantAnnotationParameters parameters) {
 		List<VariantFunctionalAnnotation> annotationsCoding = new ArrayList<>();
@@ -297,9 +313,6 @@ public class Transcriptome {
 					annotationCoding = new VariantFunctionalAnnotation(variant, differenceBases>0?VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS:VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL);
 				}
 			} else if(refProt.equals(varProt)) {
-				//TODO: Splice region within exon
-				//int diff1 = segment.getLast() - variant.getLast();
-				//int diff2 = variant.getFirst() - segment.getFirst();
 				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS);
 			} else if (refProt.length()+expectedProteinIncrease==varProt.length()) {
 				//TODO: Ask for a start codon and not just for an M

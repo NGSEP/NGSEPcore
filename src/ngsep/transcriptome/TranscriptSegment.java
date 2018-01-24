@@ -32,20 +32,29 @@ public class TranscriptSegment implements GenomicRegion {
 	public static final byte STATUS_5P_UTR = 1;
 	public static final byte STATUS_3P_UTR = 2;
 	public static final byte STATUS_NCRNA = 3;
+	
+	public static final byte INTRONS_AROUND_NONE = 0;
+	public static final byte INTRONS_AROUND_RIGHT = 1;
+	public static final byte INTRONS_AROUND_LEFT = 2;
+	public static final byte INTRONS_AROUND_BOTH = 3;
+	
 	private Transcript transcript;
 	private int first;
 	private int last; //Always greater or equal than start
 	private byte status = STATUS_CODING;
 	//For coding transcripts offset from first (or last if negative strand) where a first codon position is located
 	private byte firstCodonPositionOffset = 0;
+	//Position within the transcript of this segment
+	private byte intronsAround = INTRONS_AROUND_NONE;
 	
 	/**
-	 * Creates a new Exon with the given information
-	 * @param gene Gene where the exon is located
+	 * Creates a new TranscriptSegment with the given information
+	 * @param t Transcript to which this segment is part. t!=null
 	 * @param first position of the exon in the sequence where the gene is located
 	 * @param last position of the exon in the sequence where the gene is located
 	 */
 	public TranscriptSegment(Transcript t, int first, int last) {
+		if (t==null) throw new NullPointerException("The transcript of a TranscriptSegment can not be null");
 		this.transcript = t;
 		this.setFirst(first);
 		this.setLast(last);
@@ -136,8 +145,22 @@ public class TranscriptSegment implements GenomicRegion {
 	public boolean isNegativeStrand() {
 		return transcript.isNegativeStrand();
 	}
-	
-	
-	
-	
+	/**
+	 * @return the intronsAround
+	 */
+	public byte getIntronsAround() {
+		return intronsAround;
+	}
+	/**
+	 * @param intronsAround the intronsAround to set
+	 */
+	public void setIntronsAround(byte intronsAround) {
+		this.intronsAround = intronsAround;
+	}
+	public boolean hasIntronLeft() {
+		return (intronsAround/2)==1;
+	}
+	public boolean hasIntronRight() {
+		return (intronsAround%2)==1;
+	}
 }
