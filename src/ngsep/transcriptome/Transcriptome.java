@@ -205,7 +205,7 @@ public class Transcriptome {
 			TranscriptSegment segmentStart = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst());
 			TranscriptSegment segmentEnd = t.getTranscriptSegmentByAbsolutePosition(variant.getLast());
 			if(segmentStart!=segmentEnd) {
-				VariantFunctionalAnnotation annotationSplice = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+				VariantFunctionalAnnotation annotationSplice = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_REGION);
 				annotationSplice.setTranscript(t);
 				annotations.add(annotationSplice);
 			} else if (segmentStart == null) {
@@ -223,11 +223,11 @@ public class Transcriptome {
 			} else {
 				VariantFunctionalAnnotation annotation =null;
 				if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_5P_UTR);
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
 				} else if (segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_3P_UTR);
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
 				} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
-					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_NONCODINGRNA);
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_NONCODINGRNA);
 				}
 				if(annotation!=null) {
 					annotation.setTranscript(t);
@@ -236,7 +236,7 @@ public class Transcriptome {
 			}
 		}
 		if(annotations.size()==0) {
-			annotations.add(new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_INTERGENIC));
+			annotations.add(new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_INTERGENIC));
 		}
 		return annotations;
 	}
@@ -258,7 +258,7 @@ public class Transcriptome {
 		//System.out.println("Transcript: "+t.getId()+". Relative start: "+varTranscriptStart+". Coding start: "+transcriptionStart+". Codon: "+codon);
 		DNAMaskedSequence cdnaSequence = t.getCDNASequence();
 		if(cdnaSequence==null || varTranscriptStart>=cdnaSequence.length()) {
-			VariantFunctionalAnnotation annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_CODING);
+			VariantFunctionalAnnotation annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_CODING);
 			annotationCoding.setTranscript(t);
 			annotationCoding.setCodonNumber(codon);
 			annotationCoding.setCodonPosition((byte) (module+1));
@@ -292,26 +292,26 @@ public class Transcriptome {
 				//Indel events
 				if(Math.abs(differenceBases)%3!=0){
 					//Frameshift mutation
-					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT);
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT);
 				} else {
-					annotationCoding = new VariantFunctionalAnnotation(variant, differenceBases>0?VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS:VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL);
+					annotationCoding = new VariantFunctionalAnnotation(variant, differenceBases>0?VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS:VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL);
 				}
 			} else if(refProt.equals(varProt)) {
 				//TODO: Splice region within exon
 				//int diff1 = segment.getLast() - variant.getLast();
 				//int diff2 = variant.getFirst() - segment.getFirst();
-				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS);
 			} else if (refProt.length()+expectedProteinIncrease==varProt.length()) {
 				//TODO: Ask for a start codon and not just for an M
 				if(startTest==0 && refProt.charAt(0)=='M' && (varProt.length()==0 || varProt.charAt(0)!='M')) {
-					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_START_LOSS);
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_START_LOST);
 				} else {
-					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_MISSENSE);
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_MISSENSE);
 				}
 			} else if (refProt.length()==0 && varProt.length()>0) {
-				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS);
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_STOP_LOST);
 			} else {
-				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_NONSENSE);
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_NONSENSE);
 			}
 			annotationCoding.setAltAlleleIdx(altAlleleIdx);
 			annotationCoding.setTranscript(t);
@@ -327,17 +327,17 @@ public class Transcriptome {
 		if (variant.getLast()<t.getFirst() ) {
 			//Variant before the transcript in genomic location. Check upstream for positive strand and downstream for negative strand
 			if(t.isPositiveStrand() && variant.getLast()>=t.getFirst()-offsetUpstream) {
-				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_UPSTREAM);
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_UPSTREAM);
 			} else if(t.isNegativeStrand() && variant.getLast()>=t.getFirst()-offsetDownstream) {
-				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_DOWNSTREAM);
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_DOWNSTREAM);
 			}
 		} else if (variant.getFirst()>t.getLast()) {
 			//Variant after the transcript in genomic location. Check upstream for negative strand and downstream for positive strand
 			if(t.isPositiveStrand() && variant.getFirst()<=t.getLast()+offsetDownstream) {
-				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_DOWNSTREAM);
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_DOWNSTREAM);
 			}
 			else if(t.isNegativeStrand() && variant.getFirst()<=t.getLast()+offsetUpstream) {
-				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_UPSTREAM);
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_UPSTREAM);
 			}
 		}
 		if(annotationClose!=null) annotationClose.setTranscript(t);
@@ -350,16 +350,16 @@ public class Transcriptome {
 		TranscriptSegment closeSegmentRight = t.getTranscriptSegmentByAbsolutePosition(variant.getLast()+spliceRegionIntronOffSet);
 		if(closeSegmentLeft!=null) {
 			int distance = variant.getFirst()-closeSegmentLeft.getLast(); 
-			if(t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_ACCEPTOR);
-			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_DONOR);
-			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+			if(t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_ACCEPTOR);
+			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_DONOR);
+			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_REGION);
 		} else if (closeSegmentRight!=null) {
 			int distance = closeSegmentRight.getFirst()-variant.getLast(); 
-			if (t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_DONOR);
-			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_ACCEPTOR);
-			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+			if (t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_DONOR);
+			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_ACCEPTOR);
+			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_SPLICE_REGION);
 		} else {
-			annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_INTRON);
+			annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_INTRON);
 		}
 		annotationIntron.setTranscript(t);
 		return annotationIntron;

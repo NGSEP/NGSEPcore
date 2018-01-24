@@ -231,11 +231,23 @@ Requires a VCF file, a gff3 file with gene annotations, and the reference genome
 <argument>VARIANTS_FILE</argument>
 <argument>TRANSCRIPTOME_MAP</argument>
 <argument>REFERENCE_FILE</argument>
-<option id="u" type="INT" default="1000">
-Maximum bp before a gene to classify a variant as Upstream.
+<option id="u" type="INT" default="1000" attribute="offsetUpstream">
+Maximum bp before the start of a transcript to classify a variant as Upstream.
 </option>
-<option id="d" type="INT" default="300">
-Maximum bp after a gene to classify a variant as Downstream.
+<option id="d" type="INT" default="300" attribute="offsetDownstream">
+Maximum bp after the end of a transcript to classify a variant as Downstream.
+</option>
+<option id="sd" type="INT" default="2" attribute="spliceDonorOffset">
+Initial basepairs of an intron that should be considered as splice donor.
+</option>
+<option id="sa" type="INT" default="2" attribute="spliceAcceptorOffset">
+Final basepairs of an intron that should be considered as splice acceptor.
+</option>
+<option id="si" type="INT" default="10" attribute="spliceRegionIntronOffset">
+Initial or final basepairs of an intron that should be considered as part of the splice region.
+</option>
+<option id="se" type="INT" default="5" attribute="spliceRegionExonOffset">
+Initial or final basepairs of an exon that should be considered as part of the splice region.
 </option>
 </command>
 
@@ -473,7 +485,7 @@ single annotated file. Writes to the standard output
 </description>
 <argument>OPTIONS</argument>
 <argument>INPUT_FILE</argument>
-<option id="m" type="INT" default="20">
+<option id="m" type="INT" default="20" attribute="minSamplesGenotyped">
 Minimum number of samples genotyped to accurately calculate the minor allele frequency
 </option>
 </command>

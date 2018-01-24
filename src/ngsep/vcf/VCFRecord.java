@@ -29,6 +29,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.transcriptome.VariantFunctionalAnnotation;
+import ngsep.transcriptome.VariantFunctionalAnnotationType;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
@@ -249,5 +251,14 @@ public class VCFRecord implements GenomicRegion {
 	}
 	public void setHeader(VCFFileHeader header) {
 		this.header = header;
+	}
+	public VariantFunctionalAnnotation getNGSEPFunctionalAnnotation () {
+		VariantFunctionalAnnotation answer = null;
+		GenomicVariantAnnotation ann = getInfoField(GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION);
+		if(ann == null) return null;
+		VariantFunctionalAnnotationType type = VariantFunctionalAnnotationType.getTypeBySearchKey(ann.getValue().toString());
+		if(type == null) return null;
+		answer = new VariantFunctionalAnnotation(variant, type);
+		return answer;
 	}
 }

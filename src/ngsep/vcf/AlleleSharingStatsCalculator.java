@@ -22,6 +22,7 @@ import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 import ngsep.transcriptome.VariantFunctionalAnnotation;
+import ngsep.transcriptome.VariantFunctionalAnnotationType;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
@@ -278,11 +279,8 @@ public class AlleleSharingStatsCalculator {
 					currentGeneLength = 0;
 				}
 			}
-			if(currentGeneId.length()>0) {
-				int role = getVariantRole(record);
-				if(role>0) {
-					currentGeneVars.add(record);
-				}
+			if(currentGeneId.length()>0 && includeRecordByAnnotation(record)) {
+				currentGeneVars.add(record);
 			}
 			n++;
 			if (progressNotifier!=null && n%1000==0) {
@@ -298,27 +296,11 @@ public class AlleleSharingStatsCalculator {
 		}
 		return answer;
 	}
-	private int getVariantRole(VCFRecord record) {
-		GenomicVariantAnnotation ann = record.getInfoField(GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION);
-		String role = null;
-		if(ann !=null) {
-			role = (String)ann.getValue();
-		}
-		if(role == null) return 0;
-		if(includeIntrons && VariantFunctionalAnnotation.ANNOTATION_INTRON.equals(role)) return 1;
-		if(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS.equals(role)) return 2;
-		if(VariantFunctionalAnnotation.ANNOTATION_MISSENSE.equals(role)) return 3;
-		if(VariantFunctionalAnnotation.ANNOTATION_START_LOSS.equals(role)) return 3;
-		if(VariantFunctionalAnnotation.ANNOTATION_NONSENSE.equals(role)) return 4;
-		if(VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS.equals(role)) return 4;
-		if(VariantFunctionalAnnotation.ANNOTATION_CODING.equals(role)) return 5;
-		if(VariantFunctionalAnnotation.ANNOTATION_5P_UTR.equals(role)) return 6;
-		if(VariantFunctionalAnnotation.ANNOTATION_3P_UTR.equals(role)) return 7;
-		if(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT.equals(role)) return 8;
-		if(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS.equals(role)) return 9;
-		if(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL.equals(role)) return 10;
-		if(VariantFunctionalAnnotation.ANNOTATION_NONCODINGRNA.equals(role)) return 11;
-		return 0;
+	private boolean includeRecordByAnnotation(VCFRecord record) {
+		VariantFunctionalAnnotation ann = record.getNGSEPFunctionalAnnotation();
+		if(ann==null) return false;
+		if(includeIntrons && VariantFunctionalAnnotationType.ANNOTATION_INTRON.equals(ann.getTypeName())) return true;
+		return ann.isCoding();
 	}
 
 	private Transcript getTranscript(VCFRecord record) {

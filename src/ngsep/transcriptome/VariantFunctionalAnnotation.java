@@ -1,45 +1,55 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.transcriptome;
 
 import ngsep.variants.GenomicVariant;
 
-
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class VariantFunctionalAnnotation {
 	
 	
-	public static final String ANNOTATION_SPLICE_DONOR="splice_donor_variant";
-	public static final String ANNOTATION_SPLICE_ACCEPTOR="splice_acceptor_variant";
-	public static final String ANNOTATION_SPLICE_REGION="splice_region_variant";
-	public static final String ANNOTATION_FRAMESHIFT="frameshift_variant";
-	public static final String ANNOTATION_NONSENSE="stop_gained";
-	public static final String ANNOTATION_START_LOSS="start_lost";
-	public static final String ANNOTATION_INFRAME_DEL="inframe_deletion";
-	public static final String ANNOTATION_INFRAME_INS="inframe_insertion";
-	public static final String ANNOTATION_STOP_LOSS="stop_lost";
-	public static final String ANNOTATION_MISSENSE="missense_variant";
-	public static final String ANNOTATION_SYNONYMOUS="synonymous_variant";
 	
-	public static final String ANNOTATION_CODING="coding_sequence_variant";
-	public static final String ANNOTATION_5P_UTR="5_prime_UTR_variant";
-	public static final String ANNOTATION_3P_UTR="3_prime_UTR_variant";
-	public static final String ANNOTATION_NONCODINGRNA="non_coding_transcript_exon_variant";
-	
-	public static final String ANNOTATION_UPSTREAM="upstream_gene_variant";
-	public static final String ANNOTATION_DOWNSTREAM="downstream_gene_variant";
-	public static final String ANNOTATION_INTRON="intron_variant";
-	public static final String ANNOTATION_INTERGENIC="intergenic_variant";
 	
 	
 	private GenomicVariant variant;
-	private String annotation;
+	private VariantFunctionalAnnotationType type;
 	private Transcript transcript;
 	private byte altAlleleIdx=-1;
 	private int codonNumber=0;
 	private byte codonPosition=0;
 	private String aminoacidChange;
-	public VariantFunctionalAnnotation(GenomicVariant variant, String annotation) {
+	
+	//PRE: typeName is a type supported by the class VariantFunctionalAnnotationType
+	public VariantFunctionalAnnotation(GenomicVariant variant, String typeName) {
+		this(variant,VariantFunctionalAnnotationType.getTypeByName(typeName));
+	}
+	//PRE: type!=null
+	public VariantFunctionalAnnotation(GenomicVariant variant, VariantFunctionalAnnotationType type) {
 		super();
+		if(type==null) throw new NullPointerException("The type of an annotation can not be null");
 		this.variant = variant;
-		this.annotation = annotation;
+		this.type = type;
 	}
 	/**
 	 * @return the variant
@@ -47,11 +57,16 @@ public class VariantFunctionalAnnotation {
 	public GenomicVariant getVariant() {
 		return variant;
 	}
+	
 	/**
-	 * @return the annotation
+	 * @return the type
 	 */
-	public String getAnnotation() {
-		return annotation;
+	public VariantFunctionalAnnotationType getType() {
+		return type;
+	}
+	
+	public String getTypeName() {
+		return type.getName();
 	}
 	/**
 	 * @return the transcript
@@ -114,4 +129,19 @@ public class VariantFunctionalAnnotation {
 	public void setAminoacidChange(String aminoacidChange) {
 		this.aminoacidChange = aminoacidChange;
 	}
+	/**
+	 * @return
+	 * @see ngsep.transcriptome.VariantFunctionalAnnotationType#getSoAccession()
+	 */
+	public String getSoAccession() {
+		return type.getSoAccession();
+	}
+	/**
+	 * @return
+	 * @see ngsep.transcriptome.VariantFunctionalAnnotationType#isCoding()
+	 */
+	public boolean isCoding() {
+		return type.isCoding();
+	}
+	
 }

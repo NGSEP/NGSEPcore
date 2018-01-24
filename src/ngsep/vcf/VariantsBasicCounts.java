@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ngsep.transcriptome.VariantFunctionalAnnotation;
+import ngsep.transcriptome.VariantFunctionalAnnotationType;
 
 public class VariantsBasicCounts {
 	
@@ -53,21 +54,22 @@ public class VariantsBasicCounts {
 	private int uniqueAllele = 0;
 	
 	
-	public void processGenotypeCall (int genotypingStatus, boolean isTransition, String annotation, int populationStatus) {
+	public void processGenotypeCall (int genotypingStatus, boolean isTransition, VariantFunctionalAnnotation annotation, int populationStatus) {
 		if(genotypingStatus != GENOTYPE_STATUS_UNDECIDED) {
 			genotyped++;
 			if(genotypingStatus!=GENOTYPE_STATUS_HOMOREF) {
 				nonReference++;
-				add1(totalCountsPerAnnotation,annotation);
+				String key = annotation.getTypeName();
+				add1(totalCountsPerAnnotation,key);
 				if(isTransition) {
 					transitions++;
-					add1(transitionCountsPerAnnotation,annotation);
+					add1(transitionCountsPerAnnotation,key);
 				}
 				
 				if(genotypingStatus==GENOTYPE_STATUS_HETEROZYGOUS) {
 					heterozygous++;
 					if(isTransition) heterozygousTransitions++;
-					add1(hetCountsPerAnnotation,annotation);
+					add1(hetCountsPerAnnotation,key);
 				} else {
 					homozygousAlternative++;
 					if(isTransition) homozygousAlternativeTransitions++;
@@ -171,29 +173,32 @@ public class VariantsBasicCounts {
 	}
 	private static int getCodingCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
+		//TODO: Use isCoding method
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS);
 		answer += getNonSynonymousCount(countsMap);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_CODING);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_CODING);
 		return answer;
 	}
 	public static int getNonSynonymousCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_START_LOSS);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_MISSENSE);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_NONSENSE);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS);
-		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_START_LOST);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_MISSENSE);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_STOP_LOST);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_NONSENSE);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS);
+		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL);
 		return answer;
 	}
 	
 	public double getPCTFrameshift() {
-		return 100.0*safeDoubleRatio(getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
+		return 100.0*safeDoubleRatio(getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
 	}
 	
 	public double getPCTFrameshiftHeterozygous() {
-		return 100.0*safeDoubleRatio(getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
+		return 100.0*safeDoubleRatio(getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
 	}
 	
 	public double getTrTvRatio() {
@@ -212,8 +217,8 @@ public class VariantsBasicCounts {
 	}
 	
 	public double getTrTvRatioSynonymous() {
-		int synTransitions = getTransitionCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
-		int synTransversions = getTotalCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS)-synTransitions;
+		int synTransitions = getTransitionCount(VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS);
+		int synTransversions = getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS)-synTransitions;
 		return safeDoubleRatio(synTransitions, synTransversions);
 	}
 	
