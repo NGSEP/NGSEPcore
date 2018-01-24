@@ -246,7 +246,7 @@ Final basepairs of an intron that should be considered as splice acceptor.
 <option id="si" type="INT" default="10" attribute="spliceRegionIntronOffset">
 Initial or final basepairs of an intron that should be considered as part of the splice region.
 </option>
-<option id="se" type="INT" default="5" attribute="spliceRegionExonOffset">
+<option id="se" type="INT" default="2" attribute="spliceRegionExonOffset">
 Initial or final basepairs of an exon that should be considered as part of the splice region.
 </option>
 </command>
