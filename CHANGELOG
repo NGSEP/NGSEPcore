@@ -16,9 +16,10 @@ v3.1.1
   comparison. To achieve this improvement, this module now requires the
   complete reference sequence and not just the sequence names
 - Annotate: Added annotations of variation in splicing donor and acceptor
-  sites, intron splice regions. Loss of start codons previously annotated as
+  sites and splice regions. Loss of start codons previously annotated as
   missense are now properly annotated. Loss of stop codons previously annotated
-  as nonsense are now properly annotated.
+  as nonsense are now properly annotated. Annotation terms are now compliant
+  with sequence ontology terms
 - Annotate Improved compliance of the gff3 format. In particular the phase
   field is now properly handled  
 
