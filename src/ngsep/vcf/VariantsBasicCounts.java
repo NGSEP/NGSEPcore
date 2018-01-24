@@ -22,7 +22,7 @@ package ngsep.vcf;
 import java.util.HashMap;
 import java.util.Map;
 
-import ngsep.transcriptome.Transcriptome;
+import ngsep.transcriptome.VariantFunctionalAnnotation;
 
 public class VariantsBasicCounts {
 	
@@ -171,28 +171,29 @@ public class VariantsBasicCounts {
 	}
 	private static int getCodingCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_SYNONYMOUS);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
 		answer += getNonSynonymousCount(countsMap);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_CODING);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_CODING);
 		return answer;
 	}
 	public static int getNonSynonymousCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_START_LOSS);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_MISSENSE);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_STOP_LOSS);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_NONSENSE);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_FRAMESHIFT);
-		answer += getCount(countsMap,Transcriptome.ANNOTATION_JUNCTION);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_START_LOSS);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_MISSENSE);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_NONSENSE);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS);
+		answer += getCount(countsMap,VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL);
 		return answer;
 	}
 	
 	public double getPCTFrameshift() {
-		return 100.0*safeDoubleRatio(getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
+		return 100.0*safeDoubleRatio(getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
 	}
 	
 	public double getPCTFrameshiftHeterozygous() {
-		return 100.0*safeDoubleRatio(getHeterozygousCount(Transcriptome.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
+		return 100.0*safeDoubleRatio(getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
 	}
 	
 	public double getTrTvRatio() {
@@ -211,8 +212,8 @@ public class VariantsBasicCounts {
 	}
 	
 	public double getTrTvRatioSynonymous() {
-		int synTransitions = getTransitionCount(Transcriptome.ANNOTATION_SYNONYMOUS);
-		int synTransversions = getTotalCount(Transcriptome.ANNOTATION_SYNONYMOUS)-synTransitions;
+		int synTransitions = getTransitionCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
+		int synTransversions = getTotalCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS)-synTransitions;
 		return safeDoubleRatio(synTransitions, synTransversions);
 	}
 	

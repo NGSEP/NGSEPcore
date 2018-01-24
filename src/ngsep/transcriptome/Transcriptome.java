@@ -31,7 +31,6 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantAnnotation;
 
 /**
  * Implements a transcriptome that handles sequence names and coordinates in a genomic fashion.
@@ -40,24 +39,6 @@ import ngsep.variants.GenomicVariantAnnotation;
  * @author Jorge Duitama
  */
 public class Transcriptome {
-	public static final String ANNOTATION_CODING="Coding";
-	public static final String ANNOTATION_INTRON="Intron";
-	public static final String ANNOTATION_INTERGENIC="Intergenic";
-	public static final String ANNOTATION_5P_UTR="FivePrimeUTR";
-	public static final String ANNOTATION_3P_UTR="ThreePrimeUTR";
-	public static final String ANNOTATION_UPSTREAM="Upstream";
-	public static final String ANNOTATION_DOWNSTREAM="Downstream";
-	public static final String ANNOTATION_NONCODINGRNA="NCRNA";
-	public static final String ANNOTATION_SYNONYMOUS="Synonymous";
-	public static final String ANNOTATION_MISSENSE="Missense";
-	public static final String ANNOTATION_NONSENSE="Nonsense";
-	public static final String ANNOTATION_FRAMESHIFT="Frameshift";
-	public static final String ANNOTATION_JUNCTION="ExonJunction";
-	public static final String ANNOTATION_SPLICE_DONOR="SpliceDonor";
-	public static final String ANNOTATION_SPLICE_ACCEPTOR="SpliceAcceptor";
-	public static final String ANNOTATION_SPLICE_REGION="SpliceRegion";
-	public static final String ANNOTATION_STOP_LOSS="StopLoss";
-	public static final String ANNOTATION_START_LOSS="StartLoss";
 	
 	
 	//Genes indexed by id
@@ -209,154 +190,179 @@ public class Transcriptome {
 		return sortedTranscripts.asList();
 	}
 	/**
-	 * Calculates an annotation for the given variant based on its two first alleles
+	 * Calculates the annotations for the given variant based on their alternative alleles
 	 * @param variant Genomic variant to annotate
-	 * @param offsetUpstream Offset to call the variant upstream of a gene
-	 * @param offsetDownstream Offset to call the variant downstream of a gene
-	 * @return List<GenomicVariantAnnotation> Information for functional annotations related with the variant 
+	 * @param parameters Object with the parameters to perform the annotation
+	 * @return List<GenomicVariantAnnotation> Functional annotations of the effect of the alternative alleles 
 	 */
-	public List<GenomicVariantAnnotation> calculateAnnotation(GenomicVariant variant, int offsetUpstream, int offsetDownstream) {
-		String [] alleles = variant.getAlleles();
-		String reference = alleles[0];
-		String alternative = alleles[1];
-		String alternativeR = DNAMaskedSequence.getReverseComplement(alternative);
-		
-		int differenceBases = alternative.length() - reference.length();
-		int expectexProteinIncrease = differenceBases/3;
+	public List<VariantFunctionalAnnotation> calculateAnnotations(GenomicVariant variant, VariantAnnotationParameters parameters) {
+		List<VariantFunctionalAnnotation> annotations = new ArrayList<>();
+		int offsetUpstream = parameters.getOffsetUpstream();
+		int offsetDownstream = parameters.getOffsetDownstream();
 		int maxOffset = Math.max(offsetUpstream, offsetDownstream);
-		List<GenomicVariantAnnotation> annotationCoding = new ArrayList<GenomicVariantAnnotation>();
-		List<GenomicVariantAnnotation> annotationUTR = new ArrayList<GenomicVariantAnnotation>();
-		List<GenomicVariantAnnotation> annotationNCRNA = new ArrayList<GenomicVariantAnnotation>();
-		List<GenomicVariantAnnotation> annotationClose = new ArrayList<GenomicVariantAnnotation>();
-		List<GenomicVariantAnnotation> annotationIntron = new ArrayList<GenomicVariantAnnotation>();
-		List<GenomicVariantAnnotation> annotationSplice = new ArrayList<GenomicVariantAnnotation>();
 		for(Transcript t:getTranscripts(variant.getSequenceName(), variant.getFirst()-maxOffset, variant.getLast()+maxOffset)) {
 			//if(variant.getFirst()==1096) System.err.println("Transcript: "+t.getId()+". Coding: "+t.isCoding()+". Reverse: "+t.isNegativeStrand()+" at "+t.getSequenceName()+": "+t.getFirst()+"-"+t.getLast());
 			TranscriptSegment segmentStart = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst());
 			TranscriptSegment segmentEnd = t.getTranscriptSegmentByAbsolutePosition(variant.getLast());
 			if(segmentStart!=segmentEnd) {
-				annotationCoding = makeAnnotation(variant, ANNOTATION_JUNCTION, t);
+				VariantFunctionalAnnotation annotationSplice = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+				annotationSplice.setTranscript(t);
+				annotations.add(annotationSplice);
 			} else if (segmentStart == null) {
 				//Cases outside the transcript or in introns
 				if(t.getFirst()<=variant.getFirst() && t.getLast()>=variant.getLast()) {
-					annotationIntron = makeAnnotation(variant, ANNOTATION_INTRON, t);
-					TranscriptSegment closeSegmentLeft = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst()-10);
-					TranscriptSegment closeSegmentRight = t.getTranscriptSegmentByAbsolutePosition(variant.getLast()+10);
-					if(closeSegmentLeft!=null) {
-						int distance = variant.getFirst()-closeSegmentLeft.getLast(); 
-						if(distance<=2) {
-							if(t.isNegativeStrand()) annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_ACCEPTOR, t);
-							else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_DONOR, t);
-						} else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_REGION, t);
-					} else if (closeSegmentRight!=null) {
-						int distance = closeSegmentRight.getFirst()-variant.getLast(); 
-						if (distance<=2) {
-							if(t.isNegativeStrand()) annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_DONOR, t);
-							else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_ACCEPTOR, t);
-						} else annotationSplice = makeAnnotation(variant, ANNOTATION_SPLICE_REGION, t);
-					}
-					
-				} else if (variant.getLast()<t.getFirst() ) {
-					//Variant before the transcript in genomic location. Check upstream for positive strand and downstream for negative strand
-					if(t.isPositiveStrand() && variant.getLast()>t.getFirst()-offsetUpstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t);
-					}
-					else if(annotationClose.isEmpty() && t.isNegativeStrand() && variant.getLast()>t.getFirst()-offsetDownstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t);
-					}
-				} else if (variant.getFirst()> t.getLast()) {
-					//Variant before the transcript in genomic location. Check upstream for negative strand and downstream for positive strand
-					if(annotationClose.isEmpty() && t.isPositiveStrand() && variant.getFirst()<t.getLast()+offsetDownstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_DOWNSTREAM, t);
-					}
-					else if(t.isNegativeStrand() && variant.getFirst()<t.getLast()+offsetUpstream) {
-						annotationClose = makeAnnotation(variant, ANNOTATION_UPSTREAM, t);
-					}
-				}
-			} else if(segmentStart.isCoding()) {
-				int transcriptionStart = t.getCodingRelativeStart();
-				int absoluteFirst = variant.getFirst();
-				if(t.isNegativeStrand()) {
-					absoluteFirst = variant.getLast();
-				}
-				int varTranscriptStart = t.getRelativeTranscriptPosition(absoluteFirst);
-				int varTranscriptEnd = varTranscriptStart+(variant.getLast()-variant.getFirst())+1;
-				int varCodingStart = varTranscriptStart-transcriptionStart;
-				int codon = varCodingStart/3+1;
-				int module = varCodingStart%3;
-				//System.out.println("Transcript: "+t.getId()+". Relative start: "+varTranscriptStart+". Coding start: "+transcriptionStart+". Codon: "+codon);
-				String codonStr = ""+codon+"."+(module+1);
-				if(differenceBases%3!=0){
-					//Frameshift mutation
-					annotationCoding = makeAnnotation(variant, ANNOTATION_FRAMESHIFT, t, codonStr, null);
+					VariantFunctionalAnnotation annotationIntron = makeIntronAnnotation(variant, t, parameters);
+					annotations.add(annotationIntron);
 				} else {
-					DNAMaskedSequence cdnaSequence = t.getCDNASequence();
-					if(cdnaSequence!=null && varTranscriptStart<cdnaSequence.length()) {
-						int startTest = varTranscriptStart - module;
-						int endTest = Math.min(cdnaSequence.length(),varTranscriptEnd+3);
-						String testReference = cdnaSequence.subSequence(startTest,endTest).toString();
-						String testA = alternative;
-						if(t.isNegativeStrand()) testA = alternativeR;
-						String testVariant = cdnaSequence.subSequence(startTest,varTranscriptStart)+testA;
-						if(endTest > varTranscriptEnd) testVariant+=cdnaSequence.subSequence(varTranscriptEnd,endTest);
-						//System.out.println("Ref: "+testReference+". Var: "+testVariant+". Transcript start:"+varTranscriptStart);
-						String refProt = proteinTranslator.getProteinSequence(testReference);
-						String varProt = proteinTranslator.getProteinSequence(testVariant);
-						String change=refProt+codon+varProt;
-						//System.out.println("Ref prot: "+refProt+". Varprot: "+varProt);
-						if(refProt.equals(varProt)) {
-							if(annotationCoding.isEmpty()) {
-								annotationCoding = makeAnnotation(variant, ANNOTATION_SYNONYMOUS, t, codonStr,null);
-							}
-						} else if (refProt.length()+expectexProteinIncrease==varProt.length()) {
-							if(startTest==0 && (varProt.length()==0 || varProt.charAt(0)!='M')) {
-								annotationCoding = makeAnnotation(variant, ANNOTATION_START_LOSS, t, codonStr,change);
-							} else {
-								annotationCoding = makeAnnotation(variant, ANNOTATION_MISSENSE, t, codonStr,change);
-							}
-						} else if (refProt.length()==0 && varProt.length()>0) {
-							annotationCoding = makeAnnotation(variant, ANNOTATION_STOP_LOSS, t, codonStr,change);
-						} else {
-							annotationCoding = makeAnnotation(variant, ANNOTATION_NONSENSE, t, codonStr,change);
-						}
-					} else if(annotationCoding.isEmpty()) {
-						annotationCoding = makeAnnotation(variant, ANNOTATION_CODING, t, codonStr, null);
-					}
+					VariantFunctionalAnnotation annotationClose = makeAnnotationClose(variant, t, offsetUpstream, offsetDownstream);
+					if(annotationClose!=null) annotations.add(annotationClose);
 				}
-			} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
-				annotationUTR = makeAnnotation(variant, ANNOTATION_5P_UTR, t);
-			} else if (annotationUTR.isEmpty() && segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
-				annotationUTR = makeAnnotation(variant, ANNOTATION_3P_UTR, t);
-			} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
-				annotationNCRNA = makeAnnotation(variant, ANNOTATION_NONCODINGRNA, t);
+					
+			} else if(segmentStart.isCoding()) {
+				annotations.addAll(makeCodingAnnotations(variant, segmentStart, parameters));
+			} else {
+				VariantFunctionalAnnotation annotation =null;
+				if(segmentStart.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_5P_UTR);
+				} else if (segmentStart.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_3P_UTR);
+				} else if(segmentStart.getStatus()==TranscriptSegment.STATUS_NCRNA)  {
+					annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_NONCODINGRNA);
+				}
+				if(annotation!=null) {
+					annotation.setTranscript(t);
+					annotations.add(annotation);
+				}
 			}
 		}
-		//Priority management
-		if(!annotationCoding.isEmpty()) return annotationCoding;
-		if(!annotationSplice.isEmpty()) return annotationSplice;
-		if(!annotationUTR.isEmpty()) return annotationUTR;
-		if(!annotationNCRNA.isEmpty()) return annotationNCRNA;
-		if(!annotationClose.isEmpty()) return annotationClose;
-		if(!annotationIntron.isEmpty()) return annotationIntron; 
-		return makeAnnotation(variant, ANNOTATION_INTERGENIC);
-	}
-	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type) {
-		return makeAnnotation(var, type,null,null,null);
-	}
-	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type, Transcript t) {
-		return makeAnnotation(var, type,t,null,null);
-	}
-	private List<GenomicVariantAnnotation> makeAnnotation(GenomicVariant var, String type, Transcript t, String codon, String change) {
-		//Remove previous annotations
-		List<GenomicVariantAnnotation> answer = new ArrayList<GenomicVariantAnnotation>();
-		answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION, type));
-		if(t!=null) {
-			answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ID, t.getId()));
-			answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_GENE_NAME, t.getGeneName()));
-			if(codon!=null) answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_CODON, codon));
-			if(change!=null) answer.add(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE, change));
+		if(annotations.size()==0) {
+			annotations.add(new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_INTERGENIC));
 		}
-		return answer;
+		return annotations;
+	}
+	private List<VariantFunctionalAnnotation> makeCodingAnnotations(GenomicVariant variant, TranscriptSegment segment, VariantAnnotationParameters parameters) {
+		List<VariantFunctionalAnnotation> annotationsCoding = new ArrayList<>();
+		String [] alleles = variant.getAlleles();
+		String reference = alleles[0];
+		Transcript t = segment.getTranscript();
+		int transcriptionStart = t.getCodingRelativeStart();
+		int absoluteFirst = variant.getFirst();
+		if(t.isNegativeStrand()) {
+			absoluteFirst = variant.getLast();
+		}
+		int varTranscriptStart = t.getRelativeTranscriptPosition(absoluteFirst);
+		int varTranscriptEnd = varTranscriptStart+(variant.getLast()-variant.getFirst())+1;
+		int varCodingStart = varTranscriptStart-transcriptionStart;
+		int codon = varCodingStart/3+1;
+		int module = varCodingStart%3;
+		//System.out.println("Transcript: "+t.getId()+". Relative start: "+varTranscriptStart+". Coding start: "+transcriptionStart+". Codon: "+codon);
+		DNAMaskedSequence cdnaSequence = t.getCDNASequence();
+		if(cdnaSequence==null || varTranscriptStart>=cdnaSequence.length()) {
+			VariantFunctionalAnnotation annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_CODING);
+			annotationCoding.setTranscript(t);
+			annotationCoding.setCodonNumber(codon);
+			annotationCoding.setCodonPosition((byte) (module+1));
+			annotationsCoding.add(annotationCoding);
+			return annotationsCoding;
+		}
+		int startTest = varTranscriptStart - module;
+		int endTest = Math.min(cdnaSequence.length(),varTranscriptEnd+3);
+		String testReference = cdnaSequence.subSequence(startTest,endTest).toString();
+		for(int i=1;i<alleles.length;i++) {
+			VariantFunctionalAnnotation annotationCoding;
+			byte altAlleleIdx = (byte) i;
+			String alternative = alleles[altAlleleIdx];
+			String alternativeR = DNAMaskedSequence.getReverseComplement(alternative);
+			int differenceBases = alternative.length() - reference.length();
+			int expectedProteinIncrease = differenceBases/3;
+			String testA = alternative;
+			if(t.isNegativeStrand()) testA = alternativeR;
+			String testVariant = cdnaSequence.subSequence(startTest,varTranscriptStart)+testA;
+			if(endTest > varTranscriptEnd) testVariant+=cdnaSequence.subSequence(varTranscriptEnd,endTest);
+			//System.out.println("Ref: "+testReference+". Var: "+testVariant+". Transcript start:"+varTranscriptStart);
+			String refProt = proteinTranslator.getProteinSequence(testReference);
+			String varProt = proteinTranslator.getProteinSequence(testVariant);
+			String change = refProt;
+			if(change.length()==0) change="*";
+			change+=codon;
+			if(varProt.length()>0) change+=varProt;
+			else change+="*";
+			//System.out.println("Ref prot: "+refProt+". Varprot: "+varProt+" Change: "+change );
+			if (differenceBases!=0) {
+				//Indel events
+				if(Math.abs(differenceBases)%3!=0){
+					//Frameshift mutation
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT);
+				} else {
+					annotationCoding = new VariantFunctionalAnnotation(variant, differenceBases>0?VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS:VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL);
+				}
+			} else if(refProt.equals(varProt)) {
+				//TODO: Splice region within exon
+				//int diff1 = segment.getLast() - variant.getLast();
+				//int diff2 = variant.getFirst() - segment.getFirst();
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS);
+			} else if (refProt.length()+expectedProteinIncrease==varProt.length()) {
+				//TODO: Ask for a start codon and not just for an M
+				if(startTest==0 && refProt.charAt(0)=='M' && (varProt.length()==0 || varProt.charAt(0)!='M')) {
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_START_LOSS);
+				} else {
+					annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_MISSENSE);
+				}
+			} else if (refProt.length()==0 && varProt.length()>0) {
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS);
+			} else {
+				annotationCoding = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_NONSENSE);
+			}
+			annotationCoding.setAltAlleleIdx(altAlleleIdx);
+			annotationCoding.setTranscript(t);
+			annotationCoding.setCodonNumber(codon);
+			annotationCoding.setCodonPosition((byte) (module+1));
+			annotationCoding.setAminoacidChange(change);
+			annotationsCoding.add(annotationCoding);
+		}
+		return annotationsCoding;
+	}
+	private VariantFunctionalAnnotation makeAnnotationClose(GenomicVariant variant, Transcript t, int offsetUpstream, int offsetDownstream) {
+		VariantFunctionalAnnotation annotationClose = null;
+		if (variant.getLast()<t.getFirst() ) {
+			//Variant before the transcript in genomic location. Check upstream for positive strand and downstream for negative strand
+			if(t.isPositiveStrand() && variant.getLast()>=t.getFirst()-offsetUpstream) {
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_UPSTREAM);
+			} else if(t.isNegativeStrand() && variant.getLast()>=t.getFirst()-offsetDownstream) {
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_DOWNSTREAM);
+			}
+		} else if (variant.getFirst()>t.getLast()) {
+			//Variant after the transcript in genomic location. Check upstream for negative strand and downstream for positive strand
+			if(t.isPositiveStrand() && variant.getFirst()<=t.getLast()+offsetDownstream) {
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_DOWNSTREAM);
+			}
+			else if(t.isNegativeStrand() && variant.getFirst()<=t.getLast()+offsetUpstream) {
+				annotationClose = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_UPSTREAM);
+			}
+		}
+		if(annotationClose!=null) annotationClose.setTranscript(t);
+		return annotationClose;
+	}
+	private VariantFunctionalAnnotation makeIntronAnnotation(GenomicVariant variant, Transcript t, VariantAnnotationParameters parameters) {
+		VariantFunctionalAnnotation annotationIntron;
+		int spliceRegionIntronOffSet = parameters.getSpliceRegionIntronOffset();
+		TranscriptSegment closeSegmentLeft = t.getTranscriptSegmentByAbsolutePosition(variant.getFirst()-spliceRegionIntronOffSet);
+		TranscriptSegment closeSegmentRight = t.getTranscriptSegmentByAbsolutePosition(variant.getLast()+spliceRegionIntronOffSet);
+		if(closeSegmentLeft!=null) {
+			int distance = variant.getFirst()-closeSegmentLeft.getLast(); 
+			if(t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_ACCEPTOR);
+			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_DONOR);
+			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+		} else if (closeSegmentRight!=null) {
+			int distance = closeSegmentRight.getFirst()-variant.getLast(); 
+			if (t.isNegativeStrand() && distance<=parameters.getSpliceDonorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_DONOR);
+			else if (!t.isNegativeStrand() && distance<=parameters.getSpliceAcceptorOffset()) annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_ACCEPTOR);
+			else annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_SPLICE_REGION);
+		} else {
+			annotationIntron = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotation.ANNOTATION_INTRON);
+		}
+		annotationIntron.setTranscript(t);
+		return annotationIntron;
 	}
 	public void fillSequenceTranscripts(ReferenceGenome genome) {
 		if(sortedTranscripts==null)System.err.println("Null sorted transcripts");

@@ -21,6 +21,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
+import ngsep.transcriptome.VariantFunctionalAnnotation;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
@@ -304,18 +305,19 @@ public class AlleleSharingStatsCalculator {
 			role = (String)ann.getValue();
 		}
 		if(role == null) return 0;
-		if(includeIntrons && Transcriptome.ANNOTATION_INTRON.equals(role)) return 1;
-		if(Transcriptome.ANNOTATION_SYNONYMOUS.equals(role)) return 2;
-		if(Transcriptome.ANNOTATION_MISSENSE.equals(role)) return 3;
-		if(Transcriptome.ANNOTATION_START_LOSS.equals(role)) return 3;
-		if(Transcriptome.ANNOTATION_NONSENSE.equals(role)) return 4;
-		if(Transcriptome.ANNOTATION_STOP_LOSS.equals(role)) return 4;
-		if(Transcriptome.ANNOTATION_CODING.equals(role)) return 5;
-		if(Transcriptome.ANNOTATION_5P_UTR.equals(role)) return 6;
-		if(Transcriptome.ANNOTATION_3P_UTR.equals(role)) return 7;
-		if(Transcriptome.ANNOTATION_FRAMESHIFT.equals(role)) return 8;
-		if(Transcriptome.ANNOTATION_JUNCTION.equals(role)) return 9;
-		if(Transcriptome.ANNOTATION_NONCODINGRNA.equals(role)) return 10;
+		if(includeIntrons && VariantFunctionalAnnotation.ANNOTATION_INTRON.equals(role)) return 1;
+		if(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS.equals(role)) return 2;
+		if(VariantFunctionalAnnotation.ANNOTATION_MISSENSE.equals(role)) return 3;
+		if(VariantFunctionalAnnotation.ANNOTATION_START_LOSS.equals(role)) return 3;
+		if(VariantFunctionalAnnotation.ANNOTATION_NONSENSE.equals(role)) return 4;
+		if(VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS.equals(role)) return 4;
+		if(VariantFunctionalAnnotation.ANNOTATION_CODING.equals(role)) return 5;
+		if(VariantFunctionalAnnotation.ANNOTATION_5P_UTR.equals(role)) return 6;
+		if(VariantFunctionalAnnotation.ANNOTATION_3P_UTR.equals(role)) return 7;
+		if(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT.equals(role)) return 8;
+		if(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS.equals(role)) return 9;
+		if(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL.equals(role)) return 10;
+		if(VariantFunctionalAnnotation.ANNOTATION_NONCODINGRNA.equals(role)) return 11;
 		return 0;
 	}
 

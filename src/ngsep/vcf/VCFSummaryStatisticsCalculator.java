@@ -33,7 +33,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ParseUtils;
 import ngsep.math.Distribution;
-import ngsep.transcriptome.Transcriptome;
+import ngsep.transcriptome.VariantFunctionalAnnotation;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.DiversityStatistics;
 import ngsep.variants.GenomicVariant;
@@ -150,10 +150,13 @@ public class VCFSummaryStatisticsCalculator {
 				countsPerSample[i][j] = new VariantsBasicCounts();
 			}
 		}
-		mafDistributionAnns.put(Transcriptome.ANNOTATION_SYNONYMOUS, new Distribution(0, 0.5, 0.01));
-		mafDistributionAnns.put(Transcriptome.ANNOTATION_MISSENSE, new Distribution(0, 0.5, 0.01));
-		mafDistributionAnns.put(Transcriptome.ANNOTATION_NONSENSE, new Distribution(0, 0.5, 0.01));
-		mafDistributionAnns.put(Transcriptome.ANNOTATION_FRAMESHIFT, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_MISSENSE, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_NONSENSE, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL, new Distribution(0, 0.5, 0.01));
+		mafDistributionAnns.put(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT, new Distribution(0, 0.5, 0.01));
+		
 	}
 	public void processRecord(VCFRecord record) {
 		GenomicVariant var = record.getVariant();
@@ -270,22 +273,27 @@ public class VCFSummaryStatisticsCalculator {
 		out.println();
 		out.println();
 		out.println("SUMMARY FUNCTIONAL BIALLELIC SNVs");
-		out.println("Synonymous:\t"+summaryCounts[0].getTotalCount(Transcriptome.ANNOTATION_SYNONYMOUS));
-		out.println("Start loss:\t"+summaryCounts[0].getTotalCount(Transcriptome.ANNOTATION_START_LOSS));
-		out.println("Missense:\t"+summaryCounts[0].getTotalCount(Transcriptome.ANNOTATION_MISSENSE));
-		out.println("Stop loss:\t"+summaryCounts[0].getTotalCount(Transcriptome.ANNOTATION_STOP_LOSS));
-		out.println("Non sense:\t"+summaryCounts[0].getTotalCount(Transcriptome.ANNOTATION_NONSENSE));
+		out.println("Synonymous:\t"+summaryCounts[0].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS));
+		out.println("Start loss:\t"+summaryCounts[0].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_START_LOSS));
+		out.println("Missense:\t"+summaryCounts[0].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_MISSENSE));
+		out.println("Stop loss:\t"+summaryCounts[0].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS));
+		out.println("Non sense:\t"+summaryCounts[0].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_NONSENSE));
 		out.println("Transitions:\t"+summaryCounts[0].getTransitions()+"\tTr/Tv ratio:\t"+fmt.format(summaryCounts[0].getTrTvRatio()));
-		out.println("Synonymous transitions:\t"+summaryCounts[0].getTransitionCount(Transcriptome.ANNOTATION_SYNONYMOUS)+"\tSynonymous Tr/Tv ratio:\t"+fmt.format(summaryCounts[0].getTrTvRatioSynonymous()));
+		out.println("Synonymous transitions:\t"+summaryCounts[0].getTransitionCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS)+"\tSynonymous Tr/Tv ratio:\t"+fmt.format(summaryCounts[0].getTrTvRatioSynonymous()));
 		out.println("Non Synonymous transitions:\t"+summaryCounts[0].getNonSynonymousTransitionCount()+"\tNon synonymous Tr/Tv ratio:\t"+fmt.format(summaryCounts[0].getTrTvRatioNonSynonymous()));
 		out.println();
-		out.println("SUMMARY OTHER FUNCTIONAL BIALLELIC VARIANTS");
-		out.println("Frameshift indels:\t"+summaryCounts[1].getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT)+"\tPCT:\t"+fmt.format(summaryCounts[1].getPCTFrameshift()));
-		out.println("Frameshift STRs:\t"+summaryCounts[2].getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT)+"\tPCT:\t"+fmt.format(summaryCounts[2].getPCTFrameshift()));
-		out.println("Frameshift other:\t"+summaryCounts[3].getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT)+"\tPCT:\t"+fmt.format(summaryCounts[3].getPCTFrameshift()));
+		out.println("SUMMARY FUNCTIONAL BIALLELIC INDELS");
+		out.println("In-frame insertions:\t"+summaryCounts[1].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS));
+		out.println("In-frame deletions:\t"+summaryCounts[1].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL));
+		out.println("Frameshift indels:\t"+summaryCounts[1].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT)+"\tPCT:\t"+fmt.format(summaryCounts[1].getPCTFrameshift()));
+		out.println();
+		out.println("SUMMARY FUNCTIONAL BIALLELIC STRs");
+		out.println("In-frame insertions:\t"+summaryCounts[2].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS));
+		out.println("In-frame deletions:\t"+summaryCounts[2].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL));
+		out.println("Frameshift STRs:\t"+summaryCounts[2].getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT)+"\tPCT:\t"+fmt.format(summaryCounts[2].getPCTFrameshift()));
 		out.println();
 		out.println("MAF DISTRIBUTIONS BIALLELIC VARIANTS WITH AT LEAST "+minSamplesGenotyped+" SAMPLES GENOTYPED");
-		out.println("MAF\tBiallelic SNPs\tSynonymous\tMissense\tNonsense\tOther biallelic variants\tFrameshift indels");
+		out.println("MAF\tTotal SNVs\tSynonymous\tMissense\tNonsense\tTotal Indels\tTotal STRs\tIn-frame Indels and STRs\tFrameshift indels and STRs");
 		double [] [] consolidatedDist = consolidateMAFDistributions();
 		for(int i=0;i<consolidatedDist.length;i++) {
 			double minMaf = 0.01*i;
@@ -327,17 +335,17 @@ public class VCFSummaryStatisticsCalculator {
 			out.print("\t"+snpCountsSample.getHomozygousAlternative());
 			out.print("\t"+snpCountsSample.getHeterozygous());
 			out.print("\t"+snpCountsSample.getCodingTotalCount());
-			out.print("\t"+snpCountsSample.getTotalCount(Transcriptome.ANNOTATION_SYNONYMOUS));
-			out.print("\t"+snpCountsSample.getTotalCount(Transcriptome.ANNOTATION_START_LOSS));
-			out.print("\t"+snpCountsSample.getTotalCount(Transcriptome.ANNOTATION_MISSENSE));
-			out.print("\t"+snpCountsSample.getTotalCount(Transcriptome.ANNOTATION_STOP_LOSS));
-			out.print("\t"+snpCountsSample.getTotalCount(Transcriptome.ANNOTATION_NONSENSE));
+			out.print("\t"+snpCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS));
+			out.print("\t"+snpCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_START_LOSS));
+			out.print("\t"+snpCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_MISSENSE));
+			out.print("\t"+snpCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS));
+			out.print("\t"+snpCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_NONSENSE));
 			out.print("\t"+snpCountsSample.getCodingHeterozygousCount());
-			out.print("\t"+snpCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_SYNONYMOUS));
-			out.print("\t"+snpCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_START_LOSS));
-			out.print("\t"+snpCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_MISSENSE));
-			out.print("\t"+snpCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_STOP_LOSS));
-			out.print("\t"+snpCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_NONSENSE));
+			out.print("\t"+snpCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS));
+			out.print("\t"+snpCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_START_LOSS));
+			out.print("\t"+snpCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_MISSENSE));
+			out.print("\t"+snpCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_STOP_LOSS));
+			out.print("\t"+snpCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_NONSENSE));
 			out.print("\t"+snpCountsSample.getGenotypedPopCounts());
 			out.print("\t"+snpCountsSample.getRareAllele());
 			out.print("\t"+snpCountsSample.getUniqueAllele());
@@ -347,7 +355,7 @@ public class VCFSummaryStatisticsCalculator {
 			out.print("\t"+fmt.format(snpCountsSample.getTrTvRatioHomozygousAlternative()));
 			out.print("\t"+snpCountsSample.getHeterozygousTransitions());
 			out.print("\t"+fmt.format(snpCountsSample.getTrTvRatioHeterozygous()));
-			out.print("\t"+snpCountsSample.getTransitionCount(Transcriptome.ANNOTATION_SYNONYMOUS));
+			out.print("\t"+snpCountsSample.getTransitionCount(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS));
 			out.print("\t"+fmt.format(snpCountsSample.getTrTvRatioSynonymous()));
 			out.print("\t"+snpCountsSample.getNonSynonymousTransitionCount());
 			out.print("\t"+fmt.format(snpCountsSample.getTrTvRatioNonSynonymous()));
@@ -367,10 +375,10 @@ public class VCFSummaryStatisticsCalculator {
 			out.print("\t"+indelCountsSample.getHomozygousAlternative());
 			out.print("\t"+indelCountsSample.getHeterozygous());
 			out.print("\t"+indelCountsSample.getCodingTotalCount());
-			out.print("\t"+indelCountsSample.getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT));
+			out.print("\t"+indelCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT));
 			out.print("\t"+fmt.format(indelCountsSample.getPCTFrameshift()));
 			out.print("\t"+indelCountsSample.getCodingHeterozygousCount());
-			out.print("\t"+indelCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_FRAMESHIFT));
+			out.print("\t"+indelCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT));
 			out.print("\t"+fmt.format(indelCountsSample.getPCTFrameshiftHeterozygous()));
 			out.print("\t"+indelCountsSample.getGenotypedPopCounts());
 			out.print("\t"+indelCountsSample.getRareAllele());
@@ -392,10 +400,10 @@ public class VCFSummaryStatisticsCalculator {
 			out.print("\t"+strCountsSample.getHomozygousAlternative());
 			out.print("\t"+strCountsSample.getHeterozygous());
 			out.print("\t"+strCountsSample.getCodingTotalCount());
-			out.print("\t"+strCountsSample.getTotalCount(Transcriptome.ANNOTATION_FRAMESHIFT));
+			out.print("\t"+strCountsSample.getTotalCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT));
 			out.print("\t"+fmt.format(strCountsSample.getPCTFrameshift()));
 			out.print("\t"+strCountsSample.getCodingHeterozygousCount());
-			out.print("\t"+strCountsSample.getHeterozygousCount(Transcriptome.ANNOTATION_FRAMESHIFT));
+			out.print("\t"+strCountsSample.getHeterozygousCount(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT));
 			out.print("\t"+fmt.format(strCountsSample.getPCTFrameshiftHeterozygous()));
 			out.print("\t"+strCountsSample.getGenotypedPopCounts());
 			out.print("\t"+strCountsSample.getRareAllele());
@@ -433,18 +441,25 @@ public class VCFSummaryStatisticsCalculator {
 	}
 	private double[][] consolidateMAFDistributions() {
 		double [] dist = mafDistribution[0].getDistribution();
-		double [][] answer = new double [dist.length][6];
+		double [][] answer = new double [dist.length][9];
 		for(int i=0;i<dist.length;i++) answer[i][0] = dist[i];
-		dist = mafDistributionAnns.get(Transcriptome.ANNOTATION_SYNONYMOUS).getDistribution();
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_SYNONYMOUS).getDistribution();
 		for(int i=0;i<dist.length;i++) answer[i][1] = dist[i];
-		dist = mafDistributionAnns.get(Transcriptome.ANNOTATION_MISSENSE).getDistribution();
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_MISSENSE).getDistribution();
 		for(int i=0;i<dist.length;i++) answer[i][2] = dist[i];
-		dist = mafDistributionAnns.get(Transcriptome.ANNOTATION_NONSENSE).getDistribution();
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_NONSENSE).getDistribution();
 		for(int i=0;i<dist.length;i++) answer[i][3] = dist[i];
+		//Total indels
 		dist = mafDistribution[1].getDistribution();
 		for(int i=0;i<dist.length;i++) answer[i][4] = dist[i];
-		dist = mafDistributionAnns.get(Transcriptome.ANNOTATION_FRAMESHIFT).getDistribution();
+		dist = mafDistribution[2].getDistribution();
 		for(int i=0;i<dist.length;i++) answer[i][5] = dist[i];
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_INFRAME_DEL).getDistribution();
+		for(int i=0;i<dist.length;i++) answer[i][6] = dist[i];
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_INFRAME_INS).getDistribution();
+		for(int i=0;i<dist.length;i++) answer[i][7] = dist[i];
+		dist = mafDistributionAnns.get(VariantFunctionalAnnotation.ANNOTATION_FRAMESHIFT).getDistribution();
+		for(int i=0;i<dist.length;i++) answer[i][8] = dist[i];
 		return answer;
 	}
 	public Logger getLog() {
