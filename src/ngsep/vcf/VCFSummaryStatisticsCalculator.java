@@ -51,13 +51,20 @@ public class VCFSummaryStatisticsCalculator {
 
 	private static final String [] VARIANT_CATEGORIES= {"Biallelic SNVs","Biallelic Indels","Biallelic STRs","Other biallelic","Multiallelic SNVs","Multiallelic Indels","Multiallelic STRs","Other Multiallelic"};
 	private int minSamplesGenotyped = 20;
-	private VariantsBasicCounts [] summaryCounts = new VariantsBasicCounts[VARIANT_CATEGORIES.length];
 	private List<String> sampleIds;
-	private VariantsBasicCounts [][] countsPerSample;
+	//Counts for the summary section
+	private VariantsBasicCounts [] summaryCounts = new VariantsBasicCounts[VARIANT_CATEGORIES.length];
 	private int [] totalGenotypeCalls = new int [VARIANT_CATEGORIES.length];
-	private Distribution [] genotypedAccessionsDistribution = new Distribution[VARIANT_CATEGORIES.length];
+	
+	//MAF distribution per category 
 	private Distribution [] mafDistribution = new Distribution[VARIANT_CATEGORIES.length];
+	//MAF distribution per annotation. TODO: Break by category
 	private Map<String, Distribution> mafDistributionAnns = new HashMap<>();
+	
+	//Distributions of genotyped accessions
+	private Distribution [] genotypedAccessionsDistribution = new Distribution[VARIANT_CATEGORIES.length];
+	//Counts for the data per sample
+	private VariantsBasicCounts [][] countsPerSample;
 	
 	public Logger getLog() {
 		return log;
@@ -147,9 +154,9 @@ public class VCFSummaryStatisticsCalculator {
 		for(int i=0;i<VARIANT_CATEGORIES.length;i++) {
 			summaryCounts[i] = new VariantsBasicCounts();
 			totalGenotypeCalls[i] = 0;
-			genotypedAccessionsDistribution[i] = new Distribution(0, sampleIds.size(), 1);
 			mafDistribution[i] = new Distribution(0, 0.5, 0.01);
 			
+			genotypedAccessionsDistribution[i] = new Distribution(0, sampleIds.size(), 1);
 			for(int j=0;j<sampleIds.size();j++) {
 				countsPerSample[i][j] = new VariantsBasicCounts();
 			}
@@ -163,6 +170,7 @@ public class VCFSummaryStatisticsCalculator {
 	}
 	public void processRecord(VCFRecord record) {
 		GenomicVariant var = record.getVariant();
+		//Gather variant characteristics to assign the category
 		boolean isSNV = var.isSNV();
 		boolean isBiallielic = var.isBiallelic();
 		boolean isBiallelicSNV = isSNV && isBiallielic;
@@ -176,15 +184,7 @@ public class VCFSummaryStatisticsCalculator {
 			log.warning("Inconsistent STR type in SNV at "+var.getSequenceName()+": "+var.getFirst()+". Ignoring record.");
 			return;
 		}
-		int idxVarType = 3;
-		if(isSNV) {
-			idxVarType = 0;
-		} else if(isIndel) {
-			idxVarType = 1;
-		} else if (isSTR) {
-			idxVarType = 2;
-		}
-		if(!isBiallielic) idxVarType+=4;
+		int idxVarType = calculateVariantCategory(isSNV, isIndel, isSTR, isBiallielic);
 		List<CalledGenomicVariant> varCalls = record.getCalls();
 		if(varCalls.size()!=countsPerSample[0].length) {
 			throw new IllegalArgumentException("Inconsistent number of calls for variant "+record.getVariant().getSequenceName()+":"+record.getVariant().getFirst());
@@ -192,12 +192,16 @@ public class VCFSummaryStatisticsCalculator {
 		
 		boolean isTransition = isBiallelicSNV && (var instanceof SNV) && ((SNV)var).isTransition();
 		VariantFunctionalAnnotation annotation = record.getNGSEPFunctionalAnnotation();
+		
 		int populationStatus = 0;
 		if(varCalls.size()==0) {
+			//Variant without population information
 			genotypedAccessionsDistribution[idxVarType].processDatapoint(0);
 			summaryCounts[idxVarType].processGenotypeCall(VariantsBasicCounts.GENOTYPE_STATUS_HOMOALT, isTransition, annotation, populationStatus);
 			return;
 		}
+		
+		//Update diversity related statistics
 		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(varCalls, false);
 		genotypedAccessionsDistribution[idxVarType].processDatapoint(divStats.getNumSamplesGenotyped());
 		totalGenotypeCalls[idxVarType] += divStats.getNumSamplesGenotyped();
@@ -208,9 +212,11 @@ public class VCFSummaryStatisticsCalculator {
 		if(divStats.getNumSamplesGenotyped()>=minSamplesGenotyped) {
 			populationStatus = VariantsBasicCounts.POPULATION_STATUS_GENPOP;
 			if(isBiallielic) {
+				//if(call.getFirst()==181922)System.err.println("Call: "+i+" MAF: "+maf+". MAF idx: "+mafIdx+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" status: "+popStatusSample);
+				//Update MAF statistics
 				mafDistribution[idxVarType].processDatapoint(maf);
 				if(annotation!=null) {
-					Distribution d = mafDistributionAnns.get(annotation);
+					Distribution d = mafDistributionAnns.get(annotation.getTypeName());
 					if(d==null) {
 						d = new Distribution(0, 0.5, 0.01);
 						mafDistributionAnns.put(annotation.getTypeName(), d);
@@ -218,15 +224,15 @@ public class VCFSummaryStatisticsCalculator {
 					d.processDatapoint(maf);
 				}
 			}
-			
 		}
 				
 		summaryCounts[idxVarType].processGenotypeCall(VariantsBasicCounts.GENOTYPE_STATUS_HOMOALT, isTransition, annotation, populationStatus);
+		//Update counts per sample
 		for(int i=0;i<varCalls.size();i++) {
 			CalledGenomicVariant call = varCalls.get(i);
 			int genotypeStatus = calculateGenotypeStatus (call);
 			int popStatusSample = populationStatus;
-			//if(call.getFirst()==181922)System.err.println("Call: "+i+" MAF: "+maf+". MAF idx: "+mafIdx+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" status: "+popStatusSample);
+			//if(call.getFirst()==181922)System.err.println("Call: "+i+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" status: "+popStatusSample);
 			if(popStatusSample== VariantsBasicCounts.POPULATION_STATUS_GENPOP && wtIdx>=0) {
 				byte [] calledAlleles = call.getIndexesCalledAlleles();
 				byte [] allelesCN = call.getAllelesCopyNumber();
@@ -247,6 +253,18 @@ public class VCFSummaryStatisticsCalculator {
 			countsPerSample[idxVarType][i].processGenotypeCall(genotypeStatus, isTransition, annotation, popStatusSample);	
 		}
 		
+	}
+	private int calculateVariantCategory(boolean isSNV, boolean isIndel, boolean isSTR, boolean isBiallielic) {
+		int idxVarType = 3;
+		if(isSNV) {
+			idxVarType = 0;
+		} else if(isIndel) {
+			idxVarType = 1;
+		} else if (isSTR) {
+			idxVarType = 2;
+		}
+		if(!isBiallielic) idxVarType+=4;
+		return idxVarType;
 	}
 
 	private int calculateGenotypeStatus(CalledGenomicVariant call) {
@@ -303,14 +321,14 @@ public class VCFSummaryStatisticsCalculator {
 		out.println();
 		out.println("MAF DISTRIBUTIONS BIALLELIC VARIANTS WITH AT LEAST "+minSamplesGenotyped+" SAMPLES GENOTYPED");
 		out.println("MAF\tTotal SNVs\tSynonymous\tMissense\tStop gained\tTotal Indels\tTotal STRs\tIn-frame Indels and STRs\tFrameshift indels and STRs");
-		double [] [] consolidatedDist = consolidateMAFDistributions();
+		int [] [] consolidatedDist = consolidateMAFDistributions();
 		for(int i=0;i<consolidatedDist.length;i++) {
 			double minMaf = 0.01*i;
 			double maxMaf = 0.01*(i+1);
 			out.print(fmt.format(minMaf));
 			if(maxMaf<=0.5)out.print("-"+fmt.format(maxMaf));
 			for(int j=0;j<consolidatedDist[i].length;j++) {
-				out.print("\t"+fmt.format(consolidatedDist[i][j]));
+				out.print("\t"+consolidatedDist[i][j]);
 			}
 			out.println();
 		}
@@ -448,27 +466,27 @@ public class VCFSummaryStatisticsCalculator {
 		}
 		out.println();
 	}
-	private double[][] consolidateMAFDistributions() {
+	private int[][] consolidateMAFDistributions() {
 		double [] dist = mafDistribution[0].getDistribution();
-		double [][] answer = new double [dist.length][9];
-		for(int i=0;i<dist.length;i++) answer[i][0] = dist[i];
+		int [][] answer = new int [dist.length][9];
+		for(int i=0;i<dist.length;i++) answer[i][0] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][1] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][1] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_MISSENSE).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][2] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][2] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_NONSENSE).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][3] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][3] = (int) dist[i];
 		//Total indels
 		dist = mafDistribution[1].getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][4] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][4] = (int) dist[i];
 		dist = mafDistribution[2].getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][5] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][5] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][6] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][6] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][7] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][7] = (int) dist[i];
 		dist = mafDistributionAnns.get(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT).getDistribution();
-		for(int i=0;i<dist.length;i++) answer[i][8] = dist[i];
+		for(int i=0;i<dist.length;i++) answer[i][8] = (int) dist[i];
 		return answer;
 	}
 }
