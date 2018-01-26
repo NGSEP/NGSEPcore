@@ -126,6 +126,14 @@ public class VariantFunctionalAnnotationType {
 		return annotationTypesByNgsep2Name.get(accessionId);
 	}
 	
+	public static boolean isTypeCoding(String name) {
+		if(annotationTypesByName==null) loadTypes();
+		if(name == null) throw new NullPointerException("Name can not be null");
+		VariantFunctionalAnnotationType type = annotationTypesByName.get(name);
+		if(type==null) return false;
+		return type.isCoding();
+	}
+	
 	public static VariantFunctionalAnnotationType getTypeBySearchKey(String key) {
 		if(annotationTypesByName==null) loadTypes();
 		VariantFunctionalAnnotationType answer = getTypeByName(key);
