@@ -108,6 +108,8 @@ OPTIONS:
 				  STRs are treated as a single locus and hence
 				  by default, no SNV will be called within an
 				  STR.
+	-minSVQuality INT	: Minimum quality score (in PHRED scale) for
+				  structural variants. Default: 20
 	-genomeSize INT		: Total size of the genome to use during
 				  detection of CNVs. This should be used when
 				  the reference file only includes a part of
@@ -122,24 +124,17 @@ OPTIONS:
 				  Default: 100 (No filter)
 	-maxLenDeletion INT	: Maximum length of deletions that the read-pair
 				  analysis can identify. Default: 1000000
+	-sizeSRSeed INT		: Size of the seed to look for split-read
+				  alignments. Default: 8
 	-ignoreProperPairFlag	: With this option, the proper pair flag will
 				  not be taken into accout to decide if the ends
 				  of each fragment are properly aligned. By
 				  default, the distribution of insert length is
 				  estimated only taking into account reads with
 				  the proper pair flag turned on
-	-minSVQuality INT	: Minimum quality score (in PHRED scale) for
-				  structural variants. Default: 20
-	-sizeSRSeed INT		: Size of the seed to look for split-read
-				  alignments. Default: 8
-	-ignoreXS		: Ignores the optional field XS to decide if an
-				  alignment is unique. While bowtie2 only
-				  outputs the XS field for reads with multiple
-				  alignments, BWA-MEM and BWA-SW outputs this
-				  field for every alignment in the BAM file.
-				  Hence, this flag should always be used to
-				  process BAM files made with BWA-MEM and 
-				  BWA-SW
+	-minMQ INT		: Minimum mapping quality to call an alignment unique.
+				  Default: 20
+
 	-sampleId STRING	: Id of the sample that will appear in the
 				  output vcf file 
 	-psp			: Flag to print a header in the VCF file with
@@ -276,9 +271,9 @@ conservative variant calling in RAD-Seq or GBS samples becomes:
 
 java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
   
----------------------------------
-Calculating mismatches statistics
----------------------------------
+-----------------------------------
+Calculating base quality statistics
+-----------------------------------
 
 This module takes one or more sets of alignments and a reference genome and
 writes to standard output a report counting the number of mismatches with the 
@@ -290,9 +285,8 @@ USAGE:
 java -jar NGSEPcore.jar QualStats <OPTIONS> <REFERENCE_FILE> <ALIGNMENTS_FILE>*
 
 OPTIONS:
-	-ignoreXS	: Ignores the optional field XS to decide if an
-			  alignment is unique. See the same option in
-			  the variants detector for more details
+	-minMQ INT	: Minimum mapping quality to call an alignment unique.
+			  Default: 20
 						  
 The file(s) with alignments must be given in SAM or BAM format and the
 reference file in fasta format. The output is a text file with five columns:
@@ -318,7 +312,11 @@ how uniform was the sequencing process over the genome. The usage is as follows
 
 USAGE:
 
-java -jar NGSEPcore.jar CoverageStats <ALIGNMENTS_FILE> <OUTPUT_FILE>
+java -jar NGSEPcore.jar CoverageStats <OPTIONS> <ALIGNMENTS_FILE> <OUTPUT_FILE>
+
+OPTIONS:
+	-minMQ INT	: Minimum mapping quality to call an alignment unique.
+			  Default: 20
 
 
 The alignments file must be given in SAM or BAM format. The output is a text
@@ -347,14 +345,20 @@ OPTIONS:
 		  Default: 1000
 	-d INT	: Maximum bp after a gene to classify a variant as Downstream.
 		  Default: 300
+        -sd INT : Initial basepairs of an intron that should be considered as
+		  splice donor. Default: 2
+        -sa INT : Final basepairs of an intron that should be considered as
+		  splice acceptor. Default: 2
+        -si INT : Initial or final basepairs of an intron that should be
+		  considered as part of the splice region. Default: 10
+        -se INT : Initial or final basepairs of an exon that should be
+		  considered as part of the splice region. Default: 2
 
 The vcf file with functional annotations is written in the standard output.
 Annotations are included using the following custom fields in the INFO column:
 
-TA (STRING): 	Annotation based on a gene model. Possible annotations include
-		Intergenic, Intron, FivePrimeUTR, ThreePrimeUTR, Upstream, 
-		Downstream, NCRNA, Synonymous, Missense, Nonsense, Frameshift,
-		and ExonJunction
+TA (STRING): 	Annotation based on a gene model. Annotation names are terms in
+		the sequence ontology database (http://www.sequenceontology.org)
 TID (STRING):	Id of the transcript related with the gene annotation in the TA
 		field
 TGN (STRING): 	Name of the gene related with the annotation in the TA field
@@ -362,6 +366,9 @@ TCO (FLOAT):	For variants in coding regions, position in the aminoacid
 		sequence where the variant is located. The integer part is the
 		1-based position of the mutated codon. The decimal part is the
 		codon position.
+TACH (String):	Description of the aminoacid change produced by a
+		non-synonymous mutation. String encoded as reference aminoacid,
+		position and mutated aminoacid
 
 ----------------------------------------
 Merging variants from individual samples
@@ -981,9 +988,6 @@ OPTIONS:
 		  are assumed to be 1-based.
         -s      : Consider secondary alignments. By default, only primary
 		  alignments are processed
-
-
-
 
 ------------------------------
 Citing and supporting packages
