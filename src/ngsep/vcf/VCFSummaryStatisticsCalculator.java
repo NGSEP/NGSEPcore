@@ -165,7 +165,10 @@ public class VCFSummaryStatisticsCalculator {
 		}
 		mafDistAnnBiallelicSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS, new Distribution(0, 0.5, 0.01));
 		mafDistAnnBiallelicSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_MISSENSE, new Distribution(0, 0.5, 0.01));
+		mafDistAnnBiallelicSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_STOP_LOST, new Distribution(0, 0.5, 0.01));
 		mafDistAnnBiallelicSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_NONSENSE, new Distribution(0, 0.5, 0.01));
+		mafDistAnnBiallelicSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_START_LOST, new Distribution(0, 0.5, 0.01));
+		mafDistAnnBiallelicNonSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS, new Distribution(0, 0.5, 0.01));
 		mafDistAnnBiallelicNonSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS, new Distribution(0, 0.5, 0.01));
 		mafDistAnnBiallelicNonSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL, new Distribution(0, 0.5, 0.01));
 		mafDistAnnBiallelicNonSNVs.put(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT, new Distribution(0, 0.5, 0.01));
