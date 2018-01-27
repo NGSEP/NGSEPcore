@@ -275,6 +275,8 @@ public class GFF3TranscriptomeHandler {
 			} catch (NumberFormatException e) {
 				log.warning("Error loading phase of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". Value: "+items[7]);
 			}
+		} else if (FEATURE_TYPE_CDS.equals(type)) {
+			log.warning("Error loading phase of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". The phase field is required for CDS features");
 		}
 		String errorMessage = "Error loading annotations of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". ";
 		String [] annItems = ParseUtils.parseStringWithText(items[8], ';', '\"');
@@ -437,7 +439,7 @@ class GFF3GenomicFeatureLine implements GenomicRegion {
 	private int first;
 	private int last;
 	private boolean negativeStrand=false;
-	private byte phase = 0;
+	private byte phase = -1;
 	private int lineNumber = 0;
 	private Map<String,String> annotations = new HashMap<String, String>();
 	

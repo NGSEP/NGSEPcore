@@ -43,7 +43,8 @@ public class TranscriptSegment implements GenomicRegion {
 	private int last; //Always greater or equal than start
 	private byte status = STATUS_CODING;
 	//For coding transcripts offset from first (or last if negative strand) where a first codon position is located
-	private byte firstCodonPositionOffset = 0;
+	//-1 indicates that the codon position is unknown
+	private byte firstCodonPositionOffset = -1;
 	//Position within the transcript of this segment
 	private byte intronsAround = INTRONS_AROUND_NONE;
 	
@@ -125,10 +126,10 @@ public class TranscriptSegment implements GenomicRegion {
 	}
 	/**
 	 * Changes the offset at which a first codon position is located
-	 * @param firstCodonPositionOffset the new offset. It can be 0, 1 or 2
+	 * @param firstCodonPositionOffset the new offset. It can be 0, 1, 2 or -1 for undefined
 	 */
 	public void setFirstCodonPositionOffset(byte offset) {
-		if(offset <0 || offset >2) throw new IllegalArgumentException("Invalid offset "+offset);
+		if(offset <-1 || offset >2) throw new IllegalArgumentException("Invalid offset "+offset);
 		this.firstCodonPositionOffset = offset;
 	}
 	/**
