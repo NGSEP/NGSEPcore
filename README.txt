@@ -763,7 +763,7 @@ OPTIONS:
 			  parents of the population even if the list of parents
 			  is provided with the -p option. This allows to take
 			  into account cases of populations in which some of
-			  the parents are missing. Default: 20
+			  the parents are missing. Default: 8
 	-w INT		: Size of the window to process variants at the same
 			  time. Default: 5000
         -o INT		: Overlap between windows. Default: 50
