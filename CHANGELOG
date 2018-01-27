@@ -1,4 +1,4 @@
-v3.1.1
+v3.1.1 30-01-2018
 - RelativeAlleleCounts: Statistics are now calculated not only for the entire
   genome but also by chromosome
 - The name of the command Deconvolute is now Demultiplex. Added option "-a" to
