@@ -171,34 +171,39 @@ public class VariantsBasicCounts {
 	public int getNonSynonymousTransitionCount () {
 		return getNonSynonymousCount(transitionCountsPerAnnotation);
 	}
+	
+	public int getTotalSpliceRegions() {
+		int count = getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_DONOR);
+		count += getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_ACCEPTOR);
+		count += getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_REGION);
+		count += getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_EXONIC_SPLICE_REGION);
+		return count;
+	}
+	
+	public int getHeterozygousSpliceRegions() {
+		int count = getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_DONOR);
+		count += getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_ACCEPTOR);
+		count += getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_SPLICE_REGION);
+		count += getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_EXONIC_SPLICE_REGION);
+		return count;
+	}
 	private static int getCodingCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		//TODO: Use isCoding method
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_SYNONYMOUS);
-		answer += getNonSynonymousCount(countsMap);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_CODING);
+		for(Map.Entry<String, Integer> entry:countsMap.entrySet()) {
+			if(VariantFunctionalAnnotationType.isTypeCoding(entry.getKey())) {
+				answer+= entry.getValue();
+			}
+		}
 		return answer;
 	}
 	public static int getNonSynonymousCount(Map<String, Integer> countsMap) {
 		int answer = 0;
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_START_LOST);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_MISSENSE);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_STOP_LOST);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_NONSENSE);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_INFRAME_INS);
-		answer += getCount(countsMap,VariantFunctionalAnnotationType.ANNOTATION_INFRAME_DEL);
+		for(Map.Entry<String, Integer> entry:countsMap.entrySet()) {
+			if(VariantFunctionalAnnotationType.isTypeNonSynonymous(entry.getKey())) {
+				answer+= entry.getValue();
+			}
+		}
 		return answer;
-	}
-	
-	public double getPCTFrameshift() {
-		return 100.0*safeDoubleRatio(getTotalCount(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT), getCodingTotalCount());
-	}
-	
-	public double getPCTFrameshiftHeterozygous() {
-		return 100.0*safeDoubleRatio(getHeterozygousCount(VariantFunctionalAnnotationType.ANNOTATION_FRAMESHIFT), getCodingHeterozygousCount());
 	}
 	
 	public double getTrTvRatio() {

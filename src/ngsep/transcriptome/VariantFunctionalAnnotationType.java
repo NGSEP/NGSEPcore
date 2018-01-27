@@ -76,14 +76,14 @@ public class VariantFunctionalAnnotationType {
 	
 	private static void loadTypes() {
 		List<VariantFunctionalAnnotationType> types = new ArrayList<>();
-		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_DONOR,null,"SO:0001575", false));
-		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_ACCEPTOR,null,"SO:0001574", false));
+		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_DONOR,null,"SO:0001575", true));
+		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_ACCEPTOR,null,"SO:0001574", true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_FRAMESHIFT,"Frameshift","SO:0001589",true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_NONSENSE,"Nonsense","SO:0001587", true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_START_LOST,null,"SO:0002012",true));
 		
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_EXONIC_SPLICE_REGION,"ExonJunction","SO:0002084",true));
-		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_REGION,null,"SO:0001630",false));
+		types.add(new VariantFunctionalAnnotationType(ANNOTATION_SPLICE_REGION,null,"SO:0001630",true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_INFRAME_DEL,null,"SO:0001822",true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_INFRAME_INS,null,"SO:0001821",true));
 		types.add(new VariantFunctionalAnnotationType(ANNOTATION_STOP_LOST,null,"SO:0001578",true));
@@ -133,6 +133,10 @@ public class VariantFunctionalAnnotationType {
 		if(type==null) return false;
 		return type.isCoding();
 	}
+	public static boolean isTypeNonSynonymous(String name) {
+		if(!isTypeCoding(name)) return false;
+		return !name.equals(ANNOTATION_SYNONYMOUS);
+	}
 	
 	public static VariantFunctionalAnnotationType getTypeBySearchKey(String key) {
 		if(annotationTypesByName==null) loadTypes();
@@ -140,6 +144,9 @@ public class VariantFunctionalAnnotationType {
 		if(answer == null) answer = getTypeBySOAccession(key);
 		if(answer == null) answer = getTypeByNgsep2Name(key);
 		return answer;
+	}
+	public static int getNumberSupportedTypes () {
+		return annotationTypesByName.size();
 	}
 
 	/**
