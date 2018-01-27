@@ -59,7 +59,8 @@ public class VariantsBasicCounts {
 			genotyped++;
 			if(genotypingStatus!=GENOTYPE_STATUS_HOMOREF) {
 				nonReference++;
-				String key = annotation.getTypeName();
+				String key = null;
+				if(annotation!=null) key = annotation.getTypeName();
 				add1(totalCountsPerAnnotation,key);
 				if(isTransition) {
 					transitions++;

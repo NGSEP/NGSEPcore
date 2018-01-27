@@ -146,6 +146,7 @@ public class VariantFunctionalAnnotationType {
 		return answer;
 	}
 	public static int getNumberSupportedTypes () {
+		if(annotationTypesByName==null) loadTypes();
 		return annotationTypesByName.size();
 	}
 
