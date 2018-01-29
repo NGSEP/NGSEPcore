@@ -1,7 +1,7 @@
-<tool id="NGSEP_FilterVCF" name="Filter VCF" version="3.1.0">
+<tool id="NGSEP_FilterVCF" name="Filter VCF" version="3.1.1">
   <description> files</description>
   <command>
-java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar FilterVCF 
+java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FilterVCF 
 
   #if $d
       -d $d
@@ -79,18 +79,25 @@ java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar FilterVCF
       <when value="true">
         <param name="gene" type="text" optional="true" label="Id of the Gene or the Transcript related with the variant"/>
         <param name="roles" type="select" multiple="true" display="checkboxes" label="Select functional annotation roles">
-          <option value="Intron">Intron</option>
-          <option value="Intergenic">Intergenic</option>
-          <option value="FivePrimeUTR">Five Prime UTR</option>
-          <option value="ThreePrimeUTR">Three Prime UTR</option>
-          <option value="Upstream">Upstream</option>
-          <option value="Downstream">Downstream</option>
-          <option value="NCRNA">ncRNA</option>
-          <option value="Synonymous">Synonymous</option>
-          <option value="Missense">Missense</option>
-          <option value="Nonsense">Nonsense</option>
-          <option value="Frameshift">Frameshift</option>
-          <option value="ExonJunction">Exon Junction</option>
+          <option value="synonymous_variant">synonymous_variant</option>
+          <option value="missense_variant">missense_variant</option>
+          <option value="stop_lost">stop_lost</option>
+          <option value="stop_gained">stop_gained</option>
+          <option value="start_lost">start_lost</option>
+          <option value="splice_donor_variant">splice_donor_variant</option>
+          <option value="splice_acceptor_variant">splice_acceptor_variant</option>
+          <option value="exonic_splice_region_variant">exonic_splice_region_variant</option>
+          <option value="splice_region_variant">splice_region_variant</option>
+          <option value="inframe_deletion">inframe_deletion</option>
+          <option value="inframe_insertion">inframe_insertion</option>
+          <option value="frameshift_variant">frameshift_variant</option>
+          <option value="5_prime_UTR_variant">5_prime_UTR_variant</option>
+          <option value="3_prime_UTR_variant">3_prime_UTR_variant</option>
+          <option value="non_coding_transcript_exon_variant">non_coding_transcript_exon_variant</option>
+          <option value="upstream_transcript_variant">upstream_transcript_variant</option>
+          <option value="downstream_transcript_variant">downstream_transcript_variant</option>
+          <option value="intron_variant">intron_variant</option>
+          <option value="intergenic_variant">intergenic_variant</option>
         </param>
       </when>
     </conditional>

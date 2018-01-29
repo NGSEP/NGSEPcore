@@ -1,7 +1,7 @@
-<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.1.0">
+<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.1.1">
   <description> Call SNVs, indels, and Structural Variation</description>
   <command>
-java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar FindVariants 
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants 
       -h $h
       -ploidy $ploidy
       $psp
@@ -10,7 +10,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar FindVariants
   #else
       -sampleId $sampleId
   #end if
-      $ignoreXS
 
   #if $mode.analysis_mode == "genotype"
       -knownVariants $mode.knownVariants
@@ -117,7 +116,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar FindVariants
     <param name="h" type="float" min="0" value="0.001" label="Heterozygosity rate"/>
     <param name="ploidy" type="integer" min="1" value="2" label="Ploidy"/>
     <param name="psp" type="boolean" truevalue="-psp" falsevalue="" label="Print sample ploidy" help="include this information in the header of the VCF file"/>
-    <param name="ignoreXS" type="boolean" truevalue="-ignoreXS" falsevalue="" label="Ignore optional field XS in BAM alignment" help="*necessary to process BAM files made with BWA-MEM and BWA-SW*"/>
     
     <conditional name="mode">
       <param name="analysis_mode" type="select" label="What kind of analysis will be performed?">

@@ -1,7 +1,7 @@
-<tool id="NGSEP_Annotate" name="Functional Annotation" version="3.1.0">
+<tool id="NGSEP_Annotate" name="Functional Annotation" version="3.1.1">
   <description> of variants in a VCF file</description>
   <command>
-java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar Annotate -u $u -d $d $input $map $ref > $output
+java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar Annotate -u $u -d $d $input $map $ref > $output
   </command>
   <inputs>
     <param name="input" type="data" format="vcf" label="Input VCF File"/>
@@ -9,6 +9,10 @@ java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.0.jar Annotate -u 
     <param name="ref" type="data" format="fasta" label="Reference Genome"/>
     <param name="u" type="integer" min="0" value="1000" label="Maximum distance before a gene to be classified as Upstream"/>
     <param name="d" type="integer" min="0" value="300" label="Maximum distance after a gene to be classified as Downstream"/>
+    <param name="sd" type="integer" min="0" value="2" label="Initial basepairs of an intron that should be considered as splice donor"/>
+    <param name="sa" type="integer" min="0" value="2" label="Final basepairs of an intron that should be considered as splice acceptor"/>
+    <param name="si" type="integer" min="0" value="10" label="Initial or final basepairs of an intron that should be considered as part of the splice region"/>
+    <param name="se" type="integer" min="0" value="2" label="Initial or final basepairs of an exon that should be considered as part of the splice region"/>
   </inputs>
   <outputs>
     <data name="output" format="vcf" label="Annotated $input.display_name"/>
