@@ -207,20 +207,6 @@ public class FMIndexSingleSequence implements Serializable
 		return startIndexes;
 	}
 
-	/**
-	 * 
-	 * @param args
-	public static void main(String[] args)
-	{
-		CharSequence c = "abaaba";
-		FMIndexSingleSequence f = new FMIndexSingleSequence(c);
-		f.search("c");
-		f.getRange("c");
-
-		Integer rowS=f.firstRowsInMatrix.get('c');
-		System.out.println(rowS);
-	}
-	 */
 
 	public int[] getRange(String query)
 	{
@@ -228,7 +214,7 @@ public class FMIndexSingleSequence implements Serializable
 
 		Integer rowS=firstRowsInMatrix.get(actualChar);
 		Integer rowF=lastRowsInMatrix.get(actualChar);
-		if(rowS == -1 || rowF==-1 || rowS == null || rowF==null) {
+		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) {
 			return null;
 		}
 		for(int j=query.length()-2;j>=0;j--) 
@@ -290,4 +276,15 @@ public class FMIndexSingleSequence implements Serializable
 
 
 
+	/**
+	 * 
+	 * @param args
+	public static void main(String[] args)
+	{
+		CharSequence c = "abaaba";
+		FMIndexSingleSequence f = new FMIndexSingleSequence(c);
+		String query ="acx";
+		System.out.println(f.alphabet.indexOf('c'));
+	}
+	 */
 }

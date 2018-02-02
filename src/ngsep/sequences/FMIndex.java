@@ -59,12 +59,14 @@ public class FMIndex implements Serializable
 		{
 			QualifiedSequence q = referenceGenome.getSequenceByIndex(i);
 			DNAMaskedSequence seqChars = (DNAMaskedSequence)q.getCharacters();
+			System.out.println(seqChars);
 			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
 			internalIndexes.add(seqForward);
 			List<SequenceMetadata> metadata = new ArrayList<>();
 			metadata.add(new SequenceMetadata(q.getName(), q.getLength(), false));
 			realSequencesMap.add(metadata);
 			seqChars = seqChars.getReverseComplement();
+			System.out.println(seqChars);
 			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
 			internalIndexes.add(seqReverse);
 			metadata = new ArrayList<>();
@@ -134,14 +136,15 @@ public class FMIndex implements Serializable
 	
 	public List<ReadAlignment> search (String searchSequence) 
 	{
+		
 		List<ReadAlignment> alignments = new ArrayList<>();
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
-			List<Integer> matches = idxSeq.search(searchSequence);
+			List<Integer> matches = idxSeq.search(searchSequence.toUpperCase());
 			for (int internalPosMatch:matches) 
 			{
-				ReadAlignment alignment = buildAlignmentFromMetadata(searchSequence, i,internalPosMatch);
+				ReadAlignment alignment = buildAlignmentFromMetadata(searchSequence.toUpperCase(), i,internalPosMatch);
 				if(alignment!=null) alignments.add(alignment);
 			}
 		}
@@ -185,7 +188,19 @@ public class FMIndex implements Serializable
 		return alignments;
 	}*/
 
-	
+	/*
+	public static void main(String[] args) throws IOException
+	{
+		FMIndex f = new FMIndex();
+		f.loadGenome(args[0]);
+		f.save(args[1]);
+		f.loadGenome(args[1]);
+		List<ReadAlignment> a = f.search("at");
+		for (int i = 0; i < a.size(); i++) {
+			System.out.println(a.get(i).getSequenceName()+" pos:"+a.get(i).getFirst()+" to: "+a.get(i).getLast()+" flags:"+a.get(i).getFlags());
+		}
+	}
+	*/
 }
 class SequenceMetadata implements Serializable {
 	/**
