@@ -39,11 +39,11 @@ public class FMIndexSingleSequence implements Serializable
 	 * 
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
-	
+
 	private static final char SPECIAL_CHARACTER = '$';
 	private static final int DEFAULT_TALLY_DISTANCE = 100;
 	private static final int DEFAULT_SUFFIX_FRACTION = 50;
-	
+
 	//Start position in the original sequence of some rows of the BW matrix representing a partial suffix array
 	private Map<Integer,Integer> partialSuffixArray = new HashMap<>();
 
@@ -61,7 +61,7 @@ public class FMIndexSingleSequence implements Serializable
 
 	//For each character tells the first time it appears in the left column of the BW matrix
 	private Map<Character,Integer> firstRowsInMatrix;
-	
+
 	//For each character tells the last time it appears in the left column of the BW matrix
 	private Map<Character,Integer> lastRowsInMatrix;
 
@@ -72,13 +72,13 @@ public class FMIndexSingleSequence implements Serializable
 	{
 		this(sequence,DEFAULT_TALLY_DISTANCE,DEFAULT_SUFFIX_FRACTION);
 	}
-	
+
 	public FMIndexSingleSequence(CharSequence sequence, int tallyDistance, int suffixFraction) {
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
 		calculate(sequence);
 	}
-	
+
 	public int getTallyDistance() {
 		return tallyDistance;
 	}
@@ -103,7 +103,7 @@ public class FMIndexSingleSequence implements Serializable
 		Collections.sort(sufixes, new SuffixCharSequencePositionComparator(sequence));
 		return sufixes;
 	}
-	
+
 	private void buildBWT(CharSequence sequence, List<Integer> suffixes) 
 	{
 		bwt = new char [sequence.length()+1];
@@ -119,7 +119,7 @@ public class FMIndexSingleSequence implements Serializable
 			j++;
 		}
 	}
-	
+
 	private void buildAlphabetAndCounts(CharSequence seq, List<Integer> suffixArray) {
 		Map<Character,Integer> counts= new TreeMap<>();
 		firstRowsInMatrix = new TreeMap<>();
@@ -148,7 +148,7 @@ public class FMIndexSingleSequence implements Serializable
 		}
 		lastRowsInMatrix.put(lastC, suffixArray.size());
 		alphabet = alpB.toString();
-		
+
 	}
 	private void buildTally() 
 	{
@@ -172,8 +172,8 @@ public class FMIndexSingleSequence implements Serializable
 			}
 		}
 	}
-	
-	
+
+
 	private void createPartialSuffixArray(List<Integer> suffixes) 
 	{
 		partialSuffixArray = new HashMap<Integer,Integer>();
@@ -187,7 +187,7 @@ public class FMIndexSingleSequence implements Serializable
 			}
 		}
 	}
-	
+
 	public List<Integer> search (String searchSequence) 
 	{
 		List<Integer> startIndexes = new ArrayList<>();
@@ -207,22 +207,24 @@ public class FMIndexSingleSequence implements Serializable
 		return startIndexes;
 	}
 
+
 	public int[] getRange(String query)
 	{
-		char c = query.charAt(query.length()-1);
-		
-		Integer rowS=firstRowsInMatrix.get(c);
-		Integer rowF=lastRowsInMatrix.get(c);
-		if(rowS == -1 || rowF==-1) {
+		char actualChar = query.charAt(query.length()-1);
+
+		Integer rowS=firstRowsInMatrix.get(actualChar);
+		Integer rowF=lastRowsInMatrix.get(actualChar);
+		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) {
 			return null;
 		}
-		for(int j=query.length()-2;j>=0;j--) {
-			c = query.charAt(j);
-			if(alphabet.indexOf(c)<0) return null;
-			boolean add1 = (bwt[rowS]!=c); 
-			rowS = lfMapping(c, rowS);
+		for(int j=query.length()-2;j>=0;j--) 
+		{
+			actualChar = query.charAt(j);
+			if(alphabet.indexOf(actualChar)<0) return null;
+			boolean add1 = (bwt[rowS]!=actualChar); 
+			rowS = lfMapping(actualChar, rowS);
 			if(add1) rowS++; 
-			rowF = lfMapping(c, rowF);
+			rowF = lfMapping(actualChar, rowF);
 			if(rowS>rowF) {
 				return null;
 			}
@@ -230,8 +232,8 @@ public class FMIndexSingleSequence implements Serializable
 
 		return new int[] {rowS, rowF };
 	}
-	
-	
+
+
 	public int getTallyOf(char c, int row)
 	{
 		int r = 0;
@@ -258,20 +260,31 @@ public class FMIndexSingleSequence implements Serializable
 		}
 		return r;
 	}
-	
+
 	private int lfMapping(char c, int row) 
 	{
 		int rank = getTallyOf(c, row);
 		return firstRowsInMatrix.get(c) + rank - 1;
 	}
-	
+
 	private int lfMapping (int row)
 	{
 		char c = bwt[row];
 		//		System.out.println(""+c);
 		return lfMapping(c,row);
 	}
-	
-	
 
+
+
+	/**
+	 * 
+	 * @param args
+	public static void main(String[] args)
+	{
+		CharSequence c = "abaaba";
+		FMIndexSingleSequence f = new FMIndexSingleSequence(c);
+		String query ="acx";
+		System.out.println(f.alphabet.indexOf('c'));
+	}
+	 */
 }

@@ -48,7 +48,13 @@ public class ReadsAligner {
 			instance.alignReads(fMIndexFile, readsFile, out);
 		}
 	}
-
+	/**
+	 * Aligns readsFile with the fMIndexFile
+	 * @param fMIndexFile Binary file with the serialization of an FMIndex
+	 * @param readsFile Fastq file with the reads to align
+	 * @param out
+	 * @throws IOException
+	 */
 	public void alignReads( String fMIndexFile, String readsFile, PrintStream out) throws IOException {
 		FMIndex fMIndex = FMIndex.loadFromBinaries(fMIndexFile);
 		int totalReads = 0;
