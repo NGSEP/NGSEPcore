@@ -56,7 +56,6 @@ public class VCFFunctionalAnnotator {
 		String transcriptomeMap = args[i++];
 		String sequenceFasta = args[i++]; 
 		
-		annotator.setLog(Logger.getLogger(VCFFunctionalAnnotator.class.getName()));
 		annotator.loadMap(transcriptomeMap, new ReferenceGenome(sequenceFasta));
 		annotator.annotate(variantsFile, System.out);
 	}	
