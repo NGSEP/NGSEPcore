@@ -289,5 +289,11 @@ public class QualifiedSequenceList implements List<QualifiedSequence> {
 		for(QualifiedSequence seq:sequences) answer.add(seq.getName());
 		return answer;
 	}
+	
+	public List<? extends CharSequence> getSequencesDataList () {
+		List<CharSequence> answer = new ArrayList<>();
+		for(QualifiedSequence seq:sequences) answer.add(seq.getCharacters());
+		return answer;
+	}
 
 }
