@@ -24,11 +24,8 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -48,8 +45,7 @@ public class KmersCounter {
 	private Logger log = Logger.getLogger(KmersCounter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private Map<CharSequence, Short> kmersMap = new HashMap<>();
-	//private DNAShortKmersTable<CharSequence, Integer> hashKmers = new DNAShortKmersTable<>();
+	private KmersMap kmersMap = new ByteArrayKmersMapImpl((byte) DEFAULT_KMER_SIZE);
 	private boolean bothStrands = false;
 	private boolean fasta = false;
 	private int kmerSize = DEFAULT_KMER_SIZE;
@@ -94,6 +90,8 @@ public class KmersCounter {
 	}
 	public void setKmerSize(int kmerSize) {
 		this.kmerSize = kmerSize;
+		if(kmerSize<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerSize);
+		else kmersMap = new DefaultKmersMapImpl();
 	}
 	public void setKmerSize(Integer kmerSize) {
 		this.setKmerSize(kmerSize.intValue());
@@ -102,7 +100,7 @@ public class KmersCounter {
 	/**
 	 * @return the hashKmers
 	 */
-	public Map<CharSequence, Short> getKmersMap() {
+	public KmersMap getKmersMap() {
 		return kmersMap;
 	}
 	/**
@@ -230,28 +228,8 @@ public class KmersCounter {
 		//TODO: Create option to process non DNA k-mers
 		CharSequence [] kmers = extractKmers(seq, kmerSize, true);
 		for(CharSequence kmer:kmers) {
-			Short count = kmersMap.get(kmer);
-			if(count!=null && count < Short.MAX_VALUE) {
-				kmersMap.put(kmer, (short) (count + 1));
-			} else if (count == null) {
-				kmersMap.put(kmer, (short) 1);
-			}
+			if(kmer!=null) kmersMap.addOcurrance(kmer);
 		}	
-	}
-	/**
-	 * Filters the k-mers map leaving only k-mers with at least the given abundance
-	 * @param minAbundance Minimum abundance to keep the k-mer
-	 */
-	public void filterKmers (int minAbundance) {
-		log.info("Filtering from "+kmersMap.size()+" k-mers by minimum abundance: "+minAbundance);
-		Iterator<Entry<CharSequence, Short>> it = kmersMap.entrySet().iterator();
-		while (it.hasNext()) {
-			Entry<CharSequence, Short> entry = it.next();
-		    if(entry.getValue() < minAbundance) {
-		    	it.remove();
-		    }
-		}
-		log.info("The Map now has "+kmersMap.size()+" k-mers");
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence
@@ -298,23 +276,10 @@ public class KmersCounter {
 		return kmers;
 	}
 	public void printResults (PrintStream out) {
-		Distribution kmerSpectrum = calculateAbundancesDistribution();
+		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
+		Distribution kmerSpectrum = kmersMap.calculateAbundancesDistribution();
 		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
 		kmerSpectrum.printDistributionInt(out);
 		out.println("More:\t"+kmerSpectrum.getOutliers().size());
-	}
-	public Distribution calculateAbundancesDistribution() {
-		Distribution kmerSpectrum = new Distribution(1, 200, 1);
-		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
-		Iterator<Entry<CharSequence, Short>> it = kmersMap.entrySet().iterator();
-		while (it.hasNext()) {
-			Entry<CharSequence, Short> entry = it.next();
-		    Short value = entry.getValue();
-		    kmerSpectrum.processDatapoint(value);
-		}
-		return kmerSpectrum;
-	}
-	
-	 
-		
+	}	
 }

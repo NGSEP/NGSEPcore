@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -38,7 +37,7 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class FastqFileErrorCorrector {
 	private Logger log = Logger.getLogger(FastqFileErrorCorrector.class.getName());
-	private Map<CharSequence, Short> kmersMap;
+	private KmersMap kmersMap;
 	private int kmerSize = KmersCounter.DEFAULT_KMER_SIZE;
 	private int minAbundance = 5;
 	private int correctedErrors = 0;
@@ -79,7 +78,9 @@ public class FastqFileErrorCorrector {
 		counter.setLog(log);
 		counter.setKmerSize(kmerSize);
 		counter.processFile(inFilename);
-		counter.filterKmers(minAbundance);
+		log.info("Filtering from "+kmersMap.size()+" k-mers by minimum abundance: "+minAbundance);
+		kmersMap.filterKmers(minAbundance);
+		log.info("The Map now has "+kmersMap.size()+" k-mers");
 		kmersMap = counter.getKmersMap();
 		kmerSize = counter.getKmerSize();
 		System.out.println("Extracted "+kmersMap.size()+" filtered k-mers from: "+inFilename);
@@ -108,8 +109,7 @@ public class FastqFileErrorCorrector {
 				CharSequence kmer = readKmers[i];
 				if (kmer==null) readKmerCounts[i] = 0;
 				else {
-					Short count = kmersMap.get(kmer);
-					readKmerCounts[i] = (count!=null)?count:0;
+					readKmerCounts[i] = kmersMap.getCount(kmer);
 				}
 			}
 			int lastRepresented= -1;
@@ -168,8 +168,8 @@ public class FastqFileErrorCorrector {
 		for(int i=first;i<=last&& i<readKmers.length;i++) {
 			CharSequence kmer = readKmers[i];
 			if (kmer!=null) {
-				Short count = kmersMap.get(kmer);
-				if(count!=null) score+=count;
+				int count = kmersMap.getCount(kmer);
+				score+=count;
 			}
 		}
 		return score;
