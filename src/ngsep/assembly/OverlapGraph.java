@@ -66,6 +66,7 @@ public class OverlapGraph {
 			CharSequence [] kmers = KmersCounter.extractKmers(sequence, SEARCH_KMER_LENGTH, true);
 			Map<Integer,List<ReadAlignment>> seqHits = new HashMap<>();
 			for(int i=0;i<kmers.length;i+=SEARCH_KMER_LENGTH) {
+				if(kmers[i]== null) continue;
 				String kmer = kmers[i].toString();
 				List<ReadAlignment> regions = index.search(kmer);
 				//System.out.println("Hits kmer "+kmer+": "+regions.size());
