@@ -19,17 +19,16 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.sequences.DNASequence;
+import ngsep.math.Distribution;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersCounter;
 import ngsep.sequences.LimitedSequence;
@@ -43,16 +42,220 @@ import ngsep.sequences.io.FastaSequencesHandler;
  */
 public class OverlapGraph {
 	private List<LimitedSequence> sequences = new ArrayList<>();
-	private List<List<ReadOverlap>> overlaps;
+	private FMIndex index = new FMIndex();
+	static final int SEARCH_KMER_LENGTH = 15;
+	 
+	private Map<Integer,List<ReadOverlap>> overlapsForward = new HashMap<>();
+	private Map<Integer,List<ReadOverlap>> overlapsBackward = new HashMap<>();
+	private Map<Integer,ReadOverlap> embeddedOverlaps = new HashMap<>();
 	
 	public void addSequence (LimitedSequence sequence) {
 		sequences.add(sequence);
 	}
 	
+	public void buildFMIndex() {
+		index = new FMIndex();
+		index.loadUnnamedSequences("", sequences);
+	}
+	
+	public void findOverlaps () {
+		for(int s=0;s<sequences.size() && s<1000;s++) {
+			if(embeddedOverlaps.containsKey(s)) continue;
+			CharSequence sequence = sequences.get(s);
+			System.out.println("Processing sequence: "+s+" length: "+sequence.length());
+			CharSequence [] kmers = KmersCounter.extractKmers(sequence, SEARCH_KMER_LENGTH, true);
+			Map<Integer,List<ReadAlignment>> seqHits = new HashMap<>();
+			for(int i=0;i<kmers.length;i+=SEARCH_KMER_LENGTH) {
+				String kmer = kmers[i].toString();
+				List<ReadAlignment> regions = index.search(kmer);
+				//System.out.println("Hits kmer "+kmer+": "+regions.size());
+				for(ReadAlignment aln:regions) {
+					//Use mate start to store the kmer start site producing the hit
+					aln.setMateFirst(i);
+					int k = Integer.parseInt(aln.getSequenceName().substring(1));
+					if(k>s) {
+						//String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()+1).toString();
+						//if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
+						List<ReadAlignment> seqAlns = seqHits.get(k);
+						if(seqAlns==null) {
+							seqAlns = new ArrayList<>();
+							seqHits.put(k, seqAlns);
+						}
+						seqAlns.add(aln);
+						
+					}
+				}
+			}
+			System.out.println("Found "+seqHits.size()+" potentially matching sequences for sequence "+s+" of length: "+sequence.length());
+			buildOverlapsFromKmerAlignments (s, seqHits);
+			int nF = overlapsForward.get(s)!=null?overlapsForward.get(s).size():0;
+			int nB = overlapsBackward.get(s)!=null?overlapsBackward.get(s).size():0;
+			System.out.println("Sequence "+s+" overlaps forward: "+nF + " overlaps backward: "+nB);
+			
+		}
+	}
 	
 	
 	
+	private void buildOverlapsFromKmerAlignments(int searchId, Map<Integer, List<ReadAlignment>> seqHits) {
+		LimitedSequence searchSequence = sequences.get(searchId);
+		//GenomicRegionPositionComparator cmp = GenomicRegionPositionComparator.getInstance();
+		for(int k:seqHits.keySet()) {
+			List<ReadAlignment> alns = seqHits.get(k);
+			//Collections.sort(alns, cmp);
+			ReadOverlap next = null;
+			for(ReadAlignment aln:alns) {
+				if(next == null || !next.addKmerAlignment (k,aln) ) {
+					if(next!=null) processOverlap(next,searchSequence.length(),sequences.get(k).length());
+					next = new ReadOverlap(searchId, aln.getMateFirst(), aln.getMateFirst()+SEARCH_KMER_LENGTH-1, k, aln.getFirst(), aln.getLast(), aln.isNegativeStrand());
+					
+				}
+			}
+			if(next!=null) processOverlap(next,searchSequence.length(),sequences.get(k).length());
+		}
+		
+	}
+
 	
+	/**
+	 * PRE: length1 > length2
+	 * @param overlap
+	 * @param length1
+	 * @param length2
+	 */
+	private void processOverlap(ReadOverlap overlap, int length1, int length2) {
+		int l1 = overlap.getLast1() - overlap.getFirst1();
+		int l2 = overlap.getLast2() - overlap.getFirst2();
+		if(l1 < 0.2*length1 && l2 < 0.2*length2) return;
+		int dl1 = overlap.getFirst1();
+		int dl2 = overlap.getFirst2();
+		int dr1 = length1 - overlap.getLast1();
+		int dr2 = length2 - overlap.getLast2();
+		int t = 10;
+		int diffBorder = 100;
+		
+		if(overlap.isNegativeStrand()) {
+			if(dl1+t >= dr2 && dr1+t >= dl2) {
+				if(dl2 > diffBorder || dr2> diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				if(!embeddedOverlaps.containsKey(overlap.getIndexSequence2())) {
+					ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), true);
+					embeddedOverlaps.put(overlap.getIndexSequence2(), ov2);
+				}
+				return;
+			}
+			if(dl1 <= dr2+t && dr1 <= dl2+t) {
+				if(dl1 > diffBorder || dr1> diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				if(!embeddedOverlaps.containsKey(overlap.getIndexSequence1()))embeddedOverlaps.put(overlap.getIndexSequence1(), overlap);
+				return;
+			}
+			if(dl1 < dr2 && dr1 > dl2 ) {
+				//2 left of 1 negative strand
+				if(dl1>diffBorder || dl2 > diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				addOverlap(overlapsBackward, overlap);
+				ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), true);
+				addOverlap(overlapsForward, ov2);
+				return;
+			}
+			if (dl1 > dr2 && dr1 < dl2) {
+				//1 left of 2
+				if(dr2>diffBorder || dr1 > diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				addOverlap(overlapsForward, overlap);
+				ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), true);
+				addOverlap(overlapsBackward, ov2);
+				return;
+			}
+		} else {
+			if(dl1+t >= dl2 && dr1+t >= dr2) {
+				if(dl2 > diffBorder || dr2> diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				if(!embeddedOverlaps.containsKey(overlap.getIndexSequence2())) {
+					ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), false);
+					embeddedOverlaps.put(overlap.getIndexSequence2(), ov2);
+				}
+				return;
+			}
+			if(dl1 <= dl2+t && dr1 <= dr2+t) {
+				if(dl1 > diffBorder || dr1> diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				if(!embeddedOverlaps.containsKey(overlap.getIndexSequence1()))embeddedOverlaps.put(overlap.getIndexSequence1(), overlap);
+				return;
+			}
+			if(dl1 < dl2 && dr1 > dr2 ) {
+				//2 left of 1
+				if(dl1>diffBorder || dr2 > diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				addOverlap(overlapsBackward, overlap);
+				ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), false);
+				addOverlap(overlapsForward, ov2);
+				return;
+			} 
+			if (dl1 > dl2 && dr1 < dr2) {
+				//1 left of 2
+				if(dl2>diffBorder || dr1 > diffBorder) {
+					//Not a true overlap
+					return;
+				}
+				addOverlap(overlapsForward, overlap);
+				ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(), overlap.getFirst2(), overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), false);
+				addOverlap(overlapsBackward, ov2);
+				return;
+			}
+		}
+		//TODO: Print weird overlap
+	}
+
+	private void addOverlap(Map<Integer,List<ReadOverlap>> overlaps, ReadOverlap overlap) {
+		List<ReadOverlap> overlapsSeq1 = overlaps.get(overlap.getIndexSequence1());
+		if(overlapsSeq1==null) {
+			overlapsSeq1 = new ArrayList<>();
+			overlaps.put(overlap.getIndexSequence1(), overlapsSeq1);
+		}
+		overlapsSeq1.add(overlap);
+	}
+	
+	public void printOverlapsDistribution(PrintStream out) {
+		Distribution distForward = new Distribution(0, 20, 1);
+		Distribution distBackward = new Distribution(0, 20, 1);
+		int numEmbedded = embeddedOverlaps.size();
+		for(int i=0;i<sequences.size();i++) {
+			List<ReadOverlap> ovs = overlapsForward.get(i);
+			if(ovs == null) distForward.processDatapoint(0);
+			else distForward.processDatapoint(ovs.size());
+			ovs = overlapsBackward.get(i);
+			if(ovs == null) distBackward.processDatapoint(0);
+			else distBackward.processDatapoint(ovs.size());
+		}
+		double [] vF = distForward.getDistribution();
+		double [] vB = distBackward.getDistribution();
+		System.out.println("Overlaps distribution: ");
+		for (int i = 0;i<vF.length;i++) {
+			out.println(""+i+"\t"+vF[i]+"\t"+vB[i]);
+		}
+		out.println("More:\t"+distForward.getOutliers().size()+"\t"+distBackward.getOutliers().size());
+		out.println();
+		out.println("Embedded alignments: "+numEmbedded);
+		
+		
+	}
+
 	public static void main(String[] args) throws Exception {
 		OverlapGraph instance = new OverlapGraph();
 		long totalLength = 0;
@@ -76,60 +279,44 @@ public class OverlapGraph {
 			totalLength+=seq.getLength();
 			instance.addSequence((LimitedSequence) seq.getCharacters());
 		}
-		
 		long time2 = System.currentTimeMillis();
-		
-		//System.out.println("Created "+instance.sequences.size()+" random DNA sequences. Total length: "+totalLength +" time: "+ (time2 - time1));
 		System.out.println("Loaded "+instance.sequences.size()+" sequences from "+args[0]+". Total length: "+totalLength +" time: "+ (time2 - time1));
 		//System.out.println("First sequence: "+instance.sequences.get(0));
-		/*time1 = time2;
-		Collections.sort(instance.sequences);
+		time1 = time2;
+		Collections.sort(instance.sequences, new Comparator<LimitedSequence>() {
+			@Override
+			public int compare(LimitedSequence l1, LimitedSequence l2) {
+				return l1.length()-l2.length();
+			}
+		});
+		Collections.reverse(instance.sequences);
 		time2 = System.currentTimeMillis();
-		System.out.println("Sorting time: "+ (time2 - time1));*/
+		System.out.println("Sorting time: "+ (time2 - time1));
 		time1=time2;
-		FMIndex index = new FMIndex();
-		index.loadUnnamedSequences("", instance.sequences);
+		instance.buildFMIndex();
 		time2 = System.currentTimeMillis();
 		System.out.println("Created FMIndex in time: "+ (time2 - time1));
+		time1=time2;
+		instance.findOverlaps();
+		time2 = System.currentTimeMillis();
+		System.out.println("Built overlaps in time: "+ (time2 - time1));
+		instance.printOverlapsDistribution (System.out);
 		
-		for(int s=0;s<100;s++) {
-			time1=time2;
-			CharSequence sequence = instance.sequences.get(s);
-			System.out.println("Processing sequence: "+s+" length: "+sequence.length());
-			CharSequence [] kmers = KmersCounter.extractKmers(sequence, 15, true);
-			Map<Integer,Integer> seqHits = new HashMap<>();
-			for(int i=0;i<kmers.length;i++) {
-				String kmer = kmers[i].toString();
-				List<ReadAlignment> regions = index.search(kmer);
-				//System.out.println("Hits kmer "+kmer+": "+regions.size());
-				for(ReadAlignment aln:regions) {
-					int k = Integer.parseInt(aln.getSequenceName().substring(1));
-					//String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()+1).toString();
-					//if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
-					Integer count = seqHits.get(k);
-					if(count==null) count=0;
-					count++;
-					seqHits.put(k, count);
-				}
-			}
-			Set<Integer> selected = new HashSet<>();
-			for(int k:seqHits.keySet()) {
-				if(seqHits.get(k)>kmers.length/5) selected.add(k);
-			}
-			time2 = System.currentTimeMillis();
-			System.out.println("Found "+selected.size()+" matching sequences for sequence "+s+" of length: "+sequence.length()+". search time: "+ (time2 - time1));
-		}
 	}
+
+	
 }
 class ReadOverlap {
+	private int indexSequence1;
 	private int indexSequence2;
 	private int first1;
 	private int last1;
 	private int first2;
 	private int last2;
 	private boolean negativeStrand;
-	public ReadOverlap(int indexSequence2, int first1, int last1, int first2, int last2, boolean negativeStrand) {
+	public ReadOverlap(int indexSequence1, int first1, int last1, int indexSequence2, int first2, int last2, boolean negativeStrand) {
 		super();
+		this.indexSequence1 = indexSequence1;
 		this.indexSequence2 = indexSequence2;
 		this.first1 = first1;
 		this.last1 = last1;
@@ -137,4 +324,48 @@ class ReadOverlap {
 		this.last2 = last2;
 		this.negativeStrand = negativeStrand;
 	}
+	public boolean addKmerAlignment(int idxSeq2, ReadAlignment aln) {
+		if(aln==null) return false;
+		if(idxSeq2!=indexSequence2) return false;
+		if(aln.isNegativeStrand()!=negativeStrand) return false;
+		int kmerFirst = aln.getMateFirst();
+		int kmerLast = kmerFirst + OverlapGraph.SEARCH_KMER_LENGTH;
+		int expectedAlnFirst =  last2 + (kmerFirst-last1);
+		int expectedAlnLast =  last2 + (kmerLast-last1);
+		if (negativeStrand) {
+			expectedAlnFirst =  first2 - (kmerLast-last1);
+			expectedAlnLast =  first2 - (kmerFirst-last1);
+		}
+		if(Math.abs(aln.getFirst()-expectedAlnFirst)>5) return false;
+		if(Math.abs(aln.getLast()-expectedAlnLast)>5) return false;
+		last1 = kmerLast;
+		if(negativeStrand) {
+			first2 = aln.getFirst();
+		} else {
+			last2 = aln.getLast();
+		}
+		return true;
+	}
+	public int getIndexSequence1() {
+		return indexSequence1;
+	}
+	public int getIndexSequence2() {
+		return indexSequence2;
+	}
+	public int getFirst1() {
+		return first1;
+	}
+	public int getLast1() {
+		return last1;
+	}
+	public int getFirst2() {
+		return first2;
+	}
+	public int getLast2() {
+		return last2;
+	}
+	public boolean isNegativeStrand() {
+		return negativeStrand;
+	}
+	
 }
