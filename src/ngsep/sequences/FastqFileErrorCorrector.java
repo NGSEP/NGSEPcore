@@ -78,6 +78,7 @@ public class FastqFileErrorCorrector {
 		counter.setLog(log);
 		counter.setKmerSize(kmerSize);
 		counter.processFile(inFilename);
+		kmersMap = counter.getKmersMap();
 		log.info("Filtering from "+kmersMap.size()+" k-mers by minimum abundance: "+minAbundance);
 		kmersMap.filterKmers(minAbundance);
 		log.info("The Map now has "+kmersMap.size()+" k-mers");
