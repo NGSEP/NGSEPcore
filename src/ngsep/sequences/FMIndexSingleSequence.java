@@ -23,10 +23,15 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * Class that implements an FM-index to perform quick queries over large sequence databases
@@ -190,14 +195,25 @@ public class FMIndexSingleSequence implements Serializable
 
 	public List<Integer> search (String searchSequence) 
 	{
-		List<Integer> startIndexes = new ArrayList<>();
 		int[] range = getRange(searchSequence);
+
+		
+		return getRealIndexes(range);
+	}
+
+
+	private List<Integer> getRealIndexes(int[] range) 
+	{
+		List<Integer> startIndexes=new ArrayList<>();
 		if (range ==null) return startIndexes;
-		for (int i = range[0]; i <= range[1]; i++) {
+		//From this point is just transform the range into the real indexes in the sequence
+		for (int i = range[0]; i <= range[1]; i++) 
+		{
 			int row = i;
 			Integer begin=partialSuffixArray.get(row);
 			int steps;
-			for(steps =0; begin == null;steps++) {
+			for(steps =0; begin == null;steps++) 
+			{
 				row = lfMapping(row);
 				begin=partialSuffixArray.get(row);
 			}
@@ -207,14 +223,14 @@ public class FMIndexSingleSequence implements Serializable
 		return startIndexes;
 	}
 
-
 	public int[] getRange(String query)
 	{
 		char actualChar = query.charAt(query.length()-1);
 
 		Integer rowS=firstRowsInMatrix.get(actualChar);
 		Integer rowF=lastRowsInMatrix.get(actualChar);
-		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) {
+		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) 
+		{
 			return null;
 		}
 		for(int j=query.length()-2;j>=0;j--) 
@@ -225,7 +241,8 @@ public class FMIndexSingleSequence implements Serializable
 			rowS = lfMapping(actualChar, rowS);
 			if(add1) rowS++; 
 			rowF = lfMapping(actualChar, rowF);
-			if(rowS>rowF) {
+			if(rowS>rowF) 
+			{
 				return null;
 			}
 		}
@@ -274,17 +291,145 @@ public class FMIndexSingleSequence implements Serializable
 		return lfMapping(c,row);
 	}
 
+	/*
+	 * Methods for inexact matching
+	 */
+	/**
+	 * Calculates the number of differences between w and x 
+	 * @param w the string we are going to search
+	 * @return
+	 */
+	int [] calculateD(String w)
+	{
+		int [] d= new int[w.length()];
+		int z=0;
+		int j=0;
+		for (int i = 1; i <= d.length; i++) 
+		{
+			String sub = w.substring(j, i);
+			if(search(sub).size()==0)
+			{
+				z++;
+				j++;
+			}
+			d[i-1]=z;
+		}
+		return d;
+	}
+
 
 
 	/**
 	 * 
 	 * @param args
+	 */
 	public static void main(String[] args)
 	{
 		CharSequence c = "abaaba";
 		FMIndexSingleSequence f = new FMIndexSingleSequence(c);
-		String query ="acx";
-		System.out.println(f.alphabet.indexOf('c'));
+		String query ="abc";
+		//		System.out.println(query.substring(0, query.length()));
+
+		System.out.println(f.search(query));
+//		int [] d= f.calculateD(query);
+//		for (int i = 0; i < d.length; i++) 
+//		{
+//			System.out.print(d[(i)]+"\t");
+//		}
+		
+		/*
+		int[]a= {1,2};
+		@SuppressWarnings("unchecked")
+		Set<int[]> set = new TreeSet(new Comparator<int[]>() 
+		{
+	        @Override
+	        public int compare(int[] o1, int[] o2) {
+	            String s1=o1[0]+";"+o2[1];
+	            String s2=o2[0]+";"+o2[1];
+	            return s1.compareTo(s2);
+	        }
+	    });
+		set.add(a);
+		
+		int[]a1= {1,2};
+		Set<int[]> set2 = new HashSet<int[]>();
+		set2.add(a1);
+		
+		Set<int[]> set3 = new HashSet<>();
+		set3.add(a);
+		
+		set.addAll(set2);
+		set.addAll(set3);
+		Iterator<int[]> it = set.iterator();
+		while (it.hasNext()) {
+			int[] object = (int[]) it.next();
+			System.out.print("["+object[0]+" "+object[1]+"]\t");
+		}
+		 */
+
+		f.searchInexact(query);
 	}
-	 */
+
+	@SuppressWarnings("unchecked")
+	private void searchInexact(String query) 
+	{
+		int[] d = calculateD(query);
+		int z=1;
+		Set<int[]> a= inexRecur(query,query.length()-1,z,1,bwt.length-1,d);
+		System.out.println("found");
+		Iterator i =a.iterator();
+		while (i.hasNext()) {
+			int[] object = (int[]) i.next();
+			System.out.print("["+object[0]+" "+object[1]+"]\t");
+			System.out.println(getRealIndexes(object));
+		}
+		
+		
+	}
+
+	private Set<int[]> inexRecur(String w, int i, int z, int k, int l,int[]d) 
+	{
+		Set<int[]> arr = new TreeSet(new Comparator<int[]>() 
+		{
+	        @Override
+	        public int compare(int[] o1, int[] o2) {
+	            String s1=o1[0]+";"+o2[1];
+	            String s2=o2[0]+";"+o2[1];
+	            return s1.compareTo(s2);
+	        }
+	    });
+		if(i<0)
+		{
+			int[] range = {k,l};
+			arr.add(range);
+			return arr;
+		}
+		if(z<d[i])
+		{
+			return arr;
+		}
+//		ArrayList
+		arr.addAll(inexRecur(w, i-1, z-1, k, l, d));
+		for (int j =0 ; j < alphabet.length(); j++) 
+		{
+			char b = alphabet.charAt(j);
+			int[] rangeActual=getRange(b+"");
+			k=rangeActual[0];
+			l=rangeActual[1];
+			if(k<=l)
+			{
+				arr.addAll(inexRecur(w, i, z-1, k, l, d));
+				if(b==w.charAt(i))
+				{
+					arr.addAll(inexRecur(w, i-1, z, k, l, d));
+				}
+				else
+				{
+					arr.addAll(inexRecur(w, i-1, z-1, k, l, d));
+				}
+			}
+		}
+
+		return arr;
+	}
 }
