@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -147,11 +146,14 @@ public class FMIndexSingleSequence implements Serializable
 			if(lastC != c) {
 				alpB.append(c);
 				firstRowsInMatrix.put(c, i+1);
-				lastRowsInMatrix.put(lastC, i+1);
+				lastRowsInMatrix.put(lastC, i);
+				//System.out.println("Last row  "+lastC+": "+i);
+				//System.out.println("First row  "+c+": "+(i+1));
 			}
 			lastC = c;
 		}
 		lastRowsInMatrix.put(lastC, suffixArray.size());
+		//System.out.println("Last row  "+lastC+": "+suffixArray.size());
 		alphabet = alpB.toString();
 
 	}
@@ -196,7 +198,8 @@ public class FMIndexSingleSequence implements Serializable
 	public List<Integer> search (String searchSequence) 
 	{
 		int[] range = getRange(searchSequence);
-
+		//if(range!=null) System.out.println("Search sequence: "+searchSequence+" range: "+range[0]+"-"+range[1]);
+		//else System.out.println("No hits for search sequence: "+searchSequence);
 		
 		return getRealIndexes(range);
 	}
@@ -229,6 +232,7 @@ public class FMIndexSingleSequence implements Serializable
 
 		Integer rowS=firstRowsInMatrix.get(actualChar);
 		Integer rowF=lastRowsInMatrix.get(actualChar);
+		//System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
 		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) 
 		{
 			return null;
@@ -237,14 +241,15 @@ public class FMIndexSingleSequence implements Serializable
 		{
 			actualChar = query.charAt(j);
 			if(alphabet.indexOf(actualChar)<0) return null;
-			boolean add1 = (bwt[rowS]!=actualChar); 
+			boolean add1 = (bwt[rowS]!=actualChar);
 			rowS = lfMapping(actualChar, rowS);
-			if(add1) rowS++; 
+			if(add1) rowS++;
 			rowF = lfMapping(actualChar, rowF);
-			if(rowS>rowF) 
+			if(rowS>rowF)
 			{
 				return null;
 			}
+			//System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
 		}
 
 		return new int[] {rowS, rowF };
@@ -281,6 +286,7 @@ public class FMIndexSingleSequence implements Serializable
 	private int lfMapping(char c, int row) 
 	{
 		int rank = getTallyOf(c, row);
+		//System.out.println("char: "+c+" row: "+row+" rank: "+rank+" first c: "+firstRowsInMatrix.get(c));
 		return firstRowsInMatrix.get(c) + rank - 1;
 	}
 

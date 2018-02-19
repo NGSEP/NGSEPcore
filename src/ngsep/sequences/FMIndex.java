@@ -138,13 +138,14 @@ public class FMIndex implements Serializable
 	{
 		
 		List<ReadAlignment> alignments = new ArrayList<>();
+		String searchUp = searchSequence.toUpperCase();
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
-			List<Integer> matches = idxSeq.search(searchSequence.toUpperCase());
+			List<Integer> matches = idxSeq.search(searchUp);
 			for (int internalPosMatch:matches) 
 			{
-				ReadAlignment alignment = buildAlignmentFromMetadata(searchSequence.toUpperCase(), i,internalPosMatch);
+				ReadAlignment alignment = buildAlignmentFromMetadata(searchUp, i,internalPosMatch);
 				if(alignment!=null) alignments.add(alignment);
 			}
 		}
@@ -159,16 +160,17 @@ public class FMIndex implements Serializable
 			if(internalPostStartSeq + seqM.getLength() > internalPosMatch) {
 				String seqName = seqM.getSeqName();
 				int first = internalPosMatch-internalPostStartSeq;
-				int last = first + searchSequence.length() - 1;
+				int l = searchSequence.length();
+				int last = first + l - 1;
 				int flags = 0;
 				if(seqM.isNegativeStrand()) {
 					last = seqM.getLength()-1-first;
-					first = last - searchSequence.length() + 1 ;
+					first = last - l + 1 ;
 					flags+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
 				}
 				if(first < 0) return null;
 				if(last>=seqM.getLength()) return null;
-				return new ReadAlignment(seqName, first+1, last+1,searchSequence.length(),flags);
+				return new ReadAlignment(seqName, first+1, last+1,l,flags);
 			}
 			internalPostStartSeq += seqM.getLength();
 		}
@@ -188,19 +190,19 @@ public class FMIndex implements Serializable
 		return alignments;
 	}*/
 
-	/*
+	
 	public static void main(String[] args) throws IOException
 	{
 		FMIndex f = new FMIndex();
 		f.loadGenome(args[0]);
-		f.save(args[1]);
-		f.loadGenome(args[1]);
-		List<ReadAlignment> a = f.search("at");
+		//f.save(args[1]);
+		//f.loadGenome(args[1]);
+		List<ReadAlignment> a = f.search("ata");
 		for (int i = 0; i < a.size(); i++) {
 			System.out.println(a.get(i).getSequenceName()+" pos:"+a.get(i).getFirst()+" to: "+a.get(i).getLast()+" flags:"+a.get(i).getFlags());
 		}
 	}
-	*/
+	
 }
 class SequenceMetadata implements Serializable {
 	/**
