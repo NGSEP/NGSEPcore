@@ -1,0 +1,589 @@
+package ngsep.simulation;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.logging.Logger;
+
+import ngsep.genome.GenomicRegionSortedCollection;
+import ngsep.genome.ReferenceGenome;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
+import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.SNV;
+import ngsep.variants.Sample;
+import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileWriter;
+import ngsep.vcf.VCFRecord;
+
+public class SingleIndividualSimulator {
+
+	private Logger log = Logger.getLogger(SingleIndividualSimulator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	public static final double DEF_SNV_RATE=0.001;
+	public static final double DEF_INDEL_RATE=0.0001;
+	public static final double DEF_MUTATED_STR_FRACTION=0.1;
+	public static final int DEF_STR_UNIT_INDEX=14;
+	public static final byte DEF_PLOIDY=2;
+	public static final String DEF_SAMPLE_ID="Simulated";
+	
+	
+	private ReferenceGenome genome;
+	private GenomicRegionSortedCollection<SNV> snvs;
+	private GenomicRegionSortedCollection<GenomicVariant> indels;
+	private GenomicRegionSortedCollection<STR> strs;
+	
+	private List<CalledGenomicVariant> variantCalls;
+	private List<QualifiedSequence> individualGenome;
+	
+	private double snvRate = DEF_SNV_RATE;
+	private double indelRate = DEF_INDEL_RATE;
+	private double mutatedSTRFraction = DEF_MUTATED_STR_FRACTION;
+	private byte ploidy = DEF_PLOIDY;
+	private int strUnitIndex = DEF_STR_UNIT_INDEX;
+	private String sampleId = DEF_SAMPLE_ID;
+	private String strsFile = null;
+	
+	
+
+	public static void main(String[] args) throws Exception {
+		SingleIndividualSimulator instance = new SingleIndividualSimulator();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.genome = new ReferenceGenome(args[i++]);
+		String outPrefix = args[i++];
+		instance.loadSTRs();
+		instance.simulateVariants();
+		instance.buildAssembly();
+		try (PrintStream outGenome = new PrintStream(outPrefix+".fa")) {
+			instance.saveIndividualGenome(outGenome);
+		}
+		try (PrintStream outVariants = new PrintStream(outPrefix+".vcf")) {
+			instance.saveVariants(outVariants);
+		}
+	}
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+
+
+
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+
+
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+
+
+	/**
+	 * @return the genome
+	 */
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+	/**
+	 * @param genome the genome to set
+	 */
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+
+	/**
+	 * @return the snvRate
+	 */
+	public double getSnvRate() {
+		return snvRate;
+	}
+
+	/**
+	 * @param snvRate the snvRate to set
+	 */
+	public void setSnvRate(double snvRate) {
+		this.snvRate = snvRate;
+	}
+	public void setSnvRate(Double snvRate) {
+		this.setSnvRate(snvRate.doubleValue());
+	}
+
+	/**
+	 * @return the indelRate
+	 */
+	public double getIndelRate() {
+		return indelRate;
+	}
+
+	/**
+	 * @param indelRate the indelRate to set
+	 */
+	public void setIndelRate(double indelRate) {
+		this.indelRate = indelRate;
+	}
+	
+	public void setIndelRate(Double indelRate) {
+		this.setIndelRate(indelRate.doubleValue());
+	}
+	
+	/**
+	 * @return the mutatedSTRFraction
+	 */
+	public double getMutatedSTRFraction() {
+		return mutatedSTRFraction;
+	}
+
+	/**
+	 * @param mutatedSTRFraction the mutatedSTRFraction to set
+	 */
+	public void setMutatedSTRFraction(double mutatedSTRFraction) {
+		this.mutatedSTRFraction = mutatedSTRFraction;
+	}
+	
+	public void setMutatedSTRFraction(Double mutatedSTRFraction) {
+		this.setMutatedSTRFraction(mutatedSTRFraction.doubleValue());
+	}
+
+	/**
+	 * @return the ploidy
+	 */
+	public byte getPloidy() {
+		return ploidy;
+	}
+
+	/**
+	 * @param ploidy the ploidy to set
+	 */
+	public void setPloidy(byte ploidy) {
+		this.ploidy = ploidy;
+	}
+	
+	public void setPloidy(Integer ploidy) {
+		this.setPloidy(ploidy.byteValue());
+	}
+
+	/**
+	 * @return the strUnitIndex
+	 */
+	public int getStrUnitIndex() {
+		return strUnitIndex;
+	}
+
+	/**
+	 * @param strUnitIndex the strUnitIndex to set
+	 */
+	public void setStrUnitIndex(int strUnitIndex) {
+		this.strUnitIndex = strUnitIndex;
+	}
+	
+	public void setStrUnitIndex(Integer strUnitIndex) {
+		this.setStrUnitIndex(strUnitIndex.intValue());
+	}
+	
+	/**
+	 * @return the sampleId
+	 */
+	public String getSampleId() {
+		return sampleId;
+	}
+
+	/**
+	 * @param sampleId the sampleId to set
+	 */
+	public void setSampleId(String sampleId) {
+		this.sampleId = sampleId;
+	}
+	
+	/**
+	 * @return the strsFile
+	 */
+	public String getStrsFile() {
+		return strsFile;
+	}
+
+	/**
+	 * @param strsFile the strsFile to set
+	 */
+	public void setStrsFile(String strsFile) {
+		this.strsFile = strsFile;
+	}
+
+	public void loadSTRs() throws IOException {
+		if(strsFile==null) return; 
+		log.info("Loading STRs from "+strsFile);
+		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
+		GenomicRegionSortedCollection<STR> strsC = new GenomicRegionSortedCollection<>(seqMetadata);
+		try (FileReader reader = new FileReader(strsFile);
+			BufferedReader in = new BufferedReader(reader)) {
+			String line = in.readLine();
+			while (line != null) {
+				String [] items = line.split(" |\t");
+				QualifiedSequence seq = seqMetadata.get(items[0]);
+				if(seq==null) {
+					log.warning("Can not load line "+line+". Unrecognized sequence name");
+					line = in.readLine();
+					continue;
+				}
+				String seqName = seq.getName();
+				int first = Math.max(1, Integer.parseInt(items[1])-1);
+				int last = Math.min(Integer.parseInt(items[2])+1,seq.getLength()-1);
+				String unit = items[strUnitIndex];
+				CharSequence segment = genome.getReference(seqName, first, last);
+				if(segment == null) {
+					log.warning("Can not load line "+line+". Sequence segment not found");
+					line = in.readLine();
+					continue;
+				}
+				String reference = segment.toString();
+				List<String> alleles = new ArrayList<>();
+				alleles.add(reference);
+				STR str = new STR(seqName, first, last, alleles, unit);
+				str.setVariantQS((short) 255);
+				strsC.add(str);
+				line = in.readLine();
+			}
+		}
+		strs = new GenomicRegionSortedCollection<>(seqMetadata);
+		for(QualifiedSequence seq:seqMetadata) {
+			List<STR> seqSTRs = strsC.getSequenceRegions(seq.getName()).asList();
+			STR lastStr = null;
+			for(STR str:seqSTRs) {
+				if(lastStr==null || (lastStr.getLast()<str.getFirst())) {
+					strs.add(str);
+					lastStr = str;
+				}
+			}
+		}
+		
+		log.info("Loaded "+strs.size()+" non overlapping STRs");
+	}
+	
+	public void simulateVariants() {
+		simulateIndels();
+		simulateSNVs();
+		simulateVariantSTRs();
+	}
+	
+	private void simulateIndels() {
+		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
+		long length = genome.getTotalLength();
+		indels = new GenomicRegionSortedCollection<>(seqMetadata);
+		int numIndels = (int) Math.round(length*indelRate);
+		Random random = new Random();
+		Set<Long> selected = new HashSet<>();
+		for(int i=0;i<numIndels;i++) {
+			while (true) {
+				long absoluteFirst = random.nextLong()%length;
+				if(selected.contains(absoluteFirst)) continue;
+				selected.add(absoluteFirst);
+				long currentFirst = 0;
+				String seqName = null; 
+				int first = 0;
+				for(QualifiedSequence seq: seqMetadata) {
+					if(currentFirst+seq.getLength()>absoluteFirst) {
+						seqName = seq.getName();
+						first = (int)(absoluteFirst - currentFirst) + 1;
+						break;
+					}
+					currentFirst+=seq.getLength();
+				}
+				int eventLength = random.nextInt(10)+1;
+				boolean deletion = random.nextBoolean();
+				int last = first+1;
+				if(deletion) last = first + eventLength + 1;
+				
+				if (strs!=null && strs.findSpanningRegions(seqName, first, last).size()>0) continue;
+				List<String> alleles = new ArrayList<>();
+				CharSequence segment = genome.getReference(seqName, first, last);
+				if(segment == null) continue;
+				String refAllele = segment.toString();
+				if(refAllele == null) continue;
+				alleles.add(refAllele);
+				String altAllele;
+				if(deletion) {
+					altAllele = ""+refAllele.charAt(0)+""+refAllele.charAt(refAllele.length()-1);
+				} else {
+					altAllele = ""+refAllele.charAt(0)+makeRandomDNA(eventLength)+refAllele.charAt(refAllele.length()-1);
+				}
+				alleles.add(altAllele);
+				GenomicVariantImpl indel = new GenomicVariantImpl(seqName, first, last, alleles);
+				indel.setType(GenomicVariant.TYPE_INDEL);
+				indel.setVariantQS((short) 255);
+				indels.add(indel);
+				break;
+			}
+		}
+		log.info("Simulated "+indels.size()+" indels");
+	}
+
+	private String makeRandomDNA(int eventLength) {
+		Random r = new Random();
+		StringBuilder randomSequence = new StringBuilder();
+		for(int j=0;j<eventLength;j++) {
+			int bpI = r.nextInt(4);
+			randomSequence.append(DNASequence.BASES_STRING.charAt(bpI));
+		}
+		return randomSequence.toString();
+	}
+
+	private void simulateSNVs() {
+		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
+		long length = genome.getTotalLength();
+		int numSNVs = (int) Math.round(length*snvRate);
+		snvs = new GenomicRegionSortedCollection<>(seqMetadata);
+		Random random = new Random();
+		Set<Long> selected = new HashSet<>();
+		for(int i=0;i<numSNVs;i++) {
+			while (true) {
+				long absoluteFirst = random.nextLong()%length;
+				if(selected.contains(absoluteFirst)) continue;
+				selected.add(absoluteFirst);
+				long currentFirst = 0;
+				String seqName = null; 
+				int pos = 0;
+				for(QualifiedSequence seq: seqMetadata) {
+					if(currentFirst+seq.getLength()>absoluteFirst) {
+						seqName = seq.getName();
+						pos = (int)(absoluteFirst - currentFirst) + 1;
+						break;
+					}
+					currentFirst+=seq.getLength();
+				}
+				if (strs!=null && strs.findSpanningRegions(seqName, pos).size()>0) continue;
+				if (indels!=null && indels.findSpanningRegions(seqName, pos).size()>0) continue;
+				char refBase = genome.getReferenceBase(seqName, pos);
+				int refIdx = DNASequence.BASES_STRING.indexOf(refBase);
+				if(refIdx==-1) continue;
+				int altIdx = refIdx;
+				while(refIdx==altIdx) altIdx = random.nextInt(DNASequence.BASES_STRING.length());
+				char altBase = DNASequence.BASES_STRING.charAt(altIdx);
+				SNV snv = new SNV(seqName, pos, refBase, altBase);
+				snv.setVariantQS((short) 255);
+				snvs.add(snv);
+				break;
+			}
+		}
+		log.info("Simulated "+snvs.size()+" SNVs");
+	}
+
+	private void simulateVariantSTRs() {
+		if(strs==null) return;
+		List<STR> strsList = strs.asList();
+		Random random = new Random();
+		int numSTRs = (int) Math.round(strsList.size()*mutatedSTRFraction);
+		log.info("Simulating mutations in "+numSTRs+" STRs from a total of "+strsList.size()+" loaded STRs");
+		Set<Integer> selected = new HashSet<>();
+		for(int i=0;i<numSTRs;i++) {
+			while (true) {
+				int j = random.nextInt(strsList.size());
+				if(selected.contains(j)) continue;
+				selected.add(j);
+				STR str = strsList.get(i);
+				String reference = str.getReference();
+				String unit = str.getUnitSequence();
+				int copies = (reference.length()-2)/unit.length();
+				int affectedCopies = random.nextInt(copies)+1; 
+				int eventLength = affectedCopies*unit.length();
+				boolean deletion = random.nextBoolean();
+				String altAllele;
+				if(deletion) {
+					int end1 = reference.length() - eventLength - 1; 
+					altAllele = reference.substring(0, end1);
+				} else {
+					altAllele = reference.substring(0, reference.length()-1);
+					for(int k=0;k<affectedCopies;k++) altAllele+=unit;
+				}
+				altAllele+=reference.charAt(reference.length()-1);
+				str.addAllele(altAllele);
+				//System.out.println("Alleles str: "+str.getAlleles().length);
+				break;
+			}
+		}
+		log.info("Simulated mutations in "+numSTRs+" STRs");
+	}
+	
+	public void buildAssembly() {
+		
+		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
+		variantCalls = new ArrayList<>();
+		individualGenome = new QualifiedSequenceList();
+		GenomicRegionSortedCollection<GenomicVariant> allVariants = new GenomicRegionSortedCollection<>(seqMetadata);
+		if(snvs!=null) allVariants.addAll(snvs);
+		if (indels!=null) allVariants.addAll(indels);
+		if (strs!=null) {
+			for(STR str: strs) {
+				if(str.isBiallelic()) allVariants.add(str);
+			}
+		}
+		if(allVariants.size()==0) {
+			throw new RuntimeException("No variants were simulated");
+		}
+		for(QualifiedSequence sequence:seqMetadata) {
+			String seqName = sequence.getName();
+			log.info("Building assembly for sequence "+seqName);
+			int l = sequence.getLength();
+			int nextPos = 1;
+			StringBuilder [] haplotypes = new StringBuilder [ploidy];
+			for(int i=0;i<haplotypes.length;i++) haplotypes[i] = new StringBuilder();
+			
+			int numHet = 0;
+			Random random = new Random();
+			List<GenomicVariant> sequenceVarsList = allVariants.getSequenceRegions(seqName).asList();
+			for(GenomicVariant var:sequenceVarsList) {
+				String [] alleles = var.getAlleles();
+				if(nextPos<var.getFirst()) {
+					//Fill haplotypes with non variant segment
+					CharSequence segment = genome.getReference(seqName, nextPos, var.getFirst()-1);
+					if(segment==null) {
+						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(var.getFirst()-1));
+					}
+					String nonVariantSegment = segment.toString();
+					for(int i=0;i<haplotypes.length;i++) (haplotypes[i]).append(nonVariantSegment);
+				}
+				//Simulate genotype as alternative allele count (always homozygous alternative for haploids
+				byte altAlleleCount = 1;
+				if(ploidy>1) altAlleleCount = (byte) (random.nextInt(ploidy)+1);
+				boolean homozygousAlt = (altAlleleCount == ploidy);
+				//Defaults for homozygous alternative
+				byte [] indexesCalledAlleles= {(byte)1};
+				byte [] allelesCopyNumber= {(byte)0,(byte)ploidy};
+				byte [] indexesPhasedAlleles= new byte [ploidy];
+				Arrays.fill(indexesPhasedAlleles, (byte)1);
+				if(!homozygousAlt) {
+					//Values for heterozygous
+					numHet++;
+					indexesCalledAlleles= new byte [2];
+					indexesCalledAlleles[0]=0;
+					indexesCalledAlleles[1]=1;
+					//Determine alleles copy number from simulated alternative count
+					allelesCopyNumber[0] = (byte) (ploidy-altAlleleCount);
+					allelesCopyNumber[1] = altAlleleCount;
+					
+					//Simulate random assignment of alleles in haplotypes
+					if(allelesCopyNumber[0] <= allelesCopyNumber[1] ) {
+						randomDistribute(indexesPhasedAlleles,(byte)0,allelesCopyNumber[0],random);
+					} else {
+						Arrays.fill(indexesPhasedAlleles, (byte)0);
+						randomDistribute(indexesPhasedAlleles,(byte)1,allelesCopyNumber[1],random);
+					}
+				}
+				
+				//Create call
+				CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(var, indexesCalledAlleles);
+				call.setAllelesCopyNumber(allelesCopyNumber);
+				call.setPhasedAlleles(indexesPhasedAlleles);
+				variantCalls.add(call);
+				
+				//Update haplotype sequences
+				for(int i=0;i<indexesPhasedAlleles.length;i++) {
+					byte nextAlleleIdx = indexesPhasedAlleles[i];
+					(haplotypes[i]).append(alleles[nextAlleleIdx]);
+				}
+				nextPos = var.getLast()+1;
+			}
+			if(nextPos<l) {
+				//End of a chromosome
+				CharSequence nonVarLast = genome.getReference(seqName, nextPos, l-1);
+				if(nonVarLast!=null) {
+					String nonVariantSegment = nonVarLast.toString();
+					for(int i=0;i<haplotypes.length;i++) (haplotypes[i]).append(nonVariantSegment);
+				}
+			}
+			for(int i=0;i<haplotypes.length;i++) {
+				String haplotype = haplotypes[i].toString();
+				individualGenome.add(new QualifiedSequence(sampleId+"_"+seqName+"_Hap_"+i, haplotype));
+			}
+			log.info("Simulated "+numHet+" heterozygous calls for sequence "+seqName);
+		}
+	}
+
+	private void randomDistribute(byte[] array, byte value, byte number, Random random) {
+		for(int i=0;i<number;i++) {
+			while(true) {
+				int j = random.nextInt(array.length);
+				if(array[j]!=value) {
+					array[j] = value;
+					break;
+				}
+			}
+		}
+		
+	}
+
+	public void saveIndividualGenome(PrintStream out) {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		handler.saveSequences(individualGenome, out, 100);		
+	}
+	
+	public void saveVariants(PrintStream out) {
+		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
+		Sample s = new Sample(sampleId);
+		s.setNormalPloidy(ploidy);
+		header.addSample(s, true);
+		VCFFileWriter writer = new VCFFileWriter();
+		writer.printHeader(header, out);
+		for(CalledGenomicVariant call:variantCalls) {
+			VCFRecord record = new VCFRecord(call, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header);
+			writer.printVCFRecord(record, out);
+		}
+	}
+
+}
+class STR extends GenomicVariantImpl implements GenomicVariant {
+	private String unitSequence;
+	public STR(String sequenceName, int first, int last, List<String> alleles, String unitSequence) {
+		super(sequenceName, first, last, alleles);
+		setType(GenomicVariant.TYPE_STR);
+		this.unitSequence = unitSequence;
+	}
+	/**
+	 * @return the unitSequence
+	 */
+	public String getUnitSequence() {
+		return unitSequence;
+	}
+	/**
+	 * @param unitSequence the unitSequence to set
+	 */
+	public void setUnitSequence(String unitSequence) {
+		this.unitSequence = unitSequence;
+	}
+	
+
+}

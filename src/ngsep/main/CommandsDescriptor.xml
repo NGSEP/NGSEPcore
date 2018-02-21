@@ -1,4 +1,4 @@
-<NGSEP version="3.1.1" date="30-01-2018">
+<NGSEP version="3.1.2" date="30-03-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -818,6 +818,43 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 </option>
 <option id="s" type="BOOLEAN" attribute="secondaryAlns">
 Consider secondary alignments. By default, only primary alignments are processed
+</option>
+</command>
+
+<command id="SingleIndividualSimulator" class="ngsep.simulation.SingleIndividualSimulator">
+<intro>
+Simulates a single individual with homozygous and heterozygous mutations from a reference genome
+</intro>
+<title>Simulating individuals from a reference genome</title>
+<description>
+This simulator takes a (haploid) genome assembly and simulates a single individual including
+homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative to the input assembly.
+</description>
+<argument>OPTIONS</argument>
+<argument>GENOME</argument>
+
+<option id="s" type="DOUBLE" default="0.001" attribute="snvRate">
+Proportion of reference basepairs with simulated SNV events
+</option>
+<option id="i" type="DOUBLE" default="0.0001" attribute="indelRate">
+Proportion of reference basepairs with simulated indel events
+</option>
+<option id="f" type="DOUBLE" default="0.1" attribute="mutatedSTRFraction">
+Fraction of input STRs for which a mutation will be simulated
+</option>
+<option id="t" type="FILE" attribute="strsFile">
+Path to a text file describing the known STRs in the given genome
+</option>
+<option id="u" type="int" default="14" attribute="strUnitIndex">
+Zero-based index in the STR file where the unit sequence is located
+</option>
+<option id="d" type="STRING" default="Simulated" attribute="sampleId">
+ID of the simulated sample. Appears in the VCF header and as part of the name of the sequences in the
+simulated genome
+</option>
+<option id="p" type="INT" default="2" attribute="ploidy">
+Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
+to recalculate allele dosage based on these counts 
 </option>
 </command>
 

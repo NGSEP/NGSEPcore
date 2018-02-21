@@ -181,7 +181,11 @@ public class VCFFileWriter {
 					//Homozygous call
 					int idAllele = idxsCalledAlleles[0];
 					out.print(""+idAllele);
-					if(ploidy>1) out.print ((phased?"|":"/")+idAllele);
+					if(phased) {
+						for(int i=1;i<ploidy;i++) {
+							out.print ("|"+idAllele);
+						}
+					} else if(ploidy>1) out.print ("/"+idAllele);
 				} else {
 					//Heterozygous call
 					byte [] finalAlleles = idxsCalledAlleles;
