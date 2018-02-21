@@ -48,19 +48,17 @@ public class VCFDiversityCalculator {
 	private DecimalFormat fmt = new DecimalFormat("#0.0000",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(VCFDiversityCalculator.class);
-			return;
-		}
-		String vcfFile = args[0];
+		VCFDiversityCalculator instance = new VCFDiversityCalculator();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		String vcfFile = args[i++];
 		String samplesFile = null;
-		if(args.length>1) {
-			samplesFile = args[1];
+		if(i<args.length) {
+			samplesFile = args[i++];
 		}
-		VCFDiversityCalculator calculator = new VCFDiversityCalculator();
-		if(samplesFile!=null)calculator.loadSamplesFile(samplesFile);
-		if("-".equals(vcfFile)) calculator.processFile(System.in,System.out);
-		else calculator.processFile(vcfFile,System.out);
+		
+		if(samplesFile!=null) instance.loadSamplesFile(samplesFile);
+		if("-".equals(vcfFile)) instance.processFile(System.in,System.out);
+		else instance.processFile(vcfFile,System.out);
 	}
 	
 	public Logger getLog() {
