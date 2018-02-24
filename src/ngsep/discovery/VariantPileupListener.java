@@ -30,7 +30,9 @@ import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.SequenceDistanceMeasure;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -45,6 +47,7 @@ public class VariantPileupListener implements PileupListener {
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
 	private ReferenceGenome genome;
+	private SequenceDistanceMeasure distanceMeasure = new HammingSequenceDistanceMeasure();
 	private byte normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
@@ -62,6 +65,8 @@ public class VariantPileupListener implements PileupListener {
 	private int minAltCoverage=DEF_MIN_ALT_COVERAGE;
 	private int maxAltCoverage=DEF_MAX_ALT_COVERAGE;
 	private short minQuality = DEF_MIN_QUALITY;
+	
+	private int posPrint = 221035;
 	
 	
 	
@@ -211,33 +216,37 @@ public class VariantPileupListener implements PileupListener {
 		for(int i=0;i<callsWithScores.size();i+=2) {
 			String call = callsWithScores.get(i);
 			String scores = callsWithScores.get(i+1);
-			answer.updateCounts(call.substring(0,1), scores.charAt(0), (short)255);
+			short q = (short)(scores.charAt(0)-33);
+			answer.updateCounts(call.substring(0,1), q, (short)255);
 		}
 		return answer;
 	}
 	//PRE: Reference allele is not null and its length is larger than 1. If variant is not null, reference allele is the reference allele of the variant
 	private CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele) {
-		int posPrint = 151474;
+		
 		String [] indelAlleles;
 		List<String> callsWithScores = pileup.getAlleleCalls(referenceAllele.length());
-		AlleleClustersBuilder acBuilder = new AlleleClustersBuilder();
+		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();
 		for(int i=0;i<callsWithScores.size();i+=2) {
 			String allele = callsWithScores.get(i);
-			acBuilder.addAllele(allele.toUpperCase());	
+			acBuilder.addAlleleCall(allele.toUpperCase());	
 		}
-		Map<String, Integer> alleleClusters = acBuilder.buildAlleleClusters(referenceAllele.toUpperCase());
+		Map<String, List<String>> alleleClusters;
 		if(variant!=null) {
 			indelAlleles = variant.getAlleles();
-			//TODO: conciliate with clusters
+			alleleClusters = acBuilder.clusterAlleleCalls(indelAlleles,false);
 		} else {
+			String [] suggestedAlleles = new String[1];
+			suggestedAlleles[0] = referenceAllele;
+			alleleClusters = acBuilder.clusterAlleleCalls(suggestedAlleles,true);
 			if(alleleClusters.size()>100) System.err.println("WARN: Number of alleles for site at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is "+alleleClusters.size()+" ref Allele: "+referenceAllele);
-			Set<String> pileupAlleles = new TreeSet<>(alleleClusters.keySet());
-			pileupAlleles.add(referenceAllele);
-			indelAlleles = new String [pileupAlleles.size()];
+			Set<String> indelAllelesSet = new TreeSet<>(alleleClusters.keySet());
+			indelAllelesSet.add(referenceAllele);
+			indelAlleles = new String [indelAllelesSet.size()];
 			indelAlleles[0] = referenceAllele;
 			if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
 			int i=1;
-			for (String allele:pileupAlleles) {
+			for (String allele:indelAllelesSet) {
 				if(!allele.equals(referenceAllele)) {
 					indelAlleles[i] = allele;
 					if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
@@ -246,13 +255,17 @@ public class VariantPileupListener implements PileupListener {
 			}
 		}
 		CountsHelper answer = new CountsHelper(indelAlleles);
-		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
+		//This should apply only to real base quality scores
+		//if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
 		for(String allele:alleleClusters.keySet()) {
-			int count = alleleClusters.get(allele);
-			if(pileup.getPosition()==posPrint) System.out.println("Next consensus allele: "+allele+" count: "+count);
-			for(int i=0;i<count;i++) {
-				//TODO: Make better score. By now a fixed error probability of 0.01 is used
-				answer.updateCounts(allele, '5', (short)255);
+			List<String> cluster = alleleClusters.get(allele);
+			if(pileup.getPosition()==posPrint) System.out.println("Next allele: "+allele+" count: "+cluster.size());
+			for(String call:cluster) {
+				double p = distanceMeasure.calculateNormalizedDistance(allele, call)+0.01;
+				p = p*p;
+				short q = PhredScoreHelper.calculatePhredScore(p);
+				if(pileup.getPosition()==posPrint) System.out.println("Next call to count: "+call+" quality: "+q);
+				answer.updateCounts(allele, q, (short)255);
 			}
 		}
 		/*for(int i=0;i<callsWithScores.size();i+=2) {
@@ -327,7 +340,6 @@ public class VariantPileupListener implements PileupListener {
 	}
 	//Calls the SNVQ algorithm from the counts stored in the counts helper object
 	private CalledGenomicVariant callSNVQ(PileupRecord pileup, CountsHelper countsHelper, char refBase) {
-		int posPrint = -1;
 		String bases = DNASequence.BASES_STRING;
 		byte indexRef = (byte) bases.indexOf(refBase);
 		int [] counts = countsHelper.getCounts();
@@ -479,7 +491,6 @@ public class VariantPileupListener implements PileupListener {
 	
 	
 	private CalledGenomicVariant callIndel (PileupRecord pileup, CountsHelper helper, GenomicVariant variant) {
-		int posPrint = 151474;
 		int [] counts = helper.getCounts();
 		double [][] postProbs = helper.getPosteriorProbabilities(heterozygosityRate);
 		if(pileup.getPosition()==posPrint) {

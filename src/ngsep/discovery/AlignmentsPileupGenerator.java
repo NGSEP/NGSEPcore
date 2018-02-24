@@ -54,6 +54,7 @@ public class AlignmentsPileupGenerator {
 	private int currentReferenceLast = 0;
 	private boolean keepRunning = true;
 	private int maxAlnsPerStartPos = 5;
+	private boolean processOnlyUniqueAlignments = false;
 	private boolean processSecondaryAlignments = false;
 	private byte basesToIgnore5P = 0;
 	private byte basesToIgnore3P = 0;
@@ -106,7 +107,20 @@ public class AlignmentsPileupGenerator {
 		this.maxAlnsPerStartPos = maxAlnsPerStartPos;
 	}
 
-	
+	/**
+	 * @return the processOnlyUniqueAlignments
+	 */
+	public boolean isProcessOnlyUniqueAlignments() {
+		return processOnlyUniqueAlignments;
+	}
+
+	/**
+	 * @param processOnlyUniqueAlignments the processOnlyUniqueAlignments to set
+	 */
+	public void setProcessOnlyUniqueAlignments(boolean processOnlyUniqueAlignments) {
+		this.processOnlyUniqueAlignments = processOnlyUniqueAlignments;
+	}
+
 	public boolean isProcessSecondaryAlignments() {
 		return processSecondaryAlignments;
 	}
@@ -159,7 +173,8 @@ public class AlignmentsPileupGenerator {
 			reader = new ReadAlignmentFileReader(filename);
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
-			if(!processSecondaryAlignments ) filterFlags+=ReadAlignment.FLAG_SECONDARY;
+			if(processOnlyUniqueAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
+			else if(!processSecondaryAlignments ) filterFlags+=ReadAlignment.FLAG_SECONDARY;
 			reader.setFilterFlags(filterFlags);
 			reader.setMinMQ(minMQ);
 			sequencesMetadata = reader.getSequences();

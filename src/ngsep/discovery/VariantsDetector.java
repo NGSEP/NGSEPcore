@@ -145,6 +145,8 @@ public class VariantsDetector implements PileupListener {
 				//Default 5
 				i++;
 				detector.setMaxAlnsPerStartPos(Integer.parseInt(args[i]));
+			} else if("-u".equals(args[i])) {
+				detector.setProcessOnlyUniqueAlignments(true);
 			} else if("-s".equals(args[i])) {
 				detector.setProcessSecondaryAlignments(true);
 			} else if("-minAltCoverage".equals(args[i])) {
@@ -522,6 +524,18 @@ public class VariantsDetector implements PileupListener {
 	
 	public void setMaxAlnsPerStartPos(Integer maxAlnsPerStartPos) {
 		setMaxAlnsPerStartPos(maxAlnsPerStartPos.intValue());
+	}
+	
+	public boolean isProcessOnlyUniqueAlignments() {
+		return generator.isProcessOnlyUniqueAlignments();
+	}
+
+	public void setProcessOnlyUniqueAlignments(boolean processOnlyUniqueAlignments) {
+		generator.setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments);
+	}
+	
+	public void setProcessOnlyUniqueAlignments(Boolean processOnlyUniqueAlignments) {
+		setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments.booleanValue());
 	}
 	
 	public boolean isProcessSecondaryAlignments() {
