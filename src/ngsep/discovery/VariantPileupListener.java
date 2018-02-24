@@ -66,7 +66,7 @@ public class VariantPileupListener implements PileupListener {
 	private int maxAltCoverage=DEF_MAX_ALT_COVERAGE;
 	private short minQuality = DEF_MIN_QUALITY;
 	
-	private int posPrint = 221035;
+	private int posPrint = -1;
 	
 	
 	
@@ -223,7 +223,7 @@ public class VariantPileupListener implements PileupListener {
 	}
 	//PRE: Reference allele is not null and its length is larger than 1. If variant is not null, reference allele is the reference allele of the variant
 	private CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele) {
-		
+		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
 		String [] indelAlleles;
 		List<String> callsWithScores = pileup.getAlleleCalls(referenceAllele.length());
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();

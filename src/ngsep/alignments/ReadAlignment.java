@@ -993,5 +993,21 @@ public class ReadAlignment implements GenomicRegion {
 			qualityScores = fakeLowScores;
 		}
 	}
+	
+	public int getSoftClipStart() {
+		if(getCigarItemOperator(0) == ALIGNMENT_SKIPFROMREAD) {
+			return getCigarItemLength(0);
+		}
+		return 0;
+	}
+
+	public int getSoftClipEnd() {
+		if(getCigarItemOperator(alignment.length-1) == ALIGNMENT_SKIPFROMREAD ) {
+			return getCigarItemLength(alignment.length-1);
+		}
+		return 0;
+	}
+
+	
 
 }

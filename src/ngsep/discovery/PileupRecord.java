@@ -88,7 +88,7 @@ public class PileupRecord {
 
 	//Even positions have calls, odd positions have quality scores
 	public List<String> getAlleleCalls(int referenceSpan) {
-		int posPrint = 221035;
+		int posPrint = -1;
 		List<String> alleleCalls = new ArrayList<String>();
 		for(ReadAlignment aln:alignments) { 
 			CharSequence alleleCall = aln.getAlleleCall(position);

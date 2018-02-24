@@ -39,7 +39,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 
 	private GenomicRegionSortedCollection<? extends GenomicVariant> inputVariants = null;
 	private ReferenceGenome genome;
-	private int bpForGoodRefAln = 10;
+	private int bpForGoodRefAln = 5;
 	
 	
 	private List<? extends GenomicVariant> seqInputVariants;
@@ -221,10 +221,8 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" indelAlns: "+ indelAlns.size()+" non indel good alignments "+nonIndelGoodSpanAlns.size()+" nonIndel partialAlns: "+nonIndelBadSpanAlns.size());
 		}
 		
-		//Soft clip if there are not good reference alignments
-		if(pileup.isSTR() || answer>=bpForGoodRefAln || (nonIndelGoodSpanAlns.size()==0 && indelAlns.size()>2*nonIndelBadSpanAlns.size())) {
-			trimAlignmentEndsWithinEvent(currentPos, eventEnd, nonIndelBadSpanAlns, indelAlns.size());
-		}
+		//Soft clip not good reference alignments
+		trimAlignmentEndsWithinEvent(currentPos, eventEnd, nonIndelBadSpanAlns);
 		return answer;
 	}
 	
@@ -371,20 +369,28 @@ public class IndelRealignerPileupListener implements PileupListener {
 		return predictedIndelEnd;
 	}
 	
-	private void trimAlignmentEndsWithinEvent(int eventFirst, int eventLast, List<ReadAlignment> alns, int numIndelAlns) {
+	private void trimAlignmentEndsWithinEvent(int eventFirst, int eventLast, List<ReadAlignment> alns) {
+		if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimming ends for "+alns.size()+" alignments");
 		for(ReadAlignment aln:alns) {
-			int start = aln.getFirst();
-			int end = aln.getLast();
+			int alnFirst = aln.getFirst();
+			int alnLast = aln.getLast();
 			
-			if(eventFirst-start<bpForGoodRefAln) {
-				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), eventLast-start);
+			if(eventFirst-alnFirst<bpForGoodRefAln) {
+				int ignoreBP = eventLast-alnFirst+1;
+				ignoreBP+=aln.getSoftClipStart();
+				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), ignoreBP);
+				
 				//if(bpToIgnoreStart>10)System.err.println("WARN: Ignoring "+bpToIgnoreStart+" base pairs at the start of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
 				aln.setBasesToIgnoreStart(bpToIgnoreStart);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreStart+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
-			if(end-eventLast<bpForGoodRefAln) {
-				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), end-eventFirst);
+			if(alnLast-eventLast<bpForGoodRefAln) {
+				int ignoreBP = alnLast-eventFirst+1;
+				ignoreBP+=aln.getSoftClipEnd();
+				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
 				//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);	
+				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 		}
 	}
