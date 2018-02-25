@@ -787,7 +787,7 @@ public class ReadAlignment implements GenomicRegion {
 						int l3 = getOperationLength(alignment[j+1]);
 						byte op3 = getOperator(alignment[j+1]);
 						int length2 = l2+changeNextEvent;
-						if (isMatchMismatch(op2) && isIndel(op3) && (length2<=5 || length2<length+l3)) {
+						if (isMatchMismatch(op2) && isIndel(op3) && length2<10 && (length2<=5 || length2<length+l3)) {
 							//Short M event in the middle of two indels. Collapse with event after
 							changeNextEvent+=l2;
 							
