@@ -34,14 +34,28 @@ public class AlleleCallClustersBuilder {
 		int s = filteredClusters.size();
 		if(s==0) return alleleClusters;
 		for(int l:filteredClusters.keySet()) {
-			List<String> callsL = filteredClusters.get(l);
-			
+			List<String> callsL = filteredClusters.get(l);	
 			Set<String> suggestedAllelesSet = getAllelesByLength(suggestedAlleles,l);
+			Map<String,List<String>> lengthClusters;
 			if(allowNewAlleles) {
-				String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(callsL);
-				suggestedAllelesSet.add(consensus);
-			} else if (suggestedAllelesSet.size()==0) continue;
-			alleleClusters.putAll(clusterAlleleCallsByHammingDistance(callsL, suggestedAllelesSet,allowNewAlleles));
+				if(callsL.size()<5*suggestedAllelesSet.size()) {
+					//With low coverage and suggested alleles, only those are taken into account
+					lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
+				} else {
+					//With enough calls, suggested alleles are actually used as a suggestion and the consensus is considered
+					String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(callsL);
+					suggestedAllelesSet.add(consensus);
+					if(suggestedAllelesSet.size() == 1 && callsL.size()<5) {
+						lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
+					} else {
+						lengthClusters = clusterAlleleCallsByHammingDistance(callsL, suggestedAllelesSet);
+					}
+					
+				}
+			} else if (suggestedAllelesSet.size()>0) {
+				lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
+			} else continue;
+			alleleClusters.putAll(lengthClusters);
 		}
 		return alleleClusters;
 	}
@@ -64,19 +78,6 @@ public class AlleleCallClustersBuilder {
 			if(minCount<=allelesL.size()) answer.put(l, allelesL);
 		}
 		return answer;
-	}
-	/**
-	 * 
-	 * @param calls
-	 * @param suggestedAlleles. PRE: Suggested alleles is not empty if no new alleles are allowed
-	 * @return
-	 */
-	private Map<String,List<String>> clusterAlleleCallsByHammingDistance(List<String> calls, Set<String> suggestedAlleles, boolean allowNewAlleles) {
-		assert allowNewAlleles || suggestedAlleles.size() > 0;
-		if(!allowNewAlleles || calls.size()<5*suggestedAlleles.size()) {
-			return clusterAlleleCallsPivotAlleles(calls,suggestedAlleles);
-		}
-		return clusterAlleleCallsByHammingDistance(calls, suggestedAlleles);
 	}
 	/**
 	 * 
