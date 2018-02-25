@@ -39,6 +39,9 @@ public class PileupRecord {
 	private boolean newSTR = false;
 	private boolean embedded = false;
 	
+	//DEBUG
+	private int posPrint = 116427;
+	
 	
 	/**
 	 * Creates a pileup record with the given information
@@ -88,7 +91,7 @@ public class PileupRecord {
 
 	//Even positions have calls, odd positions have quality scores
 	public List<String> getAlleleCalls(int referenceSpan) {
-		int posPrint = -1;
+		
 		List<String> alleleCalls = new ArrayList<String>();
 		for(ReadAlignment aln:alignments) { 
 			CharSequence alleleCall = aln.getAlleleCall(position);
