@@ -80,6 +80,8 @@ public class ReadsAligner {
 		System.out.println("Time: "+seconds+" seconds");
 		
 	}
+	
+	
 
 	private int alignRead(FMIndex fMIndex, RawRead read, PrintStream out) {
 		List<ReadAlignment> alignments = fMIndex.search(read.getCharacters().toString());
