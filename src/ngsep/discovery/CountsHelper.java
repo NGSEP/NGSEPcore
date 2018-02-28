@@ -69,9 +69,8 @@ public class CountsHelper {
 	 * @param charQualityScore Quality score of the allele call in Phred+33 scale
 	 * @param mappingQuality Quality score of the mapping in Phred scale
 	 */
-	public void updateCounts (String allele, char charQualityScore, short mappingQuality) {
+	public void updateCounts (String allele, short qualScore, short mappingQuality) {
 		totalCount++;
-		short qualScore = (short)(charQualityScore-33);
 		if(qualScore<=2) {
 			lowBaseQualityCount++;
 			return;

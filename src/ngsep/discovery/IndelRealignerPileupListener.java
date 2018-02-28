@@ -39,7 +39,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 
 	private GenomicRegionSortedCollection<? extends GenomicVariant> inputVariants = null;
 	private ReferenceGenome genome;
-	private int bpForGoodRefAln = 10;
+	private int bpForGoodRefAln = 5;
 	
 	
 	private List<? extends GenomicVariant> seqInputVariants;
@@ -182,6 +182,9 @@ public class IndelRealignerPileupListener implements PileupListener {
 					if(currentPos==posPrint) System.out.println("New tandem repeat identified from reads at "+pileup.getSequenceName()+":"+currentPos+" New max span: "+answer);
 				}
 			}
+		} else {
+			//TODO: See if it is worth to do this for non fixed indels
+			realignEnds(alignments,pileup.getSequenceName(), currentPos, eventEnd);
 		}
 		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Start max votes: "+(currentPos+maxI)+" indelAlns: "+ indelAlns.size()+" non indel good alignments "+nonIndelGoodSpanAlns.size()+" nonIndel partialAlns: "+nonIndelBadSpanAlns.size());
 		
@@ -221,13 +224,67 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" indelAlns: "+ indelAlns.size()+" non indel good alignments "+nonIndelGoodSpanAlns.size()+" nonIndel partialAlns: "+nonIndelBadSpanAlns.size());
 		}
 		
-		//Soft clip if there are not good reference alignments
-		if(pileup.isSTR() || answer>=bpForGoodRefAln || (nonIndelGoodSpanAlns.size()==0 && indelAlns.size()>2*nonIndelBadSpanAlns.size())) {
-			trimAlignmentEndsWithinEvent(currentPos, eventEnd, nonIndelBadSpanAlns, indelAlns.size());
-		}
+		//Soft clip not good reference alignments
+		trimAlignmentEndsWithinEvent(currentPos, eventEnd, nonIndelBadSpanAlns);
 		return answer;
 	}
 	
+	private void realignEnds(List<ReadAlignment> alignments, String sequenceName, int eventStart, int eventEnd) {
+		CharSequence sequenceBefore = genome.getReference(sequenceName, eventStart-100, eventStart);
+		CharSequence sequenceAfter = genome.getReference(sequenceName, eventEnd, eventEnd+100);
+		for(ReadAlignment aln:alignments) {
+			int alnFirst = aln.getFirst();
+			int alnLast = aln.getLast();
+			
+			if(sequenceBefore!=null && eventStart-alnFirst<bpForGoodRefAln) {
+				int readPosAfter = aln.getReadPosition(eventEnd);
+				if(readPosAfter<bpForGoodRefAln) continue;
+				CharSequence prefix = aln.getReadCharacters().subSequence(0, readPosAfter);
+				int overlapLength = getOverlapLength (sequenceBefore,prefix);
+				if(eventStart == posPrint) System.out.println("IndelRealigner. Realigning ends. Processing alignment with original coordinates: "+alnFirst+"-"+alnLast+" readPosAfter: "+readPosAfter+" overlap length: "+overlapLength);
+				if(overlapLength<bpForGoodRefAln)  continue;
+				int newAlnFirst = eventStart-overlapLength+1; 
+				aln.realignStart(newAlnFirst,overlapLength,readPosAfter);
+				if(eventStart == posPrint) System.out.println("IndelRealigner. Realigned start of alignment with original coordinates: "+alnFirst+"-"+alnLast+" new start: "+aln.getFirst()+" new CIGAR: "+aln.getCigarString());
+			}
+			if(sequenceAfter!=null && alnLast-eventEnd<bpForGoodRefAln) {
+				int length = aln.getReadLength();
+				int readPosBefore = aln.getReadPosition(eventStart);
+				String cigarStr = aln.getCigarString();
+				int lastReadBp = length - readPosBefore;
+				if(lastReadBp<bpForGoodRefAln) continue;
+				CharSequence suffix = aln.getReadCharacters().subSequence(readPosBefore+1,length);
+				int overlapLength = getOverlapLength (suffix,sequenceAfter);
+				if(overlapLength<bpForGoodRefAln)  continue; 
+				aln.realignEnd(readPosBefore, eventEnd, overlapLength);
+				if(eventStart == posPrint) System.out.println("IndelRealigner. Realigned end of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new end: "+aln.getLast()+" new CIGAR: "+aln.getCigarString());
+			}
+		}
+		
+	}
+
+	/**
+	 * Returns the length of the maximum overlap between a suffix of sequence 1 and a prefix of sequence 2
+	 * @param sequence1 Sequence to evaluate suffixes
+	 * @param sequence2 Sequence to evaluate prefixes
+	 * @return int Maximum overlap between a prefix of sequence2 and a suffix of sequence 1
+	 */
+	private int getOverlapLength(CharSequence sequence1, CharSequence sequence2) {
+		for(int i=0;i<sequence1.length();i++) {
+			if(isSuffixAPrefix(sequence1,i,sequence2)) return sequence1.length()-i;
+		}
+		return 0;
+	}
+
+	private boolean isSuffixAPrefix(CharSequence sequence1, int start1, CharSequence sequence2) {
+		int i = start1;
+		for(int j=0;i<sequence1.length() && j<sequence2.length();j++) {
+			if(sequence1.charAt(i)!=sequence2.charAt(j)) return false;
+			i++;
+		}
+		return i==sequence1.length();
+	}
+
 	private int analyzeIndels(List<ReadAlignment> alignments, int eventStart, int eventEnd, Set<Integer> lengths, List<ReadAlignment> indelAlns,
 			List<ReadAlignment> nonIndelGoodSpanAlns, List<ReadAlignment> nonIndelBadSpanAlns, int[] votes) {
 		
@@ -249,8 +306,6 @@ public class IndelRealignerPileupListener implements PileupListener {
 						if(maxLength<length) maxLength = length;
 						int i = start-eventStart;
 						if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Insertion start: "+start+" vote: "+i);
-						//Test: Only primary alignments can vote for indel start
-						//if(!aln.getSAMRecord().getNotPrimaryAlignmentFlag()) 
 						if(votes!=null)votes[i]++;
 						break;
 					}
@@ -371,20 +426,28 @@ public class IndelRealignerPileupListener implements PileupListener {
 		return predictedIndelEnd;
 	}
 	
-	private void trimAlignmentEndsWithinEvent(int eventFirst, int eventLast, List<ReadAlignment> alns, int numIndelAlns) {
+	private void trimAlignmentEndsWithinEvent(int eventFirst, int eventLast, List<ReadAlignment> alns) {
+		if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimming ends for "+alns.size()+" alignments");
 		for(ReadAlignment aln:alns) {
-			int start = aln.getFirst();
-			int end = aln.getLast();
+			int alnFirst = aln.getFirst();
+			int alnLast = aln.getLast();
 			
-			if(eventFirst-start<bpForGoodRefAln) {
-				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), eventLast-start);
+			if(eventFirst-alnFirst<bpForGoodRefAln) {
+				int ignoreBP = eventLast-alnFirst+1;
+				ignoreBP+=aln.getSoftClipStart();
+				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), ignoreBP);
+				
 				//if(bpToIgnoreStart>10)System.err.println("WARN: Ignoring "+bpToIgnoreStart+" base pairs at the start of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
 				aln.setBasesToIgnoreStart(bpToIgnoreStart);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreStart+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
-			if(end-eventLast<bpForGoodRefAln) {
-				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), end-eventFirst);
+			if(alnLast-eventLast<bpForGoodRefAln) {
+				int ignoreBP = alnLast-eventFirst+1;
+				ignoreBP+=aln.getSoftClipEnd();
+				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
 				//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);	
+				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 		}
 	}

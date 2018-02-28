@@ -414,7 +414,7 @@ public class SingleIndividualSimulator {
 				int j = random.nextInt(strsList.size());
 				if(selected.contains(j)) continue;
 				selected.add(j);
-				STR str = strsList.get(i);
+				STR str = strsList.get(j);
 				String reference = str.getReference();
 				String unit = str.getUnitSequence();
 				int copies = (reference.length()-2)/unit.length();

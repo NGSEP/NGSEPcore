@@ -3,11 +3,10 @@ package ngsep.math;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 public class CountsRankHelper <T> {
 	private Map<T,CountObjectPair<T>> countsMap = new TreeMap<T,CountObjectPair<T>>();
@@ -19,8 +18,8 @@ public class CountsRankHelper <T> {
 			count.addCount();
 		}
 	}
-	public Set<T> selectBest(int max) {
-		if(max >= countsMap.size()) return new TreeSet<T>(countsMap.keySet());
+	public LinkedHashMap<T,Integer> selectBest(int max) {
+		
 		List<CountObjectPair<T>> allCounts = new ArrayList<CountObjectPair<T>>(countsMap.values());
 		
 		Collections.sort(allCounts,new Comparator<CountObjectPair<T>>() {
@@ -30,10 +29,11 @@ public class CountsRankHelper <T> {
 				return o2.getCount() - o1.getCount();
 			}
 		});
-		Set<T> answer = new TreeSet<T>();
+		LinkedHashMap<T,Integer> answer = new LinkedHashMap<>();
 		for(int i=0;i<max;i++) {
-			T object = (T)allCounts.get(i).getObject();
-			answer.add(object);
+			CountObjectPair<T> pair = allCounts.get(i); 
+			T object = pair.getObject();
+			answer.put(object,pair.getCount());
 		}
 		return answer;
 	}

@@ -72,9 +72,12 @@ Ignore sites where the reference allele is lower case.
 <option id="maxAlnsPerStartPos" type="INT" default="5">
 Maximum number of alignments allowed to start
 at the same reference site.
+</option>
+<option id="u">
+Process only unique alignments in the pileup process
 </option> 
 <option id="s">
-Consider secondary alignments while calling SNVs.
+Consider secondary alignments while calling SNVs. Mute if the -u option is used
 </option>
 <option id="minAltCoverage" type="INT" default="0">
 Minimum coverage of the alternative allele to call a SNV.
