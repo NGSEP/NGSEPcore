@@ -1008,6 +1008,101 @@ public class ReadAlignment implements GenomicRegion {
 		return 0;
 	}
 
+	/**
+	 * Realigns the start of this alignment
+	 * @param newAlnFirst 1-bp New reference coordinate matching the start of the read
+	 * @param firstMatchLength Length of the match that will become the new first element of the alignment
+	 * @param readPosAfter 0-based first read position that should remain with the same alignment. It must be larger than firstMatchLength 
+	 */
+	public void realignStart(int newAlnFirst, int firstMatchLength, int readPosAfter) {
+		assert readPosAfter>=firstMatchLength;
+		List<Integer> alignmentList = new ArrayList<Integer>();
+		alignmentList.add(getAlnValue(firstMatchLength, ALIGNMENT_MATCH));
+		int nextRefPos = newAlnFirst+firstMatchLength;
+		int unknownBpRead = readPosAfter-firstMatchLength;
+		int refPosAfter = getReferencePosition(readPosAfter);
+		int unknownBpRef = refPosAfter-nextRefPos;
+		int difference = unknownBpRead - unknownBpRef;
+		if(difference==0) {
+			if(unknownBpRead>0 ) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+		} else if (difference>0) {
+			alignmentList.add(getAlnValue(difference, ALIGNMENT_INSERTION));
+			alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
+		} else {
+			alignmentList.add(getAlnValue(-difference, ALIGNMENT_DELETION));
+			alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+		}
+		
+		int currentReadPos = 0;
+		boolean copy = false;
+		for(int i=0;i<alignment.length;i++) {
+			int length = getOperationLength(alignment[i]);
+			byte operator = getOperator(alignment[i]);
+			boolean cRead = consumesReadBases(alignment[i]);
+			if(copy) {
+				alignmentList.add(alignment[i]);
+			}
+			if(cRead) {
+				if(!copy && readPosAfter<currentReadPos+length) {
+					copy = true;
+					int diff = currentReadPos+length-readPosAfter;
+					alignmentList.add(getAlnValue(diff, operator));
+				}
+				currentReadPos += length;
+			}
+		}
+		first = newAlnFirst;
+		alignment = NumberArrays.toIntArray(alignmentList);
+		alleleCallsUpdated = false;
+	}
+
+	/**
+	 * Realigns the end of this alignment
+	 * @param readPosBefore 0-based last read pos that should not be realigned
+	 * @param finalMatchRefStart 1-based position of the reference for the last match
+	 * @param finalMatchLength Number of match bp that must appear at the end. it must be smaller than length - readPosBefore 
+	 */
+	public void realignEnd(int readPosBefore, int finalMatchRefStart, int finalMatchLength) {
+		int bpEndRead = readLength - readPosBefore - 1;
+		assert  bpEndRead>=finalMatchLength;
+		List<Integer> alignmentList = new ArrayList<Integer>();
+		int currentReadPos = 0;
+		boolean copy = true;
+		for(int i=0;i<alignment.length;i++) {
+			int length = getOperationLength(alignment[i]);
+			byte operator = getOperator(alignment[i]);
+			boolean cRead = consumesReadBases(alignment[i]);
+			if(cRead) {
+				if(copy && readPosBefore<currentReadPos+length) {
+					int diff = currentReadPos+length-readPosBefore-1;
+					alignmentList.add(getAlnValue(length-diff, operator));
+					copy = false;
+				}
+				currentReadPos += length;
+			}
+			if(copy) {
+				alignmentList.add(alignment[i]);
+			}
+		}
+		int refPosBefore = getReferencePosition(readPosBefore);
+		int unknownBpRef = finalMatchRefStart-refPosBefore-1;
+		int unknownBpRead = bpEndRead - finalMatchLength;
+		int difference = unknownBpRead - unknownBpRef;
+		if(difference==0) {
+			if(unknownBpRead>0 ) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+		} else if (difference>0) {
+			alignmentList.add(getAlnValue(difference, ALIGNMENT_INSERTION));
+			alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
+		} else {
+			alignmentList.add(getAlnValue(-difference, ALIGNMENT_DELETION));
+			alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+		}
+		alignmentList.add(getAlnValue(finalMatchLength, ALIGNMENT_MATCH));
+		alignment = NumberArrays.toIntArray(alignmentList);
+		last = finalMatchRefStart + finalMatchLength -1;
+		alleleCallsUpdated = false;
+	}
+
 	
 
 }

@@ -40,7 +40,7 @@ public class PileupRecord {
 	private boolean embedded = false;
 	
 	//DEBUG
-	private int posPrint = 116427;
+	private int posPrint = -1;
 	
 	
 	/**
