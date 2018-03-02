@@ -23,16 +23,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import javax.swing.plaf.synth.SynthScrollPaneUI;
 
 /**
  * Class that implements an FM-index to perform quick queries over large sequence databases
@@ -197,7 +193,12 @@ public class FMIndexSingleSequence implements Serializable
 		}
 	}
 
-	public List<Integer> search (String searchSequence) 
+	public Set<Integer> search (String searchSequence) 
+	{
+		//return exactSearch(searchSequence);
+		return inexactSearchBWAAlgorithm(searchSequence);
+	}
+	public Set<Integer> exactSearch (String searchSequence) 
 	{
 		int[] range = getRange(searchSequence);
 		//if(range!=null) System.out.println("Search sequence: "+searchSequence+" range: "+range[0]+"-"+range[1]);
@@ -205,11 +206,26 @@ public class FMIndexSingleSequence implements Serializable
 
 		return getRealIndexes(range);
 	}
-
-
-	private List<Integer> getRealIndexes(int[] range) 
+	
+	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) 
 	{
-		List<Integer> startIndexes=new ArrayList<>();
+		int[] d = calculateD(searchSequence);
+		List<int[]> ranges= inexactRecurrentSearch(searchSequence,searchSequence.length()-1,1,1,bwt.length-1,d);
+		Set<Integer> indexes = new TreeSet<>();
+		for(int [] range: ranges ) {
+			indexes.addAll(getRealIndexes(range));
+		}
+		return indexes;
+	}
+
+	/**
+	 * 
+	 * @param range of rows in the FM index
+	 * @return Set<Integer> Start positions in the subject sequence (values of the suffix array) 
+	 */
+	private Set<Integer> getRealIndexes(int[] range) 
+	{
+		Set<Integer> startIndexes=new TreeSet<>();
 		if (range ==null) return startIndexes;
 		//From this point is just transform the range into the real indexes in the sequence
 		for (int i = range[0]; i <= range[1]; i++) 
@@ -243,10 +259,8 @@ public class FMIndexSingleSequence implements Serializable
 		{
 			actualChar = query.charAt(j);
 			if(alphabet.indexOf(actualChar)<0) return null;
-			boolean add1 = (bwt[rowS]!=actualChar);
-			rowS = lfMapping(actualChar, rowS);
-			if(add1) rowS++;
-			rowF = lfMapping(actualChar, rowF);
+			rowS = lfMapping(actualChar, rowS, true);
+			rowF = lfMapping(actualChar, rowF, false);
 			if(rowS>rowF)
 			{
 				return null;
@@ -256,54 +270,6 @@ public class FMIndexSingleSequence implements Serializable
 
 		return new int[] {rowS, rowF };
 	}
-	public int[] getRange(String query, int k)
-	{
-		char actualChar = query.charAt(query.length()-1);
-
-		Integer rowS=firstRowsInMatrix.get(actualChar);
-		Integer rowF=lastRowsInMatrix.get(actualChar);
-
-		//System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
-		if(rowS == null || rowF==null || rowS == -1 || rowF==-1 ) 
-		{
-			return null;
-		}
-		for(int j=query.length()-2;j>=0;j--) 
-		{
-			actualChar = query.charAt(j);
-			if(alphabet.indexOf(actualChar)<0) return null;
-			//add1 is true when actualChar is different of bwt[rowS]! and it increase rowS because...
-			boolean add1 = (bwt[rowS]!=actualChar);
-			rowS = lfMapping(actualChar, rowS);
-			if(add1) rowS++;
-			rowF = lfMapping(actualChar, rowF);
-			if(rowS>rowF)
-			{
-				k--;
-				rowS--;
-				//return null;
-			}
-			//System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
-		}
-
-		return new int[] {rowS, rowF };
-	}
-
-	public int getK(char b, int k)
-	{
-		int add =0;
-		if(k!=1)
-		{
-			add=getTallyOf(b, k-1);
-		}
-		return (firstRowsInMatrix.get(b)-1)+1+add;
-	}
-
-	public int getL(char b, int l)
-	{
-		return (firstRowsInMatrix.get(b)-1)+getTallyOf(b, l);
-	}
-
 
 	public int getTallyOf(char c, int row)
 	{
@@ -332,18 +298,30 @@ public class FMIndexSingleSequence implements Serializable
 		return r;
 	}
 
-	private int lfMapping(char c, int row) 
+	/**
+	 * Finds the row corresponding to the given character in the given row of the index, according to the tally indexes in that row
+	 * @param c Character to query
+	 * @param row of the index to query
+	 * @param firstIndexAfter If true, calculates the rank of the character at or after the row
+	 * @return int Row of the FM-index of the rank of the given character according to the tally indexes at the given row 
+	 */
+	private int lfMapping(char c, int row, boolean firstIndexAfter) 
 	{
+		
 		int rank = getTallyOf(c, row);
+		//add1 is true when actualChar is different of bwt[rowS] because in this case, the last appearance of actualChar before rowS is outside the range defined by rowS, rowF 
+		boolean add1 = firstIndexAfter && (bwt[row]!=c);
 		//System.out.println("char: "+c+" row: "+row+" rank: "+rank+" first c: "+firstRowsInMatrix.get(c));
-		return firstRowsInMatrix.get(c) + rank - 1;
+		int newRank = firstRowsInMatrix.get(c) + rank - 1;
+		if(add1) newRank++;
+		return newRank;
 	}
 
 	private int lfMapping (int row)
 	{
 		char c = bwt[row];
 		//		System.out.println(""+c);
-		return lfMapping(c,row);
+		return lfMapping(c,row,false);
 	}
 
 	/*
@@ -351,107 +329,77 @@ public class FMIndexSingleSequence implements Serializable
 	 */
 	/**
 	 * Calculates the number of differences between w and x 
-	 * @param w the string we are going to search
+	 * @param query the string we are going to search
 	 * @return
 	 */
-	int [] calculateD(String w)
+	int [] calculateD(String query)
 	{
-		int [] d= new int[w.length()];
+		int [] d= new int[query.length()];
 		int z=0;
 		int j=0;
 		for (int i = 1; i <= d.length; i++) 
 		{
-			String sub = w.substring(j, i);
-			if(search(sub).size()==0)
-			{
-				z++;
-				j++;
+			if(j<=i) {
+				String sub = query.substring(j, i);
+				if(exactSearch(sub).size()==0)
+				{
+					z++;
+					j=i+1;
+				}
 			}
+			
 			d[i-1]=z;
 		}
 		return d;
 	}
+	
 
-
-
+	
 	/**
-	 * 
-	 * @param args
+	 * Makes an inexact search over the index
+	 * @param query 
+	 * @param lastIdx Last index of the query to search
+	 * @param maxDiff Maximum number of differences between the query and 
+	 * @param firstRow First row of the FM index to look for
+	 * @param lastRow Last row of the FM index to look for
+	 * @param d
+	 * @return
 	 */
-	public static void main(String[] args)
+	private List<int[]> inexactRecurrentSearch(String query, int lastIdxQuery, int maxDiff, int firstRow, int lastRow,int[]d) 
 	{
-		CharSequence c = "googol";
-		FMIndexSingleSequence f = new FMIndexSingleSequence(c);
-		String query ="lol";
-		for (int i = 0; i <f.alphabet.length(); i++) 
+		List<int[]> arr = new ArrayList<>();
+		if(lastIdxQuery<0)
 		{
-			char act = f.alphabet.charAt(i);
-//			System.out.println("C("+act+"): "+(f.firstRowsInMatrix.get(act)-1));
-			for (int j = f.bwt.length-1; j < f.bwt.length; j++) {
-				
-//				System.out.println("O("+act+","+(j)+"): "+f.getTallyOf(act, j));
-			}
-//			System.out.println(act+" ["+f.getK(act, 1)+" , "+f.getL(act, (f.bwt.length-1)) +"]");
-//			System.out.println(f.getRange(act+"")[0]+","+f.getRange(act+"")[1]);
-		}
-		System.out.println(f.search(query));
-		f.searchInexact(query,1);
-	}
-
-	@SuppressWarnings("unchecked")
-	private void searchInexact(String query, int z) 
-	{
-		int[] d = calculateD(query);
-		Set<int[]> a= inexRecur(query,query.length()-1,z,1,bwt.length-1,d);
-		System.out.println("found");
-		Iterator i =a.iterator();
-		while (i.hasNext()) {
-			int[] object = (int[]) i.next();
-			System.out.print("["+object[0]+" "+object[1]+"]\t");
-			System.out.println(getRealIndexes(object));
-		}
-
-
-	}
-
-	private Set<int[]> inexRecur(String w, int i, int z, int k, int l,int[]d) 
-	{
-		Set<int[]> arr = new TreeSet(new Comparator<int[]>() 
-		{
-			@Override
-			public int compare(int[] o1, int[] o2) {
-				String s1=o1[0]+";"+o2[1];
-				String s2=o2[0]+";"+o2[1];
-				return s1.compareTo(s2);
-			}
-		});
-		if(i<0)
-		{
-			int[] range = {k,l};
+			//Base case an empty query
+			int[] range = {firstRow,lastRow};
 			arr.add(range);
 			return arr;
 		}
-		if(z<d[i])
+		if(maxDiff<d[lastIdxQuery])
 		{
+			//Base case when the number of differences is larger than the maximum allowed
 			return arr;
 		}
-		//		ArrayList
-		arr.addAll(inexRecur(w, i-1, z-1, k, l, d));
+		// Insertion
+		arr.addAll(inexactRecurrentSearch(query, lastIdxQuery-1, maxDiff-1, firstRow, lastRow, d));
 		for (int j =0 ; j < alphabet.length(); j++) 
 		{
 			char b = alphabet.charAt(j);
-			int nk=getK(b, k);
-			int nl=getL(b, l);
-			if(nk<=nl)
+			int newFirst =lfMapping(b, firstRow, true);
+			int newLast =lfMapping(b, lastRow, false);
+			if(newFirst<=newLast)
 			{
-				arr.addAll(inexRecur(w, i, z-1, nk, nl, d));
-				if(b==w.charAt(i))
+				// Deletion
+				arr.addAll(inexactRecurrentSearch(query, lastIdxQuery, maxDiff-1, newFirst, newLast, d));
+				if(b==query.charAt(lastIdxQuery))
 				{
-					arr.addAll(inexRecur(w, i-1, z, nk, nl, d));
+					//Follow indexes for the matching character
+					arr.addAll(inexactRecurrentSearch(query, lastIdxQuery-1, maxDiff, newFirst, newLast, d));
 				}
 				else
 				{
-					arr.addAll(inexRecur(w, i-1, z-1, nk, nl, d));
+					//Follow indexes for the possible mismatch characters reducing in 1 the number of differences
+					arr.addAll(inexactRecurrentSearch(query, lastIdxQuery-1, maxDiff-1, newFirst, newLast, d));
 				}
 			}
 		}

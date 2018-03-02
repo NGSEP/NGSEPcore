@@ -27,6 +27,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.ReferenceGenome;
@@ -134,7 +135,7 @@ public class FMIndex implements Serializable
 		}
 	}
 	
-	public List<ReadAlignment> search (String searchSequence) 
+	public List<ReadAlignment> search (String searchSequence)
 	{
 		
 		List<ReadAlignment> alignments = new ArrayList<>();
@@ -142,7 +143,7 @@ public class FMIndex implements Serializable
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
-			List<Integer> matches = idxSeq.search(searchUp);
+			Set<Integer> matches = idxSeq.search(searchUp);
 			for (int internalPosMatch:matches) 
 			{
 				ReadAlignment alignment = buildAlignmentFromMetadata(searchUp, i,internalPosMatch);
