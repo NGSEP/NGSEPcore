@@ -195,7 +195,10 @@ public class IndelRealignerPileupListener implements PileupListener {
 			Map<Integer,GenomicVariant> indels = aln.getIndelCalls();
 			if(indels!=null) {
 				for(int start:indels.keySet()) {
-					if(start >= currentPos && start <=eventEnd) {		
+					GenomicVariant indel = indels.get(start);
+					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
+					if(indel.getLast() >= currentPos && start <=eventEnd) {
+					//if(start >= currentPos && start <=eventEnd) {		
 						//if(aln.getFirst()==265419) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
 						boolean moved = aln.moveIndelStart(start,currentPos+maxI);
 						if(currentPos==posPrint && moved == false) System.err.println("WARN: Failed attempt to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
@@ -299,14 +302,16 @@ public class IndelRealignerPileupListener implements PileupListener {
 			Map<Integer,GenomicVariant> indels = aln.getIndelCalls();
 			if(indels!=null) {
 				for(int start:indels.keySet()) {
-					if(start >= eventStart && start <=eventEnd) {
+					GenomicVariant indel = indels.get(start);
+					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
+					if(indel.getLast() >= eventStart && start <=eventEnd) {
 						indelFound = true;
-						int length = indels.get(start).length();
+						int length = indel.length();
 						lengths.add(length);
 						if(maxLength<length) maxLength = length;
 						int i = start-eventStart;
 						if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Insertion start: "+start+" vote: "+i);
-						if(votes!=null)votes[i]++;
+						if(votes!=null && i>=0)votes[i]++;
 						break;
 					}
 				}
