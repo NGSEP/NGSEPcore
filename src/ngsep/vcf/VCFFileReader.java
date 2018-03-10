@@ -368,7 +368,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		//Load variant-specific optional information 
 		int [] allCounts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_BSDP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_BSDP],sampleId,variant,4);
 		int [] counts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_ADP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_ADP],sampleId,variant,alleles.length);
-		double [][] logConditionals = loadPhredConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_PL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_PL],sampleId,variant);
+		double [][] logConditionals = loadPhredConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_PL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_PL],sampleId,variant,callItems.length==1);
 		//Create object consistent with the variant information
 		CalledGenomicVariant answer = null;
 		if(variant instanceof SNV) {
@@ -494,10 +494,24 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		}
 		return counts;
 	}
-	private double[][] loadPhredConditionals(int numAlleles, String dataStr, String formatField, String sampleId, GenomicVariant var) {
+	private double[][] loadPhredConditionals(int numAlleles, String dataStr, String formatField, String sampleId, GenomicVariant var, boolean haploidGT) {
 		if(dataStr==null || NO_INFO_CHAR.equals(dataStr)) return null;
 		double [][] answer = new double [numAlleles][numAlleles];
 		String [] dataItems = ParseUtils.parseString(dataStr, ',');
+		if(haploidGT && numAlleles==dataItems.length) {
+			for(int i=0;i<dataItems.length;i++) {
+				Arrays.fill(answer[i], -100);
+				double next;
+				try {
+					next = Integer.parseInt(dataItems[i]);
+				} catch (NumberFormatException e) {
+					log.severe("Can not load values of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Error parsing value: "+dataItems[i]);
+					return null;
+				}
+				answer[i][i] = -next/10;
+			}
+			return answer;
+		}
 		int k=0;
 		for(int j=0;j<numAlleles;j++) {
 			for(int i=0;i<=j;i++) {
@@ -506,11 +520,11 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 					log.severe("Can not load genotype data of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Unexpected number of values: "+dataItems.length+" for "+numAlleles+" alleles");
 					return null;
 				}
-				int next;
+				double next;
 				try {
 					next = Integer.parseInt(dataItems[k]);
 				} catch (NumberFormatException e) {
-					log.severe("Can not load counts of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Error parsing value: "+dataItems[k]);
+					log.severe("Can not load values of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Error parsing value: "+dataItems[k]);
 					return null;
 				}
 				answer[i][j] = -next/10;
@@ -544,23 +558,39 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 	 */
 	public static List<GenomicVariant> loadVariants(String filename) throws IOException {
 		List<GenomicVariant> answer = new ArrayList<GenomicVariant>();
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(filename);
+		
+		try (VCFFileReader in = new VCFFileReader(filename)) {
 			in.setLoadMode(LOAD_MODE_MINIMAL);
 			Iterator<VCFRecord> it = in.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
 				GenomicVariant var = record.getVariant();
-				//if(var.getFirst()==269848) System.out.println("Quality score: "+var.getVariantQS());
 				answer.add(var);
 			}
-		} finally {
-			if(in!=null)in.close();
 		}
 		return answer;
 	}
-	
+
+	/**
+	 * Loads all calls for the VCF of one individual
+	 * @param filename Name for the VCF file
+	 * @return List<CAlledGenomicVariant> List of calls within the given file
+	 * @throws IOException If the file can not be read
+	 */
+	public static List<CalledGenomicVariant> loadCalledVariantsSingleIndividualVCF(String filename) throws IOException {
+		List<CalledGenomicVariant> answer = new ArrayList<CalledGenomicVariant>();
+		try (VCFFileReader in = new VCFFileReader(filename)) {
+			Iterator<VCFRecord> it = in.iterator();
+			while(it.hasNext()) {
+				VCFRecord record = it.next();
+				List<CalledGenomicVariant> calls = record.getCalls();
+				if(calls.size()>=1) answer.add(calls.get(0));
+				if(answer.size()%100000==0) System.out.println("Loaded "+answer.size()+" calls");
+			}
+		}
+		return answer;
+	}
+
 	
 	
 	public VCFFileHeader getHeader() {
