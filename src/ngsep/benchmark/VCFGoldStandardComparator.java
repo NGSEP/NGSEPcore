@@ -3,17 +3,19 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -24,7 +26,7 @@ public class VCFGoldStandardComparator {
 	private String outVCF = null;
 	private int mode = 0;
 	private short minQuality = 0;
-	private int posPrint = 5068;
+	private int posPrint = 66597;
 
 	VCFFileWriter writer = new VCFFileWriter();
 	public static void main(String[] args) throws Exception {
@@ -77,7 +79,9 @@ public class VCFGoldStandardComparator {
 						idxTest++;
 						continue;
 					}
-					
+					int lastBefore = (idxTest == 0 || !callsTest.get(idxTest-1).getSequenceName().equals(callTest.getSequenceName()))? 0:callsTest.get(idxTest-1).getLast();
+					int firstAfter = (idxTest == callsTest.size()-1 || !callsTest.get(idxTest+1).getSequenceName().equals(callTest.getSequenceName()))? seqNames.get(callTest.getSequenceName()).getLength():callsTest.get(idxTest+1).getFirst();
+					callTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
 					byte type = loadType(callTest);
 					short qualTest = callTest.getGenotypeQuality();
 					int column = getGenotypeNumber(callTest);
@@ -104,6 +108,8 @@ public class VCFGoldStandardComparator {
 						callsIntersect.add(callTest);
 					} else {
 						countsPerType.get(type).update(0,Math.min(qualTest/10, lastRowCounts),column);
+						VCFRecord record = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
+						if(mode == 2 && qualTest>=minQuality && !callTest.isHomozygousReference()) writer.printVCFRecord(record, out);
 					}
 					idxTest++;
 				}
@@ -122,9 +128,7 @@ public class VCFGoldStandardComparator {
 				}
 				boolean covered = false;
 				for(CalledGenomicVariant callTest:callsIntersect) {
-					Set<String> allelesGS = buildAlleleStrings(callGS, callTest.getFirst(), callTest.getLast());
-					Set<String> allelesTest = buildAlleleStrings(callTest, callGS.getFirst(), callGS.getLast());
-					boolean consistent = allelesGS.equals(allelesTest); 
+					boolean consistent = isConsistent(callGS, callTest);
 					byte typeTest = loadType(callTest);
 					short qualTest = callTest.getGenotypeQuality();
 					int n2 = getGenotypeNumber(callTest);
@@ -155,9 +159,7 @@ public class VCFGoldStandardComparator {
 				if(!covered) {
 					GoldStandardComparisonCounts counts = countsPerType.get(typeGS);
 					//False negative for GS not properly called
-					counts.update(0,lastRowCounts,9+n1);
-					
-					
+					counts.update(0,lastRowCounts,9+n1);	
 				}
 			}
 			while(idxTest<callsTest.size()) {
@@ -171,6 +173,7 @@ public class VCFGoldStandardComparator {
 					VCFRecord rTest = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
 					if(mode == 2 && qualTest>=minQuality && !callTest.isHomozygousReference()) writer.printVCFRecord(rTest, out);
 				}
+				idxTest++;
 			}
 		} finally {
 			if(out!=null) {
@@ -185,26 +188,88 @@ public class VCFGoldStandardComparator {
 		System.out.println("STRs/OTHER");
 		countsPerType.get(GenomicVariant.TYPE_STR).print(System.out);
 	}
+
+	private CalledGenomicVariant expandReferenceIndels(CalledGenomicVariant callTest, int lastBefore, int firstAfter) {
+		String [] alleles = callTest.getAlleles();
+		if(alleles.length<2) return callTest;
+		Set<Integer> lengths = new HashSet<>();
+		for(int i=0;i<alleles.length;i++) lengths.add(alleles[i].length());
+		if(lengths.size()==1 && lengths.iterator().next()==1) return callTest;
+		//Add 1 reference bp at the end
+		int refBefore = Math.max(callTest.getFirst()-5, lastBefore+2);
+		
+		CharSequence left = null;
+		if(refBefore<callTest.getFirst()) left = genome.getReference(callTest.getSequenceName(), refBefore, callTest.getFirst()-1);
+		int refAfter = Math.min(callTest.getLast()+5, firstAfter-2);
+		CharSequence right = null;
+		if(callTest.getLast()<refAfter) right = genome.getReference(callTest.getSequenceName(), callTest.getLast()+1,refAfter);
+		if(left == null && right==null) return callTest;
+		int first = callTest.getFirst();
+		if(left!=null) first-=left.length();
+		List<String> extendedAlleles = new ArrayList<>();
+		for(int i=0;i<alleles.length;i++) {
+			String a = alleles[i];
+			if(left!=null) a= left+a;
+			if(right!=null) a= a+right;
+			extendedAlleles.add(a);
+		}
+		GenomicVariant newVariant = new GenomicVariantImpl(callTest.getSequenceName(), first, extendedAlleles);
+		newVariant.setType(callTest.getType());
+		newVariant.setVariantQS(callTest.getVariantQS());
+		CalledGenomicVariantImpl answer = new CalledGenomicVariantImpl(newVariant, callTest.getIndexesCalledAlleles());
+		answer.setGenotypeQuality(callTest.getGenotypeQuality());
+		return answer;
+	}
+
+	public boolean isConsistent(CalledGenomicVariant callGS, CalledGenomicVariant callTest) {
+		boolean consistent = true;
+		List<String> allelesGS = buildExtendedAlleles(callGS, callTest.getFirst(), callTest.getLast());
+		if(posPrint==callGS.getFirst()) System.out.println("AllelesGS "+allelesGS);
+		
+		
+		String [] allelesTest = callTest.getAlleles();
+		//Expected start of alternative alleles in reference alleles
+		int offset = 0;
+		if(callGS.getFirst()<callTest.getFirst()) offset = callTest.getFirst()-callGS.getFirst();
+		String reference = allelesGS.get(0);
+		if(offset>0 && offset<reference.length()) {
+			reference = reference.substring(offset);
+		}
+		consistent = reference.startsWith(allelesTest[0]);
+		if(!consistent) System.err.println("WARN: Inconsistent reference for comparison between "+callGS.getSequenceName()+":"+callGS.getFirst()+ " reference: "+reference+" and "+callTest.getSequenceName()+":"+callTest.getFirst()+" reference: "+allelesTest[0]+" offset: "+offset );
+		for(int i=1;i<allelesTest.length && consistent;i++) {
+			String alleleTest = allelesTest[i];
+			if(posPrint==callGS.getFirst()) System.out.println("Next allele test "+alleleTest);
+			boolean found = false;
+			for(int j=1;j<allelesGS.size() && !found;j++) {
+				String alleleGS = allelesGS.get(j);
+				if(offset>0 && offset<alleleGS.length()) {
+					alleleGS = alleleGS.substring(offset);
+				}
+				found = alleleGS.startsWith(alleleTest);
+			}
+			consistent = found;
+		}
+		return consistent;
+	}
 	
-	private Set<String> buildAlleleStrings(GenomicVariant v, int firstRegion, int lastRegion) {
+	private List<String> buildExtendedAlleles(GenomicVariant v, int firstTest, int lastTest) {
 		String seqName = v.getSequenceName();
 		String left = null;
-		if(firstRegion<v.getFirst()) left = genome.getReference(seqName, firstRegion, v.getFirst()-1).toString();
+		if(firstTest<v.getFirst()) left = genome.getReference(seqName, firstTest, v.getFirst()-1).toString();
 		String right = null;
-		if(v.getLast()<lastRegion) right = genome.getReference(seqName, v.getLast()+1, lastRegion).toString();
-		Set<String> allelesSet = new TreeSet<>();
+		if(v.getLast()<lastTest) right = genome.getReference(seqName, v.getLast()+1, lastTest).toString();
+		List<String> answer = new ArrayList<>();
 		String [] alleles = v.getAlleles();
 		for(int i=0;i<alleles.length;i++) {
 			String allele = alleles[i];
-			int cut = v.getLast()-lastRegion-(alleles[0].length()-allele.length());
-			if(cut>0 && cut < allele.length()) allele = allele.substring(0, allele.length()-cut);
 			String allO = "";
 			if(left!=null) allO += left;
 			allO+=allele;
 			if(right!=null) allO += right;
-			allelesSet.add(allO.toUpperCase());
+			answer.add(allO.toUpperCase());
 		}
-		return allelesSet;
+		return answer;
 	}
 	
 	private byte loadType(CalledGenomicVariant call) {
