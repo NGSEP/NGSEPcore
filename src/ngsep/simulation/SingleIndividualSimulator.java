@@ -48,7 +48,8 @@ public class SingleIndividualSimulator {
 	private GenomicRegionSortedCollection<GenomicVariant> indels;
 	private GenomicRegionSortedCollection<STR> strs;
 	
-	private List<CalledGenomicVariant> variantCalls;
+	//Calls including reference allele regions and simulated variants
+	private List<CalledGenomicVariant> genomicCalls;
 	private List<QualifiedSequence> individualGenome;
 	
 	private double snvRate = DEF_SNV_RATE;
@@ -441,7 +442,7 @@ public class SingleIndividualSimulator {
 	public void buildAssembly() {
 		
 		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
-		variantCalls = new ArrayList<>();
+		genomicCalls = new ArrayList<>();
 		individualGenome = new QualifiedSequenceList();
 		GenomicRegionSortedCollection<GenomicVariant> allVariants = new GenomicRegionSortedCollection<>(seqMetadata);
 		if(snvs!=null) allVariants.addAll(snvs);
@@ -474,6 +475,10 @@ public class SingleIndividualSimulator {
 						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(var.getFirst()-1));
 					}
 					String nonVariantSegment = segment.toString();
+					//Create reference call
+					CalledGenomicVariant refCall = createReferenceCall(seqName, nextPos, nonVariantSegment);
+					genomicCalls.add(refCall);
+					//Update haplotype sequences
 					for(int i=0;i<haplotypes.length;i++) (haplotypes[i]).append(nonVariantSegment);
 				}
 				//Simulate genotype as alternative allele count (always homozygous alternative for haploids
@@ -504,11 +509,11 @@ public class SingleIndividualSimulator {
 					}
 				}
 				
-				//Create call
+				//Create variant call
 				CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(var, indexesCalledAlleles);
 				call.setAllelesCopyNumber(allelesCopyNumber);
 				call.setPhasedAlleles(indexesPhasedAlleles);
-				variantCalls.add(call);
+				genomicCalls.add(call);
 				
 				//Update haplotype sequences
 				for(int i=0;i<indexesPhasedAlleles.length;i++) {
@@ -522,6 +527,10 @@ public class SingleIndividualSimulator {
 				CharSequence nonVarLast = genome.getReference(seqName, nextPos, l-1);
 				if(nonVarLast!=null) {
 					String nonVariantSegment = nonVarLast.toString();
+					//Create reference call
+					CalledGenomicVariant refCall = createReferenceCall(seqName, nextPos, nonVariantSegment);
+					genomicCalls.add(refCall);
+					//Update haplotype sequences
 					for(int i=0;i<haplotypes.length;i++) (haplotypes[i]).append(nonVariantSegment);
 				}
 			}
@@ -531,6 +540,14 @@ public class SingleIndividualSimulator {
 			}
 			log.info("Simulated "+numHet+" heterozygous calls for sequence "+seqName);
 		}
+	}
+
+	public CalledGenomicVariant createReferenceCall(String seqName, int nextPos, String nonVariantSegment) {
+		List<String> refCallAlleles = new ArrayList<>();
+		refCallAlleles.add(nonVariantSegment);
+		byte [] idxCalledAlleles = {0};
+		CalledGenomicVariant refCall = new CalledGenomicVariantImpl(seqName, nextPos, refCallAlleles, idxCalledAlleles);
+		return refCall;
 	}
 
 	private void randomDistribute(byte[] array, byte value, byte number, Random random) {
@@ -558,7 +575,7 @@ public class SingleIndividualSimulator {
 		header.addSample(s, true);
 		VCFFileWriter writer = new VCFFileWriter();
 		writer.printHeader(header, out);
-		for(CalledGenomicVariant call:variantCalls) {
+		for(CalledGenomicVariant call:genomicCalls) {
 			VCFRecord record = new VCFRecord(call, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header);
 			writer.printVCFRecord(record, out);
 		}

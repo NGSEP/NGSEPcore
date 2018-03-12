@@ -856,8 +856,7 @@ ID of the simulated sample. Appears in the VCF header and as part of the name of
 simulated genome
 </option>
 <option id="p" type="INT" default="2" attribute="ploidy">
-Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
-to recalculate allele dosage based on these counts 
+Ploidy of the simulated sample 
 </option>
 </command>
 
