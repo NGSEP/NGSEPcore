@@ -147,6 +147,7 @@ public class VCFGoldStandardComparator {
 							writer.printVCFRecord(rGS, out);
 							writer.printVCFRecord(rTest, out);
 						}
+						covered= true;
 					} else {
 						//False positive for inconsistent variant
 						countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),12+n2);
