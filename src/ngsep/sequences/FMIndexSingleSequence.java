@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -206,16 +207,31 @@ public class FMIndexSingleSequence implements Serializable
 
 		return getRealIndexes(range);
 	}
-	
+
 	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) 
 	{
 		int[] d = calculateD(searchSequence);
-		List<int[]> ranges= inexactRecurrentSearch(searchSequence,searchSequence.length()-1,1,1,bwt.length-1,d);
+		int maxDifferences=0;
+		List<int[]> ranges= inexactRecurrentSearch(searchSequence,searchSequence.length()-1,maxDifferences,1,bwt.length-1,d);
 		Set<Integer> indexes = new TreeSet<>();
 		for(int [] range: ranges ) {
 			indexes.addAll(getRealIndexes(range));
 		}
 		return indexes;
+	}
+
+	public static void main (String[] args)
+	{
+		System.out.println("Testing inexactSearch BWA");
+		FMIndexSingleSequence f = new FMIndexSingleSequence("googol");
+
+		String query = "go";
+		Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
+		Iterator<Integer> i =set.iterator();
+		while(i.hasNext())
+		{
+			System.out.println(i.next());
+		}
 	}
 
 	/**
@@ -307,7 +323,7 @@ public class FMIndexSingleSequence implements Serializable
 	 */
 	private int lfMapping(char c, int row, boolean firstIndexAfter) 
 	{
-		
+
 		int rank = getTallyOf(c, row);
 		//add1 is true when actualChar is different of bwt[rowS] because in this case, the last appearance of actualChar before rowS is outside the range defined by rowS, rowF 
 		boolean add1 = firstIndexAfter && (bwt[row]!=c);
@@ -341,20 +357,25 @@ public class FMIndexSingleSequence implements Serializable
 		{
 			if(j<=i) {
 				String sub = query.substring(j, i);
-				if(exactSearch(sub).size()==0)
+				if(!sub.equals(""))
 				{
-					z++;
-					j=i+1;
+
+					if(exactSearch(sub).size()==0)
+					{
+						System.out.println("sub "+sub);
+						z++;
+						j=i+1;
+					}
 				}
 			}
-			
+
 			d[i-1]=z;
 		}
 		return d;
 	}
-	
 
-	
+
+
 	/**
 	 * Makes an inexact search over the index
 	 * @param query 
@@ -367,10 +388,18 @@ public class FMIndexSingleSequence implements Serializable
 	 */
 	private List<int[]> inexactRecurrentSearch(String query, int lastIdxQuery, int maxDiff, int firstRow, int lastRow,int[]d) 
 	{
+//		System.out.println("Recursión lastIdxQuery:"+lastIdxQuery+" maxDiff:"+maxDiff+" firstRow:"+firstRow+" lastRow:"+lastRow);
 		List<int[]> arr = new ArrayList<>();
+		if(maxDiff<0)
+		{
+//			System.out.println("sale");
+			//Base case when the number of differences is larger than the maximum allowed
+			return arr;
+		}
 		if(lastIdxQuery<0)
 		{
 			//Base case an empty query
+//			System.out.println("\tagrega {"+firstRow+","+lastRow+"} en maxDiff:"+maxDiff);
 			int[] range = {firstRow,lastRow};
 			arr.add(range);
 			return arr;
@@ -385,7 +414,12 @@ public class FMIndexSingleSequence implements Serializable
 		for (int j =0 ; j < alphabet.length(); j++) 
 		{
 			char b = alphabet.charAt(j);
-			int newFirst =lfMapping(b, firstRow, true);
+			int temp = 0;
+			if(firstRow!=1)
+			{
+				temp=firstRow;
+			}
+			int newFirst =lfMapping(b, temp, true);
 			int newLast =lfMapping(b, lastRow, false);
 			if(newFirst<=newLast)
 			{
@@ -393,6 +427,7 @@ public class FMIndexSingleSequence implements Serializable
 				arr.addAll(inexactRecurrentSearch(query, lastIdxQuery, maxDiff-1, newFirst, newLast, d));
 				if(b==query.charAt(lastIdxQuery))
 				{
+//					System.out.println("entra "+b);
 					//Follow indexes for the matching character
 					arr.addAll(inexactRecurrentSearch(query, lastIdxQuery-1, maxDiff, newFirst, newLast, d));
 				}
