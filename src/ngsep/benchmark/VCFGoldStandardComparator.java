@@ -26,7 +26,7 @@ public class VCFGoldStandardComparator {
 	private String outVCF = null;
 	private int mode = 0;
 	private short minQuality = 0;
-	private int posPrint = 66597;
+	private int posPrint = -1;
 
 	VCFFileWriter writer = new VCFFileWriter();
 	public static void main(String[] args) throws Exception {
@@ -101,7 +101,9 @@ public class VCFGoldStandardComparator {
 						if((callGS.isUndecided() || referenceRegion) && !callTest.isHomozygousReference()){
 							int overlap = callGS.getLast()-callTest.getFirst()+1;
 							int remainder = callTest.getLast() - callGS.getLast();
-							if(overlap < remainder) break;
+							if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" overlap: "+overlap+" remainder: "+remainder);
+							//If the tail of the event falls out of the reference region, it gets compared agains the next variant
+							if(remainder>0) break;
 						}
 					}
 					if(!referenceRegion) {
