@@ -201,11 +201,11 @@ public class IndelRealignerPileupListener implements PileupListener {
 					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
 					int firstOverlap = currentPos;
 					int lastOverlap = eventEnd;
-					if(varG!=null && varG.getLast()>varG.getFirst()) {
+					/*if(varG!=null && varG.getLast()>varG.getFirst()) {
 						//Small increase in search range to genotype indels and STRs
 						firstOverlap-=3;
 						lastOverlap+=3;
-					}
+					}*/
 					if(indel.getLast() >= firstOverlap && start <=lastOverlap) {
 					//if(start >= currentPos && start <=eventEnd) {		
 						//if(aln.getFirst()==787293) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
@@ -315,11 +315,11 @@ public class IndelRealignerPileupListener implements PileupListener {
 					if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
 					int firstOverlap = eventStart;
 					int lastOverlap = eventEnd;
-					if(varG!=null && varG.getLast()>varG.getFirst()) {
+					/*if(varG!=null && varG.getLast()>varG.getFirst()) {
 						//Small increase in search range to genotype indels and STRs
 						firstOverlap-=3;
 						lastOverlap+=3;
-					}
+					}*/
 					if(indel.getLast() >= firstOverlap && start <=lastOverlap) {
 						indelFound = true;
 						int length = indel.length();
