@@ -229,6 +229,7 @@ public class VariantPileupListener implements PileupListener {
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();
 		for(int i=0;i<callsWithScores.size();i+=2) {
 			String allele = callsWithScores.get(i);
+			if(pileup.getPosition()==posPrint) System.out.println("Adding to cluster allele call: "+allele.toUpperCase());
 			acBuilder.addAlleleCall(allele.toUpperCase());	
 		}
 		Map<String, List<String>> alleleClusters;

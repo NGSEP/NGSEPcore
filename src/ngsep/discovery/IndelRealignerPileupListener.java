@@ -101,7 +101,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(currentPos==posPrint)System.out.println("IndelRealigner. Max indel length: "+maxIndelLength+". Max indel Span: "+maxIndelSpan+" predicted end: "+predictedEventEnd+" time: "+System.currentTimeMillis());
 		}
 		if(predictedEventEnd>currentPos) {
-			int conciliatedSpan = conciliateIndels(pileup,predictedEventEnd,var!=null);
+			int conciliatedSpan = conciliateIndels(pileup,predictedEventEnd,var);
 			if(conciliatedSpan > 0) referenceSpan = conciliatedSpan;
 			if(currentPos==posPrint)System.out.println("IndelRealigner. New reference span: "+referenceSpan+". STR: "+pileup.isSTR()+" time: "+System.currentTimeMillis());
 		}
@@ -138,16 +138,18 @@ public class IndelRealignerPileupListener implements PileupListener {
 		}
 		return null;
 	}
+	
 	/**
-	 * 
-	 * @param predictedEventEnd
+	 * @param pileup record with alignments
+	 * @param eventEnd predicted event end
+	 * @param varG variant to genotype
 	 * @return int The reference span if indels are called (zero otherwise).
 	 */
-	private int conciliateIndels(PileupRecord pileup, int eventEnd, boolean fixedEvent) {
+	private int conciliateIndels(PileupRecord pileup, int eventEnd, GenomicVariant varG) {
 		int answer = 0;
 		boolean eventChange = false;
 		int currentPos = pileup.getPosition();
-		
+		boolean fixedEvent = (varG!=null);
 		
 		Set<Integer> lengths = new TreeSet<Integer>();
 		List<ReadAlignment> alignments = pileup.getAlignments();
@@ -157,7 +159,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		//Vote for possible indel starts
 		int [] votes = new int [eventEnd-currentPos+1];
 		
-		int maxLength = analyzeIndels(alignments,currentPos,eventEnd, lengths,indelAlns,nonIndelGoodSpanAlns,nonIndelBadSpanAlns,votes);
+		int maxLength = analyzeIndels(alignments,currentPos,eventEnd, lengths,indelAlns,nonIndelGoodSpanAlns,nonIndelBadSpanAlns,votes,varG);
 		
 		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Max length: "+maxLength+" lengths: "+ lengths.size());
 		
@@ -197,7 +199,14 @@ public class IndelRealignerPileupListener implements PileupListener {
 				for(int start:indels.keySet()) {
 					GenomicVariant indel = indels.get(start);
 					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
-					if(indel.getLast() >= currentPos && start <=eventEnd) {
+					int firstOverlap = currentPos;
+					int lastOverlap = eventEnd;
+					if(varG!=null && varG.getLast()>varG.getFirst()) {
+						//Small increase in search range to genotype indels and STRs
+						firstOverlap-=3;
+						lastOverlap+=3;
+					}
+					if(indel.getLast() >= firstOverlap && start <=lastOverlap) {
 					//if(start >= currentPos && start <=eventEnd) {		
 						//if(aln.getFirst()==787293) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
 						boolean moved = aln.moveIndelStart(start,currentPos+maxI);
@@ -223,7 +232,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		}
 		if(eventChange) {
 			if(currentPos==posPrint) System.out.println("Recalculating alignments with indels");
-			maxLength = analyzeIndels(alignments,currentPos,eventEnd, lengths,indelAlns,nonIndelGoodSpanAlns,nonIndelBadSpanAlns,null);
+			maxLength = analyzeIndels(alignments,currentPos,eventEnd, lengths,indelAlns,nonIndelGoodSpanAlns,nonIndelBadSpanAlns,null,varG);
 			if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" indelAlns: "+ indelAlns.size()+" non indel good alignments "+nonIndelGoodSpanAlns.size()+" nonIndel partialAlns: "+nonIndelBadSpanAlns.size());
 		}
 		
@@ -289,7 +298,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	}
 
 	private int analyzeIndels(List<ReadAlignment> alignments, int eventStart, int eventEnd, Set<Integer> lengths, List<ReadAlignment> indelAlns,
-			List<ReadAlignment> nonIndelGoodSpanAlns, List<ReadAlignment> nonIndelBadSpanAlns, int[] votes) {
+			List<ReadAlignment> nonIndelGoodSpanAlns, List<ReadAlignment> nonIndelBadSpanAlns, int[] votes, GenomicVariant varG) {
 		
 		int maxLength = 0;
 		lengths.clear();
@@ -303,15 +312,22 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(indels!=null) {
 				for(int start:indels.keySet()) {
 					GenomicVariant indel = indels.get(start);
-					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
-					if(indel.getLast() >= eventStart && start <=eventEnd) {
+					if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
+					int firstOverlap = eventStart;
+					int lastOverlap = eventEnd;
+					if(varG!=null && varG.getLast()>varG.getFirst()) {
+						//Small increase in search range to genotype indels and STRs
+						firstOverlap-=3;
+						lastOverlap+=3;
+					}
+					if(indel.getLast() >= firstOverlap && start <=lastOverlap) {
 						indelFound = true;
 						int length = indel.length();
 						lengths.add(length);
 						if(maxLength<length) maxLength = length;
 						int i = start-eventStart;
 						if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Insertion start: "+start+" vote: "+i);
-						if(votes!=null && i>=0)votes[i]++;
+						if(votes!=null && i>=0 && i<votes.length)votes[i]++;
 						break;
 					}
 				}
