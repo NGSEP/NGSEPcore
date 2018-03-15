@@ -952,7 +952,7 @@ public class VariantsDetector implements PileupListener {
 	public void findSNVS() throws IOException {
 		if(knownVariantsFile!=null) {
 			log.info("Loading input variants");
-			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile);
+			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
 			log.info("Loaded "+knownVariants.size()+" input variants");
 			varListener.setInputVariants(knownVariants);
 			//TODO: Choose list or collection better

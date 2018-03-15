@@ -90,7 +90,7 @@ public class IndividualSampleVariantsMerge {
 		int n=0;
 		for(String f:files) {
 			log.info("Merging variants from file: "+f); 
-			List <GenomicVariant> sampleVariants = VCFFileReader.loadVariants(f);
+			List <GenomicVariant> sampleVariants = VCFFileReader.loadVariants(f,true);
 			log.info("Loaded "+sampleVariants.size()+" variants");
 			consolidatedPerSample.add(mergeVariants (variants,sampleVariants,comparator));
 			log.info("Merged variants from file: "+f+". Total variants: "+variants.size());

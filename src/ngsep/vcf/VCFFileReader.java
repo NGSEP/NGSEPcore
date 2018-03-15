@@ -556,7 +556,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 	 * @return List<GenomicVariant> List of variants within the given file
 	 * @throws IOException If the file can not be read
 	 */
-	public static List<GenomicVariant> loadVariants(String filename) throws IOException {
+	public static List<GenomicVariant> loadVariants(String filename, boolean filterReferenceSitesGVCF) throws IOException {
 		List<GenomicVariant> answer = new ArrayList<GenomicVariant>();
 		
 		try (VCFFileReader in = new VCFFileReader(filename)) {
@@ -565,6 +565,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
 				GenomicVariant var = record.getVariant();
+				if(filterReferenceSitesGVCF && var.getAlleles().length<2) continue;
 				answer.add(var);
 			}
 		}

@@ -199,7 +199,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Next indel start "+start+" event limits "+eventStart+"-"+eventEnd);
 					if(indel.getLast() >= currentPos && start <=eventEnd) {
 					//if(start >= currentPos && start <=eventEnd) {		
-						//if(aln.getFirst()==265419) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
+						//if(aln.getFirst()==787293) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
 						boolean moved = aln.moveIndelStart(start,currentPos+maxI);
 						if(currentPos==posPrint && moved == false) System.err.println("WARN: Failed attempt to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
 						break;
@@ -319,7 +319,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(indelFound) indelAlns.add(aln);
 			else {
 				if(eventStart - aln.getFirst()>=bpForGoodRefAln && aln.getLast()-eventEnd>=bpForGoodRefAln ) {
-					if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" reference spans. Event end: "+eventEnd);
+					//if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" reference spans. Event end: "+eventEnd);
 					nonIndelGoodSpanAlns.add(aln);
 				} else {
 					if(eventStart==posPrint) System.out.println("Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+" partial reference. Event end: "+eventEnd);
