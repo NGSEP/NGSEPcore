@@ -70,6 +70,8 @@ public class FMIndexSingleSequence implements Serializable
 
 	//Inferred alphabet of the sequence ordered lexicographical 
 	private String alphabet;
+	
+	private int maxDifferencesInexactSearch = 1;
 
 	public FMIndexSingleSequence(CharSequence sequence) 
 	{
@@ -196,8 +198,8 @@ public class FMIndexSingleSequence implements Serializable
 
 	public Set<Integer> search (String searchSequence) 
 	{
-		//return exactSearch(searchSequence);
-		return inexactSearchBWAAlgorithm(searchSequence);
+		return exactSearch(searchSequence);
+		//return inexactSearchBWAAlgorithm(searchSequence);
 	}
 	public Set<Integer> exactSearch (String searchSequence) 
 	{
@@ -211,8 +213,8 @@ public class FMIndexSingleSequence implements Serializable
 	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) 
 	{
 		int[] d = calculateD(searchSequence);
-		int maxDifferences=0;
-		List<int[]> ranges= inexactRecurrentSearch(searchSequence,searchSequence.length()-1,maxDifferences,1,bwt.length-1,d);
+		
+		List<int[]> ranges= inexactRecurrentSearch(searchSequence,searchSequence.length()-1,maxDifferencesInexactSearch,1,bwt.length-1,d);
 		Set<Integer> indexes = new TreeSet<>();
 		for(int [] range: ranges ) {
 			indexes.addAll(getRealIndexes(range));
@@ -223,9 +225,9 @@ public class FMIndexSingleSequence implements Serializable
 	public static void main (String[] args)
 	{
 		System.out.println("Testing inexactSearch BWA");
-		FMIndexSingleSequence f = new FMIndexSingleSequence("googol");
+		FMIndexSingleSequence f = new FMIndexSingleSequence(args[0]);
 
-		String query = "go";
+		String query = args[1];
 		Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
 		Iterator<Integer> i =set.iterator();
 		while(i.hasNext())
@@ -388,7 +390,7 @@ public class FMIndexSingleSequence implements Serializable
 	 */
 	private List<int[]> inexactRecurrentSearch(String query, int lastIdxQuery, int maxDiff, int firstRow, int lastRow,int[]d) 
 	{
-//		System.out.println("Recursión lastIdxQuery:"+lastIdxQuery+" maxDiff:"+maxDiff+" firstRow:"+firstRow+" lastRow:"+lastRow);
+//		System.out.println("Recursiï¿½n lastIdxQuery:"+lastIdxQuery+" maxDiff:"+maxDiff+" firstRow:"+firstRow+" lastRow:"+lastRow);
 		List<int[]> arr = new ArrayList<>();
 		if(maxDiff<0)
 		{
