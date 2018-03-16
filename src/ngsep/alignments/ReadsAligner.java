@@ -21,6 +21,7 @@ package ngsep.alignments;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -132,5 +133,10 @@ public class ReadsAligner {
 			i++;
 		}
 		return alignments.size();
+	}
+	
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) {
+		//TODO: Implement
+		return new ArrayList<>();
 	}
 }
