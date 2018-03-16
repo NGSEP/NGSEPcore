@@ -128,22 +128,41 @@ public class ReferenceGenome {
 		return qs.getCharacters();
 	}
 	/**
-	 * 
-	 * @param index Sequence index to look for
-	 * @return
+	 * Returns the complete characters of the sequence with the given index
+	 * @param index 0-based index to look for
+	 * @return CharSequence sequence at the given index
 	 */
 	public CharSequence getSequenceCharacters (int index) {
 		QualifiedSequence qs = sequences.get(index);
 		if(qs==null) return null;
 		return qs.getCharacters();
 	}
+	/**
+	 * Returns the sequence at the given coordinates
+	 * @param r Genomic region to search
+	 * @return CharSequence object with the sequence within the given region
+	 */
 	public CharSequence getReference(GenomicRegion r) {
 		return getReference(r.getSequenceName(),r.getFirst(),r.getLast());
 	}
+	/**
+	 * Returns the sequence at the given coordinates
+	 * @param sequenceName Name of the sequence to search
+	 * @param first 1-based first genomic position within the sequence with the given name
+	 * @param last 1-based last genomic position within the sequence with the given name
+	 * @return CharSequence object with the sequence within the given region
+	 */
 	public CharSequence getReference(String sequenceName, int first, int last) {
 		CharSequence seq = getSequenceCharacters(sequenceName);
 		return getSubsequenceGenomicCoordinates(first, last, seq);
 	}
+	/**
+	 * Returns the sequence at the given coordinates
+	 * @param index 0-ased index in the sequences list
+	 * @param first 1-based first genomic position within the sequence with the given name
+	 * @param last 1-based last genomic position within the sequence with the given name
+	 * @return CharSequence object with the sequence within the given region
+	 */
 	public CharSequence getReference(int index, int first, int last) {
 		CharSequence seq = getSequenceCharacters(index);
 		return getSubsequenceGenomicCoordinates(first, last, seq);
@@ -154,12 +173,21 @@ public class ReferenceGenome {
 		}
 		return null;
 	}
+	/**
+	 * @return long total genome length
+	 */
 	public long getTotalLength() {
 		return sequences.getTotalLength();
 	}
+	/**
+	 * @return int the number of sequences in the genome
+	 */
 	public int getNumSequences() {
 		return sequences.size();
 	}
+	/**
+	 * @return List<String> List of names of the sequences in the genome
+	 */
 	public List<String> getSequenceNamesStringList() {
 		return sequences.getNamesStringList();
 	}
