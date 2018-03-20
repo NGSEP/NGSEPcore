@@ -60,14 +60,12 @@ public class FMIndex implements Serializable
 		{
 			QualifiedSequence q = referenceGenome.getSequenceByIndex(i);
 			DNAMaskedSequence seqChars = (DNAMaskedSequence)q.getCharacters();
-			System.out.println(seqChars);
 			FMIndexSingleSequence seqForward = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
 			internalIndexes.add(seqForward);
 			List<SequenceMetadata> metadata = new ArrayList<>();
 			metadata.add(new SequenceMetadata(q.getName(), q.getLength(), false));
 			realSequencesMap.add(metadata);
 			seqChars = seqChars.getReverseComplement();
-			System.out.println(seqChars);
 			FMIndexSingleSequence seqReverse = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
 			internalIndexes.add(seqReverse);
 			metadata = new ArrayList<>();
@@ -76,6 +74,9 @@ public class FMIndex implements Serializable
 		}
 	}
 	
+	public void loadQualifiedSequenceList (QualifiedSequenceList sequences) {
+		
+	}
 	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences) {
 		int n = sequences.size();
 		StringBuffer internalSequence = new StringBuffer();

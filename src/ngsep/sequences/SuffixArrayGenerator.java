@@ -1,9 +1,7 @@
 package ngsep.sequences;
 
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * 
@@ -15,8 +13,8 @@ import java.util.List;
 public class SuffixArrayGenerator {
 	private final static int Cte_Radix = 4; // == log2(16)
 	private final static int Cte_Radix_Bit = (int) Math.pow(2, Cte_Radix) - 1;
-	private final static int AlfabetStart = 65;
-	private final static int AlfabetEnd = 90;
+	private final static int AlfabetStart = 34;
+	private final static int AlfabetEnd = 127;
 	private int[] ans;
 
 	public SuffixArrayGenerator(CharSequence charSequence) {
@@ -269,11 +267,12 @@ public class SuffixArrayGenerator {
 		return hi;
 	}
 
-	public List<Integer> getSA() {
-		List<Integer> list = new ArrayList<>(ans.length);
-		for (int i : ans)
-			list.add(i);
-		return list;
+	public int [] getSA() {
+		int [] answer = new int [ans.length-1];
+		for(int i=1;i<ans.length;i++) {
+			answer[i-1] = ans[i];
+		}
+		return answer;
 	}
 
 	/**

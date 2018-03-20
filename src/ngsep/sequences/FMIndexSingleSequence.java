@@ -97,7 +97,8 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	private void calculate(CharSequence sequence) {
-		List<Integer> suffixes = buildSuffixArray(sequence);
+		//List<Integer> suffixes = buildSuffixArray(sequence);
+		int [] suffixes = buildSuffixArrayDC3(sequence);
 		buildBWT(sequence, suffixes);
 		buildAlphabetAndCounts(sequence, suffixes);
 		buildTally();
@@ -105,21 +106,34 @@ public class FMIndexSingleSequence implements Serializable {
 
 	}
 
-	private List<Integer> buildSuffixArray(CharSequence sequence) {
+	/**
+	 * Builds a suffix array using the default merge sort algorithm
+	 * @param sequence to build the array
+	 * @return int [] indexes of the sorted suffixes
+	 */
+	public static int [] buildSuffixArrayMergeSort(CharSequence sequence) {
 		ArrayList<Integer> sufixes = new ArrayList<Integer>();
 		for (int i = 0; i < sequence.length(); i++) {
 			sufixes.add(i);
 		}
 		Collections.sort(sufixes, new SuffixCharSequencePositionComparator(sequence));
-		return sufixes;
+		int [] answer = new int [sufixes.size()];
+		for(int i=0;i<answer.length;i++) {
+			answer[i] = sufixes.get(i);
+		}
+		return answer;
 	}
-
-	private List<Integer> buildSuffixArra2y(CharSequence sequence) {
+	/**
+	 * Builds a suffix array using the DC3 linear algorithm for sorting
+	 * @param sequence to build the array
+	 * @return int [] indexes of the sorted suffixes
+	 */
+	public static int [] buildSuffixArrayDC3(CharSequence sequence) {
 		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
 		return suffixArrayGenerator.getSA();
 	}
 
-	private void buildBWT(CharSequence sequence, List<Integer> suffixes) {
+	private void buildBWT(CharSequence sequence, int [] suffixes) {
 		bwt = new char[sequence.length() + 1];
 		bwt[0] = sequence.charAt(sequence.length() - 1);
 		int j = 1;
@@ -133,7 +147,7 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 	}
 
-	private void buildAlphabetAndCounts(CharSequence seq, List<Integer> suffixArray) {
+	private void buildAlphabetAndCounts(CharSequence seq, int [] suffixArray) {
 		Map<Character, Integer> counts = new TreeMap<>();
 		firstRowsInMatrix = new TreeMap<>();
 		lastRowsInMatrix = new TreeMap<>();
@@ -142,8 +156,8 @@ public class FMIndexSingleSequence implements Serializable {
 		firstRowsInMatrix.put(lastC, 0);
 		lastRowsInMatrix.put(lastC, 0);
 		// iterate last column to know alphabet and counts...
-		for (int i = 0; i < suffixArray.size(); i++) {
-			int j = suffixArray.get(i);
+		for (int i = 0; i < suffixArray.length; i++) {
+			int j = suffixArray[i];
 			char c = seq.charAt(j);
 			Integer countC = counts.get(c);
 			if (countC == null) {
@@ -160,7 +174,7 @@ public class FMIndexSingleSequence implements Serializable {
 			}
 			lastC = c;
 		}
-		lastRowsInMatrix.put(lastC, suffixArray.size());
+		lastRowsInMatrix.put(lastC, suffixArray.length);
 		// System.out.println("Last row "+lastC+": "+suffixArray.size());
 		alphabet = alpB.toString();
 
@@ -190,11 +204,11 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 	}
 
-	private void createPartialSuffixArray(List<Integer> suffixes) {
+	private void createPartialSuffixArray(int [] suffixes) {
 		partialSuffixArray = new HashMap<Integer, Integer>();
-		int n = suffixes.size();
+		int n = suffixes.length;
 		for (int i = 0; i < n; i++) {
-			int startSeq = suffixes.get(i);
+			int startSeq = suffixes[i];
 			if (startSeq % suffixFraction == 0) {
 				partialSuffixArray.put(i + 1, startSeq);
 			}
