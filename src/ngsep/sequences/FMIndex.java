@@ -73,9 +73,35 @@ public class FMIndex implements Serializable
 			realSequencesMap.add(metadata);
 		}
 	}
-	
+	/**
+	 * Loads the sequences in the given list to allow searches from these sequences
+	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
+	 */
 	public void loadQualifiedSequenceList (QualifiedSequenceList sequences) {
-		
+		StringBuffer internalSequence = new StringBuffer();
+		List<SequenceMetadata> internalSequenceMetadata = new ArrayList<>();
+		for(QualifiedSequence seq:sequences) {
+			String next = seq.getCharacters().toString();
+			if(internalSequence.length() + next.length() > 1000000000) {
+				System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
+				long time = System.currentTimeMillis();
+				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				internalIndexes.add(index);
+				realSequencesMap.add(internalSequenceMetadata);
+				internalSequence = new StringBuffer();
+				internalSequenceMetadata = new ArrayList<>();
+			}
+			internalSequence.append(next);
+			internalSequenceMetadata.add(new SequenceMetadata(seq.getName(), next.length(), false));
+			
+		}
+		System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
+		long time = System.currentTimeMillis();
+		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+		System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+		internalIndexes.add(index);
+		realSequencesMap.add(internalSequenceMetadata);
 	}
 	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences) {
 		int n = sequences.size();
