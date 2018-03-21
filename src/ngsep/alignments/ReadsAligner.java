@@ -28,6 +28,7 @@ import java.util.List;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
+import ngsep.sequences.KmersCounter;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 
@@ -37,6 +38,8 @@ import ngsep.sequences.io.FastqFileReader;
  * @author Jorge Duitama
  */
 public class ReadsAligner {
+	
+	static final int SEARCH_KMER_LENGTH = 15;
 
 	public static void main(String[] args) throws Exception 
 	{
@@ -135,7 +138,33 @@ public class ReadsAligner {
 		return alignments.size();
 	}
 	
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) {
+	/**
+	 * 
+	 * @param fMIndex
+	 * @param read 
+	 * @return 
+	 */
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
+	{
+		//Find Kmers
+		
+		CharSequence[] kmers = KmersCounter.extractKmers(read.getCharacters().toString(), SEARCH_KMER_LENGTH, true);
+		//Avoid overlaps
+		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
+		{
+			//Exit loop if kmers[i] is null
+			if(kmers[i]==null)
+				continue;
+			
+			String kmer =kmers[i].toString();
+			
+			//Where is located the kmer in exact way
+			List<ReadAlignment> regions=fMIndex.search(kmer);
+			
+			
+			
+		}
+		
 		//TODO: Implement
 		return new ArrayList<>();
 	}
