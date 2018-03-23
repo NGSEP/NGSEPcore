@@ -702,10 +702,8 @@ Comparing VCF files
 -------------------
 This module allows to compare the genotype calls included in two different VCF
 files, calculating the number and percentage of homozygous and heterozygous
-diffrences between every pair of samples. Default values are thought for 
-detecting duplicated (or very similar) samples (for a full output use -g 0 
--d 100). This writes to standard output a tab-delimited report with the 
-following fields:
+differences between every pair of samples. This writes to standard output a
+tab-delimited report with the following fields:
 
 1. Id sample VCF 1
 2. Id sample VCF 2
@@ -721,7 +719,7 @@ following fields:
 
 USAGE:
 
-java -jar NGSEPcore.jar CompareVCF <OPTIONS> <SEQUENCE_NAMES_FILE> <FIRST_VCF_FILE> <SECOND_VCF_FILE>
+java -jar NGSEPcore.jar CompareVCF <OPTIONS> <REFERENCE_FILE> <FIRST_VCF_FILE> <SECOND_VCF_FILE>
 
 OPTIONS: 
 
@@ -729,6 +727,11 @@ OPTIONS:
 			  both samples. Default: 50.
 	-d FLOAT	: Maximum percentage (0-100) of differences between the
 			  pair of samples. Default: 5.
+
+The first required argument is the FASTA file with the reference genome used to
+generate the VCF files. Default values of optional parameters are set to
+facilitate the detection of duplicated (or very similar) samples. To report the
+complete set of sample pairs, use -g 0 -d 100. 
 
 -------------------
 Genotype imputation
