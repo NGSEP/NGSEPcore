@@ -93,7 +93,7 @@ public class ReadsAligner {
 	
 
 	private int alignRead(FMIndex fMIndex, RawRead read, PrintStream out) {
-		List<ReadAlignment> alignments = fMIndex.search(read.getCharacters().toString());
+		List<ReadAlignment> alignments = search(fMIndex, read);
 		int i=0;
 		for (ReadAlignment aln: alignments) {
 			String readSeq = read.getSequenceString();
@@ -143,6 +143,13 @@ public class ReadsAligner {
 		return alignments.size();
 	}
 	
+	public List<ReadAlignment> search (FMIndex fMIndex, RawRead read) {
+		return kmerBasedInexactSearchAlgorithm(fMIndex, read);
+	}
+	
+	public List<ReadAlignment> exactSearch (FMIndex fMIndex, RawRead read) {
+		return fMIndex.search(read.getSequenceString());
+	}
 	/**
 	 * 
 	 * @param fMIndex
