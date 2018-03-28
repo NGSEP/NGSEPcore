@@ -11,11 +11,14 @@ import java.util.Set;
 
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.math.LogMath;
+import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.VariantCallReport;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -79,11 +82,11 @@ public class VCFGoldStandardComparator {
 						idxTest++;
 						continue;
 					}
+					short qualTest = loadGenotypeQuality(callTest);
 					int lastBefore = (idxTest == 0 || !callsTest.get(idxTest-1).getSequenceName().equals(callTest.getSequenceName()))? 0:callsTest.get(idxTest-1).getLast();
 					int firstAfter = (idxTest == callsTest.size()-1 || !callsTest.get(idxTest+1).getSequenceName().equals(callTest.getSequenceName()))? seqNames.get(callTest.getSequenceName()).getLength():callsTest.get(idxTest+1).getFirst();
 					callTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
 					byte type = loadType(callTest);
-					short qualTest = callTest.getGenotypeQuality();
 					int column = getGenotypeNumber(callTest);
 					int cmp = compRegion.compare(callGS, callTest);
 					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+" call test: "+callTest.getFirst()+" type: "+type+" column: "+column+" comparison: "+cmp);
@@ -170,7 +173,7 @@ public class VCFGoldStandardComparator {
 				CalledGenomicVariant callTest = callsTest.get(idxTest);
 				if(!callTest.isUndecided()) {
 					byte typeTest = loadType(callTest);
-					short qualTest = callTest.getGenotypeQuality();
+					short qualTest = loadGenotypeQuality(callTest);
 					int n2 = getGenotypeNumber(callTest);
 					countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),12+n2);
 					VCFRecord rTest = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
@@ -290,6 +293,29 @@ public class VCFGoldStandardComparator {
 		if(call.isHeterozygous()) return 1;
 		else if (!call.isHomozygousReference()) return 2;
 		return 0;
+	}
+	private short loadGenotypeQuality(CalledGenomicVariant call) {
+		short q = call.getGenotypeQuality();
+		if(q>0) return q;
+		String [] alleles = call.getAlleles();
+		String [] calledAlleles = call.getCalledAlleles();
+		VariantCallReport report = call.getCallReport();
+		if(report==null || calledAlleles.length==0 || !report.logConditionalsPresent()) return 0;
+		double logP;
+		Double sum=null;
+		if(calledAlleles.length==1) logP = report.getLogConditionalProbability(calledAlleles[0], calledAlleles[0]);
+		else logP = report.getLogConditionalProbability(calledAlleles[0], calledAlleles[1]);
+		for(int i=0;i<alleles.length;i++) {
+			for(int j=i;j<alleles.length;j++) {
+				sum = LogMath.logSum(sum, report.getLogConditionalProbability(alleles[i], alleles[j]));
+			}
+		}
+		double logPos = LogMath.logProduct(logP, -sum);
+		double pos = LogMath.power10(logPos);
+		q = PhredScoreHelper.calculatePhredScore(1-pos);
+		call.setGenotypeQuality(q);
+		//if(call.getFirst()==376) System.out.println("Conditional P: "+logP+" sum: "+sum+" logpos: "+logPos+" posterior: "+pos+" q: "+q);
+		return q;
 	}
 }
 class GoldStandardComparisonCounts {
