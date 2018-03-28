@@ -368,7 +368,8 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		//Load variant-specific optional information 
 		int [] allCounts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_BSDP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_BSDP],sampleId,variant,4);
 		int [] counts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_ADP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_ADP],sampleId,variant,alleles.length);
-		double [][] logConditionals = loadPhredConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_PL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_PL],sampleId,variant,callItems.length==1);
+		double [][] logConditionals = loadConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_PL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_PL],sampleId,variant,callItems.length==1,true);
+		if(logConditionals==null) logConditionals = loadConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_GL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_GL],sampleId,variant,callItems.length==1,false);
 		//Create object consistent with the variant information
 		CalledGenomicVariant answer = null;
 		if(variant instanceof SNV) {
@@ -494,7 +495,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		}
 		return counts;
 	}
-	private double[][] loadPhredConditionals(int numAlleles, String dataStr, String formatField, String sampleId, GenomicVariant var, boolean haploidGT) {
+	private double[][] loadConditionals(int numAlleles, String dataStr, String formatField, String sampleId, GenomicVariant var, boolean haploidGT, boolean phredScaled) {
 		if(dataStr==null || NO_INFO_CHAR.equals(dataStr)) return null;
 		double [][] answer = new double [numAlleles][numAlleles];
 		String [] dataItems = ParseUtils.parseString(dataStr, ',');
@@ -503,12 +504,17 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				Arrays.fill(answer[i], -100);
 				double next;
 				try {
-					next = Integer.parseInt(dataItems[i]);
+					if(phredScaled) {
+						next = Integer.parseInt(dataItems[i]);
+						next = -next/10;
+					} else {
+						next = Double.parseDouble(dataItems[i]);
+					}
 				} catch (NumberFormatException e) {
 					log.severe("Can not load values of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Error parsing value: "+dataItems[i]);
 					return null;
 				}
-				answer[i][i] = -next/10;
+				answer[i][i] = next;
 			}
 			return answer;
 		}
@@ -522,12 +528,17 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				}
 				double next;
 				try {
-					next = Integer.parseInt(dataItems[k]);
+					if(phredScaled) {
+						next = Integer.parseInt(dataItems[k]);
+						next = -next/10;
+					} else {
+						next = Double.parseDouble(dataItems[k]);
+					}
 				} catch (NumberFormatException e) {
 					log.severe("Can not load values of format field "+formatField+" for sample "+sampleId+" at genomic variant at "+var.getSequenceName()+":"+var.getFirst()+". Error parsing value: "+dataItems[k]);
 					return null;
 				}
-				answer[i][j] = -next/10;
+				answer[i][j] = next;
 				if(i!=j) answer [j][i] = next;
 				k++;
 			}
