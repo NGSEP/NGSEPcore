@@ -46,7 +46,7 @@ public class SuffixArrayGenerator {
 	/**
 	 * the ASCII interval that it handles
 	 */
-	private final static int AlfabetStart = 32, AlfabetEnd = 126;
+	private final static int AlfabetEnd = 126;
 	// -------------------------------------------------------------------------------
 	// VARAIBLES
 	// -------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ public class SuffixArrayGenerator {
 		int d = 0, bit = MaxBit;
 		while (!loStack.isEmpty() && d < 3) {
 			radixSort(sort1, loStack, hiStack, data, d, bit);
-			
+
 			if (bit != 0)
 				bit -= Cte_Radix;
 			else {
@@ -295,15 +295,13 @@ public class SuffixArrayGenerator {
 	 *         the letter is indexed by the value ASCII - alphabet Start
 	 */
 	private static byte[] getMap(final CharSequence charSequence) {
-		byte[] map = new byte[AlfabetEnd - AlfabetStart + 1];
-		boolean[] mark = new boolean[AlfabetEnd - AlfabetStart + 1];
+		byte[] map = new byte[AlfabetEnd];
 
 		// mark the appearances whit 1
 		for (int i = 0; i < charSequence.length(); i++) {
-			if (!mark[charSequence.charAt(i) - AlfabetStart]) {
-				map[charSequence.charAt(i) - AlfabetStart] = 1;
-				mark[charSequence.charAt(i) - AlfabetStart] = true;
-			}
+			char c = charSequence.charAt(i);
+			if (map[c] == 0)
+				map[c] = 1;
 		}
 
 		prefix(map);
@@ -323,15 +321,16 @@ public class SuffixArrayGenerator {
 		int[] data = new int[charSequence.length() + 1];
 
 		for (int i = 0; i < charSequence.length(); i++)
-			data[i] = map[charSequence.charAt(i) - AlfabetStart];
+			data[i] = map[charSequence.charAt(i)];
 		return data;
 	}
 
-	private static void radixSort(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d, final int bit) {
-		//radixSKA(array, loStack, hiStack, data, d, bit);
+	private static void radixSort(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
+			final int bit) {
+		// radixSKA(array, loStack, hiStack, data, d, bit);
 		radixCount(array, loStack, hiStack, data, d, bit);
 	}
-	
+
 	/**
 	 * https://www.youtube.com/watch?v=zqs87a_7zxw
 	 * 
