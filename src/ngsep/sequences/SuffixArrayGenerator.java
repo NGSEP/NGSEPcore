@@ -19,7 +19,8 @@
  *******************************************************************************/
 package ngsep.sequences;
 
-
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.Arrays;
 
 /**
@@ -30,94 +31,85 @@ import java.util.Arrays;
  *
  */
 public class SuffixArrayGenerator {
-	private final static int Cte_Radix = 4; // == log2(16)
+	// -------------------------------------------------------------------------------
+	// CONSTANT VALUES
+	// -------------------------------------------------------------------------------
+	/**
+	 * models the radix factor (hex: 4 == log(16))
+	 */
+	private final static int Cte_Radix = 4;
+	/**
+	 * represents the maximum achievable value with CteRadix bites
+	 */
 	private final static int Cte_Radix_Bit = (int) Math.pow(2, Cte_Radix) - 1;
-	private final static int AlfabetStart = 34;
-	private final static int AlfabetEnd = 127;
+	/**
+	 * the ASCII interval that it handles
+	 */
+	private final static int AlfabetStart = 32, AlfabetEnd = 126;
+	// -------------------------------------------------------------------------------
+	// VARAIBLES
+	// -------------------------------------------------------------------------------
+	/**
+	 * the suffix Array
+	 */
 	private int[] ans;
 
+	// -------------------------------------------------------------------------------
+	// CONSTRUCTOR && PUBLIC METHODS
+	// -------------------------------------------------------------------------------
+	/**
+	 * 
+	 * @param charSequence
+	 *            the sequence to which the suffix array is calculated
+	 */
 	public SuffixArrayGenerator(CharSequence charSequence) {
-		int[] data = new int[charSequence.length() + 1];
-		byte[] map = new byte[AlfabetEnd - AlfabetStart + 1];
-		byte character;
+		NumberFormat n = new DecimalFormat("0.000");
+		long ini = System.currentTimeMillis();
+		byte[] map = getMap(charSequence);
+		int[] data = transform(charSequence, map);
 
-		for (int i = 0; i < charSequence.length(); i++) {
-			character = (byte) (charSequence.charAt(i) - AlfabetStart);
-			if (map[character] == 0)
-				map[character]++;
-		}
-
-		for (int i = 1; i < map.length; i++)
-			map[i] += map[i - 1];
-
-		data = new int[charSequence.length() + 1];
-		for (int i = 0; i < charSequence.length(); i++)
-			data[i] = map[charSequence.charAt(i) - AlfabetStart];
-
-		ans = getSuffix(data, (highestOneBitPos(map[map.length - 1]) / Cte_Radix) * Cte_Radix);
+		// map[map.length - 1] is the maximum possible value in data
+		ans = getSuffix(data, round(highestOneBitPos(map[map.length - 1])));
+		System.out.println(n.format((System.currentTimeMillis() - ini) / (double) 1000));
 	}
 
-	private int[] getSuffix(final int[] data, final int MaxBit) {
-		// variables
-		int[] ans, sort, sort2, SA;
-		// aux
-		int[] contSort, auxSort;
-		Stack loStack, hiStack, loStackAux = new Stack(), hiStackAux = new Stack();
-		int hi, hiAux, lo, loAux, Ci, Bi, d, bit, maxBitSA, ib, ic, k, idx;
-		boolean[] ranks;
-		// -----------------------------------------------------------------------------
-		// STEP #1: create C
-		// -----------------------------------------------------------------------------
-		sort = new int[(int) ((2 * data.length) / 3)];
-		Ci = 0;
-		for (int i = 1; i < data.length; i += 3)
-			sort[Ci++] = i;
-		int m = Ci;
-		for (int i = 2; i < data.length; i += 3)
-			sort[Ci++] = i;
+	/**
+	 * 
+	 * @return the suffix Array
+	 */
+	public int[] getSA() {
+		int[] answer = new int[ans.length - 1];
+		for (int i = 1; i < ans.length; i++) {
+			answer[i - 1] = ans[i];
+		}
+		return answer;
+	}
 
+	/**
+	 * 
+	 * @param data
+	 *            the chain to get the suffix array
+	 * @param MaxBit
+	 *            the maximum possible multiple Cte_Radix shift for at least one
+	 *            element of data to be different from 0
+	 * @return the suffix Array of data
+	 */
+	private static int[] getSuffix(final int[] data, final int MaxBit) {
 		// -----------------------------------------------------------------------------
-		// STEP #2: radix sort C
+		// STEP #1: create C (sort1)
 		// -----------------------------------------------------------------------------
-		contSort = new int[Cte_Radix_Bit + 3];
-		auxSort = new int[sort.length];
+		int[] sort1 = new int[(int) ((2 * data.length) / 3)];
+		// in sort[m] starts the module 2 values
+		int m = moduleThree(sort1, 1, 0, data.length);
+		moduleThree(sort1, 2, m, data.length);
+		// -----------------------------------------------------------------------------
+		// STEP #2: radix sort C = b1b2
+		// -----------------------------------------------------------------------------
+		Stack loStack = new Stack(0), hiStack = new Stack(sort1.length - 1);
 
-		loStack = new Stack(0);
-		hiStack = new Stack(Ci - 1);
-
-		d = 0;
-		bit = MaxBit;
+		int d = 0, bit = MaxBit;
 		while (!loStack.isEmpty() && d < 3) {
-
-			while (!loStack.isEmpty()) {
-				lo = loStack.pop();
-				hi = hiStack.pop();
-				Arrays.fill(contSort, 0);
-
-				for (int i = lo; i <= hi; i++)
-					contSort[((data[sort[i] + d] >>> bit) & Cte_Radix_Bit) + 2]++;
-
-				for (int i = 3; i < contSort.length; i++)
-					contSort[i] += contSort[i - 1];
-
-				for (int i = lo; i <= hi; i++)
-					auxSort[contSort[((data[sort[i] + d] >>> bit) & Cte_Radix_Bit) + 1]++] = sort[i];
-
-				for (int i = lo; i <= hi; i++)
-					sort[i] = auxSort[i - lo];
-
-				for (int act, prev = contSort[0], i = 1; prev != hi - lo + 1; prev = act, i++) {
-					act = contSort[i];
-					loAux = prev + lo;
-					hiAux = act - 1 + lo;
-					if (loAux < hiAux) {
-						loStackAux.add(loAux);
-						hiStackAux.add(hiAux);
-					}
-				}
-			}
-			Stack.exchange(loStack, loStackAux);
-			Stack.exchange(hiStack, hiStackAux);
+			radixSKA(sort1, loStack, hiStack, data, d, bit);
 
 			if (bit != 0)
 				bit -= Cte_Radix;
@@ -130,149 +122,358 @@ public class SuffixArrayGenerator {
 		// STEP #2.1: recursion
 		// -----------------------------------------------------------------------------
 		if (!loStack.isEmpty()) {
-			ranks = new boolean[sort.length];
+			boolean[] repeated = convertToBooleanArray(loStack, hiStack, sort1.length);
+			int[] r = new int[sort1.length + 1];
+			int maxValue = calculateR(r, m, sort1, repeated);
 
-			while (!loStack.isEmpty()) {
-				lo = loStack.pop();
-				hi = hiStack.pop();
-				for (int i = lo + 1; i <= hi; i++)
-					ranks[i] = true;
-			}
+			int[] SApr = getSuffix(r, round(highestOneBitPos(maxValue)));
 
-			sort2 = new int[Ci + 1];
-			d = 0;
-			for (int i = 0; i < sort.length; ++i) {
-				idx = sort[i];
-				if (!ranks[i])
-					++d;
-				sort2[idx % 3 == 1 ? idx / 3 : idx / 3 + m] = d;
-			}
-
-			int[] SApr = getSuffix(sort2, (highestOneBitPos(d) / Cte_Radix) * Cte_Radix);
-
+			// using the Suffix array of r finishes order sort1
 			for (int j = 1; j < SApr.length; j++) {
-				idx = SApr[j];
-				sort[j - 1] = (idx < m) ? idx * 3 + 1 : (idx - m) * 3 + 2;
+				int idx = SApr[j];
+				sort1[j - 1] = (idx < m) ? idx * 3 + 1 : (idx - m) * 3 + 2;
 			}
 		}
-
-		SA = new int[data.length];
-		for (int j = 1, i = 0; i < sort.length; i++, j++)
-			SA[sort[i]] = j;
-		maxBitSA = (highestOneBitPos(sort.length) / Cte_Radix) * Cte_Radix;
-
+		int[] partialSA = getPartialSA(sort1, data.length);
+		int maxBitSA = round(highestOneBitPos(sort1.length));
 		// -----------------------------------------------------------------------------
 		// STEP #3: Sorting the non sample Suffices b0
 		// -----------------------------------------------------------------------------
-		sort2 = new int[((data.length - 1) / 3) + 1];
-
-		Bi = 0;
-		for (int i = 0; i < data.length; i += 3)
-			sort2[Bi++] = i;
+		int[] sort2 = new int[((data.length - 1) / 3) + 1];
+		moduleThree(sort2, 0, 0, data.length);
 
 		loStack = new Stack(0);
-		hiStack = new Stack(Bi - 1);
+		hiStack = new Stack(sort2.length - 1);
 
 		bit = MaxBit;
 		while (loStack != null && bit >= 0) {
-			while (!loStack.isEmpty()) {
-				lo = loStack.pop();
-				hi = hiStack.pop();
-				Arrays.fill(contSort, 0);
-
-				for (int i = lo; i <= hi; i++)
-					contSort[((data[sort2[i]] >>> bit) & Cte_Radix_Bit) + 2]++;
-
-				for (int i = 3; i < contSort.length; i++)
-					contSort[i] += contSort[i - 1];
-
-				for (int i = lo; i <= hi; i++)
-					auxSort[contSort[((data[sort2[i]] >>> bit) & Cte_Radix_Bit) + 1]++] = sort2[i];
-
-				for (int i = lo; i <= hi; i++)
-					sort2[i] = auxSort[i - lo];
-
-				for (int i = 1; contSort[i - 1] != hi - lo + 1; i++) {
-					loAux = contSort[i - 1] + lo;
-					hiAux = contSort[i] - 1 + lo;
-					if (loAux < hiAux) {
-						loStackAux.add(loAux);
-						hiStackAux.add(hiAux);
-					}
-				}
-			}
-			Stack.exchange(loStack, loStackAux);
-			Stack.exchange(hiStack, hiStackAux);
+			radixSKA(sort2, loStack, hiStack, data, 0, bit);
 			bit -= Cte_Radix;
 		}
 		bit = maxBitSA;
 		while (loStack != null && bit >= 0) {
-			while (!loStack.isEmpty()) {
-				lo = loStack.pop();
-				hi = hiStack.pop();
-				Arrays.fill(contSort, 0);
-
-				for (int i = lo; i <= hi; i++)
-					contSort[((SA[sort2[i] + 1] >>> bit) & Cte_Radix_Bit) + 2]++;
-
-				for (int i = 3; i < contSort.length; i++)
-					contSort[i] += contSort[i - 1];
-
-				for (int i = lo; i <= hi; i++)
-					auxSort[contSort[((SA[sort2[i] + 1] >>> bit) & Cte_Radix_Bit) + 1]++] = sort2[i];
-
-				for (int i = lo; i <= hi; i++)
-					sort2[i] = auxSort[i - lo];
-
-				for (int i = 1; contSort[i - 1] != hi - lo + 1; i++) {
-					loAux = contSort[i - 1] + lo;
-					hiAux = contSort[i] - 1 + lo;
-					if (loAux < hiAux) {
-						loStackAux.add(loAux);
-						hiStackAux.add(hiAux);
-					}
-				}
-			}
-
-			Stack.exchange(loStack, loStackAux);
-			Stack.exchange(hiStack, hiStackAux);
-
+			radixSKA(sort2, loStack, hiStack, partialSA, 1, bit);
 			bit -= Cte_Radix;
 		}
 		// -----------------------------------------------------------------------------
 		// STEP #4: Merge
 		// -----------------------------------------------------------------------------
-		ans = new int[Bi + Ci];
-		ib = 0;
-		ic = 0;
-		k = 0;
-		while (ib != Ci && ic != Bi) {
-			int v, oi = sort[ib], oj = sort2[ic];
-			if (oi % 3 == 1) {
-				v = data[oj] - data[oi];
-				if (v == 0)
-					v = SA[oj + 1] - SA[oi + 1];
-			} else {
-				v = data[oj] - data[oi];
-				if (v == 0)
-					v = data[oj + 1] - data[oi + 1];
-				if (v == 0)
-					v = SA[oj + 2] - SA[oi + 2];
-			}
-			if (v < 0)
-				ans[k++] = sort2[ic++];
-			else
-				ans[k++] = sort[ib++];
-		}
-		while (ib != Ci)
-			ans[k++] = sort[ib++];
-		while (ic != Bi)
-			ans[k++] = sort2[ic++];
+		return merge(sort1, sort2, partialSA, data);
+	}
 
+	// -------------------------------------------------------------------------------
+	// PRIVATE METHODS
+	// -------------------------------------------------------------------------------
+
+	/**
+	 * 
+	 * @param c
+	 *            suffix array of c
+	 * @param b
+	 *            suffix array of b0
+	 * @param partialSA
+	 *            partial suffix matrix with the c indexes
+	 * @param data
+	 *            the original data
+	 * @return the SA
+	 */
+	private static int[] merge(final int[] c, final int[] b, final int[] partialSA, final int[] data) {
+		int[] ans = new int[data.length];
+		int indexC = 0, indexB = 0, indexAns = 0;
+		while (indexC != c.length && indexB != b.length) {
+			if (compare(b[indexB], c[indexC], data, partialSA) < 0)
+				ans[indexAns++] = b[indexB++];
+			else
+				ans[indexAns++] = c[indexC++];
+		}
+		while (indexC != c.length)
+			ans[indexAns++] = c[indexC++];
+		while (indexB != b.length)
+			ans[indexAns++] = b[indexB++];
 		return ans;
 	}
 
-	private static int highestOneBitPos(int i) {
+	/**
+	 * specific comparison for the merge
+	 * 
+	 * @param valueC
+	 *            value in array c
+	 * @param valueB
+	 *            value in array B
+	 * @param data
+	 *            the original data
+	 * @param partialSA
+	 *            partial suffix matrix with the c indexes
+	 * @return valueB - valueC
+	 */
+	private static int compare(int valueB, int valueC, final int[] data, final int[] partialSA) {
+		int ans;
+		if (valueC % 3 == 1) {
+			ans = data[valueB] - data[valueC];
+			if (ans == 0)
+				ans = partialSA[valueB + 1] - partialSA[valueC + 1];
+		} else {
+			ans = data[valueB] - data[valueC];
+			if (ans == 0)
+				ans = data[valueB + 1] - data[valueC + 1];
+			if (ans == 0)
+				ans = partialSA[valueB + 2] - partialSA[valueC + 2];
+		}
+		return ans;
+	}
+
+	/**
+	 * @param sort
+	 *            c sorted
+	 * @param size
+	 *            size of the data
+	 * @return a partial suffix matrix with the c indexes
+	 */
+	private static int[] getPartialSA(final int[] sort, final int size) {
+		int[] SA = new int[size];
+		for (int j = 1, i = 0; i < sort.length; i++, j++)
+			SA[sort[i]] = j;
+		return SA;
+
+	}
+
+	/**
+	 * 
+	 * @param r
+	 *            for every element it contains the ranking obtained when ordering
+	 *            the corresponding c(original values ​​of sort1) element
+	 * @param m
+	 *            in sort[m] starts the module 2 values
+	 * @param sort
+	 *            the sorted indexes
+	 * @param repeated
+	 *            array that represents the repeated elements
+	 * @return the maximum value in r
+	 */
+	private static int calculateR(int[] r, final int m, final int[] sort, final boolean[] repeated) {
+		int d = 0;
+		for (int i = 0; i < sort.length; ++i) {
+			int idx = sort[i];
+			if (!repeated[i])
+				++d;
+			r[idx % 3 == 1 ? idx / 3 : idx / 3 + m] = d;
+		}
+		return d;
+
+	}
+
+	/**
+	 * 
+	 * change the format of repeated intervals to a Boolean array
+	 * 
+	 * @param loStack,
+	 *            hiStack repeated intervals
+	 * @param size
+	 *            of the array
+	 * @return repeated intervals in Boolean array
+	 */
+	private static boolean[] convertToBooleanArray(Stack loStack, Stack hiStack, final int size) {
+		boolean[] repeated = new boolean[size];
+
+		while (!loStack.isEmpty()) {
+			int lo = loStack.pop();
+			int hi = hiStack.pop();
+			for (int i = lo + 1; i <= hi; i++)
+				repeated[i] = true;
+		}
+		return repeated;
+	}
+
+	/**
+	 * 
+	 * @param charSequence
+	 *            the CharSequence with the letters
+	 * @return an array where each letter in the sequence is assigned a value
+	 *         according to its lexicographical order, starts from 1.
+	 * 
+	 *         the letter is indexed by the value ASCII - alphabet Start
+	 */
+	private static byte[] getMap(final CharSequence charSequence) {
+		byte[] map = new byte[AlfabetEnd - AlfabetStart + 1];
+		boolean[] mark = new boolean[AlfabetEnd - AlfabetStart + 1];
+
+		// mark the appearances whit 1
+		for (int i = 0; i < charSequence.length(); i++) {
+			if (!mark[charSequence.charAt(i) - AlfabetStart]) {
+				map[charSequence.charAt(i) - AlfabetStart] = 1;
+				mark[charSequence.charAt(i) - AlfabetStart] = true;
+			}
+		}
+
+		prefix(map);
+		return map;
+	}
+
+	/**
+	 * 
+	 * @param charSequence
+	 *            the original char sequence
+	 * @param map
+	 *            the map with the value for each element
+	 * @return use the map to transform the char sequence in a numbers array, the
+	 *         last position represent the cut character $==0
+	 */
+	private static int[] transform(CharSequence charSequence, final byte[] map) {
+		int[] data = new int[charSequence.length() + 1];
+
+		for (int i = 0; i < charSequence.length(); i++)
+			data[i] = map[charSequence.charAt(i) - AlfabetStart];
+		return data;
+	}
+
+	/**
+	 * https://www.youtube.com/watch?v=zqs87a_7zxw
+	 * 
+	 * @param array
+	 *            the array of indexes to sort
+	 * @param loStack,
+	 *            hiStack contains the intervals to be sorted, ends with the
+	 *            intervals where there are repeated elements
+	 * @param data,
+	 *            d, bit every element i of array is ordered according to the
+	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 * 
+	 *            this extracts a hexadecimal number according to the bit shift of
+	 *            the d-th data element after i.
+	 */
+	private static void radixSKA(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
+			final int bit) {
+		final Stack loStackAux = new Stack(), hiStackAux = new Stack();
+		int[][] c = new int[2][Cte_Radix_Bit + 1];
+
+		while (!loStack.isEmpty()) {
+			int lo = loStack.pop();
+			int hi = hiStack.pop();
+
+			Arrays.fill(c[0], 0);
+			Arrays.fill(c[1], 0);
+
+			count(c, lo, hi, array, data, d, bit);
+			prefix(c);
+			locateUsingRotations(c, lo, array, data, d, bit);
+			extractIntervals(loStackAux, hiStackAux, c, lo, hi);
+		}
+
+		Stack.exchange(loStack, loStackAux);
+		Stack.exchange(hiStack, hiStackAux);
+	}
+
+	/**
+	 * using the range of the hexadecimal numbers, and the previous interval
+	 * calculates the intervals where there are repeated elements in the array
+	 * 
+	 * @param loStack,
+	 *            hiStack are used to store the new intervals
+	 * @param c
+	 *            the range of the hexadecimal numbers
+	 * @param lo
+	 *            the previous interval
+	 */
+	private static void extractIntervals(Stack loStack, Stack hiStack, int[][] c, final int lo, final int hi) {
+		for (int act, prev = 0, i = 0; prev != hi - lo + 1; prev = act, i++) {
+			act = c[1][i];
+			int loAux = prev + lo;
+			int hiAux = act - 1 + lo;
+			if (loAux < hiAux) {
+				loStack.add(loAux);
+				hiStack.add(hiAux);
+			}
+		}
+	}
+
+	/**
+	 * 
+	 * sorts the array elements based on the function, using the intervals of each
+	 * value.
+	 * 
+	 * @param c
+	 *            the intervals of each value.
+	 * @param lo
+	 *            the initial position in the array
+	 * @param array
+	 *            the array
+	 * @param data,
+	 *            d, bit function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 */
+	private static void locateUsingRotations(int[][] c, final int lo, int[] array, final int[] data, final int d,
+			final int bit) {
+		boolean fin = false;
+		while (!fin) {
+			fin = true;
+			for (int i = 0; i < c[0].length; i++) {
+				fin &= c[0][i] == c[1][i];
+				for (int j = c[0][i]; j < c[1][i]; j++)
+					exchange(array, lo + j, lo + c[0][(data[array[j + lo] + d] >>> bit) & Cte_Radix_Bit]++);
+			}
+		}
+	}
+
+	/**
+	 * 
+	 * save in c[1] the number of hexadecimal elements as a result of the function
+	 * on the elements of array from lo to hi
+	 * 
+	 * @param c
+	 *            to save
+	 * @param lo,
+	 *            hi array the array and the interval
+	 * @param data,
+	 *            d, bit function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 */
+	private static void count(int[][] c, final int lo, final int hi, final int[] array, final int[] data, final int d,
+			final int bit) {
+		for (int i = lo; i <= hi; i++)
+			c[1][(data[array[i] + d] >>> bit) & Cte_Radix_Bit]++;
+	}
+
+	/**
+	 * 
+	 * calculates the interval of each hexadecimal number based on the count
+	 * 
+	 * @param c
+	 *            the count.
+	 */
+	private static void prefix(int[][] c) {
+		for (int i = 1; i < Cte_Radix_Bit; i++)
+			c[0][i + 1] = c[1][i] = c[1][i] + c[1][i - 1];
+		c[0][1] = c[1][0];
+		c[1][Cte_Radix_Bit] += c[1][Cte_Radix_Bit - 1];
+	}
+
+	/**
+	 * fill the array from startPoint with the values ​​whose module equals
+	 * startValue that are less than maxValue
+	 * 
+	 * @param array
+	 *            the array where the values ​​go
+	 * @param startPoint
+	 *            the point from where the array begins to fill
+	 * @param startValue
+	 *            the value to which the module has to be equal
+	 * @param maxValue
+	 *            the maximum possible value
+	 * @return the maximum position that was filled +1
+	 */
+	private static int moduleThree(int[] array, final int startValue, final int startPoint, final int maxValue) {
+		int C = startPoint;
+		for (int i = startValue; i < maxValue; i += 3)
+			array[C++] = i;
+		return C;
+	}
+
+	/**
+	 * this method uses the principle of the binary search
+	 * 
+	 * @param i
+	 *            the number
+	 * @return the position of the most significant bit
+	 */
+	private static int highestOneBitPos(final int i) {
 		int lo = 0, hi = 31;
 		int m = 0, ans;
 		while (lo + 1 != hi) {
@@ -286,21 +487,105 @@ public class SuffixArrayGenerator {
 		return hi;
 	}
 
-	public int [] getSA() {
-		int [] answer = new int [ans.length-1];
-		for(int i=1;i<ans.length;i++) {
-			answer[i-1] = ans[i];
-		}
-		return answer;
+	/**
+	 * 
+	 * @param array
+	 *            the array to calculate the prefix
+	 */
+	private static void prefix(byte[] array) {
+		for (int i = 1; i < array.length; i++)
+			array[i] += array[i - 1];
 	}
 
 	/**
-	 * This class represents an integer stack
+	 * 
+	 * @param i
+	 *            the number to round
+	 * @return the smallest multiple of nearest Cte_Radix Cte_Radix
+	 */
+	private static int round(final int i) {
+		return (i / Cte_Radix) * Cte_Radix;
+	}
+
+	/**
+	 * swap the values of the indexes in array
+	 * 
+	 * @param array
+	 *            the array
+	 * @param i
+	 *            first index
+	 * @param j
+	 *            second index
+	 */
+	private static void exchange(int[] array, final int i, final int j) {
+		int t = array[i];
+		array[i] = array[j];
+		array[j] = t;
+	}
+
+	/**
+	 * 
+	 * @param array
+	 *            the array of indexes to sort
+	 * @param loStack,
+	 *            hiStack contains the intervals to be sorted, ends with the
+	 *            intervals where there are repeated elements
+	 * @param data,
+	 *            d, bit every element i of array is ordered according to the
+	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 * 
+	 *            this extracts a hexadecimal number according to the bit shift of
+	 *            the d-th data element after i.
+	 */
+	public static void radixCount(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
+			final int bit) {
+		final Stack loStackAux = new Stack(), hiStackAux = new Stack();
+		final int[] contSort = new int[Cte_Radix_Bit + 3];
+		final int[] auxSort = new int[array.length];
+
+		while (!loStack.isEmpty()) {
+			int lo = loStack.pop();
+			int hi = hiStack.pop();
+
+			Arrays.fill(contSort, 0);
+
+			for (int i = lo; i <= hi; i++)
+				contSort[((data[array[i] + d] >>> bit) & Cte_Radix_Bit) + 2]++;
+
+			for (int i = 3; i < contSort.length; i++)
+				contSort[i] += contSort[i - 1];
+
+			for (int i = lo; i <= hi; i++)
+				auxSort[contSort[((data[array[i] + d] >>> bit) & Cte_Radix_Bit) + 1]++] = array[i];
+
+			for (int i = lo; i <= hi; i++)
+				array[i] = auxSort[i - lo];
+
+			for (int act, prev = contSort[0], i = 1; prev != hi - lo + 1; prev = act, i++) {
+				act = contSort[i];
+				int loAux = prev + lo;
+				int hiAux = act - 1 + lo;
+				if (loAux < hiAux) {
+					loStackAux.add(loAux);
+					hiStackAux.add(hiAux);
+				}
+			}
+		}
+
+		Stack.exchange(loStack, loStackAux);
+		Stack.exchange(hiStack, hiStackAux);
+	}
+
+	// -------------------------------------------------------------------------------
+	// PRIVATE CLASS
+	// -------------------------------------------------------------------------------
+	/**
+	 * This class represents an int stack
 	 * 
 	 * @author jc.bojaca
 	 */
 	private static class Stack {
-		private Int apunt;
+		private Element apunt;
 
 		public Stack() {
 			apunt = null;
@@ -308,7 +593,7 @@ public class SuffixArrayGenerator {
 
 		public Stack(int i) {
 			apunt = null;
-			Int temp = new Int(i);
+			Element temp = new Element(i);
 			temp.sig = null;
 			apunt = temp;
 		}
@@ -324,22 +609,22 @@ public class SuffixArrayGenerator {
 		}
 
 		public void add(int i) {
-			Int temp = new Int(i);
+			Element temp = new Element(i);
 			temp.sig = apunt;
 			apunt = temp;
 		}
 
 		public static void exchange(Stack a, Stack b) {
-			Int temp = a.apunt;
+			Element temp = a.apunt;
 			a.apunt = b.apunt;
 			b.apunt = temp;
 		}
 
-		private static class Int {
-			Int sig;
+		private static class Element {
+			Element sig;
 			int val;
 
-			public Int(int val) {
+			public Element(int val) {
 				this.val = val;
 			}
 		}
