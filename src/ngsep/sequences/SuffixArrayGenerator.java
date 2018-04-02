@@ -110,8 +110,8 @@ public class SuffixArrayGenerator {
 
 		int d = 0, bit = MaxBit;
 		while (!loStack.isEmpty() && d < 3) {
-			radixSKA(sort1, loStack, hiStack, data, d, bit);
-
+			radixSort(sort1, loStack, hiStack, data, d, bit);
+			
 			if (bit != 0)
 				bit -= Cte_Radix;
 			else {
@@ -148,12 +148,12 @@ public class SuffixArrayGenerator {
 
 		bit = MaxBit;
 		while (loStack != null && bit >= 0) {
-			radixSKA(sort2, loStack, hiStack, data, 0, bit);
+			radixSort(sort2, loStack, hiStack, data, 0, bit);
 			bit -= Cte_Radix;
 		}
 		bit = maxBitSA;
 		while (loStack != null && bit >= 0) {
-			radixSKA(sort2, loStack, hiStack, partialSA, 1, bit);
+			radixSort(sort2, loStack, hiStack, partialSA, 1, bit);
 			bit -= Cte_Radix;
 		}
 		// -----------------------------------------------------------------------------
@@ -327,6 +327,11 @@ public class SuffixArrayGenerator {
 		return data;
 	}
 
+	private static void radixSort(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d, final int bit) {
+		//radixSKA(array, loStack, hiStack, data, d, bit);
+		radixCount(array, loStack, hiStack, data, d, bit);
+	}
+	
 	/**
 	 * https://www.youtube.com/watch?v=zqs87a_7zxw
 	 * 
