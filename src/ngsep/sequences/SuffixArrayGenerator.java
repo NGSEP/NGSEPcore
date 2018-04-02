@@ -69,8 +69,13 @@ public class SuffixArrayGenerator {
 		byte[] map = getMap(charSequence);
 		int[] data = transform(charSequence, map);
 
+		int[] sort1 = new int[(int) ((2 * data.length) / 3)];
+		int[] sort2 = new int[((data.length - 1) / 3) + 1];
+		int[] auxSort = new int[data.length];
+		final int[] contSort = new int[Cte_Radix_Bit + 3];
+
 		// map[map.length - 1] is the maximum possible value in data
-		ans = getSuffix(data, round(highestOneBitPos(map[map.length - 1])));
+		ans = getSuffix(data, round(highestOneBitPos(map[map.length - 1])), sort1, sort2, auxSort, contSort);
 		System.out.println(n.format((System.currentTimeMillis() - ini) / (double) 1000));
 	}
 
@@ -95,22 +100,22 @@ public class SuffixArrayGenerator {
 	 *            element of data to be different from 0
 	 * @return the suffix Array of data
 	 */
-	private static int[] getSuffix(final int[] data, final int MaxBit) {
+	private static int[] getSuffix(final int[] data, final int MaxBit, final int[] sort1, final int[] sort2,
+			final int[] auxSort, final int[] contSort) {
 		// -----------------------------------------------------------------------------
 		// STEP #1: create C (sort1)
 		// -----------------------------------------------------------------------------
-		int[] sort1 = new int[(int) ((2 * data.length) / 3)];
 		// in sort[m] starts the module 2 values
 		int m = moduleThree(sort1, 1, 0, data.length);
-		moduleThree(sort1, 2, m, data.length);
+		int c = moduleThree(sort1, 2, m, data.length);
 		// -----------------------------------------------------------------------------
 		// STEP #2: radix sort C = b1b2
 		// -----------------------------------------------------------------------------
-		Stack loStack = new Stack(0), hiStack = new Stack(sort1.length - 1);
+		Stack loStack = new Stack(0), hiStack = new Stack(c - 1);
 
 		int d = 0, bit = MaxBit;
 		while (!loStack.isEmpty() && d < 3) {
-			radixSort(sort1, loStack, hiStack, data, d, bit);
+			radixSort(sort1, loStack, hiStack, data, d, bit, auxSort, contSort);
 
 			if (bit != 0)
 				bit -= Cte_Radix;
@@ -123,11 +128,11 @@ public class SuffixArrayGenerator {
 		// STEP #2.1: recursion
 		// -----------------------------------------------------------------------------
 		if (!loStack.isEmpty()) {
-			boolean[] repeated = convertToBooleanArray(loStack, hiStack, sort1.length);
-			int[] r = new int[sort1.length + 1];
-			int maxValue = calculateR(r, m, sort1, repeated);
+			boolean[] repeated = convertToBooleanArray(loStack, hiStack, c);
+			int[] r = new int[c + 1];
+			int maxValue = calculateR(r, m, sort1, c, repeated);
 
-			int[] SApr = getSuffix(r, round(highestOneBitPos(maxValue)));
+			int[] SApr = getSuffix(r, round(highestOneBitPos(maxValue)), sort1, sort2, auxSort, contSort);
 
 			// using the Suffix array of r finishes order sort1
 			for (int j = 1; j < SApr.length; j++) {
@@ -135,31 +140,30 @@ public class SuffixArrayGenerator {
 				sort1[j - 1] = (idx < m) ? idx * 3 + 1 : (idx - m) * 3 + 2;
 			}
 		}
-		int[] partialSA = getPartialSA(sort1, data.length);
+		int[] partialSA = getPartialSA(sort1, c, data.length);
 		int maxBitSA = round(highestOneBitPos(sort1.length));
 		// -----------------------------------------------------------------------------
 		// STEP #3: Sorting the non sample Suffices b0
 		// -----------------------------------------------------------------------------
-		int[] sort2 = new int[((data.length - 1) / 3) + 1];
-		moduleThree(sort2, 0, 0, data.length);
+		int b = moduleThree(sort2, 0, 0, data.length);
 
 		loStack = new Stack(0);
-		hiStack = new Stack(sort2.length - 1);
+		hiStack = new Stack(b - 1);
 
 		bit = MaxBit;
 		while (loStack != null && bit >= 0) {
-			radixSort(sort2, loStack, hiStack, data, 0, bit);
+			radixSort(sort2, loStack, hiStack, data, 0, bit, auxSort, contSort);
 			bit -= Cte_Radix;
 		}
 		bit = maxBitSA;
 		while (loStack != null && bit >= 0) {
-			radixSort(sort2, loStack, hiStack, partialSA, 1, bit);
+			radixSort(sort2, loStack, hiStack, partialSA, 1, bit, auxSort, contSort);
 			bit -= Cte_Radix;
 		}
 		// -----------------------------------------------------------------------------
 		// STEP #4: Merge
 		// -----------------------------------------------------------------------------
-		return merge(sort1, sort2, partialSA, data);
+		return merge(sort1, c, sort2, b, partialSA, data);
 	}
 
 	// -------------------------------------------------------------------------------
@@ -178,18 +182,19 @@ public class SuffixArrayGenerator {
 	 *            the original data
 	 * @return the SA
 	 */
-	private static int[] merge(final int[] c, final int[] b, final int[] partialSA, final int[] data) {
+	private static int[] merge(final int[] c, final int sizeC, final int[] b, final int sizeB, final int[] partialSA,
+			final int[] data) {
 		int[] ans = new int[data.length];
 		int indexC = 0, indexB = 0, indexAns = 0;
-		while (indexC != c.length && indexB != b.length) {
+		while (indexC != sizeC && indexB != sizeB) {
 			if (compare(b[indexB], c[indexC], data, partialSA) < 0)
 				ans[indexAns++] = b[indexB++];
 			else
 				ans[indexAns++] = c[indexC++];
 		}
-		while (indexC != c.length)
+		while (indexC != sizeC)
 			ans[indexAns++] = c[indexC++];
-		while (indexB != b.length)
+		while (indexB != sizeB)
 			ans[indexAns++] = b[indexB++];
 		return ans;
 	}
@@ -230,9 +235,9 @@ public class SuffixArrayGenerator {
 	 *            size of the data
 	 * @return a partial suffix matrix with the c indexes
 	 */
-	private static int[] getPartialSA(final int[] sort, final int size) {
+	private static int[] getPartialSA(final int[] sort, int c, final int size) {
 		int[] SA = new int[size];
-		for (int j = 1, i = 0; i < sort.length; i++, j++)
+		for (int j = 1, i = 0; i < c; i++, j++)
 			SA[sort[i]] = j;
 		return SA;
 
@@ -251,9 +256,9 @@ public class SuffixArrayGenerator {
 	 *            array that represents the repeated elements
 	 * @return the maximum value in r
 	 */
-	private static int calculateR(int[] r, final int m, final int[] sort, final boolean[] repeated) {
+	private static int calculateR(int[] r, final int m, final int[] sort, final int c, final boolean[] repeated) {
 		int d = 0;
-		for (int i = 0; i < sort.length; ++i) {
+		for (int i = 0; i < c; ++i) {
 			int idx = sort[i];
 			if (!repeated[i])
 				++d;
@@ -326,9 +331,9 @@ public class SuffixArrayGenerator {
 	}
 
 	private static void radixSort(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
-			final int bit) {
+			final int bit, final int[] auxSort, final int[] contSort) {
 		// radixSKA(array, loStack, hiStack, data, d, bit);
-		radixCount(array, loStack, hiStack, data, d, bit);
+		radixCount(array, loStack, hiStack, data, d, bit, auxSort, contSort);
 	}
 
 	/**
@@ -543,10 +548,8 @@ public class SuffixArrayGenerator {
 	 *            the d-th data element after i.
 	 */
 	public static void radixCount(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
-			final int bit) {
+			final int bit, final int[] auxSort, final int[] contSort) {
 		final Stack loStackAux = new Stack(), hiStackAux = new Stack();
-		final int[] contSort = new int[Cte_Radix_Bit + 3];
-		final int[] auxSort = new int[array.length];
 
 		while (!loStack.isEmpty()) {
 			int lo = loStack.pop();
