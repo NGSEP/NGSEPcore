@@ -301,8 +301,8 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 	/**
 	 * Returns the number corresponding with a suitable size substring of the given sequence 
 	 * @param seq Sequence to calculate hash
-	 * @param start Zero based first position
-	 * @param end Zero based last position
+	 * @param start Zero based start position
+	 * @param end Zero based end position
 	 * @param targetSeq AbstractLimitedSequence having the target alphabet
 	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
 	 */

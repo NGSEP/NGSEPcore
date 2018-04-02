@@ -40,8 +40,11 @@ public class VCFRecord implements GenomicRegion {
 	
 	public static final String FORMAT_GENOTYPE = "GT";
 	public static final String FORMAT_GENOTYPE_PHRED_LIKELIHOOD = "PL";
+	public static final String FORMAT_GENOTYPE_LIKELIHOOD = "GL";
 	public static final String FORMAT_GENOTYPE_QUALITY = "GQ";
 	public static final String FORMAT_DEPTH = "DP";
+	
+	
 	
 	//New genotype attributes
 	
@@ -90,7 +93,7 @@ public class VCFRecord implements GenomicRegion {
 	//Constants to keep arrays with format fields that can be understood by NGSEP
 	public static final int FORMAT_IDX_GT = 0;
 	public static final int FORMAT_IDX_PL = 1;
-	//public static final int FORMAT_IDX_GP = 2;
+	public static final int FORMAT_IDX_GL = 2;
 	public static final int FORMAT_IDX_GQ = 3;
 	public static final int FORMAT_IDX_DP = 4;
 	public static final int FORMAT_IDX_ADP = 5;
@@ -113,6 +116,7 @@ public class VCFRecord implements GenomicRegion {
 		Map<String, Integer> answer = new TreeMap<String, Integer>();
 		answer.put(FORMAT_GENOTYPE, FORMAT_IDX_GT);
 		answer.put(FORMAT_GENOTYPE_PHRED_LIKELIHOOD, FORMAT_IDX_PL);
+		answer.put(FORMAT_GENOTYPE_LIKELIHOOD, FORMAT_IDX_GL);
 		answer.put(FORMAT_GENOTYPE_QUALITY, FORMAT_IDX_GQ);
 		answer.put(FORMAT_DEPTH, FORMAT_IDX_DP);
 		answer.put(FORMAT_ALLELE_DEPTH, FORMAT_IDX_ADP);
@@ -141,6 +145,7 @@ public class VCFRecord implements GenomicRegion {
 		String [] answer = new String[14];
 		answer[FORMAT_IDX_GT] = FORMAT_GENOTYPE;
 		answer[FORMAT_IDX_PL] = FORMAT_GENOTYPE_PHRED_LIKELIHOOD;
+		answer[FORMAT_IDX_GL] = FORMAT_GENOTYPE_LIKELIHOOD;
 		answer[FORMAT_IDX_GQ] = FORMAT_GENOTYPE_QUALITY;
 		answer[FORMAT_IDX_DP] = FORMAT_DEPTH;
 		answer[FORMAT_IDX_ADP] = FORMAT_ALLELE_DEPTH;

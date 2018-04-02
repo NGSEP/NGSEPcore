@@ -1,6 +1,7 @@
 package ngsep.benchmark;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,11 +12,14 @@ import java.util.Set;
 
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.math.LogMath;
+import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.VariantCallReport;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -79,11 +83,11 @@ public class VCFGoldStandardComparator {
 						idxTest++;
 						continue;
 					}
+					short qualTest = loadGenotypeQuality(callTest);
 					int lastBefore = (idxTest == 0 || !callsTest.get(idxTest-1).getSequenceName().equals(callTest.getSequenceName()))? 0:callsTest.get(idxTest-1).getLast();
 					int firstAfter = (idxTest == callsTest.size()-1 || !callsTest.get(idxTest+1).getSequenceName().equals(callTest.getSequenceName()))? seqNames.get(callTest.getSequenceName()).getLength():callsTest.get(idxTest+1).getFirst();
 					callTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
 					byte type = loadType(callTest);
-					short qualTest = callTest.getGenotypeQuality();
 					int column = getGenotypeNumber(callTest);
 					int cmp = compRegion.compare(callGS, callTest);
 					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+" call test: "+callTest.getFirst()+" type: "+type+" column: "+column+" comparison: "+cmp);
@@ -170,7 +174,7 @@ public class VCFGoldStandardComparator {
 				CalledGenomicVariant callTest = callsTest.get(idxTest);
 				if(!callTest.isUndecided()) {
 					byte typeTest = loadType(callTest);
-					short qualTest = callTest.getGenotypeQuality();
+					short qualTest = loadGenotypeQuality(callTest);
 					int n2 = getGenotypeNumber(callTest);
 					countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),12+n2);
 					VCFRecord rTest = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
@@ -291,10 +295,34 @@ public class VCFGoldStandardComparator {
 		else if (!call.isHomozygousReference()) return 2;
 		return 0;
 	}
+	private short loadGenotypeQuality(CalledGenomicVariant call) {
+		short q = call.getGenotypeQuality();
+		if(q>0) return q;
+		String [] alleles = call.getAlleles();
+		String [] calledAlleles = call.getCalledAlleles();
+		VariantCallReport report = call.getCallReport();
+		if(report==null || calledAlleles.length==0 || !report.logConditionalsPresent()) return 0;
+		double logP;
+		Double sum=null;
+		if(calledAlleles.length==1) logP = report.getLogConditionalProbability(calledAlleles[0], calledAlleles[0]);
+		else logP = report.getLogConditionalProbability(calledAlleles[0], calledAlleles[1]);
+		for(int i=0;i<alleles.length;i++) {
+			for(int j=i;j<alleles.length;j++) {
+				sum = LogMath.logSum(sum, report.getLogConditionalProbability(alleles[i], alleles[j]));
+			}
+		}
+		double logPos = LogMath.logProduct(logP, -sum);
+		double pos = LogMath.power10(logPos);
+		q = PhredScoreHelper.calculatePhredScore(1-pos);
+		call.setGenotypeQuality(q);
+		//if(call.getFirst()==376) System.out.println("Conditional P: "+logP+" sum: "+sum+" logpos: "+logPos+" posterior: "+pos+" q: "+q);
+		return q;
+	}
 }
 class GoldStandardComparisonCounts {
 	public static final int NUM_ROWS_COUNTS = 10;
 	private int [][] counts;
+	private static final DecimalFormat DF = new DecimalFormat("0.0000");
 	public GoldStandardComparisonCounts () {
 		counts = new int [NUM_ROWS_COUNTS][15];
 	}
@@ -311,8 +339,57 @@ class GoldStandardComparisonCounts {
 			for(int j=0;j<counts[0].length;j++) {
 				out.print("\t"+counts[i][j]);
 			}
+			printComparisonStats(counts[i], out);
 			out.println();
 		}
+	}
+
+	private void printComparisonStats(int[] row, PrintStream out) {
+		int gsTotal0 = row[0]+row[1]+row[2]+row[9];
+		int gsTotal1 = row[3]+row[4]+row[5]+row[10];
+		int gsTotal2 = row[6]+row[7]+row[8]+row[11];
+		out.print("\t"+gsTotal0+"\t"+gsTotal1+"\t"+gsTotal2);
+		
+		int testTotal0 = row[0]+row[3]+row[6]+row[12];
+		int testTotal1 = row[1]+row[4]+row[7]+row[13];
+		int testTotal2 = row[2]+row[5]+row[8]+row[14];
+		out.print("\t"+testTotal0+"\t"+testTotal1+"\t"+testTotal2);
+		
+		double recall1 = 0;
+		if(gsTotal1>0) {
+			recall1 = (double)row[4] / gsTotal1;
+		}
+		int fd1 = row[1] + row [7] + row[13];
+		double fdr1 = 0;
+		double precision1 = 1;
+		if(testTotal1>1) {
+			fdr1 = (double)fd1 / testTotal1;
+			precision1 = (double)row[4] / testTotal1;
+		}
+		double f1 = 0;
+		if(precision1 + recall1 > 0) {
+			f1 = 2.0*precision1*recall1/(precision1+recall1);
+		}
+		
+		out.print("\t"+DF.format(recall1)+"\t"+fd1+"\t"+DF.format(fdr1)+"\t"+DF.format(precision1)+"\t"+DF.format(f1));
+		
+		double recall2 = 0;
+		if(gsTotal2>0) {
+			recall2 = (double)row[8] / gsTotal2;
+		}
+		int fd2 = row[2] + row [5] + row[14];
+		double fdr2 = 0;
+		double precision2 = 1;
+		if(testTotal2>0) {
+			fdr2 = (double)fd2 / testTotal2;
+			precision2 = (double)row[8] / testTotal2;
+		}
+		double f2 = 0;
+		if(precision2 + recall2 > 0) {
+			f2 = 2.0*precision2*recall2/(precision2+recall2);
+		}
+		out.print("\t"+DF.format(recall2)+"\t"+fd2+"\t"+DF.format(fdr2)+"\t"+DF.format(precision2)+"\t"+DF.format(f2));
+		
 	}
 	
 }

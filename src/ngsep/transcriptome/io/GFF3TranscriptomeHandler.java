@@ -118,7 +118,11 @@ public class GFF3TranscriptomeHandler {
 						featureLine = loadFeatureLine(line,i); 
 					} catch (RuntimeException e) {
 						e.printStackTrace();
-						log.warning("Can not load genomic feature at line: "+line+". Unrecognized sequence name. "+e.getMessage());
+						log.warning("Error loading line "+line+". "+e.getMessage());
+						line=in.readLine();
+						continue;
+					}
+					if(featureLine==null) {
 						line=in.readLine();
 						continue;
 					}
@@ -263,9 +267,29 @@ public class GFF3TranscriptomeHandler {
 	public GFF3GenomicFeatureLine loadFeatureLine (String line, int lineNumber) {
 		String [] items = ParseUtils.parseString(line, '\t');
 		//Memory saver for sequenceNames
-		QualifiedSequence seq = sequenceNames.addOrLookupName(items[0]);
+		QualifiedSequence seq;
+		try {
+			seq = sequenceNames.addOrLookupName(items[0]);
+		} catch (Exception e2) {
+			log.warning("Can not load genomic feature at line: "+line+". Unrecognized sequence name. "+items[0]);
+			return null;
+		}
 		String type = loadType(items[2]);
-		GFF3GenomicFeatureLine answer = new GFF3GenomicFeatureLine(seq.getName(), Integer.parseInt(items[3]), Integer.parseInt(items[4]),type);
+		int first;
+		try {
+			first = Integer.parseInt(items[3]);
+		} catch (NumberFormatException e1) {
+			log.warning("Error loading feature at line "+line+". Start coordinate must be a positive integer");
+			return null;
+		}
+		int last;
+		try {
+			last = Integer.parseInt(items[4]);
+		} catch (NumberFormatException e1) {
+			log.warning("Error loading feature at line "+line+". End coordinate must be a positive integer");
+			return null;
+		}
+		GFF3GenomicFeatureLine answer = new GFF3GenomicFeatureLine(seq.getName(), first, last,type);
 		answer.setSource(items[1]);
 		answer.setLineNumber(lineNumber);
 		answer.setNegativeStrand(items[6].charAt(0)=='-');
