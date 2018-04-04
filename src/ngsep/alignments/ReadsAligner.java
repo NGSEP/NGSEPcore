@@ -150,49 +150,18 @@ public class ReadsAligner {
 	public List<ReadAlignment> exactSearch (FMIndex fMIndex, RawRead read) {
 		return fMIndex.search(read.getSequenceString());
 	}
+	
 	/**
-	 * 
-	 * @param fMIndex
-	 * @param read 
+	 * First approach to allow inexact search
 	 * @return 
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
 	{
-		//Find Kmers
 		CharSequence[] kmers = KmersCounter.extractKmers(read.getCharacters().toString(), SEARCH_KMER_LENGTH, true);
 		
-		//Stores the aligments of each sequence of the genome, the alignment store their kmerNumber in the 
-		//MateFirst field
-		HashMap<String,List<ReadAlignment>> seqHits =  new HashMap<String,List<ReadAlignment>>();
+		int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
 		
-		//Avoid overlaps
-		int kmersCount=0;
-		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
-		{
-			//Exit loop if kmers[i] is null
-			if(kmers[i]==null)
-				continue;
-			
-			String kmer =kmers[i].toString();
-			
-			//Where is located the kmer in exact way
-			List<ReadAlignment> regions=fMIndex.search(kmer);
-			
-			for(ReadAlignment aln:regions)
-			{
-				//Use mate start to store the kmer start site producing the hit
-				aln.setMateFirst(i);
-				
-				List<ReadAlignment> seqAlns = seqHits.get(aln.getSequenceName());
-
-				if(seqAlns==null) {
-					seqAlns = new ArrayList<>();
-					seqHits.put(aln.getSequenceName(), seqAlns);
-				}
-				seqAlns.add(aln);
-			}
-			kmersCount++;
-		}
+		HashMap<String, List<ReadAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
 		
 		//Processing part
 		
@@ -219,7 +188,63 @@ public class ReadsAligner {
 		}
 		
 		
-		//TODO: Implement
 		return finalAlignments;
+	}
+	
+	/**
+	 * It basically get the no overlapping kmers of  SEARCH_KMER_LENGTH length in the @param read 
+	 * and find each alignment of each kmer using the @param fMIndex, then iterates the alignments of
+	 * each kmer to difference the sequences, 
+	 * @param kmers
+	 * @return HashMap with key SequenceName and value a List of alignments that in MateFirst has the 
+	 * kmer value.
+	 */
+	private HashMap<String, List<ReadAlignment>> getSequenceHits(FMIndex fMIndex, RawRead read,CharSequence[] kmers) {
+		//Find Kmers
+		
+		//TODO create a class to store the alignment and the kmer instead of using the MateFirst field
+		
+		//Stores the aligments of each sequence of the genome, the alignment store their kmerNumber in the 
+		//MateFirst field
+		HashMap<String,List<ReadAlignment>> seqHits =  new HashMap<String,List<ReadAlignment>>();
+		
+		//Avoid overlaps
+		
+		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
+		{
+			//kmersCount++;
+			//Exit loop if kmers[i] is null
+			if(kmers[i]==null)
+				continue;
+			
+			String kmer =kmers[i].toString();
+			if(kmer.length()!=SEARCH_KMER_LENGTH)
+			{
+				try {
+					throw new Exception("dif");
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			//Where is located the kmer in exact way
+			List<ReadAlignment> regions=fMIndex.search(kmer);
+			
+			for(ReadAlignment aln:regions)
+			{
+				//Use mate start to store the kmer start site producing the hit
+				aln.setMateFirst(i);
+				
+				List<ReadAlignment> seqAlns = seqHits.get(aln.getSequenceName());
+
+				if(seqAlns==null) {
+					seqAlns = new ArrayList<>();
+					seqHits.put(aln.getSequenceName(), seqAlns);
+				}
+				seqAlns.add(aln);
+			}
+		}
+		return seqHits;
 	}
 }
