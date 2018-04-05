@@ -251,27 +251,32 @@ public class KmersCounter {
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
+	 * if source.length()<kmerSize returns null
 	 */
 	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, int first, int last, boolean onlyDNA) {
-		int n = source.length();
-		int lastKmerStart = Math.min(last, n - kmerSize); 
-		CharSequence [] kmers = new CharSequence [lastKmerStart+1];
-		Arrays.fill(kmers, null);
-		for(int i = Math.max(0, first); i <=lastKmerStart; i++)
-		{
-			String kmerStr = source.subSequence(i,kmerSize + i).toString();
-			kmerStr = kmerStr.toUpperCase();
-			CharSequence kmer = kmerStr;
-			try {
-				if(kmerSize<=31) {
-					kmer = new DNAShortKmer(kmer);
-				} else {
-					kmer = new DNASequence(kmer);
+		CharSequence [] kmers =null;
+		if(source.length()>=kmerSize)
+			{
+			int n = source.length();
+			int lastKmerStart = Math.min(last, n - kmerSize); 
+			kmers = new CharSequence [lastKmerStart+1];
+			Arrays.fill(kmers, null);
+			for(int i = Math.max(0, first); i <=lastKmerStart; i++)
+			{
+				String kmerStr = source.subSequence(i,kmerSize + i).toString();
+				kmerStr = kmerStr.toUpperCase();
+				CharSequence kmer = kmerStr;
+				try {
+					if(kmerSize<=31) {
+						kmer = new DNAShortKmer(kmer);
+					} else {
+						kmer = new DNASequence(kmer);
+					}
+				} catch (IllegalArgumentException e) {
+					if(onlyDNA) continue;
 				}
-			} catch (IllegalArgumentException e) {
-				if(onlyDNA) continue;
+				kmers[i]=kmer;
 			}
-			kmers[i]=kmer;
 		}
 		return kmers;
 	}
