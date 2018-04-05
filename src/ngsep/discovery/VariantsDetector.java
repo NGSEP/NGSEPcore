@@ -919,20 +919,24 @@ public class VariantsDetector implements PileupListener {
 		strsC.addAll(strs);
 		GenomicRegionSortedCollection<GenomicVariant> answer = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
 		
-		for(String s:sequences.getNamesStringList()) {
+		for(QualifiedSequence seq:sequences) {
+			String seqName = seq.getName();
 			int first = 0;
 			int last = 0;
-			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(s);
+			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(seqName);
 			for(GenomicRegion r:seqSTRs) {
-				if(last == 0 || !mergeSTRs(s,first,last,r)) {
-					GenomicVariant nextVar = makeSTRVariant(s, first-1,last+1);
-					if(nextVar!=null) answer.add(nextVar);
+				if(last == 0 || !mergeSTRs(seqName,first,last,r)) {
+					if(last>0) {
+						GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+						if(nextVar!=null) answer.add(nextVar);
+					}
+					
 					first = r.getFirst();
 				}
 				last = r.getLast();
 			}
 			if(last>0) {
-				GenomicVariant nextVar = makeSTRVariant(s, first-1,last+1);
+				GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
 				if(nextVar!=null) answer.add(nextVar);
 			}
 		}
