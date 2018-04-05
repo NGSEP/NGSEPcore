@@ -132,6 +132,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				GenomicVariant var = seqInputVariants.get(idxNextVariant);
 				int first = var.getFirst();
 				int last = var.getLast();
+				if(currentPos==posPrint)System.out.println("Next variant. "+var.getSequenceName()+":"+first+"-"+last);
 				if (currentPos<first) break;
 				else if(first<=currentPos && currentPos<=last) return var;
 				//System.out.println("Passed STR at "+currentReferenceName+":"+first+"-"+last+" current reference pos: "+currentReferencePos);

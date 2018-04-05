@@ -38,6 +38,7 @@ public class AlleleCallClustersBuilder {
 			Set<String> suggestedAllelesSet = getAllelesByLength(suggestedAlleles,l);
 			Map<String,List<String>> lengthClusters;
 			if(allowNewAlleles) {
+				//if(l==13) System.out.println("Suggested alleles set: "+suggestedAllelesSet+" calls: "+callsL+" initial suggested: "+suggestedAlleles.length);
 				if(callsL.size()<5*suggestedAllelesSet.size()) {
 					//With low coverage and suggested alleles (probably the reference), only those are taken into account
 					lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
@@ -73,6 +74,8 @@ public class AlleleCallClustersBuilder {
 	 */
 	private Map<Integer, List<String>> filterLengthClusters() {
 		Map<Integer, List<String>> answer = new HashMap<>();
+		//Only filter if more than 2 length clusters
+		if(alleleCallsByLength.size()<3) return alleleCallsByLength;
 		double minCount  = minRelativeProportion*totalAlleleCalls; 
 		for(int l:alleleCallsByLength.keySet()) {
 			List<String> allelesL = alleleCallsByLength.get(l);
