@@ -945,6 +945,7 @@ public class VariantsDetector implements PileupListener {
 	}
 	private boolean mergeSTRs(String sequenceName, int first, int last, GenomicRegion r) {
 		if(r.getFirst()>last+5) return false;
+		else if (last-r.getFirst()>0) return true;
 		CharSequence ref1 = genome.getReference(sequenceName, Math.max(first, last-10), last);
 		CharSequence ref2 = genome.getReference(sequenceName, r.getFirst(), r.getLast());
 		if(ref1==null || ref2==null) return false;
