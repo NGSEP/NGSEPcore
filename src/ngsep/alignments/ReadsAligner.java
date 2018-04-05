@@ -159,33 +159,36 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
 	{
+		//System.out.println("KmersCounter.extractKmers: "+read.getCharacters().toString().length());
 		CharSequence[] kmers = KmersCounter.extractKmers(read.getCharacters().toString(), SEARCH_KMER_LENGTH, true);
 
-		int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
-
-		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
-
-		//Processing part
-
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
-		KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
-		for (String sequenceName: seqHits.keySet())
+		if(kmers!=null)
 		{
-			Set<Integer> kmersInSequence= new HashSet<>();
-			List<KmerAlignment> alns = seqHits.get(sequenceName);
-			System.out.println(alns.size());
-			Collections.sort(alns,cmp);
-			for (int i = 0; i < alns.size(); i++) {
-				kmersInSequence.add(alns.get(i).getKmerNumber());
-			}
-			double percent = (double) kmersInSequence.size()/kmersCount;
-			if(percent>=MIN_ACCURACY)
+			int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
+
+			HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
+
+			//Processing part
+
+			KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
+			for (String sequenceName: seqHits.keySet())
 			{
-				ReadAlignment first = alns.get(0).getReadAlignment();
-				ReadAlignment last = alns.get(alns.size()-1).getReadAlignment();
-				ReadAlignment readAlignment =new ReadAlignment(first.getSequenceName(), first.getFirst(), 
-						last.getLast(), last.getLast()-first.getFirst(), first.getFlags());
-				finalAlignments.add(readAlignment);
+				Set<Integer> kmersInSequence= new HashSet<>();
+				List<KmerAlignment> alns = seqHits.get(sequenceName);
+				Collections.sort(alns,cmp);
+				for (int i = 0; i < alns.size(); i++) {
+					kmersInSequence.add(alns.get(i).getKmerNumber());
+				}
+				double percent = (double) kmersInSequence.size()/kmersCount;
+				if(percent>=MIN_ACCURACY)
+				{
+					ReadAlignment first = alns.get(0).getReadAlignment();
+					ReadAlignment last = alns.get(alns.size()-1).getReadAlignment();
+					ReadAlignment readAlignment =new ReadAlignment(first.getSequenceName(), first.getFirst(), 
+							last.getLast(), last.getLast()-first.getFirst(), first.getFlags());
+					finalAlignments.add(readAlignment);
+				}
 			}
 		}
 
