@@ -22,7 +22,6 @@ package ngsep.discovery;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -36,6 +35,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledCNV;
@@ -919,32 +919,48 @@ public class VariantsDetector implements PileupListener {
 		strsC.addAll(strs);
 		GenomicRegionSortedCollection<GenomicVariant> answer = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
 		
-		for(String s:sequences.getNamesStringList()) {
-			GenomicVariant nextVar = null;
-			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(s);
+		for(QualifiedSequence seq:sequences) {
+			String seqName = seq.getName();
+			int first = 0;
+			int last = 0;
+			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(seqName);
 			for(GenomicRegion r:seqSTRs) {
-				if(nextVar == null) {
-					nextVar = makeFakeVariant(s,Math.max(1, r.getFirst()-1),r.getLast()+1);
-					continue;
+				if(last == 0 || !mergeSTRs(seqName,first,last,r)) {
+					if(last>0) {
+						GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+						if(nextVar!=null) answer.add(nextVar);
+					}
+					
+					first = r.getFirst();
 				}
-				if(r.getFirst() - nextVar.getLast()>= 5) {
-					answer.add(nextVar);
-					nextVar = makeFakeVariant(s,Math.max(1, r.getFirst()-1),r.getLast()+1);
-				} else {
-					nextVar = makeFakeVariant(s, nextVar.getFirst(), Math.max(nextVar.getLast(), r.getLast()+1));
-				}
+				last = r.getLast();
 			}
-			if(nextVar!=null) answer.add(nextVar);
+			if(last>0) {
+				GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+				if(nextVar!=null) answer.add(nextVar);
+			}
 		}
 		
 		return answer;
 	}
-	private GenomicVariant makeFakeVariant(String s, int first, int last) {
+	private boolean mergeSTRs(String sequenceName, int first, int last, GenomicRegion r) {
+		if(r.getFirst()>last+5) return false;
+		CharSequence ref1 = genome.getReference(sequenceName, Math.max(first, last-10), last);
+		CharSequence ref2 = genome.getReference(sequenceName, r.getFirst(), r.getLast());
+		if(ref1==null || ref2==null) return false;
+		return AbstractLimitedSequence.getOverlapLength(ref1, ref2)>5;
+	}
+
+
+	private GenomicVariant makeSTRVariant(String sequenceName, int first, int last) {
 		List<String> alleles = new ArrayList<String>();
-		char [] nullAllele = new char[last-first+1];
-		Arrays.fill(nullAllele, 'N');
-		alleles.add(new String(nullAllele));
-		GenomicVariantImpl answer = new GenomicVariantImpl(s, first, alleles);
+		CharSequence reference = genome.getReference(sequenceName, first, last);
+		if(reference==null) {
+			log.warning("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
+			return null;
+		}
+		alleles.add(reference.toString());
+		GenomicVariantImpl answer = new GenomicVariantImpl(sequenceName, first, alleles);
 		answer.setType(GenomicVariant.TYPE_STR);
 		return answer;
 	}

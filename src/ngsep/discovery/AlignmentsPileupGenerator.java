@@ -349,20 +349,6 @@ public class AlignmentsPileupGenerator {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-	
-	//Gets the index with the maximum from the given values excluding the given index
-	public static int getMaxIndex(int[] values,int excludeIndex) {
-		int index = 0;
-		if(excludeIndex == 0) {
-			index=1;
-		}
-		for (int i=0;i<values.length;i++) {
-			if(i!=excludeIndex && values[i]>values[index]) {
-				index = i;
-			}
-		}
-		return index;
-	}
 
 	
 }

@@ -39,15 +39,16 @@ public class AlleleCallClustersBuilder {
 			Map<String,List<String>> lengthClusters;
 			if(allowNewAlleles) {
 				if(callsL.size()<5*suggestedAllelesSet.size()) {
-					//With low coverage and suggested alleles, only those are taken into account
+					//With low coverage and suggested alleles (probably the reference), only those are taken into account
 					lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
 				} else {
 					//With enough calls, suggested alleles are actually used as a suggestion and the consensus is considered
 					String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(callsL);
 					suggestedAllelesSet.add(consensus);
-					if(suggestedAllelesSet.size() == 1 && callsL.size()<5) {
+					if(suggestedAllelesSet.size() == 1 && callsL.size()<10) {
 						lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
 					} else {
+						//Only if enough read depth, try to make two or more clusters of length different than the suggested alleles 
 						lengthClusters = clusterAlleleCallsByHammingDistance(callsL, suggestedAllelesSet);
 					}
 					
