@@ -67,10 +67,10 @@ public class VariantsDetector implements PileupListener {
 	private String knownSVsFile=null;
 	private String knownSTRsFile=null;
 	private String knownVariantsFile=null;
-	private boolean findRepeats = true;
-	private boolean runRDAnalysis = true;
+	private boolean findRepeats = false;
+	private boolean runRDAnalysis = false;
 	private boolean findSNVs = true;
-	private boolean runRPAnalysis = true;
+	private boolean runRPAnalysis = false;
 	private boolean findNewCNVs = true;
 	private String algCNV = "CNVnator";
 	private String sampleId = "Sample";
@@ -145,8 +145,8 @@ public class VariantsDetector implements PileupListener {
 				//Default 5
 				i++;
 				detector.setMaxAlnsPerStartPos(Integer.parseInt(args[i]));
-			} else if("-u".equals(args[i])) {
-				detector.setProcessOnlyUniqueAlignments(true);
+			} else if("-p".equals(args[i])) {
+				detector.setProcessNonUniquePrimaryAlignments(true);
 			} else if("-s".equals(args[i])) {
 				detector.setProcessSecondaryAlignments(true);
 			} else if("-minAltCoverage".equals(args[i])) {
@@ -221,13 +221,22 @@ public class VariantsDetector implements PileupListener {
 			} else if("-genotypeAll".equals(args[i])) {
 				detector.setGenotypeAll(true);
 			} else if("-noRep".equals(args[i])) {
-				detector.setFindRepeats(false);
+				System.err.println("WARN: Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis");
+				//detector.setFindRepeats(false);
 			} else if("-noRD".equals(args[i])) {
-				detector.setRunRDAnalysis(false);
+				System.err.println("WARN: Deprecated option -noRD. Read depth analysis is not executed by default. Use -runRD to run this analysis");
+				//detector.setRunRDAnalysis(false);
+			} else if("-noRP".equals(args[i])) {
+				System.err.println("WARN: Deprecated option -noRP. Read pair analysis is not executed by default. Use -runRP to run this analysis");
+				//detector.setRunRPAnalysis(false);
+			} else if("-runRep".equals(args[i])) {
+				detector.setFindRepeats(true);
+			} else if("-runRD".equals(args[i])) {
+				detector.setRunRDAnalysis(true);
+			} else if("-runRP".equals(args[i])) {
+				detector.setRunRPAnalysis(true);
 			} else if("-noNewCNV".equals(args[i])) {
 				detector.setFindNewCNVs(false);
-			} else if("-noRP".equals(args[i])) {
-				detector.setRunRPAnalysis(false);
 			} else if("-noSNVS".equals(args[i])) {
 				detector.setFindSNVs(false);
 			} else {
@@ -526,16 +535,16 @@ public class VariantsDetector implements PileupListener {
 		setMaxAlnsPerStartPos(maxAlnsPerStartPos.intValue());
 	}
 	
-	public boolean isProcessOnlyUniqueAlignments() {
-		return generator.isProcessOnlyUniqueAlignments();
+	public boolean isProcessNonUniquePrimaryAlignments() {
+		return generator.isProcessNonUniquePrimaryAlignments();
 	}
 
-	public void setProcessOnlyUniqueAlignments(boolean processOnlyUniqueAlignments) {
-		generator.setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments);
+	public void setProcessNonUniquePrimaryAlignments(boolean processNonUniquePrimaryAlignments) {
+		generator.setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments);
 	}
 	
-	public void setProcessOnlyUniqueAlignments(Boolean processOnlyUniqueAlignments) {
-		setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments.booleanValue());
+	public void setProcessNonUniquePrimaryAlignments(Boolean processNonUniquePrimaryAlignments) {
+		setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments.booleanValue());
 	}
 	
 	public boolean isProcessSecondaryAlignments() {
@@ -744,6 +753,7 @@ public class VariantsDetector implements PileupListener {
 		log.info("Maximum base quality score (PHRED): "+varListener.getMaxBaseQS());
 		log.info("Maximum number of alignments starting at the same position: "+generator.getMaxAlnsPerStartPos());
 		log.info("Ignore variants in lower case reference positions: "+varListener.isIgnoreLowerCaseRef());
+		log.info("Process non unique primary alignments for SNV detection: "+generator.isProcessNonUniquePrimaryAlignments());
 		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
 		log.info("Bases to ignore in the 5' end: "+generator.getBasesToIgnore5P());
 		log.info("Bases to ignore in the 3' end: "+generator.getBasesToIgnore3P());
