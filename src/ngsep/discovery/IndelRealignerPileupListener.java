@@ -31,6 +31,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.NumberArrays;
+import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.GenomicVariant;
@@ -396,7 +397,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnds. Start falls within event. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Event last: "+eventLast+" readPosAfter: "+readPosAfter);
 				if(sequenceBefore!=null && readPosAfter>=bpForGoodRefAln) {
 					CharSequence prefix = aln.getReadCharacters().subSequence(0, readPosAfter);
-					int overlapLength = getOverlapLength (sequenceBefore,prefix);
+					int overlapLength = AbstractLimitedSequence.getOverlapLength (sequenceBefore,prefix);
 					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. overlap length: "+overlapLength);
 					if(overlapLength>=bpForGoodRefAln) {
 						int newAlnFirst = eventFirst-overlapLength+1; 
@@ -424,7 +425,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				int lastReadBp = length - readPosBefore;
 				if(sequenceAfter!=null && lastReadBp>=bpForGoodRefAln) {
 					CharSequence suffix = aln.getReadCharacters().subSequence(readPosBefore+1,length);
-					int overlapLength = getOverlapLength (suffix,sequenceAfter);
+					int overlapLength = AbstractLimitedSequence.getOverlapLength (suffix,sequenceAfter);
 					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. overlap length: "+overlapLength);
 					if(overlapLength>=bpForGoodRefAln) {
 						aln.realignEnd(readPosBefore, eventLast, overlapLength);
@@ -444,28 +445,4 @@ public class IndelRealignerPileupListener implements PileupListener {
 			}
 		}
 	}
-	
-	/**
-	 * Returns the length of the maximum overlap between a suffix of sequence 1 and a prefix of sequence 2
-	 * @param sequence1 Sequence to evaluate suffixes
-	 * @param sequence2 Sequence to evaluate prefixes
-	 * @return int Maximum overlap between a prefix of sequence2 and a suffix of sequence 1
-	 */
-	private int getOverlapLength(CharSequence sequence1, CharSequence sequence2) {
-		for(int i=0;i<sequence1.length();i++) {
-			if(isSuffixAPrefix(sequence1,i,sequence2)) return sequence1.length()-i;
-		}
-		return 0;
-	}
-
-	private boolean isSuffixAPrefix(CharSequence sequence1, int start1, CharSequence sequence2) {
-		int i = start1;
-		for(int j=0;i<sequence1.length() && j<sequence2.length();j++) {
-			if(sequence1.charAt(i)!=sequence2.charAt(j)) return false;
-			i++;
-		}
-		return i==sequence1.length();
-	}
-	
-
 }
