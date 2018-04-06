@@ -172,20 +172,29 @@ public class ReadsAligner {
 			//Processing part
 
 			KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
-			for (String sequenceName: seqHits.keySet())
+			Set<String> keys= seqHits.keySet();
+			Iterator <String> iterator =keys.iterator();
+			Set<Integer> kmersInSequence;
+			List<KmerAlignment> alns;
+			double percent;
+			ReadAlignment first;
+			ReadAlignment last;
+			ReadAlignment readAlignment;
+			while (iterator.hasNext())
 			{
-				Set<Integer> kmersInSequence= new HashSet<>();
-				List<KmerAlignment> alns = seqHits.get(sequenceName);
+				String sequenceName=iterator.next();
+				kmersInSequence= new HashSet<>();
+				alns = seqHits.get(sequenceName);
 				Collections.sort(alns,cmp);
 				for (int i = 0; i < alns.size(); i++) {
 					kmersInSequence.add(alns.get(i).getKmerNumber());
 				}
-				double percent = (double) kmersInSequence.size()/kmersCount;
+				percent = (double) kmersInSequence.size()/kmersCount;
 				if(percent>=MIN_ACCURACY)
 				{
-					ReadAlignment first = alns.get(0).getReadAlignment();
-					ReadAlignment last = alns.get(alns.size()-1).getReadAlignment();
-					ReadAlignment readAlignment =new ReadAlignment(first.getSequenceName(), first.getFirst(), 
+					first = alns.get(0).getReadAlignment();
+					last = alns.get(alns.size()-1).getReadAlignment();
+					readAlignment =new ReadAlignment(first.getSequenceName(), first.getFirst(), 
 							last.getLast(), last.getLast()-first.getFirst(), first.getFlags());
 					finalAlignments.add(readAlignment);
 				}
