@@ -22,7 +22,6 @@ package ngsep.sequences;
 import java.util.Arrays;
 
 /**
- * 
  * @author Juan Camilo Bojaca
  *
  */
