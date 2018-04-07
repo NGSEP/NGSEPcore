@@ -48,6 +48,12 @@ public class ReferenceGenome {
 		sequences = handler.loadSequences(filename);
 		sequences.setAllowChanges(false);
 	}
+	/**
+	 * Returns the reference base pair at the given coordinate
+	 * @param sequenceName Name of the sequence to search
+	 * @param absolutePosition Position within the sequence
+	 * @return char Basepair at the given coordinate. 0 if the coordinate is outside the genome
+	 */
 	public char getReferenceBase(String sequenceName, int absolutePosition) {
 		QualifiedSequence qS = sequences.get(sequenceName);
 		if(qS == null) return 0;
