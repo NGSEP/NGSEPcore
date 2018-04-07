@@ -1,7 +1,10 @@
 package ngsep.alignments;
 
-import java.util.List;
-
+/**
+ * Datastructure to asociate the alignment with the correponding kmer 
+ * @author German Andrade
+ *
+ */
 public class KmerAlignment {
 	
 	private int kmerNumber;
