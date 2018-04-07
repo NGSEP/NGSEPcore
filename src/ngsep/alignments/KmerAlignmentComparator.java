@@ -13,9 +13,9 @@ public class KmerAlignmentComparator implements Comparator<KmerAlignment>{
 	public int compare(KmerAlignment o1, KmerAlignment o2) {
 		// TODO Auto-generated method stub
 		int cmp=0;
-		if(o1.getKmerNumber()!=o2.getKmerNumber())
+		if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
 		{
-			cmp = o1.getKmerNumber()>o2.getKmerNumber()?1:-1;
+			cmp = o1.getReadAlignment().getFirst()>o2.getReadAlignment().getFirst()?1:-1;
 		}
 		return cmp;
 	}
