@@ -19,14 +19,9 @@
  *******************************************************************************/
 package ngsep.sequences;
 
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.Arrays;
 
 /**
- * 
- * this is a test of generating the SA with the DC3 algorithm
- * 
  * 
  * @author Juan Camilo Bojaca
  *
@@ -36,17 +31,21 @@ public class SuffixArrayGenerator {
 	// CONSTANT VALUES
 	// -------------------------------------------------------------------------------
 	/**
-	 * models the radix factor (hex: 4 == log(16))
+	 * models the radix factor (bits used to sort)
 	 */
-	private final static int Cte_Radix = 4;
+	private final static int Cte_Radix = 8;
 	/**
 	 * represents the maximum achievable value with CteRadix bites
 	 */
 	private final static int Cte_Radix_Bit = (int) Math.pow(2, Cte_Radix) - 1;
 	/**
+	 * contains the number of occurrences of each hexadecimal digit
+	 */
+	private final static int[] contSort = new int[Cte_Radix_Bit + 2];
+	/**
 	 * the ASCII interval that it handles
 	 */
-	private final static int AlfabetEnd = 126;
+	private final static int AlfabetEnd = 127;
 	// -------------------------------------------------------------------------------
 	// VARAIBLES
 	// -------------------------------------------------------------------------------
@@ -54,6 +53,14 @@ public class SuffixArrayGenerator {
 	 * the suffix Array
 	 */
 	private int[] ans;
+
+	/**
+	 * is used to sort
+	 */
+	private final boolean[] repeated;
+	private final int[] auxSort, auxSort2, sort1, sort2, partialSA;
+	private final Stack loStack = new Stack(), hiStack = new Stack(), loStackAux = new Stack(),
+			hiStackAux = new Stack();
 
 	// -------------------------------------------------------------------------------
 	// CONSTRUCTOR && PUBLIC METHODS
@@ -64,19 +71,24 @@ public class SuffixArrayGenerator {
 	 *            the sequence to which the suffix array is calculated
 	 */
 	public SuffixArrayGenerator(CharSequence charSequence) {
-		NumberFormat n = new DecimalFormat("0.000");
 		long ini = System.currentTimeMillis();
+
 		byte[] map = getMap(charSequence);
 		int[] data = transform(charSequence, map);
 
-		int[] sort1 = new int[(int) ((2 * data.length) / 3)];
-		int[] sort2 = new int[((data.length - 1) / 3) + 1];
-		int[] auxSort = new int[data.length];
-		final int[] contSort = new int[Cte_Radix_Bit + 3];
+		partialSA = new int[data.length + 4];
+		ans = new int[data.length];
+		repeated = new boolean[(int) ((2 * data.length) / 3)];
+		auxSort = new int[(int) ((2 * data.length) / 3)];
+		auxSort2 = new int[(int) ((2 * data.length) / 3)];
+		sort1 = new int[(int) ((2 * data.length) / 3)];
+		sort2 = new int[((data.length - 1) / 3) + 1];
 
 		// map[map.length - 1] is the maximum possible value in data
-		ans = getSuffix(data, round(highestOneBitPos(map[map.length - 1])), sort1, sort2, auxSort, contSort);
-		System.out.println(n.format((System.currentTimeMillis() - ini) / (double) 1000));
+		getSuffix(data, round(highestOneBitPos(map[map.length - 1])));
+
+		System.out.println("time sort: " + ((System.currentTimeMillis() - ini) / (double) 1000) + "("
+				+ charSequence.length() + ")");
 	}
 
 	/**
@@ -85,11 +97,13 @@ public class SuffixArrayGenerator {
 	 */
 	public int[] getSA() {
 		int[] answer = new int[ans.length - 1];
-		for (int i = 1; i < ans.length; i++) {
-			answer[i - 1] = ans[i];
-		}
+		System.arraycopy(ans, 1, answer, 0, answer.length);
 		return answer;
 	}
+
+	// -------------------------------------------------------------------------------
+	// PRIVATE METHODS
+	// -------------------------------------------------------------------------------
 
 	/**
 	 * 
@@ -100,81 +114,143 @@ public class SuffixArrayGenerator {
 	 *            element of data to be different from 0
 	 * @return the suffix Array of data
 	 */
-	private static int[] getSuffix(final int[] data, final int MaxBit, final int[] sort1, final int[] sort2,
-			final int[] auxSort, final int[] contSort) {
+	private void getSuffix(final int[] data, final int MaxBit) {
 		// -----------------------------------------------------------------------------
 		// STEP #1: create C (sort1)
 		// -----------------------------------------------------------------------------
-		// in sort[m] starts the module 2 values
 		int m = moduleThree(sort1, 1, 0, data.length);
-		int c = moduleThree(sort1, 2, m, data.length);
+		int sort1Size = moduleThree(sort1, 2, m, data.length);
 		// -----------------------------------------------------------------------------
 		// STEP #2: radix sort C = b1b2
 		// -----------------------------------------------------------------------------
-		Stack loStack = new Stack(0), hiStack = new Stack(c - 1);
+		changeSortInterval(0, sort1Size - 1);
 
-		int d = 0, bit = MaxBit;
-		while (!loStack.isEmpty() && d < 3) {
-			radixSort(sort1, loStack, hiStack, data, d, bit, auxSort, contSort);
-
-			if (bit != 0)
-				bit -= Cte_Radix;
-			else {
-				d++;
-				bit = MaxBit;
-			}
-		}
+		for (int d = 0; !loStack.isEmpty() && d < 3; d++)
+			for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Cte_Radix)
+				sort(sort1, data, d, bit);
 		// -----------------------------------------------------------------------------
 		// STEP #2.1: recursion
 		// -----------------------------------------------------------------------------
 		if (!loStack.isEmpty()) {
-			boolean[] repeated = convertToBooleanArray(loStack, hiStack, c);
-			int[] r = new int[c + 1];
-			int maxValue = calculateR(r, m, sort1, c, repeated);
+			calculateRepeatedIndexes(loStack, hiStack, sort1Size);
+			int[] r = new int[sort1Size + 1];
+			int maxValueR = calculateR(r, m, sort1Size);
 
-			int[] SApr = getSuffix(r, round(highestOneBitPos(maxValue)), sort1, sort2, auxSort, contSort);
+			getSuffix(r, round(highestOneBitPos(maxValueR)));
 
-			// using the Suffix array of r finishes order sort1
-			for (int j = 1; j < SApr.length; j++) {
-				int idx = SApr[j];
+			// using the Suffix array of r, finishes order sort1
+			for (int j = 1; j <= sort1Size; j++) {
+				int idx = ans[j];
 				sort1[j - 1] = (idx < m) ? idx * 3 + 1 : (idx - m) * 3 + 2;
 			}
 		}
-		int[] partialSA = getPartialSA(sort1, c, data.length);
-		int maxBitSA = round(highestOneBitPos(sort1.length));
+		calculatePartialSA(sort1Size);
 		// -----------------------------------------------------------------------------
 		// STEP #3: Sorting the non sample Suffices b0
 		// -----------------------------------------------------------------------------
-		int b = moduleThree(sort2, 0, 0, data.length);
+		int sort2Size = moduleThree(sort2, 0, 0, data.length);
+		changeSortInterval(0, sort2Size - 1);
 
-		loStack = new Stack(0);
-		hiStack = new Stack(b - 1);
-
-		bit = MaxBit;
-		while (loStack != null && bit >= 0) {
-			radixSort(sort2, loStack, hiStack, data, 0, bit, auxSort, contSort);
-			bit -= Cte_Radix;
-		}
-		bit = maxBitSA;
-		while (loStack != null && bit >= 0) {
-			radixSort(sort2, loStack, hiStack, partialSA, 1, bit, auxSort, contSort);
-			bit -= Cte_Radix;
-		}
+		for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Cte_Radix)
+			sort(sort2, data, 0, bit);
+		for (int bit = round(highestOneBitPos(sort1Size)); !loStack.isEmpty() && bit >= 0; bit -= Cte_Radix)
+			sort(sort2, partialSA, 0, bit);
 		// -----------------------------------------------------------------------------
 		// STEP #4: Merge
 		// -----------------------------------------------------------------------------
-		return merge(sort1, c, sort2, b, partialSA, data);
+		merge(sort1Size, sort2Size, data);
+
 	}
 
-	// -------------------------------------------------------------------------------
-	// PRIVATE METHODS
-	// -------------------------------------------------------------------------------
+	/**
+	 * define the interval to order
+	 * 
+	 * @param lo
+	 *            start
+	 * @param hi
+	 *            end
+	 */
+	private void changeSortInterval(final int lo, final int hi) {
+		loStack.add(lo);
+		hiStack.add(hi);
+	}
 
 	/**
 	 * 
-	 * @param c
+	 * @param array
+	 *            the array of indexes to sort
+	 * @param loStack
+	 *            , hiStack contains the intervals to be sorted, ends with the
+	 *            intervals where there are repeated elements
+	 * @param data
+	 *            , d , bit every element i of array is ordered according to the
+	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 * 
+	 *            this extracts a hexadecimal number according to the bit shift of
+	 *            the d-th data element after i.
+	 */
+	private void sort(int[] array, final int[] data, final int d, final int bit) {
+		radixCount(array, data, d, bit);
+	}
+
+	/**
+	 * 
+	 * @param array
+	 *            the array of indexes to sort
+	 * @param loStack
+	 *            , hiStack contains the intervals to be sorted, ends with the
+	 *            intervals where there are repeated elements
+	 * @param data
+	 *            , d , bit every element i of array is ordered according to the
+	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
+	 * 
+	 *            this extracts a hexadecimal number according to the bit shift of
+	 *            the d-th data element after i.
+	 */
+	private void radixCount(int[] array, final int[] data, final int d, final int bit) {
+		boolean nond = d == 0;
+		while (!loStack.isEmpty()) {
+			int lo = loStack.pop();
+			int hi = hiStack.pop();
+
+			Arrays.fill(contSort, 0);
+
+			for (int i = lo; i <= hi; i++) {
+				int ind = (nond) ? Cte_Radix_Bit & (data[array[i]] >>> bit)
+						: Cte_Radix_Bit & (data[array[i] + d] >>> bit);
+				auxSort2[i] = ind;
+				contSort[ind]++;
+			}
+
+			contSort[0] += lo - 1;
+			for (int i = 1, prev = 0, cont = contSort[0]; prev != hi; i++) {
+				prev = cont;
+				contSort[i] = cont += contSort[i];
+			}
+
+			for (int i = lo; i <= hi; i++) {
+				auxSort[contSort[auxSort2[i]]--] = array[i];
+			}
+
+			System.arraycopy(auxSort, lo, array, lo, (hi - lo + 1));
+
+			for (int act, prev = contSort[0], i = 1; prev != hi; prev = act, i++) {
+				act = contSort[i];
+				if (prev + 1 < act) {
+					loStackAux.add(prev + 1);
+					hiStackAux.add(act);
+				}
+			}
+		}
+		Stack.exchange(loStack, loStackAux);
+		Stack.exchange(hiStack, hiStackAux);
+	}
+
+	/**
+	 * 
+	 * @param sort1Size
 	 *            suffix array of c
-	 * @param b
+	 * @param sort2Size
 	 *            suffix array of b0
 	 * @param partialSA
 	 *            partial suffix matrix with the c indexes
@@ -182,21 +258,76 @@ public class SuffixArrayGenerator {
 	 *            the original data
 	 * @return the SA
 	 */
-	private static int[] merge(final int[] c, final int sizeC, final int[] b, final int sizeB, final int[] partialSA,
-			final int[] data) {
-		int[] ans = new int[data.length];
-		int indexC = 0, indexB = 0, indexAns = 0;
-		while (indexC != sizeC && indexB != sizeB) {
-			if (compare(b[indexB], c[indexC], data, partialSA) < 0)
-				ans[indexAns++] = b[indexB++];
+	private int[] merge(final int sort1Size, final int sort2Size, final int[] data) {
+		int index1 = 0, index2 = 0, indexAns = 0;
+		while (index1 != sort1Size && index2 != sort2Size) {
+			if (compare(sort2[index2], sort1[index1], data) < 0)
+				ans[indexAns++] = sort2[index2++];
 			else
-				ans[indexAns++] = c[indexC++];
+				ans[indexAns++] = sort1[index1++];
 		}
-		while (indexC != sizeC)
-			ans[indexAns++] = c[indexC++];
-		while (indexB != sizeB)
-			ans[indexAns++] = b[indexB++];
+		while (index1 != sort1Size)
+			ans[indexAns++] = sort1[index1++];
+		while (index2 != sort2Size)
+			ans[indexAns++] = sort2[index2++];
 		return ans;
+	}
+
+	/**
+	 * 
+	 * @param r
+	 *            for every element it contains the ranking obtained when ordering
+	 *            the corresponding c(original values ​​of sort1) element
+	 * @param m
+	 *            in sort[m] starts the module 2 values
+	 * @param sort1Size
+	 *            the sorted indexes
+	 * @param repeated
+	 *            array that represents the repeated elements
+	 * @return the maximum value in r
+	 */
+	private int calculateR(int[] r, final int m, final int sort1Size) {
+		int d = 0;
+		for (int i = 0; i < sort1Size; ++i) {
+			int idx = sort1[i];
+			if (!repeated[i])
+				++d;
+			r[idx % 3 == 1 ? idx / 3 : idx / 3 + m] = d;
+		}
+		return d;
+	}
+
+	/**
+	 * 
+	 * change the format of repeated intervals to a Boolean array
+	 * 
+	 * @param loStack,
+	 *            hiStack repeated intervals
+	 * @param size
+	 *            of the array
+	 * @return repeated intervals in Boolean array
+	 */
+	private void calculateRepeatedIndexes(Stack loStack, Stack hiStack, final int size) {
+		Arrays.fill(repeated, 0, size, false);
+
+		while (!loStack.isEmpty()) {
+			int lo = loStack.pop();
+			int hi = hiStack.pop();
+			for (int i = lo + 1; i <= hi; i++)
+				repeated[i] = true;
+		}
+	}
+
+	/**
+	 * @param sort1Size
+	 *            c sorted
+	 * @param size
+	 *            size of the data
+	 * @return a partial suffix matrix with the c indexes
+	 */
+	private void calculatePartialSA(final int sort1Size) {
+		for (int j = 1, i = 0; i < sort1Size; i++, j++)
+			partialSA[sort1[i] - 1] = j;
 	}
 
 	/**
@@ -212,82 +343,20 @@ public class SuffixArrayGenerator {
 	 *            partial suffix matrix with the c indexes
 	 * @return valueB - valueC
 	 */
-	private static int compare(int valueB, int valueC, final int[] data, final int[] partialSA) {
+	private int compare(int valueB, int valueC, final int[] data) {
 		int ans;
 		if (valueC % 3 == 1) {
 			ans = data[valueB] - data[valueC];
 			if (ans == 0)
-				ans = partialSA[valueB + 1] - partialSA[valueC + 1];
+				ans = partialSA[valueB] - partialSA[valueC];
 		} else {
 			ans = data[valueB] - data[valueC];
 			if (ans == 0)
 				ans = data[valueB + 1] - data[valueC + 1];
 			if (ans == 0)
-				ans = partialSA[valueB + 2] - partialSA[valueC + 2];
+				ans = partialSA[valueB + 1] - partialSA[valueC + 1];
 		}
 		return ans;
-	}
-
-	/**
-	 * @param sort
-	 *            c sorted
-	 * @param size
-	 *            size of the data
-	 * @return a partial suffix matrix with the c indexes
-	 */
-	private static int[] getPartialSA(final int[] sort, int c, final int size) {
-		int[] SA = new int[size];
-		for (int j = 1, i = 0; i < c; i++, j++)
-			SA[sort[i]] = j;
-		return SA;
-
-	}
-
-	/**
-	 * 
-	 * @param r
-	 *            for every element it contains the ranking obtained when ordering
-	 *            the corresponding c(original values ​​of sort1) element
-	 * @param m
-	 *            in sort[m] starts the module 2 values
-	 * @param sort
-	 *            the sorted indexes
-	 * @param repeated
-	 *            array that represents the repeated elements
-	 * @return the maximum value in r
-	 */
-	private static int calculateR(int[] r, final int m, final int[] sort, final int c, final boolean[] repeated) {
-		int d = 0;
-		for (int i = 0; i < c; ++i) {
-			int idx = sort[i];
-			if (!repeated[i])
-				++d;
-			r[idx % 3 == 1 ? idx / 3 : idx / 3 + m] = d;
-		}
-		return d;
-
-	}
-
-	/**
-	 * 
-	 * change the format of repeated intervals to a Boolean array
-	 * 
-	 * @param loStack,
-	 *            hiStack repeated intervals
-	 * @param size
-	 *            of the array
-	 * @return repeated intervals in Boolean array
-	 */
-	private static boolean[] convertToBooleanArray(Stack loStack, Stack hiStack, final int size) {
-		boolean[] repeated = new boolean[size];
-
-		while (!loStack.isEmpty()) {
-			int lo = loStack.pop();
-			int hi = hiStack.pop();
-			for (int i = lo + 1; i <= hi; i++)
-				repeated[i] = true;
-		}
-		return repeated;
 	}
 
 	/**
@@ -328,131 +397,6 @@ public class SuffixArrayGenerator {
 		for (int i = 0; i < charSequence.length(); i++)
 			data[i] = map[charSequence.charAt(i)];
 		return data;
-	}
-
-	private static void radixSort(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
-			final int bit, final int[] auxSort, final int[] contSort) {
-		// radixSKA(array, loStack, hiStack, data, d, bit);
-		radixCount(array, loStack, hiStack, data, d, bit, auxSort, contSort);
-	}
-
-	/**
-	 * https://www.youtube.com/watch?v=zqs87a_7zxw
-	 * 
-	 * @param array
-	 *            the array of indexes to sort
-	 * @param loStack,
-	 *            hiStack contains the intervals to be sorted, ends with the
-	 *            intervals where there are repeated elements
-	 * @param data,
-	 *            d, bit every element i of array is ordered according to the
-	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
-	 * 
-	 *            this extracts a hexadecimal number according to the bit shift of
-	 *            the d-th data element after i.
-	 */
-	private static void radixSKA(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
-			final int bit) {
-		final Stack loStackAux = new Stack(), hiStackAux = new Stack();
-		int[][] c = new int[2][Cte_Radix_Bit + 1];
-
-		while (!loStack.isEmpty()) {
-			int lo = loStack.pop();
-			int hi = hiStack.pop();
-
-			Arrays.fill(c[0], 0);
-			Arrays.fill(c[1], 0);
-
-			count(c, lo, hi, array, data, d, bit);
-			prefix(c);
-			locateUsingRotations(c, lo, array, data, d, bit);
-			extractIntervals(loStackAux, hiStackAux, c, lo, hi);
-		}
-
-		Stack.exchange(loStack, loStackAux);
-		Stack.exchange(hiStack, hiStackAux);
-	}
-
-	/**
-	 * using the range of the hexadecimal numbers, and the previous interval
-	 * calculates the intervals where there are repeated elements in the array
-	 * 
-	 * @param loStack,
-	 *            hiStack are used to store the new intervals
-	 * @param c
-	 *            the range of the hexadecimal numbers
-	 * @param lo
-	 *            the previous interval
-	 */
-	private static void extractIntervals(Stack loStack, Stack hiStack, int[][] c, final int lo, final int hi) {
-		for (int act, prev = 0, i = 0; prev != hi - lo + 1; prev = act, i++) {
-			act = c[1][i];
-			int loAux = prev + lo;
-			int hiAux = act - 1 + lo;
-			if (loAux < hiAux) {
-				loStack.add(loAux);
-				hiStack.add(hiAux);
-			}
-		}
-	}
-
-	/**
-	 * 
-	 * sorts the array elements based on the function, using the intervals of each
-	 * value.
-	 * 
-	 * @param c
-	 *            the intervals of each value.
-	 * @param lo
-	 *            the initial position in the array
-	 * @param array
-	 *            the array
-	 * @param data,
-	 *            d, bit function: (data[i + d] >>> bit) & Cte_Radix_Bit
-	 */
-	private static void locateUsingRotations(int[][] c, final int lo, int[] array, final int[] data, final int d,
-			final int bit) {
-		boolean fin = false;
-		while (!fin) {
-			fin = true;
-			for (int i = 0; i < c[0].length; i++) {
-				fin &= c[0][i] == c[1][i];
-				for (int j = c[0][i]; j < c[1][i]; j++)
-					exchange(array, lo + j, lo + c[0][(data[array[j + lo] + d] >>> bit) & Cte_Radix_Bit]++);
-			}
-		}
-	}
-
-	/**
-	 * 
-	 * save in c[1] the number of hexadecimal elements as a result of the function
-	 * on the elements of array from lo to hi
-	 * 
-	 * @param c
-	 *            to save
-	 * @param lo,
-	 *            hi array the array and the interval
-	 * @param data,
-	 *            d, bit function: (data[i + d] >>> bit) & Cte_Radix_Bit
-	 */
-	private static void count(int[][] c, final int lo, final int hi, final int[] array, final int[] data, final int d,
-			final int bit) {
-		for (int i = lo; i <= hi; i++)
-			c[1][(data[array[i] + d] >>> bit) & Cte_Radix_Bit]++;
-	}
-
-	/**
-	 * 
-	 * calculates the interval of each hexadecimal number based on the count
-	 * 
-	 * @param c
-	 *            the count.
-	 */
-	private static void prefix(int[][] c) {
-		for (int i = 1; i < Cte_Radix_Bit; i++)
-			c[0][i + 1] = c[1][i] = c[1][i] + c[1][i - 1];
-		c[0][1] = c[1][0];
-		c[1][Cte_Radix_Bit] += c[1][Cte_Radix_Bit - 1];
 	}
 
 	/**
@@ -503,8 +447,9 @@ public class SuffixArrayGenerator {
 	 *            the array to calculate the prefix
 	 */
 	private static void prefix(byte[] array) {
+		byte cont = array[0];
 		for (int i = 1; i < array.length; i++)
-			array[i] += array[i - 1];
+			array[i] = cont += array[i];
 	}
 
 	/**
@@ -515,73 +460,6 @@ public class SuffixArrayGenerator {
 	 */
 	private static int round(final int i) {
 		return (i / Cte_Radix) * Cte_Radix;
-	}
-
-	/**
-	 * swap the values of the indexes in array
-	 * 
-	 * @param array
-	 *            the array
-	 * @param i
-	 *            first index
-	 * @param j
-	 *            second index
-	 */
-	private static void exchange(int[] array, final int i, final int j) {
-		int t = array[i];
-		array[i] = array[j];
-		array[j] = t;
-	}
-
-	/**
-	 * 
-	 * @param array
-	 *            the array of indexes to sort
-	 * @param loStack,
-	 *            hiStack contains the intervals to be sorted, ends with the
-	 *            intervals where there are repeated elements
-	 * @param data,
-	 *            d, bit every element i of array is ordered according to the
-	 *            function: (data[i + d] >>> bit) & Cte_Radix_Bit
-	 * 
-	 *            this extracts a hexadecimal number according to the bit shift of
-	 *            the d-th data element after i.
-	 */
-	public static void radixCount(int[] array, Stack loStack, Stack hiStack, final int[] data, final int d,
-			final int bit, final int[] auxSort, final int[] contSort) {
-		final Stack loStackAux = new Stack(), hiStackAux = new Stack();
-
-		while (!loStack.isEmpty()) {
-			int lo = loStack.pop();
-			int hi = hiStack.pop();
-
-			Arrays.fill(contSort, 0);
-
-			for (int i = lo; i <= hi; i++)
-				contSort[((data[array[i] + d] >>> bit) & Cte_Radix_Bit) + 2]++;
-
-			for (int i = 3; i < contSort.length; i++)
-				contSort[i] += contSort[i - 1];
-
-			for (int i = lo; i <= hi; i++)
-				auxSort[contSort[((data[array[i] + d] >>> bit) & Cte_Radix_Bit) + 1]++] = array[i];
-
-			for (int i = lo; i <= hi; i++)
-				array[i] = auxSort[i - lo];
-
-			for (int act, prev = contSort[0], i = 1; prev != hi - lo + 1; prev = act, i++) {
-				act = contSort[i];
-				int loAux = prev + lo;
-				int hiAux = act - 1 + lo;
-				if (loAux < hiAux) {
-					loStackAux.add(loAux);
-					hiStackAux.add(hiAux);
-				}
-			}
-		}
-
-		Stack.exchange(loStack, loStackAux);
-		Stack.exchange(hiStack, hiStackAux);
 	}
 
 	// -------------------------------------------------------------------------------
@@ -597,13 +475,6 @@ public class SuffixArrayGenerator {
 
 		public Stack() {
 			apunt = null;
-		}
-
-		public Stack(int i) {
-			apunt = null;
-			Element temp = new Element(i);
-			temp.sig = null;
-			apunt = temp;
 		}
 
 		public boolean isEmpty() {
