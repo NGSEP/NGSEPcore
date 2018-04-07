@@ -38,6 +38,7 @@ import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.Distribution;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
 public class ReadDepthDistribution {
@@ -133,22 +134,27 @@ public class ReadDepthDistribution {
 	}
 	
 	public ReadDepthDistribution(ReferenceGenome genome, int binSize) {
+		
 		this.binSize = binSize;
 		genomeSize = genome.getTotalLength();
 		sequences = genome.getSequencesMetadata();
 		System.out.println("Number of sequences: "+sequences.size());
-		for(String seqName:genome.getSequenceNamesStringList()) {
+		int n = genome.getNumSequences();
+		for(int h=0;h<n;h++) {
+			QualifiedSequence sequence = genome.getSequenceByIndex(h);
+			String seqName = sequence.getName();
 			List<ReadDepthBin> seqBins = new ArrayList<ReadDepthBin>(); 
 			bins.put(seqName, seqBins);
-			//TODO: Look for something better
-			char [] sequence = genome.getSequenceByName(seqName).getCharacters().toString().toCharArray();
-			int end = sequence.length - sequence.length % binSize;
-			for(int i=0;i<end+binSize;i+=binSize) {
+			CharSequence sequenceChars = sequence.getCharacters();
+			int l = sequenceChars.length();
+			int end = l - l%binSize;
+			//Ignore the last basepairs to avoid going over the end of the chromosome
+			for(int i=0;i<end;i+=binSize) {
+				String binSequence = sequenceChars.subSequence(i, i+binSize).toString();
 				double gcContent = 0;
 				int nBases = 0;
 				for(int j=0;j<binSize;j++) {
-					if(i+j>=sequence.length) break;
-					char base = Character.toUpperCase(sequence[i+j]); 
+					char base = Character.toUpperCase(binSequence.charAt(j)); 
 					if(DNASequence.isInAlphabeth(base)) {
 						nBases++;
 						if(base == 'G' || base == 'C') {
@@ -168,9 +174,8 @@ public class ReadDepthDistribution {
 	}
 	public void processAlignments (String filename) throws IOException {
 		
-		ReadAlignmentFileReader reader = null;
-		try {
-			reader = new ReadAlignmentFileReader(filename);
+		
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			reader.setLog(log);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
@@ -195,8 +200,6 @@ public class ReadDepthDistribution {
 				if(totalReads%1000000 == 0) log.info("Processed "+totalReads+" alignments");
 				//if(totalReads%100000 == 0) log.info("Processing read: "+aln.getReadName()+". Location: "+aln.getSequenceName()+":"+aln.getFirst()+" flags: "+aln.getFlags()+". Unique: "+aln.isUnique()+". Bins size: "+seqBins.size()+" bin pos: "+binPos);
 			}
-		} finally {
-			if (reader!=null) reader.close();
 		}
 		//Set corrected depth back to raw depth
 		for(List<ReadDepthBin> binsSeq:bins.values()) {

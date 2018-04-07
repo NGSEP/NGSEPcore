@@ -342,6 +342,28 @@ public abstract class AbstractLimitedSequence implements LimitedSequence {
 		}
 		return answer;
 	}
+	
+	/**
+	 * Returns the length of the maximum overlap between a suffix of sequence 1 and a prefix of sequence 2
+	 * @param sequence1 Sequence to evaluate suffixes
+	 * @param sequence2 Sequence to evaluate prefixes
+	 * @return int Maximum overlap between a prefix of sequence2 and a suffix of sequence 1
+	 */
+	public static int getOverlapLength(CharSequence sequence1, CharSequence sequence2) {
+		for(int i=0;i<sequence1.length();i++) {
+			if(isSuffixAPrefix(sequence1,i,sequence2)) return sequence1.length()-i;
+		}
+		return 0;
+	}
+
+	private static boolean isSuffixAPrefix(CharSequence sequence1, int start1, CharSequence sequence2) {
+		int i = start1;
+		for(int j=0;i<sequence1.length() && j<sequence2.length();j++) {
+			if(sequence1.charAt(i)!=sequence2.charAt(j)) return false;
+			i++;
+		}
+		return i==sequence1.length();
+	}
 	/**
 	 * Returns the character of the alphabet with the given index in the alphabet String.
 	 * @param index Zero based index to look for in the alphabet

@@ -1,6 +1,11 @@
 v3.1.2 30-03-2018
 - Added new command to simulate individuals from reference genomes
-- FindVariants: New option -u to process only unique alignments 
+- FindVariants: The default behavior now only runs the SNV and small indel
+  caller. Replaced options -noRep, -noRD and -noRP with -runRep -runRD and
+  -runRP. 
+- FindVariants: The default behavior now considers only unique alignments
+  defined by the mapping quality threshold (option -minMQ). New option -p
+  to process also non-unique primary alignments 
 
 v3.1.1 30-01-2018
 - RelativeAlleleCounts: Statistics are now calculated not only for the entire

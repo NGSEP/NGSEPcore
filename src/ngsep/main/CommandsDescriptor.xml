@@ -73,11 +73,12 @@ Ignore sites where the reference allele is lower case.
 Maximum number of alignments allowed to start
 at the same reference site.
 </option>
-<option id="u">
-Process only unique alignments in the pileup process
+<option id="p">
+Process non unique primary alignments in the pileup process. 
+The default behavior is to process alignments that are unique (see option -minMQ) 
 </option> 
 <option id="s">
-Consider secondary alignments while calling SNVs. Mute if the -u option is used
+Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
 </option>
 <option id="minAltCoverage" type="INT" default="0">
 Minimum coverage of the alternative allele to call a SNV.
@@ -157,14 +158,23 @@ VCF file with variants to be genotyped. Only these variants will appear in the o
 Report all covered sites in the genome. CAUTION: For WGS samples, and even for RAD/GBS
 samples in organisms with medium to large genomes this produces a huge file.
 </option>
-<option id="noRep">
-Turn off multiple alignments analysis to identify repetitive regions.
+<option id="noRep" deprecated="true">
+Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis
 </option>
-<option id="noRD">
-Turn off read depth analysis to identify CNVs.
+<option id="noRD" deprecated="true">
+Deprecated option -noRD. Read depth analysis is not executed by default. Use -runRD to run this analysis
 </option>
-<option id="noRP">
-Turn off read pair analysis to identify large indels and inversions.
+<option id="noRP" deprecated="true">
+Deprecated option -noRP. Read pair analysis is not executed by default. Use -runRP to run this analysis
+</option>
+<option id="runRep">
+Turn on multiple alignments analysis to identify repetitive regions.
+</option>
+<option id="runRD">
+Turn on read depth analysis to identify CNVs.
+</option>
+<option id="runRP">
+Turn on read pair analysis to identify large indels and inversions.
 </option>
 <option id="noSNVS">
 Turn off SNV detection.

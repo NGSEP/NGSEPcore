@@ -245,7 +245,7 @@ public class KmersCounter {
 	/**
 	 * Extracts the k-mers present in the given sequence
 	 * @param source Sequence to process
-	 * @param kmerSize Size of hte output sequences. It must be less or equal than the length of the sequence
+	 * @param kmerSize Size of the output sequences. It must be less or equal than the length of the sequence
 	 * @param first position to extract k-mers. values for smaller indexes will be null
 	 * @param last position to extract k-mers. The length of the array will be Math.min(last, source.length() - kmerSize) 
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
@@ -254,6 +254,7 @@ public class KmersCounter {
 	 */
 	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, int first, int last, boolean onlyDNA) {
 		int n = source.length();
+		if(n<kmerSize) return new CharSequence[0];
 		int lastKmerStart = Math.min(last, n - kmerSize); 
 		CharSequence [] kmers = new CharSequence [lastKmerStart+1];
 		Arrays.fill(kmers, null);

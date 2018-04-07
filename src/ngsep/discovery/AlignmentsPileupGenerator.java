@@ -54,7 +54,7 @@ public class AlignmentsPileupGenerator {
 	private int currentReferenceLast = 0;
 	private boolean keepRunning = true;
 	private int maxAlnsPerStartPos = 5;
-	private boolean processOnlyUniqueAlignments = false;
+	private boolean processNonUniquePrimaryAlignments = false;
 	private boolean processSecondaryAlignments = false;
 	private byte basesToIgnore5P = 0;
 	private byte basesToIgnore3P = 0;
@@ -107,18 +107,19 @@ public class AlignmentsPileupGenerator {
 		this.maxAlnsPerStartPos = maxAlnsPerStartPos;
 	}
 
+	
 	/**
-	 * @return the processOnlyUniqueAlignments
+	 * @return the processNonUniquePrimaryAlignments
 	 */
-	public boolean isProcessOnlyUniqueAlignments() {
-		return processOnlyUniqueAlignments;
+	public boolean isProcessNonUniquePrimaryAlignments() {
+		return processNonUniquePrimaryAlignments;
 	}
 
 	/**
-	 * @param processOnlyUniqueAlignments the processOnlyUniqueAlignments to set
+	 * @param processNonUniquePrimaryAlignments the processNonUniquePrimaryAlignments to set
 	 */
-	public void setProcessOnlyUniqueAlignments(boolean processOnlyUniqueAlignments) {
-		this.processOnlyUniqueAlignments = processOnlyUniqueAlignments;
+	public void setProcessNonUniquePrimaryAlignments(boolean processNonUniquePrimaryAlignments) {
+		this.processNonUniquePrimaryAlignments = processNonUniquePrimaryAlignments;
 	}
 
 	public boolean isProcessSecondaryAlignments() {
@@ -173,8 +174,10 @@ public class AlignmentsPileupGenerator {
 			reader = new ReadAlignmentFileReader(filename);
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
-			if(processOnlyUniqueAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
-			else if(!processSecondaryAlignments ) filterFlags+=ReadAlignment.FLAG_SECONDARY;
+			if(!processSecondaryAlignments ) {
+				filterFlags+=ReadAlignment.FLAG_SECONDARY;
+				if(!processNonUniquePrimaryAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
+			}
 			reader.setFilterFlags(filterFlags);
 			reader.setMinMQ(minMQ);
 			sequencesMetadata = reader.getSequences();
@@ -348,20 +351,6 @@ public class AlignmentsPileupGenerator {
 
 	public void setLog(Logger log) {
 		this.log = log;
-	}
-	
-	//Gets the index with the maximum from the given values excluding the given index
-	public static int getMaxIndex(int[] values,int excludeIndex) {
-		int index = 0;
-		if(excludeIndex == 0) {
-			index=1;
-		}
-		for (int i=0;i<values.length;i++) {
-			if(i!=excludeIndex && values[i]>values[index]) {
-				index = i;
-			}
-		}
-		return index;
 	}
 
 	

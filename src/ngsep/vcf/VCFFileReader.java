@@ -409,7 +409,8 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 			cv.setCallReport(new VariantCallReport(alleles, counts, logConditionals));
 		}
 		answer.setSampleId(sampleId);
-		Double v = loadSingleNumber(knownItemsSample[VCFRecord.FORMAT_IDX_GQ],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_GQ],sampleId,variant, true);
+		//Allowed real numbers in this field to be able to load freebayes GQ fields
+		Double v = loadSingleNumber(knownItemsSample[VCFRecord.FORMAT_IDX_GQ],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_GQ],sampleId,variant, false);
 		if(v!=null) answer.setGenotypeQuality(v.shortValue());
 		v = loadSingleNumber(knownItemsSample[VCFRecord.FORMAT_IDX_DP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_DP],sampleId,variant, true);
 		if(v!=null) answer.setTotalReadDepth(v.intValue());

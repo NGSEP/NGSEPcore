@@ -22,7 +22,6 @@ package ngsep.discovery;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -36,6 +35,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledCNV;
@@ -67,10 +67,10 @@ public class VariantsDetector implements PileupListener {
 	private String knownSVsFile=null;
 	private String knownSTRsFile=null;
 	private String knownVariantsFile=null;
-	private boolean findRepeats = true;
-	private boolean runRDAnalysis = true;
+	private boolean findRepeats = false;
+	private boolean runRDAnalysis = false;
 	private boolean findSNVs = true;
-	private boolean runRPAnalysis = true;
+	private boolean runRPAnalysis = false;
 	private boolean findNewCNVs = true;
 	private String algCNV = "CNVnator";
 	private String sampleId = "Sample";
@@ -145,8 +145,8 @@ public class VariantsDetector implements PileupListener {
 				//Default 5
 				i++;
 				detector.setMaxAlnsPerStartPos(Integer.parseInt(args[i]));
-			} else if("-u".equals(args[i])) {
-				detector.setProcessOnlyUniqueAlignments(true);
+			} else if("-p".equals(args[i])) {
+				detector.setProcessNonUniquePrimaryAlignments(true);
 			} else if("-s".equals(args[i])) {
 				detector.setProcessSecondaryAlignments(true);
 			} else if("-minAltCoverage".equals(args[i])) {
@@ -221,13 +221,22 @@ public class VariantsDetector implements PileupListener {
 			} else if("-genotypeAll".equals(args[i])) {
 				detector.setGenotypeAll(true);
 			} else if("-noRep".equals(args[i])) {
-				detector.setFindRepeats(false);
+				System.err.println("WARN: Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis");
+				//detector.setFindRepeats(false);
 			} else if("-noRD".equals(args[i])) {
-				detector.setRunRDAnalysis(false);
+				System.err.println("WARN: Deprecated option -noRD. Read depth analysis is not executed by default. Use -runRD to run this analysis");
+				//detector.setRunRDAnalysis(false);
+			} else if("-noRP".equals(args[i])) {
+				System.err.println("WARN: Deprecated option -noRP. Read pair analysis is not executed by default. Use -runRP to run this analysis");
+				//detector.setRunRPAnalysis(false);
+			} else if("-runRep".equals(args[i])) {
+				detector.setFindRepeats(true);
+			} else if("-runRD".equals(args[i])) {
+				detector.setRunRDAnalysis(true);
+			} else if("-runRP".equals(args[i])) {
+				detector.setRunRPAnalysis(true);
 			} else if("-noNewCNV".equals(args[i])) {
 				detector.setFindNewCNVs(false);
-			} else if("-noRP".equals(args[i])) {
-				detector.setRunRPAnalysis(false);
 			} else if("-noSNVS".equals(args[i])) {
 				detector.setFindSNVs(false);
 			} else {
@@ -526,16 +535,16 @@ public class VariantsDetector implements PileupListener {
 		setMaxAlnsPerStartPos(maxAlnsPerStartPos.intValue());
 	}
 	
-	public boolean isProcessOnlyUniqueAlignments() {
-		return generator.isProcessOnlyUniqueAlignments();
+	public boolean isProcessNonUniquePrimaryAlignments() {
+		return generator.isProcessNonUniquePrimaryAlignments();
 	}
 
-	public void setProcessOnlyUniqueAlignments(boolean processOnlyUniqueAlignments) {
-		generator.setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments);
+	public void setProcessNonUniquePrimaryAlignments(boolean processNonUniquePrimaryAlignments) {
+		generator.setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments);
 	}
 	
-	public void setProcessOnlyUniqueAlignments(Boolean processOnlyUniqueAlignments) {
-		setProcessOnlyUniqueAlignments(processOnlyUniqueAlignments.booleanValue());
+	public void setProcessNonUniquePrimaryAlignments(Boolean processNonUniquePrimaryAlignments) {
+		setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments.booleanValue());
 	}
 	
 	public boolean isProcessSecondaryAlignments() {
@@ -744,6 +753,7 @@ public class VariantsDetector implements PileupListener {
 		log.info("Maximum base quality score (PHRED): "+varListener.getMaxBaseQS());
 		log.info("Maximum number of alignments starting at the same position: "+generator.getMaxAlnsPerStartPos());
 		log.info("Ignore variants in lower case reference positions: "+varListener.isIgnoreLowerCaseRef());
+		log.info("Process non unique primary alignments for SNV detection: "+generator.isProcessNonUniquePrimaryAlignments());
 		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
 		log.info("Bases to ignore in the 5' end: "+generator.getBasesToIgnore5P());
 		log.info("Bases to ignore in the 3' end: "+generator.getBasesToIgnore3P());
@@ -919,32 +929,49 @@ public class VariantsDetector implements PileupListener {
 		strsC.addAll(strs);
 		GenomicRegionSortedCollection<GenomicVariant> answer = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
 		
-		for(String s:sequences.getNamesStringList()) {
-			GenomicVariant nextVar = null;
-			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(s);
+		for(QualifiedSequence seq:sequences) {
+			String seqName = seq.getName();
+			int first = 0;
+			int last = 0;
+			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(seqName);
 			for(GenomicRegion r:seqSTRs) {
-				if(nextVar == null) {
-					nextVar = makeFakeVariant(s,Math.max(1, r.getFirst()-1),r.getLast()+1);
-					continue;
+				if(last == 0 || !mergeSTRs(seqName,first,last,r)) {
+					if(last>0) {
+						GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+						if(nextVar!=null) answer.add(nextVar);
+					}
+					
+					first = r.getFirst();
 				}
-				if(r.getFirst() - nextVar.getLast()>= 5) {
-					answer.add(nextVar);
-					nextVar = makeFakeVariant(s,Math.max(1, r.getFirst()-1),r.getLast()+1);
-				} else {
-					nextVar = makeFakeVariant(s, nextVar.getFirst(), Math.max(nextVar.getLast(), r.getLast()+1));
-				}
+				last = r.getLast();
 			}
-			if(nextVar!=null) answer.add(nextVar);
+			if(last>0) {
+				GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+				if(nextVar!=null) answer.add(nextVar);
+			}
 		}
 		
 		return answer;
 	}
-	private GenomicVariant makeFakeVariant(String s, int first, int last) {
+	private boolean mergeSTRs(String sequenceName, int first, int last, GenomicRegion r) {
+		if(r.getFirst()-last>5) return false;
+		else if (r.getFirst()-last<=2) return true;
+		CharSequence ref1 = genome.getReference(sequenceName, Math.max(first, last-10), last);
+		CharSequence ref2 = genome.getReference(sequenceName, r.getFirst(), r.getLast());
+		if(ref1==null || ref2==null) return false;
+		return AbstractLimitedSequence.getOverlapLength(ref1, ref2)>5;
+	}
+
+
+	private GenomicVariant makeSTRVariant(String sequenceName, int first, int last) {
 		List<String> alleles = new ArrayList<String>();
-		char [] nullAllele = new char[last-first+1];
-		Arrays.fill(nullAllele, 'N');
-		alleles.add(new String(nullAllele));
-		GenomicVariantImpl answer = new GenomicVariantImpl(s, first, alleles);
+		CharSequence reference = genome.getReference(sequenceName, first, last);
+		if(reference==null) {
+			log.warning("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
+			return null;
+		}
+		alleles.add(reference.toString());
+		GenomicVariantImpl answer = new GenomicVariantImpl(sequenceName, first, alleles);
 		answer.setType(GenomicVariant.TYPE_STR);
 		return answer;
 	}
