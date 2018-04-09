@@ -177,26 +177,55 @@ public class ReadsAligner {
 			Set<Integer> kmersInSequence;
 			List<KmerAlignment> alns;
 			double percent;
-			ReadAlignment first;
-			ReadAlignment last;
+			int first;
+			int last;
 			ReadAlignment readAlignment;
 			while (iterator.hasNext())
 			{
+//				System.out.println("---------------"+kmersCount+"---------------------");
 				String sequenceName=iterator.next();
 				kmersInSequence= new HashSet<>();
 				alns = seqHits.get(sequenceName);
 				Collections.sort(alns,cmp);
-				for (int i = 0; i < alns.size(); i++) {
-					kmersInSequence.add(alns.get(i).getKmerNumber());
-				}
-				percent = (double) kmersInSequence.size()/kmersCount;
-				if(percent>=MIN_ACCURACY)
+				int actual =0;
+				int actualBackWards=kmersCount-1;
+				KmerAlignment[] arr= new KmerAlignment[kmersCount];
+				for (int i = 0; i < alns.size(); i++) 
 				{
-					first = alns.get(0).getReadAlignment();
-					last = alns.get(alns.size()-1).getReadAlignment();
-					readAlignment =new ReadAlignment(first.getSequenceName(), first.getFirst(), 
-							last.getLast(), last.getLast()-first.getFirst(), first.getFlags());
-					finalAlignments.add(readAlignment);
+					kmersInSequence.add(alns.get(i).getKmerNumber());
+//					System.out.println(alns.get(i).getReadAlignment().getFirst()+" "+alns.get(i).getKmerNumber());
+					if(alns.get(i).getKmerNumber()==actual*SEARCH_KMER_LENGTH && actualBackWards==kmersCount-1)
+					{
+						arr[actual]=alns.get(i);
+						actual++;
+					}
+//					else if(alns.get(i).getKmerNumber()==actualBackWards*SEARCH_KMER_LENGTH)
+//					{
+//						arr[actualBackWards]=alns.get(i);
+//						actualBackWards--;
+//					}
+					
+					if(actual==kmersCount)
+					{
+						String seName=arr[0].getReadAlignment().getSequenceName();
+						first=arr[0].getReadAlignment().getFirst();
+						last=arr[actual-1].getReadAlignment().getLast();
+						finalAlignments.add(new ReadAlignment(seName, first,last , 0, 0));
+//						System.out.println(first+","+last);
+						actualBackWards=kmersCount-1;
+						actual=0;
+					}
+//					else if(actualBackWards==-1)
+//					{
+//						//Fix pending
+//						String seName=arr[0].getReadAlignment().getSequenceName();
+//						first=arr[kmersCount-1].getReadAlignment().getFirst();
+//						last=arr[0].getReadAlignment().getLast();
+//						finalAlignments.add(new ReadAlignment(seName, first,last , 0, 0));
+////						System.err.println("BACK"+first+","+last);
+//						actualBackWards=kmersCount-1;
+//						actual=0;
+//					}
 				}
 			}
 		}
