@@ -85,7 +85,7 @@ public class FMIndexSingleSequence implements Serializable {
 	public FMIndexSingleSequence(CharSequence sequence, int tallyDistance, int suffixFraction) {
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
-		calculate(sequence);
+		calculate2(sequence);
 	}
 
 	public int getTallyDistance() {
@@ -104,6 +104,17 @@ public class FMIndexSingleSequence implements Serializable {
 		buildTally();
 		createPartialSuffixArray(suffixes);
 
+	}
+	
+	private void calculate2(CharSequence sequence) {
+		//List<Integer> suffixes = buildSuffixArray(sequence);
+		SuffixArrayGenerator suffixArrayGenerator=new SuffixArrayGenerator(sequence);
+		alphabet = suffixArrayGenerator.getAlphabet();
+		firstRowsInMatrix = suffixArrayGenerator.getFirstRowsInMatrix();
+		lastRowsInMatrix = suffixArrayGenerator.getLastRowsInMatrix();
+		partialSuffixArray = suffixArrayGenerator.getPartialSuffixArray(suffixFraction);
+		bwt = suffixArrayGenerator.getBWT();
+		tallyIndexes = suffixArrayGenerator.getTallyIndexes(tallyDistance, bwt);
 	}
 
 	/**

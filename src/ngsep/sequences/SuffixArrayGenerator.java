@@ -20,6 +20,9 @@
 package ngsep.sequences;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * @author Juan Camilo Bojaca
@@ -29,6 +32,7 @@ public class SuffixArrayGenerator {
 	// -------------------------------------------------------------------------------
 	// CONSTANT VALUES
 	// -------------------------------------------------------------------------------
+	private static final char SPECIAL_CHARACTER = '$';
 	/**
 	 * models the radix factor (bits used to sort)
 	 */
@@ -45,13 +49,19 @@ public class SuffixArrayGenerator {
 	 * the ASCII interval that it handles
 	 */
 	private final static int AlfabetEnd = 127;
+
+	private final static byte[] map = new byte[AlfabetEnd];
 	// -------------------------------------------------------------------------------
 	// VARAIBLES
 	// -------------------------------------------------------------------------------
 	/**
 	 * the suffix Array
 	 */
-	private int[] ans;
+	private CharSequence sequence;
+	private int[] suffixArray;
+	private String alphabet;
+	private Map<Character, Integer> firstRowsInMatrix;
+	private Map<Character, Integer> lastRowsInMatrix;
 
 	/**
 	 * is used to sort
@@ -72,11 +82,12 @@ public class SuffixArrayGenerator {
 	public SuffixArrayGenerator(CharSequence charSequence) {
 		long ini = System.currentTimeMillis();
 
-		byte[] map = getMap(charSequence);
-		int[] data = transform(charSequence, map);
+		sequence = charSequence;
+		getMap(charSequence);
+		int[] data = transform(charSequence);
 
-		partialSA = new int[data.length + 4];
-		ans = new int[data.length];
+		partialSA = new int[data.length];
+		suffixArray = new int[data.length];
 		repeated = new boolean[(int) ((2 * data.length) / 3)];
 		auxSort = new int[(int) ((2 * data.length) / 3)];
 		auxSort2 = new int[(int) ((2 * data.length) / 3)];
@@ -85,19 +96,64 @@ public class SuffixArrayGenerator {
 
 		// map[map.length - 1] is the maximum possible value in data
 		getSuffix(data, round(highestOneBitPos(map[map.length - 1])));
-
-		System.out.println("time sort: " + ((System.currentTimeMillis() - ini) / (double) 1000) + "("
-				+ charSequence.length() + ")");
+		System.out.println("time sort: " + ((System.currentTimeMillis() - ini) / (double) 1000) + "("+ charSequence.length() + ")");
 	}
 
-	/**
-	 * 
-	 * @return the suffix Array
-	 */
 	public int[] getSA() {
-		int[] answer = new int[ans.length - 1];
-		System.arraycopy(ans, 1, answer, 0, answer.length);
+		int[] answer = new int[suffixArray.length - 1];
+		System.arraycopy(suffixArray, 1, answer, 0, answer.length);
 		return answer;
+	}
+
+	public char[] getBWT() {
+		char[] bwt = new char[suffixArray.length];
+		// Adaptation for the suffix array with the first position
+		int j = 0;
+		for (int i : suffixArray) {
+			bwt[j++] = (i > 0) ? sequence.charAt(i - 1) : SPECIAL_CHARACTER;
+		}
+		return bwt;
+	}
+
+	public Map<Integer, Integer> getPartialSuffixArray(final int suffixFraction) {
+		Map<Integer, Integer> partialSuffixArray = new HashMap<Integer, Integer>();
+		int n = suffixArray.length;
+		for (int i = 0; i < n - 1; i++) {
+			int startSeq = suffixArray[i];
+			if (startSeq % suffixFraction == 0) {
+				// Adaptation for the suffix array with the first position
+				partialSuffixArray.put(i, startSeq);
+			}
+		}
+		return partialSuffixArray;
+	}
+
+	public int[][] getTallyIndexes(int tallyDistance, char[] bwt) {
+		int[] arr = new int[alphabet.length() + 1];
+		int tallyRows = (bwt.length + (tallyDistance - 1)) / tallyDistance;
+		int[][] tallyIndexes = new int[tallyRows][alphabet.length()];
+
+		arr[map[bwt[0]]]++;
+		System.arraycopy(arr, 1, tallyIndexes[0], 0, arr.length - 1);
+
+		for (int j = 1; j < tallyRows; j++) {
+			for (int i = (j - 1) * tallyDistance + 1; i <= j * tallyDistance; i++)
+				arr[map[bwt[i]]]++;
+			System.arraycopy(arr, 1, tallyIndexes[j], 0, arr.length - 1);
+		}
+		return tallyIndexes;
+	}
+
+	public String getAlphabet() {
+		return alphabet;
+	}
+
+	public Map<Character, Integer> getFirstRowsInMatrix() {
+		return firstRowsInMatrix;
+	}
+
+	public Map<Character, Integer> getLastRowsInMatrix() {
+		return lastRowsInMatrix;
 	}
 
 	// -------------------------------------------------------------------------------
@@ -139,11 +195,11 @@ public class SuffixArrayGenerator {
 
 			// using the Suffix array of r, finishes order sort1
 			for (int j = 1; j <= sort1Size; j++) {
-				int idx = ans[j];
+				int idx = suffixArray[j];
 				sort1[j - 1] = (idx < m) ? idx * 3 + 1 : (idx - m) * 3 + 2;
 			}
 		}
-		calculatePartialSA(sort1Size);
+		calculatePartialSA(sort1Size, data.length);
 		// -----------------------------------------------------------------------------
 		// STEP #3: Sorting the non sample Suffices b0
 		// -----------------------------------------------------------------------------
@@ -261,15 +317,15 @@ public class SuffixArrayGenerator {
 		int index1 = 0, index2 = 0, indexAns = 0;
 		while (index1 != sort1Size && index2 != sort2Size) {
 			if (compare(sort2[index2], sort1[index1], data) < 0)
-				ans[indexAns++] = sort2[index2++];
+				suffixArray[indexAns++] = sort2[index2++];
 			else
-				ans[indexAns++] = sort1[index1++];
+				suffixArray[indexAns++] = sort1[index1++];
 		}
 		while (index1 != sort1Size)
-			ans[indexAns++] = sort1[index1++];
+			suffixArray[indexAns++] = sort1[index1++];
 		while (index2 != sort2Size)
-			ans[indexAns++] = sort2[index2++];
-		return ans;
+			suffixArray[indexAns++] = sort2[index2++];
+		return suffixArray;
 	}
 
 	/**
@@ -324,9 +380,10 @@ public class SuffixArrayGenerator {
 	 *            size of the data
 	 * @return a partial suffix matrix with the c indexes
 	 */
-	private void calculatePartialSA(final int sort1Size) {
-		for (int j = 1, i = 0; i < sort1Size; i++, j++)
-			partialSA[sort1[i] - 1] = j;
+	private void calculatePartialSA(final int sort1Size, final int dataSize) {
+		int j = 1;
+		for (int i = 0; i < sort1Size; i++)
+			partialSA[sort1[i] - 1] = j++;
 	}
 
 	/**
@@ -367,18 +424,30 @@ public class SuffixArrayGenerator {
 	 * 
 	 *         the letter is indexed by the value ASCII - alphabet Start
 	 */
-	private static byte[] getMap(final CharSequence charSequence) {
-		byte[] map = new byte[AlfabetEnd];
-
+	private void getMap(final CharSequence charSequence) {
+		int[] map2 = new int[map.length];
 		// mark the appearances whit 1
-		for (int i = 0; i < charSequence.length(); i++) {
-			char c = charSequence.charAt(i);
-			if (map[c] == 0)
-				map[c] = 1;
-		}
+		for (int i = 0; i < charSequence.length(); i++)
+			map2[charSequence.charAt(i)]++;
 
-		prefix(map);
-		return map;
+		StringBuilder str = new StringBuilder();
+		firstRowsInMatrix = new TreeMap<>();
+		lastRowsInMatrix = new TreeMap<>();
+		firstRowsInMatrix.put(SPECIAL_CHARACTER, 0);
+		lastRowsInMatrix.put(SPECIAL_CHARACTER, 0);
+
+		byte cont = 1;
+		int acum = 1;
+		for (int i = 0; i < map.length; i++)
+			if (map2[i] != 0) {
+				char c = (char) i;
+				firstRowsInMatrix.put(c, acum);
+				acum += map2[i];
+				lastRowsInMatrix.put(c, acum - 1);
+				map[i] = cont++;
+				str.append(c);
+			}
+		alphabet = str.toString();
 	}
 
 	/**
@@ -390,7 +459,7 @@ public class SuffixArrayGenerator {
 	 * @return use the map to transform the char sequence in a numbers array, the
 	 *         last position represent the cut character $==0
 	 */
-	private static int[] transform(CharSequence charSequence, final byte[] map) {
+	private static int[] transform(CharSequence charSequence) {
 		int[] data = new int[charSequence.length() + 1];
 
 		for (int i = 0; i < charSequence.length(); i++)
@@ -438,17 +507,6 @@ public class SuffixArrayGenerator {
 				lo = m;
 		}
 		return hi;
-	}
-
-	/**
-	 * 
-	 * @param array
-	 *            the array to calculate the prefix
-	 */
-	private static void prefix(byte[] array) {
-		byte cont = array[0];
-		for (int i = 1; i < array.length; i++)
-			array[i] = cont += array[i];
 	}
 
 	/**
