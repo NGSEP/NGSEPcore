@@ -741,85 +741,6 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	
 	/**
-	 * Modifies the alignment collapsing close indel events
-	 */
-	public void collapseIndelEvents() {
-		failIfReadUnmappedOrInconsistentAlignment();
-		List<Integer> newAlignmentList = new ArrayList<Integer>();
-		int i=0;
-		int n = alignment.length;
-		//String cigar = getCigarString();
-		if(n<5) return;
-		int changeNextEvent = 0;
-		while(i<n) {
-			int length = getOperationLength(alignment[i]);
-			byte operator = getOperator(alignment[i]);
-			//if(aln.getAlignmentStart()==77467) System.out.println("WARN. Processing read: "+aln.getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+". Current CIGAR: "+aln.getCigarString()+" next elem: "+length+operator.name()+" change next event: "+changeNextEvent+" is Indel: "+isIndel(elem));
-			if(isIndel(operator)) {
-				for(int j=i+1;j<n;j++) {
-					int l2 = getOperationLength(alignment[j]);
-					byte op2 = getOperator(alignment[j]);
-					
-					if(isIndel(op2)) {
-						if(operator == op2) {
-							length+=l2;
-						} else {
-							int newLength = length - l2;
-							changeNextEvent+=Math.min(length, l2);
-							if(newLength<0) {
-								//Switch operator to make length positive
-								if(operator == ALIGNMENT_INSERTION) operator = ALIGNMENT_DELETION;
-								else operator = ALIGNMENT_INSERTION;
-								newLength = -newLength;
-							}
-							length = newLength;
-						}
-						if(j==n-1) {
-							if(changeNextEvent == 0) System.err.println("WARN. A modified CIGAR will be finished with an indel for the alignment of read: "+getReadName()+" at "+getSequenceName()+":"+getFirst()+". Current CIGAR: "+getCigarString());
-							i=n;
-						}
-					} else if(j==n-1) {
-						//Last event. Do not try to merge it
-						i=j;
-						break;
-					} else {
-						//Look ahead for next indel
-						int l3 = getOperationLength(alignment[j+1]);
-						byte op3 = getOperator(alignment[j+1]);
-						int length2 = l2+changeNextEvent;
-						if (isMatchMismatch(op2) && isIndel(op3) && length2<10 && (length2<=5 || length2<length+l3)) {
-							//Short M event in the middle of two indels. Collapse with event after
-							changeNextEvent+=l2;
-							
-						} else {
-							i=j;
-							break;
-						}
-					}
-				}
-			} else {
-				if(changeNextEvent>0) {
-					length+=changeNextEvent;
-					changeNextEvent = 0;
-				}
-				i++;
-			}
-			if(length>0) {
-				newAlignmentList.add(getAlnValue(length, operator));
-			}
-		}
-		if(changeNextEvent>0) {
-			//Soft clip if the read ends with an indel
-			newAlignmentList.add(getAlnValue(changeNextEvent, ALIGNMENT_SKIPFROMREAD));
-			System.err.println("WARN. A modified CIGAR will be finished with soft clip for the alignment of read at "+getSequenceName()+":"+first);
-		}
-		
-		alignment = NumberArrays.toIntArray(newAlignmentList);
-		//if(!cigar.equals(getCigarString())) System.out.println("WARN. Changing CIGAR of read: "+getReadName()+" at "+getSequenceName()+":"+first+". Current CIGAR: "+cigar+" new CIGAR: "+getCigarString());
-		alleleCallsUpdated = false;
-	}
-	
-	/**
 	 * Modifies this alignment moving the start of a given indel event
 	 * @param indelRefPos Start position of the indel event to move
 	 * @param newIndelRefPos New start position of the indel event
@@ -915,9 +836,6 @@ public class ReadAlignment implements GenomicRegion {
 		return operator == ALIGNMENT_DELETION || operator == ALIGNMENT_INSERTION;
 	}
 	
-	private boolean isMatchMismatch(byte operator) {
-		return operator == ALIGNMENT_MATCH || operator == ALIGNMENT_MISMATCH;
-	}
 	/**
 	 * Provides the CIGAR describing the alignment as a String object
 	 * @return String CIGAR

@@ -227,7 +227,6 @@ public class AlignmentsPileupGenerator {
 			startSequence(aln);
 			for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 		}
-		aln.collapseIndelEvents();
 		int alnLast = aln.getLast();
 		if(alnLast > currentReferenceLast) currentReferenceLast = alnLast;
 		if(aln.isSecondary()) {
