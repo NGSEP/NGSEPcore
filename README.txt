@@ -75,7 +75,11 @@ OPTIONS:
 	-maxAlnsPerStartPos INT	: Maximum number of alignments allowed to start
 				  at the same reference site. This parameter
 				  helps to control false positives produced by
-				  PCR amplification artifacts. Default 5 
+				  PCR amplification artifacts. Default 5
+        -p                      : Process non unique primary alignments in the
+				  pileup process.  The default behavior is to
+				  process alignments that are unique
+				  (see option -minMQ) 
 	-s			: Consider secondary alignments while calling
 				  SNVs
 	-minAltCoverage	INT	: Minimum coverage of the alternative allele to
@@ -147,18 +151,18 @@ OPTIONS:
 				  CAUTION: For WGS samples, and even for 
 				  RAD/GBS samples in organisms with medium to
 				  large genomes this produces a huge file. 
-	-noRep			: Turn off finding repetitive regions based on
+	-runRep			: Turn on finding repetitive regions based on
 				  reads with multiple alignments
-	-noRD			: Turn off read depth analysis to identify CNVs
-	-noRP			: Turn off read pair analysis to identify large
+	-runRD			: Turn on read depth analysis to identify CNVs
+	-runRP			: Turn on read pair analysis to identify large
 				  indels and inversions
 	-noSNVS			: Turn off SNV detection
 	-noNewCNV		: Turn off finding new CNVs with the read depth
 				  analysis. Input CNVs and repeats will still
 				  be genotyped using the RD distribution
 
-Alignments should be provided in SAM V-0.1.2 format
-(see http://samtools.sourceforge.net for details) or its binary version (BAM).
+Alignments should be provided in BAM V-0.1.2 format
+(see http://samtools.sourceforge.net for details).
 The reference genome should be provided in fasta format. It is assumed that
 the sequence names in the alignments file correspond with the sequence names in
 this reference assembly. The output for SNVs and small indels is a VCF file
@@ -252,15 +256,19 @@ NUF (INT)	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
 
-WARNING: Default parameters of the variants detector are designed to maximize
-the number of called variants which will generate false positives in samples
-with small coverage or high error rates. For conservative SNV calling use:
+WARNING: The default minimum genotype quality of the variants detector (0) 
+will maximize the number of called variants at the cost of generating some
+false positives in samples with small coverage or high sequencing error rates.
+For conservative variant calling use:
 
-java -jar NGSEPcore.jar FindVariants -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions or use the
-Clip command (see below)
+Clip command (see below). If the reference genome has lowercase characters for
+repetitive regions (usually called softmasked), these regions can be directly
+filtered using the option -ignoreLowerCaseRef. These regions can always be
+filtered in later stages of the analysis using the FilterVCF command.
 
 WARNING 2: For RAD Sequencing or GBS samples, using the default value of the
 parameter to control for PCR duplicates (maxAlnsPerStartPos) will yield very
@@ -269,7 +277,7 @@ low sensitivity. We recommend to increase the value of the parameter to about
 Also, structural variants should not be called using these data. The usage for
 conservative variant calling in RAD-Seq or GBS samples becomes:
 
-java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
   
 -----------------------------------
 Calculating base quality statistics
@@ -991,6 +999,37 @@ OPTIONS:
 		  are assumed to be 1-based.
         -s      : Consider secondary alignments. By default, only primary
 		  alignments are processed
+
+----------------------------------------------
+Simulating individuals from a reference genome
+----------------------------------------------
+
+This simulator takes a (haploid) genome assembly and simulates a single
+individual including homozygous and heterozygous mutations (SNPs, indels and
+mutated STRs) relative to the input assembly. It produces two files, a fasta
+file with the simulated genome, and a phased VCF file with the simulated
+variants.
+
+USAGE:
+
+java -jar NGSEPcore.jar SingleIndividualSimulator <OPTIONS> <GENOME> <OUT_PREFIX>
+
+OPTIONS:
+
+	-s DOUBLE	: Proportion of reference basepairs with simulated SNV
+			  events. Default: 0.001
+	-i DOUBLE	: Proportion of reference basepairs with simulated
+			  indel events. Default: 0.0001
+	-f DOUBLE	: Fraction of input STRs for which a mutation will be
+			  simulated. Default: 0.1
+	-t FILE		: Path to a text file describing the known STRs in the
+			  given genome
+        -u INT		: Zero-based index in the STR file where the unit
+			  sequence is located. Default: 14
+	-d STRING	: ID of the simulated sample. Appears in the VCF header
+			  and as part of the name of the sequences in the
+			  simulated genome. Default: Simulated
+	-p INT		: Ploidy of the simulated sample. Default: 2
 
 ------------------------------
 Citing and supporting packages

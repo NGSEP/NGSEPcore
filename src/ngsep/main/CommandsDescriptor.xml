@@ -845,6 +845,7 @@ homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative t
 </description>
 <argument>OPTIONS</argument>
 <argument>GENOME</argument>
+<argument>OUT_PREFIX</argument>
 
 <option id="s" type="DOUBLE" default="0.001" attribute="snvRate">
 Proportion of reference basepairs with simulated SNV events
@@ -858,7 +859,7 @@ Fraction of input STRs for which a mutation will be simulated
 <option id="t" type="FILE" attribute="strsFile">
 Path to a text file describing the known STRs in the given genome
 </option>
-<option id="u" type="int" default="14" attribute="strUnitIndex">
+<option id="u" type="INT" default="14" attribute="strUnitIndex">
 Zero-based index in the STR file where the unit sequence is located
 </option>
 <option id="d" type="STRING" default="Simulated" attribute="sampleId">
