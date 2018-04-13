@@ -5,7 +5,10 @@ v3.1.2 30-03-2018
   -runRP. 
 - FindVariants: The default behavior now considers only unique alignments
   defined by the mapping quality threshold (option -minMQ). New option -p
-  to process also non-unique primary alignments 
+  to process also non-unique primary alignments
+- FindVariants: Improved counting of unique and non unique alignments
+  in repetitive regions predicted by the clustering algorithm based on
+  non-unique alignments   
 
 v3.1.1 30-01-2018
 - RelativeAlleleCounts: Statistics are now calculated not only for the entire

@@ -38,18 +38,7 @@ import ngsep.variants.GenomicVariantImpl;
 public class MultipleMappingRegionsCalculator {
 	
 	public static final String SOURCE_MULTIPLE_ALNS = "MultiAlns";
-	private short minGenotypeQuality = 7;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	
-	
-	
-	
-	public short getMinGenotypeQuality() {
-		return minGenotypeQuality;
-	}
-	public void setMinGenotypeQuality(short minGenotypeQuality) {
-		this.minGenotypeQuality = minGenotypeQuality;
-	}
 	
 	/**
 	 * @return the minMQ
@@ -68,10 +57,10 @@ public class MultipleMappingRegionsCalculator {
 		List<CalledCNV> multipleMappingRegions = new ArrayList<CalledCNV>();
 		GenomicRegionImpl lastRegion = null;
 		int nonUniqueLastRegion = 0;
-		LinkedList<Integer> uniqueMidPoints = new LinkedList<Integer>();
-		ReadAlignmentFileReader reader = null;
-		try {
-			reader = new ReadAlignmentFileReader(alnsFile);
+		int minReadLength=-1;
+		LinkedList<Integer> uniqueStarts = new LinkedList<Integer>();
+		
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alnsFile);) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
@@ -80,17 +69,18 @@ public class MultipleMappingRegionsCalculator {
 			Iterator<ReadAlignment> it = reader.iterator();
 			while(it.hasNext()) {
 				ReadAlignment aln = it.next();
+				if(minReadLength==-1 || minReadLength>aln.getReadLength()) minReadLength = aln.getReadLength();
 				boolean sequenceChange = !aln.getSequenceName().equals(currentSeqName);
 				if(lastRegion!=null && (sequenceChange || lastRegion.getLast() < aln.getFirst()-5)) {
-					CalledCNV cnv = makeCNVCall(lastRegion, nonUniqueLastRegion, uniqueMidPoints);
-					if (cnv.getGenotypeQuality()>=minGenotypeQuality) multipleMappingRegions.add(cnv);
+					CalledCNV cnv = makeCNVCall(lastRegion, nonUniqueLastRegion, uniqueStarts, minReadLength);
+					if(cnv!=null) multipleMappingRegions.add(cnv);
 					lastRegion = null;
 				}
 				if(sequenceChange) {
-					uniqueMidPoints.clear();
+					uniqueStarts.clear();
 					currentSeqName = aln.getSequenceName();
 				}
-				else if (lastRegion==null && uniqueMidPoints.size()>100000) purgeList(uniqueMidPoints, aln.getFirst());
+				else if (lastRegion==null && uniqueStarts.size()>100000) purgeList(uniqueStarts, aln.getFirst());
 				boolean isUnique = aln.isUnique();
 				if(!isUnique) {
 					if(lastRegion == null) {
@@ -102,37 +92,36 @@ public class MultipleMappingRegionsCalculator {
 					}
 					
 				} else {
-					int midPoint = aln.getFirst()+aln.getReadLength()/2;
-					uniqueMidPoints.add(midPoint);
+					uniqueStarts.add(aln.getFirst());
 				}
 				
 			}
-		} finally {
-			if (reader!=null) reader.close();
 		}
 		
 		if(lastRegion!=null) {
-			CalledCNV cnv = makeCNVCall(lastRegion, nonUniqueLastRegion, uniqueMidPoints);
-			if (cnv.getGenotypeQuality()>=minGenotypeQuality) multipleMappingRegions.add(cnv);
+			CalledCNV cnv = makeCNVCall(lastRegion, nonUniqueLastRegion, uniqueStarts, minReadLength);
+			if(cnv!=null) multipleMappingRegions.add(cnv);
 		}
 		return multipleMappingRegions;
 	}
-	public CalledCNV makeCNVCall(GenomicRegion region, int nonUniqueAlns, LinkedList<Integer> uniqueMidPoints) {
+	public CalledCNV makeCNVCall(GenomicRegion region, int nonUniqueAlns, LinkedList<Integer> uniqueStarts, int minReadLength) {
 		CalledCNV cnv = new CalledCNV(new GenomicVariantImpl(region.getSequenceName(), region.getFirst(), region.getLast(), GenomicVariant.TYPE_REPEAT));
 		cnv.setSource(SOURCE_MULTIPLE_ALNS);
 		cnv.setNonUniqueAlns(nonUniqueAlns);
 		int uniqueAlns = 0;
-		while(uniqueMidPoints.size()>0) {
-			int next = uniqueMidPoints.peekFirst();
-			if(next<=region.getLast()) {
-				if(next>=region.getFirst())uniqueAlns++;
-				uniqueMidPoints.removeFirst();
+		while(uniqueStarts.size()>0) {
+			int nextFirst = uniqueStarts.peekFirst();
+			int nextLast = nextFirst+minReadLength-1;
+			if(nextFirst<=region.getLast()) {
+				if(nextFirst>=region.getFirst() && nextLast<=region.getLast()) uniqueAlns++;
+				uniqueStarts.removeFirst();
 			} else {
 				break;
 			}
 		}
 		cnv.setUniqueAlns(uniqueAlns);
-		//TODO: Improve p-value
+		//TODO: Make real p-value
+		if(nonUniqueAlns<5) return null;
 		double pValue = 1.0/(1.0+nonUniqueAlns);
 		if(uniqueAlns>0) pValue = (double)uniqueAlns/(nonUniqueAlns+uniqueAlns);
 		cnv.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(pValue));

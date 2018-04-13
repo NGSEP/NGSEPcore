@@ -103,7 +103,8 @@ public class GFFVariantsFileHandler {
 							String source = sources.addOrLookupName(value).getName();
 							calledCNV.setSource(source);
 						} else if (TAG_NSF.equals(tag)) {
-							calledCNV.setTotalReadDepth(Integer.parseInt(value));
+							if(type == GenomicVariant.TYPE_REPEAT) calledCNV.setNonUniqueAlns(Integer.parseInt(value));
+							else calledCNV.setTotalReadDepth(Integer.parseInt(value));
 						} else if (TAG_NC.equals(tag)) {
 							calledCNV.setNumCopies(Float.parseFloat(value),true);
 						} else if (TAG_NUF.equals(tag)) {
@@ -177,7 +178,11 @@ public class GFFVariantsFileHandler {
 			if(v instanceof CalledCNV) {
 				CalledCNV cnv = (CalledCNV) v;
 				if (cnv.getSource()!=null) out.print(";"+TAG_SOURCE+"="+cnv.getSource());
-				out.print(";"+TAG_NSF+"="+cnv.getTotalReadDepth());
+				if(v.getType() == GenomicVariant.TYPE_REPEAT) {
+					out.print(";"+TAG_NSF+"="+cnv.getNonUniqueAlns());
+				} else {
+					out.print(";"+TAG_NSF+"="+cnv.getTotalReadDepth());
+				}
 				out.print(";"+TAG_NC+"="+df.format(cnv.getNumCopies()));
 				if(cnv.getUniqueAlns()>0) out.print(";"+TAG_NUF+"="+cnv.getUniqueAlns());
 				out.print(";"+TAG_HET+"="+cnv.getHeterozygousVariants());
