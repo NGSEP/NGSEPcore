@@ -1,5 +1,7 @@
-v3.1.2 30-03-2018
+v3.1.2 16-04-2018
 - Added new command to simulate individuals from reference genomes
+- FindVariants: Improved the realignment around small indels and STRs to
+  improve quality of detection and genotyping of these variants 
 - FindVariants: The default behavior now only runs the SNV and small indel
   caller. Replaced options -noRep, -noRD and -noRP with -runRep -runRD and
   -runRP. 
@@ -8,7 +10,10 @@ v3.1.2 30-03-2018
   to process also non-unique primary alignments
 - FindVariants: Improved counting of unique and non unique alignments
   in repetitive regions predicted by the clustering algorithm based on
-  non-unique alignments   
+  non-unique alignments
+- VCF IO: Genotype likelihoods can now be read and written from the GL field
+  The genotype quality can be a real number to allow reading this field from
+  Freebayes VCF files
 
 v3.1.1 30-01-2018
 - RelativeAlleleCounts: Statistics are now calculated not only for the entire
