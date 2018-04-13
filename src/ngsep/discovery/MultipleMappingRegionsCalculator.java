@@ -61,7 +61,7 @@ public class MultipleMappingRegionsCalculator {
 		LinkedList<Integer> uniqueStarts = new LinkedList<Integer>();
 		
 		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alnsFile);) {
-			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
+			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
 			reader.setMinMQ(minMQ);
@@ -69,6 +69,8 @@ public class MultipleMappingRegionsCalculator {
 			Iterator<ReadAlignment> it = reader.iterator();
 			while(it.hasNext()) {
 				ReadAlignment aln = it.next();
+				if(aln.isPartialAlignment(10)) continue;
+				//if(aln.getReadLength()<100) System.out.println("Small read alignment: "+aln.getReadName()+" length: "+aln.getReadLength()+" CIGAR: "+aln.getCigarString());
 				if(minReadLength==-1 || minReadLength>aln.getReadLength()) minReadLength = aln.getReadLength();
 				boolean sequenceChange = !aln.getSequenceName().equals(currentSeqName);
 				if(lastRegion!=null && (sequenceChange || lastRegion.getLast() < aln.getFirst()-5)) {
@@ -112,6 +114,7 @@ public class MultipleMappingRegionsCalculator {
 		while(uniqueStarts.size()>0) {
 			int nextFirst = uniqueStarts.peekFirst();
 			int nextLast = nextFirst+minReadLength-1;
+			//if(region.getFirst() == 2195287) System.out.println("Non unique alns: "+nonUniqueAlns+" Next first unique: "+nextFirst+" nextLast unique: "+nextLast+" readlength: "+minReadLength);
 			if(nextFirst<=region.getLast()) {
 				if(nextFirst>=region.getFirst() && nextLast<=region.getLast()) uniqueAlns++;
 				uniqueStarts.removeFirst();

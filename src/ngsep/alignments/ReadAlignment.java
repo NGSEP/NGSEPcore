@@ -501,10 +501,12 @@ public class ReadAlignment implements GenomicRegion {
 	
 		if(alignment == null || alignment.length<2) return false;
 		int s1 = 0;
-		if(getOperator(alignment[0])==ALIGNMENT_SKIPFROMREAD) s1 = getOperationLength(alignment[0]);
+		byte op1 = getOperator(alignment[0]); 
+		if(op1==ALIGNMENT_SKIPFROMREAD || op1==ALIGNMENT_HARDCLIP) s1 = getOperationLength(alignment[0]);
 		int s2 = 0;
 		int l = alignment.length-1;
-		if(getOperator(alignment[l])==ALIGNMENT_SKIPFROMREAD) s2 = getOperationLength(alignment[l]);
+		byte op2 = getOperator(alignment[l]);
+		if(op2==ALIGNMENT_SKIPFROMREAD || op2==ALIGNMENT_HARDCLIP) s2 = getOperationLength(alignment[l]);
 		return s1>=minClipLength || s2>=minClipLength;
 	}
 
