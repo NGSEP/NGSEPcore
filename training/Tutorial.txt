@@ -86,8 +86,9 @@ Tutorial:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 3. Index the Genome
-    To start, download the reference genome of Saccharomyces cerevisiae from the 'docs' directory in the NGSEP site, the sequence is in FASTA format and the annotation is in gff format.
-    Download both files and save them in the 'reference' directory in the working directory.
+    To start, download the reference genome of Saccharomyces cerevisiae from the 'training' directory in the NGSEP site in the "Files" sheet.
+    The sequence is in FASTA format, the annotation is in gff format and the repeats and STRs are text files.
+    Download all files and save them in the 'reference' directory created at step 0.
 
     The first step when mapping reads to a reference genome is to index the reference. To perform this step, from the directory ngsep_tutorial type:
 
@@ -134,14 +135,14 @@ Tutorial:
 5. Find Variants
     In the same directory, perform the detection of Single Nucleotide Variants (SNVs) and Structural Variants (SVs) from each sample, using the FindVariants command of NGSEP like this:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP >& ER7A_bowtie2_NGSEP.log
+        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP >& ER7A_bowtie2_NGSEP.log
 
     This will produce three files, a VCF with SNPs and small indels, a GFF with structural variants and a log file.
         ER7A_bowtie2_NGSEP.vcf
         ER7A_bowtie2_NGSEP_SV.gff
         ER7A_bowtie2_NGSEP.log
 
-    The VCF file contains a list of all the SNVs, small indels, and the quality information of each variant in each sample. The GFF file contains the information about structural variation in each sample, including calls to repetitive regions, insertions, invertions, inversions and Copy Number Variation (CNVs).
+    The VCF file contains a list of all the SNVs, small indels and STRs, and the quality information of each variant in each sample. The GFF file contains the information about structural variation in each sample, including calls to repetitive regions, insertions, inversions, inversions and Copy Number Variation (CNVs).
 
     Note: If either the VCF or the GFF is not produced or is empty, the log file usually finishes with a description of the problem.
 
@@ -159,7 +160,7 @@ Tutorial:
     Finally, go to the 'population' directory and merge the VCFs from the genotyping process of each sample using the MergeVCF command:
 
         $ cd ../population
-        $ java -jar ~/javaPrograms/NGSEPcore.jar MergeVCF ../reference/Saccharomyces_cerevisiae_seqNames.txt ../genotyping/*_bowtie2_NGSEP_gt.vcf > yeast_population.vcf
+        $ java -jar ~/javaPrograms/NGSEPcore.jar MergeVCF ../reference/Saccharomyces_cerevisiae_seqNames.txt ../genotyping/*_bowtie2_NGSEP_gt.vcf > yeastDemo.vcf
 
     At the end of this process, you must have a VCF file with both samples listed at the end of the 19th line, and two aditional columns on your file, which correspond one to each sample.
 
@@ -167,7 +168,7 @@ Tutorial:
 7. Annotate the VCF
     With the database created in the previous step, the last thing to do is to enter the functional annotation of each variant, using the Annotate command:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar Annotate yeast_population.vcf ../reference/Saccharomyces_cerevisiae.gff ../reference/Saccharomyces_cerevisiae.fa > yeast_population_annotated.vcf
+        $ java -jar ~/javaPrograms/NGSEPcore.jar Annotate yeastDemo.vcf ../reference/Saccharomyces_cerevisiae.gff ../reference/Saccharomyces_cerevisiae.fa > yeastDemo_ann.vcf
 
     This file is the complete database, with all the available information about the population of interest, in this case yeast. It contains all the variant positions, the genotype of each sample at each position, and the functional annotation of those positions. Put it in a safe place, you will need to come back to this file many times in the future.
 
@@ -175,7 +176,7 @@ Tutorial:
 8. Filter the VCF
     Further steps require applying some filtering criteria to the database of the your samples. For this use the FilterVCF command:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -q 40 -s -fi -minI 2 yeast_population_annotated.vcf > yeast_population_annotated_filter_q40_s_fi_I2.vcf
+        $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -q 40 -s -fi -minI 2 yeastDemo_ann.vcf > yeastDemo_ann_q40_s_fi_I2.vcf
 
     The reasons of the filtering criteria are the following:
         -q 40    : keep only calls with a quality of 40 or more. This is useful to be more confident about the variants called.
@@ -185,21 +186,23 @@ Tutorial:
 
     It is also a good idea to keep only unique positions in the genome, removing repetitive regions or detected CNVs. To do that, first create a catalogue of the Repeats and CNVs detected by NGSEP, using the following awk command:
 
-        $ awk '{ if($3=="REPEAT"||$3=="CNV") print $1,$4,$5 }' ../mapping/*_bowtie2_NGSEP_SV.gff > reps_cnvs_catalogue.txt
+        $ awk '{ if($3=="REPEAT" || $3=="CNV") print $1,$4,$5 }' ../mapping/*_bowtie2_NGSEP_SV.gff > reps_cnvs_catalogue.txt
 
     And then pass it to the FilterVCF command with the '-frs' parameter:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -frs reps_cnvs_catalogue.txt yeast_population_annotated_filter_q40_s_fi_I2.vcf > yeast_population_annotated_filter_q40_s_fi_I2_noREP_noCNV.vcf
+        $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -frs reps_cnvs_catalogue.txt yeastDemo_ann_q40_s_fi_I2.vcf > yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf
 
+    This step can also be performed with the repeat annotations from the saccharomyces cerevisiae database available in the file ../reference/Saccharomyces_cerevisiae_repeats.txt
+    
     To check if the process ended correctly, you can compare your final, filtered, annotated, VCF with the one provided in the 'Training' directory in SourceForge.
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar CompareVCF -g 0 -d 100 ../reference/Saccharomyces_cerevisiae_seqNames.txt yeast_population_annotated_filter_q40_s_fi_I2_noREP_noCNV.vcf sf_yeast_population_annotated_filter_q40_s_fi_I2_noREP_noCNV.vcf > yeast_population.comparation
+        $ java -jar ~/javaPrograms/NGSEPcore.jar CompareVCF -g 0 -d 100 ../reference/Saccharomyces_cerevisiae.fa yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf > yeast_population.comparation
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 9. Export the Data
     Finally, for using your database in further analyses, it is useful to convert it from the VCF format to the format accepted by other software, for that we can use the ConvertVCF command of NGSEP like this:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar ConvertVCF -printFlapjack yeast_population_annotated_filter_q40_s_fi_I2_noREP_noCNV.vcf yeast_pop_filter_q40_s_fi_I2_noREP_noCNV
+        $ java -jar ~/javaPrograms/NGSEPcore.jar ConvertVCF -printFlapjack yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf yeastDemo_ann_q40_s_fi_I2_noREP_noCNV
 
     There are many useful formats to export your data in this step, it will depend on the kind of analysis that will be performed afterwards, you can always come back to the original annotated VCF file, and apply new filtering criteria, and export the resulting file into other format for a different analysis.
 

@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.1.2 (16-04-2018)
+Version 3.1.2 (14-04-2018)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -227,7 +227,8 @@ NSF (INT)	: Number of fragments supporting the structural variation
 		  event. For read depth algorithms is the (raw) number of reads
 		  that can be aligned within the CNV. For read pair analysis
 		  is the number of fragments (read pairs) that support the
-		  indel or the inversion
+		  indel or the inversion. For repeats is the number of reads
+		  with multiple alignments
 NC (DOUBLE)	: For CNVs called with the read depth algorithms this is the
 		  estimated number of copies. It is kept as a real number
 		  to allow users to filter by proximity to an integer value if
@@ -259,16 +260,21 @@ NUF (INT)	: For repeats identified from reads aligning to multiple
 WARNING: The default minimum genotype quality of the variants detector (0) 
 will maximize the number of called variants at the cost of generating some
 false positives in samples with small coverage or high sequencing error rates.
-For conservative variant calling use:
+For conservative variant calling in whole genome sequencing use:
 
 java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
+If interested in structural variation, you can add the options to run read
+depth (RD) and read pair (RP) approaches to identify structural variation:
+
+java -jar NGSEPcore.jar FindVariants -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+
 If the error rate towards the three prime end increases over 2% you can also
-use the option -ignore3 to ignore errors at those read positions or use the
-Clip command (see below). If the reference genome has lowercase characters for
-repetitive regions (usually called softmasked), these regions can be directly
-filtered using the option -ignoreLowerCaseRef. These regions can always be
-filtered in later stages of the analysis using the FilterVCF command.
+use the option -ignore3 to ignore errors at those read positions. If the
+reference genome has lowercase characters for repetitive regions (usually
+called softmasked), these regions can be directly filtered using the option
+-ignoreLowerCaseRef. These regions can always be filtered in later stages of
+the analysis using the FilterVCF command.
 
 WARNING 2: For RAD Sequencing or GBS samples, using the default value of the
 parameter to control for PCR duplicates (maxAlnsPerStartPos) will yield very
@@ -401,7 +407,12 @@ following command on the fasta file with the reference genome:
 
 awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REFERENCE_FILE> > <SEQUENCE_NAMES_FILE>
 
-The output file of this merge program is a vcf with the union of variants
+If samtools is available. The fai index file provided by this tool can also be
+used as a sequence names file. The fai index is generated with this command:
+
+samtools faidx <REFERENCE_FILE>
+
+The output file of the merge program is a vcf with the union of variants
 reported by the input files but without any genotype information. 
 
 The second step is to genotype for each sample the variants produced at the
@@ -411,24 +422,16 @@ like this:
 
 java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
-where SVS_FILE is the file with structural variation for the sample obtained
-during the first run of the variants detector, and VARS_FILE is the output file
-obtained in the first step of the merging process. At the end, this will
-produce a second set of vcf files which will differ from the first set in the
-sense that they will include calls to the reference allele. The third step is
-to join these new vcf files using the following command:
-
-USAGE:
+where VARS_FILE is the output file obtained in the first step of the merging
+process. At the end, this will produce a second set of vcf files which will
+differ from the first set in the sense that they will include calls to the
+reference allele. The third step is to join these new vcf files using the
+following command:
 
 java -jar NGSEPcore.jar MergeVCF <SEQUENCE_NAMES_FILE> <GENOTYPED_VARIANTS_FILE>*
 
-
 This command will write to standard output the final vcf file with the genotype
 calls for each variant on each sample.
-
-For organisms with small genomes, a VCF for the whole genome can be generated
-for each sample using the option -genotypeAll in the variants detector. Then,
-only the third step will be needed to mix the VCF files generated in this mode.
 
 -------------------
 Filtering VCF files

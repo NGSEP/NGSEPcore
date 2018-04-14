@@ -133,8 +133,9 @@ ____________________________________
     <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
     <VCF_FILES>* : List of all the VCF files from the FindVariants step.
     <SEQ_NAMES>  : File with the name of all the sequences present in the 
-                   reference genome, generate it by running:
+                   reference genome, generate it by running one of the following commands:
                         $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REF.fa> > <SEQ_NAMES>
+                        $ samtools faidx <REF.fa>
                    it should look like this:
                    ____________
                    |Chr1
@@ -148,20 +149,18 @@ ______________
 
     - Annotate the variants present in the population VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1>population_annotated.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1> population_annotated.vcf
 
     - Calculate the Summary Statistics for your annotated VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1>population_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1> population_summary.stats
 
     - Compare differences between your samples and find possible duplicates:
 
-        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <SEQ_NAMES> population.vcf population.vcf 1>population_sampleComparation.txt
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf 1> population_sampleComparation.txt
 
     <REF.fa>    : The FASTA file of the reference genome.
     <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
-    <SEQ_NAMES> : File with the name of all the sequences present in the 
-                  reference genome.
 __________
 4. Filter:
     {INPUT: an annotated VCF file with all the variation in your population -
@@ -173,7 +172,7 @@ __________
 
     - Check the effects of the filters in the VCF:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 2 population_annotated_filtered.vcf 1> population_filtered_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated_filtered.vcf 1> population_filtered_summary.stats
 ______________
 5. Imputation:
     {INPUT: a filtered VCF file from your population -
@@ -272,8 +271,9 @@ ____________________________________
     <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
     <VCF_FILES>* : List of all the VCF files from the FindVariants step.
     <SEQ_NAMES>  : File with the name of all the sequences present in the 
-                   reference genome, generate it by running:
+                   reference genome, generate it by running one of the following commands:
                         $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REF.fa> > <SEQ_NAMES>
+                        $ samtools faidx <REF.fa>
                    It should look like this:
                    ____________
                    |Chr1
@@ -287,20 +287,18 @@ ______________
 
     - Annotate the variants present in the population VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1>population_annotated.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1> population_annotated.vcf
 
     - Calculate the Summary Statistics for your annotated VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1>population_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1> population_summary.stats
 
     - Compare differences between your samples and find possible duplicates:
 
-        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <SEQ_NAMES> population.vcf population.vcf 1>population_sampleComparation.txt
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf 1>population_sampleComparation.txt
 
     <REF.fa>    : The FASTA file of the reference genome.
     <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
-    <SEQ_NAMES> : File with the name of all the sequences present in the 
-                  reference genome.
 __________
 4. Filter:
     {INPUT: an annotated VCF file with all the variation in your population -

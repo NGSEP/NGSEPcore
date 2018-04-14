@@ -1,4 +1,4 @@
-v3.1.2 16-04-2018
+v3.1.2 14-04-2018
 - Added new command to simulate individuals from reference genomes
 - FindVariants: Improved the realignment around small indels and STRs to
   improve quality of detection and genotyping of these variants 

@@ -20,6 +20,9 @@ Scripts are also available, to include NGSEP in a production pipeline:
 And, the sample data for the Tutorial:
 	Reference files
 	- Saccharomyces_cerevisiae.fa
-	- Saccharomyces_cerevisiae.gff
+	- Saccharomyces_cerevisiae_STRs.txt
+	- Saccharomyces_cerevisiae.gff3
+	- Saccharomyces_cerevisiae_repeats.txt
+	
 	Output for comparison
-	- yeast_population_annotated_filter_q40_s_fi_I2_noREP_noCNV.vcf
+	- yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf
