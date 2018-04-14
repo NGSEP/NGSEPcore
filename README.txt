@@ -625,8 +625,8 @@ OPTIONS:
 	-s INT	: Source of information in the VCF file to calculate distances.
 		  0 for simple genotype calls (GT format field), 1 for allele
 		  copy number (ACN format field), 2 for total copy number
-		  (total of ACN format field), and 3 for raw allele depth (DP
-		  format field). Default: 0
+		  (total of ACN format field), and 3 for raw allele depth (ADP
+		  or BSDP format fields). Default: 0
 	-p INT	: Default ploidy of the samples. Used if the distance source
 		  (-s option) is the raw allele depths to recalculate allele
 		  dosage based on these counts. Default: 2
