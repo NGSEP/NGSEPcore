@@ -134,7 +134,7 @@ Tutorial:
 5. Find Variants
     In the same directory, perform the detection of Single Nucleotide Variants (SNVs) and Structural Variants (SVs) from each sample, using the FindVariants command of NGSEP like this:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP >& ER7A_bowtie2_NGSEP.log
+        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP >& ER7A_bowtie2_NGSEP.log
 
     This will produce three files, a VCF with SNPs and small indels, a GFF with structural variants and a log file.
         ER7A_bowtie2_NGSEP.vcf
@@ -154,7 +154,7 @@ Tutorial:
 
     Then, call variants for each sample again, but this time use the '-knownVariants' parameter to inform the program that you want to genotype a given set of positions, this time it is not necesary to call SVs:
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -noRep -noRD -noRP -knownVariants yeast_list_variants.vcf -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ../mapping/ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP_gt >& ER7A_bowtie2_NGSEP_gt.log
+        $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -knownVariants yeast_list_variants.vcf -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ../mapping/ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP_gt >& ER7A_bowtie2_NGSEP_gt.log
 
     Finally, go to the 'population' directory and merge the VCFs from the genotyping process of each sample using the MergeVCF command:
 

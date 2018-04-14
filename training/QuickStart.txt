@@ -16,7 +16,7 @@ D. Production pipeline
                           ~~~~~ Requirements ~~~~~
 
 - For basic usage:
-    - Java 1.8    (for using the latest version of picard, otherwise 1.6 is OK)
+    - Java 1.8
     - Reference genome: in FASTA format
     - Sample files, this can be:
         - FASTQ files: one for single-end reads or two for paired-end reads;
@@ -107,7 +107,7 @@ ____________________________________
     - First, find all high-quality SNPs in the population, running 
     the following command for each sample:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
         * if you are not sure of how many bases to ignore at each end of the 
           read, run this command on each of your readpos.stats files:
@@ -121,7 +121,7 @@ ____________________________________
 
     - Third, genotype all your samples in the high-quality positions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -noRep -noRD -noRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
     - Fourth, merge all the genotyped samples in a single VCF file:
 
@@ -173,7 +173,7 @@ __________
 
     - Check the effects of the filters in the VCF:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 2 population_annotated_filtered.vcf 1>population_filtered_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 2 population_annotated_filtered.vcf 1> population_filtered_summary.stats
 ______________
 5. Imputation:
     {INPUT: a filtered VCF file from your population -
@@ -243,10 +243,10 @@ ____________________________________
     {INPUT: one BAM file for each of your samples -
          - OUTPUT: a single VCF file with all the variation in your population}
 
-    - First, find all high-quality SNPs in the population, running the 
+    - First, find all high-quality variants in the population, running the 
     following command for each sample:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -runRep -runRD -runRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
         * if you are not sure of how many bases to ignore at each end of the 
           read, run this command on each of your readpos.stats files:
@@ -260,7 +260,7 @@ ____________________________________
 
     - Third, genotype all your samples in the high-quality positions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -algCNV CNVnator,EWT -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
     - Fourth, merge all the genotyped samples in a single VCF file:
 
@@ -373,7 +373,7 @@ _____
 4. Save the reference in a single fasta file and index it with bowtie2-build 
 using the following command:
 
-  $ /path/to/bowtie2/bowtie2-2.2.4/bowtie2-build reference.fa reference.fa
+  $ /path/to/bowtie2/bowtie2-2.3.4/bowtie2-build reference.fa reference.fa
 
 This can be done at any directory in the file system but this directory needs 
 to be set changing the variable "REFERENCE" in each script. Also, create a 

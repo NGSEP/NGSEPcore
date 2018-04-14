@@ -406,10 +406,10 @@ reported by the input files but without any genotype information.
 
 The second step is to genotype for each sample the variants produced at the
 first step using the variants detector (See FindVariants command). For each
-sample, the command to execute at this stage (in conservative mode and assuming
-WGS data) should look like this:
+sample, the command to execute at this stage (in conservative mode) should look
+like this:
 
-java -jar NGSEPcore.jar FindVariants -noRep -noRD -noRP -ignoreLowerCaseRef -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownSVs <SVS_FILE> -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
 where SVS_FILE is the file with structural variation for the sample obtained
 during the first run of the variants detector, and VARS_FILE is the output file
