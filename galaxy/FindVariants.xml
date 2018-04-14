@@ -1,7 +1,7 @@
-<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.1.1">
+<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.1.2">
   <description> Call SNVs, indels, and Structural Variation</description>
   <command>
-java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants 
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants 
       -h $h
       -ploidy $ploidy
       $psp
@@ -40,11 +40,11 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
       -maxBaseQS $reads.maxBaseQS
       -ignore5 $reads.ignore5
       -ignore3 $reads.ignore3
-      $reads.s    
+      $reads.s
+      $reads.p    
   #end if
 
   #if $calls.run_params == "gbs"
-      -noRep -noRD -noRP
 
       #if $calls.SNVs_gbs.runSNVs_gbs == "default"
           #if $mode.analysis_mode == "discover"
@@ -78,10 +78,11 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
 
       #if $calls.SVs.runSVs
           -minSVQuality $calls.SVs.minSVQuality
-          $calls.SVs.noRep
-          #if $calls.SVs.RD_analysis.noRD == "no"
-              -noRD
-          #else if $calls.SVs.RD_analysis.noRD == "advanced"
+          $calls.SVs.runRep
+          #if $calls.SVs.RD_analysis.runRD == "default"
+              -runRD
+          #else if $calls.SVs.RD_analysis.runRD == "advanced"
+              -runRD
               #if $calls.SVs.RD_analysis.noNewCNV == "old"
                   -noNewCNV
               #end if
@@ -92,17 +93,16 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
               -maxPCTOverlapCNVs $calls.SVs.RD_analysis.overlap
               -algCNV $calls.SVs.RD_analysis.algorithm
           #end if
-          #if $calls.SVs.RP_analysis.noRP == "no"
-              -noRP
-          #else if $calls.SVs.RP_analysis.noRP == "advanced"
+          #if $calls.SVs.RP_analysis.runRP == "default"
+              -runRP
+          #else if $calls.SVs.RP_analysis.runRP == "advanced"
+              -runRP
               #if $calls.SVs.RP_analysis.ignoreProperPairFlag
                   -ignoreProperPairFlag
               #end if
               -maxLenDeletion $calls.SVs.RP_analysis.maxLenDeletion
               -sizeSRSeed $calls.SVs.RP_analysis.sizeSRSeed
           #end if
-      #else
-          -noRep -noRD -noRP
       #end if
 
   #end if
@@ -152,6 +152,7 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
         <param name="maxBaseQS" type="integer" optional="true" value="30" label="Maximum base quality"/>
         <param name="ignore5" type="integer" min="0" optional="true" value="0" label="Ignore bases on the 5' end of the read"/>
         <param name="ignore3" type="integer" min="0" optional="true" value="0" label="Ignore bases on the 3' end of the read"/>
+        <param name="p" type="boolean" truevalue="-p" falsevalue="" label="Include non unique primary alignments"/>
         <param name="s" type="boolean" truevalue="-s" falsevalue="" label="Include secondary alignments"/>
       </when>
     </conditional>
@@ -196,13 +197,13 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
         </conditional>
 
         <conditional name="SVs">
-          <param name="runSVs" type="boolean" checked="true" label="Structural Variants (SV) detection (repeats, large indels, inversions and CNVs)"/>
+          <param name="runSVs" type="boolean" checked="false" label="Structural Variants (SV) detection (repeats, large indels, inversions and CNVs)"/>
           <when value="true">
             <param name="minSVQuality" type="integer" min="0" value="20" label="Minimum quality to report Structural Variations"/>
-            <param name="noRep" type="boolean" checked="true" truevalue="" falsevalue="-noRep" label="Repetitive regions analysis"/>
+            <param name="runRep" type="boolean" checked="false" truevalue="-runRep" falsevalue="" label="Repetitive regions analysis"/>
             
             <conditional name="RD_analysis">
-              <param name="noRD" type="select" label="Read-Depth analysis to identify Copy Number Variations (CNVs)">
+              <param name="runRD" type="select" label="Read-Depth analysis to identify Copy Number Variations (CNVs)">
                 <option value="default">Default Parameters</option>
                 <option value="advanced">Advanced Parameters</option>
                 <option value="no">Skip Analysis</option>
@@ -223,7 +224,7 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar FindVariants
             </conditional>
             
             <conditional name="RP_analysis">
-              <param name="noRP" type="select" label="Read-Pair analysis to identify Structural Variants">
+              <param name="runRP" type="select" label="Read-Pair analysis to identify Structural Variants">
                 <option value="default">Default Parameters</option>
                 <option value="advanced">Advanced Parameters</option>
                 <option value="no">Skip Analysis</option>

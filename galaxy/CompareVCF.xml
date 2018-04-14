@@ -1,10 +1,10 @@
-<tool id="NGSEP_CompareVCF" name="Compare VCF Files" version="3.1.1">
+<tool id="NGSEP_CompareVCF" name="Compare VCF Files" version="3.1.2">
   <description> sample by sample</description>
   <command>
-java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.1.jar CompareVCF -g $g -d $d $seq_names $vcf1 $vcf2 >$output
+java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar CompareVCF -g $g -d $d $ref $vcf1 $vcf2 >$output
   </command>
   <inputs>
-    <param name="seq_names" type="data" format="txt" label="Sequence Names File"/>
+    <param name="ref" type="data" format="fasta" label="Reference genome"/>
     <param name="vcf1" type="data" format="vcf" label="Input First VCF File"/>
     <param name="vcf2" type="data" format="vcf" label="Input Second VCF File"/>
     <param name="g" type="integer" min="0" max="100" value="50" label="Minimum percentage of variants genotyped in both samples"/>
