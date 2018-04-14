@@ -168,10 +168,9 @@ public class AlignmentsPileupGenerator {
 	}
 
 	public void processFile(String filename) throws IOException {
-		ReadAlignmentFileReader reader = null;
+		
 		int processedAlns = 0;
-		try {
-			reader = new ReadAlignmentFileReader(filename);
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			if(!processSecondaryAlignments ) {
@@ -197,14 +196,14 @@ public class AlignmentsPileupGenerator {
 						if(queryFirst > aln.getLast()) continue;
 					} else if(querySeqFound) {
 						break;
+					} else {
+						continue;
 					}
 				}
 				processAlignment(aln);
 				processedAlns++;
 				if(processedAlns%1000000 == 0) log.info("Processed "+processedAlns+" alignments");
 			}
-		} finally {
-			if (reader!=null) reader.close();
 		}
 		
 		if(keepRunning) notifyEndOfAlignments();
