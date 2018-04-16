@@ -1,5 +1,3 @@
-package ngsep.sequences;
-
 /*******************************************************************************
  * NGSEP - Next Generation Sequencing Experience Platform
  * Copyright 2016 Jorge Duitama
@@ -20,6 +18,7 @@ package ngsep.sequences;
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
 
+package ngsep.sequences;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
