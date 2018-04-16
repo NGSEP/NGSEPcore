@@ -1,3 +1,5 @@
+package ngsep.sequences;
+
 /*******************************************************************************
  * NGSEP - Next Generation Sequencing Experience Platform
  * Copyright 2016 Jorge Duitama
@@ -17,7 +19,6 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.sequences;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,7 +68,8 @@ public class SuffixArrayGenerator {
 	 * is used to sort
 	 */
 	private final boolean[] repeated;
-	private final int[] auxSort, auxSort2, sort1, sort2, partialSA;
+	private final byte[] auxSort2;
+	private final int[] auxSort, sort1, sort2, partialSA;
 	private final Stack loStack = new Stack(), hiStack = new Stack(), loStackAux = new Stack(),
 			hiStackAux = new Stack();
 
@@ -90,13 +92,16 @@ public class SuffixArrayGenerator {
 		suffixArray = new int[data.length];
 		repeated = new boolean[(int) ((2 * data.length) / 3)];
 		auxSort = new int[(int) ((2 * data.length) / 3)];
-		auxSort2 = new int[(int) ((2 * data.length) / 3)];
+		auxSort2 = new byte[(int) ((2 * data.length) / 3)];
 		sort1 = new int[(int) ((2 * data.length) / 3)];
 		sort2 = new int[((data.length - 1) / 3) + 1];
 
 		// map[map.length - 1] is the maximum possible value in data
 		getSuffix(data, round(highestOneBitPos(map[map.length - 1])));
-		System.out.println("time sort: " + ((System.currentTimeMillis() - ini) / (double) 1000) + "("+ charSequence.length() + ")");
+		System.out.println("time sort: " + ((System.currentTimeMillis() - ini) / (double) 1000) + "("
+				+ charSequence.length() + ")");
+		for (int i = 0; i < suffixArray.length; i++)
+			partialSA[suffixArray[i]] = i;
 	}
 
 	public int[] getSA() {
@@ -107,24 +112,17 @@ public class SuffixArrayGenerator {
 
 	public char[] getBWT() {
 		char[] bwt = new char[suffixArray.length];
-		// Adaptation for the suffix array with the first position
-		int j = 0;
-		for (int i : suffixArray) {
-			bwt[j++] = (i > 0) ? sequence.charAt(i - 1) : SPECIAL_CHARACTER;
+		bwt[partialSA[0]] = SPECIAL_CHARACTER;
+		for (int i = 1; i < suffixArray.length; i++) {
+			bwt[partialSA[i]] = sequence.charAt(i - 1);
 		}
 		return bwt;
 	}
 
 	public Map<Integer, Integer> getPartialSuffixArray(final int suffixFraction) {
 		Map<Integer, Integer> partialSuffixArray = new HashMap<Integer, Integer>();
-		int n = suffixArray.length;
-		for (int i = 0; i < n - 1; i++) {
-			int startSeq = suffixArray[i];
-			if (startSeq % suffixFraction == 0) {
-				// Adaptation for the suffix array with the first position
-				partialSuffixArray.put(i, startSeq);
-			}
-		}
+		for (int i = 0; i < suffixArray.length; i += suffixFraction)
+			partialSuffixArray.put(partialSA[i], i);
 		return partialSuffixArray;
 	}
 
@@ -263,7 +261,6 @@ public class SuffixArrayGenerator {
 	 *            the d-th data element after i.
 	 */
 	private void radixCount(int[] array, final int[] data, final int d, final int bit) {
-		boolean nond = d == 0;
 		while (!loStack.isEmpty()) {
 			int lo = loStack.pop();
 			int hi = hiStack.pop();
@@ -271,9 +268,8 @@ public class SuffixArrayGenerator {
 			Arrays.fill(contSort, 0);
 
 			for (int i = lo; i <= hi; i++) {
-				int ind = (nond) ? Cte_Radix_Bit & (data[array[i]] >>> bit)
-						: Cte_Radix_Bit & (data[array[i] + d] >>> bit);
-				auxSort2[i] = ind;
+				int ind = Cte_Radix_Bit & (data[array[i] + d] >>> bit);
+				auxSort2[i] = (byte) ind;
 				contSort[ind]++;
 			}
 
@@ -284,7 +280,7 @@ public class SuffixArrayGenerator {
 			}
 
 			for (int i = lo; i <= hi; i++) {
-				auxSort[contSort[auxSort2[i]]--] = array[i];
+				auxSort[contSort[Byte.toUnsignedInt(auxSort2[i])]--] = array[i];
 			}
 
 			System.arraycopy(auxSort, lo, array, lo, (hi - lo + 1));
