@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
@@ -174,58 +175,45 @@ public class ReadsAligner {
 			KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
 			Set<String> keys= seqHits.keySet();
 			Iterator <String> iterator =keys.iterator();
-			Set<Integer> kmersInSequence;
 			List<KmerAlignment> alns;
-			double percent;
-			int first;
-			int last;
-			ReadAlignment readAlignment;
+
 			while (iterator.hasNext())
 			{
 //				System.out.println("---------------"+kmersCount+"---------------------");
 				String sequenceName=iterator.next();
-				kmersInSequence= new HashSet<>();
+
 				alns = seqHits.get(sequenceName);
 				Collections.sort(alns,cmp);
-				int actual =0;
-				int actualBackWards=kmersCount-1;
-				KmerAlignment[] arr= new KmerAlignment[kmersCount];
+
+				Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
+				KmerAlignment actual;
+				double percent;
 				for (int i = 0; i < alns.size(); i++) 
 				{
-					kmersInSequence.add(alns.get(i).getKmerNumber());
-//					System.out.println(alns.get(i).getReadAlignment().getFirst()+" "+alns.get(i).getKmerNumber());
-					if(alns.get(i).getKmerNumber()==actual*SEARCH_KMER_LENGTH && actualBackWards==kmersCount-1)
+					actual=alns.get(i);
+					if(stack.isEmpty()||actual.getKmerNumber()>stack.peek().getKmerNumber())
 					{
-						arr[actual]=alns.get(i);
-						actual++;
+						stack.push(actual);
 					}
-//					else if(alns.get(i).getKmerNumber()==actualBackWards*SEARCH_KMER_LENGTH)
-//					{
-//						arr[actualBackWards]=alns.get(i);
-//						actualBackWards--;
-//					}
-					
-					if(actual==kmersCount)
+					else 
 					{
-						String seName=arr[0].getReadAlignment().getSequenceName();
-						first=arr[0].getReadAlignment().getFirst();
-						last=arr[actual-1].getReadAlignment().getLast();
-						finalAlignments.add(new ReadAlignment(seName, first,last , 0, 0));
-//						System.out.println(first+","+last);
-						actualBackWards=kmersCount-1;
-						actual=0;
+						percent = (double) stack.size()/kmersCount;
+						if(percent>=MIN_ACCURACY)
+						{
+							StringBuilder stringBuilder = new StringBuilder();
+							KmerAlignment[] arr =(KmerAlignment[]) stack.toArray();
+							for (int j = arr.length-1; j >=0; j--) 
+							{
+								stringBuilder.append(arr[i].getReadAlignment().getReadCharacters());
+							}
+							int first = arr[arr.length-1].getReadAlignment().getFirst();
+							int last = arr[0].getReadAlignment().getLast();
+//							String ref; //= fMIndex.get
+//							String seq = stringBuilder.toString();
+//							String aln = smithWatermanLocalAlingMent(ref, seq);
+							finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
+						}
 					}
-//					else if(actualBackWards==-1)
-//					{
-//						//Fix pending
-//						String seName=arr[0].getReadAlignment().getSequenceName();
-//						first=arr[kmersCount-1].getReadAlignment().getFirst();
-//						last=arr[0].getReadAlignment().getLast();
-//						finalAlignments.add(new ReadAlignment(seName, first,last , 0, 0));
-////						System.err.println("BACK"+first+","+last);
-//						actualBackWards=kmersCount-1;
-//						actual=0;
-//					}
 				}
 			}
 		}
@@ -271,5 +259,198 @@ public class ReadsAligner {
 			}
 		}
 		return seqHits;
+	}
+	private String smithWatermanLocalAlingMent(String reference, String secuence) 
+	{
+		//Pila que guarda las letras de la palabra1
+		Stack<String> pila1A = new Stack<>();
+
+		//Pila que guarda las letras de la palabra2
+		Stack<String> pila2A = new Stack<>();
+
+		//Matriz que tiene 0 si palabra1.charAt(i)==palabra2.charAt(j) y uno de lo contrario
+		int[][] diagonales = new int[reference.length()][secuence.length()];
+
+
+		for (int i = 0; i < diagonales.length; i++) 
+		{
+			char actualPalabra1=reference.charAt(i);
+			pila1A.push(actualPalabra1+"");
+
+			for (int j = 0; j < diagonales[i].length; j++) 
+			{
+				char actualPalabra2=secuence.charAt(j);
+				if(i==0)
+					pila2A.push(actualPalabra2+"");
+
+				diagonales[i][j]= actualPalabra1==actualPalabra2 ? 0:1;
+			}
+		}
+
+		//Matriz para programación dinámica guarda el menor peso para ir de 0,0 a i,j
+		int[][] A = new int[diagonales.length+1][diagonales[0].length+1]; 
+
+		for (int i = 0; i < A.length; i++) 
+		{	
+			for (int j = 0; j < A[0].length; j++) 
+			{
+				//Caso base, el costo para llegar a 0,0 es 0
+				if(i==0 && j==0)
+				{
+					A[i][j]=0;
+				}
+				//Semánticamente es borrar una letra de la primera palabra
+				//Caso base, el costo para llegar a 0,j es 1+ costo(0,j-1)
+				//Esto es moverse en horizontal es decir por las columnas -->
+				else if(i==0)
+				{
+					A[i][j]= 1 + A[i][j-1];
+				}
+				//Semánticamente es insertar una letra en la segunda palabra
+				//Caso base, el costo para llegar a i,0 es 1 + costo(i-1,0)
+				//Esto es moverse en verical es decir por las filas |
+				//												    v	
+				else if(j==0)
+				{
+					A[i][j]= 1 + A[i-1][j];
+				}
+				//A este caso se puede llegar desde arriba (i-1,j)
+				//Desde la izquierda (i,j-1)
+				//O desde la diagonal superior izquierda (i-1,j-1)
+				else
+				{
+					int[] posibilidades= {
+							1 						+ A[i-1][j], 	// llegar desde arriba cuesta 1 + lo que cuesta llegar a (i-1,j)
+							1 						+ A[i][j-1], 	// llegar desde la izquierda cuesta 1 + lo que cuesta llegar a (i-1,j)
+							diagonales[i-1][j-1] 	+ A[i-1][j-1]	// llegar desde la diagonal superior cuesta 1 si las letras son diferentes
+									// y 0 si son iguales, + o que cuesta llegar a (i-1,j-1)
+					};
+					int min = Integer.MAX_VALUE;
+					for (int k = 0; k < posibilidades.length; k++) 
+					{
+						if(posibilidades[k]<min)
+						{
+							min = posibilidades[k];
+						}
+					}
+
+					A[i][j]=min;
+				}
+			}
+		}
+
+		//En este punto ya se tiene el costo mínimo para llegar a (A.length-1,A[0].length-1)
+		//Ahora hay que devolverse y recordar las desiciones
+
+		//pila que guarda el alineamiento de la palabra1
+		Stack<String> pila1 = new Stack<>();
+
+		//pila que guarda el alineamiento de la palabra2
+		Stack<String> pila2 = new Stack<>();
+
+		//Guarda la posicion actual en la que va el algoritmo que se devuelte
+		//inicialmente está en la esquina inferior derecha, donde está el costo mínimo para llegar a (A.length-1,A[0].length-1)
+		int[] r={A.length-1,A[0].length-1};
+
+		//Mientras no lleguemos al inicio siga devolviendose
+		while(!(r[0]==0 && r[1]==0))
+		{
+			//Se desea hallar cual camino tiene menor costo
+
+			try
+			{
+
+				//Se revisa si es desde arriba
+				if( A [r[0]-1] [r[1]] < A [r[0]][r[1]-1] && A [r[0]-1] [r[1]] < A [r[0]-1] [r[1]-1])
+				{
+					int[] a = { r[0]-1,r[1]};
+
+					//Se agrega un guion en la palabra 2
+					pila2.push("-");
+
+					//Se mete la siguiente letra en la palabra 1
+					pila1.push(pila1A.pop());
+
+					// se actualiza r que es la posición actual
+					r=a;
+				}
+				//Se revisa si es desde la izquierda
+				else if( A [r[0]] [r[1]-1] < A [r[0]-1][r[1]] && A [r[0]] [r[1]-1] < A [r[0]-1][r[1]-1])
+				{
+					int[] a = { r[0],r[1]-1};
+
+					//Se agrega un guion en la palabra 1
+					pila1.push("-");
+
+					//Se mete la siguiente letra en la palabra 2
+					pila2.push(pila2A.pop());
+
+					// se actualiza r que es la posición actual
+					r=a;
+				}
+				//Se revisa la diagonal superior izquierda
+				else
+				{
+					int[] a = { r[0]-1,r[1]-1};
+
+					//Se mete la siguiente letra en la palabra 1
+					pila1.push(pila1A.pop());
+
+					//Se mete la siguiente letra en la palabra 2
+					pila2.push(pila2A.pop());
+
+					// se actualiza r que es la posición actual
+					r=a;
+				}
+			}
+			catch (Exception e) 
+			{
+//				e.printStackTrace();
+				// se trató de llegar a posición negativa
+
+				//si hay camino desde arriba
+				if(r[0]-1>=0)
+				{
+					int[] a = { r[0]-1,r[1]};
+
+					//Se agrega un guion en la palabra 2
+					pila2.push("-");
+
+					//Se mete la siguiente letra en la palabra 1
+					pila1.push(pila1A.pop());
+
+					// se actualiza r que es la posición actual
+					r=a;
+				}
+				//si no debe haber camino por la izquierda
+				else
+				{
+					int[] a = { r[0],r[1]-1};
+
+					//Se agrega un guion en la palabra 1
+					pila1.push("-");
+
+					//Se mete la siguiente letra en la palabra 2
+					pila2.push(pila2A.pop());
+
+					// se actualiza r que es la posición actual
+					r=a;
+				}
+			}
+
+		}
+		//Ya se tienen las palabras en las pilas, ahora se voltean y se imprimen
+
+		String p1="";
+		String p2="";
+		while(!pila1.isEmpty() && !pila2.isEmpty())
+		{
+			p1+=pila1.pop();
+			p2+=pila2.pop();
+		}
+
+//		System.out.println(p1);
+//		System.out.println(p2);
+		return p2;
 	}
 }
