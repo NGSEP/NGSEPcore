@@ -115,12 +115,17 @@ public class SuffixArrayGenerator implements Constants {
 	 *            the sequence to which the suffix array is calculated
 	 */
 	public SuffixArrayGenerator(CharSequence charSequence) {
+		long ini = System.nanoTime();
+		
 		sequence = charSequence;
 		translator = new Translator(charSequence);
 		int[] data = translator.getData();
 		DC3 dc3 = new DC3(data);
 		suffixArray = dc3.getSuffixArray();
 		ranksSA = dc3.getRanksSA();
+		
+		System.out.println(format.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)));
+
 	}
 
 	public int[] getSA() {
@@ -294,10 +299,7 @@ class DC3 implements Constants {
 		// -----------------------------------------------------------------------------
 		// STEP #4: Merge
 		// -----------------------------------------------------------------------------
-		long ini = System.nanoTime();
 		merge(sort1Size, sort2Size, data);
-		System.out.println(format.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)));
-
 	}
 
 	/**
