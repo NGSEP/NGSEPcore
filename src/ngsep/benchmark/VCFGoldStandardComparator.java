@@ -323,10 +323,28 @@ class GoldStandardComparisonCounts {
 	public static final int NUM_ROWS_COUNTS = 10;
 	private int [][] counts;
 	private static final DecimalFormat DF = new DecimalFormat("0.0000");
+	private boolean countNonGSAsFP = false;
 	public GoldStandardComparisonCounts () {
 		counts = new int [NUM_ROWS_COUNTS][15];
 	}
 	
+	
+	/**
+	 * @return the countNonGSAsFP
+	 */
+	public boolean isCountNonGSAsFP() {
+		return countNonGSAsFP;
+	}
+
+
+	/**
+	 * @param countNonGSAsFP the countNonGSAsFP to set
+	 */
+	public void setCountNonGSAsFP(boolean countNonGSAsFP) {
+		this.countNonGSAsFP = countNonGSAsFP;
+	}
+
+
 	public void update(int firstRow, int lastRow, int column) {
 		for(int i=firstRow;i<=lastRow;i++) {
 			counts[i][column]++;
@@ -359,12 +377,15 @@ class GoldStandardComparisonCounts {
 		if(gsTotal1>0) {
 			recall1 = (double)row[4] / gsTotal1;
 		}
-		int fd1 = row[1] + row [7] + row[13];
+		int fd1 = row[1] + row [7];
+		double denomFDR1 = testTotal1;
+		if(countNonGSAsFP) fd1 += row[13];
+		else denomFDR1 -= row[13];
 		double fdr1 = 0;
 		double precision1 = 1;
-		if(testTotal1>1) {
-			fdr1 = (double)fd1 / testTotal1;
-			precision1 = (double)row[4] / testTotal1;
+		if(denomFDR1>1) {
+			fdr1 = (double)fd1 / denomFDR1;
+			precision1 = (double)row[4] / denomFDR1;
 		}
 		double f1 = 0;
 		if(precision1 + recall1 > 0) {
@@ -377,12 +398,15 @@ class GoldStandardComparisonCounts {
 		if(gsTotal2>0) {
 			recall2 = (double)row[8] / gsTotal2;
 		}
-		int fd2 = row[2] + row [5] + row[14];
+		int fd2 = row[2] + row [5];
+		double denomFDR2 = testTotal2;
+		if(countNonGSAsFP) fd2 += row[14];
+		else denomFDR2 -= row[14];
 		double fdr2 = 0;
 		double precision2 = 1;
-		if(testTotal2>0) {
-			fdr2 = (double)fd2 / testTotal2;
-			precision2 = (double)row[8] / testTotal2;
+		if(denomFDR2>0) {
+			fdr2 = (double)fd2 / denomFDR2;
+			precision2 = (double)row[8] / denomFDR2;
 		}
 		double f2 = 0;
 		if(precision2 + recall2 > 0) {
