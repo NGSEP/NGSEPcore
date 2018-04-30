@@ -19,22 +19,27 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.math.Distribution;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersCounter;
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.sequences.io.FastqFileReader;
 
 /**
  * @author Jorge Duitama
@@ -49,6 +54,26 @@ public class OverlapGraph {
 	private Map<Integer,List<ReadOverlap>> overlapsBackward = new HashMap<>();
 	private Map<Integer,ReadOverlap> embeddedOverlaps = new HashMap<>();
 	
+	public void loadFasta (String filename) throws IOException {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
+		for(QualifiedSequence seq:seqsQl) {
+			DNAMaskedSequence characters = (DNAMaskedSequence)seq.getCharacters();
+			addSequence(characters);
+		}
+	}
+	
+	public void loadFastq(String filename) throws IOException {
+		try (FastqFileReader reader = new FastqFileReader(filename)) {
+			Iterator<RawRead> it = reader.iterator();
+			while(it.hasNext()) {
+				RawRead read = it.next();
+				DNAMaskedSequence characters = (DNAMaskedSequence)read.getCharacters();
+				addSequence(characters);
+			}
+		}
+	}
+	
 	public void addSequence (LimitedSequence sequence) {
 		sequences.add(sequence);
 	}
@@ -61,32 +86,10 @@ public class OverlapGraph {
 	public void findOverlaps () {
 		for(int s=0;s<sequences.size() && s<1000;s++) {
 			if(embeddedOverlaps.containsKey(s)) continue;
+			
 			CharSequence sequence = sequences.get(s);
 			System.out.println("Processing sequence: "+s+" length: "+sequence.length());
-			CharSequence [] kmers = KmersCounter.extractKmers(sequence, SEARCH_KMER_LENGTH, true);
-			Map<Integer,List<ReadAlignment>> seqHits = new HashMap<>();
-			for(int i=0;i<kmers.length;i+=SEARCH_KMER_LENGTH) {
-				if(kmers[i]== null) continue;
-				String kmer = kmers[i].toString();
-				List<ReadAlignment> regions = index.search(kmer);
-				//System.out.println("Hits kmer "+kmer+": "+regions.size());
-				for(ReadAlignment aln:regions) {
-					//Use mate start to store the kmer start site producing the hit
-					aln.setMateFirst(i);
-					int k = Integer.parseInt(aln.getSequenceName().substring(1));
-					if(k>s) {
-						//String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()+1).toString();
-						//if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
-						List<ReadAlignment> seqAlns = seqHits.get(k);
-						if(seqAlns==null) {
-							seqAlns = new ArrayList<>();
-							seqHits.put(k, seqAlns);
-						}
-						seqAlns.add(aln);
-						
-					}
-				}
-			}
+			Map<Integer,List<ReadAlignment>> seqHits = findHitsRead(s, sequence);
 			System.out.println("Found "+seqHits.size()+" potentially matching sequences for sequence "+s+" of length: "+sequence.length());
 			buildOverlapsFromKmerAlignments (s, seqHits);
 			int nF = overlapsForward.get(s)!=null?overlapsForward.get(s).size():0;
@@ -94,6 +97,35 @@ public class OverlapGraph {
 			System.out.println("Sequence "+s+" overlaps forward: "+nF + " overlaps backward: "+nB);
 			
 		}
+	}
+
+	public Map<Integer,List<ReadAlignment>>  findHitsRead(int idRead, CharSequence read ) {
+		Map<Integer,List<ReadAlignment>> seqHits = new HashMap<>();
+		CharSequence [] kmers = KmersCounter.extractKmers(read, SEARCH_KMER_LENGTH, true);
+		
+		for(int i=0;i<kmers.length;i+=SEARCH_KMER_LENGTH) {
+			if(kmers[i]== null) continue;
+			String kmer = kmers[i].toString();
+			List<ReadAlignment> regions = index.search(kmer);
+			//System.out.println("Hits kmer "+kmer+": "+regions.size());
+			for(ReadAlignment aln:regions) {
+				//Use mate start to store the kmer start site producing the hit
+				aln.setMateFirst(i);
+				int k = Integer.parseInt(aln.getSequenceName().substring(1));
+				if(k>idRead) {
+					//String seqOut = instance.sequences.get(k).subSequence(region.getFirst(), region.getLast()+1).toString();
+					//if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence: "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
+					List<ReadAlignment> seqAlns = seqHits.get(k);
+					if(seqAlns==null) {
+						seqAlns = new ArrayList<>();
+						seqHits.put(k, seqAlns);
+					}
+					seqAlns.add(aln);
+					
+				}
+			}
+		}
+		return seqHits;
 	}
 	
 	
@@ -274,12 +306,9 @@ public class OverlapGraph {
 			instance.addSequence(dna);
 			if((i+1)%1000 == 0) System.out.println("Created "+instance.sequences.size()+" random DNA sequences");
 		}*/
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList seqsQl = handler.loadSequences(args[0]);
-		for(QualifiedSequence seq:seqsQl) {
-			totalLength+=seq.getLength();
-			instance.addSequence((LimitedSequence) seq.getCharacters());
-		}
+		String filename = args[0];
+		if(filename.endsWith(".fastq") || filename.endsWith(".fastq.gz") ) instance.loadFastq(filename);
+		else instance.loadFasta(args[0]);
 		long time2 = System.currentTimeMillis();
 		System.out.println("Loaded "+instance.sequences.size()+" sequences from "+args[0]+". Total length: "+totalLength +" time: "+ (time2 - time1));
 		//System.out.println("First sequence: "+instance.sequences.get(0));
