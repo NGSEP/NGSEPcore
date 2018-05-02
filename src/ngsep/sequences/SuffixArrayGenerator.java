@@ -76,9 +76,9 @@ final class Constants {
  * @version 1
  */
 public class SuffixArrayGenerator {
-    /** the number of bytes to sort each character*/
-    public static final  int BYTESTOSORT=16;
-    
+    /** the number of bytes to sort each character */
+    public static final int BYTESTOSORT = 16;
+
     /** the char sequence. */
     private final CharSequence sequence;
 
@@ -107,7 +107,8 @@ public class SuffixArrayGenerator {
 	suffixArray = dc3.getSuffixArray();
 	ranksSA = dc3.getRanksSA();
 
-	System.out.println("Time to create a suffix array: "+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000))+" s");
+	System.out.println("Time to create a suffix array: "
+		+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)) + " s");
     }
 
     /** @return the suffix array */
@@ -434,7 +435,7 @@ class DC3 {
 
 	General: while (index2 != sort2Size) {
 	    valueB = sort2[index2];
-	    while(true) {
+	    while (true) {
 		if (valueCMod == 1) {
 		    ans = data[valueB] - data[valueC];
 		    if (0 == ans)
@@ -453,8 +454,9 @@ class DC3 {
 			break General;
 		    valueC = sort1[index1];
 		    valueCMod = valueC % Constants.CONS;
-		}else break;
-	    } 
+		} else
+		    break;
+	    }
 
 	    suffixArray[indexAns++] = valueB;
 	    index2++;

@@ -22,12 +22,13 @@ package ngsep.assembly;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 import ngsep.alignments.ReadAlignment;
 import ngsep.math.Distribution;
@@ -50,7 +51,7 @@ public class OverlapGraph {
     private static final String[] fastq = { ".fastq", ".fastq.gz" };
     private static final String[] fasta = { ".fasta" };
 
-    private List<LimitedSequence> sequences = new ArrayList<>();
+    private final List<LimitedSequence> sequences = new ArrayList<>();
     private FMIndex index;
 
     private Map<Integer, List<ReadOverlap>> overlapsForward = new HashMap<>();
@@ -58,19 +59,31 @@ public class OverlapGraph {
     private Map<Integer, ReadOverlap> embeddedOverlaps = new HashMap<>();
 
     public OverlapGraph(String filename) throws Exception {
-	System.out.println(Runtime.getRuntime().freeMemory());
-	System.out.println("process the file " + filename + " ...");
+	System.out.println("Built the Overlap Grap for:  " + filename + " ...\n");
+
 	timeWithException("Loaded the sequences from " + filename + ".", () -> {
 	    load(filename);
+	    System.out.println("Loaded " + sequences.size() + " sequences");
 	});
-	System.out.println("Loaded " + sequences.size());
+
 	time("Sort the sequences.", () -> {
 	    Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
 	});
-	time("Create FMIndex", () -> {
+
+	time("Built the FMIndex.", () -> {
 	    index = new FMIndex();
 	    index.loadUnnamedSequences("", sequences);
 	});
+
+	time("Built overlaps.", () -> {
+	    findOverlaps();
+	});
+
+	time("Simplify the grap.", () -> {
+	    simplifyTheGrap();
+	});
+
+	printOverlapsDistribution(System.out);
     }
 
     public void load(String filename) throws IOException {
@@ -89,7 +102,7 @@ public class OverlapGraph {
 	QualifiedSequenceList seqsQl = handler.loadSequences(filename);
 	for (QualifiedSequence seq : seqsQl) {
 	    DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
-	    addSequence(characters);
+	    sequences.add(characters);
 	}
     }
 
@@ -99,59 +112,43 @@ public class OverlapGraph {
 	    while (it.hasNext()) {
 		RawRead read = it.next();
 		DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
-		addSequence(characters);
+		sequences.add(characters);
 	    }
 	}
     }
 
-    public void addSequence(LimitedSequence sequence) {
-	sequences.add(sequence);
-    }
-
     public void findOverlaps() {
-	for (int s = 0; s < sequences.size() && s < 1000; s++) {
+	for (int s = 0; s < sequences.size(); s++) {
 	    if (embeddedOverlaps.containsKey(s))
 		continue;
 
-	    CharSequence sequence = sequences.get(s);
-	    System.out.println("Processing sequence: " + s + " length: " + sequence.length());
-	    Map<Integer, List<ReadAlignment>> seqHits = findHitsRead(s, sequence);
-	    System.out.println("Found " + seqHits.size() + " potentially matching sequences for sequence " + s
-		    + " of length: " + sequence.length());
+	    Map<Integer, List<ReadAlignment>> seqHits = findHitsRead(s);
 	    buildOverlapsFromKmerAlignments(s, seqHits);
-	    int nF = overlapsForward.get(s) != null ? overlapsForward.get(s).size() : 0;
-	    int nB = overlapsBackward.get(s) != null ? overlapsBackward.get(s).size() : 0;
-	    System.out.println("Sequence " + s + " overlaps forward: " + nF + " overlaps backward: " + nB);
-
 	}
     }
 
-    public Map<Integer, List<ReadAlignment>> findHitsRead(int idRead, CharSequence read) {
-	Map<Integer, List<ReadAlignment>> seqHits = new HashMap<>();
-	CharSequence[] kmers = KmersCounter.extractKmers(read, SEARCH_KMER_LENGTH, true);
+    /**
+     * find the hints for CharSequence
+     * 
+     * @param idRead
+     * @param read
+     * @return a map whit all the hits per sequence.
+     */
+    private Map<Integer, List<ReadAlignment>> findHitsRead(int idRead) {
+	Map<Integer, List<ReadAlignment>> seqHits = new HashMap<>(sequences.size());
+	CharSequence read = sequences.get(idRead);
 
+	CharSequence[] kmers = KmersCounter.extractKmers(read, SEARCH_KMER_LENGTH, true);
 	for (int i = 0; i < kmers.length; i += SEARCH_KMER_LENGTH) {
-	    if (kmers[i] == null)
-		continue;
 	    String kmer = kmers[i].toString();
+
 	    List<ReadAlignment> regions = index.search(kmer);
-	    // System.out.println("Hits kmer "+kmer+": "+regions.size());
 	    for (ReadAlignment aln : regions) {
 		// Use mate start to store the kmer start site producing the hit
 		aln.setMateFirst(i);
 		int k = Integer.parseInt(aln.getSequenceName().substring(1));
 		if (k > idRead) {
-		    // String seqOut = instance.sequences.get(k).subSequence(region.getFirst(),
-		    // region.getLast()+1).toString();
-		    // if(!seqOut.equals(kmer)) throw new RuntimeException ("Hit error in sequence:
-		    // "+k+" pos: "+region.getFirst()+" search "+kmer+" found: "+seqOut);
-		    List<ReadAlignment> seqAlns = seqHits.get(k);
-		    if (seqAlns == null) {
-			seqAlns = new ArrayList<>();
-			seqHits.put(k, seqAlns);
-		    }
-		    seqAlns.add(aln);
-
+		    seqHits.computeIfAbsent(k, key -> new ArrayList<>()).add(aln);
 		}
 	    }
 	}
@@ -160,11 +157,10 @@ public class OverlapGraph {
 
     private void buildOverlapsFromKmerAlignments(int searchId, Map<Integer, List<ReadAlignment>> seqHits) {
 	LimitedSequence searchSequence = sequences.get(searchId);
-	// GenomicRegionPositionComparator cmp =
-	// GenomicRegionPositionComparator.getInstance();
-	for (int k : seqHits.keySet()) {
-	    List<ReadAlignment> alns = seqHits.get(k);
-	    // Collections.sort(alns, cmp);
+	for (Entry<Integer, List<ReadAlignment>> entry : seqHits.entrySet()) {
+	    int k = entry.getKey();
+	    List<ReadAlignment> alns = entry.getValue();
+
 	    ReadOverlap next = null;
 	    for (ReadAlignment aln : alns) {
 		if (next == null || !next.addKmerAlignment(k, aln)) {
@@ -295,7 +291,6 @@ public class OverlapGraph {
 		return;
 	    }
 	}
-	// TODO: Print weird overlap
     }
 
     private void addOverlap(Map<Integer, List<ReadOverlap>> overlaps, ReadOverlap overlap) {
@@ -305,6 +300,19 @@ public class OverlapGraph {
 	    overlaps.put(overlap.getIndexSequence1(), overlapsSeq1);
 	}
 	overlapsSeq1.add(overlap);
+    }
+
+    /**
+     * remove redundant axes from the graph
+     * 
+     * an axis is redundant if there is a path that passes through one or more nodes
+     * from the source node to the destination node without using it.
+     * 
+     * this simplifies the graph and removes the alignments with less overlap
+     */
+    public void simplifyTheGrap() {
+	// TODO generate the topological order
+
     }
 
     public void printOverlapsDistribution(PrintStream out) {
@@ -335,18 +343,6 @@ public class OverlapGraph {
 
     }
 
-    public static void main(String[] args) throws Exception {
-	OverlapGraph instance = new OverlapGraph(args[0]);
-	long time1, time2;
-	time2 = System.currentTimeMillis();
-	// time1 = time2;
-	// instance.findOverlaps();
-	// time2 = System.currentTimeMillis();
-	// System.out.println("Built overlaps in time: " + (time2 - time1));
-	// instance.printOverlapsDistribution(System.out);
-
-    }
-
     public static final void time(String string, Runnable runnable) {
 	long time = System.currentTimeMillis();
 	runnable.run();
@@ -357,6 +353,10 @@ public class OverlapGraph {
 	long time = System.currentTimeMillis();
 	runnable.run();
 	System.out.println(string + " time: " + ((System.currentTimeMillis() - time) / (double) 1000) + "s");
+    }
+
+    public static void main(String[] args) throws Exception {
+	new OverlapGraph(args[0]);
     }
 }
 
