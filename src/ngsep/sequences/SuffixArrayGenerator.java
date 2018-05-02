@@ -76,6 +76,9 @@ final class Constants {
  * @version 1
  */
 public class SuffixArrayGenerator {
+    /** the number of bytes to sort each character*/
+    public static final  int BYTESTOSORT=16;
+    
     /** the char sequence. */
     private final CharSequence sequence;
 
@@ -104,7 +107,7 @@ public class SuffixArrayGenerator {
 	suffixArray = dc3.getSuffixArray();
 	ranksSA = dc3.getRanksSA();
 
-	System.out.println(Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)));
+	System.out.println("Time to create a suffix array: "+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000))+" s");
     }
 
     /** @return the suffix array */

@@ -109,7 +109,7 @@ public class FMIndex implements Serializable
 		List<SequenceMetadata> internalSequenceMetadata = new ArrayList<>();
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
-			if(internalSequence.length() + next.length() > 1000000000) {
+			if(internalSequence.length() + next.length() > (Runtime.getRuntime().freeMemory()/SuffixArrayGenerator.BYTESTOSORT) ) {
 				System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
