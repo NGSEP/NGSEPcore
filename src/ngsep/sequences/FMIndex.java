@@ -110,9 +110,8 @@ public class FMIndex implements Serializable
 		System.out.println("sd");
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
-			if(internalSequence.length() + next.length() > (Runtime.getRuntime().freeMemory()/SuffixArrayGenerator.BYTESTOSORT) ) {
+			if(internalSequence.length() + next.length() > (100000000) ) {
 				System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
-				System.out.println("Free Memory: "+(Runtime.getRuntime().freeMemory()/(1024*1024*1024))+"GB");
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
 				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
