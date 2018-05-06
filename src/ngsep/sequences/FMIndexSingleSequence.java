@@ -472,10 +472,23 @@ public class FMIndexSingleSequence implements Serializable {
 
 		return arr;
 	}
+	
+	public String reverseBWT()
+	{
+		String r = "$";
+		int rowi=0;
+		while(bwt[rowi]!='$')
+		{
+			char c = bwt[rowi];
+			r=c+r;
+			rowi=lfMapping(c,  rowi, false);
+		}
+		return r;
+	}
 
-	public void getSequenceSubString(int first, int last) 
+	public String getSequenceSubString(int first, int last) 
 	{
 		// TODO Auto-generated method stub
-		
+		return reverseBWT().substring(first, last);
 	}
 }

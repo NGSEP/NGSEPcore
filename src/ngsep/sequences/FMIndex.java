@@ -239,7 +239,7 @@ public class FMIndex implements Serializable
 				if(act.getSeqName().equals(sequenceName)&&!act.isNegativeStrand())
 				{
 					System.out.println(act.getSeqName().equals(sequenceName));
-					internalIndexes.get(i).getSequenceSubString(first,last);
+					return internalIndexes.get(i).getSequenceSubString(first,last);
 				}
 		}
 		return null;

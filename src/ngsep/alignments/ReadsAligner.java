@@ -188,6 +188,7 @@ public class ReadsAligner {
 				Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 				KmerAlignment actual;
 				double percent;
+				System.out.println("alns size " +alns.size());
 				for (int i = 0; i < alns.size(); i++) 
 				{
 					actual=alns.get(i);
@@ -210,10 +211,13 @@ public class ReadsAligner {
 							}
 							int first = arr[arr.length-1].getReadAlignment().getFirst();
 							int last = arr[0].getReadAlignment().getLast();
-							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,first,last);
+							System.out.println("f: "+first+" l:"+last);
+							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,last,first);
+							System.out.println(sequenceChunk);
+							String seq = stringBuilder.toString();
+							System.out.println(seq);
 							System.console().readLine();
 //							String ref; //= fMIndex.get
-							String seq = stringBuilder.toString();
 //							String aln = smithWatermanLocalAlingMent(ref, seq);
 							finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
 						}
