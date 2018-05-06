@@ -201,15 +201,19 @@ public class ReadsAligner {
 						if(percent>=MIN_ACCURACY)
 						{
 							StringBuilder stringBuilder = new StringBuilder();
-							KmerAlignment[] arr =(KmerAlignment[]) stack.toArray();
+							
+							KmerAlignment[] arr=new KmerAlignment[stack.size()];
+							stack.toArray(arr);
 							for (int j = arr.length-1; j >=0; j--) 
 							{
-								stringBuilder.append(arr[i].getReadAlignment().getReadCharacters());
+								stringBuilder.append(arr[j].getReadAlignment().getReadCharacters());
 							}
 							int first = arr[arr.length-1].getReadAlignment().getFirst();
 							int last = arr[0].getReadAlignment().getLast();
+							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,first,last);
+							System.console().readLine();
 //							String ref; //= fMIndex.get
-//							String seq = stringBuilder.toString();
+							String seq = stringBuilder.toString();
 //							String aln = smithWatermanLocalAlingMent(ref, seq);
 							finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
 						}
@@ -260,6 +264,10 @@ public class ReadsAligner {
 		}
 		return seqHits;
 	}
+	
+	
+	
+	
 	private String smithWatermanLocalAlingMent(String reference, String secuence) 
 	{
 		//Pila que guarda las letras de la palabra1

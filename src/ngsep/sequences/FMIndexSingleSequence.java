@@ -472,4 +472,10 @@ public class FMIndexSingleSequence implements Serializable {
 
 		return arr;
 	}
+
+	public void getSequenceSubString(int first, int last) 
+	{
+		// TODO Auto-generated method stub
+		
+	}
 }
