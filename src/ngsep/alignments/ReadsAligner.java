@@ -209,10 +209,10 @@ public class ReadsAligner {
 							{
 								stringBuilder.append(arr[j].getReadAlignment().getReadCharacters());
 							}
-							int first = arr[arr.length-1].getReadAlignment().getFirst();
-							int last = arr[0].getReadAlignment().getLast();
+							int first = arr[0].getReadAlignment().getFirst();
+							int last = arr[arr.length-1].getReadAlignment().getLast();
 							System.out.println("f: "+first+" l:"+last);
-							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,last,first);
+							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,first,last);
 							System.out.println(sequenceChunk);
 							String seq = stringBuilder.toString();
 							System.out.println(seq);
