@@ -231,35 +231,6 @@ public class FMIndex implements Serializable
 			System.out.println(a.get(i).getSequenceName()+" pos:"+a.get(i).getFirst()+" to: "+a.get(i).getLast()+" flags:"+a.get(i).getFlags());
 		}
 	}
-	public String getSequenceSubString(String sequenceName, int first, int last) {
-		// TODO Auto-generated method stub
-		for (int i = 0; i < realSequencesMap.size(); i++) {
-			List<SequenceMetadata> actual = realSequencesMap.get(i);
-				SequenceMetadata act = actual.get(0);
-				if(act.getSeqName().equals(sequenceName)&&!act.isNegativeStrand())
-				{
-					System.out.println(act.getSeqName().equals(sequenceName));
-					String reverseBWT=internalIndexes.get(i).getSequenceSubString(first, last);
-					return reverseBWT;
-				}
-		}
-		return null;
-	}
-	public String getSequenceReverseBWT(String sequenceName) {
-		// TODO Auto-generated method stub
-		for (int i = 0; i < realSequencesMap.size(); i++) {
-			List<SequenceMetadata> actual = realSequencesMap.get(i);
-				SequenceMetadata act = actual.get(0);
-				if(act.getSeqName().equals(sequenceName)&&!act.isNegativeStrand())
-				{
-					System.out.println(act.getSeqName().equals(sequenceName));
-					String reverseBWT=internalIndexes.get(i).reverseBWT();
-					return reverseBWT;
-				}
-		}
-		return null;
-	}
-	
 }
 class SequenceMetadata implements Serializable {
 	/**

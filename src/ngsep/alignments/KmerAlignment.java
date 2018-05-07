@@ -1,11 +1,13 @@
 package ngsep.alignments;
 
+import ngsep.genome.GenomicRegion;
+
 /**
- * Datastructure to asociate the alignment with the correponding kmer 
+ * Data structure to associate the alignment with the corresponding kmer 
  * @author German Andrade
  *
  */
-public class KmerAlignment {
+public class KmerAlignment implements GenomicRegion {
 	
 	private int kmerNumber;
 	
@@ -17,13 +19,40 @@ public class KmerAlignment {
 	}
 
 	public int getKmerNumber() {
-		// TODO Auto-generated method stub
 		return kmerNumber;
 	}
 
 	public ReadAlignment getReadAlignment() {
-		// TODO Auto-generated method stub
 		return alignment;
 	}
 
+	@Override
+	public String getSequenceName() {
+		return alignment.getSequenceName();
+	}
+
+	@Override
+	public int getFirst() {
+		return alignment.getFirst();
+	}
+
+	@Override
+	public int getLast() {
+		return alignment.getLast();
+	}
+
+	@Override
+	public int length() {
+		return alignment.length();
+	}
+
+	@Override
+	public boolean isPositiveStrand() {
+		return alignment.isPositiveStrand();
+	}
+
+	@Override
+	public boolean isNegativeStrand() {
+		return alignment.isNegativeStrand();
+	}
 }

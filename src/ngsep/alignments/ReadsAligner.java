@@ -19,20 +19,17 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
@@ -47,8 +44,10 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsAligner {
 
+	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
 	static final int SEARCH_KMER_LENGTH = 15;
-	static final double MIN_ACCURACY =1;
+	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
+
 	private static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
 	public static void main(String[] args) throws Exception 
@@ -62,6 +61,28 @@ public class ReadsAligner {
 			instance.alignReads(fMIndexFile, readsFile, out);
 		}
 	}
+	
+	/**
+	 * @return the minProportionKmers
+	 */
+	public double getMinProportionKmers() {
+		return minProportionKmers;
+	}
+	
+	/**
+	 * @param minProportionKmers the minProportionKmers to set
+	 */
+	public void setMinProportionKmers(double minProportionKmers) {
+		this.minProportionKmers = minProportionKmers;
+	}
+	
+	/**
+	 * @param minProportionKmers the minProportionKmers to set
+	 */
+	public void setMinProportionKmers(Double minProportionKmers) {
+		this.setMinProportionKmers(minProportionKmers.doubleValue());
+	}
+
 	/**
 	 * Aligns readsFile with the fMIndexFile
 	 * @param fMIndexFile Binary file with the serialization of an FMIndex
@@ -172,71 +193,71 @@ public class ReadsAligner {
 		CharSequence[] kmers = KmersCounter.extractKmers(read.getCharacters().toString(), SEARCH_KMER_LENGTH, true);
 
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
-		if(kmers!=null)
+		if(kmers==null) return finalAlignments;
+		int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
+
+		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
+
+		//Processing part
+
+		//KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
+		Set<String> keys= seqHits.keySet();
+
+		for (String sequenceName:keys)
 		{
-			int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
+			// System.out.println("---------------"+kmersCount+"---------------------");
 
-			HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
-
-			//Processing part
-
-			KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
-			Set<String> keys= seqHits.keySet();
-			Iterator <String> iterator =keys.iterator();
-			List<KmerAlignment> alns;
-
-			while (iterator.hasNext())
+			List<KmerAlignment> alns = seqHits.get(sequenceName);
+			
+			/*if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
 			{
-//				System.out.println("---------------"+kmersCount+"---------------------");
-				String sequenceName=iterator.next();
+				String sd=fMIndex.getSequenceSubString(sequenceName, 63212, 63256);
+				System.out.println(sd);
+			}*/
+			Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
 
-				alns = seqHits.get(sequenceName);
-				
-				if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
+			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
+			for (int i = 0; i < alns.size(); i++) 
+			{
+				KmerAlignment actual=alns.get(i);
+				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
-					String sd=fMIndex.getSequenceSubString(sequenceName, 63212, 63256);
-					System.out.println(sd);
+					stack.push(actual);
 				}
-				Collections.sort(alns,cmp);
-
-				Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
-				KmerAlignment actual;
-				double percent;
-				for (int i = 0; i < alns.size(); i++) 
+				else 
 				{
-					actual=alns.get(i);
-					if(stack.isEmpty()||(actual.getKmerNumber()>stack.peek().getKmerNumber()&&actual.getReadAlignment().getFirst()-stack.peek().getReadAlignment().getLast()<MAX_SPACE_BETWEEN_KMERS))
-					{
-						stack.push(actual);
-					}
-					else 
-					{
-						insert(finalAlignments, kmersCount, sequenceName, stack);
-					}
+					insert(finalAlignments, kmersCount, sequenceName, stack);
 				}
-				insert(finalAlignments, kmersCount, sequenceName, stack);
 			}
+			insert(finalAlignments, kmersCount, sequenceName, stack);
 		}
-
-
 		return finalAlignments;
+	}
+	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
+	{
+		boolean negativeStrand = topAln.isNegativeStrand();
+		if(negativeStrand != nextAln.isNegativeStrand()) return false;
+		if(negativeStrand) {
+			if(nextAln.getKmerNumber()>=topAln.getKmerNumber()) return false;
+			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
+		} else {
+			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
+			if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
+		}
+		return true;
 	}
 	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack) 
 	{
-		double percent;
-		if(!stack.isEmpty())
+		double percent = (double) stack.size()/kmersCount;
+		if(percent>=minProportionKmers)
 		{
-			percent = (double) stack.size()/kmersCount;
-			if(percent>=MIN_ACCURACY)
-			{
-				KmerAlignment[] arr=new KmerAlignment[stack.size()];
-				stack.toArray(arr);
-				int first = arr[0].getReadAlignment().getFirst();
-				int last = arr[arr.length-1].getReadAlignment().getLast();
-				finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
-			}
-			stack.clear();
+			KmerAlignment[] arr=new KmerAlignment[stack.size()];
+			stack.toArray(arr);
+			int first = arr[0].getReadAlignment().getFirst();
+			int last = arr[arr.length-1].getReadAlignment().getLast();
+			finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
 		}
+		stack.clear();
 	}
 
 	/**
@@ -258,29 +279,34 @@ public class ReadsAligner {
 		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
 		{
 			//Exit loop if kmers[i] is null
-			if(kmers[i]==null)
-				continue;
+			if(kmers[i]==null) continue;
 
 			String kmer =kmers[i].toString();
 
-
 			//Where is located the kmer in exact way
-			List<ReadAlignment> regions=fMIndex.search(kmer);
-
-			for(ReadAlignment aln:regions)
-			{
-
-				KmerAlignment kmerAlignment = new KmerAlignment(i,aln);
-				List<KmerAlignment> seqAlns = seqHits.get(aln.getSequenceName());
-
-				if(seqAlns==null) {
-					seqAlns = new ArrayList<>();
-					seqHits.put(aln.getSequenceName(), seqAlns);
-				}
-				seqAlns.add(kmerAlignment);
-			}
+			exactKmerSearch(fMIndex, i, kmer, seqHits);
+		}
+		
+		if(read.getLength()%SEARCH_KMER_LENGTH!=0) {
+			int l = kmers.length-1;
+			exactKmerSearch(fMIndex, l, kmers[l].toString(), seqHits);
 		}
 		return seqHits;
+	}
+	private void exactKmerSearch(FMIndex fMIndex, int kmerNumber, String kmer, HashMap<String, List<KmerAlignment>> seqHits) {
+		List<ReadAlignment> regions=fMIndex.search(kmer);
+
+		for(ReadAlignment aln:regions)
+		{
+			KmerAlignment kmerAlignment = new KmerAlignment(kmerNumber, aln);
+			List<KmerAlignment> seqAlns = seqHits.get(aln.getSequenceName());
+
+			if(seqAlns==null) {
+				seqAlns = new ArrayList<>();
+				seqHits.put(aln.getSequenceName(), seqAlns);
+			}
+			seqAlns.add(kmerAlignment);
+		}
 	}
 	
 	
@@ -313,7 +339,7 @@ public class ReadsAligner {
 			}
 		}
 
-		//Matriz para programación dinámica guarda el menor peso para ir de 0,0 a i,j
+		//Matriz para programaciï¿½n dinï¿½mica guarda el menor peso para ir de 0,0 a i,j
 		int[][] A = new int[diagonales.length+1][diagonales[0].length+1]; 
 
 		for (int i = 0; i < A.length; i++) 
@@ -325,14 +351,14 @@ public class ReadsAligner {
 				{
 					A[i][j]=0;
 				}
-				//Semánticamente es borrar una letra de la primera palabra
+				//Semï¿½nticamente es borrar una letra de la primera palabra
 				//Caso base, el costo para llegar a 0,j es 1+ costo(0,j-1)
 				//Esto es moverse en horizontal es decir por las columnas -->
 				else if(i==0)
 				{
 					A[i][j]= 1 + A[i][j-1];
 				}
-				//Semánticamente es insertar una letra en la segunda palabra
+				//Semï¿½nticamente es insertar una letra en la segunda palabra
 				//Caso base, el costo para llegar a i,0 es 1 + costo(i-1,0)
 				//Esto es moverse en verical es decir por las filas |
 				//												    v	
@@ -365,7 +391,7 @@ public class ReadsAligner {
 			}
 		}
 
-		//En este punto ya se tiene el costo mínimo para llegar a (A.length-1,A[0].length-1)
+		//En este punto ya se tiene el costo mï¿½nimo para llegar a (A.length-1,A[0].length-1)
 		//Ahora hay que devolverse y recordar las desiciones
 
 		//pila que guarda el alineamiento de la palabra1
@@ -375,7 +401,7 @@ public class ReadsAligner {
 		Stack<String> pila2 = new Stack<>();
 
 		//Guarda la posicion actual en la que va el algoritmo que se devuelte
-		//inicialmente está en la esquina inferior derecha, donde está el costo mínimo para llegar a (A.length-1,A[0].length-1)
+		//inicialmente estï¿½ en la esquina inferior derecha, donde estï¿½ el costo mï¿½nimo para llegar a (A.length-1,A[0].length-1)
 		int[] r={A.length-1,A[0].length-1};
 
 		//Mientras no lleguemos al inicio siga devolviendose
@@ -397,7 +423,7 @@ public class ReadsAligner {
 					//Se mete la siguiente letra en la palabra 1
 					pila1.push(pila1A.pop());
 
-					// se actualiza r que es la posición actual
+					// se actualiza r que es la posiciï¿½n actual
 					r=a;
 				}
 				//Se revisa si es desde la izquierda
@@ -411,7 +437,7 @@ public class ReadsAligner {
 					//Se mete la siguiente letra en la palabra 2
 					pila2.push(pila2A.pop());
 
-					// se actualiza r que es la posición actual
+					// se actualiza r que es la posiciï¿½n actual
 					r=a;
 				}
 				//Se revisa la diagonal superior izquierda
@@ -425,14 +451,14 @@ public class ReadsAligner {
 					//Se mete la siguiente letra en la palabra 2
 					pila2.push(pila2A.pop());
 
-					// se actualiza r que es la posición actual
+					// se actualiza r que es la posiciï¿½n actual
 					r=a;
 				}
 			}
 			catch (Exception e) 
 			{
 //				e.printStackTrace();
-				// se trató de llegar a posición negativa
+				// se tratï¿½ de llegar a posiciï¿½n negativa
 
 				//si hay camino desde arriba
 				if(r[0]-1>=0)
@@ -445,7 +471,7 @@ public class ReadsAligner {
 					//Se mete la siguiente letra en la palabra 1
 					pila1.push(pila1A.pop());
 
-					// se actualiza r que es la posición actual
+					// se actualiza r que es la posiciï¿½n actual
 					r=a;
 				}
 				//si no debe haber camino por la izquierda
@@ -459,7 +485,7 @@ public class ReadsAligner {
 					//Se mete la siguiente letra en la palabra 2
 					pila2.push(pila2A.pop());
 
-					// se actualiza r que es la posición actual
+					// se actualiza r que es la posiciï¿½n actual
 					r=a;
 				}
 			}
