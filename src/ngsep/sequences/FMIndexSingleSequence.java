@@ -488,7 +488,8 @@ public class FMIndexSingleSequence implements Serializable {
 
 	public String getSequenceSubString(int first, int last) 
 	{
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub 
+		
 		return reverseBWT().substring(first, last);
 	}
 }

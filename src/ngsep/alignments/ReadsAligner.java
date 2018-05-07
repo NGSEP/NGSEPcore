@@ -19,8 +19,11 @@
  *******************************************************************************/
 package ngsep.alignments;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,7 +48,8 @@ import ngsep.sequences.io.FastqFileReader;
 public class ReadsAligner {
 
 	static final int SEARCH_KMER_LENGTH = 15;
-	static final double MIN_ACCURACY =0.5;
+	static final double MIN_ACCURACY =1;
+	private static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
 	public static void main(String[] args) throws Exception 
 	{
@@ -75,6 +79,10 @@ public class ReadsAligner {
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
+				if(read.getName().equals("chrI_83232_83704_0:0:0_1:0:0_1/1"))
+				{
+					System.out.println();
+				}
 				int numAlns = alignRead(fMIndex, read, out);
 				totalReads++;
 				if(numAlns>0) readsAligned++;
@@ -183,6 +191,9 @@ public class ReadsAligner {
 				String sequenceName=iterator.next();
 
 				alns = seqHits.get(sequenceName);
+				
+				
+				
 				Collections.sort(alns,cmp);
 
 				Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
@@ -191,43 +202,39 @@ public class ReadsAligner {
 				for (int i = 0; i < alns.size(); i++) 
 				{
 					actual=alns.get(i);
-					if(stack.isEmpty()||actual.getKmerNumber()>stack.peek().getKmerNumber())
+					if(stack.isEmpty()||(actual.getKmerNumber()>stack.peek().getKmerNumber()&&actual.getReadAlignment().getFirst()-stack.peek().getReadAlignment().getLast()<MAX_SPACE_BETWEEN_KMERS))
 					{
 						stack.push(actual);
 					}
 					else 
 					{
-						percent = (double) stack.size()/kmersCount;
-						if(percent>=MIN_ACCURACY)
-						{
-							StringBuilder stringBuilder = new StringBuilder();
-							
-							KmerAlignment[] arr=new KmerAlignment[stack.size()];
-							stack.toArray(arr);
-							for (int j = arr.length-1; j >=0; j--) 
-							{
-								stringBuilder.append(arr[j].getReadAlignment().getReadCharacters());
-							}
-							int first = arr[0].getReadAlignment().getFirst();
-							int last = arr[arr.length-1].getReadAlignment().getLast();
-							System.out.println("f: "+first+" l:"+last);
-							String sequenceChunk = fMIndex.getSequenceSubString(sequenceName,first,last);
-							System.out.println(sequenceChunk);
-							String seq = stringBuilder.toString();
-//							System.out.println(seq);
-							System.console().readLine();
-//							String ref; //= fMIndex.get
-//							String aln = smithWatermanLocalAlingMent(ref, seq);
-							finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
-							stack.clear();
-						}
+						insert(finalAlignments, kmersCount, sequenceName, stack);
 					}
 				}
+				insert(finalAlignments, kmersCount, sequenceName, stack);
 			}
 		}
 
 
 		return finalAlignments;
+	}
+	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack) 
+	{
+		double percent;
+		if(!stack.isEmpty())
+		{
+			percent = (double) stack.size()/kmersCount;
+			if(percent>=MIN_ACCURACY)
+			{
+				KmerAlignment[] arr=new KmerAlignment[stack.size()];
+				stack.toArray(arr);
+				int first = arr[0].getReadAlignment().getFirst();
+				int last = arr[arr.length-1].getReadAlignment().getLast();
+				finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
+				stack.clear();
+			}
+
+		}
 	}
 
 	/**
