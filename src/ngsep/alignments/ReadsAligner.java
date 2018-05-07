@@ -79,7 +79,7 @@ public class ReadsAligner {
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
-				if(read.getName().equals("chrI_83232_83704_0:0:0_1:0:0_1/1"))
+				if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
 				{
 					System.out.println();
 				}
@@ -192,8 +192,11 @@ public class ReadsAligner {
 
 				alns = seqHits.get(sequenceName);
 				
-				
-				
+				if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
+				{
+					String sd=fMIndex.getSequenceSubString(sequenceName, 63212, 63256);
+					System.out.println(sd);
+				}
 				Collections.sort(alns,cmp);
 
 				Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
@@ -231,9 +234,8 @@ public class ReadsAligner {
 				int first = arr[0].getReadAlignment().getFirst();
 				int last = arr[arr.length-1].getReadAlignment().getLast();
 				finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
-				stack.clear();
 			}
-
+			stack.clear();
 		}
 	}
 
@@ -246,6 +248,11 @@ public class ReadsAligner {
 	private HashMap<String, List<KmerAlignment>> getSequenceHits(FMIndex fMIndex, RawRead read,CharSequence[] kmers) {
 
 		HashMap<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();
+		
+		if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
+		{
+			System.out.println("debug");
+		}
 
 		//Avoid overlaps
 		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
