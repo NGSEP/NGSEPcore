@@ -37,6 +37,7 @@ import java.util.TreeSet;
  * 
  * @author German Andrade
  * @author Jorge Duitama
+ * @author Juan Camilo Bojaca
  */
 public class FMIndexSingleSequence implements Serializable {
 	/**
@@ -44,10 +45,10 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
 
-	private static final char SPECIAL_CHARACTER = '$';
 	private static final int DEFAULT_TALLY_DISTANCE = 100;
 	private static final int DEFAULT_SUFFIX_FRACTION = 50;
 
+	//private CharSequence sequence;
 	// Start position in the original sequence of some rows of the BW matrix
 	// representing a partial suffix array
 	private Map<Integer, Integer> partialSuffixArray = new HashMap<>();
@@ -63,7 +64,7 @@ public class FMIndexSingleSequence implements Serializable {
 	private int suffixFraction;
 
 	// Burrows Wheeler transform
-	private char[] bwt;
+	private char [] bwt;
 
 	// For each character tells the first time it appears in the left column of the
 	// BW matrix
@@ -83,9 +84,11 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	public FMIndexSingleSequence(CharSequence sequence, int tallyDistance, int suffixFraction) {
+		//this.sequence = sequence;
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
-		calculate2(sequence);
+		calculate(sequence);
+		//calculate2(sequence);
 	}
 
 	public int getTallyDistance() {
@@ -97,72 +100,24 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	private void calculate(CharSequence sequence) {
-		//List<Integer> suffixes = buildSuffixArray(sequence);
-		int [] suffixes = buildSuffixArrayDC3(sequence);
-		buildBWT(sequence, suffixes);
-		buildAlphabetAndCounts(sequence, suffixes);
-		buildTally();
-		createPartialSuffixArray(suffixes);
-
-	}
-	
-	private void calculate2(CharSequence sequence) {
-		//List<Integer> suffixes = buildSuffixArray(sequence);
-		SuffixArrayGenerator suffixArrayGenerator=new SuffixArrayGenerator(sequence);
+		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
+		int [] suffixes = suffixArrayGenerator.getSuffixArray();
+		int [] reverseSA = suffixArrayGenerator.getReverseSuffixArray();
+		
+		buildBWT(sequence, suffixes, reverseSA);
+		//buildAlphabetAndCounts(sequence, suffixes);
 		alphabet = suffixArrayGenerator.getAlphabet();
 		firstRowsInMatrix = suffixArrayGenerator.getFirstRowsInMatrix();
 		lastRowsInMatrix = suffixArrayGenerator.getLastRowsInMatrix();
-		partialSuffixArray = suffixArrayGenerator.getPartialSuffixArray(suffixFraction);
-		bwt = suffixArrayGenerator.getBWT();
-		tallyIndexes = suffixArrayGenerator.getTallyIndexes(tallyDistance, bwt);
-	}
-
-	/**
-	 * Builds a suffix array using the default merge sort algorithm
-	 * @param sequence to build the array
-	 * @return int [] indexes of the sorted suffixes
-	 */
-	public static int [] buildSuffixArrayMergeSort(CharSequence sequence) {
-		ArrayList<Integer> sufixes = new ArrayList<Integer>();
-		for (int i = 0; i < sequence.length(); i++) {
-			sufixes.add(i);
-		}
-		Collections.sort(sufixes, new SuffixCharSequencePositionComparator(sequence));
-		int [] answer = new int [sufixes.size()];
-		for(int i=0;i<answer.length;i++) {
-			answer[i] = sufixes.get(i);
-		}
-		return answer;
-	}
-	/**
-	 * Builds a suffix array using the DC3 linear algorithm for sorting
-	 * @param sequence to build the array
-	 * @return int [] indexes of the sorted suffixes
-	 */
-	public static int [] buildSuffixArrayDC3(CharSequence sequence) {
-		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
-		return suffixArrayGenerator.getSA();
-	}
-
-	private void buildBWT(CharSequence sequence, int [] suffixes) {
-		bwt = new char[sequence.length() + 1];
-		bwt[0] = sequence.charAt(sequence.length() - 1);
-		int j = 1;
-		for (int i : suffixes) {
-			if (i > 0) {
-				bwt[j] = sequence.charAt(i - 1);
-			} else {
-				bwt[j] = SPECIAL_CHARACTER;
-			}
-			j++;
-		}
+		createPartialSuffixArray(reverseSA);
+		buildTally();
 	}
 
 	private void buildAlphabetAndCounts(CharSequence seq, int [] suffixArray) {
 		Map<Character, Integer> counts = new TreeMap<>();
 		firstRowsInMatrix = new TreeMap<>();
 		lastRowsInMatrix = new TreeMap<>();
-		char lastC = SPECIAL_CHARACTER;
+		char lastC = SuffixArrayGenerator.SPECIAL_CHARACTER;
 		StringBuilder alpB = new StringBuilder();
 		firstRowsInMatrix.put(lastC, 0);
 		lastRowsInMatrix.put(lastC, 0);
@@ -188,44 +143,74 @@ public class FMIndexSingleSequence implements Serializable {
 		lastRowsInMatrix.put(lastC, suffixArray.length);
 		// System.out.println("Last row "+lastC+": "+suffixArray.size());
 		alphabet = alpB.toString();
-
+	}
+	
+	private void buildBWT(CharSequence sequence, int [] sa, int [] reverseSA) {
+		bwt = new char[sequence.length() + 1];
+		
+		/*bwt[reverseSA[0]] = SPECIAL_CHARACTER;
+		for (int i = 1; i < reverseSA.length; i++) bwt[reverseSA[i]] = sequence.charAt(i - 1);
+		*/
+		if(sa[0]!=sequence.length()) throw new RuntimeException("Suffix array should have "+sequence.length()+" as first entry");
+		//assert sa[0]==sequence.length();
+		int j = 0;
+		for (int i : sa) {
+			if (i > 0) {
+				bwt[j] = sequence.charAt(i - 1);
+			} else {
+				bwt[j] = SuffixArrayGenerator.SPECIAL_CHARACTER;
+			}
+			j++;
+		}
 	}
 
 	private void buildTally() {
-		int[] arr = new int[alphabet.length()];
-		Arrays.fill(arr, 0);
+		//TODO: Make this an attribute
+		int [] alphabetIndexes = new int [127];
+		for(int i=0;i<alphabet.length();i++) alphabetIndexes[(int)alphabet.charAt(i)]=i;
+		//final int tallyRows = (bwt.length + (tallyDistance - 1)) / tallyDistance;
 		int tallyRows = bwt.length / tallyDistance;
-		if (bwt.length % tallyDistance > 0)
-			tallyRows++;
-		tallyIndexes = new int[tallyRows][arr.length];
+		if (bwt.length % tallyDistance > 0) tallyRows++;
+		
+		final int[] arr = new int[alphabet.length()];
+		tallyIndexes = new int[tallyRows][alphabet.length()];
+		
+		/*int posChar = alphabetIndexes[bwt[0]];
+		arr[posChar]++;
+		System.arraycopy(arr, 0, tallyIndexes[0], 0, arr.length);
+	
+		for (int j = 1; j < tallyRows; j++) {
+		    for (int i = (j - 1) * tallyDistance + 1; i <= j * tallyDistance; i++) {
+		    	posChar = alphabetIndexes[bwt[i]];
+		    	if(posChar!=-1) arr[posChar]++;
+		    }
+		    System.arraycopy(arr, 0, tallyIndexes[j], 0, arr.length);
+		}*/
+
 		int j = 0;
 		for (int i = 0; i < bwt.length; i++) {
 			char c = bwt[i];
-			if (c != SPECIAL_CHARACTER) {
-				int indexC = alphabet.indexOf(c);
-				if (indexC < 0)
-					throw new RuntimeException("Character " + c + " not found in the alphabet " + alphabet);
+			if (c != SuffixArrayGenerator.SPECIAL_CHARACTER) {
+				int indexC = alphabetIndexes[c];
 				arr[indexC]++;
 			}
 			if (i % tallyDistance == 0) {
-				int[] copy = Arrays.copyOf(arr, arr.length);
-				tallyIndexes[j] = copy;
+				System.arraycopy(arr, 0, tallyIndexes[j], 0, arr.length);
 				j++;
 			}
 		}
 	}
 
-	private void createPartialSuffixArray(int [] suffixes) {
+	private void createPartialSuffixArray(int [] reverseSA) {
 		partialSuffixArray = new HashMap<Integer, Integer>();
-		int n = suffixes.length;
-		for (int i = 0; i < n; i++) {
-			int startSeq = suffixes[i];
-			if (startSeq % suffixFraction == 0) {
-				partialSuffixArray.put(i + 1, startSeq);
-			}
-		}
+		for (int i = 0; i < reverseSA.length; i += suffixFraction) partialSuffixArray.put(reverseSA[i], i);
 	}
 
+	/**
+	 * Searches the given sequence in this FMIndex
+	 * @param searchSequence Sequence to search
+	 * @return Set<Integer> Set of start positions for the given sequence
+	 */
 	public Set<Integer> search(String searchSequence) {
 		return exactSearch(searchSequence);
 		// return inexactSearchBWAAlgorithm(searchSequence);
@@ -233,64 +218,20 @@ public class FMIndexSingleSequence implements Serializable {
 
 	public Set<Integer> exactSearch(String searchSequence) {
 		int[] range = getRange(searchSequence);
-		// if(range!=null) System.out.println("Search sequence: "+searchSequence+"
-		// range: "+range[0]+"-"+range[1]);
-		// else System.out.println("No hits for search sequence: "+searchSequence);
-
-		return getRealIndexes(range);
-	}
-
-	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) {
-		int[] d = calculateD(searchSequence);
-
-		List<int[]> ranges = inexactRecurrentSearch(searchSequence, searchSequence.length() - 1,
-				maxDifferencesInexactSearch, 1, bwt.length - 1, d);
-		Set<Integer> indexes = new TreeSet<>();
-		for (int[] range : ranges) {
-			indexes.addAll(getRealIndexes(range));
+		if(range == null) {
+			//System.out.println("No hits for search sequence: "+searchSequence);
+			return new TreeSet<>();
 		}
-		return indexes;
+		// System.out.println("Search sequence: "+searchSequence+"range: "+range[0]+"-"+range[1]);
+		return getSequenceIndexes(range[0],range[1]);
 	}
-
-	public static void main(String[] args) {
-		System.out.println("Testing inexactSearch BWA");
-		FMIndexSingleSequence f = new FMIndexSingleSequence(args[0]);
-
-		String query = args[1];
-		Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
-		Iterator<Integer> i = set.iterator();
-		while (i.hasNext()) {
-			System.out.println(i.next());
-		}
-	}
-
+	
 	/**
-	 * 
-	 * @param range
-	 *            of rows in the FM index
-	 * @return Set<Integer> Start positions in the subject sequence (values of the
-	 *         suffix array)
+	 * Looks for the range of row indexes in this index having matches to the given query
+	 * @param query sequence
+	 * @return int [] array with two indexes, the first and last row of this index having exact matches to the given query
+	 * null if the sequence can not be found
 	 */
-	private Set<Integer> getRealIndexes(int[] range) {
-		Set<Integer> startIndexes = new TreeSet<>();
-		if (range == null)
-			return startIndexes;
-		// From this point is just transform the range into the real indexes in the
-		// sequence
-		for (int i = range[0]; i <= range[1]; i++) {
-			int row = i;
-			Integer begin = partialSuffixArray.get(row);
-			int steps;
-			for (steps = 0; begin == null; steps++) {
-				row = lfMapping(row);
-				begin = partialSuffixArray.get(row);
-			}
-			begin += steps;
-			startIndexes.add(begin);
-		}
-		return startIndexes;
-	}
-
 	public int[] getRange(String query) {
 		char actualChar = query.charAt(query.length() - 1);
 
@@ -315,7 +256,37 @@ public class FMIndexSingleSequence implements Serializable {
 		return new int[] { rowS, rowF };
 	}
 
-	public int getTallyOf(char c, int row) {
+	/**
+	 * Provides the start indexes in the original sequence corresponding to the given start 
+	 * @param firstRow of this index
+	 * @param lastRow of this index
+	 * @return Set<Integer> Start positions in the subject sequence (values of the suffix array)
+	 */
+	public Set<Integer> getSequenceIndexes(int firstRow, int lastRow) {
+		Set<Integer> startIndexes = new TreeSet<>();
+		// From this point is just transform the range into the real indexes in the
+		// sequence
+		for (int i = firstRow; i <= lastRow; i++) {
+			int row = i;
+			Integer begin = partialSuffixArray.get(row);
+			int steps;
+			for (steps = 0; begin == null; steps++) {
+				row = lfMapping(row);
+				begin = partialSuffixArray.get(row);
+			}
+			begin += steps;
+			startIndexes.add(begin);
+		}
+		return startIndexes;
+	}
+
+	/**
+	 * Returns the tally count for the given character in the given row of this index 
+	 * @param c character to count. c must belong to the alphabet of this index
+	 * @param row to query
+	 * @return int count of appearances of the character c in the bwt up to the given row
+	 */
+	public int getTallyCount(char c, int row) {
 		int r = 0;
 
 		int a = row / tallyDistance;
@@ -346,27 +317,22 @@ public class FMIndexSingleSequence implements Serializable {
 	 * Finds the row corresponding to the given character in the given row of the
 	 * index, according to the tally indexes in that row
 	 * 
-	 * @param c
-	 *            Character to query
-	 * @param row
-	 *            of the index to query
-	 * @param firstIndexAfter
-	 *            If true, calculates the rank of the character at or after the row
+	 * @param c Character to query
+	 * @param row of the index to query
+	 * @param firstIndexAfter If true, calculates the rank of the character at or after the row
 	 * @return int Row of the FM-index of the rank of the given character according
 	 *         to the tally indexes at the given row
 	 */
 	private int lfMapping(char c, int row, boolean firstIndexAfter) {
 
-		int rank = getTallyOf(c, row);
+		int rank = getTallyCount(c, row);
 		// add1 is true when actualChar is different of bwt[rowS] because in this case,
 		// the last appearance of actualChar before rowS is outside the range defined by
 		// rowS, rowF
 		boolean add1 = firstIndexAfter && (bwt[row] != c);
-		// System.out.println("char: "+c+" row: "+row+" rank: "+rank+" first c:
-		// "+firstRowsInMatrix.get(c));
+		// System.out.println("char: "+c+" row: "+row+" rank: "+rank+" first c: "+firstRowsInMatrix.get(c));
 		int newRank = firstRowsInMatrix.get(c) + rank - 1;
-		if (add1)
-			newRank++;
+		if (add1) newRank++;
 		return newRank;
 	}
 
@@ -376,9 +342,46 @@ public class FMIndexSingleSequence implements Serializable {
 		return lfMapping(c, row, false);
 	}
 
+	/**
+	 * Return the subsequence of the indexed sequence between the given coordinates
+	 * @param start position of the sequence (0-based, included)
+	 * @param end position of the sequence (0-based, excluded)
+	 * @return CharSequence segment of the indexed sequence between the given coordinates
+	 */
+	public CharSequence getSequence (int start, int end)
+	{
+		//return sequence.subSequence(start, end);
+		return null;
+	}
 	/*
 	 * Methods for inexact matching
 	 */
+	
+
+
+	public static void main(String[] args) {
+		System.out.println("Testing inexactSearch BWA");
+		FMIndexSingleSequence f = new FMIndexSingleSequence(args[0]);
+
+		String query = args[1];
+		Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
+		Iterator<Integer> i = set.iterator();
+		while (i.hasNext()) {
+			System.out.println(i.next());
+		}
+	}
+	
+	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) {
+		int[] d = calculateD(searchSequence);
+
+		List<int[]> ranges = inexactRecurrentSearch(searchSequence, searchSequence.length() - 1,
+				maxDifferencesInexactSearch, 1, bwt.length - 1, d);
+		Set<Integer> indexes = new TreeSet<>();
+		for (int[] range : ranges) {
+			indexes.addAll(getSequenceIndexes(range[0], range[1]));
+		}
+		return indexes;
+	}
 	/**
 	 * Calculates the number of differences between w and x
 	 * 
@@ -425,7 +428,7 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	private List<int[]> inexactRecurrentSearch(String query, int lastIdxQuery, int maxDiff, int firstRow, int lastRow,
 			int[] d) {
-		// System.out.println("Recursi�n lastIdxQuery:"+lastIdxQuery+"
+		// System.out.println("Recursion lastIdxQuery:"+lastIdxQuery+"
 		// maxDiff:"+maxDiff+" firstRow:"+firstRow+" lastRow:"+lastRow);
 		List<int[]> arr = new ArrayList<>();
 		if (maxDiff < 0) {

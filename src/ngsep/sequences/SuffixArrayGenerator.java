@@ -21,18 +21,14 @@ package ngsep.sequences;
 
 import java.text.DecimalFormat;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.IntUnaryOperator;
 
 /**
- * @author jc.bojaca
- * @version 1
+ * @author Juan Camilo Bojaca
  */
 final class Constants {
-    /** Character to BWT */
-    public static final char SPECIAL_CHARACTER = '$';
 
     /** The ASCII interval that it handles */
     public static final int ALFABETEND = 127;
@@ -78,125 +74,14 @@ final class Constants {
 public class SuffixArrayGenerator {
     /** the number of bytes to sort each character */
     public static final int BYTESTOSORT = 16;
+    
+    /** Character to BWT */
+    public static final char SPECIAL_CHARACTER = '$';
 
-    /** the char sequence. */
-    private final CharSequence sequence;
-
-    /** the suffix Array. */
-    private final int[] suffixArray;
-
-    /** the array whit the ranks in suffixArray. */
-    private final int[] ranksSA;
 
     /** the translator of the sequence. */
     private final Translator translator;
-
-    /**
-     * Instantiates a new suffix array generator.
-     *
-     * @param charSequence
-     *            the sequence to which the suffix array is calculated
-     */
-    public SuffixArrayGenerator(CharSequence charSequence) {
-	long ini = System.nanoTime();
-
-	sequence = charSequence;
-	translator = new Translator(charSequence);
-	int[] data = translator.getData();
-	DC3 dc3 = new DC3(data);
-	suffixArray = dc3.getSuffixArray();
-	ranksSA = dc3.getRanksSA();
-
-	System.out.println("Time to create a suffix array: "
-		+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)) + " s");
-    }
-
-    /** @return the suffix array */
-    public int[] getSA() {
-	final int[] answer = new int[suffixArray.length - 1];
-	System.arraycopy(suffixArray, 1, answer, 0, answer.length);
-	return answer;
-    }
-
-    /**
-     * Gets the bwt.
-     *
-     * @return the bwt
-     */
-    public char[] getBWT() {
-	final char[] bwt = new char[suffixArray.length];
-	bwt[ranksSA[0]] = Constants.SPECIAL_CHARACTER;
-	for (int i = 1; i < suffixArray.length; i++)
-	    bwt[ranksSA[i]] = sequence.charAt(i - 1);
-	return bwt;
-    }
-
-    /**
-     * Gets the partial suffix array.
-     *
-     * @param suffixFraction
-     *            the suffix fraction
-     * @return the partial suffix array
-     */
-    public Map<Integer, Integer> getPartialSuffixArray(final int suffixFraction) {
-	final Map<Integer, Integer> partialSuffixArray = new HashMap<>();
-	for (int i = 0; i < ranksSA.length; i += suffixFraction)
-	    partialSuffixArray.put(ranksSA[i], i);
-	return partialSuffixArray;
-    }
-
-    /**
-     * Gets the tally indexes.
-     *
-     * @param tallyDistance
-     *            the tally distance
-     * @param bwt
-     *            the bwt
-     * @return the tally indexes
-     */
-    public int[][] getTallyIndexes(int tallyDistance, char[] bwt) {
-	final int alfabetLength = translator.getAlphabet().length();
-	final int tallyRows = (bwt.length + (tallyDistance - 1)) / tallyDistance;
-
-	final byte[] map = translator.getMap();
-	final int[] arr = new int[alfabetLength + 1];
-	final int[][] tallyIndexes = new int[tallyRows][alfabetLength];
-
-	arr[map[bwt[0]]]++;
-	System.arraycopy(arr, 1, tallyIndexes[0], 0, arr.length - 1);
-
-	for (int j = 1; j < tallyRows; j++) {
-	    for (int i = (j - 1) * tallyDistance + 1; i <= j * tallyDistance; i++)
-		arr[map[bwt[i]]]++;
-	    System.arraycopy(arr, 1, tallyIndexes[j], 0, arr.length - 1);
-	}
-	return tallyIndexes;
-    }
-
-    /** @return the alphabet */
-    public String getAlphabet() {
-	return translator.getAlphabet().toString();
-    }
-
-    /** @return the first rows in matrix */
-    public Map<Character, Integer> getFirstRowsInMatrix() {
-	return translator.getFirstRowsInMatrix();
-    }
-
-    /** @return the last rows in matrix */
-    public Map<Character, Integer> getLastRowsInMatrix() {
-	return translator.getLastRowsInMatrix();
-    }
-}
-
-/**
- * 
- * this class provides support for the ranks chain
- * 
- * @author jc.bojaca
- * @version 1
- */
-class DC3 {
+    
     /** the suffix Array */
     private final int[] suffixArray;
     /** the ranks array: Each position contains the position in the suffix array */
@@ -222,39 +107,71 @@ class DC3 {
     private final Stack loStackAux = new Stack();
     /** final auxiliary points to sort */
     private final Stack hiStackAux = new Stack();
+    
 
-    /** constructor @param data the transformed charSequence */
-    DC3(int[] data) {
-	final int size = data.length;
-	final int size2_of_3 = (2 * size) / 3;
-	final int size1_of_3 = ((size - 1) / 3) + 1;
-
-	suffixArray = new int[size];
-	ranksSA = new int[size];
-
-	sort2 = new int[size1_of_3];
-
-	sort1 = new int[size2_of_3];
-	auxSort = new int[size2_of_3];
-	auxSort2 = new byte[size2_of_3];
-	repeated = new boolean[size2_of_3];
-
-	getSuffix(data, 0);
-
-	for (int i = 0; i < suffixArray.length; i++)
-	    ranksSA[suffixArray[i]] = i;
+    /**
+     * Instantiates a new suffix array generator.
+     *
+     * @param charSequence
+     *            the sequence to which the suffix array is calculated
+     */
+    public SuffixArrayGenerator(CharSequence charSequence) {
+		long ini = System.nanoTime();
+		translator = new Translator(charSequence);
+		int [] data = translator.getData();
+		final int size = data.length;
+		final int size2_of_3 = (2 * size) / 3;
+		final int size1_of_3 = ((size - 1) / 3) + 1;
+	
+		suffixArray = new int[size];
+		ranksSA = new int[size];
+	
+		sort2 = new int[size1_of_3];
+	
+		sort1 = new int[size2_of_3];
+		auxSort = new int[size2_of_3];
+		auxSort2 = new byte[size2_of_3];
+		repeated = new boolean[size2_of_3];
+	
+		getSuffix(data, 0);
+	
+		//TODO: check if it has to be recalculated
+		for (int i = 0; i < suffixArray.length; i++) ranksSA[suffixArray[i]] = i;
+		
+	
+		System.out.println("Time to create a suffix array: "
+			+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)) + " s");
     }
 
-    /** @return the suffixArray */
-    int[] getSuffixArray() {
-	return suffixArray;
+    /** 
+     * @return the suffix array. The first position is sequence.length
+     */
+    public int[] getSuffixArray() {
+    	return suffixArray;
+    }
+    
+    /**
+	 * @return the reverse of the suffix array
+	 */
+	public int[] getReverseSuffixArray() {
+		return ranksSA;
+	}
+
+    /** @return the alphabet */
+    public String getAlphabet() {
+    	return translator.getAlphabet().toString();
     }
 
-    /** @return the suffixArray */
-    int[] getRanksSA() {
-	return ranksSA;
+    /** @return the first rows in matrix */
+    public Map<Character, Integer> getFirstRowsInMatrix() {
+    	return translator.getFirstRowsInMatrix();
     }
 
+    /** @return the last rows in matrix */
+    public Map<Character, Integer> getLastRowsInMatrix() {
+    	return translator.getLastRowsInMatrix();
+    }
+	
     /**
      * calculate the suffix array of data;
      * 
@@ -266,55 +183,55 @@ class DC3 {
      * @return the suffix Array of data
      */
     private void getSuffix(final int[] data, final int MaxBit) {
-	// -----------------------------------------------------------------------------
-	// STEP #1: create C (sort1)
-	// -----------------------------------------------------------------------------
-	final int m = moduleThree(sort1, 0, 1, data.length);
-	final int sort1Size = moduleThree(sort1, m, 2, data.length);
-	// -----------------------------------------------------------------------------
-	// STEP #2: radix sort C = b1b2
-	// -----------------------------------------------------------------------------
-	changeSortInterval(0, sort1Size - 1);
-	for (int d = 0; !loStack.isEmpty() && d < 3; d++)
-	    for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
-		sort(sort1, data, d, bit);
-	// -----------------------------------------------------------------------------
-	// STEP #2.1: recursion
-	// -----------------------------------------------------------------------------
-	if (!loStack.isEmpty()) {
-	    calculateRepeatedIndexes(loStack, hiStack, sort1Size);
-	    final int[] r = new int[sort1Size + 1];
-	    final int maxValueR = calculateR(r, m, sort1Size);
-
-	    getSuffix(r, Constants.HighestMostSignificatBitRound.applyAsInt(maxValueR));
-
-	    int idx = 0;
-	    // using the Suffix array of r, finishes order sort1
-	    for (int j = 1; j <= sort1Size; j++) {
-		idx = suffixArray[j];
-		if (idx < m) {
-		    sort1[j - 1] = idx * 3 + 1;
-		} else {
-		    sort1[j - 1] = (idx - m) * 3 + 2;
+		// -----------------------------------------------------------------------------
+		// STEP #1: create C (sort1)
+		// -----------------------------------------------------------------------------
+		final int m = moduleThree(sort1, 0, 1, data.length);
+		final int sort1Size = moduleThree(sort1, m, 2, data.length);
+		// -----------------------------------------------------------------------------
+		// STEP #2: radix sort C = b1b2
+		// -----------------------------------------------------------------------------
+		changeSortInterval(0, sort1Size - 1);
+		for (int d = 0; !loStack.isEmpty() && d < 3; d++)
+		    for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
+			sort(sort1, data, d, bit);
+		// -----------------------------------------------------------------------------
+		// STEP #2.1: recursion
+		// -----------------------------------------------------------------------------
+		if (!loStack.isEmpty()) {
+		    calculateRepeatedIndexes(loStack, hiStack, sort1Size);
+		    final int[] r = new int[sort1Size + 1];
+		    final int maxValueR = calculateR(r, m, sort1Size);
+	
+		    getSuffix(r, Constants.HighestMostSignificatBitRound.applyAsInt(maxValueR));
+	
+		    int idx = 0;
+		    // using the Suffix array of r, finishes order sort1
+		    for (int j = 1; j <= sort1Size; j++) {
+				idx = suffixArray[j];
+				if (idx < m) {
+				    sort1[j - 1] = idx * 3 + 1;
+				} else {
+				    sort1[j - 1] = (idx - m) * 3 + 2;
+				}
+		    }
 		}
-	    }
-	}
-	generetareTheRanksArray(sort1Size);
-	// -----------------------------------------------------------------------------
-	// STEP #3: Sorting the non sample Suffices b0
-	// -----------------------------------------------------------------------------
-	final int sort2Size = moduleThree(sort2, 0, 0, data.length);
-	changeSortInterval(0, sort2Size - 1);
-
-	for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
-	    sort(sort2, data, 0, bit);
-	for (int bit = Constants.HighestMostSignificatBitRound.applyAsInt(sort1Size); !loStack.isEmpty()
-		&& bit >= 0; bit -= Constants.CTE_RADIX)
-	    sort(sort2, ranksSA, 0, bit);
-	// -----------------------------------------------------------------------------
-	// STEP #4: Merge
-	// -----------------------------------------------------------------------------
-	merge(sort1Size, sort2Size, data);
+		generetareTheRanksArray(sort1Size);
+		// -----------------------------------------------------------------------------
+		// STEP #3: Sorting the non sample Suffices b0
+		// -----------------------------------------------------------------------------
+		final int sort2Size = moduleThree(sort2, 0, 0, data.length);
+		changeSortInterval(0, sort2Size - 1);
+	
+		for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
+		    sort(sort2, data, 0, bit);
+		for (int bit = Constants.HighestMostSignificatBitRound.applyAsInt(sort1Size); !loStack.isEmpty()
+			&& bit >= 0; bit -= Constants.CTE_RADIX)
+		    sort(sort2, ranksSA, 0, bit);
+		// -----------------------------------------------------------------------------
+		// STEP #4: Merge
+		// -----------------------------------------------------------------------------
+		merge(sort1Size, sort2Size, data);
     }
 
     /**
@@ -326,8 +243,8 @@ class DC3 {
      *            end
      */
     private void changeSortInterval(final int lo, final int hi) {
-	loStack.add(lo);
-	hiStack.add(hi);
+		loStack.add(lo);
+		hiStack.add(hi);
     }
 
     /**
@@ -347,7 +264,7 @@ class DC3 {
      *            the bite reference
      */
     private void sort(int[] array, final int[] data, final int d, final int bit) {
-	radixCount(array, data, d, bit);
+    	radixCount(array, data, d, bit);
     }
 
     /**
@@ -367,49 +284,49 @@ class DC3 {
      *            the bite reference
      */
     private void radixCount(int[] array, final int[] data, final int d, final int bit) {
-	int ind = 0;
-	int hi = 0;
-	int lo = 0;
-	int prev;
-	int cont;
-	int act;
-	while (!loStack.isEmpty()) {
-	    lo = loStack.pop();
-	    hi = hiStack.pop();
-
-	    Arrays.fill(contSort, 0);
-
-	    for (int i = lo; i <= hi; i++) {
-		ind = data[array[i] + d] >>> bit;
-		auxSort2[i] = (byte) ind;
-		contSort[Constants.CTE_RADIX_BIT & ind]++;
-	    }
-
-	    contSort[0] += lo - 1;
-	    prev = 0;
-	    cont = contSort[0];
-	    for (int i = 1; prev != hi; i++) {
-		prev = cont;
-		contSort[i] = cont += contSort[i];
-	    }
-
-	    for (int i = lo; i <= hi; i++) {
-		auxSort[contSort[Byte.toUnsignedInt(auxSort2[i])]--] = array[i];
-	    }
-
-	    System.arraycopy(auxSort, lo, array, lo, (hi - lo + 1));
-
-	    prev = contSort[0];
-	    for (int i = 1; prev != hi; prev = act, i++) {
-		act = contSort[i];
-		if (prev + 1 < act) {
-		    loStackAux.add(prev + 1);
-		    hiStackAux.add(act);
+		int ind = 0;
+		int hi = 0;
+		int lo = 0;
+		int prev;
+		int cont;
+		int act;
+		while (!loStack.isEmpty()) {
+		    lo = loStack.pop();
+		    hi = hiStack.pop();
+	
+		    Arrays.fill(contSort, 0);
+	
+		    for (int i = lo; i <= hi; i++) {
+				ind = data[array[i] + d] >>> bit;
+				auxSort2[i] = (byte) ind;
+				contSort[Constants.CTE_RADIX_BIT & ind]++;
+		    }
+	
+		    contSort[0] += lo - 1;
+		    prev = 0;
+		    cont = contSort[0];
+		    for (int i = 1; prev != hi; i++) {
+				prev = cont;
+				contSort[i] = cont += contSort[i];
+		    }
+	
+		    for (int i = lo; i <= hi; i++) {
+		    	auxSort[contSort[Byte.toUnsignedInt(auxSort2[i])]--] = array[i];
+		    }
+	
+		    System.arraycopy(auxSort, lo, array, lo, (hi - lo + 1));
+	
+		    prev = contSort[0];
+		    for (int i = 1; prev != hi; prev = act, i++) {
+				act = contSort[i];
+				if (prev + 1 < act) {
+				    loStackAux.add(prev + 1);
+				    hiStackAux.add(act);
+				}
+		    }
 		}
-	    }
-	}
-	Stack.exchange(loStack, loStackAux);
-	Stack.exchange(hiStack, hiStackAux);
+		loStack.exchange(loStackAux);
+		hiStack.exchange(hiStackAux);
     }
 
     /**
@@ -425,49 +342,49 @@ class DC3 {
      * @return the SA
      */
     private int[] merge(final int sort1Size, final int sort2Size, final int[] data) {
-	int index1 = 0;
-	int index2 = 0;
-	int indexAns = 0;
-	int valueB = 0;
-	int ans = 0;
-	int valueC = sort1[0];
-	int valueCMod = valueC % Constants.CONS;
-
-	General: while (index2 != sort2Size) {
-	    valueB = sort2[index2];
-	    while (true) {
-		if (valueCMod == 1) {
-		    ans = data[valueB] - data[valueC];
-		    if (0 == ans)
-			ans = ranksSA[valueB] - ranksSA[valueC];
-		} else {
-		    ans = data[valueB] - data[valueC];
-		    if (0 == ans)
-			ans = data[valueB + 1] - data[valueC + 1];
-		    if (0 == ans)
-			ans = ranksSA[valueB + 1] - ranksSA[valueC + 1];
+		int index1 = 0;
+		int index2 = 0;
+		int indexAns = 0;
+		int valueB = 0;
+		int ans = 0;
+		int valueC = sort1[0];
+		int valueCMod = valueC % Constants.CONS;
+	
+		General: while (index2 != sort2Size) {
+		    valueB = sort2[index2];
+		    while (true) {
+			if (valueCMod == 1) {
+			    ans = data[valueB] - data[valueC];
+			    if (0 == ans)
+				ans = ranksSA[valueB] - ranksSA[valueC];
+			} else {
+			    ans = data[valueB] - data[valueC];
+			    if (0 == ans)
+				ans = data[valueB + 1] - data[valueC + 1];
+			    if (0 == ans)
+				ans = ranksSA[valueB + 1] - ranksSA[valueC + 1];
+			}
+			if (ans > 0) {
+			    suffixArray[indexAns++] = valueC;
+			    index1++;
+			    if (index1 == sort1Size)
+				break General;
+			    valueC = sort1[index1];
+			    valueCMod = valueC % Constants.CONS;
+			} else
+			    break;
+		    }
+	
+		    suffixArray[indexAns++] = valueB;
+		    index2++;
 		}
-		if (ans > 0) {
-		    suffixArray[indexAns++] = valueC;
-		    index1++;
-		    if (index1 == sort1Size)
-			break General;
-		    valueC = sort1[index1];
-		    valueCMod = valueC % Constants.CONS;
-		} else
-		    break;
-	    }
-
-	    suffixArray[indexAns++] = valueB;
-	    index2++;
-	}
-
-	for (; index1 != sort1Size; indexAns++, index1++)
-	    suffixArray[indexAns] = sort1[index1];
-	for (; index2 != sort2Size; indexAns++, index2++)
-	    suffixArray[indexAns] = sort2[index2];
-
-	return suffixArray;
+	
+		for (; index1 != sort1Size; indexAns++, index1++)
+		    suffixArray[indexAns] = sort1[index1];
+		for (; index2 != sort2Size; indexAns++, index2++)
+		    suffixArray[indexAns] = sort2[index2];
+	
+		return suffixArray;
     }
 
     /**
@@ -483,20 +400,20 @@ class DC3 {
      * @return the maximum value in r
      */
     private int calculateR(int[] r, final int m, final int sort1Size) {
-	int d = 0;
-	int idx = 0;
-	for (int i = 0; i < sort1Size; ++i) {
-	    idx = sort1[i];
-	    if (!repeated[i]) {
-		++d;
-	    }
-	    if (idx % Constants.CONS == 1) {
-		r[idx / Constants.CONS] = d;
-	    } else {
-		r[idx / Constants.CONS + m] = d;
-	    }
-	}
-	return d;
+		int d = 0;
+		int idx = 0;
+		for (int i = 0; i < sort1Size; ++i) {
+		    idx = sort1[i];
+		    if (!repeated[i]) {
+			++d;
+		    }
+		    if (idx % Constants.CONS == 1) {
+			r[idx / Constants.CONS] = d;
+		    } else {
+			r[idx / Constants.CONS + m] = d;
+		    }
+		}
+		return d;
     }
 
     /**
@@ -511,18 +428,18 @@ class DC3 {
      *            of the array
      */
     private void calculateRepeatedIndexes(Stack loStack, Stack hiStack, final int size) {
-	int lo = 0;
-	int hi = 0;
-
-	Arrays.fill(repeated, 0, size, false);
-
-	while (!loStack.isEmpty()) {
-	    lo = loStack.pop();
-	    hi = hiStack.pop();
-	    for (int i = lo + 1; i <= hi; i++) {
-		repeated[i] = true;
-	    }
-	}
+		int lo = 0;
+		int hi = 0;
+	
+		Arrays.fill(repeated, 0, size, false);
+	
+		while (!loStack.isEmpty()) {
+		    lo = loStack.pop();
+		    hi = hiStack.pop();
+		    for (int i = lo + 1; i <= hi; i++) {
+			repeated[i] = true;
+		    }
+		}
     }
 
     /**
@@ -534,8 +451,7 @@ class DC3 {
      *            size of the data
      */
     private void generetareTheRanksArray(final int sort1Size) {
-	for (int j = 1, i = 0; i < sort1Size; i++, j++)
-	    ranksSA[sort1[i] - 1] = j;
+    	for (int j = 1, i = 0; i < sort1Size; i++, j++) ranksSA[sort1[i] - 1] = j;
     }
 
     /**
@@ -553,10 +469,9 @@ class DC3 {
      * @return the maximum position that was filled + 1
      */
     private static final int moduleThree(int[] array, final int lo, final int factor, final int maxValue) {
-	int index = lo;
-	for (int value = factor; value < maxValue; value += Constants.CONS)
-	    array[index++] = value;
-	return index;
+		int index = lo;
+		for (int value = factor; value < maxValue; value += Constants.CONS) array[index++] = value;
+		return index;
     }
 }
 
@@ -588,70 +503,70 @@ class Translator {
 
     /** constructor @param charSequence the original sequence */
     Translator(CharSequence charSequence) {
-	final int size = charSequence.length();
-
-	Arrays.fill(counts, 0);
-	firstRowsInMatrix.put(Constants.SPECIAL_CHARACTER, 0);
-	lastRowsInMatrix.put(Constants.SPECIAL_CHARACTER, 0);
-	alphabet = new StringBuilder(Constants.ALFABETEND);
-	data = new int[size + 1];
-
-	int c;
-	for (int i = 0; i < size; i++) {
-	    c = charSequence.charAt(i);
-	    counts[c]++;
-	    data[i] = c;
-	}
-
-	int acum = 1;
-	int cont = 1;
-	for (int i = 0; i < Constants.ALFABETEND; i++)
-	    if (0 != counts[i]) {
-		firstRowsInMatrix.put((char) i, acum);
-		acum += counts[i];
-		lastRowsInMatrix.put((char) i, (acum) - 1);
-		map[i] = (byte) cont++;
-		alphabet.append((char) i);
-	    }
-
-	for (int i = 0; i < size; i++)
-	    data[i] = map[data[i]];
+		final int size = charSequence.length();
+	
+		Arrays.fill(counts, 0);
+		firstRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
+		lastRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
+		alphabet = new StringBuilder(Constants.ALFABETEND);
+		data = new int[size + 1];
+		
+		// Calculates the counts per character and translates the characters to integers 
+		for (int i = 0; i < size; i++) {
+		    int c = charSequence.charAt(i);
+		    counts[c]++;
+		    data[i] = c;
+		}
+	
+		int totalChars = 1;
+		//Goes over the sorted alphabet to fill the arrays with first rows and last rows of the final index
+		for (int i = 0; i < Constants.ALFABETEND; i++) {
+		    if (counts[i] != 0) {
+		    	firstRowsInMatrix.put((char) i, totalChars);
+		    	totalChars += counts[i];
+		    	lastRowsInMatrix.put((char) i, totalChars - 1);
+		    	alphabet.append((char) i);
+		    	map[i] = (byte) alphabet.length();
+		    	
+		    }
+    	}
+		for (int i = 0; i < size; i++) data[i] = map[data[i]];
     }
 
     /** @return the data */
     public int[] getData() {
-	return data;
+    	return data;
     }
 
     /** @return the data */
     public byte[] getMap() {
-	return map;
+    	return map;
     }
 
     /** @return the alphabet */
     public StringBuilder getAlphabet() {
-	return alphabet;
+    	return alphabet;
     }
 
     /** @return the firstRowsInMatrix */
     public Map<Character, Integer> getFirstRowsInMatrix() {
-	return firstRowsInMatrix;
+    	return firstRowsInMatrix;
     }
 
     /** @return the lastRowsInMatrix */
     public Map<Character, Integer> getLastRowsInMatrix() {
-	return lastRowsInMatrix;
+    	return lastRowsInMatrix;
     }
 
     @Override
     public String toString() {
-	final StringBuilder str = new StringBuilder();
-	str.append(alphabet.toString());
-	str.append(System.getProperty("line.separator"));
-	str.append(firstRowsInMatrix.toString());
-	str.append(System.getProperty("line.separator"));
-	str.append(lastRowsInMatrix.toString());
-	return str.toString();
+		final StringBuilder str = new StringBuilder();
+		str.append(alphabet.toString());
+		str.append(System.getProperty("line.separator"));
+		str.append(firstRowsInMatrix.toString());
+		str.append(System.getProperty("line.separator"));
+		str.append(lastRowsInMatrix.toString());
+		return str.toString();	
     }
 }
 
@@ -667,48 +582,50 @@ class Stack {
 
     /** The constructor */
     Stack() {
-	apunt = null;
+    	apunt = null;
     }
 
     /** @return if the stack not have values. */
     boolean isEmpty() {
-	return null == apunt;
+    	return null == apunt;
     }
 
     /** @return the first element */
     int pop() {
-	final int value = apunt.val;
-	apunt = apunt.sig;
-	return value;
+    	final int value = apunt.val;
+    	apunt = apunt.sig;
+    	return value;
     }
 
     /** Add one element into stack @param i add the element */
     void add(int i) {
-	final Element toAdd = new Element(i);
-	toAdd.sig = apunt;
-	apunt = toAdd;
+    	final Element toAdd = new Element(i);
+    	toAdd.sig = apunt;
+    	apunt = toAdd;
     }
 
-    /** Exchange to stacks @param a the stack b @param b the stack b */
-    static void exchange(Stack a, Stack b) {
-	final Element temp = a.apunt;
-	a.apunt = b.apunt;
-	b.apunt = temp;
+    /**
+     * Exchange this stack with the given stack
+     * @param b the stack to exchange
+     */
+    void exchange(Stack b) {
+    	final Element temp = this.apunt;
+    	this.apunt = b.apunt;
+    	b.apunt = temp;
     }
 
     @Override
     public String toString() {
-	final StringBuilder str = new StringBuilder("[");
-	Element element = null;
-	for (element = apunt; null != element.sig; element = element.sig) {
-	    str.append(element.toString());
-	    str.append(',');
-	}
-	str.append(element.toString());
-	str.append(']');
-	return str.toString();
+    	final StringBuilder str = new StringBuilder("[");
+    	Element element = null;
+    	for (element = apunt; null != element.sig; element = element.sig) {
+    		str.append(element.toString());
+    		str.append(',');
+    	}
+    	str.append(element.toString());
+    	str.append(']');
+    	return str.toString();
     }
-
     /**
      * this class represents one element of stack
      * 
@@ -716,25 +633,26 @@ class Stack {
      *
      */
     private static class Element {
-	/** the next element */
-	private Element sig;
+    	/** the next element */
+    	private Element sig;
 
-	/** the value */
-	private final int val;
+    	/** the value */
+    	private final int val;
 
-	/** constructor */
-	private Element() {
-	    val = 0;
-	}
+    	/** constructor */
+    	private Element() {
+    		val = 0;
+    	}
 
-	/** constructor @param val the value */
-	private Element(int val) {
-	    this.val = val;
-	}
+    	/** constructor @param val the value */
+    	private Element(int val) {
+    		this.val = val;
+    	}
 
-	@Override
-	public String toString() {
-	    return String.valueOf(val);
-	}
+    	@Override
+    	public String toString() {
+    		return String.valueOf(val);
+    	}
     }
 }
+
