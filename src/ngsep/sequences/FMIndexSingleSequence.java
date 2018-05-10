@@ -21,8 +21,6 @@ package ngsep.sequences;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -46,12 +44,13 @@ public class FMIndexSingleSequence implements Serializable {
 	private static final long serialVersionUID = 5981359942407474671L;
 
 	private static final int DEFAULT_TALLY_DISTANCE = 100;
-	private static final int DEFAULT_SUFFIX_FRACTION = 50;
+	private static final int DEFAULT_SUFFIX_FRACTION = 100;
 
 	//private CharSequence sequence;
 	// Start position in the original sequence of some rows of the BW matrix
 	// representing a partial suffix array
 	private Map<Integer, Integer> partialSuffixArray = new HashMap<>();
+	private Map<Integer, Integer> partialReverseSuffixArray = new HashMap<>();
 
 	// Ranks in the bwt for each character in the alphabet for some of the rows in
 	// the BW matrix
@@ -64,7 +63,7 @@ public class FMIndexSingleSequence implements Serializable {
 	private int suffixFraction;
 
 	// Burrows Wheeler transform
-	private char [] bwt;
+	private byte [] bwt;
 
 	// For each character tells the first time it appears in the left column of the
 	// BW matrix
@@ -73,9 +72,13 @@ public class FMIndexSingleSequence implements Serializable {
 	// For each character tells the last time it appears in the left column of the
 	// BW matrix
 	private Map<Character, Integer> lastRowsInMatrix;
+	
+	
 
 	// Inferred alphabet of the sequence ordered lexicographical
 	private String alphabet;
+	
+	private Map<Character, Integer> alphabetIndexes;
 
 	private int maxDifferencesInexactSearch = 1;
 
@@ -88,7 +91,6 @@ public class FMIndexSingleSequence implements Serializable {
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
 		calculate(sequence);
-		//calculate2(sequence);
 	}
 
 	public int getTallyDistance() {
@@ -101,15 +103,17 @@ public class FMIndexSingleSequence implements Serializable {
 
 	private void calculate(CharSequence sequence) {
 		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
-		int [] suffixes = suffixArrayGenerator.getSuffixArray();
+		int [] sa = suffixArrayGenerator.getSuffixArray();
 		int [] reverseSA = suffixArrayGenerator.getReverseSuffixArray();
-		
-		buildBWT(sequence, suffixes, reverseSA);
 		//buildAlphabetAndCounts(sequence, suffixes);
 		alphabet = suffixArrayGenerator.getAlphabet();
+		alphabetIndexes = new HashMap<>();
+		for(int i=0;i<alphabet.length();i++) alphabetIndexes.put(alphabet.charAt(i), i);
 		firstRowsInMatrix = suffixArrayGenerator.getFirstRowsInMatrix();
 		lastRowsInMatrix = suffixArrayGenerator.getLastRowsInMatrix();
-		createPartialSuffixArray(reverseSA);
+		
+		buildBWT(sequence, sa, reverseSA);
+		createPartialSuffixArray(sa, reverseSA);
 		buildTally();
 	}
 
@@ -146,7 +150,7 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 	
 	private void buildBWT(CharSequence sequence, int [] sa, int [] reverseSA) {
-		bwt = new char[sequence.length() + 1];
+		bwt = new byte[sequence.length() + 1];
 		
 		/*bwt[reverseSA[0]] = SPECIAL_CHARACTER;
 		for (int i = 1; i < reverseSA.length; i++) bwt[reverseSA[i]] = sequence.charAt(i - 1);
@@ -156,7 +160,7 @@ public class FMIndexSingleSequence implements Serializable {
 		int j = 0;
 		for (int i : sa) {
 			if (i > 0) {
-				bwt[j] = sequence.charAt(i - 1);
+				bwt[j] = (byte)sequence.charAt(i - 1);
 			} else {
 				bwt[j] = SuffixArrayGenerator.SPECIAL_CHARACTER;
 			}
@@ -165,10 +169,6 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	private void buildTally() {
-		//TODO: Make this an attribute
-		int [] alphabetIndexes = new int [127];
-		for(int i=0;i<alphabet.length();i++) alphabetIndexes[(int)alphabet.charAt(i)]=i;
-		//final int tallyRows = (bwt.length + (tallyDistance - 1)) / tallyDistance;
 		int tallyRows = bwt.length / tallyDistance;
 		if (bwt.length % tallyDistance > 0) tallyRows++;
 		
@@ -189,9 +189,9 @@ public class FMIndexSingleSequence implements Serializable {
 
 		int j = 0;
 		for (int i = 0; i < bwt.length; i++) {
-			char c = bwt[i];
+			char c = (char)bwt[i];
 			if (c != SuffixArrayGenerator.SPECIAL_CHARACTER) {
-				int indexC = alphabetIndexes[c];
+				int indexC = alphabetIndexes.get(c);
 				arr[indexC]++;
 			}
 			if (i % tallyDistance == 0) {
@@ -201,9 +201,15 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 	}
 
-	private void createPartialSuffixArray(int [] reverseSA) {
-		partialSuffixArray = new HashMap<Integer, Integer>();
-		for (int i = 0; i < reverseSA.length; i += suffixFraction) partialSuffixArray.put(reverseSA[i], i);
+	private void createPartialSuffixArray(int [] sa, int [] reverseSA) {
+		partialSuffixArray = new HashMap<>();
+		partialReverseSuffixArray = new HashMap<>();
+		partialSuffixArray.put(0, sa[0]);
+		partialReverseSuffixArray.put(sa[0], 0);
+		for (int i = 0; i < reverseSA.length; i += suffixFraction) {
+			partialSuffixArray.put(reverseSA[i], i);
+			partialReverseSuffixArray.put(i, reverseSA[i]);
+		}
 	}
 
 	/**
@@ -297,7 +303,7 @@ public class FMIndexSingleSequence implements Serializable {
 			r = tallyIndexes[a][alphabet.indexOf(c)];
 
 			for (int j = a * tallyDistance + 1; j <= row; j++) {
-				char cA = bwt[j];
+				char cA = (char)bwt[j];
 				if (cA == c)
 					r++;
 			}
@@ -305,7 +311,7 @@ public class FMIndexSingleSequence implements Serializable {
 			// Recalculate from bottom record
 			r = tallyIndexes[b][alphabet.indexOf(c)];
 			for (int j = b * tallyDistance; j > row; j--) {
-				char cA = bwt[j];
+				char cA = (char)bwt[j];
 				if (cA == c)
 					r--;
 			}
@@ -337,7 +343,7 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	private int lfMapping(int row) {
-		char c = bwt[row];
+		char c = (char)bwt[row];
 		// System.out.println(""+c);
 		return lfMapping(c, row, false);
 	}
@@ -350,8 +356,25 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	public CharSequence getSequence (int start, int end)
 	{
-		//return sequence.subSequence(start, end);
-		return null;
+		if(start>=bwt.length) throw new StringIndexOutOfBoundsException("Invalid coordinate: "+start);
+		if(end>=bwt.length) throw new StringIndexOutOfBoundsException("Invalid coordinate: "+end);
+		if(start>=end) throw new StringIndexOutOfBoundsException("Start position "+start+" should be smaller than end position: "+end);
+		int endReverseSA = end;
+		Integer endRow = partialReverseSuffixArray.get(endReverseSA);
+		if (endRow == null) {
+			endReverseSA = suffixFraction*((endReverseSA/suffixFraction)+1);
+			if(endReverseSA>bwt.length-1) endReverseSA = bwt.length-1;
+			endRow = partialReverseSuffixArray.get(endReverseSA);
+			if(endRow==null) throw new RuntimeException("SA index not found for sequence position: "+endReverseSA+" query: "+start+"-"+end+" sequence length: "+(bwt.length-1));
+		}
+		int j=endRow;
+		StringBuilder answer = new StringBuilder();
+		for(int i=endReverseSA;i>start;i--) {
+			char c = (char)bwt[j];
+			if(i<=end) answer.append(c);
+			j=lfMapping(j);
+		}
+		return answer.reverse();
 	}
 	/*
 	 * Methods for inexact matching

@@ -30,8 +30,7 @@ import java.util.function.IntUnaryOperator;
  */
 final class Constants {
 
-    /** The ASCII interval that it handles */
-    public static final int ALFABETEND = 127;
+   
 
     /** Models the radix factor (bits used to sort) */
     public static final int CTE_RADIX = 8;
@@ -77,6 +76,9 @@ public class SuffixArrayGenerator {
     
     /** Character to BWT */
     public static final char SPECIAL_CHARACTER = '$';
+    
+    /** The ASCII interval that it handles */
+    public static final byte LAST_ASCII_CHARACTER = 127;
 
 
     /** the translator of the sequence. */
@@ -490,10 +492,10 @@ class Translator {
     private final StringBuilder alphabet;
 
     /** map of the letters */
-    private final byte[] map = new byte[Constants.ALFABETEND];
+    private final byte[] map = new byte[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
 
     /** number of each letter */
-    private final int[] counts = new int[Constants.ALFABETEND];
+    private final int[] counts = new int[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
 
     /** the position of the final index in the count */
     private final Map<Character, Integer> lastRowsInMatrix = new TreeMap<>();
@@ -508,7 +510,7 @@ class Translator {
 		Arrays.fill(counts, 0);
 		firstRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
 		lastRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
-		alphabet = new StringBuilder(Constants.ALFABETEND);
+		alphabet = new StringBuilder();
 		data = new int[size + 1];
 		
 		// Calculates the counts per character and translates the characters to integers 
@@ -520,7 +522,7 @@ class Translator {
 	
 		int totalChars = 1;
 		//Goes over the sorted alphabet to fill the arrays with first rows and last rows of the final index
-		for (int i = 0; i < Constants.ALFABETEND; i++) {
+		for (int i = 0; i < counts.length; i++) {
 		    if (counts[i] != 0) {
 		    	firstRowsInMatrix.put((char) i, totalChars);
 		    	totalChars += counts[i];
