@@ -25,44 +25,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.IntUnaryOperator;
 
-/**
- * @author Juan Camilo Bojaca
- */
-final class Constants {
-
-   
-
-    /** Models the radix factor (bits used to sort) */
-    public static final int CTE_RADIX = 8;
-
-    /** Represents the maximum achievable value with CteRadix bites */
-    public static final int CTE_RADIX_BIT = (int) Math.pow(2, CTE_RADIX) - 1;
-
-    /** Difference cover CONS modulo */
-    public static final int CONS = 3;
-
-    /** Number format to print */
-    public static final DecimalFormat FORMAT = new DecimalFormat("0.000000000");
-
-    /** The position of the most significant bit round to Cte_Radix Cte_Radix */
-    public static final IntUnaryOperator HighestMostSignificatBitRound = (final int i) -> {
-	int hi = (Integer.BYTES << CONS) - 1;
-	int med = 0;
-	int lo = 0;
-	while (lo + 1 != hi) {
-	    med = (hi + lo) >>> 1;
-	    if (0 == i >>> med)
-		hi = med;
-	    else
-		lo = med;
-	}
-	return (hi / CTE_RADIX) * CTE_RADIX;
-    };
-
-    /** Constructor */
-    private Constants() {
-    }
-}
 
 /**
  * The Class SuffixArrayGenerator.
@@ -79,10 +41,44 @@ public class SuffixArrayGenerator {
     
     /** The ASCII interval that it handles */
     public static final byte LAST_ASCII_CHARACTER = 127;
+    
+    /** Models the radix factor (bits used to sort) */
+    private static final int CTE_RADIX = 8;
+
+    /** Represents the maximum achievable value with CteRadix bites */
+    private static final int CTE_RADIX_BIT = (int) Math.pow(2, CTE_RADIX) - 1;
+
+    /** Difference cover CONS modulo */
+    private static final int CONS = 3;
+
+    /** Number format to print */
+    private static final DecimalFormat FORMAT = new DecimalFormat("0.000000000");
+
+    /** The position of the most significant bit round to Cte_Radix Cte_Radix */
+    public static final IntUnaryOperator HighestMostSignificatBitRound = (final int i) -> {
+		int hi = (Integer.BYTES << CONS) - 1;
+		int med = 0;
+		int lo = 0;
+		while (lo + 1 != hi) {
+		    med = (hi + lo) >>> 1;
+		    if (0 == i >>> med)
+			hi = med;
+		    else
+			lo = med;
+		}
+		return (hi / CTE_RADIX) * CTE_RADIX;
+    };
 
 
-    /** the translator of the sequence. */
-    private final Translator translator;
+   
+    /** the letters in the sequence */
+    private String alphabet;
+
+    /** map of the letters */
+    private final byte[] map = new byte[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
+
+    /** number of each letter */
+    private final int[] counts = new int[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
     
     /** the suffix Array */
     private final int[] suffixArray;
@@ -90,7 +86,7 @@ public class SuffixArrayGenerator {
     private final int[] ranksSA;
 
     /** contains the number of occurrences of each hexadecimal digit */
-    private final int[] contSort = new int[Constants.CTE_RADIX_BIT + 2];
+    private final int[] contSort = new int[CTE_RADIX_BIT + 2];
     /** the elements repeated in the pseudo ordering */
     private final boolean[] repeated;
     /** the array to save the function values for data */
@@ -117,10 +113,9 @@ public class SuffixArrayGenerator {
      * @param charSequence
      *            the sequence to which the suffix array is calculated
      */
-    public SuffixArrayGenerator(CharSequence charSequence) {
+    public SuffixArrayGenerator(CharSequence sequence) {
 		long ini = System.nanoTime();
-		translator = new Translator(charSequence);
-		int [] data = translator.getData();
+		int [] data = preprocess(sequence);
 		final int size = data.length;
 		final int size2_of_3 = (2 * size) / 3;
 		final int size1_of_3 = ((size - 1) / 3) + 1;
@@ -141,11 +136,36 @@ public class SuffixArrayGenerator {
 		for (int i = 0; i < suffixArray.length; i++) ranksSA[suffixArray[i]] = i;
 		
 	
-		System.out.println("Time to create a suffix array: "
-			+ Constants.FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)) + " s");
+		System.out.println("Time to create a suffix array: " + FORMAT.format((System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000)) + " s");
     }
 
-    /** 
+    private int[] preprocess(CharSequence sequence) {
+    	final int size = sequence.length();
+    	
+		Arrays.fill(counts, 0);
+		StringBuilder alphabetSB = new StringBuilder();
+		int [] data = new int[size + 1];
+		
+		// Calculates the counts per character and translates the characters to integers 
+		for (int i = 0; i < size; i++) {
+		    int c = sequence.charAt(i);
+		    counts[c]++;
+		    data[i] = c;
+		}
+	
+		//Goes over the counts array to fill the alphabet and the map to transform the raw data
+		for (int i = 0; i < counts.length; i++) {
+		    if (counts[i] != 0) {
+		    	alphabetSB.append((char) i);
+		    	map[i] = (byte) alphabetSB.length();
+		    }
+    	}
+		alphabet = alphabetSB.toString();
+		for (int i = 0; i < size; i++) data[i] = map[data[i]];
+		return data;
+	}
+
+	/** 
      * @return the suffix array. The first position is sequence.length
      */
     public int[] getSuffixArray() {
@@ -158,21 +178,24 @@ public class SuffixArrayGenerator {
 	public int[] getReverseSuffixArray() {
 		return ranksSA;
 	}
+	/**
+	 * @return the alphabet
+	 */
+	public String getAlphabet() {
+		return alphabet;
+	}
 
-    /** @return the alphabet */
-    public String getAlphabet() {
-    	return translator.getAlphabet().toString();
-    }
-
-    /** @return the first rows in matrix */
-    public Map<Character, Integer> getFirstRowsInMatrix() {
-    	return translator.getFirstRowsInMatrix();
-    }
-
-    /** @return the last rows in matrix */
-    public Map<Character, Integer> getLastRowsInMatrix() {
-    	return translator.getLastRowsInMatrix();
-    }
+	/**
+	 * @return The number of times that each character in the alphabet appears
+	 */
+	public Map<Character, Integer> getCharacterCounts () {
+		Map<Character, Integer> countsA = new TreeMap<>();
+		for(int i=0;i<alphabet.length();i++) {
+			char c = alphabet.charAt(i);
+			countsA.put(c, counts[c]);
+		}
+		return countsA;
+	}
 	
     /**
      * calculate the suffix array of data;
@@ -195,7 +218,7 @@ public class SuffixArrayGenerator {
 		// -----------------------------------------------------------------------------
 		changeSortInterval(0, sort1Size - 1);
 		for (int d = 0; !loStack.isEmpty() && d < 3; d++)
-		    for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
+		    for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= CTE_RADIX)
 			sort(sort1, data, d, bit);
 		// -----------------------------------------------------------------------------
 		// STEP #2.1: recursion
@@ -205,7 +228,7 @@ public class SuffixArrayGenerator {
 		    final int[] r = new int[sort1Size + 1];
 		    final int maxValueR = calculateR(r, m, sort1Size);
 	
-		    getSuffix(r, Constants.HighestMostSignificatBitRound.applyAsInt(maxValueR));
+		    getSuffix(r, HighestMostSignificatBitRound.applyAsInt(maxValueR));
 	
 		    int idx = 0;
 		    // using the Suffix array of r, finishes order sort1
@@ -225,10 +248,9 @@ public class SuffixArrayGenerator {
 		final int sort2Size = moduleThree(sort2, 0, 0, data.length);
 		changeSortInterval(0, sort2Size - 1);
 	
-		for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= Constants.CTE_RADIX)
+		for (int bit = MaxBit; !loStack.isEmpty() && bit >= 0; bit -= CTE_RADIX)
 		    sort(sort2, data, 0, bit);
-		for (int bit = Constants.HighestMostSignificatBitRound.applyAsInt(sort1Size); !loStack.isEmpty()
-			&& bit >= 0; bit -= Constants.CTE_RADIX)
+		for (int bit = HighestMostSignificatBitRound.applyAsInt(sort1Size); !loStack.isEmpty() && bit >= 0; bit -= CTE_RADIX)
 		    sort(sort2, ranksSA, 0, bit);
 		// -----------------------------------------------------------------------------
 		// STEP #4: Merge
@@ -301,7 +323,7 @@ public class SuffixArrayGenerator {
 		    for (int i = lo; i <= hi; i++) {
 				ind = data[array[i] + d] >>> bit;
 				auxSort2[i] = (byte) ind;
-				contSort[Constants.CTE_RADIX_BIT & ind]++;
+				contSort[CTE_RADIX_BIT & ind]++;
 		    }
 	
 		    contSort[0] += lo - 1;
@@ -350,7 +372,7 @@ public class SuffixArrayGenerator {
 		int valueB = 0;
 		int ans = 0;
 		int valueC = sort1[0];
-		int valueCMod = valueC % Constants.CONS;
+		int valueCMod = valueC % CONS;
 	
 		General: while (index2 != sort2Size) {
 		    valueB = sort2[index2];
@@ -372,7 +394,7 @@ public class SuffixArrayGenerator {
 			    if (index1 == sort1Size)
 				break General;
 			    valueC = sort1[index1];
-			    valueCMod = valueC % Constants.CONS;
+			    valueCMod = valueC % CONS;
 			} else
 			    break;
 		    }
@@ -409,10 +431,10 @@ public class SuffixArrayGenerator {
 		    if (!repeated[i]) {
 			++d;
 		    }
-		    if (idx % Constants.CONS == 1) {
-			r[idx / Constants.CONS] = d;
+		    if (idx % CONS == 1) {
+			r[idx / CONS] = d;
 		    } else {
-			r[idx / Constants.CONS + m] = d;
+			r[idx / CONS + m] = d;
 		    }
 		}
 		return d;
@@ -472,103 +494,8 @@ public class SuffixArrayGenerator {
      */
     private static final int moduleThree(int[] array, final int lo, final int factor, final int maxValue) {
 		int index = lo;
-		for (int value = factor; value < maxValue; value += Constants.CONS) array[index++] = value;
+		for (int value = factor; value < maxValue; value += CONS) array[index++] = value;
 		return index;
-    }
-}
-
-/**
- * 
- * this class provides support for the ranks chain
- * 
- * @author jc.bojaca
- * @version 1
- */
-class Translator {
-    /** the array with the transformation */
-    private final int[] data;
-
-    /** the letters in the sequence */
-    private final StringBuilder alphabet;
-
-    /** map of the letters */
-    private final byte[] map = new byte[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
-
-    /** number of each letter */
-    private final int[] counts = new int[SuffixArrayGenerator.LAST_ASCII_CHARACTER];
-
-    /** the position of the final index in the count */
-    private final Map<Character, Integer> lastRowsInMatrix = new TreeMap<>();
-
-    /** the position of the initial index in the count */
-    private final Map<Character, Integer> firstRowsInMatrix = new TreeMap<>();
-
-    /** constructor @param charSequence the original sequence */
-    Translator(CharSequence charSequence) {
-		final int size = charSequence.length();
-	
-		Arrays.fill(counts, 0);
-		firstRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
-		lastRowsInMatrix.put(SuffixArrayGenerator.SPECIAL_CHARACTER, 0);
-		alphabet = new StringBuilder();
-		data = new int[size + 1];
-		
-		// Calculates the counts per character and translates the characters to integers 
-		for (int i = 0; i < size; i++) {
-		    int c = charSequence.charAt(i);
-		    counts[c]++;
-		    data[i] = c;
-		}
-	
-		int totalChars = 1;
-		//Goes over the sorted alphabet to fill the arrays with first rows and last rows of the final index
-		for (int i = 0; i < counts.length; i++) {
-		    if (counts[i] != 0) {
-		    	firstRowsInMatrix.put((char) i, totalChars);
-		    	totalChars += counts[i];
-		    	lastRowsInMatrix.put((char) i, totalChars - 1);
-		    	alphabet.append((char) i);
-		    	map[i] = (byte) alphabet.length();
-		    	
-		    }
-    	}
-		for (int i = 0; i < size; i++) data[i] = map[data[i]];
-    }
-
-    /** @return the data */
-    public int[] getData() {
-    	return data;
-    }
-
-    /** @return the data */
-    public byte[] getMap() {
-    	return map;
-    }
-
-    /** @return the alphabet */
-    public StringBuilder getAlphabet() {
-    	return alphabet;
-    }
-
-    /** @return the firstRowsInMatrix */
-    public Map<Character, Integer> getFirstRowsInMatrix() {
-    	return firstRowsInMatrix;
-    }
-
-    /** @return the lastRowsInMatrix */
-    public Map<Character, Integer> getLastRowsInMatrix() {
-    	return lastRowsInMatrix;
-    }
-
-    @Override
-    public String toString() {
-		final StringBuilder str = new StringBuilder();
-		str.append(alphabet.toString());
-		str.append(System.getProperty("line.separator"));
-		str.append(firstRowsInMatrix.toString());
-		str.append(System.getProperty("line.separator"));
-		str.append(lastRowsInMatrix.toString());
-		return str.toString();	
     }
 }
 

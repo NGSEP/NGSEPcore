@@ -46,10 +46,10 @@ public class FMIndexSingleSequence implements Serializable {
 	private static final int DEFAULT_TALLY_DISTANCE = 100;
 	private static final int DEFAULT_SUFFIX_FRACTION = 100;
 
-	//private CharSequence sequence;
 	// Start position in the original sequence of some rows of the BW matrix
 	// representing a partial suffix array
 	private Map<Integer, Integer> partialSuffixArray = new HashMap<>();
+	//Partial map indexed by sequence first position
 	private Map<Integer, Integer> partialReverseSuffixArray = new HashMap<>();
 
 	// Ranks in the bwt for each character in the alphabet for some of the rows in
@@ -65,6 +65,8 @@ public class FMIndexSingleSequence implements Serializable {
 	// Burrows Wheeler transform
 	private byte [] bwt;
 
+	//For each character thells the number of times it appears
+	private Map<Character, Integer> characterCounts;
 	// For each character tells the first time it appears in the left column of the
 	// BW matrix
 	private Map<Character, Integer> firstRowsInMatrix;
@@ -87,7 +89,6 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	public FMIndexSingleSequence(CharSequence sequence, int tallyDistance, int suffixFraction) {
-		//this.sequence = sequence;
 		this.tallyDistance = tallyDistance;
 		this.suffixFraction = suffixFraction;
 		calculate(sequence);
@@ -103,50 +104,33 @@ public class FMIndexSingleSequence implements Serializable {
 
 	private void calculate(CharSequence sequence) {
 		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
+		alphabet = suffixArrayGenerator.getAlphabet();
+		characterCounts = suffixArrayGenerator.getCharacterCounts();
+		buildCharacterFirstAndLastRows();
 		int [] sa = suffixArrayGenerator.getSuffixArray();
 		int [] reverseSA = suffixArrayGenerator.getReverseSuffixArray();
-		//buildAlphabetAndCounts(sequence, suffixes);
-		alphabet = suffixArrayGenerator.getAlphabet();
+		
 		alphabetIndexes = new HashMap<>();
 		for(int i=0;i<alphabet.length();i++) alphabetIndexes.put(alphabet.charAt(i), i);
-		firstRowsInMatrix = suffixArrayGenerator.getFirstRowsInMatrix();
-		lastRowsInMatrix = suffixArrayGenerator.getLastRowsInMatrix();
+		
 		
 		buildBWT(sequence, sa, reverseSA);
 		createPartialSuffixArray(sa, reverseSA);
 		buildTally();
 	}
 
-	private void buildAlphabetAndCounts(CharSequence seq, int [] suffixArray) {
-		Map<Character, Integer> counts = new TreeMap<>();
+	private void buildCharacterFirstAndLastRows() {
 		firstRowsInMatrix = new TreeMap<>();
 		lastRowsInMatrix = new TreeMap<>();
-		char lastC = SuffixArrayGenerator.SPECIAL_CHARACTER;
-		StringBuilder alpB = new StringBuilder();
-		firstRowsInMatrix.put(lastC, 0);
-		lastRowsInMatrix.put(lastC, 0);
-		// iterate last column to know alphabet and counts...
-		for (int i = 0; i < suffixArray.length; i++) {
-			int j = suffixArray[i];
-			char c = seq.charAt(j);
-			Integer countC = counts.get(c);
-			if (countC == null) {
-				counts.put(c, 1);
-			} else {
-				counts.put(c, countC + 1);
-			}
-			if (lastC != c) {
-				alpB.append(c);
-				firstRowsInMatrix.put(c, i + 1);
-				lastRowsInMatrix.put(lastC, i);
-				// System.out.println("Last row "+lastC+": "+i);
-				// System.out.println("First row "+c+": "+(i+1));
-			}
-			lastC = c;
+		char spec = SuffixArrayGenerator.SPECIAL_CHARACTER;
+		firstRowsInMatrix.put(spec, 0);
+		lastRowsInMatrix.put(spec, 0);
+		int totalChars = 1;
+		for(char c:characterCounts.keySet()) {
+			firstRowsInMatrix.put(c, totalChars);
+	    	totalChars += characterCounts.get(c);
+	    	lastRowsInMatrix.put(c, totalChars - 1);
 		}
-		lastRowsInMatrix.put(lastC, suffixArray.length);
-		// System.out.println("Last row "+lastC+": "+suffixArray.size());
-		alphabet = alpB.toString();
 	}
 	
 	private void buildBWT(CharSequence sequence, int [] sa, int [] reverseSA) {
