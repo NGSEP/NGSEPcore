@@ -135,7 +135,7 @@ public class GenomesAligner {
 		List<OrthologyUnit>  uniquesUnitsT1 = selectUniqueUnits(unitsT1);
 		log.info("First genome has "+unitsT1.size()+" total orthology units. Unique units: "+uniquesUnitsT1.size());
 		List<OrthologyUnit> uniquesUnitsT2 = selectUniqueUnits(unitsT2);
-		log.info("Second genome has "+unitsT2.size()+" total orthology units. Unique units: "+uniquesUnitsT2);
+		log.info("Second genome has "+unitsT2.size()+" total orthology units. Unique units: "+uniquesUnitsT2.size());
 		
 		QualifiedSequenceList genomeMetadata1 = genome1.getSequencesMetadata();
 		GenomicRegionSortedCollection<OrthologyUnit> unitsC1 = new GenomicRegionSortedCollection<>(genomeMetadata1);
