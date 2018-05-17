@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
 import java.io.IOException;
@@ -12,6 +31,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegion;
@@ -19,6 +39,7 @@ import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -28,6 +49,10 @@ import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
 
+/**
+ * @author Daniel Tello
+ * @author Jorge Duitama
+ */
 public class GenomesAligner {
 
 	private ReferenceGenome genome1;
@@ -36,8 +61,8 @@ public class GenomesAligner {
 	private Transcriptome transcriptome2;
 	private ProteinTranslator translator = new ProteinTranslator();
 	private List<OrthologyUnit> alignedUnits = new ArrayList<>();
-	
-	
+	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
+	private ProgressNotifier progressNotifier=null;
 	
 	public static void main(String[] args) throws Exception 
 	{
@@ -54,19 +79,47 @@ public class GenomesAligner {
 			instance.printAlignmentOrthologUnits (outAlignmnent);
 		}
 	}
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+	
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 
-	
-	
-	
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
 	public void loadGenomes(String fileGenome1, String fileTranscriptome1, String fileGenome2, String fileTranscriptome2) throws IOException {
 		genome1 = new ReferenceGenome(fileGenome1);
+		log.info("Loaded genome "+fileGenome1);
 		genome2 = new ReferenceGenome(fileGenome2);
+		log.info("Loaded genome "+fileGenome2);
 		GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler();
 		transcriptome1 = transcriptomeHandler.loadMap(fileTranscriptome1);
 		transcriptome1.fillSequenceTranscripts(genome1);
+		log.info("Loaded transcriptome "+fileTranscriptome1);
 		transcriptome2 = transcriptomeHandler.loadMap(fileTranscriptome2);
 		transcriptome2.fillSequenceTranscripts(genome2);
-		
+		log.info("Loaded transcriptome "+fileTranscriptome2);
 	}
 	
 	
@@ -74,13 +127,15 @@ public class GenomesAligner {
 		//Create orthology units based on transcripts
 		
 		List<OrthologyUnit> unitsT1 = extractOrthologyUnits(transcriptome1);
+		
 		List<OrthologyUnit> unitsT2 = extractOrthologyUnits(transcriptome2);
+		
 		
 		//Query each orthology unit against its own genome and select the units that are unique
 		List<OrthologyUnit>  uniquesUnitsT1 = selectUniqueUnits(unitsT1);
-		System.out.println("Total units 1: "+unitsT1.size()+" Unique units T1: "+uniquesUnitsT1.size());
+		log.info("First genome has "+unitsT1.size()+" total orthology units. Unique units: "+uniquesUnitsT1.size());
 		List<OrthologyUnit> uniquesUnitsT2 = selectUniqueUnits(unitsT2);
-		System.out.println("Total proteins 2: "+unitsT2.size()+" Unique units T2: "+uniquesUnitsT2.size());
+		log.info("Second genome has "+unitsT2.size()+" total orthology units. Unique units: "+uniquesUnitsT2);
 		
 		QualifiedSequenceList genomeMetadata1 = genome1.getSequencesMetadata();
 		GenomicRegionSortedCollection<OrthologyUnit> unitsC1 = new GenomicRegionSortedCollection<>(genomeMetadata1);
@@ -98,10 +153,10 @@ public class GenomesAligner {
 				QualifiedSequence chrG2 = genomeMetadata2.get(chrNameG2);
 				List<OrthologyUnit> unitsChrG2 = unitsCollectionG2.getSequenceRegions(chrG2.getName()).asList();
 				List<OrthologyUnit> selectedUnits = alignOrthologyUnits(unitsChrG1,unitsChrG2);
-				System.out.println("Chr g1: "+chrG1.getName()+" chrG2: "+chrG2.getName()+" units G1 "+unitsChrG1.size()+" units G2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
+				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrG2.getName()+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
 				alignedUnits.addAll(selectedUnits);
 			} else {
-				System.out.println("Mate chromosome not found for "+chrG1.getName()+" units G1 "+unitsChrG1.size());
+				log.info("Mate sequence not found for "+chrG1.getName()+" Sequence orthology units: "+unitsChrG1.size());
 			}
 		}
 	}
@@ -121,13 +176,12 @@ public class GenomesAligner {
 		FMIndex indexG2 = new FMIndex();
 		indexG2.loadQualifiedSequenceList(proteinSequencesG2);
 		//Search proteins from G1 using method findSimilarProteins
-
 		for(int i=0; i<unitsG1.size(); i++)
 		{
 			OrthologyUnit unit = unitsG1.get(i);
 			String protein = unit.getProteinSequence();
 			Set<String> hits = findSimilarProteins(indexG2, protein);
-		//If the hit is unique fill the mate information using setMateId from OrthologyUnit
+			// If the hit is unique fill the mate information using setMateId from OrthologyUnit
 			if(hits.size() == 1)
 			{
 				Iterator<String> iterator = hits.iterator();
@@ -159,8 +213,6 @@ public class GenomesAligner {
 		{
 			OrthologyUnit unitG2 = unitsG1.get(i).getMate();
 			if(unitG2 == null) continue;
-			//Recupero la unidad de ortología del mapa unitsC2Map
-			//Recupero el cromosoma
 			String sequenceName = unitG2.getSequenceName();			
 			if((chrG2Counts.containsKey(sequenceName)))
 			{
@@ -234,10 +286,12 @@ public class GenomesAligner {
 			OrthologyUnit unitG1 = unitsG1List.get(i);
 			int j = sortedUnitsG2Pos.get(unitG1.getMate().getId());
 			positions[i] = j;
+			//System.out.println("Positions [ "+i+"]:"+j);
 		}
 		// Run LCS
 		
 		Set<Integer> lcs = findLCS(positions);
+		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
 		// Select the orthology units in G1 located at the indexes given by the output of LCS
 		for(int i:lcs)
 		{
@@ -271,6 +325,7 @@ public class GenomesAligner {
 			{
 				uniques.add(units.get(i));
 			}
+			if(i%100==0)log.info("Processed "+i+" proteins. Unique: "+uniques.size());
 		}
 		
 		return uniques;
@@ -278,13 +333,12 @@ public class GenomesAligner {
 	
 	private static Set<String> findSimilarProteins(FMIndex index, String protein1) {
 		
-		//el mapa es transcript y cuantos kmers lo soporta
+		//Counts of k-mers mapping to each protein in the FM-index
 		Map<String,Integer> kmerSupportMap = new TreeMap<>();
 		int totalKmers = 0;
 		int kmerSize = 10;
-		//PASO 1: Generar n kmers y por cada uno consultar en el fm index los transcripts que tienen el kmer para llenar el mapa
-		
-		for(int i=0; i<protein1.length()-kmerSize+1; i++) {
+		//Step 1: Generate k-mers to query the FM-Index looking for homologous transcripts to calculate the kmer counts
+		for(int i=0; i<protein1.length()-kmerSize+1; i+=kmerSize) {
 			String kmer = protein1.substring(i, i+kmerSize);
 			
 			List <ReadAlignment> kmerHits = index.search(kmer);
@@ -303,9 +357,7 @@ public class GenomesAligner {
 			totalKmers = totalKmers +1;
 		}
 
-		
-		//PASO 2: Llenar la lista de respuesta recorriendo el mapa y escogiendo los ids de transcripts que
-		//para los que al menos el 80% de totalKmers dice que el transcript es paralogo de protein1
+		//Step 2: Fill list traversing the counts and choosing transcripts for which at least 80% of the k-mers support the match
 		Set<String> answer = new TreeSet<>();
 		
 		for(Map.Entry<String,Integer> entry : kmerSupportMap.entrySet()) {
@@ -424,33 +476,35 @@ public class GenomesAligner {
 		{
 			for(int j=0; j<n+1; j++)
 			{
-				
-				if(i==0 && indexesMap[i]==0)
+				if(i==0)
 				{
-					m[i][j] = 1;
+					if(j==0 || indexesMap[i]>0) {
+						m[i][j] = 0;
+					}
+					else {
+						m[i][j] = 1;
+					}
+					
 				}
-				else if(i==0 && indexesMap[i]>0)
-				{
-					m[i][j] = 0;
-				}
-				else if(i>0 && j<=indexesMap[i])
+				else if(j<=indexesMap[i])
 				{
 					m[i][j] = m[i-1][j];
 				}
-				else if(i>0 && j>indexesMap[i])
+				else
 				{
 					m[i][j] = Math.max((m[i-1][j]),(m[i-1][indexesMap[i]]+1));
 				}
+				//System.out.print(" "+m[i][j]);
 			}
+			//System.out.println();
 		}
 
-		
-		//Hacer debugging a esta parte para ver dónde se estan perdiendo los datos 
 		int i = m.length-1;
 		int j = m[0].length-1;
-		System.out.println("LCS matrix size: "+i+"-"+j);
+		//System.out.println("LCS matrix size: "+i+"-"+j);
 		while(i > 0 && j > 0)
 		{
+			//System.out.print("Position: "+i+"-"+j);
 			int up = m[i-1][j];
 			int diag = -1;
 			if(j>indexesMap[i]) {
@@ -459,11 +513,12 @@ public class GenomesAligner {
 			if(diag >= up )
 			{
 				answer.add(i);
-				i--;
 				j=indexesMap[i];
+				i--;
 			} else {
 				i--;
 			}
+			//System.out.println(" Diag score: "+diag+" up score: "+up+" size answer: "+answer.size()+" next Position: "+i+"-"+j);
 		}
 		if(i==0 && indexesMap[i]==0)
 		{
