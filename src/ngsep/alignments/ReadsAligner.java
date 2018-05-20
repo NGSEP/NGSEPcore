@@ -210,29 +210,48 @@ public class ReadsAligner {
 
 			List<KmerAlignment> alns = seqHits.get(sequenceName);
 			
-			/*if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
+			if(read.getName().equals("chrI_218375_218942_0:0:0_1:0:0_c/1"))
 			{
-				String sd=fMIndex.getSequenceSubString(sequenceName, 63212, 63256);
-				System.out.println(sd);
-			}*/
+				
+				System.out.println("");
+			}
 			Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
 
 			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
-				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
+				if(read.getName().equals("chrI_218375_218942_0:0:0_1:0:0_c/1")&&actual.getFirst()==218375)
 				{
-					stack.push(actual);
+					System.out.println();
 				}
-				else 
+				
+				boolean pass = evaluate(finalAlignments, kmersCount, sequenceName, stack, actual);
+				if(!pass)
 				{
-					insert(finalAlignments, kmersCount, sequenceName, stack);
+					//We evaluate the alignment again after that the stack is empty.
+					//This is because can happen something like: reverse,reverse,reverse,reverse NOREVERSE
+					//In that case NOREVERSE shouldn't be discard.
+					//Actually a better aproach may be is just add the new to the stack 
+					evaluate(finalAlignments, kmersCount, sequenceName, stack, actual);
 				}
 			}
 			insert(finalAlignments, kmersCount, sequenceName, stack);
 		}
 		return finalAlignments;
+	}
+
+	private boolean evaluate(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, KmerAlignment actual) {
+		if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
+		{
+			stack.push(actual);
+			return true;
+		}
+		else 
+		{
+			insert(finalAlignments, kmersCount, sequenceName, stack);
+			return false;
+		}
 	}
 	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
 	{
