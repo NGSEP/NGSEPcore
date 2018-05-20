@@ -223,6 +223,7 @@ public class ReadsAligner {
 				KmerAlignment actual=alns.get(i);
 				
 				//chrII_420363_420904_0:0:0_2:0:0_198/1	0	chrII	420363
+				
 				if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1")&&actual.getFirst()==420363)
 				{
 					System.out.println();
@@ -256,7 +257,7 @@ public class ReadsAligner {
 			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
 			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		} else {
-			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
+			if(nextAln.getKmerNumber()<topAln.getKmerNumber()) return false;
 			if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		}
 		return true;
