@@ -221,7 +221,8 @@ public class ReadsAligner {
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
-				if(read.getName().equals("chrI_218375_218942_0:0:0_1:0:0_c/1")&&actual.getFirst()==218375)
+				//chrI_201382_201887_1:0:0_0:0:0_8/1	16	chrI	201838
+				if(read.getName().equals("chrI_201382_201887_1:0:0_0:0:0_8/1")&&actual.getFirst()==201838)
 				{
 					System.out.println();
 				}
