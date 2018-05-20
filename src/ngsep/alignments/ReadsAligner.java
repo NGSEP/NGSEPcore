@@ -226,14 +226,15 @@ public class ReadsAligner {
 					System.out.println();
 				}
 				
-				boolean pass = evaluate(finalAlignments, kmersCount, sequenceName, stack, actual);
-				if(!pass)
+				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
-					//We evaluate the alignment again after that the stack is empty.
-					//This is because can happen something like: reverse,reverse,reverse,reverse NOREVERSE
-					//In that case NOREVERSE shouldn't be discard.
-					//Actually a better aproach may be is just add the new to the stack 
-					evaluate(finalAlignments, kmersCount, sequenceName, stack, actual);
+					stack.push(actual);
+				}
+				else 
+				{
+					insert(finalAlignments, kmersCount, sequenceName, stack);
+					//after save and clear the stack save the nnew alignment, coul be good
+					stack.push(actual);
 				}
 			}
 			insert(finalAlignments, kmersCount, sequenceName, stack);
@@ -241,18 +242,6 @@ public class ReadsAligner {
 		return finalAlignments;
 	}
 
-	private boolean evaluate(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, KmerAlignment actual) {
-		if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
-		{
-			stack.push(actual);
-			return true;
-		}
-		else 
-		{
-			insert(finalAlignments, kmersCount, sequenceName, stack);
-			return false;
-		}
-	}
 	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
 	{
 		boolean negativeStrand = topAln.isNegativeStrand();
