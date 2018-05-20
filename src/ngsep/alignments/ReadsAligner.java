@@ -44,7 +44,7 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsAligner {
 
-	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
+	public static final double DEF_MIN_PROPORTION_KMERS = 1;
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 
@@ -190,11 +190,12 @@ public class ReadsAligner {
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
 	{
 		//System.out.println("KmersCounter.extractKmers: "+read.getCharacters().toString().length());
-		CharSequence[] kmers = KmersCounter.extractKmers(read.getCharacters().toString(), SEARCH_KMER_LENGTH, true);
+		String characters=read.getCharacters().toString();
+		CharSequence[] kmers = KmersCounter.extractKmers(characters, SEARCH_KMER_LENGTH, true);
 
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
-		int kmersCount=((kmers.length/SEARCH_KMER_LENGTH)+1);
+		int kmersCount=((characters.length()/SEARCH_KMER_LENGTH)+1);
 
 		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
 
@@ -251,11 +252,14 @@ public class ReadsAligner {
 		double percent = (double) stack.size()/kmersCount;
 		if(percent>=minProportionKmers)
 		{
+			if(percent>1)
+			System.out.println(percent);
+			
 			KmerAlignment[] arr=new KmerAlignment[stack.size()];
 			stack.toArray(arr);
 			int first = arr[0].getReadAlignment().getFirst();
 			int last = arr[arr.length-1].getReadAlignment().getLast();
-			finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, 0));
+			finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, arr[0].getReadAlignment().getFlags()));
 		}
 		stack.clear();
 	}
