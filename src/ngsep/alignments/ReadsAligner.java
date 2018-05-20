@@ -100,10 +100,7 @@ public class ReadsAligner {
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
-				if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
-				{
-					System.out.println();
-				}
+				
 				int numAlns = alignRead(fMIndex, read, out);
 				totalReads++;
 				if(numAlns>0) readsAligned++;
@@ -196,10 +193,16 @@ public class ReadsAligner {
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
 		int kmersCount=((characters.length()/SEARCH_KMER_LENGTH)+1);
+		
+		if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1"))
+		{
+			System.out.println();
+		}
 
 		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
 
 		//Processing part
+		
 
 		KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
 		Set<String> keys= seqHits.keySet();
@@ -210,11 +213,7 @@ public class ReadsAligner {
 
 			List<KmerAlignment> alns = seqHits.get(sequenceName);
 			
-			if(read.getName().equals("chrI_218375_218942_0:0:0_1:0:0_c/1"))
-			{
-				
-				System.out.println("");
-			}
+
 			//Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
 			Collections.sort(alns,cmp);
 
@@ -222,8 +221,9 @@ public class ReadsAligner {
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
-				//chrI_201382_201887_1:0:0_0:0:0_8/1	16	chrI	201838
-				if(read.getName().equals("chrI_201382_201887_1:0:0_0:0:0_8/1")&&actual.getFirst()==201838)
+				
+				//chrII_420363_420904_0:0:0_2:0:0_198/1	0	chrII	420363
+				if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1")&&actual.getFirst()==420363)
 				{
 					System.out.println();
 				}
@@ -284,9 +284,9 @@ public class ReadsAligner {
 
 		HashMap<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();
 		
-		if(read.getName().equals("chrI_62734_63256_1:0:0_0:0:0_5/1"))
+		if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1"))
 		{
-			System.out.println("debug");
+			System.out.println();
 		}
 
 		//Avoid overlaps

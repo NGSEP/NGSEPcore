@@ -19,7 +19,7 @@ public class KmerAlignmentComparator implements Comparator<KmerAlignment>
 		
 		
 		int dif = o1.getReadAlignment().getFirst()-o2.getReadAlignment().getFirst();
-		if(o1.isNegativeStrand()==o2.isNegativeStrand() || Math.abs(dif)>=ReadsAligner.SEARCH_KMER_LENGTH)
+		if(o1.isNegativeStrand()==o2.isNegativeStrand() || Math.abs(dif)>=ReadsAligner.MAX_SPACE_BETWEEN_KMERS)
 		{
 			int cmp=0;
 			if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
