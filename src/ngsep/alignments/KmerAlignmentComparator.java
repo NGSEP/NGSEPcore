@@ -16,12 +16,27 @@ public class KmerAlignmentComparator implements Comparator<KmerAlignment>
 	@Override
 	public int compare(KmerAlignment o1, KmerAlignment o2) 
 	{
-		int cmp=0;
-		if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
+		
+		
+		int dif = o1.getReadAlignment().getFirst()-o2.getReadAlignment().getFirst();
+		if(o1.isNegativeStrand()==o2.isNegativeStrand() || Math.abs(dif)>=ReadsAligner.SEARCH_KMER_LENGTH)
 		{
-			cmp = o1.getReadAlignment().getFirst()>o2.getReadAlignment().getFirst()?1:-1;
+			int cmp=0;
+			if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
+			{
+				cmp = o1.getReadAlignment().getFirst()>o2.getReadAlignment().getFirst()?1:-1;
+			}
+			return cmp;
 		}
-		return cmp;
+		else
+		{
+			int cmp=0;
+			if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
+			{
+				cmp=!o1.isNegativeStrand()?1:-1;
+			}
+			return cmp;
+		}
 	}
 
 }

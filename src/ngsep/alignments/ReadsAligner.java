@@ -48,7 +48,7 @@ public class ReadsAligner {
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 
-	private static final int MAX_SPACE_BETWEEN_KMERS = 200;
+	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
 	public static void main(String[] args) throws Exception 
 	{
@@ -201,7 +201,7 @@ public class ReadsAligner {
 
 		//Processing part
 
-		//KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
+		KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
 		Set<String> keys= seqHits.keySet();
 
 		for (String sequenceName:keys)
@@ -215,7 +215,8 @@ public class ReadsAligner {
 				
 				System.out.println("");
 			}
-			Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
+			//Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
+			Collections.sort(alns,cmp);
 
 			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 			for (int i = 0; i < alns.size(); i++) 
