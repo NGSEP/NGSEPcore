@@ -230,6 +230,10 @@ public class ReadsAligner {
 				
 				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
+					if(!stack.isEmpty()&&stack.peek().getKmerNumber()==actual.getKmerNumber())
+					{
+						stack.pop();
+					}
 					stack.push(actual);
 				}
 				else 
@@ -249,7 +253,7 @@ public class ReadsAligner {
 		boolean negativeStrand = topAln.isNegativeStrand();
 		if(negativeStrand != nextAln.isNegativeStrand()) return false;
 		if(negativeStrand) {
-			if(nextAln.getKmerNumber()>=topAln.getKmerNumber()) return false;
+			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
 			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		} else {
 			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
