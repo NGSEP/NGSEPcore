@@ -44,7 +44,7 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsAligner {
 
-	public static final double DEF_MIN_PROPORTION_KMERS = 1;
+	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 
@@ -239,12 +239,12 @@ public class ReadsAligner {
 				}
 				else 
 				{
-					insert(finalAlignments, kmersCount, sequenceName, stack);
+					insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
 					//after save and clear the stack save the nnew alignment, coul be good
 					stack.push(actual);
 				}
 			}
-			insert(finalAlignments, kmersCount, sequenceName, stack);
+			insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
 		}
 		return finalAlignments;
 	}
@@ -262,7 +262,7 @@ public class ReadsAligner {
 		}
 		return true;
 	}
-	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack) 
+	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, FMIndex fMIndex, String characters) 
 	{
 		double percent = (double) stack.size()/kmersCount;
 		if(percent>=minProportionKmers)
@@ -274,6 +274,10 @@ public class ReadsAligner {
 			stack.toArray(arr);
 			int first = arr[0].getReadAlignment().getFirst();
 			int last = arr[arr.length-1].getReadAlignment().getLast();
+			//Instead of just add the sequence we are going to use smith waterman
+			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
+			smithWatermanLocalAlingMent(characters, sequence.toString());
+			
 			finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, arr[0].getReadAlignment().getFlags()));
 		}
 		stack.clear();
@@ -520,8 +524,8 @@ public class ReadsAligner {
 			p2+=pila2.pop();
 		}
 
-//		System.out.println(p1);
-//		System.out.println(p2);
+		System.out.println(p1);
+		System.out.println(p2);
 		return p2;
 	}
 }
