@@ -274,6 +274,28 @@ public class GenomesAligner {
 		}
 		Collections.sort(unitsG2List, GenomicRegionPositionComparator.getInstance());		
 		
+		
+		Set<Integer> lcsForward = findLCS(unitsG1List, unitsG2List);
+		
+		Collections.reverse(unitsG2List);
+		
+		Set<Integer> lcsReverse = findLCS(unitsG1List, unitsG2List);
+		
+		Set<Integer> lcs = lcsForward;
+		if(lcsReverse.size()>lcsForward.size()) lcs = lcsReverse;
+		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
+		// Select the orthology units in G1 located at the indexes given by the output of LCS
+		for(int i:lcs)
+		{
+			OrthologyUnit lcsResult = unitsG1List.get(i);
+			answer.add(lcsResult);
+		}
+		
+		
+		return answer;
+	}
+
+	private Set<Integer> findLCS(List<OrthologyUnit> unitsG1List, List<OrthologyUnit> unitsG2List) {
 		// Create int array with the positions in g2 for the units in g1. Input for LCS
 		Map<String,Integer> sortedUnitsG2Pos = new HashMap<>();
 		for(int i=0; i<unitsG2List.size(); i++) {
@@ -291,16 +313,7 @@ public class GenomesAligner {
 		// Run LCS
 		
 		Set<Integer> lcs = findLCS(positions);
-		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
-		// Select the orthology units in G1 located at the indexes given by the output of LCS
-		for(int i:lcs)
-		{
-			OrthologyUnit lcsResult = unitsG1List.get(i);
-			answer.add(lcsResult);
-		}
-		
-		
-		return answer;
+		return lcs;
 	}
 
 
