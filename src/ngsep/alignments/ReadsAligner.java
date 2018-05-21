@@ -224,7 +224,7 @@ public class ReadsAligner {
 				
 				//chrII_420363_420904_0:0:0_2:0:0_198/1	0	chrII	420363
 				
-				if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1")&&actual.getFirst()==420363)
+				if(characters.equals("CCTAATATTATAGCCTTTATCAACACTGTAATCCCAACAATTATCTCAAA")&&actual.getFirst()==431506)
 				{
 					System.out.println();
 				}
@@ -255,10 +255,10 @@ public class ReadsAligner {
 		if(negativeStrand != nextAln.isNegativeStrand()) return false;
 		if(negativeStrand) {
 			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
-			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
+			if(Math.abs(topAln.getFirst()-nextAln.getFirst())>MAX_SPACE_BETWEEN_KMERS) return false;
 		} else {
 			if(nextAln.getKmerNumber()<topAln.getKmerNumber()) return false;
-			if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
+			if(Math.abs(nextAln.getFirst()-topAln.getFirst())>MAX_SPACE_BETWEEN_KMERS) return false;
 		}
 		return true;
 	}
@@ -276,9 +276,14 @@ public class ReadsAligner {
 			int last = arr[arr.length-1].getReadAlignment().getLast();
 			//Instead of just add the sequence we are going to use smith waterman
 			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
-			smithWatermanLocalAlingMent(characters, sequence.toString());
+			if((last-first)>1000) {
+				System.out.println(first+"\t"+last+"\t"+(last-first)+"");
+				System.out.println(characters);
+				System.out.println(sequenceName+"\t"+first);
+			}
+			String result = smithWatermanLocalAlingMent(characters, sequence.toString());
 			
-			finalAlignments.add(new ReadAlignment(sequenceName, first, last, last-first, arr[0].getReadAlignment().getFlags()));
+			finalAlignments.add(new ReadAlignment(sequenceName, first, first+result.length(), last-first, arr[0].getReadAlignment().getFlags()));
 		}
 		stack.clear();
 	}
@@ -524,8 +529,8 @@ public class ReadsAligner {
 			p2+=pila2.pop();
 		}
 
-		System.out.println(p1);
-		System.out.println(p2);
+		//System.out.println(p1);
+		//System.out.println(p2);
 		return p2;
 	}
 }

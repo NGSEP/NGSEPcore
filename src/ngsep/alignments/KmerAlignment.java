@@ -9,6 +9,12 @@ import ngsep.genome.GenomicRegion;
  */
 public class KmerAlignment implements GenomicRegion {
 	
+	public String toString()
+	{
+		return kmerNumber+"\t"+alignment.getFirst()+"\t"+alignment.getLast()+"\t"+alignment.getFlags();
+		
+	}
+	
 	private int kmerNumber;
 	
 	private ReadAlignment alignment;
