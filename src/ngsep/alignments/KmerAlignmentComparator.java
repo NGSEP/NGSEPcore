@@ -1,5 +1,7 @@
 package ngsep.alignments;
 import java.util.Comparator;
+
+import ngsep.genome.GenomicRegionPositionComparator;
 /**
  * Compatarator to sort KmerAlignment by position in reference
  * @author German Andrade
@@ -7,36 +9,21 @@ import java.util.Comparator;
  */
 public class KmerAlignmentComparator implements Comparator<KmerAlignment>
 {
-
+	private GenomicRegionPositionComparator internalCMP = GenomicRegionPositionComparator.getInstance();
+	private static final KmerAlignmentComparator instance = new KmerAlignmentComparator();
+	private KmerAlignmentComparator () {
+		
+	}
 	public static KmerAlignmentComparator getInstance() 
 	{
-		return new KmerAlignmentComparator();
+		return instance;
 	}
 
 	@Override
 	public int compare(KmerAlignment o1, KmerAlignment o2) 
 	{
-		
-		
-		int dif = o1.getReadAlignment().getFirst()-o2.getReadAlignment().getFirst();
-		if(o1.isNegativeStrand()==o2.isNegativeStrand() || Math.abs(dif)>=ReadsAligner.MAX_SPACE_BETWEEN_KMERS)
-		{
-			int cmp=0;
-			if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
-			{
-				cmp = o1.getReadAlignment().getFirst()>o2.getReadAlignment().getFirst()?1:-1;
-			}
-			return cmp;
-		}
-		else
-		{
-			int cmp=0;
-			if(o1.getReadAlignment().getFirst()!=o2.getReadAlignment().getFirst())
-			{
-				cmp=!o1.isNegativeStrand()?1:-1;
-			}
-			return cmp;
-		}
+		if(o1.isNegativeStrand()!=o2.isNegativeStrand()) return o1.isPositiveStrand()?-1:1;
+		return internalCMP.compare(o1, o2);
 	}
 
 }
