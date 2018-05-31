@@ -186,7 +186,6 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
 	{
-		//System.out.println("KmersCounter.extractKmers: "+read.getCharacters().toString().length());
 		String characters=read.getCharacters().toString();
 		CharSequence[] kmers = KmersCounter.extractKmers(characters, SEARCH_KMER_LENGTH, true);
 
@@ -203,25 +202,15 @@ public class ReadsAligner {
 
 		for (String sequenceName:keys)
 		{
-			// System.out.println("---------------"+kmersCount+"---------------------");
-
 			List<KmerAlignment> alns = seqHits.get(sequenceName);
 			
-
-			//Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
 			Collections.sort(alns,cmp);
-
 			
 			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
-				//chrI_201382_201887_1:0:0_0:0:0_8/1	16	chrI	201838
-				if(read.getName().equals("chrI_201382_201887_1:0:0_0:0:0_8/1")&&actual.getFirst()==201838)
-				{
-					System.out.println();
-				}
-				
+								
 				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
 					stack.push(actual);
@@ -229,7 +218,7 @@ public class ReadsAligner {
 				else 
 				{
 					insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
-					//after save and clear the stack save the nnew alignment, coul be good
+					//after save and clear the stack save the new alignment, could be good
 					stack.push(actual);
 				}
 			}
@@ -258,20 +247,12 @@ public class ReadsAligner {
 		double percent = (double) stack.size()/kmersCount;
 		if(percent>=minProportionKmers)
 		{
-			if(percent>1)
-			System.out.println(percent);
-			
 			KmerAlignment[] arr=new KmerAlignment[stack.size()];
 			stack.toArray(arr);
 			int first = arr[0].getReadAlignment().getFirst();
 			int last = arr[arr.length-1].getReadAlignment().getLast();
 			//Instead of just add the sequence we are going to use smith waterman
 			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
-			if((last-first)>1000) {
-				System.out.println(first+"\t"+last+"\t"+(last-first)+"");
-				System.out.println(characters);
-				System.out.println(sequenceName+"\t"+first);
-			}
 			String result = smithWatermanLocalAlingMent(characters, sequence.toString());
 			
 			finalAlignments.add(new ReadAlignment(sequenceName, first, first+result.length(), last-first, arr[0].getReadAlignment().getFlags()));
@@ -288,11 +269,6 @@ public class ReadsAligner {
 	private HashMap<String, List<KmerAlignment>> getSequenceHits(FMIndex fMIndex, RawRead read,CharSequence[] kmers) {
 
 		HashMap<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();
-		
-		if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1"))
-		{
-			System.out.println();
-		}
 
 		//Avoid overlaps
 		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
