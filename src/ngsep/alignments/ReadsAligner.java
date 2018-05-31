@@ -194,16 +194,10 @@ public class ReadsAligner {
 		if(kmers==null) return finalAlignments;
 		int kmersCount=((characters.length()/SEARCH_KMER_LENGTH)+1);
 		
-		if(read.getName().equals("chrII_420363_420904_0:0:0_2:0:0_198/1"))
-		{
-			System.out.println();
-		}
 
 		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
 
 		//Processing part
-		
-
 		KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
 		Set<String> keys= seqHits.keySet();
 
@@ -221,13 +215,6 @@ public class ReadsAligner {
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
-				
-				//chrII_420363_420904_0:0:0_2:0:0_198/1	0	chrII	420363
-				
-				if(characters.equals("CCTAATATTATAGCCTTTATCAACACTGTAATCCCAACAATTATCTCAAA")&&actual.getFirst()==431506)
-				{
-					System.out.println();
-				}
 				
 				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
