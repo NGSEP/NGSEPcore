@@ -244,9 +244,9 @@ public class ReadsAligner {
 		boolean negativeStrand = topAln.isNegativeStrand();
 		if(negativeStrand != nextAln.isNegativeStrand()) return false;
 		if(negativeStrand) {
-			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
+			if(nextAln.getKmerNumber()>=topAln.getKmerNumber()) return false;
 		} else {
-			if(nextAln.getKmerNumber()<topAln.getKmerNumber()) return false;
+			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
 		}
 		if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		return true;
