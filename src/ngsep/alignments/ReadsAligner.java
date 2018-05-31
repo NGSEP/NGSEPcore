@@ -211,17 +211,19 @@ public class ReadsAligner {
 			//Collections.sort(alns,GenomicRegionPositionComparator.getInstance());
 			Collections.sort(alns,cmp);
 
+			
 			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 			for (int i = 0; i < alns.size(); i++) 
 			{
 				KmerAlignment actual=alns.get(i);
+				//chrI_201382_201887_1:0:0_0:0:0_8/1	16	chrI	201838
+				if(read.getName().equals("chrI_201382_201887_1:0:0_0:0:0_8/1")&&actual.getFirst()==201838)
+				{
+					System.out.println();
+				}
 				
 				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
 				{
-					if(!stack.isEmpty()&&stack.peek().getKmerNumber()==actual.getKmerNumber())
-					{
-						stack.pop();
-					}
 					stack.push(actual);
 				}
 				else 
@@ -232,6 +234,7 @@ public class ReadsAligner {
 				}
 			}
 			insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
+			
 		}
 		return finalAlignments;
 	}
