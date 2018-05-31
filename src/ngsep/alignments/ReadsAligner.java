@@ -235,20 +235,22 @@ public class ReadsAligner {
 		}
 		return finalAlignments;
 	}
-
+	
 	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
 	{
 		boolean negativeStrand = topAln.isNegativeStrand();
 		if(negativeStrand != nextAln.isNegativeStrand()) return false;
 		if(negativeStrand) {
 			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
-			if(Math.abs(topAln.getFirst()-nextAln.getFirst())>MAX_SPACE_BETWEEN_KMERS) return false;
+			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		} else {
 			if(nextAln.getKmerNumber()<topAln.getKmerNumber()) return false;
-			if(Math.abs(nextAln.getFirst()-topAln.getFirst())>MAX_SPACE_BETWEEN_KMERS) return false;
+			if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		}
 		return true;
 	}
+
+	
 	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, FMIndex fMIndex, String characters) 
 	{
 		double percent = (double) stack.size()/kmersCount;
