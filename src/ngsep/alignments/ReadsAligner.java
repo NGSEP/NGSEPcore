@@ -245,11 +245,10 @@ public class ReadsAligner {
 		if(negativeStrand != nextAln.isNegativeStrand()) return false;
 		if(negativeStrand) {
 			if(nextAln.getKmerNumber()>topAln.getKmerNumber()) return false;
-			if(topAln.getFirst()-nextAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		} else {
 			if(nextAln.getKmerNumber()<topAln.getKmerNumber()) return false;
-			if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		}
+		if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
 		return true;
 	}
 
