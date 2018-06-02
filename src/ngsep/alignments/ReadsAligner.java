@@ -307,81 +307,81 @@ public class ReadsAligner {
 	
 	
 	
-	private String smithWatermanLocalAlingMent(String reference, String secuence) 
+	private String smithWatermanLocalAlingMent(String reference, String sequence) 
 	{
-		//Pila que guarda las letras de la palabra1
-		Stack<String> pila1A = new Stack<>();
+		//Stack containing reference
+		Stack<String> stackReference = new Stack<>();
 
-		//Pila que guarda las letras de la palabra2
-		Stack<String> pila2A = new Stack<>();
+		//Stack containing secuence
+		Stack<String> stackSequence = new Stack<>();
 
-		//Matriz que tiene 0 si palabra1.charAt(i)==palabra2.charAt(j) y uno de lo contrario
-		int[][] diagonales = new int[reference.length()][secuence.length()];
+		//Matrix with 0 if charAt(i)==charAt(j) otherwise 1
+		int[][] diagonals = new int[reference.length()][sequence.length()];
 
 
-		for (int i = 0; i < diagonales.length; i++) 
+		for (int i = 0; i < diagonals.length; i++) 
 		{
-			char actualPalabra1=reference.charAt(i);
-			pila1A.push(actualPalabra1+"");
+			char actualReference=reference.charAt(i);
+			stackReference.push(actualReference+"");
 
-			for (int j = 0; j < diagonales[i].length; j++) 
+			for (int j = 0; j < diagonals[i].length; j++) 
 			{
-				char actualPalabra2=secuence.charAt(j);
+				char actualSequence=sequence.charAt(j);
 				if(i==0)
-					pila2A.push(actualPalabra2+"");
+					stackSequence.push(actualSequence+"");
 
-				diagonales[i][j]= actualPalabra1==actualPalabra2 ? 0:1;
+				diagonals[i][j]= actualReference==actualSequence ? 0:1;
 			}
 		}
 
-		//Matriz para programaci�n din�mica guarda el menor peso para ir de 0,0 a i,j
-		int[][] A = new int[diagonales.length+1][diagonales[0].length+1]; 
+		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
+		int[][] lowestMatrix = new int[diagonals.length+1][diagonals[0].length+1]; 
 
-		for (int i = 0; i < A.length; i++) 
+		for (int i = 0; i < lowestMatrix.length; i++) 
 		{	
-			for (int j = 0; j < A[0].length; j++) 
+			for (int j = 0; j < lowestMatrix[0].length; j++) 
 			{
-				//Caso base, el costo para llegar a 0,0 es 0
+				//base case, the cost to reach 0,0 is 0
 				if(i==0 && j==0)
 				{
-					A[i][j]=0;
+					lowestMatrix[i][j]=0;
 				}
-				//Sem�nticamente es borrar una letra de la primera palabra
-				//Caso base, el costo para llegar a 0,j es 1+ costo(0,j-1)
-				//Esto es moverse en horizontal es decir por las columnas -->
+				//Base case: delete a base
+				//the cost to reach 0,j is 1+ cost(0,j-1)
+				//This an horizontal move  -->
 				else if(i==0)
 				{
-					A[i][j]= 1 + A[i][j-1];
+					lowestMatrix[i][j]= 1 + lowestMatrix[i][j-1];
 				}
-				//Sem�nticamente es insertar una letra en la segunda palabra
-				//Caso base, el costo para llegar a i,0 es 1 + costo(i-1,0)
-				//Esto es moverse en verical es decir por las filas |
-				//												    v	
+				//Base case: insert a base
+				//the cost to reach i,0 is 1 + cost(i-1,0)
+				//This an vertical move |
+				//						v	
 				else if(j==0)
 				{
-					A[i][j]= 1 + A[i-1][j];
+					lowestMatrix[i][j]= 1 + lowestMatrix[i-1][j];
 				}
-				//A este caso se puede llegar desde arriba (i-1,j)
-				//Desde la izquierda (i,j-1)
-				//O desde la diagonal superior izquierda (i-1,j-1)
+				//This case can be reached from upper (i-1,j)
+				//From left (i,j-1)
+				//or from upper left diagonal (i-1,j-1)
 				else
 				{
-					int[] posibilidades= {
-							1 						+ A[i-1][j], 	// llegar desde arriba cuesta 1 + lo que cuesta llegar a (i-1,j)
-							1 						+ A[i][j-1], 	// llegar desde la izquierda cuesta 1 + lo que cuesta llegar a (i-1,j)
-							diagonales[i-1][j-1] 	+ A[i-1][j-1]	// llegar desde la diagonal superior cuesta 1 si las letras son diferentes
-									// y 0 si son iguales, + o que cuesta llegar a (i-1,j-1)
+					int[] options= {
+							1 						+ lowestMatrix[i-1][j], 	// arrive from up is 1 + cost(i-1,j)
+							1 						+ lowestMatrix[i][j-1], 	// arrive from left is 1 + cost(i-1,j)
+							diagonals[i-1][j-1] 	+ lowestMatrix[i-1][j-1]	// arrive from diagonal is 1 if there is different characters
+																				// and 0 if are equals, +cost(i-1,j-1)
 					};
 					int min = Integer.MAX_VALUE;
-					for (int k = 0; k < posibilidades.length; k++) 
+					for (int k = 0; k < options.length; k++) 
 					{
-						if(posibilidades[k]<min)
+						if(options[k]<min)
 						{
-							min = posibilidades[k];
+							min = options[k];
 						}
 					}
 
-					A[i][j]=min;
+					lowestMatrix[i][j]=min;
 				}
 			}
 		}
@@ -397,7 +397,7 @@ public class ReadsAligner {
 
 		//Guarda la posicion actual en la que va el algoritmo que se devuelte
 		//inicialmente est� en la esquina inferior derecha, donde est� el costo m�nimo para llegar a (A.length-1,A[0].length-1)
-		int[] r={A.length-1,A[0].length-1};
+		int[] r={lowestMatrix.length-1,lowestMatrix[0].length-1};
 
 		//Mientras no lleguemos al inicio siga devolviendose
 		while(!(r[0]==0 && r[1]==0))
@@ -408,7 +408,7 @@ public class ReadsAligner {
 			{
 
 				//Se revisa si es desde arriba
-				if( A [r[0]-1] [r[1]] < A [r[0]][r[1]-1] && A [r[0]-1] [r[1]] < A [r[0]-1] [r[1]-1])
+				if( lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]][r[1]-1] && lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]-1] [r[1]-1])
 				{
 					int[] a = { r[0]-1,r[1]};
 
@@ -416,13 +416,13 @@ public class ReadsAligner {
 					pila2.push("-");
 
 					//Se mete la siguiente letra en la palabra 1
-					pila1.push(pila1A.pop());
+					pila1.push(stackReference.pop());
 
 					// se actualiza r que es la posici�n actual
 					r=a;
 				}
 				//Se revisa si es desde la izquierda
-				else if( A [r[0]] [r[1]-1] < A [r[0]-1][r[1]] && A [r[0]] [r[1]-1] < A [r[0]-1][r[1]-1])
+				else if( lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]] && lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]-1])
 				{
 					int[] a = { r[0],r[1]-1};
 
@@ -430,7 +430,7 @@ public class ReadsAligner {
 					pila1.push("-");
 
 					//Se mete la siguiente letra en la palabra 2
-					pila2.push(pila2A.pop());
+					pila2.push(stackSequence.pop());
 
 					// se actualiza r que es la posici�n actual
 					r=a;
@@ -441,10 +441,10 @@ public class ReadsAligner {
 					int[] a = { r[0]-1,r[1]-1};
 
 					//Se mete la siguiente letra en la palabra 1
-					pila1.push(pila1A.pop());
+					pila1.push(stackReference.pop());
 
 					//Se mete la siguiente letra en la palabra 2
-					pila2.push(pila2A.pop());
+					pila2.push(stackSequence.pop());
 
 					// se actualiza r que es la posici�n actual
 					r=a;
@@ -464,7 +464,7 @@ public class ReadsAligner {
 					pila2.push("-");
 
 					//Se mete la siguiente letra en la palabra 1
-					pila1.push(pila1A.pop());
+					pila1.push(stackReference.pop());
 
 					// se actualiza r que es la posici�n actual
 					r=a;
@@ -478,7 +478,7 @@ public class ReadsAligner {
 					pila1.push("-");
 
 					//Se mete la siguiente letra en la palabra 2
-					pila2.push(pila2A.pop());
+					pila2.push(stackSequence.pop());
 
 					// se actualiza r que es la posici�n actual
 					r=a;
