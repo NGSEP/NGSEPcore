@@ -1,32 +1,51 @@
 package ngsep.simulation;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
+import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileWriter;
+import ngsep.vcf.VCFRecord;
 
 public class TillingPopulationSimulator {
-	private Logger log = Logger.getLogger(SingleIndividualSimulator.class.getName());
+	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	public static final int DEF_MUTATIONS=1000;
 	public static final int DEF_INDIVIDUALS=500;
+	public static final int DEF_NUM_FRAGMENTS_POOL=1000000;
+	public static final int DEF_READ_LENGTH=250;
+	public static final double DEF_ERROR_RATE=0.01;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
+	private int numFragments = DEF_NUM_FRAGMENTS_POOL;
+	private int readLength = DEF_READ_LENGTH;
+	private double errorRate = DEF_ERROR_RATE;
 	private List<GenomicRegion> sequencedRegions;
 	
 	//Variants indexed by individual
@@ -36,13 +55,127 @@ public class TillingPopulationSimulator {
 	
 	public static void main(String[] args) throws Exception {
 		TillingPopulationSimulator instance = new TillingPopulationSimulator();
-		String referenceFile = args[0];
-		String sequencedRegionsFile = args[1];
-		String outPrefix = args[2];
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		String referenceFile = args[i++];
+		String sequencedRegionsFile = args[i++];
+		String outPrefix = args[i++];
 		instance.genome = new ReferenceGenome(referenceFile);
 		instance.runSimulation (sequencedRegionsFile, outPrefix);
 	}
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
 
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	/**
+	 * @return the genome
+	 */
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+	/**
+	 * @param genome the genome to set
+	 */
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+
+	/**
+	 * @return the numIndividuals
+	 */
+	public int getNumIndividuals() {
+		return numIndividuals;
+	}
+	
+	/**
+	 * @param numIndividuals the numIndividuals to set
+	 */
+	public void setNumIndividuals(int numIndividuals) {
+		this.numIndividuals = numIndividuals;
+	}
+
+	public void setNumIndividuals(String value) {
+		this.setNumIndividuals((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	/**
+	 * @return the numFragments
+	 */
+	public int getNumFragments() {
+		return numFragments;
+	}
+
+	/**
+	 * @param numFragments the numFragments to set
+	 */
+	public void setNumFragments(int numFragments) {
+		this.numFragments = numFragments;
+	}
+	
+	public void setNumFragments(String value) {
+		this.setNumFragments((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	/**
+	 * @return the readLength
+	 */
+	public int getReadLength() {
+		return readLength;
+	}
+
+	/**
+	 * @param readLength the readLength to set
+	 */
+	public void setReadLength(int readLength) {
+		this.readLength = readLength;
+	}
+
+	public void setReadLength(String value) {
+		this.setReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	/**
+	 * @return the errorRate
+	 */
+	public double getErrorRate() {
+		return errorRate;
+	}
+
+	/**
+	 * @param errorRate the errorRate to set
+	 */
+	public void setErrorRate(double errorRate) {
+		this.errorRate = errorRate;
+	}
+	
+	public void setErrorRate(String value) {
+		this.setErrorRate((double)OptionValuesDecoder.decode(value, Double.class));
+	}
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
 		loadSequencedRegions(sequencedRegionsFile);
@@ -77,8 +210,8 @@ public class TillingPopulationSimulator {
 		for(int i=0;i<numIndividuals;i++) {
 			individuals.add(new SimulatedDiploidIndividual(i));
 		}
-		//Step 2: create random mutations within the given regions and assign each mutation to a random individual
-		//Use the reference genome to derive reference alleles. Crete objects of the class SNV as random mutations
+		//TODO: Step 2: create random mutations within the given regions and assign each mutation to a random individual
+		//Use the reference genome to derive reference alleles. Create objects of the class SNV as random mutations
 		
 		
 		//Step 3: build individual allele sequences from the mutations
@@ -97,16 +230,87 @@ public class TillingPopulationSimulator {
 		return null;
 	}
 
-
-	public void printMutations(String filename) {
-		// TODO Auto-generated method stub
+	/**
+	 * Writes a VCF file with the simulated mutations
+	 * @param filename Name of the file to write
+	 * @throws IOException 
+	 */
+	public void printMutations(String filename) throws IOException {
+		List<CalledGenomicVariant> allCalls = new ArrayList<>();
+		for(SimulatedDiploidIndividual individual:individuals) {
+			List<CalledGenomicVariant> callsIndv = individual.getCalls();
+			allCalls.addAll(callsIndv);
+		}
+		QualifiedSequenceList seqsMetadata = genome.getSequencesMetadata();
+		GenomicRegionComparator cmp = new GenomicRegionComparator(seqsMetadata);
+		Collections.sort(allCalls,cmp);
 		
+		VCFFileWriter vcfWriter = new VCFFileWriter();
+		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
+		for(SimulatedDiploidIndividual indv:individuals) header.addDefaultSample(""+indv.getId());
+		
+		try (PrintStream out = new PrintStream(filename)) {
+			vcfWriter.printHeader(header, out);
+			List<CalledGenomicVariant> altCallsVar = new ArrayList<>();
+			for(CalledGenomicVariant call: allCalls) {
+				if(altCallsVar.size()>0 && cmp.compare(altCallsVar.get(0),call)!=0) {
+					VCFRecord record = buildRecord (altCallsVar,header);
+					vcfWriter.printVCFRecord(record, out);
+					altCallsVar.clear();
+				}
+				altCallsVar.add(call);
+			}
+			if(altCallsVar.size()>0) {
+				VCFRecord record = buildRecord (altCallsVar,header);
+				vcfWriter.printVCFRecord(record, out);
+			}
+		}
 	}
+	private VCFRecord buildRecord(List<CalledGenomicVariant> altCallsVar, VCFFileHeader header) {
+		Set<String> allelesSet = new TreeSet<>();
+		CalledGenomicVariant [] callsArray = new CalledGenomicVariant [numIndividuals];
+		String sequenceName=null;
+		int first=0;
+		String reference=null;
+		for(CalledGenomicVariant call:altCallsVar) {
+			int n = allelesSet.size();
+			if(n==0) {
+				sequenceName = call.getSequenceName();
+				first = call.getFirst();
+				reference = call.getReference();
+			}
+			allelesSet.addAll(Arrays.asList(call.getAlleles()));
+		}
+		List<String> alleles = new ArrayList<>(allelesSet.size());
+		alleles.add(reference);
+		for(String allele:allelesSet) {
+			if(!allele.equals(reference)) alleles.add(allele);
+		}
+		GenomicVariant finalVariant = new GenomicVariantImpl(sequenceName, first, alleles);
+		for(CalledGenomicVariant call:altCallsVar) {
+			int i = Integer.parseInt(call.getSampleId()); 
+			callsArray[i] = new CalledGenomicVariantImpl(finalVariant, call.getCalledAlleles());
+		}
+		List<CalledGenomicVariant> finalCalls = new ArrayList<>();
+		for(int i=0;i<callsArray.length;i++) {
+			if(callsArray[i]==null) {
+				CalledGenomicVariant refCall = new CalledGenomicVariantImpl(finalVariant, 0);
+				finalCalls.add(refCall);
+			} else {
+				finalCalls.add(callsArray[i]);
+			}
+		}
+		return new VCFRecord(finalVariant, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, finalCalls, header);
+	}
+
+
+
+
 	/**
 	 * Simulate the pools to sequence the simulated individuals
 	 */
 	public void simulatePools() {
-		
+		//TODO: Implement
 		
 	}
 
@@ -117,14 +321,16 @@ public class TillingPopulationSimulator {
 	 * @param file2 Output file for second end of paired end reads
 	 */
 	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2) {
+		Random random = new Random();
 		
+		//For each fragment select a random individual, then select an allele sequence at random and build the reads from the two ends of the sequence 
 		
 	}	
 }
 class SimulatedDiploidIndividual {
 	private int id;
-	private List<GenomicVariant> mutationsAllele1 = new ArrayList<>();
-	private List<GenomicVariant> mutationsAllele2 = new ArrayList<>();
+	private Map<String,GenomicVariant> mutationsAllele1 = new HashMap<>();
+	private Map<String,GenomicVariant> mutationsAllele2 = new HashMap<>();
 	private List<DNAMaskedSequence> alleleSequences = new ArrayList<>();
 	private static Random random = new Random();
 	public SimulatedDiploidIndividual(int id) {
@@ -135,26 +341,60 @@ class SimulatedDiploidIndividual {
 		return id;
 	}
 	public void addMutation (GenomicVariant mutation) {
+		String key = buildKey(mutation);
 		if(random.nextBoolean()) {
-			mutationsAllele1.add(mutation);
+			if(!mutationsAllele1.containsKey(key)) mutationsAllele1.put(key,mutation);
 		} else {
-			mutationsAllele2.add(mutation);
+			if(!mutationsAllele1.containsKey(key)) mutationsAllele2.put(key,mutation);
 		}
-		
 	}
-	public List<GenomicVariant> getMutations() {
-		List<GenomicVariant> answer = new ArrayList<>();
-		answer.addAll(mutationsAllele1);
-		answer.addAll(mutationsAllele2);
+	public List<CalledGenomicVariant> getCalls() {
+		List<CalledGenomicVariant> answer = new ArrayList<>();
+		String sampleId = ""+id;
+		for(String key:mutationsAllele1.keySet()) {
+			GenomicVariant mutation1 = mutationsAllele1.get(key);
+			GenomicVariant mutation2 = mutationsAllele2.get(key);
+			// TODO: Conciliate better overlapping mutations
+			CalledGenomicVariant call;
+			if(mutation2 == null) {
+				call = new CalledGenomicVariantImpl(mutation1, 1);
+			} else if (mutation1.isCompatible(mutation2)) {
+				call = new CalledGenomicVariantImpl(mutation1, 2);
+			} else {
+				List<String> alleles = new ArrayList<>();
+				alleles.add(mutation1.getReference());
+				alleles.add(mutation1.getAlleles()[1]);
+				alleles.add(mutation2.getAlleles()[1]);
+				GenomicVariantImpl triallelicVariant = new GenomicVariantImpl(mutation1.getSequenceName(), mutation1.getFirst(), alleles);
+				byte [] calledAlleles = {1,2};
+				call = new CalledGenomicVariantImpl (triallelicVariant,calledAlleles);
+			}
+			call.setSampleId(sampleId);
+			answer.add(call);
+		}
+		for(String key:mutationsAllele2.keySet()) {
+			GenomicVariant mutation1 = mutationsAllele1.get(key);
+			GenomicVariant mutation2 = mutationsAllele2.get(key);
+			CalledGenomicVariant call;
+			if(mutation1 == null) {
+				call = new CalledGenomicVariantImpl(mutation2, 1);
+				call.setSampleId(sampleId);
+				answer.add(call);
+			}
+		}
 		return answer;
 	}
+	private String buildKey(GenomicVariant mutation) {
+		return mutation.getSequenceName()+"-"+mutation.getFirst()+"-"+mutation.getLast();
+	}
+	
 	/**
 	 * Calculates the sequences within an individual from the given mutations
 	 * @param regions
 	 * @param referenceSequences
 	 */
 	public void buildAlleleSequences (List<GenomicRegion> regions, List<DNAMaskedSequence> referenceSequences) {
-		
+		//TODO: implement
 	}
 	public List<DNAMaskedSequence> getAlleleSequences () {
 		return Collections.unmodifiableList(alleleSequences);
