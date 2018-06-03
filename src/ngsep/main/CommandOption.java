@@ -21,11 +21,14 @@ package ngsep.main;
 
 import java.lang.reflect.Method;
 
+import ngsep.genome.ReferenceGenome;
+
 public class CommandOption {
 	public static final String TYPE_INT = "INT";
 	public static final String TYPE_LONG = "LONG";
 	public static final String TYPE_FLOAT = "FLOAT";
 	public static final String TYPE_DOUBLE = "DOUBLE";
+	public static final String TYPE_GENOME = "GENOME";
 	public static final String TYPE_STRING = "STRING";
 	public static final String TYPE_FILE = "FILE";
 	public static final String TYPE_DIR = "DIR";
@@ -112,7 +115,11 @@ public class CommandOption {
 		try {
 			return instance.getClass().getMethod(methodName,getTypeClass());
 		} catch (NoSuchMethodException | SecurityException e) {
-			throw new RuntimeException(e);
+			try {
+				return instance.getClass().getMethod(methodName,String.class);
+			} catch (NoSuchMethodException | SecurityException e1) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 	private Class<?> getTypeClass() {
@@ -131,6 +138,9 @@ public class CommandOption {
 		if(TYPE_DOUBLE.equals(type)) {
 			return Double.class;
 		}
+		if(TYPE_GENOME.equals(type)) {
+			return ReferenceGenome.class;
+		}
 		if(TYPE_STRING.equals(type)) {
 			return String.class;
 		}
@@ -143,27 +153,6 @@ public class CommandOption {
 		throw new RuntimeException("Can not decode option of unrecognized type: "+type);
 	}
 	public Object decodeValue (String value) {
-		if(TYPE_INT.equals(type)) {
-			return Integer.parseInt(value);
-		}
-		if(TYPE_LONG.equals(type)) {
-			return Long.parseLong(value);
-		}
-		if(TYPE_FLOAT.equals(type)) {
-			return Float.parseFloat(value);
-		}
-		if(TYPE_DOUBLE.equals(type)) {
-			return Double.parseDouble(value);
-		}
-		if(TYPE_STRING.equals(type)) {
-			return value;
-		}
-		if(TYPE_FILE.equals(type)) {
-			return value;
-		}
-		if(TYPE_DIR.equals(type)) {
-			return value;
-		}
-		throw new RuntimeException("Can not decode value of unrecognized type: "+type);
+		return OptionValuesDecoder.decode(value, getTypeClass());
 	}
 }

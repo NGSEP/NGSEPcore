@@ -850,26 +850,26 @@ homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative t
 <argument>GENOME</argument>
 <argument>OUT_PREFIX</argument>
 
-<option id="s" type="DOUBLE" default="0.001" attribute="snvRate">
+<option id="s" type="DOUBLE" defaultConstant="DEF_SNV_RATE" attribute="snvRate">
 Proportion of reference basepairs with simulated SNV events
 </option>
-<option id="i" type="DOUBLE" default="0.0001" attribute="indelRate">
+<option id="i" type="DOUBLE" defaultConstant="DEF_INDEL_RATE" attribute="indelRate">
 Proportion of reference basepairs with simulated indel events
 </option>
-<option id="f" type="DOUBLE" default="0.1" attribute="mutatedSTRFraction">
+<option id="f" type="DOUBLE" defaultConstant="DEF_MUTATED_STR_FRACTION" attribute="mutatedSTRFraction">
 Fraction of input STRs for which a mutation will be simulated
 </option>
 <option id="t" type="FILE" attribute="strsFile">
 Path to a text file describing the known STRs in the given genome
 </option>
-<option id="u" type="INT" default="14" attribute="strUnitIndex">
+<option id="u" type="INT" defaultConstant="DEF_STR_UNIT_INDEX" attribute="strUnitIndex">
 Zero-based index in the STR file where the unit sequence is located
 </option>
-<option id="d" type="STRING" default="Simulated" attribute="sampleId">
+<option id="d" type="STRING" defaultConstant="DEF_SAMPLE_ID" attribute="sampleId">
 ID of the simulated sample. Appears in the VCF header and as part of the name of the sequences in the
 simulated genome
 </option>
-<option id="p" type="INT" default="2" attribute="ploidy">
+<option id="p" type="INT" defaultConstant="DEF_PLOIDY" attribute="ploidy">
 Ploidy of the simulated sample 
 </option>
 </command>

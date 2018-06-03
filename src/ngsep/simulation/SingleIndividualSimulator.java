@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
@@ -67,25 +68,14 @@ public class SingleIndividualSimulator {
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.genome = new ReferenceGenome(args[i++]);
 		String outPrefix = args[i++];
-		instance.loadSTRs();
-		instance.simulateVariants();
-		instance.buildAssembly();
-		try (PrintStream outGenome = new PrintStream(outPrefix+".fa")) {
-			instance.saveIndividualGenome(outGenome);
-		}
-		try (PrintStream outVariants = new PrintStream(outPrefix+".vcf")) {
-			instance.saveVariants(outVariants);
-		}
-	}
-	
+		instance.runSimulation(outPrefix);
+	}	
 	/**
 	 * @return the log
 	 */
 	public Logger getLog() {
 		return log;
 	}
-
-
 
 	/**
 	 * @param log the log to set
@@ -94,8 +84,6 @@ public class SingleIndividualSimulator {
 		this.log = log;
 	}
 
-
-
 	/**
 	 * @return the progressNotifier
 	 */
@@ -103,16 +91,12 @@ public class SingleIndividualSimulator {
 		return progressNotifier;
 	}
 
-
-
 	/**
 	 * @param progressNotifier the progressNotifier to set
 	 */
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
-
 
 	/**
 	 * @return the genome
@@ -141,8 +125,8 @@ public class SingleIndividualSimulator {
 	public void setSnvRate(double snvRate) {
 		this.snvRate = snvRate;
 	}
-	public void setSnvRate(Double snvRate) {
-		this.setSnvRate(snvRate.doubleValue());
+	public void setSnvRate(String value) {
+		this.setSnvRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	/**
@@ -159,8 +143,8 @@ public class SingleIndividualSimulator {
 		this.indelRate = indelRate;
 	}
 	
-	public void setIndelRate(Double indelRate) {
-		this.setIndelRate(indelRate.doubleValue());
+	public void setIndelRate(String value) {
+		this.setIndelRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
 	/**
@@ -177,8 +161,8 @@ public class SingleIndividualSimulator {
 		this.mutatedSTRFraction = mutatedSTRFraction;
 	}
 	
-	public void setMutatedSTRFraction(Double mutatedSTRFraction) {
-		this.setMutatedSTRFraction(mutatedSTRFraction.doubleValue());
+	public void setMutatedSTRFraction(String value) {
+		this.setMutatedSTRFraction((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	/**
@@ -195,8 +179,8 @@ public class SingleIndividualSimulator {
 		this.ploidy = ploidy;
 	}
 	
-	public void setPloidy(Integer ploidy) {
-		this.setPloidy(ploidy.byteValue());
+	public void setPloidy(String value) {
+		this.setPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	/**
@@ -213,8 +197,8 @@ public class SingleIndividualSimulator {
 		this.strUnitIndex = strUnitIndex;
 	}
 	
-	public void setStrUnitIndex(Integer strUnitIndex) {
-		this.setStrUnitIndex(strUnitIndex.intValue());
+	public void setStrUnitIndex(String value) {
+		this.setStrUnitIndex((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	/**
@@ -244,7 +228,29 @@ public class SingleIndividualSimulator {
 	public void setStrsFile(String strsFile) {
 		this.strsFile = strsFile;
 	}
+	
+	public void runSimulation(String outPrefix) throws IOException {
+		logParameters();
+		loadSTRs();
+		simulateVariants();
+		buildAssembly();
+		try (PrintStream outGenome = new PrintStream(outPrefix+".fa")) {
+			saveIndividualGenome(outGenome);
+		}
+		try (PrintStream outVariants = new PrintStream(outPrefix+".vcf")) {
+			saveVariants(outVariants);
+		}
+	}
 
+	public void logParameters() {
+		log.info("SNV rate: "+snvRate);
+		log.info("Indel rate: "+indelRate);
+		log.info("Mutated STR fraction: "+mutatedSTRFraction);
+		log.info("Ploidy: "+ploidy);
+		log.info("Sample id: "+sampleId);
+		log.info("STRs file: "+strsFile);
+		log.info("STRs unit sequence column: "+strUnitIndex);
+	}
 	public void loadSTRs() throws IOException {
 		if(strsFile==null) return; 
 		log.info("Loading STRs from "+strsFile);

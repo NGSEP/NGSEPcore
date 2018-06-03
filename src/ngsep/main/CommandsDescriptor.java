@@ -47,7 +47,8 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_ID="id";
 	public static final String ATTRIBUTE_CLASSNAME="class";
 	public static final String ATTRIBUTE_TYPE="type";
-	public static final String ATTRIBUTE_DEFAULT="default";
+	public static final String ATTRIBUTE_DEFAULT_VALUE="default";
+	public static final String ATTRIBUTE_DEFAULT_CONSTANT="defaultConstant";
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ATTRIBUTE_PRINTHELP="printHelp";
@@ -175,8 +176,10 @@ public class CommandsDescriptor {
 					CommandOption opt = new CommandOption(optId);
 					String optType = elem.getAttribute(ATTRIBUTE_TYPE);
 					if(optType!=null && optType.length()>0) opt.setType(optType);
-					String optDefault = elem.getAttribute(ATTRIBUTE_DEFAULT);
+					String optDefault = elem.getAttribute(ATTRIBUTE_DEFAULT_VALUE);
 					if(optDefault!=null && optDefault.trim().length()>0) opt.setDefaultValue(optDefault);
+					String optDefaultConstant = elem.getAttribute(ATTRIBUTE_DEFAULT_CONSTANT);
+					if(optDefaultConstant!=null && optDefaultConstant.trim().length()>0) opt.setDefaultValue(loadValue(program,optDefaultConstant));
 					String optAttribute = elem.getAttribute(ATTRIBUTE_ATTRIBUTE);
 					if(optAttribute!=null && optAttribute.trim().length()>0) opt.setAttribute(optAttribute);
 					String optDeprecated = elem.getAttribute(ATTRIBUTE_DEPRECATED);
@@ -189,6 +192,14 @@ public class CommandsDescriptor {
 			}
 		}
 		return cmd;
+	}
+	private String loadValue(Class<?> program, String constantName) {
+		try {
+			return ""+program.getDeclaredField(constantName).get(null);
+		} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
+			throw new RuntimeException(e);
+		}
+		
 	}
 	/**
 	 * Loads a text node as a String
@@ -373,12 +384,16 @@ public class CommandsDescriptor {
 				value = true;
 			} else {
 				i++;
-				try {
-					value = o.decodeValue(args[i]);
-				} catch (NumberFormatException e) {
-					System.err.println("Error loading value \""+args[i]+"\" for option \""+o.getAttribute()+"\" of type "+o.getType()+": "+e.getMessage());
-					printHelp(programInstance.getClass());
-					System.exit(1);
+				if(setter.getParameterTypes()[0].equals(String.class)) {
+					value = args[i];
+				} else {
+					try {
+						value = o.decodeValue(args[i]);
+					} catch (NumberFormatException e) {
+						System.err.println("Error loading value \""+args[i]+"\" for option \""+o.getAttribute()+"\" of type "+o.getType()+": "+e.getMessage());
+						printHelp(programInstance.getClass());
+						System.exit(1);
+					}
 				}
 			}
 			try {
