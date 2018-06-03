@@ -385,68 +385,66 @@ public class ReadsAligner {
 				}
 			}
 		}
+		//At this point we have the minimum cost to reach the corner (A.length-1,A[0].length-1)
+		//Now we have to go back and remember the decisions
+		
+		//Stack containing the alignment of the reference
+		Stack<String> referenceAlingment = new Stack<>();
 
-		//En este punto ya se tiene el costo m�nimo para llegar a (A.length-1,A[0].length-1)
-		//Ahora hay que devolverse y recordar las desiciones
+		//Stack containing the alignment of the sequence
+		Stack<String> sequenceAlignment = new Stack<>();
 
-		//pila que guarda el alineamiento de la palabra1
-		Stack<String> pila1 = new Stack<>();
-
-		//pila que guarda el alineamiento de la palabra2
-		Stack<String> pila2 = new Stack<>();
-
-		//Guarda la posicion actual en la que va el algoritmo que se devuelte
-		//inicialmente est� en la esquina inferior derecha, donde est� el costo m�nimo para llegar a (A.length-1,A[0].length-1)
+		//Stores the actual position of the go back algorithm.
+		//It starts in in the right bottom corner, where is the minimum cost to reach (A.length-1,A[0].length-1)
 		int[] r={lowestMatrix.length-1,lowestMatrix[0].length-1};
 
-		//Mientras no lleguemos al inicio siga devolviendose
+		//The algorithm keeps going back until reach origin
 		while(!(r[0]==0 && r[1]==0))
 		{
-			//Se desea hallar cual camino tiene menor costo
-
+			//We want the path with lowest cost
 			try
 			{
-
-				//Se revisa si es desde arriba
+				//We check if the lower comes from above
 				if( lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]][r[1]-1] && lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]-1] [r[1]-1])
 				{
 					int[] a = { r[0]-1,r[1]};
 
-					//Se agrega un guion en la palabra 2
-					pila2.push("-");
+					//Add - to sequenceAlignment
+					sequenceAlignment.push("-");
 
-					//Se mete la siguiente letra en la palabra 1
-					pila1.push(stackReference.pop());
+					//Push next character to stackReference
+					referenceAlingment.push(stackReference.pop());
 
-					// se actualiza r que es la posici�n actual
+
+					// update r, the actual position
 					r=a;
 				}
-				//Se revisa si es desde la izquierda
+				//We check if the lower comes from left
 				else if( lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]] && lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]-1])
 				{
 					int[] a = { r[0],r[1]-1};
 
-					//Se agrega un guion en la palabra 1
-					pila1.push("-");
+					//Add - to referenceAlingment
+					referenceAlingment.push("-");
 
-					//Se mete la siguiente letra en la palabra 2
-					pila2.push(stackSequence.pop());
+					//Push next character to sequenceAlignment
+					sequenceAlignment.push(stackSequence.pop());
 
-					// se actualiza r que es la posici�n actual
+					// update r, the actual position
 					r=a;
 				}
-				//Se revisa la diagonal superior izquierda
+				//Check diagonal (left upper)
 				else
 				{
 					int[] a = { r[0]-1,r[1]-1};
 
-					//Se mete la siguiente letra en la palabra 1
-					pila1.push(stackReference.pop());
+					//Push next character to referenceAlingment
+					referenceAlingment.push(stackReference.pop());
 
-					//Se mete la siguiente letra en la palabra 2
-					pila2.push(stackSequence.pop());
+					//Push next character to sequenceAlignment
+					sequenceAlignment.push(stackSequence.pop());
 
-					// se actualiza r que es la posici�n actual
+					// update r, the actual position
 					r=a;
 				}
 			}
@@ -460,13 +458,13 @@ public class ReadsAligner {
 				{
 					int[] a = { r[0]-1,r[1]};
 
-					//Se agrega un guion en la palabra 2
-					pila2.push("-");
+					//Add - to sequenceAlignment
+					sequenceAlignment.push("-");
 
-					//Se mete la siguiente letra en la palabra 1
-					pila1.push(stackReference.pop());
+					//Push next character to referenceAlingment
+					referenceAlingment.push(stackReference.pop());
 
-					// se actualiza r que es la posici�n actual
+					// update r, the actual position
 					r=a;
 				}
 				//si no debe haber camino por la izquierda
@@ -474,26 +472,25 @@ public class ReadsAligner {
 				{
 					int[] a = { r[0],r[1]-1};
 
-					//Se agrega un guion en la palabra 1
-					pila1.push("-");
+					//Add - to referenceAlingment
+					referenceAlingment.push("-");
 
-					//Se mete la siguiente letra en la palabra 2
-					pila2.push(stackSequence.pop());
+					//Push next character to sequenceAlignment
+					sequenceAlignment.push(stackSequence.pop());
 
-					// se actualiza r que es la posici�n actual
+					// update r, the actual position
 					r=a;
 				}
 			}
 
 		}
-		//Ya se tienen las palabras en las pilas, ahora se voltean y se imprimen
-
+		//Words are in stacks just is needed to turn them around
 		String p1="";
 		String p2="";
-		while(!pila1.isEmpty() && !pila2.isEmpty())
+		while(!referenceAlingment.isEmpty() && !sequenceAlignment.isEmpty())
 		{
-			p1+=pila1.pop();
-			p2+=pila2.pop();
+			p1+=referenceAlingment.pop();
+			p2+=sequenceAlignment.pop();
 		}
 
 		//System.out.println(p1);
