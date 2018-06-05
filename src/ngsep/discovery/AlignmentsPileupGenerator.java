@@ -167,6 +167,14 @@ public class AlignmentsPileupGenerator {
 		this.keepRunning = keepRunning;
 	}
 
+	public void processFiles(List<String> alignmentFiles) throws IOException {
+		if(alignmentFiles.size()==0) return;
+		if(alignmentFiles.size()==1) {
+			processFile(alignmentFiles.get(0));
+			return;
+		}
+		//TODO: Parallel processing of more than one file
+	}
 	public void processFile(String filename) throws IOException {
 		
 		int processedAlns = 0;

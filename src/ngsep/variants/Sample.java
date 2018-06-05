@@ -21,6 +21,7 @@ package ngsep.variants;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ public class Sample {
 	private String id;
 	private String group;
 	private byte normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
+	private Set<String> readGroups = new HashSet<>();
 	
 	
 	public Sample(String id) {
@@ -56,6 +58,19 @@ public class Sample {
 	}
 	public void setNormalPloidy(byte normalPloidy) {
 		this.normalPloidy = normalPloidy;
+	}
+	
+	/**
+	 * @return the readGroups
+	 */
+	public Set<String> getReadGroups() {
+		return readGroups;
+	}
+	/**
+	 * @param readGroups the readGroups to set
+	 */
+	public void addReadGroup(String readGroup) {
+		this.readGroups.add(readGroup);
 	}
 	/**
 	 * Gets a list with the groups represented by the given list of samples
