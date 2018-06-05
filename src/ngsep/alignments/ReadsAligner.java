@@ -396,18 +396,18 @@ public class ReadsAligner {
 
 		//Stores the actual position of the go back algorithm.
 		//It starts in in the right bottom corner, where is the minimum cost to reach (A.length-1,A[0].length-1)
-		int[] r={lowestMatrix.length-1,lowestMatrix[0].length-1};
+		int[] actualPositionBackTrack={lowestMatrix.length-1,lowestMatrix[0].length-1};
 
 		//The algorithm keeps going back until reach origin
-		while(!(r[0]==0 && r[1]==0))
+		while(!(actualPositionBackTrack[0]==0 && actualPositionBackTrack[1]==0))
 		{
 			//We want the path with lowest cost
 			try
 			{
 				//We check if the lower comes from above
-				if( lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]][r[1]-1] && lowestMatrix [r[0]-1] [r[1]] < lowestMatrix [r[0]-1] [r[1]-1])
+				if( lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]] < lowestMatrix [actualPositionBackTrack[0]][actualPositionBackTrack[1]-1] && lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]] < lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]-1])
 				{
-					int[] a = { r[0]-1,r[1]};
+					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
 
 					//Add - to sequenceAlignment
 					sequenceAlignment.push("-");
@@ -417,12 +417,12 @@ public class ReadsAligner {
 
 
 					// update r, the actual position
-					r=a;
+					actualPositionBackTrack=a;
 				}
 				//We check if the lower comes from left
-				else if( lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]] && lowestMatrix [r[0]] [r[1]-1] < lowestMatrix [r[0]-1][r[1]-1])
+				else if( lowestMatrix [actualPositionBackTrack[0]] [actualPositionBackTrack[1]-1] < lowestMatrix [actualPositionBackTrack[0]-1][actualPositionBackTrack[1]] && lowestMatrix [actualPositionBackTrack[0]] [actualPositionBackTrack[1]-1] < lowestMatrix [actualPositionBackTrack[0]-1][actualPositionBackTrack[1]-1])
 				{
-					int[] a = { r[0],r[1]-1};
+					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
 
 					//Add - to referenceAlingment
 					referenceAlingment.push("-");
@@ -431,12 +431,12 @@ public class ReadsAligner {
 					sequenceAlignment.push(stackSequence.pop());
 
 					// update r, the actual position
-					r=a;
+					actualPositionBackTrack=a;
 				}
 				//Check diagonal (left upper)
 				else
 				{
-					int[] a = { r[0]-1,r[1]-1};
+					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]-1};
 
 					//Push next character to referenceAlingment
 					referenceAlingment.push(stackReference.pop());
@@ -445,18 +445,18 @@ public class ReadsAligner {
 					sequenceAlignment.push(stackSequence.pop());
 
 					// update r, the actual position
-					r=a;
+					actualPositionBackTrack=a;
 				}
 			}
 			catch (Exception e) 
 			{
 //				e.printStackTrace();
-				// se trat� de llegar a posici�n negativa
+				//A negative position is reached
 
-				//si hay camino desde arriba
-				if(r[0]-1>=0)
+				//If there is a path from above
+				if(actualPositionBackTrack[0]-1>=0)
 				{
-					int[] a = { r[0]-1,r[1]};
+					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
 
 					//Add - to sequenceAlignment
 					sequenceAlignment.push("-");
@@ -465,12 +465,12 @@ public class ReadsAligner {
 					referenceAlingment.push(stackReference.pop());
 
 					// update r, the actual position
-					r=a;
+					actualPositionBackTrack=a;
 				}
-				//si no debe haber camino por la izquierda
+				//There must be a path from left
 				else
 				{
-					int[] a = { r[0],r[1]-1};
+					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
 
 					//Add - to referenceAlingment
 					referenceAlingment.push("-");
@@ -479,7 +479,7 @@ public class ReadsAligner {
 					sequenceAlignment.push(stackSequence.pop());
 
 					// update r, the actual position
-					r=a;
+					actualPositionBackTrack=a;
 				}
 			}
 
