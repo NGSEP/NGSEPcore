@@ -20,7 +20,9 @@
 package ngsep.discovery;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import ngsep.alignments.ReadAlignment;
 
@@ -38,6 +40,9 @@ public class PileupRecord {
 	private boolean str = false;
 	private boolean newSTR = false;
 	private boolean embedded = false;
+	
+	//Cache of allele lists
+	private Map<Integer, List<PileupAlleleCall>> alleleCallsCache = new HashMap<>();
 	
 	//DEBUG
 	private int posPrint = -1;
@@ -89,10 +94,14 @@ public class PileupRecord {
 		this.referenceSpan = referenceSpan;
 	}
 
-	//Even positions have calls, odd positions have quality scores
-	public List<String> getAlleleCalls(int referenceSpan) {
-		
-		List<String> alleleCalls = new ArrayList<String>();
+	/**
+	 * Calculates the allele calls from the pileup position with the given span
+	 * @param referenceSpan Length in reference basepairs of the desired allele calls
+	 * @return List<PileupAlleleCall> List of allele calls
+	 */
+	public List<PileupAlleleCall> getAlleleCalls(int referenceSpan) {
+		if(alleleCallsCache.containsKey(referenceSpan)) return alleleCallsCache.get(referenceSpan);
+		List<PileupAlleleCall> alleleCalls = new ArrayList<>();
 		for(ReadAlignment aln:alignments) { 
 			CharSequence alleleCall = aln.getAlleleCall(position);
 			//if(position==posPrint) System.out.println("getAlleleCalls. Allele call: "+alleleCall+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" refSpan: "+referenceSpan+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd());
@@ -106,10 +115,11 @@ public class PileupRecord {
 				alnQS = aln.getBaseQualityScores(position, lastBase);
 			} else if (alleleCall.length()>1) continue;
 			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str);
-			alleleCalls.add(alleleCall.toString());
-			alleleCalls.add(alnQS);
+			PileupAlleleCall call = new PileupAlleleCall(alleleCall.toString(), alnQS);
+			call.setReadGroup(aln.getReadGroup());
 		}
 		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size()/2);
+		alleleCallsCache.put(referenceSpan, alleleCalls);
 		return alleleCalls;
 	}
 
@@ -118,6 +128,7 @@ public class PileupRecord {
 		if(aln.getLast()<position) return;
 		alignments.add(aln);
 		if(aln.isUnique()) numUniqueAlns++;
+		alleleCallsCache.clear();
 	}
 	
 	public List<ReadAlignment> getAlignments() {
