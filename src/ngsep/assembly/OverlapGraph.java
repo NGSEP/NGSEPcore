@@ -569,6 +569,7 @@ public class OverlapGraph {
 		System.out.print(intrs[j] + ",");
 	    System.out.println(intrs[sequences.size() - 1]);
 	}
+	
 
 	int sum = 0;
 	for (List<Edge> e : edgs.values()) {
