@@ -47,7 +47,7 @@ public class VariantPileupListener implements PileupListener {
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
 	private ReferenceGenome genome;
-	private SequenceDistanceMeasure distanceMeasure = new HammingSequenceDistanceMeasure();
+	private static SequenceDistanceMeasure distanceMeasure = new HammingSequenceDistanceMeasure();
 	private byte normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
@@ -57,6 +57,7 @@ public class VariantPileupListener implements PileupListener {
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
 	private boolean genotypeAll = false;
+	private Set<String> readGroups;
 	
 	//Filters applied on variants discovery
 	public static final int DEF_MIN_ALT_COVERAGE = 0;
@@ -144,6 +145,19 @@ public class VariantPileupListener implements PileupListener {
 			this.inputVariants.addAll(inputVariants);
 		}
 	}
+	
+	/**
+	 * @return the readGroups
+	 */
+	public Set<String> getReadGroups() {
+		return readGroups;
+	}
+	/**
+	 * @param readGroups the readGroups to set
+	 */
+	public void setReadGroups(Set<String> readGroups) {
+		this.readGroups = readGroups;
+	}
 	public List<CalledGenomicVariant> getCalledVariants() {
 		return calledVariants;
 	}
@@ -175,12 +189,12 @@ public class VariantPileupListener implements PileupListener {
 				}
 			}
 		}
-		CountsHelper helperSNV = calculateCountsSNV(pileup);
+		CountsHelper helperSNV = calculateCountsSNV(pileup,maxBaseQS, readGroups);
 		//if(pileup.getFirst()==82) System.out.println("Pileup last: "+pileup.getLast()+" Reference allele: "+referenceAllele); 
 		//if(pileup.getPosition()==9052) System.out.println("Reference allele: "+referenceAllele+". Pileup last: "+pileup.getLast());
 		CalledGenomicVariant calledVar;
 		if(referenceAllele.length()>1) {
-			CountsHelper helperIndel = calculateCountsIndel(pileup,variant,referenceAllele); 
+			CountsHelper helperIndel = calculateCountsIndel(pileup,variant,referenceAllele, readGroups); 
 			calledVar = callIndel(pileup, helperIndel, variant);
 			if(variant == null) {
 				if(calledVar!=null && (pileup.isInputSTR() || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()))) {
@@ -209,27 +223,27 @@ public class VariantPileupListener implements PileupListener {
 		return null;
 	}
 	
-	private CountsHelper calculateCountsSNV (PileupRecord pileup) {
+	static CountsHelper calculateCountsSNV (PileupRecord pileup, short maxBaseQS, Set<String> readGroups) {
 		CountsHelper answer = new CountsHelper();
 		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		List<String> callsWithScores = pileup.getAlleleCalls(1);
-		for(int i=0;i<callsWithScores.size();i+=2) {
-			String call = callsWithScores.get(i);
-			String scores = callsWithScores.get(i+1);
-			short q = (short)(scores.charAt(0)-33);
-			answer.updateCounts(call.substring(0,1), q, (short)255);
+		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
+		for(PileupAlleleCall call:calls ) {
+			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
+			short q = (short)(call.getQualityScores().charAt(0)-33);
+			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, (short)255);
 		}
 		return answer;
 	}
 	//PRE: Reference allele is not null and its length is larger than 1. If variant is not null, reference allele is the reference allele of the variant
-	private CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele) {
-		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
+	static CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele, Set<String> readGroups) {
+		//if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
 		String [] indelAlleles;
-		List<String> callsWithScores = pileup.getAlleleCalls(referenceAllele.length());
+		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length());
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();
-		for(int i=0;i<callsWithScores.size();i+=2) {
-			String allele = callsWithScores.get(i);
-			if(pileup.getPosition()==posPrint) System.out.println("Adding to cluster allele call: "+allele.toUpperCase());
+		for(PileupAlleleCall call:calls) {
+			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
+			String allele = call.getSequence().toString();
+			//if(pileup.getPosition()==posPrint) System.out.println("Adding to cluster allele call: "+allele.toUpperCase());
 			acBuilder.addAlleleCall(allele.toUpperCase());	
 		}
 		Map<String, List<String>> alleleClusters;
@@ -245,12 +259,12 @@ public class VariantPileupListener implements PileupListener {
 			indelAllelesSet.add(referenceAllele);
 			indelAlleles = new String [indelAllelesSet.size()];
 			indelAlleles[0] = referenceAllele;
-			if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
+			//if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
 			int i=1;
 			for (String allele:indelAllelesSet) {
 				if(!allele.equals(referenceAllele)) {
 					indelAlleles[i] = allele;
-					if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
+					//if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
 					i++;
 				}
 			}
@@ -260,12 +274,12 @@ public class VariantPileupListener implements PileupListener {
 		//if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
 		for(String allele:alleleClusters.keySet()) {
 			List<String> cluster = alleleClusters.get(allele);
-			if(pileup.getPosition()==posPrint) System.out.println("Next allele: "+allele+" count: "+cluster.size());
+			//if(pileup.getPosition()==posPrint) System.out.println("Next allele: "+allele+" count: "+cluster.size());
 			for(String call:cluster) {
 				double p = distanceMeasure.calculateNormalizedDistance(allele, call)+0.01;
 				p = p*p;
 				short q = PhredScoreHelper.calculatePhredScore(p);
-				if(pileup.getPosition()==posPrint) System.out.println("Next call to count: "+call+" quality: "+q);
+				//if(pileup.getPosition()==posPrint) System.out.println("Next call to count: "+call+" quality: "+q);
 				answer.updateCounts(allele, q, (short)255);
 			}
 		}

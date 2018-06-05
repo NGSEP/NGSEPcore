@@ -24,8 +24,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
@@ -58,7 +61,9 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	
 	private ReadAlignmentFileIterator currentIterator = null;
 	private QualifiedSequenceList sequences = new QualifiedSequenceList();
-	private QualifiedSequenceList readGroups = new QualifiedSequenceList();
+	//Memory saver to avoid loading the read group for each alignment
+	private QualifiedSequenceList readGroupIds = new QualifiedSequenceList();
+	private Map<String,String> sampleIdsByReadGroup = new HashMap<>();
 	
 	private int requiredFlags = 0;
 	private int filterFlags = 0;
@@ -105,9 +110,15 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	}
 	
 	public List<String> getReadGroups() {
-		return readGroups.getNamesStringList();
+		return readGroupIds.getNamesStringList();
 	}
 	
+	/**
+	 * @return the sampleIdsByReadGroup
+	 */
+	public Map<String, String> getSampleIdsByReadGroup() {
+		return Collections.unmodifiableMap(sampleIdsByReadGroup);
+	}
 	public int getLoadMode() {
 		return loadMode;
 	}
@@ -150,7 +161,12 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	}
 	private void loadHeader(SAMFileHeader header) throws IOException {
 		for(SAMReadGroupRecord rgRecord:header.getReadGroups()) {
-			readGroups.addOrLookupName(rgRecord.getId());
+			String id = rgRecord.getId();
+			String sampleId = rgRecord.getSample();
+			if(!sampleIdsByReadGroup.containsKey(id)) {
+				readGroupIds.addOrLookupName(id);
+				sampleIdsByReadGroup.put(id, sampleId);
+			}
 		}
 		if(!validateHeader) return;
 		SAMSequenceDictionary dict = header.getSequenceDictionary();
@@ -207,7 +223,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		answer.setInferredInsertSize(alnRecord.getInferredInsertSize());
 		SAMReadGroupRecord readGroup = alnRecord.getReadGroup();
 		if(readGroup!=null) {
-			String id = readGroups.addOrLookupName(readGroup.getId()).getName();
+			String id = readGroupIds.addOrLookupName(readGroup.getId()).getName();
 			answer.setReadGroup(id);
 		}
 		if (loadMode >= LOAD_MODE_SEQUENCE) {
