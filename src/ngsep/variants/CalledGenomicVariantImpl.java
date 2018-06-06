@@ -96,7 +96,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 		Iterator<String> it = calledAlleles.iterator();
 		for(int i=0;it.hasNext();i++) {
 			String calledAllele = it.next();
-			if(callsSet.contains(calledAllele)) throw new RuntimeException("Error creating called genomic variant at "+variant.getReference()+":"+variant.getFirst()+". Duplicated called allele: "+calledAllele);
+			if(callsSet.contains(calledAllele)) throw new RuntimeException("Error creating called genomic variant at "+variant.getSequenceName()+":"+variant.getFirst()+". Duplicated called allele: "+calledAllele);
 			callsSet.add(calledAllele);
 			for(int j=0;j<alleles.length;j++) {
 				if(calledAllele.equals(alleles[j])) {
@@ -104,7 +104,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 					break;
 				}
 			}
-			if(idxCalledAlleles[i]==-1) throw new RuntimeException("Error creating called genomic variant at "+variant.getReference()+":"+variant.getFirst()+". Called allele: "+calledAllele+" does not appear in the list of alleles of this variant");
+			if(idxCalledAlleles[i]==-1) throw new RuntimeException("Error creating called genomic variant at "+variant.getSequenceName()+":"+variant.getFirst()+". Called allele: "+calledAllele+" does not appear in the list of alleles of this variant");
 		}
 		allelesCopyNumber = new byte [alleles.length];
 		setIndexesCalledAlleles(idxCalledAlleles);

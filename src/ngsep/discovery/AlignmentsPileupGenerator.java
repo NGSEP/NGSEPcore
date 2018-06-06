@@ -213,7 +213,6 @@ public class AlignmentsPileupGenerator {
 			while (keepRunning) {
 				ReadAlignment aln = chooseNextAln(iterators,currentAlignments, cmp);
 				if(aln==null) break;
-				//if(aln.getFirst()==149799) System.out.println("Proccesing alignment "+aln.getReadName()+" group id: "+aln.getReadGroup());
 				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
 				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
 				if(querySeq!=null) {
@@ -229,6 +228,7 @@ public class AlignmentsPileupGenerator {
 						continue;
 					}
 				}
+				//if(aln.getFirst()==187623) System.out.println("Processing alignment "+aln.getReadName()+" group id: "+aln.getReadGroup()+" End: "+aln.getLast()+" CIGAR: "+aln.getCigarString());
 				processAlignment(aln);
 			}
 			if(keepRunning) notifyEndOfAlignments();
@@ -420,11 +420,11 @@ public class AlignmentsPileupGenerator {
 			currentReferencePos++;
 			return false;
 		}
-		if(currentReferencePos==posPrint) System.out.println("Number of pending alignments: "+pendingAlignments.size()+". time: "+System.currentTimeMillis());
+		if(currentReferencePos==posPrint) System.out.println("Number of pending alignments: "+pendingAlignments.size());
 		
 		PileupRecord pileup = new PileupRecord(currentReferenceSequence.getName(), currentReferencePos);
 		for(ReadAlignment aln:pendingAlignments) {
-			if(currentReferencePos==posPrint)System.out.println("Next pending: "+aln.getReadName()+" located at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+". time: "+System.currentTimeMillis());
+			if(currentReferencePos==posPrint)System.out.println("Next pending: "+aln.getReadName()+" located at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+". group: "+aln.getReadGroup()+" cigar: "+aln.getCigarString());
 			pileup.addAlignment(aln);
 		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments()+". time: "+System.currentTimeMillis());

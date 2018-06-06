@@ -241,7 +241,7 @@ Ignore this many base pairs from the 3' end of the reads.
 <option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY">
 Ploidy of the samples.
 </option>
-<option id="knownSTRs" type="FILE">
+<option id="knownSTRs" type="FILE" attribute="knownSTRsFile">
 File with known short tandem repeats (STRs). This is a text file with at least three
 columns: chromosome, first position and last position. Positions should be 1-based and
 inclusive.

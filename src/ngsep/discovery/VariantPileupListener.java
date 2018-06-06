@@ -331,11 +331,19 @@ public class VariantPileupListener implements PileupListener {
 				double [][] reportPosteriors = makeReportProbs(postProbs, indexes);
 				int [] indexesMax = getIndexesMaxGenotype(reportPosteriors, 0);
 				double maxP = reportPosteriors[indexesMax[0]][indexesMax[1]];
-				if(indexesMax[0]!=indexesMax[1]) maxP+= reportPosteriors[indexesMax[1]][indexesMax[0]];
+				byte [] genotype;
+				if(indexesMax[0]!=indexesMax[1]) {
+					maxP+= reportPosteriors[indexesMax[1]][indexesMax[0]];
+					genotype = new byte[2];
+					genotype[0] = (byte) indexesMax[0];
+					genotype[1] = (byte) indexesMax[1];
+				} else {
+					genotype = new byte[1];
+					genotype[0] = (byte) indexesMax[0];
+				}
 				short gq = PhredScoreHelper.calculatePhredScore(1-maxP);
-				//Triallelic variant
-				byte [] indexesAsBytes = {(byte) indexesMax[0],(byte) indexesMax[1]}; 
-				CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(variant, indexesAsBytes);
+				//Triallelic variant 
+				CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(variant, genotype);
 				call.setGenotypeQuality(gq);
 				call.setTotalReadDepth(depth);
 				VariantCallReport report = new VariantCallReport(alleles, reportCounts, reportLogs);

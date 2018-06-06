@@ -923,7 +923,7 @@ public class VariantsDetector implements PileupListener {
 		}
 	}
 
-	private GenomicRegionSortedCollection<GenomicVariant> makeNonRedundantSTRs( List<GenomicRegion> strs) {
+	static GenomicRegionSortedCollection<GenomicVariant> makeNonRedundantSTRs( ReferenceGenome genome, List<GenomicRegion> strs) {
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		GenomicRegionSortedCollection<GenomicRegion> strsC = new GenomicRegionSortedCollection<GenomicRegion>(sequences);
 		strsC.addAll(strs);
@@ -935,9 +935,9 @@ public class VariantsDetector implements PileupListener {
 			int last = 0;
 			GenomicRegionSortedCollection<GenomicRegion> seqSTRs = strsC.getSequenceRegions(seqName);
 			for(GenomicRegion r:seqSTRs) {
-				if(last == 0 || !mergeSTRs(seqName,first,last,r)) {
+				if(last == 0 || !mergeSTRs(genome, seqName,first,last,r)) {
 					if(last>0) {
-						GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+						GenomicVariant nextVar = makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
 						if(nextVar!=null) answer.add(nextVar);
 					}
 					
@@ -946,14 +946,14 @@ public class VariantsDetector implements PileupListener {
 				last = r.getLast();
 			}
 			if(last>0) {
-				GenomicVariant nextVar = makeSTRVariant(seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+				GenomicVariant nextVar = makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
 				if(nextVar!=null) answer.add(nextVar);
 			}
 		}
 		
 		return answer;
 	}
-	private boolean mergeSTRs(String sequenceName, int first, int last, GenomicRegion r) {
+	private static boolean mergeSTRs(ReferenceGenome genome, String sequenceName, int first, int last, GenomicRegion r) {
 		if(r.getFirst()-last>5) return false;
 		else if (r.getFirst()-last<=2) return true;
 		CharSequence ref1 = genome.getReference(sequenceName, Math.max(first, last-10), last);
@@ -963,11 +963,11 @@ public class VariantsDetector implements PileupListener {
 	}
 
 
-	private GenomicVariant makeSTRVariant(String sequenceName, int first, int last) {
+	private static GenomicVariant makeSTRVariant(ReferenceGenome genome, String sequenceName, int first, int last) {
 		List<String> alleles = new ArrayList<String>();
 		CharSequence reference = genome.getReference(sequenceName, first, last);
 		if(reference==null) {
-			log.warning("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
+			System.err.println("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
 			return null;
 		}
 		alleles.add(reference.toString());
@@ -991,7 +991,7 @@ public class VariantsDetector implements PileupListener {
 			//TODO: Choose the best format
 			SimpleGenomicRegionFileHandler rfh = new SimpleGenomicRegionFileHandler();
 			List<GenomicRegion> strs = rfh.loadRegions(knownSTRsFile);
-			indelRealigner.setInputVariants(makeNonRedundantSTRs(strs));
+			indelRealigner.setInputVariants(makeNonRedundantSTRs(genome, strs));
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
