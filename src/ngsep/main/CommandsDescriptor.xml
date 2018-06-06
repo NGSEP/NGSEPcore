@@ -1,4 +1,4 @@
-<NGSEP version="3.1.2" date="14-04-2018">
+<NGSEP version="3.2.0" date="29-06-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -186,6 +186,80 @@ Turn off SNV detection.
 Turn off finding new CNVs with the read depth analysis.
 </option>
 </command>
+
+<command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
+<intro>Module for direct calculation of variants from multiple samples.</intro>
+<title>Calling variants over multiple samples</title>
+<description>
+This modules allows to call variants over a group of samples, either pooled or separated by files or
+read group tags. Requires one or more read alignment files in SAM or BAM format and the reference
+genome that was used to produce the alignments.
+</description>
+<argument>OPTIONS</argument>
+<argument>REFERENCE</argument>
+<argument>OUTPUT_FILE</argument>
+<argument>BAM_FILE*</argument>
+<option id="h" type="DOUBLE" defaultConstant="DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
+Heterozygosity rate
+</option>
+<option id="querySeq" type="STRING" attribute="querySeq">
+Call variants just for this sequence.
+</option>
+<option id="first" type="INT" attribute="queryFirst">
+Call variants just from this position in the given query sequence.
+</option>
+<option id="last" type="INT"  attribute="queryLast">
+Call variants just until this position in the given query sequence.
+</option>
+<option id="ignoreLowerCaseRef" attribute="ignoreLowerCaseRef">
+Ignore sites where the reference allele is lower case.
+</option>
+<option id="maxAlnsPerStartPos" type="INT" defaultConstant="DEF_MAX_ALNS_PER_START_POS" attribute="maxAlnsPerStartPos">
+Maximum number of alignments allowed to start
+at the same reference site.
+</option>
+<option id="p" attribute="processNonUniquePrimaryAlignments">
+Process non unique primary alignments in the pileup process. 
+The default behavior is to process alignments that are unique (see option -minMQ) 
+</option> 
+<option id="s" attribute="processSecondaryAlignments">
+Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
+</option>
+<option id="minQuality" type="INT" defaultConstant="DEF_MIN_QUALITY" attribute="minQuality">
+Minimum genotype quality to accept a SNV call.
+</option>
+<option id="maxBaseQS" type="INT" defaultConstant="DEF_MAX_BASE_QS" attribute="maxBaseQS">
+Maximum value allowed for a base quality score. Larger values will be equalized to this value.
+Use zero to disable this filter
+</option>
+<option id="ignore5" type="INT" default="0" attribute="basesToIgnore5P">
+Ignore this many base pairs from the 5' end of the reads.
+</option>
+<option id="ignore3" type="INT" default="0" attribute="basesToIgnore3P">
+Ignore this many base pairs from the 3' end of the reads.
+</option>
+<option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY">
+Ploidy of the samples.
+</option>
+<option id="knownSTRs" type="FILE">
+File with known short tandem repeats (STRs). This is a text file with at least three
+columns: chromosome, first position and last position. Positions should be 1-based and
+inclusive.
+</option>
+<option id="embeddedSNVs">
+Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
+no SNV will be called within an STR.
+</option>
+<option id="minMQ" type="INT" defaultConstant="DEF_MIN_MQ">
+Minimum mapping quality to call an alignment unique
+</option>
+<option id="knownVariants" type="FILE">
+VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
+</option>
+
+
+</command>
+
 
 <command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" printHelp="false">
 <intro>

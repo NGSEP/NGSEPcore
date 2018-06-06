@@ -358,7 +358,7 @@ public class CommandsDescriptor {
 	 * @return int Next index to be processed in the arguments array
 	 */
 	public int loadOptions(Object programInstance, String [] args ) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") ||args[0].equals("--help")){
+		if (args.length == 0 || (args.length==1 && args[0].equals("-h") || args[0].equals("--help"))){
 			printHelp(programInstance.getClass());
 			System.exit(1);
 		}

@@ -163,6 +163,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		for(SAMReadGroupRecord rgRecord:header.getReadGroups()) {
 			String id = rgRecord.getId();
 			String sampleId = rgRecord.getSample();
+			if(sampleId ==null) sampleId = id;
 			if(!sampleIdsByReadGroup.containsKey(id)) {
 				readGroupIds.addOrLookupName(id);
 				sampleIdsByReadGroup.put(id, sampleId);

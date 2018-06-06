@@ -27,6 +27,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.sequences.QualifiedSequence;
@@ -35,6 +36,9 @@ import ngsep.variants.GenomicVariant;
 
 
 public class AlignmentsPileupGenerator {
+	
+	public static final int DEF_MAX_ALNS_PER_START_POS = 5;
+	
 	private Logger log = Logger.getLogger(AlignmentsPileupGenerator.class.getName());
 	private List<PileupListener> listeners = new ArrayList<PileupListener>();
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
@@ -53,7 +57,7 @@ public class AlignmentsPileupGenerator {
 	private int currentReferencePos = 0;
 	private int currentReferenceLast = 0;
 	private boolean keepRunning = true;
-	private int maxAlnsPerStartPos = 5;
+	private int maxAlnsPerStartPos = DEF_MAX_ALNS_PER_START_POS;
 	private boolean processNonUniquePrimaryAlignments = false;
 	private boolean processSecondaryAlignments = false;
 	private byte basesToIgnore5P = 0;
@@ -70,6 +74,20 @@ public class AlignmentsPileupGenerator {
 		seqInputVariants = null;
 	}
 	
+	/**
+	 * @return the sequencesMetadata
+	 */
+	public QualifiedSequenceList getSequencesMetadata() {
+		return sequencesMetadata;
+	}
+
+	/**
+	 * @param sequencesMetadata the sequencesMetadata to set
+	 */
+	public void setSequencesMetadata(QualifiedSequenceList sequencesMetadata) {
+		this.sequencesMetadata = sequencesMetadata;
+	}
+
 	public String getQuerySeq() {
 		return querySeq;
 	}
@@ -166,27 +184,84 @@ public class AlignmentsPileupGenerator {
 	public void setKeepRunning(boolean keepRunning) {
 		this.keepRunning = keepRunning;
 	}
-
+	
+	/**
+	 * Parallel processing of several bam files
+	 * PRE: The generator has the sequences metadata information
+	 * @param alignmentFiles
+	 * @throws IOException
+	 */
 	public void processFiles(List<String> alignmentFiles) throws IOException {
-		if(alignmentFiles.size()==0) return;
-		if(alignmentFiles.size()==1) {
+		int n = alignmentFiles.size();
+		if(n==0) return;
+		if(n==1) {
 			processFile(alignmentFiles.get(0));
 			return;
 		}
-		//TODO: Parallel processing of more than one file
+		
+		ReadAlignmentFileReader [] readers = new ReadAlignmentFileReader[n];
+		ReadAlignment [] currentAlignments = new ReadAlignment[n];
+		List<Iterator<ReadAlignment>> iterators = new ArrayList<>();
+		try {
+			for(int i=0;i<n;i++) {
+				readers[i] = createReader(alignmentFiles.get(i));
+				iterators.add(readers[i].iterator());
+				currentAlignments[i] = iterators.get(i).hasNext()?iterators.get(i).next():null; 
+			}
+			boolean querySeqFound = false;
+			GenomicRegionComparator cmp = new GenomicRegionComparator(sequencesMetadata);
+			while (keepRunning) {
+				ReadAlignment aln = chooseNextAln(iterators,currentAlignments, cmp);
+				if(aln==null) break;
+				//if(aln.getFirst()==149799) System.out.println("Proccesing alignment "+aln.getReadName()+" group id: "+aln.getReadGroup());
+				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
+				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
+				if(querySeq!=null) {
+					if(querySeq.equals(aln.getSequenceName())) {
+						querySeqFound = true;
+						//Object reuse to make the equals method O(1) in future queries
+						querySeq = aln.getSequenceName();
+						if(aln.getFirst()>queryLast) break;
+						if(queryFirst > aln.getLast()) continue;
+					} else if(querySeqFound) {
+						break;
+					} else {
+						continue;
+					}
+				}
+				processAlignment(aln);
+			}
+			if(keepRunning) notifyEndOfAlignments();
+			else log.warning("Cancelled process");
+			
+		} finally {
+			for(int i=0;i<n;i++) {
+				if(readers[i]!=null)readers[i].close(); 
+			}
+		}
 	}
+
+	private ReadAlignment chooseNextAln(List<Iterator<ReadAlignment>> iterators, ReadAlignment[] currentAlignments, GenomicRegionComparator cmp) {
+		ReadAlignment answer = null;
+		int minPos = -1;
+		for(int i=0;i<currentAlignments.length;i++) {
+			if(currentAlignments[i]!=null) {
+				if(answer == null || cmp.compare(answer, currentAlignments[i])>0) {
+					answer = currentAlignments[i];
+					minPos = i;
+				}
+			}
+		}
+		if(minPos>=0) {
+			currentAlignments[minPos] = iterators.get(minPos).hasNext()?iterators.get(minPos).next():null; 
+		}
+		return answer;
+	}
+
 	public void processFile(String filename) throws IOException {
 		
 		int processedAlns = 0;
-		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
-			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
-			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
-			if(!processSecondaryAlignments ) {
-				filterFlags+=ReadAlignment.FLAG_SECONDARY;
-				if(!processNonUniquePrimaryAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
-			}
-			reader.setFilterFlags(filterFlags);
-			reader.setMinMQ(minMQ);
+		try (ReadAlignmentFileReader reader = createReader(filename)) {
 			sequencesMetadata = reader.getSequences();
 			boolean querySeqFound = false;
 			Iterator<ReadAlignment> it = reader.iterator();
@@ -216,6 +291,20 @@ public class AlignmentsPileupGenerator {
 		
 		if(keepRunning) notifyEndOfAlignments();
 		else log.warning("Cancelled process");
+	}
+
+	private ReadAlignmentFileReader createReader(String filename) throws IOException {
+		ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename);
+		//reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
+		reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_FULL);
+		int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
+		if(!processSecondaryAlignments ) {
+			filterFlags+=ReadAlignment.FLAG_SECONDARY;
+			if(!processNonUniquePrimaryAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
+		}
+		reader.setFilterFlags(filterFlags);
+		reader.setMinMQ(minMQ);
+		return reader;
 	}
 	
 	public void processAlignment(ReadAlignment aln) {

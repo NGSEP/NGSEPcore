@@ -117,8 +117,9 @@ public class PileupRecord {
 			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str);
 			PileupAlleleCall call = new PileupAlleleCall(alleleCall.toString(), alnQS);
 			call.setReadGroup(aln.getReadGroup());
+			alleleCalls.add(call);
 		}
-		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size()/2);
+		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size());
 		alleleCallsCache.put(referenceSpan, alleleCalls);
 		return alleleCalls;
 	}

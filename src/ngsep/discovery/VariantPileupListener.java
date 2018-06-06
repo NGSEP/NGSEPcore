@@ -44,25 +44,29 @@ import ngsep.variants.VariantCallReport;
 
 public class VariantPileupListener implements PileupListener {
 	
+	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
+	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
+	public static final short DEF_MAX_BASE_QS = 0;
+	public static final int DEF_MIN_ALT_COVERAGE = 0;
+	public static final int DEF_MAX_ALT_COVERAGE = 0;
+	public static final short DEF_MIN_QUALITY = 0;
+	
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
 	private ReferenceGenome genome;
 	private static SequenceDistanceMeasure distanceMeasure = new HammingSequenceDistanceMeasure();
 	private byte normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
-	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
-	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
+	
 	
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	private short maxBaseQS=0; 
+	private short maxBaseQS=DEF_MAX_BASE_QS; 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
 	private boolean genotypeAll = false;
 	private Set<String> readGroups;
 	
 	//Filters applied on variants discovery
-	public static final int DEF_MIN_ALT_COVERAGE = 0;
-	public static final int DEF_MAX_ALT_COVERAGE = 0;
-	public static final short DEF_MIN_QUALITY = 0;
+	
 	private int minAltCoverage=DEF_MIN_ALT_COVERAGE;
 	private int maxAltCoverage=DEF_MAX_ALT_COVERAGE;
 	private short minQuality = DEF_MIN_QUALITY;

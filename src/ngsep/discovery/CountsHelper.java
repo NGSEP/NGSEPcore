@@ -20,6 +20,7 @@
 package ngsep.discovery;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import JSci.maths.ExtraMath;
@@ -262,6 +263,10 @@ public class CountsHelper {
 		counts = new int [nAlleles];
 		logConditionalProbs = new double [nAlleles][nAlleles];
 		startCounts();
+	}
+	
+	public List<String> getAllelesList() {
+		return Collections.unmodifiableList(alleles);
 	}
 	
 	public short getMaxBaseQS() {

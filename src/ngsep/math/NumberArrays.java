@@ -93,6 +93,11 @@ public class NumberArrays {
 		}
 		return idxMax;
 	}
+	public static int getSum (int [] numbers) {
+		int sum = 0;
+		for(int i=0;i<numbers.length;i++) sum+=numbers[i];
+		return sum;
+	}
 	
 	public static int getIndexMaximum (double [] numbers) {
 		return getIndexMaximum(numbers,-1);
@@ -105,5 +110,10 @@ public class NumberArrays {
 			}
 		}
 		return idxMax;
+	}
+	public static double getSum (double [] numbers) {
+		double sum = 0;
+		for(int i=0;i<numbers.length;i++) sum+=numbers[i];
+		return sum;
 	}
 }
