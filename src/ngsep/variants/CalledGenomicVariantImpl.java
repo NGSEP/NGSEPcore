@@ -55,7 +55,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	/**
 	 * Creates a new call for a biallelic genomic variant with a default encoding of genotypes for a biallelic variant
 	 * representing the number of alternative alleles
-	 * @param variant to call. It must be biallelic
+	 * @param variant to call. It must be either a reference only site or a biallelic variant
 	 * @param genotype -1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous alternative
 	 */
 	public CalledGenomicVariantImpl (GenomicVariant variant, int genotype) {
