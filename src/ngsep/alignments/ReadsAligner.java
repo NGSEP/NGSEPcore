@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.alignments;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
@@ -91,6 +93,8 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String fMIndexFile, String readsFile, PrintStream out) throws IOException {
+		ReadAlignmentFileWriter readAlignment = new ReadAlignmentFileWriter(out);
+
 		FMIndex fMIndex = FMIndex.loadFromBinaries(fMIndexFile);
 		int totalReads = 0;
 		int readsAligned = 0;
@@ -101,7 +105,7 @@ public class ReadsAligner {
 			while(it.hasNext()) {
 				RawRead read = it.next();
 				
-				int numAlns = alignRead(fMIndex, read, out);
+				int numAlns = alignRead(fMIndex, read, out,readAlignment);
 				totalReads++;
 				if(numAlns>0) readsAligned++;
 				if(numAlns==1) uniqueAlignments++;
@@ -119,7 +123,7 @@ public class ReadsAligner {
 
 
 
-	private int alignRead(FMIndex fMIndex, RawRead read, PrintStream out) {
+	private int alignRead(FMIndex fMIndex, RawRead read, PrintStream out, ReadAlignmentFileWriter readAlignment) {
 		List<ReadAlignment> alignments = search(fMIndex, read);
 		int i=0;
 		for (ReadAlignment aln: alignments) {
@@ -130,6 +134,8 @@ public class ReadsAligner {
 				qual = new StringBuilder(qual).reverse().toString();
 			}
 			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
+			readAlignment.write(aln);
+			/*
 			out.println(
 					//1.query name
 					read.getName()+"\t"+
@@ -165,6 +171,7 @@ public class ReadsAligner {
 					qual
 
 					);
+					*/
 			i++;
 		}
 		return alignments.size();
