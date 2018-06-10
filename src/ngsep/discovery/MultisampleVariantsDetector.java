@@ -112,6 +112,35 @@ public class MultisampleVariantsDetector implements PileupListener {
 		}
 		instance.findVariants();
 	}
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
 
 	/**
 	 * @return the heterozygosityRate
