@@ -100,9 +100,10 @@ public class VariantsDetector implements PileupListener {
 	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
 	private VariantPileupListener varListener = new VariantPileupListener();
 	
-	//Output streams
+	//Objects for output files
+	private String outVarsFilename = null;
 	private PrintStream outVars = null;
-	private PrintStream outStructural = null;
+	private String outSVFilename = null;
 	
 	//Progress tracking for external control
 	private ProgressNotifier progressNotifier = null;
@@ -251,10 +252,10 @@ public class VariantsDetector implements PileupListener {
 		detector.alignmentsFile = args[i++];
 		String outPrefix = args[i++];
 		if(detector.findSNVs) {
-			detector.setOutVars(new PrintStream(outPrefix+".vcf"));
+			detector.setOutVarsFilename(outPrefix+".vcf");
 		}
 		if(detector.runRDAnalysis || detector.findRepeats || detector.runRPAnalysis) {
-			detector.setOutStructural(new PrintStream(outPrefix+"_SV.gff"));
+			detector.setOutSVFilename(outPrefix+"_SV.gff");
 		}
 		if(hetRate==-1 && detector.normalPloidy==1) {
 			detector.setHeterozygosityRate(VariantPileupListener.DEF_HETEROZYGOSITY_RATE_HAPLOID);
@@ -458,21 +459,39 @@ public class VariantsDetector implements PileupListener {
 		this.genome = genome;
 	}
 
-	public void setOutVars(PrintStream outVars) {
-		this.outVars = outVars;
-	}
-
-	public void setOutStructural(PrintStream outStructural) {
-		this.outStructural = outStructural;
-	}
 	
-	public PrintStream getOutVars() {
-		return outVars;
+
+	/**
+	 * @return the outVarsFilename
+	 */
+	public String getOutVarsFilename() {
+		return outVarsFilename;
 	}
 
-	public PrintStream getOutStructural() {
-		return outStructural;
+
+	/**
+	 * @param outVarsFilename the outVarsFilename to set
+	 */
+	public void setOutVarsFilename(String outVarsFilename) {
+		this.outVarsFilename = outVarsFilename;
 	}
+
+
+	/**
+	 * @return the outSVFilename
+	 */
+	public String getOutSVFilename() {
+		return outSVFilename;
+	}
+
+
+	/**
+	 * @param outSVFilename the outSVFilename to set
+	 */
+	public void setOutSVFilename(String outSVFilename) {
+		this.outSVFilename = outSVFilename;
+	}
+
 
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
@@ -683,60 +702,62 @@ public class VariantsDetector implements PileupListener {
 		if(!runRDAnalysis) findNewCNVs = false;
 		printParameters();
 		validateParameters();
-		try {
-			if(genome==null) {
-				log.info("Loading reference sequence from file: "+referenceFile);
-				genome = new ReferenceGenome(referenceFile);
+		
+		if(genome==null) {
+			log.info("Loading reference sequence from file: "+referenceFile);
+			genome = new ReferenceGenome(referenceFile);
+		}
+		referenceGenomeSize = genome.getTotalLength();
+		log.info("Loaded "+genome.getNumSequences()+" sequences");
+		if(progressNotifier!=null && !progressNotifier.keepRunning(1)) return;  
+		calledSVs = new GenomicRegionSortedCollection<CalledGenomicVariant>(genome.getSequencesMetadata());
+		if (knownSVsFile!=null) {
+			calledSVs.addAll(svsFH.loadVariants(knownSVsFile));
+			log.info("Loaded "+calledSVs.size()+" input SVs");
+		}
+		if(findRepeats) {
+			log.info("Finding repeats using reads with multiple alignments");
+			List<CalledCNV> multipleMCnvs = mmRegsCalc.calculateMultipleMappingRegions(alignmentsFile);
+			log.info("Found "+multipleMCnvs.size()+" repeats");
+			calledSVs.addAll(multipleMCnvs);
+			log.info("Number of SVs after finding repeats: "+calledSVs.size());
+		}
+		if(progressNotifier!=null && !progressNotifier.keepRunning(4)) return;
+		//Call CNVs based on read depth
+		if(runRDAnalysis) {
+			log.info("Running read depth (RD) analysis to identify/genotype CNVs");
+			List<CalledCNV> cnvsRD = runRDAnalysis();
+			if(cnvsRD !=null) {
+				log.info("Found "+cnvsRD.size()+" new CNVs running the RD analysis");
+				calledSVs.addAll(cnvsRD);
 			}
-			referenceGenomeSize = genome.getTotalLength();
-			log.info("Loaded "+genome.getNumSequences()+" sequences");
-			if(progressNotifier!=null && !progressNotifier.keepRunning(1)) return;  
-			calledSVs = new GenomicRegionSortedCollection<CalledGenomicVariant>(genome.getSequencesMetadata());
-			if (knownSVsFile!=null) {
-				calledSVs.addAll(svsFH.loadVariants(knownSVsFile));
-				log.info("Loaded "+calledSVs.size()+" input SVs");
-			}
-			if(findRepeats) {
-				log.info("Finding repeats using reads with multiple alignments");
-				List<CalledCNV> multipleMCnvs = mmRegsCalc.calculateMultipleMappingRegions(alignmentsFile);
-				log.info("Found "+multipleMCnvs.size()+" repeats");
-				calledSVs.addAll(multipleMCnvs);
-				log.info("Number of SVs after finding repeats: "+calledSVs.size());
-			}
-			if(progressNotifier!=null && !progressNotifier.keepRunning(4)) return;
-			//Call CNVs based on read depth
-			if(runRDAnalysis) {
-				log.info("Running read depth (RD) analysis to identify/genotype CNVs");
-				List<CalledCNV> cnvsRD = runRDAnalysis();
-				if(cnvsRD !=null) {
-					log.info("Found "+cnvsRD.size()+" new CNVs running the RD analysis");
-					calledSVs.addAll(cnvsRD);
-				}
-				log.info("Total number of SVs: "+calledSVs.size());
-			}
-			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
-			if(runRPAnalysis) {
-				log.info("Running read pair (RP) analysis to identify indels and inversions");
-				List<CalledGenomicVariant> svsRP = runRPAnalysis(); 
-				log.info("Found "+svsRP.size()+" new structural variants running the RP analysis");
-				calledSVs.addAll(svsRP);
-				log.info("Total number of SVs: "+calledSVs.size());
-			}
-			if(progressNotifier!=null && !progressNotifier.keepRunning(15)) return;
-			if(findSNVs) {
+			log.info("Total number of SVs: "+calledSVs.size());
+		}
+		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
+		if(runRPAnalysis) {
+			log.info("Running read pair (RP) analysis to identify indels and inversions");
+			List<CalledGenomicVariant> svsRP = runRPAnalysis(); 
+			log.info("Found "+svsRP.size()+" new structural variants running the RP analysis");
+			calledSVs.addAll(svsRP);
+			log.info("Total number of SVs: "+calledSVs.size());
+		}
+		if(progressNotifier!=null && !progressNotifier.keepRunning(15)) return;
+		if(findSNVs) {
+			try {
 				findSNVS();
+			} finally {
+				if(outVars!=null) outVars.close();
+				dispose();
 			}
-			if(outStructural!=null) {
-				log.info("Saving structural variants");
+		}
+		if(outSVFilename!=null) {
+			log.info("Saving structural variants");
+			try (PrintStream outStructural = new PrintStream(outSVFilename)) {
 				GFFVariantsFileHandler svHandler = new GFFVariantsFileHandler();
 				svHandler.saveVariants(calledSVs.asList(), outStructural);
 			}
-			log.info("Variants Detector Completed");
-		} finally {
-			if(outVars!=null) outVars.close();
-			if(outStructural!=null) outStructural.close();
-			dispose();
 		}
+		log.info("Variants Detector Completed");
 	}
 
 
@@ -995,7 +1016,8 @@ public class VariantsDetector implements PileupListener {
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
-		if(outVars!=null) {
+		if(outVarsFilename!=null) {
+			outVars = new PrintStream(outVarsFilename);
 			header = VCFFileHeader.makeDefaultEmptyHeader();
 			Sample s = new Sample(sampleId);
 			s.setNormalPloidy(normalPloidy);
