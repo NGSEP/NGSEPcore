@@ -94,6 +94,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
 	private short minQuality = DEF_MIN_QUALITY;
 	private short maxBaseQS = DEF_MAX_BASE_QS;
+	private byte normalPloidy = DEF_PLOIDY;
 	
 	
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
@@ -140,7 +141,34 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
+	
+	/**
+	 * @return the alignmentFiles
+	 */
+	public List<String> getAlignmentFiles() {
+		return alignmentFiles;
+	}
 
+	/**
+	 * @param alignmentFiles the alignmentFiles to set
+	 */
+	public void setAlignmentFiles(List<String> alignmentFiles) {
+		this.alignmentFiles = alignmentFiles;
+	}
+
+	/**
+	 * @return the outFilename
+	 */
+	public String getOutFilename() {
+		return outFilename;
+	}
+
+	/**
+	 * @param outFilename the outFilename to set
+	 */
+	public void setOutFilename(String outFilename) {
+		this.outFilename = outFilename;
+	}
 
 	/**
 	 * @return the heterozygosityRate
@@ -212,6 +240,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setIgnoreLowerCaseRef(boolean ignoreLowerCaseRef) {
 		this.ignoreLowerCaseRef = ignoreLowerCaseRef;
 	}
+	
+	public void setIgnoreLowerCaseRef(Boolean ignoreLowerCaseRef) {
+		setIgnoreLowerCaseRef(ignoreLowerCaseRef.booleanValue());
+	}
 
 	/**
 	 * @return the callEmbeddedSNVs
@@ -225,6 +257,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	 */
 	public void setCallEmbeddedSNVs(boolean callEmbeddedSNVs) {
 		this.callEmbeddedSNVs = callEmbeddedSNVs;
+	}
+	
+	public void setCallEmbeddedSNVs(Boolean callEmbeddedSNVs) {
+		setCallEmbeddedSNVs(callEmbeddedSNVs.booleanValue());
 	}
 	
 	public void setGenome(ReferenceGenome genome) {
@@ -256,8 +292,23 @@ public class MultisampleVariantsDetector implements PileupListener {
 		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
+	/**
+	 * @return the normalPloidy
+	 */
+	public byte getNormalPloidy() {
+		return normalPloidy;
+	}
+
+	/**
+	 * @param normalPloidy the normalPloidy to set
+	 */
+	public void setNormalPloidy(byte normalPloidy) {
+		this.normalPloidy = normalPloidy;
+	}
 	
-	
+	public void setNormalPloidy(String value) {
+		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
 
 	/**
 	 * @return
@@ -350,6 +401,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setProcessNonUniquePrimaryAlignments(boolean processNonUniquePrimaryAlignments) {
 		generator.setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments);
 	}
+	
+	public void setProcessNonUniquePrimaryAlignments(Boolean processNonUniquePrimaryAlignments) {
+		setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments.booleanValue());
+	}
 
 	/**
 	 * @return
@@ -365,6 +420,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	 */
 	public void setProcessSecondaryAlignments(boolean processSecondaryAlignments) {
 		generator.setProcessSecondaryAlignments(processSecondaryAlignments);
+	}
+	
+	public void setProcessSecondaryAlignments(Boolean processSecondaryAlignments) {
+		setProcessSecondaryAlignments(processSecondaryAlignments.booleanValue());
 	}
 
 	/**

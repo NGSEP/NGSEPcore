@@ -34,6 +34,7 @@ import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -132,10 +133,10 @@ public class VariantsDetector implements PileupListener {
 				detector.setQuerySeq(args[i]);
 			} else if("-first".equals(args[i])) {
 				i++;
-				detector.setQueryFirst(Integer.parseInt(args[i]));
+				detector.setQueryFirst(args[i]);
 			} else if("-last".equals(args[i])) {
 				i++;
-				detector.setQueryLast(Integer.parseInt(args[i]));
+				detector.setQueryLast(args[i]);
 			} else if("-h".equals(args[i])) {
 				i++;
 				hetRate = Double.parseDouble(args[i]);
@@ -145,7 +146,7 @@ public class VariantsDetector implements PileupListener {
 			} else if("-maxAlnsPerStartPos".equals(args[i])) {
 				//Default 5
 				i++;
-				detector.setMaxAlnsPerStartPos(Integer.parseInt(args[i]));
+				detector.setMaxAlnsPerStartPos(args[i]);
 			} else if("-p".equals(args[i])) {
 				detector.setProcessNonUniquePrimaryAlignments(true);
 			} else if("-s".equals(args[i])) {
@@ -153,28 +154,28 @@ public class VariantsDetector implements PileupListener {
 			} else if("-minAltCoverage".equals(args[i])) {
 				//Default 0
 				i++;
-				detector.setMinAltCoverage(Integer.parseInt(args[i]));
+				detector.setMinAltCoverage(args[i]);
 			} else if("-maxAltCoverage".equals(args[i])) {
 				//Default 0 (No filter)
 				i++;
-				detector.setMaxAltCoverage(Integer.parseInt(args[i]));
+				detector.setMaxAltCoverage(args[i]);
 			} else if("-minQuality".equals(args[i])) {
 				//Default 0 (No filter)
 				i++;
-				detector.setMinQuality(Short.parseShort(args[i]));
+				detector.setMinQuality(args[i]);
 			} else if("-maxBaseQS".equals(args[i])) {
 				//Default 0
 				i++;
-				detector.setMaxBaseQS(Short.parseShort(args[i]));
+				detector.setMaxBaseQS(args[i]);
 			} else if("-ignore5".equals(args[i])) {
 				i++;
-				detector.setBasesToIgnore5P(Byte.parseByte(args[i]));
+				detector.setBasesToIgnore5P(args[i]);
 			} else if("-ignore3".equals(args[i])) {
 				i++;
-				detector.setBasesToIgnore3P(Byte.parseByte(args[i]));
+				detector.setBasesToIgnore3P(args[i]);
 			} else if("-ploidy".equals(args[i])) {
 				i++;
-				detector.setNormalPloidy(Byte.parseByte(args[i]));
+				detector.setNormalPloidy(args[i]);
 			} else if("-knownSVs".equals(args[i])) {
 				i++;
 				detector.setKnownSVsFile(args[i]);
@@ -185,32 +186,32 @@ public class VariantsDetector implements PileupListener {
 				detector.setCallEmbeddedSNVs(true);
 			} else if("-genomeSize".equals(args[i])) {
 				i++;
-				detector.setInputGenomeSize(Long.parseLong(args[i]));
+				detector.setInputGenomeSize(args[i]);
 			} else if("-binSize".equals(args[i])) {
 				i++;
-				detector.setBinSize(Integer.parseInt(args[i]));
+				detector.setBinSize(args[i]);
 			} else if("-algCNV".equals(args[i])) {
 				i++;
 				detector.setAlgCNV(args[i]);
 			} else if ("-maxPCTOverlapCNVs".equals(args[i])) {
 				i++;
-				detector.setMaxPCTOverlapCNVs(Integer.parseInt(args[i]));
+				detector.setMaxPCTOverlapCNVs(args[i]);
 			} else if("-maxLenDeletion".equals(args[i])) {
 				i++;
-				detector.setMaxLengthDeletion(Integer.parseInt(args[i]));
+				detector.setMaxLengthDeletion(args[i]);
 			} else if("-ignoreProperPairFlag".equals(args[i])) {
 				detector.setIgnoreProperPairFlag(true);
 			} else if("-minSVQuality".equals(args[i])) {
 				i++;
-				detector.setMinSVQuality(Short.parseShort(args[i]));
+				detector.setMinSVQuality(args[i]);
 			} else if("-sizeSRSeed".equals(args[i])) {
 				i++;
-				detector.setSplitReadSeed(Integer.parseInt(args[i]));
+				detector.setSplitReadSeed(args[i]);
 			} else if("-ignoreXS".equals(args[i])) {
 				System.err.println("WARN: Deprecated option -ignoreXS. Use minMQ option to control which alignments are considered unique");
 			} else if("-minMQ".equals(args[i])) {
 				i++;
-				detector.setMinMQ(Integer.parseInt(args[i]));
+				detector.setMinMQ(args[i]);
 			} else if("-sampleId".equals(args[i])) {
 				i++;
 				detector.setSampleId(args[i]);
@@ -270,9 +271,8 @@ public class VariantsDetector implements PileupListener {
 		rpAnalyzer.setMinMQ(minMQ);
 	}
 	
-	public void setMinMQ(Integer minMQ) {
-		this.setMinMQ(minMQ.intValue());
-		
+	public void setMinMQ(String value) {
+		setMinMQ((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public String getReferenceFile() {
@@ -300,8 +300,8 @@ public class VariantsDetector implements PileupListener {
 		varListener.setNormalPloidy(normalPloidy);
 	}
 	
-	public void setNormalPloidy(Byte normalPloidy) {
-		setNormalPloidy(normalPloidy.byteValue());
+	public void setNormalPloidy(String value) {
+		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
 
@@ -417,6 +417,10 @@ public class VariantsDetector implements PileupListener {
 	public void setBinSize(Integer binSize) {
 		setBinSize(binSize.intValue());
 	}
+	
+	public void setBinSize(String value) {
+		setBinSize((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 
 	public long getInputGenomeSize() {
 		return inputGenomeSize;
@@ -426,8 +430,8 @@ public class VariantsDetector implements PileupListener {
 		this.inputGenomeSize = inputGenomeSize;
 	}
 	
-	public void setInputGenomeSize(Long inputGenomeSize) {
-		setInputGenomeSize(inputGenomeSize.longValue());
+	public void setInputGenomeSize(String value) {
+		setInputGenomeSize((long)OptionValuesDecoder.decode(value, Long.class));
 	}
 
 	public String getSampleId() {
@@ -509,16 +513,16 @@ public class VariantsDetector implements PileupListener {
 		generator.setQueryFirst(queryFirst);
 	}
 	
-	public void setQueryFirst(Integer queryFirst) {
-		setQueryFirst(queryFirst.intValue());
+	public void setQueryFirst(String value) {
+		setQueryFirst((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public void setQueryLast(int queryLast) {
 		generator.setQueryLast(queryLast);
 	}
 	
-	public void setQueryLast(Integer queryLast) {
-		setQueryLast(queryLast.intValue());
+	public void setQueryLast(String value) {
+		setQueryLast((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 
@@ -526,16 +530,16 @@ public class VariantsDetector implements PileupListener {
 		varListener.setHeterozygosityRate(heterozygosityRate);
 	}
 	
-	public void setHeterozygosityRate(Double heterozygosityRate) {
-		setHeterozygosityRate(heterozygosityRate.doubleValue());
+	public void setHeterozygosityRate(String value) {
+		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public void setMaxBaseQS(short maxBaseQS) {
 		varListener.setMaxBaseQS(maxBaseQS);
 	}
 	
-	public void setMaxBaseQS(Short maxBaseQS) {
-		setMaxBaseQS(maxBaseQS.shortValue());
+	public void setMaxBaseQS(String value) {
+		setMaxBaseQS((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 
 	public void setIgnoreLowerCaseRef(boolean ignoreLowerCaseRef) {
@@ -550,8 +554,8 @@ public class VariantsDetector implements PileupListener {
 		generator.setMaxAlnsPerStartPos(maxAlnsPerStartPos);
 	}
 	
-	public void setMaxAlnsPerStartPos(Integer maxAlnsPerStartPos) {
-		setMaxAlnsPerStartPos(maxAlnsPerStartPos.intValue());
+	public void setMaxAlnsPerStartPos(String value) {
+		setMaxAlnsPerStartPos((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public boolean isProcessNonUniquePrimaryAlignments() {
@@ -588,8 +592,8 @@ public class VariantsDetector implements PileupListener {
 		generator.setBasesToIgnore5P(basesToIgnore5P);
 	}
 	
-	public void setBasesToIgnore5P(Byte basesToIgnore5P) {
-		setBasesToIgnore5P(basesToIgnore5P.byteValue());
+	public void setBasesToIgnore5P(String value) {
+		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	public byte getBasesToIgnore3P() {
@@ -600,8 +604,8 @@ public class VariantsDetector implements PileupListener {
 		generator.setBasesToIgnore3P(basesToIgnore3P);
 	}
 	
-	public void setBasesToIgnore3P(Byte basesToIgnore3P) {
-		setBasesToIgnore3P(basesToIgnore3P.byteValue());
+	public void setBasesToIgnore3P(String value) {
+		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	public void setGenotypeAll(boolean genotypeAll) {
@@ -616,24 +620,24 @@ public class VariantsDetector implements PileupListener {
 		varListener.setMaxAltCoverage(maxAltCoverage);
 	}
 	
-	public void setMaxAltCoverage(Integer maxAltCoverage) {
-		if(maxAltCoverage!=null) varListener.setMaxAltCoverage(maxAltCoverage);
+	public void setMaxAltCoverage(String value) {
+		setMaxAltCoverage((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public void setMinAltCoverage(int minAltCoverage) {
 		varListener.setMinAltCoverage(minAltCoverage);
 	}
 	
-	public void setMinAltCoverage(Integer minAltCoverage) {
-		if(minAltCoverage!=null) varListener.setMinAltCoverage(minAltCoverage);
+	public void setMinAltCoverage(String value) {
+		setMinAltCoverage((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public void setMinQuality (short minQuality) {
 		varListener.setMinQuality(minQuality);
 	}
 	
-	public void setMinQuality (Short minQuality) {
-		setMinQuality(minQuality.shortValue());
+	public void setMinQuality(String value) {
+		setMinQuality((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 	
 	public int getMaxLengthDeletion() {
@@ -644,8 +648,8 @@ public class VariantsDetector implements PileupListener {
 		rpAnalyzer.setMaxLengthDeletion(maxLengthDeletion);
 	}
 
-	public void setMaxLengthDeletion(Integer maxLengthDeletion) {
-		setMaxLengthDeletion(maxLengthDeletion.intValue());
+	public void setMaxLengthDeletion(String value) {
+		setMaxLengthDeletion((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public short getMinSVQuality() {
@@ -656,8 +660,8 @@ public class VariantsDetector implements PileupListener {
 		this.minSVQuality = minSVQuality;
 	}
 
-	public void setMinSVQuality(Short minQuality) {
-		setMinSVQuality(minQuality.shortValue());
+	public void setMinSVQuality(String value) {
+		setMinSVQuality((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 	
 	
@@ -670,8 +674,8 @@ public class VariantsDetector implements PileupListener {
 		this.maxPCTOverlapCNVs = maxPCTOverlapCNVs;
 	}
 	
-	public void setMaxPCTOverlapCNVs(Integer maxPCTOverlapCNVs) {
-		this.setMaxPCTOverlapCNVs(maxPCTOverlapCNVs.intValue());
+	public void setMaxPCTOverlapCNVs(String value) {
+		setMaxPCTOverlapCNVs((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public int getSplitReadSeed() {
@@ -681,11 +685,9 @@ public class VariantsDetector implements PileupListener {
 	public void setSplitReadSeed(int seedSize) {
 		rpAnalyzer.setSeedSize(seedSize);
 	}
-
-	public void setSplitReadSeed(Integer seedSize) {
-		setSplitReadSeed(seedSize.intValue());
-	}
-	
+	public void setSplitReadSeed(String value) {
+		setSplitReadSeed((int)OptionValuesDecoder.decode(value, Integer.class));
+	}	
 	public boolean isIgnoreProperPairFlag() {
 		return rpAnalyzer.isIgnoreProperPairFlag();
 	}
