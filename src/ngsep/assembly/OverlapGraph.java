@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,8 +33,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.stream.Stream;
 
 import javax.sound.midi.Sequence;
@@ -55,6 +59,8 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class OverlapGraph {
     static final int SEARCH_KMER_LENGTH = 15;
+    static final int SEARCH_KMER_DISTANCE = 10;
+    static final int SEARCH_KMER_OVERLAP = SEARCH_KMER_LENGTH - SEARCH_KMER_DISTANCE;
     private static final String[] fastq = { ".fastq", ".fastq.gz" };
     private static final String[] fasta = { ".fasta" };
 
@@ -82,7 +88,9 @@ public class OverlapGraph {
 	    index.loadUnnamedSequences("", sequences);
 	});
 
-	time("Built overlaps.", () -> findOverlaps());
+	time("Built overlaps.", () -> findOverlaps2());
+
+	System.out.println(embeddedOverlaps.size());
 
 	time("Simplify the grap.", () -> {
 	    searchSequences();
@@ -118,6 +126,216 @@ public class OverlapGraph {
 		RawRead read = it.next();
 		DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
 		sequences.add(characters);
+	    }
+	}
+    }
+
+    @SuppressWarnings("unchecked")
+    public void findOverlaps2() {
+	List<ReadOverlap2>[] procesingHits = new List[sequences.size()];
+	Queue<ReadOverlap2>[] hits = new Queue[sequences.size()];
+
+	for (int idSequence = 0; idSequence < sequences.size(); idSequence++) {
+	    if (embeddedOverlaps.containsKey(idSequence))
+		continue;
+	    findHits(idSequence, procesingHits, hits);
+
+	    for (int i = 0; i < hits.length; i++) {
+		Queue<ReadOverlap2> queue = hits[i];
+		while (!queue.isEmpty())
+		    if (processOverlap(idSequence, i, queue.poll()))
+			break;
+	    }
+	}
+    }
+
+    private boolean processOverlap(int idSequence1, int idSequence2, ReadOverlap2 overlap) {
+	ReadOverlap overlapp = new ReadOverlap(idSequence1, overlap.getFirst1(), overlap.getLast1(), idSequence2,
+		overlap.getFirst2(), overlap.getLast2(), false);
+	int length1 = sequences.get(idSequence1).length();
+	int length2 = sequences.get(idSequence2).length();
+
+	int dl1 = overlap.getFirst1();
+	int dl2 = overlap.getFirst2();
+	int dr1 = length1 - overlap.getLast1();
+	int dr2 = length2 - overlap.getLast2();
+	int t = 10;
+	int diffBorder = 100;
+
+	// if (overlap.isNegativeStrand()) {
+	// if (dl1 + t >= dr2 && dr1 + t >= dl2) {
+	// if (dl2 > diffBorder || dr2 > diffBorder) {
+	// // Not a true overlap
+	// return;
+	// }
+	// if (!embeddedOverlaps.containsKey(overlap.getIndexSequence2())) {
+	// ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(),
+	// overlap.getFirst2(),
+	// overlap.getLast2(), overlap.getIndexSequence1(), overlap.getFirst1(),
+	// overlap.getLast1(),
+	// true);
+	// embeddedOverlaps.put(overlap.getIndexSequence2(), ov2);
+	// }
+	// return;
+	// }
+	// if (dl1 <= dr2 + t && dr1 <= dl2 + t) {
+	// if (dl1 > diffBorder || dr1 > diffBorder) {
+	// // Not a true overlap
+	// return;
+	// }
+	// if (!embeddedOverlaps.containsKey(overlap.getIndexSequence1()))
+	// embeddedOverlaps.put(overlap.getIndexSequence1(), overlap);
+	// return;
+	// }
+	// if (dl1 < dr2 && dr1 > dl2) {
+	// // 2 left of 1 negative strand
+	// if (dl1 > diffBorder || dl2 > diffBorder) {
+	// // Not a true overlap
+	// return;
+	// }
+	// addOverlap(overlapsBackward, overlap);
+	// ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(),
+	// overlap.getFirst2(), overlap.getLast2(),
+	// overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), true);
+	// addOverlap(overlapsForward, ov2);
+	// return;
+	// }
+	// if (dl1 > dr2 && dr1 < dl2) {
+	// // 1 left of 2
+	// if (dr2 > diffBorder || dr1 > diffBorder) {
+	// // Not a true overlap
+	// return;
+	// }
+	// addOverlap(overlapsForward, overlap);
+	// ReadOverlap ov2 = new ReadOverlap(overlap.getIndexSequence2(),
+	// overlap.getFirst2(), overlap.getLast2(),
+	// overlap.getIndexSequence1(), overlap.getFirst1(), overlap.getLast1(), true);
+	// addOverlap(overlapsBackward, ov2);
+	// return;
+	// }
+	// } else {
+	if (dl1 + t >= dl2 && dr1 + t >= dr2) {
+	    if (dl2 > diffBorder || dr2 > diffBorder) {
+		return false;
+	    }
+	    if (!embeddedOverlaps.containsKey(idSequence2)) {
+		ReadOverlap ov2 = new ReadOverlap(idSequence2, overlap.getFirst2(), overlap.getLast2(), idSequence1,
+			overlap.getFirst1(), overlap.getLast1(), false);
+		embeddedOverlaps.put(idSequence2, ov2);
+		return true;
+	    }
+	    return false;
+	}
+	if (dl1 <= dl2 + t && dr1 <= dr2 + t) {
+	    if (dl1 > diffBorder || dr1 > diffBorder) {
+		// Not a true overlap
+		return false;
+	    }
+	    if (!embeddedOverlaps.containsKey(idSequence1))
+		embeddedOverlaps.put(idSequence1, overlapp);
+	    return true;
+	}
+	if (dl1 < dl2 && dr1 > dr2) {
+	    // 2 left of 1
+	    if (dl1 > diffBorder || dr2 > diffBorder) {
+		// Not a true overlap
+		return false;
+	    }
+	    addOverlap(overlapsBackward, overlapp);
+	    ReadOverlap ov2 = new ReadOverlap(idSequence2, overlap.getFirst2(), overlap.getLast2(), idSequence1,
+		    overlap.getFirst1(), overlap.getLast1(), false);
+	    addOverlap(overlapsForward, ov2);
+	    return true;
+	}
+	if (dl1 > dl2 && dr1 < dr2) {
+	    // 1 left of 2
+	    if (dl2 > diffBorder || dr1 > diffBorder) {
+		// Not a true overlap
+		return false;
+	    }
+	    addOverlap(overlapsForward, overlapp);
+	    ReadOverlap ov2 = new ReadOverlap(idSequence2, overlap.getFirst2(), overlap.getLast2(), idSequence1,
+		    overlap.getFirst1(), overlap.getLast1(), false);
+	    addOverlap(overlapsBackward, ov2);
+	    return true;
+	}
+	// }
+	return false;
+    }
+
+    private void findHits(int idSequence, List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
+	for (int i = 0; i < procesingHits.length; i++)
+	    procesingHits[i] = new LinkedList<>();
+	for (int i = 0; i < hits.length; i++)
+	    hits[i] = new PriorityQueue<>(new Comparator<ReadOverlap2>() {
+
+		@Override
+		public int compare(ReadOverlap2 arg0, ReadOverlap2 arg1) {
+		    return arg1.length() - arg0.length();
+		}
+	    });
+
+	String sequence = sequences.get(idSequence).toString();
+	for (int i = 0; i <= sequence.length() - SEARCH_KMER_LENGTH; i += SEARCH_KMER_DISTANCE) {
+	    InitializeHits(procesingHits);
+	    processKmer(idSequence, i, sequence.substring(i, i + SEARCH_KMER_LENGTH), procesingHits);
+	    finalizeHits(procesingHits, hits);
+	}
+	if (sequence.length() % SEARCH_KMER_LENGTH != 0) {
+	    int KmerStarPosition = ((sequence.length() - SEARCH_KMER_OVERLAP) / SEARCH_KMER_DISTANCE)
+		    * SEARCH_KMER_DISTANCE;
+	    InitializeHits(procesingHits);
+	    processKmer(idSequence, KmerStarPosition, sequence.substring(KmerStarPosition), procesingHits);
+	    finalizeHits(procesingHits, hits);
+	}
+	for (int i = 0; i < procesingHits.length; i++)
+	    for (ReadOverlap2 read : procesingHits[i])
+		hits[i].add(read);
+
+    }
+
+    private void InitializeHits(List<ReadOverlap2>[] procesingHits) {
+	for (List<ReadOverlap2> set : procesingHits)
+	    for (ReadOverlap2 read : set)
+		read.nonAdded();
+    }
+
+    private void processKmer(int idSequence, int KmerStarPosition, String kmer, List<ReadOverlap2>[] procesingHits) {
+	for (ReadAlignment aln : index.search(kmer)) {
+	    int idSequenceAligned = Integer.parseInt(aln.getSequenceName().substring(1));
+	    if (idSequenceAligned > idSequence) {
+		if (!aln.isNegativeStrand()) {
+		    boolean alienado = false;
+		    for (ReadOverlap2 read : procesingHits[idSequenceAligned]) {
+			if (read.addAlignment(aln, kmer.length())) {
+			    alienado = true;
+			    break;
+			}
+		    }
+		    if (!alienado)
+			procesingHits[idSequenceAligned]
+				.add(new ReadOverlap2(KmerStarPosition, aln.getFirst() - 1, aln.getLast()));
+		} else {
+		    // TODO caso negativo
+		    continue;
+		}
+	    }
+	}
+    }
+
+    private void finalizeHits(List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
+	for (int i = 0; i < procesingHits.length; i++) {
+	    Iterator<ReadOverlap2> iter = procesingHits[i].iterator();
+	    while (iter.hasNext()) {
+		ReadOverlap2 read = iter.next();
+		if (!read.added()) {
+		    read.errorCountPlusPlus();
+		    if (read.getErrorCount() >= 5) {
+			iter.remove();
+			if (read.length() / (double) sequences.get(i).length() >= 0.25)
+			    hits[i].add(read);
+		    }
+		}
 	    }
 	}
     }
@@ -319,295 +537,18 @@ public class OverlapGraph {
 	overlapsSeq1.add(overlap);
     }
 
-    // /**
-    // * remove redundant axes from the graph
-    // *
-    // * an axis is redundant if there is a path that passes through one or more
-    // nodes
-    // * from the source node to the destination node without using it.
-    // *
-    // * this simplifies the graph and removes the alignments with less overlap
-    // */
-    // public void simplifyTheGrap() {
-    //
-    // Map<Integer, List<Edge>> Edg = new HashMap<>();
-    // Map<Integer, List<Integer>> Vert = new HashMap<>();
-    // //Map<Integer, List<Integer>> Prev = new HashMap<>();
-    //
-    // for (int i = 0; i < sequences.size(); i++) {
-    // if (!embeddedOverlaps.containsKey(i)) {
-    // List<Integer> verts = new ArrayList<>();
-    // verts.add(i);
-    // Vert.put(i, verts);
-    // }
-    // }
-    //
-    // for (int i = 0; i < sequences.size(); i++) {
-    // if (!embeddedOverlaps.containsKey(i)) {
-    // List<Edge> edgs = new ArrayList<>();
-    // if (overlapsForward.get(i) != null) {
-    // for (ReadOverlap read : overlapsForward.get(i)) {
-    // if (!embeddedOverlaps.containsKey(read.getIndexSequence2()))
-    // edgs.add(new Edge(read, read.getIndexSequence2()));
-    // }
-    // }
-    // edgs.sort((a, b) -> b.sobrelape() - a.sobrelape());
-    // Edg.put(i, edgs);
-    // List<Integer> edgsPrev = new ArrayList<>();
-    // if (overlapsBackward.get(i) != null) {
-    // for (ReadOverlap read : overlapsBackward.get(i)) {
-    // if (!embeddedOverlaps.containsKey(read.getIndexSequence2()))
-    // edgsPrev.add(read.getIndexSequence2());
-    // }
-    // }
-    // Prev.put(i, edgsPrev);
-    // }
-    // }
-    //
-    // System.out.println("vertices:" + Vert.keySet().size());
-    // int sum = 0;
-    // for (List<Edge> e : Edg.values())
-    // sum += e.size();
-    // System.out.println("edges:" + sum);
-    //
-    // List<Integer> nonVerts = null;
-    // int tr = 0;
-    // do {
-    // System.out.println("---" + Vert.keySet().size());
-    // nonVerts = new LinkedList<>();
-    // tr = 0;
-    //
-    // // System.out.println(Prev.get(133));
-    //
-    // for (Entry<Integer, List<Integer>> entry : Vert.entrySet()) {
-    // int key = entry.getKey();
-    // List<Integer> value = entry.getValue();
-    // if (Edg.get(key).size() == 1) {
-    // int key2 = Edg.get(key).get(0).value;
-    // if (Prev.get(key2).size() == 1) {
-    // nonVerts.add(key2);
-    // System.out.println("fuse: " + key);
-    //
-    // // fucionar los vertices
-    // value.addAll(Vert.get(key2));
-    // entry.setValue(value);
-    //
-    // // fucionar los edges
-    // Edg.get(key).remove(0);
-    // Edg.get(key).addAll(Edg.get(key2));
-    // }
-    // }
-    // }
-    // for (Integer i : nonVerts) {
-    // System.out.println("elim: " + i);
-    // Vert.remove(i);
-    // Edg.remove(i);
-    // Prev.remove(i);
-    // }
-    // System.out.println("++++++");
-    // for (Entry<Integer, List<Edge>> entry : Edg.entrySet()) {
-    // int key = entry.getKey();
-    // List<Edge> list = entry.getValue();
-    // // System.out.println(key);
-    // // System.out.println(list);
-    // for (int i = 0; i < list.size(); i++) {
-    // Integer value = list.get(i).value;
-    // List<Edge> listV = Edg.get(value);
-    // if (listV == null)
-    // System.out.println("~~~~~~~~~~~~" + key + "," + value);
-    // // System.out.println("---"+value);
-    // // System.out.println("---"+listV);
-    // for (int j = i + 1; j < list.size(); j++) {
-    // int valuej = list.get(j).value;
-    // for (Edge e : listV) {
-    // if (e.value == valuej) {
-    // // System.out.println("transitiva: " + key + "->" + value + "," + value +
-    // "->" +
-    // // e.value);
-    // tr++;
-    // list.remove(j);
-    // Prev.get(valuej).remove(value);
-    // // size--;
-    // }
-    // }
-    // }
-    // }
-    // entry.setValue(list);
-    // }
-    //
-    // System.out.println("----" + (Vert.keySet().size()));
-    // System.out.println(nonVerts.size() + tr);
-    // // System.out.println(Edg);
-    // } while (nonVerts.size() + tr > 0);
-    // System.out.println("vertices:" + Vert.keySet().size());
-    // sum = 0;
-    // for (List<Edge> e : Edg.values())
-    // sum += e.size();
-    // System.out.println("edges:" + sum);
-    // }
-
     public List<List<Integer>> searchSequences() {
-	Set<Integer> Verts = getMapWitoutEmbedded();
-	Map<Integer, List<Edge>> Edgs = getEdges();
-
-	removeTransitiveEdges(Edgs);
-
+	int N = sequences.size();
+	Map<Integer, Map<Integer, Integer>> Edges = getEdges();
+	GraphSimplificator gs = new GraphSimplificator(N, Edges);
 	return null;
     }
 
-    private void removeTransitiveEdges(Map<Integer, List<Edge>> edgs) {
-	Map<Integer, List<Edge>> edgs2 = new HashMap<>(edgs);
-
-//	int[] intrs = new int[sequences.size()];
-//	for (int i = 0; i < sequences.size(); i++) {
-//	    Arrays.fill(intrs, 0);
-//	    List<Edge> lista = edgs.get(i);
-//	    if (lista != null) {
-//		for (Edge e : lista)
-//		    intrs[e.index] = 1;
-//	    }
-//	    for (int j = 0; j < sequences.size() - 1; j++)
-//		System.out.print(intrs[j] + ",");
-//	    System.out.println(intrs[sequences.size() - 1]);
-//	}
-//
-//	int sum = 0;
-//	for (List<Edge> e : edgs.values()) {
-//	    sum += e.size();
-//	}
-//	System.out.println(sum);
-
-	Map<Integer, Set<Integer>> prevMap = new HashMap<>(edgs.size());
-	Set<Integer> prevs;
-	for (Integer integer : edgs.keySet())
-	    prevMap.put(integer, new TreeSet<>());
-
-	//System.out.println(embeddedOverlaps);
-
-	//System.out.println(getTopologicalOrder().length + "\n\n");
-	//System.out.println(edgs.size());
-	//System.out.println(edgs.keySet());
-	int t = 0;
-
-	for (Integer Vert : getTopologicalOrder()) {
-	    List<Edge> edges = edgs.get(Vert);
-
-	    //System.out.println(Vert);
-	    for (int x=0;x<edges.size();x++) {
-		Edge edge = edges.get(x);
-		//System.out.println("  ->" + edge.getIndex());
-		prevs = prevMap.get(edge.getIndex());
-		//System.out.print("         " + prevs);
-		if (prevs.isEmpty())
-		    prevs.add(Vert);
-		else {
-		    boolean non = true;
-		    Iterator<Integer> iter = prevs.iterator();
-		    while (iter.hasNext()) {
-			Integer otherEdge = iter.next();
-
-			boolean b1 = search(otherEdge, Vert, edge.getIndex(), prevMap, 10);
-			boolean b2 = search(Vert, otherEdge, edge.getIndex(), prevMap, 10);
-
-			if (b1 ^ b2) {
-			    // Test otherEdge -*-> vert
-			    if (b1) {
-				//System.out.println("-------" + otherEdge + " -> " + Vert);
-				//System.out.println(edgs2.get(otherEdge));
-				Iterator<Edge> iter2 = edgs2.get(otherEdge).iterator();
-				while (iter2.hasNext()) {
-				    if (iter2.next().index == edge.getIndex()) {
-					iter2.remove();
-					break;
-				    }
-				}
-				//System.out.println(edgs2.get(otherEdge));
-				iter.remove();
-				t++;
-			    }
-
-			    // Test Vert -*-> OtherEdge
-			    if (b2) {
-				//System.out.println("--------" + Vert + " -> " + otherEdge);
-				non = false;
-			    }
-			}
-		    }
-		    if (non) {
-			prevs.add(Vert);
-		    } else {
-			Iterator<Edge> iter2 = edgs2.get(Vert).iterator();
-			while (iter2.hasNext()) {
-			    if (iter2.next().index == edge.getIndex()) {
-				iter2.remove();
-				break;
-			    }
-			}
-			t++;
-		    }
-		}
-		//System.out.println(", " + prevs);
-		//sum = 0;
-		//for (List<Edge> e : edgs.values()) {
-		 //   sum += e.size();
-		//}
-		//System.out.println(sum);
-		//System.out.println(t);
-	    }
-	}
-	//System.out.println("   t: " + t);
-
-	int [] intrs = new int[sequences.size()];
-	for (int i = 0; i < sequences.size(); i++) {
-	    Arrays.fill(intrs, 0);
-	    List<Edge> lista = edgs.get(i);
-	    if (lista != null) {
-		for (Edge e : lista)
-		    intrs[e.index] = 1;
-	    }
-	    for (int j = 0; j < sequences.size() - 1; j++)
-		System.out.print(intrs[j] + ",");
-	    System.out.println(intrs[sequences.size() - 1]);
-	}
-	
-
-	int sum = 0;
-	for (List<Edge> e : edgs.values()) {
-	    sum += e.size();
-	}
-	System.out.println(sum);
-    }
-
-    private boolean search(Integer searched, int from, Integer breakValue, Map<Integer, Set<Integer>> prevMap,
-	    int max) {
-	if (max == 0)
-	    return false;
-	Set<Integer> prevs = prevMap.get(from);
-	for (Integer integer : prevs) {
-	    if (integer == searched)
-		return true;
-	}
-
-	for (Integer integer : prevs) {
-	    if (integer != breakValue) {
-		boolean encontrado = search(searched, integer, breakValue, prevMap, max - 1);
-		if (encontrado) {
-		    return true;
-		}
-	    }
-	}
-
-	return false;
-    }
-
-    private Map<Integer, List<Edge>> getEdges() {
-	Map<Integer, List<Edge>> ans = new HashMap<>(sequences.size() - embeddedOverlaps.size());
-	List<Edge> list;
-	for (int i = 0; i < sequences.size(); i++) {
-	    if (!embeddedOverlaps.containsKey(i))
-		ans.put(i, new ArrayList<>());
-	}
-	System.out.println(ans.size());
+    private Map<Integer, Map<Integer, Integer>> getEdges() {
+	Map<Integer, Map<Integer, Integer>> ans = new HashMap<>(sequences.size() - embeddedOverlaps.size());
+	Map<Integer, Integer> list;
+	for (int i = 0; i < sequences.size(); i++)
+	    ans.put(i, new HashMap<>());
 
 	for (Entry<Integer, List<ReadOverlap>> entry : overlapsForward.entrySet()) {
 	    List<ReadOverlap> overlaps = entry.getValue();
@@ -617,57 +558,10 @@ public class OverlapGraph {
 	    list = ans.get(vert);
 	    for (ReadOverlap over : overlaps) {
 		if (!embeddedOverlaps.containsKey(over.getIndexSequence2()))
-		    list.add(new Edge(over.getIndexSequence2(), over.getLast2() - over.getFirst2()));
+		    list.put(over.getIndexSequence2(), over.getLast2() - over.getFirst2());
 	    }
 	}
 	return ans;
-    }
-
-    private Set<Integer> getMapWitoutEmbedded() {
-	Set<Integer> ans = new HashSet<>(sequences.size() - embeddedOverlaps.size());
-	for (int i = 0; i < sequences.size(); i++) {
-	    if (!embeddedOverlaps.containsKey(i))
-		ans.add(i);
-	}
-	return ans;
-    }
-
-    private int[] getTopologicalOrder() {
-	boolean[] mark = new boolean[sequences.size()];
-	for (int embedded : embeddedOverlaps.keySet())
-	    mark[embedded] = true;
-
-	Deque<Integer> topologicalOrder = new LinkedList<>();
-	int nodo = 0;
-	do {
-	    dfsPosOrden(topologicalOrder, mark, nodo);
-
-	    nodo = -1;
-	    for (int i = 0; i < mark.length; i++)
-		if (!mark[i]) {
-		    nodo = i;
-		    break;
-		}
-	} while (nodo != -1);
-
-	int[] ans = new int[topologicalOrder.size()];
-	int i = 0;
-	while (!topologicalOrder.isEmpty())
-	    ans[i++] = topologicalOrder.poll();
-	return ans;
-    }
-
-    private void dfsPosOrden(Deque<Integer> order, boolean[] mark, int node) {
-	mark[node] = true;
-	List<ReadOverlap> list = overlapsForward.get(node);
-	if (list != null) {
-	    for (ReadOverlap readOverlap : list) {
-		int to = readOverlap.getIndexSequence2();
-		if (!mark[to])
-		    dfsPosOrden(order, mark, to);
-	    }
-	}
-	order.push(node);
     }
 
     public void printOverlapsDistribution(PrintStream out) {
@@ -718,48 +612,6 @@ public class OverlapGraph {
 @FunctionalInterface
 interface RunnableWithException {
     void run() throws Exception;
-}
-
-class Edge {
-    Integer index;
-    Integer overlap;
-
-    public Edge(Integer index, Integer overlap) {
-	super();
-	this.index = index;
-	this.overlap = overlap;
-    }
-
-    /** @return the index */
-    public Integer getIndex() {
-	return index;
-    }
-
-    /**
-     * @param index
-     *            the index to set
-     */
-    public void setIndex(Integer index) {
-	this.index = index;
-    }
-
-    /** @return the overlap */
-    public Integer getOverlap() {
-	return overlap;
-    }
-
-    /**
-     * @param overlap
-     *            the overlap to set
-     */
-    public void setOverlap(Integer overlap) {
-	this.overlap = overlap;
-    }
-
-    @Override
-    public String toString() {
-	return index + "(" + overlap + ")";
-    }
 }
 
 class ReadOverlap {
@@ -846,12 +698,10 @@ class ReadOverlap {
      */
     @Override
     public String toString() {
-	return "" + indexSequence2 + "(" + first1 + "," + last1 + ")";
-	// return "ReadOverlap [indexSequence1=" + indexSequence1 + ", indexSequence2="
-	// + indexSequence2 + ", first1="
-	// + first1 + ", last1=" + last1 + ", first2=" + first2 + ", last2=" + last2 +
-	// ", negativeStrand="
-	// + negativeStrand + "]";
+	// return "" + indexSequence2 + "(" + first1 + "," + last1 + ")";
+	return "ReadOverlap [indexSequence1=" + indexSequence1 + ", indexSequence2=" + indexSequence2 + ", first1="
+		+ first1 + ", last1=" + last1 + ", first2=" + first2 + ", last2=" + last2 + ", negativeStrand="
+		+ negativeStrand + "]";
     }
 
 }
