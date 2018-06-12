@@ -27,6 +27,7 @@ import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.SNV;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -212,8 +213,16 @@ public class TillingPopulationSimulator {
 		}
 		//TODO: Step 2: create random mutations within the given regions and assign each mutation to a random individual
 		//Use the reference genome to derive reference alleles. Create objects of the class SNV as random mutations
-		
-		
+		for(int j=0; j < DEF_MUTATIONS; j++) {
+			SimulatedDiploidIndividual targetInd = individuals.get(random.nextInt(individuals.size()));
+			GenomicRegion targetGR = sequencedRegions.get(random.nextInt(sequencedRegions.size()));
+			int location = random.nextInt(targetGR.getLast())+targetGR.getFirst();
+			char refBase = genome.getReferenceBase(targetGR.getSequenceName(), location);
+			String mutated = alphabet.replaceAll(Character.toString(refBase) , "");
+			GenomicVariant variant = new SNV(targetGR.getSequenceName(), location, refBase, mutated.charAt(random.nextInt(3)));
+			targetInd.addMutation(variant);
+		}
+			
 		//Step 3: build individual allele sequences from the mutations
 		List<DNAMaskedSequence> referenceSequences = getReferenceSequencesRegions();
 		for(SimulatedDiploidIndividual ind: individuals) {
