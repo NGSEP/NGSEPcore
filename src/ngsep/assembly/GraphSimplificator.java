@@ -20,13 +20,15 @@ import java.util.TreeSet;
 
 public class GraphSimplificator {
     /** #Vertices Original Graph **/
-    private int N;
+    protected int N;
     /** Edges with weight **/
-    private Map<Integer, Map<Integer, Integer>> Edges;
+    protected Map<Integer, Map<Integer, Integer>> Edges;
     /** Vertices of reducition **/
     private Map<Integer, List<Integer>> Verts;
     // ** Weight of the reduction **/
     private Map<Integer, Integer> weigth;
+    
+  
 
     public GraphSimplificator(int N, Map<Integer, Map<Integer, Integer>> Edges) {
 	this.N = N;
@@ -57,7 +59,8 @@ public class GraphSimplificator {
     }
 
     private void Initialize() {
-	printWhitFormat(System.out);
+	//printWhitFormat(System.out);
+	System.out.println(roots());
 	removeCicles();
 	int[] top = getTopologicalOrder();
 	removeTransitiveEdges(top);
@@ -83,6 +86,7 @@ public class GraphSimplificator {
 
 	return ans;
     }
+    
 
     private void reduce(int[] top, Map<Integer, Set<Integer>> foward) {
 	boolean[] moreThanOne = new boolean[N];
@@ -274,7 +278,6 @@ public class GraphSimplificator {
 	int pos = (posMin + 1) % cycle.size();
 	pos = cycle.get(pos).getKey();
 	Edges.get(MinNde).remove(pos);
-	System.out.println(MinNde + " -> " + pos);
 	return MinNde;
     }
 
@@ -341,7 +344,7 @@ public class GraphSimplificator {
 	return false;
     }
 
-    private int[] getTopologicalOrder() {
+    protected int[] getTopologicalOrder() {
 	boolean[] mark = new boolean[N];
 
 	Deque<Integer> topologicalOrder = new LinkedList<>();
