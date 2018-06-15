@@ -22,26 +22,17 @@ package ngsep.assembly;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.stream.Stream;
-
-import javax.sound.midi.Sequence;
-
 import ngsep.alignments.ReadAlignment;
 import ngsep.math.Distribution;
 import ngsep.sequences.DNAMaskedSequence;
@@ -73,27 +64,26 @@ public class OverlapGraph {
 
     public OverlapGraph(String filename) throws Exception {
 	System.out.println("Built the Overlap Grap for:  " + filename + " ...\n");
+	timeWithException("total", () -> {
+	    timeWithException("Loaded the sequences from " + filename + ".", () -> {
+		load(filename);
+		System.out.println("Loaded " + sequences.size() + " sequences");
+	    });
 
-	timeWithException("Loaded the sequences from " + filename + ".", () -> {
-	    load(filename);
-	    System.out.println("Loaded " + sequences.size() + " sequences");
-	});
+	    time("Sort the sequences.", () -> {
+		Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
+	    });
 
-	time("Sort the sequences.", () -> {
-	    Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
-	});
+	    time("Built the FMIndex.", () -> {
+		index = new FMIndex();
+		index.loadUnnamedSequences("", sequences);
+	    });
 
-	time("Built the FMIndex.", () -> {
-	    index = new FMIndex();
-	    index.loadUnnamedSequences("", sequences);
-	});
+	    time("Built overlaps.", () -> findOverlaps2());
 
-	time("Built overlaps.", () -> findOverlaps2());
-
-	System.out.println(embeddedOverlaps.size());
-
-	time("Simplify the grap.", () -> {
-	    searchSequences();
+	    time("Simplify the grap.", () -> {
+		searchSequences();
+	    });
 	});
 
 	// printOverlapsDistribution(System.out);
@@ -265,6 +255,8 @@ public class OverlapGraph {
 
     private void findHits(int idSequence, List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
 	for (int i = 0; i < procesingHits.length; i++)
+	    // TODO optimizar (array), limpiar colas, cambio en las estructuras para
+	    // soportar eso
 	    procesingHits[i] = new LinkedList<>();
 	for (int i = 0; i < hits.length; i++)
 	    hits[i] = new PriorityQueue<>(new Comparator<ReadOverlap2>() {
@@ -332,7 +324,7 @@ public class OverlapGraph {
 		    read.errorCountPlusPlus();
 		    if (read.getErrorCount() >= 5) {
 			iter.remove();
-			if (read.length() / (double) sequences.get(i).length() >= 0.25)
+			if (read.length() / (double) sequences.get(i).length() >= 0.15)
 			    hits[i].add(read);
 		    }
 		}
@@ -541,6 +533,11 @@ public class OverlapGraph {
 	int N = sequences.size();
 	Map<Integer, Map<Integer, Integer>> Edges = getEdges();
 	GraphSimplificator gs = new GraphSimplificator(N, Edges);
+	Edges = gs.Edges;
+	MaxPath mx = new MaxPath(N, Edges);
+	time("sdfasd", () -> {
+	    System.out.println(mx.fn());
+	});
 	return null;
     }
 
