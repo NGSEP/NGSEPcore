@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,9 +59,9 @@ public class OverlapGraph {
     private final List<LimitedSequence> sequences = new ArrayList<>();
     private FMIndex index;
 
-    private Map<Integer, List<ReadOverlap>> overlapsForward = new HashMap<>();
-    private Map<Integer, List<ReadOverlap>> overlapsBackward = new HashMap<>();
-    private Map<Integer, ReadOverlap> embeddedOverlaps = new HashMap<>();
+    private Map<Integer, List<ReadOverlap>> overlapsForward = new Hashtable<>();
+    private Map<Integer, List<ReadOverlap>> overlapsBackward = new Hashtable<>();
+    private Map<Integer, ReadOverlap> embeddedOverlaps = new Hashtable<>();
 
     public OverlapGraph(String filename) throws Exception {
 	System.out.println("Built the Overlap Grap for:  " + filename + " ...\n");
@@ -126,6 +127,8 @@ public class OverlapGraph {
 	Queue<ReadOverlap2>[] hits = new Queue[sequences.size()];
 
 	for (int idSequence = 0; idSequence < sequences.size(); idSequence++) {
+	    System.out.println("  --> "+idSequence + " - " + sequences.size());
+	    long ini = System.nanoTime();
 	    if (embeddedOverlaps.containsKey(idSequence))
 		continue;
 	    findHits(idSequence, procesingHits, hits);
@@ -136,6 +139,7 @@ public class OverlapGraph {
 		    if (processOverlap(idSequence, i, queue.poll()))
 			break;
 	    }
+	    System.out.println(System.nanoTime() - ini);
 	}
     }
 
@@ -267,22 +271,24 @@ public class OverlapGraph {
 		}
 	    });
 
+	long sum = 0;
 	String sequence = sequences.get(idSequence).toString();
 	for (int i = 0; i <= sequence.length() - SEARCH_KMER_LENGTH; i += SEARCH_KMER_DISTANCE) {
 	    InitializeHits(procesingHits);
-	    processKmer(idSequence, i, sequence.substring(i, i + SEARCH_KMER_LENGTH), procesingHits);
+	    sum += processKmer(idSequence, i, sequence.substring(i, i + SEARCH_KMER_LENGTH), procesingHits);
 	    finalizeHits(procesingHits, hits);
 	}
 	if (sequence.length() % SEARCH_KMER_LENGTH != 0) {
 	    int KmerStarPosition = ((sequence.length() - SEARCH_KMER_OVERLAP) / SEARCH_KMER_DISTANCE)
 		    * SEARCH_KMER_DISTANCE;
 	    InitializeHits(procesingHits);
-	    processKmer(idSequence, KmerStarPosition, sequence.substring(KmerStarPosition), procesingHits);
+	    sum += processKmer(idSequence, KmerStarPosition, sequence.substring(KmerStarPosition), procesingHits);
 	    finalizeHits(procesingHits, hits);
 	}
 	for (int i = 0; i < procesingHits.length; i++)
 	    for (ReadOverlap2 read : procesingHits[i])
 		hits[i].add(read);
+	System.out.println(sum);
 
     }
 
@@ -292,8 +298,11 @@ public class OverlapGraph {
 		read.nonAdded();
     }
 
-    private void processKmer(int idSequence, int KmerStarPosition, String kmer, List<ReadOverlap2>[] procesingHits) {
-	for (ReadAlignment aln : index.search(kmer)) {
+    private long processKmer(int idSequence, int KmerStarPosition, String kmer, List<ReadOverlap2>[] procesingHits) {
+	long ini = System.nanoTime();
+	Iterable<ReadAlignment> itre = index.search(kmer);
+	ini = System.nanoTime() - ini;
+	for (ReadAlignment aln : itre) {
 	    int idSequenceAligned = Integer.parseInt(aln.getSequenceName().substring(1));
 	    if (idSequenceAligned > idSequence) {
 		if (!aln.isNegativeStrand()) {
@@ -309,10 +318,12 @@ public class OverlapGraph {
 				.add(new ReadOverlap2(KmerStarPosition, aln.getFirst() - 1, aln.getLast()));
 		} else {
 		    // TODO caso negativo
+		    System.out.println("ouchh");
 		    continue;
 		}
 	    }
 	}
+	return ini;
     }
 
     private void finalizeHits(List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
@@ -536,7 +547,7 @@ public class OverlapGraph {
 	Edges = gs.Edges;
 	MaxPath mx = new MaxPath(N, Edges);
 	time("sdfasd", () -> {
-	    System.out.println(mx.fn());
+	    System.out.println(mx.maxLentghPath());
 	});
 	return null;
     }
