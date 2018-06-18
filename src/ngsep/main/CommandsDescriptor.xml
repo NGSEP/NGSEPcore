@@ -196,9 +196,13 @@ read group tags. Requires one or more read alignment files in SAM or BAM format 
 genome that was used to produce the alignments.
 </description>
 <argument>OPTIONS</argument>
-<argument>REFERENCE</argument>
-<argument>OUTPUT_FILE</argument>
 <argument>BAM_FILE*</argument>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome
+</option>
+<option id="o" type="FILE" defaultConstant="DEF_OUTPUT_FILE" attribute="outFilename">
+Output file
+</option>
 <option id="h" type="DOUBLE" defaultConstant="DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
 Heterozygosity rate
 </option>

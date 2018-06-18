@@ -65,6 +65,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final short DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	public static final String DEF_OUTPUT_FILE = "variants.vcf";
 	
 	
 	
@@ -82,7 +83,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private List<VariantPileupListener> genotypingListeners = new ArrayList<>();
 	
 	//Output file variables
-	private String outFilename;
+	private String outFilename = DEF_OUTPUT_FILE;
 	private PrintStream outFile;
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter writer = new VCFFileWriter();
@@ -106,8 +107,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static void main(String[] args) throws Exception {
 		MultisampleVariantsDetector instance = new MultisampleVariantsDetector();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
-		instance.outFilename = args[i++];
 		for(;i<args.length;i++) {
 			instance.alignmentFiles.add(args[i]);
 		}

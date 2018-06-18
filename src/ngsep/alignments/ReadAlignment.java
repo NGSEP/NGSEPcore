@@ -62,6 +62,8 @@ public class ReadAlignment implements GenomicRegion {
 	
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = 20; 
 	
+	public static final String DEF_READ_GROUP = "";
+	
 	
 	
 	private String sequenceName;
@@ -94,7 +96,7 @@ public class ReadAlignment implements GenomicRegion {
 	private short basesToIgnoreEnd = 0;
 	
 	//Optional information stored
-	private String readGroup = null;
+	private String readGroup = DEF_READ_GROUP;
 	
 	/**
 	 * Creates a read alignment with the given information
@@ -489,7 +491,8 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param readGroup New read group
 	 */
 	public void setReadGroup(String readGroup) {
-		this.readGroup = readGroup;
+		if(readGroup!=null) this.readGroup = readGroup;
+		else this.readGroup = DEF_READ_GROUP;
 	}
 	
 	/**
