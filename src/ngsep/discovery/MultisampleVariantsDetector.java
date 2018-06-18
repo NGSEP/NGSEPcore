@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
@@ -41,6 +42,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.DiversityStatistics;
@@ -50,6 +52,7 @@ import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
 
@@ -96,6 +99,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private short minQuality = DEF_MIN_QUALITY;
 	private short maxBaseQS = DEF_MAX_BASE_QS;
 	private byte normalPloidy = DEF_PLOIDY;
+	private boolean printSamplePloidy = false;
+	private String knownVariantsFile=null;
+	
+	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<>();
 	
 	
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
@@ -308,6 +315,24 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setNormalPloidy(String value) {
 		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
+	
+	/**
+	 * @return the printSamplePloidy
+	 */
+	public boolean isPrintSamplePloidy() {
+		return printSamplePloidy;
+	}
+
+	/**
+	 * @param printSamplePloidy the printSamplePloidy to set
+	 */
+	public void setPrintSamplePloidy(boolean printSamplePloidy) {
+		this.printSamplePloidy = printSamplePloidy;
+	}
+
+	public void setPrintSamplePloidy(Boolean printSamplePloidy) {
+		this.setPrintSamplePloidy(printSamplePloidy.booleanValue());
+	}
 
 	/**
 	 * @return
@@ -500,9 +525,42 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setKnownSTRsFile(String knownSTRsFile) {
 		this.knownSTRsFile = knownSTRsFile;
 	}
+	
+	public String getKnownVariantsFile() {
+		return knownVariantsFile;
+	}
+
+	public void setKnownVariantsFile(String knownVariantsFile) {
+		this.knownVariantsFile = knownVariantsFile;
+	}
+	
+	public void printParameters() {
+		
+		log.info("Heterozygocity rate: "+getHeterozygosityRate());
+		if(generator.getQuerySeq()!=null) {
+			log.info("Analyze only region at "+generator.getQuerySeq()+":"+generator.getQueryFirst()+"-"+generator.getQueryLast());
+		}
+		log.info("Minimum genotype quality score (PHRED): "+getMinQuality());
+		log.info("Maximum base quality score (PHRED): "+getMaxBaseQS());
+		log.info("Maximum number of alignments starting at the same position: "+getMaxAlnsPerStartPos());
+		log.info("Ignore variants in lower case reference positions: "+isIgnoreLowerCaseRef());
+		log.info("Process non unique primary alignments for SNV detection: "+generator.isProcessNonUniquePrimaryAlignments());
+		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
+		log.info("Bases to ignore in the 5' end: "+generator.getBasesToIgnore5P());
+		log.info("Bases to ignore in the 3' end: "+generator.getBasesToIgnore3P());
+		log.info("Normal ploidy: "+normalPloidy);
+		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy); 
+		log.info("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
+		log.info("File with known short tandem repeats: "+knownSTRsFile);
+		log.info("File with known Variants: "+knownVariantsFile);
+	}
 
 	public void findVariants() throws IOException {
+		printParameters();
 		referenceGenomeSize = genome.getTotalLength();
+		QualifiedSequenceList sequences = genome.getSequencesMetadata();
+		indelRealigner.setGenome(genome);
+		generator.setSequencesMetadata(sequences);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
 		genotypingListeners.clear();
@@ -518,31 +576,40 @@ public class MultisampleVariantsDetector implements PileupListener {
 			genotypingListener.setReadGroups(sample.getReadGroups());
 			genotypingListeners.add(genotypingListener);
 		}
-		if(knownSTRsFile!=null) {
+		
+		if(knownVariantsFile!=null) {
+			log.info("Loading input variants");
+			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
+			log.info("Loaded "+knownVariants.size()+" input variants");
+			inputVariants = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
+			inputVariants.addAll(knownVariants);
+			indelRealigner.setInputVariants(inputVariants);
+		} else if(knownSTRsFile!=null) {
 			log.info("Loading input short tandem repeats from: "+knownSTRsFile);
-			//TODO: Choose the best format
+			//TODO: STRs loader
 			SimpleGenomicRegionFileHandler rfh = new SimpleGenomicRegionFileHandler();
 			List<GenomicRegion> strs = rfh.loadRegions(knownSTRsFile);
-			//TODO: STRs loader
 			indelRealigner.setInputVariants(VariantsDetector.makeNonRedundantSTRs(genome,strs));
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
-		indelRealigner.setGenome(genome);
-		generator.setSequencesMetadata(genome.getSequencesMetadata());
+		
 		generator.addListener(indelRealigner);
 		generator.addListener(this);
 		try {
 			outFile = new PrintStream(outFilename);
 			vcfFileHeader = VCFFileHeader.makeDefaultEmptyHeader();
-			for(Sample s:samples) vcfFileHeader.addSample(s, true);
+			for(Sample s:samples) vcfFileHeader.addSample(s, printSamplePloidy);
 			writer.printHeader(vcfFileHeader, outFile);
 			generator.processFiles(alignmentFiles);
 		} finally {
 			if(outFile!=null) outFile.close();
+			dispose();
 		}
+		log.info("Multisample Variants Detector Completed");
 	}
 
+	
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
 		log.info("Loading sample ids from: "+alignmentFiles);
@@ -555,6 +622,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 					Sample sample = samplesMap.get(sampleId);
 					if(sample==null) {
 						sample = new Sample(sampleId);
+						sample.setNormalPloidy(normalPloidy);
 						samplesMap.put(sampleId, sample);
 						log.info("Found sample: "+sampleId+" in file: "+filename);
 					}
@@ -565,9 +633,24 @@ public class MultisampleVariantsDetector implements PileupListener {
 		samples = new ArrayList<>(samplesMap.values()); 
 	}
 
+	private int nextSIVIndex = 0;
+	private List<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		GenomicVariant variant = findVariant(pileup);
+		GenomicVariant variant = null;
+		if(inputVariants.size()==0) {
+			variant = findVariant(pileup);
+		} else if(nextSIVIndex<seqInputVariants.size()) {
+			GenomicVariant inputVariant = seqInputVariants.get(nextSIVIndex);
+			while(inputVariant.getFirst() <= pileup.getPosition() ) {
+				if(inputVariant.getFirst()==pileup.getPosition()) {
+					variant = inputVariant;
+				}
+				nextSIVIndex++;
+				if(nextSIVIndex>=seqInputVariants.size()) return;
+				inputVariant = seqInputVariants.get(nextSIVIndex);
+			}
+		}
 		if(pileup.getPosition()==posPrint) System.out.println("Variant: "+variant);
 		if(variant == null) return;
 		List<CalledGenomicVariant> calls;
@@ -608,6 +691,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 			int progress = (int)Math.round(100.0*coveredGenomeSize/referenceGenomeSize);
 			generator.setKeepRunning(progressNotifier.keepRunning(progress));
 		}
+	}
+	@Override
+	public void onSequenceStart(QualifiedSequence sequence) {
+		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
+		nextSIVIndex = 0;
+		lastIndelEnd = 0;
+	}
+
+	@Override
+	public void onSequenceEnd(QualifiedSequence sequence) {
+		
 	}
 	
 
@@ -748,14 +842,12 @@ public class MultisampleVariantsDetector implements PileupListener {
 		return calls;
 	}
 
-	@Override
-	public void onSequenceStart(QualifiedSequence sequence) {
-		lastIndelEnd = 0;
+	private void dispose() {
+		inputVariants =null;
+		seqInputVariants = null;
+		indelRealigner.setInputVariants(null);
+		genotypingListeners.clear();
 	}
 
-	@Override
-	public void onSequenceEnd(QualifiedSequence sequence) {
-		
-	}
 
 }

@@ -83,11 +83,11 @@ The default behavior is to process alignments that are unique (see option -minMQ
 <option id="s">
 Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
 </option>
-<option id="minAltCoverage" type="INT" default="0">
-Minimum coverage of the alternative allele to call a SNV.
+<option id="minAltCoverage" type="INT" default="0" deprecated="true">
+Deprecated option -minAltCoverage
 </option>
-<option id="maxAltCoverage" type="INT" default="0 (No filter)">
-Maximum coverage of the alternative allele to call a SNV.
+<option id="maxAltCoverage" type="INT" default="0 (No filter)"  deprecated="true">
+Deprecated option -maxAltCoverage
 </option>
 <option id="minQuality" type="INT" default="0">
 Minimum genotype quality to accept a SNV call.
@@ -157,9 +157,8 @@ Print id and ploidy of the sample in the VCF header.
 <option id="knownVariants" type="FILE">
 VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
 </option>
-<option id="genotypeAll">
-Report all covered sites in the genome. CAUTION: For WGS samples, and even for RAD/GBS
-samples in organisms with medium to large genomes this produces a huge file.
+<option id="genotypeAll" deprecated="true">
+Deprecated option -genotypeAll
 </option>
 <option id="noRep" deprecated="true">
 Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis
@@ -243,14 +242,17 @@ Ignore this many base pairs from the 5' end of the reads.
 Ignore this many base pairs from the 3' end of the reads.
 </option>
 <option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY">
-Ploidy of the samples.
+Default ploidy of the samples.
+</option>
+<option id="psp" type="BOOLEAN" attribute="printSamplePloidy">
+Print id and ploidy of the sample in the VCF header.
 </option>
 <option id="knownSTRs" type="FILE" attribute="knownSTRsFile">
 File with known short tandem repeats (STRs). This is a text file with at least three
 columns: chromosome, first position and last position. Positions should be 1-based and
 inclusive.
 </option>
-<option id="embeddedSNVs">
+<option id="embeddedSNVs" type="BOOLEAN" attribute="callEmbeddedSNVs">
 Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
 no SNV will be called within an STR.
 </option>

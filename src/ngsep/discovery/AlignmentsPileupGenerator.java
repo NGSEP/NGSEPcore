@@ -30,11 +30,8 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
-import ngsep.genome.GenomicRegionSortedCollection;
-import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.variants.GenomicVariant;
 
 
 public class AlignmentsPileupGenerator {
@@ -43,10 +40,6 @@ public class AlignmentsPileupGenerator {
 	
 	private Logger log = Logger.getLogger(AlignmentsPileupGenerator.class.getName());
 	private List<PileupListener> listeners = new ArrayList<PileupListener>();
-	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
-	
-	private List<GenomicVariant> seqInputVariants;
-	private int idxNextInputVariant = 0;
 	private QualifiedSequenceList sequencesMetadata;
 	
 	private String querySeq=null;
@@ -74,11 +67,6 @@ public class AlignmentsPileupGenerator {
 
 	public void addListener(PileupListener listener) {
 		listeners.add(listener);
-	}
-
-	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
-		this.inputVariants = inputVariants;
-		seqInputVariants = null;
 	}
 	
 	/**
@@ -238,7 +226,6 @@ public class AlignmentsPileupGenerator {
 			while (keepRunning) {
 				ReadAlignment aln = chooseNextAln(iterators,currentAlignments, cmp, replaceReadGroups);
 				if(aln==null) break;
-				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
 				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
 				if(querySeq!=null) {
 					if(querySeq.equals(aln.getSequenceName())) {
@@ -307,7 +294,6 @@ public class AlignmentsPileupGenerator {
 			//Sequence under processing
 			while(it.hasNext() && keepRunning) {
 				ReadAlignment aln = it.next();
-				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
 				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
 				if(querySeq!=null) {
 					if(querySeq.equals(aln.getSequenceName())) {
@@ -348,7 +334,6 @@ public class AlignmentsPileupGenerator {
 	}
 	
 	public void processAlignment(ReadAlignment aln) {
-		if(!spanInputVariants(aln)) return;
 		if(currentReferenceSequence!=null) {
 			boolean sameSequence = currentReferenceSequence.getName().equals(aln.getSequenceName());
 			if(!sameSequence || lastReadAlignmentStart !=aln.getFirst()) {
@@ -415,22 +400,6 @@ public class AlignmentsPileupGenerator {
 		log.info("Processing sequence "+aln.getSequenceName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
-		if(inputVariants!=null) {
-			seqInputVariants = inputVariants.getSequenceRegions(seqName).asList();
-			idxNextInputVariant = 0;
-		}
-	}
-	
-	private boolean spanInputVariants(ReadAlignment aln) {
-		if(inputVariants==null) return true;
-		while(idxNextInputVariant<seqInputVariants.size())  {
-			GenomicVariant variant = seqInputVariants.get(idxNextInputVariant);
-			if(GenomicRegionSpanComparator.getInstance().span(variant, aln)) {
-				return true;
-			} else if (variant.getFirst()>aln.getLast()) break;
-			idxNextInputVariant++;
-		}
-		return false;
 	}
 
 	

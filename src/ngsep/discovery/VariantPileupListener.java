@@ -20,7 +20,6 @@
 package ngsep.discovery;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,8 +46,6 @@ public class VariantPileupListener implements PileupListener {
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
 	public static final short DEF_MAX_BASE_QS = 0;
-	public static final int DEF_MIN_ALT_COVERAGE = 0;
-	public static final int DEF_MAX_ALT_COVERAGE = 0;
 	public static final short DEF_MIN_QUALITY = 0;
 	
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
@@ -62,13 +59,9 @@ public class VariantPileupListener implements PileupListener {
 	private short maxBaseQS=DEF_MAX_BASE_QS; 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
-	private boolean genotypeAll = false;
 	private Set<String> readGroups;
 	
 	//Filters applied on variants discovery
-	
-	private int minAltCoverage=DEF_MIN_ALT_COVERAGE;
-	private int maxAltCoverage=DEF_MAX_ALT_COVERAGE;
 	private short minQuality = DEF_MIN_QUALITY;
 	
 	private int posPrint = -1;
@@ -116,24 +109,6 @@ public class VariantPileupListener implements PileupListener {
 	public void setCallEmbeddedSNVs(boolean callEmbeddedSNVs) {
 		this.callEmbeddedSNVs = callEmbeddedSNVs;
 	}
-	public boolean isGenotypeAll() {
-		return genotypeAll;
-	}
-	public void setGenotypeAll(boolean genotypeAll) {
-		this.genotypeAll = genotypeAll;
-	}
-	public int getMinAltCoverage() {
-		return minAltCoverage;
-	}
-	public void setMinAltCoverage(int minAltCoverage) {
-		this.minAltCoverage = minAltCoverage;
-	}
-	public int getMaxAltCoverage() {
-		return maxAltCoverage;
-	}
-	public void setMaxAltCoverage(int maxAltCoverage) {
-		this.maxAltCoverage = maxAltCoverage;
-	}
 	public short getMinQuality() {
 		return minQuality;
 	}
@@ -143,11 +118,8 @@ public class VariantPileupListener implements PileupListener {
 	public List<GenomicVariant> getInputVariants() {
 		return inputVariants.asList();
 	}
-	public void setInputVariants(Collection<GenomicVariant> inputVariants) {
-		this.inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
-		if(inputVariants!=null) {
-			this.inputVariants.addAll(inputVariants);
-		}
+	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
+		this.inputVariants = inputVariants;
 	}
 	
 	/**
@@ -216,7 +188,7 @@ public class VariantPileupListener implements PileupListener {
 		} else {
 			calledVar = callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0));
 		}
-		if(calledVar != null && (variant!=null || genotypeAll || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()) )) {
+		if(calledVar != null && (variant!=null || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()) )) {
 			//System.out.println("Called SNV");
 			calledVar.updateAllelesCopyNumberFromCounts(normalPloidy);
 			if(calledVar.isSNV() && (pileup.isEmbedded() || calledVar.getFirst()<=lastIndelEnd)) calledVar.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
@@ -615,29 +587,6 @@ public class VariantPileupListener implements PileupListener {
 	 */
 	private boolean passFilter (CalledGenomicVariant variant) {
 		if(variant==null) return false;
-		if(minAltCoverage != DEF_MIN_ALT_COVERAGE || maxAltCoverage != DEF_MAX_ALT_COVERAGE) {
-			VariantCallReport report = variant.getCallReport();
-			String [] alleles = variant.getAlleles();
-			boolean passCoverage = false;
-			//Starts in 1 to ignore the reference
-			for(int i=1;i<alleles.length;i++) {
-				int coverage = report.getCount(alleles[i]);
-				boolean pass= true;
-				//Min coverage filter
-				if(minAltCoverage != DEF_MIN_ALT_COVERAGE && coverage<minAltCoverage) {
-					pass = false;
-				}
-				//Max coverage filter
-				if(maxAltCoverage != DEF_MAX_ALT_COVERAGE && coverage>maxAltCoverage) {
-					pass = false;
-				}
-				if(pass) {
-					passCoverage = true;
-					break;
-				}
-			}
-			if(!passCoverage) return false;
-		}
 		
 		//Probability filter
 		if(minQuality != DEF_MIN_QUALITY && variant.getGenotypeQuality()<minQuality) {
@@ -680,6 +629,5 @@ public class VariantPileupListener implements PileupListener {
 	}
 	public void clear() {
 		calledVariants.clear();
-		
 	}
 }
