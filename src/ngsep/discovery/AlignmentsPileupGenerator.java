@@ -404,8 +404,10 @@ public class AlignmentsPileupGenerator {
 
 	
 	public void notifyEndOfAlignments() {
+		processSameStartAlns();
 		processPileups(currentReferenceLast+1);
 		for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
+		currentReferenceSequence=null;
 	}
 	private void processPileups(int alignmentStart) {
 		if(alignmentStart==currentReferencePos) return;
