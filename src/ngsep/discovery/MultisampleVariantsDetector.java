@@ -132,6 +132,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	 */
 	public void setLog(Logger log) {
 		this.log = log;
+		generator.setLog(log);
 	}
 
 	/**

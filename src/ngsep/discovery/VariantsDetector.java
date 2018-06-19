@@ -743,7 +743,6 @@ public class VariantsDetector implements PileupListener {
 
 
 	public void printParameters() {
-		log.info("Reference file: "+referenceFile);
 		log.info("Alignments file: "+alignmentsFile);
 		log.info("Heterozygocity rate: "+varListener.getHeterozygosityRate());
 		if(generator.getQuerySeq()!=null) {
