@@ -649,6 +649,7 @@ public class OverlapGraph {
 		for (int i = 0; i < count.length; i++) {
 		    if (max < count[i]) {
 			max = count[i];
+			
 			posmax = i;
 		    }
 		}
