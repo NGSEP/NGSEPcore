@@ -39,7 +39,7 @@ public class VariantDiscoverySNVQAlgorithm {
 	public static CalledGenomicVariant callSNV(PileupRecord pileup, CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate) {
 		CalledGenomicVariant newCall;
 		if(variant!=null) {
-			newCall = genotypeSNV(countsHelper, variant, refBase, heterozygosityRate);
+			newCall = genotypeSNV(countsHelper, variant, heterozygosityRate);
 		} else {
 			if(countsHelper.getTotalCount()==0) {
 				return null;
@@ -53,7 +53,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		return newCall;
 	}
 	//PRE: variant!=null
-	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate) {
+	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, double heterozygosityRate) {
 		CalledGenomicVariant newCall;
 		if(countsHelper.getTotalCount()==0) return new CalledGenomicVariantImpl(variant, new byte [0]);
 		int [] allCounts = countsHelper.getCounts();
@@ -62,14 +62,23 @@ public class VariantDiscoverySNVQAlgorithm {
 		
 		
 		if(variant instanceof SNV) {
-			byte indexRef = (byte) DNASequence.BASES_STRING.indexOf(refBase);
-			int [] indexesMax = getIndexesMaxGenotype(postProbs, indexRef);
-			double maxP = postProbs[indexesMax[0]][indexesMax[1]];
-			if(indexesMax[0]!=indexesMax[1]) maxP+= postProbs[indexesMax[1]][indexesMax[0]];
-			short gq = PhredScoreHelper.calculatePhredScore(1-maxP);
+			SNV snv = (SNV)variant;
+			byte indexRef = snv.getRefBaseDNAIndex();
+			byte indexAlt = snv.getRefBaseDNAIndex();
+			double pHomoRef = postProbs[indexRef][indexRef];
+			double pMax = pHomoRef;
 			byte genotype = 0;
-			if(indexesMax[0]!=indexesMax[1]) genotype = 1;
-			else if (indexesMax[0]!=indexRef) genotype = 2;
+			double pHomoAlt = postProbs[indexAlt][indexAlt];
+			if(pHomoAlt>pMax+0.01) {
+				pMax = pHomoAlt;
+				genotype = 2;
+			}
+			double pHetero = postProbs[indexRef][indexAlt]+postProbs[indexAlt][indexRef];
+			if(pHetero>pMax+0.01) {
+				pMax = pHetero;
+				genotype = 1;
+			}
+			short gq = PhredScoreHelper.calculatePhredScore(1-pMax);
 			CalledSNV csnv = new CalledSNV((SNV) variant, genotype);
 			csnv.setGenotypeQuality(gq);
 			csnv.setTotalReadDepth(countsHelper.getTotalCount());
