@@ -154,11 +154,13 @@ public class VariantsDetector implements PileupListener {
 			} else if("-minAltCoverage".equals(args[i])) {
 				//Default 0
 				i++;
-				detector.setMinAltCoverage(args[i]);
+				System.err.println("WARN: Deprecated option -minAltCoverage.");
+				//detector.setMinAltCoverage(args[i]);
 			} else if("-maxAltCoverage".equals(args[i])) {
 				//Default 0 (No filter)
 				i++;
-				detector.setMaxAltCoverage(args[i]);
+				System.err.println("WARN: Deprecated option -maxAltCoverage.");
+				//detector.setMaxAltCoverage(args[i]);
 			} else if("-minQuality".equals(args[i])) {
 				//Default 0 (No filter)
 				i++;
@@ -221,7 +223,8 @@ public class VariantsDetector implements PileupListener {
 				i++;
 				detector.setKnownVariantsFile(args[i]);
 			} else if("-genotypeAll".equals(args[i])) {
-				detector.setGenotypeAll(true);
+				System.err.println("WARN: Deprecated option -genotypeAll.");
+				//detector.setGenotypeAll(true);
 			} else if("-noRep".equals(args[i])) {
 				System.err.println("WARN: Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis");
 				//detector.setFindRepeats(false);
@@ -607,30 +610,6 @@ public class VariantsDetector implements PileupListener {
 	public void setBasesToIgnore3P(String value) {
 		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
-
-	public void setGenotypeAll(boolean genotypeAll) {
-		varListener.setGenotypeAll(true);
-	}
-	
-	public void setGenotypeAll(Boolean genotypeAll) {
-		setGenotypeAll(genotypeAll.booleanValue());
-	}
-
-	public void setMaxAltCoverage(int maxAltCoverage) {
-		varListener.setMaxAltCoverage(maxAltCoverage);
-	}
-	
-	public void setMaxAltCoverage(String value) {
-		setMaxAltCoverage((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	public void setMinAltCoverage(int minAltCoverage) {
-		varListener.setMinAltCoverage(minAltCoverage);
-	}
-	
-	public void setMinAltCoverage(String value) {
-		setMinAltCoverage((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
 	
 	public void setMinQuality (short minQuality) {
 		varListener.setMinQuality(minQuality);
@@ -764,14 +743,11 @@ public class VariantsDetector implements PileupListener {
 
 
 	public void printParameters() {
-		log.info("Reference file: "+referenceFile);
 		log.info("Alignments file: "+alignmentsFile);
 		log.info("Heterozygocity rate: "+varListener.getHeterozygosityRate());
 		if(generator.getQuerySeq()!=null) {
 			log.info("Analyze only region at "+generator.getQuerySeq()+":"+generator.getQueryFirst()+"-"+generator.getQueryLast());
 		}
-		log.info("Minimum Coverage Alternative Allele: "+varListener.getMinAltCoverage());
-		log.info("Maximum Coverage Alternative Allele: "+varListener.getMaxAltCoverage());
 		log.info("Minimum genotype quality score (PHRED): "+varListener.getMinQuality());
 		log.info("Maximum base quality score (PHRED): "+varListener.getMaxBaseQS());
 		log.info("Maximum number of alignments starting at the same position: "+generator.getMaxAlnsPerStartPos());
@@ -780,7 +756,6 @@ public class VariantsDetector implements PileupListener {
 		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
 		log.info("Bases to ignore in the 5' end: "+generator.getBasesToIgnore5P());
 		log.info("Bases to ignore in the 3' end: "+generator.getBasesToIgnore3P());
-		log.info("Genotype all sites in the genome covered by at least one read: "+varListener.isGenotypeAll());
 		log.info("Normal ploidy: "+normalPloidy);
 		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy);
 		
@@ -1004,11 +979,10 @@ public class VariantsDetector implements PileupListener {
 			log.info("Loading input variants");
 			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
 			log.info("Loaded "+knownVariants.size()+" input variants");
-			varListener.setInputVariants(knownVariants);
-			//TODO: Choose list or collection better
-			GenomicRegionSortedCollection<GenomicVariant> knownVarsC = new GenomicRegionSortedCollection<GenomicVariant>();
+			GenomicRegionSortedCollection<GenomicVariant> knownVarsC = new GenomicRegionSortedCollection<GenomicVariant>(genome.getSequencesMetadata());
 			knownVarsC.addAll(knownVariants);
 			indelRealigner.setInputVariants(knownVarsC);
+			varListener.setInputVariants(knownVarsC);
 		} else if(knownSTRsFile!=null) {
 			log.info("Loading input short tandem repeats");
 			//TODO: Choose the best format
@@ -1167,11 +1141,8 @@ public class VariantsDetector implements PileupListener {
 	 * Removes heavy resources loaded in memory during the process
 	 */
 	private void dispose() {
-		generator.setInputVariants(null);
 		indelRealigner.setInputVariants(null);
 		varListener.setInputVariants(null);
 		varListener.clear();
-		
-		
 	}
 }
