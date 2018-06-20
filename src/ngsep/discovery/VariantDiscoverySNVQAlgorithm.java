@@ -55,6 +55,7 @@ public class VariantDiscoverySNVQAlgorithm {
 	//PRE: variant!=null
 	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate) {
 		CalledGenomicVariant newCall;
+		if(countsHelper.getTotalCount()==0) return new CalledGenomicVariantImpl(variant, new byte [0]);
 		int [] allCounts = countsHelper.getCounts();
 		double [] [] allLogConditionals = countsHelper.getLogConditionalProbs();
 		double [][] postProbs = countsHelper.getPosteriorProbabilities(heterozygosityRate);

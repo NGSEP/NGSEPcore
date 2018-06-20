@@ -214,18 +214,18 @@ Call variants just from this position in the given query sequence.
 <option id="last" type="INT"  attribute="queryLast">
 Call variants just until this position in the given query sequence.
 </option>
-<option id="ignoreLowerCaseRef" attribute="ignoreLowerCaseRef">
+<option id="ignoreLowerCaseRef" type="BOOLEAN" attribute="ignoreLowerCaseRef">
 Ignore sites where the reference allele is lower case.
 </option>
 <option id="maxAlnsPerStartPos" type="INT" defaultConstant="DEF_MAX_ALNS_PER_START_POS" attribute="maxAlnsPerStartPos">
 Maximum number of alignments allowed to start
 at the same reference site.
 </option>
-<option id="p" attribute="processNonUniquePrimaryAlignments">
+<option id="p" type="BOOLEAN" attribute="processNonUniquePrimaryAlignments">
 Process non unique primary alignments in the pileup process. 
 The default behavior is to process alignments that are unique (see option -minMQ) 
 </option> 
-<option id="s" attribute="processSecondaryAlignments">
+<option id="s" type="BOOLEAN" attribute="processSecondaryAlignments">
 Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
 </option>
 <option id="minQuality" type="INT" defaultConstant="DEF_MIN_QUALITY" attribute="minQuality">
@@ -241,7 +241,7 @@ Ignore this many base pairs from the 5' end of the reads.
 <option id="ignore3" type="INT" default="0" attribute="basesToIgnore3P">
 Ignore this many base pairs from the 3' end of the reads.
 </option>
-<option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY">
+<option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY" attribute="normalPloidy">
 Default ploidy of the samples.
 </option>
 <option id="psp" type="BOOLEAN" attribute="printSamplePloidy">
@@ -256,10 +256,10 @@ inclusive.
 Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
 no SNV will be called within an STR.
 </option>
-<option id="minMQ" type="INT" defaultConstant="DEF_MIN_MQ">
+<option id="minMQ" type="INT" defaultConstant="DEF_MIN_MQ" attribute="minMQ">
 Minimum mapping quality to call an alignment unique
 </option>
-<option id="knownVariants" type="FILE">
+<option id="knownVariants" type="FILE" attribute="knownVariantsFile">
 VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
 </option>
 
