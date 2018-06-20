@@ -19,8 +19,11 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -56,14 +59,15 @@ public class OverlapGraph {
     private static final String[] fastq = { ".fastq", ".fastq.gz" };
     private static final String[] fasta = { ".fasta" };
 
-    private final List<LimitedSequence> sequences = new ArrayList<>();
+    private final List<DNAMaskedSequence> sequences = new ArrayList<>();
     private FMIndex index;
+    FMIndexSequences fmIndexSequences;
 
     private Map<Integer, List<ReadOverlap>> overlapsForward = new Hashtable<>();
     private Map<Integer, List<ReadOverlap>> overlapsBackward = new Hashtable<>();
     private Map<Integer, ReadOverlap> embeddedOverlaps = new Hashtable<>();
 
-    public OverlapGraph(String filename) throws Exception {
+    public OverlapGraph(String filename, String fileOut) throws Exception {
 	System.out.println("Built the Overlap Grap for:  " + filename + " ...\n");
 	timeWithException("total", () -> {
 	    timeWithException("Loaded the sequences from " + filename + ".", () -> {
@@ -75,15 +79,30 @@ public class OverlapGraph {
 		Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
 	    });
 
-	    time("Built the FMIndex.", () -> {
-		index = new FMIndex();
-		index.loadUnnamedSequences("", sequences);
-	    });
+	    boolean opcion = true;
 
-	    time("Built overlaps.", () -> findOverlaps2());
+	    if (opcion) {
+		time("Built the FMIndex.", () -> {
+		    index = new FMIndex();
+		    index.loadUnnamedSequences("", sequences);
+		});
+
+		time("Built overlaps.", () -> findOverlaps2());
+
+	    } else {
+		time("Built the FMIndex2.", () -> {
+		    fmIndexSequences = new FMIndexSequences(sequences);
+		});
+
+		time("Built overlaps2.", () -> {
+		    GraphMaker gm = new GraphMaker(sequences, fmIndexSequences);
+		    overlapsForward = gm.getOverlapsForward();
+		    embeddedOverlaps = gm.getEmbeddedOverlaps();
+		});
+	    }
 
 	    time("Simplify the grap.", () -> {
-		searchSequences();
+		searchSequences(fileOut);
 	    });
 	});
 
@@ -127,19 +146,21 @@ public class OverlapGraph {
 	Queue<ReadOverlap2>[] hits = new Queue[sequences.size()];
 
 	for (int idSequence = 0; idSequence < sequences.size(); idSequence++) {
-	    System.out.println("  --> "+idSequence + " - " + sequences.size());
+	    System.out.println("  --> " + idSequence + " - " + sequences.size());
 	    long ini = System.nanoTime();
 	    if (embeddedOverlaps.containsKey(idSequence))
 		continue;
-	    findHits(idSequence, procesingHits, hits);
+	    long time = findHits(idSequence, procesingHits, hits);
 
 	    for (int i = 0; i < hits.length; i++) {
 		Queue<ReadOverlap2> queue = hits[i];
 		while (!queue.isEmpty())
 		    if (processOverlap(idSequence, i, queue.poll()))
 			break;
+
 	    }
-	    System.out.println(System.nanoTime() - ini);
+	    long fin = System.nanoTime() - ini;
+	    System.out.println(fin + " " + time + " (" + (fin - time) / (double) 1000000000 + ")");
 	}
     }
 
@@ -251,13 +272,14 @@ public class OverlapGraph {
 	    ReadOverlap ov2 = new ReadOverlap(idSequence2, overlap.getFirst2(), overlap.getLast2(), idSequence1,
 		    overlap.getFirst1(), overlap.getLast1(), false);
 	    addOverlap(overlapsBackward, ov2);
+
 	    return true;
 	}
 	// }
 	return false;
     }
 
-    private void findHits(int idSequence, List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
+    private long findHits(int idSequence, List<ReadOverlap2>[] procesingHits, Queue<ReadOverlap2>[] hits) {
 	for (int i = 0; i < procesingHits.length; i++)
 	    // TODO optimizar (array), limpiar colas, cambio en las estructuras para
 	    // soportar eso
@@ -288,7 +310,7 @@ public class OverlapGraph {
 	for (int i = 0; i < procesingHits.length; i++)
 	    for (ReadOverlap2 read : procesingHits[i])
 		hits[i].add(read);
-	System.out.println(sum);
+	return sum;
 
     }
 
@@ -540,16 +562,176 @@ public class OverlapGraph {
 	overlapsSeq1.add(overlap);
     }
 
-    public List<List<Integer>> searchSequences() {
+    public List<List<Integer>> searchSequences(String fileout) {
 	int N = sequences.size();
 	Map<Integer, Map<Integer, Integer>> Edges = getEdges();
 	GraphSimplificator gs = new GraphSimplificator(N, Edges);
 	Edges = gs.Edges;
 	MaxPath mx = new MaxPath(N, Edges);
 	time("sdfasd", () -> {
-	    System.out.println(mx.maxLentghPath());
+	    // System.out.println();
+	    assemby(mx.maxLentghPath(), fileout);
 	});
 	return null;
+    }
+
+    public void assemby(List<Integer> order, String fileout) {
+	System.out.println(order);
+	Map<Integer, Integer> pos = new Hashtable<>(order.size());
+	int next, prev = order.get(0);
+	int k = 10;
+	pos.put(prev, k);
+	for (int i = 1; i < order.size(); i++) {
+	    next = order.get(i);
+	    List<ReadOverlap> list = overlapsForward.get(prev);
+
+	    for (ReadOverlap r : list)
+		if (r.getIndexSequence2() == next) {
+		    k += r.getFirst1() - r.getFirst2();
+		    break;
+		}
+	    pos.put(next, k);
+	    prev = next;
+	}
+
+	Queue<Entry<Integer, Integer>> pos2 = new PriorityQueue<>(new Comparator<Entry<Integer, Integer>>() {
+	    @Override
+	    public int compare(Entry<Integer, Integer> arg0, Entry<Integer, Integer> arg1) {
+		return arg0.getValue() - arg1.getValue();
+	    }
+	});
+	pos2.addAll(pos.entrySet());
+	for (ReadOverlap r : embeddedOverlaps.values()) {
+	    if (!pos.containsKey(r.getIndexSequence2()))
+		continue;
+	    int posit = pos.get(r.getIndexSequence2());
+	    posit = posit + r.getFirst2() - r.getFirst1();
+	    pos2.add(new AbstractMap.SimpleEntry<>(r.getIndexSequence1(), posit));
+	}
+
+	Queue<Entry<Integer, Integer>> pos3 = new LinkedList<>();
+	Map<Character, Integer> map = new Hashtable<>();
+	String b = DNAMaskedSequence.BASES;
+	int v = 0;
+	for (int i = 0; i < b.length(); i++) {
+	    map.put(b.charAt(i), v++);
+	}
+
+	int L = b.length();
+	LinkedList<int[]> active = new LinkedList<>();
+	Entry<Integer, Integer> p = pos2.poll();
+	int intialValue = p.getValue();
+	p.setValue(p.getValue() - intialValue);
+	pos3.add(p);
+	active.add(new int[] { p.getKey(), 0 });
+	int[] count;
+
+	StringBuilder sequence = new StringBuilder();
+
+	int ind = 0;
+	while (!pos2.isEmpty()) {
+	    p = pos2.poll();
+	    int t = p.getValue() - intialValue;
+	    while (ind < t) {
+		count = new int[L];
+		Iterator<int[]> iter = active.iterator();
+		while (iter.hasNext()) {
+		    int[] is = iter.next();
+		    if (is[1] == sequences.get(is[0]).length()) {
+			iter.remove();
+			continue;
+		    }
+		    count[map.get(sequences.get(is[0]).charAt(is[1]++))]++;
+		}
+
+		int max = 0;
+		int posmax = 0;
+		for (int i = 0; i < count.length; i++) {
+		    if (max < count[i]) {
+			max = count[i];
+			
+			posmax = i;
+		    }
+		}
+		sequence.append(b.charAt(posmax));
+		ind++;
+	    }
+	    p.setValue(p.getValue() - intialValue);
+	    pos3.add(p);
+	    active.add(new int[] { p.getKey(), 0 });
+	}
+
+	while (true) {
+	    count = new int[L];
+	    Iterator<int[]> iter = active.iterator();
+	    while (iter.hasNext()) {
+		int[] is = iter.next();
+		if (is[1] == sequences.get(is[0]).length()) {
+		    iter.remove();
+		    continue;
+		}
+		count[map.get(sequences.get(is[0]).charAt(is[1]++))]++;
+	    }
+	    if (active.isEmpty())
+		break;
+
+	    int max = 0;
+	    int posmax = 0;
+	    for (int i = 0; i < count.length; i++) {
+		if (max < count[i]) {
+		    max = count[i];
+		    posmax = i;
+		}
+	    }
+	    sequence.append(b.charAt(posmax));
+	}
+
+	try {
+	    PrintStream pr = new PrintStream(new FileOutputStream(fileout));
+	    pr.println(sequence);
+
+	    StringBuilder kk = new StringBuilder();
+	    for (int i = 0; i < sequence.length(); i++)
+		kk.append("-");
+	    pr.println(kk);
+	    pr.println();
+
+	    List<StringBuilder> sb = new LinkedList<>();
+
+	    while (!pos3.isEmpty()) {
+		Entry<Integer, Integer> entry = pos3.poll();
+
+		int min = Integer.MAX_VALUE;
+		StringBuilder minS = null;
+		for (StringBuilder sn : sb) {
+		    if (sn.length() < entry.getValue()) {
+			if (min > sn.length()) {
+			    min = sn.length();
+			    minS = sn;
+			}
+		    }
+		}
+
+		String a = "+";
+		if (minS != null) {
+		    while (entry.getValue() != minS.length())
+			minS.append(a);
+		    minS.append(sequences.get(entry.getKey()));
+		} else {
+		    StringBuilder aux = new StringBuilder();
+		    for (int j = 0; j < entry.getValue(); j++)
+			aux.append(a);
+		    aux.append(sequences.get(entry.getKey()));
+		    sb.add(aux);
+		}
+
+	    }
+	    for (StringBuilder sn : sb)
+		pr.println(sn);
+	    pr.close();
+	} catch (FileNotFoundException e) {
+	    e.printStackTrace();
+	}
     }
 
     private Map<Integer, Map<Integer, Integer>> getEdges() {
@@ -613,7 +795,7 @@ public class OverlapGraph {
     }
 
     public static void main(String[] args) throws Exception {
-	new OverlapGraph(args[0]);
+	new OverlapGraph(args[0], args[1]);
     }
 }
 
@@ -693,6 +875,10 @@ class ReadOverlap {
 
     public int getLast2() {
 	return last2;
+    }
+
+    public int length() {
+	return last1 - first2;
     }
 
     public boolean isNegativeStrand() {
