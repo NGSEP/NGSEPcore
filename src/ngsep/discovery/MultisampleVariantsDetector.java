@@ -839,12 +839,14 @@ public class MultisampleVariantsDetector implements PileupListener {
 	 * @return
 	 */
 	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord pileup, double h) {
+		if(pileup.getPosition()==posPrint) System.out.println("Genotyping variant type: "+variant.getType()+" is SNV: "+variant.isSNV()+" alleles: "+Arrays.asList(variant.getAlleles()));
 		List<CalledGenomicVariant> calls = new ArrayList<>();
 		int n = samples.size();
 		short variantQS = 0;
 		for(int i=0;i<n;i++) {
 			Sample sample = samples.get(i);
 			CalledGenomicVariant call = genotypeVariantSample(variant, pileup, sample, h);
+			if(pileup.getPosition()==posPrint) System.out.println("Sample: "+call.getSampleId()+" Genotype: "+Arrays.asList(call.getCalledAlleles())+" GQ: "+call.getGenotypeQuality());
 			if(!call.isUndecided() && !call.isHomozygousReference() && call.getGenotypeQuality()>variantQS) {
 				variantQS = call.getGenotypeQuality();
 			}

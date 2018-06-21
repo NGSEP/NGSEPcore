@@ -64,7 +64,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		if(variant instanceof SNV) {
 			SNV snv = (SNV)variant;
 			byte indexRef = snv.getRefBaseDNAIndex();
-			byte indexAlt = snv.getRefBaseDNAIndex();
+			byte indexAlt = snv.getAltBaseDNAIndex();
 			double pHomoRef = postProbs[indexRef][indexRef];
 			double pMax = pHomoRef;
 			byte genotype = 0;
