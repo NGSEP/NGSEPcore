@@ -3,18 +3,17 @@ Version 3.2.0 (04-07-2018)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
-analysis of Next Generation Sequencing (NGS) data. The most important
-component of NGSEP is the variants detector, which performs accurate
-detection and genotyping of Single Nucleotide Variants (SNVs), small and
-large indels, inversions, and Copy Number Variants (CNVs). NGSEP provides
-utilities to calculate quality and coverage statistics, to perform functional
-annotation of variants, to merge variant calls for different samples, and
-to filter and convert VCF files. The format of choice to process alignments
-in every component in this package is SAM (or BAM), which allows to
-integrate NGSEP with commonly used mapping programs as Bowtie2 
-(http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) and other analysis
-packages such as SAMTools (http://samtools.sourceforge.net/) or picard
-(http://picard.sourceforge.net/).
+analysis of DNA high throughput sequencing (HTS) data. The most important
+use of NGSEP is the construction and downstream analysis of large datasets of
+genomic variation. NGSEP performs accurate detection and genotyping of Single
+Nucleotide Variants (SNVs), small and large indels, short tandem repeats (STRs),
+inversions, and Copy Number Variants (CNVs). NGSEP also provides utilities for
+downstream analysis of variation in VCF files, including functional annotation
+of variants, filtering, format conversion, comparison, clustering, imputation,
+introgression analysis and different kinds of statistics. Other functionalities
+include calculations of k-mer distributions from fasta or fastq files,
+demultiplexing of barcoded sequencing reads, and comparative analysis of read
+depth distributions.
 
 --------------------
 Building NGSEP
@@ -129,8 +128,8 @@ OPTIONS:
 				  NGSEP to keep track of the ploidy of the samples
 				  through downstream analyses
 
-Alignments should be provided in BAM V-0.1.2 format
-(see http://samtools.sourceforge.net for details).
+Alignments should be provided in BAM v1 format
+(see http://samtools.github.io/hts-specs/SAMv1.pdf for details).
 The reference genome should be provided in fasta format. It is assumed that
 the sequence names in the alignments file correspond with the sequence names in
 this reference assembly. For this module, BAM files must include RG headers
@@ -146,7 +145,7 @@ read group headers. This module uses read group headers to distribute the reads
 that belong to the different samples.
 
 DETAILS OF OUTPUT FILES: The output of this module is a VCF file
-(see the standard format at http://www.1000genomes.org/node/101).
+(see the standard format at http://samtools.github.io/hts-specs/VCFv4.2.pdf).
 NGSEP uses standard output file formats such as VCF
 and GFF to facilitate integration with other tools and visualization in
 web genome browsers such as jbrowse, gbrowse and the UCSC genome browser, or
@@ -336,11 +335,12 @@ OPTIONS:
 	-noSNVS			: Turns off SNV detection. In this mode, only
 				  structural variation will be called
 
-Alignments should be provided in BAM V-0.1.2 format
-(see http://samtools.sourceforge.net for details). The reference genome should
-be provided in fasta format. The output for SNVs and small indels is a VCF file.
-These standard formats are used to facilitate integration with other tools. See
-more details above in the description of the MultisampleVariantsDetector command.
+Alignments should be provided in BAM v1 format
+(see http://samtools.github.io/hts-specs/SAMv1.pdf for details).
+The reference genome should be provided in fasta format. The output for SNVs,
+small indels and STRs is a VCF file. These standard formats are used to
+facilitate integration with other tools. See more details above in the
+description of the MultisampleVariantsDetector command.
 Structural variants are reported in a gff file (see the standard format at 
 http://www.sequenceontology.org/gff3.shtml). This file can be used as a
 parameter of the variants detector (option "-knownSVs") which is useful to
@@ -1181,8 +1181,8 @@ Nucleic Acids research:
 
 Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
 An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
-Nucleic Acids Research. 42(6): e44. doi: 10.1093/nar/gkt1381
-http://nar.oxfordjournals.org/content/42/6/e44.full
+Nucleic Acids Research. 42(6): e44. 
+http://doi.org/10.1093/nar/gkt1381
 
 A description of some of the latest modules and recent benchmarks with other
 tools for variants detection on Genotype-By-Sequencing (GBS) data is available
@@ -1190,8 +1190,8 @@ at BMC Genomics:
 
 Perea C, Hoz JFDL, Cruz DF, Lobaton JD, Izquierdo P, Quintero JC, Raatz B and Duitama J. (2016).
 Bioinformatic analysis of genotype by sequencing (GBS) data with NGSEP.
-BMC Genomics, 17:498. doi:10.1186/s12864-016-2827-7
-http://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-016-2827-7
+BMC Genomics, 17:498.
+http://doi.org/10.1186/s12864-016-2827-7
 
 Details of variant detection algorithms implemented in NGSEP can be found in
 the following publications:
@@ -1199,26 +1199,31 @@ the following publications:
 SNV detection:
 Duitama J, Srivastava PK, and Mandoiu II. (2012). 
 Towards accurate detection and genotyping of expressed variants from whole transcriptome sequencing data. 
-BMC Genomics, 13(Suppl 2), S6. doi:10.1186/1471-2164-13-S2-S6
+BMC Genomics, 13(Suppl 2), S6. 
+http://doi.org/10.1186/1471-2164-13-S2-S6
 
 CNV detection (Read depth analysis):
 Abyzov, A., Urban, A. E., Snyder, M., and Gerstein, M. (2011). 
 CNVnator: an approach to discover, genotype, and characterize typical and atypical CNVs from family and population genome sequencing.
-Genome research, 21(6), 974–84. doi:10.1101/gr.114876.110
+Genome research, 21(6), 974–84. 
+http://doi.org/10.1101/gr.114876.110
 
 Yoon S, Xuan Z, Makarov V, Ye K, Sebat J. (2009).
 Sensitive and accurate detection of copy number variants using read depth of coverage. 
-Genome Research Sep;19(9):1586-92. Epub 2009 Aug 5. PubMed PMID: 19657104; PubMed Central PMCID: PMC2752127.
+Genome Research 19(9):1586-1592.
+http://doi.org/10.1101/gr.092981.109
 
 Genotype imputation:
 Scheet, P and Stephens, M. (2006).
 A Fast and Flexible Statistical Model for Large-Scale Population Genotype Data: Applications to Inferring Missing Genotypes and Haplotypic Phase.
 American Journal of Human Genetics 78: 629-644.
+http://doi.org/10.1086/502802
 
 Read Depth comparison:
 Xie C and Tammi MT. (2009).
 CNV-seq, a new method to detect copy number variation using high-throughput sequencing.
 BMC Bioinformatics 10:80.
+http://doi.org/10.1186/1471-2105-10-80
 
 NOTE: Since version 2.1.2, we implemented a new model to integrate paired-end and split-read analysis for detection of large indels.
 Benchmarking with other tools is in progress.

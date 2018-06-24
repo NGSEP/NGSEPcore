@@ -1,4 +1,4 @@
-<NGSEP version="3.2.0" date="29-06-2018">
+<NGSEP version="3.2.0" date="04-07-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">

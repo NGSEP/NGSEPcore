@@ -1,4 +1,4 @@
-v3.2.0 03-07-2018
+v3.2.0 04-07-2018
 - Added the new command MultisampleVariantsDetector to perform integrated
   variant detection over a collection of multiple samples. This is now the
   recommended method to perform variants detection on genotype-by-sequencing
