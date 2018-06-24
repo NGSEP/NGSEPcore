@@ -535,24 +535,26 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	
 	public void printParameters() {
-		
-		log.info("Heterozygocity rate: "+getHeterozygosityRate());
+		log.info("Output file: "+outFilename);
+		log.info("Heterozygosity rate: "+getHeterozygosityRate());
 		if(generator.getQuerySeq()!=null) {
 			log.info("Analyze only region at "+generator.getQuerySeq()+":"+generator.getQueryFirst()+"-"+generator.getQueryLast());
 		}
-		log.info("Minimum genotype quality score (PHRED): "+getMinQuality());
-		log.info("Maximum base quality score (PHRED): "+getMaxBaseQS());
-		log.info("Maximum number of alignments starting at the same position: "+getMaxAlnsPerStartPos());
-		log.info("Ignore variants in lower case reference positions: "+isIgnoreLowerCaseRef());
-		log.info("Process non unique primary alignments for SNV detection: "+generator.isProcessNonUniquePrimaryAlignments());
-		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
-		log.info("Bases to ignore in the 5' end: "+generator.getBasesToIgnore5P());
-		log.info("Bases to ignore in the 3' end: "+generator.getBasesToIgnore3P());
-		log.info("Normal ploidy: "+normalPloidy);
-		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy); 
+		log.info("Maximum number of alignments starting at the same position: " + generator.getMaxAlnsPerStartPos());
+		log.info("Ignore variants in lower case reference positions: " + isIgnoreLowerCaseRef());
+		log.info("Process non unique primary alignments: " + generator.isProcessNonUniquePrimaryAlignments());
+		log.info("Process secondary alignments: " + generator.isProcessSecondaryAlignments());
+		log.info("Minimum variant quality score (PHRED): " + getMinQuality());
+		log.info("Maximum base quality score (PHRED): " + getMaxBaseQS());
+		log.info("Base pairs to ignore from the 5' end of each read: " + generator.getBasesToIgnore5P());
+		log.info("Base pairs to ignore from the 3' end of each read: " + generator.getBasesToIgnore3P());
+		log.info("File with known short tandem repeats: " + knownSTRsFile);
+		log.info("File with known variants: " + knownVariantsFile);
+		log.info("Call SNVs within STRs: " + isCallEmbeddedSNVs());
+		
 		log.info("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
-		log.info("File with known short tandem repeats: "+knownSTRsFile);
-		log.info("File with known Variants: "+knownVariantsFile);
+		log.info("Normal ploidy: "+normalPloidy);
+		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy);
 	}
 
 	public void findVariants() throws IOException {

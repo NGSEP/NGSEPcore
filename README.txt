@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.1.2 (14-04-2018)
+Version 3.2.0 (04-07-2018)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -23,20 +23,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 1.8.0. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_3.1.2.tar.gz is located:
+NGSEPcore_3.2.0.tar.gz is located:
 
-tar -xzvf NGSEPcore_3.1.2.tar.gz
-cd NGSEPcore_3.1.2
+tar -xzvf NGSEPcore_3.2.0.tar.gz
+cd NGSEPcore_3.2.0
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_3.1.2.jar NGSEPcore.jar
+cp NGSEPcore_3.2.0.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_3.1.2.jar NGSEPcore.jar
+ln -s NGSEPcore_3.2.0.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -50,14 +50,190 @@ General information and the list of modules can be obtained by typing:
 
 java -jar NGSEPcore.jar [ --help | --version | --citing ]
 
--------------------------------------------
-Calling variants with the Variants detector
--------------------------------------------
+--------------------------------------
+Calling variants over multiple samples
+--------------------------------------
 
-The main module of NGSEP is the variants detector. Basic usage requires an
-alignments file in SAM or BAM format, the reference genome that was used to
-produce the alignments, and a prefix for the output files. The full usage is as
-follows: 
+This modules allows to call variants over a group of samples separated by files
+or read group tags. This is now the recommended method to perform variants
+detection on genotype-by-sequencing (GBS), RAD sequencing, whole exome
+sequencing (WES), RNA-seq and low coverage (less than 10x) whole genome
+sequencing (WGS) data. Although it can also be used on high coverage WGS data,
+the classic sample-by-sample analysis (commands FindVariants, MergeVariants and
+MergeVCF) is still recommended to identify structural variants. This module
+requires one or more read alignment files in BAM format and the reference genome
+that was used to produce the alignments.
+
+USAGE:
+
+java -jar NGSEPcore_3.2.0.jar MultisampleVariantsDetector <OPTIONS> <BAM_FILE>*
+
+OPTIONS:
+
+	-r GENOME		: Fasta file with the reference genome.
+	-o FILE			: Output file. Default: variants.vcf
+	-h DOUBLE		: Heterozygosity rate. Default: 0.001
+	-querySeq STRING	: Call variants just for this sequence.
+	-first INT		: Call variants just from this position in the
+				  given query sequence.
+	-last INT		: Call variants just until this position in the
+				  given query sequence.
+	-ignoreLowerCaseRef	: Ignore sites where the reference allele is
+				  lower case.
+	-maxAlnsPerStartPos INT	: Maximum number of alignments allowed to start
+				  at the same reference site. This parameter
+				  helps to control false positives produced by
+				  PCR amplification artifacts. In this command,
+				  this filter is executed independently for each
+				  read group. For GBS or RAD sequencing data use
+				  a large value such as 100. Default: 5
+	-p			: Process non unique primary alignments in the
+				  pileup process. The default behavior is to
+				  process alignments that are unique
+				  (see option -minMQ).
+	-s			: Consider secondary alignments in the pileup
+				  process. Non-unique primary alignments will
+				  also be considered in this mode.
+	-minQuality INT         : Minimum variant quality. In this command, this
+				  filter applies to the QUAL column of the VCF,
+				  which is calculated for each variant as the
+				  maximum of the genotype qualities of samples
+				  with non-homozygous reference genotype calls.
+				  See the command FilterVCF to apply filters of
+				  quality and read depth on individual genotype
+				  calls. Default: 40
+	-maxBaseQS INT          : Maximum value allowed for a base quality score.
+				  Larger values will be equalized to this value.
+				  Keep the default value of zero to disable this
+				  filter. Default: 0
+	-ignore5 INT            : Ignore this many base pairs from the 5' end of
+				  the reads. Default: 0
+	-ignore3 INT            : Ignore this many base pairs from the 3' end of
+				  the reads. Default: 0
+	-knownSTRs FILE         : File with known short tandem repeats (STRs).
+				  This is a text file with at least three
+				  columns: chromosome, first position and last
+				  position. Positions should be 1-based and
+				  inclusive.
+	-knownVariants FILE     : VCF file with variants to be genotyped. Only
+				  these variants will appear in the output VCF.
+	-embeddedSNVs           : Flag to call SNVs within STRs. By default,
+				  STRs are treated as a single locus and hence
+				  no SNV will be called within an STR.
+	-minMQ INT              : Minimum mapping quality to call an alignment
+				  unique Default: 20
+	-ploidy INT             : Default ploidy of the samples. Default: 2
+	-psp                    : Print id and ploidy of the sample in the VCF
+				  header. The header generated with this option
+				  is not a standard VCF header. However, it helps
+				  NGSEP to keep track of the ploidy of the samples
+				  through downstream analyses
+
+Alignments should be provided in BAM V-0.1.2 format
+(see http://samtools.sourceforge.net for details).
+The reference genome should be provided in fasta format. It is assumed that
+the sequence names in the alignments file correspond with the sequence names in
+this reference assembly. For this module, BAM files must include RG headers
+including the ID of each read group and the corresponding sample. A typical read
+group header looks as follows
+
+@RG	ID:<ReadGroupId>	SM:<SampleId>	PL:<Platform>
+
+Each alignment must include an RG tag indicating the id of the read group of
+the aligned read. See the BAM format specification for details.
+Check the documentation of your read aligner to make sure that BAM files contain
+read group headers. This module uses read group headers to distribute the reads
+that belong to the different samples.
+
+DETAILS OF OUTPUT FILES: The output of this module is a VCF file
+(see the standard format at http://www.1000genomes.org/node/101).
+NGSEP uses standard output file formats such as VCF
+and GFF to facilitate integration with other tools and visualization in
+web genome browsers such as jbrowse, gbrowse and the UCSC genome browser, or
+desktop browsers such as the Integrative Genomics Viewer (IGV). This allows
+integrated visuallzation of read alignments, variants and functional elements.
+Moreover, the NGSEP output files provide as optional fields custom
+information on the variants and genotype calls. For each variant, NGSEP VCF
+files include the following custom fields in the INFO column
+(described also in the VCF header): 
+
+TYPE (STRING)	: Type of variant for variants different than biallelic SNVs.
+		  Possible types include MULTISNV, INDEL and STR (short tandem
+		  repeat). Also, SNVs called within INDELS or STRs are tagged
+		  with the EMBEDDED type.
+CNV (INT)	: Number of samples with CNVs covering this variant. This will
+		  not be generated by this command but by the classical per
+		  sample analysis, and only if the read depth analysis is
+		  executed
+NS (INT)	: Number of samples genotyped.
+MAF (DOUBLE)	: Minor allele frequency. Calculated by the MergeVCF and the
+		  FilterVCF commands
+AN (INT)	: Number of different alleles observed in called genotypes.
+AFS (INT*)	: Allele counts over the population for all alleles, including
+		  the reference. One number per allele.
+		
+
+Additionally, the Annotate command adds the INFO fields TA, TID, TGN, TCO and
+TACH with the results of the functional annotation (See the Annotate command
+below for details). NGSEP VCFs also include custom format fields with the
+following information for each genotype call:
+
+ADP (INT,INT,...)	: Number of base calls (depth) for alleles, including
+			  the reference allele. The order of the counts is,
+			  first the depth of the reference allele and then the
+			  read depths of the alternative alleles in the order
+			  listed in the ALT field. 
+BSDP (INT,INT,INT,INT)	: For SNVs, number of base calls (depth) for the 4
+			  possible nucleotides, sorted as A,C,G,T.
+ACN (INT, INT, ...)	: Predicted copy number of each allele taking into
+			  account the prediction of number of copies of the
+			  region surrounding the variant. The order is the same
+			  that in the ADP field
+
+WARNING 1: Since v3.2.0, for RAD Sequencing or genotype-by-sequencing (GBS)
+we now recommend to perform variants detection and genotyping using this module.
+However, using the default value of the parameter to control for PCR duplicates
+(maxAlnsPerStartPos) will yield very low sensitivity. We recommend to increase
+the value of the parameter to about 100 to retain high sensitivity while
+avoiding a severe penalty in memory usage. The default usage for RAD-Seq or GBS
+samples becomes:
+
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -r <REFERENCE> <BAM_FILE>*
+
+WARNING 2: Unlike the behavior of the classical individual analysis per sample,
+in this command the filter executed using the minQuality option applies to the
+QUAL field of the VCF format, which corresponds to the probability of existence
+of each variant (regardless of the individual genotype calls). In this module
+the QUAL probability is calculated for each variant as the maximum of the
+genotype qualities of samples with non-homozygous reference genotype calls. The
+rationale for this calculation is that one variant should be real if it is
+confidently called in at least one sample. Individual genotype calls are not
+filtered by default and hence they could include some false positives. Please see
+the FilterVCF command to perform custom filtering of genotype calls, either by
+genotype quality (GQ format field) or by read depth (BSDP and ADP format fields).
+Default values of other parameters are also set to maximize sensitivity. For
+conservative variant detection including control for errors in base quality
+scores and PCR amplification artifacts use:
+
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -maxBaseQS 30 -r <REFERENCE> <BAM_FILE>*
+
+If the error rate towards the three prime end increases over 2% you can also
+use the option -ignore3 to ignore errors at those read positions. If the
+reference genome has lowercase characters for repetitive regions (usually
+called softmasked), these regions can be directly filtered using the option
+-ignoreLowerCaseRef. These regions can also be filtered at later stages of
+the analysis using the FilterVCF command.
+
+
+
+-----------------------------------------------------------------
+Calling variants on individual samples with the variants detector
+-----------------------------------------------------------------
+
+This is the classic module of NGSEP to call SNVs, small indels and structural
+variants from sequencing data of single individuals. Basic usage requires an
+alignments file in BAM format, the reference genome that was used to produce the
+alignments, and a prefix for the output files.
 
 USAGE: 
 
@@ -75,17 +251,16 @@ OPTIONS:
 	-maxAlnsPerStartPos INT	: Maximum number of alignments allowed to start
 				  at the same reference site. This parameter
 				  helps to control false positives produced by
-				  PCR amplification artifacts. Default 5
-        -p                      : Process non unique primary alignments in the
+				  PCR amplification artifacts. For GBS or RAD
+				  sequencing data use a large value such as 100.
+				  Default 5.
+	-p			: Process non unique primary alignments in the
 				  pileup process.  The default behavior is to
 				  process alignments that are unique
 				  (see option -minMQ) 
 	-s			: Consider secondary alignments while calling
-				  SNVs
-	-minAltCoverage	INT	: Minimum coverage of the alternative allele to
-				  call a SNV. Default: 0
-	-maxAltCoverage	INT	: Maximum coverage of the alternative allele to
-				  call a SNV. Default: 0 (No filter)
+				  SNVs. Non-unique primary alignments will also
+				  be considered in this mode.
 	-minQuality	INT	: Minimum genotype quality to accept a SNV call
 				  Genotype quality is calculated as 1 minus the
 				  posterior probability of the genotype given
@@ -99,19 +274,18 @@ OPTIONS:
 				  of the reads. Default: 0
 	-ignore3 INT		: Ignore this many base pairs from the 3' end
 				  of the reads. Default: 0
-	-ploidy INT		: Ploidy of the sample to be analyzed. 
-				  Default 2
-	-knownSVs FILE		: File with coordinates of known structural
-				  variants in GFF format.
 	-knownSTRs FILE		: File with known short tandem repeats (STRs)
 				  This is a text file with at least three
 				  columns, chromosome, first position and last
 				  position. Positions should be 1-based and
 				  inclusive.
-	-embeddedSNVs		: Flag to call SNVs within STRs. Since v2.1.4,
+	-knownVariants FILE	: VCF file with variants to be genotyped. Only
+				  these variants will appear in the output vcf
+				  file. With this option homozygous calls to
+				  the reference allele will be reported
+	-embeddedSNVs		: Flag to call SNVs within STRs. By default,
 				  STRs are treated as a single locus and hence
-				  by default, no SNV will be called within an
-				  STR.
+				  no SNV will be called within an STR.
 	-minSVQuality INT	: Minimum quality score (in PHRED scale) for
 				  structural variants. Default: 20
 	-genomeSize INT		: Total size of the genome to use during
@@ -122,7 +296,7 @@ OPTIONS:
 	-binSize INT		: Size of the bins to analyze read depth.
 				  Default: 100
 	-algCNV	STRING		: Comma-separated list of read depth algorithms
-				  to run. Default: CNVnator
+				  to run (e.g. CNVnator,EWT). Default: CNVnator
 	-maxPCTOverlapCNVs INT	: Maximum percentage of overlap of a new CNV
 				  with an input CNV to include it in the output
 				  Default: 100 (No filter)
@@ -136,83 +310,42 @@ OPTIONS:
 				  default, the distribution of insert length is
 				  estimated only taking into account reads with
 				  the proper pair flag turned on
+	-knownSVs FILE		: File with coordinates of known structural
+				  variants in GFF format.
 	-minMQ INT		: Minimum mapping quality to call an alignment unique.
 				  Default: 20
-
 	-sampleId STRING	: Id of the sample that will appear in the
-				  output vcf file 
+				  output vcf file
+	-ploidy INT		: Ploidy of the sample to be analyzed. 
+				  Default 2
 	-psp			: Flag to print a header in the VCF file with
-				  the id and the ploidy of the sample			  
-	-knownVariants FILE	: VCF file with variants to be genotyped. Only
-				  these variants will appear in the output vcf
-				  file. With this option homozygous calls to
-				  the reference allele will be reported  
-	-genotypeAll		: Report all covered sites in the genome.
-				  CAUTION: For WGS samples, and even for 
-				  RAD/GBS samples in organisms with medium to
-				  large genomes this produces a huge file. 
-	-runRep			: Turn on finding repetitive regions based on
-				  reads with multiple alignments
-	-runRD			: Turn on read depth analysis to identify CNVs
-	-runRP			: Turn on read pair analysis to identify large
-				  indels and inversions
-	-noSNVS			: Turn off SNV detection
-	-noNewCNV		: Turn off finding new CNVs with the read depth
+				  the id and the ploidy of the sample. The
+				  header generated with this option is not a
+				  standard VCF header. However, it helps NGSEP
+				  to keep track of the ploidy of each sample
+				  through downstream analyses
+	-runRep			: Turns on the procedure to find repetitive
+				  regions based on reads with multiple alignments
+	-runRD			: Turns on read depth (RD) analysis to identify
+				  CNVs
+	-noNewCNV		: Turns off finding new CNVs with the read depth
 				  analysis. Input CNVs and repeats will still
 				  be genotyped using the RD distribution
+	-runRP			: Turns on read pair plus split-read analysis
+				  (RP+SR) to identify large indels and inversions
+	-noSNVS			: Turns off SNV detection. In this mode, only
+				  structural variation will be called
 
 Alignments should be provided in BAM V-0.1.2 format
-(see http://samtools.sourceforge.net for details).
-The reference genome should be provided in fasta format. It is assumed that
-the sequence names in the alignments file correspond with the sequence names in
-this reference assembly. The output for SNVs and small indels is a VCF file
-(see the standard format at http://www.1000genomes.org/node/101). Structural
-variants are reported in a gff file (see the standard format at 
+(see http://samtools.sourceforge.net for details). The reference genome should
+be provided in fasta format. The output for SNVs and small indels is a VCF file.
+These standard formats are used to facilitate integration with other tools. See
+more details above in the description of the MultisampleVariantsDetector command.
+Structural variants are reported in a gff file (see the standard format at 
 http://www.sequenceontology.org/gff3.shtml). This file can be used as a
 parameter of the variants detector (option "-knownSVs") which is useful to
 avoid recalculation of structural variants while genotyping known variants.
-
-DETAILS OF OUTPUT FILES: NGSEP uses standard output file formats such as VCF
-and GFF to facilitate integration with other tools and visualization in
-web genome browsers such as jbrowse, gbrowse and the UCSC genome browser, or
-desktop browsers such as the Integrative Genomics Viewer (IGV). This allows
-integrated visuallzation of read alignments, variants and  functional elements.
-Moreover, the NGSEP output files provide as optional fields custom
-information on the variants and genotype calls. For each variant, NGSEP VCF
-files include the following custom fields in the INFO column
-(described also in the VCF header): 
-
-TYPE (STRING)	: Type of variant for variants different than biallelic SNVs.
-		  Possible types include MULTISNV, INDEL and STR (short tandem
-		  repeat). Also, SNVs called within INDELS or STRs are tagged
-		  with the EMBEDDED type
-CNV (INT)	: Number of samples with CNVs covering this variant
-NS (INT)	: Number of samples genotyped. Calculated by the MergeVCF and
-		  the FilterVCF commands
-MAF (DOUBLE)	: Minor allele frequency. Calculated by the MergeVCF and the
-		  FilterVCF commands
-AN (INT)	: Number of different alleles observed in called genotypes.
-		  Calculated by the MergeVCF and the FilterVCF commands
-
-Additionally, the Annotate command adds the INFO fields TA, TID, TGN, and TCO
-with the results of the functional annotation (See the Annotate command below
-for details). NGSEP VCFs also include custom format fields with the following
-information for each genotype call:
-
-ADP (INT,INT,...)	: Number of base calls (depth) for alleles, including
-			  the reference allele. The order of the counts is,
-			  first the depth of the reference allele and then the
-			  read depths of the alternative alleles in the order
-			  listed in the ALT field. 
-BSDP (INT,INT,INT,INT)	: For SNVs, number of base calls (depth) for the 4
-			  possible nucleotides, sorted as A,C,G,T.
-ACN (INT, INT, ...)	: Predicted copy number of each allele taking into
-			  account the prediction of number of copies of the
-			  region surrounding the variant. The order is the same
-			  that in the ADP field
-
-Regarding structural variants, output GFF files provided by NGSEP include the
-following info fields:
+GFF files provided by NGSEP include the following INFO fields:
 
 LENGTH (INT)	: Predicted length of the event. For insertions and deletions
 		  identified with read pair analysis, this length is not the
@@ -257,15 +390,16 @@ NUF (INT)	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
 
-WARNING: The default minimum genotype quality of the variants detector (0) 
+WARNING 1: The default minimum genotype quality of the variants detector (0) 
 will maximize the number of called variants at the cost of generating some
 false positives in samples with small coverage or high sequencing error rates.
-For conservative variant calling in whole genome sequencing use:
+For conservative variant calling from whole genome sequencing reads use:
 
 java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
 If interested in structural variation, you can add the options to run read
-depth (RD) and read pair (RP) approaches to identify structural variation:
+depth (RD) and read pair plus split read (RP+SR) approaches to identify
+structural variation:
 
 java -jar NGSEPcore.jar FindVariants -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
@@ -273,18 +407,22 @@ If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
 reference genome has lowercase characters for repetitive regions (usually
 called softmasked), these regions can be directly filtered using the option
--ignoreLowerCaseRef. These regions can always be filtered in later stages of
+-ignoreLowerCaseRef. These regions can also be filtered at later stages of
 the analysis using the FilterVCF command.
 
-WARNING 2: For RAD Sequencing or GBS samples, using the default value of the
-parameter to control for PCR duplicates (maxAlnsPerStartPos) will yield very
-low sensitivity. We recommend to increase the value of the parameter to about
-100 to retain high sensitivity while avoiding a severe penalty in memory usage.
-Also, structural variants should not be called using these data. The usage for
-conservative variant calling in RAD-Seq or GBS samples becomes:
+WARNING 2: Since v 3.2.0, for RAD Sequencing or genotype-by-sequencing (GBS)
+we now recommend the MultisampleVariantsDetector command described above.
+However, the classic per-sample analysis pipeline using this command is still
+functional with good quality. For both commands it is important to keep in mind
+that using the default value of the parameter to control for PCR duplicates
+(maxAlnsPerStartPos) will yield very low sensitivity. We recommend to increase
+the value of the parameter to about 100 to retain high sensitivity while
+avoiding a severe penalty in memory usage. Also, structural variants should not
+be called using these data. The usage for conservative variant calling in
+RAD-Seq or GBS samples becomes:
 
 java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
-  
+
 -----------------------------------
 Calculating base quality statistics
 -----------------------------------
