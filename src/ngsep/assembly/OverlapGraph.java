@@ -75,30 +75,34 @@ public class OverlapGraph {
 		System.out.println("Loaded " + sequences.size() + " sequences");
 	    });
 
-	    time("Sort the sequences.", () -> {
-		Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
-	    });
-
 	    boolean opcion = true;
 
 	    if (opcion) {
+		System.out.println("original");
+		time("Sort the sequences.", () -> {
+		    Collections.sort(sequences, (LimitedSequence l1, LimitedSequence l2) -> l2.length() - l1.length());
+		    for (DNAMaskedSequence a : sequences) {
+		    }
+		});
+
 		time("Built the FMIndex.", () -> {
 		    index = new FMIndex();
-		    index.loadUnnamedSequences("", sequences);
+		    index.loadUnnamedSequences("", sequences, 100, 25);
 		});
-
-		time("Built overlaps.", () -> findOverlaps2());
+//
+//		time("Built overlaps.", () -> findOverlaps2());
 
 	    } else {
-		time("Built the FMIndex2.", () -> {
-		    fmIndexSequences = new FMIndexSequences(sequences);
-		});
 
-		time("Built overlaps2.", () -> {
-		    GraphMaker gm = new GraphMaker(sequences, fmIndexSequences);
-		    overlapsForward = gm.getOverlapsForward();
-		    embeddedOverlaps = gm.getEmbeddedOverlaps();
-		});
+//		time("Built overlaps2.", () -> {
+//		    GraphMaker2 gm = new GraphMaker2(sequences);
+//		});
+		
+		System.out.println("sadsad");
+		
+//		time("built the other fmIndex. ", ()->{
+//		    FMIndexMultipleSequences fm= new FMIndexMultipleSequences(sequences);
+//		});
 	    }
 
 	    time("Simplify the grap.", () -> {
@@ -145,7 +149,7 @@ public class OverlapGraph {
 	List<ReadOverlap2>[] procesingHits = new List[sequences.size()];
 	Queue<ReadOverlap2>[] hits = new Queue[sequences.size()];
 
-	for (int idSequence = 0; idSequence < sequences.size(); idSequence++) {
+	for (int idSequence = 0; idSequence < 200; idSequence++) {
 	    System.out.println("  --> " + idSequence + " - " + sequences.size());
 	    long ini = System.nanoTime();
 	    if (embeddedOverlaps.containsKey(idSequence))
@@ -649,7 +653,7 @@ public class OverlapGraph {
 		for (int i = 0; i < count.length; i++) {
 		    if (max < count[i]) {
 			max = count[i];
-			
+
 			posmax = i;
 		    }
 		}

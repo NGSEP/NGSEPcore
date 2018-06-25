@@ -113,7 +113,7 @@ public class FMIndex implements Serializable
 		internalIndexes.add(index);
 		realSequencesMap.add(internalSequenceMetadata);
 	}
-	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences) {
+	public void loadUnnamedSequences (String groupName, List<? extends CharSequence> sequences, int tally, int indexl) {
 		int n = sequences.size();
 		StringBuffer internalSequence = new StringBuffer();
 		List<SequenceMetadata> internalSequenceMetadata = new ArrayList<>();
@@ -122,7 +122,7 @@ public class FMIndex implements Serializable
 			if(internalSequence.length() + next.length() > (100000000) ) {
 				System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
-				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
 				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 				internalIndexes.add(index);
 				realSequencesMap.add(internalSequenceMetadata);
@@ -137,7 +137,7 @@ public class FMIndex implements Serializable
 		}
 		System.out.println("Building index for "+internalSequenceMetadata.size()+" sequences. Total sequence length: "+internalSequence.length());
 		long time = System.currentTimeMillis();
-		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
 		System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 		internalIndexes.add(index);
 		realSequencesMap.add(internalSequenceMetadata);
