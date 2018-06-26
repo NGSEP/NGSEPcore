@@ -965,6 +965,20 @@ simulated genome
 Ploidy of the simulated sample 
 </option>
 </command>
-
-
+<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner" printHelp="false">
+<intro>
+Compares two partially or completely assembled genomes
+</intro>
+<title>Comparing genomes</title>
+<description>
+Takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
+and runs a whole genome comparison taking unique genes as orthology units
+</description>
+<argument>OPTIONS</argument>
+<argument>GENOME1</argument>
+<argument>TRANSCRIPTOME1</argument>
+<argument>GENOME2</argument>
+<argument>TRANSCRIPTOME2</argument>
+<argument>OUT_PREFIX</argument>
+</command>
 </NGSEP>
