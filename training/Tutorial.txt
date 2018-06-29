@@ -125,14 +125,28 @@ Tutorial:
         ER7A_bowtie2_readpos.stats
         ER7A_bowtie2_sorted.bai
         ER7A_bowtie2_sorted.bam
+    
+    After this step, there are two alternatives to discover and genotype variants. If only interested in the type of variants that can be discovered out of the pileup process
+    (SNVs, small indels and short tandem repeats), follow step 5 and then jump to step 7. To learn how to run the sample-by-sample analysis to discover also structural variants
+    from whole genome sequencing data, jump to the step 6a.   
 
     Note: The last comand of Picard requires that R is installed in the computer. If you do not wish to install R, an alternative command to output these statistics using 
     samtools (http://samtools.sourceforge.net/) is:
 
-	$ samtools view -F 268 ER7A_bowtie2_sorted.bam | awk '{l=$9;if(l>=0){i=sprintf("%d",l/25)+1;if(i<100)a[i]++;else aM++}}END{for(i=1;i<100;i++)print (i-1)*25,a[i];print "More",aM}' >> ER7A_insertLength.stats;
+	$ samtools view -F 268 ER7A_bowtie2_sorted.bam | awk '{l=$9;if(l>=0){i=sprintf("%d",l/25)+1;if(i<100)a[i]++;else aM++}}END{for(i=1;i<100;i++)print (i-1)*25,a[i];print "More",aM}' > ER7A_insertLength.stats;
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-5. Find Variants
+5. Variants discovery and genotyping over multiple samples
+    Once reads of the different samples are aligned to the reference genome, a database of variants can be directly generated running the command MultisampleVariantsDetector
+    as follows:
+    
+        $ java -jar ~/javaPrograms/NGSEPcore.jar MultisampleVariantsDetector -maxBaseQS 30 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -r ../reference/Saccharomyces_cerevisiae.fa -o yeastDemo.vcf CBS4C_bowtie2_sorted.bam ER7A_bowtie2_sorted.bam >& yeastDemoMVD.log &
+
+    This command will directly generate the VCF file yeastDemo.vcf with the genotype information of the samples listed at the end of step 1 for the SNVs, indels and STRs that are variable within the samples analyzed.
+    To continue, jump to step 7 
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+6a. Find Variants for individual samples
     In the same directory, perform the detection of Single Nucleotide Variants (SNVs) and Structural Variants (SVs) from each sample, using the FindVariants command of NGSEP like this:
 
         $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP >& ER7A_bowtie2_NGSEP.log
@@ -147,13 +161,13 @@ Tutorial:
     Note: If either the VCF or the GFF is not produced or is empty, the log file usually finishes with a description of the problem.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-6. Genotype Variation
+6b. Genotype variation and merge individual samples
     After the Variant positions in each sample have been identified, the next step is to collect all this positions in a list, to be able to genotype each sample in the same positions and compare them with each other. For that, the procedure involves three steps: collecting the variation from all the population, genotyping the samples, and merging them in a single database (VCF file). First, go to the genotyping directory and use the MergeVariants command of NGSEP.
 
         $ cd ../genotyping
         $ java -jar ~/javaPrograms/NGSEPcore.jar MergeVariants ../reference/Saccharomyces_cerevisiae_seqNames.txt yeast_list_variants.vcf ../mapping/*_bowtie2_NGSEP.vcf >& yeast_list_variants.log
 
-    Then, call variants for each sample again, but this time use the '-knownVariants' parameter to inform the program that you want to genotype a given set of positions, this time it is not necesary to call SVs:
+    Then, call variants for each sample again, but this time use the '-knownVariants' parameter to tell the program that you want to genotype a given set of positions, this time it is not required to call SVs:
 
         $ java -jar ~/javaPrograms/NGSEPcore.jar FindVariants -knownVariants yeast_list_variants.vcf -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId ER7A ../reference/Saccharomyces_cerevisiae.fa ../mapping/ER7A_bowtie2_sorted.bam ER7A_bowtie2_NGSEP_gt >& ER7A_bowtie2_NGSEP_gt.log
 
@@ -162,7 +176,7 @@ Tutorial:
         $ cd ../population
         $ java -jar ~/javaPrograms/NGSEPcore.jar MergeVCF ../reference/Saccharomyces_cerevisiae_seqNames.txt ../genotyping/*_bowtie2_NGSEP_gt.vcf > yeastDemo.vcf
 
-    At the end of this process, you must have a VCF file with both samples listed at the end of the 19th line, and two aditional columns on your file, which correspond one to each sample.
+    At the end of this process, you must have a VCF file with the genotype information of the samples listed at the end of step 1 for all variants included in the file yeast_list_variants.vcf 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 7. Annotate the VCF
@@ -179,12 +193,13 @@ Tutorial:
         $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -q 40 -s -fi -minI 2 yeastDemo_ann.vcf > yeastDemo_ann_q40_s_fi_I2.vcf
 
     The reasons of the filtering criteria are the following:
-        -q 40    : keep only calls with a quality of 40 or more. This is useful to be more confident about the variants called.
+        -q 40    : keep only calls with a genotype quality (GQ field) of 40 or more. This is useful to be more confident about the variants called.
         -s       : keep only biallelic SNPs. These kind of the SNPs are used as input for most of the downstream analysis.
         -minI 2  : keep only positions in which both samples are genotyped
         -fi      : keep only positions in which the two samples differ. These are the most informative positions, the other ones differ only from the reference.
 
-    It is also a good idea to keep only unique positions in the genome, removing repetitive regions or detected CNVs. To do that, first create a catalogue of the Repeats and CNVs detected by NGSEP, using the following awk command:
+    It is also a good idea to keep only unique positions in the genome, removing repetitive regions or detected CNVs. Many genomes have available a catalog of repetitive regions.
+    If such catalog is not available but you ran the sample-by-sample analysis (step 6), create a catalog of the Repeats and CNVs detected by NGSEP, using the following awk command:
 
         $ awk '{ if($3=="REPEAT" || $3=="CNV") print $1,$4,$5 }' ../mapping/*_bowtie2_NGSEP_SV.gff > reps_cnvs_catalogue.txt
 
@@ -192,7 +207,7 @@ Tutorial:
 
         $ java -jar ~/javaPrograms/NGSEPcore.jar FilterVCF -frs reps_cnvs_catalogue.txt yeastDemo_ann_q40_s_fi_I2.vcf > yeastDemo_ann_q40_s_fi_I2_noREP_noCNV.vcf
 
-    This step can also be performed with the repeat annotations from the saccharomyces cerevisiae database available in the file ../reference/Saccharomyces_cerevisiae_repeats.txt
+    Otherwise, this step can also be performed with the repeat annotations from the saccharomyces cerevisiae database available in the file ../reference/Saccharomyces_cerevisiae_repeats.txt
     
     To check if the process ended correctly, you can compare your final, filtered, annotated, VCF with the one provided in the 'Training' directory in SourceForge.
 
