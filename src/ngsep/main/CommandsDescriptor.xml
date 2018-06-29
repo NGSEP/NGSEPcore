@@ -885,7 +885,7 @@ Writes to standard output the number of k-mers obtained at each specific read de
 <option id="b" type="BOOLEAN" attribute="bothStrands">
 Count k-mers from both strands.
 </option>
-<option id="k" type="INT" default="21" attribute="kmerSize">
+<option id="k" type="INT" defaultConstant="DEFAULT_KMER_SIZE" attribute="kmerSize">
 K-mer length
 </option>
 <option id="fasta" type="BOOLEAN" attribute="fasta">
