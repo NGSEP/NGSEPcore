@@ -189,14 +189,14 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 			if(spanningRegions.size()==0) return;
 		}
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
-		if(calls.size()<2*minRD) return;
+		if(calls.size()<minRD) return;
 		Map<String, Integer> alleleCounts = new TreeMap<String, Integer>();
 		for(PileupAlleleCall call:calls) {
 			String sequence = call.getSequence().toString();
 			char qsC = call.getQualityScores().charAt(0);
 			int qs = ((byte)qsC)-33;
 			if(qs>=minBaseQualityScore) {
-				Integer count = alleleCounts.get(call);
+				Integer count = alleleCounts.get(sequence);
 				if(count==null) {
 					alleleCounts.put(sequence, 1);
 				} else {
