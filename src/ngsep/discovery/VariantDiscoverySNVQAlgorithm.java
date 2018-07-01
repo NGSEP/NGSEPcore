@@ -341,6 +341,10 @@ public class VariantDiscoverySNVQAlgorithm {
 			System.out.println("Probs");
 			helper.printProbs(postProbs, false);
 		}
+		if(helper.getTotalCount()==0) {
+			if(variant == null) return null;
+			return new CalledGenomicVariantImpl(variant, new byte [0]);
+		}
 		int [] indexesMax = getIndexesMaxGenotype(postProbs, 0);
 		if(pileup.getPosition()==posPrint) System.out.println("Indexes max: "+indexesMax[0]+" "+indexesMax[1]);
 		byte [] calledAlleles;
