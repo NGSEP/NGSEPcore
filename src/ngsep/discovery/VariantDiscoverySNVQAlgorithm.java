@@ -71,18 +71,19 @@ public class VariantDiscoverySNVQAlgorithm {
 			byte indexAlt = snv.getAltBaseDNAIndex();
 			double pHomoRef = postProbs[indexRef][indexRef];
 			double pMax = pHomoRef;
-			byte genotype = 0;
+			byte genotype = CalledGenomicVariant.GENOTYPE_HOMOREF;
 			double pHomoAlt = postProbs[indexAlt][indexAlt];
 			if(pHomoAlt>pMax+0.01) {
 				pMax = pHomoAlt;
-				genotype = 2;
+				genotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
 			}
 			double pHetero = postProbs[indexRef][indexAlt]+postProbs[indexAlt][indexRef];
 			if(pHetero>pMax+0.01) {
 				pMax = pHetero;
-				genotype = 1;
+				genotype = CalledGenomicVariant.GENOTYPE_HETERO;
 			}
 			short gq = PhredScoreHelper.calculatePhredScore(1-pMax);
+			if(gq==0) genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 			CalledSNV csnv = new CalledSNV((SNV) variant, genotype);
 			csnv.setGenotypeQuality(gq);
 			csnv.setTotalReadDepth(countsHelper.getTotalCount());
@@ -115,6 +116,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(variant, genotype);
 			call.setGenotypeQuality(gq);
 			call.setTotalReadDepth(countsHelper.getTotalCount());
+			call.setAllCounts(allCounts);
 			VariantCallReport report = new VariantCallReport(alleles, reportCounts, reportLogs);
 			call.setCallReport(report);
 			newCall = call;
