@@ -1,6 +1,7 @@
 package ngsep.discovery;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,8 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	private List<Distribution> distPropPerSequenceList = new ArrayList<>();
 	private Distribution currentSequencePropDist=null;
 	private Distribution distNumAlleles = new Distribution(1, 10, 1);
+	
+	private static DecimalFormat format = new DecimalFormat("##0.0#");
 	
 	
 	/**
@@ -169,9 +172,9 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		int nBins = distProp.getDistribution().length;
 		double min= 0;
 		for(int i=0;i<nBins;i++) {
-			out.print(""+min);
+			out.print(""+format.format(min));
 			for(Distribution d:distPropPerSequenceList) {
-				out.print("\t"+d.getDistribution()[i]);
+				out.print("\t"+format.format(d.getDistribution()[i]));
 			}
 			out.println();
 			min+=0.01;
