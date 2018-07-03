@@ -817,13 +817,8 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if(alleles.size() == 1) return null;
 		if(helperIndel.getTotalCount()==0) return null;
 		GenomicVariant variant = new GenomicVariantImpl(pileup.getSequenceName(),pileup.getPosition(),alleles);
-		if (pileup.isSTR()) {
-			variant.setType(GenomicVariant.TYPE_STR);
-		} else {
-			variant.setType(GenomicVariant.TYPE_INDEL);
-		}
-		// Redefine indel alleles based on genotype calls
 		
+		// Redefine indel alleles based on genotype calls
 		while(true) {
 			if(!pileup.isInputSTR() && allelesSameLength(variant.getAlleles())) return null;
 			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
@@ -831,6 +826,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 			GenomicVariant newVariant = makeNewVariant(variant, calls);
 			if(newVariant!=variant) variant = newVariant;
 			else break;
+		}
+		if (pileup.isSTR()) {
+			variant.setType(GenomicVariant.TYPE_STR);
+		} else {
+			variant.setType(GenomicVariant.TYPE_INDEL);
 		}
 		return variant;
 	}
