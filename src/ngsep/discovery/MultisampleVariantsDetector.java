@@ -645,7 +645,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if(variant == null) return;
 		
 		List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
-		if(inputVariant==null && variant.getVariantQS() < minQuality) return;
+		if(inputVariant==null && (variant.getVariantQS()==0 || variant.getVariantQS() < minQuality)) return;
 		//TODO: The variant could be genotyped again with a different heterozygosity rate
 		
 		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
@@ -775,19 +775,18 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if(helper.getTotalCount()==0) {
 			return null;
 		}
-		if(DNASequence.BASES_STRING.indexOf(reference)<0) {
+		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
+		if(refIdx<0) {
 			//N reference can in principle be handled but it generates  many non variant sites
 			return null;
 		}
 		//Simple method based on relative counts. To improve later
 		int [] counts = helper.getCounts();
 		int sum = NumberArrays.getSum(counts); 
-		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
 		if(pileup.getPosition()==posPrint) System.out.println("Refidx: "+refIdx+" sum: "+sum);
 		boolean [] allelesSupported = new boolean [ counts.length];
 		List<String> alleles = new ArrayList<>();
-		if(refIdx>=0) alleles.add(DNASequence.BASES_ARRAY[refIdx]);
-		else alleles.add(""+reference);
+		alleles.add(DNASequence.BASES_ARRAY[refIdx]);
 		for(int i=0;i<counts.length;i++) {
 			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=minAlleleFrequency;
 			if(allelesSupported[i] && i!=refIdx) {
