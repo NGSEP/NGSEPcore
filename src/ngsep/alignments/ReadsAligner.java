@@ -267,7 +267,7 @@ public class ReadsAligner {
 			//Instead of just add the sequence we are going to use smith waterman
 			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
 			String result = smithWatermanLocalAlingMent(characters, sequence.toString());
-			System.out.println(result);
+			//System.out.println(result);
 			ReadAlignment nuevo = new ReadAlignment(sequenceName, first, first+result.length(), result.length(), arr[0].getReadAlignment().getFlags());
 			nuevo.setReadCharacters(result);
 			nuevo.setReadName(readName);
