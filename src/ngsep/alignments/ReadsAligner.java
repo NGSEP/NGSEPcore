@@ -19,7 +19,6 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -30,10 +29,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
-import javax.swing.plaf.synth.SynthScrollPaneUI;
 
 import ngsep.alignments.io.ReadAlignmentFileWriter;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
