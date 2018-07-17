@@ -68,6 +68,7 @@ public class TillingPopulationSimulator {
 	public static final int DEF_NUM_FRAGMENTS_POOL=1000000;
 	public static final int DEF_READ_LENGTH=250;
 	public static final double DEF_ERROR_RATE=0.01;
+	public static final double DEF_MIN_ERROR_RATE=0.001;
 	
 	public static final int PLATE_WIDTH=12;
 	public static final int PLATE_HEIGHT=8;
@@ -355,6 +356,7 @@ public class TillingPopulationSimulator {
 	 * Simulate the pools to sequence the simulated individuals
 	 */
 	public void simulatePools() {
+		pools = new ArrayList<> ();
 		int num_plates = 1+individuals.size()/(PLATE_WIDTH*PLATE_HEIGHT);
 		for(int i = 0; i< PLATE_WIDTH+PLATE_HEIGHT+num_plates;i++) {
 			List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
@@ -362,12 +364,14 @@ public class TillingPopulationSimulator {
 		}
 		
 		for(int i = 0; i < individuals.size();i++) {
-			
-			pools.get((i%(PLATE_WIDTH*PLATE_HEIGHT))/PLATE_WIDTH).add(individuals.get(i));
-			pools.get((i%PLATE_WIDTH)+PLATE_HEIGHT).add(individuals.get(i));
-			pools.get((i/(PLATE_WIDTH*PLATE_HEIGHT))+PLATE_WIDTH+PLATE_HEIGHT).add(individuals.get(i));
+			int queryID = individuals.get(i).getId();
+			pools.get((queryID%(PLATE_WIDTH*PLATE_HEIGHT))/PLATE_WIDTH).add(individuals.get(i));
+			pools.get((queryID%PLATE_WIDTH)+PLATE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID/(PLATE_WIDTH*PLATE_HEIGHT))+PLATE_WIDTH+PLATE_HEIGHT).add(individuals.get(i));
 			
 		}
+		
+		pools.removeIf(p -> p.isEmpty());
 		
 	}
 
