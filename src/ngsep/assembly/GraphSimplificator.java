@@ -1,19 +1,15 @@
 package ngsep.assembly;
 
-import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Stream;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
@@ -23,138 +19,12 @@ public class GraphSimplificator {
     protected int N;
     /** Edges with weight **/
     protected Map<Integer, Map<Integer, Integer>> Edges;
-    /** Vertices of reducition **/
-    private Map<Integer, List<Integer>> Verts;
-    // ** Weight of the reduction **/
-    private Map<Integer, Integer> weigth;
-    
-  
 
     public GraphSimplificator(int N, Map<Integer, Map<Integer, Integer>> Edges) {
 	this.N = N;
 	this.Edges = Edges;
-	Initialize();
-    }
-
-    public GraphSimplificator(InputStream inputStream) {
-	try (Scanner sc = new Scanner(inputStream)) {
-	    N = Integer.parseInt(sc.nextLine());
-	    Edges = new HashMap<>();
-
-	    for (int i = 0; i < N; i++)
-		Edges.put(i, new HashMap<>());
-
-	    int[] aux;
-	    while (true) {
-		String line = sc.nextLine();
-		if (line.isEmpty())
-		    break;
-		aux = Stream.of(line.split(",")).mapToInt((x) -> Integer.parseInt(x)).toArray();
-		Edges.get(aux[0]).put(aux[2], aux[1]);
-	    }
-	    Initialize();
-	} catch (Exception e) {
-	    e.printStackTrace();
-	}
-    }
-
-    private void Initialize() {
-	//printWhitFormat(System.out);
-	System.out.println(roots());
 	removeCicles();
-	int[] top = getTopologicalOrder();
-	removeTransitiveEdges(top);
-	printWhitFormat(System.out);
-	System.out.println(roots());
-    }
-
-    private List<Integer> roots() {
-	int[] top = getTopologicalOrder();
-	boolean[] nop = new boolean[N];
-	for (Integer i : top) {
-	    if (Edges.get(i).isEmpty())
-		nop[i] = true;
-	    for (Integer j : Edges.get(i).keySet())
-		nop[j] = true;
-	}
-	List<Integer> ans = new LinkedList<>();
-
-	for (int i = 0; i < N; i++) {
-	    if (!nop[i])
-		ans.add(i);
-	}
-
-	return ans;
-    }
-    
-
-    private void reduce(int[] top, Map<Integer, Set<Integer>> foward) {
-	boolean[] moreThanOne = new boolean[N];
-	for (int i = 0; i < N; i++)
-	    moreThanOne[i] = Edges.get(i).size() > 1 || foward.get(i).size() > 1;
-
-	int[] map = new int[N];
-	Arrays.fill(map, -1);
-	boolean[] mark = new boolean[N];
-	Verts = new Hashtable<>();
-	weigth = new Hashtable<>();
-	List<Integer> aux;
-	int prev, sum, Node = top[N - 1];
-	int N = 0;
-
-	do {
-	    int firts = Node;
-	    mark[Node] = true;
-	    aux = new LinkedList<>();
-	    aux.add(Node);
-	    sum = 0;
-	    if (!moreThanOne[Node] && foward.get(Node).iterator().hasNext()) {
-		prev = Node;
-		Node = foward.get(Node).iterator().next();
-		while (!moreThanOne[Node] && foward.get(Node).iterator().hasNext()) {
-		    mark[Node] = true;
-		    aux.add(0, Node);
-		    sum += Edges.get(Node).get(prev);
-		    prev = Node;
-		    Node = foward.get(Node).iterator().next();
-		}
-		if (firts != prev) {
-		    Edges.get(prev).clear();
-		    Edges.get(prev).putAll(Edges.get(firts));
-		    Iterator<Integer> iter = aux.iterator();
-		    iter.next();
-		    while (iter.hasNext())
-			Edges.put(iter.next(), new HashMap<>());
-		}
-		Node = prev;
-	    }
-	    Verts.put(Node, aux);
-	    weigth.put(Node, sum);
-	    map[Node] = N++;
-	    Node = NextNodeInv(mark);
-	} while (Node != -1);
-
-	Map<Integer, Map<Integer, Integer>> EdgesAux = new Hashtable<>();
-	Map<Integer, List<Integer>> VertsAux = new Hashtable<>();
-	Map<Integer, Integer> weigthAux = new Hashtable<>();
-
-	for (Entry<Integer, List<Integer>> entry : Verts.entrySet())
-	    VertsAux.put(map[entry.getKey()], entry.getValue());
-	Verts = VertsAux;
-	for (Entry<Integer, Integer> entry : weigth.entrySet())
-	    weigthAux.put(map[entry.getKey()], entry.getValue());
-	weigth = weigthAux;
-	for (Entry<Integer, Map<Integer, Integer>> entry : Edges.entrySet()) {
-	    if (map[entry.getKey()] != -1) {
-		weigthAux = new Hashtable<>();
-		for (Entry<Integer, Integer> entry2 : entry.getValue().entrySet())
-		    weigthAux.put(map[entry2.getKey()], entry2.getValue());
-		EdgesAux.put(map[entry.getKey()], weigthAux);
-	    }
-	}
-	this.N = N;
-	Edges = EdgesAux;
-
+	removeTransitiveEdges();
     }
 
     public void printWhitFormat(PrintStream outputStream) {
@@ -288,26 +158,19 @@ public class GraphSimplificator {
 	return -1;
     }
 
-    private int NextNodeInv(boolean[] Done) {
-	for (int i = Done.length - 1; i >= 0; i--)
-	    if (!Done[i])
-		return i;
-	return -1;
-    }
-
-    private Map<Integer, Set<Integer>> removeTransitiveEdges(int[] top) {
+    private Map<Integer, Set<Integer>> removeTransitiveEdges() {
+	int[] top = getTopologicalOrder();
 	int[] invTop = new int[top.length];
 	for (int i = 0; i < top.length; i++)
 	    invTop[top[i]] = i;
 	Set<Integer> prevs;
 
-	Map<Integer, Set<Integer>> prevMap = new HashMap<>(N);
+	Map<Integer, Set<Integer>> prevMap = new Hashtable<>(N);
 	for (Integer integer : Edges.keySet())
 	    prevMap.put(integer, new TreeSet<>());
 
 	for (Integer Vert : top) {
-	    Map<Integer, Integer> edges = Edges.get(Vert);
-	    for (Integer toVert : edges.keySet()) {
+	    for (Integer toVert : Edges.get(Vert).keySet()) {
 		prevs = prevMap.get(toVert);
 		if (prevs.isEmpty())
 		    prevs.add(Vert);
@@ -315,7 +178,7 @@ public class GraphSimplificator {
 		    Iterator<Integer> iter = prevs.iterator();
 		    while (iter.hasNext()) {
 			Integer otherEdge = iter.next();
-			if (search(otherEdge, Vert, prevMap, 15, invTop, invTop[otherEdge])) {
+			if (search(otherEdge, Vert, prevMap, invTop, invTop[otherEdge])) {
 			    Edges.get(otherEdge).remove(toVert);
 			    iter.remove();
 			}
@@ -327,9 +190,8 @@ public class GraphSimplificator {
 	return prevMap;
     }
 
-    private boolean search(Integer searched, int from, Map<Integer, Set<Integer>> prevMap, int max, int[] top,
-	    int topLimit) {
-	if (max == 0 || top[from] < topLimit)
+    private boolean search(Integer searched, int from, Map<Integer, Set<Integer>> prevMap, int[] top, int topLimit) {
+	if (top[from] < topLimit)
 	    return false;
 
 	Set<Integer> prevs = prevMap.get(from);
@@ -338,7 +200,7 @@ public class GraphSimplificator {
 		return true;
 
 	for (Integer integer : prevs)
-	    if (search(searched, integer, prevMap, max - 1, top, topLimit))
+	    if (search(searched, integer, prevMap, top, topLimit))
 		return true;
 
 	return false;
@@ -367,9 +229,5 @@ public class GraphSimplificator {
 	    if (!mark[to])
 		dfsPosOrden(order, mark, to);
 	order.push(node);
-    }
-
-    public static void main(String[] args) {
-	new GraphSimplificator(System.in);
     }
 }

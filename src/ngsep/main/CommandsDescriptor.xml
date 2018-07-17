@@ -1,4 +1,4 @@
-<NGSEP version="3.2.0" date="29-06-2018">
+<NGSEP version="3.2.0" date="04-07-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -46,12 +46,99 @@ Distance between tally indexes
 </option>
 </command>
 
-<command id="FindVariants" class="ngsep.discovery.VariantsDetector">
-<intro>The main module of NGSEP is the variants detector.</intro>
-<title>Calling variants with the Variants detector</title>
+<command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
+<intro>Module for direct calculation of variants from multiple samples.</intro>
+<title>Calling variants over multiple samples</title>
 <description>
-Main module of NGSEP. Requires an alignments file in SAM or BAM format,
-and the reference genome that was used to produce the alignments.
+This modules allows to call variants over a group of samples separated by files or read group tags.
+This is now the recommended method to perform variants detection on genotype-by-sequencing (GBS), RAD sequencing,
+whole exome sequencing (WES), RNA-seq and low coverage (less than 10x) whole genome sequencing (WGS) data.
+Although it can also be used on high coverage WGS data, the classic sample-by-sample analysis
+(commands FindVariants, MergeVariants and MergeVCF) is still recommended to identify structural variants.
+Requires one or more read alignment files in SAM or BAM format and the reference genome that was used to produce the alignments.
+</description>
+<argument>OPTIONS</argument>
+<argument>BAM_FILE*</argument>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome.
+</option>
+<option id="o" type="FILE" defaultConstant="DEF_OUTPUT_FILE" attribute="outFilename">
+Output file.
+</option>
+<option id="h" type="DOUBLE" defaultConstant="DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
+Heterozygosity rate.
+</option>
+<option id="querySeq" type="STRING" attribute="querySeq">
+Call variants just for this sequence.
+</option>
+<option id="first" type="INT" attribute="queryFirst">
+Call variants just from this position in the given query sequence.
+</option>
+<option id="last" type="INT"  attribute="queryLast">
+Call variants just until this position in the given query sequence.
+</option>
+<option id="ignoreLowerCaseRef" type="BOOLEAN" attribute="ignoreLowerCaseRef">
+Ignore sites where the reference allele is lower case.
+</option>
+<option id="maxAlnsPerStartPos" type="INT" defaultConstant="DEF_MAX_ALNS_PER_START_POS" attribute="maxAlnsPerStartPos">
+Maximum number of alignments allowed to start at the same reference site.
+This parameter helps to control false positives produced by PCR amplification artifacts.
+In this command, this filter is executed independently for each read group.
+For GBS or RAD sequencing data use a large value such as 100.
+</option>
+<option id="p" type="BOOLEAN" attribute="processNonUniquePrimaryAlignments">
+Process non unique primary alignments in the pileup process.
+The default behavior is to process alignments that are unique (see option -minMQ).
+</option> 
+<option id="s" type="BOOLEAN" attribute="processSecondaryAlignments">
+Consider secondary alignments in the pileup process. Non-unique primary alignments will also be considered in this mode.
+</option>
+<option id="minQuality" type="INT" defaultConstant="DEF_MIN_QUALITY" attribute="minQuality">
+Minimum variant quality. In this command, this filter applies to the QUAL column of the VCF, which is
+calculated for each variant as the maximum of the genotype qualities of samples with non-homozygous reference genotype calls.
+See the command FilterVCF to apply filters of quality and read depth on individual genotype calls.
+</option>
+<option id="maxBaseQS" type="INT" defaultConstant="DEF_MAX_BASE_QS" attribute="maxBaseQS">
+Maximum value allowed for a base quality score. Larger values will be equalized to this value.
+Keep the default value of zero to disable this filter.
+</option>
+<option id="ignore5" type="INT" default="0" attribute="basesToIgnore5P">
+Ignore this many base pairs from the 5' end of the reads.
+</option>
+<option id="ignore3" type="INT" default="0" attribute="basesToIgnore3P">
+Ignore this many base pairs from the 3' end of the reads.
+</option>
+<option id="knownSTRs" type="FILE" attribute="knownSTRsFile">
+File with known short tandem repeats (STRs). This is a text file with at least three
+columns: chromosome, first position and last position. Positions should be 1-based and
+inclusive.
+</option>
+<option id="knownVariants" type="FILE" attribute="knownVariantsFile">
+VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
+</option>
+<option id="embeddedSNVs" type="BOOLEAN" attribute="callEmbeddedSNVs">
+Flag to call SNVs within STRs. By default, STRs are treated as a single locus and hence no SNV will be called within an STR.
+</option>
+<option id="minMQ" type="INT" defaultConstant="DEF_MIN_MQ" attribute="minMQ">
+Minimum mapping quality to call an alignment unique
+</option>
+<option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY" attribute="normalPloidy">
+Default ploidy of the samples.
+</option>
+<option id="psp" type="BOOLEAN" attribute="printSamplePloidy">
+Print id and ploidy of the sample in the VCF header.
+The header generated with this option is not a standard VCF header. However, it helps NGSEP to keep track of the ploidy of the samples through downstream analyses
+</option>
+</command>
+
+<command id="FindVariants" class="ngsep.discovery.VariantsDetector">
+<intro>The classic module of NGSEP for variants detection in individual samples.</intro>
+<title>Calling variants on individual samples with the variants detector</title>
+<description>
+This is the classic module of NGSEP to call SNVs, small indels and structural
+variants from sequencing data of single individuals. Basic usage requires an
+alignments file in BAM format, the reference genome that was used to
+produce the alignments, and a prefix for the output files.
 </description>
 <argument>OPTIONS</argument>
 <argument>REFERENCE</argument>
@@ -73,21 +160,16 @@ Call variants just until this position in the given query sequence.
 Ignore sites where the reference allele is lower case.
 </option>
 <option id="maxAlnsPerStartPos" type="INT" default="5">
-Maximum number of alignments allowed to start
-at the same reference site.
+Maximum number of alignments allowed to start at the same reference site.
+This parameter helps to control false positives produced by PCR amplification artifacts.
+For GBS or RAD sequencing data use a large value such as 100.
 </option>
 <option id="p">
 Process non unique primary alignments in the pileup process. 
 The default behavior is to process alignments that are unique (see option -minMQ) 
 </option> 
 <option id="s">
-Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
-</option>
-<option id="minAltCoverage" type="INT" default="0">
-Minimum coverage of the alternative allele to call a SNV.
-</option>
-<option id="maxAltCoverage" type="INT" default="0 (No filter)">
-Maximum coverage of the alternative allele to call a SNV.
+Consider secondary alignments in the pileup process. Non-unique primary alignments will also be considered in this mode.
 </option>
 <option id="minQuality" type="INT" default="0">
 Minimum genotype quality to accept a SNV call.
@@ -101,32 +183,31 @@ Ignore this many base pairs from the 5' end of the reads.
 <option id="ignore3" type="INT" default="0">
 Ignore this many base pairs from the 3' end of the reads.
 </option>
-<option id="ploidy" type="INT" default="2">
-Ploidy of the sample.
-</option>
-<option id="knownSVs" type="FILE">
-File with coordinates of known structural variants in GFF format.
-</option>
 <option id="knownSTRs" type="FILE">
 File with known short tandem repeats (STRs). This is a text file with at least three
 columns: chromosome, first position and last position. Positions should be 1-based and
 inclusive.
 </option>
+<option id="knownVariants" type="FILE">
+VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
+With this option homozygous calls to the reference allele will be reported.
+</option>
 <option id="embeddedSNVs">
-Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
+Flag to call SNVs within STRs. By default, STRs are treated as a single locus and hence
 no SNV will be called within an STR.
 </option>
 <option id="minSVQuality" type="INT" default="20">
 Minimum quality score (in PHRED scale) for structural variants.
 </option>
 <option id="genomeSize" type="INT">
-Total size of the genome to use during detection of CNVs. For partial references.
+Total size of the genome to use during detection of CNVs. This should be used when the reference file only includes a part of
+the genome (e.g. a chromosome or a partial assembly)
 </option>
 <option id="binSize" type="INT" default="100">
 Size of the bins to analyze read depth.
 </option>
 <option id="algCNV" type="STRING" default="CNVnator">
-Comma-separated list of read depth algorithms to run. (e.g. CNVnator,EWT).
+Comma-separated list of read depth algorithms to run (e.g. CNVnator,EWT).
 </option>
 <option id="maxPCTOverlapCNVs" type="INT" default="100 (No filter)">
 Maximum percentage of overlap of a new CNV with an input CNV to include it in the output.
@@ -138,12 +219,11 @@ Maximum length of deletions that the read-pair analysis can identify.
 Size of the seed to look for split-read alignments.
 </option>
 <option id="ignoreProperPairFlag">
-The proper pair flag will be ignored when deciding if the ends of each fragment are 
-properly aligned. By default, the estimation of the insert length distribution only 
-account reads with the proper pair flag.
+With this option, the proper pair flag will not be taken into accout to decide if the ends of each fragment are properly aligned.
+By default, the distribution of insert length is estimated only taking into account reads with the proper pair flag turned on.
 </option>
-<option id="ignoreXS" deprecated="true">
-Deprecated. Use minMQ option to control which alignments are considered unique
+<option id="knownSVs" type="FILE">
+File with coordinates of known structural variants in GFF format.
 </option>
 <option id="minMQ" type="INT" default="20">
 Minimum mapping quality to call an alignment unique
@@ -151,15 +231,33 @@ Minimum mapping quality to call an alignment unique
 <option id="sampleId" type="STRING">
 Id of the sample for the VCF file.
 </option>
+<option id="ploidy" type="INT" default="2">
+Ploidy of the sample.
+</option>
 <option id="psp">
 Print id and ploidy of the sample in the VCF header.
+The header generated with this option is not a standard VCF header. However, it helps NGSEP to keep track of the ploidy of each sample through downstream analyses
 </option>
-<option id="knownVariants" type="FILE">
-VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
+<option id="runRep">
+Turns on the procedure to find repetitive regions based on reads with multiple alignments.
 </option>
-<option id="genotypeAll">
-Report all covered sites in the genome. CAUTION: For WGS samples, and even for RAD/GBS
-samples in organisms with medium to large genomes this produces a huge file.
+<option id="runRD">
+Turns on read depth (RD) analysis to identify CNVs.
+</option>
+<option id="noNewCNV">
+Turns off finding new CNVs with the read depth analysis. Input CNVs and repeats will still be genotyped using the RD distribution
+</option>
+<option id="runRP">
+Turns on read pair plus split-read analysis (RP+SR) to identify large indels and inversions.
+</option>
+<option id="noSNVS">
+Turns off SNV detection. In this mode, only structural variation will be called
+</option>
+<option id="ignoreXS" deprecated="true">
+Deprecated. Use minMQ option to control which alignments are considered unique
+</option>
+<option id="genotypeAll" deprecated="true">
+Deprecated option -genotypeAll
 </option>
 <option id="noRep" deprecated="true">
 Deprecated option -noRep. Analysis of multiple alignments to find repeats is not executed by default. Use -runRep to run this analysis
@@ -170,95 +268,15 @@ Deprecated option -noRD. Read depth analysis is not executed by default. Use -ru
 <option id="noRP" deprecated="true">
 Deprecated option -noRP. Read pair analysis is not executed by default. Use -runRP to run this analysis
 </option>
-<option id="runRep">
-Turn on multiple alignments analysis to identify repetitive regions.
+<option id="minAltCoverage" type="INT" default="0" deprecated="true">
+Deprecated option -minAltCoverage
 </option>
-<option id="runRD">
-Turn on read depth analysis to identify CNVs.
-</option>
-<option id="runRP">
-Turn on read pair analysis to identify large indels and inversions.
-</option>
-<option id="noSNVS">
-Turn off SNV detection.
-</option>
-<option id="noNewCNV">
-Turn off finding new CNVs with the read depth analysis.
+<option id="maxAltCoverage" type="INT" default="0 (No filter)"  deprecated="true">
+Deprecated option -maxAltCoverage
 </option>
 </command>
 
-<command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
-<intro>Module for direct calculation of variants from multiple samples.</intro>
-<title>Calling variants over multiple samples</title>
-<description>
-This modules allows to call variants over a group of samples, either pooled or separated by files or
-read group tags. Requires one or more read alignment files in SAM or BAM format and the reference
-genome that was used to produce the alignments.
-</description>
-<argument>OPTIONS</argument>
-<argument>REFERENCE</argument>
-<argument>OUTPUT_FILE</argument>
-<argument>BAM_FILE*</argument>
-<option id="h" type="DOUBLE" defaultConstant="DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
-Heterozygosity rate
-</option>
-<option id="querySeq" type="STRING" attribute="querySeq">
-Call variants just for this sequence.
-</option>
-<option id="first" type="INT" attribute="queryFirst">
-Call variants just from this position in the given query sequence.
-</option>
-<option id="last" type="INT"  attribute="queryLast">
-Call variants just until this position in the given query sequence.
-</option>
-<option id="ignoreLowerCaseRef" attribute="ignoreLowerCaseRef">
-Ignore sites where the reference allele is lower case.
-</option>
-<option id="maxAlnsPerStartPos" type="INT" defaultConstant="DEF_MAX_ALNS_PER_START_POS" attribute="maxAlnsPerStartPos">
-Maximum number of alignments allowed to start
-at the same reference site.
-</option>
-<option id="p" attribute="processNonUniquePrimaryAlignments">
-Process non unique primary alignments in the pileup process. 
-The default behavior is to process alignments that are unique (see option -minMQ) 
-</option> 
-<option id="s" attribute="processSecondaryAlignments">
-Consider secondary alignments while calling SNVs. Non-unique primary alignments will also be considered in this mode
-</option>
-<option id="minQuality" type="INT" defaultConstant="DEF_MIN_QUALITY" attribute="minQuality">
-Minimum genotype quality to accept a SNV call.
-</option>
-<option id="maxBaseQS" type="INT" defaultConstant="DEF_MAX_BASE_QS" attribute="maxBaseQS">
-Maximum value allowed for a base quality score. Larger values will be equalized to this value.
-Use zero to disable this filter
-</option>
-<option id="ignore5" type="INT" default="0" attribute="basesToIgnore5P">
-Ignore this many base pairs from the 5' end of the reads.
-</option>
-<option id="ignore3" type="INT" default="0" attribute="basesToIgnore3P">
-Ignore this many base pairs from the 3' end of the reads.
-</option>
-<option id="ploidy" type="INT" defaultConstant="DEF_PLOIDY">
-Ploidy of the samples.
-</option>
-<option id="knownSTRs" type="FILE" attribute="knownSTRsFile">
-File with known short tandem repeats (STRs). This is a text file with at least three
-columns: chromosome, first position and last position. Positions should be 1-based and
-inclusive.
-</option>
-<option id="embeddedSNVs">
-Flag to call SNVs within STRs. STRs are treated as a single locus and hence by default
-no SNV will be called within an STR.
-</option>
-<option id="minMQ" type="INT" defaultConstant="DEF_MIN_MQ">
-Minimum mapping quality to call an alignment unique
-</option>
-<option id="knownVariants" type="FILE">
-VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
-</option>
 
-
-</command>
 
 
 <command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" printHelp="false">
@@ -867,7 +885,7 @@ Writes to standard output the number of k-mers obtained at each specific read de
 <option id="b" type="BOOLEAN" attribute="bothStrands">
 Count k-mers from both strands.
 </option>
-<option id="k" type="INT" default="21" attribute="kmerSize">
+<option id="k" type="INT" defaultConstant="DEFAULT_KMER_SIZE" attribute="kmerSize">
 K-mer length
 </option>
 <option id="fasta" type="BOOLEAN" attribute="fasta">
@@ -947,6 +965,20 @@ simulated genome
 Ploidy of the simulated sample 
 </option>
 </command>
-
-
+<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner" printHelp="false">
+<intro>
+Compares two partially or completely assembled genomes
+</intro>
+<title>Comparing genomes</title>
+<description>
+Takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
+and runs a whole genome comparison taking unique genes as orthology units
+</description>
+<argument>OPTIONS</argument>
+<argument>GENOME1</argument>
+<argument>TRANSCRIPTOME1</argument>
+<argument>GENOME2</argument>
+<argument>TRANSCRIPTOME2</argument>
+<argument>OUT_PREFIX</argument>
+</command>
 </NGSEP>

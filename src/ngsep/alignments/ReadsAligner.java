@@ -19,7 +19,6 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -30,8 +29,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+
 import ngsep.alignments.io.ReadAlignmentFileWriter;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
@@ -135,6 +134,7 @@ public class ReadsAligner {
 			}
 			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
 			readAlignment.write(aln);
+
 			/*
 			out.println(
 					//1.query name
@@ -193,6 +193,7 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
 	{
+		
 		String characters=read.getCharacters().toString();
 		CharSequence[] kmers = KmersCounter.extractKmers(characters, SEARCH_KMER_LENGTH, true);
 
@@ -224,12 +225,12 @@ public class ReadsAligner {
 				}
 				else 
 				{
-					insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
+					insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters,read);
 					//after save and clear the stack save the new alignment, could be good
 					stack.push(actual);
 				}
 			}
-			insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters);
+			insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters,read);
 			
 		}
 		return finalAlignments;
@@ -249,8 +250,10 @@ public class ReadsAligner {
 	}
 
 	
-	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, FMIndex fMIndex, String characters) 
+	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, FMIndex fMIndex, String characters, RawRead read) 
 	{
+		String readName= read.getName();
+		String qualityScores = read.getQualityScores();
 		double percent = (double) stack.size()/kmersCount;
 		if(percent>=minProportionKmers)
 		{
@@ -261,8 +264,12 @@ public class ReadsAligner {
 			//Instead of just add the sequence we are going to use smith waterman
 			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
 			String result = smithWatermanLocalAlingMent(characters, sequence.toString());
-			
-			finalAlignments.add(new ReadAlignment(sequenceName, first, first+result.length(), last-first, arr[0].getReadAlignment().getFlags()));
+			//System.out.println(result);
+			ReadAlignment nuevo = new ReadAlignment(sequenceName, first, first+result.length(), result.length(), arr[0].getReadAlignment().getFlags());
+			nuevo.setReadCharacters(result);
+			nuevo.setReadName(readName);
+			nuevo.setQualityScores(qualityScores);
+			finalAlignments.add(nuevo);
 		}
 		stack.clear();
 	}
@@ -316,6 +323,11 @@ public class ReadsAligner {
 	
 	private String smithWatermanLocalAlingMent(String reference, String sequence) 
 	{
+//		System.out.println("ref");
+//		System.out.println(reference);
+//		
+//		System.out.println("seq");
+//		System.out.println(sequence);
 		//Stack containing reference
 		Stack<String> stackReference = new Stack<>();
 
@@ -417,6 +429,7 @@ public class ReadsAligner {
 					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
 
 					//Add - to sequenceAlignment
+					
 					sequenceAlignment.push("-");
 
 					//Push next character to stackReference
@@ -432,7 +445,7 @@ public class ReadsAligner {
 					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
 
 					//Add - to referenceAlingment
-					referenceAlingment.push("-");
+					//referenceAlingment.push("-");
 
 					//Push next character to sequenceAlignment
 					sequenceAlignment.push(stackSequence.pop());
@@ -466,6 +479,7 @@ public class ReadsAligner {
 					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
 
 					//Add - to sequenceAlignment
+					
 					sequenceAlignment.push("-");
 
 					//Push next character to referenceAlingment
@@ -480,7 +494,7 @@ public class ReadsAligner {
 					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
 
 					//Add - to referenceAlingment
-					referenceAlingment.push("-");
+					//referenceAlingment.push("-");
 
 					//Push next character to sequenceAlignment
 					sequenceAlignment.push(stackSequence.pop());
@@ -500,8 +514,9 @@ public class ReadsAligner {
 			p2+=sequenceAlignment.pop();
 		}
 
-		//System.out.println(p1);
-		//System.out.println(p2);
-		return p2;
+//		System.out.println("1 "+p1);
+//		System.out.println("2 "+p2);
+//		
+		return p1;
 	}
 }

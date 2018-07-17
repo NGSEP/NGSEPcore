@@ -86,37 +86,29 @@ public class VCFGoldStandardComparator {
 					short qualTest = loadGenotypeQuality(callTest);
 					int lastBefore = (idxTest == 0 || !callsTest.get(idxTest-1).getSequenceName().equals(callTest.getSequenceName()))? 0:callsTest.get(idxTest-1).getLast();
 					int firstAfter = (idxTest == callsTest.size()-1 || !callsTest.get(idxTest+1).getSequenceName().equals(callTest.getSequenceName()))? seqNames.get(callTest.getSequenceName()).getLength():callsTest.get(idxTest+1).getFirst();
-					callTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
+					
 					byte type = loadType(callTest);
 					int column = getGenotypeNumber(callTest);
-					int cmp = compRegion.compare(callGS, callTest);
-					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+" call test: "+callTest.getFirst()+" type: "+type+" column: "+column+" comparison: "+cmp);
-					if(cmp>1) {
-						column+=12;
-					}
-					if(cmp >1 || (cmp>=0 && referenceRegion)) {
-						countsPerType.get(type).update(0,Math.min(qualTest/10, lastRowCounts),column);
-						VCFRecord record = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
-						if(mode == 2 && qualTest>=minQuality && !callTest.isHomozygousReference()) writer.printVCFRecord(record, out);
-						idxTest++;
-						continue;
-					} else if (cmp<-1) break;
-					else if (cmp == -1){
-						if((callGS.isUndecided() || referenceRegion) && !callTest.isHomozygousReference()){
-							int overlap = callGS.getLast()-callTest.getFirst()+1;
-							int remainder = callTest.getLast() - callGS.getLast();
-							if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" overlap: "+overlap+" remainder: "+remainder);
-							//If the tail of the event falls out of the reference region, it gets compared agains the next variant
-							if(remainder>0) break;
+					CalledGenomicVariant expandedCallTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
+					int cmp = compRegion.compare(callGS, expandedCallTest);
+					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+" call test: "+callTest.getFirst()+" type: "+type+" column: "+column+" comparison: "+cmp);					
+					if (cmp<-1) break;
+					if (cmp<=1) {
+						//Overlap between GS and extended region
+						if(!referenceRegion) {
+							callsIntersect.add(expandedCallTest);
+							idxTest++;
+							continue;
 						}
-					}
-					if(!referenceRegion) {
-						callsIntersect.add(callTest);
-					} else {
-						countsPerType.get(type).update(0,Math.min(qualTest/10, lastRowCounts),column);
-						VCFRecord record = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
-						if(mode == 2 && qualTest>=minQuality && !callTest.isHomozygousReference()) writer.printVCFRecord(record, out);
-					}
+						//Variant falling out of reference region will be processed by the next gs region
+						int remainder = callTest.getLast() - callGS.getLast();	
+						if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" remainder: "+remainder);
+						if(!callTest.isHomozygousReference() && remainder>0) break;
+						if(callTest.getFirst()<callGS.getFirst() || callGS.getLast()<callTest.getLast()) column+=12;
+					} else column+=12;
+					countsPerType.get(type).update(0,Math.min(qualTest/10, lastRowCounts),column);
+					VCFRecord record = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
+					if(mode == 2 && qualTest>=minQuality && column < 12 && !callTest.isHomozygousReference()) writer.printVCFRecord(record, out);
 					idxTest++;
 				}
 				if(posPrint==callGS.getFirst()) System.out.println("GS call at "+callGS.getSequenceName()+":"+callGS.getFirst()+" type: "+typeGS+" undecided: "+callGS.isUndecided()+" Calls intersect: "+callsIntersect.size()+" next test call: "+callsTest.get(idxTest).getFirst());

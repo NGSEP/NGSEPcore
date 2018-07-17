@@ -1,7 +1,7 @@
-<tool id="NGSEP_MergeVCF" name="Merge VCFs" version="3.1.2">
+<tool id="NGSEP_MergeVCF" name="Merge VCFs" version="3.2.0">
   <description> with full genotype information</description>
   <command>
-java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar MergeVCF $seq_names
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.2.0.jar MergeVCF $seq_names
   #for $i in $vcf_files
       $i.input
   #end for

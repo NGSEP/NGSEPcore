@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
@@ -41,6 +42,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.DiversityStatistics;
@@ -50,6 +52,7 @@ import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
 
@@ -59,12 +62,13 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private ProgressNotifier progressNotifier=null;
 	
 	public static final int DEF_MAX_ALNS_PER_START_POS = AlignmentsPileupGenerator.DEF_MAX_ALNS_PER_START_POS;
-	public static final double DEF_MIN_ALLELE_FREQUENCY = 0.05;
+	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
 	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	public static final short DEF_MIN_QUALITY = VariantPileupListener.DEF_MIN_QUALITY;
+	public static final short DEF_MIN_QUALITY = 40;
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final short DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	public static final String DEF_OUTPUT_FILE = "variants.vcf";
 	
 	
 	
@@ -79,10 +83,9 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private ReferenceGenome genome;
 	private List<String> alignmentFiles = new ArrayList<>();
 	private List<Sample> samples;
-	private List<VariantPileupListener> genotypingListeners = new ArrayList<>();
 	
 	//Output file variables
-	private String outFilename;
+	private String outFilename = DEF_OUTPUT_FILE;
 	private PrintStream outFile;
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter writer = new VCFFileWriter();
@@ -95,6 +98,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private short minQuality = DEF_MIN_QUALITY;
 	private short maxBaseQS = DEF_MAX_BASE_QS;
 	private byte normalPloidy = DEF_PLOIDY;
+	private boolean printSamplePloidy = false;
+	private String knownVariantsFile=null;
+	
+	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<>();
 	
 	
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
@@ -106,8 +113,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static void main(String[] args) throws Exception {
 		MultisampleVariantsDetector instance = new MultisampleVariantsDetector();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
-		instance.outFilename = args[i++];
 		for(;i<args.length;i++) {
 			instance.alignmentFiles.add(args[i]);
 		}
@@ -126,6 +131,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	 */
 	public void setLog(Logger log) {
 		this.log = log;
+		generator.setLog(log);
 	}
 
 	/**
@@ -308,6 +314,24 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	public void setNormalPloidy(String value) {
 		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+	
+	/**
+	 * @return the printSamplePloidy
+	 */
+	public boolean isPrintSamplePloidy() {
+		return printSamplePloidy;
+	}
+
+	/**
+	 * @param printSamplePloidy the printSamplePloidy to set
+	 */
+	public void setPrintSamplePloidy(boolean printSamplePloidy) {
+		this.printSamplePloidy = printSamplePloidy;
+	}
+
+	public void setPrintSamplePloidy(Boolean printSamplePloidy) {
+		this.setPrintSamplePloidy(printSamplePloidy.booleanValue());
 	}
 
 	/**
@@ -501,49 +525,80 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setKnownSTRsFile(String knownSTRsFile) {
 		this.knownSTRsFile = knownSTRsFile;
 	}
+	
+	public String getKnownVariantsFile() {
+		return knownVariantsFile;
+	}
+
+	public void setKnownVariantsFile(String knownVariantsFile) {
+		this.knownVariantsFile = knownVariantsFile;
+	}
+	
+	public void printParameters() {
+		log.info("Output file: "+outFilename);
+		log.info("Heterozygosity rate: "+getHeterozygosityRate());
+		if(generator.getQuerySeq()!=null) {
+			log.info("Analyze only region at "+generator.getQuerySeq()+":"+generator.getQueryFirst()+"-"+generator.getQueryLast());
+		}
+		log.info("Maximum number of alignments starting at the same position: " + generator.getMaxAlnsPerStartPos());
+		log.info("Ignore variants in lower case reference positions: " + isIgnoreLowerCaseRef());
+		log.info("Process non unique primary alignments: " + generator.isProcessNonUniquePrimaryAlignments());
+		log.info("Process secondary alignments: " + generator.isProcessSecondaryAlignments());
+		log.info("Minimum variant quality score (PHRED): " + getMinQuality());
+		log.info("Maximum base quality score (PHRED): " + getMaxBaseQS());
+		log.info("Base pairs to ignore from the 5' end of each read: " + generator.getBasesToIgnore5P());
+		log.info("Base pairs to ignore from the 3' end of each read: " + generator.getBasesToIgnore3P());
+		log.info("File with known short tandem repeats: " + knownSTRsFile);
+		log.info("File with known variants: " + knownVariantsFile);
+		log.info("Call SNVs within STRs: " + isCallEmbeddedSNVs());
+		
+		log.info("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
+		log.info("Normal ploidy: "+normalPloidy);
+		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy);
+	}
 
 	public void findVariants() throws IOException {
+		printParameters();
 		referenceGenomeSize = genome.getTotalLength();
+		QualifiedSequenceList sequences = genome.getSequencesMetadata();
+		indelRealigner.setGenome(genome);
+		generator.setSequencesMetadata(sequences);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
-		genotypingListeners.clear();
-		for(Sample sample:samples) {
-			VariantPileupListener genotypingListener = new VariantPileupListener();
-			genotypingListener.setCallEmbeddedSNVs(callEmbeddedSNVs);
-			genotypingListener.setGenome(genome);
-			genotypingListener.setHeterozygosityRate(heterozygosityRate);
-			genotypingListener.setIgnoreLowerCaseRef(ignoreLowerCaseRef);
-			genotypingListener.setMaxBaseQS(maxBaseQS);
-			genotypingListener.setMinQuality(minQuality);
-			genotypingListener.setNormalPloidy(sample.getNormalPloidy());
-			genotypingListener.setReadGroups(sample.getReadGroups());
-			genotypingListeners.add(genotypingListener);
-		}
-		if(knownSTRsFile!=null) {
+		
+		if(knownVariantsFile!=null) {
+			log.info("Loading input variants");
+			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
+			log.info("Loaded "+knownVariants.size()+" input variants");
+			inputVariants = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
+			inputVariants.addAll(knownVariants);
+			indelRealigner.setInputVariants(inputVariants);
+		} else if(knownSTRsFile!=null) {
 			log.info("Loading input short tandem repeats from: "+knownSTRsFile);
-			//TODO: Choose the best format
+			//TODO: STRs loader
 			SimpleGenomicRegionFileHandler rfh = new SimpleGenomicRegionFileHandler();
 			List<GenomicRegion> strs = rfh.loadRegions(knownSTRsFile);
-			//TODO: STRs loader
 			indelRealigner.setInputVariants(VariantsDetector.makeNonRedundantSTRs(genome,strs));
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
-		indelRealigner.setGenome(genome);
-		generator.setSequencesMetadata(genome.getSequencesMetadata());
+		
 		generator.addListener(indelRealigner);
 		generator.addListener(this);
 		try {
 			outFile = new PrintStream(outFilename);
 			vcfFileHeader = VCFFileHeader.makeDefaultEmptyHeader();
-			for(Sample s:samples) vcfFileHeader.addSample(s, true);
+			for(Sample s:samples) vcfFileHeader.addSample(s, printSamplePloidy);
 			writer.printHeader(vcfFileHeader, outFile);
 			generator.processFiles(alignmentFiles);
 		} finally {
 			if(outFile!=null) outFile.close();
+			dispose();
 		}
+		log.info("Multisample Variants Detector Completed");
 	}
 
+	
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
 		log.info("Loading sample ids from: "+alignmentFiles);
@@ -556,6 +611,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 					Sample sample = samplesMap.get(sampleId);
 					if(sample==null) {
 						sample = new Sample(sampleId);
+						sample.setNormalPloidy(normalPloidy);
 						samplesMap.put(sampleId, sample);
 						log.info("Found sample: "+sampleId+" in file: "+filename);
 					}
@@ -566,34 +622,31 @@ public class MultisampleVariantsDetector implements PileupListener {
 		samples = new ArrayList<>(samplesMap.values()); 
 	}
 
+	private int nextSIVIndex = 0;
+	private List<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		GenomicVariant variant = findVariant(pileup);
-		if(pileup.getPosition()==posPrint) System.out.println("Variant: "+variant);
-		if(variant == null) return;
-		List<CalledGenomicVariant> calls;
-		while(true) {
-			calls = genotypeVariant(variant, pileup);
-			int n = samples.size();
-			if(pileup.getPosition()==posPrint) System.out.println("Num samples: "+n);
-			short variantQS = 0;
-			Set<String> calledAllelesSet = new TreeSet<>();
-			calledAllelesSet.add(variant.getReference());
-			for(int i=0;i<n;i++) {
-				CalledGenomicVariant call = calls.get(i);
-				if(!call.isUndecided() && !call.isHomozygousReference() && call.getGenotypeQuality()>variantQS) {
-					variantQS = call.getGenotypeQuality();
+		GenomicVariant variant = null;
+		GenomicVariant inputVariant = null;
+		if(inputVariants.size()==0) {
+			variant = findMultiallelicVariant(pileup);
+		} else if(nextSIVIndex<seqInputVariants.size()) {
+			inputVariant = seqInputVariants.get(nextSIVIndex);
+			while(inputVariant.getFirst() <= pileup.getPosition() ) {
+				if(inputVariant.getFirst()==pileup.getPosition()) {
+					variant = inputVariant;
 				}
-				calledAllelesSet.addAll(Arrays.asList(call.getCalledAlleles()));
-			}
-			if(variantQS == 0) return;
-			if(variant.getAlleles().length>2 && variant.getAlleles().length !=calledAllelesSet.size()) {
-				variant = makeNewVariant(variant,calledAllelesSet);
-			} else {
-				variant.setVariantQS(variantQS);
-				break;
+				nextSIVIndex++;
+				if(nextSIVIndex>=seqInputVariants.size()) break;
+				inputVariant = seqInputVariants.get(nextSIVIndex);
 			}
 		}
+		if(pileup.getPosition()==posPrint) System.out.println("Variant: "+variant);
+		if(variant == null) return;
+		
+		List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
+		if(inputVariant==null && (variant.getVariantQS()==0 || variant.getVariantQS() < minQuality)) return;
+		//TODO: The variant could be genotyped again with a different heterozygosity rate
 		
 		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
 		int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
@@ -601,7 +654,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
 		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
 		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
-		if(divStats.getNumCalledAlleles()==2) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+		if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
 		
 		writer.printVCFRecord(record, outFile);
 		coveredGenomeSize++;
@@ -611,11 +664,45 @@ public class MultisampleVariantsDetector implements PileupListener {
 		}
 	}
 	
+	
+	@Override
+	public void onSequenceStart(QualifiedSequence sequence) {
+		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
+		nextSIVIndex = 0;
+		lastIndelEnd = 0;
+	}
+
+	@Override
+	public void onSequenceEnd(QualifiedSequence sequence) {
+		
+	}
+	
 
 	private String format(int[] alleleCounts) {
 		StringBuilder answer = new StringBuilder(""+alleleCounts[0]);
 		for(int i=1;i<alleleCounts.length;i++) answer.append(","+alleleCounts[i]);
 		return answer.toString();
+	}
+	/**
+	 * 
+	 * @param variant to evaluate
+	 * @param calls Genotype calls for the given variant
+	 * @return GenomicVariant with less alleles or the same variant if it can not be changed
+	 */
+	private GenomicVariant makeNewVariant (GenomicVariant variant, List<CalledGenomicVariant> calls) {
+		if(variant.getAlleles().length<=2) return variant;
+		Set<String> calledAllelesSet = new TreeSet<>();
+		calledAllelesSet.add(variant.getReference());
+		int n = samples.size();
+		for(int i=0;i<n;i++) {
+			CalledGenomicVariant call = calls.get(i);
+			calledAllelesSet.addAll(Arrays.asList(call.getCalledAlleles()));
+		}
+		if(variant.getAlleles().length !=calledAllelesSet.size()) {
+			variant = makeNewVariant(variant,calledAllelesSet);
+		}
+		return variant;
+		
 	}
 
 	private GenomicVariant makeNewVariant(GenomicVariant variant, Set<String> newAlleles) {
@@ -633,9 +720,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 		return new GenomicVariantImpl(variant.getSequenceName(), variant.getFirst(), alleles);
 	}
 
-	private GenomicVariant findVariant(PileupRecord pileup) {
+	private GenomicVariant findMultiallelicVariant(PileupRecord pileup) {
 		
 		if(!callEmbeddedSNVs && pileup.isEmbedded()) return null;
+		
+		//Infer reference allele
 		int last = pileup.getPosition()+pileup.getReferenceSpan()-1;
 		CharSequence seq = genome.getReference(pileup.getSequenceName(), pileup.getPosition(), last);
 		if(pileup.getPosition()==posPrint) System.out.println("Position: "+pileup.getPosition()+" Last: "+last);
@@ -652,15 +741,15 @@ public class MultisampleVariantsDetector implements PileupListener {
 				pileup.setSTR(false);
 			}
 		}
-		CountsHelper helperSNV = VariantPileupListener.calculateCountsSNV(pileup,maxBaseQS, null);
+		CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup,maxBaseQS, null);
 		if(pileup.getPosition()==posPrint) System.out.println("A count: "+helperSNV.getCount("A")+" total: "+helperSNV.getTotalCount() );
 		if(pileup.getPosition()==posPrint) System.out.println("C count: "+helperSNV.getCount("C")+" total: "+helperSNV.getTotalCount() );
 		if(pileup.getPosition()==posPrint) System.out.println("G count: "+helperSNV.getCount("G")+" total: "+helperSNV.getTotalCount() );
 		if(pileup.getPosition()==posPrint) System.out.println("T count: "+helperSNV.getCount("T")+" total: "+helperSNV.getTotalCount() );
 		GenomicVariant variant;
 		if(referenceAllele.length()>1) {
-			CountsHelper helperIndel = VariantPileupListener.calculateCountsIndel(pileup,null,referenceAllele, null); 
-			variant = callMultisampleIndel(pileup, helperIndel);
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,null,referenceAllele, null); 
+			variant = findMultiallelicIndel(pileup, helperIndel);
 			if(variant!=null) {
 				//System.out.println("Called indel at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+" variant type: "+calledVar.getType());
 				lastIndelEnd = variant.getLast();
@@ -670,62 +759,74 @@ public class MultisampleVariantsDetector implements PileupListener {
 					pileup.setNewSTR(false);
 				}
 				//Try SNV if the indel alleles were not good to make a call
-				variant = callMultisampleSNV(pileup, helperSNV, referenceAllele.charAt(0));
+				variant = findMultiallelicSNV(pileup, helperSNV, referenceAllele.charAt(0));
 			}
 		} else {
-			variant = callMultisampleSNV(pileup, helperSNV, referenceAllele.charAt(0));
+			variant = findMultiallelicSNV(pileup, helperSNV, referenceAllele.charAt(0));
 		}
 		if(variant != null) {
-			//System.out.println("Called SNV");
 			if(variant.isSNV() && (pileup.isEmbedded() || variant.getFirst()<=lastIndelEnd)) variant.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
 		}
 		return variant;
 	}
 	
 	
-	private GenomicVariant callMultisampleSNV(PileupRecord pileup, CountsHelper helper, char reference) {
+	private GenomicVariant findMultiallelicSNV(PileupRecord pileup, CountsHelper helper, char reference) {
 		if(helper.getTotalCount()==0) {
 			return null;
 		}
-		if(DNASequence.BASES_STRING.indexOf(reference)<0) {
+		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
+		if(refIdx<0) {
 			//N reference can in principle be handled but it generates  many non variant sites
 			return null;
 		}
 		//Simple method based on relative counts. To improve later
 		int [] counts = helper.getCounts();
 		int sum = NumberArrays.getSum(counts); 
-		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
 		if(pileup.getPosition()==posPrint) System.out.println("Refidx: "+refIdx+" sum: "+sum);
 		boolean [] allelesSupported = new boolean [ counts.length];
 		List<String> alleles = new ArrayList<>();
-		if(refIdx>=0) alleles.add(DNASequence.BASES_ARRAY[refIdx]);
-		else alleles.add(""+reference);
+		alleles.add(DNASequence.BASES_ARRAY[refIdx]);
 		for(int i=0;i<counts.length;i++) {
-			allelesSupported[i]=(double)counts[i]/(double)sum >=minAlleleFrequency;
+			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=minAlleleFrequency;
 			if(allelesSupported[i] && i!=refIdx) {
 				alleles.add(DNASequence.BASES_ARRAY[i]);
 			}
 		}
 		if(pileup.getPosition()==posPrint) System.out.println("Alleles: "+alleles);
-		if(alleles.size()==1) return null;
-		GenomicVariant variant;
+		GenomicVariant variant = null;
 		if(alleles.size()==2) {
 			variant = new SNV(pileup.getSequenceName(), pileup.getPosition(), reference, alleles.get(1).charAt(0));
 			variant.setType(GenomicVariant.TYPE_BIALLELIC_SNV);
-			//variant.setVariantQS(variantQS);
-		} else {
+		} else if (alleles.size()>2){
 			variant = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
 			variant.setType(GenomicVariant.TYPE_MULTIALLELIC_SNV);
-			//variant.setVariantQS(variantQS);
+			while(true) {	
+				List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
+				GenomicVariant newVariant = makeNewVariant(variant, calls);
+				if(newVariant!=variant) variant = newVariant;
+				else break;
+			}
 		}
 		
 		return variant;
 	}
 
-	private GenomicVariant callMultisampleIndel(PileupRecord pileup, CountsHelper helperIndel) {
+	private GenomicVariant findMultiallelicIndel(PileupRecord pileup, CountsHelper helperIndel) {
 		List<String> alleles = helperIndel.getAllelesList();
 		if(alleles.size() == 1) return null;
-		GenomicVariantImpl variant = new GenomicVariantImpl(pileup.getSequenceName(),pileup.getPosition(),alleles);
+		if(helperIndel.getTotalCount()==0) return null;
+		GenomicVariant variant = new GenomicVariantImpl(pileup.getSequenceName(),pileup.getPosition(),alleles);
+		
+		// Redefine indel alleles based on genotype calls
+		while(true) {
+			if(!pileup.isInputSTR() && allelesSameLength(variant.getAlleles())) return null;
+			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
+			if(variant.getVariantQS() < minQuality) return null;
+			GenomicVariant newVariant = makeNewVariant(variant, calls);
+			if(newVariant!=variant) variant = newVariant;
+			else break;
+		}
 		if (pileup.isSTR()) {
 			variant.setType(GenomicVariant.TYPE_STR);
 		} else {
@@ -733,30 +834,63 @@ public class MultisampleVariantsDetector implements PileupListener {
 		}
 		return variant;
 	}
-	
-	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord pileup) {
+	private boolean allelesSameLength(String[] alleles) {
+		int l = alleles[0].length();
+		for(String allele:alleles) {
+			if(allele.length()!=l) return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Calls genotypes and updates the variant quality
+	 * @param variant
+	 * @param pileup
+	 * @param h
+	 * @return
+	 */
+	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord pileup, double h) {
+		if(pileup.getPosition()==posPrint) System.out.println("Genotyping variant type: "+variant.getType()+" is SNV: "+variant.isSNV()+" alleles: "+Arrays.asList(variant.getAlleles()));
 		List<CalledGenomicVariant> calls = new ArrayList<>();
 		int n = samples.size();
+		short variantQS = 0;
 		for(int i=0;i<n;i++) {
 			Sample sample = samples.get(i);
-			VariantPileupListener genotyper = genotypingListeners.get(i);
-			CalledGenomicVariant call = genotyper.processPileup(pileup, variant);
-			if(call == null) call = new CalledGenomicVariantImpl(variant, new byte[0]);
-			//if(pileup.getPosition()==posPrint) System.out.println("Genotype sample "+sample.getId()+": "+((CalledSNV)call).getGenotype());
-			call.setSampleId(sample.getId());
+			CalledGenomicVariant call = genotypeVariantSample(variant, pileup, sample, h);
+			if(pileup.getPosition()==posPrint) System.out.println("Sample: "+call.getSampleId()+" Genotype: "+Arrays.asList(call.getCalledAlleles())+" GQ: "+call.getGenotypeQuality());
+			if(!call.isUndecided() && !call.isHomozygousReference() && call.getGenotypeQuality()>variantQS) {
+				variantQS = call.getGenotypeQuality();
+			}
 			calls.add(call);
 		}
+		variant.setVariantQS(variantQS);
 		return calls;
 	}
-
-	@Override
-	public void onSequenceStart(QualifiedSequence sequence) {
-		lastIndelEnd = 0;
-	}
-
-	@Override
-	public void onSequenceEnd(QualifiedSequence sequence) {
+	
+	private CalledGenomicVariant genotypeVariantSample(GenomicVariant variant, PileupRecord pileup,  Sample sample, double h) {
+		String referenceAllele = variant.getReference();
 		
+		CalledGenomicVariant calledVar = null;
+		if(variant.isSNV()) {
+			CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup, maxBaseQS, sample.getReadGroups());
+			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), h);
+		} else {
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, sample.getReadGroups()); 
+			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h);
+		}
+		if(calledVar==null) {
+			calledVar = new CalledGenomicVariantImpl(variant, new byte[0]);
+		}
+		calledVar.setSampleId(sample.getId());
+		calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
+		return calledVar;
 	}
+
+	private void dispose() {
+		inputVariants =null;
+		seqInputVariants = null;
+		indelRealigner.setInputVariants(null);
+	}
+
 
 }

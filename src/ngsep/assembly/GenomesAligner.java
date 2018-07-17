@@ -55,14 +55,21 @@ import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
  */
 public class GenomesAligner {
 
+	public static final int DEF_PCT_KMERS = 50;
 	private ReferenceGenome genome1;
 	private ReferenceGenome genome2;
 	private Transcriptome transcriptome1;
 	private Transcriptome transcriptome2;
 	private ProteinTranslator translator = new ProteinTranslator();
+	
+	private GenomicRegionSortedCollection<OrthologyUnit>  uniqueUnitsGenome1;
+	private GenomicRegionSortedCollection<OrthologyUnit>  uniqueUnitsGenome2;
+	
 	private List<OrthologyUnit> alignedUnits = new ArrayList<>();
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
 	private ProgressNotifier progressNotifier=null;
+	
+	private int pctKmers = DEF_PCT_KMERS;
 	
 	public static void main(String[] args) throws Exception 
 	{
@@ -75,11 +82,9 @@ public class GenomesAligner {
 		String outPrefix = args[i++]; 
 		instance.loadGenomes(fileGenome1,fileTranscriptome1, fileGenome2, fileTranscriptome2);
 		instance.alignGenomes();
-		try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.txt");) {
-			instance.printAlignmentOrthologUnits (outAlignmnent);
-		}
+		instance.printAlignmentResults (outPrefix);
 	}
-	
+
 	/**
 	 * @return the log
 	 */
@@ -116,44 +121,54 @@ public class GenomesAligner {
 		GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler();
 		transcriptome1 = transcriptomeHandler.loadMap(fileTranscriptome1);
 		transcriptome1.fillSequenceTranscripts(genome1);
-		log.info("Loaded transcriptome "+fileTranscriptome1);
+		log.info("Loaded transcriptome "+fileTranscriptome1+ " number of transcripts: "+transcriptome1.getAllTranscripts().size());
 		transcriptome2 = transcriptomeHandler.loadMap(fileTranscriptome2);
 		transcriptome2.fillSequenceTranscripts(genome2);
-		log.info("Loaded transcriptome "+fileTranscriptome2);
+		log.info("Loaded transcriptome "+fileTranscriptome2+ " number of transcripts: "+transcriptome2.getAllTranscripts().size());
 	}
 	
 	
 	public void alignGenomes() {
 		//Create orthology units based on transcripts
-		
-		List<OrthologyUnit> unitsT1 = extractOrthologyUnits(transcriptome1);
-		
-		List<OrthologyUnit> unitsT2 = extractOrthologyUnits(transcriptome2);
-		
-		
 		//Query each orthology unit against its own genome and select the units that are unique
-		List<OrthologyUnit>  uniquesUnitsT1 = selectUniqueUnits(unitsT1);
-		log.info("First genome has "+unitsT1.size()+" total orthology units. Unique units: "+uniquesUnitsT1.size());
-		List<OrthologyUnit> uniquesUnitsT2 = selectUniqueUnits(unitsT2);
-		log.info("Second genome has "+unitsT2.size()+" total orthology units. Unique units: "+uniquesUnitsT2.size());
+		List<OrthologyUnit> unitsG1 = extractOrthologyUnits(transcriptome1);
+		log.info("First genome total units "+unitsG1.size()+" Building FM Index");
+		FMIndex indexG1 = buildFMIndex (unitsG1);
 		
+		List<OrthologyUnit> uniqueUnitsG1List = selectUniqueUnits(unitsG1, indexG1);
 		QualifiedSequenceList genomeMetadata1 = genome1.getSequencesMetadata();
-		GenomicRegionSortedCollection<OrthologyUnit> unitsC1 = new GenomicRegionSortedCollection<>(genomeMetadata1);
-		unitsC1.addAll(uniquesUnitsT1);
+		uniqueUnitsGenome1 = new GenomicRegionSortedCollection<>(genomeMetadata1);
+		uniqueUnitsGenome1.addAll(uniqueUnitsG1List);
+		
+		log.info("First genome has "+unitsG1.size()+" total orthology units. Unique units: "+uniqueUnitsGenome1.size());
+		
+		
+		
+		List<OrthologyUnit> unitsG2 = extractOrthologyUnits(transcriptome2);
+		log.info("Second genome total units "+unitsG2.size()+ " Building FM Index");
+		FMIndex indexG2 = buildFMIndex (unitsG2);
+
+		List<OrthologyUnit> uniqueUnitsG2List = selectUniqueUnits(unitsG2, indexG2);
 		QualifiedSequenceList genomeMetadata2 = genome2.getSequencesMetadata();
-		GenomicRegionSortedCollection<OrthologyUnit> unitsCollectionG2 = new GenomicRegionSortedCollection<>(genomeMetadata2);
-		unitsCollectionG2.addAll(uniquesUnitsT2);
+		uniqueUnitsGenome2 = new GenomicRegionSortedCollection<>(genomeMetadata2);
+		uniqueUnitsGenome2.addAll(uniqueUnitsG2List);
+		
+		log.info("Second genome has "+unitsG2.size()+" total orthology units. Unique units: "+uniqueUnitsGenome2.size());
+
+		Map<String,OrthologyUnit> uniqueUnitsG2Map = new HashMap<>();
+		for(OrthologyUnit unit:uniqueUnitsG2List) uniqueUnitsG2Map.put(unit.getId(), unit);
+		
+		
 		alignedUnits = new ArrayList<>();
 		
 		for(QualifiedSequence chrG1:genomeMetadata1) {
-			List<OrthologyUnit> unitsChrG1 = unitsC1.getSequenceRegions(chrG1.getName()).asList();
-			fillMateIds(unitsChrG1,unitsCollectionG2);
-			String chrNameG2 = findBestChromosome(unitsChrG1,unitsCollectionG2);
+			List<OrthologyUnit> unitsChrG1 = uniqueUnitsGenome1.getSequenceRegions(chrG1.getName()).asList();
+			fillMateIds(unitsChrG1,uniqueUnitsG2Map, indexG2);
+			String chrNameG2 = findBestChromosome(unitsChrG1);
 			if(chrNameG2!=null) {
-				QualifiedSequence chrG2 = genomeMetadata2.get(chrNameG2);
-				List<OrthologyUnit> unitsChrG2 = unitsCollectionG2.getSequenceRegions(chrG2.getName()).asList();
+				List<OrthologyUnit> unitsChrG2 = uniqueUnitsGenome2.getSequenceRegions(chrNameG2).asList();
 				List<OrthologyUnit> selectedUnits = alignOrthologyUnits(unitsChrG1,unitsChrG2);
-				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrG2.getName()+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
+				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrNameG2+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
 				alignedUnits.addAll(selectedUnits);
 			} else {
 				log.info("Mate sequence not found for "+chrG1.getName()+" Sequence orthology units: "+unitsChrG1.size());
@@ -161,20 +176,41 @@ public class GenomesAligner {
 		}
 	}
 	
+	private FMIndex buildFMIndex(List<OrthologyUnit> units) {
+		FMIndex index = new FMIndex();
+		QualifiedSequenceList proteinSequences = extractProteinSequences(units);
+		index.loadQualifiedSequenceList(proteinSequences);
+		return index;
+	}
+	
+	private List<OrthologyUnit> selectUniqueUnits (List<OrthologyUnit> units, FMIndex index) {
+		List<OrthologyUnit> uniques = new ArrayList<>();
+		QualifiedSequenceList proteinSequences = extractProteinSequences(units);
+		for (int i=0; i<proteinSequences.size(); i++)
+		{
+			QualifiedSequence next = proteinSequences.get(i);
+			String nextSequence = next.getCharacters().toString();
+			
+			
+			Set<String> hits = findSimilarProteins(index, nextSequence);
+			if(hits.size() == 1)
+			{
+				uniques.add(units.get(i));
+			}
+			if(i%100==0)log.info("Processed "+i+" proteins. Unique: "+uniques.size());
+		}
+		
+		return uniques;
+	}
+
 	/**
 	 * FInds the unique mate in the second genome of the units in the first genome
 	 * @param unitsG1
 	 * @param unitsG2
+	 * @param indexG2 FM index for the complete transcriptome of the second genome
 	 */
-	private void fillMateIds(List<OrthologyUnit> unitsG1, GenomicRegionSortedCollection<OrthologyUnit> unitsG2) {
-		Map<String,OrthologyUnit> unitsC2Map = new HashMap<>();
-		for(OrthologyUnit unit:unitsG2) unitsC2Map.put(unit.getId(), unit);
+	private void fillMateIds(List<OrthologyUnit> unitsG1, Map<String,OrthologyUnit> uniqueUnitsG2, FMIndex indexG2) {
 		
-		//Build FMindex g2
-		
-		QualifiedSequenceList proteinSequencesG2 = extractProteinSequences(unitsG2.asList());
-		FMIndex indexG2 = new FMIndex();
-		indexG2.loadQualifiedSequenceList(proteinSequencesG2);
 		//Search proteins from G1 using method findSimilarProteins
 		for(int i=0; i<unitsG1.size(); i++)
 		{
@@ -186,8 +222,11 @@ public class GenomesAligner {
 			{
 				Iterator<String> iterator = hits.iterator();
 				String mateId = iterator.next();
-				OrthologyUnit mate = unitsC2Map.get(mateId);
-				unit.setMate(mate);
+				OrthologyUnit mate = uniqueUnitsG2.get(mateId);
+				if(mate!=null) {
+					unit.setMate(mate);
+					mate.setMate(unit);
+				}
 			}
 		}
 	}
@@ -196,32 +235,31 @@ public class GenomesAligner {
 
 
 	/**
-	 * Selects the chromosome in unitsC2 having the largest number of mates with the given units from genome 1
-	 * @param unitsG1
-	 * @param unitsC2
-	 * @return String name of the chromosome in the second genome
+	 * Selects the chromosome having the largest number of mates with the given units
+	 * @param units to select the chromosome with the best fit
+	 * @return String name of the most frequent chromosome in the mates of the given units
 	 */
-	private String findBestChromosome(List<OrthologyUnit> unitsG1, GenomicRegionSortedCollection<OrthologyUnit> unitsG2) {
+	private String findBestChromosome(List<OrthologyUnit> units) {
 		
 		
-		Map<String,Integer> chrG2Counts = new HashMap<>();
+		Map<String,Integer> chrMateCounts = new HashMap<>();
 		
 
-		//Go over the orthology units of G1. Locate chromosome of each mate and update counts map
+		//Go over the orthology units. Locate chromosome of each mate and update counts map
 		
-		for(int i=0; i<unitsG1.size(); i++)
+		for(int i=0; i<units.size(); i++)
 		{
-			OrthologyUnit unitG2 = unitsG1.get(i).getMate();
-			if(unitG2 == null) continue;
-			String sequenceName = unitG2.getSequenceName();			
-			if((chrG2Counts.containsKey(sequenceName)))
+			OrthologyUnit mate = units.get(i).getMate();
+			if(mate == null) continue;
+			String sequenceName = mate.getSequenceName();			
+			if((chrMateCounts.containsKey(sequenceName)))
 			{
-				int value = chrG2Counts.get(sequenceName)+1;
-				chrG2Counts.put(sequenceName, value);
+				int value = chrMateCounts.get(sequenceName)+1;
+				chrMateCounts.put(sequenceName, value);
 			}
 			else
 			{
-				chrG2Counts.put(sequenceName, 1);
+				chrMateCounts.put(sequenceName, 1);
 			}
 				
 		}
@@ -229,7 +267,7 @@ public class GenomesAligner {
 		int bestChromosomeCounts = 0;
 		String bestChromosome = null;
 		
-		for(Map.Entry<String,Integer> entry : chrG2Counts.entrySet()) {
+		for(Map.Entry<String,Integer> entry : chrMateCounts.entrySet()) {
 			String name = entry.getKey();
 			int chromosomeProteins = entry.getValue();
 			
@@ -270,7 +308,6 @@ public class GenomesAligner {
 			if(unitG2==null) continue;
 			unitsG1List.add(unitG1);			
 			unitsG2List.add(unitG2);
-			unitG2.setMate(unitG1);
 		}
 		Collections.sort(unitsG2List, GenomicRegionPositionComparator.getInstance());		
 		
@@ -316,35 +353,7 @@ public class GenomesAligner {
 		return lcs;
 	}
 
-
-
-
-	public List<OrthologyUnit> selectUniqueUnits (List<OrthologyUnit> units)
-	{
-	
-		List<OrthologyUnit> uniques = new ArrayList<>();
-		QualifiedSequenceList proteinSequences = extractProteinSequences(units);
-		FMIndex index = new FMIndex();
-		index.loadQualifiedSequenceList(proteinSequences);
-		
-		for (int i=0; i<proteinSequences.size(); i++)
-		{
-			QualifiedSequence next = proteinSequences.get(i);
-			String nextSequence = next.getCharacters().toString();
-			
-			
-			Set<String> hits = findSimilarProteins(index, nextSequence);
-			if(hits.size() == 1)
-			{
-				uniques.add(units.get(i));
-			}
-			if(i%100==0)log.info("Processed "+i+" proteins. Unique: "+uniques.size());
-		}
-		
-		return uniques;
-	}
-	
-	private static Set<String> findSimilarProteins(FMIndex index, String protein1) {
+	private Set<String> findSimilarProteins(FMIndex index, String protein1) {
 		
 		//Counts of k-mers mapping to each protein in the FM-index
 		Map<String,Integer> kmerSupportMap = new TreeMap<>();
@@ -370,14 +379,14 @@ public class GenomesAligner {
 			totalKmers = totalKmers +1;
 		}
 
-		//Step 2: Fill list traversing the counts and choosing transcripts for which at least 80% of the k-mers support the match
+		//Step 2: Fill list traversing the counts and choosing transcripts for which at least x% of the k-mers support the match
 		Set<String> answer = new TreeSet<>();
 		
 		for(Map.Entry<String,Integer> entry : kmerSupportMap.entrySet()) {
 			String name = entry.getKey();
 			double transcriptKmers = entry.getValue();
 			double percent = (transcriptKmers/totalKmers)*100;
-			if(percent >= 80)
+			if(percent >= pctKmers)
 			{
 				answer.add(name);
 			}
@@ -540,16 +549,33 @@ public class GenomesAligner {
 		return answer;
 	}
 	
-	
-	private void printAlignmentOrthologUnits(PrintStream outAlignmnent) {
-		for(OrthologyUnit unit:alignedUnits) {
-			outAlignmnent.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-			OrthologyUnit mate = unit.getMate();
-			if(mate != null) outAlignmnent.println("\t"+mate.getId()+"\t"+mate.getSequenceName()+"\t"+mate.getFirst()+"\t"+mate.getLast());
-			else outAlignmnent.println("\t-\t-\t-\t-");
+	public void printAlignmentResults(String outPrefix) throws IOException {
+		// Print Unique units genome 1
+		try (PrintStream outUniqueG1 = new PrintStream(outPrefix+"_uniqueG1.txt");) {
+			for(OrthologyUnit unit:uniqueUnitsGenome1) {
+				printOrthologyUnit(unit, outUniqueG1);
+			}
 		}
+		try (PrintStream outUniqueG2 = new PrintStream(outPrefix+"_uniqueG2.txt");) {
+			for(OrthologyUnit unit:uniqueUnitsGenome2) {
+				printOrthologyUnit(unit, outUniqueG2);
+			}
+		}
+		//Print LCS
+		try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.txt");) {
+			for(OrthologyUnit unit:alignedUnits) {
+				printOrthologyUnit(unit, outAlignmnent);
+			}
+		}
+		
 	}
 
+	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out) {
+		out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
+		OrthologyUnit mate = unit.getMate();
+		if(mate != null) out.println("\t"+mate.getId()+"\t"+mate.getSequenceName()+"\t"+mate.getFirst()+"\t"+mate.getLast());
+		else out.println("\t-\t-\t-\t-");
+	}
 }
 class OrthologyUnit implements GenomicRegion {
 	private String id;

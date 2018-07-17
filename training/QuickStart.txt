@@ -104,44 +104,12 @@ ____________________________________
     {INPUT: one BAM file for each of your samples -
          - OUTPUT: a single VCF file with all the variation in your population}
 
-    - First, find all high-quality SNPs in the population, running 
-    the following command for each sample:
+    - Since version 3.2.0, the command to run the pileup process to identify and genotype variants on a population is the MultsampleVariantsDetector. This command can be executed as follows 
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
-
-        * if you are not sure of how many bases to ignore at each end of the 
-          read, run this command on each of your readpos.stats files:
-
-        $ awk 'BEGIN{n=100}{if ($1=="Alignments"){if(n>l)n=l;x=x/($3*n);print "Average first",n,"bases:",x;print "Read length:",l;for(i=1;i<=l;i++){y=a[i]/$3;if(y>2*x && y>0.02) printf(" %d",i);}print "";} else if ($1!="Bases" && $2>0){a[$1]=$3;if($1<=n)x+=$3;l=$1}}' <SMPL>_bowtie2_readpos.stats
-
-    - Second, collect the position of all the high-quality variants in the 
-    population:
-
-        $ java -jar NGSEPcore_<VERSION>.jar MergeVariants <SEQ_NAMES> variants_list.vcf <VCF_FILES>* >& variants_list.log
-
-    - Third, genotype all your samples in the high-quality positions:
-
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants variants_list.vcf -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 100 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
-
-    - Fourth, merge all the genotyped samples in a single VCF file:
-
-        $ java -jar NGSEPcore_<VERSION>.jar MergeVCF <SEQ_NAMES> <VCF_FILES>* 1> population.vcf 2> population.log
+        $ java -jar NGSEPcore_<VERSION>.jar MultisampleVariantsDetector -maxBaseQS 30 -maxAlnsPerStartPos 100 -r <REF.fa> -o population.vcf <BAM_FILES>* >& population.log
 
     <REF.fa>     : The FASTA file of the reference genome.
-    <SMPL>       : The ID of the sample.
-    <TRIM_5'>    : Number of low quality nucleotides to trim from the 5' end.
-    <TRIM_3'>    : Number of low quality nucleotides to trim from the 3' end.
-    <VCF_FILES>* : List of all the VCF files from the FindVariants step.
-    <SEQ_NAMES>  : File with the name of all the sequences present in the 
-                   reference genome, generate it by running one of the following commands:
-                        $ awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REF.fa> > <SEQ_NAMES>
-                        $ samtools faidx <REF.fa>
-                   it should look like this:
-                   ____________
-                   |Chr1
-                   |Chr2
-                   |Chr3
-                   |...
+    <BAM_FILES>* : List of all the BAM files generated in the previous step
 ______________
 3. Annotation:
     {INPUT: a single VCF file with all the variation in your population -
@@ -157,7 +125,7 @@ ______________
 
     - Compare differences between your samples and find possible duplicates:
 
-        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf 1> population_sampleComparation.txt
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf > population_sampleComparison.txt
 
     <REF.fa>    : The FASTA file of the reference genome.
     <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
@@ -237,8 +205,8 @@ ___________
     <minFL>  : Min Fragment Length for valid paired-end alignment, default 0.
     <maxFL>  : Max Fragment Length for valid paired-end alignment, default 500.
                (see below: 'runTestInsertLength' to estimate this parameters)
-____________________________________
-2. Variants Detecion and Genotyping:
+_______________________________________________________________
+2. Variants Detecion and Genotyping (sample-by-sample analysis)
     {INPUT: one BAM file for each of your samples -
          - OUTPUT: a single VCF file with all the variation in your population}
 
@@ -333,21 +301,21 @@ __________
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                        ~~~~~ Production pipeline ~~~~~
+                        ~~~~~ Production pipeline for high coverage WGS ~~~~~
 
-To perfom each of the above mentioned tasks in a large number of samples, 
+To perform each of the above mentioned tasks in a large number of samples, 
 a list of scripts are available at:
 
-        https://sourceforge.net/projects/ngsep/files/Library/scripts/
+        https://sourceforge.net/projects/ngsep/files/training/
 
 The available scripts are:
   for mapping:                                       	runMapping
-  for variants discovery:                            	runNGSEP
-  for samples genotyping:                            	runGenotyping
+  for individual variants discovery:                    runNGSEP
+  for individual samples genotyping:                    runGenotyping
   for estimating the insert length of a sample:     	runTestInsertLength
   for obtaining low quality positions from statistics:  calculateReadposStatsPeaks
 
-These scripts facilitate running the NGSEP pipeline in a bash environment. 
+These scripts facilitate running the NGSEP pipeline for WGS data in a bash environment. 
 
 > Before running these scripts, the following set up steps must be performed: <
 _____

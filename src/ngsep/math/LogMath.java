@@ -75,6 +75,7 @@ public class LogMath {
 	public static void normalizeLogs(Double[] logProbs) {
 		Double total = null;
 		int n = logProbs.length;
+		if(n==0) throw new IllegalArgumentException("Array of logarithms must have at least one entry");
 		for(int j=0;j<n;j++)  total = LogMath.logSum(total, logProbs[j]);
 		for(int j=0;j<n;j++)  logProbs[j] = LogMath.logProduct(logProbs[j],-total);
 		

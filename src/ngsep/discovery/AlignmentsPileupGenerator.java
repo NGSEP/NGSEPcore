@@ -21,18 +21,17 @@ package ngsep.discovery;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
-import ngsep.genome.GenomicRegionSortedCollection;
-import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.variants.GenomicVariant;
 
 
 public class AlignmentsPileupGenerator {
@@ -41,21 +40,12 @@ public class AlignmentsPileupGenerator {
 	
 	private Logger log = Logger.getLogger(AlignmentsPileupGenerator.class.getName());
 	private List<PileupListener> listeners = new ArrayList<PileupListener>();
-	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
-	
-	private List<GenomicVariant> seqInputVariants;
-	private int idxNextInputVariant = 0;
 	private QualifiedSequenceList sequencesMetadata;
 	
 	private String querySeq=null;
 	private int queryFirst = 0;
 	private int queryLast = 1000000000;
-	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
-	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
-	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
-	private QualifiedSequence currentReferenceSequence = null;
-	private int currentReferencePos = 0;
-	private int currentReferenceLast = 0;
+	
 	private boolean keepRunning = true;
 	private int maxAlnsPerStartPos = DEF_MAX_ALNS_PER_START_POS;
 	private boolean processNonUniquePrimaryAlignments = false;
@@ -64,14 +54,19 @@ public class AlignmentsPileupGenerator {
 	private byte basesToIgnore3P = 0;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
+	// Internal attributes to follow up the pileup process
+	private QualifiedSequence currentReferenceSequence = null;
+	private int currentReferencePos = 0;
+	private int currentReferenceLast = 0;
+	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
+	
+	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
+	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
+	private int lastReadAlignmentStart = 0;
+	
 
 	public void addListener(PileupListener listener) {
 		listeners.add(listener);
-	}
-
-	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
-		this.inputVariants = inputVariants;
-		seqInputVariants = null;
 	}
 	
 	/**
@@ -188,14 +183,26 @@ public class AlignmentsPileupGenerator {
 	/**
 	 * Parallel processing of several bam files
 	 * PRE: The generator has the sequences metadata information
-	 * @param alignmentFiles
-	 * @throws IOException
+	 * @param alignmentFiles List of files to process in parallel
+	 * @throws IOException If there is an I/O error processing the files
 	 */
 	public void processFiles(List<String> alignmentFiles) throws IOException {
+		processFiles(alignmentFiles, new ArrayList<>());
+	}
+	/**
+	 * Parallel processing of several bam files
+	 * PRE: The generator has the sequences metadata information
+	 * @param alignmentFiles List of files to process in parallel
+	 * @param replaceReadGroups Read groups to use instead of the read groups within each file.
+	 * Can not be null. If empty, default read groups are used
+	 * @throws IOException If there is an I/O error processing the files
+	 */
+	public void processFiles(List<String> alignmentFiles, List<String> replaceReadGroups) throws IOException {
 		int n = alignmentFiles.size();
 		if(n==0) return;
 		if(n==1) {
-			processFile(alignmentFiles.get(0));
+			if(replaceReadGroups.size()==0) processFile(alignmentFiles.get(0));
+			else processFile(alignmentFiles.get(0),replaceReadGroups.get(0));
 			return;
 		}
 		
@@ -205,15 +212,20 @@ public class AlignmentsPileupGenerator {
 		try {
 			for(int i=0;i<n;i++) {
 				readers[i] = createReader(alignmentFiles.get(i));
-				iterators.add(readers[i].iterator());
-				currentAlignments[i] = iterators.get(i).hasNext()?iterators.get(i).next():null; 
+				Iterator<ReadAlignment> it = readers[i].iterator();
+				iterators.add(it);
+				if(it.hasNext()) {
+					currentAlignments[i] = it.next();
+					if(replaceReadGroups.size()>i) (currentAlignments[i]).setReadGroup(replaceReadGroups.get(i)); 
+				} else {
+					currentAlignments[i] = null;
+				}
 			}
 			boolean querySeqFound = false;
 			GenomicRegionComparator cmp = new GenomicRegionComparator(sequencesMetadata);
 			while (keepRunning) {
-				ReadAlignment aln = chooseNextAln(iterators,currentAlignments, cmp);
+				ReadAlignment aln = chooseNextAln(iterators,currentAlignments, cmp, replaceReadGroups);
 				if(aln==null) break;
-				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
 				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
 				if(querySeq!=null) {
 					if(querySeq.equals(aln.getSequenceName())) {
@@ -241,7 +253,7 @@ public class AlignmentsPileupGenerator {
 		}
 	}
 
-	private ReadAlignment chooseNextAln(List<Iterator<ReadAlignment>> iterators, ReadAlignment[] currentAlignments, GenomicRegionComparator cmp) {
+	private ReadAlignment chooseNextAln(List<Iterator<ReadAlignment>> iterators, ReadAlignment[] currentAlignments, GenomicRegionComparator cmp, List<String> replaceReadGroups) {
 		ReadAlignment answer = null;
 		int minPos = -1;
 		for(int i=0;i<currentAlignments.length;i++) {
@@ -253,13 +265,27 @@ public class AlignmentsPileupGenerator {
 			}
 		}
 		if(minPos>=0) {
-			currentAlignments[minPos] = iterators.get(minPos).hasNext()?iterators.get(minPos).next():null; 
+			Iterator<ReadAlignment> it = iterators.get(minPos); 
+			if(it.hasNext()) {
+				currentAlignments[minPos] = it.next();
+				if(replaceReadGroups.size()>minPos) (currentAlignments[minPos]).setReadGroup(replaceReadGroups.get(minPos)); 
+			} else {
+				currentAlignments[minPos] = null;
+			}
 		}
 		return answer;
 	}
 
 	public void processFile(String filename) throws IOException {
-		
+		processFile(filename, null);
+	}
+	/**
+	 * Process the given alignments file
+	 * @param filename Name of the file to process
+	 * @param replaceReadGroup Read group to use for the given file. If null, the default read group will be used
+	 * @throws IOException If the file can not be read
+	 */
+	public void processFile(String filename, String replaceReadGroup) throws IOException {		
 		int processedAlns = 0;
 		try (ReadAlignmentFileReader reader = createReader(filename)) {
 			sequencesMetadata = reader.getSequences();
@@ -268,7 +294,6 @@ public class AlignmentsPileupGenerator {
 			//Sequence under processing
 			while(it.hasNext() && keepRunning) {
 				ReadAlignment aln = it.next();
-				if(inputVariants!=null && idxNextInputVariant>=inputVariants.size()) break;
 				//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
 				if(querySeq!=null) {
 					if(querySeq.equals(aln.getSequenceName())) {
@@ -283,6 +308,7 @@ public class AlignmentsPileupGenerator {
 						continue;
 					}
 				}
+				if(replaceReadGroup!=null) aln.setReadGroup(replaceReadGroup);
 				processAlignment(aln);
 				processedAlns++;
 				if(processedAlns%1000000 == 0) log.info("Processed "+processedAlns+" alignments");
@@ -292,7 +318,7 @@ public class AlignmentsPileupGenerator {
 		if(keepRunning) notifyEndOfAlignments();
 		else log.warning("Cancelled process");
 	}
-
+	
 	private ReadAlignmentFileReader createReader(String filename) throws IOException {
 		ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename);
 		//reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
@@ -308,16 +334,18 @@ public class AlignmentsPileupGenerator {
 	}
 	
 	public void processAlignment(ReadAlignment aln) {
-		if(!spanInputVariants(aln)) return;
-		
 		if(currentReferenceSequence!=null) {
-			if(!currentReferenceSequence.getName().equals(aln.getSequenceName())) {
-				processPileups(currentReferenceLast+1);
-				for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
-				currentReferenceSequence=null;
-			} else {
-				processPileups(aln.getFirst());
-			}	
+			boolean sameSequence = currentReferenceSequence.getName().equals(aln.getSequenceName());
+			if(!sameSequence || lastReadAlignmentStart !=aln.getFirst()) {
+				processSameStartAlns();
+				if(!sameSequence) {
+					processPileups(currentReferenceLast+1);
+					for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
+					currentReferenceSequence=null;
+				} else {
+					processPileups(aln.getFirst());
+				}
+			}
 		} 
 		if (currentReferenceSequence==null) {
 			startSequence(aln);
@@ -330,6 +358,37 @@ public class AlignmentsPileupGenerator {
 		} else {
 			sameStartPrimaryAlignments.add(aln);
 		}
+		lastReadAlignmentStart = aln.getFirst();
+	}
+	/**
+	 * Selects the alignments starting at the same position that will be processed
+	 */
+	private void processSameStartAlns() {
+		int posStart = 0;
+		if(sameStartPrimaryAlignments.size()>0) {
+			posStart = sameStartPrimaryAlignments.get(0).getFirst();
+		} else if(sameStartSecondaryAlignments.size()>0) {
+			posStart = sameStartSecondaryAlignments.get(0).getFirst();
+		}
+		if(posStart == 0 ) return;
+		Map<String,Integer> alnsPerReadGroup = new HashMap<>();
+		List<ReadAlignment> allAlnsPos = new ArrayList<>();
+		allAlnsPos.addAll(sameStartPrimaryAlignments);
+		allAlnsPos.addAll(sameStartSecondaryAlignments);
+		sameStartPrimaryAlignments.clear();
+		sameStartSecondaryAlignments.clear();
+		for(ReadAlignment aln:allAlnsPos) {
+			Integer count = alnsPerReadGroup.get(aln.getReadGroup());
+			if(count == null) {
+				alnsPerReadGroup.put(aln.getReadGroup(), 1);
+			} else if (maxAlnsPerStartPos<=0 || count<maxAlnsPerStartPos) {
+				alnsPerReadGroup.put(aln.getReadGroup(), count+1);
+			} else continue;
+			aln.setBasesToIgnore5P(basesToIgnore5P);
+			aln.setBasesToIgnore3P(basesToIgnore3P);
+			pendingAlignments.add(aln);
+		}
+		allAlnsPos.clear();
 	}
 
 	private void startSequence(ReadAlignment aln) {
@@ -341,32 +400,17 @@ public class AlignmentsPileupGenerator {
 		log.info("Processing sequence "+aln.getSequenceName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
-		if(inputVariants!=null) {
-			seqInputVariants = inputVariants.getSequenceRegions(seqName).asList();
-			idxNextInputVariant = 0;
-		}
-	}
-	
-	private boolean spanInputVariants(ReadAlignment aln) {
-		if(inputVariants==null) return true;
-		while(idxNextInputVariant<seqInputVariants.size())  {
-			GenomicVariant variant = seqInputVariants.get(idxNextInputVariant);
-			if(GenomicRegionSpanComparator.getInstance().span(variant, aln)) {
-				return true;
-			} else if (variant.getFirst()>aln.getLast()) break;
-			idxNextInputVariant++;
-		}
-		return false;
 	}
 
 	
 	public void notifyEndOfAlignments() {
+		processSameStartAlns();
 		processPileups(currentReferenceLast+1);
 		for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
+		currentReferenceSequence=null;
 	}
 	private void processPileups(int alignmentStart) {
 		if(alignmentStart==currentReferencePos) return;
-		processSameReadPileups(alignmentStart);
 		while(currentReferencePos<alignmentStart) {
 			if(!processCurrentPosition()) {
 				updatePendingAlns();
@@ -385,34 +429,7 @@ public class AlignmentsPileupGenerator {
 		if(alnsToKeep.size()>0) pendingAlignments.addAll(alnsToKeep);
 	}
 
-	private void processSameReadPileups(int alignmentStart) {
-		int posStart = 0;
-		int pAlns = sameStartPrimaryAlignments.size();
-		if(pAlns>0) {
-			posStart = sameStartPrimaryAlignments.get(0).getFirst();
-		} else if(sameStartSecondaryAlignments.size()>0) {
-			posStart = sameStartSecondaryAlignments.get(0).getFirst();
-		}
-		if(posStart == 0 || posStart == alignmentStart) return;
-		int remaining = maxAlnsPerStartPos;
-		if(remaining<=0) remaining = Integer.MAX_VALUE; 
-		for(int i=0;i<pAlns && remaining>0;i++) {
-			ReadAlignment aln = sameStartPrimaryAlignments.get(i);
-			aln.setBasesToIgnore5P(basesToIgnore5P);
-			aln.setBasesToIgnore3P(basesToIgnore3P);
-			pendingAlignments.add(aln);
-			remaining--;
-		}
-		for(int i=0;i<sameStartSecondaryAlignments.size() && remaining>0;i++) {
-			ReadAlignment aln = sameStartSecondaryAlignments.get(i);
-			aln.setBasesToIgnore5P(basesToIgnore5P);
-			aln.setBasesToIgnore3P(basesToIgnore3P);
-			pendingAlignments.add(aln);
-			remaining--;
-		}
-		sameStartPrimaryAlignments.clear();
-		sameStartSecondaryAlignments.clear();
-	}
+	
 
 	private boolean processCurrentPosition() {
 		int posPrint = -1;

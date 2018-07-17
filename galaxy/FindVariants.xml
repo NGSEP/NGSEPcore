@@ -1,7 +1,7 @@
-<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.1.2">
+<tool id="NGSEP_FindVariants" name="Variants Detector" version="3.2.0">
   <description> Call SNVs, indels, and Structural Variation</description>
   <command>
-java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants 
+java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.2.0.jar FindVariants 
       -h $h
       -ploidy $ploidy
       $psp
@@ -53,8 +53,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants
           -maxAlnsPerStartPos 100
       #else if $calls.SNVs_gbs.runSNVs_gbs == "advanced"
           -minQuality $calls.SNVs_gbs.minQuality
-          -minAltCoverage $calls.SNVs_gbs.minAltCoverage
-          -maxAltCoverage $calls.SNVs_gbs.maxAltCoverage
           -maxAlnsPerStartPos $calls.SNVs_gbs.maxAlnsPerStartPos
           $calls.SNVs_gbs.embeddedSNVs
       #end if
@@ -70,8 +68,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants
           -maxAlnsPerStartPos 2
       #else if $calls.SNVs_wgs.runSNVs_wgs == "advanced"
           -minQuality $calls.SNVs_wgs.minQuality
-          -minAltCoverage $calls.SNVs_wgs.minAltCoverage
-          -maxAltCoverage $calls.SNVs_wgs.maxAltCoverage
           -maxAlnsPerStartPos $calls.SNVs_wgs.maxAlnsPerStartPos
           $calls.SNVs_wgs.embeddedSNVs
       #end if
@@ -171,8 +167,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants
           </param>
           <when value="advanced">
             <param name="minQuality" type="integer" min="0" value="40" label="Minimum genotype quality"/>
-            <param name="minAltCoverage" type="integer" min="0" optional="true" value="0" label="Minimum alternative allele coverage"/>
-            <param name="maxAltCoverage" type="integer" optional="true" value="0" label="Maximum alternative allele coverage"/>
             <param name="maxAlnsPerStartPos" type="integer" min="0" optional="true" value="100" label="Maximum number of alignments per start position"/>
             <param name="embeddedSNVs" type="boolean" truevalue="-embeddedSNVs" falsevalue="" label="Call SNVs within Short Tandem Repeats (STRs)" help="by default STRs are treated as a single locus, and no SNV are called within them"/>
           </when>
@@ -189,8 +183,6 @@ java -Xmx4G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.1.2.jar FindVariants
           </param>
           <when value="advanced">
             <param name="minQuality" type="integer" min="0" value="40" label="Minimum genotype quality"/>
-            <param name="minAltCoverage" type="integer" min="0" optional="true" value="0" label="Minimum alternative allele coverage"/>
-            <param name="maxAltCoverage" type="integer" optional="true" value="0" label="Maximum alternative allele coverage"/>
             <param name="maxAlnsPerStartPos" type="integer" min="0" optional="true" value="2" label="Maximum number of alignments per start position"/>
             <param name="embeddedSNVs" type="boolean" truevalue="-embeddedSNVs" falsevalue="" label="Call SNVs within Short Tandem Repeats (STRs)" help="by default STRs are treated as a single locus, and no SNV are called within them"/>
           </when>
