@@ -19,7 +19,10 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -551,30 +554,116 @@ public class GenomesAligner {
 	
 	public void printAlignmentResults(String outPrefix) throws IOException {
 		// Print Unique units genome 1
-		try (PrintStream outUniqueG1 = new PrintStream(outPrefix+"_uniqueG1.txt");) {
+		try (PrintStream outUniqueG1 = new PrintStream(outPrefix+"_uniqueG1.tsv");) {
 			for(OrthologyUnit unit:uniqueUnitsGenome1) {
 				printOrthologyUnit(unit, outUniqueG1);
 			}
 		}
-		try (PrintStream outUniqueG2 = new PrintStream(outPrefix+"_uniqueG2.txt");) {
+		try (PrintStream outUniqueG2 = new PrintStream(outPrefix+"_uniqueG2.tsv");) {
 			for(OrthologyUnit unit:uniqueUnitsGenome2) {
 				printOrthologyUnit(unit, outUniqueG2);
 			}
 		}
 		//Print LCS
-		try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.txt");) {
+		try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.tsv");) {
+			outAlignmnent.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2");
 			for(OrthologyUnit unit:alignedUnits) {
 				printOrthologyUnit(unit, outAlignmnent);
 			}
 		}
+		//Print metadata genome 1
+		try (PrintStream outGenome1 = new PrintStream(outPrefix+"_genome1.tsv");) {
+			printGenomeMetadata(outGenome1, genome1.getSequencesMetadata());
+		}
+		
+		//Print metadata genome 2
+		try (PrintStream outGenome2 = new PrintStream(outPrefix+"_genome2.tsv");) {
+			printGenomeMetadata(outGenome2, genome2.getSequencesMetadata());
+		}
+		
+		//Print D3 linear visualization
+		try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearView.html");) {
+			printD3Visualization(outPrefix, outD3Linear,"GenomesAlignerLinearVisualizer.js");
+		}
 		
 	}
+
+	
 
 	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out) {
 		out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
 		OrthologyUnit mate = unit.getMate();
 		if(mate != null) out.println("\t"+mate.getId()+"\t"+mate.getSequenceName()+"\t"+mate.getFirst()+"\t"+mate.getLast());
 		else out.println("\t-\t-\t-\t-");
+	}
+	private void printGenomeMetadata(PrintStream out, QualifiedSequenceList sequencesMetadata) {
+		out.println("Name\tLength");
+		for(QualifiedSequence seq:sequencesMetadata) {
+			out.println(""+seq.getName()+"\t"+seq.getLength());
+		}
+	}
+	private void printD3Visualization(String outPrefix, PrintStream outD3Linear, String jsFile) throws IOException {
+		outD3Linear.println("<!DOCTYPE html>");
+		outD3Linear.println("<meta charset=\"utf-8\">");
+		//TODO: Print style html code
+		/*
+		<style>
+		svg {
+		  font: 10px sans-serif;
+		}
+		.background path {
+		  fill: none;
+		  stroke: #ddd;
+		  shape-rendering: crispEdges;
+		}
+
+
+
+		.brush .extent {
+		  fill-opacity: .3;
+		  stroke: #fff;
+		  shape-rendering: crispEdges;
+		}
+
+		.axis line,
+		.axis path {
+		  fill: none;
+		  stroke: #000;
+		  shape-rendering: crispEdges;
+		}
+
+		.axis text {
+		  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+		  cursor: move;
+		}
+
+		</style>
+		*/
+		outD3Linear.println("<body>");
+		outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
+		outD3Linear.println("<script>");
+		//Print D3 script
+		Class<? extends GenomesAligner> c = this.getClass();
+		String resource = "/ngsep/assembly/"+jsFile;
+		System.out.println("Loading resource: "+resource);
+		try (InputStream is = c.getResourceAsStream(resource);
+			 BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
+			String line=in.readLine();
+			while(line!=null) {
+				if(line.contains("InputFileLCS.tsv")) {
+					outD3Linear.println("d3.tsv(\""+outPrefix+"_lcs.tsv\", function(error, lcs)");
+				} else if(line.contains("InputFileGenome1.tsv")) {
+					outD3Linear.println("  d3.tsv(\""+outPrefix+"_genome1.tsv\", function(error, crmsA)");
+				} else if(line.contains("InputFileGenome2.tsv")) {
+					outD3Linear.println("    d3.tsv(\""+outPrefix+"_genome2.tsv\", function(error, crmsB)");
+				} else {
+					outD3Linear.println(line);
+				}
+				line=in.readLine();
+			}
+		}
+		outD3Linear.println("</script>");
+		outD3Linear.println("</body>");
 	}
 }
 class OrthologyUnit implements GenomicRegion {
