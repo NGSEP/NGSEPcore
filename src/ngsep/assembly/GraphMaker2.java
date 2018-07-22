@@ -41,7 +41,7 @@ public class GraphMaker2 {
 				a[y][x] = new TreeMap<>();
 
 		for (int idSequence = 0; idSequence < sequencesSize; idSequence++) {
-			System.out.println(idSequence + "->" + sequencesToIndex.size());
+			if(idSequence%1000==0) System.out.println(idSequence + "->" + sequencesToIndex.size());
 			for (TreeMap<Integer, int[]>[] b : a)
 				for (TreeMap<Integer, int[]> c : b)
 					c.clear();
@@ -61,7 +61,7 @@ public class GraphMaker2 {
 				rotate(a);
 			}
 
-			System.out.println(k);
+			//System.out.println(k);
 		}
 		System.out.println("asdljkhjfgdfdkhjgjfdrse: " + (System.currentTimeMillis() - i));
 	}

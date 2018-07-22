@@ -57,7 +57,7 @@ public class OverlapGraph {
 	static final int SEARCH_KMER_DISTANCE = 10;
 	static final int SEARCH_KMER_OVERLAP = SEARCH_KMER_LENGTH - SEARCH_KMER_DISTANCE;
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
-	private static final String[] fasta = { ".fasta" };
+	private static final String[] fasta = { ".fasta", ".fa" };
 
 	private final List<DNAMaskedSequence> sequences = new ArrayList<>();
 	private FMIndex index;
