@@ -30,7 +30,7 @@ public class GraphMaker2 {
 		System.out.println("start");
 		long i = System.currentTimeMillis();
 		FMIndex index = new FMIndex();
-		index.loadUnnamedSequences("", sequencesToIndex, 100, 25);
+		index.loadUnnamedSequences(sequencesToIndex, 100, 25);
 		System.out.println("index: " + (System.currentTimeMillis() - i));
 		i = System.currentTimeMillis();
 		/** the arrays with the overlap **/
@@ -67,7 +67,7 @@ public class GraphMaker2 {
 	}
 
 	private void align(ReadAlignment aln, TreeMap<Integer, int[]>[][] a, int posinRefrenece) {
-		int idSequenceAligned = Integer.parseInt(aln.getSequenceName().substring(1));
+		int idSequenceAligned = Integer.parseInt(aln.getSequenceName());
 		int pos = aln.getFirst();
 
 		int minposkmer = 0, minnode = 0, diff = 0, min = 6;

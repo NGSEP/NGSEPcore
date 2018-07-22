@@ -101,6 +101,12 @@ public class FMIndexSingleSequence implements Serializable {
 	public void setTallyDistance(int tallyDistance) {
 		this.tallyDistance = tallyDistance;
 	}
+	/**
+	 * @return Length of the sequence represented by this FMIndex
+	 */
+	public int getSequenceLength() {
+		return bwt.length-1;
+	}
 
 	private void calculate(CharSequence sequence) {
 		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);

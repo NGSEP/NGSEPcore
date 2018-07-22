@@ -20,9 +20,10 @@
 package ngsep.genome;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
-import ngsep.sequences.FMIndex;
+import ngsep.main.OptionValuesDecoder;
 
 /**
  * Program that build the FM-index related to a genome
@@ -31,7 +32,7 @@ import ngsep.sequences.FMIndex;
  */
 public class GenomeIndexer 
 {
-
+	private Logger log = Logger.getLogger(GenomeIndexer.class.getName());
 	private int tallyDistance;
 	public static void main(String[] args) throws Exception  {
 		GenomeIndexer instance = new GenomeIndexer();
@@ -43,16 +44,16 @@ public class GenomeIndexer
 	}
 
 	public void createIndex(String genomeFile, String outputFile) throws IOException {
-		System.out.println("Building index for genome in file "+genomeFile);
+		log.info("Loading genome from file "+genomeFile);
+		ReferenceGenome genome = new ReferenceGenome(genomeFile);
+		log.info("Building index for genome in file "+genomeFile);
 		long time = System.currentTimeMillis();
-		FMIndex fMIndex= new FMIndex();
-		fMIndex.loadGenome(genomeFile);
+		ReferenceGenomeFMIndex fMIndex= new ReferenceGenomeFMIndex(genome);
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
-		System.out.println("Built index in "+seconds+" seconds. Saving in "+outputFile);
+		log.info("Built index in "+seconds+" seconds. Saving in "+outputFile);
 		fMIndex.save(outputFile);
-		System.out.println("Process completed");
-		
+		log.info("Process completed");
 	}
 
 	public int getTallyDistance() {
@@ -62,8 +63,8 @@ public class GenomeIndexer
 	public void setTallyDistance(int tallyDistance) {
 		this.tallyDistance = tallyDistance;
 	}
-	public void setTallyDistance(Integer tallyDistance) {
-		this.setTallyDistance(tallyDistance.intValue());
+	public void setTallyDistance(String value) {
+		this.setTallyDistance((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 

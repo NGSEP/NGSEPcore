@@ -1,6 +1,24 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.alignments.io;
 
-import java.io.File;
 import java.io.PrintStream;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -10,73 +28,27 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import ngsep.alignments.ReadAlignment;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 
+/**
+ * @author German Andrade
+ * @author Jorge Duitama 
+ *
+ */
 public class ReadAlignmentFileWriter {
 	
 	private SAMFileWriter writer;
 	private SAMFileHeader samFileHeader;
 
-	public ReadAlignmentFileWriter (PrintStream out)
+	public ReadAlignmentFileWriter (QualifiedSequenceList sequences, PrintStream out)
 	{
 		samFileHeader = new SAMFileHeader();
 		SAMSequenceDictionary sequenceDictionary = new SAMSequenceDictionary();
-		
-		SAMSequenceRecord sequenceRecord = new SAMSequenceRecord("chrI", 100000);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrIII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-
-		
-		sequenceRecord = new SAMSequenceRecord("chrVI", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrIV", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrV", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		
-		sequenceRecord = new SAMSequenceRecord("chrIX", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrXII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrVIII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-//		
-		sequenceRecord = new SAMSequenceRecord("chrXVI", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-//		
-//		
-		sequenceRecord = new SAMSequenceRecord("chrXIII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-//		
-		sequenceRecord = new SAMSequenceRecord("chrXV", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrX", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrXIV", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrVII", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrXI", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		sequenceRecord = new SAMSequenceRecord("chrM", 50);
-		sequenceDictionary.addSequence(sequenceRecord);
-		
-		
-		
+		for(QualifiedSequence seq:sequences) {
+			SAMSequenceRecord sequenceRecord = new SAMSequenceRecord(seq.getName(), seq.getLength());
+			sequenceDictionary.addSequence(sequenceRecord);
+		}
 		samFileHeader.setSequenceDictionary(sequenceDictionary);
 //		writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, true, out);
 		writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, false, out);

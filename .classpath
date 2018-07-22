@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="lib/htsjdk.jar" sourcepath="lib/htsjdk.jar"/>
 	<classpathentry kind="lib" path="lib/jsci-core.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/htsjdk-1.129.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

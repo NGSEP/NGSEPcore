@@ -16,7 +16,7 @@ jar:
 	mkdir dist
 	jar -xf lib/jsci-core.jar JSci
 	mv JSci dist/
-	jar -xf lib/htsjdk.jar htsjdk
+	jar -xf lib/htsjdk-1.129.jar htsjdk
 	mv htsjdk dist/
 	cp -r bin/* dist/
 	jar -cfe NGSEPcore_3.2.1.jar ngsep.NGSEPcore -C dist . 

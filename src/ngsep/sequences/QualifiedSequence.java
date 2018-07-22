@@ -19,13 +19,19 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.Serializable;
+
 /**
  * Class to store sequences identifiable by a name and with additional metedata
  * The sequence and quality information is optional so  
  * @author Jorge Duitama
  *
  */
-public class QualifiedSequence {
+public class QualifiedSequence implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private String name;
 	private int length;
 	private String comments;

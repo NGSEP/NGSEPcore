@@ -31,15 +31,16 @@ import java.util.Stack;
 
 
 import ngsep.alignments.io.ReadAlignmentFileWriter;
+import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersCounter;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 
 /**
- * Program to align reads to a refernece genome
+ * Program to align reads to a reference genome
  * @author German Andrade
  * @author Jorge Duitama
  */
@@ -92,9 +93,9 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String fMIndexFile, String readsFile, PrintStream out) throws IOException {
-		ReadAlignmentFileWriter readAlignment = new ReadAlignmentFileWriter(out);
-
-		FMIndex fMIndex = FMIndex.loadFromBinaries(fMIndexFile);
+		ReferenceGenomeFMIndex fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
+		QualifiedSequenceList sequences = fMIndex.getSequencesMetadata();
+		ReadAlignmentFileWriter readAlignment = new ReadAlignmentFileWriter(sequences, out);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
@@ -122,7 +123,7 @@ public class ReadsAligner {
 
 
 
-	private int alignRead(FMIndex fMIndex, RawRead read, PrintStream out, ReadAlignmentFileWriter readAlignment) {
+	private int alignRead(ReferenceGenomeFMIndex fMIndex, RawRead read, PrintStream out, ReadAlignmentFileWriter readAlignment) {
 		List<ReadAlignment> alignments = search(fMIndex, read);
 		int i=0;
 		for (ReadAlignment aln: alignments) {
@@ -134,54 +135,16 @@ public class ReadsAligner {
 			}
 			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
 			readAlignment.write(aln);
-
-			/*
-			out.println(
-					//1.query name
-					read.getName()+"\t"+
-
-					//2.Flag
-					aln.getFlags()+"\t"+
-
-					//3.reference sequence name
-					aln.getSequenceName()+"\t"+
-
-					//4.POS
-					aln.getFirst()+"\t"+
-
-					//5.MAPQ
-					"255\t"+
-
-					//6.CIGAR
-					read.getLength()+"M\t"+
-
-					//7. RNEXT
-					"*\t"+
-
-					//8. PNEXT
-					"0\t"+
-
-					//9. TLEN
-					"0\t"+
-
-					//10. SEQ
-					readSeq+"\t"+
-
-					//11. QUAL
-					qual
-
-					);
-					*/
 			i++;
 		}
 		return alignments.size();
 	}
 
-	public List<ReadAlignment> search (FMIndex fMIndex, RawRead read) {
+	public List<ReadAlignment> search (ReferenceGenomeFMIndex fMIndex, RawRead read) {
 		return kmerBasedInexactSearchAlgorithm(fMIndex, read);
 	}
 
-	public List<ReadAlignment> exactSearch (FMIndex fMIndex, RawRead read) {
+	public List<ReadAlignment> exactSearch (ReferenceGenomeFMIndex fMIndex, RawRead read) {
 		return fMIndex.search(read.getSequenceString());
 	}
 
@@ -191,7 +154,7 @@ public class ReadsAligner {
 	 * it allow the alignment with the first an the last position of the kmers ocurrence
 	 * @return 
 	 */
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (FMIndex fMIndex, RawRead read) 
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (ReferenceGenomeFMIndex fMIndex, RawRead read) 
 	{
 		
 		String characters=read.getCharacters().toString();
@@ -250,7 +213,7 @@ public class ReadsAligner {
 	}
 
 	
-	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, FMIndex fMIndex, String characters, RawRead read) 
+	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, ReferenceGenomeFMIndex fMIndex, String characters, RawRead read) 
 	{
 		String readName= read.getName();
 		String qualityScores = read.getQualityScores();
@@ -280,7 +243,7 @@ public class ReadsAligner {
 	 * @param kmers
 	 * @return HashMap with key SequenceName and value a List of alignments that has the kmer value.
 	 */
-	private HashMap<String, List<KmerAlignment>> getSequenceHits(FMIndex fMIndex, RawRead read,CharSequence[] kmers) {
+	private HashMap<String, List<KmerAlignment>> getSequenceHits(ReferenceGenomeFMIndex fMIndex, RawRead read,CharSequence[] kmers) {
 
 		HashMap<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();
 
@@ -302,7 +265,7 @@ public class ReadsAligner {
 		}
 		return seqHits;
 	}
-	private void exactKmerSearch(FMIndex fMIndex, int kmerNumber, String kmer, HashMap<String, List<KmerAlignment>> seqHits) {
+	private void exactKmerSearch(ReferenceGenomeFMIndex fMIndex, int kmerNumber, String kmer, HashMap<String, List<KmerAlignment>> seqHits) {
 		List<ReadAlignment> regions=fMIndex.search(kmer);
 
 		for(ReadAlignment aln:regions)

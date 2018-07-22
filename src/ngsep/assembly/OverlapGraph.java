@@ -87,7 +87,7 @@ public class OverlapGraph {
 
 				time("Built the FMIndex.", () -> {
 					index = new FMIndex();
-					index.loadUnnamedSequences("", sequences, 100, 25);
+					index.loadUnnamedSequences(sequences, 100, 25);
 				});
 
 				time("Built overlaps.", () -> findOverlaps2());
@@ -333,7 +333,7 @@ public class OverlapGraph {
 		Iterable<ReadAlignment> itre = index.search(kmer);
 		ini = System.nanoTime() - ini;
 		for (ReadAlignment aln : itre) {
-			int idSequenceAligned = Integer.parseInt(aln.getSequenceName().substring(1));
+			int idSequenceAligned = Integer.parseInt(aln.getSequenceName());
 			if (idSequenceAligned > idSequence) {
 				if (!aln.isNegativeStrand()) {
 					boolean alienado = false;
@@ -413,7 +413,7 @@ public class OverlapGraph {
 			for (ReadAlignment aln : regions) {
 				// Use mate start to store the kmer start site producing the hit
 				aln.setMateFirst(i);
-				int k = Integer.parseInt(aln.getSequenceName().substring(1));
+				int k = Integer.parseInt(aln.getSequenceName());
 				if (k > idRead) {
 					seqHits.computeIfAbsent(k, key -> new ArrayList<>()).add(aln);
 				}

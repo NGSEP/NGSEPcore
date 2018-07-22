@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -38,7 +39,11 @@ import java.util.TreeSet;
  * @author Jorge Duitama
  *
  */
-public class QualifiedSequenceList implements List<QualifiedSequence> {
+public class QualifiedSequenceList implements List<QualifiedSequence>, Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private List<QualifiedSequence> sequences = new ArrayList<QualifiedSequence>();
 	private Map<String, Integer> sequenceIndexesMap = new HashMap<String, Integer>();
 	
