@@ -19,7 +19,9 @@
  *******************************************************************************/
 package ngsep.alignments.io;
 
+import java.io.Closeable;
 import java.io.PrintStream;
+import java.util.List;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -27,6 +29,7 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMValidationError;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -36,7 +39,7 @@ import ngsep.sequences.QualifiedSequenceList;
  * @author Jorge Duitama 
  *
  */
-public class ReadAlignmentFileWriter {
+public class ReadAlignmentFileWriter implements Closeable {
 	
 	private SAMFileWriter writer;
 	private SAMFileHeader samFileHeader;
@@ -50,10 +53,7 @@ public class ReadAlignmentFileWriter {
 			sequenceDictionary.addSequence(sequenceRecord);
 		}
 		samFileHeader.setSequenceDictionary(sequenceDictionary);
-//		writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, true, out);
 		writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, false, out);
-		
-
 	}
 	
 	public void write(ReadAlignment readAlignment)
@@ -75,10 +75,12 @@ public class ReadAlignmentFileWriter {
 		//MAPQ
 		samRecord.setMappingQuality(readAlignment.getAlignmentQuality());
 		
+		
 		//CIGAR
-		// error because alignment is null 
-		//samRecord.setCigarString(readAlignment.getCigarString());
-
+		samRecord.setCigarString(readAlignment.getCigarString());
+		
+		//System.out.println("Name: "+samRecord.getReadName()+" flags: "+samRecord.getFlags()+" ref: "+samRecord.getReferenceName()+" start: "+samRecord.getAlignmentStart()+" qual: "+samRecord.getMappingQuality()+" end: "+samRecord.getAlignmentEnd()+" CIGAR: "+samRecord.getCigarString());
+		
 		//RNEXT
 		String mateReferenceName = readAlignment.getMateSequenceName()!=null?readAlignment.getMateSequenceName():SAMRecord.NO_ALIGNMENT_REFERENCE_NAME;
 		samRecord.setMateReferenceName(mateReferenceName);
@@ -97,7 +99,13 @@ public class ReadAlignmentFileWriter {
 		//QUAL
 		samRecord.setBaseQualityString(readAlignment.getQualityScores());
 		
+		//System.out.println("Bases: "+samRecord.getReadString()+" qual: "+samRecord.getBaseQualityString());
+		List<SAMValidationError> errors= samRecord.isValid();
+		if(errors!=null) System.out.println("errors: "+errors.size());
 		writer.addAlignment(samRecord);
-		
+		//System.out.println("Saved record ");	
+	}
+	public void close() {
+		writer.close();
 	}
 }

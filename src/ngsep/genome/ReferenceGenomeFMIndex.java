@@ -104,7 +104,16 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @param searchSequence sequence to search
 	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
 	 */
-	public List<ReadAlignment> search (String searchSequence)
+	public List<ReadAlignment> search (String searchSequence) {
+		return search(searchSequence, false);
+	}
+	/**
+	 * Searches the given sequence in the index
+	 * @param searchSequence sequence to search
+	 * @param searchReverseComplement If true, the reverse complement of the sequence will be calculated and searched in the index
+	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
+	 */
+	public List<ReadAlignment> search (String searchSequence, boolean searchReverseComplement)
 	{
 		List<ReadAlignment> alignments = new ArrayList<>();
 		String searchUp = searchSequence.toUpperCase();
@@ -119,19 +128,20 @@ public class ReferenceGenomeFMIndex implements Serializable {
 				alignments.add(alignment);
 			}
 		}
-		//Search the reverse complement
-		searchUp = DNAMaskedSequence.getReverseComplement(searchUp);
-		for (String seqName:internalIndexes.keySet()) 
-		{
-			FMIndexSingleSequence idxSeq = internalIndexes.get(seqName);
-			Set<Integer> matches = idxSeq.search(searchUp);
-			for (int internalPosMatch:matches) 
+		if(searchReverseComplement) {
+			//Search the reverse complement
+			searchUp = DNAMaskedSequence.getReverseComplement(searchUp);
+			for (String seqName:internalIndexes.keySet()) 
 			{
-				ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, 16);
-				alignments.add(alignment);
+				FMIndexSingleSequence idxSeq = internalIndexes.get(seqName);
+				Set<Integer> matches = idxSeq.search(searchUp);
+				for (int internalPosMatch:matches) 
+				{
+					ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, ReadAlignment.FLAG_READ_REVERSE_STRAND);
+					alignments.add(alignment);
+				}
 			}
 		}
-		
 		return alignments;
 	}
 	
@@ -143,13 +153,10 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @param negativeStrand if true, the negative strand is requested
 	 * @return CharSequence segment of the given sequence between the given coordinates
 	 */
-	public CharSequence getSequence (String sequenceName, int start, int end, boolean negativeStrand) {
+	public CharSequence getSequence (String sequenceName, int start, int end) {
 		FMIndexSingleSequence idxSeq = internalIndexes.get(sequenceName);
 		if(idxSeq==null) return null;
 		CharSequence seq = idxSeq.getSequence(start, end);
-		if(negativeStrand) {
-			seq = DNAMaskedSequence.getReverseComplement(seq);
-		}
 		return seq;
 	}
 	

@@ -26,15 +26,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-
+import java.util.logging.Logger;
 
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmersCounter;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
@@ -46,9 +47,13 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsAligner {
 
+	private Logger log = Logger.getLogger(ReadsAligner.class.getName());
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
+	private boolean onlyPositiveStrand = false;
+	
+	private ReferenceGenomeFMIndex fMIndex;
 
 	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
@@ -59,8 +64,12 @@ public class ReadsAligner {
 		String fMIndexFile = args[i++];
 		String readsFile = args[i++];
 		String outFile = args[i++];
-		try (PrintStream out = new PrintStream(outFile)){
-			instance.alignReads(fMIndexFile, readsFile, out);
+		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
+		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
+		
+		try (PrintStream out = new PrintStream(outFile);
+			ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
+			instance.alignReads(readsFile, writer);
 		}
 	}
 	
@@ -92,10 +101,9 @@ public class ReadsAligner {
 	 * @param out
 	 * @throws IOException
 	 */
-	public void alignReads( String fMIndexFile, String readsFile, PrintStream out) throws IOException {
-		ReferenceGenomeFMIndex fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
-		QualifiedSequenceList sequences = fMIndex.getSequencesMetadata();
-		ReadAlignmentFileWriter readAlignment = new ReadAlignmentFileWriter(sequences, out);
+	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
+		 
+		
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
@@ -104,48 +112,47 @@ public class ReadsAligner {
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
-				
-				int numAlns = alignRead(fMIndex, read, out,readAlignment);
+				List<ReadAlignment> alns = alignRead(read);
+				System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+				for(ReadAlignment aln:alns) writer.write(aln);
+				int numAlns = alns.size();
 				totalReads++;
 				if(numAlns>0) readsAligned++;
 				if(numAlns==1) uniqueAlignments++;
 			}
 		}
-		System.out.println("Total reads: "+totalReads);
-		System.out.println("Reads aligned: "+readsAligned);
-		System.out.println("Unique alignments: "+uniqueAlignments);
-		System.out.println("Overall alignment rate: "+(100.0*readsAligned/(double)totalReads)+"%");
+		log.info("Total reads: "+totalReads);
+		log.info("Reads aligned: "+readsAligned);
+		log.info("Unique alignments: "+uniqueAlignments);
+		log.info("Overall alignment rate: "+(100.0*readsAligned/(double)totalReads)+"%");
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
-		System.out.println("Time: "+seconds+" seconds");
+		log.info("Time: "+seconds+" seconds");
 
 	}
 
 
 
-	private int alignRead(ReferenceGenomeFMIndex fMIndex, RawRead read, PrintStream out, ReadAlignmentFileWriter readAlignment) {
-		List<ReadAlignment> alignments = search(fMIndex, read);
+	public List<ReadAlignment> alignRead(RawRead read) {
+		List<ReadAlignment> alignments = search(read);
+		//TODO: Choose better quality and sort by quality
+		int qual = alignments.size()==1?40:0;
 		int i=0;
 		for (ReadAlignment aln: alignments) {
-			String readSeq = read.getSequenceString();
-			String qual = read.getQualityScores();
-			if(aln.isNegativeStrand()) {
-				readSeq = DNAMaskedSequence.getReverseComplement(readSeq).toString();
-				qual = new StringBuilder(qual).reverse().toString();
-			}
+			aln.setReadName(read.getName());
+			aln.setAlignmentQuality((short) qual);
 			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
-			readAlignment.write(aln);
 			i++;
 		}
-		return alignments.size();
+		return alignments;
 	}
 
-	public List<ReadAlignment> search (ReferenceGenomeFMIndex fMIndex, RawRead read) {
-		return kmerBasedInexactSearchAlgorithm(fMIndex, read);
+	public List<ReadAlignment> search (RawRead read) {
+		return kmerBasedInexactSearchAlgorithm(read);
 	}
 
-	public List<ReadAlignment> exactSearch (ReferenceGenomeFMIndex fMIndex, RawRead read) {
-		return fMIndex.search(read.getSequenceString());
+	public List<ReadAlignment> exactSearch (RawRead read) {
+		return fMIndex.search(read.getSequenceString(),!onlyPositiveStrand);
 	}
 
 	/**
@@ -154,19 +161,42 @@ public class ReadsAligner {
 	 * it allow the alignment with the first an the last position of the kmers ocurrence
 	 * @return 
 	 */
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (ReferenceGenomeFMIndex fMIndex, RawRead read) 
-	{
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (RawRead read) {
+		List<ReadAlignment> alns = new ArrayList<>();
+		DNAMaskedSequence readSeq = (DNAMaskedSequence)read.getCharacters();
+		String qual = read.getQualityScores();
+		alns.addAll(kmerBasedInexactSearchAlgorithm(readSeq, qual));
 		
-		String characters=read.getCharacters().toString();
-		CharSequence[] kmers = KmersCounter.extractKmers(characters, SEARCH_KMER_LENGTH, true);
+		if(!onlyPositiveStrand) {
+			readSeq = readSeq.getReverseComplement();
+			qual = new StringBuilder(qual).reverse().toString();
+			List<ReadAlignment> alnsR = kmerBasedInexactSearchAlgorithm(readSeq, qual);
+			for (ReadAlignment aln:alnsR) {
+				aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_READ_REVERSE_STRAND);
+			}
+			alns.addAll(alnsR);
+		}
+		return alns;
+	}
+	/**
+	 * First approach to allow inexact search
+	 * It iterates the Sequences of the genome and if there is at least MIN_ACCURACY percentage of the kmers
+	 * it allow the alignment with the first an the last position of the kmers ocurrence
+	 * Ony tries to align the given quey in the positive strand
+	 * @return List<ReadAlignment>
+	 */
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores) 
+	{
+		List<CharSequence> kmers = selectKmers(query);
+		
 
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
-		int kmersCount=((characters.length()/SEARCH_KMER_LENGTH)+1);
+		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
+		int kmersCount=kmers.size();
+		Map<String, List<KmerAlignment>> seqHits = getSequenceHits(kmers);
+		//System.out.println("Sequences: "+seqHits.size());
 		
-
-		HashMap<String, List<KmerAlignment>> seqHits = getSequenceHits(fMIndex, read,kmers);
-
 		//Processing part
 		KmerAlignmentComparator cmp = KmerAlignmentComparator.getInstance();
 		Set<String> keys= seqHits.keySet();
@@ -174,31 +204,45 @@ public class ReadsAligner {
 		for (String sequenceName:keys)
 		{
 			List<KmerAlignment> alns = seqHits.get(sequenceName);
+			//System.out.println("KMer alns sequence: "+sequenceName+" : "+alns.size());
 			
 			Collections.sort(alns,cmp);
 			
 			Stack<KmerAlignment> stack = new Stack<KmerAlignment>();
 			for (int i = 0; i < alns.size(); i++) 
 			{
-				KmerAlignment actual=alns.get(i);
-								
-				if(stack.isEmpty() || isKmerAlignmentConsistent(stack.peek(), actual))
+				KmerAlignment actual=alns.get(i);				
+				if(!stack.isEmpty() && !isKmerAlignmentConsistent(stack.peek(), actual))
 				{
-					stack.push(actual);
+					insert(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
+					stack.clear();
 				}
-				else 
-				{
-					insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters,read);
-					//after save and clear the stack save the new alignment, could be good
-					stack.push(actual);
-				}
+				stack.push(actual);
 			}
-			insert(finalAlignments, kmersCount, sequenceName, stack,fMIndex,characters,read);
+			insert(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
 			
 		}
+		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query.toString());
 		return finalAlignments;
 	}
 	
+	private List<CharSequence> selectKmers(CharSequence characters) {
+		List<CharSequence> kmers = new ArrayList<>();
+		int n = characters.length();
+		int lastPos = 0;
+		for (int i = 0; i+SEARCH_KMER_LENGTH <= n; i+=SEARCH_KMER_LENGTH) {
+			CharSequence kmer = characters.subSequence(i, i+SEARCH_KMER_LENGTH);
+			if (DNASequence.isDNA(kmer.toString())) kmers.add(kmer);
+			lastPos = i;
+		}
+		if(n-SEARCH_KMER_LENGTH > lastPos) {
+			CharSequence kmer = characters.subSequence(n-SEARCH_KMER_LENGTH, n);
+			if (DNASequence.isDNA(kmer.toString())) kmers.add(kmer);
+		}
+		
+		return kmers;
+	}
+
 	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
 	{
 		boolean negativeStrand = topAln.isNegativeStrand();
@@ -213,66 +257,53 @@ public class ReadsAligner {
 	}
 
 	
-	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, ReferenceGenomeFMIndex fMIndex, String characters, RawRead read) 
+	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, CharSequence query, String qualityScores) 
 	{
-		String readName= read.getName();
-		String qualityScores = read.getQualityScores();
-		double percent = (double) stack.size()/kmersCount;
-		if(percent>=minProportionKmers)
-		{
-			KmerAlignment[] arr=new KmerAlignment[stack.size()];
-			stack.toArray(arr);
-			int first = arr[0].getReadAlignment().getFirst();
-			int last = arr[arr.length-1].getReadAlignment().getLast();
-			//Instead of just add the sequence we are going to use smith waterman
-			CharSequence sequence = fMIndex.getSequence(sequenceName, first-1, last, arr[0].getReadAlignment().isNegativeStrand());
-			String result = smithWatermanLocalAlingMent(characters, sequence.toString());
-			//System.out.println(result);
-			ReadAlignment nuevo = new ReadAlignment(sequenceName, first, first+result.length(), result.length(), arr[0].getReadAlignment().getFlags());
-			nuevo.setReadCharacters(result);
-			nuevo.setReadName(readName);
-			nuevo.setQualityScores(qualityScores);
-			finalAlignments.add(nuevo);
-		}
-		stack.clear();
+		double prop = (double) stack.size()/kmersCount;
+		if(prop<minProportionKmers) return;
+		KmerAlignment[] arr=new KmerAlignment[stack.size()];
+		stack.toArray(arr);
+		int first = arr[0].getReadAlignment().getFirst();
+		int last = arr[arr.length-1].getReadAlignment().getLast();
+		//Instead of just add the sequence we are going to use smith waterman
+		CharSequence refSeq = fMIndex.getSequence(sequenceName, first-1, last);
+		if(refSeq == null) return;
+		//String result = smithWatermanLocalAlingment(refSeq, query.toString());
+		//System.out.println(result);
+		ReadAlignment aln = new ReadAlignment(sequenceName, first, first+query.length()-1, query.length(), arr[0].getReadAlignment().getFlags());
+		aln.setReadCharacters(query);
+		aln.setQualityScores(qualityScores);
+		aln.setCigarString(query.length()+"M");
+		finalAlignments.add(aln);
+		
 	}
 
 	/**
 	 * It basically get the no overlapping kmers of  SEARCH_KMER_LENGTH length in the @param read 
 	 * and find each alignment of each kmer using the @param fMIndex, saves the alignments in hashmap
 	 * @param kmers
-	 * @return HashMap with key SequenceName and value a List of alignments that has the kmer value.
+	 * @return Map with key SequenceName and value a List of alignments that has the kmer value.
 	 */
-	private HashMap<String, List<KmerAlignment>> getSequenceHits(ReferenceGenomeFMIndex fMIndex, RawRead read,CharSequence[] kmers) {
+	private Map<String, List<KmerAlignment>> getSequenceHits(List<CharSequence> kmers) {
 
-		HashMap<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();
-
-		//Avoid overlaps
-		for (int i = 0; i < kmers.length; i+=SEARCH_KMER_LENGTH) 
+		Map<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();		
+		for (int i=0;i<kmers.size();i++) 
 		{
-			//Exit loop if kmers[i] is null
-			if(kmers[i]==null) continue;
-
-			String kmer =kmers[i].toString();
-
+			String kmer = kmers.get(i).toString();
+			//System.out.println("Number: "+i+" Kmer: "+kmer);
 			//Where is located the kmer in exact way
-			exactKmerSearch(fMIndex, i, kmer, seqHits);
-		}
-		
-		if(read.getLength()%SEARCH_KMER_LENGTH!=0) {
-			int l = kmers.length-1;
-			exactKmerSearch(fMIndex, l, kmers[l].toString(), seqHits);
+			exactKmerSearch(i, kmer, seqHits);
 		}
 		return seqHits;
 	}
-	private void exactKmerSearch(ReferenceGenomeFMIndex fMIndex, int kmerNumber, String kmer, HashMap<String, List<KmerAlignment>> seqHits) {
+	private void exactKmerSearch(int kmerNumber, String kmer, Map<String, List<KmerAlignment>> seqHits) {
+		
 		List<ReadAlignment> regions=fMIndex.search(kmer);
-
+		//System.out.println("Number: "+kmerNumber+" Kmer: "+kmer+" hits: "+regions.size());
 		for(ReadAlignment aln:regions)
 		{
 			KmerAlignment kmerAlignment = new KmerAlignment(kmerNumber, aln);
 			List<KmerAlignment> seqAlns = seqHits.get(aln.getSequenceName());
-
 			if(seqAlns==null) {
 				seqAlns = new ArrayList<>();
 				seqHits.put(aln.getSequenceName(), seqAlns);
@@ -284,7 +315,7 @@ public class ReadsAligner {
 	
 	
 	
-	private String smithWatermanLocalAlingMent(String reference, String sequence) 
+	private String smithWatermanLocalAlingment(CharSequence reference, CharSequence sequence) 
 	{
 //		System.out.println("ref");
 //		System.out.println(reference);
@@ -470,16 +501,10 @@ public class ReadsAligner {
 		}
 		//Words are in stacks just is needed to turn them around
 		String p1="";
-		String p2="";
 		while(!referenceAlingment.isEmpty() && !sequenceAlignment.isEmpty())
 		{
 			p1+=referenceAlingment.pop();
-			p2+=sequenceAlignment.pop();
-		}
-
-//		System.out.println("1 "+p1);
-//		System.out.println("2 "+p2);
-//		
+		}	
 		return p1;
 	}
 }
