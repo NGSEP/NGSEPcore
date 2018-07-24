@@ -59,42 +59,31 @@ public class ReadAlignmentFileWriter implements Closeable {
 	public void write(ReadAlignment readAlignment)
 	{
 		SAMRecord samRecord= new SAMRecord(samFileHeader);
-
-		//QNAME
 		samRecord.setReadName(readAlignment.getReadName());
-		
-		//FLAG
 		samRecord.setFlags(readAlignment.getFlags());
 		
-		//RNAME
-		samRecord.setReferenceName(readAlignment.getSequenceName());
-		
-		//POS
-		samRecord.setAlignmentStart(readAlignment.getFirst());
-		
-		//MAPQ
+		if(readAlignment.getSequenceName()!=null) {
+			samRecord.setReferenceName(readAlignment.getSequenceName());
+			samRecord.setAlignmentStart(readAlignment.getFirst());
+			samRecord.setCigarString(readAlignment.getCigarString());
+		} else {
+			samRecord.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			samRecord.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+			samRecord.setCigarString(SAMRecord.NO_ALIGNMENT_CIGAR);
+		}
 		samRecord.setMappingQuality(readAlignment.getAlignmentQuality());
 		
-		
-		//CIGAR
-		samRecord.setCigarString(readAlignment.getCigarString());
-		
-		//System.out.println("Name: "+samRecord.getReadName()+" flags: "+samRecord.getFlags()+" ref: "+samRecord.getReferenceName()+" start: "+samRecord.getAlignmentStart()+" qual: "+samRecord.getMappingQuality()+" end: "+samRecord.getAlignmentEnd()+" CIGAR: "+samRecord.getCigarString());
-		
-		//RNEXT
-		String mateReferenceName = readAlignment.getMateSequenceName()!=null?readAlignment.getMateSequenceName():SAMRecord.NO_ALIGNMENT_REFERENCE_NAME;
-		samRecord.setMateReferenceName(mateReferenceName);
-
-		
-		//PNEXT
-		samRecord.setMateAlignmentStart(readAlignment.getMateFirst());
-		
-		//TLEN
-		samRecord.setInferredInsertSize(readAlignment.getInferredInsertSize());
+		if(readAlignment.getMateSequenceName()!=null) {
+			samRecord.setMateReferenceName(readAlignment.getMateSequenceName());
+			samRecord.setMateAlignmentStart(readAlignment.getMateFirst());
+			samRecord.setInferredInsertSize(readAlignment.getInferredInsertSize());
+		} else {
+			samRecord.setMateReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			samRecord.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+		}
 		
 		//SEQ
-		String basesString = readAlignment.getReadCharacters().toString();
-		samRecord.setReadBases(basesString.getBytes());
+		samRecord.setReadString(readAlignment.getReadCharacters().toString());
 		
 		//QUAL
 		samRecord.setBaseQualityString(readAlignment.getQualityScores());

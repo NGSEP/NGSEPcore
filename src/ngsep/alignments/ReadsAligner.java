@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -113,10 +114,18 @@ public class ReadsAligner {
 			while(it.hasNext()) {
 				RawRead read = it.next();
 				List<ReadAlignment> alns = alignRead(read);
-				System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+				//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 				for(ReadAlignment aln:alns) writer.write(aln);
+				if(alns.size()==0) {
+					ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
+					alnNoMap.setReadName(read.getName());
+					alnNoMap.setReadCharacters(read.getCharacters());
+					alnNoMap.setQualityScores(read.getQualityScores());
+					writer.write(alnNoMap);
+				}
 				int numAlns = alns.size();
 				totalReads++;
+				if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
 				if(numAlns>0) readsAligned++;
 				if(numAlns==1) uniqueAlignments++;
 			}
@@ -187,9 +196,7 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores) 
 	{
-		List<CharSequence> kmers = selectKmers(query);
-		
-
+		List<KmerWithStart> kmers = selectKmers(query);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
 		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
@@ -226,18 +233,18 @@ public class ReadsAligner {
 		return finalAlignments;
 	}
 	
-	private List<CharSequence> selectKmers(CharSequence characters) {
-		List<CharSequence> kmers = new ArrayList<>();
+	private List<KmerWithStart> selectKmers(CharSequence characters) {
+		List<KmerWithStart> kmers = new ArrayList<>();
 		int n = characters.length();
 		int lastPos = 0;
 		for (int i = 0; i+SEARCH_KMER_LENGTH <= n; i+=SEARCH_KMER_LENGTH) {
 			CharSequence kmer = characters.subSequence(i, i+SEARCH_KMER_LENGTH);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(kmer);
+			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, i));
 			lastPos = i;
 		}
 		if(n-SEARCH_KMER_LENGTH > lastPos) {
 			CharSequence kmer = characters.subSequence(n-SEARCH_KMER_LENGTH, n);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(kmer);
+			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, n-SEARCH_KMER_LENGTH));
 		}
 		
 		return kmers;
@@ -263,17 +270,31 @@ public class ReadsAligner {
 		if(prop<minProportionKmers) return;
 		KmerAlignment[] arr=new KmerAlignment[stack.size()];
 		stack.toArray(arr);
-		int first = arr[0].getReadAlignment().getFirst();
-		int last = arr[arr.length-1].getReadAlignment().getLast();
+		KmerAlignment firstAln = arr[0];
+		KmerAlignment lastAln = arr[arr.length-1];
+		int first = firstAln.getReadAlignment().getFirst();
+		if(firstAln.getKmerNumber()>0) {
+			//First k-mer did not have perfect match
+			first -= (firstAln.getKmerNumber() + 10);
+		}
+		int diffLast = query.length()-lastAln.getKmerNumber()-SEARCH_KMER_LENGTH;
+		int last = lastAln.getReadAlignment().getLast();
+		if(diffLast>0) {
+			//Last k-mer did not have perfect match
+			last += diffLast+10;
+		}
+		//System.out.println("Reference region from k-mers: "+first+"-"+last);
 		//Instead of just add the sequence we are going to use smith waterman
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first-1, last);
 		if(refSeq == null) return;
-		//String result = smithWatermanLocalAlingment(refSeq, query.toString());
+		//System.out.println(""+query);
+		//System.out.println(""+refSeq);
+		AlignmentResult result = smithWatermanLocalAlingment(query.toString(),refSeq);
 		//System.out.println(result);
-		ReadAlignment aln = new ReadAlignment(sequenceName, first, first+query.length()-1, query.length(), arr[0].getReadAlignment().getFlags());
+		ReadAlignment aln = new ReadAlignment(sequenceName, first + result.getSubjectStartIdx(), first+result.getSubjectLastIdx(), query.length(), arr[0].getReadAlignment().getFlags());
 		aln.setReadCharacters(query);
 		aln.setQualityScores(qualityScores);
-		aln.setCigarString(query.length()+"M");
+		aln.setCigarString(result.getCigarString());
 		finalAlignments.add(aln);
 		
 	}
@@ -284,25 +305,24 @@ public class ReadsAligner {
 	 * @param kmers
 	 * @return Map with key SequenceName and value a List of alignments that has the kmer value.
 	 */
-	private Map<String, List<KmerAlignment>> getSequenceHits(List<CharSequence> kmers) {
+	private Map<String, List<KmerAlignment>> getSequenceHits(List<KmerWithStart> kmers) {
 
 		Map<String,List<KmerAlignment>> seqHits =  new HashMap<String,List<KmerAlignment>>();		
-		for (int i=0;i<kmers.size();i++) 
+		for (KmerWithStart kmer:kmers) 
 		{
-			String kmer = kmers.get(i).toString();
 			//System.out.println("Number: "+i+" Kmer: "+kmer);
 			//Where is located the kmer in exact way
-			exactKmerSearch(i, kmer, seqHits);
+			exactKmerSearch(kmer, seqHits);
 		}
 		return seqHits;
 	}
-	private void exactKmerSearch(int kmerNumber, String kmer, Map<String, List<KmerAlignment>> seqHits) {
+	private void exactKmerSearch(KmerWithStart kmer, Map<String, List<KmerAlignment>> seqHits) {
 		
-		List<ReadAlignment> regions=fMIndex.search(kmer);
+		List<ReadAlignment> regions=fMIndex.search(kmer.getKmer().toString());
 		//System.out.println("Number: "+kmerNumber+" Kmer: "+kmer+" hits: "+regions.size());
 		for(ReadAlignment aln:regions)
 		{
-			KmerAlignment kmerAlignment = new KmerAlignment(kmerNumber, aln);
+			KmerAlignment kmerAlignment = new KmerAlignment(kmer.getStart(), aln);
 			List<KmerAlignment> seqAlns = seqHits.get(aln.getSequenceName());
 			if(seqAlns==null) {
 				seqAlns = new ArrayList<>();
@@ -315,196 +335,150 @@ public class ReadsAligner {
 	
 	
 	
-	private String smithWatermanLocalAlingment(CharSequence reference, CharSequence sequence) 
-	{
-//		System.out.println("ref");
-//		System.out.println(reference);
-//		
-//		System.out.println("seq");
-//		System.out.println(sequence);
-		//Stack containing reference
-		Stack<String> stackReference = new Stack<>();
-
-		//Stack containing secuence
-		Stack<String> stackSequence = new Stack<>();
-
-		//Matrix with 0 if charAt(i)==charAt(j) otherwise 1
-		int[][] diagonals = new int[reference.length()][sequence.length()];
-
-
-		for (int i = 0; i < diagonals.length; i++) 
-		{
-			char actualReference=reference.charAt(i);
-			stackReference.push(actualReference+"");
-
-			for (int j = 0; j < diagonals[i].length; j++) 
-			{
-				char actualSequence=sequence.charAt(j);
-				if(i==0)
-					stackSequence.push(actualSequence+"");
-
-				diagonals[i][j]= actualReference==actualSequence ? 0:1;
-			}
-		}
-
+	private AlignmentResult smithWatermanLocalAlingment(CharSequence query, CharSequence subject) {
 		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
-		int[][] lowestMatrix = new int[diagonals.length+1][diagonals[0].length+1]; 
-
-		for (int i = 0; i < lowestMatrix.length; i++) 
-		{	
-			for (int j = 0; j < lowestMatrix[0].length; j++) 
+		int[][] scores = new int[query.length()+1][subject.length()+1]; 
+		int minLastRow = scores.length*scores[0].length;
+		int minJLastRow = -1;
+		for (int i = 0; i < scores.length; i++) {	
+			scores[i][0] = i==0?0:scores[i-1][0]+1;
+			for (int j = 1; j < scores[0].length; j++) 
 			{
-				//base case, the cost to reach 0,0 is 0
-				if(i==0 && j==0)
+				if(i==0)
 				{
-					lowestMatrix[i][j]=0;
-				}
-				//Base case: delete a base
-				//the cost to reach 0,j is 1+ cost(0,j-1)
-				//This an horizontal move  -->
-				else if(i==0)
-				{
-					lowestMatrix[i][j]= 1 + lowestMatrix[i][j-1];
-				}
-				//Base case: insert a base
-				//the cost to reach i,0 is 1 + cost(i-1,0)
-				//This an vertical move |
-				//						v	
-				else if(j==0)
-				{
-					lowestMatrix[i][j]= 1 + lowestMatrix[i-1][j];
+					scores[i][j]=0;
 				}
 				//This case can be reached from upper (i-1,j)
 				//From left (i,j-1)
 				//or from upper left diagonal (i-1,j-1)
 				else
 				{
-					int[] options= {
-							1 						+ lowestMatrix[i-1][j], 	// arrive from up is 1 + cost(i-1,j)
-							1 						+ lowestMatrix[i][j-1], 	// arrive from left is 1 + cost(i-1,j)
-							diagonals[i-1][j-1] 	+ lowestMatrix[i-1][j-1]	// arrive from diagonal is 1 if there is different characters
-																				// and 0 if are equals, +cost(i-1,j-1)
-					};
-					int min = Integer.MAX_VALUE;
-					for (int k = 0; k < options.length; k++) 
-					{
-						if(options[k]<min)
-						{
-							min = options[k];
-						}
-					}
-
-					lowestMatrix[i][j]=min;
+					int d = query.charAt(i-1)!=subject.charAt(j-1)?1:0;
+					int min = scores[i-1][j-1]+d;
+					int a = 1 + scores[i-1][j];
+					if(min>a) min= a;
+					int b = 1 + scores[i][j-1];
+					if(min>b) min=b;
+					scores[i][j]=min;
+				}
+				if(i==scores.length-1 && (j==1 || minLastRow>=scores[i][j])) {
+					minLastRow = scores[i][j];
+					minJLastRow = j; 
 				}
 			}
 		}
 		//At this point we have the minimum cost to reach the corner (A.length-1,A[0].length-1)
-		//Now we have to go back and remember the decisions
-		
-		//Stack containing the alignment of the reference
-		Stack<String> referenceAlingment = new Stack<>();
-
-		//Stack containing the alignment of the sequence
-		Stack<String> sequenceAlignment = new Stack<>();
-
-		//Stores the actual position of the go back algorithm.
-		//It starts in in the right bottom corner, where is the minimum cost to reach (A.length-1,A[0].length-1)
-		int[] actualPositionBackTrack={lowestMatrix.length-1,lowestMatrix[0].length-1};
-
+		//Now we have to go back and remember the decisions from the minimum of the last row
+		int i = scores.length-1;
+		int j= minJLastRow;
+		//System.out.println("Subject length: "+subject.length()+" minJ last row: "+j+" minscore: "+minLastRow);
+		AlignmentResult result = new AlignmentResult();
+		result.setSubjectLastIdx(minJLastRow-1);
 		//The algorithm keeps going back until reach origin
-		while(!(actualPositionBackTrack[0]==0 && actualPositionBackTrack[1]==0))
-		{
+		while(i>0 && j>0) {
 			//We want the path with lowest cost
-			try
-			{
-				//We check if the lower comes from above
-				if( lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]] < lowestMatrix [actualPositionBackTrack[0]][actualPositionBackTrack[1]-1] && lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]] < lowestMatrix [actualPositionBackTrack[0]-1] [actualPositionBackTrack[1]-1])
-				{
-					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
-
-					//Add - to sequenceAlignment
-					
-					sequenceAlignment.push("-");
-
-					//Push next character to stackReference
-					referenceAlingment.push(stackReference.pop());
-
-
-					// update r, the actual position
-					actualPositionBackTrack=a;
-				}
-				//We check if the lower comes from left
-				else if( lowestMatrix [actualPositionBackTrack[0]] [actualPositionBackTrack[1]-1] < lowestMatrix [actualPositionBackTrack[0]-1][actualPositionBackTrack[1]] && lowestMatrix [actualPositionBackTrack[0]] [actualPositionBackTrack[1]-1] < lowestMatrix [actualPositionBackTrack[0]-1][actualPositionBackTrack[1]-1])
-				{
-					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
-
-					//Add - to referenceAlingment
-					//referenceAlingment.push("-");
-
-					//Push next character to sequenceAlignment
-					sequenceAlignment.push(stackSequence.pop());
-
-					// update r, the actual position
-					actualPositionBackTrack=a;
-				}
-				//Check diagonal (left upper)
-				else
-				{
-					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]-1};
-
-					//Push next character to referenceAlingment
-					referenceAlingment.push(stackReference.pop());
-
-					//Push next character to sequenceAlignment
-					sequenceAlignment.push(stackSequence.pop());
-
-					// update r, the actual position
-					actualPositionBackTrack=a;
-				}
+			int d = query.charAt(i-1)!=subject.charAt(j-1)?1:0;
+			int sD = scores[i-1][j-1]+d;
+			int sA = 1 + scores[i-1][j];
+			if( sD == scores[i][j]) {
+				result.addBacktrack(ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH));
+				i--;
+				j--;
+			} else if( sA == scores[i][j]) {
+				result.addBacktrack(ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION));
+				i--;
+			} else {
+				result.addBacktrack(ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION));
+				j--;
 			}
-			catch (Exception e) 
-			{
-//				e.printStackTrace();
-				//A negative position is reached
-
-				//If there is a path from above
-				if(actualPositionBackTrack[0]-1>=0)
-				{
-					int[] a = { actualPositionBackTrack[0]-1,actualPositionBackTrack[1]};
-
-					//Add - to sequenceAlignment
-					
-					sequenceAlignment.push("-");
-
-					//Push next character to referenceAlingment
-					referenceAlingment.push(stackReference.pop());
-
-					// update r, the actual position
-					actualPositionBackTrack=a;
-				}
-				//There must be a path from left
-				else
-				{
-					int[] a = { actualPositionBackTrack[0],actualPositionBackTrack[1]-1};
-
-					//Add - to referenceAlingment
-					//referenceAlingment.push("-");
-
-					//Push next character to sequenceAlignment
-					sequenceAlignment.push(stackSequence.pop());
-
-					// update r, the actual position
-					actualPositionBackTrack=a;
-				}
-			}
-
 		}
-		//Words are in stacks just is needed to turn them around
-		String p1="";
-		while(!referenceAlingment.isEmpty() && !sequenceAlignment.isEmpty())
-		{
-			p1+=referenceAlingment.pop();
-		}	
-		return p1;
+		result.setSubjectStartIdx(j);
+		while(i>0) {
+			result.addBacktrack(ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION));
+			i--;
+		}
+		return result;
 	}
+}
+class AlignmentResult {
+	private int subjectStartIdx;
+	private int subjectLastIdx;
+	private LinkedList<Character> path = new LinkedList<>();
+	
+	public void addBacktrack(char decision) {
+		path.add(0, decision);
+	}
+	
+	public String getCigarString () {
+		StringBuilder cigar = new StringBuilder();
+		int nextCount = 0;
+		char next = 0;
+		for(char c:path) {
+			if(c!=next) {
+				if(nextCount>0) {
+					cigar.append(nextCount);
+					cigar.append(next);
+				}
+				nextCount = 1;
+				next = c;
+			} else {
+				nextCount++;
+			}
+		}
+		if(nextCount>0) {
+			cigar.append(nextCount);
+			cigar.append(next);
+		}
+		return cigar.toString();
+	}
+
+	/**
+	 * @return the subjectStartIdx
+	 */
+	public int getSubjectStartIdx() {
+		return subjectStartIdx;
+	}
+
+	/**
+	 * @param subjectStartIdx the subjectStartIdx to set
+	 */
+	public void setSubjectStartIdx(int subjectStartIdx) {
+		this.subjectStartIdx = subjectStartIdx;
+	}
+
+	/**
+	 * @return the subjectLastIdx
+	 */
+	public int getSubjectLastIdx() {
+		return subjectLastIdx;
+	}
+
+	/**
+	 * @param subjectLastIdx the subjectLastIdx to set
+	 */
+	public void setSubjectLastIdx(int subjectLastIdx) {
+		this.subjectLastIdx = subjectLastIdx;
+	}
+}
+class KmerWithStart {
+	private CharSequence kmer;
+	private int start;
+	public KmerWithStart(CharSequence kmer, int start) {
+		super();
+		this.kmer = kmer;
+		this.start = start;
+	}
+	/**
+	 * @return the kmer
+	 */
+	public CharSequence getKmer() {
+		return kmer;
+	}
+	/**
+	 * @return the start
+	 */
+	public int getStart() {
+		return start;
+	}
+	
 }
