@@ -100,6 +100,16 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		return sequencesMetadata;
 	}
 	/**
+	 * Returns the length of the reference sequence with the given name
+	 * @param sequenceName Name of the sequence
+	 * @return int length of the sequence. Zero if there are no reference sequences with the given name 
+	 */
+	public int getReferenceLength(String sequenceName) {
+		QualifiedSequence seq = sequencesMetadata.get(sequenceName);
+		if(seq==null) return 0;
+		return seq.getLength();
+	}
+	/**
 	 * Searches the given sequence in the index
 	 * @param searchSequence sequence to search
 	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
@@ -125,6 +135,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 			for (int internalPosMatch:matches) 
 			{
 				ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, 0);
+				alignment.setAlignmentQuality((short) 100);
 				alignments.add(alignment);
 			}
 		}
@@ -138,6 +149,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 				for (int internalPosMatch:matches) 
 				{
 					ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, ReadAlignment.FLAG_READ_REVERSE_STRAND);
+					alignment.setAlignmentQuality((short) 100);
 					alignments.add(alignment);
 				}
 			}

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -143,21 +144,9 @@ public class ReadsAligner {
 
 
 	public List<ReadAlignment> alignRead(RawRead read) {
-		List<ReadAlignment> alignments = search(read);
-		//TODO: Choose better quality and sort by quality
-		int qual = alignments.size()==1?40:0;
-		int i=0;
-		for (ReadAlignment aln: alignments) {
-			aln.setReadName(read.getName());
-			aln.setAlignmentQuality((short) qual);
-			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
-			i++;
-		}
-		return alignments;
-	}
-
-	public List<ReadAlignment> search (RawRead read) {
-		return kmerBasedInexactSearchAlgorithm(read);
+		List<ReadAlignment> alignments = kmerBasedInexactSearchAlgorithm(read);
+		for(ReadAlignment aln:alignments) aln.setReadName(read.getName());
+		return filterAlignments(alignments);
 	}
 
 	public List<ReadAlignment> exactSearch (RawRead read) {
@@ -221,12 +210,12 @@ public class ReadsAligner {
 				KmerAlignment actual=alns.get(i);				
 				if(!stack.isEmpty() && !isKmerAlignmentConsistent(stack.peek(), actual))
 				{
-					insert(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
+					addNewAlignmentFromConsistentKmers(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
 					stack.clear();
 				}
 				stack.push(actual);
 			}
-			insert(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
+			addNewAlignmentFromConsistentKmers(finalAlignments, kmersCount, sequenceName, stack, query, qualityScores);
 			
 		}
 		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query.toString());
@@ -249,56 +238,7 @@ public class ReadsAligner {
 		
 		return kmers;
 	}
-
-	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
-	{
-		boolean negativeStrand = topAln.isNegativeStrand();
-		if(negativeStrand != nextAln.isNegativeStrand()) return false;
-		if(negativeStrand) {
-			if(nextAln.getKmerNumber()>=topAln.getKmerNumber()) return false;
-		} else {
-			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
-		}
-		if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
-		return true;
-	}
-
 	
-	private void insert(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, CharSequence query, String qualityScores) 
-	{
-		double prop = (double) stack.size()/kmersCount;
-		if(prop<minProportionKmers) return;
-		KmerAlignment[] arr=new KmerAlignment[stack.size()];
-		stack.toArray(arr);
-		KmerAlignment firstAln = arr[0];
-		KmerAlignment lastAln = arr[arr.length-1];
-		int first = firstAln.getReadAlignment().getFirst();
-		if(firstAln.getKmerNumber()>0) {
-			//First k-mer did not have perfect match
-			first -= (firstAln.getKmerNumber() + 10);
-		}
-		int diffLast = query.length()-lastAln.getKmerNumber()-SEARCH_KMER_LENGTH;
-		int last = lastAln.getReadAlignment().getLast();
-		if(diffLast>0) {
-			//Last k-mer did not have perfect match
-			last += diffLast+10;
-		}
-		//System.out.println("Reference region from k-mers: "+first+"-"+last);
-		//Instead of just add the sequence we are going to use smith waterman
-		CharSequence refSeq = fMIndex.getSequence(sequenceName, first-1, last);
-		if(refSeq == null) return;
-		//System.out.println(""+query);
-		//System.out.println(""+refSeq);
-		AlignmentResult result = smithWatermanLocalAlingment(query.toString(),refSeq);
-		//System.out.println(result);
-		ReadAlignment aln = new ReadAlignment(sequenceName, first + result.getSubjectStartIdx(), first+result.getSubjectLastIdx(), query.length(), arr[0].getReadAlignment().getFlags());
-		aln.setReadCharacters(query);
-		aln.setQualityScores(qualityScores);
-		aln.setCigarString(result.getCigarString());
-		finalAlignments.add(aln);
-		
-	}
-
 	/**
 	 * It basically get the no overlapping kmers of  SEARCH_KMER_LENGTH length in the @param read 
 	 * and find each alignment of each kmer using the @param fMIndex, saves the alignments in hashmap
@@ -331,11 +271,63 @@ public class ReadsAligner {
 			seqAlns.add(kmerAlignment);
 		}
 	}
+
+	private boolean isKmerAlignmentConsistent(KmerAlignment topAln, KmerAlignment nextAln) 
+	{
+		boolean negativeStrand = topAln.isNegativeStrand();
+		if(negativeStrand != nextAln.isNegativeStrand()) return false;
+		if(negativeStrand) {
+			if(nextAln.getKmerNumber()>=topAln.getKmerNumber()) return false;
+		} else {
+			if(nextAln.getKmerNumber()<=topAln.getKmerNumber()) return false;
+		}
+		if(nextAln.getFirst()-topAln.getFirst()>MAX_SPACE_BETWEEN_KMERS) return false;
+		return true;
+	}
+
 	
+	private void addNewAlignmentFromConsistentKmers(List<ReadAlignment> finalAlignments, int kmersCount, String sequenceName,Stack<KmerAlignment> stack, CharSequence query, String qualityScores) 
+	{
+		double prop = (double) stack.size()/kmersCount;
+		if(prop<minProportionKmers) return;
+		KmerAlignment[] arr=new KmerAlignment[stack.size()];
+		stack.toArray(arr);
+		KmerAlignment firstAln = arr[0];
+		KmerAlignment lastAln = arr[arr.length-1];
+		int first = firstAln.getReadAlignment().getFirst();
+		if(firstAln.getKmerNumber()>0) {
+			//First k-mer did not have perfect match
+			first -= (firstAln.getKmerNumber() + 10);
+			if(first<1) first = 1;
+		}
+		int diffLast = query.length()-lastAln.getKmerNumber()-SEARCH_KMER_LENGTH;
+		int last = lastAln.getReadAlignment().getLast();
+		if(diffLast>0) {
+			//Last k-mer did not have perfect match
+			last += diffLast+10;
+			int seqLen = fMIndex.getReferenceLength(sequenceName);
+			if(last>seqLen) last = seqLen;
+		}
+		//System.out.println("Reference region from k-mers: "+first+"-"+last);
+		//Instead of just add the sequence we are going to use smith waterman
+		CharSequence refSeq = fMIndex.getSequence(sequenceName, first-1, last);
+		if(refSeq == null) return;
+		//System.out.println(""+query);
+		//System.out.println(""+refSeq);
+		AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
+		//TODO: Make better score
+		if(result.getDistance()>0.5*query.length()) return;
+		double alnQual = 100.0* (query.length() - result.getDistance())/query.length();
+		ReadAlignment aln = new ReadAlignment(sequenceName, first + result.getSubjectStartIdx(), first+result.getSubjectLastIdx(), query.length(), arr[0].getReadAlignment().getFlags());
+		aln.setReadCharacters(query);
+		aln.setQualityScores(qualityScores);
+		aln.setCigarString(result.getCigarString());
+		aln.setAlignmentQuality((short) Math.round(alnQual));
+		finalAlignments.add(aln);
+		
+	}
 	
-	
-	
-	private AlignmentResult smithWatermanLocalAlingment(CharSequence query, CharSequence subject) {
+	private AlignmentResult smithWatermanLocalAlignment(CharSequence query, CharSequence subject) {
 		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
 		int[][] scores = new int[query.length()+1][subject.length()+1]; 
 		int minLastRow = scores.length*scores[0].length;
@@ -374,6 +366,7 @@ public class ReadsAligner {
 		//System.out.println("Subject length: "+subject.length()+" minJ last row: "+j+" minscore: "+minLastRow);
 		AlignmentResult result = new AlignmentResult();
 		result.setSubjectLastIdx(minJLastRow-1);
+		result.setDistance(minLastRow);
 		//The algorithm keeps going back until reach origin
 		while(i>0 && j>0) {
 			//We want the path with lowest cost
@@ -399,10 +392,35 @@ public class ReadsAligner {
 		}
 		return result;
 	}
+	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments) {
+		if (alignments.size()==0) return alignments;
+		Collections.sort(alignments, new Comparator<ReadAlignment>() {
+			@Override
+			public int compare(ReadAlignment aln1, ReadAlignment aln2) {
+				return aln2.getAlignmentQuality() - aln1.getAlignmentQuality();
+			}
+		});
+		short bestQual = alignments.get(0).getAlignmentQuality();
+		//TODO. Investigate alignment score
+		double threshold = 0.8*bestQual;
+		List<ReadAlignment> filteredAlignments = new ArrayList<>();
+		int n = alignments.size();
+		for (int i=0;i<n;i++) {
+			ReadAlignment aln = alignments.get(i);
+			if(aln.getAlignmentQuality()<threshold) continue;
+			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
+			filteredAlignments.add(aln);
+		}
+		if(filteredAlignments.size()>1) {
+			for(ReadAlignment aln:filteredAlignments) aln.setAlignmentQuality((short) Math.round(0.1*aln.getAlignmentQuality()));
+		}
+		return filteredAlignments;
+	}
 }
 class AlignmentResult {
 	private int subjectStartIdx;
 	private int subjectLastIdx;
+	private int distance;
 	private LinkedList<Character> path = new LinkedList<>();
 	
 	public void addBacktrack(char decision) {
@@ -459,6 +477,22 @@ class AlignmentResult {
 	public void setSubjectLastIdx(int subjectLastIdx) {
 		this.subjectLastIdx = subjectLastIdx;
 	}
+
+	/**
+	 * @return the distance
+	 */
+	public int getDistance() {
+		return distance;
+	}
+
+	/**
+	 * @param distance the distance to set
+	 */
+	public void setDistance(int distance) {
+		this.distance = distance;
+	}
+	
+	
 }
 class KmerWithStart {
 	private CharSequence kmer;
