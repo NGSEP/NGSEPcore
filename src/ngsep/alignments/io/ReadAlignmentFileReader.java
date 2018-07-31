@@ -211,6 +211,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		
 		
 		ReadAlignment answer = new ReadAlignment(sequenceName, alnRecord.getAlignmentStart(), alnRecord.getAlignmentEnd(), alnRecord.getReadLength(), flags);
+		answer.setSequenceIndex(currentSequenceIdx);
 		if(loadMode != LOAD_MODE_MINIMAL) {
 			String cigar = null;
 			if(!SAMRecord.NO_ALIGNMENT_CIGAR.equals(alnRecord.getCigarString())) cigar = alnRecord.getCigarString();

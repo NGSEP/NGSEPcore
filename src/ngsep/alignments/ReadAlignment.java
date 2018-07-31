@@ -65,7 +65,7 @@ public class ReadAlignment implements GenomicRegion {
 	public static final String DEF_READ_GROUP = "";
 	
 	
-	
+	private int sequenceIndex;
 	private String sequenceName;
 	private int first;
 	private int last;
@@ -85,10 +85,11 @@ public class ReadAlignment implements GenomicRegion {
     private boolean alleleCallsUpdated = false;
     
 	
-	//Read information. Object not used to save memory 
+	//Read information loaded on demand 
 	private char [] readName=null;
 	private CharSequence readCharacters=null;
 	private char [] qualityScores=null;
+	private int readNumber;
 	
 	//Attributes to ignore bases
 	private byte basesToIgnoreCloseToIndel = 2;
@@ -114,10 +115,70 @@ public class ReadAlignment implements GenomicRegion {
 		this.setFlags(flags);
 		updateAlleleCallsInfo();
 	}
+	
+	/**
+	 * Creates a read alignment with the given information
+	 * @param sequenceIndex Index of the sequence to which the read aligned
+	 * @param first position of the sequence to which the read aligned
+	 * @param last position of the sequence to which the read aligned
+	 * @param readLength length of the read
+	 * @param flags indicating information of the alignment according to the SAM format
+	 */
+	public ReadAlignment(int sequenceIndex, int first, int last, int readLength, int flags) {
+		this.sequenceIndex = sequenceIndex;
+		this.first = first;
+		this.last = last;
+		this.readLength = readLength;
+		this.setFlags(flags);
+		updateAlleleCallsInfo();
+	}
+	
+	/**
+	 * @return the sequenceIndex
+	 */
+	public int getSequenceIndex() {
+		return sequenceIndex;
+	}
+
+
+
+	/**
+	 * @param sequenceIndex the sequenceIndex to set
+	 */
+	public void setSequenceIndex(int sequenceIndex) {
+		this.sequenceIndex = sequenceIndex;
+	}
+
+
+
+	/**
+	 * @return the readNumber
+	 */
+	public int getReadNumber() {
+		return readNumber;
+	}
+
+
+
+	/**
+	 * @param readNumber the readNumber to set
+	 */
+	public void setReadNumber(int readNumber) {
+		this.readNumber = readNumber;
+	}
+
+
 
 	@Override
 	public String getSequenceName() {
 		return sequenceName;
+	}
+	
+	/**
+	 * @param sequenceName the sequenceName to set
+	 */
+	public void setSequenceName(String sequenceName) {
+		this.sequenceName = sequenceName;
 	}
 
 	@Override

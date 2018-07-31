@@ -158,17 +158,16 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	}
 	
 	/**
-	 * Return the subsequence of the indexed sequence between the given coordinates
+	 * Return the subsequence of the indexed sequence between the given genomic coordinates
 	 * @param sequenceName Name of the sequence to search
-	 * @param start position of the sequence (0-based, included)
-	 * @param end position of the sequence (0-based, excluded)
-	 * @param negativeStrand if true, the negative strand is requested
+	 * @param first position of the sequence (1-based, included)
+	 * @param last position of the sequence (1-based, included)
 	 * @return CharSequence segment of the given sequence between the given coordinates
 	 */
-	public CharSequence getSequence (String sequenceName, int start, int end) {
+	public CharSequence getSequence (String sequenceName, int first, int last) {
 		FMIndexSingleSequence idxSeq = internalIndexes.get(sequenceName);
 		if(idxSeq==null) return null;
-		CharSequence seq = idxSeq.getSequence(start, end);
+		CharSequence seq = idxSeq.getSequence(first-1, last);
 		return seq;
 	}
 	
