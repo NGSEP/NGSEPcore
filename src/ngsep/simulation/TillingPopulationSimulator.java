@@ -69,8 +69,8 @@ public class TillingPopulationSimulator {
 	public static final int DEF_READ_LENGTH=250;
 	public static final double DEF_ERROR_RATE=0.00001;
 	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLAQUE_WIDTH=12;
-	public static final int PLAQUE_HEIGHT=8;
+	public static final int PLATE_WIDTH=12;
+	public static final int PLATE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -356,16 +356,16 @@ public class TillingPopulationSimulator {
 	 */
 	public void simulatePools() {
 		pools = new ArrayList<>();
-		int num_plates = 1+individuals.size()/(PLAQUE_WIDTH*PLAQUE_HEIGHT);
-		for(int i = 0; i< PLAQUE_WIDTH+PLAQUE_HEIGHT+num_plates;i++) {
+		int num_plates = 1+individuals.size()/(PLATE_WIDTH*PLATE_HEIGHT);
+		for(int i = 0; i< PLATE_WIDTH+PLATE_HEIGHT+num_plates;i++) {
 			List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
 			pools.add(thisPool);
 		}
 		for(int i = 0; i < individuals.size();i++) {
 			int queryID = individuals.get(i).getId();
-			pools.get((queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH).add(individuals.get(i));
-			pools.get((queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT).add(individuals.get(i));
-			pools.get((queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID%(PLATE_WIDTH*PLATE_HEIGHT))/PLATE_WIDTH).add(individuals.get(i));
+			pools.get((queryID%PLATE_WIDTH)+PLATE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID/(PLATE_WIDTH*PLATE_HEIGHT))+PLATE_WIDTH+PLATE_HEIGHT).add(individuals.get(i));
 		}	
 		pools.removeIf(p -> p.isEmpty());
 	}
@@ -524,11 +524,7 @@ class SimulatedDiploidIndividual {
 				int pos = Integer.parseInt(parts[1]);
 				if(parts[0].equals(queryRegion.getSequenceName()) && (pos >= queryRegion.getFirst()) && (pos <= queryRegion.getLast()) ) {
 					GenomicVariant queryVariant = mutationsAllele1.get(all1_key);
-					System.out.println(String.valueOf(queryVariant.getFirst()));
-					System.out.println(String.valueOf(queryRegion.getFirst()));
 					allele1.setCharAt(queryVariant.getFirst()-queryRegion.getFirst(),queryVariant.getAlleles()[1].charAt(0));
-					System.out.println(referenceSequences.get(i).toString());
-					System.out.println(allele1);
 				}
 			}
 			
