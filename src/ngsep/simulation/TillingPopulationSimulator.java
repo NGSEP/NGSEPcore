@@ -55,23 +55,22 @@ import ngsep.vcf.VCFRecord;
 
 /**
  * 
- * @author Juan Sebastian Andrade 
- * @author Juanita Gil
+ * @author Juanita
+ * @author Juan SebastiÃ¡n Andrade
  *
  */
 public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=1000;
-	public static final int DEF_INDIVIDUALS=500;
-	public static final int DEF_NUM_FRAGMENTS_POOL=1000000;
+	public static final int DEF_MUTATIONS=2;
+	public static final int DEF_INDIVIDUALS=1;
+	public static final int DEF_NUM_FRAGMENTS_POOL=100;
 	public static final int DEF_READ_LENGTH=250;
-	public static final double DEF_ERROR_RATE=0.01;
-	public static final double DEF_MIN_ERROR_RATE=0.001;
-	
-	public static final int PLATE_WIDTH=12;
-	public static final int PLATE_HEIGHT=8;
+	public static final double DEF_ERROR_RATE=0.00001;
+	public static final double DEF_MIN_ERROR_RATE=0.0000001;
+	public static final int PLAQUE_WIDTH=12;
+	public static final int PLAQUE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -247,7 +246,7 @@ public class TillingPopulationSimulator {
 		for(int j=0; j < DEF_MUTATIONS; j++) {
 			SimulatedDiploidIndividual targetInd = individuals.get(random.nextInt(individuals.size()));
 			GenomicRegion targetGR = sequencedRegions.get(random.nextInt(sequencedRegions.size()));
-			int location = random.nextInt(targetGR.getLast())+targetGR.getFirst();
+			int location = random.nextInt(targetGR.getLast()-targetGR.getFirst()+1)+targetGR.getFirst();
 			char refBase = genome.getReferenceBase(targetGR.getSequenceName(), location);
 			String mutated = alphabet.replaceAll(Character.toString(refBase) , "");
 			GenomicVariant variant = new SNV(targetGR.getSequenceName(), location, refBase, mutated.charAt(random.nextInt(3)));
@@ -266,13 +265,13 @@ public class TillingPopulationSimulator {
 	 * @return List<DNAMaskedSequence> Reference allele of each sequenced region
 	 */
 	private List<DNAMaskedSequence> getReferenceSequencesRegions() {
+		// TODO Auto-generated method stub
 		List<DNAMaskedSequence> targetSequences = new ArrayList<>();
 		for(int i=0;i<sequencedRegions.size();i++) {
 			DNAMaskedSequence queryRegion = new DNAMaskedSequence();
 			queryRegion.setSequence(genome.getReference(sequencedRegions.get(i))); 
 			targetSequences.add(queryRegion);
 		}
-		
 		return targetSequences;
 	}
 
@@ -356,23 +355,19 @@ public class TillingPopulationSimulator {
 	 * Simulate the pools to sequence the simulated individuals
 	 */
 	public void simulatePools() {
-		pools = new ArrayList<> ();
-		int num_plates = 1+individuals.size()/(PLATE_WIDTH*PLATE_HEIGHT);
-		for(int i = 0; i< PLATE_WIDTH+PLATE_HEIGHT+num_plates;i++) {
+		pools = new ArrayList<>();
+		int num_plates = 1+individuals.size()/(PLAQUE_WIDTH*PLAQUE_HEIGHT);
+		for(int i = 0; i< PLAQUE_WIDTH+PLAQUE_HEIGHT+num_plates;i++) {
 			List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
 			pools.add(thisPool);
 		}
-		
 		for(int i = 0; i < individuals.size();i++) {
 			int queryID = individuals.get(i).getId();
-			pools.get((queryID%(PLATE_WIDTH*PLATE_HEIGHT))/PLATE_WIDTH).add(individuals.get(i));
-			pools.get((queryID%PLATE_WIDTH)+PLATE_HEIGHT).add(individuals.get(i));
-			pools.get((queryID/(PLATE_WIDTH*PLATE_HEIGHT))+PLATE_WIDTH+PLATE_HEIGHT).add(individuals.get(i));
-			
-		}
-		
+			pools.get((queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH).add(individuals.get(i));
+			pools.get((queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT).add(individuals.get(i));
+		}	
 		pools.removeIf(p -> p.isEmpty());
-		
 	}
 
 	/**
@@ -384,14 +379,15 @@ public class TillingPopulationSimulator {
 	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2) throws FileNotFoundException {
 		Random random = new Random();
 		String alphabet = DNASequence.BASES_STRING;
-		
 		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
+		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
 		double min_qual= min_quality;
-		double interval_length = (40.0-min_quality)/DEF_READ_LENGTH;
+		double max_qual= max_quality;
+		double interval_length = (max_qual-min_qual)/DEF_READ_LENGTH;
 		
 		PrintStream out = new PrintStream(file1);
 		PrintStream out_rev = new PrintStream(file2);
-		
+
 		//For each fragment select a random individual, then select an allele sequence at random and build the reads from the two ends of the sequence
 		for(int i=0; i<DEF_NUM_FRAGMENTS_POOL;i++) {
 			SimulatedDiploidIndividual queryInd = pool.get(random.nextInt(pool.size()));
@@ -401,13 +397,14 @@ public class TillingPopulationSimulator {
 			
 			char[] readForward = querySeq.subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
 			char[] readReverse = querySeq.getReverseComplement().subSequence(initialPositionReverse-DEF_READ_LENGTH, initialPositionReverse).toString().toCharArray();
-			
+
 			String qualityForward="";
 			String qualityReverse="";
 			
-			for(int j=0; j < DEF_READ_LENGTH; j++ ) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(40.0-(j+1)*interval_length, min_qual),Math.max(40.0-(j)*interval_length,min_qual)));
+			for(int j=0; j < DEF_READ_LENGTH; j++) {
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual),Math.max(max_qual-(j)*interval_length,min_qual)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
+				/*System.out.println(String.valueOf(error_prob));*/
 				if(random.nextFloat()<error_prob) {
 					String mutated = alphabet.replaceAll(Character.toString(readForward[j]), "");
 					readForward[j]=mutated.charAt(random.nextInt(3));
@@ -417,13 +414,13 @@ public class TillingPopulationSimulator {
 				qualityForward+=Character.toString(symbol);
 			}
 			
-			out.println(String.valueOf("Ind"+queryInd.getId()));
-			out.println(readForward.toString());
+			out.println(String.valueOf("@Ind"+queryInd.getId()));
+			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
-			
-			for(int j=0; j < DEF_READ_LENGTH; j++ ) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(40.0-(j+1)*interval_length, min_qual),Math.max(40.0-(j)*interval_length,min_qual)));
+
+			for(int j=DEF_READ_LENGTH-1; j >= 0; j--) {
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual),Math.max(max_qual-(j)*interval_length,min_qual)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
 				if(random.nextFloat()<error_prob) {
 					String mutated = alphabet.replaceAll(Character.toString(readReverse[j]), "");
@@ -434,22 +431,21 @@ public class TillingPopulationSimulator {
 				qualityReverse+=Character.toString(symbol);
 			}
 			
-			out_rev.println(String.valueOf("@"+"Ind"+queryInd.getId()));
-			out_rev.println(readReverse.toString());
+			out_rev.println(String.valueOf("@Ind"+queryInd.getId()));
+			out_rev.println(readReverse);
 			out_rev.println("+");
 			out_rev.println(qualityReverse);
-			
 		}
-		
 		
 		out.flush();
 		out.close();
 		
 		out_rev.flush();
 		out_rev.close();
-		
-	}	
+	}
+			
 }
+
 class SimulatedDiploidIndividual {
 	private int id;
 	private Map<String,GenomicVariant> mutationsAllele1 = new HashMap<>();
@@ -468,7 +464,7 @@ class SimulatedDiploidIndividual {
 		if(random.nextBoolean()) {
 			if(!mutationsAllele1.containsKey(key)) mutationsAllele1.put(key,mutation);
 		} else {
-			if(!mutationsAllele1.containsKey(key)) mutationsAllele2.put(key,mutation);
+			if(!mutationsAllele2.containsKey(key)) mutationsAllele2.put(key,mutation);
 		}
 	}
 	public List<CalledGenomicVariant> getCalls() {
@@ -517,31 +513,45 @@ class SimulatedDiploidIndividual {
 	 * @param referenceSequences
 	 */
 	public void buildAlleleSequences (List<GenomicRegion> regions, List<DNAMaskedSequence> referenceSequences) {
-		
-		for (int i=0; i > regions.size(); i++) {
+		for (int i=0; i < regions.size(); i++) {
 			GenomicRegion queryRegion = regions.get(i);
-			DNAMaskedSequence allele1 = referenceSequences.get(i);
-			DNAMaskedSequence allele2 = referenceSequences.get(i);
-			
+			/*System.out.println(referenceSequences.get(i));*/
+			String al1 = referenceSequences.get(i).toString();
+			DNAMaskedSequence allele1 = new DNAMaskedSequence(al1);
+
 			for (String all1_key : mutationsAllele1.keySet()) {
-				if(all1_key.equals(queryRegion.getSequenceName()+"-"+queryRegion.getFirst()+"-"+queryRegion.getLast())) {
+				String[] parts = all1_key.split("-");			
+				int pos = Integer.parseInt(parts[1]);
+				if(parts[0].equals(queryRegion.getSequenceName()) && (pos >= queryRegion.getFirst()) && (pos <= queryRegion.getLast()) ) {
 					GenomicVariant queryVariant = mutationsAllele1.get(all1_key);
-					allele1.setCharAt(queryVariant.getFirst(),queryVariant.getAlleles()[1].charAt(0));
-				}
-			}
-			
-			for (String all2_key : mutationsAllele2.keySet()) {
-				if(all2_key.equals(queryRegion.getSequenceName()+"-"+queryRegion.getFirst()+"-"+queryRegion.getLast())) {
-					GenomicVariant queryVariant = mutationsAllele2.get(all2_key);
-					allele2.setCharAt(queryVariant.getFirst(),queryVariant.getAlleles()[1].charAt(0));
+					System.out.println(String.valueOf(queryVariant.getFirst()));
+					System.out.println(String.valueOf(queryRegion.getFirst()));
+					allele1.setCharAt(queryVariant.getFirst()-queryRegion.getFirst(),queryVariant.getAlleles()[1].charAt(0));
+					System.out.println(referenceSequences.get(i).toString());
+					System.out.println(allele1);
 				}
 			}
 			
 			alleleSequences.add(allele1);
+			
+			String al2 = referenceSequences.get(i).toString();
+			DNAMaskedSequence allele2 = new DNAMaskedSequence(al2);
+			
+			for (String all2_key : mutationsAllele2.keySet()) {
+				String[] parts = all2_key.split("-");	
+				int pos = Integer.parseInt(parts[1]);
+				if(parts[0].equals(queryRegion.getSequenceName()) && (pos >= queryRegion.getFirst()) && (pos <= queryRegion.getLast()) ) {
+					GenomicVariant queryVariant = mutationsAllele2.get(all2_key);
+					allele2.setCharAt(queryVariant.getFirst()-queryRegion.getFirst(),queryVariant.getAlleles()[1].charAt(0));
+				}
+			}
+			
 			alleleSequences.add(allele2);
+	
 		}
 		
 	}
+
 	public List<DNAMaskedSequence> getAlleleSequences () {
 		return Collections.unmodifiableList(alleleSequences);
 	}
@@ -550,3 +560,4 @@ class SimulatedDiploidIndividual {
 		return alleleSequences.get(idx);
 	}
 }
+
