@@ -981,4 +981,22 @@ and runs a whole genome comparison taking unique genes as orthology units
 <argument>TRANSCRIPTOME2</argument>
 <argument>OUT_PREFIX</argument>
 </command>
+
+<command id="VCFIndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" printHelp="false">
+<intro>
+Builds a genome in fasta format from homozygous variants in a VCF file
+</intro>
+<title>Building genomes from variants</title>
+<description>
+Takes a VCF file with genotype information from one sample and the reference genome used to build
+the VCF and generates a new genome in fasta format modified using the alternative alleles from
+variants called as homozygous alternative within the individual. This can be useful to perform 
+polishing of new genome assemblies using Illumina data, or in general to construct a haploid version
+of an individual genome 
+</description>
+<argument>VCF_FILE</argument>
+<argument>REFERENCE_GENOME</argument>
+<argument>OUT_GENOME</argument>
+</command>
+
 </NGSEP>
