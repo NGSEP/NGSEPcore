@@ -964,6 +964,8 @@ public class VCFConverter {
 	private void printJoinMap(VCFRecord record,PrintStream out, int iPJ1, int iPJ2) throws IOException{
 		GenomicVariant var = record.getVariant();
 		if(!(var instanceof SNV)) return;
+		String unknownAllele = "--";
+		String errorAllele = "E";
 		List<CalledGenomicVariant> genotypeCalls = record.getCalls();
 		CalledGenomicVariant genP1 = genotypeCalls.get(iPJ1);
 		CalledGenomicVariant genP2 = genotypeCalls.get(iPJ2);
@@ -973,28 +975,28 @@ public class VCFConverter {
 		String hetAllele;
 		String homoAllele;
 		String homoAllele2;
-		if(genP1.isHomozygous() && genP2.isHeterozygous()) {
-			if(genP1.isHomozygousReference()){
+		if(genP1.isHeterozygous() && genP2.isHomozygous()) {
+			if(genP2.isHomozygousReference()){
 				hetAllele = "lm";
 				homoAllele = "ll";
-				homoAllele2="mm";
+				homoAllele2= errorAllele;
 				out.print("\t<lmxll>\t(ll,lm)\t"+hetAllele+"\t"+homoAllele);
 			}else{
 				hetAllele = "lm";
 				homoAllele2 = "ll";
-				homoAllele="mm";
+				homoAllele = errorAllele;
 				out.print("\t<lmxll>\t(ll,lm)\t"+hetAllele+"\t"+homoAllele2);
 			}
-		} else if (genP1.isHeterozygous() && genP2.isHomozygous()){
-			if(genP2.isHomozygousReference()){
+		} else if (genP1.isHomozygous() && genP2.isHeterozygous()){
+			if(genP1.isHomozygousReference()){
 				hetAllele = "np";
 				homoAllele = "nn";
-				homoAllele2="pp";
+				homoAllele2 = errorAllele;
 				out.print("\t<nnxnp>\t(nn,np)\t"+homoAllele+"\t"+hetAllele);
 			}else{
 				hetAllele = "np";
 				homoAllele2 = "nn";
-				homoAllele="pp";
+				homoAllele = errorAllele;
 				out.print("\t<nnxnp>\t(nn,np)\t"+homoAllele2+"\t"+hetAllele);
 			}		
 		} else {
@@ -1008,12 +1010,17 @@ public class VCFConverter {
 			CalledGenomicVariant genotypeCall = genotypeCalls.get(i);
 			out.print("\t");
 			if(genotypeCall.isUndecided()) {
-				out.print("--");
+				out.print(unknownAllele);
 			} else if (genotypeCall.isHeterozygous()) {
 				out.print(hetAllele);
 			} else if (genotypeCall.isHomozygous()){
-				if (genotypeCall.isHomozygousReference())out.print(homoAllele);
-				else out.print(homoAllele2);
+				String allele = homoAllele;
+				if (!genotypeCall.isHomozygousReference()) allele = homoAllele2;
+				if(allele!=errorAllele) out.print(allele);
+				else {
+					log.warning("Inconsistent homozygous genotype call found at "+genotypeCall.getSequenceName()+":"+genotypeCall.getFirst()+"-"+genotypeCall.getLast()+" sample: "+genotypeCall.getSampleId());
+					out.print(unknownAllele);
+				}
 			} 
 		}
 		out.println();
