@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
 import java.util.Arrays;
@@ -14,18 +33,32 @@ import java.util.Map;
 public class SuffixArrayGenerator {
 	/** Character to BWT */
 	public static final char SPECIAL_CHARACTER = '$';
-
+	/** map of the letters */
 	private final byte[] map = new byte[Byte.MAX_VALUE + 2];
+	/** contains the number of occurrences of each hexadecimal digit */
 	private final int[] contSort = new int[Byte.MAX_VALUE + 2];
+	/** range to sort */
 	private Deque<int[]> index;
+	/** auxiliary range to sort */
 	private Deque<int[]> indexAux;
+	/** the suffix Array */
 	private final int[] suffixArray;
+	/** the ranks array and the auxiliary array for the dc3 */
 	private final int[] suffixArray2;
+	/** the array to save the bytes values for data */
 	private final byte[] auxSort;
+	/** the ranks array: Each position contains the position in the suffix array */
 	private final byte[] ranks;
+	/** the letters in the sequence */
 	private String alphabet;
+	/** map of the letters */
 	private Map<Character, Integer> countsA;
 
+	/**
+	 * Instantiates a new suffix array generator.
+	 *
+	 * @param charSequence the sequence to which the suffix array is calculated
+	 */
 	public SuffixArrayGenerator(CharSequence sequence) {
 		long ini = System.nanoTime();
 		byte[] data = transform(sequence);
@@ -75,6 +108,13 @@ public class SuffixArrayGenerator {
 		return countsA;
 	}
 
+	/**
+	 * build the alphabet, the map, and a byte array from sequence
+	 * 
+	 * @param sequence the sequence
+	 * @return an array with a number instead of each letter, the number keep the
+	 *         lexicographical order
+	 */
 	private byte[] transform(final CharSequence sequence) {
 		final int size = sequence.length();
 
@@ -109,6 +149,13 @@ public class SuffixArrayGenerator {
 		return data;
 	}
 
+	/**
+	 * 
+	 * calculate the suffix array of data;
+	 * 
+	 * @param data  the chain to get the suffix array
+	 * @param bytes the number of bytes for each value in data.
+	 */
 	private void getSuffixArray(byte[] data, int bytes) {
 		final int m = arrayFill(0, 1 * bytes, data.length, 3 * bytes);
 		final int sort1Size = arrayFill(m, 2 * bytes, data.length, 3 * bytes);
@@ -139,6 +186,14 @@ public class SuffixArrayGenerator {
 		merge(data, bytes, byteRank, sort1Size, sort2Size);
 	}
 
+	/**
+	 * divide and multiply the range in suffixArray2.
+	 * 
+	 * @param lo     start point
+	 * @param hi     final point
+	 * @param value  divide
+	 * @param value2 multiply
+	 */
 	private void divMul(int lo, int hi, int value, int value2) {
 		if (value == value2)
 			return;
@@ -148,6 +203,13 @@ public class SuffixArrayGenerator {
 		}
 	}
 
+	/**
+	 * divide the range in suffixArray2.
+	 * 
+	 * @param lo    start point
+	 * @param hi    final point
+	 * @param value the factor
+	 */
 	private void div(int lo, int hi, int value) {
 		if (value == 1)
 			return;
@@ -155,6 +217,12 @@ public class SuffixArrayGenerator {
 			suffixArray2[i] /= value;
 	}
 
+	/**
+	 * transform the suffixArray of r in non sample suffixes
+	 * 
+	 * @param size the size of the suffix array
+	 * @param m    the start point of module 2 values.
+	 */
 	private void returnOfRecurtion(int size, int m) {
 		int idx = 0;
 		for (int j = 1; j <= size; j++) {
@@ -166,6 +234,15 @@ public class SuffixArrayGenerator {
 		}
 	}
 
+	/**
+	 * merge the sample and non sample suffixes
+	 * 
+	 * @param data      the data to make the suffix array
+	 * @param byteData  the number of bytes for each element in data
+	 * @param byteRank  the number of bytes for each element in ranks
+	 * @param sort1Size the size of non sample suffixes
+	 * @param sort2Size the size of non suffixes
+	 */
 	private void merge(final byte[] data, int byteData, int byteRank, int sort1Size, int sort2Size) {
 		int index2 = sort1Size;
 		int index1 = 0;
@@ -205,8 +282,9 @@ public class SuffixArrayGenerator {
 						break General;
 					valueC = suffixArray2[index1];
 					valueCMod = valueC % 3;
-				} else
+				} else {
 					break;
+				}
 			}
 
 			suffixArray[indexAns++] = valueB;
@@ -219,6 +297,12 @@ public class SuffixArrayGenerator {
 			suffixArray[indexAns] = suffixArray2[index2];
 	}
 
+	/**
+	 * the number of bytes necessary to represent the value.
+	 * 
+	 * @param value the value
+	 * @return the number of bytes.
+	 */
 	private static int numerOfBytesOf(int value) {
 		int v = 1;
 		int corr = 7;
@@ -229,6 +313,12 @@ public class SuffixArrayGenerator {
 		return v;
 	}
 
+	/**
+	 * transform the order in the non sample suffixes in a ranks
+	 * 
+	 * @param size size of non sample suffixes
+	 * @return the the number of bytes necessary to represent an element.
+	 */
 	private int calculateRanks(int size) {
 		int bytes = numerOfBytesOf(size);
 		byte[] cont = new byte[bytes];
@@ -244,6 +334,14 @@ public class SuffixArrayGenerator {
 		return bytes;
 	}
 
+	/**
+	 * 
+	 * create the recursion array
+	 * 
+	 * @param m        in suffixArray2[m] starts the module 2 values
+	 * @param numBytes the number of bytes for each element.
+	 * @return recursion array
+	 */
 	private byte[] getR(int numBytes, int size, int m) {
 		byte[] r = new byte[(size + 1) * numBytes];
 		byte[] cont = new byte[numBytes];
@@ -266,6 +364,12 @@ public class SuffixArrayGenerator {
 		return r;
 	}
 
+	/**
+	 * change the format of repeated intervals to a byte array
+	 * 
+	 * @param size the size of non sample suffixes
+	 * @return the number of repeated elements
+	 */
 	private int markRepeated(int size) {
 		Arrays.fill(auxSort, 0, size, (byte) 0);
 		int total = 0;
@@ -284,6 +388,13 @@ public class SuffixArrayGenerator {
 		return total;
 	}
 
+	/**
+	 * sort the suffixes of suffixArra2 in the range in index based in the byte of
+	 * data + mov.
+	 * 
+	 * @param data the data indexed in suffixArra2
+	 * @param mov  the plus (to sort more bytes than one)
+	 */
 	private void sort(byte[] data, int mov) {
 		int prev;
 		int cont;
@@ -328,6 +439,15 @@ public class SuffixArrayGenerator {
 		indexAux = temp;
 	}
 
+	/**
+	 * fill the array from startPoint with the values less than maxValue
+	 * 
+	 * @param pos      the point from where the array begins to fill
+	 * @param lo       the value to which the module has to be equal
+	 * @param maxValue the max value
+	 * @param inc      the increment.
+	 * @return
+	 */
 	private int arrayFill(final int pos, final int lo, final int maxValue, int inc) {
 		int i = pos;
 		for (int value = lo; value < maxValue; value += inc)
@@ -335,6 +455,12 @@ public class SuffixArrayGenerator {
 		return i;
 	}
 
+	/**
+	 * default sum of array like a number.
+	 * 
+	 * @param array the array to sum
+	 * @param i     the index to sum
+	 */
 	private static final void pluss(byte[] array, int i) {
 		array[i]++;
 		if (array[i] < 0 && i != 0) {
