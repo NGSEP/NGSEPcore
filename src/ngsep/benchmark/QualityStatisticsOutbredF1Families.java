@@ -53,15 +53,16 @@ public class QualityStatisticsOutbredF1Families {
 	private int totalDatapoints = 0;
 	private int varsPerCategory [] = new int [4];
 	private int datapointsPerCategory [] = new int [4];
-	private boolean conservative = true;
+	private boolean conservative = false;
 	
 	public static void main(String[] args) throws Exception {
+		QualityStatisticsOutbredF1Families instance = new QualityStatisticsOutbredF1Families();
 		String filename = args[0];
 		String p1 = null;
 		if(args.length>1) p1 = args[1];
 		String p2 = null;
 		if(args.length>2) p2 = args[2];
-		QualityStatisticsOutbredF1Families instance = new QualityStatisticsOutbredF1Families();
+		instance.conservative = args.length>3;
 		instance.processFile(filename,p1,p2);
 		instance.printStatistics();
 	}

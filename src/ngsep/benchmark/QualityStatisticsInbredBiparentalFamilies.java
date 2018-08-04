@@ -52,12 +52,14 @@ public class QualityStatisticsInbredBiparentalFamilies {
 	private boolean conservative = false;
 	
 	public static void main(String[] args) throws Exception {
+		QualityStatisticsInbredBiparentalFamilies instance = new QualityStatisticsInbredBiparentalFamilies();
 		String filename = args[0];
 		String p1 = null;
 		if(args.length>1) p1 = args[1];
 		String p2 = null;
 		if(args.length>2) p2 = args[2];
-		QualityStatisticsInbredBiparentalFamilies instance = new QualityStatisticsInbredBiparentalFamilies();
+		instance.conservative = args.length>3;
+		
 		instance.processFile(filename,p1,p2);
 		instance.printStatistics();
 	}
