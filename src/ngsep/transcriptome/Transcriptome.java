@@ -40,9 +40,9 @@ import ngsep.variants.GenomicVariant;
  */
 public class Transcriptome {
 	
-	
+	private QualifiedSequenceList sequenceNames;
 	//Genes indexed by id
-	Map<String, Gene> genesMap = new TreeMap<String, Gene>();
+	private Map<String, Gene> genesMap = new TreeMap<String, Gene>();
 	//Transcripts indexed by id
 	private Map<String, Transcript> transcriptsMap = new TreeMap<String, Transcript>();
 	//Transcripts sorted by absolute position and indexed by chromosome
@@ -53,10 +53,8 @@ public class Transcriptome {
 	//RNA to protein translator
 	private ProteinTranslator proteinTranslator = new ProteinTranslator();
 	
-	public Transcriptome() {
-		sortedTranscripts = new GenomicRegionSortedCollection<Transcript>();
-	}
 	public Transcriptome (QualifiedSequenceList sequenceNames) {
+		this.sequenceNames = sequenceNames;
 		sortedTranscripts = new GenomicRegionSortedCollection<Transcript>(sequenceNames);
 	}
 	public Gene getGene (String id) {
@@ -149,7 +147,7 @@ public class Transcriptome {
 	 * @return QualifiedSequenceList Names of the sequences in the transcriptome
 	 */
 	public QualifiedSequenceList getSequenceNames() {
-		return sortedTranscripts.getSequenceNames();
+		return sequenceNames;
 	}
 
 

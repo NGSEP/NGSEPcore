@@ -74,7 +74,7 @@ public class GFF3TranscriptomeHandler {
 	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR};
 	//TODO: Use a file resource
 	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
-	private QualifiedSequenceList sequenceNames = new QualifiedSequenceList();
+	private QualifiedSequenceList sequenceNames;
 	
 	private Logger log = Logger.getLogger(GFF3TranscriptomeHandler.class.getName());
 	
@@ -86,7 +86,13 @@ public class GFF3TranscriptomeHandler {
 		this.log = log;
 	}
 	
+	public GFF3TranscriptomeHandler () {
+		sequenceNames = new QualifiedSequenceList();
+	}
 	
+	public GFF3TranscriptomeHandler (QualifiedSequenceList sequenceNames) {
+		setSequenceNames(sequenceNames);
+	}
 	public QualifiedSequenceList getSequenceNames() {
 		return sequenceNames;
 	}
@@ -100,9 +106,7 @@ public class GFF3TranscriptomeHandler {
 	 * @throws IOException If the file can not be read
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
-		Transcriptome answer;
-		if(sequenceNames.size()==0) answer = new Transcriptome();
-		else answer = new Transcriptome(sequenceNames);
+		Transcriptome answer = new Transcriptome(sequenceNames);
 		Map<String,GFF3GenomicFeature> featuresWithId = new HashMap<String, GFF3GenomicFeature>();
 		List<GFF3GenomicFeatureLine> featureLinesWithParentAndNoId = new ArrayList<>();
 		try (FileInputStream fis = new FileInputStream(filename);

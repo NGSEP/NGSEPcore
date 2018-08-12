@@ -121,7 +121,7 @@ public class MutatedPeptidesExtractor {
 	}
 
 	public void loadTranscriptome(String transcriptomeMap, ReferenceGenome genome) throws IOException {
-		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler();
+		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
 		handler.setLog(log);
 		transcriptome = handler.loadMap(transcriptomeMap);
 		transcriptome.fillSequenceTranscripts(genome);

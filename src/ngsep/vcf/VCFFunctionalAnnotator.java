@@ -178,7 +178,7 @@ public class VCFFunctionalAnnotator {
 		handler.loadSequences(transcriptome, transcriptomeCDNA);
 	}
 	public void loadMap(String transcriptomeMap, ReferenceGenome genome) throws IOException {
-		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler();
+		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
 		handler.setLog(log);
 		transcriptome = handler.loadMap(transcriptomeMap);
 		transcriptome.fillSequenceTranscripts(genome);

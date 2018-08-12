@@ -61,9 +61,7 @@ public class CCDSTranscriptomeHandler {
 	 * @throws IOException If the file can not be read
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
-		Transcriptome answer;
-		if(sequenceNames.size()==0) answer = new Transcriptome();
-		else answer = new Transcriptome(sequenceNames);
+		Transcriptome answer = new Transcriptome(sequenceNames);
 		FileInputStream fis = null;
 		BufferedReader in = null;
 		try {
