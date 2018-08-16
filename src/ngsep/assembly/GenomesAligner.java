@@ -401,40 +401,14 @@ public class GenomesAligner {
 	private void printD3Visualization(String outPrefix, PrintStream outD3Linear, String jsFile) throws IOException {
 		outD3Linear.println("<!DOCTYPE html>");
 		outD3Linear.println("<meta charset=\"utf-8\">");
-		//TODO: Daniel. Print style html code
-		/*
-		<style>
-		svg {
-		  font: 10px sans-serif;
-		}
-		.background path {
-		  fill: none;
-		  stroke: #ddd;
-		  shape-rendering: crispEdges;
-		}
-
-
-
-		.brush .extent {
-		  fill-opacity: .3;
-		  stroke: #fff;
-		  shape-rendering: crispEdges;
-		}
-
-		.axis line,
-		.axis path {
-		  fill: none;
-		  stroke: #000;
-		  shape-rendering: crispEdges;
-		}
-
-		.axis text {
-		  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
-		  cursor: move;
-		}
-
-		</style>
-		*/
+		outD3Linear.println("<head>");
+		outD3Linear.println("<FORM>\n" + 
+				"<h1> Genomes Aligner v1.0 &emsp;&emsp;\n" + 
+				"<INPUT TYPE=\"button\" onClick=\"history.go(0)\" VALUE=\"Start Again!\">\n" + 
+				"</h1>\n" + 
+				"</FORM>");
+		outD3Linear.println("</titled>");
+		outD3Linear.println(htmlStyleCode());
 		outD3Linear.println("<body>");
 		outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
 		outD3Linear.println("<script>");
@@ -461,7 +435,45 @@ public class GenomesAligner {
 		outD3Linear.println("</script>");
 		outD3Linear.println("</body>");
 	}
+	
+	private String htmlStyleCode() {
+		String code = "<style>\n" + 
+				"		svg {\n" + 
+				"		  font: 18px sans-serif;\n" + 
+				"		}\n" + 
+				"		.background path {\n" + 
+				"		  fill: none;\n" + 
+				"		  stroke: #ddd;\n" + 
+				"		  shape-rendering: crispEdges;\n" + 
+				"		}\n" + 
+				"\n" + 
+				"\n" + 
+				"\n" + 
+				"		.brush .extent {\n" + 
+				"		  fill-opacity: .3;\n" + 
+				"		  stroke: #fff;\n" + 
+				"		  shape-rendering: crispEdges;\n" + 
+				"		}\n" + 
+				"\n" + 
+				"		.axis line,\n" + 
+				"		.axis path {\n" + 
+				"		  fill: none;\n" + 
+				"		  stroke: #000;\n" + 
+				"		  shape-rendering: crispEdges;\n" + 
+				"		}\n" + 
+				"\n" + 
+				"		.axis text {\n" + 
+				"		  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;\n" + 
+				"		  cursor: move;\n" + 
+				"		}\n" + 
+				"\n" + 
+				"		</style>";
+		
+		return code;
+	}
 }
+
+
 class AnnotatedReferenceGenome {
 	private static final int DEF_PCT_KMERS = 50;
 	

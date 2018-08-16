@@ -1,4 +1,4 @@
-var margin = {top: 30, right: 80, bottom: 10, left: 80},
+var margin = {top: 45, right: 80, bottom: 30, left: 80},
     width = 1300 - margin.left - margin.right,
     height = 900 - margin.top - margin.bottom;
   
@@ -65,13 +65,19 @@ var x = d3.scale.ordinal().rangePoints([0, width]),
 var c20 = d3.scale.category20();
 
 var line = d3.svg.line(),
-    axis = d3.svg.axis().orient("left"),
+    axis = d3.svg.axis(),
     background,
     foreground;
 
 var svg = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
+        .call(d3.behavior.zoom().on("zoom", function() {
+      svg.attr("transform", "translate("+d3.event.translate+")"+ " scale("+ d3.event.scale+")")
+    }))
+    // .call(d3.behavior.zoom().on("zoom", function() {
+      // svg.attr("transform", "scale("+ d3.event.scale+")")
+   //  }))
   .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
@@ -135,7 +141,7 @@ d3.tsv("InputFileLCS.tsv", function(error, lcs)
       .attr("d", path)
     	//.attr("stroke",function(d){return c20(d.specieA_cmsm+d.specieB_cmsm)});
   		//This function assigns color to genes aligning to the same chromosome 
-      .attr("stroke",function(d){return c20(d.specieB_cmsm)});
+      .attr("stroke",function(d){return c20(d.chromosomeG1)});
 
   // Add a group element for each dimension.
   var g = svg.selectAll(".dimension")
@@ -168,14 +174,76 @@ d3.tsv("InputFileLCS.tsv", function(error, lcs)
               .attr("visibility", null);
         }));
 
+ tempA = []
+    tempA[0]=0
+    teempA = {0:""}
+    for(var i = 1; i<=crmsA.length; i++){
+        tempA[i]=parseInt(crmsA[i-1].endd)
+        teempA[crmsA[i-1].endd]=crmsA[i-1].Name
+    }
+    console.log(tempA)
+    tempB = []
+    tempB[0]=0
+    teempB = {0:""}
+    for(var i = 1; i<=crmsB.length; i++){
+        tempB[i]=parseInt(crmsB[i-1].endd)
+        teempB[crmsB[i-1].endd]=crmsB[i-1].Name
+    }
   // Add an axis and title.
   g.append("g")
       .attr("class", "axis")
-      .each(function(d) { d3.select(this).call(axis.scale(y[d.name])); })
+      .each(function(d) {
+          if(d.name == "averageA"){
+            d3.select(this)
+              .call(axis.scale(y[d.name]).orient("left").tickValues(tempA).tickFormat(function(d){return teempA[d]}))
+              .attr("class","axis averageA")
+              .selectAll(".averageA .tick text")
+              .on('click', function (d, i) {
+                console.log(teempA[d])
+              })
+              .style("text-anchor", "start")
+              .attr('transform', function(d){
+                if(d!=0) {
+                  var yy = y["averageA"]((parseInt(chrmsA[teempA[d]].startt)+parseInt(d))/2)
+                  var xx = y["averageA"](parseInt(d))
+                  return "translate(-65,"+(yy-xx)+")"
+                }
+                return "translate(0,10)"
+              }) 
+          } else {
+            d3.select(this)
+              .call(axis.scale(y[d.name]).orient("right").tickValues(tempB).tickFormat(function(d){return teempB[d]}))
+              .attr("class","axis averageB")
+              .selectAll(".averageB .tick text")
+              .on('click', function (d, i) {
+                console.log(d)
+              })
+              .style("text-anchor", "start")
+              .attr('transform', function(d){
+                if(d!=0) {
+                  var yy = y["averageB"]((parseInt(chrmsB[teempB[d]].startt)+parseInt(d))/2)
+                  var xx = y["averageB"](parseInt(d))
+                  return "translate(0,"+(yy-xx)+")"
+                }
+                return "translate(0,10)"
+              })
+              // .selectAll(".tick text")
+              // .style("text-anchor", "start")
+              // .attr("x", axisTextAdjust);  
+          }
+        })
     .append("text")
-      .style("text-anchor", "middle")
-      .attr("y", -9)
-      .text(function(d) { return d.name; });
+      .style("text-anchor", "right")
+      .attr("y", -20)
+     // .text("Genome")
+      //.text(function(d) { return d.name; });
+
+  function adjustTextLabels(selection) {
+    selection.selectAll('.major text')
+      ;
+  }
+
+
 
   // Add and store a brush for each axis.
   g.append("g")
