@@ -12,7 +12,6 @@ import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.Sample;
 import ngsep.variants.VariantCallReport;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFRecord;
@@ -64,91 +63,97 @@ public class VCFDistanceMatrixCalculator {
 	  * @param vcfFile VCF filename.
 	  * @throws IOException
 	  */
-	 public DistanceMatrix generateMatrix (String vcfFile) throws IOException{
-
-		VCFFileReader vcfFileReader = new VCFFileReader(vcfFile);
-		Iterator<VCFRecord> iteratorRecords = vcfFileReader.iterator();
-		List<Sample> samples = vcfFileReader.getHeader().getSamples();
-		float distanceMatrix[][] = new float[samples.size()][samples.size()];
-		int genotypePerSamplesComparison[][] = new int[samples.size()][samples.size()];
-		
-		int n = ploidy;
-		if(n<2){
-			n = 2;
-		}
-		
-		
-		float ploidyLevels[] = new float[n+1];
-		//generate ploidy range for individual from dosage data
-		for(int y=0; y <= n;y++){
-			ploidyLevels[y] = (1.0f/n) * y;
-		}
-		
-		//Iterate over every variant in VCF file
-		while(iteratorRecords.hasNext()){
-			VCFRecord vcfRecord = iteratorRecords.next();
-			GenomicVariant var = vcfRecord.getVariant();
-			String [] alleles = var.getAlleles();
-				
-			List<CalledGenomicVariant> genotypeCalls = vcfRecord.getCalls();
-			float numericGenotypes[] = new float[genotypeCalls.size()];
-			Arrays.fill(numericGenotypes, CalledSNV.GENOTYPE_UNDECIDED);
-	    	//Calculate dosage for each sample
-	    	for (int i=0;i<genotypeCalls.size();i++) {
-	    		CalledGenomicVariant call = genotypeCalls.get(i);
-	    		if(call.isUndecided()) continue;
-	    		if(distanceSource == DISTANCE_SOURCE_GENOTYPES_SIMPLE) {
-	    			byte [] idxCalledAlleles = call.getIndexesCalledAlleles();
-	    			//TODO: Improve for heterozygous in multiallelic
-	    			if (idxCalledAlleles.length==1) numericGenotypes[i] = idxCalledAlleles[0];
-	    			else numericGenotypes[i] = (idxCalledAlleles[0]+idxCalledAlleles[1])/alleles.length;
-	    		} else if(distanceSource == DISTANCE_SOURCE_GENOTYPES_COPY_NUMBER) {
-	    			byte [] acn = call.getAllelesCopyNumber();
-	    			numericGenotypes[i] = 0;
-	    			for(int j=0;j<acn.length;j++) {
-	    				numericGenotypes[i]+=j*acn[j];
-	    			}
-	    			numericGenotypes[i]/=2.0;
-	    		} else if(distanceSource == DISTANCE_SOURCE_COPY_NUMBER) {
-	    			numericGenotypes[i] = call.getCopyNumber();
-	    		} else if(distanceSource == DISTANCE_SOURCE_ALLELE_DEPTH) {
-	    			if(!var.isBiallelic()) continue;
-	    			VariantCallReport report = call.getCallReport();
-	    			if(report == null) continue;
-	    			float countRef = report.getCount(alleles[0]);
-		    		float countAlt = report.getCount(alleles[1]);
-		    		//Depends of ploidy assign a value to dosage
-		    		if((countRef + countAlt) > 0){
-		    			float dosage = countRef / (countRef + countAlt);
-				    	numericGenotypes[i] = roundToArray(dosage, ploidyLevels);
-	    			}
-	    		}
-	    	}
-	    	
-	    	//calculate distance samples x samples for all SNVs
-	    	for(int j=0;j<samples.size();j++){
-	    		for(int k=0;k<samples.size();k++){
-	    			if(numericGenotypes[j]==CalledSNV.GENOTYPE_UNDECIDED || numericGenotypes[k]==CalledSNV.GENOTYPE_UNDECIDED ) continue;
-	    			//distance between pair of genotypes for a single variant
-    			    distanceMatrix[j][k] += Math.abs(numericGenotypes[j]-numericGenotypes[k]);
-    				//matrix needed to save value by how divide
-    				genotypePerSamplesComparison[j][k]++;
+	 public DistanceMatrix generateMatrix (String vcfFile) throws IOException {
+		 List<String> samples;
+		 double distanceMatrix[][];
+		 
+		 int numSamples;
+		 try (VCFFileReader vcfFileReader = new VCFFileReader(vcfFile)) {
+			Iterator<VCFRecord> iteratorRecords = vcfFileReader.iterator();
+			samples = vcfFileReader.getHeader().getSampleIds();
+			numSamples = samples.size();
+			distanceMatrix = new double[numSamples][numSamples];
+			int genotypePerSamplesComparison[][] = new int[numSamples][numSamples];
+			
+			int n = ploidy;
+			if(n<2){
+				n = 2;
+			}
+			
+			
+			float ploidyLevels[] = new float[n+1];
+			//generate ploidy range for individual from dosage data
+			for(int y=0; y <= n;y++){
+				ploidyLevels[y] = (1.0f/n) * y;
+			}
+			
+			//Iterate over every variant in VCF file
+			while(iteratorRecords.hasNext()){
+				VCFRecord vcfRecord = iteratorRecords.next();
+				GenomicVariant var = vcfRecord.getVariant();
+				String [] alleles = var.getAlleles();
+					
+				List<CalledGenomicVariant> genotypeCalls = vcfRecord.getCalls();
+				float numericGenotypes[] = new float[genotypeCalls.size()];
+				Arrays.fill(numericGenotypes, CalledSNV.GENOTYPE_UNDECIDED);
+		    	//Calculate dosage for each sample
+		    	for (int i=0;i<genotypeCalls.size();i++) {
+		    		CalledGenomicVariant call = genotypeCalls.get(i);
+		    		if(call.isUndecided()) continue;
+		    		if(distanceSource == DISTANCE_SOURCE_GENOTYPES_SIMPLE) {
+		    			byte [] idxCalledAlleles = call.getIndexesCalledAlleles();
+		    			//TODO: Improve for heterozygous in multiallelic
+		    			if (idxCalledAlleles.length==1) numericGenotypes[i] = idxCalledAlleles[0];
+		    			else numericGenotypes[i] = (idxCalledAlleles[0]+idxCalledAlleles[1])/alleles.length;
+		    		} else if(distanceSource == DISTANCE_SOURCE_GENOTYPES_COPY_NUMBER) {
+		    			byte [] acn = call.getAllelesCopyNumber();
+		    			numericGenotypes[i] = 0;
+		    			for(int j=0;j<acn.length;j++) {
+		    				numericGenotypes[i]+=j*acn[j];
+		    			}
+		    			numericGenotypes[i]/=2.0;
+		    		} else if(distanceSource == DISTANCE_SOURCE_COPY_NUMBER) {
+		    			numericGenotypes[i] = call.getCopyNumber();
+		    		} else if(distanceSource == DISTANCE_SOURCE_ALLELE_DEPTH) {
+		    			if(!var.isBiallelic()) continue;
+		    			VariantCallReport report = call.getCallReport();
+		    			if(report == null) continue;
+		    			float countRef = report.getCount(alleles[0]);
+			    		float countAlt = report.getCount(alleles[1]);
+			    		//Depends of ploidy assign a value to dosage
+			    		if((countRef + countAlt) > 0){
+			    			float dosage = countRef / (countRef + countAlt);
+					    	numericGenotypes[i] = roundToArray(dosage, ploidyLevels);
+		    			}
+		    		}
 		    	}
-	    	}		    	
+		    	
+		    	//calculate distance samples x samples for all SNVs
+		    	for(int j=0;j<numSamples;j++){
+		    		for(int k=0;k<numSamples;k++){
+		    			if(numericGenotypes[j]==CalledSNV.GENOTYPE_UNDECIDED || numericGenotypes[k]==CalledSNV.GENOTYPE_UNDECIDED ) continue;
+		    			//distance between pair of genotypes for a single variant
+	    			    distanceMatrix[j][k] += Math.abs(numericGenotypes[j]-numericGenotypes[k]);
+	    				//matrix needed to save value by how divide
+	    				genotypePerSamplesComparison[j][k]++;
+			    	}
+		    	}		    	
+			}
+			//Normalize genetic distance value depending number of samples x samples per Variant found genotyped (Omit missing values)
+			for(int j=0;j<numSamples;j++){
+	    		for(int k=0;k<numSamples;k++){
+					if(genotypePerSamplesComparison[j][k] > 0){
+						distanceMatrix[j][k] = distanceMatrix[j][k]/genotypePerSamplesComparison[j][k];
+					}
+		    	}
+	    	}
 		}
 		
-		//Normalize genetic distance value depending number of samples x samples per Variant found genotyped (Omit missing values)
-		for(int j=0;j<samples.size();j++){
-    		for(int k=0;k<samples.size();k++){
-				if(genotypePerSamplesComparison[j][k] > 0){
-					distanceMatrix[j][k] = distanceMatrix[j][k]/genotypePerSamplesComparison[j][k];
-				}
-	    	}
-    	}
+		
+		
 		
 		DistanceMatrix dMatrix = new DistanceMatrix(samples, distanceMatrix);
-		dMatrix.setmatrixOutputType(matrixType);
-		vcfFileReader.close();
+		dMatrix.setMatrixOutputType(matrixType);
 		
 		return dMatrix;
 	

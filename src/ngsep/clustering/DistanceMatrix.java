@@ -6,13 +6,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import ngsep.variants.Sample;
-
 public class DistanceMatrix {
 
-	private List<Sample> samples;
-	private float distanceMatrix[][];
-	private int nSamples;
+	private List<String> ids;
+	private double distanceMatrix[][];
 	private int matrixOutputType;
 	
 	/**
@@ -21,24 +18,26 @@ public class DistanceMatrix {
 	 * @throws IOException
 	 * @throws NumberFormatException
 	*/
-	public DistanceMatrix(String filename) throws IOException, NumberFormatException{
-		BufferedReader br = new BufferedReader(new FileReader(filename));
-		samples = new ArrayList<Sample>();
+	public DistanceMatrix(String filename) throws IOException {
+		ids = new ArrayList<>();
 		int fileMatrixType = 0;
-		try {
-			this.setnSamples(Integer.parseInt(br.readLine()));
-			this.setDistanceMatrix(new float[this.getnSamples()][this.getnSamples()]);
+		try (FileReader fr=new FileReader(filename);
+			 BufferedReader br = new BufferedReader(fr)){
+			int numSamples;
+			try {
+				numSamples = Integer.parseInt(br.readLine());
+			} catch (Exception e) {
+				throw new IOException("Number format error reading number of samples",e);
+			}
+			distanceMatrix = new double[numSamples][numSamples];
 			
 		    String matrixRow = br.readLine();
 		    int row = 0;
 		    while (matrixRow != null) {
 		        
 		    	String[] matrixCell  = matrixRow.split("\\s+");
-		    	this.getSamples().add(new Sample(matrixCell[0]));
-		    	
-
-		    	
-		    	if(row ==0 && matrixCell.length < (this.getnSamples()+1)){
+		    	ids.add(matrixCell[0]);
+		    	if(row ==0 && matrixCell.length < (numSamples+1)){
 		    		fileMatrixType = 3; //needs to determinate which type of matrix, upper or lower triangle
 		    	}
 		    	
@@ -52,17 +51,23 @@ public class DistanceMatrix {
 		    	
 		    	
 		    	//indent to convert build upper matrix to lower
-	    		int indent = (this.getnSamples()+1) - matrixCell.length;
+	    		int indent = (numSamples+1) - matrixCell.length;
 	    		
 	    		for(int column = 1; column < matrixCell.length; column++){
+	    			double value;
+					try {
+						value = Double.parseDouble(matrixCell[column]);
+					} catch (Exception e) {
+						throw new IOException("Number format error at row "+row+" column: "+column+" value: "+matrixCell[column],e);
+					}
 	    			if(fileMatrixType == 0){ // full matrix
-	    				this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
+	    				distanceMatrix[row][column-1]=value;
 	    			} else if(fileMatrixType == 1){ // lower
-	    				this.getDistanceMatrix()[row][column-1]=Float.parseFloat(matrixCell[column]);
-		    			this.getDistanceMatrix()[column-1][row]=Float.parseFloat(matrixCell[column]);
+	    				distanceMatrix[row][column-1]=value;
+	    				distanceMatrix[column-1][row]=value;
 		    		} else if(fileMatrixType == 2){ // upper
-		    			this.getDistanceMatrix()[column-1+indent][row]=Float.parseFloat(matrixCell[column]);
-		    			this.getDistanceMatrix()[row][column-1+indent]=Float.parseFloat(matrixCell[column]);
+		    			distanceMatrix[column-1+indent][row]=value;
+		    			distanceMatrix[row][column-1+indent]=value;
 		    		}
 		    	}
 
@@ -70,21 +75,18 @@ public class DistanceMatrix {
 		    	matrixRow = br.readLine();
 		    	row++;
 		    }
-		} finally {
-		    br.close();
 		}
 	}
 	
 	/**
-	 * Construct a DistanceMatrix object from two objects: a list with the samples and 
-	 * an array of float values which represent the distances.
-	 * @param samples Identifier of the sample in the matrix.
-	 * @param distanceMatrix Values of distances between the samples
+	 * Construct a DistanceMatrix object from two objects: a list with ids and 
+	 * an array of double values which represent the distances.
+	 * @param ids of the objects with the given distances
+	 * @param distanceMatrix Values of distances between the objects
 	*/
-	public DistanceMatrix(List<Sample> samples,float distanceMatrix[][] ){
-		this.setSamples(samples);
+	public DistanceMatrix(List<String> ids, double distanceMatrix[][] ){
+		this.setIds(ids);
 		this.setDistanceMatrix(distanceMatrix);
-		this.setnSamples(samples.size());
 	}
 	
 	/**
@@ -98,14 +100,13 @@ public class DistanceMatrix {
 	*/
 	public void printMatrix (PrintStream out) {
 		//print number of samples of the matrix
-	    out.println(this.getnSamples());
+	    out.println(this.getNumSamples());
 	    // print samples x samples distance matrix
-	    for(int j=0;j<this.getnSamples();j++){
+	    for(int j=0;j<distanceMatrix.length;j++){
 	    	String row = "";
-    		for(int k=0;k<this.getnSamples();k++){
-    			if(this.getMatrixType() == 0 || (this.getMatrixType() == 1 && j>k) || (this.getMatrixType() == 2 && k>j) ){
-    				
-    				row += this.getDistanceMatrix()[j][k];
+    		for(int k=0;k<distanceMatrix[j].length;k++){
+    			if(this.getMatrixType() == 0 || (this.getMatrixType() == 1 && j>k) || (this.getMatrixType() == 2 && k>j) ) {
+    				row += distanceMatrix[j][k];
         			row += " ";
         			
     			} else if(this.getMatrixType() == 2 && j>k){
@@ -113,44 +114,43 @@ public class DistanceMatrix {
     			}
 	
 	    	}
-    		
-	    	out.println(this.getSamples().get(j).getId()+" "+row);
+	    	out.println(ids.get(j)+" "+row);
     	}
-
 	}
 	
-
 	
 
-	public List<Sample> getSamples() {
-		return samples;
+	/**
+	 * @return the ids
+	 */
+	public List<String> getIds() {
+		return ids;
 	}
 
-	public void setSamples(List<Sample> samples) {
-		this.samples = samples;
+	/**
+	 * @param ids the ids to set
+	 */
+	public void setIds(List<String> ids) {
+		this.ids = ids;
 	}
 
-	public float[][] getDistanceMatrix() {
+	public double[][] getDistanceMatrix() {
 		return distanceMatrix;
 	}
 
-	public void setDistanceMatrix(float distanceMatrix[][]) {
+	public void setDistanceMatrix(double distanceMatrix[][]) {
 		this.distanceMatrix = distanceMatrix;
 	}
 
-	public int getnSamples() {
-		return nSamples;
-	}
-
-	public void setnSamples(int nSamples) {
-		this.nSamples = nSamples;
+	public int getNumSamples() {
+		return distanceMatrix.length;
 	}
 
 	public int getMatrixType() {
 		return matrixOutputType;
 	}
 
-	public void setmatrixOutputType(int matrixOutputType) {
+	public void setMatrixOutputType(int matrixOutputType) {
 		this.matrixOutputType = matrixOutputType;
 	}
 	

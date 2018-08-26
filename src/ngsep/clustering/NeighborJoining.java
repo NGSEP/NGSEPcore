@@ -2,13 +2,11 @@ package ngsep.clustering;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
-import ngsep.variants.Sample;
 
 
 public class NeighborJoining {
@@ -17,8 +15,6 @@ public class NeighborJoining {
 	private ProgressNotifier progressNotifier=null;
 	
 	private DistanceMatrix distanceMatrix;
-	private int nSamples = 0;
-	private List<Sample> samples;
 	
 	
 	public Logger getLog() {
@@ -57,9 +53,6 @@ public class NeighborJoining {
 	*/
 	public void loadMatrix (DistanceMatrix distanceMatrix){
 		this.distanceMatrix = distanceMatrix;
-		nSamples = distanceMatrix.getnSamples();
-		samples = distanceMatrix.getSamples();
-
 	}
 	
 	
@@ -68,7 +61,9 @@ public class NeighborJoining {
 	*/
 	public Dendrogram constructNJTree(){
 	
-		float iterableMatrix[][] = distanceMatrix.getDistanceMatrix();
+		double iterableMatrix[][] = distanceMatrix.getDistanceMatrix();
+		
+		int nSamples = distanceMatrix.getNumSamples();
 		
 		int nodesToAssign = nSamples;
 		
@@ -76,18 +71,13 @@ public class NeighborJoining {
 		
 		Dendrogram njTree = new Dendrogram(null, null, "");
 		
-		ArrayList<String> nodesList = new ArrayList<>();
-		
-		//fill initial node list
-		for(int n=0;n<nSamples;n++){
-			nodesList.add(samples.get(n).getId());
-		}
+		ArrayList<String> nodesList = new ArrayList<>(distanceMatrix.getIds());
 		
 		
 		while(nodesToAssign>2){
 			
-			float njMatrix[][]= new float[nodesToAssign][nodesToAssign];
-			float totalDistance[]= new float[nodesToAssign];
+			double njMatrix[][]= new double[nodesToAssign][nodesToAssign];
+			double totalDistance[]= new double[nodesToAssign];
 			
 			//Calculate total distance array
 			for(int i=0;i < nodesToAssign; i++){
@@ -105,7 +95,7 @@ public class NeighborJoining {
 			
 			int rowMin = -1;
 			int colMin = -1;
-			float minValue = Float.POSITIVE_INFINITY;
+			double minValue = Float.POSITIVE_INFINITY;
 			
 			//Minimum value in matrix
 			//need to be improve searching only in the triangle
@@ -124,8 +114,8 @@ public class NeighborJoining {
 			
 			if(nodesToAssign > 2){
 				//branch length estimation
-				float leftTreeDistance = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[rowMin] - totalDistance[colMin] ) / (2 * (nodesToAssign - 1)));
-				float rightTreeDistance  = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[colMin] - totalDistance[rowMin])/ (2 * (nodesToAssign - 1)));
+				double leftTreeDistance = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[rowMin] - totalDistance[colMin] ) / (2 * (nodesToAssign - 1)));
+				double rightTreeDistance  = (0.5f * iterableMatrix[rowMin][colMin]) + ((totalDistance[colMin] - totalDistance[rowMin])/ (2 * (nodesToAssign - 1)));
 
 				//Central node join and newick formatting		
 				String nodeMergeId = "("+nodesList.get(rowMin) +":"+leftTreeDistance+","+ nodesList.get(colMin)+":"+rightTreeDistance+")";
@@ -158,7 +148,7 @@ public class NeighborJoining {
 				}
 				
 				// distance matrix update
-				float updateDistanceMatrix[][] = new float[nodesToAssign][nodesToAssign];
+				double updateDistanceMatrix[][] = new double[nodesToAssign][nodesToAssign];
 				
 				//adding new row, col and bringing back old distances
 				for(int i=1;i<nodesToAssign;i++){
@@ -183,10 +173,10 @@ public class NeighborJoining {
 			} else { // FINAL JOIN ---------------------------------------------------------
 				
 				
-				float leftTreeDistance = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[1] - totalDistance[2]));
-				float rightTreeDistance  = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[2] - totalDistance[1]));
+				double leftTreeDistance = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[1] - totalDistance[2]));
+				double rightTreeDistance  = (0.5f * iterableMatrix[1][2]) + (0.5f * (totalDistance[2] - totalDistance[1]));
 				
-				float centralTreeDistance = 0.0f;
+				double centralTreeDistance = 0.0f;
 				
 				//Calculate final distance between join node and the last two
 				if(rowMin!=0){
