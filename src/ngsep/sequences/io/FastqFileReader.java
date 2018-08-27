@@ -26,12 +26,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Constructor;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
-import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.RawRead;
 
 /**
@@ -40,7 +40,7 @@ import ngsep.sequences.RawRead;
  *
  */
 public class FastqFileReader implements Iterable<RawRead>,Closeable  {
-
+	
 	private Logger log = Logger.getLogger(FastqFileReader.class.getName());
 	
 	/**
@@ -61,6 +61,10 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	private FastqFileIterator currentIterator = null;
 	
 	private int loadMode = LOAD_MODE_FULL;
+	
+	private Class<? extends CharSequence> sequenceType = null;
+	
+	private Constructor<? extends CharSequence> charSequenceConstructor = null;
 	
 	public FastqFileReader (String filename) throws IOException {
 		init(null,new File(filename));
@@ -87,6 +91,24 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		this.loadMode = loadMode;
 	}
 	
+	/**
+	 * @return Class datatype for sequences to load
+	 */
+	public Class<? extends CharSequence> getSequenceType() {
+		return sequenceType;
+	}
+	/**
+	 * Changes the datatype for the sequences
+	 * @param sequenceType New sequence type
+	 */
+	public void setSequenceType(Class<? extends CharSequence> sequenceType) {
+		this.sequenceType = sequenceType;
+		try {
+			charSequenceConstructor = (Constructor<? extends CharSequence>)sequenceType.getConstructor(CharSequence.class);
+		} catch (NoSuchMethodException | SecurityException e1) {
+			throw new RuntimeException("The given sequence type does not have a string constructor", e1);
+		}
+	}
 	@Override
 	public void close() throws IOException {
 		in.close();
@@ -123,15 +145,24 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	private RawRead load (BufferedReader in) throws IOException {
 		String id = in.readLine();
 		if(id==null) return null;
-		String seq = in.readLine();
+		CharSequence seq = in.readLine();
 		if(seq==null) return null;
 		String plus = in.readLine();
 		if(plus==null) return null;
 		String qs = in.readLine();
 		if(qs==null) return null;
+		
+		if(sequenceType!=null) {
+			try {
+				seq = charSequenceConstructor.newInstance(seq);
+			} catch (Exception e) {
+				throw new RuntimeException("Can not invoke char sequence constructor",e);
+			}
+		}
+		
 		if(loadMode == LOAD_MODE_MINIMAL) return new RawRead(null, seq, null);
 		else if (loadMode == LOAD_MODE_QUALITY) return new RawRead(null, seq, qs);
-		else return new RawRead(id.substring(1), new DNAMaskedSequence(seq), qs);
+		else return new RawRead(id.substring(1), seq, qs);
 	}
 	
 	private boolean passFilters (RawRead read) {

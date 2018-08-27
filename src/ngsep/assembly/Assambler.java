@@ -390,6 +390,8 @@ public class Assambler {
 	private static List<DNAMaskedSequence> loadFastq(String filename) throws IOException {
 		List<DNAMaskedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
+			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
+			reader.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();

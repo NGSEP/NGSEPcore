@@ -113,6 +113,8 @@ public class ReadsAligner {
 		int uniqueAlignments=0;
 		long time = System.currentTimeMillis();
 		try (FastqFileReader reader = new FastqFileReader(readsFile)) {
+			//Load as DNAMaskedSequence to allow reverse complement
+			reader.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it = reader.iterator();
 			while(it.hasNext()) {
 				RawRead read = it.next();
