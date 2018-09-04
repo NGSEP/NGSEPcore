@@ -116,7 +116,7 @@ public class VCFGoldStandardComparator {
 					int column = getGenotypeNumber(callTest);
 					CalledGenomicVariant expandedCallTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
 					int cmp = compRegion.compare(callGS, expandedCallTest);
-					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+" call test: "+callTest.getFirst()+" type: "+type+" column: "+column+" comparison: "+cmp);					
+					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" expanded call: "+expandedCallTest.getFirst()+"-"+expandedCallTest.getLast()+"type: "+type+" column: "+column+" comparison: "+cmp);					
 					if (cmp<-1) break;
 					if (cmp<=1) {
 						//Overlap between GS and extended region
@@ -126,7 +126,7 @@ public class VCFGoldStandardComparator {
 							continue;
 						}
 						//Variant falling out of reference region will be processed by the next gs region
-						int remainder = callTest.getLast() - callGS.getLast();	
+						int remainder = expandedCallTest.getLast() - callGS.getLast();	
 						if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" remainder: "+remainder);
 						if(!callTest.isHomozygousReference() && remainder>0) break;
 						if(callTest.getFirst()<callGS.getFirst() || callGS.getLast()<callTest.getLast()) column+=12;
