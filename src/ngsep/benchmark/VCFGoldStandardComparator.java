@@ -80,6 +80,7 @@ public class VCFGoldStandardComparator {
 		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
 		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
 		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());
+		long confidenceRegionsLength = 0;
 		//countsPerType.put(GenomicVariant.TYPE_UNDETERMINED, new GoldStandardComparisonCounts());
 		List<CalledGenomicVariant> callsTest = VCFFileReader.loadCalledVariantsSingleIndividualVCF(vcfTest);
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
@@ -97,6 +98,7 @@ public class VCFGoldStandardComparator {
 			while (itGS.hasNext()) {
 				VCFRecord rGS = itGS.next();
 				CalledGenomicVariant callGS = rGS.getCalls().get(0);
+				if(!callGS.isUndecided())confidenceRegionsLength+=callGS.getReference().length();
 				boolean referenceRegion = callGS.isHomozygousReference();
 				byte typeGS = loadType(callGS);
 				List<CalledGenomicVariant> callsIntersect = new ArrayList<>();
@@ -203,6 +205,9 @@ public class VCFGoldStandardComparator {
 				out.close();
 			}
 		}
+		double confidentMbp = confidenceRegionsLength/1000000;
+		System.out.println("Confident MBP: "+confidentMbp);
+		for(GoldStandardComparisonCounts counts:countsPerType.values()) counts.setConfidentMbp(confidentMbp);
 		System.out.println("SNVs");
 		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(System.out);
 		System.out.println("Indels");
@@ -339,6 +344,7 @@ class GoldStandardComparisonCounts {
 	private int [][] counts;
 	private static final DecimalFormat DF = new DecimalFormat("0.0000");
 	private boolean countNonGSAsFP = false;
+	private double confidentMbp=3000;
 	public GoldStandardComparisonCounts () {
 		counts = new int [NUM_ROWS_COUNTS][15];
 	}
@@ -357,6 +363,21 @@ class GoldStandardComparisonCounts {
 	 */
 	public void setCountNonGSAsFP(boolean countNonGSAsFP) {
 		this.countNonGSAsFP = countNonGSAsFP;
+	}
+	
+	/**
+	 * @return the confidentMbp
+	 */
+	public double getConfidentMbp() {
+		return confidentMbp;
+	}
+
+
+	/**
+	 * @param confidentMbp the confidentMbp to set
+	 */
+	public void setConfidentMbp(double confidentMbp) {
+		this.confidentMbp = confidentMbp;
 	}
 
 
@@ -396,6 +417,7 @@ class GoldStandardComparisonCounts {
 		double denomFDR1 = testTotal1;
 		if(countNonGSAsFP) fd1 += row[13];
 		else denomFDR1 -= row[13];
+		double fppm1 = fd1/confidentMbp;
 		double fdr1 = 0;
 		double precision1 = 1;
 		if(denomFDR1>1) {
@@ -407,7 +429,7 @@ class GoldStandardComparisonCounts {
 			f1 = 2.0*precision1*recall1/(precision1+recall1);
 		}
 		
-		out.print("\t"+DF.format(recall1)+"\t"+fd1+"\t"+DF.format(fdr1)+"\t"+DF.format(precision1)+"\t"+DF.format(f1));
+		out.print("\t"+DF.format(recall1)+"\t"+fd1+"\t"+DF.format(fppm1)+"\t"+DF.format(fdr1)+"\t"+DF.format(precision1)+"\t"+DF.format(f1));
 		
 		double recall2 = 0;
 		if(gsTotal2>0) {
@@ -417,6 +439,7 @@ class GoldStandardComparisonCounts {
 		double denomFDR2 = testTotal2;
 		if(countNonGSAsFP) fd2 += row[14];
 		else denomFDR2 -= row[14];
+		double fppm2 = fd2/confidentMbp;
 		double fdr2 = 0;
 		double precision2 = 1;
 		if(denomFDR2>0) {
@@ -427,7 +450,7 @@ class GoldStandardComparisonCounts {
 		if(precision2 + recall2 > 0) {
 			f2 = 2.0*precision2*recall2/(precision2+recall2);
 		}
-		out.print("\t"+DF.format(recall2)+"\t"+fd2+"\t"+DF.format(fdr2)+"\t"+DF.format(precision2)+"\t"+DF.format(f2));
+		out.print("\t"+DF.format(recall2)+"\t"+fd2+"\t"+DF.format(fppm2)+"\t"+DF.format(fdr2)+"\t"+DF.format(precision2)+"\t"+DF.format(f2));
 		
 	}
 	
