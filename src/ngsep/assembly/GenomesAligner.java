@@ -344,10 +344,11 @@ public class GenomesAligner {
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
 		AnnotatedReferenceGenome genome2 = genomes.get(1);
 		
-		// Print Unique units genome 1
-		try (PrintStream outUniqueG1 = new PrintStream(outPrefix+"_uniqueG1.tsv");) {
+		// Print Unique units genome 1 outUniqueG1
+		try (PrintStream outAlignment = new PrintStream(outPrefix+"_lcs.tsv");) {
+			outAlignment.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
 			for(OrthologyUnit unit:genome1.getUniqueOrthologyUnits()) {
-				printOrthologyUnit(unit, genome2.getId(), outUniqueG1);
+				printOrthologyUnit(unit, genome2.getId(), outAlignment);
 			}
 		}
 		try (PrintStream outUniqueG2 = new PrintStream(outPrefix+"_uniqueG2.tsv");) {
@@ -356,12 +357,12 @@ public class GenomesAligner {
 			}
 		}
 		//Print LCS
-		try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.tsv");) {
-			outAlignmnent.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2");
-			for(OrthologyUnit unit:alignedUnitsFirstGenome) {
-				printOrthologyUnit(unit, genome2.getId(), outAlignmnent);
-			}
-		}
+		//try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.tsv");) {
+			//outAlignmnent.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2");
+			//for(OrthologyUnit unit:alignedUnitsFirstGenome) {
+				//printOrthologyUnit(unit, genome2.getId(), outAlignmnent);
+		//	}
+	//	}
 		//Print metadata genome 1
 		try (PrintStream outGenome1 = new PrintStream(outPrefix+"_genome1.tsv");) {
 			printGenomeMetadata(outGenome1, genome1.getSequencesMetadata());
@@ -410,6 +411,18 @@ public class GenomesAligner {
 		outD3Linear.println("</titled>");
 		outD3Linear.println(htmlStyleCode());
 		outD3Linear.println("<body>");
+		//Adds the buttons for lcs, multiple and uniques
+		outD3Linear.println("<div id=\"option\">\n" + 
+				"    <input id=\"LCSbutton\" \n" + 
+				"           type=\"button\" \n" + 
+				"           value=\"LCS\"/>\n" + 
+				"    <input id=\"Multiplebutton\" \n" + 
+				"           type=\"button\" \n" + 
+				"           value=\"Multiple\"/>\n" + 
+				"    <input id=\"Uniquesbutton\" \n" + 
+				"           type=\"button\" \n" + 
+				"           value=\"Uniques\"/>\n" + 
+				"</div>");
 		outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
 		outD3Linear.println("<script>");
 		//Print D3 script

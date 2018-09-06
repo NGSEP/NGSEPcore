@@ -125,23 +125,62 @@ d3.tsv("InputFileLCS.tsv", function(error, lcs)
   });
 
   // Add grey background lines for context.
-  background = svg.append("g")
-      .attr("class", "background")
-    .selectAll("path")
-      .data(lcs)
-    .enter().append("path")
-      .attr("d", path);
+  //background = svg.append("g")
+  //    .attr("class", "background")
+  //  .selectAll("path")
+  //    .data(lcs)
+  //  .enter().append("path")
+  //    .attr("d", path);
 
   // Add blue foreground lines for focus.
+  //foreground = svg.append("g")
+  //    .attr("class", "foreground")
+  //  .selectAll("path")
+  //    .data(lcs)
+  //  .enter().append("path")
+  //    .attr("d", path)
+  //  	This function assigns color to genes aligning to the same chromosome 
+  //    .attr("stroke",function(d){return c20(d.chromosomeG1)});
+      
+
+ //Show LCS only
+d3.select("#LCSbutton").on("click", showLCS);  
+function showLCS() {
+  // Add colored foreground lines for focus.
   foreground = svg.append("g")
       .attr("class", "foreground")
     .selectAll("path")
       .data(lcs)
     .enter().append("path")
       .attr("d", path)
-    	//.attr("stroke",function(d){return c20(d.specieA_cmsm+d.specieB_cmsm)});
-  		//This function assigns color to genes aligning to the same chromosome 
-      .attr("stroke",function(d){return c20(d.chromosomeG1)});
+  	  .attr("stroke", function(d) {if(d.type=="L") return c20(d.chromosomeG1)})
+}
+ //Show multiple hits
+d3.select("#Multiplebutton").on("click", showMultiple);
+function showMultiple() {
+  // Add colored foreground lines for focus.
+  foreground = svg.append("g")
+      .attr("class", "foreground")
+    .selectAll("path")
+      .data(lcs)
+    .enter().append("path")
+      .attr("d", path)
+  	  .attr("stroke", function(d) {if(d.type=="M") return c20(d.chromosomeG1)})
+}
+  
+//Show unique hits
+d3.select("#Uniquesbutton").on("click", showUniques);
+function showUniques() {
+  // Add colored foreground lines for focus.
+  foreground = svg.append("g")
+      .attr("class", "foreground")
+    .selectAll("path")
+      .data(lcs)
+    .enter().append("path")
+      .attr("d", path)
+  	  .attr("stroke", function(d) {if(d.type=="U") return c20(d.chromosomeG1)})
+}      
+      
 
   // Add a group element for each dimension.
   var g = svg.selectAll(".dimension")
