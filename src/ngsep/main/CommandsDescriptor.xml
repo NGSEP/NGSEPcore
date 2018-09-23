@@ -1,4 +1,4 @@
-<NGSEP version="3.2.0" date="04-07-2018">
+<NGSEP version="3.3.0" date="04-10-2018">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -965,7 +965,7 @@ simulated genome
 Ploidy of the simulated sample 
 </option>
 </command>
-<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner" printHelp="false">
+<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner">
 <intro>
 Compares two partially or completely assembled genomes
 </intro>
@@ -979,10 +979,12 @@ and runs a whole genome comparison taking unique genes as orthology units
 <argument>TRANSCRIPTOME1</argument>
 <argument>GENOME2</argument>
 <argument>TRANSCRIPTOME2</argument>
-<argument>OUT_PREFIX</argument>
+<option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outPrefix">
+Prefix of output files
+</option>
 </command>
 
-<command id="VCFIndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" printHelp="false">
+<command id="VCFIndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder">
 <intro>
 Builds a genome in fasta format from homozygous variants in a VCF file
 </intro>
