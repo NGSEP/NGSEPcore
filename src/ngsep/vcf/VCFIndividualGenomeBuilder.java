@@ -45,14 +45,16 @@ public class VCFIndividualGenomeBuilder {
 	private Logger log = Logger.getLogger(VCFIndividualGenomeBuilder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	private ReferenceGenome genome;
+	
 	public static void main(String[] args) throws Exception {
 		VCFIndividualGenomeBuilder instance = new VCFIndividualGenomeBuilder();
 		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String vcfFile = args[i++];
-		ReferenceGenome genome = new ReferenceGenome(args[i++]);
+		instance.genome = new ReferenceGenome(args[i++]);
 		String outFile = args[i++];
 		try (PrintStream out = new PrintStream(outFile)) {
-			instance.makeGenomeFromVCF(genome,vcfFile,out);
+			instance.makeGenomeFromVCF(vcfFile,out);
 		}
 	}
 	
@@ -71,8 +73,22 @@ public class VCFIndividualGenomeBuilder {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	/**
+	 * @return the genome
+	 */
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
 
-	public void makeGenomeFromVCF(ReferenceGenome genome, String vcfFile, PrintStream out) throws IOException {
+	/**
+	 * @param genome the genome to set
+	 */
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+
+	public void makeGenomeFromVCF(String vcfFile, PrintStream out) throws IOException {
 		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
 		QualifiedSequenceList individualGenome = new QualifiedSequenceList();
 		
