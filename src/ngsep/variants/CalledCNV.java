@@ -363,4 +363,8 @@ public class CalledCNV implements CalledGenomicVariant {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	@Override
+	public byte getStrandBiasScore() {
+		return 0;
+	}
 }

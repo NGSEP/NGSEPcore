@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.math.FisherExactTest;
 
 /**
  * Class to store a pileup from many alignments spanning the same 
@@ -37,6 +38,7 @@ public class PileupRecord {
 	private List<ReadAlignment> alignments = new ArrayList<ReadAlignment>();
 	private int referenceSpan=1;
 	private int numUniqueAlns = 0;
+	private int numNegativeStrandAlns = 0;
 	private boolean str = false;
 	private boolean newSTR = false;
 	private boolean embedded = false;
@@ -117,6 +119,7 @@ public class PileupRecord {
 			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str+" read group: "+aln.getReadGroup());
 			PileupAlleleCall call = new PileupAlleleCall(alleleCall.toString(), alnQS);
 			call.setReadGroup(aln.getReadGroup());
+			call.setNegativeStrand(aln.isNegativeStrand());
 			alleleCalls.add(call);
 		}
 		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size());
@@ -129,6 +132,7 @@ public class PileupRecord {
 		if(aln.getLast()<position) return;
 		alignments.add(aln);
 		if(aln.isUnique()) numUniqueAlns++;
+		if(aln.isNegativeStrand()) numNegativeStrandAlns++;
 		alleleCallsCache.clear();
 	}
 	
@@ -168,6 +172,20 @@ public class PileupRecord {
 
 	public void setEmbedded(boolean embedded) {
 		this.embedded = embedded;
+	}
+	
+	public double calculateStrandBiasPValue () {
+		int a = numNegativeStrandAlns;
+		int c = alignments.size()-a;
+		int b = alignments.size()/2;
+		int d = alignments.size()-b;
+		if(a>c) {
+			//Set a to be the minimum for efficiency
+			int t = a;
+			a = c;
+			c = t;
+		}
+		return FisherExactTest.calculatePValue(a, b, c, d);
 	}
 	
 }

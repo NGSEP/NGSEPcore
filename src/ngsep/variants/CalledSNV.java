@@ -53,6 +53,9 @@ public class CalledSNV implements CalledGenomicVariant {
 	//Phasing as a bit array
 	private byte phasing = -1;
 	
+	//Strand bias score
+	private byte strandBiasScore =INVALID_STRAND_BIAS_SCORE;
+	
 	
 	/**
 	 * Creates a new CalledSNV with the given information
@@ -499,8 +502,14 @@ public class CalledSNV implements CalledGenomicVariant {
 	public void setType(byte type) {
 		snv.setType(type);
 	}
-	
-	
-	
-		
+	@Override
+	public byte getStrandBiasScore() {
+		return strandBiasScore;
+	}
+	/**
+	 * @param strandBiasScore the strandBiasScore to set
+	 */
+	public void setStrandBiasScore(byte strandBiasScore) {
+		this.strandBiasScore = strandBiasScore;
+	}	
 }

@@ -25,8 +25,10 @@ import java.util.List;
 
 import JSci.maths.ExtraMath;
 import JSci.maths.SpecialMath;
+import ngsep.math.FisherExactTest;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
+import ngsep.variants.CalledGenomicVariant;
 
 
 /**
@@ -38,6 +40,7 @@ public class CountsHelper {
 	private int totalCount=0;
 	private int lowBaseQualityCount = 0;
 	private int [] counts;
+	private int [][] countsStrand;
 	private double [][] logConditionalProbs;
 	private double pAllele1=0.5;
 	private short maxBaseQS=255;
@@ -51,6 +54,15 @@ public class CountsHelper {
 	public CountsHelper (String [] alleles) {
 		setAlleles(alleles);
 	}
+	
+	public void setAlleles(String [] alleles) {
+		this.alleles = Arrays.asList(alleles);
+		int nAlleles = alleles.length;
+		counts = new int [nAlleles];
+		countsStrand = new int [nAlleles][2];
+		logConditionalProbs = new double [nAlleles][nAlleles];
+		startCounts();
+	}
 	/**
 	 * Starts all counts to zero
 	 */
@@ -59,6 +71,7 @@ public class CountsHelper {
 		lowBaseQualityCount=0;
 		for(int i=0;i<logConditionalProbs.length;i++) {
 			counts[i] = 0;
+			countsStrand [i][0] = countsStrand [i][1] = 0;
 			for(int j=0;j<logConditionalProbs[0].length;j++) {
 				logConditionalProbs[i][j] = 0;
 			}
@@ -69,8 +82,9 @@ public class CountsHelper {
 	 * @param allele New allele call to count
 	 * @param charQualityScore Quality score of the allele call in Phred+33 scale
 	 * @param mappingQuality Quality score of the mapping in Phred scale
+	 * @param negativeStrand True if the allele comes from a read aligned to the negative strand
 	 */
-	public void updateCounts (String allele, short qualScore, short mappingQuality) {
+	public void updateCounts (String allele, short qualScore, short mappingQuality, boolean negativeStrand) {
 		totalCount++;
 		if(qualScore<=2) {
 			lowBaseQualityCount++;
@@ -87,7 +101,13 @@ public class CountsHelper {
 		}
 		int index = alleles.indexOf(allele);
 		if(index>=0 && successProb > errorProb) {
+			//Update raw count
 			counts[index]++;
+			//Update strand counts
+			if(negativeStrand) countsStrand[index][0]++;
+			else countsStrand[index][1]++;
+			
+			//Update probabilities
 			double term = pAllele1*(1-alleles.size()*errorProb);
 			for(int i=0;i<logConditionalProbs.length;i++) {
 				double errorCont = readProb*Math.log10(errorProb);
@@ -257,13 +277,6 @@ public class CountsHelper {
 	public String [] getAlleles() {
 		return alleles.toArray(new String [0]);
 	}
-	public void setAlleles(String [] alleles) {
-		this.alleles = Arrays.asList(alleles);
-		int nAlleles = alleles.length;
-		counts = new int [nAlleles];
-		logConditionalProbs = new double [nAlleles][nAlleles];
-		startCounts();
-	}
 	
 	public List<String> getAllelesList() {
 		return Collections.unmodifiableList(alleles);
@@ -284,6 +297,21 @@ public class CountsHelper {
 	}
 	public int getLowBaseQualityCount() {
 		return lowBaseQualityCount;
+	}
+	
+	public double getPValueStrandBiasFisher (int i1, int i2) {
+		if(i1<0 || i1>=countsStrand.length) throw new IllegalArgumentException("Invalid first allele index: "+i1);
+		if(i2<0 || i2>=countsStrand.length) throw new IllegalArgumentException("Invalid second allele index: "+i2);
+		int a = countsStrand[i1][0];
+		int b = countsStrand[i2][0];
+		int c = countsStrand[i1][1];
+		int d = countsStrand[i2][1];
+		return FisherExactTest.calculatePValue(a, b, c, d);
+	}
+	
+	public byte getScoreStrandBiasFisher (int i1, int i2) {
+		double pvalueSB = getPValueStrandBiasFisher(i1, i2);
+		return (byte) Math.min(CalledGenomicVariant.MAX_STRAND_BIAS_SCORE, PhredScoreHelper.calculatePhredScore(pvalueSB));
 	}
 	
 }

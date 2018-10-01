@@ -73,8 +73,10 @@ public class GenomicVariantAnnotation {
 	 */
 	public static final String ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM = "AFS";
 	
-	
-	
+	/**
+	 * Phred scaled fisher strand bias 
+	 */
+	public static final String ATTRIBUTE_FISHER_STRAND_BIAS = "FS";
 	
 	private GenomicVariant genomicVariant;
 	private String attribute;

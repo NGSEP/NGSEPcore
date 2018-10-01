@@ -23,6 +23,8 @@ public class PileupAlleleCall {
 	private CharSequence sequence;
 	private String qualityScores;
 	private String readGroup;
+	private boolean negativeStrand = false;
+	
 	public PileupAlleleCall(CharSequence sequence, String qualityScores) {
 		super();
 		this.sequence = sequence;
@@ -34,6 +36,10 @@ public class PileupAlleleCall {
 	 */
 	public CharSequence getSequence() {
 		return sequence;
+	}
+	
+	public String getAlleleString () {
+		return sequence.toString().toUpperCase();
 	}
 
 	/**
@@ -54,5 +60,19 @@ public class PileupAlleleCall {
 	 */
 	public void setReadGroup(String readGroup) {
 		this.readGroup = readGroup;
+	}
+
+	/**
+	 * @return the negativeStrand
+	 */
+	public boolean isNegativeStrand() {
+		return negativeStrand;
+	}
+
+	/**
+	 * @param negativeStrand the negativeStrand to set
+	 */
+	public void setNegativeStrand(boolean negativeStrand) {
+		this.negativeStrand = negativeStrand;
 	}
 }

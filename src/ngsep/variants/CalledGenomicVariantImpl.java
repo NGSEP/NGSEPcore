@@ -38,6 +38,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	private VariantCallReport callReport;
 	private int [] allCounts;
 	private byte [] indexesPhasedAlleles = new byte [0];
+	private byte strandBiasScore = INVALID_STRAND_BIAS_SCORE;
 	
 	public CalledGenomicVariantImpl (String sequenceName, int position, List<String> alleles, byte[] indexesCalledAlleles) {
 		variant = new GenomicVariantImpl(sequenceName, position, alleles);
@@ -413,6 +414,19 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	public void setType(byte type) {
 		variant.setType(type);
 	}
+
+	@Override
+	public byte getStrandBiasScore() {
+		return strandBiasScore;
+	}
+
+	/**
+	 * @param strandBiasScore the strandBiasScore to set
+	 */
+	public void setStrandBiasScore(byte strandBiasScore) {
+		this.strandBiasScore = strandBiasScore;
+	}
+	
 
 	
 }

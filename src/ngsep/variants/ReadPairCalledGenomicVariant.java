@@ -338,4 +338,12 @@ public class ReadPairCalledGenomicVariant implements CalledGenomicVariant {
 	}
 
 
+
+	@Override
+	public byte getStrandBiasScore() {
+		// TODO Auto-generated method stub
+		return INVALID_STRAND_BIAS_SCORE;
+	}
+
+
 }

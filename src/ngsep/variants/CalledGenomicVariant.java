@@ -31,6 +31,8 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	public static final byte ALLELE_REFERENCE = 0;
 	public static final byte ALLELE_ALTERNATIVE = 1;
 	
+	public static final byte MAX_STRAND_BIAS_SCORE = 100;
+	public static final byte INVALID_STRAND_BIAS_SCORE = -1;
 
 	/**
 	 * @return String sampleId for this call
@@ -154,4 +156,9 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	 * @return byte [] indexes in the alleles array of the called alleles sorted according to their phase
 	 */
 	public byte [] getIndexesPhasedAlleles ();
+	/**
+	 * Returns the strand bias score
+	 * @return byte Phred-scaled probability of strand bias according to the fisher exact test
+	 */
+	public byte getStrandBiasScore();
 }

@@ -51,11 +51,6 @@ public class VariantPileupListener implements PileupListener {
 	
 	private short minQuality = DEF_MIN_QUALITY;
 	
-	
-	
-	
-	
-	
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
 	private int lastIndelEnd = 0;
 	
