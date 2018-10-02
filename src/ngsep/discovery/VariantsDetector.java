@@ -1024,7 +1024,7 @@ public class VariantsDetector implements PileupListener {
 				else if (call.getAllCounts()!=null) format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV;
 				else format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
 				VCFRecord record = new VCFRecord(call, format, call, header);
-				record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS, call.getStrandBiasScore()));
+				if(call.getStrandBiasScore()!=CalledGenomicVariant.INVALID_STRAND_BIAS_SCORE) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS, call.getStrandBiasScore()));
 				if(varInCNV[i]) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, "1"));
 				varsFW.printVCFRecord(record, outVars);
 			}

@@ -286,14 +286,14 @@ public class VariantDiscoverySNVQAlgorithm {
 
 	//PRE: Reference allele is not null and its length is larger than 1. If variant is not null, reference allele is the reference allele of the variant
 	public static CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele, Set<String> readGroups) {
-		//if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
+		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
 		String [] indelAlleles;
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length());
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();
 		for(PileupAlleleCall call:calls) {
 			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
 			
-			//if(pileup.getPosition()==posPrint) System.out.println("Adding to cluster allele call: "+allele.toUpperCase());
+			if(pileup.getPosition()==posPrint) System.out.println("Adding to cluster allele call: "+call.getAlleleString());
 			acBuilder.addAlleleCall(call);	
 		}
 		Map<String, List<PileupAlleleCall>> alleleClusters;

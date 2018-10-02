@@ -64,6 +64,7 @@ public class VCFFileHeader {
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES,"\"Number of alleles in called genotypes\"","1","Integer"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM,"\"Allele counts over the population for all alleles, including the reference\"","R","Integer"));
 		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TYPE,"\"Type of variant\"", "1", "String"));
+		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS,"\"Phred-scaled p-value using Fisher's exact test to detect strand bias\"","1","Float"));
 		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE,"\"Genotype\"","1","String"));
 		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_PHRED_LIKELIHOOD,"\"Phred-scaled genotype likelihoods rounded to the closest integer\"","G","Integer"));
 		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_QUALITY,"\"Genotype quality\"","1","Integer"));
