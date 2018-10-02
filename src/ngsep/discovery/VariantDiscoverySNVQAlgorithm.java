@@ -36,10 +36,10 @@ public class VariantDiscoverySNVQAlgorithm {
 	}
 
 	//PRE: Reference base is uppercase
-	public static CalledGenomicVariant callSNV(PileupRecord pileup, CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate) {
+	public static CalledGenomicVariant callSNV(PileupRecord pileup, CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate, boolean calcStrandBias) {
 		CalledGenomicVariant newCall;
 		if(variant!=null) {
-			newCall = genotypeSNV(countsHelper, variant, heterozygosityRate);
+			newCall = genotypeSNV(countsHelper, variant, heterozygosityRate, calcStrandBias);
 		} else {
 			if(countsHelper.getTotalCount()==0) {
 				return null;
@@ -48,12 +48,12 @@ public class VariantDiscoverySNVQAlgorithm {
 				//N reference can in principle be handled but it generates  many non variant sites
 				return null;
 			}
-			newCall = findNewSNV(pileup,countsHelper,refBase,heterozygosityRate);
+			newCall = findNewSNV(pileup,countsHelper,refBase,heterozygosityRate, calcStrandBias);
 		}
 		return newCall;
 	}
 	//PRE: variant!=null
-	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, double heterozygosityRate) {
+	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, double heterozygosityRate, boolean calcStrandBias) {
 		CalledGenomicVariant newCall;
 		if(countsHelper.getTotalCount()==0) {
 			CalledGenomicVariantImpl undecidedCall = new CalledGenomicVariantImpl(variant, new byte [0]);
@@ -89,7 +89,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			csnv.setTotalReadDepth(countsHelper.getTotalCount());
 			csnv.setAllBaseCounts(allCounts);
 			csnv.setAllGenotypeLogConditionals(allLogConditionals);
-			if(genotype!=CalledGenomicVariant.GENOTYPE_UNDECIDED && genotype!=CalledGenomicVariant.GENOTYPE_HOMOREF) {
+			if(calcStrandBias && genotype!=CalledGenomicVariant.GENOTYPE_UNDECIDED && genotype!=CalledGenomicVariant.GENOTYPE_HOMOREF) {
 				csnv.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexRef, indexAlt));
 			}
 			newCall = csnv;
@@ -122,14 +122,16 @@ public class VariantDiscoverySNVQAlgorithm {
 			call.setAllCounts(allCounts);
 			VariantCallReport report = new VariantCallReport(alleles, reportCounts, reportLogs);
 			call.setCallReport(report);
-			if(genotype.length==1 && genotype[0]!=0) call.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexes[0], indexes[genotype[0]]));
-			else if (genotype.length==2) call.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexes[genotype[0]], indexes[genotype[1]]));
+			if(calcStrandBias) {
+				if(genotype.length==1 && genotype[0]!=0) call.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexes[0], indexes[genotype[0]]));
+				else if (genotype.length==2) call.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexes[genotype[0]], indexes[genotype[1]]));
+			}
 			newCall = call;
 		}
 		return newCall;
 	}
 	//Calls the SNVQ algorithm from the counts stored in the counts helper object
-	private static CalledGenomicVariant findNewSNV(PileupRecord pileup, CountsHelper countsHelper, char refBase, double heterozygosityRate) {
+	private static CalledGenomicVariant findNewSNV(PileupRecord pileup, CountsHelper countsHelper, char refBase, double heterozygosityRate, boolean calcStrandBias) {
 		String bases = DNASequence.BASES_STRING;
 		byte indexRef = (byte) bases.indexOf(refBase);
 		int [] counts = countsHelper.getCounts();
@@ -194,8 +196,10 @@ public class VariantDiscoverySNVQAlgorithm {
 			triallelicVar.setAllCounts(counts);
 			double [] [] reportLogConds = makeReportProbs(countsHelper.getLogConditionalProbs(),indexes);
 			triallelicVar.setCallReport(new VariantCallReport(alleles.toArray(new String [0]), reportCounts, reportLogConds));
-			if(indexThird<0 && indexRef>=0) triallelicVar.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexRef, indexAlt));
-			else if (indexThird>=0) triallelicVar.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexAlt, indexThird));
+			if(calcStrandBias) {
+				if(indexThird<0 && indexRef>=0) triallelicVar.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexRef, indexAlt));
+				else if (indexThird>=0) triallelicVar.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexAlt, indexThird));
+			}
 			return triallelicVar;
 		}
 		char altBase=0;
@@ -238,7 +242,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		csnv.setTotalReadDepth(countsHelper.getTotalCount());
 		csnv.setAllBaseCounts(counts);
 		csnv.setAllGenotypeLogConditionals(countsHelper.getLogConditionalProbs());
-		if(genotype!=CalledGenomicVariant.GENOTYPE_UNDECIDED && genotype!=CalledGenomicVariant.GENOTYPE_HOMOREF) {
+		if(calcStrandBias && genotype!=CalledGenomicVariant.GENOTYPE_UNDECIDED && genotype!=CalledGenomicVariant.GENOTYPE_HOMOREF) {
 			csnv.setStrandBiasScore(countsHelper.getScoreStrandBiasFisher(indexRef, indexAlt));
 		}
 		return csnv;
@@ -344,7 +348,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		return answer;
 	}
 	
-	public static CalledGenomicVariant callIndel (PileupRecord pileup, CountsHelper helper, GenomicVariant variant, double heterozygosityRate) {
+	public static CalledGenomicVariant callIndel (PileupRecord pileup, CountsHelper helper, GenomicVariant variant, double heterozygosityRate, boolean calcStrandBias) {
 		int [] counts = helper.getCounts();
 		double [][] postProbs = helper.getPosteriorProbabilities(heterozygosityRate);
 		if(pileup.getPosition()==posPrint) {
@@ -434,9 +438,10 @@ public class VariantDiscoverySNVQAlgorithm {
 		newCall.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-maxP));
 		newCall.setTotalReadDepth(totalDepth);
 		if(totalDepth>0) newCall.setCallReport(report);
-		
-		if(calledAlleles.length==1 && calledAlleles[0]!=0) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(0, calledAlleles[0]));
-		else if (calledAlleles.length==2) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(calledAlleles[0], calledAlleles[1]));
+		if(calcStrandBias) {
+			if(calledAlleles.length==1 && calledAlleles[0]!=0) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(0, calledAlleles[0]));
+			else if (calledAlleles.length==2) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(calledAlleles[0], calledAlleles[1]));
+		}
 		//if(pileup.getFirst()==82) System.out.println("Indel alleles: "+newCall.getAlleles().length+" called alleles: "+calledAlleles[0]+" "+calledAlleles[1]+" genotype prob: "+newCall.getGenotypeProbability());
 		return newCall;
 	}

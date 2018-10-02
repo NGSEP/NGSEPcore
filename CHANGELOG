@@ -5,6 +5,8 @@ v3.3.0 04-10-2018
   a single individual from a reference genome and homozygous alternative calls
   within a VCF file. This is useful to perform the polishing step of a genome
   assembly project
+- FindVariants: New option to calculate a fisher exact test for strand bias
+  between the reference and the alternative allele
 - ConvertVCF: Fixed error with sorting of parent genotypes in the conversion
   to the JoinMap format. Also inconsistent genotype calls in lmxll and nnxnp
   SNPs are now reported in the log and masked as unknown genotype calls.

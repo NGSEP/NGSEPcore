@@ -873,10 +873,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 		CalledGenomicVariant calledVar = null;
 		if(variant.isSNV()) {
 			CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup, maxBaseQS, sample.getReadGroups());
-			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), h);
+			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), h, false);
 		} else {
 			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, sample.getReadGroups()); 
-			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h);
+			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
 		}
 		if(calledVar==null) {
 			calledVar = new CalledGenomicVariantImpl(variant, new byte[0]);

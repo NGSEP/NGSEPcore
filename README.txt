@@ -258,6 +258,8 @@ OPTIONS:
 	-s			: Consider secondary alignments while calling
 				  SNVs. Non-unique primary alignments will also
 				  be considered in this mode.
+	-csb		: Calculate a exact fisher test p-value for strand bias between
+				  the reference and the alternative allele
 	-minQuality	INT	: Minimum genotype quality to accept a SNV call
 				  Genotype quality is calculated as 1 minus the
 				  posterior probability of the genotype given

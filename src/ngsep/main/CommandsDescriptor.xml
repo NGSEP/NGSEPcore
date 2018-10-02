@@ -170,6 +170,9 @@ The default behavior is to process alignments that are unique (see option -minMQ
 <option id="s">
 Consider secondary alignments in the pileup process. Non-unique primary alignments will also be considered in this mode.
 </option>
+<option id="csb">
+Calculate a exact fisher test p-value for strand bias between the reference and the alternative allele
+</option>
 <option id="minQuality" type="INT" default="0">
 Minimum genotype quality to accept a SNV call.
 </option>

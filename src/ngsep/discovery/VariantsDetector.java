@@ -151,6 +151,8 @@ public class VariantsDetector implements PileupListener {
 				detector.setProcessNonUniquePrimaryAlignments(true);
 			} else if("-s".equals(args[i])) {
 				detector.setProcessSecondaryAlignments(true);
+			} else if("-csb".equals(args[i])) {
+				detector.setCalcStrandBias(true);
 			} else if("-minAltCoverage".equals(args[i])) {
 				//Default 0
 				i++;
@@ -267,7 +269,6 @@ public class VariantsDetector implements PileupListener {
 		detector.processAll();
 	}
 
-	
 	public void setMinMQ(int minMQ) {
 		mmRegsCalc.setMinMQ(minMQ);
 		generator.setMinMQ(minMQ);
@@ -538,6 +539,15 @@ public class VariantsDetector implements PileupListener {
 	public void setHeterozygosityRate(String value) {
 		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
+	
+	public void setCalcStrandBias(boolean calcStrandBias) {
+		varListener.setCalcStrandBias(calcStrandBias);
+		
+	}
+	
+	public void setCalcStrandBias(Boolean calcStrandBias) {
+		setCalcStrandBias(calcStrandBias.booleanValue());
+	}
 
 	public void setMaxBaseQS(byte maxBaseQS) {
 		varListener.setMaxBaseQS(maxBaseQS);
@@ -756,6 +766,7 @@ public class VariantsDetector implements PileupListener {
 		log.info("Ignore variants in lower case reference positions: "+varListener.isIgnoreLowerCaseRef());
 		log.info("Process non unique primary alignments for SNV detection: "+generator.isProcessNonUniquePrimaryAlignments());
 		log.info("Process secondary alignments for SNV detection: "+generator.isProcessSecondaryAlignments());
+		log.info("Calculate a exact fisher test p-value for strand bias: "+varListener.isCalcStrandBias());
 		log.info("Minimum genotype quality score (PHRED): "+varListener.getMinQuality());
 		log.info("Maximum base quality score (PHRED): "+varListener.getMaxBaseQS());
 		log.info("Base pairs to ignore from the 5' end of each read: "+generator.getBasesToIgnore5P());

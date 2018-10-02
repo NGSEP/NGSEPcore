@@ -44,6 +44,7 @@ public class VariantPileupListener implements PileupListener {
 	
 	
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	private boolean calcStrandBias = false;
 	private byte maxBaseQS=DEF_MAX_BASE_QS; 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
@@ -72,6 +73,18 @@ public class VariantPileupListener implements PileupListener {
 	}
 	public void setHeterozygosityRate(double heterozygosityRate) {
 		this.heterozygosityRate = heterozygosityRate;
+	}
+	/**
+	 * @return the calcStrandBias
+	 */
+	public boolean isCalcStrandBias() {
+		return calcStrandBias;
+	}
+	/**
+	 * @param calcStrandBias the calcStrandBias to set
+	 */
+	public void setCalcStrandBias(boolean calcStrandBias) {
+		this.calcStrandBias = calcStrandBias;
 	}
 	public byte getMaxBaseQS() {
 		return maxBaseQS;
@@ -160,7 +173,7 @@ public class VariantPileupListener implements PileupListener {
 		CalledGenomicVariant calledVar;
 		if(referenceAllele.length()>1) {
 			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, readGroups); 
-			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, heterozygosityRate);
+			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, heterozygosityRate, calcStrandBias);
 			if(variant == null) {
 				if(calledVar!=null && minQuality!=DEF_MIN_QUALITY && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
 				if(calledVar!=null && (pileup.isInputSTR() || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()))) {
@@ -172,11 +185,11 @@ public class VariantPileupListener implements PileupListener {
 						pileup.setNewSTR(false);
 					}
 					//Try SNV if the indel alleles were not good to make a call
-					calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), heterozygosityRate);
+					calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), heterozygosityRate, calcStrandBias);
 				}
 			}
 		} else {
-			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), heterozygosityRate);
+			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), heterozygosityRate, calcStrandBias);
 		}
 		if(calledVar!=null && minQuality!=DEF_MIN_QUALITY && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
 		if(calledVar != null && (variant!=null || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()) )) {
