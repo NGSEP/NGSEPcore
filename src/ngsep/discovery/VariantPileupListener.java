@@ -34,7 +34,7 @@ public class VariantPileupListener implements PileupListener {
 	
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
-	public static final byte DEF_MAX_BASE_QS = 127;
+	public static final byte DEF_MAX_BASE_QS = 100;
 	public static final short DEF_MIN_QUALITY = 0;
 	
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();

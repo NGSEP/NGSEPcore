@@ -29,7 +29,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
 		for(PileupAlleleCall call:calls ) {
 			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
-			byte q = (byte)(Math.min(127, call.getQualityScores().charAt(0)-33));
+			byte q = (byte)(Math.min(VariantPileupListener.DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
 			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, call.isNegativeStrand());
 		}
 		return answer;
@@ -329,7 +329,7 @@ public class VariantDiscoverySNVQAlgorithm {
 				String alleleC = call.getAlleleString();
 				double p = distanceMeasure.calculateNormalizedDistance(allele, alleleC)+0.01;
 				p = p*p;
-				byte q = (byte) Math.min(127, PhredScoreHelper.calculatePhredScore(p));
+				byte q = (byte) Math.min(VariantPileupListener.DEF_MAX_BASE_QS, PhredScoreHelper.calculatePhredScore(p));
 				//if(pileup.getPosition()==posPrint) System.out.println("Next call to count: "+call+" quality: "+q);
 				
 				answer.updateCounts(allele, q, call.isNegativeStrand());

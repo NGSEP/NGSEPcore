@@ -166,7 +166,7 @@ public class VariantsDetector implements PileupListener {
 				i++;
 				detector.setMinQuality(args[i]);
 			} else if("-maxBaseQS".equals(args[i])) {
-				//Default 0
+				//Default 100
 				i++;
 				detector.setMaxBaseQS(args[i]);
 			} else if("-ignore5".equals(args[i])) {
