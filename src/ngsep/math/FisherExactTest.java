@@ -19,13 +19,40 @@
  *******************************************************************************/
 package ngsep.math;
 
+import java.util.Random;
+
 /**
  * Implements the Fisher exact test
  * @author Jorge Duitama
  *
  */
 public class FisherExactTest {
-	private static double [] logFactorials; 
+	private static double [] logFactorials;
+	private static boolean quick = true;
+	
+	public static void main(String[] args) throws Exception {
+		Random r = new Random();
+		int limit=100000;
+		for(int i=0;i<100;i++) {
+			int a = r.nextInt(limit);
+			int b = r.nextInt(limit);
+			int c = r.nextInt(limit);
+			int d = r.nextInt(limit);
+			quick = false;
+			long time = System.currentTimeMillis();
+			double p1 = calculatePValue(a, b, c, d);
+			time = System.currentTimeMillis()-time;
+			System.out.println("Calculated p-value for "+a+" "+b+" "+c+" "+d+" in "+time+" milliseconds. Result: "+p1);
+			time = System.currentTimeMillis();
+			quick = true;
+			double p2 = calculatePValue(a, b, c, d);
+			time = System.currentTimeMillis()-time;
+			double diff = p1 - p2;
+			System.out.println("Calculated p-value on quick mode for "+a+" "+b+" "+c+" "+d+" in "+time+" milliseconds. Result: "+p2+" difference: "+diff);
+			if(diff>p1/100) throw new Exception("Quick method not too good"); 
+		}
+	}
+	
 	/**
 	 * Calculates the p-value of the 2x2 table defined by the given values of a, b, c and d
 	 * PRE: a, b, c, and d are non negative
@@ -57,7 +84,7 @@ public class FisherExactTest {
 		double answer = 0;
 		while (a>=0 && d>=0) {
 			double p = calculateExactValue(a, b, c, d);
-			if(e>=10 && answer>100*e*p) {
+			if(quick && e>=10 && answer>100*e*p) {
 				//Further calculations will not increment the two most significant digits
 				break;
 			}

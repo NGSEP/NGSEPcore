@@ -102,9 +102,7 @@ OPTIONS:
 				  quality and read depth on individual genotype
 				  calls. Default: 40
 	-maxBaseQS INT          : Maximum value allowed for a base quality score.
-				  Larger values will be equalized to this value.
-				  Keep the default value of zero to disable this
-				  filter. Default: 0
+				  Larger values will be equalized to this value. Default: 127
 	-ignore5 INT            : Ignore this many base pairs from the 5' end of
 				  the reads. Default: 0
 	-ignore3 INT            : Ignore this many base pairs from the 3' end of
@@ -268,7 +266,7 @@ OPTIONS:
 				  score. Larger values will be equalized to
 				  this value. This parameter allows to reduce
 				  the effect of sequencing errors with high
-				  base quality scores. Default: 0 (No limit)
+				  base quality scores. Default: 127
 	-ignore5 INT		: Ignore this many base pairs from the 5' end
 				  of the reads. Default: 0
 	-ignore3 INT		: Ignore this many base pairs from the 3' end

@@ -34,7 +34,7 @@ public class VariantPileupListener implements PileupListener {
 	
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
-	public static final short DEF_MAX_BASE_QS = 0;
+	public static final byte DEF_MAX_BASE_QS = 127;
 	public static final short DEF_MIN_QUALITY = 0;
 	
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
@@ -44,7 +44,7 @@ public class VariantPileupListener implements PileupListener {
 	
 	
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	private short maxBaseQS=DEF_MAX_BASE_QS; 
+	private byte maxBaseQS=DEF_MAX_BASE_QS; 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
 	private Set<String> readGroups;
@@ -73,10 +73,10 @@ public class VariantPileupListener implements PileupListener {
 	public void setHeterozygosityRate(double heterozygosityRate) {
 		this.heterozygosityRate = heterozygosityRate;
 	}
-	public short getMaxBaseQS() {
+	public byte getMaxBaseQS() {
 		return maxBaseQS;
 	}
-	public void setMaxBaseQS(short maxBaseQS) {
+	public void setMaxBaseQS(byte maxBaseQS) {
 		this.maxBaseQS = maxBaseQS;
 	}
 	public boolean isIgnoreLowerCaseRef() {

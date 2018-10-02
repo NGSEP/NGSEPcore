@@ -29,6 +29,7 @@ import ngsep.math.FisherExactTest;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.GenomicVariant;
 
 
 /**
@@ -37,14 +38,19 @@ import ngsep.variants.CalledGenomicVariant;
  * @author Jorge Duitama
  */
 public class CountsHelper {
+	
+	private static final byte DEF_MIN_BASE_QS = 3;
+	
 	private int totalCount=0;
 	private int lowBaseQualityCount = 0;
 	private int [] counts;
 	private int [][] countsStrand;
 	private double [][] logConditionalProbs;
-	private double pAllele1=0.5;
-	private short maxBaseQS=255;
+	private byte maxBaseQS=VariantPileupListener.DEF_MAX_BASE_QS;
+	
 	private List<String> alleles;
+	private static double [][][] logProbCache;
+	
 	/**
 	 * Creates a default counts helper
 	 */
@@ -61,7 +67,27 @@ public class CountsHelper {
 		counts = new int [nAlleles];
 		countsStrand = new int [nAlleles][2];
 		logConditionalProbs = new double [nAlleles][nAlleles];
+		updateProbabilitiesCache(nAlleles);
 		startCounts();
+	}
+	private void updateProbabilitiesCache(int n) {
+		int m = VariantPileupListener.DEF_MAX_BASE_QS+1;
+		if(n<=GenomicVariant.MAX_NUM_ALLELES)n=GenomicVariant.MAX_NUM_ALLELES+1;
+		if(logProbCache!=null && logProbCache[0].length>=n) return;
+		logProbCache = new double [m][n][3];
+		for(byte i=DEF_MIN_BASE_QS;i<m;i++) {
+			double errorProb = PhredScoreHelper.calculateProbability(i);
+			double successProb = (1 - errorProb);
+			logProbCache[i][0][0] = Math.log10(successProb);
+			logProbCache[i][0][2] = Math.log10(errorProb);
+			for(int j=2;j<n;j++) {
+				double epa = errorProb/(j-1);
+				logProbCache[i][j][2] = Math.log10(epa);
+				double term = 0.5*(1-j*epa);
+				logProbCache[i][j][0] = Math.log10(successProb-term);
+				logProbCache[i][j][1] = Math.log10(epa+term);
+			}
+		}
 	}
 	/**
 	 * Starts all counts to zero
@@ -80,50 +106,41 @@ public class CountsHelper {
 	/**
 	 * Updates counts and conditional probabilities for the given allele call
 	 * @param allele New allele call to count
-	 * @param charQualityScore Quality score of the allele call in Phred+33 scale
-	 * @param mappingQuality Quality score of the mapping in Phred scale
+	 * @param qualScore Quality score of the allele call in Phred scale
 	 * @param negativeStrand True if the allele comes from a read aligned to the negative strand
 	 */
-	public void updateCounts (String allele, short qualScore, short mappingQuality, boolean negativeStrand) {
+	public void updateCounts (String allele, byte qualScore, boolean negativeStrand) {
 		totalCount++;
-		if(qualScore<=2) {
+		if(qualScore<=DEF_MIN_BASE_QS) {
 			lowBaseQualityCount++;
 			return;
 		} else if (qualScore>maxBaseQS) {
 			qualScore = maxBaseQS;
 		}
-		double readProb = 1;
-		double errorProb = PhredScoreHelper.calculateProbability(qualScore);
-		double successProb = (1 - errorProb);
-		errorProb = errorProb/(alleles.size()-1);
-		if(mappingQuality<30) {
-			readProb = (1 - Math.pow(10.0, (-mappingQuality/10.0)));
-		}
 		int index = alleles.indexOf(allele);
-		if(index>=0 && successProb > errorProb) {
+		if(index>=0) {
 			//Update raw count
 			counts[index]++;
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
 			
+			int n = alleles.size();
 			//Update probabilities
-			double term = pAllele1*(1-alleles.size()*errorProb);
 			for(int i=0;i<logConditionalProbs.length;i++) {
-				double errorCont = readProb*Math.log10(errorProb);
 				if(i==index) {
-					logConditionalProbs[i][i] += readProb*Math.log10(successProb); 
+					logConditionalProbs[i][i] += logProbCache[qualScore][0][0]; 
 				} else {
-					logConditionalProbs[i][i] += errorCont;
+					logConditionalProbs[i][i] += logProbCache[qualScore][n][2];
 				}
-				for(int j=0;j<logConditionalProbs[0].length;j++) {
+				for(int j=0;j<logConditionalProbs[i].length;j++) {
 					if(i!=j) {
 						if(i==index) {
-							logConditionalProbs[i][j] += readProb*Math.log10(errorProb+term); 
+							logConditionalProbs[i][j] += logProbCache[qualScore][n][1];
 						} else if (j==index) {
-							logConditionalProbs[i][j] += readProb*Math.log10(successProb-term);
+							logConditionalProbs[i][j] += logProbCache[qualScore][n][0];
 						} else {
-							logConditionalProbs[i][j] += errorCont;
+							logConditionalProbs[i][j] += logProbCache[qualScore][n][2];
 						}
 					}
 				}
@@ -282,19 +299,13 @@ public class CountsHelper {
 		return Collections.unmodifiableList(alleles);
 	}
 	
-	public short getMaxBaseQS() {
+	public byte getMaxBaseQS() {
 		return maxBaseQS;
 	}
-	public void setMaxBaseQS(short maxBaseQS) {
+	public void setMaxBaseQS(byte maxBaseQS) {
 		this.maxBaseQS = maxBaseQS;
 	}
 	
-	public double getpAllele1() {
-		return pAllele1;
-	}
-	public void setpAllele1(double pAllele1) {
-		this.pAllele1 = pAllele1;
-	}
 	public int getLowBaseQualityCount() {
 		return lowBaseQualityCount;
 	}

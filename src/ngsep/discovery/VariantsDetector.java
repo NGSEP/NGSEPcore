@@ -539,12 +539,12 @@ public class VariantsDetector implements PileupListener {
 		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
-	public void setMaxBaseQS(short maxBaseQS) {
+	public void setMaxBaseQS(byte maxBaseQS) {
 		varListener.setMaxBaseQS(maxBaseQS);
 	}
 	
 	public void setMaxBaseQS(String value) {
-		setMaxBaseQS((short)OptionValuesDecoder.decode(value, Short.class));
+		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	public void setIgnoreLowerCaseRef(boolean ignoreLowerCaseRef) {

@@ -100,7 +100,6 @@ See the command FilterVCF to apply filters of quality and read depth on individu
 </option>
 <option id="maxBaseQS" type="INT" defaultConstant="DEF_MAX_BASE_QS" attribute="maxBaseQS">
 Maximum value allowed for a base quality score. Larger values will be equalized to this value.
-Keep the default value of zero to disable this filter.
 </option>
 <option id="ignore5" type="INT" default="0" attribute="basesToIgnore5P">
 Ignore this many base pairs from the 5' end of the reads.

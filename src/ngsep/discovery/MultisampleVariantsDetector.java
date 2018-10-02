@@ -66,7 +66,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final short DEF_MIN_QUALITY = 40;
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	public static final short DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	public static final String DEF_OUTPUT_FILE = "variants.vcf";
 	
@@ -96,7 +96,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private boolean callEmbeddedSNVs = false;
 	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
 	private short minQuality = DEF_MIN_QUALITY;
-	private short maxBaseQS = DEF_MAX_BASE_QS;
+	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private byte normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
 	private String knownVariantsFile=null;
@@ -218,19 +218,19 @@ public class MultisampleVariantsDetector implements PileupListener {
 	/**
 	 * @return the maxBaseQS
 	 */
-	public short getMaxBaseQS() {
+	public byte getMaxBaseQS() {
 		return maxBaseQS;
 	}
 
 	/**
 	 * @param maxBaseQS the maxBaseQS to set
 	 */
-	public void setMaxBaseQS(short maxBaseQS) {
+	public void setMaxBaseQS(byte maxBaseQS) {
 		this.maxBaseQS = maxBaseQS;
 	}
 	
 	public void setMaxBaseQS(String value) {
-		setMaxBaseQS((short)OptionValuesDecoder.decode(value, Short.class));
+		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	/**

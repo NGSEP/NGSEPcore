@@ -23,14 +23,14 @@ public class VariantDiscoverySNVQAlgorithm {
 	private static int posPrint = -1;
 	private static SequenceDistanceMeasure distanceMeasure = new HammingSequenceDistanceMeasure();
 	
-	public static CountsHelper calculateCountsSNV (PileupRecord pileup, short maxBaseQS, Set<String> readGroups) {
+	public static CountsHelper calculateCountsSNV (PileupRecord pileup, byte maxBaseQS, Set<String> readGroups) {
 		CountsHelper answer = new CountsHelper();
 		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
 		for(PileupAlleleCall call:calls ) {
 			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
-			short q = (short)(call.getQualityScores().charAt(0)-33);
-			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, (short)255, call.isNegativeStrand());
+			byte q = (byte)(Math.min(127, call.getQualityScores().charAt(0)-33));
+			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, call.isNegativeStrand());
 		}
 		return answer;
 	}
@@ -329,10 +329,10 @@ public class VariantDiscoverySNVQAlgorithm {
 				String alleleC = call.getAlleleString();
 				double p = distanceMeasure.calculateNormalizedDistance(allele, alleleC)+0.01;
 				p = p*p;
-				short q = PhredScoreHelper.calculatePhredScore(p);
+				byte q = (byte) Math.min(127, PhredScoreHelper.calculatePhredScore(p));
 				//if(pileup.getPosition()==posPrint) System.out.println("Next call to count: "+call+" quality: "+q);
 				
-				answer.updateCounts(allele, q, (short)255, call.isNegativeStrand());
+				answer.updateCounts(allele, q, call.isNegativeStrand());
 			}
 		}
 		/*for(int i=0;i<callsWithScores.size();i+=2) {
