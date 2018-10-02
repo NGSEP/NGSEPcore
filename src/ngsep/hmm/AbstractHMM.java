@@ -59,10 +59,11 @@ public abstract class AbstractHMM implements HMM {
 	public Double calculatePosteriorLogs(List<? extends Object> observations,Double[][] posteriorLogs) {
 		int m = observations.size();
 		int k = getNumStates();
-		initArrays(m,k);
+		initArrays(m,k,false);
+		if(posteriorLogs.length!=m) throw new IllegalArgumentException("Invalid rows of posterior logs. Expected: "+m+" Given: "+posteriorLogs.length);
+		if(m>0 && posteriorLogs[0].length!=k) throw new IllegalArgumentException("Invalid columns of posterior logs. Expected: "+k+" Given: "+posteriorLogs[0].length);
 		Double logProb = calculateForward(observations,forwardLogs);
 		calculateBackward(observations,backwardLogs);
-		
 		for(int i=0;i<posteriorLogs.length;i++) {
 			for(int j=0;j<posteriorLogs[0].length;j++) {
 				Double f = forwardLogs[i][j];
@@ -76,16 +77,24 @@ public abstract class AbstractHMM implements HMM {
 		return logProb;
 	}
 	protected Double [][] calculatePosteriorLogs (List<? extends Object> observations) {
+		//Init arrays if not previously created to avoid reassignment of posteriorLogs cache attribute
+		int m = observations.size();
+		int k = getNumStates();
+		initArrays(m,k,true);
 		calculatePosteriorLogs(observations,posteriorLogs);
 		return posteriorLogs;
 	}
 	
-	
 
 	@Override
 	public void calculatePosteriors(List<? extends Object> observations, double[][] posteriors) {
-		calculatePosteriorLogs(observations,posteriorLogs);
+		int m = observations.size();
+		int k = getNumStates();
+		if(posteriors.length!=m) throw new IllegalArgumentException("Invalid rows of posterior logs. Expected: "+m+" Given: "+posteriors.length);
+		if(m>0 && posteriors[0].length!=k) throw new IllegalArgumentException("Invalid columns of posteriors. Expected: "+k+" Given: "+posteriors[0].length);
+		Double [][] posteriorLogs = calculatePosteriorLogs(observations);
 		for(int i=0;i<posteriorLogs.length;i++) {
+			//System.out.println("i: "+i+" observation: "+observations.get(i)+" posteriorLogs: "+posteriorLogs[i][0]+" "+posteriorLogs[i][1]);
 			LogMath.normalizeLogs(posteriorLogs[i]);
 			for(int j=0;j<posteriorLogs[i].length;j++) {
 				posteriors[i][j] = LogMath.power10(posteriorLogs[i][j]);
@@ -97,6 +106,8 @@ public abstract class AbstractHMM implements HMM {
 	public Double calculateForward(List<? extends Object> observations, Double [][] forwardLogs) {
 		int m = observations.size();
 		int n = getNumStates();
+		if(forwardLogs.length!=m) throw new IllegalArgumentException("Invalid rows of forward logs. Expected: "+m+" Given: "+forwardLogs.length);
+		if(m>0 && forwardLogs[0].length!=n) throw new IllegalArgumentException("Invalid columns of forwardLogs. Expected: "+n+" Given: "+forwardLogs.length);
 		
 		//Array to precalculate forward times emission
 		Double [] fTimesE = new Double[n]; 
@@ -135,7 +146,7 @@ public abstract class AbstractHMM implements HMM {
 	protected Double [][] calculateForward (List<? extends Object> observations) {
 		int m = observations.size();
 		int k = getNumStates();
-		initArrays(m, k);
+		initArrays(m, k, true);
 		calculateForward(observations,forwardLogs);
 		return forwardLogs;
 	}
@@ -161,6 +172,9 @@ public abstract class AbstractHMM implements HMM {
 	public void calculateBackward(List<? extends Object> observations, Double [][] backwardLogs) {
 		int m = observations.size();
 		int n = getNumStates();
+		
+		if(backwardLogs.length!=m) throw new IllegalArgumentException("Invalid rows of backwardLogs. Expected: "+m+" Given: "+backwardLogs.length);
+		if(m>0 && backwardLogs[0].length!=n) throw new IllegalArgumentException("Invalid columns of backwardLogs. Expected: "+n+" Given: "+backwardLogs.length);
 		
 		Double [] bTimesE = new Double[n]; 
 		for(int i=m-1;i>=0;i--) {
@@ -194,7 +208,7 @@ public abstract class AbstractHMM implements HMM {
 	protected Double [][] calculateBackward (List<? extends Object> observations) {
 		int m = observations.size();
 		int k = getNumStates();
-		initArrays(m, k);
+		initArrays(m, k, true);
 		calculateBackward(observations, backwardLogs);
 		return backwardLogs;
 	}
@@ -274,7 +288,7 @@ public abstract class AbstractHMM implements HMM {
 			}
 		}
 	}
-	private void initArrays(int m, int k) {
+	private void initArrays(int m, int k, boolean initPosteriors) {
 		if(forwardLogs.length!=m || forwardLogs[0].length!=k) {
 			getLog().info("Creating array for forward probabilities of dimensions "+m+" x "+k);
 			forwardLogs = new Double[m][k];
@@ -283,7 +297,7 @@ public abstract class AbstractHMM implements HMM {
 			getLog().info("Creating array for backward probabilities of dimensions "+m+" x "+k);
 			backwardLogs = new Double[m][k];
 		}
-		if(posteriorLogs.length!=m || posteriorLogs[0].length!=k) {
+		if(initPosteriors && (posteriorLogs.length!=m || posteriorLogs[0].length!=k)) {
 			getLog().info("Creating array for posterior probabilities of dimensions "+m+" x "+k);
 			posteriorLogs = new Double[m][k];
 		}

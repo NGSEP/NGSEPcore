@@ -76,8 +76,8 @@ public class HaplotypeClustersHMM extends RecombinationHMM {
 		int k = getNumStates();
 		Double [][] forwardLogs=calculateForward(haplotype);
 		Double [][] backwardLogs=calculateBackward(haplotype);
-		calculateForward(haplotype, forwardLogs);
-		calculateBackward(haplotype, backwardLogs);
+		//calculateForward(haplotype, forwardLogs);
+		//calculateBackward(haplotype, backwardLogs);
 		for(int i=0;i<m;i++) {
 			Double log0 = null;
 			Double log1 = null;
