@@ -44,10 +44,14 @@ import ngsep.vcf.VCFRecord;
 public class GoldStandardGVCFBuilder {
 
 	public static void main(String[] args) throws Exception {
-		String referenceGenomeFile = args[0];
-		String referenceRegionsFile = args[1];
-		String variantsFile = args[2];
-		String strsFile = args[3];
+		//In all variants mode, variants outside confidence regions are printed
+		boolean allVariants = "-a".equals(args[0]);
+		int iA=0;
+		if(allVariants) iA++;
+		String referenceGenomeFile = args[iA++];
+		String referenceRegionsFile = args[iA++];
+		String variantsFile = args[iA++];
+		String strsFile = args[iA++];
 		ReferenceGenome genome = new ReferenceGenome(referenceGenomeFile);
 		GenomicRegionComparator comparator = new GenomicRegionComparator(genome.getSequencesMetadata());
 		SimpleGenomicRegionFileHandler fh = new SimpleGenomicRegionFileHandler();
@@ -63,21 +67,26 @@ public class GoldStandardGVCFBuilder {
 			Iterator<VCFRecord> it = vcfReader.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
+				boolean recordFullyCovered = false;
 				//Process first last overlapping region
 				if(overlappingRegion!=null) {
 					int cmp = comparator.compare(overlappingRegion, record);
 					if(cmp<-1) {
+						//Current record is after the last overlap region
 						VCFRecord refRecord = makeReferenceRecord(genome,header,overlappingRegion);
 						writer.printVCFRecord(refRecord, System.out);
 						overlappingRegion = null;
 					} else if (cmp<2) {
 						int spanVar = Math.max(record.length(), record.getLast()-record.getFirst()+1);
 						if(overlappingRegion.getFirst() <= record.getFirst()-spanVar) {
+							//Print confidence region before variant
 							GenomicRegion regBefore = new GenomicRegionImpl(overlappingRegion.getSequenceName(), overlappingRegion.getFirst(), record.getFirst()-spanVar);
 							VCFRecord refRecord = makeReferenceRecord(genome,header,regBefore);
 							writer.printVCFRecord(refRecord, System.out);
 						}
+						recordFullyCovered = overlappingRegion.getFirst()<=record.getFirst() && record.getLast()<=overlappingRegion.getLast();
 						if(record.getLast()+spanVar<=overlappingRegion.getLast()) {
+							//Start the next confidence region a number of bp right of the variant that corresponds with its potential span
 							overlappingRegion = new GenomicRegionImpl(overlappingRegion.getSequenceName(), record.getLast()+spanVar, overlappingRegion.getLast());
 						} else {
 							overlappingRegion = null;
@@ -89,16 +98,20 @@ public class GoldStandardGVCFBuilder {
 						GenomicRegion refRegion = referenceRegions.get(i);
 						int cmp = comparator.compare(refRegion, record);
 						if(cmp<-1) {
+							//Current record is after this confidence region
 							VCFRecord refRecord = makeReferenceRecord(genome,header,refRegion);
 							writer.printVCFRecord(refRecord, System.out);
 						} else if (cmp<2) {
 							int spanVar = Math.max(record.length(), record.getLast()-record.getFirst()+1);
 							if(refRegion.getFirst() <= record.getFirst()-spanVar) {
+								//Print confidence region before variant
 								GenomicRegion regBefore = new GenomicRegionImpl(refRegion.getSequenceName(), refRegion.getFirst(), record.getFirst()-spanVar);
 								VCFRecord refRecord = makeReferenceRecord(genome,header,regBefore);
 								writer.printVCFRecord(refRecord, System.out);
 							}
+							recordFullyCovered = recordFullyCovered || refRegion.getFirst()<=record.getFirst() && record.getLast()<=refRegion.getLast();
 							if(record.getLast()+spanVar<=refRegion.getLast()) {
+								//Start the next confidence region a number of bp right of the variant that corresponds with its potential span
 								overlappingRegion = new GenomicRegionImpl(refRegion.getSequenceName(), record.getLast()+spanVar, refRegion.getLast());
 							}
 						} else {
@@ -121,7 +134,7 @@ public class GoldStandardGVCFBuilder {
 					if(variant.isSNV()) variant.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
 					else variant.setType(GenomicVariant.TYPE_STR);
 				}
-				writer.printVCFRecord(record, System.out);
+				if(allVariants || recordFullyCovered) writer.printVCFRecord(record, System.out);
 			}
 			for(;i<referenceRegions.size();i++) {
 				GenomicRegion refRegion = referenceRegions.get(i);
