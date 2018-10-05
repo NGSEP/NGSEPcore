@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.2.0
+Version 3.3.0
 ===========================================================================
 Galaxy directory:
 =================
@@ -10,7 +10,7 @@ Install NGSEP in a Galaxy instance in five simple steps:
  1. Create a directory called "ngsep" inside the "tools" directory of your 
     Galaxy instance. 
  2. Drop there all the xml scripts from this site. 
- 3. Drop there too, the latest jar file from NGSEP: NGSEPcore_3.2.0.jar
+ 3. Drop there too, the latest jar file from NGSEP: NGSEPcore_3.3.0.jar
  4. Include the following lines in the "config/tool_conf.xml" file.
     
           <section id="ngsep" name="NGS: NGSEP">

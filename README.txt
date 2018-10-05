@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.3.0 (04-10-2018)
+Version 3.3.0 (05-10-2018)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -1014,6 +1014,62 @@ By default, this function outputs three files:
    each population, and the number of regions non genotyped, unassigned and
    assigned to more than one population
 
+------------------------------
+Building genomes from variants
+------------------------------
+
+This module takes a VCF file with genotype information from one sample and the
+reference genome used to build the VCF and generates a new genome in fasta
+format modified using the alternative alleles from variants called as
+homozygous alternative within the individual. This can be useful to perform
+polishing of new genome assemblies using Illumina data, or in general to
+construct a haploid version of an individual genome.
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFIndividualGenomeBuilder <VCF_FILE> <REFERENCE_GENOME> <OUT_GENOME>
+
+-----------------
+Comparing genomes
+-----------------
+
+This module takes two assembled genomes in fasta format and their corresponding
+transcriptome gene annotations in GFF3 format and runs a whole genome
+comparison taking unique genes as orthology units. It also calculate paralogs
+within each genome. 
+
+USAGE:
+
+java -jar NGSEPcore.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GENOME2> <TRANSCRIPTOME2>
+
+OPTIONS:
+
+        -o STRING : Prefix of output files Default: genomesAlignment
+
+The output is a series of text files having the ids and physical coordinates of
+the paralogs within each genome and the orthologs between the two genomes.
+The ortholog files, called <PREFIX>_uniqueG1.tsv and <PREFIX>_uniqueG2.tsv,
+have the following format:
+
+1. Id of the gene in the first genome
+2. Chromosome of the gene in the first genome
+3. Start of the gene in the first genome
+4. End of the gene in the first genome
+5. Id of the ortholog in the second genome
+6. Chromosome of the ortholog in the second genome
+7. Start of the ortholog in the second genome
+8. End of the ortholog in the second genome
+9. Alignment type. It can be "L" if the gene has a unique ortholog in the
+   second genomeand it makes part of a synteny block. "U" if the gene has
+   a unique ortholog but it does not make part of the syntheny block, and
+   "M" if the gene has multiple orthologs in the second genome.
+
+The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
+<PREFIX>_paralogsG2.tsv, have the same 8 first columns but columns 5 to 8
+contain genes within the same genome as genes in column 1 to 4. Finally,
+the file called <PREFIX>_linearView.html can be loaded in a web browser
+and provides an interactive view of the alignment based on the d3 web
+development technology (https://d3js.org/).
 
 -------------------
 Demultiplexing reads
