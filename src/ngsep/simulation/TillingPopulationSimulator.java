@@ -56,21 +56,21 @@ import ngsep.vcf.VCFRecord;
 /**
  * 
  * @author Juanita
- * @author Juan SebastiÃ¡n Andrade
+ * @author Juan Sebastián Andrade
  *
  */
 public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=2;
-	public static final int DEF_INDIVIDUALS=1;
-	public static final int DEF_NUM_FRAGMENTS_POOL=100;
-	public static final int DEF_READ_LENGTH=250;
-	public static final double DEF_ERROR_RATE=0.00001;
-	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLATE_WIDTH=12;
-	public static final int PLATE_HEIGHT=8;
+	public static final int DEF_MUTATIONS=10;
+	public static final int DEF_INDIVIDUALS=384;
+	public static final int DEF_NUM_FRAGMENTS_POOL=10;
+	public static final int DEF_READ_LENGTH=50;
+	public static final double DEF_ERROR_RATE=0.001;
+	public static final double DEF_MIN_ERROR_RATE=0.00001;
+	public static final int PLAQUE_WIDTH=12;
+	public static final int PLAQUE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -244,10 +244,17 @@ public class TillingPopulationSimulator {
 		//TODO: Step 2: create random mutations within the given regions and assign each mutation to a random individual
 		//Use the reference genome to derive reference alleles. Create objects of the class SNV as random mutations
 		for(int j=0; j < DEF_MUTATIONS; j++) {
+			
 			SimulatedDiploidIndividual targetInd = individuals.get(random.nextInt(individuals.size()));
 			GenomicRegion targetGR = sequencedRegions.get(random.nextInt(sequencedRegions.size()));
-			int location = random.nextInt(targetGR.getLast()-targetGR.getFirst()+1)+targetGR.getFirst();
+			int location = random.nextInt(targetGR.getLast()-targetGR.getFirst())+targetGR.getFirst();
 			char refBase = genome.getReferenceBase(targetGR.getSequenceName(), location);
+
+			while(Character.toString(refBase).equalsIgnoreCase("N")) {
+				location = random.nextInt(targetGR.getLast()-targetGR.getFirst())+targetGR.getFirst();
+				refBase = genome.getReferenceBase(targetGR.getSequenceName(), location);
+			}
+						
 			String mutated = alphabet.replaceAll(Character.toString(refBase) , "");
 			GenomicVariant variant = new SNV(targetGR.getSequenceName(), location, refBase, mutated.charAt(random.nextInt(3)));
 			targetInd.addMutation(variant);
@@ -356,16 +363,16 @@ public class TillingPopulationSimulator {
 	 */
 	public void simulatePools() {
 		pools = new ArrayList<>();
-		int num_plates = 1+individuals.size()/(PLATE_WIDTH*PLATE_HEIGHT);
-		for(int i = 0; i< PLATE_WIDTH+PLATE_HEIGHT+num_plates;i++) {
+		int num_plates = 1+individuals.size()/(PLAQUE_WIDTH*PLAQUE_HEIGHT);
+		for(int i = 0; i< PLAQUE_WIDTH+PLAQUE_HEIGHT+num_plates;i++) {
 			List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
 			pools.add(thisPool);
 		}
 		for(int i = 0; i < individuals.size();i++) {
 			int queryID = individuals.get(i).getId();
-			pools.get((queryID%(PLATE_WIDTH*PLATE_HEIGHT))/PLATE_WIDTH).add(individuals.get(i));
-			pools.get((queryID%PLATE_WIDTH)+PLATE_HEIGHT).add(individuals.get(i));
-			pools.get((queryID/(PLATE_WIDTH*PLATE_HEIGHT))+PLATE_WIDTH+PLATE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH).add(individuals.get(i));
+			pools.get((queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT).add(individuals.get(i));
+			pools.get((queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT).add(individuals.get(i));
 		}	
 		pools.removeIf(p -> p.isEmpty());
 	}
