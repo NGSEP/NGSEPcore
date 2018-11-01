@@ -6,7 +6,7 @@ clean:
 	
 compile:
 	mkdir bin 
-	javac -cp lib/jsci-core.jar:lib/htsjdk.jar -d bin src/ngsep/*.java src/ngsep/*/*.java src/ngsep/*/*/*.java
+	javac -cp lib/jsci-core.jar:lib/htsjdk-1.129.jar -d bin src/ngsep/*.java src/ngsep/*/*.java src/ngsep/*/*/*.java
 
 copy: 
 	cp -f src/ngsep/transcriptome/ProteinTranslatorDefaultBundle.properties bin/ngsep/transcriptome/
