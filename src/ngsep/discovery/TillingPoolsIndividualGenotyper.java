@@ -36,8 +36,8 @@ public class TillingPoolsIndividualGenotyper {
 	
 	private static HashMap<String,ArrayList<Integer>> poolConfiguration;
 	private static HashMap<String,List<CalledGenomicVariant>> individualVariants;
-	private static List<List<CalledGenomicVariant>> poolVariants;
-	private static List<CalledGenomicVariant>[][] variantIntersection;
+	private static ArrayList<List<CalledGenomicVariant>> poolVariants;
+	private static ArrayList<ArrayList<ArrayList<CalledGenomicVariant>>> variantIntersection;
 	private static ArrayList<Integer> numPools;
 	private static int totPools;
 	private ReferenceGenome genome;
@@ -49,7 +49,10 @@ public class TillingPoolsIndividualGenotyper {
 		String poolsDescriptor = args[i++];
 		String referenceFile = args[i++];
 		String outFilename = args[i++];
-		instance.run(poolsVCFDir, poolsDescriptor, referenceFile, outFilename);
+		int num_columnPools = Integer.valueOf(args[i++]);
+		int num_rowPools = Integer.valueOf(args[i++]);
+		int num_platePools = Integer.valueOf(args[i++]);
+		instance.run(poolsVCFDir, poolsDescriptor, referenceFile, outFilename, num_columnPools, num_rowPools, num_platePools);
 		
 	}
 	
@@ -60,15 +63,23 @@ public class TillingPoolsIndividualGenotyper {
 	 * and plate pool.
 	 * @param referenceFile The file with the reference sequences for each of the regions analyzed in the experiment.
 	 * @param outFilename The prefix of the output vcf file.
+	 * @param num_columnPools Number of column pools.
+	 * @param num_rowPools Number of row pools.
+	 * @param num_platePools Number of plate pools.
 	 * @throws IOException
 	 */
-	public void run(String poolsVCFDir, String poolsDescriptor, String referenceFile, String outFilename) throws IOException {
-		loadPools(poolsDescriptor);
+	public void run(String poolsVCFDir, String poolsDescriptor, String referenceFile, String outFilename, int num_columnPools, int num_rowPools, int num_platePools) throws IOException {
+		loadPools(poolsDescriptor, num_columnPools, num_rowPools, num_platePools);
 		loadPoolVariants(poolsVCFDir);
+		
+		variantIntersection = new ArrayList<ArrayList<ArrayList<CalledGenomicVariant>>>();
+		
 		for(int k=0;k<numPools.get(0);k++) {
+			ArrayList<ArrayList<CalledGenomicVariant>> temp = new ArrayList<ArrayList<CalledGenomicVariant>>();
 			for (int j=0;j<totPools;j++)	{
-				variantIntersection[k][j]= new ArrayList<CalledGenomicVariant>();
+				temp.add(new ArrayList<CalledGenomicVariant>());
 			}
+			variantIntersection.add(temp);
 		}
 		
 		genome = new ReferenceGenome(referenceFile);
@@ -84,36 +95,30 @@ public class TillingPoolsIndividualGenotyper {
 	 * @throws IOException
 	 */
 
-	public void loadPools(String poolsDescriptor) throws IOException {
+	public void loadPools(String poolsDescriptor, int num_columnPools, int num_rowPools, int num_platePools) throws IOException {
 		// TODO Auto-generated method stub
-		numPools.add(0);
-		numPools.add(0);
-		numPools.add(0);
+		numPools = new ArrayList<Integer>();
+		numPools.add(num_columnPools);
+		numPools.add(num_rowPools);
+		numPools.add(num_platePools);
+		
+		poolConfiguration= new HashMap<String,ArrayList<Integer>>(); 
 		
 		BufferedReader reader;
 		reader = new BufferedReader(new FileReader(poolsDescriptor));
 		String line = reader.readLine();
 		
 		while (line != null) {
-			line = reader.readLine();
+
 			String[] indInfo = line.split(";");
+			System.out.println(line);
 			ArrayList<Integer> pools = new ArrayList();
 			pools.add(Integer.parseInt(indInfo[1]));
 			pools.add(Integer.parseInt(indInfo[2]));
 			pools.add(Integer.parseInt(indInfo[3]));
 			poolConfiguration.put(indInfo[0], pools);
 			
-			if (pools.get(0)>numPools.get(0)){
-				numPools.set(0, pools.get(0));
-			}
-			
-			if (pools.get(1)>numPools.get(1)){
-				numPools.set(1, pools.get(1));
-			}
-			
-			if (pools.get(2)>numPools.get(2)){
-				numPools.set(2, pools.get(2));
-			}
+			line = reader.readLine();
 			
 		}
 		reader.close();
@@ -131,12 +136,14 @@ public class TillingPoolsIndividualGenotyper {
 	 */
 	
 	public void loadPoolVariants(String poolsVCFDir) throws IOException {
+		poolVariants=new ArrayList<List<CalledGenomicVariant>>();
+		
 		File dir = new File(poolsVCFDir);
 		int i = 0;
 		File[] directoryListing = dir.listFiles();
 		 if (directoryListing != null) {
 		   for (File poolVCF : directoryListing) {
-			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF(poolVCF.getName());
+			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("D:/Universidad/Java/drive-download-20181101T034111Z-001/"+poolVCF.getName());
 			    poolVariants.add(indPool);
 			    i+=1;
 	    	}
@@ -149,15 +156,15 @@ public class TillingPoolsIndividualGenotyper {
 	 */
 	
 	public void intersectPairs() {
-		for(int i=0;i<numPools.get(0);i++) {
-			for (int j=numPools.get(0);j<totPools;j++)	{
+		for(int i=0;i<numPools.get(0)-1;i++) {
+			for (int j=numPools.get(0)-1;j<totPools-1;j++)	{
 				List<CalledGenomicVariant> colQuery = poolVariants.get(i);
 				for(int k=0;k<colQuery.size();k++) {
 					CalledGenomicVariant varQuery=colQuery.get(k);
 					List<CalledGenomicVariant> otherQuery = poolVariants.get(j);
 					for(int l=0;l<otherQuery.size();l++) {
 						if(varQuery.isCompatible(otherQuery.get(l))) {
-							variantIntersection[i][j].add(varQuery);
+							variantIntersection.get(i).get(j).add(varQuery);
 						}
 					}
 					
@@ -171,14 +178,16 @@ public class TillingPoolsIndividualGenotyper {
 	 * @param outFilename
 	 */
 	public void callIndVariants() {
+		
+		individualVariants = new HashMap<String,List<CalledGenomicVariant>>(); 
 		// TODO Auto-generated method stub
 		for (String ind : poolConfiguration.keySet()) {
 		    List<Integer> indPools = poolConfiguration.get(ind);
 		    List<CalledGenomicVariant> varDef= new  ArrayList<CalledGenomicVariant>();
-		    List<CalledGenomicVariant> varInt1=variantIntersection[indPools.get(0)][indPools.get(1)];
+		    List<CalledGenomicVariant> varInt1=variantIntersection.get(indPools.get(0)).get(indPools.get(1));
 			for(int i=0;i<varInt1.size();i++) {
 				CalledGenomicVariant varQuery=varInt1.get(i);
-				List<CalledGenomicVariant> varInt2=variantIntersection[indPools.get(0)][indPools.get(2)];
+				List<CalledGenomicVariant> varInt2=variantIntersection.get(indPools.get(0)).get(indPools.get(2));
 				for(int j=0;j<varInt2.size();j++) {
 					if(varQuery.isCompatible(varInt2.get(j))) {
 						varDef.add(varQuery);
@@ -210,7 +219,7 @@ public class TillingPoolsIndividualGenotyper {
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		for(String individual:individualVariants.keySet()) header.addDefaultSample(""+individual);
 		
-		try (PrintStream out = new PrintStream(outFilename)) {
+		try (PrintStream out = new PrintStream(outFilename+".vcf")) {
 			vcfWriter.printHeader(header, out);
 			List<CalledGenomicVariant> altCallsVar = new ArrayList<>();
 			for(CalledGenomicVariant call: allCalls) {

@@ -63,12 +63,12 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=10;
+	public static final int DEF_MUTATIONS=1920;
 	public static final int DEF_INDIVIDUALS=384;
-	public static final int DEF_NUM_FRAGMENTS_POOL=10;
-	public static final int DEF_READ_LENGTH=50;
-	public static final double DEF_ERROR_RATE=0.001;
-	public static final double DEF_MIN_ERROR_RATE=0.00001;
+	public static final int DEF_NUM_FRAGMENTS_POOL=3000;
+	public static final int DEF_READ_LENGTH=100;
+	public static final double DEF_ERROR_RATE=0.00001;
+	public static final double DEF_MIN_ERROR_RATE=0.0000001;
 	public static final int PLAQUE_WIDTH=12;
 	public static final int PLAQUE_HEIGHT=8;
 	
