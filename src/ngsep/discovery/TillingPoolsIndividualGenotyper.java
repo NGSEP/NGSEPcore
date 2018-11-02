@@ -143,7 +143,10 @@ public class TillingPoolsIndividualGenotyper {
 		File[] directoryListing = dir.listFiles();
 		 if (directoryListing != null) {
 		   for (File poolVCF : directoryListing) {
-			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("D:/Universidad/Java/drive-download-20181101T034111Z-001/"+poolVCF.getName());
+			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("D:/Universidad/Java/drive-download-20181102T065615Z-001/"+poolVCF.getName());
+			    for(int j=0;j<indPool.size();j++) {
+			    	indPool.get(j).setSampleId(String.valueOf(i)+String.valueOf(j));
+			    }
 			    poolVariants.add(indPool);
 			    i+=1;
 	    	}
