@@ -22,7 +22,6 @@ public class DefaultKmersMapImpl implements KmersMap {
 		return count;
 	}
 
-	@Override
 	public void setCount(CharSequence kmer, int count) {
 		if(count>Short.MAX_VALUE) count = Short.MAX_VALUE;
 		kmersMap.put(kmer, (short) count);
