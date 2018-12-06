@@ -20,6 +20,7 @@
 package ngsep.sequencing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,9 +31,9 @@ import java.util.List;
 public class SequencingLane {
 	private String flowcell;
 	private String number;
-	private BarcodeMap barcodeMap;
-	private List<String> filesForward;
-	private List<String> filesReverse;
+	private BarcodeMap barcodeMap = new BarcodeMap();
+	private List<String> filesForward = new ArrayList<>();
+	private List<String> filesReverse = new ArrayList<>();
 	
 	public SequencingLane(String flowcell, String number) {
 		super();

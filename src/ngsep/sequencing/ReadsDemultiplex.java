@@ -246,6 +246,7 @@ public class ReadsDemultiplex {
 		} else {
 			lanes = loader.loadMultipleLanes(indexFile, dualBarcode);
 		}
+		if(laneFilesDescriptor==null) return;
 		LaneFilesLoader laneFilesLoader = new LaneFilesLoader();
 		laneFilesLoader.loadFiles(laneFilesDescriptor, lanes);
 	}
