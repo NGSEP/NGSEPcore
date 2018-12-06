@@ -17,7 +17,7 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.sequences;
+package ngsep.sequencing;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,9 +36,9 @@ import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.DegenerateSequence;
+import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
-import ngsep.sequencing.BarcodeMap;
-import ngsep.sequencing.SequencingLane;
 import ngsep.sequencing.io.BarcodesFileLoader;
 import ngsep.sequencing.io.LaneFilesLoader;
 

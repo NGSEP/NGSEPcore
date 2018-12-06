@@ -793,7 +793,7 @@ the options -a -i and -s
 </option>
 </command>
 
-<command id="Demultiplex" class="ngsep.sequences.ReadsDemultiplex">
+<command id="Demultiplex" class="ngsep.sequencing.ReadsDemultiplex">
 <intro>
 Builds individual fastq files for different samples from
 a single file containing reads from a whole sequencing lane (Former Deconvolute)
