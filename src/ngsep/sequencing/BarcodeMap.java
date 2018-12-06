@@ -22,8 +22,10 @@ package ngsep.sequencing;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Set;
+import java.util.TreeSet;
 
 import ngsep.sequences.DNASequence;
 
@@ -33,7 +35,8 @@ import ngsep.sequences.DNASequence;
 public class BarcodeMap {
 
 	private Map<String, String> barcodeSampleMap = new HashMap<>();
-	private Map<String, Byte> barcodeReadIndexMap = new TreeMap<>();
+	private Set<String> barcodes1 = new HashSet<>();
+	private Set<String> barcodes2 = new HashSet<>();
 	
 	//Sorted list of barcodes
 	private String [] sortedBarcodes;
@@ -41,17 +44,19 @@ public class BarcodeMap {
 	private int [] [] ntPairLasts = new int[4][4];
 	
 	public void addSingleBarcode(String barcode, String sampleId) throws IOException {
-		if(barcodeReadIndexMap.containsKey(barcode)) throw new IOException("Barcode "+barcode+" already registered");
+		String oldSample = barcodeSampleMap.get(barcode);
+		if(oldSample!=null && !oldSample.equals(sampleId)) throw new IOException("Barcode "+barcode+" already registered with a sample "+oldSample+" different from: "+sampleId);
 		barcodeSampleMap.put(barcode, sampleId);
-		barcodeReadIndexMap.put(barcode, (byte)1);
+		barcodes1.add(barcode);
 		sortedBarcodes=null;
 	}
 	public void addDualBarcode(String barcode1, String barcode2, String sampleId) throws IOException {
-		if(barcodeReadIndexMap.containsKey(barcode1)) throw new IOException("Barcode "+barcode1+" already registered");
-		if(barcodeReadIndexMap.containsKey(barcode2)) throw new IOException("Barcode "+barcode2+" already registered");
-		barcodeSampleMap.put(buildDualKey(barcode1,barcode2), sampleId);
-		barcodeReadIndexMap.put(barcode1, (byte)1);
-		barcodeReadIndexMap.put(barcode2, (byte)2);
+		String dualKey = buildDualKey(barcode1,barcode2);
+		String oldSample = barcodeSampleMap.get(dualKey);
+		if(oldSample!=null && !oldSample.equals(sampleId)) throw new IOException("Barcode pair"+barcode1+" - "+barcode2+" already registered with a sample "+oldSample+" different from: "+sampleId);
+		barcodeSampleMap.put(dualKey, sampleId);
+		barcodes1.add(barcode1);
+		barcodes2.add(barcode2);
 		sortedBarcodes=null;
 	}
 	private String buildDualKey(String barcode1, String barcode2) {
@@ -83,7 +88,11 @@ public class BarcodeMap {
 	}
 	
 	private void initBarcodeSortedList() {
-		sortedBarcodes = barcodeReadIndexMap.keySet().toArray(new String[0]);
+		Set<String> allBarcodes = new TreeSet<>();
+		allBarcodes.addAll(barcodes1);
+		allBarcodes.addAll(barcodes2);
+		
+		sortedBarcodes = allBarcodes.toArray(new String[0]);
 		for(int i=0;i<ntPairFirsts.length;i++) {
 			Arrays.fill(ntPairFirsts[i], -1);
 			Arrays.fill(ntPairLasts[i], -1);
@@ -114,8 +123,10 @@ public class BarcodeMap {
 		String selectedBarcode = null;
 		for(int i=first;i<=last;i++) {
 			String barcode = sortedBarcodes[i];
-			byte barcodeIndex = barcodeReadIndexMap.get(barcode);
-			boolean barcodeFound = readSeq.startsWith(barcode) && readIndex==barcodeIndex;
+			Set<String> barcodesReadIdx = barcodes1;
+			if(readIndex==2) barcodesReadIdx = barcodes2;
+			
+			boolean barcodeFound = readSeq.startsWith(barcode) && barcodesReadIdx.contains(barcode);
 			//The last condition is to taking into account cases where one barcode is substring of another
 			//and pick the longest matching barcode
 			if(barcodeFound && (selectedBarcode==null || selectedBarcode.length()<barcode.length()) ) {
