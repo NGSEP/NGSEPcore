@@ -222,6 +222,13 @@ public class ReadsDemultiplex {
 	public void setUncompressedOutput(Boolean uncompressedOutput) {
 		this.uncompressedOutput = uncompressedOutput;
 	}
+	
+	/**
+	 * @return the lanes
+	 */
+	public List<SequencingLane> getLanes() {
+		return lanes;
+	}
 
 	/**
 	 * Loads barcodes from the given file
