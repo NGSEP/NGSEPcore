@@ -895,6 +895,21 @@ Input is a fasta file.
 </option>
 </command>
 
+<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" printHelp="false">
+<intro>
+De novo variants discovery from a GBS experiment
+</intro>
+<title>GBS deNovo variants discovery</title>
+<description>
+Performs de novo variants discovery from a GBS experiment
+</description>
+<argument>INPUT_DIRECTORY</argument>
+<argument>OUTPUT_DIRECTORY</argument>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+K-mer length
+</option>
+</command>
+
 <command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator">
 <intro>
 Calculates the distribution of relative allele counts 

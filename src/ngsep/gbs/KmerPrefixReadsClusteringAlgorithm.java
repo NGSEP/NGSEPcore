@@ -19,11 +19,19 @@
  *******************************************************************************/
 package ngsep.gbs;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.DNAShortKmer;
@@ -31,7 +39,6 @@ import ngsep.sequences.DNAShortKmerClusterMap;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
-import ngsep.sequencing.SequencingLane;
 
 /**
  * @author Jorge Gomez
@@ -39,253 +46,189 @@ import ngsep.sequencing.SequencingLane;
  */
 public class KmerPrefixReadsClusteringAlgorithm {
 
-	private static int KMER_LENGTH = 31;
-	private static int PREFIX = 10;
-	private ReadsDemultiplex demultiplex = new ReadsDemultiplex();
+	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
+	private ProgressNotifier progressNotifier = null;
+	
+	public static final int DEF_KMER_LENGTH = 31;
+	public static final int DEF_START = 8;
+	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
+	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
+	
+	private String inputDirectory=".";
+	private String outputDirectory=".";
+	private int kmerLength = DEF_KMER_LENGTH;
+	private Pattern regexp=Pattern.compile(DEF_REGEXP_SINGLE);
+	private Map<String, String> filenamesBySampleId1=new HashMap<>();
+	private Map<String, String> filenamesBySampleId2=new HashMap<>();
+	private DNAShortKmerClusterMap kmersMap;
 	
 	
 	public static void main(String[] args) throws Exception {
 		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		
-		String indexFile = args[i++];
-		instance.run(indexFile);
+		instance.inputDirectory = args[i++];
+		instance.outputDirectory = args[i++];
+		instance.run();
 	}
-
 	
-	/**
-	 * @param progressNotifier
-	 * @see ngsep.sequencing.ReadsDemultiplex#setProgressNotifier(ngsep.main.ProgressNotifier)
-	 */
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		demultiplex.setProgressNotifier(progressNotifier);
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
 	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getProgressNotifier()
-	 */
+	
 	public ProgressNotifier getProgressNotifier() {
-		return demultiplex.getProgressNotifier();
+		return progressNotifier;
+	}
+	
+	public Logger getLog() {
+		return log;
 	}
 
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 
 	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getOutDirectory()
+	 * @return the kmerLength
 	 */
-	public String getOutDirectory() {
-		return demultiplex.getOutDirectory();
+	public int getKmerLength() {
+		return kmerLength;
 	}
-
-
 	/**
-	 * @param outDirectory
-	 * @see ngsep.sequencing.ReadsDemultiplex#setOutDirectory(java.lang.String)
+	 * @param kmerLength the kmerLength to set
 	 */
-	public void setOutDirectory(String outDirectory) {
-		demultiplex.setOutDirectory(outDirectory);
+	public void setKmerLength(int kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+	
+	public void setKmerLength(String value) {
+		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getLaneFilesDescriptor()
-	 */
-	public String getLaneFilesDescriptor() {
-		return demultiplex.getLaneFilesDescriptor();
-	}
-
-
-	/**
-	 * @param laneFilesDescriptor
-	 * @see ngsep.sequencing.ReadsDemultiplex#setLaneFilesDescriptor(java.lang.String)
-	 */
-	public void setLaneFilesDescriptor(String laneFilesDescriptor) {
-		demultiplex.setLaneFilesDescriptor(laneFilesDescriptor);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getFlowcell()
-	 */
-	public String getFlowcell() {
-		return demultiplex.getFlowcell();
-	}
-
-
-	/**
-	 * @param flowcell
-	 * @see ngsep.sequencing.ReadsDemultiplex#setFlowcell(java.lang.String)
-	 */
-	public void setFlowcell(String flowcell) {
-		demultiplex.setFlowcell(flowcell);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getLane()
-	 */
-	public String getLane() {
-		return demultiplex.getLane();
-	}
-
-
-	/**
-	 * @param lane
-	 * @see ngsep.sequencing.ReadsDemultiplex#setLane(java.lang.String)
-	 */
-	public void setLane(String lane) {
-		demultiplex.setLane(lane);
-	}
-
-
-	/**
-	 * @param prefix
-	 * @see ngsep.sequencing.ReadsDemultiplex#setPrefix(java.lang.String)
-	 */
-	public void setPrefix(String prefix) {
-		demultiplex.setPrefix(prefix);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getMinReadLength()
-	 */
-	public int getMinReadLength() {
-		return demultiplex.getMinReadLength();
-	}
-
-
-	/**
-	 * @param minReadLength
-	 * @see ngsep.sequencing.ReadsDemultiplex#setMinReadLength(int)
-	 */
-	public void setMinReadLength(int minReadLength) {
-		demultiplex.setMinReadLength(minReadLength);
-	}
-
-
-	/**
-	 * @param minReadLength
-	 * @see ngsep.sequencing.ReadsDemultiplex#setMinReadLength(java.lang.Integer)
-	 */
-	public void setMinReadLength(Integer minReadLength) {
-		demultiplex.setMinReadLength(minReadLength);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#isDualBarcode()
-	 */
-	public boolean isDualBarcode() {
-		return demultiplex.isDualBarcode();
-	}
-
-
-	/**
-	 * @param dualBarcode
-	 * @see ngsep.sequencing.ReadsDemultiplex#setDualBarcode(boolean)
-	 */
-	public void setDualBarcode(boolean dualBarcode) {
-		demultiplex.setDualBarcode(dualBarcode);
-	}
-
-
-	/**
-	 * @param dualBarcode
-	 * @see ngsep.sequencing.ReadsDemultiplex#setDualBarcode(java.lang.Boolean)
-	 */
-	public void setDualBarcode(Boolean dualBarcode) {
-		demultiplex.setDualBarcode(dualBarcode);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#getTrimSequence()
-	 */
-	public String getTrimSequence() {
-		return demultiplex.getTrimSequence();
-	}
-
-
-	/**
-	 * @param trimSequence
-	 * @see ngsep.sequencing.ReadsDemultiplex#setTrimSequence(java.lang.String)
-	 */
-	public void setTrimSequence(String trimSequence) {
-		demultiplex.setTrimSequence(trimSequence);
-	}
-
-
-	/**
-	 * @return
-	 * @see ngsep.sequencing.ReadsDemultiplex#isUncompressedOutput()
-	 */
-	public boolean isUncompressedOutput() {
-		return demultiplex.isUncompressedOutput();
-	}
-
-
-	/**
-	 * @param uncompressedOutput
-	 * @see ngsep.sequencing.ReadsDemultiplex#setUncompressedOutput(boolean)
-	 */
-	public void setUncompressedOutput(boolean uncompressedOutput) {
-		demultiplex.setUncompressedOutput(uncompressedOutput);
-	}
-
-
-	/**
-	 * @param uncompressedOutput
-	 * @see ngsep.sequencing.ReadsDemultiplex#setUncompressedOutput(java.lang.Boolean)
-	 */
-	public void setUncompressedOutput(Boolean uncompressedOutput) {
-		demultiplex.setUncompressedOutput(uncompressedOutput);
-	}
-
-
-	public void run(String indexFile) throws IOException {
-		demultiplex.loadIndexAndLaneFiles(indexFile);
+	public void run() throws IOException {
+		loadFilenamesAndSamples();
+		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+		buildKmersMap();
+		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		clusterReads();
-		
+		log.info("Clustered reads");
+		callVariants();
+		log.info("Called variants");
+		printStatistics();
+		log.info("Process finished");
 	}
 
-	public void clusterReads() throws IOException {
-		List<SequencingLane> lanes = demultiplex.getLanes();
-		DNAShortKmerClusterMap map = new DNAShortKmerClusterMap();
-		for(SequencingLane lane:lanes) {
-			List<String> filesForward = lane.getFilesForward();
-			for(int i=0;i<filesForward.size();i++) {
-				String filename1 = filesForward.get(i);
-				processFile(map, filename1);
+	private void loadFilenamesAndSamples() {
+		File[] files = (new File(inputDirectory)).listFiles();
+		for(File f : files) {
+			String filename = f.getName();
+			//TODO: Use pattern
+			int i = filename.indexOf(".fastq");
+			if(i>=0) {
+				String sampleId = filename.substring(0, i);
+				filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
 			}
 		}
-		
 	}
 
-	private void processFile(DNAShortKmerClusterMap kmerMap, String filename) throws IOException {
+	public void buildKmersMap() throws IOException {
+		kmersMap = new DNAShortKmerClusterMap();
+		for(String filename:filenamesBySampleId1.values()) {
+			addKmersFromFile(filename);
+		}
+	}
+
+	private void addKmersFromFile(String filename) throws IOException {
 		int readCount = 0;
 		try (FastqFileReader openFile = new FastqFileReader(filename);) {
 			Iterator<RawRead> reader = openFile.iterator();
 			while(reader.hasNext()) {
 				RawRead read = reader.next();
 				String s = read.getSequenceString();
-				//System.out.println(s);
-				if(DNASequence.isDNA(s)) {
-					kmerMap.addOcurrance(new DNAShortKmer(s.substring(PREFIX,PREFIX + KMER_LENGTH)));
+				if(DEF_START + kmerLength>s.length()) continue;
+				String prefix = s.substring(DEF_START,DEF_START + kmerLength);
+				if(DNASequence.isDNA(prefix)) {
+					kmersMap.addOcurrance(new DNAShortKmer(prefix));
 					readCount++;
 				}
 			}
 		}
-		System.out.println("Processed a total of " + readCount + " reads for file: "+filename);
+		log.info("Processed a total of " + readCount + " reads for file: "+filename);
+		
+	}
+	public void clusterReads() throws IOException {
+		ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(); 
+		for(String sampleId:filenamesBySampleId1.keySet()) {
+			String filename1 = filenamesBySampleId1.get(sampleId);
+			String filename2 = filenamesBySampleId2.get(sampleId);
+			if(filename2 == null) {
+				clusterReadsSingleFile (filename1, clusteredReadsCache);
+			} else {
+				clusterReadsPairedEndFiles (filename1, filename2, clusteredReadsCache);
+			}
+		}
+		
+	}
+
+	private void clusterReadsSingleFile(String filename, ClusteredReadsCache clusteredReadsCache) throws IOException {
+		try (FastqFileReader openFile = new FastqFileReader(filename);) {
+			Iterator<RawRead> reader = openFile.iterator();
+			while(reader.hasNext()) {
+				RawRead read = reader.next();
+				String s = read.getSequenceString();
+				if(DEF_START + kmerLength>s.length()) continue;
+				String prefix = s.substring(DEF_START,DEF_START + kmerLength);
+				if(!DNASequence.isDNA(prefix)) continue;
+				Integer k = kmersMap.getCluster(new DNAShortKmer(prefix));
+				if(k==null) continue;
+				clusteredReadsCache.addSingleRead(k, read);
+				//TODO: Dump cache if needed
+			}
+		}
+	}
+
+
+
+
+	private void clusterReadsPairedEndFiles(String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	public void callVariants() throws IOException {
+		// TODO Implement. Load in parallel clustered read files. Align reads within clusters build pileups and call variants
+		
+	}
+	private void printStatistics() {
+		// TODO Implement. Save to the output directory a file with process statistics
 		
 	}
 	
+}
+class ClusteredReadsCache {
+	private Map<Integer,List<RawRead>> clusteredReadsCache = new TreeMap<>();
+	private int totalReads = 0;
+	public void addSingleRead(int k, RawRead read) {
+		List<RawRead> readsClusterK = clusteredReadsCache.get(k);
+		if(readsClusterK==null) {
+			readsClusterK = new ArrayList<>();
+			clusteredReadsCache.put(k, readsClusterK);
+		}
+		readsClusterK.add(read);
+	}
+	/**
+	 * @return the totalReads
+	 */
+	public int getTotalReads() {
+		return totalReads;
+	}
+	/**
+	 * Dumps the cache to the file wit the given name and clears this cache
+	 * @param filename to dump the cache
+	 */
+	public void dump(String filename) {
+		//TODO: Implement
+	}
 }

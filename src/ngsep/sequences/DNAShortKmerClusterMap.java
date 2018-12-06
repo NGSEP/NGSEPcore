@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,8 +32,8 @@ import ngsep.math.Distribution;
  */
 public class DNAShortKmerClusterMap implements KmersMap {
 	private int kmerLength = 31;
-	private int[][] table;
-	private Map<DNAShortKmer, Integer> index;
+	private int[][] table=new int [1000000][DNASequence.BASES_ARRAY.length];
+	private Map<DNAShortKmer, Integer> index = new HashMap<>();
 	private int newIndex = 0;
 	
 	/**
@@ -141,5 +142,8 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		    kmerSpectrum.processDatapoint(getCount(k));
 		}
 		return kmerSpectrum;
+	}
+	public Integer getCluster(DNAShortKmer kmer) {
+		return inexactSearchKmerCluster(kmer);
 	}
 }
