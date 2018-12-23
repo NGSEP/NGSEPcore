@@ -26,6 +26,7 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 </description>
 <argument>FMINDEX_FILE</argument>
 <argument>READS_FILE</argument>
+<argument>ALIGNMENTS_FILE</argument>
 <option id="p" type="DOUBLE" default="0.7" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
 </option>
