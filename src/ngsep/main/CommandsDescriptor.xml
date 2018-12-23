@@ -1,4 +1,4 @@
-<NGSEP version="3.3.0" date="05-10-2018">
+<NGSEP version="3.3.1" date="15-02-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -327,6 +327,21 @@ Writes to the standard output.
 </description>
 <argument>SEQUENCE_NAMES_FILE</argument>
 <argument multiple="true">GENOTYPED_VARIANTS_FILE</argument>
+</command>
+
+<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" printHelp="false">
+<intro>
+Provides statistics on a transcriptome file in GFF3 format
+</intro>
+<title>Evaluating transcriptome assemblies</title>
+<description>
+Loads a transcriptome annotation in GFF3 format, logs format errors and provides statistics on the asembled transcriptome.
+</description>
+<argument>TRANSCRIPTOME_MAP</argument>
+<argument>OUTPUT_PREFIX</argument>
+<option id="g" type="GENOME" attribute="genome">
+Reference genome annotated in the transcriptome file
+</option>
 </command>
 
 <command id="Annotate" class="ngsep.vcf.VCFFunctionalAnnotator">
