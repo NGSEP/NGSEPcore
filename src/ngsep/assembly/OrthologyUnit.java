@@ -142,6 +142,18 @@ class OrthologyUnit implements GenomicRegion {
 	}
 	
 	/**
+	 * Get all orthologs from genomes different than that of this orthology unit
+	 * @return List<OrthologyUnit> 
+	 */
+	public List<OrthologyUnit> getOrthologsOtherGenomes() {
+		List<OrthologyUnit> answer = new ArrayList<>();
+		for(int id:orthologsMap.keySet()) {
+			if(id!=genomeId) answer.addAll(orthologsMap.get(id));
+		}
+		return answer;
+	}
+	
+	/**
 	 * Returns the ortholog of this unit with the given genome id only if it is unique
 	 * @param genomeId Id of the genome to query
 	 * @return OrthologyUnit ortholog of this unit or null if there are not orthologs or if the ortholog is not unique

@@ -132,17 +132,14 @@ public class GenomesAligner {
 		Transcriptome transcriptome = transcriptomeHandler.loadMap(fileTranscriptome);
 		transcriptome.fillSequenceTranscripts(genome);
 		log.info("Loaded transcriptome "+fileTranscriptome+ " number of transcripts: "+transcriptome.getAllTranscripts().size());
-		AnnotatedReferenceGenome annGenome = new AnnotatedReferenceGenome(genomes.size(), genome, transcriptome);
+		AnnotatedReferenceGenome annGenome = new AnnotatedReferenceGenome(genomes.size()+1, genome, transcriptome);
 		log.info("Genome: "+annGenome.getId()+" has "+annGenome.getOrthologyUnits().size()+" total orthology units. Unique: "+annGenome.getUniqueOrthologyUnits().size());
 		genomes.add(annGenome);
 	}
 	
 	
 	public void alignGenomes() {
-		if(genomes.size()==0) {
-			log.severe("At least one genome is required");
-			return;
-		}
+		if(genomes.size()<2) return;
 		
 		for(int i=0;i<genomes.size();i++) {
 			for (int j=0;j<genomes.size();j++) {
@@ -359,85 +356,68 @@ public class GenomesAligner {
 	}
 	
 	public void printAlignmentResults() throws IOException {
-		AnnotatedReferenceGenome genome1 = genomes.get(0);
-		AnnotatedReferenceGenome genome2 = genomes.get(1);
-		
-		// Print Unique units genome 1 outUniqueG1
-		try (PrintStream outUniqueG1 = new PrintStream(outPrefix+"_uniqueG1.tsv");) {
-			outUniqueG1.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
-			for(OrthologyUnit unit:genome1.getUniqueOrthologyUnits()) {
-				printOrthologyUnit(unit, genome2.getId(), outUniqueG1);
-			}
-		}
-		try (PrintStream outUniqueG2 = new PrintStream(outPrefix+"_uniqueG2.tsv");) {
-			for(OrthologyUnit unit:genome2.getUniqueOrthologyUnits()) {
-				printOrthologyUnit(unit, genome1.getId(), outUniqueG2);
-			}
-		}
-		
-		// Print paralogs
-		
-		try (PrintStream outParalogsG1 = new PrintStream(outPrefix+"_paralogsG1.tsv");) {
-			outParalogsG1.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
-			for(OrthologyUnit unit:genome1.getOrthologyUnits()) {
-				for(OrthologyUnit paralog: unit.getParalogs()) {
-					outParalogsG1.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-					outParalogsG1.println("\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			int id = genome.getId();
+			//Print metadata
+			printGenomeMetadata(outPrefix+"_genome"+id+".tsv", genome.getSequencesMetadata());
+			// Print paralogs
+			try (PrintStream outParalogs = new PrintStream(outPrefix+"_paralogsG"+id+".tsv");) {
+				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
+				for(OrthologyUnit unit:genome.getOrthologyUnits()) {
+					for(OrthologyUnit paralog: unit.getParalogs()) {
+						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
+						outParalogs.println("\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
+					}
 				}
 			}
 		}
-		try (PrintStream outParalogsG2 = new PrintStream(outPrefix+"_paralogsG2.tsv");) {
-			outParalogsG2.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
-			for(OrthologyUnit unit:genome2.getOrthologyUnits()) {
-				for(OrthologyUnit paralog: unit.getParalogs()) {
-					outParalogsG2.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-					outParalogsG2.println("\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
+		
+		if(genomes.size()>1) {
+			for(int i=0;i<genomes.size();i++) {
+				AnnotatedReferenceGenome genome = genomes.get(i);
+				int id = genome.getId();
+				// Print orthologs
+				try (PrintStream outOrthologs = new PrintStream(outPrefix+"_orthologsG"+id+".tsv");) {
+					outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tunique\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
+					for(OrthologyUnit unit:genome.getOrthologyUnits()) {
+						printOrthologyUnit(unit, outOrthologs);
+					}
 				}
 			}
-		}
-		//Print LCS
-		//try (PrintStream outAlignmnent = new PrintStream(outPrefix+"_lcs.tsv");) {
-			//outAlignmnent.println("geneIdG1\tchromosomeG1\tgeneStartG1\tgeneEndG1\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2");
-			//for(OrthologyUnit unit:alignedUnitsFirstGenome) {
-				//printOrthologyUnit(unit, genome2.getId(), outAlignmnent);
-		//	}
-	//	}
-		//Print metadata genome 1
-		try (PrintStream outGenome1 = new PrintStream(outPrefix+"_genome1.tsv");) {
-			printGenomeMetadata(outGenome1, genome1.getSequencesMetadata());
+			//Print D3 linear visualization
+			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearView.html");) {
+				printD3Visualization(outD3Linear,"GenomesAlignerLinearVisualizer.js");
+			}
 		}
 		
-		//Print metadata genome 2
-		try (PrintStream outGenome2 = new PrintStream(outPrefix+"_genome2.tsv");) {
-			printGenomeMetadata(outGenome2, genome2.getSequencesMetadata());
-		}
 		
-		//Print D3 linear visualization
-		try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearView.html");) {
-			printD3Visualization(outD3Linear,"GenomesAlignerLinearVisualizer.js");
-		}
 		
 	}
-
+	private void printGenomeMetadata(String outFilename, QualifiedSequenceList sequencesMetadata) throws IOException {
+		try (PrintStream out = new PrintStream(outFilename)) {
+			out.println("Name\tLength");
+			for(QualifiedSequence seq:sequencesMetadata) {
+				out.println(""+seq.getName()+"\t"+seq.getLength());
+			}
+		}
+	}
 	
 
-	private void printOrthologyUnit(OrthologyUnit unit, int genomeId, PrintStream out) {
-		List<OrthologyUnit> orthologs = unit.getOrthologs(genomeId);
+	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out) {
+		List<OrthologyUnit> orthologs = unit.getOrthologsOtherGenomes();
+		if(orthologs.size()==0) return;
 		char type = 'U';
 		if(orthologs.size()>1) type = 'M';
-		else if (unit.isInLCS(genomeId)) type = 'L';
+		else if (unit.isInLCS(orthologs.get(0).getGenomeId())) type = 'L';
 		for(OrthologyUnit ortholog:orthologs) {
 			out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-			out.println("\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+type);
+			out.print(unit.isUnique()?"\tY":"\tN");
+			out.println("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+type);
 		}
 		
 	}
-	private void printGenomeMetadata(PrintStream out, QualifiedSequenceList sequencesMetadata) {
-		out.println("Name\tLength");
-		for(QualifiedSequence seq:sequencesMetadata) {
-			out.println(""+seq.getName()+"\t"+seq.getLength());
-		}
-	}
+	
 	private void printD3Visualization(PrintStream outD3Linear, String jsFile) throws IOException {
 		outD3Linear.println("<!DOCTYPE html>");
 		outD3Linear.println("<meta charset=\"utf-8\">");
@@ -467,13 +447,13 @@ public class GenomesAligner {
 		//Print D3 script
 		Class<? extends GenomesAligner> c = this.getClass();
 		String resource = "/ngsep/assembly/"+jsFile;
-		System.out.println("Loading resource: "+resource);
+		log.info("Loading resource: "+resource);
 		try (InputStream is = c.getResourceAsStream(resource);
 			 BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
 			while(line!=null) {
 				if(line.contains("InputFileLCS.tsv")) {
-					outD3Linear.println("d3.tsv(\""+outPrefix+"_uniqueG1.tsv\", function(error, lcs)");
+					outD3Linear.println("d3.tsv(\""+outPrefix+"_orthologsG1.tsv\", function(error, lcs)");
 				} else if(line.contains("InputFileGenome1.tsv")) {
 					outD3Linear.println("  d3.tsv(\""+outPrefix+"_genome1.tsv\", function(error, crmsA)");
 				} else if(line.contains("InputFileGenome2.tsv")) {

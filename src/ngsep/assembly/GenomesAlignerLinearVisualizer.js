@@ -4,22 +4,22 @@ var margin = {top: 45, right: 80, bottom: 30, left: 80},
   
 var dimensions = [
   {
-    name: "geneStartG1",
+    name: "geneStart",
     scale: d3.scale.linear().range([height, 0]),
     type: "number"
   },
   {
-    name: "geneEndG1",
+    name: "geneEnd",
     scale: d3.scale.linear().range([height, 0]),
     type: "number"
   },
   {
-    name: "chromosomeG1",
+    name: "chromosome",
     scale: d3.scale.ordinal().rangePoints([0, height]),
     type: "string"
   },
   {
-    name: "geneIdG1",
+    name: "geneId",
     scale: d3.scale.ordinal().rangePoints([0, height]),
     type: "string"
   },
@@ -104,10 +104,10 @@ d3.tsv("InputFileLCS.tsv", function(error, lcs)
       chrmsB = toObject(crmsB);
       
       for(var j = 0; j<lcs.length; j++){
-        genomeA = lcs[j].chromosomeG1;
-        startG1 = Number(lcs[j].geneStartG1);
-        endG1 = Number(lcs[j].geneEndG1);
-        lcs[j].averageA = Number(chrmsA[genomeA].startt)+(startG1+endG1)/2;
+        genomeA = lcs[j].chromosome;
+        start = Number(lcs[j].geneStart);
+        end = Number(lcs[j].geneEnd);
+        lcs[j].averageA = Number(chrmsA[genomeA].startt)+(start+end)/2;
     
         genomeB = lcs[j].chromosomeG2;
         startG2 = Number(lcs[j].geneStartG2);
@@ -140,7 +140,7 @@ d3.tsv("InputFileLCS.tsv", function(error, lcs)
   //  .enter().append("path")
   //    .attr("d", path)
   //  	This function assigns color to genes aligning to the same chromosome 
-  //    .attr("stroke",function(d){return c20(d.chromosomeG1)});
+  //    .attr("stroke",function(d){return c20(d.chromosome)});
       
 
  //Show LCS only
@@ -153,7 +153,7 @@ function showLCS() {
       .data(lcs)
     .enter().append("path")
       .attr("d", path)
-  	  .attr("stroke", function(d) {if(d.type=="L") return c20(d.chromosomeG1)})
+  	  .attr("stroke", function(d) {if(d.type=="L") return c20(d.chromosome)})
 }
  //Show multiple hits
 d3.select("#Multiplebutton").on("click", showMultiple);
@@ -165,7 +165,7 @@ function showMultiple() {
       .data(lcs)
     .enter().append("path")
       .attr("d", path)
-  	  .attr("stroke", function(d) {if(d.type=="M") return c20(d.chromosomeG1)})
+  	  .attr("stroke", function(d) {if(d.type=="M") return c20(d.chromosome)})
 }
   
 //Show unique hits
@@ -178,7 +178,7 @@ function showUniques() {
       .data(lcs)
     .enter().append("path")
       .attr("d", path)
-  	  .attr("stroke", function(d) {if(d.type=="U") return c20(d.chromosomeG1)})
+  	  .attr("stroke", function(d) {if(d.type=="U") return c20(d.chromosome)})
 }      
       
 
