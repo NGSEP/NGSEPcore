@@ -17,7 +17,7 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.assembly;
+package ngsep.genome;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,20 +26,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import ngsep.genome.GenomicRegion;
-
 /**
  * @author Daniel Tello
  * @author Jorge Duitama
  */
-class OrthologyUnit implements GenomicRegion {
+public class OrthologyUnit implements GenomicRegion {
 	private String id;
 	private int genomeId;
 	private String sequenceName;
 	private int first;
 	private int last;
 	private boolean negativeStrand = false;
-	private String proteinSequence;
+	private String unitSequence;
 	private List<OrthologyUnit> paralogs = new ArrayList<>();
 	//Orthologs of other genomes
 	private Map<Integer, List<OrthologyUnit>> orthologsMap = new HashMap<>();
@@ -99,17 +97,21 @@ class OrthologyUnit implements GenomicRegion {
 	public void setNegativeStrand(boolean negativeStrand) {
 		this.negativeStrand = negativeStrand;
 	}
+	
+
 	/**
-	 * @return the proteinSequence
+	 * @return the unitSequence
 	 */
-	public String getProteinSequence() {
-		return proteinSequence;
+	public String getUnitSequence() {
+		return unitSequence;
 	}
+
+
 	/**
-	 * @param proteinSequence the proteinSequence to set
+	 * @param unitSequence the unitSequence to set
 	 */
-	public void setProteinSequence(String proteinSequence) {
-		this.proteinSequence = proteinSequence;
+	public void setUnitSequence(String unitSequence) {
+		this.unitSequence = unitSequence;
 	}
 
 

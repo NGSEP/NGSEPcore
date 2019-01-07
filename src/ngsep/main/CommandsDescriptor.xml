@@ -998,7 +998,7 @@ simulated genome
 Ploidy of the simulated sample 
 </option>
 </command>
-<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner">
+<command id="GenomesAligner" class="ngsep.genome.GenomesAligner">
 <intro>
 Compares two partially or completely assembled genomes
 </intro>
@@ -1014,6 +1014,12 @@ and runs a whole genome comparison taking unique genes as orthology units
 <argument>TRANSCRIPTOME2</argument>
 <option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outPrefix">
 Prefix of output files
+</option>
+<option id="k" type="BYTE" defaultConstant="DEF_KMER_SIZE" attribute="kmerSize">
+K-mer size to find orthologs
+</option>
+<option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
+Minimum percentage of k-mers to find orthologs
 </option>
 </command>
 
