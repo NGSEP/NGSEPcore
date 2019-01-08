@@ -1,3 +1,7 @@
+v3.3.1
+- GenomesAligner: New options -k an -p to set the k-mer size and the minimum
+  percentage of common k-mers to identify ortholog relationships
+
 v3.3.0 05-10-2018
 - New command GenomesAligner to perform pairwise alignments of complete
   genomes
