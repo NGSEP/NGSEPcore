@@ -1015,7 +1015,7 @@ and runs a whole genome comparison taking unique genes as orthology units
 <option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outPrefix">
 Prefix of output files
 </option>
-<option id="k" type="BYTE" defaultConstant="DEF_KMER_SIZE" attribute="kmerSize">
+<option id="k" type="INT" defaultConstant="DEF_KMER_SIZE" attribute="kmerSize">
 K-mer size to find orthologs
 </option>
 <option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">

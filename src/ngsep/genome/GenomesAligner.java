@@ -35,6 +35,7 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -127,6 +128,9 @@ public class GenomesAligner {
 	public void setKmerSize(byte kmerSize) {
 		this.kmerSize = kmerSize;
 	}
+	public void setKmerSize(String value) {
+		setKmerSize((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
 
 	/**
 	 * @return the minPctKmers
@@ -139,6 +143,9 @@ public class GenomesAligner {
 	 */
 	public void setMinPctKmers(int minPctKmers) {
 		this.minPctKmers = minPctKmers;
+	}
+	public void setMinPctKmers(String value) {
+		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public void loadGenome(String fileGenome, String fileTranscriptome) throws IOException {
