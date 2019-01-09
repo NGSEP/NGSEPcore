@@ -343,6 +343,9 @@ Loads a transcriptome annotation in GFF3 format, logs format errors and provides
 <option id="g" type="GENOME" attribute="genome">
 Reference genome annotated in the transcriptome file
 </option>
+<option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
+Output only complete proteins (with start and stop codons) in the proteins output file
+</option>
 </command>
 
 <command id="Annotate" class="ngsep.vcf.VCFFunctionalAnnotator">

@@ -42,6 +42,8 @@ public class TranscriptomeAnalyzer {
 
 	private ReferenceGenome genome;
 	
+	private boolean selectCompleteProteins = false;
+	
 	private Logger log = Logger.getLogger(TranscriptomeAnalyzer.class.getName());
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
@@ -81,6 +83,25 @@ public class TranscriptomeAnalyzer {
 	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
+	}
+	
+	
+
+	/**
+	 * @return the selectCompleteProteins
+	 */
+	public boolean isSelectCompleteProteins() {
+		return selectCompleteProteins;
+	}
+
+	/**
+	 * @param selectCompleteProteins the selectCompleteProteins to set
+	 */
+	public void setSelectCompleteProteins(boolean selectCompleteProteins) {
+		this.selectCompleteProteins = selectCompleteProteins;
+	}
+	public void setSelectCompleteProteins(Boolean selectCompleteProteins) {
+		this.setSelectCompleteProteins(selectCompleteProteins.booleanValue());
 	}
 
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
@@ -134,29 +155,26 @@ public class TranscriptomeAnalyzer {
 				visitedGeneIDs.add(geneId);
 			}
 			String protein= t.getProteinSequence(translator);
+			if(protein==null) continue;
 			
-			if(protein!=null) {
-				//Collect sequence statistics
-				proteinLengthDist.processDatapoint(protein.length());
-				String cdnaSequence = t.getCDNASequence().toString();
-				Codon startCodon = translator.getCodon(cdnaSequence.charAt(start), cdnaSequence.charAt(start+1), cdnaSequence.charAt(start+2));
-				if(startCodon==null) {
-					log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence.substring(start, start+3));
-					continue;
-				}
-				Codon stopCodon = translator.getCodon(cdnaSequence.charAt(end-2), cdnaSequence.charAt(end-1), cdnaSequence.charAt(end));
-				if(stopCodon==null) {
-					log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence.substring(end-2, end+1));
-					continue;
-				}
-				if(startCodon.isStart() && stopCodon.isStop()) {
-					QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
-					qp.setComments(t.getGeneId()+" "+t.getGeneName());
-					proteome.add(qp);
-				} else {
-					 if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence());
-					 if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence());
-				}
+			//Collect sequence statistics
+			proteinLengthDist.processDatapoint(protein.length());
+			String cdnaSequence = t.getCDNASequence().toString();
+			Codon startCodon = translator.getCodon(cdnaSequence.charAt(start), cdnaSequence.charAt(start+1), cdnaSequence.charAt(start+2));
+			if(startCodon==null) {
+				log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence.substring(start, start+3));
+				continue;
+			}
+			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence());
+			
+			Codon stopCodon = translator.getCodon(cdnaSequence.charAt(end-2), cdnaSequence.charAt(end-1), cdnaSequence.charAt(end));
+			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence.substring(end-2, end+1));
+			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence());
+			
+			if(!selectCompleteProteins || (startCodon.isStart() && stopCodon!=null && stopCodon.isStop())) {
+				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
+				qp.setComments(t.getGeneId()+" "+t.getGeneName());
+				proteome.add(qp);
 			}
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
