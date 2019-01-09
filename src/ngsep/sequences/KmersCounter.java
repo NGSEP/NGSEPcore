@@ -281,6 +281,5 @@ public class KmersCounter {
 		Distribution kmerSpectrum = kmersMap.calculateAbundancesDistribution();
 		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
 		kmerSpectrum.printDistributionInt(out);
-		out.println("More:\t"+kmerSpectrum.getOutliers().size());
 	}	
 }

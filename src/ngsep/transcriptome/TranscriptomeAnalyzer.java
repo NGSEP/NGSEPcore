@@ -84,7 +84,7 @@ public class TranscriptomeAnalyzer {
 	}
 
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
-		Distribution geneLengthDist = new Distribution (0,100000,200);
+		Distribution geneLengthDist = new Distribution (0,10000,200);
 		Distribution transcriptLengthDist = new Distribution (0,5000,200); 
 		Distribution numberOfExonsDist = new Distribution (0,50,1);
 		Distribution proteinLengthDist = new Distribution (0,2500,200);
@@ -140,35 +140,42 @@ public class TranscriptomeAnalyzer {
 				proteinLengthDist.processDatapoint(protein.length());
 				String cdnaSequence = t.getCDNASequence().toString();
 				Codon startCodon = translator.getCodon(cdnaSequence.charAt(start), cdnaSequence.charAt(start+1), cdnaSequence.charAt(start+2));
+				if(startCodon==null) {
+					log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence.substring(start, start+3));
+					continue;
+				}
 				Codon stopCodon = translator.getCodon(cdnaSequence.charAt(end-2), cdnaSequence.charAt(end-1), cdnaSequence.charAt(end));
+				if(stopCodon==null) {
+					log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence.substring(end-2, end+1));
+					continue;
+				}
 				if(startCodon.isStart() && stopCodon.isStop()) {
 					QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
-					qp.setComments(t.getGeneName());
+					qp.setComments(t.getGeneId()+" "+t.getGeneName());
 					proteome.add(qp);
 				} else {
-					 if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have standard start codon. Codon: "+startCodon.getRnaSequence());
-					 if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have standard stop codon. Codon: "+stopCodon.getRnaSequence());
+					 if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence());
+					 if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence());
 				}
 			}
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
 			out.println("Gene length"); 
-			geneLengthDist.printDistribution(out);
+			geneLengthDist.printDistributionInt(out);
 			out.println();
 			out.println("Transcript length");
-			transcriptLengthDist.printDistribution(out);
+			transcriptLengthDist.printDistributionInt(out);
 			out.println();
 			out.println("Number of exons");
-			numberOfExonsDist.printDistribution(out);
+			numberOfExonsDist.printDistributionInt(out);
 			out.println();
 			out.println("Transcripts per gene");
-			transcriptsPerGeneDist.printDistribution(out);
+			transcriptsPerGeneDist.printDistributionInt(out);
 			if(proteome.size()>0) {
 				out.println();
 				out.println("Protein length");
-				proteinLengthDist.printDistribution(out);
+				proteinLengthDist.printDistributionInt(out);
 			}
-			
 		}
 		if(proteome.size()>0) {
 			FastaSequencesHandler handler = new FastaSequencesHandler();
