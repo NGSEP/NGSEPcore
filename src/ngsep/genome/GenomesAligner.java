@@ -223,7 +223,6 @@ public class GenomesAligner {
 			if(group[i]!=-1) continue;
 			List<OrthologyUnit> cluster = new ArrayList<>();
 			int groupNumber = orthologyUnitClusters.size();
-			orthologyUnitClusters.add(cluster);
 			Queue<OrthologyUnit> agenda = new LinkedList<>();
 			agenda.add(unitsWithOrthologs.get(i));
 			while(agenda.size()>0) {
@@ -237,8 +236,13 @@ public class GenomesAligner {
 				} else if(unitGroup!=groupNumber) log.warning("Possible connection between clusters "+unitGroup + " and "+groupNumber+" Unit: "+unit.getUniqueKey());
 				
 			}
-			distClusterSizes.processDatapoint(cluster.size());
-			groupNumber++;
+			if(cluster.size()>1) {
+				orthologyUnitClusters.add(cluster);
+				distClusterSizes.processDatapoint(cluster.size());
+			} else if (cluster.size()==0) {
+				log.warning("Empty cluster from unit: "+unitsWithOrthologs.get(i).getUniqueKey()+" clusters: "+orthologyUnitClusters.size()+" groupNumber: "+groupNumber);
+			}
+			
 		}
 		log.info("Number of clusters: "+orthologyUnitClusters.size());
 		//TODO: Report it better
