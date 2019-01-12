@@ -20,11 +20,11 @@
 package ngsep.genome;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author Daniel Tello
@@ -38,12 +38,12 @@ public class OrthologyUnit implements GenomicRegion {
 	private int last;
 	private boolean negativeStrand = false;
 	private String unitSequence;
-	private List<OrthologyUnit> paralogs = new ArrayList<>();
 	//Orthologs of other genomes
-	private Map<Integer, List<OrthologyUnit>> orthologsMap = new HashMap<>();
+	private Map<Integer, Map<String,OrthologyUnit>> orthologsMap = new HashMap<>();
+	private int totalOrthologs = 0;
 	
-	//Genomes for which this orthology unit is in LCS
-	private Set<Integer> genomesInLCS = new HashSet<>();
+	//LCS mates of this orthology unit
+	private Map<Integer, OrthologyUnit> matesInLCS = new HashMap<>();
 	
 	public OrthologyUnit(int genomeId, String id, String sequenceName, int first, int last) {
 		super();
@@ -52,6 +52,7 @@ public class OrthologyUnit implements GenomicRegion {
 		this.sequenceName = sequenceName;
 		this.first = first;
 		this.last = last;
+		orthologsMap.put(genomeId, new HashMap<>());
 	}
 	
 
@@ -118,8 +119,8 @@ public class OrthologyUnit implements GenomicRegion {
 	/**
 	 * @return the paralogs
 	 */
-	public List<OrthologyUnit> getParalogs() {
-		return paralogs;
+	public Collection<OrthologyUnit> getParalogs() {
+		return Collections.unmodifiableCollection(orthologsMap.get(genomeId).values());
 	}
 	
 	/**
@@ -128,7 +129,7 @@ public class OrthologyUnit implements GenomicRegion {
 	 */
 	public void addParalog (OrthologyUnit unit) {
 		if(unit.getGenomeId()!=genomeId) throw new RuntimeException("Can not add a paralog from a different genome. This genome id: "+genomeId+" unit id: "+unit.getGenomeId());
-		paralogs.add(unit);
+		addOrtholog(unit);
 	}
 
 
@@ -137,10 +138,10 @@ public class OrthologyUnit implements GenomicRegion {
 	 * @param id of the genome to query
 	 * @return Orthologs from the given id
 	 */
-	public List<OrthologyUnit> getOrthologs(int genomeId) {
-		List<OrthologyUnit> orthologs = orthologsMap.get(genomeId);
-		if(orthologs==null) orthologs = new ArrayList<>();
-		return orthologs;
+	public Collection<OrthologyUnit> getOrthologs(int genomeId) {
+		Map<String,OrthologyUnit> orthologs = orthologsMap.get(genomeId);
+		if(orthologs==null) return new ArrayList<>();
+		return Collections.unmodifiableCollection(orthologs.values());
 	}
 	
 	/**
@@ -150,7 +151,18 @@ public class OrthologyUnit implements GenomicRegion {
 	public List<OrthologyUnit> getOrthologsOtherGenomes() {
 		List<OrthologyUnit> answer = new ArrayList<>();
 		for(int id:orthologsMap.keySet()) {
-			if(id!=genomeId) answer.addAll(orthologsMap.get(id));
+			if(id!=genomeId) answer.addAll(orthologsMap.get(id).values());
+		}
+		return answer;
+	}
+	/**
+	 * Get all orthologs from all genomes including the genome of this unit
+	 * @return List<OrthologyUnit> 
+	 */
+	public List<OrthologyUnit> getOrthologsAllGenomes() {
+		List<OrthologyUnit> answer = new ArrayList<>();
+		for(int id:orthologsMap.keySet()) {
+			answer.addAll(orthologsMap.get(id).values());
 		}
 		return answer;
 	}
@@ -161,35 +173,68 @@ public class OrthologyUnit implements GenomicRegion {
 	 * @return OrthologyUnit ortholog of this unit or null if there are not orthologs or if the ortholog is not unique
 	 */
 	public OrthologyUnit getUniqueOrtholog(int genomeId) {
-		List<OrthologyUnit> orthologs = getOrthologs(genomeId);
+		Collection<OrthologyUnit> orthologs = getOrthologs(genomeId);
 		if(orthologs.size()!=1) return null;
-		return orthologs.get(0);
+		return orthologs.iterator().next();
 		
 	}
 	
+	/**
+	 * Returns the ortholog of this unit with the given genome id and the given id
+	 * @param genomeId Id of the genome to query
+	 * @param id of the unit to look for
+	 * @return OrthologyUnit ortholog of this unit or null if the ortholog was not found
+	 */
+	public OrthologyUnit getOrtholog(int genomeId, String id) {
+		Map<String,OrthologyUnit> orthologs = orthologsMap.get(genomeId);
+		if(orthologs==null) return null;
+		return orthologs.get(id);
+		
+	}
+	/**
+	 * Tells if the given unit is an ortholog of this unit
+	 * @param unit to search
+	 * @return boolean true if the given ortholog was found in the list of orthologs of this unit 
+	 */
+	public boolean isOrtholog (OrthologyUnit unit) {
+		return getOrtholog(unit.getGenomeId(), unit.getId())!=null;
+	}
+
+	/**
+	 * @return the total number of orthologs
+	 */
+	public int getTotalOrthologs() {
+		return totalOrthologs;
+	}
+
+
 	/**
 	 * Adds a new ortholog to this unit
 	 * @param unit to associate as ortholog
 	 */
 	public void addOrtholog (OrthologyUnit unit) {
 		int genomeId = unit.getGenomeId();
-		List<OrthologyUnit> unitsGenome = orthologsMap.get(genomeId);
+		Map<String,OrthologyUnit> unitsGenome = orthologsMap.get(genomeId);
 		if(unitsGenome == null) {
-			unitsGenome = new ArrayList<>();
+			unitsGenome = new HashMap<>();
 			orthologsMap.put(genomeId, unitsGenome);
 		}
-		unitsGenome.add(unit);
+		if(!unitsGenome.containsKey(unit.getId())) totalOrthologs++;
+		unitsGenome.put(unit.getId(),unit);
 	}
 	
 	public boolean isUnique() {
-		return paralogs.size()==0;
+		return orthologsMap.get(genomeId).size()==0;
 	}
 	
-	public boolean isInLCS (int genomeId) {
-		return genomesInLCS.contains(genomeId);
+	public OrthologyUnit getLCSMate (int genomeId) {
+		return matesInLCS.get(genomeId);
 	}
 	
-	public void setInLCS (int genomeId) {
-		genomesInLCS.add(genomeId);
+	public void setMateInLCS (OrthologyUnit mate) {
+		matesInLCS.put(mate.genomeId,mate);
+	}
+	public String getUniqueKey() {
+		return ""+genomeId+"\t"+id;
 	}
 }

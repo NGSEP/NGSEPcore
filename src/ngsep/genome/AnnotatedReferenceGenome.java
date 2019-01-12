@@ -131,6 +131,7 @@ public class AnnotatedReferenceGenome {
 				if(!paralogId.equals(unit.getId())) {
 					OrthologyUnit paralog = orthologyUnitsMap.get(paralogId);
 					unit.addParalog(paralog);
+					paralog.addParalog(unit);
 				}
 			}
 		}
@@ -200,6 +201,7 @@ public class AnnotatedReferenceGenome {
 			for(String orthologId:hits) {
 				OrthologyUnit ortholog = genome2.orthologyUnitsMap.get(orthologId);
 				unit.addOrtholog(ortholog);
+				ortholog.addOrtholog(unit);
 			}
 		}
 	}
@@ -211,6 +213,15 @@ public class AnnotatedReferenceGenome {
 	}
 	
 	/**
+	 * Returns the list of all orthology units for the given sequence name
+	 * @param name Sequence name
+	 * @return List<OrthologyUnit> units with the given sequence name
+	 */
+	public List<OrthologyUnit> getOrthologyUnits(String name) {
+		return orthologyUnitsBySequence.getSequenceRegions(name).asList();
+	}
+	
+	/**
 	 * @return List<OrthologyUnit> List of unique orthology units in this genome
 	 */
 	public List<OrthologyUnit> getUniqueOrthologyUnits() {
@@ -218,9 +229,9 @@ public class AnnotatedReferenceGenome {
 	}
 	
 	/**
-	 * Returns the list of orthology units for the given sequence name
+	 * Returns the list of unique orthology units for the given sequence name
 	 * @param name Sequence name
-	 * @return List<OrthologyUnit> units with the given sequence name
+	 * @return List<OrthologyUnit> unique units with the given sequence name
 	 */
 	public List<OrthologyUnit> getUniqueOrthologyUnits(String name) {
 		return uniqueOrthologyUnitsBySequence.getSequenceRegions(name).asList();
