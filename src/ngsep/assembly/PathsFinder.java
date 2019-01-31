@@ -11,5 +11,4 @@ public interface PathsFinder {
 	public static PathsFinder NONE = (Map<Integer, List<Edge>> edges) -> {
 		return new LinkedList<List<Integer>>();
 	};
-
 }

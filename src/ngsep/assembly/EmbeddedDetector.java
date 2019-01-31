@@ -10,7 +10,7 @@ import ngsep.sequences.FMIndex;
 @FunctionalInterface
 public interface EmbeddedDetector {
 	public Map<Integer, EmbeddedSequence> getEmbedded(FMIndex index, List<DNAMaskedSequence> sequences);
-	
+
 	public static EmbeddedDetector NONE = (FMIndex index, List<DNAMaskedSequence> sequences) -> {
 		return new HashMap<Integer, EmbeddedSequence>();
 	};

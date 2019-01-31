@@ -16,23 +16,23 @@ import ngsep.sequences.io.FastqFileReader;
 public class Assembler {
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
 	private static final String[] fasta = { ".fasta", ".fa" };
-	
+
 	private Map<Integer, EmbeddedSequence> embedded;
 	private Map<Integer, List<Edge>> edges;
-	
+
 	public Assembler(String fileIn, String fileOut) throws Exception {
 		List<DNAMaskedSequence> sequences = load(fileIn);
-		
+
 		EdgesFinder edgesFinder = new FmIndexEdgesFinder(sequences);
 		edges = edgesFinder.getEdges();
 		embedded = edgesFinder.getEmbedded();
-		
+
 		PathsFinder pathsFinder = PathsFinder.NONE;
 		List<List<Integer>> paths = pathsFinder.findPaths(edges);
-		
+
 		Consensus consensus = Consensus.NONE;
 		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths, sequences, embedded, edges);
-		
+
 		exportToFile(fileOut, AssembleSequences);
 	}
 
@@ -93,9 +93,12 @@ public class Assembler {
 		}
 		return sequences;
 	}
-	
-	
-	private static void exportToFile(String fileName,List<CharSequence> sequences) {
-		//TODO: the method
+
+	private static void exportToFile(String fileName, List<CharSequence> sequences) {
+		// TODO: the method
+	}
+
+	public static void main(String[] args) throws Exception {
+		new Assembler(args[0], args[1]);
 	}
 }
