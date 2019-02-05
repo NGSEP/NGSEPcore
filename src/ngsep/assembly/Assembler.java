@@ -17,29 +17,30 @@ public class Assembler {
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
 	private static final String[] fasta = { ".fasta", ".fa" };
 
-	private Map<Integer, Edge> embedded;
-	private Map<Integer, List<Edge>> edges;
+	private List<CharSequence> sequences;
+	private AssemblyGraph graph;
+	private Map<Integer, Integer> embeddedMap;
 
 	public Assembler(String fileIn, String fileOut) throws Exception {
 		System.out.println("-----Assembler-----");
-		List<DNAMaskedSequence> sequences = load(fileIn);
+		sequences = load(fileIn);
 
 		System.out.println("building overlap Graph");
 		long ini = System.currentTimeMillis();
-		EdgesFinder edgesFinder = new FmIndexEdgesFinder(sequences);
-		edges = edgesFinder.getEdges();
-		embedded = edgesFinder.getEmbedded();
+		AssemblyGraphBuilder builder = new FmIndexGraphBuilder();
+		builder.findOverlaps(sequences);
+		graph = builder.getAssemblyGraph();
+		embeddedMap = builder.getEmbeddedSequences();
 		System.out.println("build overlap Graph: "
 				+ (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
-		System.out.println("building the paths");
-		PathsFinder pathsFinder = PathsFinder.NONE;
-		List<List<Integer>> paths = pathsFinder.findPaths(edges);
+		System.out.println("building layouts");
+		LayourBuilder pathsFinder = LayourBuilder.NONE;
+		List<List<Integer>> paths = pathsFinder.findPaths(graph);
 
 		System.out.println("consensus");
-		Consensus consensus = Consensus.NONE;
-		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths,
-				sequences, embedded, edges);
+		ConsensusBuilder consensus = ConsensusBuilder.NONE;
+		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths,sequences, embeddedMap, graph);
 
 		exportToFile(fileOut, AssembleSequences);
 	}
@@ -53,7 +54,7 @@ public class Assembler {
 	 * @throws IOException
 	 *             The file cannot opened
 	 */
-	public static List<DNAMaskedSequence> load(String filename)
+	public static List<CharSequence> load(String filename)
 			throws IOException {
 		System.out.println("loading file");
 		long ini = System.currentTimeMillis();
@@ -86,14 +87,13 @@ public class Assembler {
 	 * @throws IOException
 	 *             The file cannot opened
 	 */
-	private static List<DNAMaskedSequence> loadFasta(String filename)
+	private static List<CharSequence> loadFasta(String filename)
 			throws IOException {
-		List<DNAMaskedSequence> sequences = new ArrayList<>();
+		List<CharSequence> sequences = new ArrayList<>();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
 		for (QualifiedSequence seq : seqsQl) {
-			DNAMaskedSequence characters = (DNAMaskedSequence) seq
-					.getCharacters();
+			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
 			sequences.add(characters);
 		}
 		return sequences;
@@ -108,9 +108,9 @@ public class Assembler {
 	 * @throws IOException
 	 *             The file cannot opened
 	 */
-	private static List<DNAMaskedSequence> loadFastq(String filename)
+	private static List<CharSequence> loadFastq(String filename)
 			throws IOException {
-		List<DNAMaskedSequence> sequences = new ArrayList<>();
+		List<CharSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
 			reader.setSequenceType(DNAMaskedSequence.class);

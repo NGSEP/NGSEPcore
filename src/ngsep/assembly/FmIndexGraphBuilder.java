@@ -3,19 +3,18 @@ package ngsep.assembly;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 
-public class FmIndexEdgesFinder implements EdgesFinder {
+public class FmIndexGraphBuilder implements AssemblyGraphBuilder {
 	private final static int TALLY_DISTANCE = 100;
 	private final static int SUFFIX_FRACTION = 25;
 
-	private Map<Integer, Edge> embedded;
-	private Map<Integer, List<Edge>> edges;
+	private AssemblyGraph graph;
+	private Map<Integer, Integer> embeddedMap;
 
-	public FmIndexEdgesFinder(List<DNAMaskedSequence> sequences) {
-		Collections.sort(sequences,
-				(DNAMaskedSequence l1, DNAMaskedSequence l2) -> l2.length()
+	@Override
+	public void findOverlaps(List<CharSequence> sequences) {
+		Collections.sort(sequences, (CharSequence l1, CharSequence l2) -> l2.length()
 						- l1.length());
 		System.out.println("	building FMIndexes");
 		long ini = System.currentTimeMillis();
@@ -24,20 +23,24 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 		System.out.println("	build FMIndexes: "
 				+ (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
-		EmbeddedDetector embeddedDetector = EmbeddedDetector.NONE;
+		
+		/*EmbeddedDetector embeddedDetector = EmbeddedDetector.NONE;
 		embedded = embeddedDetector.getEmbedded(index, sequences);
 
 		OverlappingDetector overlappingDetector = new OverlapingDetector1();
 		edges = overlappingDetector.getEdges(index, sequences, embedded);
+		*/
 	}
 
 	@Override
-	public Map<Integer, List<Edge>> getEdges() {
-		return edges;
+	public AssemblyGraph getAssemblyGraph() {
+		// TODO Auto-generated method stub
+		return graph;
 	}
 
 	@Override
-	public Map<Integer, Edge> getEmbedded() {
-		return embedded;
+	public Map<Integer, Integer> getEmbeddedSequences() {
+		// TODO Auto-generated method stub
+		return embeddedMap;
 	}
 }

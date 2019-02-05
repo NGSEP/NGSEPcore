@@ -111,22 +111,14 @@ public class VCFSummaryStatisticsCalculator {
 	 * @throws IOException If the input file can not be read
 	 */
 	public void runStatistics(String filename, PrintStream out) throws IOException {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(filename);
+		try (VCFFileReader in = new VCFFileReader(filename)) { 
 			runStatistics(in, out);
-		} finally {
-			if(in!=null) in.close();
 		}
 	}
 	public void runStatistics(InputStream fis, PrintStream out) throws IOException {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(fis);
+		try (VCFFileReader in = new VCFFileReader(fis)) {
 			runStatistics(in, out);
-		} finally {
-			if(in!=null) in.close();
-		}		
+		}	
 	}
 	public void runStatistics(VCFFileReader in, PrintStream out) throws IOException {
 		if(log!=null)in.setLog(log);
