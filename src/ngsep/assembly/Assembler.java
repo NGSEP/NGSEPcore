@@ -17,7 +17,7 @@ public class Assembler {
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
 	private static final String[] fasta = { ".fasta", ".fa" };
 
-	private Map<Integer, EmbeddedSequence> embedded;
+	private Map<Integer, Edge> embedded;
 	private Map<Integer, List<Edge>> edges;
 
 	public Assembler(String fileIn, String fileOut) throws Exception {

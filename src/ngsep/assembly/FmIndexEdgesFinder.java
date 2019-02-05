@@ -10,7 +10,7 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 	private final static int TALLY_DISTANCE = 100;
 	private final static int SUFFIX_FRACTION = 25;
 
-	private Map<Integer, EmbeddedSequence> embedded;
+	private Map<Integer, Edge> embedded;
 	private Map<Integer, List<Edge>> edges;
 
 	public FmIndexEdgesFinder(List<DNAMaskedSequence> sequences) {
@@ -28,8 +28,7 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 		embedded = embeddedDetector.getEmbedded(index, sequences);
 
 		OverlappingDetector overlappingDetector = OverlappingDetector.NONE;
-		edges = overlappingDetector.getEdges(index, sequences,
-				embedded.keySet());
+		edges = overlappingDetector.getEdges(index, sequences, embedded);
 	}
 
 	@Override
@@ -38,7 +37,7 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 	}
 
 	@Override
-	public Map<Integer, EmbeddedSequence> getEmbedded() {
+	public Map<Integer, Edge> getEmbedded() {
 		return embedded;
 	}
 }

@@ -6,7 +6,12 @@ import java.util.Map;
 public interface EdgesFinder {
 	public Map<Integer, List<Edge>> getEdges();
 
-	Map<Integer, EmbeddedSequence> getEmbedded();
+	public Map<Integer, Edge> getEmbedded();
+
+	public static void printStats(Map<Integer, List<Edge>> edges,
+			Map<Integer, Edge> embed) {
+
+	}
 }
 
 class Edge {
@@ -18,6 +23,18 @@ class Edge {
 	private int last2;
 	private boolean negativeStrand;
 	private boolean negativeCase;
+
+	
+	public Edge(int indexSequence1, int indexSequence2, int first1, int last1,
+			int first2, int last2) {
+		super();
+		this.indexSequence1 = indexSequence1;
+		this.indexSequence2 = indexSequence2;
+		this.first1 = first1;
+		this.last1 = last1;
+		this.first2 = first2;
+		this.last2 = last2;
+	}
 
 	public int getOverlap() {
 		return last1 - first1;
@@ -86,34 +103,8 @@ class Edge {
 	public void setNegativeCase(boolean negativeCase) {
 		this.negativeCase = negativeCase;
 	}
-}
 
-class EmbeddedSequence {
-	private int idRef;
-	private int startPosRef;
-	private int finalPosRef;
-
-	public int getIdRef() {
-		return idRef;
-	}
-
-	public void setIdRef(int idRef) {
-		this.idRef = idRef;
-	}
-
-	public int getStartPosRef() {
-		return startPosRef;
-	}
-
-	public void setStartPosRef(int startPosRef) {
-		this.startPosRef = startPosRef;
-	}
-
-	public int getFinalPosRef() {
-		return finalPosRef;
-	}
-
-	public void setFinalPosRef(int finalPosRef) {
-		this.finalPosRef = finalPosRef;
+	public int length() {
+		return last2 - first2;
 	}
 }
