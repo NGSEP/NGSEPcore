@@ -27,7 +27,7 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 		EmbeddedDetector embeddedDetector = EmbeddedDetector.NONE;
 		embedded = embeddedDetector.getEmbedded(index, sequences);
 
-		OverlappingDetector overlappingDetector = OverlappingDetector.NONE;
+		OverlappingDetector overlappingDetector = new OverlapingDetector1();
 		edges = overlappingDetector.getEdges(index, sequences, embedded);
 	}
 

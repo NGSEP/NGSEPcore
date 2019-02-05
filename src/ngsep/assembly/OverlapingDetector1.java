@@ -30,6 +30,7 @@ public class OverlapingDetector1 implements OverlappingDetector {
 		this.index = index;
 		this.sequences = sequences;
 		this.ignored = ignored;
+		findOverlaps2();
 		return null;
 	}
 
