@@ -1,7 +1,15 @@
 package ngsep.assembly;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.TreeSet;
+
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.io.FastaSequencesHandler;
 
 public class TestReadGenerator {
 	private final static char[] ALPHABET = new char[] { 'A', 'C', 'T', 'G' };
@@ -10,7 +18,7 @@ public class TestReadGenerator {
 	private static Random rnd = new Random();
 
 	public TestReadGenerator(String path, String pathlect, int numberOfSequences, int[] sequencesdist,
-			int numberOfreads, int[] distribution, double... tasas) {
+			int numberOfreads, int[] distribution, double... tasas) throws FileNotFoundException {
 		double rateChages = (tasas.length > 1) ? tasas[0] : Rate_of_changes;
 		double rateCuts = (tasas.length > 2) ? tasas[1] : Rate_of_cuts;
 
@@ -19,8 +27,9 @@ public class TestReadGenerator {
 
 		for (int i = 0; i < lects.length; i++)
 			lects[i] = getLect(ref, distribution, rateCuts, rateChages);
-		
-		// TODO: write the files
+
+		print(path, ref, "ref");
+		print(pathlect, lects, "lect");
 	}
 
 	private static String getLect(String[] ref, int[] dist, double Ncuts, double Nchng) {
@@ -83,6 +92,17 @@ public class TestReadGenerator {
 
 	private static char next() {
 		return ALPHABET[rnd.nextInt(ALPHABET.length)];
+	}
+
+	private static void print(String file, String[] sec, String name) throws FileNotFoundException {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
+		int i = 1;
+		for (String str : sec)
+			list.add(new QualifiedSequence(name + " " + (i++), str));
+		try (PrintStream pr = new PrintStream(new FileOutputStream(file))) {
+			handler.saveSequences(list, pr, 1000);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
