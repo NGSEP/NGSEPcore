@@ -17,8 +17,9 @@ public class TestReadGenerator {
 	private final static double Rate_of_cuts = 0.07;
 	private static Random rnd = new Random();
 
-	public TestReadGenerator(String path, String pathlect, int numberOfSequences, int[] sequencesdist,
-			int numberOfreads, int[] distribution, double... tasas) throws FileNotFoundException {
+	public TestReadGenerator(String path, String pathlect,
+			int numberOfSequences, int[] sequencesdist, int numberOfreads,
+			int[] distribution, double... tasas) throws FileNotFoundException {
 		double rateChages = (tasas.length > 1) ? tasas[0] : Rate_of_changes;
 		double rateCuts = (tasas.length > 2) ? tasas[1] : Rate_of_cuts;
 
@@ -32,9 +33,11 @@ public class TestReadGenerator {
 		print(pathlect, lects, "lect");
 	}
 
-	private static String getLect(String[] ref, int[] dist, double Ncuts, double Nchng) {
+	private static String getLect(String[] ref, int[] dist, double Ncuts,
+			double Nchng) {
 		int i = rnd.nextInt(ref.length);
-		int length = (int) (dist[0] + ((rnd.nextBoolean()) ? 1 : -1) * dist[1] * rnd.nextDouble());
+		int length = (int) (dist[0] + ((rnd.nextBoolean()) ? 1 : -1) * dist[1]
+				* rnd.nextDouble());
 		int pos = rnd.nextInt(ref[i].length() - length);
 		String str = ref[i];
 
@@ -76,7 +79,8 @@ public class TestReadGenerator {
 	private static String[] getRef(int N, int[] dist) {
 		String[] ans = new String[N];
 		for (int i = 0; i < ans.length; i++) {
-			int length = (int) (dist[0] + ((rnd.nextBoolean()) ? 1 : -1) * dist[1] * rnd.nextDouble());
+			int length = (int) (dist[0] + ((rnd.nextBoolean()) ? 1 : -1)
+					* dist[1] * rnd.nextDouble());
 			ans[i] = createSequence(length);
 		}
 		return ans;
@@ -94,7 +98,8 @@ public class TestReadGenerator {
 		return ALPHABET[rnd.nextInt(ALPHABET.length)];
 	}
 
-	private static void print(String file, String[] sec, String name) throws FileNotFoundException {
+	private static void print(String file, String[] sec, String name)
+			throws FileNotFoundException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
 		int i = 1;
@@ -112,23 +117,27 @@ public class TestReadGenerator {
 		String path = args[0];
 		String pathlect = args[1];
 		int numberOfSequences = Integer.parseInt(args[2]);
-		int[] odist = new int[] { Integer.parseInt(args[3]), Integer.parseInt(args[4]) };
+		int[] odist = new int[] { Integer.parseInt(args[3]),
+				Integer.parseInt(args[4]) };
 		int numberOfreads = Integer.parseInt(args[5]);
-		int[] dist = new int[] { Integer.parseInt(args[6]), Integer.parseInt(args[7]) };
+		int[] dist = new int[] { Integer.parseInt(args[6]),
+				Integer.parseInt(args[7]) };
 
 		switch (args.length) {
 		case 8:
-			new TestReadGenerator(path, pathlect, numberOfSequences, odist, numberOfreads, dist);
+			new TestReadGenerator(path, pathlect, numberOfSequences, odist,
+					numberOfreads, dist);
 			break;
 
 		case 9:
-			new TestReadGenerator(path, pathlect, numberOfSequences, odist, numberOfreads, dist,
-					Double.parseDouble(args[5]));
+			new TestReadGenerator(path, pathlect, numberOfSequences, odist,
+					numberOfreads, dist, Double.parseDouble(args[5]));
 			break;
 
 		case 10:
-			new TestReadGenerator(path, pathlect, numberOfSequences, odist, numberOfreads, dist,
-					Double.parseDouble(args[5]), Double.parseDouble(args[6]));
+			new TestReadGenerator(path, pathlect, numberOfSequences, odist,
+					numberOfreads, dist, Double.parseDouble(args[5]),
+					Double.parseDouble(args[6]));
 			break;
 
 		default:

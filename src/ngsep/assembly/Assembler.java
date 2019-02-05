@@ -30,7 +30,7 @@ public class Assembler {
 		edges = edgesFinder.getEdges();
 		embedded = edgesFinder.getEmbedded();
 		System.out.println("build overlap Graph: "
-				+ (System.currentTimeMillis() - ini)/(double)1000 + " s");
+				+ (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("building the paths");
 		PathsFinder pathsFinder = PathsFinder.NONE;
@@ -44,7 +44,7 @@ public class Assembler {
 		exportToFile(fileOut, AssembleSequences);
 	}
 
-	/**			
+	/**
 	 * Load the sequences of the file
 	 * 
 	 * @param Filename
