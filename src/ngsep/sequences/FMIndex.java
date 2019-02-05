@@ -89,10 +89,11 @@ public class FMIndex implements Serializable
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
 			if(internalSequence.length() + next.length() > (100000000) ) {
-				System.out.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+				System.out.println("		Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
-				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				System.out.println("		Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				System.out.println("		-----------------");
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
 				internalSequence = new StringBuffer();
@@ -104,10 +105,10 @@ public class FMIndex implements Serializable
 			sequenceLengths.add(next.length());
 			nI++;
 		}
-		System.out.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+		System.out.println("		Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 		long time = System.currentTimeMillis();
 		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
-		System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+		System.out.println("		Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 		internalIndexes.add(index);
 		internalMetadata.add(internalIdxMetadata);
 	}

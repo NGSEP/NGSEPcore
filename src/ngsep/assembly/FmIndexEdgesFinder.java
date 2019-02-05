@@ -14,15 +14,22 @@ public class FmIndexEdgesFinder implements EdgesFinder {
 	private Map<Integer, List<Edge>> edges;
 
 	public FmIndexEdgesFinder(List<DNAMaskedSequence> sequences) {
-		Collections.sort(sequences, (DNAMaskedSequence l1, DNAMaskedSequence l2) -> l2.length() - l1.length());
+		Collections.sort(sequences,
+				(DNAMaskedSequence l1, DNAMaskedSequence l2) -> l2.length()
+						- l1.length());
+		System.out.println("	building FMIndexes");
+		long ini = System.currentTimeMillis();
 		FMIndex index = new FMIndex();
 		index.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
+		System.out.println("	build FMIndexes: "
+				+ (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		EmbeddedDetector embeddedDetector = EmbeddedDetector.NONE;
 		embedded = embeddedDetector.getEmbedded(index, sequences);
 
 		OverlappingDetector overlappingDetector = OverlappingDetector.NONE;
-		edges = overlappingDetector.getEdges(index, sequences, embedded.keySet());
+		edges = overlappingDetector.getEdges(index, sequences,
+				embedded.keySet());
 	}
 
 	@Override

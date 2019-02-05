@@ -99,7 +99,7 @@ public class TestReadGenerator {
 		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
 		int i = 1;
 		for (String str : sec)
-			list.add(new QualifiedSequence(name + " " + (i++), str));
+			list.add(new QualifiedSequence(name + "_" + (i++), str));
 		try (PrintStream pr = new PrintStream(new FileOutputStream(file))) {
 			handler.saveSequences(list, pr, 1000);
 		}
