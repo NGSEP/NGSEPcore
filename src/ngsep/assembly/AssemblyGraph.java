@@ -2,13 +2,16 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AssemblyGraph {
 
 	private List<CharSequence> sequences;
 	private List<AssemblyVertex> vertices;
 	private List<AssemblyEdge> edges = new ArrayList<>();
+	private Map<Integer, Integer> embeddedSequencesMap = new HashMap<>();
 	
 	public AssemblyGraph (List<CharSequence> sequences) {
 		this.sequences = Collections.unmodifiableList(sequences);
@@ -38,6 +41,13 @@ public class AssemblyGraph {
 		return vertices.get(2*indexSequence+(start?0:1));
 	}
 	
+	public void addEmbeddedRelationship(int embedded, int host) {
+		embeddedSequencesMap.put(embedded, host);
+	}
+	
+	public boolean isEmbedded (int index) {
+		return embeddedSequencesMap.containsKey(index);
+	}
 	
 	/**
 	 * @return the vertices

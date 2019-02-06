@@ -19,7 +19,6 @@ public class Assembler {
 
 	private List<CharSequence> sequences;
 	private AssemblyGraph graph;
-	private Map<Integer, Integer> embeddedMap;
 
 	public Assembler(String fileIn, String fileOut) throws Exception {
 		System.out.println("-----Assembler-----");
@@ -28,9 +27,7 @@ public class Assembler {
 		System.out.println("building overlap Graph");
 		long ini = System.currentTimeMillis();
 		AssemblyGraphBuilder builder = new FmIndexGraphBuilder();
-		builder.findOverlaps(sequences);
-		graph = builder.getAssemblyGraph();
-		embeddedMap = builder.getEmbeddedSequences();
+		graph = builder.buildAssemblyGraph(sequences);
 		System.out.println("build overlap Graph: "
 				+ (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
@@ -40,7 +37,7 @@ public class Assembler {
 
 		System.out.println("consensus");
 		ConsensusBuilder consensus = ConsensusBuilder.NONE;
-		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths,sequences, embeddedMap, graph);
+		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths,sequences, graph);
 
 		exportToFile(fileOut, AssembleSequences);
 	}
