@@ -13,8 +13,8 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 public class TestReadGenerator {
-	private final static double Rate_of_changes = 0.1;
-	private final static double Rate_of_cuts = 0.07;
+	private final static double Rate_of_changes = 0.00;
+	private final static double Rate_of_cuts = 0.00;
 	private static Random rnd = new Random();
 
 	public TestReadGenerator(String path, String pathlect, int numberOfSequences, int[] sequencesdist,
