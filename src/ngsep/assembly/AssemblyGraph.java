@@ -13,6 +13,9 @@ public class AssemblyGraph {
 	private List<AssemblyVertex> vertices;
 	private List<AssemblyEdge> edges = new ArrayList<>();
 	private Map<Integer, List<AssembyEmbedded>> embeddedSequences = new HashMap<>();
+	
+	//Indexes in the vertices list
+	private List<List<Integer>> paths;
 
 	public AssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = Collections.unmodifiableList(sequences);
@@ -60,5 +63,14 @@ public class AssemblyGraph {
 	public List<AssemblyEdge> getEdges() {
 		return edges;
 	}
+
+	/**
+	 * @return the paths
+	 */
+	public List<List<Integer>> getPaths() {
+		return paths;
+	}
+	
+	
 
 }

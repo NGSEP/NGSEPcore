@@ -31,11 +31,11 @@ public class Assembler {
 
 		System.out.println("building layouts");
 		LayourBuilder pathsFinder = LayourBuilder.NONE;
-		List<List<Integer>> paths = pathsFinder.findPaths(graph);
+		pathsFinder.findPaths(graph);
 
 		System.out.println("consensus");
 		ConsensusBuilder consensus = ConsensusBuilder.NONE;
-		List<CharSequence> AssembleSequences = consensus.makeConsensus(paths, sequences, graph);
+		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
 
 		exportToFile(fileOut, AssembleSequences);
 	}
