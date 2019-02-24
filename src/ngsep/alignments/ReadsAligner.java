@@ -56,7 +56,7 @@ public class ReadsAligner {
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 	private boolean onlyPositiveStrand = false;
-	
+
 	private ReferenceGenomeFMIndex fMIndex;
 
 	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
@@ -70,27 +70,27 @@ public class ReadsAligner {
 		String outFile = args[i++];
 		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
-		
+
 		try (PrintStream out = new PrintStream(outFile);
-			ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
+				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
 			instance.alignReads(readsFile, writer);
 		}
 	}
-	
+
 	/**
 	 * @return the minProportionKmers
 	 */
 	public double getMinProportionKmers() {
 		return minProportionKmers;
 	}
-	
+
 	/**
 	 * @param minProportionKmers the minProportionKmers to set
 	 */
 	public void setMinProportionKmers(double minProportionKmers) {
 		this.minProportionKmers = minProportionKmers;
 	}
-	
+
 	/**
 	 * @param minProportionKmers the minProportionKmers to set
 	 */
@@ -106,8 +106,6 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
-		 
-		
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
@@ -145,7 +143,14 @@ public class ReadsAligner {
 
 	}
 
+	public List<ReadAlignment> checkPairEndAlns(List<ReadAlignment> alns1, List<ReadAlignment> alns2){
+		List<ReadAlignment> pairEndAlns = new ArrayList<ReadAlignment>();
+		return pairEndAlns;
+	}
 
+	public ReadAlignment checkPairEnd(ReadAlignment aln1, ReadAlignment aln2) {
+		return null;
+	}
 
 	public List<ReadAlignment> alignRead(RawRead read) {
 		List<ReadAlignment> alignments = kmerBasedInexactSearchAlgorithm(read);
@@ -168,7 +173,7 @@ public class ReadsAligner {
 		DNAMaskedSequence readSeq = (DNAMaskedSequence)read.getCharacters();
 		String qual = read.getQualityScores();
 		alns.addAll(kmerBasedInexactSearchAlgorithm(readSeq, qual));
-		
+
 		if(!onlyPositiveStrand) {
 			readSeq = readSeq.getReverseComplement();
 			qual = new StringBuilder(qual).reverse().toString();
@@ -197,7 +202,7 @@ public class ReadsAligner {
 		List<ReadAlignment> initialKmerAlns = searchKmers (kmers);
 		Collection<KmerAlignmentCluster> clusteredKmerAlns = clusterKmerAlignments(query, initialKmerAlns); 
 		//System.out.println("Clusters: "+clusteredKmerAlns.size());
-		
+
 
 		for (KmerAlignmentCluster cluster:clusteredKmerAlns) {
 			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
@@ -206,7 +211,7 @@ public class ReadsAligner {
 		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query.toString());
 		return finalAlignments;
 	}
-	
+
 	/**
 	 * Selects the kmers that will be used to query the given sequence
 	 * @param search sequence 
@@ -225,7 +230,7 @@ public class ReadsAligner {
 			CharSequence kmer = search.subSequence(n-SEARCH_KMER_LENGTH, n);
 			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, n-SEARCH_KMER_LENGTH));
 		}
-		
+
 		return kmers;
 	}
 	/**
@@ -244,7 +249,7 @@ public class ReadsAligner {
 		}
 		return answer;
 	}
-	
+
 	private Collection<KmerAlignmentCluster> clusterKmerAlignments(CharSequence query, List<ReadAlignment> initialKmerAlns) {
 		List<KmerAlignmentCluster> clusters = new ArrayList<>();
 		QualifiedSequenceList seqs = fMIndex.getSequencesMetadata();
@@ -255,8 +260,8 @@ public class ReadsAligner {
 		}
 		return clusters;
 	}
-	
-	
+
+
 	private Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, GenomicRegionSortedCollection<ReadAlignment> sequenceAlns) {
 		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
@@ -274,8 +279,8 @@ public class ReadsAligner {
 		int numDiffKmers = cluster.getNumDifferentKmers();
 		double prop = (double) numDiffKmers/totalKmers;
 		if(prop<minProportionKmers) return null;
-		
-		
+
+
 		String sequenceName = cluster.getSequenceName();
 		int first = cluster.getFirst();
 		int last = cluster.getLast();
@@ -295,7 +300,7 @@ public class ReadsAligner {
 			AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
 			//TODO: Make better score
 			if(result.getDistance()>0.5*query.length()) return null;
-			
+
 			//Last must be updated before first
 			last = first+result.getSubjectLastIdx();
 			first = first + result.getSubjectStartIdx();
@@ -310,7 +315,7 @@ public class ReadsAligner {
 		aln.setAlignmentQuality((short) Math.round(alnQual));
 		return aln;
 	}
-	
+
 	private AlignmentResult smithWatermanLocalAlignment(CharSequence query, CharSequence subject) {
 		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
 		int[][] scores = new int[query.length()+1][subject.length()+1]; 
@@ -407,11 +412,11 @@ class AlignmentResult {
 	private int subjectLastIdx;
 	private int distance;
 	private LinkedList<Character> path = new LinkedList<>();
-	
+
 	public void addBacktrack(char decision) {
 		path.add(0, decision);
 	}
-	
+
 	public String getCigarString () {
 		StringBuilder cigar = new StringBuilder();
 		int nextCount = 0;
@@ -476,8 +481,8 @@ class AlignmentResult {
 	public void setDistance(int distance) {
 		this.distance = distance;
 	}
-	
-	
+
+
 }
 class KmerWithStart {
 	private CharSequence kmer;
@@ -510,7 +515,7 @@ class KmerAlignmentCluster implements GenomicRegion {
 	private boolean allConsistent = true;
 	private boolean repeatedNumber = false;
 	private boolean lastAlnPresent = false;
-	
+
 	public KmerAlignmentCluster(CharSequence query, ReadAlignment aln) {
 		this.query = query;
 		sequenceName = aln.getSequenceName();
@@ -576,6 +581,7 @@ class KmerAlignmentCluster implements GenomicRegion {
 	}
 
 	/**
+	 * 
 	 * @return the kmerNumbers
 	 */
 	public int getNumDifferentKmers() {
@@ -605,7 +611,4 @@ class KmerAlignmentCluster implements GenomicRegion {
 	public boolean isLastAlnPresent() {
 		return lastAlnPresent;
 	}
-	
-	
-	
 }
