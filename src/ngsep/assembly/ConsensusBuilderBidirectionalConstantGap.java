@@ -18,13 +18,14 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 		List<CharSequence> consensusList = new ArrayList<CharSequence>();
 		for(int i = 0; i < graph.getPaths().size(); i++)
 		{
-			List<Integer> path = graph.getPaths().get(i);
+			List<AssemblyEdge> path = graph.getPaths().get(i);
 			String consensus = "";
 			startConsensus = true;
-			for(int j = 0; j < path.size() - 1; j++)
+			for(AssemblyEdge edge:path)
 			{
-				AssemblyVertex a = graph.getVertices().get(path.get(j));
-				AssemblyVertex b = graph.getVertices().get(path.get(j + 1));
+				// FIXME: Look for path direction to check from which to which vertex
+				AssemblyVertex a = edge.getVertex1();
+				AssemblyVertex b = edge.getVertex2();
 				String s1 = a.getRead().toString();
 				String s2 = b.getRead().toString();
 				//Align original
@@ -37,14 +38,14 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 				String[] alignmentComp = sequencesAlignment(matrixComp, s1, s3);
 				int scoreComp = matrixComp[s1.length()][s3.length()];
 				scoreComp = Integer.MIN_VALUE;
-				if(scoreOrig > scoreComp)
+				/*if(scoreOrig > scoreComp)
 				{
 					consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentOrig));
 				}
 				else
 				{
 					consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentComp));
-				}
+				}*/
 			}
 			consensusList.add(consensus);
 		}	

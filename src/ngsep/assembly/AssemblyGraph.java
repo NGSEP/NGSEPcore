@@ -15,16 +15,16 @@ public class AssemblyGraph {
 	private Map<Integer, List<AssembyEmbedded>> embeddedSequences = new HashMap<>();
 	
 	//Indexes in the vertices list
-	private List<List<Integer>> paths = new ArrayList<List<Integer>>();
+	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 
 	public AssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = Collections.unmodifiableList(sequences);
 		vertices = new ArrayList<>();
 		edges = new ArrayList<>();
 		for (CharSequence seq : sequences) {
-			AssemblyVertex vS = new AssemblyVertex(seq, true);
+			AssemblyVertex vS = new AssemblyVertex(seq, true, vertices.size());
 			vertices.add(vS);
-			AssemblyVertex vE = new AssemblyVertex(seq, false);
+			AssemblyVertex vE = new AssemblyVertex(seq, false, vertices.size());
 			vertices.add(vE);
 			edges.add(new AssemblyEdge(vS, vE, seq.length()));
 		}
@@ -60,7 +60,7 @@ public class AssemblyGraph {
 		return embeddedSequences.get(index);
 	}
 	
-	public void addPath(List<Integer> path) {
+	public void addPath(List<AssemblyEdge> path) {
 		paths.add(path);
 	}
 
@@ -81,10 +81,7 @@ public class AssemblyGraph {
 	/**
 	 * @return the paths
 	 */
-	public List<List<Integer>> getPaths() {
+	public List<List<AssemblyEdge>> getPaths() {
 		return paths;
 	}
-	
-	
-
 }

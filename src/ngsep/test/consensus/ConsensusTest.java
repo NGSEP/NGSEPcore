@@ -31,7 +31,7 @@ public class ConsensusTest
 		path.add(12);
 		path.add(14);
 		path.add(16);
-		graph.addPath(path);
+		//graph.addPath(path);
 
 		ConsensusBuilder consensusBuilder = new ConsensusBuilderBidirectionalAffineGap();
 		//ConsensusBuilder consensusBuilder = new ConsensusBuilderBidirectionalConstantGap();

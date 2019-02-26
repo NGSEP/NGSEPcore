@@ -19,19 +19,20 @@ public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder 
 		List<CharSequence> consensusList = new ArrayList<CharSequence>();
 		for(int i = 0; i < graph.getPaths().size(); i++)
 		{
-			List<Integer> path = graph.getPaths().get(i);
+			List<AssemblyEdge> path = graph.getPaths().get(i);
 			String consensus = "";
 			startConsensus = true;
-			for(int j = 0; j < path.size() - 1; j++)
+			for(AssemblyEdge edge:path)
 			{
-				AssemblyVertex a = graph.getVertices().get(path.get(j));
-				AssemblyVertex b = graph.getVertices().get(path.get(j + 1));
+				// FIXME: Look for path direction to check from which to which vertex
+				AssemblyVertex a = edge.getVertex1();
+				AssemblyVertex b = edge.getVertex2();
 				String s1 = a.getRead().toString();
 				String s2 = b.getRead().toString();
 				//Align original
 				List<int[][]> matrixOrig = alignmentMatrixAffineGap(s1, s2);
 				String[] alignmentOrig = sequencesAlignment(matrixOrig, s1, s2);				
-				consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentOrig));
+				//consensus = consensus.concat(joinedString(graph.getEmbedded(a.getIndex()), graph.getEmbedded(j+1), alignmentOrig));
 			}
 			consensusList.add(consensus);
 		}	
