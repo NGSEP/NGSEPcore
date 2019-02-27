@@ -15,7 +15,7 @@ public class AssemblyGraph {
 	private Map<Integer, List<AssembyEmbedded>> embeddedSequences = new HashMap<>();
 	
 	//Indexes in the vertices list
-	private List<List<Integer>> paths;
+	private List<List<Integer>> paths = new ArrayList<List<Integer>>();
 
 	public AssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = Collections.unmodifiableList(sequences);
@@ -48,6 +48,20 @@ public class AssemblyGraph {
 	public void addEmbedded(int ind, AssembyEmbedded embedded) {
 		List<AssembyEmbedded> list = embeddedSequences.computeIfAbsent(ind, key -> new LinkedList<>());
 		list.add(embedded);
+	}
+	
+	/**
+	 * Return the list of embedded sequences for the given read
+	 * @param index of the read
+	 * @return list of embedded sequences
+	 */
+	public List<AssembyEmbedded> getEmbedded(int index)
+	{
+		return embeddedSequences.get(index);
+	}
+	
+	public void addPath(List<Integer> path) {
+		paths.add(path);
 	}
 
 	/**
