@@ -22,15 +22,22 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
+import ngsep.genome.io.SimpleGenomicRegionFileHandler;
+import ngsep.main.CommandsDescriptor;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.QualifiedSequenceList;
@@ -50,33 +57,195 @@ import ngsep.vcf.VCFRecord;
  */
 public class VCFGoldStandardComparator {
 	private ReferenceGenome genome;
+	private Map<String, List<GenomicRegion>> complexRegions;
+	private Map<String, List<GenomicRegion>> confidenceRegions;
 	private String outVCF = null;
 	private int mode = 0;
 	private short minQuality = 0;
 	private int posPrint = -1;
+	
+	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
 
 	VCFFileWriter writer = new VCFFileWriter();
 	public static void main(String[] args) throws Exception {
 		VCFGoldStandardComparator instance = new VCFGoldStandardComparator();
-		String referenceFile = args[0];
-		String file1 = args[1];
-		String file2 = args[2];
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		String referenceFile = args[i++];
 		
-		if(args.length>5) {
-			instance.outVCF = args[3];
-			instance.mode = Integer.parseInt(args[4]);
-			instance.minQuality = Short.parseShort(args[5]);
+		
+		String file1 = args[i++];
+		String file2 = args[i++];
+		
+		if(args.length>i+3) {
+			instance.outVCF = args[i++];
+			instance.mode = Integer.parseInt(args[i++]);
+			instance.minQuality = Short.parseShort(args[i++]);
 		}
 		
 		instance.genome = new ReferenceGenome(referenceFile);
-		instance.compareFiles(file1,file2);
-				
+		instance.compareFiles(file1,file2);	
+	}
+
+	/**
+	 * @return the genome
+	 */
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	
+	/**
+	 * @param genome the genome to set
+	 */
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+
+	/**
+	 * @return the complexRegions of a sequence
+	 */
+	public List<GenomicRegion> getComplexRegions(String sequenceName) {
+		return complexRegions.get(sequenceName);
+	}
+
+	/**
+	 * @param complexRegionsFile File wit the complexRegions to set
+	 */
+	public void setComplexRegions(String complexRegionsFile) throws IOException {
+		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
+		this.complexRegions = handler.loadRegionsAsMap(complexRegionsFile);
+	}
+
+	/**
+	 * @return the confidenceRegions
+	 */
+	public List<GenomicRegion> getConfidenceRegions(String sequenceName) {
+		return confidenceRegions.get(sequenceName);
+	}
+
+	/**
+	 * @param confidenceRegions the confidenceRegions to set
+	 */
+	public void setConfidenceRegions(String regionsFile) throws IOException {
+		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
+		this.confidenceRegions = handler.loadRegionsAsMap(regionsFile);
 	}
 
 	public void compareFiles(String vcfGS, String vcfTest) throws IOException {
 		QualifiedSequenceList sequenceNames = genome.getSequencesMetadata();
+		int nSeqs = sequenceNames.size();
+		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
+		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
+		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());
+		PrintStream out = null;
+		try (VCFFileReader inGS = new VCFFileReader(vcfGS);
+			 VCFFileReader inTest = new VCFFileReader(vcfTest)) {
+			inGS.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
+			inGS.setSequences(sequenceNames);
+			inTest.setSequences(sequenceNames);
+			LinkedList<GenomicRegion> confidenceRegionsSeq=null;
+			List<GenomicRegion> complexRegionsSeq=null;
+			int pIdx = 0;
+			List<CalledGenomicVariant> gsCalls = new ArrayList<>();
+			List<CalledGenomicVariant> testCalls = new ArrayList<>();
+			int sequenceIdx = -1;
+			int clusterFirst = 0;
+			int clusterLast = 0;
+			Iterator<VCFRecord> itGS = inGS.iterator();
+			if(!itGS.hasNext()) throw new IOException("Gold standard VCF file does not have variants");
+			Iterator<VCFRecord> itTest = inTest.iterator();
+			if(!itTest.hasNext()) throw new IOException("Test VCF file does not have variants");
+			VCFRecord recordGS = itGS.next();
+			VCFRecord recordTest = itTest.next();
+			while(true) {
+				int nextSeqIdxGS = nSeqs;
+				if(recordGS!=null) nextSeqIdxGS = sequenceNames.indexOf(recordGS.getSequenceName());
+				int nextSeqIdxTest = nSeqs;
+				if(recordTest!=null) nextSeqIdxTest = sequenceNames.indexOf(recordTest.getSequenceName());
+				int nextSeqIdx = Math.min(nextSeqIdxGS, nextSeqIdxTest);
+				if(nextSeqIdx == nSeqs) {
+					processClusterCalls (gsCalls, testCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), confidenceRegionsSeq );
+					break;
+				}
+				
+				if(nextSeqIdx>sequenceIdx) {
+					processClusterCalls (gsCalls, testCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), confidenceRegionsSeq);
+					sequenceIdx = nextSeqIdx;
+					String sequenceName = sequenceNames.get(sequenceIdx).getName();
+					confidenceRegionsSeq = new LinkedList<>(confidenceRegions.get(sequenceName));
+					complexRegionsSeq = complexRegions.get(sequenceName);
+					pIdx = 0;
+					clusterFirst=clusterLast=0;
+				}
+				if(complexRegionsSeq!=null) {
+					for(;pIdx<complexRegionsSeq.size();pIdx++) {
+						GenomicRegion region = complexRegionsSeq.get(pIdx);
+						if(clusterLast+10<region.getFirst()) break;
+						clusterLast=region.getLast();
+					}
+				}
+				int nextClusterFirst = clusterLast+Math.max(10, clusterLast-clusterFirst+1);
+				nextClusterFirst = Math.min(nextClusterFirst, clusterLast+100);
+				boolean gsClose = nextSeqIdxGS == sequenceIdx && nextClusterFirst>recordGS.getFirst();
+				boolean testClose = nextSeqIdxTest == sequenceIdx && nextClusterFirst>recordTest.getFirst();
+				if (!gsClose && !testClose) {
+					processClusterCalls (gsCalls, testCalls, clusterFirst, clusterLast, confidenceRegionsSeq);
+					clusterFirst = 0;
+					gsClose = nextSeqIdxGS == sequenceIdx;
+					testClose = nextSeqIdxTest == sequenceIdx;
+				}
+				if(gsClose) {
+					gsCalls.add(recordGS.getCalls().get(0));
+					if(clusterFirst == 0 ) clusterFirst = recordGS.getFirst();
+					else clusterFirst = Math.min(clusterFirst, recordGS.getFirst());
+					clusterLast = Math.max(clusterLast, recordGS.getLast());
+					if(itGS.hasNext()) recordGS = itGS.next();
+					else recordGS = null;
+				}
+				if(testClose) {
+					testCalls.add(recordTest.getCalls().get(0));
+					if(clusterFirst == 0 ) clusterFirst = recordTest.getFirst();
+					else clusterFirst = Math.min(clusterFirst, recordTest.getFirst());
+					clusterLast = Math.max(clusterLast, recordTest.getLast());
+					if(itTest.hasNext()) recordTest = itTest.next();
+					else recordTest = null;
+				}
+				
+				
+			}
+		}
+	}
+	
+	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, LinkedList<GenomicRegion> confidenceRegionsSeq) {
+		if(gsCalls.size()==0 && testCalls.size()==0) return;
+		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
+			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
+			if(nextConfident.getLast()<clusterFirst-10) confidenceRegionsSeq.removeFirst();
+			else break;
+		}
+		if(gsCalls.size()==0) {
+			//processPossibleFalsePositives(testCalls,confidenceRegionsSeq);
+		}
+		else if(testCalls.size()==0) {
+			//processFalseNegatives(gsCalls);
+		}
+		else if(gsCalls.size()==1 && testCalls.size()==1) {
+			//processSimple(gsCalls.get(0),testCalls.get(0),confidenceRegionsSeq);
+		} else {
+			//Process complex cases
+		}
+		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
+			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
+			if(nextConfident.getLast()<clusterLast) confidenceRegionsSeq.removeFirst();
+			else break;
+		}
+		
+		
+	}
+
+	public void compareFilesOld(String vcfGS, String vcfTest) throws IOException {
+		QualifiedSequenceList sequenceNames = genome.getSequencesMetadata();
 		GenomicRegionComparator compRegion = new GenomicRegionComparator(sequenceNames);
-		Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
+		
 		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
 		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
 		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());

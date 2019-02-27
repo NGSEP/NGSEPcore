@@ -20,16 +20,19 @@
 package ngsep.genome.io;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
+import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
@@ -53,11 +56,9 @@ public class SimpleGenomicRegionFileHandler {
 	}
 	public List<GenomicRegion> loadRegions (String filename) throws IOException  {
 		List<GenomicRegion> regions = new ArrayList<GenomicRegion>();
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			in = new BufferedReader(new InputStreamReader(fis));
+		
+		try (FileReader fis = new FileReader(filename);
+				BufferedReader in = new BufferedReader(fis)) {
 			String line=in.readLine();
 			while(line!=null) {
 				String [] items = line.split(" |\t");
@@ -73,14 +74,28 @@ public class SimpleGenomicRegionFileHandler {
 				
 				line=in.readLine();
 			}
-		} finally {
-			if(in!=null) in.close();
-			if(fis!=null) fis.close();
 		}
 		
 		return regions;
 	}
-	public void saveRegions (List<GenomicRegion> regions, PrintStream out) {
+	
+	public Map<String, List<GenomicRegion>> loadRegionsAsMap(String filename) throws IOException {
+		Map<String, List<GenomicRegion>> regionsMap = new HashMap<>();
+		List<GenomicRegion> regionsList = loadRegions(filename);
+		for(GenomicRegion region:regionsList) {
+			List<GenomicRegion> regionsSeq = regionsMap.get(region.getSequenceName());
+			if(regionsSeq==null) {
+				regionsSeq = new ArrayList<>();
+				regionsMap.put(region.getSequenceName(), regionsSeq);
+			}
+			regionsSeq.add(region);
+		}
+		for(List<GenomicRegion> regionsSeq:regionsMap.values()) {
+			Collections.sort(regionsSeq, GenomicRegionPositionComparator.getInstance());
+		}
+		return regionsMap;
+	}
+ 	public void saveRegions (List<GenomicRegion> regions, PrintStream out) {
 		for(GenomicRegion r:regions) {
 			out.print(r.getSequenceName()+"\t");
 			out.print(r.getFirst()+"\t");
