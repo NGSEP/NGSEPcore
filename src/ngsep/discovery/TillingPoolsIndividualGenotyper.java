@@ -266,7 +266,7 @@ public class TillingPoolsIndividualGenotyper {
 		}
 		GenomicVariant finalVariant = new GenomicVariantImpl(sequenceName, first, alleles);
 		for(CalledGenomicVariant call:altCallsVar) {
-		/** Made change here to correct error, but we need to verify whether it affects the process of calling variants**/
+		/** Made change here to correct error, but we need to verify whether it affects the process of calling variants (pending further revision with simulated data)**/
 			String[] ident = call.getSampleId().split("_");
 			callsArray[Integer.parseInt(ident[0])] = new CalledGenomicVariantImpl(finalVariant, call.getCalledAlleles());
 		}
