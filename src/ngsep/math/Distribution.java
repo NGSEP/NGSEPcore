@@ -39,7 +39,8 @@ public class Distribution {
 	private double distribution [];
 	private double minValueData = Integer.MAX_VALUE;
 	private double maxValueData = Integer.MIN_VALUE;
-	private List<Double> outliers = new ArrayList<Double>();
+	private List<Double> outliersLess = new ArrayList<Double>();
+	private List<Double> outliersMore = new ArrayList<Double>();
 	private double minValueDistribution;
 	private double maxValueDistribution;
 	private double binLength;
@@ -70,8 +71,10 @@ public class Distribution {
 			int bin = (int)((value-minValueDistribution)/binLength);
 			distribution[bin]+=weigth;
 			if(maxIdx==-1 || distribution[maxIdx] < distribution[bin] ) maxIdx = bin;
-		} else {
-			outliers.add(value);
+		} else if(value < minValueDistribution) {
+			outliersLess.add(value);
+		} else if(value > maxValueDistribution) {
+			outliersMore.add(value);
 		}
 		
 	}
@@ -94,6 +97,9 @@ public class Distribution {
 		return maxValueData;
 	}
 	public List<Double> getOutliers() {
+		List<Double> outliers = new ArrayList<>();
+		outliers.addAll(outliersLess);
+		outliers.addAll(outliersMore);
 		return outliers;
 	}
 	public double getMinValueDistribution() {
@@ -143,23 +149,27 @@ public class Distribution {
 		return (estimationF+estimationB)/2;
 	}
 	public void printDistribution(PrintStream out) {
+		if(outliersLess.size()>0) out.println("Less\t"+format.format(outliersLess.size()));
 		for(int i=0;i<distribution.length;i++) {
 			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+format.format(binMinimum)+" "+format.format(distribution[i]));
+			out.println(""+format.format(binMinimum)+"\t"+format.format(distribution[i]));
 		}
+		if(outliersMore.size()>0) out.println("More\t"+format.format(outliersMore.size()));
 	}
 	public void printDistribution(PrintStream out,double maxValue) {
 		int valueBin = (int)((maxValue-minValueDistribution)/binLength);
 		for(int i=0;i<distribution.length && i<=valueBin;i++) {
 			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+format.format(binMinimum)+" "+format.format(distribution[i]));
+			out.println(""+format.format(binMinimum)+"\t"+format.format(distribution[i]));
 		}
 	}
 	public void printDistributionInt(PrintStream out) {
+		if(outliersLess.size()>0) out.println("Less\t"+outliersLess.size());
 		for(int i=0;i<distribution.length && i<=distribution.length;i++) {
 			int binMinimum = (int)(minValueDistribution+i*binLength);
-			out.println(""+binMinimum+" "+(int)distribution[i]);
+			out.println(""+binMinimum+"\t"+(int)distribution[i]);
 		}
+		if(outliersMore.size()>0) out.println("More\t"+outliersMore.size());
 	}
 
 }

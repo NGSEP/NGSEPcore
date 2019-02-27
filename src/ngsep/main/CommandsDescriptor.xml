@@ -1,4 +1,4 @@
-<NGSEP version="3.3.0" date="05-10-2018">
+<NGSEP version="3.3.1" date="15-02-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -26,6 +26,7 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 </description>
 <argument>FMINDEX_FILE</argument>
 <argument>READS_FILE</argument>
+<argument>ALIGNMENTS_FILE</argument>
 <option id="p" type="DOUBLE" default="0.7" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
 </option>
@@ -327,6 +328,24 @@ Writes to the standard output.
 </description>
 <argument>SEQUENCE_NAMES_FILE</argument>
 <argument multiple="true">GENOTYPED_VARIANTS_FILE</argument>
+</command>
+
+<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" printHelp="false">
+<intro>
+Provides statistics on a transcriptome file in GFF3 format
+</intro>
+<title>Evaluating transcriptome assemblies</title>
+<description>
+Loads a transcriptome annotation in GFF3 format, logs format errors and provides statistics on the asembled transcriptome.
+</description>
+<argument>TRANSCRIPTOME_MAP</argument>
+<argument>OUTPUT_PREFIX</argument>
+<option id="g" type="GENOME" attribute="genome">
+Reference genome annotated in the transcriptome file
+</option>
+<option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
+Output only complete proteins (with start and stop codons) in the proteins output file
+</option>
 </command>
 
 <command id="Annotate" class="ngsep.vcf.VCFFunctionalAnnotator">
@@ -793,7 +812,7 @@ the options -a -i and -s
 </option>
 </command>
 
-<command id="Demultiplex" class="ngsep.sequences.ReadsDemultiplex">
+<command id="Demultiplex" class="ngsep.sequencing.ReadsDemultiplex">
 <intro>
 Builds individual fastq files for different samples from
 a single file containing reads from a whole sequencing lane (Former Deconvolute)
@@ -895,6 +914,21 @@ Input is a fasta file.
 </option>
 </command>
 
+<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" printHelp="false">
+<intro>
+De novo variants discovery from a GBS experiment
+</intro>
+<title>GBS deNovo variants discovery</title>
+<description>
+Performs de novo variants discovery from a GBS experiment
+</description>
+<argument>INPUT_DIRECTORY</argument>
+<argument>OUTPUT_DIRECTORY</argument>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+K-mer length
+</option>
+</command>
+
 <command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator">
 <intro>
 Calculates the distribution of relative allele counts 
@@ -967,7 +1001,7 @@ simulated genome
 Ploidy of the simulated sample 
 </option>
 </command>
-<command id="GenomesAligner" class="ngsep.assembly.GenomesAligner">
+<command id="GenomesAligner" class="ngsep.genome.GenomesAligner">
 <intro>
 Compares two partially or completely assembled genomes
 </intro>
@@ -983,6 +1017,12 @@ and runs a whole genome comparison taking unique genes as orthology units
 <argument>TRANSCRIPTOME2</argument>
 <option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outPrefix">
 Prefix of output files
+</option>
+<option id="k" type="INT" defaultConstant="DEF_KMER_SIZE" attribute="kmerSize">
+K-mer size to find orthologs
+</option>
+<option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
+Minimum percentage of k-mers to find orthologs
 </option>
 </command>
 

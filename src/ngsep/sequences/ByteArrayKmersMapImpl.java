@@ -30,7 +30,6 @@ public class ByteArrayKmersMapImpl implements KmersMap {
 		return kmerCounts[hash];
 	}
 
-	@Override
 	public void setCount(CharSequence kmer, int count) {
 		if(kmer.length()!=kmerLength) throw new IllegalArgumentException("Unexpected length for query: "+kmer+" expected: "+kmerLength);
 		int hash = (int) AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), dummySequence);

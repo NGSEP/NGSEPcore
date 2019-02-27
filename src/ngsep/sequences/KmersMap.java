@@ -14,12 +14,6 @@ public interface KmersMap {
 	 */
 	public int getCount(CharSequence kmer);
 	/**
-	 * Changes the count of a k-mer
-	 * @param kmer to set
-	 * @param count of the given kmer
-	 */
-	public void setCount(CharSequence kmer, int count);
-	/**
 	 * Add 1 to the ocurrances of the given k-mer
 	 * @param kmer to modify count
 	 */
@@ -29,5 +23,9 @@ public interface KmersMap {
 	 * @param minAbundance Minimum abundance to keep the k-mer
 	 */
 	public void filterKmers(int minAbundance);
+	/**
+	 * Calculates the distribution of abundances of each kmer
+	 * @return Distribution
+	 */
 	public Distribution calculateAbundancesDistribution();
 }

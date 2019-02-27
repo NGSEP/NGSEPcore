@@ -132,6 +132,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(seqName);
 			Set<Integer> matches = idxSeq.search(searchUp);
+			//System.out.println("Search: "+searchUp+" matches: "+matches);
 			for (int internalPosMatch:matches) 
 			{
 				ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, 0);

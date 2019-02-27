@@ -22,7 +22,6 @@ package ngsep.sequences;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,7 +64,7 @@ public class FMIndexSingleSequence implements Serializable {
 	// Burrows Wheeler transform
 	private byte [] bwt;
 
-	//For each character thells the number of times it appears
+	//For each character tells the number of times it appears
 	private Map<Character, Integer> characterCounts;
 	// For each character tells the first time it appears in the left column of the
 	// BW matrix
@@ -111,9 +110,10 @@ public class FMIndexSingleSequence implements Serializable {
 	private void calculate(CharSequence sequence) {
 		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
 		alphabet = suffixArrayGenerator.getAlphabet();
-		characterCounts = suffixArrayGenerator.getCharacterCounts();
+		characterCounts = new TreeMap<>(suffixArrayGenerator.getCharacterCounts());
 		buildCharacterFirstAndLastRows();
 		int [] sa = suffixArrayGenerator.getSuffixArray();
+		//System.out.println("First pos SA: "+sa[0]+" "+sa[1]+" "+sa[2] );
 		int [] reverseSA = suffixArrayGenerator.getReverseSuffixArray();
 		
 		alphabetIndexes = new HashMap<>();
@@ -123,6 +123,15 @@ public class FMIndexSingleSequence implements Serializable {
 		buildBWT(sequence, sa, reverseSA);
 		createPartialSuffixArray(sa, reverseSA);
 		buildTally();
+		//printIndexInfo();
+	}
+	private void printIndexInfo() {
+		System.out.println("Alphabet: "+alphabet);
+		System.out.println("BWT: "+new String(bwt));
+		System.out.println("Partial array: "+partialSuffixArray);
+		System.out.println("Partial reverse array: "+partialReverseSuffixArray);
+		System.out.println("First rows: "+firstRowsInMatrix);
+		System.out.println("Last rows: "+lastRowsInMatrix);
 	}
 
 	private void buildCharacterFirstAndLastRows() {
@@ -132,7 +141,8 @@ public class FMIndexSingleSequence implements Serializable {
 		firstRowsInMatrix.put(spec, 0);
 		lastRowsInMatrix.put(spec, 0);
 		int totalChars = 1;
-		for(char c:characterCounts.keySet()) {
+		for(int i=0;i<alphabet.length();i++) {
+			char c = alphabet.charAt(i);
 			firstRowsInMatrix.put(c, totalChars);
 	    	totalChars += characterCounts.get(c);
 	    	lastRowsInMatrix.put(c, totalChars - 1);
@@ -208,6 +218,7 @@ public class FMIndexSingleSequence implements Serializable {
 	 * @return Set<Integer> Set of start positions for the given sequence
 	 */
 	public Set<Integer> search(String searchSequence) {
+		//printIndexInfo();
 		return exactSearch(searchSequence);
 		// return inexactSearchBWAAlgorithm(searchSequence);
 	}
@@ -218,7 +229,7 @@ public class FMIndexSingleSequence implements Serializable {
 			//System.out.println("No hits for search sequence: "+searchSequence);
 			return new TreeSet<>();
 		}
-		// System.out.println("Search sequence: "+searchSequence+"range: "+range[0]+"-"+range[1]);
+		//System.out.println("Search sequence: "+searchSequence+"range: "+range[0]+"-"+range[1]);
 		return getSequenceIndexes(range[0],range[1]);
 	}
 	
@@ -233,7 +244,7 @@ public class FMIndexSingleSequence implements Serializable {
 
 		Integer rowS = firstRowsInMatrix.get(actualChar);
 		Integer rowF = lastRowsInMatrix.get(actualChar);
-		// System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
+		//System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
 		if (rowS == null || rowF == null || rowS == -1 || rowF == -1) {
 			return null;
 		}
@@ -246,7 +257,7 @@ public class FMIndexSingleSequence implements Serializable {
 			if (rowS > rowF) {
 				return null;
 			}
-			// System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
+			 //System.out.println("Char: "+actualChar+" Range: "+rowS+"-"+rowF);
 		}
 
 		return new int[] { rowS, rowF };
@@ -267,6 +278,7 @@ public class FMIndexSingleSequence implements Serializable {
 			Integer begin = partialSuffixArray.get(row);
 			int steps;
 			for (steps = 0; begin == null; steps++) {
+				//System.out.println("Next row: "+row+" bwt: "+((char)bwt[row])+" steps: "+steps);
 				row = lfMapping(row);
 				begin = partialSuffixArray.get(row);
 			}
@@ -366,24 +378,40 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 		return answer.reverse();
 	}
+	
+	public static void main(String[] args) {
+		System.out.println("Testing inexactSearch BWA");
+		FMIndexSingleSequence f = new FMIndexSingleSequence(args[0]);
+
+		String query = args[1];
+		f.printIndexInfo();
+		f.printSA();
+		
+		Set<Integer> set = f.search(query);
+		//Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
+		
+		System.out.println("Result indexes: "+set);
+	}
+	
+	private void printSA() {
+		Set<Integer> allIndexes = getSequenceIndexes(1, 1);
+		for(int i:allIndexes) {
+			System.out.println(""+i);
+		}
+		
+	}
+	
+	
 	/*
 	 * Methods for inexact matching
 	 */
 	
 
 
-	public static void main(String[] args) {
-		System.out.println("Testing inexactSearch BWA");
-		FMIndexSingleSequence f = new FMIndexSingleSequence(args[0]);
-
-		String query = args[1];
-		Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
-		Iterator<Integer> i = set.iterator();
-		while (i.hasNext()) {
-			System.out.println(i.next());
-		}
-	}
 	
+	
+	
+
 	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) {
 		int[] d = calculateD(searchSequence);
 

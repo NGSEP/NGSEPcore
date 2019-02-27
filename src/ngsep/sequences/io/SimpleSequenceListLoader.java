@@ -26,6 +26,9 @@ import java.io.InputStreamReader;
 
 import ngsep.sequences.QualifiedSequenceList;
 
+/**
+ * @author Jorge Duitama
+ */
 public class SimpleSequenceListLoader {
 	/**
 	 * Loads a list of sequences from a file

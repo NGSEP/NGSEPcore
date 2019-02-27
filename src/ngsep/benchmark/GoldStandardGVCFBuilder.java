@@ -29,6 +29,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
@@ -133,6 +134,7 @@ public class GoldStandardGVCFBuilder {
 					GenomicVariant variant = record.getVariant();
 					if(variant.isSNV()) variant.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
 					else variant.setType(GenomicVariant.TYPE_STR);
+					record.addAnnotation(new GenomicVariantAnnotation(variant, "STRLEN", overlappingSTR.length()));
 				}
 				if(allVariants || recordFullyCovered) writer.printVCFRecord(record, System.out);
 			}

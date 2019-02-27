@@ -17,30 +17,30 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.sequences;
+package ngsep.sequencing;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.DegenerateSequence;
+import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.sequencing.io.BarcodesFileLoader;
+import ngsep.sequencing.io.LaneFilesLoader;
 
 /**
  * 
@@ -50,13 +50,9 @@ import ngsep.sequences.io.FastqFileReader;
 public class ReadsDemultiplex {
 	
 	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
-	private Map<String,Map<String,String>> barcodeMap = new TreeMap<String, Map<String,String>>();
+	private List<SequencingLane> lanes;
 	
-	private Map<String, String> samplesPerBarcode = new TreeMap<String, String>();
-	//Sorted list of barcodes for log time non-exact search
-	private String [] sortedBarcodes;
-	private int [] [] ntPairFirsts = new int[4][4];
-	private int [] [] ntPairLasts = new int[4][4];
+	private BarcodeMap barcodeMap;
 	//private Map<String,Pattern> regExps = new TreeMap<String, Pattern>();
 	private String outDirectory = ".";
 	private String prefix = "";
@@ -84,7 +80,7 @@ public class ReadsDemultiplex {
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		
 		String indexFile = args[i++];
-		instance.loadIndex(indexFile);
+		instance.loadIndexAndLaneFiles(indexFile);
 		if(instance.laneFilesDescriptor !=null) {
 			instance.demultiplexGroup();
 			return;
@@ -93,7 +89,6 @@ public class ReadsDemultiplex {
 			System.err.println("Either a lane files descriptor or a flow cell and a lane should be provided");
 			System.exit(1);
 		}
-		instance.loadLaneInfo(instance.flowcell,instance.lane);
 		if(i==args.length || "-".equals(args[i]) ) {
 			instance.demultiplex(System.in);
 		} else if(i+1==args.length){
@@ -106,27 +101,17 @@ public class ReadsDemultiplex {
 	}
 
 	public void demultiplexGroup() throws IOException {
-		if(laneFilesDescriptor==null) return;
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(laneFilesDescriptor);
-			in = new BufferedReader(new InputStreamReader(fis));
-			String line = in.readLine();
-			while (line != null) {
-				String[] items = line.split("\t");
-				loadLaneInfo(items[0], items[1]);
-				if(items.length<4) demultiplex(items[2]);
-				else demultiplex(items[2],items[3]);
-				line = in.readLine();
+		for(SequencingLane lane:lanes) {
+			barcodeMap = lane.getBarcodeMap();
+			List<String> filesForward = lane.getFilesForward();
+			List<String> filesReverse = lane.getFilesReverse();
+			for(int i=0;i<filesForward.size();i++) {
+				String filename1 = filesForward.get(i);
+				String filename2 = filesReverse.get(i);
+				if(filename2==null) demultiplex(filename1);
+				else demultiplex(filename1, filename2);
 			}
-		} finally {
-			if (in != null)
-				in.close();
-			if (fis != null)
-				fis.close();
 		}
-		
 	}
 
 	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
@@ -237,83 +222,33 @@ public class ReadsDemultiplex {
 	public void setUncompressedOutput(Boolean uncompressedOutput) {
 		this.uncompressedOutput = uncompressedOutput;
 	}
+	
+	/**
+	 * @return the lanes
+	 */
+	public List<SequencingLane> getLanes() {
+		return lanes;
+	}
 
 	/**
 	 * Loads barcodes from the given file
 	 * @param indexFile Text file with the id of the sample corresponding to each single barcode, or barcode pair for dual barcoding 
 	 * @throws IOException If the file can not be read
 	 */
-	public void loadIndex(String indexFile) throws IOException {
-		try (FileInputStream fis = new FileInputStream(indexFile);
-			 BufferedReader in = new BufferedReader(new InputStreamReader(fis));) {
-			String line = in.readLine();
-			//Skip header
-			log.info("Loading index file: "+indexFile);
-			line = in.readLine();
-			String flowcell= null;
-			String lane = null;
-			Map<String, String> laneSamplesPerBarcode = null;
-			for (int i=1;line != null;i++) {
-				String[] items = line.split("\t");
-				
-				if(!items[0].equals(flowcell) || !items[1].equals(lane)) {
-					if(flowcell!=null) barcodeMap.put(makeLaneKey(flowcell, lane), laneSamplesPerBarcode);
-					flowcell = items[0];
-					lane = items[1];
-					laneSamplesPerBarcode = new TreeMap<String, String>();
-					log.info("Loading barcode map for flowcell: "+flowcell+" lane: "+lane);
-				}
-				if (dualBarcode) {
-					log.info("Barcode 1: "+items[2]+" barcode 2: "+items[3]+" sample: "+items[4]);
-					if(!DNASequence.isDNA(items[2])) throw new IOException("Barcode: "+items[2]+" at line "+i+" is not a DNA sequence");
-					if(!DNASequence.isDNA(items[3])) throw new IOException("Barcode: "+items[3]+" at line "+i+" is not a DNA sequence");
-					laneSamplesPerBarcode.put(items[2]+"-"+items[3], items[4]);
-				} else {
-					log.info("Barcode: "+items[2]+" sample: "+items[3]);
-					if(!DNASequence.isDNA(items[2])) throw new IOException("Barcode: "+items[2]+" at line "+i+" is not a DNA sequence");
-					laneSamplesPerBarcode.put(items[2], items[3]);
-				}
-				
-				line = in.readLine();
-			}
-			if(flowcell!=null) barcodeMap.put(makeLaneKey(flowcell, lane), laneSamplesPerBarcode);
-		}
-	}
-	public void loadLaneInfo(String flowcell, String lane) throws IOException {
-		System.out.println("Using barcode map for flowcell: "+flowcell+" lane: "+lane);
-		String key = makeLaneKey(flowcell,lane);
-		samplesPerBarcode = barcodeMap.get(key);
-		if(samplesPerBarcode == null) throw new IOException("Flowcell: "+flowcell+" and lane: "+lane+ " not found in barcode map");
-		Set<String> barcodeKeys = samplesPerBarcode.keySet();
-		
-		Set<String> barcodesSet;
-		if(dualBarcode) {
-			barcodesSet = new TreeSet<>();
-			for(String barcodeKey:barcodeKeys) {
-				int i = barcodeKey.indexOf('-');
-				barcodesSet.add(barcodeKey.substring(0, i));
-				barcodesSet.add(barcodeKey.substring(i+1));
-			}	
+	public void loadIndexAndLaneFiles(String indexFile) throws IOException {
+		BarcodesFileLoader loader = new BarcodesFileLoader();
+		if(flowcell!= null && lane!=null) {
+			SequencingLane laneObj = new SequencingLane(flowcell, lane);
+			lanes = new ArrayList<>();
+			loader.loadSingleLane(indexFile, dualBarcode, laneObj);
+			lanes.add(laneObj);
+			barcodeMap = laneObj.getBarcodeMap();
 		} else {
-			barcodesSet = new TreeSet<>(barcodeKeys);
+			lanes = loader.loadMultipleLanes(indexFile, dualBarcode);
 		}
-		sortedBarcodes = barcodesSet.toArray(new String[0]);
-		for(int i=0;i<ntPairFirsts.length;i++) {
-			Arrays.fill(ntPairFirsts[i], -1);
-			Arrays.fill(ntPairLasts[i], -1);
-		}
-		String alphabet = DNASequence.BASES_STRING;
-		for (int k=0;k<sortedBarcodes.length;k++) {
-			String barcode = sortedBarcodes[k];
-			int i = alphabet.indexOf(barcode.charAt(0));
-			int j = alphabet.indexOf(barcode.charAt(1));
-			if(ntPairFirsts[i][j]==-1)ntPairFirsts[i][j] = k;
-			ntPairLasts[i][j] = k;
-		}
-	}
-
-	private String makeLaneKey(String flowcell, String lane) {
-		return flowcell+"_"+lane;
+		if(laneFilesDescriptor==null) return;
+		LaneFilesLoader laneFilesLoader = new LaneFilesLoader();
+		laneFilesLoader.loadFiles(laneFilesDescriptor, lanes);
 	}
 
 	/**
@@ -389,22 +324,22 @@ public class ReadsDemultiplex {
 	 */
 	private void processRead(RawRead read, Map<String, PrintStream> outFiles) throws IOException {
 		total++;
-		String barcode = findBarcode(read.getSequenceString());
-		if (barcode == null) {
+		String [] barcodeData = barcodeMap.getSampleIdByRead(read.getSequenceString());
+		if (barcodeData == null) {
 			notFound++;
 		} else {
-			String sampleId = samplesPerBarcode.get(barcode);
-			PrintStream out = outFiles.get(sampleId);
-			if(out==null) {
-				out = getOutputStream(sampleId);
-				outFiles.put(sampleId, out);
-			}
-			int barcodeLength = barcode.length();
+			int barcodeLength = barcodeData[1].length();
 			//Trim barcode
 			read.trimFirstNucleotides(barcodeLength);
 			//Trim end if sequence appears
 			read.trimFromSequence(trimRegexp);
 			if(read.getLength()>=minReadLength) {
+				String sampleId = barcodeData[0];
+				PrintStream out = outFiles.get(sampleId);
+				if(out==null) {
+					out = getOutputStream(sampleId);
+					outFiles.put(sampleId, out);
+				}
 				read.save(out);
 				Integer count = counts.get(sampleId);
 				if(count==null) counts.put(sampleId, 1);
@@ -506,26 +441,30 @@ public class ReadsDemultiplex {
 	 */
 	private void demultiplexReadPair(RawRead read1, RawRead read2, Map<String, PrintStream> outFiles1, Map<String, PrintStream> outFiles2) throws IOException {
 		total++;
-		String barcode1;
-		String barcode2=null;
-		String barcodeM=null;
+		String [] barcodeData;
 		if(dualBarcode) {
-			barcode1 = findBarcode(read1.getSequenceString());
-			barcode2 = findBarcode(read2.getSequenceString());
-			if(barcode1!=null && barcode2!=null) {
-				barcodeM = barcode1+"-"+barcode2;
-				if(!samplesPerBarcode.containsKey(barcodeM)) barcodeM = null;
-			}
+			barcodeData = barcodeMap.getSampleIdByReadPair(read1.getSequenceString(), read2.getSequenceString());
+			
 		} else {
-			barcode1 = findBarcode(read1.getSequenceString());
-			barcodeM = barcode1;
+			barcodeData = barcodeMap.getSampleIdByRead(read1.getSequenceString());
 		}
-		
-		if (barcodeM == null) {
+		if (barcodeData == null) {
 			notFound++;
-		} else {
-			String sampleId = samplesPerBarcode.get(barcodeM);
-			if (sampleId == null) System.err.println("Sample not found with barcode key: "+barcodeM);
+			return;
+		}
+		//Trim barcode
+		read1.trimFirstNucleotides(barcodeData[1].length());
+		if(dualBarcode) {
+			read2.trimFirstNucleotides(barcodeData[2].length());
+		}
+		//Trim end if sequence appears
+		int l1 = read1.getLength();
+		read1.trimFromSequence(trimRegexp);
+		if(read1.getLength()!=l1) {
+			read2.trimToLength(read1.getLength());
+		}
+		if(read1.getLength()>=minReadLength) {
+			String sampleId = barcodeData[0];
 			PrintStream out1 = outFiles1.get(sampleId);
 			PrintStream out2 = outFiles2.get(sampleId);
 			if(out1==null) {
@@ -534,55 +473,14 @@ public class ReadsDemultiplex {
 				outFiles1.put(sampleId, out1);
 				outFiles2.put(sampleId, out2);
 			}
-			
-			//Trim barcode
-			read1.trimFirstNucleotides(barcode1.length());
-			if(dualBarcode) {
-				read2.trimFirstNucleotides(barcode2.length());
-			}
-			//Trim end if sequence appears
-			int l1 = read1.getLength();
-			read1.trimFromSequence(trimRegexp);
-			if(read1.getLength()!=l1) {
-				read2.trimToLength(read1.getLength());
-			}
-			if(read1.getLength()>=minReadLength) {
-				read1.save(out1);
-				read2.save(out2);
-				Integer count = counts.get(sampleId);
-				if(count==null) counts.put(sampleId, 1);
-				else counts.put(sampleId, count+1);
-			} else {
-				tooShort++;
-			}
+			read1.save(out1);
+			read2.save(out2);
+			Integer count = counts.get(sampleId);
+			if(count==null) counts.put(sampleId, 1);
+			else counts.put(sampleId, count+1);
+		} else {
+			tooShort++;
 		}
-	}
-
-	/**
-	 * Finds the barcode matching the given sequence
-	 * @param readSeq Sequence to barcode
-	 * @return String barcode matching the given sequence. Null if the barcode was not found
-	 */
-	private String findBarcode(String readSeq) {
-		String alphabet = DNASequence.BASES_STRING;
-		int firstIndex = alphabet.indexOf(readSeq.charAt(0));
-		int secondIndex = alphabet.indexOf(readSeq.charAt(1));
-		if(firstIndex <0 || secondIndex < 0 ) return null;
-		int first = ntPairFirsts[firstIndex][secondIndex];
-		int last = ntPairLasts[firstIndex][secondIndex];
-		if(first==-1) return null;
-		String selectedBarcode = null;
-		for(int i=first;i<=last;i++) {
-			String barcode = sortedBarcodes[i];
-			boolean barcodeFound = false;
-			if(readSeq.startsWith(barcode)) barcodeFound = true;
-			//The last condition is to taking into account cases where one barcode is substring of another
-			//and pick the longest matching barcode
-			if(barcodeFound && (selectedBarcode==null || selectedBarcode.length()<barcode.length()) ) {
-				selectedBarcode = barcode;
-			}
-		}
-		return selectedBarcode;
 	}
 	
 }

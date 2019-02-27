@@ -27,6 +27,8 @@ import java.util.Locale;
 
 public class ParseUtils {
 	public static final DecimalFormat ENGLISHFMT = new DecimalFormat("##0.0#",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+	public static final DecimalFormat ENGLISHFMT_PROBABILITIES = new DecimalFormat("0.0###",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+	
 	/**
 	 * Parse the given string sequence looking for a single delimiter
 	 * @param s The string to parse
