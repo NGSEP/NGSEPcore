@@ -111,7 +111,6 @@ public class TillingPoolsIndividualGenotyper {
 		while (line != null) {
 
 			String[] indInfo = line.split(";");
-			System.out.println(line);
 			ArrayList<Integer> pools = new ArrayList();
 			pools.add(Integer.parseInt(indInfo[1]));
 			pools.add(Integer.parseInt(indInfo[2]));
@@ -141,9 +140,11 @@ public class TillingPoolsIndividualGenotyper {
 		File dir = new File(poolsVCFDir);
 		int i = 0;
 		File[] directoryListing = dir.listFiles();
+		Arrays.sort(directoryListing);	
 		 if (directoryListing != null) {
 		   for (File poolVCF : directoryListing) {
-			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("D:/Universidad/Java/drive-download-20181102T065615Z-001/"+poolVCF.getName());
+			   System.out.println(poolVCF.getName());
+			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("/home/juan/git/test_vcf/"+poolVCF.getName());
 			    for(int j=0;j<indPool.size();j++) {
 			    	indPool.get(j).setSampleId(String.valueOf(i)+String.valueOf(j));
 			    }
@@ -185,6 +186,7 @@ public class TillingPoolsIndividualGenotyper {
 		individualVariants = new HashMap<String,List<CalledGenomicVariant>>(); 
 		// TODO Auto-generated method stub
 		for (String ind : poolConfiguration.keySet()) {
+			int z=0;
 		    List<Integer> indPools = poolConfiguration.get(ind);
 		    List<CalledGenomicVariant> varDef= new  ArrayList<CalledGenomicVariant>();
 		    List<CalledGenomicVariant> varInt1=variantIntersection.get(indPools.get(0)).get(indPools.get(1));
@@ -193,7 +195,9 @@ public class TillingPoolsIndividualGenotyper {
 				List<CalledGenomicVariant> varInt2=variantIntersection.get(indPools.get(0)).get(indPools.get(2));
 				for(int j=0;j<varInt2.size();j++) {
 					if(varQuery.isCompatible(varInt2.get(j))) {
+						varQuery.setSampleId(ind.substring(3)+"_"+String.valueOf(z));
 						varDef.add(varQuery);
+						z+=1;
 					}
 				}
 					
@@ -212,7 +216,7 @@ public class TillingPoolsIndividualGenotyper {
 		List<CalledGenomicVariant> allCalls = new ArrayList<>();
 		for(String individual:individualVariants.keySet()) {
 			List<CalledGenomicVariant> callsIndv = individualVariants.get(individual);
-			allCalls.addAll(callsIndv);
+			allCalls.addAll(callsIndv); 
 		}
 		QualifiedSequenceList seqsMetadata = genome.getSequencesMetadata();
 		GenomicRegionComparator cmp = new GenomicRegionComparator(seqsMetadata);
@@ -242,6 +246,7 @@ public class TillingPoolsIndividualGenotyper {
 	private VCFRecord buildRecord(List<CalledGenomicVariant> altCallsVar, VCFFileHeader header) {
 		Set<String> allelesSet = new TreeSet<>();
 		CalledGenomicVariant [] callsArray = new CalledGenomicVariant [individualVariants.size()];
+		/**System.out.println(individualVariants.size());**/
 		String sequenceName=null;
 		int first=0;
 		String reference=null;
@@ -261,8 +266,9 @@ public class TillingPoolsIndividualGenotyper {
 		}
 		GenomicVariant finalVariant = new GenomicVariantImpl(sequenceName, first, alleles);
 		for(CalledGenomicVariant call:altCallsVar) {
-			int i = Integer.parseInt(call.getSampleId()); 
-			callsArray[i] = new CalledGenomicVariantImpl(finalVariant, call.getCalledAlleles());
+		/** Made change here to correct error, but we need to verify whether it affects the process of calling variants**/
+			String[] ident = call.getSampleId().split("_");
+			callsArray[Integer.parseInt(ident[0])] = new CalledGenomicVariantImpl(finalVariant, call.getCalledAlleles());
 		}
 		List<CalledGenomicVariant> finalCalls = new ArrayList<>();
 		for(int i=0;i<callsArray.length;i++) {
