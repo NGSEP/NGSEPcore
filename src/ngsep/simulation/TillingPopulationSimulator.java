@@ -63,14 +63,14 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=9216;
-	public static final int DEF_INDIVIDUALS=384;
-	public static final int DEF_NUM_FRAGMENTS_POOL=100000;
+	public static final int DEF_MUTATIONS=1000;
+	public static final int DEF_INDIVIDUALS=12;
+	public static final int DEF_NUM_FRAGMENTS_POOL=25000;
 	public static final int DEF_READ_LENGTH=100;
 	public static final double DEF_ERROR_RATE=0.00001;
 	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLAQUE_WIDTH=12;
-	public static final int PLAQUE_HEIGHT=8;
+	public static final int PLAQUE_WIDTH=3;
+	public static final int PLAQUE_HEIGHT=4;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -212,7 +212,7 @@ public class TillingPopulationSimulator {
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
-		System.out.println("Simulatd population");
+		System.out.println("Simulated population");
 		printMutations(outPrefix+".vcf");
 		simulatePools();
 		System.out.println("Simulated pools");
@@ -412,8 +412,8 @@ public class TillingPopulationSimulator {
 			String qualityForward="";
 			String qualityReverse="";
 			
-			for(int j=0; j < DEF_READ_LENGTH; j++) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual),Math.max(max_qual-(j)*interval_length,min_qual)));
+			for(int j=0; j < DEF_READ_LENGTH; j++) {	
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
 				/*System.out.println(String.valueOf(error_prob));*/
 				if(random.nextFloat()<error_prob) {
@@ -431,7 +431,7 @@ public class TillingPopulationSimulator {
 			out.println(qualityForward);
 
 			for(int j=DEF_READ_LENGTH-1; j >= 0; j--) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual),Math.max(max_qual-(j)*interval_length,min_qual)));
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
 				if(random.nextFloat()<error_prob) {
 					String mutated = alphabet.replaceAll(Character.toString(readReverse[j]), "");
