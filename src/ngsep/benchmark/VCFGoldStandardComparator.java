@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
@@ -195,8 +196,9 @@ public class VCFGoldStandardComparator {
 						regionsSeq = new ArrayList<>();
 						confidenceRegions.put(call.getSequenceName(), regionsSeq);
 					}
-					regionsSeq.add(record.getVariant());
-					confidenceRegionsLength+=record.length();
+					GenomicRegion r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+					regionsSeq.add(r);
+					confidenceRegionsLength+=r.length();
 				}
 			}
 		}
@@ -235,7 +237,7 @@ public class VCFGoldStandardComparator {
 			
 			Iterator<VCFRecord> itTest = inTest.iterator();
 			VCFRecord recordTest = recordGS = loadNextRecord(itTest, false);
-			
+			int countProcessedClusters = 0;
 			while(true) {
 				int nextSeqIdxGS = nSeqs;
 				if(recordGS!=null) nextSeqIdxGS = sequenceNames.indexOf(recordGS.getSequenceName());
@@ -249,9 +251,14 @@ public class VCFGoldStandardComparator {
 				
 				if(nextSeqIdx>sequenceIdx) {
 					if(sequenceIdx>=0) processClusterCalls (gsCalls, testCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, confidenceRegionsSeq);
+					countProcessedClusters++;
 					sequenceIdx = nextSeqIdx;
 					String sequenceName = sequenceNames.get(sequenceIdx).getName();
-					if(confidenceRegions!=null) confidenceRegionsSeq = new LinkedList<>(confidenceRegions.get(sequenceName));
+					if(confidenceRegions!=null) {
+						confidenceRegionsSeq = new LinkedList<>();
+						List<GenomicRegion> crsl = confidenceRegions.get(sequenceName);
+						if(crsl!=null) confidenceRegionsSeq.addAll(crsl);
+					}
 					if(complexRegions!=null) complexRegionsSeq = complexRegions.get(sequenceName);
 					pIdx = 0;
 					gsCalls.clear();
@@ -276,6 +283,7 @@ public class VCFGoldStandardComparator {
 				boolean testClose = nextSeqIdxTest == sequenceIdx && nextClusterFirst>recordTest.getFirst();
 				if (!gsClose && !testClose) {
 					processClusterCalls (gsCalls, testCalls, clusterFirst, clusterLast, clusterType, confidenceRegionsSeq);
+					countProcessedClusters++;
 					gsCalls.clear();
 					testCalls.clear();
 					clusterFirst = 0;
@@ -302,6 +310,7 @@ public class VCFGoldStandardComparator {
 					clusterLast = Math.max(clusterLast, recordTest.getLast());
 					recordTest = loadNextRecord(itTest, false);
 				}
+				if(countProcessedClusters%10000==0) log.info("Processed "+countProcessedClusters+" clusters. Current cluster coordinates "+sequenceNames.get(sequenceIdx).getName()+": "+clusterFirst+"-"+clusterLast);
 			}
 		}
 	}
@@ -334,7 +343,7 @@ public class VCFGoldStandardComparator {
 		return record;
 	}
 
-	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<GenomicRegion> confidenceRegionsSeq) {
+	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
 		if(gsCalls.size()==0 && testCalls.size()==0) return;
 		//if(gsCalls.size()>0) System.out.println("Calls: "+gsCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst());
@@ -409,8 +418,6 @@ public class VCFGoldStandardComparator {
 			if(nextConfident.getLast()<clusterLast) confidenceRegionsSeq.removeFirst();
 			else break;
 		}
-		
-		
 	}
 
 	
@@ -676,7 +683,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 			if(calledAlleles.length==1) {
 				hap0.append(calledAlleles[0]);
 				hap1.append(calledAlleles[0]);
-			} else if(phasedAlleles!=null) {
+			} else if(phasedAlleles!=null && phasedAlleles.length==2) {
 				hap0.append(phasedAlleles[0]);
 				hap1.append(phasedAlleles[1]);
 			} else {
