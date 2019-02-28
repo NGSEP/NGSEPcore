@@ -66,7 +66,6 @@ public class VCFGoldStandardComparator {
 	
 	private int mode = 0;
 	private short minQuality = 0;
-	private int posPrint = -1;
 	
 	
 	
@@ -364,6 +363,9 @@ public class VCFGoldStandardComparator {
 					int row = Math.min(qualFirstTest/10, lastRowCounts); 
 					counts.update(0,row,k);
 					counts.update(row+1,lastRowCounts,9+genotypeFirstGS);
+					if(mode == 3 && genotypeFirstGS!=genotypeFirstTest &&  qualFirstTest>=minQuality) {
+						System.out.println("Variant "+firstGS.getSequenceName()+": "+firstGS.getFirst()+" genotypeGS: "+genotypeFirstGS+" genotypeTest: "+genotypeFirstTest+" alternativeGS: "+firstGS.getAlleles()[1]+" alternative Test: "+firstTest.getAlleles()[1]);
+					}
 				} else {
 					//Isolated SNV calls in different close positions or with different alternative alleles
 					processPossibleFalsePositives(testCalls,confidenceRegionsSeq, lastRowCounts);
@@ -376,13 +378,16 @@ public class VCFGoldStandardComparator {
 				String [] matchingHaplotypes = gsHaps.buildMatchingHaplotypes(testCalls);
 				int genotypeTest = CalledGenomicVariant.GENOTYPE_HOMOALT;
 				if(!matchingHaplotypes[0].equals(matchingHaplotypes[1])) genotypeTest = CalledGenomicVariant.GENOTYPE_HETERO;
+				boolean sequenceMismatch = false;
 				if(genotypeGS==genotypeTest) {
 					//Record genotype errors if haplotype sequences do not match even if the genotypes match 
 					if(genotypeGS==CalledGenomicVariant.GENOTYPE_HOMOALT && !gsHaplotypes[0].equals(matchingHaplotypes[0])) {
 						genotypeTest = CalledGenomicVariant.GENOTYPE_HETERO;
+						sequenceMismatch = true;
 						//System.out.println("Changing genotype test to heterozygous due to error in sequence. GS hap: "+gsHaplotypes[0]+" test hap: "+matchingHaplotypes[0]);
 					} else if (genotypeGS==CalledGenomicVariant.GENOTYPE_HETERO && (!gsHaplotypes[0].equals(matchingHaplotypes[0]) || (!gsHaplotypes[1].equals(matchingHaplotypes[1])))) {
 						genotypeTest = CalledGenomicVariant.GENOTYPE_HOMOALT;
+						sequenceMismatch = true;
 					}
 				}
 				short qualTest = calculateQuality(testCalls);
@@ -391,14 +396,12 @@ public class VCFGoldStandardComparator {
 				counts.update(0,row,k);
 				counts.update(row+1,lastRowCounts,9+genotypeGS);
 				if(mode == 3 && genotypeGS!=genotypeTest &&  qualTest>=minQuality) {
-					System.out.println("Variant "+gsCalls.get(0).getSequenceName()+": "+gsHaps.getFirst());
+					System.out.println("Variant "+gsCalls.get(0).getSequenceName()+": "+gsHaps.getFirst()+" genotypeGS: "+genotypeGS+" genotypeTest: "+genotypeTest+" sequenceMismatch: "+sequenceMismatch);
 					System.out.println(gsHaplotypes[0]);
 					System.out.println(gsHaplotypes[1]);
-					//writer.printVCFRecord(new VCFRecord(gsHaps, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, gsHaps, null), System.out);
 					System.out.println(matchingHaplotypes[0]);
 					System.out.println(matchingHaplotypes[1]);
 				}
-				
 			}
 		}
 		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
@@ -417,7 +420,7 @@ public class VCFGoldStandardComparator {
 		if(confidenceRegionsSeq!=null) confidenceRegionsList.addAll(confidenceRegionsSeq);
 		for(CalledGenomicVariant call:testCalls) {
 			int genotypeTest = getGenotypeNumber(call);
-			short qualTest = loadType(call);
+			short qualTest = loadGenotypeQuality(call);
 			byte typeTest = loadType(call);
 			int n = 12;
 			for(GenomicRegion r: confidenceRegionsList) {
@@ -428,6 +431,9 @@ public class VCFGoldStandardComparator {
 			}
 			
 			countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
+			if(mode == 2 && qualTest>=minQuality) {
+				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
+			}
 		}
 	}
 
@@ -436,6 +442,9 @@ public class VCFGoldStandardComparator {
 			int genotypeGS = getGenotypeNumber(call);
 			byte type = loadType(call);
 			countsPerType.get(type).update(0,lastRowCounts,9+genotypeGS);
+			if(mode == 1) {
+				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeGS+" type: "+type+" alt allele: "+call.getAlleles()[1]);
+			}
 		}
 	}
 	
@@ -624,6 +633,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 	private int last;
 	private Map<Integer, Integer> startsH0;
 	private Map<Integer, Integer> startsH1;
+	private int posPrint = -1;
 	
 	public GoldStandardHaplotypeReconstruction (String reference, List<CalledGenomicVariant> calls, int first) {
 		this.calls = calls;
@@ -657,7 +667,6 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 			String [] phasedAlleles = call.getPhasedAlleles();
 			//System.out.println("Pos: "+pos+" first call: "+call.getFirst()+" first this: "+first);
 			if(call.getFirst()>pos) {
-				
 				String refString = reference.substring(pos-first, call.getFirst()-first); 
 				hap0.append(refString);
 				hap1.append(refString);
@@ -687,6 +696,18 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 	}
 
 	public String [] buildMatchingHaplotypes(List<CalledGenomicVariant> testCalls) {
+		
+		//Count heterozygous calls
+		int hetCalls = 0;
+		for(CalledGenomicVariant call:testCalls) {
+			if(call.isHeterozygous()) hetCalls++;
+		}
+		if(hetCalls<5) return exhaustiveMatchingHaplotypes (testCalls,hetCalls);
+		return greedyMatchingHaplotypes (testCalls);
+		
+	}
+	
+	private String[] greedyMatchingHaplotypes(List<CalledGenomicVariant> testCalls) {
 		StringBuilder hap0 = new StringBuilder();
 		StringBuilder hap1 = new StringBuilder();
 		int pos = first;
@@ -736,7 +757,17 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 					d1+=measure.calculateDistance(search10, subject10);
 				} else {
 					d1+=2*(search10.length()-haplotype1.length());
-				}				
+				}
+				if(first == posPrint) {
+					System.out.println("Comparing haplotypes: ");
+					System.out.println(haplotype0);
+					System.out.println(search00);
+					System.out.println(search01);
+					System.out.println();
+					System.out.println(haplotype1);
+					System.out.println(search11);
+					System.out.println(search10);
+				}
 				if(d0<d1) {
 					hap0.append(calledAlleles[0]);
 					hap1.append(calledAlleles[1]);
@@ -756,7 +787,95 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		return answer;
 	}
 
-	
+	private String[] exhaustiveMatchingHaplotypes(List<CalledGenomicVariant> testCalls, int hetCalls) {
+		if(first == posPrint) System.out.println("Exhaustive matching test haplotypes. Total calls: "+testCalls+" heterozygous calls: "+hetCalls);
+		StringBuilder [][] haplotypePairs = new StringBuilder[(int) Math.pow(2, hetCalls)][2];
+		for(int i=0;i<haplotypePairs.length;i++) {
+			haplotypePairs[i][0] = new StringBuilder(2*haplotype0.length());
+			haplotypePairs[i][1] = new StringBuilder(2*haplotype1.length());
+		}
+		int pos = first;
+		int power = 1;
+		for(CalledGenomicVariant call:testCalls) {
+			String [] calledAlleles = call.getCalledAlleles();
+			if(call.getFirst()>pos) {
+				String refString = reference.substring(pos-first, call.getFirst()-first);
+				for(int i=0;i<haplotypePairs.length;i++) {
+					haplotypePairs[i][0].append(refString);
+					haplotypePairs[i][1].append(refString);
+				}
+				
+			}
+			if(calledAlleles.length==1) {
+				//Homozygous
+				for(int i=0;i<haplotypePairs.length;i++) {
+					haplotypePairs[i][0].append(calledAlleles[0]);
+					haplotypePairs[i][1].append(calledAlleles[0]);
+				}
+			} else {
+				for(int i=0;i<haplotypePairs.length;i++) {
+					boolean allele1First = i%(2*power)>=power;
+					if(allele1First) {
+						haplotypePairs[i][0].append(calledAlleles[1]);
+						haplotypePairs[i][1].append(calledAlleles[0]);
+					} else {
+						haplotypePairs[i][0].append(calledAlleles[0]);
+						haplotypePairs[i][1].append(calledAlleles[1]);
+					}
+				}
+				power*=2;
+			}
+			pos = call.getLast()+1;
+		}
+		if(pos<=last) {
+			String refEnd = reference.substring(pos-first);
+			for(int i=0;i<haplotypePairs.length;i++) {
+				haplotypePairs[i][0].append(refEnd);
+				haplotypePairs[i][1].append(refEnd);
+			}
+		}
+		//Pick best haplotype pair
+		String [] answer = new String [2];
+		double minD = 0;
+		if(first == posPrint) {
+			System.out.println("Find best match");
+			System.out.println(haplotype0);
+			System.out.println(haplotype1);
+		}
+		for(int i=0;i<haplotypePairs.length;i++) {
+			HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
+			double d=0;
+			String hapTest0 = haplotypePairs[i][0].toString();
+			String hapTest1 = haplotypePairs[i][1].toString();
+			if(haplotype0.length()==hapTest0.length()) {
+				d += measure.calculateDistance(hapTest0, haplotype0);
+			} else if(haplotype0.length()>hapTest0.length()) {
+				String subject = haplotype0.substring(0,hapTest0.length());
+				d += measure.calculateDistance(hapTest0, subject)+2*(haplotype0.length()-hapTest0.length());
+			} else {
+				String query = hapTest0.substring(0,haplotype0.length());
+				d += measure.calculateDistance(query, haplotype0)+2*(hapTest0.length()-haplotype0.length());
+			}
+			if(haplotype1.length()==hapTest1.length()) {
+				d += measure.calculateDistance(hapTest1, haplotype1);
+			} else if(haplotype1.length()>hapTest1.length()) {
+				String subject = haplotype1.substring(0,hapTest1.length());
+				d += measure.calculateDistance(hapTest1, subject)+2*(haplotype1.length()-hapTest1.length());
+			} else {
+				String query = hapTest1.substring(0,haplotype1.length());
+				d += measure.calculateDistance(query, haplotype1)+2*(hapTest1.length()-haplotype1.length());
+			}
+			if (first == posPrint) System.out.println(hapTest0+" "+d);
+			if(answer[0]==null || minD>d) {
+				answer[0] = hapTest0;
+				answer[1] = hapTest1;
+				minD = d;
+			}
+		}
+		
+		
+		return answer;
+	}
 
 	/**
 	 * @return the haplotype0
