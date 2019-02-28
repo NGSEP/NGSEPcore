@@ -1043,4 +1043,29 @@ of an individual genome
 <argument>OUT_GENOME</argument>
 </command>
 
+<command id="VCFGoldStandardComparator" class="ngsep.benchmark.VCFGoldStandardComparator">
+<intro>
+Compares a gold standard phased VCF with a VCF with test genotype calls
+</intro>
+<title>Benchmarking variant calls</title>
+<description>
+Takes a VCF file with genotype information from one sample, the reference genome used to build
+the VCF and a phased VCF file with gold standard calls and calculates quality statistics
+comparing gold-standard with test calls. 
+</description>
+<argument>REFERENCE_GENOME</argument>
+<argument>GS_VCF_FILE</argument>
+<argument>TEST_VCF_FILE</argument>
+<option id="m" type="FILE" attribute="complexRegions">
+File with coordinates of complex regions (such as STRs)
+</option>
+<option id="f" type="FILE" attribute="confidenceRegions">
+File with coordinates of regions in which the gold standard can be trusted 
+</option>
+<option id="g" type="BOOLEAN" attribute="genomicVCF">
+Indicates that the gold standard VCF is genomic, which means that confidence regions can be
+extracted from annotated regions with homozygous reference genotypes   
+</option>
+</command>
+
 </NGSEP>

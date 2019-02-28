@@ -29,19 +29,19 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
-import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
-import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.VariantCallReport;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
@@ -53,14 +53,22 @@ import ngsep.vcf.VCFRecord;
  *
  */
 public class VCFGoldStandardComparator {
+	private Logger log = Logger.getLogger(VCFGoldStandardComparator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	public static final int DEF_MIN_CLUSTER_DISTANCE = 5;
+	public static final int DEF_MAX_CLUSTER_DISTANCE = 30;
+	
 	private ReferenceGenome genome;
 	private Map<String, List<GenomicRegion>> complexRegions;
 	private Map<String, List<GenomicRegion>> confidenceRegions;
-	private String outVCF = null;
+	private boolean genomicVCF = false;
+	
 	private int mode = 0;
 	private short minQuality = 0;
 	private int posPrint = -1;
-	private boolean genomicVCF = true;
+	
+	
 	
 	
 	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
@@ -76,8 +84,7 @@ public class VCFGoldStandardComparator {
 		String file1 = args[i++];
 		String file2 = args[i++];
 		
-		if(args.length>=i+3) {
-			instance.outVCF = args[i++];
+		if(args.length>=i+2) {
 			instance.mode = Integer.parseInt(args[i++]);
 			instance.minQuality = Short.parseShort(args[i++]);
 		}
@@ -85,6 +92,23 @@ public class VCFGoldStandardComparator {
 		instance.genome = new ReferenceGenome(referenceFile);
 		instance.compareFiles(file1,file2);
 		instance.printStatistics (System.out);
+	}
+	
+	public Logger getLog() {
+		return log;
+	}
+
+	public void setLog(Logger log) {
+		if (log == null) throw new NullPointerException("Log can not be null");
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
 	}
 
 	/**
@@ -183,10 +207,14 @@ public class VCFGoldStandardComparator {
 	public void compareFiles(String vcfGS, String vcfTest) throws IOException {
 		QualifiedSequenceList sequenceNames = genome.getSequencesMetadata();
 		if(confidenceRegions==null && genomicVCF) loadConfidenceRegionsFromVCF(vcfGS,sequenceNames);
+		//Assume that the gold standard is perfect over the entire genome
+		boolean countNonGSAsFP = false;
+		if(confidenceRegionsLength==0) {
+			confidenceRegionsLength = genome.getTotalLength();
+			countNonGSAsFP = true;
+		}
 		int nSeqs = sequenceNames.size();
-		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
-		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
-		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());
+		initCounts(countNonGSAsFP);
 		try (VCFFileReader inGS = new VCFFileReader(vcfGS);
 			 VCFFileReader inTest = new VCFFileReader(vcfTest)) {
 			inGS.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
@@ -235,15 +263,16 @@ public class VCFGoldStandardComparator {
 				if(complexRegionsSeq!=null) {
 					for(;pIdx<complexRegionsSeq.size();pIdx++) {
 						GenomicRegion region = complexRegionsSeq.get(pIdx);
-						if(clusterLast+10<region.getFirst()) break;
+						if(clusterLast+DEF_MIN_CLUSTER_DISTANCE<region.getFirst()) break;
 						if(clusterFirst<=region.getLast() && clusterLast>=region.getFirst()) {
 							clusterType = GenomicVariant.TYPE_STR;
 							clusterLast=Math.max(clusterLast, region.getLast());
 						}
 					}
 				}
-				int nextClusterFirst = clusterLast+Math.max(10, clusterLast-clusterFirst+1);
-				nextClusterFirst = Math.min(nextClusterFirst, clusterLast+100);
+				int nextClusterFirst = clusterLast+Math.max(DEF_MIN_CLUSTER_DISTANCE, clusterLast-clusterFirst+1);
+				nextClusterFirst = Math.min(nextClusterFirst, clusterLast+DEF_MAX_CLUSTER_DISTANCE);
+				
 				boolean gsClose = nextSeqIdxGS == sequenceIdx && nextClusterFirst>recordGS.getFirst();
 				boolean testClose = nextSeqIdxTest == sequenceIdx && nextClusterFirst>recordTest.getFirst();
 				if (!gsClose && !testClose) {
@@ -252,8 +281,8 @@ public class VCFGoldStandardComparator {
 					testCalls.clear();
 					clusterFirst = 0;
 					clusterType = GenomicVariant.TYPE_UNDETERMINED;
-					gsClose = nextSeqIdxGS == sequenceIdx;
-					testClose = nextSeqIdxTest == sequenceIdx;
+					gsClose = nextSeqIdxGS == sequenceIdx && (nextSeqIdxTest != sequenceIdx || recordGS.getFirst()<=recordTest.getFirst());
+					testClose = nextSeqIdxTest == sequenceIdx && (nextSeqIdxGS != sequenceIdx || recordTest.getFirst()<=recordGS.getFirst());;
 				}
 				if(gsClose) {
 					CalledGenomicVariant callGS = recordGS.getCalls().get(0);
@@ -275,6 +304,18 @@ public class VCFGoldStandardComparator {
 					recordTest = loadNextRecord(itTest, false);
 				}
 			}
+		}
+	}
+
+	private void initCounts(boolean countNonGSAsFP) {
+		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
+		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
+		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());
+		double confidentMbp = (double)confidenceRegionsLength/1000000.0;
+		log.info("Confident MBP: "+confidentMbp);
+		for(GoldStandardComparisonCounts counts:countsPerType.values()) {
+			counts.setCountNonGSAsFP(countNonGSAsFP);
+			counts.setConfidentMbp(confidentMbp);
 		}
 	}
 	
@@ -399,9 +440,6 @@ public class VCFGoldStandardComparator {
 	}
 	
 	private void printStatistics(PrintStream out) {
-		double confidentMbp = confidenceRegionsLength/1000000;
-		out.println("Confident MBP: "+confidentMbp);
-		for(GoldStandardComparisonCounts counts:countsPerType.values()) counts.setConfidentMbp(confidentMbp);
 		out.println("SNVs");
 		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(System.out);
 		out.println("Indels");
@@ -409,225 +447,7 @@ public class VCFGoldStandardComparator {
 		out.println("STRs/OTHER");
 		countsPerType.get(GenomicVariant.TYPE_STR).print(System.out);
 		
-	}
-
-	public void compareFilesOld(String vcfGS, String vcfTest) throws IOException {
-		QualifiedSequenceList sequenceNames = genome.getSequencesMetadata();
-		GenomicRegionComparator compRegion = new GenomicRegionComparator(sequenceNames);
-		
-		countsPerType.put(GenomicVariant.TYPE_BIALLELIC_SNV, new GoldStandardComparisonCounts());
-		countsPerType.put(GenomicVariant.TYPE_INDEL, new GoldStandardComparisonCounts());
-		countsPerType.put(GenomicVariant.TYPE_STR, new GoldStandardComparisonCounts());
-		//countsPerType.put(GenomicVariant.TYPE_UNDETERMINED, new GoldStandardComparisonCounts());
-		List<CalledGenomicVariant> callsTest = VCFFileReader.loadCalledVariantsSingleIndividualVCF(vcfTest);
-		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
-		PrintStream out = null;
-		try (VCFFileReader inGS = new VCFFileReader(vcfGS)){ 
-			QualifiedSequenceList seqNames = genome.getSequencesMetadata();
-			inGS.setSequences(seqNames);
-			inGS.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
-			if(outVCF!=null) {
-				out = new PrintStream(outVCF);
-				writer.printHeader(inGS.getHeader(), out);
-			}
-			Iterator<VCFRecord> itGS = inGS.iterator();
-			int idxTest = 0;
-			while (itGS.hasNext()) {
-				VCFRecord rGS = itGS.next();
-				CalledGenomicVariant callGS = rGS.getCalls().get(0);
-				if(!callGS.isUndecided())confidenceRegionsLength+=callGS.getReference().length();
-				boolean referenceRegion = callGS.isHomozygousReference();
-				byte typeGS = loadType(callGS);
-				List<CalledGenomicVariant> callsIntersect = new ArrayList<>();
-				while(idxTest<callsTest.size()) {
-					CalledGenomicVariant callTest = callsTest.get(idxTest);
-					if(callTest.isUndecided()) {
-						idxTest++;
-						continue;
-					}
-					short qualTest = loadGenotypeQuality(callTest);
-					int lastBefore = (idxTest == 0 || !callsTest.get(idxTest-1).getSequenceName().equals(callTest.getSequenceName()))? 0:callsTest.get(idxTest-1).getLast();
-					int firstAfter = (idxTest == callsTest.size()-1 || !callsTest.get(idxTest+1).getSequenceName().equals(callTest.getSequenceName()))? seqNames.get(callTest.getSequenceName()).getLength():callsTest.get(idxTest+1).getFirst();
-					
-					byte type = loadType(callTest);
-					int column = getGenotypeNumber(callTest);
-					CalledGenomicVariant expandedCallTest = expandReferenceIndels(callTest,lastBefore,firstAfter);
-					int cmp = compRegion.compare(callGS, expandedCallTest);
-					if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" expanded call: "+expandedCallTest.getFirst()+"-"+expandedCallTest.getLast()+"type: "+type+" column: "+column+" comparison: "+cmp);					
-					if (cmp<-1) break;
-					if (cmp<=1) {
-						//Overlap between GS and extended region
-						if(!referenceRegion) {
-							callsIntersect.add(expandedCallTest);
-							idxTest++;
-							continue;
-						}
-						//Variant falling out of reference region will be processed by the next gs region
-						int remainder = expandedCallTest.getLast() - callGS.getLast();	
-						if(posPrint==callGS.getFirst()) System.out.println("Call GS: "+callGS.getFirst()+"-"+callGS.getLast()+" call test: "+callTest.getFirst()+"-"+callTest.getLast()+" remainder: "+remainder);
-						if(!callTest.isHomozygousReference() && remainder>0) break;
-						if(callTest.getFirst()<callGS.getFirst() || callGS.getLast()<callTest.getLast()) column+=12;
-					} else column+=12;
-					countsPerType.get(type).update(0,Math.min(qualTest/10, lastRowCounts),column);
-					VCFRecord record = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
-					if(mode == 2 && qualTest>=minQuality && column < 12 && !callTest.isHomozygousReference()) writer.printVCFRecord(record, out);
-					idxTest++;
-				}
-				if(posPrint==callGS.getFirst()) System.out.println("GS call at "+callGS.getSequenceName()+":"+callGS.getFirst()+" type: "+typeGS+" undecided: "+callGS.isUndecided()+" Calls intersect: "+callsIntersect.size()+" next test call: "+callsTest.get(idxTest).getFirst());
-				if(callGS.isUndecided() || referenceRegion ) {
-					//Ignore variants that intersect with unknown gold standard sites
-					continue;
-				}
-				//Process non-reference call in the gold standard
-				int n1 = getGenotypeNumber(callGS);
-				if(callsIntersect.size()==0) {
-					//Gold standard variant not found
-					countsPerType.get(typeGS).update(0,lastRowCounts,9+n1);
-					if(mode == 1) writer.printVCFRecord(rGS, out);
-					continue;
-				}
-				boolean covered = false;
-				for(CalledGenomicVariant callTest:callsIntersect) {
-					boolean consistent = isConsistent(callGS, callTest);
-					byte typeTest = loadType(callTest);
-					short qualTest = callTest.getGenotypeQuality();
-					int n2 = getGenotypeNumber(callTest);
-					VCFRecord rTest = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
-					if(consistent) {
-						GoldStandardComparisonCounts counts = countsPerType.get(typeGS);
-						int k = 3*n1+n2;
-						int row = Math.min(qualTest/10, lastRowCounts); 
-						counts.update(0,row,k);
-						counts.update(row+1,lastRowCounts,9+n1);
-						if(mode == 1 &&  qualTest<minQuality) {
-							writer.printVCFRecord(rGS, out);
-							writer.printVCFRecord(rTest, out);
-						}
-						if(mode==3 && n1!=n2 &&  qualTest>=minQuality) {
-							writer.printVCFRecord(rGS, out);
-							writer.printVCFRecord(rTest, out);
-						}
-						covered= true;
-					} else {
-						//False positive for inconsistent variant
-						countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),12+n2);
-						if(mode==3 && qualTest>=minQuality) {
-							writer.printVCFRecord(rGS, out);
-							writer.printVCFRecord(rTest, out);
-						}
-					}
-				}
-				if(!covered) {
-					GoldStandardComparisonCounts counts = countsPerType.get(typeGS);
-					//False negative for GS not properly called
-					counts.update(0,lastRowCounts,9+n1);	
-				}
-			}
-			while(idxTest<callsTest.size()) {
-				//Process test variants at the end
-				CalledGenomicVariant callTest = callsTest.get(idxTest);
-				if(!callTest.isUndecided()) {
-					byte typeTest = loadType(callTest);
-					short qualTest = loadGenotypeQuality(callTest);
-					int n2 = getGenotypeNumber(callTest);
-					countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),12+n2);
-					VCFRecord rTest = new VCFRecord(callTest, VCFRecord.DEF_FORMAT_ARRAY_QUALITY, callTest, null);
-					if(mode == 2 && qualTest>=minQuality && !callTest.isHomozygousReference()) writer.printVCFRecord(rTest, out);
-				}
-				idxTest++;
-			}
-		} finally {
-			if(out!=null) {
-				out.flush();
-				out.close();
-			}
-		}
-		printStatistics(System.out);
-	}
-
-	private CalledGenomicVariant expandReferenceIndels(CalledGenomicVariant callTest, int lastBefore, int firstAfter) {
-		String [] alleles = callTest.getAlleles();
-		if(alleles.length<2) return callTest;
-		Set<Integer> lengths = new HashSet<>();
-		for(int i=0;i<alleles.length;i++) lengths.add(alleles[i].length());
-		if(lengths.size()==1 && lengths.iterator().next()==1) return callTest;
-		//Add 1 reference bp at the end
-		int refBefore = Math.max(callTest.getFirst()-5, lastBefore+2);
-		
-		CharSequence left = null;
-		if(refBefore<callTest.getFirst()) left = genome.getReference(callTest.getSequenceName(), refBefore, callTest.getFirst()-1);
-		int refAfter = Math.min(callTest.getLast()+5, firstAfter-2);
-		CharSequence right = null;
-		if(callTest.getLast()<refAfter) right = genome.getReference(callTest.getSequenceName(), callTest.getLast()+1,refAfter);
-		if(left == null && right==null) return callTest;
-		int first = callTest.getFirst();
-		if(left!=null) first-=left.length();
-		List<String> extendedAlleles = new ArrayList<>();
-		for(int i=0;i<alleles.length;i++) {
-			String a = alleles[i];
-			if(left!=null) a= left+a;
-			if(right!=null) a= a+right;
-			extendedAlleles.add(a);
-		}
-		GenomicVariant newVariant = new GenomicVariantImpl(callTest.getSequenceName(), first, extendedAlleles);
-		newVariant.setType(callTest.getType());
-		newVariant.setVariantQS(callTest.getVariantQS());
-		CalledGenomicVariantImpl answer = new CalledGenomicVariantImpl(newVariant, callTest.getIndexesCalledAlleles());
-		answer.setGenotypeQuality(callTest.getGenotypeQuality());
-		return answer;
-	}
-
-	public boolean isConsistent(CalledGenomicVariant callGS, CalledGenomicVariant callTest) {
-		boolean consistent = true;
-		List<String> allelesGS = buildExtendedAlleles(callGS, callTest.getFirst(), callTest.getLast());
-		if(posPrint==callGS.getFirst()) System.out.println("AllelesGS "+allelesGS);
-		
-		
-		String [] allelesTest = callTest.getAlleles();
-		//Expected start of alternative alleles in reference alleles
-		int offset = 0;
-		if(callGS.getFirst()<callTest.getFirst()) offset = callTest.getFirst()-callGS.getFirst();
-		String reference = allelesGS.get(0);
-		if(offset>0 && offset<reference.length()) {
-			reference = reference.substring(offset);
-		}
-		consistent = reference.startsWith(allelesTest[0]);
-		if(!consistent) System.err.println("WARN: Inconsistent reference for comparison between "+callGS.getSequenceName()+":"+callGS.getFirst()+ " reference: "+reference+" and "+callTest.getSequenceName()+":"+callTest.getFirst()+" reference: "+allelesTest[0]+" offset: "+offset );
-		for(int i=1;i<allelesTest.length && consistent;i++) {
-			String alleleTest = allelesTest[i];
-			if(posPrint==callGS.getFirst()) System.out.println("Next allele test "+alleleTest);
-			boolean found = false;
-			for(int j=1;j<allelesGS.size() && !found;j++) {
-				String alleleGS = allelesGS.get(j);
-				if(offset>0 && offset<alleleGS.length()) {
-					alleleGS = alleleGS.substring(offset);
-				}
-				found = alleleGS.startsWith(alleleTest);
-			}
-			consistent = found;
-		}
-		return consistent;
-	}
-	
-	private List<String> buildExtendedAlleles(GenomicVariant v, int firstTest, int lastTest) {
-		String seqName = v.getSequenceName();
-		String left = null;
-		if(firstTest<v.getFirst()) left = genome.getReference(seqName, firstTest, v.getFirst()-1).toString();
-		String right = null;
-		if(v.getLast()<lastTest) right = genome.getReference(seqName, v.getLast()+1, lastTest).toString();
-		List<String> answer = new ArrayList<>();
-		String [] alleles = v.getAlleles();
-		for(int i=0;i<alleles.length;i++) {
-			String allele = alleles[i];
-			String allO = "";
-			if(left!=null) allO += left;
-			allO+=allele;
-			if(right!=null) allO += right;
-			answer.add(allO.toUpperCase());
-		}
-		return answer;
-	}
-	
+	}	
 	private byte loadType(CalledGenomicVariant call) {
 		byte type = call.getType();
 		if(type == GenomicVariant.TYPE_BIALLELIC_SNV) return type;
@@ -882,28 +702,47 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 				hap0.append(calledAlleles[0]);
 				hap1.append(calledAlleles[0]);
 			} else {
+				HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
+				String search00 = hap0+calledAlleles[0];
+				String search11 = hap1+calledAlleles[1];
 				
-				String search = hap0+calledAlleles[0];
-				String search2 = hap0+calledAlleles[1];
-				if(call.getFirst()==97007) {
-					System.out.println("Matching variant at "+call.getFirst());
-					System.out.println(haplotype0);
-					System.out.println(haplotype1);
-					System.out.println(search);
-					System.out.println(search2);
+				String search01 = hap0+calledAlleles[1];
+				String search10 = hap1+calledAlleles[0];
+				
+				double d0 = 0;
+				if(haplotype0.length()>=search00.length()) {
+					String subject00 = haplotype0.substring(0,search00.length());
+					d0 += measure.calculateDistance(search00, subject00);
+				} else {
+					d0+=2*(search00.length()-haplotype0.length());
 				}
 				
+				if(haplotype1.length()>=search11.length()) {
+					String subject11 = haplotype1.substring(0,search11.length());
+					d0+=measure.calculateDistance(search11, subject11);
+				} else {
+					d0+=2*(search11.length()-haplotype1.length());
+				}
+				double d1=0;
+				if(haplotype0.length()>=search01.length()) {
+					String subject01 = haplotype0.substring(0,search01.length());
+					d1 += measure.calculateDistance(search01, subject01);
+				} else {
+					d1+=2*(search01.length()-haplotype0.length());
+				}
 				
-				if(haplotype0.startsWith(search) || haplotype1.startsWith(search2)) {
+				if(haplotype1.length()>=search10.length()) {
+					String subject10 = haplotype1.substring(0,search10.length());
+					d1+=measure.calculateDistance(search10, subject10);
+				} else {
+					d1+=2*(search10.length()-haplotype1.length());
+				}				
+				if(d0<d1) {
 					hap0.append(calledAlleles[0]);
 					hap1.append(calledAlleles[1]);
-				} else if (haplotype1.startsWith(search) || haplotype0.startsWith(search2)) {
+				} else {
 					hap0.append(calledAlleles[1]);
 					hap1.append(calledAlleles[0]);
-				} else {
-					// TODO: In principle it will be an error no matter which phase is used
-					hap0.append(calledAlleles[0]);
-					hap1.append(calledAlleles[1]);
 				}
 			}
 			pos = call.getLast()+1;
