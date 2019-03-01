@@ -72,8 +72,9 @@ public class VCFGoldStandardComparator {
 	//Calculated statistics
 	private long confidenceRegionsLength = 0;
 	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
-	private Distribution distClusterSize = new Distribution(0, 100, 1);
-	private Distribution distClusterSpan = new Distribution(0, 100000, 1000);
+	private Distribution distClusterSizeGS = new Distribution(0, 50, 1);
+	private Distribution distClusterSizeTest = new Distribution(0, 50, 1);
+	private Distribution distClusterSpan = new Distribution(0, 50000, 1000);
 	
 
 	VCFFileWriter writer = new VCFFileWriter();
@@ -361,8 +362,15 @@ public class VCFGoldStandardComparator {
 	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
 		if(gsCalls.size()==0 && testCalls.size()==0) return;
-		distClusterSize.processDatapoint(gsCalls.size());
-		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
+		if(gsCalls.size()==0 && testCalls.size()>1) {
+			// Process individually potential false positives
+			for(CalledGenomicVariant testCall:testCalls) {
+				List<CalledGenomicVariant> list1 = new ArrayList<>();
+				list1.add(testCall);
+				processClusterCalls(gsCalls, list1, testCall.getFirst(), testCall.getLast(), loadType(testCall), confidenceRegionsSeq);
+			}
+			return;
+		}
 		
 		//if(gsCalls.size()>0 && testCalls.size()>0) System.out.println("GS Calls: "+gsCalls.size()+" test calls: "+testCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst()+" first test call: "+testCalls.get(0).getFirst());
 		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
@@ -375,12 +383,16 @@ public class VCFGoldStandardComparator {
 			if(r.getFirst()<=clusterFirst && r.getLast()>=clusterLast) clusterInConfidenceRegion = true;
 			else if (r.getFirst()>clusterFirst) break;
 		}
+		if (confidenceRegions!=null && !clusterInConfidenceRegion) return;
+		distClusterSizeGS.processDatapoint(gsCalls.size());
+		distClusterSizeTest.processDatapoint(testCalls.size());
+		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
 		if(gsCalls.size()==0) {
-			processPossibleFalsePositives(testCalls,confidenceRegionsSeq, lastRowCounts);
+			processFalsePositives(testCalls,lastRowCounts);
 		}
 		else if(testCalls.size()==0) {
 			processFalseNegatives(gsCalls, lastRowCounts);
-		} else if (confidenceRegions==null || clusterInConfidenceRegion) {
+		} else  {
 			CalledGenomicVariant firstGS = gsCalls.get(0);
 			CalledGenomicVariant firstTest = testCalls.get(0);
 			int genotypeFirstGS = getGenotypeNumber(firstGS);
@@ -400,7 +412,7 @@ public class VCFGoldStandardComparator {
 					}
 				} else {
 					//Isolated SNV calls in different close positions or with different alternative alleles
-					processPossibleFalsePositives(testCalls,confidenceRegionsSeq, lastRowCounts);
+					processFalsePositives(testCalls, lastRowCounts);
 					processFalseNegatives(gsCalls, lastRowCounts);
 				}
 			} else {
@@ -436,30 +448,18 @@ public class VCFGoldStandardComparator {
 				}
 			}
 		}
-		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
-			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
-			if(nextConfident.getLast()<clusterLast) confidenceRegionsSeq.removeFirst();
-			else break;
-		}
 	}
 
 	
 
-	private void processPossibleFalsePositives(List<CalledGenomicVariant> testCalls, LinkedList<GenomicRegion> confidenceRegionsSeq, int lastRowCounts) {
-		List<GenomicRegion> confidenceRegionsList = new ArrayList<>();
-		if(confidenceRegionsSeq!=null) confidenceRegionsList.addAll(confidenceRegionsSeq);
+	private void processFalsePositives(List<CalledGenomicVariant> testCalls, int lastRowCounts) {
 		for(CalledGenomicVariant call:testCalls) {
 			int genotypeTest = getGenotypeNumber(call);
 			short qualTest = loadGenotypeQuality(call);
 			byte typeTest = loadType(call);
-			int n = 12;
-			for(GenomicRegion r: confidenceRegionsList) {
-				if(r.getFirst()<=call.getFirst() && r.getLast()>=call.getLast()) {
-					n=0;
-					break;
-				}
-			}
-			
+			//TODO: add option to still count variants outside given confidence regions 
+			int n = 0;
+			if(confidenceRegions==null) n=12;
 			countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
 			if(mode == 2 && qualTest>=minQuality) {
 				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
@@ -480,10 +480,13 @@ public class VCFGoldStandardComparator {
 	
 	private void printStatistics(PrintStream out) {
 		out.println("Distribution of number of gold standard variants per cluster: ");
-		distClusterSize.printDistribution(out);
+		distClusterSizeGS.printDistributionInt(out);
+		out.println();
+		out.println("Distribution of number of test variants per cluster: ");
+		distClusterSizeTest.printDistributionInt(out);
 		out.println();
 		out.println("Cluster span distribution: ");
-		distClusterSpan.printDistribution(out);
+		distClusterSpan.printDistributionInt(out);
 		out.println();
 		out.println("SNVs");
 		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(System.out);
