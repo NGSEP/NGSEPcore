@@ -37,6 +37,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.math.Distribution;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -68,11 +69,12 @@ public class VCFGoldStandardComparator {
 	private int mode = 0;
 	private short minQuality = 0;
 	
-	
-	
-	
-	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
+	//Calculated statistics
 	private long confidenceRegionsLength = 0;
+	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
+	private Distribution distClusterSize = new Distribution(0, 100, 1);
+	private Distribution distClusterSpan = new Distribution(0, 100000, 1000);
+	
 
 	VCFFileWriter writer = new VCFFileWriter();
 	public static void main(String[] args) throws Exception {
@@ -206,11 +208,16 @@ public class VCFGoldStandardComparator {
 	}
 
 	public void compareFiles(String vcfGS, String vcfTest) throws IOException {
+		log.info("Comparing gold standard variant file "+vcfGS+ " with test file "+vcfTest);
 		QualifiedSequenceList sequenceNames = genome.getSequencesMetadata();
-		if(confidenceRegions==null && genomicVCF) loadConfidenceRegionsFromVCF(vcfGS,sequenceNames);
+		if(confidenceRegions==null && genomicVCF) {
+			log.info("Loading confidence regions from gold standard VCF");
+			loadConfidenceRegionsFromVCF(vcfGS,sequenceNames);
+		}
 		//Assume that the gold standard is perfect over the entire genome
 		boolean countNonGSAsFP = false;
 		if(confidenceRegionsLength==0) {
+			log.info("No confidence regions were provided. Assuming that the gold standard is complete over the entire genome");
 			confidenceRegionsLength = genome.getTotalLength();
 			countNonGSAsFP = true;
 		}
@@ -233,10 +240,11 @@ public class VCFGoldStandardComparator {
 			
 			Iterator<VCFRecord> itGS = inGS.iterator();
 			VCFRecord recordGS = loadNextRecord(itGS, false);
-			
+			//System.out.println("First GS record: "+recordGS.getFirst());
 			
 			Iterator<VCFRecord> itTest = inTest.iterator();
-			VCFRecord recordTest = recordGS = loadNextRecord(itTest, false);
+			VCFRecord recordTest = loadNextRecord(itTest, false);
+			
 			int countProcessedClusters = 0;
 			while(true) {
 				int nextSeqIdxGS = nSeqs;
@@ -346,7 +354,9 @@ public class VCFGoldStandardComparator {
 	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
 		if(gsCalls.size()==0 && testCalls.size()==0) return;
-		//if(gsCalls.size()>0) System.out.println("Calls: "+gsCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst());
+		distClusterSize.processDatapoint(gsCalls.size());
+		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
+		//if(gsCalls.size()>0 && testCalls.size()>0) System.out.println("GS Calls: "+gsCalls.size()+" test calls: "+testCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst()+" first test call: "+testCalls.get(0).getFirst());
 		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
 			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
 			if(nextConfident.getLast()<clusterFirst-10) confidenceRegionsSeq.removeFirst();
@@ -456,6 +466,12 @@ public class VCFGoldStandardComparator {
 	}
 	
 	private void printStatistics(PrintStream out) {
+		out.println("Distribution of number of gold standard variants per cluster: ");
+		distClusterSize.printDistribution(out);
+		out.println();
+		out.println("Cluster span distribution: ");
+		distClusterSpan.printDistribution(out);
+		out.println();
 		out.println("SNVs");
 		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(System.out);
 		out.println("Indels");
@@ -667,9 +683,10 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		StringBuilder hap1 = new StringBuilder();
 		startsH0 = new HashMap<>();
 		startsH1 = new HashMap<>();
+		if(first==posPrint) System.out.println("Cluster first: "+first+" Gold standard calls: "+calls.size());
 		int pos = first;
 		for(CalledGenomicVariant call:calls) {
-			//if(!call.isPhased()) System.out.println("Gold standard call: "+call.getSequenceName()+": "+call.getFirst()+" not phased");
+			if(first==posPrint) System.out.println("Cluster first: "+first+" Gold standard call: "+call.getSequenceName()+": "+call.getFirst()+" heterozygous: "+call.isHeterozygous()+" phased: "+call.isPhased());
 			String [] calledAlleles = call.getCalledAlleles();
 			String [] phasedAlleles = call.getPhasedAlleles();
 			//System.out.println("Pos: "+pos+" first call: "+call.getFirst()+" first this: "+first);
@@ -795,7 +812,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 	}
 
 	private String[] exhaustiveMatchingHaplotypes(List<CalledGenomicVariant> testCalls, int hetCalls) {
-		if(first == posPrint) System.out.println("Exhaustive matching test haplotypes. Total calls: "+testCalls+" heterozygous calls: "+hetCalls);
+		if(first == posPrint) System.out.println("Exhaustive matching test haplotypes. Total calls: "+testCalls.size()+" heterozygous calls: "+hetCalls);
 		StringBuilder [][] haplotypePairs = new StringBuilder[(int) Math.pow(2, hetCalls)][2];
 		for(int i=0;i<haplotypePairs.length;i++) {
 			haplotypePairs[i][0] = new StringBuilder(2*haplotype0.length());
