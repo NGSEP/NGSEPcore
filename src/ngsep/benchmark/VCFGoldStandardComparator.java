@@ -188,18 +188,25 @@ public class VCFGoldStandardComparator {
 		try (VCFFileReader in = new VCFFileReader(filename)) {
 			in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			in.setSequences(sequenceNames);
+			GenomicRegionImpl r = null;
 			Iterator<VCFRecord> it = in.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
 				CalledGenomicVariant call = record.getCalls().get(0); 
-				if(call.isHomozygousReference()) {
+				if(!call.isUndecided()) {
 					List<GenomicRegion> regionsSeq = confidenceRegions.get(call.getSequenceName());
 					if(regionsSeq==null) {
 						regionsSeq = new ArrayList<>();
 						confidenceRegions.put(call.getSequenceName(), regionsSeq);
+						r=null;
 					}
-					GenomicRegion r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
-					regionsSeq.add(r);
+					if(r==null || r.getLast()<record.getFirst()-1) {
+						r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+						regionsSeq.add(r);
+					} else {
+						r.setLast(record.getLast());
+					}
+					
 					confidenceRegionsLength+=r.length();
 				}
 			}
@@ -216,7 +223,7 @@ public class VCFGoldStandardComparator {
 		}
 		//Assume that the gold standard is perfect over the entire genome
 		boolean countNonGSAsFP = false;
-		if(confidenceRegionsLength==0) {
+		if(confidenceRegions==null) {
 			log.info("No confidence regions were provided. Assuming that the gold standard is complete over the entire genome");
 			confidenceRegionsLength = genome.getTotalLength();
 			countNonGSAsFP = true;
@@ -356,18 +363,24 @@ public class VCFGoldStandardComparator {
 		if(gsCalls.size()==0 && testCalls.size()==0) return;
 		distClusterSize.processDatapoint(gsCalls.size());
 		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
+		
 		//if(gsCalls.size()>0 && testCalls.size()>0) System.out.println("GS Calls: "+gsCalls.size()+" test calls: "+testCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst()+" first test call: "+testCalls.get(0).getFirst());
 		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
 			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
 			if(nextConfident.getLast()<clusterFirst-10) confidenceRegionsSeq.removeFirst();
 			else break;
 		}
+		boolean clusterInConfidenceRegion = false;
+		for(GenomicRegion r:confidenceRegionsSeq) {
+			if(r.getFirst()<=clusterFirst && r.getLast()>=clusterLast) clusterInConfidenceRegion = true;
+			else if (r.getFirst()>clusterFirst) break;
+		}
 		if(gsCalls.size()==0) {
 			processPossibleFalsePositives(testCalls,confidenceRegionsSeq, lastRowCounts);
 		}
 		else if(testCalls.size()==0) {
 			processFalseNegatives(gsCalls, lastRowCounts);
-		} else {
+		} else if (confidenceRegions==null || clusterInConfidenceRegion) {
 			CalledGenomicVariant firstGS = gsCalls.get(0);
 			CalledGenomicVariant firstTest = testCalls.get(0);
 			int genotypeFirstGS = getGenotypeNumber(firstGS);
