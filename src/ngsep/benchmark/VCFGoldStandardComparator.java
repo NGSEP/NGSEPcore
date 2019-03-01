@@ -270,6 +270,7 @@ public class VCFGoldStandardComparator {
 					countProcessedClusters++;
 					sequenceIdx = nextSeqIdx;
 					String sequenceName = sequenceNames.get(sequenceIdx).getName();
+					log.info("Starting sequence "+sequenceName);
 					if(confidenceRegions!=null) {
 						confidenceRegionsSeq = new LinkedList<>();
 						List<GenomicRegion> crsl = confidenceRegions.get(sequenceName);
@@ -281,6 +282,9 @@ public class VCFGoldStandardComparator {
 					testCalls.clear();
 					clusterFirst=clusterLast=0;
 					clusterType = GenomicVariant.TYPE_UNDETERMINED;
+				} else if (nextSeqIdx<sequenceIdx) {
+					log.severe("Disorder detected after sequence name: "+sequenceNames.get(sequenceIdx).getName());
+					break;
 				}
 				if(complexRegionsSeq!=null) {
 					for(;pIdx<complexRegionsSeq.size();pIdx++) {
