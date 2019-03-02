@@ -207,6 +207,7 @@ public class BiparentalHaploidGoldStandardBuilder {
 		if(aP1>0) finalAlleles.add(alleles.get(aP1));
 		if(aP2>0 && aP2!=aP1) finalAlleles.add(alleles.get(aP2));
 		byte [] calledAlleles;
+		byte [] phasedAlleles=new byte[2];
 		if(aP1<0 || aP2<0) {
 			//Undecided call
 			return null;
@@ -215,10 +216,11 @@ public class BiparentalHaploidGoldStandardBuilder {
 			if(aP1==0) return null;
 			calledAlleles = new byte[1];
 			calledAlleles[0] = 1;
+			phasedAlleles[0] = phasedAlleles[1]= 1;
 		} else {
 			calledAlleles = new byte[2];
-			calledAlleles[0] = (byte) (aP1==0?0:1);
-			calledAlleles[1] = (byte) (aP2==0?0:finalAlleles.size()-1);
+			phasedAlleles[0] = calledAlleles[0] = (byte) (aP1==0?0:1);
+			phasedAlleles[1] = calledAlleles[1] = (byte) (aP2==0?0:finalAlleles.size()-1);
 			if(calledAlleles[0]> calledAlleles[1]) {
 				byte tmp = calledAlleles[0];
 				calledAlleles[0] = calledAlleles[1];
@@ -237,8 +239,10 @@ public class BiparentalHaploidGoldStandardBuilder {
 		if(type == GenomicVariant.TYPE_UNDETERMINED && first==last && finalAlleles.size()==2) type = GenomicVariant.TYPE_BIALLELIC_SNV;
 		outVariant.setType(type);
 		outCall.setGenotypeQuality((short)255);
+		if(phasedAlleles!=null) outCall.setIndexesPhasedAlleles(phasedAlleles);
 		format = VCFRecord.DEF_FORMAT_ARRAY_QUALITY;
 		
+		//if(outCall.getFirst()==3518) System.out.println("Phased: "+outCall.isPhased()+" heterozygous: "+outCall.isHeterozygous()+" phased alleles: "+outCall.getPhasedAlleles()[0]+" "+outCall.getPhasedAlleles()[1]);
 		VCFRecord answer = new VCFRecord(outVariant, format, outCall, header);
 		return answer;
 	}
