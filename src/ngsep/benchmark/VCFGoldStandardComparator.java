@@ -189,27 +189,33 @@ public class VCFGoldStandardComparator {
 		try (VCFFileReader in = new VCFFileReader(filename)) {
 			in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			in.setSequences(sequenceNames);
+			String sequenceName = null;
+			List<GenomicRegion> regionsSeq = null;
 			GenomicRegionImpl r = null;
 			Iterator<VCFRecord> it = in.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
 				CalledGenomicVariant call = record.getCalls().get(0); 
-				if(!call.isUndecided()) {
-					List<GenomicRegion> regionsSeq = confidenceRegions.get(call.getSequenceName());
-					if(regionsSeq==null) {
-						regionsSeq = new ArrayList<>();
-						confidenceRegions.put(call.getSequenceName(), regionsSeq);
-						r=null;
-					}
-					if(r==null || r.getLast()<record.getFirst()-1) {
-						r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+				if(call.isUndecided()) continue;
+				if(sequenceName==null || !sequenceName.equals(call.getSequenceName())) {
+					if(r!=null) {
 						regionsSeq.add(r);
-					} else {
-						r.setLast(record.getLast());
+						confidenceRegionsLength+=r.length();
 					}
-					
+					regionsSeq =  new ArrayList<>();
+					confidenceRegions.put(call.getSequenceName(), regionsSeq);
+					r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+				} else if( r.getLast()<record.getFirst()-1) {
+					regionsSeq.add(r);
 					confidenceRegionsLength+=r.length();
+					r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+				} else {
+					r.setLast(record.getLast());
 				}
+			}
+			if(r!=null) {
+				regionsSeq.add(r);
+				confidenceRegionsLength+=r.length();
 			}
 		}
 		
