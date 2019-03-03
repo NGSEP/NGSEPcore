@@ -66,14 +66,15 @@ public class ReadsAligner {
 		ReadsAligner instance = new ReadsAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String fMIndexFile = args[i++];
-		String readsFile = args[i++];
+		String readsFile1 = args[i++];
+		String readsFile2 = args[i++];
 		String outFile = args[i++];
 		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
 
 		try (PrintStream out = new PrintStream(outFile);
 				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			instance.alignReads(readsFile, writer);
+			instance.alignReads(readsFile1,readsFile2, writer);
 		}
 	}
 
@@ -101,36 +102,45 @@ public class ReadsAligner {
 	/**
 	 * Aligns readsFile with the fMIndexFile
 	 * @param fMIndexFile Binary file with the serialization of an FMIndex
-	 * @param readsFile Fastq file with the reads to align
+	 * @param readsFile1 Fastq file with the reads to align
+	 * @param readsFile2 
 	 * @param out
 	 * @throws IOException
 	 */
-	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
+	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
 		long time = System.currentTimeMillis();
-		try (FastqFileReader reader = new FastqFileReader(readsFile)) {
-			//Load as DNAMaskedSequence to allow reverse complement
-			reader.setSequenceType(DNAMaskedSequence.class);
-			Iterator<RawRead> it = reader.iterator();
-			while(it.hasNext()) {
-				RawRead read = it.next();
-				List<ReadAlignment> alns = alignRead(read);
-				//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-				for(ReadAlignment aln:alns) writer.write(aln);
-				if(alns.size()==0) {
-					ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
-					alnNoMap.setReadName(read.getName());
-					alnNoMap.setReadCharacters(read.getCharacters());
-					alnNoMap.setQualityScores(read.getQualityScores());
-					writer.write(alnNoMap);
+		try (FastqFileReader reader1 = new FastqFileReader(readsFile1)) {
+			reader1.setSequenceType(DNAMaskedSequence.class);
+			try (FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
+				//Load as DNAMaskedSequence to allow reverse complement
+				reader2.setSequenceType(DNAMaskedSequence.class);
+				Iterator<RawRead> it1 = reader1.iterator();
+				Iterator<RawRead> it2 = reader2.iterator();
+				while(it1.hasNext() && it2.hasNext()) {
+					//TODO handle parallel excution handle println bottleneck
+					//https://stackoverflow.com/questions/37035720/how-to-use-multiple-cores-with-java
+					RawRead read1 = it1.next();
+					RawRead read2 = it2.next();
+					List<ReadAlignment> alns1 = alignRead(read1);
+					List<ReadAlignment> alns2 = alignRead(read2);
+
+					if(alns1.size()==0||alns2.size()==0) {
+						//TODO Handle unmapped sam error matesequence name
+						//						writeUnMapped(writer, read1, alns1,read2,alns2);
+					}else {
+						List<ReadAlignment> alns = checkPairEndAlns(alns1, alns2);
+						//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+						for(ReadAlignment aln:alns) writer.write(aln);	
+						int numAlns = alns.size();
+						totalReads++;
+						if(numAlns>0) readsAligned++;
+						if(numAlns==1) uniqueAlignments++;
+						if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+					}
 				}
-				int numAlns = alns.size();
-				totalReads++;
-				if(numAlns>0) readsAligned++;
-				if(numAlns==1) uniqueAlignments++;
-				if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
 			}
 		}
 		log.info("Total reads: "+totalReads);
@@ -143,12 +153,110 @@ public class ReadsAligner {
 
 	}
 
+	private void writeUnMapped(ReadAlignmentFileWriter writer, RawRead read1, List<ReadAlignment> alns1, RawRead read2, List<ReadAlignment> alns2) {
+		boolean read1Mapped=true;
+		boolean read2Mapped=true;
+		if(alns1.size()==0) {
+			read1Mapped=false;
+		}
+		if(alns2.size()==0) {
+			read2Mapped=false;
+		}
+
+		if(!read1Mapped&& !read2Mapped) {
+			ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read1.getLength(), ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED);
+			alnNoMap.setReadName(read1.getName());
+			alnNoMap.setReadCharacters(read1.getCharacters());
+			alnNoMap.setQualityScores(read1.getQualityScores());
+			writer.write(alnNoMap);
+
+			alnNoMap = new ReadAlignment(null, 0, 0, read2.getLength(), ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED);
+			alnNoMap.setReadName(read2.getName());
+			alnNoMap.setReadCharacters(read2.getCharacters());
+			alnNoMap.setQualityScores(read2.getQualityScores());
+			writer.write(alnNoMap);
+		}
+		else if(read1Mapped) {
+			ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read2.getLength(), ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED);
+			alnNoMap.setReadName(read2.getName());
+			alnNoMap.setReadCharacters(read2.getCharacters());
+			alnNoMap.setQualityScores(read2.getQualityScores());
+			alnNoMap.setMateFirst(alns1.get(0).getFirst());
+			alnNoMap.setMateSequenceName(alns1.get(0).getSequenceName());
+			alnNoMap.setMateNegativeStrand(alns1.get(0).isMateNegativeStrand());
+			writer.write(alnNoMap);
+
+			alns1.get(0).setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_MATE_UNMAPPED);
+			alns1.get(0).setMateFirst(alnNoMap.getFirst());
+			alns1.get(0).setMateSequenceName(alnNoMap.getSequenceName());
+			alns1.get(0).setMateNegativeStrand(alnNoMap.isMateNegativeStrand());
+			writer.write(alns1.get(0));
+		}
+		else if(read2Mapped) {
+			ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read1.getLength(), ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED);
+			alnNoMap.setReadName(read1.getName());
+			alnNoMap.setReadCharacters(read1.getCharacters());
+			alnNoMap.setQualityScores(read1.getQualityScores());
+			alnNoMap.setMateFirst(alns2.get(0).getFirst());
+			alnNoMap.setMateSequenceName(alns2.get(0).getSequenceName());
+			alnNoMap.setMateNegativeStrand(alns2.get(0).isMateNegativeStrand());
+			writer.write(alnNoMap);
+
+			alns2.get(0).setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_MATE_UNMAPPED);
+			alns2.get(0).setMateFirst(alnNoMap.getFirst());
+			alns2.get(0).setMateSequenceName(alnNoMap.getSequenceName());
+			alns2.get(0).setMateNegativeStrand(alnNoMap.isMateNegativeStrand());
+			writer.write(alns2.get(0));
+		}
+
+
+	}
+
 	public List<ReadAlignment> checkPairEndAlns(List<ReadAlignment> alns1, List<ReadAlignment> alns2){
 		List<ReadAlignment> pairEndAlns = new ArrayList<ReadAlignment>();
+		//TODO Handle multiples alns
+		//		for (int i = 0; i < alns1.size(); i++) {
+		//			for (int j = 0; j < alns2.size(); j++) {
+		//				PairEndsAlignments alns=checkPairEnd(alns1.get(i), alns2.get(j));
+		//				pairEndAlns.add(alns.getAln1());
+		//				pairEndAlns.add(alns.getAln2());
+		//			}
+		//		}
+		PairEndsAlignments alns=checkPairEnd(alns1.get(0), alns2.get(0));
+		if(alns!=null) {
+			pairEndAlns.add(alns.getAln1());
+			pairEndAlns.add(alns.getAln2());	
+		}
+
 		return pairEndAlns;
 	}
 
-	public ReadAlignment checkPairEnd(ReadAlignment aln1, ReadAlignment aln2) {
+	public PairEndsAlignments checkPairEnd(ReadAlignment aln1, ReadAlignment aln2) {
+
+		if(aln1.getSequenceName().equals(aln2.getSequenceName())) {
+			int start1 = aln1.getFirst();
+			int start2 = aln2.getFirst();
+			if(aln1.isPositiveStrand() && aln2.isNegativeStrand()){
+				aln1.setMateSequenceName(aln2.getSequenceName());
+				aln1.setMateFirst(aln2.getFirst());
+				aln2.setMateSequenceName(aln1.getSequenceName());
+				aln2.setMateFirst(aln1.getFirst());
+				if(start2-start1>0 &&	start2-start1<=500) {
+					aln1.setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_PROPER+ReadAlignment.FLAG_FIRST_OF_PAIR);
+					aln2.setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_PROPER+ReadAlignment.FLAG_SECOND_OF_PAIR);
+					return new PairEndsAlignments(aln1,aln2);
+				}	
+				else if(start2-start1>0 &&	start2-start1<1000){
+					aln1.setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_FIRST_OF_PAIR);
+					aln2.setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_SECOND_OF_PAIR);
+					return new PairEndsAlignments(aln1,aln2);
+				}
+			}
+
+		}
+
+
+
 		return null;
 	}
 
@@ -612,3 +720,5 @@ class KmerAlignmentCluster implements GenomicRegion {
 		return lastAlnPresent;
 	}
 }
+
+
