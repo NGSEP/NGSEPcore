@@ -511,11 +511,11 @@ public class VCFGoldStandardComparator {
 		distClusterSpan.printDistributionInt(out);
 		out.println();
 		out.println("SNVs");
-		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(System.out);
+		countsPerType.get(GenomicVariant.TYPE_BIALLELIC_SNV).print(out);
 		out.println("Indels");
-		countsPerType.get(GenomicVariant.TYPE_INDEL).print(System.out);
+		countsPerType.get(GenomicVariant.TYPE_INDEL).print(out);
 		out.println("STRs/OTHER");
-		countsPerType.get(GenomicVariant.TYPE_STR).print(System.out);
+		countsPerType.get(GenomicVariant.TYPE_STR).print(out);
 		
 	}	
 	private byte loadType(CalledGenomicVariant call) {
