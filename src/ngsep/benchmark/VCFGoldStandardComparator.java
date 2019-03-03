@@ -72,9 +72,9 @@ public class VCFGoldStandardComparator {
 	//Calculated statistics
 	private long confidenceRegionsLength = 0;
 	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
-	private Distribution distClusterSizeGS = new Distribution(0, 50, 1);
-	private Distribution distClusterTestHet = new Distribution(0, 50, 1);
-	private Distribution distClusterSpan = new Distribution(0, 50000, 1000);
+	private Distribution distClusterSizeGS = new Distribution(0, 10, 1);
+	private Distribution distClusterTestHet = new Distribution(0, 10, 1);
+	private Distribution distClusterSpan = new Distribution(0, 1000, 100);
 	
 
 	VCFFileWriter writer = new VCFFileWriter();
@@ -401,7 +401,7 @@ public class VCFGoldStandardComparator {
 		distClusterTestHet.processDatapoint(heterozygous);
 		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
 		if(testCallsCluster.size()==0) {
-			processFalseNegatives(gsCalls, lastRowCounts);
+			processFalseNegativeCluster(gsCalls, clusterGSType, lastRowCounts);
 		} else  {
 			CalledGenomicVariant firstGS = gsCalls.get(0);
 			CalledGenomicVariant firstTest = testCallsCluster.get(0);
@@ -423,7 +423,7 @@ public class VCFGoldStandardComparator {
 				} else {
 					//Isolated SNV calls in different close positions or with different alternative alleles
 					processPossibleFalsePositive(firstTest, confidenceRegionsSeq, lastRowCounts);
-					processFalseNegatives(gsCalls, lastRowCounts);
+					processFalseNegativeCluster(gsCalls, clusterGSType, lastRowCounts);
 				}
 			} else {
 				String reference = genome.getReference(firstGS.getSequenceName(), regionFirst, regionLast).toString();
@@ -482,15 +482,23 @@ public class VCFGoldStandardComparator {
 		}
 	}
 
-	private void processFalseNegatives(List<CalledGenomicVariant> gsCalls, int lastRowCounts) {
+	private void processFalseNegativeCluster(List<CalledGenomicVariant> gsCalls, byte clusterType, int lastRowCounts) {
+		int clusterGenotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
 		for(CalledGenomicVariant call:gsCalls) {
 			int genotypeGS = getGenotypeNumber(call);
-			byte type = loadType(call);
-			countsPerType.get(type).update(0,lastRowCounts,9+genotypeGS);
-			if(mode == 1) {
-				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeGS+" type: "+type+" alt allele: "+call.getAlleles()[1]);
+			if(genotypeGS==CalledGenomicVariant.GENOTYPE_HETERO) {
+				clusterGenotype = genotypeGS;
+				break;
 			}
 		}
+		countsPerType.get(clusterType).update(0,lastRowCounts,9+clusterGenotype);
+		if(mode == 1) {
+			System.out.println("FAlse negative cluster with "+gsCalls+" gold standard calls");
+			for(CalledGenomicVariant call:gsCalls) {
+				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+getGenotypeNumber(call)+" type: "+loadType(call)+" alt allele: "+call.getAlleles()[1]);
+			}
+		}
+		
 	}
 	
 	private void printStatistics(PrintStream out) {
