@@ -500,7 +500,7 @@ public class VCFGoldStandardComparator {
 		
 	}
 	
-	private void printStatistics(PrintStream out) {
+	public void printStatistics(PrintStream out) {
 		out.println("Distribution of number of gold standard variants per cluster: ");
 		distClusterSizeGS.printDistributionInt(out);
 		out.println();
