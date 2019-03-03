@@ -469,13 +469,12 @@ public class VCFGoldStandardComparator {
 			if(r.getFirst()<=call.getFirst() && r.getLast()>=call.getLast()) clusterInConfidenceRegion = true;
 			else if (r.getFirst()>call.getLast()) break;
 		}
-		if (confidenceRegions!=null && !clusterInConfidenceRegion) return;
+		int n = 0;
+		if (confidenceRegions!=null && !clusterInConfidenceRegion) n=12;
 		int genotypeTest = getGenotypeNumber(call);
 		short qualTest = loadGenotypeQuality(call);
-		byte typeTest = loadType(call);
-		//TODO: add option to still count variants outside given confidence regions 
-		int n = 0;
-		if(confidenceRegions==null) n=12;
+		byte typeTest = loadType(call); 
+		
 		countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
 		if(mode == 2 && qualTest>=minQuality) {
 			System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
