@@ -73,7 +73,7 @@ public class VCFGoldStandardComparator {
 	private long confidenceRegionsLength = 0;
 	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
 	private Distribution distClusterSizeGS = new Distribution(0, 50, 1);
-	private Distribution distClusterSizeTest = new Distribution(0, 50, 1);
+	private Distribution distClusterTestHet = new Distribution(0, 50, 1);
 	private Distribution distClusterSpan = new Distribution(0, 50000, 1000);
 	
 
@@ -229,110 +229,108 @@ public class VCFGoldStandardComparator {
 			confidenceRegionsLength = genome.getTotalLength();
 			countNonGSAsFP = true;
 		}
-		int nSeqs = sequenceNames.size();
 		initCounts(countNonGSAsFP);
 		try (VCFFileReader inGS = new VCFFileReader(vcfGS);
 			 VCFFileReader inTest = new VCFFileReader(vcfTest)) {
 			inGS.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			inGS.setSequences(sequenceNames);
 			inTest.setSequences(sequenceNames);
-			LinkedList<GenomicRegion> confidenceRegionsSeq=null;
+			LinkedList<GenomicRegion> confidenceRegionsSeq=new LinkedList<>();
 			List<GenomicRegion> complexRegionsSeq=null;
 			int pIdx = 0;
 			List<CalledGenomicVariant> gsCalls = new ArrayList<>();
-			List<CalledGenomicVariant> testCalls = new ArrayList<>();
+			
 			int sequenceIdx = -1;
 			int clusterFirst = 0;
 			int clusterLast = 0;
 			byte clusterType = GenomicVariant.TYPE_UNDETERMINED;
+			
 			
 			Iterator<VCFRecord> itGS = inGS.iterator();
 			VCFRecord recordGS = loadNextRecord(itGS, false);
 			//System.out.println("First GS record: "+recordGS.getFirst());
 			
 			Iterator<VCFRecord> itTest = inTest.iterator();
-			VCFRecord recordTest = loadNextRecord(itTest, false);
+			LinkedList<CalledGenomicVariant> testCallsSequence = new LinkedList<>();
+			VCFRecord firstRecordNextSequence = loadNextRecord(itTest, false);
 			
 			int countProcessedClusters = 0;
-			while(true) {
-				int nextSeqIdxGS = nSeqs;
-				if(recordGS!=null) nextSeqIdxGS = sequenceNames.indexOf(recordGS.getSequenceName());
-				int nextSeqIdxTest = nSeqs;
-				if(recordTest!=null) nextSeqIdxTest = sequenceNames.indexOf(recordTest.getSequenceName());
-				int nextSeqIdx = Math.min(nextSeqIdxGS, nextSeqIdxTest);
-				if(nextSeqIdx == nSeqs) {
-					processClusterCalls (gsCalls, testCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, confidenceRegionsSeq );
-					break;
-				}
-				
-				if(nextSeqIdx>sequenceIdx) {
-					if(sequenceIdx>=0) processClusterCalls (gsCalls, testCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, confidenceRegionsSeq);
+			while(recordGS!=null) {
+				int nextSeqIdxGS = sequenceNames.indexOf(recordGS.getSequenceName());
+				if(nextSeqIdxGS>sequenceIdx) {
+					if(sequenceIdx>=0) processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq);
 					countProcessedClusters++;
-					sequenceIdx = nextSeqIdx;
+					sequenceIdx = nextSeqIdxGS;
 					String sequenceName = sequenceNames.get(sequenceIdx).getName();
 					log.info("Starting sequence "+sequenceName);
+					
+					testCallsSequence.clear();
+					if(firstRecordNextSequence!=null && firstRecordNextSequence.getSequenceName().equals(sequenceName)) {
+						CalledGenomicVariant callTest = firstRecordNextSequence.getCalls().get(0);
+						testCallsSequence.add(callTest);
+						firstRecordNextSequence = loadTestCallsSequence(itTest, sequenceName, testCallsSequence);
+					}
+					
 					if(confidenceRegions!=null) {
-						confidenceRegionsSeq = new LinkedList<>();
+						confidenceRegionsSeq.clear(); 
 						List<GenomicRegion> crsl = confidenceRegions.get(sequenceName);
 						if(crsl!=null) confidenceRegionsSeq.addAll(crsl);
 					}
 					if(complexRegions!=null) complexRegionsSeq = complexRegions.get(sequenceName);
 					pIdx = 0;
 					gsCalls.clear();
-					testCalls.clear();
 					clusterFirst=clusterLast=0;
 					clusterType = GenomicVariant.TYPE_UNDETERMINED;
-				} else if (nextSeqIdx<sequenceIdx) {
-					log.severe("Disorder detected after sequence name: "+sequenceNames.get(sequenceIdx).getName());
+				} else if (nextSeqIdxGS<sequenceIdx) {
+					log.severe("Disorder detected in gold standard after sequence name: "+sequenceNames.get(sequenceIdx).getName());
 					break;
 				}
 				if(complexRegionsSeq!=null) {
 					for(;pIdx<complexRegionsSeq.size();pIdx++) {
 						GenomicRegion region = complexRegionsSeq.get(pIdx);
-						if(clusterLast+DEF_MIN_CLUSTER_DISTANCE<region.getFirst()) break;
-						if(clusterFirst<=region.getLast() && clusterLast>=region.getFirst()) {
+						if(clusterLast+DEF_MIN_CLUSTER_DISTANCE<=region.getFirst()) break;
+						if(clusterFirst<region.getLast()+DEF_MIN_CLUSTER_DISTANCE) {
 							clusterType = GenomicVariant.TYPE_STR;
-							clusterLast=Math.max(clusterLast, region.getLast());
+							clusterLast = Math.max(clusterLast, region.getLast());
+							clusterFirst = Math.min(clusterFirst, region.getFirst());
 						}
 					}
 				}
 				int nextClusterFirst = clusterLast+Math.max(DEF_MIN_CLUSTER_DISTANCE, clusterLast-clusterFirst+1);
 				nextClusterFirst = Math.min(nextClusterFirst, clusterLast+DEF_MAX_CLUSTER_DISTANCE);
 				
-				boolean gsClose = nextSeqIdxGS == sequenceIdx && nextClusterFirst>recordGS.getFirst();
-				boolean testClose = nextSeqIdxTest == sequenceIdx && nextClusterFirst>recordTest.getFirst();
-				if (!gsClose && !testClose) {
-					processClusterCalls (gsCalls, testCalls, clusterFirst, clusterLast, clusterType, confidenceRegionsSeq);
+				boolean gsClose = nextClusterFirst>recordGS.getFirst();
+				if (!gsClose) {
+					processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq);
 					countProcessedClusters++;
 					gsCalls.clear();
-					testCalls.clear();
-					clusterFirst = 0;
+					clusterFirst = clusterLast = 0;
 					clusterType = GenomicVariant.TYPE_UNDETERMINED;
-					gsClose = nextSeqIdxGS == sequenceIdx && (nextSeqIdxTest != sequenceIdx || recordGS.getFirst()<=recordTest.getFirst());
-					testClose = nextSeqIdxTest == sequenceIdx && (nextSeqIdxGS != sequenceIdx || recordTest.getFirst()<=recordGS.getFirst());;
 				}
-				if(gsClose) {
-					CalledGenomicVariant callGS = recordGS.getCalls().get(0);
-					gsCalls.add(callGS);
-					if(clusterType==GenomicVariant.TYPE_UNDETERMINED) clusterType = loadType(callGS);
-					//Default type for cluster calls
-					if(gsCalls.size()>1) clusterType= GenomicVariant.TYPE_STR;
-					
-					if(clusterFirst == 0 ) clusterFirst = recordGS.getFirst();
-					else clusterFirst = Math.min(clusterFirst, recordGS.getFirst());
-					clusterLast = Math.max(clusterLast, recordGS.getLast());
-					recordGS = loadNextRecord(itGS, false);
-				}
-				if(testClose) {
-					testCalls.add(recordTest.getCalls().get(0));
-					if(clusterFirst == 0 ) clusterFirst = recordTest.getFirst();
-					else clusterFirst = Math.min(clusterFirst, recordTest.getFirst());
-					clusterLast = Math.max(clusterLast, recordTest.getLast());
-					recordTest = loadNextRecord(itTest, false);
-				}
+				CalledGenomicVariant callGS = recordGS.getCalls().get(0);
+				gsCalls.add(callGS);
+				if(clusterType==GenomicVariant.TYPE_UNDETERMINED) clusterType = loadType(callGS);
+				//Default type for cluster calls
+				if(gsCalls.size()>1) clusterType= GenomicVariant.TYPE_STR;
+				
+				if(clusterFirst == 0 ) clusterFirst = recordGS.getFirst();
+				else clusterFirst = Math.min(clusterFirst, recordGS.getFirst());
+				clusterLast = Math.max(clusterLast, recordGS.getLast());
+				recordGS = loadNextRecord(itGS, false);
 				if(countProcessedClusters%10000==0) log.info("Processed "+countProcessedClusters+" clusters. Current cluster coordinates "+sequenceNames.get(sequenceIdx).getName()+": "+clusterFirst+"-"+clusterLast);
 			}
+			processClusterCalls (gsCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, testCallsSequence, confidenceRegionsSeq );
 		}
+	}
+
+	private VCFRecord loadTestCallsSequence(Iterator<VCFRecord> itTest, String seqName, LinkedList<CalledGenomicVariant> testCallsSequence) {
+		VCFRecord answer = loadNextRecord(itTest, false);
+		while(answer!=null && answer.getSequenceName().equals(seqName)) {
+			CalledGenomicVariant call = answer.getCalls().get(0);
+			testCallsSequence.add(call);
+			answer = loadNextRecord(itTest, false);
+		}
+		return answer;
 	}
 
 	private void initCounts(boolean countNonGSAsFP) {
@@ -363,23 +361,34 @@ public class VCFGoldStandardComparator {
 		return record;
 	}
 
-	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, List<CalledGenomicVariant> testCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
+	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<CalledGenomicVariant> testCallsSeq, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
-		if(gsCalls.size()==0 && testCalls.size()==0) return;
-		if(gsCalls.size()==0 && testCalls.size()>1) {
-			// Process individually potential false positives
-			for(CalledGenomicVariant testCall:testCalls) {
-				List<CalledGenomicVariant> list1 = new ArrayList<>();
-				list1.add(testCall);
-				processClusterCalls(gsCalls, list1, testCall.getFirst(), testCall.getLast(), loadType(testCall), confidenceRegionsSeq);
-			}
-			return;
+		if(gsCalls.size()==0) return;
+		List<CalledGenomicVariant> testCallsCluster = new ArrayList<>();
+		int heterozygous=0;
+		int regionFirst = clusterFirst-DEF_MIN_CLUSTER_DISTANCE;
+		int regionLast = clusterLast+DEF_MIN_CLUSTER_DISTANCE;
+		// Process individually potential false positives
+		while(testCallsSeq.size()>0) {
+			CalledGenomicVariant testCall = testCallsSeq.peek();
+			if(clusterFirst == 567239) log.info("Cluster limits: "+clusterFirst+"-"+clusterLast+" GS size: "+gsCalls.size()+ " cluster type: "+clusterGSType+" test call: "+testCall.getFirst()+"-"+testCall.getLast());
+			if(testCall.getLast()+DEF_MIN_CLUSTER_DISTANCE<=clusterFirst) {
+				processPossibleFalsePositive(testCall, confidenceRegionsSeq, lastRowCounts);
+				testCallsSeq.removeFirst();
+				continue;
+			} else if(testCall.getFirst()>=clusterLast+DEF_MIN_CLUSTER_DISTANCE) break;
+			testCallsCluster.add(testCall);
+			regionFirst = Math.min(regionFirst, testCall.getFirst());
+			regionLast = Math.max(regionLast, testCall.getLast());
+			if(testCall.isHeterozygous()) heterozygous++;
+			testCallsSeq.removeFirst();
 		}
+			
 		
 		//if(gsCalls.size()>0 && testCalls.size()>0) System.out.println("GS Calls: "+gsCalls.size()+" test calls: "+testCalls.size()+" first: "+clusterFirst+" first gs call: "+gsCalls.get(0).getFirst()+" first test call: "+testCalls.get(0).getFirst());
-		while(confidenceRegionsSeq!=null && confidenceRegionsSeq.size()>0) {
+		while(confidenceRegionsSeq.size()>0) {
 			GenomicRegion nextConfident = confidenceRegionsSeq.peek();
-			if(nextConfident.getLast()<clusterFirst-10) confidenceRegionsSeq.removeFirst();
+			if(nextConfident.getLast()<clusterFirst) confidenceRegionsSeq.removeFirst();
 			else break;
 		}
 		boolean clusterInConfidenceRegion = false;
@@ -389,16 +398,13 @@ public class VCFGoldStandardComparator {
 		}
 		if (confidenceRegions!=null && !clusterInConfidenceRegion) return;
 		distClusterSizeGS.processDatapoint(gsCalls.size());
-		distClusterSizeTest.processDatapoint(testCalls.size());
+		distClusterTestHet.processDatapoint(heterozygous);
 		distClusterSpan.processDatapoint(clusterLast-clusterFirst+1);
-		if(gsCalls.size()==0) {
-			processFalsePositives(testCalls,lastRowCounts);
-		}
-		else if(testCalls.size()==0) {
+		if(testCallsCluster.size()==0) {
 			processFalseNegatives(gsCalls, lastRowCounts);
 		} else  {
 			CalledGenomicVariant firstGS = gsCalls.get(0);
-			CalledGenomicVariant firstTest = testCalls.get(0);
+			CalledGenomicVariant firstTest = testCallsCluster.get(0);
 			int genotypeFirstGS = getGenotypeNumber(firstGS);
 			int genotypeFirstTest = getGenotypeNumber(firstTest);
 			short qualFirstTest = loadGenotypeQuality(firstTest);
@@ -416,14 +422,15 @@ public class VCFGoldStandardComparator {
 					}
 				} else {
 					//Isolated SNV calls in different close positions or with different alternative alleles
-					processFalsePositives(testCalls, lastRowCounts);
+					processPossibleFalsePositive(firstTest, confidenceRegionsSeq, lastRowCounts);
 					processFalseNegatives(gsCalls, lastRowCounts);
 				}
 			} else {
-				GoldStandardHaplotypeReconstruction gsHaps = new GoldStandardHaplotypeReconstruction(genome.getReference(firstGS.getSequenceName(), clusterFirst-5, clusterLast).toString(), gsCalls, clusterFirst-5);
+				String reference = genome.getReference(firstGS.getSequenceName(), regionFirst, regionLast).toString();
+				GoldStandardHaplotypeReconstruction gsHaps = new GoldStandardHaplotypeReconstruction(reference, gsCalls, regionFirst);
 				String [] gsHaplotypes = gsHaps.getPhasedAlleles();
 				int genotypeGS = gsHaps.getGenotypeNumber();
-				String [] matchingHaplotypes = gsHaps.buildMatchingHaplotypes(testCalls);
+				String [] matchingHaplotypes = gsHaps.buildMatchingHaplotypes(testCallsCluster);
 				int genotypeTest = CalledGenomicVariant.GENOTYPE_HOMOALT;
 				if(!matchingHaplotypes[0].equals(matchingHaplotypes[1])) genotypeTest = CalledGenomicVariant.GENOTYPE_HETERO;
 				boolean sequenceMismatch = false;
@@ -438,7 +445,7 @@ public class VCFGoldStandardComparator {
 						sequenceMismatch = true;
 					}
 				}
-				short qualTest = calculateQuality(testCalls);
+				short qualTest = calculateQuality(testCallsCluster);
 				int k = 3*genotypeGS+genotypeTest;
 				int row = Math.min(qualTest/10, lastRowCounts); 
 				counts.update(0,row,k);
@@ -456,18 +463,22 @@ public class VCFGoldStandardComparator {
 
 	
 
-	private void processFalsePositives(List<CalledGenomicVariant> testCalls, int lastRowCounts) {
-		for(CalledGenomicVariant call:testCalls) {
-			int genotypeTest = getGenotypeNumber(call);
-			short qualTest = loadGenotypeQuality(call);
-			byte typeTest = loadType(call);
-			//TODO: add option to still count variants outside given confidence regions 
-			int n = 0;
-			if(confidenceRegions==null) n=12;
-			countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
-			if(mode == 2 && qualTest>=minQuality) {
-				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
-			}
+	private void processPossibleFalsePositive(CalledGenomicVariant call, LinkedList<GenomicRegion> confidenceRegionsSeq, int lastRowCounts) {
+		boolean clusterInConfidenceRegion = false;
+		for(GenomicRegion r:confidenceRegionsSeq) {
+			if(r.getFirst()<=call.getFirst() && r.getLast()>=call.getLast()) clusterInConfidenceRegion = true;
+			else if (r.getFirst()>call.getLast()) break;
+		}
+		if (confidenceRegions!=null && !clusterInConfidenceRegion) return;
+		int genotypeTest = getGenotypeNumber(call);
+		short qualTest = loadGenotypeQuality(call);
+		byte typeTest = loadType(call);
+		//TODO: add option to still count variants outside given confidence regions 
+		int n = 0;
+		if(confidenceRegions==null) n=12;
+		countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
+		if(mode == 2 && qualTest>=minQuality) {
+			System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
 		}
 	}
 
@@ -486,8 +497,8 @@ public class VCFGoldStandardComparator {
 		out.println("Distribution of number of gold standard variants per cluster: ");
 		distClusterSizeGS.printDistributionInt(out);
 		out.println();
-		out.println("Distribution of number of test variants per cluster: ");
-		distClusterSizeTest.printDistributionInt(out);
+		out.println("Distribution of number of heterozygoys test variants per cluster: ");
+		distClusterTestHet.printDistributionInt(out);
 		out.println();
 		out.println("Cluster span distribution: ");
 		distClusterSpan.printDistributionInt(out);
@@ -746,7 +757,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		for(CalledGenomicVariant call:testCalls) {
 			if(call.isHeterozygous()) hetCalls++;
 		}
-		if(hetCalls<5) return exhaustiveMatchingHaplotypes (testCalls,hetCalls);
+		if(hetCalls<=8) return exhaustiveMatchingHaplotypes (testCalls,hetCalls);
 		return greedyMatchingHaplotypes (testCalls);
 		
 	}
@@ -843,6 +854,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		for(CalledGenomicVariant call:testCalls) {
 			String [] calledAlleles = call.getCalledAlleles();
 			if(call.getFirst()>pos) {
+				if(call.getFirst() <first) throw new RuntimeException("Test call at pos: "+call.getFirst()+" before cluster start: "+first);
 				String refString = reference.substring(pos-first, call.getFirst()-first);
 				for(int i=0;i<haplotypePairs.length;i++) {
 					haplotypePairs[i][0].append(refString);
