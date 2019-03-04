@@ -1,4 +1,4 @@
-<NGSEP version="3.3.1" date="15-02-2019">
+<NGSEP version="3.3.1" date="08-03-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -633,6 +633,22 @@ Writes to the standard output. See the README.txt file for details on the output
 <argument>POPULATIONS_FILE</argument>
 </command>
 
+<command id="VCFVariantDensityCalculator" class="ngsep.vcf.VCFVariantDensityCalculator">
+<intro>
+Calculates the density of variants in a VCF file across the genome 
+</intro>
+<title>Calculating variants density</title>
+<description>
+Calculates the number of variants within a VCF file in non-overlapping windows across the genome.
+Writes to the standard output a text delimited file with four columns: sequence, window first,
+window last and number of variants
+</description>
+<argument>VCF_FILE</argument>
+<option id="w" type="INT" defaultConstant="DEF_WINDOW_LENGTH" attribute="windowLength">
+Length of the window
+</option>
+</command>
+
 <command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
 <intro>
 Calculates a genetic distance matrix from genomic variants in a given VCF file
@@ -1051,7 +1067,7 @@ Compares a gold standard phased VCF with a VCF with test genotype calls
 <description>
 Takes a VCF file with genotype information from one sample, the reference genome used to build
 the VCF and a phased VCF file with gold standard calls and calculates quality statistics
-comparing gold-standard with test calls. 
+comparing gold-standard with test calls. See the README.txt file for details on the output.
 </description>
 <argument>REFERENCE_GENOME</argument>
 <argument>GS_VCF_FILE</argument>

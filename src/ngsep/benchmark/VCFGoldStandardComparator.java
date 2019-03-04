@@ -325,6 +325,13 @@ public class VCFGoldStandardComparator {
 				clusterLast = Math.max(clusterLast, recordGS.getLast());
 				recordGS = loadNextRecord(itGS, false);
 				if(countProcessedClusters%10000==0) log.info("Processed "+countProcessedClusters+" clusters. Current cluster coordinates "+sequenceNames.get(sequenceIdx).getName()+": "+clusterFirst+"-"+clusterLast);
+				if (progressNotifier!=null && countProcessedClusters%1000==0) {
+					int progress = countProcessedClusters/1000;
+					if (!progressNotifier.keepRunning(progress)) {
+						log.info("Process canceled");
+						return;
+					}
+				}
 			}
 			processClusterCalls (gsCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, testCallsSequence, confidenceRegionsSeq );
 		}
