@@ -202,15 +202,16 @@ public class VCFGoldStandardComparator {
 						regionsSeq.add(r);
 						confidenceRegionsLength+=r.length();
 					}
+					sequenceName = call.getSequenceName();
 					regionsSeq =  new ArrayList<>();
-					confidenceRegions.put(call.getSequenceName(), regionsSeq);
-					r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+					confidenceRegions.put(sequenceName, regionsSeq);
+					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
 				} else if( r.getLast()<record.getFirst()-1) {
 					regionsSeq.add(r);
 					confidenceRegionsLength+=r.length();
-					r = new GenomicRegionImpl(record.getSequenceName(), record.getFirst(), record.getLast());
+					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
 				} else {
-					r.setLast(record.getLast());
+					r.setLast(Math.max(r.getLast(), record.getLast()));
 				}
 			}
 			if(r!=null) {
