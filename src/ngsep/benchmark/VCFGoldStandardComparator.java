@@ -506,7 +506,7 @@ public class VCFGoldStandardComparator {
 		}
 		countsPerType.get(clusterType).update(0,lastRowCounts,9+clusterGenotype);
 		if(mode == 1) {
-			System.out.println("FAlse negative cluster with "+gsCalls+" gold standard calls");
+			System.out.println("False negative cluster with "+gsCalls.size()+" gold standard calls");
 			for(CalledGenomicVariant call:gsCalls) {
 				System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+getGenotypeNumber(call)+" type: "+loadType(call)+" alt allele: "+call.getAlleles()[1]);
 			}
