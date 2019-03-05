@@ -26,6 +26,7 @@ import java.util.List;
 import JSci.maths.ExtraMath;
 import JSci.maths.SpecialMath;
 import ngsep.math.FisherExactTest;
+import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
 import ngsep.variants.CalledGenomicVariant;
@@ -40,6 +41,7 @@ import ngsep.variants.GenomicVariant;
 public class CountsHelper {
 	
 	private static final byte DEF_MIN_BASE_QS = 3;
+	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
 	
 	private int totalCount=0;
 	private int lowBaseQualityCount = 0;
@@ -146,6 +148,55 @@ public class CountsHelper {
 				}
 			}
 		}
+	}
+	public void updateCounts(String call, String qualityScores, boolean negativeStrand) {
+		totalCount++;
+		int index = alleles.indexOf(call);
+		if(index>=0) {
+			//Update raw count
+			counts[index]++;
+			//Update strand counts
+			if(negativeStrand) countsStrand[index][0]++;
+			else countsStrand[index][1]++;
+		}
+			
+		int n = alleles.size();
+		double [] conditionals = new double [n];
+		for(int i=0;i<logConditionalProbs.length;i++) {
+			String alleleI = alleles.get(i);
+			if(alleleI.length()==call.length()) {
+				conditionals[i] = calculateConditional(alleleI,call,qualityScores); 
+			} else {
+				conditionals[i] = DEF_LOG_ERROR_PROB_INDEL;
+			}
+		}
+		//Update probabilities
+		for(int i=0;i<logConditionalProbs.length;i++) {
+			logConditionalProbs[i][i] += conditionals[i];
+			for(int j=i+1;j<logConditionalProbs[i].length;j++) {
+				double average = LogMath.logSum(conditionals[i], conditionals[j])-0.3;
+				logConditionalProbs[i][j]+=average;
+				logConditionalProbs[j][i]+=average;
+			}
+		}
+		
+	}
+	/**
+	 * PRE: allele.length()==call.length()==qualityScores.length()
+	 * @param allele
+	 * @param call
+	 * @param qualityScores phred+33 format
+	 * @return double log conditional probability of the given call with the given scores given the allele
+	 */
+	private double calculateConditional(String allele, String call, String qualityScores) {
+		double logCond = 0;
+		for(int i=0;i<allele.length();i++) {
+			char c = call.charAt(i);
+			byte qualScore = (byte)Math.min(maxBaseQS, (qualityScores.charAt(i)-33));
+			if(allele.charAt(i)==c) logCond+=logProbCache[qualScore][0][0];
+			else logCond+=logProbCache[qualScore][4][2];
+		}
+		return logCond;
 	}
 	public void addAllelicImbalanceFactor(double alpha, double beta) {
 		double totalCount = 0;
@@ -324,5 +375,6 @@ public class CountsHelper {
 		double pvalueSB = getPValueStrandBiasFisher(i1, i2);
 		return (byte) Math.min(CalledGenomicVariant.MAX_STRAND_BIAS_SCORE, PhredScoreHelper.calculatePhredScore(pvalueSB));
 	}
+	
 	
 }
