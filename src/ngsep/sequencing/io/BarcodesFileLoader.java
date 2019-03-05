@@ -25,8 +25,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.sun.istack.internal.logging.Logger;
+import java.util.logging.Logger;
 
 import ngsep.sequences.DNASequence;
 import ngsep.sequencing.SequencingLane;
@@ -36,7 +35,7 @@ import ngsep.sequencing.SequencingLane;
  */
 public class BarcodesFileLoader {
 
-	private Logger log = Logger.getLogger(BarcodesFileLoader.class);
+	private Logger log = Logger.getLogger(BarcodesFileLoader.class.getName());
 	public List<SequencingLane> loadMultipleLanes(String indexFile, boolean dualBarcode) throws IOException {
 		List<SequencingLane> answer = new ArrayList<>();
 		try (FileInputStream fis = new FileInputStream(indexFile);
