@@ -293,7 +293,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
 		String [] indelAlleles;
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length());
-		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder();
+		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		for(PileupAlleleCall call:calls) {
 			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
 			

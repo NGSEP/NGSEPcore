@@ -490,7 +490,7 @@ public class VCFGoldStandardComparator {
 		byte typeTest = loadType(call); 
 		
 		countsPerType.get(typeTest).update(0,Math.min(qualTest/10, lastRowCounts),n+genotypeTest);
-		if(mode == 2 && qualTest>=minQuality) {
+		if(mode == 2 && n==0 && qualTest>=minQuality) {
 			System.out.println("Variant "+call.getSequenceName()+": "+call.getFirst()+" genotype: "+genotypeTest+" GQ: "+qualTest+" type: "+typeTest);
 		}
 	}
