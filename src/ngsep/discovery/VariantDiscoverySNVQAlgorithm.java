@@ -305,18 +305,19 @@ public class VariantDiscoverySNVQAlgorithm {
 			if(indelAllelesSet.size()>100) System.err.println("WARN: Number of alleles for site at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is "+indelAllelesSet.size()+" ref Allele: "+referenceAllele);
 			indelAlleles = new String [indelAllelesSet.size()];
 			indelAlleles[0] = referenceAllele;
-			//if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
+			if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
 			int i=1;
 			for (String allele:indelAllelesSet) {
 				if(!allele.equals(referenceAllele)) {
 					indelAlleles[i] = allele;
-					//if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
+					if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
 					i++;
 				}
 			}
 		}
 		CountsHelper answer = new CountsHelper(indelAlleles);
 		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
+		if(pileup.getPosition()==posPrint) answer.setVerbose(true);
 		for(PileupAlleleCall call: callsRG) {
 			answer.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
 		}

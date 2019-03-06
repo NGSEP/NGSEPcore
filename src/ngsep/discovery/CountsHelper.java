@@ -53,6 +53,8 @@ public class CountsHelper {
 	private List<String> alleles;
 	private static double [][][] logProbCache;
 	
+	private boolean verbose = false;
+	
 	/**
 	 * Creates a default counts helper
 	 */
@@ -63,6 +65,19 @@ public class CountsHelper {
 		setAlleles(alleles);
 	}
 	
+	
+	/**
+	 * @return the verbose
+	 */
+	public boolean isVerbose() {
+		return verbose;
+	}
+	/**
+	 * @param verbose the verbose to set
+	 */
+	public void setVerbose(boolean verbose) {
+		this.verbose = verbose;
+	}
 	public void setAlleles(String [] alleles) {
 		this.alleles = Arrays.asList(alleles);
 		int nAlleles = alleles.length;
@@ -169,6 +184,7 @@ public class CountsHelper {
 			} else {
 				conditionals[i] = DEF_LOG_ERROR_PROB_INDEL;
 			}
+			if(verbose) System.out.println("Allele: "+alleleI+" call: "+call+ " log cond: "+conditionals[i]);
 		}
 		//Update probabilities
 		for(int i=0;i<logConditionalProbs.length;i++) {
@@ -179,7 +195,7 @@ public class CountsHelper {
 				logConditionalProbs[j][i]+=average;
 			}
 		}
-		
+		if(verbose) printProbs(logConditionalProbs, true);
 	}
 	/**
 	 * PRE: allele.length()==call.length()==qualityScores.length()
