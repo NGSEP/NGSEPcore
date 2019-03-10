@@ -1006,15 +1006,19 @@ public class ReadAlignment implements GenomicRegion {
 		int unknownBpRead = readPosAfter-firstMatchLength;
 		int refPosAfter = getReferencePosition(readPosAfter);
 		int unknownBpRef = refPosAfter-nextRefPos;
+		if(unknownBpRef<0) {
+			System.err.println("WARN: Can not realing start of alignment for read: "+getReadName()+" at "+first+"-"+last+". Reference first: "+nextRefPos+" Reference after: "+refPosAfter);
+			return;
+		}
 		int difference = unknownBpRead - unknownBpRef;
 		if(difference==0) {
 			if(unknownBpRead>0 ) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
 		} else if (difference>0) {
 			alignmentList.add(getAlnValue(difference, ALIGNMENT_INSERTION));
-			alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
+			if(unknownBpRef>0) alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
 		} else {
 			alignmentList.add(getAlnValue(-difference, ALIGNMENT_DELETION));
-			alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+			if(unknownBpRead>0) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
 		}
 		
 		int currentReadPos = 0;
@@ -1070,21 +1074,34 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		int refPosBefore = getReferencePosition(readPosBefore);
 		int unknownBpRef = finalMatchRefStart-refPosBefore-1;
+		if(unknownBpRef<0) {
+			System.err.println("WARN: Can not realing end of alignment for read: "+getReadName()+" at "+first+"-"+last+". Reference before: "+refPosBefore+" final match start: "+finalMatchRefStart);
+			return;
+		}
 		int unknownBpRead = bpEndRead - finalMatchLength;
 		int difference = unknownBpRead - unknownBpRef;
 		if(difference==0) {
 			if(unknownBpRead>0 ) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
 		} else if (difference>0) {
 			alignmentList.add(getAlnValue(difference, ALIGNMENT_INSERTION));
-			alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
+			if(unknownBpRef>0) alignmentList.add(getAlnValue(unknownBpRef, ALIGNMENT_MATCH));
 		} else {
 			alignmentList.add(getAlnValue(-difference, ALIGNMENT_DELETION));
-			alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
+			if(unknownBpRead>0) alignmentList.add(getAlnValue(unknownBpRead, ALIGNMENT_MATCH));
 		}
 		alignmentList.add(getAlnValue(finalMatchLength, ALIGNMENT_MATCH));
 		alignment = NumberArrays.toIntArray(alignmentList);
 		last = finalMatchRefStart + finalMatchLength -1;
 		alleleCallsUpdated = false;
+	}
+
+	public boolean hasIndelCalls(int referenceFirst, int referenceLast) {
+		Map<Integer, GenomicVariant> calls = getIndelCalls();
+		if (calls==null) return false;
+		for(int i: calls.keySet()) {
+			if(i>=referenceFirst && i<=referenceLast) return true;
+		}
+		return false;
 	}
 
 	
