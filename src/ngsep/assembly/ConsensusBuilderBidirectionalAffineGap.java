@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.sun.xml.internal.ws.util.StringUtils;
 
 public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder {
 	int match = 2;
