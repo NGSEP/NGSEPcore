@@ -467,11 +467,17 @@ public class IndelRealignerPileupListener implements PileupListener {
 			
 			boolean trimEnd = alnLast-eventLast<bpForGoodRefAln && !hasIndelCallsAfter;
 			int readPosBefore = aln.getReadPosition(eventFirst);
-			CharSequence readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
-			int readSuffixLength = readSuffix.length();
-			
+			CharSequence readSuffix = null;
+			int readSuffixLength = 0;
+			if(readPosBefore>=0 && aln.getReadLength()>readPosBefore) {
+				readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
+				readSuffixLength = readSuffix.length();
+			} else {
+				System.err.println("WARN: IndelRealigner. Weird answer of read position. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" read length: "+aln.getReadLength());
+				continue;
+			}
 			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnd. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" suffix length: "+readSuffixLength);
-			if(!hasIndelCallsAfter && refAlleleAfter!=null && altAlleleAfter!=null && readPosBefore>=bpForGoodRefAln && readSuffixLength-offset<maxBPRealignmentEnd && readSuffixLength<refAlleleAfter.length() && readSuffixLength<altAlleleAfter.length() && (aln.getIndelCall(eventFirst)==null || readPosAfter<0)) {
+			if(!hasIndelCallsAfter && refAlleleAfter!=null && altAlleleAfter!=null && readSuffix!=null && readPosBefore>=bpForGoodRefAln && readSuffixLength-offset<maxBPRealignmentEnd && readSuffixLength<refAlleleAfter.length() && readSuffixLength<altAlleleAfter.length() && (aln.getIndelCall(eventFirst)==null || readPosAfter<0)) {
 				CharSequence refPrefix = refAlleleAfter.substring(0, readSuffixLength);
 				if(eventFirst==posPrint) System.out.println(readSuffix);
 				if(eventFirst==posPrint) System.out.println(refPrefix);
@@ -491,15 +497,16 @@ public class IndelRealignerPileupListener implements PileupListener {
 					trimEnd = false;
 					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned end of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new end: "+aln.getLast()+" new CIGAR: "+aln.getCigarString());
 				}
-				if(trimEnd) {
-					int ignoreBP = alnLast-eventFirst+1;
-					ignoreBP+=aln.getSoftClipEnd();
-					byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
-					//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-					aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
-					if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
-				}
 				
+				
+			}
+			if(trimEnd) {
+				int ignoreBP = alnLast-eventFirst+1;
+				ignoreBP+=aln.getSoftClipEnd();
+				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
+				//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
+				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 		}
 	}
