@@ -1,4 +1,4 @@
-<NGSEP version="3.3.1" date="08-03-2019">
+<NGSEP version="3.3.1" date="11-03-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -641,8 +641,10 @@ Calculates the density of variants in a VCF file across the genome
 <description>
 Calculates the number of variants within a VCF file in non-overlapping windows across the genome.
 Writes to the standard output a text delimited file with four columns: sequence, window first,
-window last and number of variants
+window last and number of variants. If the VCF_FILE argument is - it expects a VCF from standard
+input
 </description>
+<argument>REFERENCE_FILE</argument>
 <argument>VCF_FILE</argument>
 <option id="w" type="INT" defaultConstant="DEF_WINDOW_LENGTH" attribute="windowLength">
 Length of the window

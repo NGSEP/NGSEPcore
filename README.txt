@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.3.1 (08-03-2019)
+Version 3.3.1 (11-03-2019)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -742,6 +742,24 @@ java -jar NGSEPcore.jar DiversityStats <VCF_FILE> <POPULATIONS_FILE>
 The populations file is a tab-delimited text file with two columns: sample id
 and population id.
 
+
+----------------------------
+Calculating variants density
+----------------------------
+
+Calculates the number of variants within a VCF file in non-overlapping windows
+across the genome. Writes to the standard output a text delimited file with
+four columns: sequence, window first, window last and number of variants. If
+the VCF_FILE argument is - it expects a VCF from standard input
+
+USAGE:
+
+java -jar NGSEPcore_3.3.1.jar VCFVariantDensityCalculator <REFERENCE_FILE> <VCF_FILE>
+
+OPTIONS:
+
+        -w INT : Length of the window Default: 100000
+
 -------------------------------------------------------
 Calculation of genetic distance matrices from VCF files
 -------------------------------------------------------
@@ -1012,7 +1030,7 @@ By default, this function outputs three files:
    the number variants with high MAF (heterozygous according to the -m option).
    Finally, it also reports for each sample the number of regions assigned to
    each population, and the number of regions non genotyped, unassigned and
-   assigned to more than one population
+   assigned to more than one population.
 
 ------------------------------
 Building genomes from variants
@@ -1028,6 +1046,65 @@ construct a haploid version of an individual genome.
 USAGE:
 
 java -jar NGSEPcore.jar VCFIndividualGenomeBuilder <VCF_FILE> <REFERENCE_GENOME> <OUT_GENOME>
+
+--------------------------
+Benchmarking variant calls
+--------------------------
+
+Takes a VCF file with genotype information from one sample, the reference
+genome used to build the VCF and a phased VCF file with gold standard calls and
+calculates quality statistics comparing gold-standard with test calls.
+
+USAGE:
+
+java -jar NGSEPcore_3.3.1.jar VCFGoldStandardComparator <REFERENCE_GENOME> <GS_VCF_FILE> <TEST_VCF_FILE>
+
+OPTIONS:
+
+	-m FILE	: File with coordinates of complex regions (such as STRs)
+	-f FILE	: File with coordinates of regions in which the gold standard
+		  can be trusted
+	-g	: Indicates that the gold standard VCF is genomic, which means
+		  that confidence regions can be extracted from annotated
+		  regions with homozygous reference genotypes.
+
+The output is a tab delimited file with the following fields:
+1. Homozygous reference calls in homozygous reference regions
+2. Heterozygous calls in homozygous reference regions
+3. Homozygous alternative calls in homozygous reference regions
+4. Homozygous reference calls in heterozygous regions
+5. Heterozygous calls in heterozygous regions
+6. Homozygous alternative calls in heterozygous regions
+7. Homozygous reference calls in homozygous alternative regions
+8. Heterozygous calls in homozygous alternative regions
+9. Homozygous alternative calls in homozygous alternative regions
+10. Non matched gold standard homozygous reference calls
+11. Non matched gold standard heterozygous calls
+12. Non matched gold standard homozygous alternative calls
+13. Non matched test homozygous reference calls
+14. Non matched test heterozygous calls
+15. Non matched test homozygous alternative calls
+16. Total gold standard homozygous reference calls
+17. Total gold standard heterozygous calls
+18. Total gold standard homozygous alternative calls
+19. Total test homozygous reference calls
+20. Total test heterozygous calls
+21. Total test homozygous alternative calls
+22. Recall heterozygous calls
+23. False discoveries heterozygous calls
+24. FPPM heterozygous calls
+25. FDR heterozygous calls
+26. Precision heterozygous calls
+27. F1 heterozygous calls
+22. Recall homozygous calls
+23. False discoveries homozygous calls
+24. FPPM homozygous calls
+25. FDR homozygous calls
+26. Precision homozygous calls
+27. F1 homozygous calls
+
+The current output also includes distributions of gold standard variants per
+cluster, heterozygous test variants per cluster and genome span per cluster
 
 -----------------
 Comparing genomes

@@ -60,13 +60,53 @@ public class VCFVariantDensityCalculator {
 	}
 	
 	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	/**
+	 * @return the genome
+	 */
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+	/**
+	 * @param genome the genome to set
+	 */
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+
+	/**
 	 * @return the windowLength
 	 */
 	public int getWindowLength() {
 		return windowLength;
 	}
-
-
 
 	/**
 	 * @param windowLength the windowLength to set
@@ -78,8 +118,6 @@ public class VCFVariantDensityCalculator {
 	public void setWindowLength(String value) {
 		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-
-
 
 	public void run(String filename, PrintStream out) throws IOException {
 		try (VCFFileReader in = new VCFFileReader(filename)) { 
