@@ -408,7 +408,8 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(altAlleleAfter!=null && seqWithin!=null) altAlleleAfter=seqWithin+altAlleleAfter;
 			if(altAlleleAfter!=null) altAlleleAfter=insertedConsensusSequence+altAlleleAfter;
 		} else {
-			int deletionLength = calculateDeletionLength (alignments, eventFirst);
+			int deletionLength = calculateDeletionConsensusLength (alignments, eventFirst);
+			if(deletionLength>seqWithin.length()) deletionLength=seqWithin.length();
 			offset = -deletionLength;
 			if(altAlleleBefore!=null && seqWithin!=null) {
 				if(deletionLength==0) altAlleleBefore+=seqWithin;
@@ -437,18 +438,19 @@ public class IndelRealignerPileupListener implements PileupListener {
 			int bpForGoodRefAln = Math.max(offset, minBPForGoodRefAln);
 			boolean trimStart=eventFirst-alnFirst<bpForGoodRefAln && !hasIndelCallsBefore;
 			int readPosAfter = aln.getReadPosition(eventLast);
-			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignStarts. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event last: "+eventLast+" readPosAfter: "+readPosAfter+" offset:"+offset );
+			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignStarts. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosAfter: "+readPosAfter+" offset:"+offset );
 			if(!hasIndelCallsBefore && refAlleleBefore!=null && altAlleleBefore!=null && readPosAfter>=bpForGoodRefAln && readPosAfter-offset<=maxBPRealignmentEnd && readPosAfter<refAlleleBefore.length() && readPosAfter<altAlleleBefore.length() && aln.getIndelCall(eventFirst)==null) {
 				CharSequence readPrefix = aln.getReadCharacters().subSequence(0, readPosAfter);
-				
-				
 				CharSequence refSuffix = refAlleleBefore.substring(refAlleleBefore.length()-readPosAfter);
+				if(eventFirst==posPrint) System.out.println(readPrefix);
+				if(eventFirst==posPrint) System.out.println(refSuffix);
 				double referenceDistance = hammingMeasure.calculateDistance(refSuffix, readPrefix);
 				CharSequence altSuffix = altAlleleBefore.substring(altAlleleBefore.length()-readPosAfter);
+				if(eventFirst==posPrint) System.out.println(altSuffix);
 				double alternativeDistance = hammingMeasure.calculateDistance(altSuffix, readPrefix);
 				int newAlnFirst = eventLast-readPosAfter+1+offset;
 				int firstMatchLength = eventFirst-newAlnFirst+1;
-				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignStarts. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance+" new aln first: "+newAlnFirst+"");
 				if(alternativeDistance<referenceDistance && alternativeDistance<3 && firstMatchLength>=minBPForGoodRefAln) {
 					aln.realignStart(newAlnFirst,firstMatchLength,readPosAfter);
 					trimStart = false;
@@ -473,7 +475,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
 				readSuffixLength = readSuffix.length();
 			} else {
-				System.err.println("WARN: IndelRealigner. Weird answer of read position. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" read length: "+aln.getReadLength());
+				if (readPosBefore!=-1) System.err.println("WARN: IndelRealigner. Weird answer of read position. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosBefore: "+readPosBefore+" read length: "+aln.getReadLength());
 				continue;
 			}
 			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnd. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" suffix length: "+readSuffixLength);
@@ -540,16 +542,26 @@ public class IndelRealignerPileupListener implements PileupListener {
 		return HammingSequenceDistanceMeasure.makeHammingConsensus(allelesConsensus);
 	}
 
-	private int calculateDeletionLength(List<ReadAlignment> alignments, int eventFirst) {
-		int length = 0;
+	private int calculateDeletionConsensusLength(List<ReadAlignment> alignments, int eventFirst) {
+		Map<Integer, Integer> counts = new HashMap<>();
 		for(ReadAlignment aln:alignments) {
 			GenomicVariant call = aln.getIndelCall(eventFirst);
 			if(call==null) continue;
 			int innerLength = call.getLast()-call.getFirst()-1;
-			if(innerLength>length) {
-				length = innerLength;
+			Integer count = counts.get(innerLength);
+			if(count == null) count = 0;
+			count++;
+			counts.put(innerLength, count);
+		}
+		int max = 0;
+		int answer = 0;
+		for(int length:counts.keySet()) {
+			int count = counts.get(length);
+			if(max<count) {
+				answer = length;
+				max = count;
 			}
 		}
-		return length;
+		return answer;
 	}
 }
