@@ -409,7 +409,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(altAlleleAfter!=null) altAlleleAfter=insertedConsensusSequence+altAlleleAfter;
 		} else {
 			int deletionLength = calculateDeletionConsensusLength (alignments, eventFirst);
-			if(deletionLength>seqWithin.length()) deletionLength=seqWithin.length();
+			if(deletionLength>eventLast-eventFirst-1) deletionLength=eventLast-eventFirst-1;
 			offset = -deletionLength;
 			if(altAlleleBefore!=null && seqWithin!=null) {
 				if(deletionLength==0) altAlleleBefore+=seqWithin;
