@@ -32,7 +32,7 @@ public class AssemblyGraph {
 			vertices.add(vS);
 			AssemblyVertex vE = new AssemblyVertex(seq, false, vertices.size());
 			vertices.add(vE);
-			edges.add(new AssemblyEdge(vS, vE, seq.length()));
+			addEdge(vS, vE, seq.length());
 		}
 	}
 
@@ -44,7 +44,10 @@ public class AssemblyGraph {
 	}
 
 	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int overlap) {
-		edges.add(new AssemblyEdge(v1, v2, overlap));
+		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap); 
+		edges.add(edge);
+		v1.addEdge(edge);
+		v2.addEdge(edge);
 	}
 
 	public AssemblyVertex getVertex(int indexSequence, boolean start) {
