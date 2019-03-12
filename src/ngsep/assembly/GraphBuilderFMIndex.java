@@ -5,7 +5,7 @@ import java.util.List;
 
 import ngsep.sequences.FMIndex;
 
-public class GraphBuilder_FMIndex implements GraphBuilder {
+public class GraphBuilderFMIndex implements GraphBuilder {
 	private final static int TALLY_DISTANCE = 100;
 	private final static int SUFFIX_FRACTION = 25;
 
@@ -23,7 +23,7 @@ public class GraphBuilder_FMIndex implements GraphBuilder {
 		System.out.println("	build FMIndexes: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("	indentifing overlaps");
-		GraphBuilder_OverlapFinder overlapFinder = new GraphBuilder_OverlapFinder_Tree();
+		GraphBuilderOverlapFinder overlapFinder = new GraphBuilderOverlapFinderTree();
 		overlapFinder.calculate(sequences, index);
 		System.out.println("	indentify overlaps: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 		return overlapFinder.getGrap();

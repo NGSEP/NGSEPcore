@@ -6,7 +6,7 @@ import java.util.Map.Entry;
 
 import ngsep.sequences.DNAMaskedSequence;
 
-public class GraphBuilder_KmerIterator {
+public class GraphBuilderKmerIterator {
 	private static final double LN2 = 0.693147806;
 	private static final double LN100000 = 11.51292546;
 
@@ -15,7 +15,7 @@ public class GraphBuilder_KmerIterator {
 	public int REAL_KMER_DISTANCE;
 	public int MAX_KMER_DES;
 
-	public GraphBuilder_KmerIterator(double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) {
+	public GraphBuilderKmerIterator(double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) {
 		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
 		//SEARCH_KMER_LENGTH = (int) (LN2 / rate_of_error);
 		SEARCH_KMER_LENGTH = (int) (1 / rate_of_error);

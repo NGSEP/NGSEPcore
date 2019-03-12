@@ -39,7 +39,7 @@ public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder 
 		return consensusList;
 	}
 	
-	private String joinedString(List<AssembyEmbedded> embedded1, List<AssembyEmbedded> embedded2, String[] alignment)
+	private String joinedString(List<AssemblyEmbedded> embedded1, List<AssemblyEmbedded> embedded2, String[] alignment)
 	{
 		StringBuilder finalString = new StringBuilder();
 		int i = 0;
