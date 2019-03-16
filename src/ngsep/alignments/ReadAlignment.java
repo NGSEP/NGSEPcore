@@ -84,6 +84,7 @@ public class ReadAlignment implements GenomicRegion {
     private Map<Integer,GenomicVariant> indelCalls; //Indel calls indexed by the last reference position before the event. Null for alignments without indels 
     private boolean alleleCallsUpdated = false;
     
+    private boolean hasPair = false;
 	
 	//Read information loaded on demand 
 	private char [] readName=null;
@@ -1102,6 +1103,14 @@ public class ReadAlignment implements GenomicRegion {
 			if(i>=referenceFirst && i<=referenceLast) return true;
 		}
 		return false;
+	}
+
+	public boolean hasPair() {
+		return hasPair;
+	}
+	
+	public void setPair() {
+		hasPair = true;
 	}
 
 	
