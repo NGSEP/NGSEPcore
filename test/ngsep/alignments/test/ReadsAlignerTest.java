@@ -28,41 +28,30 @@ public class ReadsAlignerTest extends TestCase {
 		ReadAlignment aln1=new ReadAlignment("sequenceName", 5000, 5249, 250, flags1);
 		int flags2=ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_REVERSE_STRAND;
 		ReadAlignment aln2=new ReadAlignment("sequenceName", 5500, 5251, 250, flags2);
+		aln2.setMateNegativeStrand(true);
 
+		boolean proper =readsAligner.pairAlignMents(aln1, aln2,true);
+		assertEquals(true, proper);
+		proper =readsAligner.pairAlignMents(aln2, aln1,true);
+		assertEquals(true, proper);
 
-		PairEndsAlignments properAlignment = readsAligner.checkPairEnd(aln1, aln2);
-		assertEquals("Incorrect flags",properAlignment.getAln1().getFlags(),	ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_PROPER+ReadAlignment.FLAG_FIRST_OF_PAIR);
 
 		//Case 2: Long deletion
 		flags1=ReadAlignment.FLAG_PAIRED;
 		aln1=new ReadAlignment("sequenceName", 21000, 21249, 250, flags1);
 		flags2=ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_REVERSE_STRAND;
 		aln2=new ReadAlignment("sequenceName", 22000, 21751, 250, flags2);
+		aln2.setMateNegativeStrand(true);
 
 
-		properAlignment = readsAligner.checkPairEnd(aln1, aln2);
+		boolean unProper =readsAligner.pairAlignMents(aln1, aln2,true);
+		assertEquals(false, unProper);
+		unProper =readsAligner.pairAlignMents(aln2, aln1,true);
+		assertEquals(false, unProper);
 
-		assertEquals ("Incorrect flags",properAlignment.getAln1().getFlags(),ReadAlignment.FLAG_PAIRED);
-
-		//Case 3a: Same strand
-		flags1=ReadAlignment.FLAG_PAIRED;
-		aln1=new ReadAlignment("sequenceName", 9000, 9249, 250, flags1);
-		flags2=ReadAlignment.FLAG_PAIRED;
-		aln2=new ReadAlignment("sequenceName", 9500, 9251, 250, flags2);
-
-		
-		properAlignment = readsAligner.checkPairEnd(aln1, aln2);
-		assertEquals ("Incorrect flags",properAlignment.getAln1().getFlags(),ReadAlignment.FLAG_PAIRED);
-
-		//Case 3b: Same strand
-		flags1=ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_REVERSE_STRAND;
-		aln1=new ReadAlignment("sequenceName", 9000, 9249, 250, flags1);
-		flags2=ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_REVERSE_STRAND;
-		aln2=new ReadAlignment("sequenceName", 9500, 9251, 250, flags2);
-
-
-		properAlignment = readsAligner.checkPairEnd(aln1, aln2);
-		assertEquals ("Incorrect flags",properAlignment.getAln1().getFlags(),ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_REVERSE_STRAND);
-
+		unProper =readsAligner.pairAlignMents(aln1, aln2,false);
+		assertEquals(true, unProper);
+		unProper =readsAligner.pairAlignMents(aln2, aln1,false);
+		assertEquals(true, unProper);
 	}
 }
