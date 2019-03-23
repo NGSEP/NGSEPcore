@@ -22,17 +22,36 @@ public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder 
 			List<AssemblyEdge> path = graph.getPaths().get(i);
 			String consensus = "";
 			startConsensus = true;
-			for(AssemblyEdge edge:path)
+			for(int j = 0; j < path.size(); j++)
 			{
-				// FIXME: Look for path direction to check from which to which vertex
+				AssemblyEdge previousEdge = null;
+				if(j > 0)
+					previousEdge = path.get(j - 1);
+				AssemblyEdge edge = path.get(j);
 				AssemblyVertex a = edge.getVertex1();
 				AssemblyVertex b = edge.getVertex2();
-				String s1 = a.getRead().toString();
-				String s2 = b.getRead().toString();
-				//Align original
+				if(previousEdge == null)
+				{
+					previousEdge = path.get(j + 1);
+					if(previousEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
+					{
+						a = edge.getVertex2();
+						b = edge.getVertex1();
+					}
+				}
+				else
+				{
+					if(previousEdge.getVertex1().getIndex() == edge.getVertex2().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex2().getIndex())
+					{
+						a = edge.getVertex2();
+						b = edge.getVertex1();
+					}
+				}
+				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
+				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
 				List<int[][]> matrixOrig = alignmentMatrixAffineGap(s1, s2);
 				String[] alignmentOrig = sequencesAlignment(matrixOrig, s1, s2);				
-				//consensus = consensus.concat(joinedString(graph.getEmbedded(a.getIndex()), graph.getEmbedded(j+1), alignmentOrig));
+				consensus = consensus.concat(joinedString(graph.getEmbedded(a.getIndex()), graph.getEmbedded(j+1), alignmentOrig));
 			}
 			consensusList.add(consensus);
 		}	

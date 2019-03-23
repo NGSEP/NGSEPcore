@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.sun.xml.internal.ws.util.StringUtils;
 
-public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilder {
+public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	int match = 5;
 	int gap = -2;
 	int mismatch = -1;
@@ -48,9 +48,7 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 				}
 				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
 				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
-				int[][] matrixOrig = alignmentMatrixConstantGap(s1, s2);
-				String[] alignmentOrig = sequencesAlignment(matrixOrig, s1, s2);
-				consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentOrig));
+				
 			}
 			consensusList.add(consensus);
 		}	
@@ -102,52 +100,6 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 		}
 		boolean stop = false;
 		return finalString.toString();
-	}
-	
-	private int[][] alignmentMatrixConstantGap(String s1, String s2)
-	{
-		int[][] matrix = new int[s1.length() + 1][s2.length() + 1];
-		for(int i = 0; i < s1.length() + 1; i++)
-		{
-			matrix[i][0] = i * gap;
-		}
-		for(int i = 0; i < s2.length() + 1; i++)
-		{
-			matrix[0][i] = i * gap;
-		}
-		for(int i = 1; i < s1.length() + 1; i++)
-		{
-			for(int j = 1; j < s2.length() + 1; j++)
-			{
-				int diag = matrix[i-1][j-1] + (s1.charAt(i - 1) == s2.charAt(j - 1) ? match : gap);
-				int left = matrix[i-1][j] + gap;
-				int up = matrix[i][j-1] + gap;
-				matrix[i][j] = Math.max(Math.max(diag, left), up);
-			}
-		}
-		
-		//printAlignmentMatrix(matrix, s1, s2);
-		
-		return matrix;
-	}
-	
-	private void printAlignmentMatrix(int[][] matrix, String s1, String s2)
-	{
-		System.out.print("\t-\t");
-		for (int i = 0; i < s2.length(); i++) {
-			System.out.print(s2.charAt(i) + "\t");
-		}
-		System.out.println();
-		for (int i = 0; i < matrix.length; i++) {
-			if(i == 0)
-				System.out.print("-\t");
-			else 
-				System.out.print(s1.charAt(i - 1) + "\t");
-		    for (int j = 0; j < matrix[i].length; j++) {
-		        System.out.print(matrix[i][j] + "\t");
-		    }
-		    System.out.println();
-		}
 	}
 	
 	private String[] sequencesAlignment(int[][] matrix, String s1, String s2)
