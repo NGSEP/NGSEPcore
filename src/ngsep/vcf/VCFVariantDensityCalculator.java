@@ -173,6 +173,13 @@ public class VCFVariantDensityCalculator {
 				}
 			}
 		}
+		if(seqName!=null) out.println(seqName+"\t"+(endWindow-windowLength+1)+"\t"+endWindow+"\t"+count);
+		while (idxSeqNames<sequences.size()) {
+			QualifiedSequence seq = sequences.get(idxSeqNames);
+			processZeroes (seq,endWindow, out);
+			idxSeqNames++;
+			endWindow = 0;
+		}
 		
 	}
 
