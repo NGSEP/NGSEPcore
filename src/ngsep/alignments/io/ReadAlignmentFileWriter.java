@@ -90,7 +90,7 @@ public class ReadAlignmentFileWriter implements Closeable {
 		
 		//System.out.println("Bases: "+samRecord.getReadString()+" qual: "+samRecord.getBaseQualityString());
 		List<SAMValidationError> errors= samRecord.isValid();
-		if(errors!=null) System.out.println("errors: "+errors.size());
+		if(errors!=null) System.out.println("errors: "+errors.size()+errors.get(0));
 		writer.addAlignment(samRecord);
 		//System.out.println("Saved record ");	
 	}

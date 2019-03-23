@@ -13,15 +13,17 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 public class TestReadGenerator {
-	private final static double Rate_of_changes = 0.00;
-	private final static double Rate_of_cuts = 0.00;
+	private final static double Rate_of_changes = 0.07;
+	private final static double Rate_of_cuts = 0.03;
 	private static Random rnd = new Random();
 
 	public TestReadGenerator(String path, String pathlect, int numberOfSequences, int[] sequencesdist,
 			int numberOfreads, int[] distribution, double... tasas) throws FileNotFoundException {
-		double rateChages = (tasas.length > 1) ? tasas[0] : Rate_of_changes;
-		double rateCuts = (tasas.length > 2) ? tasas[1] : Rate_of_cuts;
+		double rateChages = (tasas.length > 0) ? tasas[0] : Rate_of_changes;
+		double rateCuts = (tasas.length > 1) ? tasas[1] : Rate_of_cuts;
 
+		System.out.println(rateChages);
+		System.out.println(rateCuts);
 		String[] ref = getRef(numberOfSequences, sequencesdist);
 		String[] lects = new String[numberOfreads];
 
@@ -59,7 +61,11 @@ public class TestReadGenerator {
 				k = next();
 			arr[x] = k;
 		}
-		return new String(arr);
+
+		String ans = new String(arr);
+		if (rnd.nextBoolean())
+			ans = DNASequence.getReverseComplement(ans);
+		return ans;
 	}
 
 	private static TreeSet<Integer> indexTo(int N, int cuts) {
@@ -123,12 +129,12 @@ public class TestReadGenerator {
 
 		case 9:
 			new TestReadGenerator(path, pathlect, numberOfSequences, odist, numberOfreads, dist,
-					Double.parseDouble(args[5]));
+					Double.parseDouble(args[8]));
 			break;
 
 		case 10:
 			new TestReadGenerator(path, pathlect, numberOfSequences, odist, numberOfreads, dist,
-					Double.parseDouble(args[5]), Double.parseDouble(args[6]));
+					Double.parseDouble(args[8]), Double.parseDouble(args[9]));
 			break;
 
 		default:

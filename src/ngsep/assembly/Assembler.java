@@ -1,6 +1,9 @@
 package ngsep.assembly;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -25,19 +28,23 @@ public class Assembler {
 
 		System.out.println("building overlap Graph");
 		long ini = System.currentTimeMillis();
-		GraphBuilder builder = new GraphBuilder_FMIndex();
+		GraphBuilder builder = new GraphBuilderFMIndex();
 		graph = builder.buildAssemblyGraph(sequences);
 		System.out.println("build overlap Graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("building layouts");
-		LayourBuilder pathsFinder = LayourBuilder.NONE;
+		ini = System.currentTimeMillis();
+		LayourBuilder pathsFinder = new LayoutBuilderImplementation();
 		pathsFinder.findPaths(graph);
+		System.out.println("build layouts: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
-		System.out.println("consensus");
-		ConsensusBuilder consensus = ConsensusBuilder.NONE;
+		System.out.println("building consensus");
+		ini = System.currentTimeMillis();
+		ConsensusBuilder consensus =  ConsensusBuilder.NONE;
 		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
+		System.out.println("build consensus: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
-		exportToFile(fileOut, AssembleSequences);
+		exportToFile(fileOut,"assembled", AssembleSequences);
 	}
 
 	/**
@@ -103,8 +110,15 @@ public class Assembler {
 		return sequences;
 	}
 
-	private static void exportToFile(String fileName, List<CharSequence> sequences) {
-		// TODO: the method
+	private static void exportToFile(String fileName,String name, List<CharSequence> sequences) throws FileNotFoundException {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
+		int i = 1;
+		for (CharSequence str : sequences)
+			list.add(new QualifiedSequence(name + "_" + (i++), str));
+		try (PrintStream pr = new PrintStream(new FileOutputStream(fileName))) {
+			handler.saveSequences(list, pr, 1000);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {

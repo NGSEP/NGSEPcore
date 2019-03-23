@@ -41,6 +41,7 @@ import ngsep.math.Distribution;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
@@ -248,6 +249,7 @@ public class VCFGoldStandardComparator {
 			List<CalledGenomicVariant> gsCalls = new ArrayList<>();
 			
 			int sequenceIdx = -1;
+			int seqLen = 0;
 			int clusterFirst = 0;
 			int clusterLast = 0;
 			byte clusterType = GenomicVariant.TYPE_UNDETERMINED;
@@ -265,10 +267,12 @@ public class VCFGoldStandardComparator {
 			while(recordGS!=null) {
 				int nextSeqIdxGS = sequenceNames.indexOf(recordGS.getSequenceName());
 				if(nextSeqIdxGS>sequenceIdx) {
-					if(sequenceIdx>=0) processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq);
+					if(sequenceIdx>=0) processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq, seqLen);
 					countProcessedClusters++;
 					sequenceIdx = nextSeqIdxGS;
-					String sequenceName = sequenceNames.get(sequenceIdx).getName();
+					QualifiedSequence seqObj = sequenceNames.get(sequenceIdx); 
+					String sequenceName = seqObj.getName();
+					seqLen = seqObj.getLength();
 					log.info("Starting sequence "+sequenceName);
 					
 					testCallsSequence.clear();
@@ -308,7 +312,7 @@ public class VCFGoldStandardComparator {
 				
 				boolean gsClose = nextClusterFirst>recordGS.getFirst();
 				if (!gsClose) {
-					processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq);
+					processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq, seqLen);
 					countProcessedClusters++;
 					gsCalls.clear();
 					clusterFirst = clusterLast = 0;
@@ -333,7 +337,7 @@ public class VCFGoldStandardComparator {
 					}
 				}
 			}
-			processClusterCalls (gsCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, testCallsSequence, confidenceRegionsSeq );
+			processClusterCalls (gsCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, testCallsSequence, confidenceRegionsSeq, seqLen );
 		}
 	}
 
@@ -375,7 +379,7 @@ public class VCFGoldStandardComparator {
 		return record;
 	}
 
-	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<CalledGenomicVariant> testCallsSeq, LinkedList<GenomicRegion> confidenceRegionsSeq) {	
+	private void processClusterCalls(List<CalledGenomicVariant> gsCalls, int clusterFirst, int clusterLast, byte clusterGSType, LinkedList<CalledGenomicVariant> testCallsSeq, LinkedList<GenomicRegion> confidenceRegionsSeq, int sequenceLength) {	
 		int lastRowCounts = GoldStandardComparisonCounts.NUM_ROWS_COUNTS-1;
 		if(gsCalls.size()==0) return;
 		List<CalledGenomicVariant> testCallsCluster = new ArrayList<>();
@@ -440,7 +444,14 @@ public class VCFGoldStandardComparator {
 					processFalseNegativeCluster(gsCalls, clusterGSType, lastRowCounts);
 				}
 			} else {
-				String reference = genome.getReference(firstGS.getSequenceName(), regionFirst, regionLast).toString();
+				regionFirst = Math.max(1, regionFirst);
+				regionLast = Math.min(sequenceLength, regionLast);
+				CharSequence refS = genome.getReference(firstGS.getSequenceName(), regionFirst, regionLast);
+				if(refS==null) {
+					System.err.println("WARN: Null reference sequence at "+firstGS.getSequenceName()+": "+regionFirst+"-"+regionLast+" cluster coordinates: "+clusterFirst+"-"+clusterLast+"cluster type: "+clusterGSType+" cluster size: "+gsCalls.size());
+					return;
+				}
+				String reference = refS.toString();
 				GoldStandardHaplotypeReconstruction gsHaps = new GoldStandardHaplotypeReconstruction(reference, gsCalls, regionFirst);
 				String [] gsHaplotypes = gsHaps.getPhasedAlleles();
 				int genotypeGS = gsHaps.getGenotypeNumber();
