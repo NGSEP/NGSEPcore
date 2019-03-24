@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -37,6 +38,7 @@ import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenomeFMIndex;
+import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
@@ -73,12 +75,27 @@ public class ReadsAligner {
 		String readsFile1 = args[i++];
 		String readsFile2 = args[i++];
 		String outFile = args[i++];
+		String tandemRepeatsFile = args[i++];
+		
 		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
 
 		try (PrintStream out = new PrintStream(outFile);
 				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
 			instance.alignReads(readsFile1,readsFile2, writer);
+			instance.loadTRF(tandemRepeatsFile);	
+		}
+	}
+
+	public Map<String, List<GenomicRegion>> loadTRF(String tandemRepeatsFile) {
+		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
+		try {
+			return handler.loadRegionsAsMap(tandemRepeatsFile);
+		} 
+			catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
 		}
 	}
 
