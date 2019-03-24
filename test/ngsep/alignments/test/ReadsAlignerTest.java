@@ -1,15 +1,18 @@
 package ngsep.alignments.test;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
-
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMValidationError;
+import java.util.Map;
 import junit.framework.TestCase;
-import ngsep.alignments.PairEndsAlignments;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadsAligner;
+import ngsep.genome.GenomicRegion;
 
 public class ReadsAlignerTest extends TestCase {
 	private ReadsAligner readsAligner;
@@ -53,5 +56,35 @@ public class ReadsAlignerTest extends TestCase {
 		assertEquals(true, unProper);
 		unProper =readsAligner.pairAlignMents(aln2, aln1,false);
 		assertEquals(true, unProper);
+	}
+
+	public void testLoadTRF() {
+		setUpReadsAligner();
+		String path = setUpTRF();
+		Map<String, List<GenomicRegion>> map = readsAligner.loadTRF(path);
+		assertEquals(2, map.size());
+		assertEquals(3, map.get("chrI").size());
+		assertEquals(3, map.get("chrII").size());
+		File f = new File(path);
+		f.delete();
+	}
+
+	private String setUpTRF() {
+		List<String> lines = Arrays.asList(
+				"chrI 2 62 2 33.0 2 75 15 60 40 59 0 0 0.98 CA CACACCACACCCACACACCCACACACCACACCACACACCACACCACACCCACACACACACA C TCCTAACACTACCCTAACACAGCCCTAATCTAACCCTGGCCAACCTGTCT",
+				"chrI 2 61 12 5.4 12 84 15 85 40 60 0 0 0.97 CACACCACACCA CACACCACACCCACACACCCACACACCACACCACACACCACACCACACCCACACACACAC C ATCCTAACACTACCCTAACACAGCCCTAATCTAACCCTGGCCAACCTGTC",
+				"chrI 255 277 11 2.1 11 100 0 46 26 43 0 30 1.55 TTACCCTACCA TTACCCTACCATTACCCTACCAT CCACTCACCCACCGTTACCCTCCAATTACCCATATCCAACCCACTGCCAC CCACCATGACCTACTCACCATACTGTTCTTCTACCCACCATATTGAAACG",
+				"chrII 1524 1575 12 4.3 12 65 18 36 15 11 42 30 1.82 TGGTGCTAGCAG TGGTGCTAGCAGTGGTAGTGGCATTAGTGCTGGAGTTGGTGCTAGCAGTGGT CTTGGCACTAGCGTTGGTACTTTCAGTGGTAGTGGCATTAGTGCTGGAGT AGTAGCACTAGTGTTGGAGTCGGTACTTTCGGTGGTAGTAGCACTAGTGT",
+				"chrII 1883 2014 24 5.5 24 70 13 101 17 14 37 31 1.90 TTGGTGCTGGCAGTGGTAGTAGCA TTGGTGCTGGCAGTGGTAGTAGCATTAGTGCTGGAGTTGGTAGTCGCATTGGTAGTAGCACTAGTCCTGACGTTGGTGCTGGCAGTGGTAGTAGCATTAGTGCTGGAGTTGGTAGTCGCATTGGTACTGGCA CACTAGTCCTGACGTTGGTGCTGGCAGTGGTAGTAGCACTAGTCCTGACG TTAGTGTTGGAGTTGGTACTTTCAGTGGTAGTCGCACTAGTCCTGACGTT",
+				"chrII 1955 2016 12 5.2 12 63 7 36 16 12 37 33 1.87 TTGGTACTGGCA TTGGTGCTGGCAGTGGTAGTAGCATTAGTGCTGGAGTTGGTAGTCGCATTGGTACTGGCATT CATTAGTGCTGGAGTTGGTAGTCGCATTGGTAGTAGCACTAGTCCTGACG AGTGTTGGAGTTGGTACTTTCAGTGGTAGTCGCACTAGTCCTGACGTTGA");
+		String path = "tandemRepeats.txt";
+		Path file = Paths.get(path);
+		try {
+			Files.write(file, lines, Charset.forName("UTF-8"));
+			return path;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;	
+		}
 	}
 }
