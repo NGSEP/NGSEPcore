@@ -3,14 +3,31 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import com.sun.xml.internal.ws.util.StringUtils;
+import ngsep.sequences.FMIndexSingleSequence;
 
 public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
-	int match = 5;
-	int gap = -2;
-	int mismatch = -1;
+	int match;
+	int openGap;
+	int extGap;
+	int mismatch;
+	int windowSize;
+	int tolerance;
+	AlignmentAffineGap aligner;
 	boolean startConsensus = true;
+	
+	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, int tolerance) 
+	{
+		this.match = match;
+		this.openGap = openGap;
+		this.extGap = extGap;
+		this.mismatch = mismatch;
+		this.windowSize = windowSize;
+		this.tolerance = tolerance;
+		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
+	}
 	
 	@Override
 	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
@@ -29,7 +46,7 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 				AssemblyEdge edge = path.get(j);
 				AssemblyVertex a = edge.getVertex1();
 				AssemblyVertex b = edge.getVertex2();
-				if(previousEdge == null)
+				if(previousEdge == null && path.size() > j + 1)
 				{
 					previousEdge = path.get(j + 1);
 					if(previousEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
@@ -38,7 +55,7 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 						b = edge.getVertex1();
 					}
 				}
-				else
+				else if (previousEdge != null)
 				{
 					if(previousEdge.getVertex1().getIndex() == edge.getVertex2().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex2().getIndex())
 					{
@@ -47,112 +64,114 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 					}
 				}
 				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
+				s1 = s1.substring(s1.length() - edge.getOverlap() - tolerance);
 				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
-				
+				s2 = s2.substring(0, edge.getOverlap() + tolerance);
+				System.out.println(s2);
+				String[] alignments = getAlignment(s1, s2);
 			}
 			consensusList.add(consensus);
 		}	
 		return consensusList;
 	}
 	
-	private String joinedString(List<AssembyEmbedded> embedded1, List<AssembyEmbedded> embedded2, String[] alignment)
+	private String joinedString()
 	{
-		StringBuilder finalString = new StringBuilder();
-		int i = 0;
-		if(!startConsensus)
-		{
-			for(i = alignment[0].length() - 1; i >= 0; i--)
-			{
-				char b = alignment[0].charAt(i);
-				if(b != '-')
-					break;
-			}
-			i++;
-		}
-		else
-			startConsensus = false;
-		
-		for (; i < alignment[0].length(); i++) 
-		{
-			char a = alignment[0].charAt(i);
-			char b = alignment[1].charAt(i);
-			if(a == '-' && b != '-')
-			{
-				finalString.append(b);
-			}
-			else if(a != '-' && b == '-')
-			{
-				finalString.append(a);
-			}
-			else if(a == b)
-			{
-				finalString.append(a);
-			}
-			else if(a != b)
-			{
-				if(embedded1 != null && embedded2 != null)
-					finalString.append(embedded1.size() > embedded2.size() ? a : b);
-				else if (embedded1 != null)
-					finalString.append(a);
-				else 
-					finalString.append(b);
-			}
-		}
-		boolean stop = false;
-		return finalString.toString();
+		return null;
 	}
 	
-	private String[] sequencesAlignment(int[][] matrix, String s1, String s2)
+	private String[] getAlignment(String s1, String s2)
 	{
-		String[] sequences = {"", ""};
-		int i = s1.length();
-		int j = s2.length();
-		while(i > 0 && j > 0)
+		FMIndexSingleSequence fm = new FMIndexSingleSequence(s1);
+		String seq1 = "";
+		String seq2 = "";
+		int lastSearched = 0;
+		int start1 = -1;
+		int start2 = -1;
+		for(int i = 0; i < Math.round(Math.floor(s2.length() / windowSize)); i++)
 		{
-			int diag = matrix[i - 1][j - 1];
-			int left = matrix[i - 1][j];
-			int up = matrix[i][j - 1];
-			
+			int windowStart = i * windowSize;
+			int windowEnd = windowStart + windowSize;
+			boolean found = false;
+			String sub = s2.substring(windowStart, windowEnd);
+			for(Integer x : fm.exactSearch(sub))
+			{
+				if(x >= lastSearched - tolerance && x <= lastSearched + tolerance)
+				{
+					if(x > lastSearched && lastSearched == 0)
+					{
+						seq1 += s1.substring(0, x);
+						seq2 += IntStream.range(0, x).mapToObj(j -> "-").collect(Collectors.joining(""));
+						seq1 += s1.substring(x, x + windowSize);
+						seq2 += sub;
+					}
+					else if(start1 != -1 && start2 != -1)
+					{
+						String sub1 = s1.substring(start1, x);
+						String sub2 = s2.substring(start2, windowStart);
+						String[] alignments = aligner.getAlignment(sub1, sub2);
+						seq1 += alignments[0];
+						seq2 += alignments[1];
+						seq1 += s1.substring(x, x + windowSize);
+						seq2 += sub;
+						start1 = -1;
+						start2 = -1;
+					}
+					else if (x > lastSearched)
+					{
+						seq1 += s1.substring(lastSearched, x - 1);
+						seq2 += IntStream.range(0, x - lastSearched).mapToObj(j -> "-").collect(Collectors.joining(""));
+						seq1 += s1.substring(x, x + windowSize);
+						seq2 += sub;
+					}
+					else if(x == lastSearched)
+					{
+						seq1 += s1.substring(x, x + windowSize);
+						seq2 += sub;
+					}
+					lastSearched = x + windowSize;
+					found = true;
+					break;
+				}
+			}
+			if(!found)
+			{
+				if(start1 == -1)
+					start1 = lastSearched;
+				if(start2 == -1)
+					start2 = windowStart;
+				lastSearched += windowSize;
+			}
+		}
 
-			if (j > 0 && up >= diag && up >= left)
-			{
-				sequences[0] = "-" + sequences[0];
-				sequences[1] = s2.charAt(j - 1) + sequences[1];
-				j--;
-			}
-			else if(i > 0 && j > 0 && diag >= up && diag >= left)
-			{
-				sequences[0] = s1.charAt(i - 1) + sequences[0];
-				sequences[1] = s2.charAt(j - 1) + sequences[1];
-				i--;
-				j--;
-			}
-			else if(i > 0 && left >= diag && left >= up)
-			{
-				sequences[0] = s1.charAt(i - 1) + sequences[0];
-				sequences[1] = "-" + sequences[1];
-				i--;
-			}
-			
-		}
-		if(i == 0 && j > 0)
+		if(start1 != -1 && start2 != -1)
 		{
-			char[] gaps = new char[j];
-			Arrays.fill(gaps, '-');
-			sequences[0] = new String(gaps) + sequences[0];
-			sequences[1] = s1.substring(0, j) + sequences[1];
+			String sub1 = s1.substring(start1, s1.length() - 1);
+			String sub2 = s2.substring(start2, s2.length() - 1);
+			String[] alignments = aligner.getAlignment(sub1, sub2);
+			seq1 += alignments[0];
+			seq2 += alignments[1];
 		}
-		else if (i > 0 && j == 0)
+		else
 		{
-			char[] gaps = new char[i];
-			Arrays.fill(gaps, '-');
-			sequences[1] = new String(gaps) + sequences[1];
-			sequences[0] = s1.substring(0, i) + sequences[0];
+			String sub1 = s1.substring(lastSearched, s1.length());
+			String sub2 = s2.substring(s2.length() - (s2.length() % windowSize), s2.length());
+			if(sub1.equals(sub2))
+			{
+				seq1 += sub1;
+				seq2 += sub2;
+			}
+			else
+			{
+				String[] alignments = aligner.getAlignment(sub1, sub2);
+				seq1 += alignments[0];
+				seq2 += alignments[1];
+			}
 		}
-		System.out.println(sequences[0]);
-		System.out.println(sequences[1]);
-		System.out.println();
-		return sequences;
+		String[] alignments = new String[2];
+		alignments[0] = seq1;
+		alignments[1] = seq2;
+		return alignments;
 	}
 	
 	private String complementaryStrand(String s)
