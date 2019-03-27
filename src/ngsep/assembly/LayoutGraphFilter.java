@@ -2,11 +2,15 @@ package ngsep.assembly;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
+
+import com.sun.javafx.geom.Edge;
 
 public class LayoutGraphFilter {
 	private AssemblyGraph Graph;
@@ -17,6 +21,34 @@ public class LayoutGraphFilter {
 	int globalcount = 0;
 
 	public LayoutGraphFilter(AssemblyGraph Graph) {
+		List<AssemblyVertex> list = Graph.getVertices();
+		int ccc = 0;
+		for (AssemblyVertex ve : list)
+			if (ve.getEdges().size() == 1)
+				ccc++;
+		System.out.println(ccc);
+		
+		for(AssemblyEdge edg:Graph.getEdges()) {
+			System.out.println(edg.getVertex1().getIndex()+":"+edg.getOverlap()+":"+edg.getVertex2().getIndex());
+		}
+		
+		
+//		for (int i = 0; i < list.size(); i++) {
+//			AssemblyVertex vert = list.get(i);
+//			int[] array = new int[list.size()];
+//			for (AssemblyEdge edg : vert.getEdges()) {
+//				AssemblyVertex vert2 = (edg.getVertex1().getIndex() == vert.getIndex()) ? edg.getVertex2()
+//						: edg.getVertex1();
+//				array[vert2.getIndex()] = 1;
+//			}
+//			StringBuilder str = new StringBuilder();
+//			for (int j = 0; j < array.length - 1; j++) {
+//				str.append(array[j] + ",");
+//			}
+//			str.append(array[array.length - 1]);
+//			System.out.println(str);
+//		}
+
 		System.out.println("	graph filter");
 		long ini = System.currentTimeMillis();
 		this.Graph = Graph;
@@ -35,26 +67,56 @@ public class LayoutGraphFilter {
 		}
 		System.out.println("		# edges: " + (Graph.getEdges().size() - globalcount));
 		System.out.println("	graph filter: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+
+		list = Graph.getVertices();
+		ccc = 0;
+		for (AssemblyVertex ve : list)
+			if (ve.getEdges().size() == 1)
+				ccc++;
+		System.out.println(ccc);
+//		for (int i = 0; i < list.size(); i++) {
+//			AssemblyVertex vert = list.get(i);
+//			int[] array = new int[list.size()];
+//			for (AssemblyEdge edg : vert.getEdges()) {
+//				AssemblyVertex vert2 = (edg.getVertex1().getIndex() == vert.getIndex()) ? edg.getVertex2()
+//						: edg.getVertex1();
+//				array[vert2.getIndex()] = 1;
+//			}
+//			StringBuilder str = new StringBuilder();
+//			for (int j = 0; j < array.length - 1; j++) {
+//				str.append(array[j] + ",");
+//			}
+//			str.append(array[array.length - 1]);
+//			System.out.println(str);
+//		}
 	}
 
 	public void findTrasition(String s, AssemblyVertex vert) {
 //		System.out.println("		::" + s + vert.getIndex());
 //		System.out.println("		::" + s + "prev: " + ((prev.get(vert) != null) ? prev.get(vert).getIndex() : null));
 //
-//		System.out.println("		::" + s + "Tprevs: "
-//				+ Arrays.toString(transitivePrevs.get(vert).stream().mapToInt((x) -> x.getIndex()).toArray()));
-		procesing.add(vert);
-
+//		System.out.println("		::" + s + "Tprevs: "+ Arrays.toString(transitivePrevs.get(vert).stream().mapToInt((x) -> x.getIndex()).toArray()));
 		AssemblyVertex comp = Graph.getVertex(vert.getIndex() / 2, !vert.isStart());
+
+		procesing.add(vert);
 		Collection<AssemblyVertex> ady = getAdyacentSortedVertex(comp, vert);
+//		System.out.println(
+//				"		::" + s + "next" + Arrays.toString(ady.stream().mapToInt((x) -> x.getIndex()).toArray()));
 		for (AssemblyVertex next : ady) {
 			if (prev.containsKey(next)) {
 				AssemblyVertex pre = prev.get(next);
-				if (transitivePrevs.get(vert).contains(pre)) {
+//				System.out.println("		::" + s + "-----: "+next.getIndex()+"()"+pre.getIndex());
+				if (transitivePrevs.get(vert).contains(pre) || prev.get(vert) == pre) {
 					// IS Transition
 					// System.out.println(" transacion detectada");
-					System.out.println("		->" + comp.getIndex() + " ---- " + next.getIndex());
-					globalcount++;
+					AssemblyVertex precom = Graph.getVertex(pre.getIndex() / 2, !pre.isStart());
+//					System.out.println("		->" + precom.getIndex() + " ---- " + next.getIndex());
+					AssemblyEdge edge = precom.getEdge(next);
+					if (edge != null) { // aun no estoy seguro de porque pasa
+						precom.removeEdge(edge);
+						next.removeEdge(edge);
+						globalcount++;
+					}
 				}
 			}
 			prev.put(next, vert);
@@ -70,7 +132,8 @@ public class LayoutGraphFilter {
 				findTrasition(s + "---", next);
 		}
 
-		finished.add(vert);
+		procesing.remove(vert);
+		// finished.add(vert);
 	}
 
 	public Collection<AssemblyVertex> getAdyacentSortedVertex(AssemblyVertex vert, AssemblyVertex non) {

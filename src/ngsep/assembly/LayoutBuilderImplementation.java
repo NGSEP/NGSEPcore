@@ -62,7 +62,7 @@ public class LayoutBuilderImplementation implements LayourBuilder {
 			i = next;
 		}
 		graph.addPath(ans);
-		// graph.paths();
+//		graph.paths();
 	}
 
 	private int calculateMaxOverlap(AssemblyVertex assemblyVertex) {

@@ -1,6 +1,7 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -132,6 +133,8 @@ public class AssemblyGraph {
 				vact = (vact == v3) ? v4 : v3;
 			}
 			vertx.add(vact);
+			
+			System.out.println( Arrays.toString(vertx.stream().mapToInt((x) -> x.getIndex()).toArray()));
 
 	
 			TreeMap<Integer,CharSequence> ord = new TreeMap<>();
