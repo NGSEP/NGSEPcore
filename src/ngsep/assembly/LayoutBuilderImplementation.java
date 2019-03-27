@@ -27,7 +27,8 @@ public class LayoutBuilderImplementation implements LayourBuilder {
 			VertEdge.computeIfAbsent(v1, (AssemblyVertex x) -> new HashMap<>()).put(v2, assemblyEdge);
 			VertEdge.computeIfAbsent(v2, (AssemblyVertex x) -> new HashMap<>()).put(v1, assemblyEdge);
 		}
-
+	
+		
 		PriorityQueue<AssemblyVertex> quee = new PriorityQueue<AssemblyVertex>(new Comparator<AssemblyVertex>() {
 			public int compare(AssemblyVertex o1, AssemblyVertex o2) {
 				return VertEdge.get(o1).size() - VertEdge.get(o2).size();
