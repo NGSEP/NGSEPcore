@@ -19,6 +19,8 @@ public class LayoutBuilderImplementation implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
+		new LayoutGraphFilter(graph);
+		
 		for (AssemblyEdge assemblyEdge : graph.getEdges()) {
 			AssemblyVertex v1 = assemblyEdge.getVertex1();
 			AssemblyVertex v2 = assemblyEdge.getVertex2();
@@ -59,7 +61,7 @@ public class LayoutBuilderImplementation implements LayourBuilder {
 			i = next;
 		}
 		graph.addPath(ans);
-		graph.paths();
+		// graph.paths();
 	}
 
 	private int calculateMaxOverlap(AssemblyVertex assemblyVertex) {
