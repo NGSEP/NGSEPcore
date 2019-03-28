@@ -19,7 +19,6 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.simulation.TillingPopulationSimulator;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
@@ -31,7 +30,7 @@ import ngsep.vcf.VCFRecord;
 
 public class TillingPoolsIndividualGenotyper {
 
-	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
+	private Logger log = Logger.getLogger(TillingPoolsIndividualGenotyper.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	private static HashMap<String,ArrayList<Integer>> poolConfiguration;
@@ -111,7 +110,7 @@ public class TillingPoolsIndividualGenotyper {
 		while (line != null) {
 
 			String[] indInfo = line.split(";");
-			ArrayList<Integer> pools = new ArrayList();
+			ArrayList<Integer> pools = new ArrayList<>();
 			pools.add(Integer.parseInt(indInfo[1]));
 			pools.add(Integer.parseInt(indInfo[2]));
 			pools.add(Integer.parseInt(indInfo[3]));

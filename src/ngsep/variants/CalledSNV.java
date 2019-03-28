@@ -241,7 +241,7 @@ public class CalledSNV implements CalledGenomicVariant {
 	/**
 	 * Changes the number of As, Cs, Gs and Ts observed in the sample
 	 * @param allCounts Array of length 4 with the number of times that each allele appears. 
-	 * The order must be the cu¡ount for A, the count for C, the count for G, and the count for T 
+	 * The order must be the count for A, the count for C, the count for G, and the count for T 
 	 */
 	public void setAllBaseCounts(int [] allCounts) {
 		this.countA = allCounts[0];

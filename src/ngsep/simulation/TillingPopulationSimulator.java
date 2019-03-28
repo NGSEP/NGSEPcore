@@ -56,7 +56,7 @@ import ngsep.vcf.VCFRecord;
 /**
  * 
  * @author Juanita
- * @author Juan Sebastián Andrade
+ * @author Juan Sebastian Andrade
  *
  */
 public class TillingPopulationSimulator {
