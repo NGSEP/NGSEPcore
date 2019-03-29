@@ -217,6 +217,7 @@ public class Transcriptome {
 				}
 					
 			} else {
+				//System.err.println("Segment: "+segmentStart.getSequenceName()+":"+segmentStart.getFirst()+"-"+segmentStart.getLast()+" coding: "+segmentStart.isCoding()+" status "+segmentStart.getStatus());
 				if(segmentStart.isCoding()) {
 					annotations.addAll(makeCodingAnnotations(variant, segmentStart, parameters));
 				} else {
@@ -260,6 +261,7 @@ public class Transcriptome {
 		String reference = alleles[0];
 		Transcript t = segment.getTranscript();
 		int transcriptionStart = t.getCodingRelativeStart();
+		int transcriptionEnd = t.getCodingRelativeEnd();
 		int absoluteFirst = variant.getFirst();
 		if(t.isNegativeStrand()) {
 			absoluteFirst = variant.getLast();
@@ -267,6 +269,19 @@ public class Transcriptome {
 		int varTranscriptStart = t.getRelativeTranscriptPosition(absoluteFirst);
 		int varTranscriptEnd = varTranscriptStart+(variant.getLast()-variant.getFirst())+1;
 		int varCodingStart = varTranscriptStart-transcriptionStart;
+		if(varCodingStart<0) {
+			//Weird case of variant just before transcription start
+			VariantFunctionalAnnotation annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_5P_UTR);
+			annotation.setTranscript(t);
+			annotationsCoding.add(annotation);
+			return annotationsCoding;
+		}
+		if(varTranscriptStart>transcriptionEnd) {
+			VariantFunctionalAnnotation annotation = new VariantFunctionalAnnotation(variant, VariantFunctionalAnnotationType.ANNOTATION_3P_UTR);
+			annotation.setTranscript(t);
+			annotationsCoding.add(annotation);
+			return annotationsCoding;
+		}
 		int codon = varCodingStart/3+1;
 		int module = varCodingStart%3;
 		//System.out.println("Transcript: "+t.getId()+". Relative start: "+varTranscriptStart+". Coding start: "+transcriptionStart+". Codon: "+codon);
@@ -291,6 +306,7 @@ public class Transcriptome {
 			int expectedProteinIncrease = differenceBases/3;
 			String testA = alternative;
 			if(t.isNegativeStrand()) testA = alternativeR;
+			//System.err.println("Transcript: "+t.getId()+" Ref: "+testReference+". Start test: "+startTest+" module: "+module+" "+". Transcript start:"+varTranscriptStart+" coding start: "+varCodingStart);
 			String testVariant = cdnaSequence.subSequence(startTest,varTranscriptStart)+testA;
 			if(endTest > varTranscriptEnd) testVariant+=cdnaSequence.subSequence(varTranscriptEnd,endTest);
 			//System.out.println("Ref: "+testReference+". Var: "+testVariant+". Transcript start:"+varTranscriptStart);
