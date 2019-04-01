@@ -58,6 +58,9 @@ public class ReadsAligner {
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
 	static final int SEARCH_KMER_LENGTH = 15;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
+	private String tandemRepeatsFile = null;
+	private Map<String, List<GenomicRegion>> tandemRepeats;
+
 	private boolean onlyPositiveStrand = false;
 
 	private ReferenceGenomeFMIndex fMIndex;
@@ -72,27 +75,34 @@ public class ReadsAligner {
 		ReadsAligner instance = new ReadsAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String fMIndexFile = args[i++];
-		String readsFile1 = args[i++];
-		String readsFile2 = args[i++];
 		String outFile = args[i++];
-		String tandemRepeatsFile = args[i++];
-		
+		String readsFile1 = args[i++];
+		String readsFile2="";
+		if(args.length>3) readsFile2 = args[i++];
+
 		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
 
 		try (PrintStream out = new PrintStream(outFile);
 				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			instance.alignReads(readsFile1,readsFile2, writer);
-			instance.loadTRF(tandemRepeatsFile);	
+			if(args.length>3)
+			{
+				instance.alignReads(readsFile1,readsFile2, writer);
+			}
+			else {
+				instance.alignReads(readsFile1, writer);
+			}
 		}
 	}
 
 	public Map<String, List<GenomicRegion>> loadTRF(String tandemRepeatsFile) {
+		System.out.println(tandemRepeatsFile);
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		try {
-			return handler.loadRegionsAsMap(tandemRepeatsFile);
+			tandemRepeats=handler.loadRegionsAsMap(tandemRepeatsFile);
+			return tandemRepeats;
 		} 
-			catch (IOException e) {
+		catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return null;
@@ -120,6 +130,16 @@ public class ReadsAligner {
 		this.setMinProportionKmers(minProportionKmers.doubleValue());
 	}
 
+	public String getTandemRepeatsFile() {
+		System.out.println("getTandemRepeatsFile: "+tandemRepeatsFile);
+		return tandemRepeatsFile;
+	}
+
+	public void setTandemRepeatsFile(String tandemRepeatsFile) {
+		System.out.println("setTandemRepeatsFile: "+tandemRepeatsFile);
+		this.tandemRepeatsFile = tandemRepeatsFile;
+	}
+
 	/**
 	 * Aligns readsFile with the fMIndexFile
 	 * @param fMIndexFile Binary file with the serialization of an FMIndex
@@ -128,6 +148,7 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
+		if(tandemRepeatsFile!=null)loadTRF(tandemRepeatsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
@@ -174,6 +195,8 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
+		System.out.println("tandemRepeatsFile: "+tandemRepeatsFile);
+		if(tandemRepeatsFile!=null && !tandemRepeats.isEmpty())loadTRF(tandemRepeatsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int proper = 0;
@@ -322,6 +345,8 @@ public class ReadsAligner {
 	}
 
 	private PairEndsAlignments setFlags(ReadAlignment aln1, ReadAlignment aln2,boolean proper) {
+		boolean istandem = isPartOfATandemRepeat(aln1,aln2);
+		if(istandem)System.out.println("Is inside a Tandem Repeat");
 		aln1.setPair();
 		aln2.setPair();
 		setMateInfo(aln1,aln2);
@@ -339,6 +364,23 @@ public class ReadsAligner {
 	}
 
 
+
+	private boolean isPartOfATandemRepeat(ReadAlignment aln1, ReadAlignment aln2) {
+		boolean tandem = false;
+		int first = aln1.getFirst();
+		if(aln2.isPositiveStrand())
+		{
+			first=aln2.getFirst();
+		}
+		if(tandemRepeats!=null ) {
+			List<GenomicRegion> l =tandemRepeats.get(aln1.getReadName());
+			for (int i = 0; i < l.size(); i++) {
+				GenomicRegion region = l.get(i);
+				tandem = region.getFirst()<first && region.getLast()>first;
+			}	
+		}
+		return tandem;
+	}
 
 	private ArrayList<ReadAlignment> processUnMapped(RawRead read1, List<ReadAlignment> alns1, RawRead read2, List<ReadAlignment> alns2) {
 		ArrayList<ReadAlignment> unMappedAlignments= new ArrayList<ReadAlignment>();

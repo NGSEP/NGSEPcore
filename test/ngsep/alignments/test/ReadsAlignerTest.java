@@ -68,6 +68,20 @@ public class ReadsAlignerTest extends TestCase {
 		File f = new File(path);
 		f.delete();
 	}
+	
+	public void testCheckReadVsTRF() {
+		setUpReadsAligner();
+		String path = setUpTRF();
+		Map<String, List<GenomicRegion>> map = readsAligner.loadTRF(path);
+		
+		//map.get(key)
+		
+				
+		
+		
+		File f = new File(path);
+		f.delete();
+	}
 
 	private String setUpTRF() {
 		List<String> lines = Arrays.asList(
