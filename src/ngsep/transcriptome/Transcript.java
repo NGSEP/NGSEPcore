@@ -74,7 +74,7 @@ public class Transcript implements GenomicRegion {
 	 */
 	public void setTranscriptSegments(List<TranscriptSegment> segments) {
 		if(segments==null) throw new NullPointerException("Null input segments: "+segments);
-		if(segments.size()==0) throw new IllegalArgumentException("Empty input segments: "+segments);
+		if(segments.size()==0) throw new IllegalArgumentException("Empty input segments: "+segments+" for transcript: "+id);
 		this.transcriptSegments.clear();
 		this.transcriptSegments.addAll(segments);
 		Collections.sort(this.transcriptSegments,GenomicRegionPositionComparator.getInstance());

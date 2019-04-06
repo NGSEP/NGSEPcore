@@ -173,7 +173,9 @@ public class TranscriptomeAnalyzer {
 			
 			if(!selectCompleteProteins || (startCodon.isStart() && stopCodon!=null && stopCodon.isStop())) {
 				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
-				qp.setComments(t.getGeneId()+" "+t.getGeneName());
+				String comments = t.getGeneId();
+				if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
+				qp.setComments(comments);
 				proteome.add(qp);
 			}
 		}
