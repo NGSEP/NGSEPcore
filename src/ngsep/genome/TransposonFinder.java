@@ -1,8 +1,12 @@
 package ngsep.genome;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,9 +29,7 @@ public class TransposonFinder {
 	private ReferenceGenomeFMIndex fm;
 		
 	private Map<String, List<GenomicRegion>> STRs;
-	
-	private Map<String, List<GenomicRegion>> filteredKmers;
-	
+		
 	private Map<String, List<GenomicRegion>> crossRegions;
 	
 	private Distribution distrHits = new Distribution(0, 100, 1);
@@ -36,7 +38,7 @@ public class TransposonFinder {
 
 	private int minHitSize;
 	
-	public void run() {
+	public void run() throws IOException {
 		
 		// Kmers per subsequence
 		int numSequences = genome.getNumSequences();
@@ -45,16 +47,31 @@ public class TransposonFinder {
 			CharSequence seq = qs.getCharacters();
 			processSequence(seq, qs.getName(), fm);			
 		}
-				
-		// TODO: Map the regions to see if they are candidates to be a TR or not
 		
 		// TODO: Check the form of LRT in the candidates
 		
 		// TODO: Save the LTR in a text file
-		
+		saveLTRs(crossRegions, "output.txt");
 		// TODO: Evaluate yeast and rice
 	}
 	
+	public void saveLTRs(Map<String, List<GenomicRegion>> LTRs, String filename) throws IOException {
+		System.out.printf("Writing LTR predictions on %s \n", filename);
+		BufferedWriter writer = new BufferedWriter(new FileWriter(new File(filename)));
+		writer.write("LTR Prediction");
+		writer.newLine();
+		writer.write(String.format("%s\t%s\t%s", "Id", "Initial Position", "Final Position"));
+		writer.newLine();
+		for(String actSeq : LTRs.keySet()) {
+			for(GenomicRegion LTR: LTRs.get(actSeq)) {
+				System.out.printf("%s\t%d\t%d\n", actSeq, LTR.getFirst(), LTR.getLast());
+				writer.write(String.format("%s\t%d\t%d", actSeq, LTR.getFirst(), LTR.getLast()));
+				writer.newLine();
+			}
+		}
+		writer.close();
+	}
+
 	/**
 	 * Process a sequence in the genome finding the over-represented genomic regions
 	 * @param seq Actual sequence in the genome
@@ -97,7 +114,7 @@ public class TransposonFinder {
 			}
 		}
 		System.out.printf("Found %d repetitive regions \n",repetitiveRegions.size());
-		filteredKmers.put(name, repetitiveRegions);
+		crossRegions.put(name, repetitiveRegions);
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -110,8 +127,7 @@ public class TransposonFinder {
 		// Put as "arguments" kmer length and min hit size
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
-		instance.filteredKmers = new HashMap();
-		instance.crossRegions = new HashMap();
+		instance.crossRegions = new LinkedHashMap();
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
