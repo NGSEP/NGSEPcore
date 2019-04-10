@@ -37,6 +37,8 @@ public class TransposonFinder {
 	private int lengthKmer;
 
 	private int minHitSize;
+
+	private boolean useSTRs;
 	
 	public void run() throws IOException {
 		
@@ -50,9 +52,8 @@ public class TransposonFinder {
 		
 		// TODO: Check the form of LRT in the candidates
 		
-		// TODO: Save the LTR in a text file
+		// Save the LTR in a text file
 		saveLTRs(crossRegions, "output.txt");
-		// TODO: Evaluate yeast and rice
 	}
 	
 	public void saveLTRs(Map<String, List<GenomicRegion>> LTRs, String filename) throws IOException {
@@ -81,22 +82,36 @@ public class TransposonFinder {
 	public void processSequence(CharSequence seq, String name, ReferenceGenomeFMIndex fm) {
 		System.out.printf("Processing Sequence %s \n", name);
 		List<GenomicRegion> repetitiveRegions = new ArrayList();
-		List<GenomicRegion> actSTRs = STRs.get(name);
 		boolean seen = false;
 		int count = 0; // Count of intermediate kmers that are not over-represented
 		int maxCount = 10; // TODO: tratar de cambiarlo a distancia
 		GenomicRegionImpl actGenomicRegion = null;
+		// Take into account known STR
+		List<GenomicRegion> actSTRs = null;
+		int indexSTR = 0;
+		if(useSTRs) {
+			actSTRs = STRs.get(name);
+		}
 		//Subsequence 20bp
 		for (int i = 0; i + lengthKmer < seq.length(); i+=10) {
 			CharSequence kmer = seq.subSequence(i, (i+lengthKmer));
 			List<ReadAlignment> hits = fm.search(kmer.toString());
 			distrHits.processDatapoint(hits.size());
-			//TODO: check if kmer is STR
 			// If the kmer is more than the min hit size
 			if(hits.size() > minHitSize ) {
 				if(!seen) {
-					actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
-					seen = true;
+					if(useSTRs && indexSTR < actSTRs.size()) {
+						GenomicRegion STR = actSTRs.get(indexSTR);
+						if(Math.abs(STR.getFirst() - i) > 200) {
+							// Is not a tandem repeat
+							actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
+							seen = true;
+						}
+					}
+					else {
+						actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
+						seen = true;						
+					}
 				}
 				else if (seen && count <= maxCount) {
 					actGenomicRegion.setLast((i+lengthKmer));					
@@ -110,6 +125,13 @@ public class TransposonFinder {
 				count = 0;
 				if(actGenomicRegion.length() > (lengthKmer + 1)) { 
 					repetitiveRegions.add(actGenomicRegion);
+				}
+			}
+			// Check that the index of the STR is greater than i
+			if(useSTRs && indexSTR < actSTRs.size()) {
+				GenomicRegion STR = actSTRs.get(indexSTR);
+				while(STR.getFirst() < i && (++indexSTR) < actSTRs.size() - 1) {
+					STR = actSTRs.get(indexSTR);
 				}
 			}
 		}
@@ -128,6 +150,7 @@ public class TransposonFinder {
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
 		instance.crossRegions = new LinkedHashMap();
+		instance.useSTRs = true;
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
