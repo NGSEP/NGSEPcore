@@ -28,6 +28,7 @@ public class GenomicRegionImpl implements GenomicRegion {
 	private String sequenceName;
 	private int first;
 	private int last;
+	private boolean negativeStrand = false;
 	
 	public GenomicRegionImpl(String sequenceName, int first, int last) {
 		super();
@@ -69,12 +70,16 @@ public class GenomicRegionImpl implements GenomicRegion {
 
 	@Override
 	public boolean isPositiveStrand() {
-		return false;
+		return !negativeStrand;
 	}
 
 	@Override
 	public boolean isNegativeStrand() {
-		return false;
+		return negativeStrand;
+	}
+	
+	public void setNegativeStrand (boolean negativeStrand) {
+		this.negativeStrand = negativeStrand;
 	}
 	
 	
