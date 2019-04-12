@@ -1,3 +1,13 @@
+
+// Setup header and buttons
+var option = d3.selectAll("#option");
+const form = option.append("form");
+form.append("h1").text("Genomes Aligner v1.0  ");
+form.append("input").attr("type", "button").attr("onClick", "history.go(0)").attr("value", "Start again!");
+option.append("input").attr("id", "LCSbutton").attr("type", "button").attr("value", "LCS");
+option.append("input").attr("id", "Multiplebutton").attr("type", "button").attr("value", "Multiple");
+option.append("input").attr("id", "Uniquesbutton").attr("type", "button").attr("value", "Uniques");
+
 var margin = {top: 45, right: 80, bottom: 30, left: 80},
     width = 1300 - margin.left - margin.right,
     height = 900 - margin.top - margin.bottom;
@@ -79,14 +89,17 @@ var svg = d3.select("body").append("svg")
       // svg.attr("transform", "scale("+ d3.event.scale+")")
    //  }))
   .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
 
-d3.tsv("InputFileLCS.tsv", function(error, lcs) 
+d3.tsv(orthologsG1, function(error, lcs) 
 {
-  d3.tsv("InputFileGenome1.tsv", function(error, crmsA)
+  console.log(lcs);
+  d3.tsv(genome1, function(error, crmsA)
   {
-    d3.tsv("InputFileGenome2.tsv", function(error, crmsB)
+    console.log(crmsA);
+    d3.tsv(genome2, function(error, crmsB)
     {
+      console.log(crmsB);
       crmsA[0].startt = 0
       crmsA[0].endd = crmsA[0].Length
       for(var i = 1; i<crmsA.length; i++){

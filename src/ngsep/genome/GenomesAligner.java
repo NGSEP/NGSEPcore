@@ -56,18 +56,18 @@ public class GenomesAligner {
 	public static final String DEF_OUT_PREFIX = "genomesAlignment";
 	public static final byte DEF_KMER_SIZE = 10;
 	public static final int DEF_MIN_PCT_KMERS = 50;
-	
-	
+
+
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	
+
 	private List<AnnotatedReferenceGenome> genomes = new ArrayList<>();
 	private String outPrefix = DEF_OUT_PREFIX;
 	private byte kmerSize = DEF_KMER_SIZE;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
-	
+
 	private List<List<OrthologyUnit>> orthologyUnitClusters=new ArrayList<>();
-	
+
 	public static void main(String[] args) throws Exception 
 	{
 		GenomesAligner instance = new GenomesAligner();
@@ -120,7 +120,7 @@ public class GenomesAligner {
 	public void setOutPrefix(String outPrefix) {
 		this.outPrefix = outPrefix;
 	}
-	
+
 	/**
 	 * @return the kmerSize
 	 */
@@ -166,10 +166,10 @@ public class GenomesAligner {
 		log.info("Paralogs found for Genome: "+annGenome.getId()+" Unique orthology units: "+annGenome.getUniqueOrthologyUnits().size());
 		genomes.add(annGenome);
 	}
-	
-	
+
+
 	public void alignGenomes() {
-		
+
 		for(int i=0;i<genomes.size();i++) {
 			for (int j=0;j<genomes.size();j++) {
 				if(i!=j) genomes.get(i).calculateOrthologs(genomes.get(j), kmerSize, minPctKmers);
@@ -187,7 +187,7 @@ public class GenomesAligner {
 			String chrNameG2 = findBestChromosome(unitsChrG1, genome2.getId());
 			if(chrNameG2!=null) {
 				List<OrthologyUnit> selectedUnits = alignOrthologyUnits(genome1.getId(),unitsChrG1,genome2.getId(),chrNameG2);
-				
+
 				List<OrthologyUnit> unitsChrG2 = genome2.getUniqueOrthologyUnits(chrNameG2);
 				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrNameG2+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
 				completeLCS(genome1.getId(),genome1.getOrthologyUnits(chrG1.getName()),genome2.getId());
@@ -196,8 +196,8 @@ public class GenomesAligner {
 			}
 		}
 	}
-	
-	
+
+
 
 	private void calculateOrthologClusters() {
 		log.info("Clustering orthologs and paralogs");
@@ -210,13 +210,13 @@ public class GenomesAligner {
 					unitsPositionMap.put(unit.getUniqueKey(), unitsWithOrthologs.size());
 					unitsWithOrthologs.add(unit);
 				}
-				
+
 			}
 		}
 		log.info("Total units with orthologs: "+unitsWithOrthologs.size());
 		int [] group = new int [unitsWithOrthologs.size()];
 		Arrays.fill(group, -1);
-		
+
 		Distribution distClusterSizes = new Distribution(0, 50, 1);
 		//Build connected components
 		for(int i=0;i<group.length;i++) {
@@ -234,7 +234,7 @@ public class GenomesAligner {
 					group[pos]=groupNumber;
 					agenda.addAll(unit.getOrthologsAllGenomes());
 				} else if(unitGroup!=groupNumber) log.warning("Possible connection between clusters "+unitGroup + " and "+groupNumber+" Unit: "+unit.getUniqueKey());
-				
+
 			}
 			if(cluster.size()>1) {
 				orthologyUnitClusters.add(cluster);
@@ -242,7 +242,7 @@ public class GenomesAligner {
 			} else if (cluster.size()==0) {
 				log.warning("Empty cluster from unit: "+unitsWithOrthologs.get(i).getUniqueKey()+" clusters: "+orthologyUnitClusters.size()+" groupNumber: "+groupNumber);
 			}
-			
+
 		}
 		log.info("Number of clusters: "+orthologyUnitClusters.size());
 		//TODO: Report it better
@@ -259,7 +259,7 @@ public class GenomesAligner {
 		Map<String,Integer> chrMateCounts = new HashMap<>();
 
 		//Go over the orthology units. Locate chromosome of each unique ortholog and update counts map
-		
+
 		for(OrthologyUnit unit:units)
 		{
 			OrthologyUnit mate = unit.getUniqueOrtholog(genomeId);
@@ -274,16 +274,16 @@ public class GenomesAligner {
 			{
 				chrMateCounts.put(sequenceName, 1);
 			}
-				
+
 		}
 		//Find the chromosome with the largest count
 		int bestChromosomeCounts = 0;
 		String bestChromosome = null;
-		
+
 		for(Map.Entry<String,Integer> entry : chrMateCounts.entrySet()) {
 			String name = entry.getKey();
 			int chromosomeProteins = entry.getValue();
-			
+
 			if(chromosomeProteins > bestChromosomeCounts)
 			{
 				bestChromosomeCounts = chromosomeProteins;
@@ -307,15 +307,15 @@ public class GenomesAligner {
 	 */
 	private List<OrthologyUnit> alignOrthologyUnits(int genome1Id, List<OrthologyUnit> unitsChrG1, int genome2Id, String seqName2) {
 		List<OrthologyUnit> answer = new ArrayList<>();
-		
+
 		List<OrthologyUnit> unitsG1List = new ArrayList<>();
 		List<OrthologyUnit> unitsG2List = new ArrayList<>();
 		//Assigns mates of units in G2
-		
+
 		// Select orthology units in G1 having mate in g2 and assign the mate of units in G2.
-	
+
 		//At the same time create two new lists of the same size with the  units in g1 having its mate in g2
-		
+
 		for(int i=0; i<unitsChrG1.size(); i++)
 		{
 			OrthologyUnit unitG1 = unitsChrG1.get(i);
@@ -326,14 +326,14 @@ public class GenomesAligner {
 			unitsG2List.add(unitG2);
 		}
 		Collections.sort(unitsG2List, GenomicRegionPositionComparator.getInstance());		
-		
-		
+
+
 		Set<Integer> lcsForward = findLCS(unitsG1List, unitsG2List, genome2Id);
-		
+
 		Collections.reverse(unitsG2List);
-		
+
 		Set<Integer> lcsReverse = findLCS(unitsG1List, unitsG2List, genome2Id);
-		
+
 		Set<Integer> lcs = lcsForward;
 		if(lcsReverse.size()>lcsForward.size()) lcs = lcsReverse;
 		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
@@ -346,8 +346,8 @@ public class GenomesAligner {
 			unitG2.setMateInLCS(lcsResult);
 			answer.add(lcsResult);
 		}
-		
-		
+
+
 		return answer;
 	}
 
@@ -368,7 +368,7 @@ public class GenomesAligner {
 			//System.out.println("Positions [ "+i+"]:"+j);
 		}
 		// Run LCS
-		
+
 		Set<Integer> lcs = findLCS(positions);
 		return lcs;
 	}
@@ -394,7 +394,7 @@ public class GenomesAligner {
 					else {
 						m[i][j] = 1;
 					}
-					
+
 				}
 				else if(j<=indexesMap[i])
 				{
@@ -436,7 +436,7 @@ public class GenomesAligner {
 		}
 		return answer;
 	}
-	
+
 	private void completeLCS(int genomeId1, List<OrthologyUnit> chrUnits, int genomeId2) {
 		int i1=-1;
 		OrthologyUnit mate1=null;
@@ -444,7 +444,7 @@ public class GenomesAligner {
 			OrthologyUnit chrUnit = chrUnits.get(i);
 			OrthologyUnit mateInLCS = chrUnit.getLCSMate(genomeId2);
 			if(mateInLCS==null) continue;
-			
+
 			if(i1==-1) {
 				i1 = i;
 				mate1 = mateInLCS;
@@ -486,7 +486,7 @@ public class GenomesAligner {
 			mate1 = mateInLCS;
 		}
 	}
-	
+
 	public void printAlignmentResults() throws IOException {
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
@@ -504,7 +504,7 @@ public class GenomesAligner {
 				}
 			}
 		}
-		
+
 		//Print ortholog clusters
 		try (PrintStream outClusters = new PrintStream(outPrefix+"_clusters.txt");) {
 			for(List<OrthologyUnit> cluster:orthologyUnitClusters) {
@@ -516,7 +516,7 @@ public class GenomesAligner {
 				outClusters.println();
 			}
 		}
-		
+
 		if(genomes.size()>1) {
 			for(int i=0;i<genomes.size();i++) {
 				AnnotatedReferenceGenome genome = genomes.get(i);
@@ -531,12 +531,15 @@ public class GenomesAligner {
 			}
 			//Print D3 linear visualization
 			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearView.html");) {
-				printD3Visualization(outD3Linear,"GenomesAlignerLinearVisualizer.js");
+				printD3Visualization(outD3Linear,"GenomesAlignerLinearVisualizer.js", 3);
+			}
+			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_paralogView.html");) {
+				printD3Visualization(outD3Linear,"GenomesAlignerCircularParalogVisualizer.js", 5);
 			}
 		}
-		
-		
-		
+
+
+
 	}
 	private void printGenomeMetadata(String outFilename, QualifiedSequenceList sequencesMetadata) throws IOException {
 		try (PrintStream out = new PrintStream(outFilename)) {
@@ -546,7 +549,7 @@ public class GenomesAligner {
 			}
 		}
 	}
-	
+
 
 	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out) {
 		List<OrthologyUnit> orthologs = unit.getOrthologsOtherGenomes();
@@ -562,57 +565,51 @@ public class GenomesAligner {
 			out.println("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+typePrint);
 		}
 	}
-	
-	private void printD3Visualization(PrintStream outD3Linear, String jsFile) throws IOException {
+
+	private void printD3Visualization(PrintStream outD3Linear, String jsFile, int preferredD3Version) throws IOException {
 		outD3Linear.println("<!DOCTYPE html>");
 		outD3Linear.println("<meta charset=\"utf-8\">");
 		outD3Linear.println("<head>");
-		outD3Linear.println("<FORM>\n" + 
-				"<h1> Genomes Aligner v1.0 &emsp;&emsp;\n" + 
-				"<INPUT TYPE=\"button\" onClick=\"history.go(0)\" VALUE=\"Start Again!\">\n" + 
-				"</h1>\n" + 
-				"</FORM>");
-		outD3Linear.println("</titled>");
+		outD3Linear.println("</head>");
 		outD3Linear.println(htmlStyleCode());
 		outD3Linear.println("<body>");
 		//Adds the buttons for lcs, multiple and uniques
-		outD3Linear.println("<div id=\"option\">\n" + 
-				"    <input id=\"LCSbutton\" \n" + 
-				"           type=\"button\" \n" + 
-				"           value=\"LCS\"/>\n" + 
-				"    <input id=\"Multiplebutton\" \n" + 
-				"           type=\"button\" \n" + 
-				"           value=\"Multiple\"/>\n" + 
-				"    <input id=\"Uniquesbutton\" \n" + 
-				"           type=\"button\" \n" + 
-				"           value=\"Uniques\"/>\n" + 
-				"</div>");
-		outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
+		outD3Linear.println("<div id=\"option\"></div>\n");
+		if (preferredD3Version == 3) {
+			outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
+		}
+		else if(preferredD3Version == 4) {
+			outD3Linear.println("<script src=\"http://d3js.org/d3.v4.min.js\"></script>");
+		}
+		else if(preferredD3Version == 5){
+			outD3Linear.println("<script src=\"http://d3js.org/d3.v5.min.js\"></script>");
+		}
 		outD3Linear.println("<script>");
 		//Print D3 script
 		Class<? extends GenomesAligner> c = this.getClass();
 		String resource = "/ngsep/genome/"+jsFile;
 		log.info("Loading resource: "+resource);
 		try (InputStream is = c.getResourceAsStream(resource);
-			 BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
+				BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
+			outD3Linear.println("const orthologsG1 = \""+outPrefix+"_orthologsG1.tsv\";");
+			outD3Linear.println("const orthologsG2 = \""+outPrefix+"_orthologsG2.tsv\";");
+			outD3Linear.println("const paralogsG1 = \""+outPrefix+"_paralogsG1.tsv\";");
+			outD3Linear.println("const paralogsG2 = \""+outPrefix+"_paralogsG2.tsv\";");
+			outD3Linear.println("const uniqueG1 = \""+outPrefix+"_uniqueG1.tsv\";");
+			outD3Linear.println("const uniqueG2 = \""+outPrefix+"_uniqueG2.tsv\";");
+			outD3Linear.println("const genome1 = \""+outPrefix+"_genome1.tsv\";");
+			outD3Linear.println("const genome2 = \""+outPrefix+"_genome2.tsv\";");
+
 			while(line!=null) {
-				if(line.contains("InputFileLCS.tsv")) {
-					outD3Linear.println("d3.tsv(\""+outPrefix+"_orthologsG1.tsv\", function(error, lcs)");
-				} else if(line.contains("InputFileGenome1.tsv")) {
-					outD3Linear.println("  d3.tsv(\""+outPrefix+"_genome1.tsv\", function(error, crmsA)");
-				} else if(line.contains("InputFileGenome2.tsv")) {
-					outD3Linear.println("    d3.tsv(\""+outPrefix+"_genome2.tsv\", function(error, crmsB)");
-				} else {
-					outD3Linear.println(line);
-				}
+				outD3Linear.println(line);
 				line=in.readLine();
 			}
 		}
 		outD3Linear.println("</script>");
 		outD3Linear.println("</body>");
 	}
-	
+
 	private String htmlStyleCode() {
 		String code = "<style>\n" + 
 				"		svg {\n" + 
@@ -645,7 +642,7 @@ public class GenomesAligner {
 				"		}\n" + 
 				"\n" + 
 				"		</style>";
-		
+
 		return code;
 	}
 }
