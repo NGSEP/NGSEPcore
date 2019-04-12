@@ -19,7 +19,6 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.simulation.TillingPopulationSimulator;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
@@ -31,7 +30,7 @@ import ngsep.vcf.VCFRecord;
 
 public class TillingPoolsIndividualGenotyper {
 
-	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
+	private Logger log = Logger.getLogger(TillingPoolsIndividualGenotyper.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	private static HashMap<String,ArrayList<Integer>> poolConfiguration;
@@ -57,7 +56,7 @@ public class TillingPoolsIndividualGenotyper {
 	}
 	
 	/**
-	 * Runs the detection process itself.
+	 * Runs the detection process itself and yields the variants per individual.
 	 * @param poolsVCFDir The directory with the vcf files with the variants called per pool.
 	 * @param poolsDescriptor A csv file with one row per individual in the population. Each row should contain the identifier of the individual, and then its row, column,
 	 * and plate pool.
@@ -111,7 +110,7 @@ public class TillingPoolsIndividualGenotyper {
 		while (line != null) {
 
 			String[] indInfo = line.split(";");
-			ArrayList<Integer> pools = new ArrayList();
+			ArrayList<Integer> pools = new ArrayList<>();
 			pools.add(Integer.parseInt(indInfo[1]));
 			pools.add(Integer.parseInt(indInfo[2]));
 			pools.add(Integer.parseInt(indInfo[3]));

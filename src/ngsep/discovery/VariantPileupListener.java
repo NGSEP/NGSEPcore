@@ -172,7 +172,7 @@ public class VariantPileupListener implements PileupListener {
 		//if(pileup.getPosition()==9052) System.out.println("Reference allele: "+referenceAllele+". Pileup last: "+pileup.getLast());
 		CalledGenomicVariant calledVar;
 		if(referenceAllele.length()>1) {
-			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, readGroups); 
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, maxBaseQS, readGroups); 
 			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, heterozygosityRate, calcStrandBias);
 			if(variant == null) {
 				if(calledVar!=null && minQuality!=DEF_MIN_QUALITY && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();

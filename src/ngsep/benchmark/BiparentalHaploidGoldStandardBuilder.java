@@ -42,7 +42,9 @@ import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
-
+/**
+ * @author Jorge Duitama
+ */
 public class BiparentalHaploidGoldStandardBuilder {
 	private Map<String,String> files = new TreeMap<>();
 	private int filesP1;
@@ -55,8 +57,9 @@ public class BiparentalHaploidGoldStandardBuilder {
 		BiparentalHaploidGoldStandardBuilder instance = new BiparentalHaploidGoldStandardBuilder();
 		instance.loadGenome (args[0]);
 		instance.loadDescriptor(args[1]);
-		try (PrintStream out = new PrintStream(args[2])) {
-			instance.buildGoldStandardF1(out);
+		try (PrintStream outVCF = new PrintStream(args[2]+"_GS.vcf");
+			 PrintStream outRegions = new PrintStream(args[2]+"_GS_regions.txt"	)) {
+			instance.buildGoldStandardF1(outVCF, outRegions);
 		}
 	}
 	public void loadGenome(String filename) throws IOException {	
@@ -88,49 +91,46 @@ public class BiparentalHaploidGoldStandardBuilder {
 			filesP2 = j;
 		}
 	}
-	public void buildGoldStandardF1(PrintStream out) throws IOException {
+	public void buildGoldStandardF1(PrintStream outVCF, PrintStream outRegions) throws IOException {
 		for(String fileId:files.keySet()) {
 			loadFileCalls(files.get(fileId),fileId);
 		}
 		VCFFileWriter writer = new VCFFileWriter();
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		header.addDefaultSample("GSBiparentalHaploid");
-		writer.printHeader(header, out);
+		writer.printHeader(header, outVCF);
 		for(QualifiedSequence sequence: sequenceNames) {
 			String seqName = sequence.getName();
 			List<CalledGenomicVariant> callsSequence = allCalls.getSequenceRegions(seqName).asList();
 			int first = 0;
 			int last = 0;
+			int nextConfidence = 1;
 			List<CalledGenomicVariant> clusterCalls=new ArrayList<>();
 			for(CalledGenomicVariant call:callsSequence) {
 				if(call.getFirst()>last) {
-					int bpNextRef = last-first+1;
-					int bpAfterNextRef = Math.max(call.length(), call.getLast()-call.getFirst()+1);
 					VCFRecord record = processCluster(seqName,first,last,clusterCalls, header);
 					if(record!=null) {
 						if(record.getFirst()==posPrint) System.out.println("Printing record for variant "+record.getSequenceName()+": "+record.getFirst()+"-"+record.getLast()+" type: "+record.getVariant().getType());
-						writer.printVCFRecord(record, out);
-						bpNextRef = Math.max(bpNextRef, record.length());
+						writer.printVCFRecord(record, outVCF);
+					} else {
+						saveConfidenceRegion (seqName, nextConfidence, first-1, outRegions);
+						nextConfidence = last+1;
 					}
-					printReferenceCalls(seqName, last+bpNextRef,call.getFirst()-bpAfterNextRef, header, writer,out);
 					first = call.getFirst();
 					clusterCalls.clear();
 				}
 				clusterCalls.add(call);
 				last = Math.max(last, call.getLast());
 			}
-			int bpNextRef = last-first+1;
 			VCFRecord record = processCluster(seqName,first,last,clusterCalls,header);
 			if(record!=null) {
-				writer.printVCFRecord(record, out);
-				bpNextRef = Math.max(bpNextRef, record.length());
+				writer.printVCFRecord(record, outVCF);
+			} else {
+				saveConfidenceRegion (seqName, nextConfidence, first-1, outRegions);
+				nextConfidence = last+1;
 			}
-			printReferenceCalls(seqName,last+bpNextRef,sequence.getLength(),header, writer,out);
-			
+			saveConfidenceRegion (seqName, nextConfidence, sequence.getLength(), outRegions);
 		}
-		
-		
-
 	}
 	
 	
@@ -146,20 +146,14 @@ public class BiparentalHaploidGoldStandardBuilder {
 			}
 		}
 	}
-	private void printReferenceCalls(String sequenceName, int first, int last, VCFFileHeader header, VCFFileWriter writer, PrintStream out) {
+	private void saveConfidenceRegion(String sequenceName, int first, int last, PrintStream out) {
 		//Avoid very small reference regions
 		if(first == posPrint) System.out.println("Seq name: "+sequenceName+" first: "+first+" last: "+last);
 		if(last-first<5) return;
 		CharSequence refAllele = genome.getReference(sequenceName,first,last);
 		if(first == posPrint) System.out.println("Seq name: "+sequenceName+" first: "+first+" last: "+last+" ref allele: "+refAllele);
 		if(refAllele==null) return;
-		if(refAllele.length()==0) throw new RuntimeException("Empty reference at "+sequenceName+":"+first+"-"+last);
-		List<String> alleles = new ArrayList<>();
-		alleles.add(refAllele.toString());
-		GenomicVariant refVar = new GenomicVariantImpl(sequenceName, first, last, alleles);
-		byte [] calledAlleles = {0};
-		CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(refVar, calledAlleles);
-		writer.printVCFRecord(new VCFRecord(refVar, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header), out);
+		out.println(sequenceName+"\t"+first+"\t"+last);
 	}
 	private VCFRecord processCluster(String sequenceName, int first, int last, List<CalledGenomicVariant> clusterCalls, VCFFileHeader header) {
 		if(last==0) return null;
@@ -207,6 +201,7 @@ public class BiparentalHaploidGoldStandardBuilder {
 		if(aP1>0) finalAlleles.add(alleles.get(aP1));
 		if(aP2>0 && aP2!=aP1) finalAlleles.add(alleles.get(aP2));
 		byte [] calledAlleles;
+		byte [] phasedAlleles=new byte[2];
 		if(aP1<0 || aP2<0) {
 			//Undecided call
 			return null;
@@ -215,10 +210,11 @@ public class BiparentalHaploidGoldStandardBuilder {
 			if(aP1==0) return null;
 			calledAlleles = new byte[1];
 			calledAlleles[0] = 1;
+			phasedAlleles[0] = phasedAlleles[1]= 1;
 		} else {
 			calledAlleles = new byte[2];
-			calledAlleles[0] = (byte) (aP1==0?0:1);
-			calledAlleles[1] = (byte) (aP2==0?0:finalAlleles.size()-1);
+			phasedAlleles[0] = calledAlleles[0] = (byte) (aP1==0?0:1);
+			phasedAlleles[1] = calledAlleles[1] = (byte) (aP2==0?0:finalAlleles.size()-1);
 			if(calledAlleles[0]> calledAlleles[1]) {
 				byte tmp = calledAlleles[0];
 				calledAlleles[0] = calledAlleles[1];
@@ -237,8 +233,10 @@ public class BiparentalHaploidGoldStandardBuilder {
 		if(type == GenomicVariant.TYPE_UNDETERMINED && first==last && finalAlleles.size()==2) type = GenomicVariant.TYPE_BIALLELIC_SNV;
 		outVariant.setType(type);
 		outCall.setGenotypeQuality((short)255);
+		if(phasedAlleles!=null) outCall.setIndexesPhasedAlleles(phasedAlleles);
 		format = VCFRecord.DEF_FORMAT_ARRAY_QUALITY;
 		
+		//if(outCall.getFirst()==3518) System.out.println("Phased: "+outCall.isPhased()+" heterozygous: "+outCall.isHeterozygous()+" phased alleles: "+outCall.getPhasedAlleles()[0]+" "+outCall.getPhasedAlleles()[1]);
 		VCFRecord answer = new VCFRecord(outVariant, format, outCall, header);
 		return answer;
 	}

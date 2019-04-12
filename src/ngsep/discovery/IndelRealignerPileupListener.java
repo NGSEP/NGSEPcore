@@ -21,6 +21,7 @@ package ngsep.discovery;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,17 +32,20 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.NumberArrays;
-import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.GenomicVariant;
 
 
 public class IndelRealignerPileupListener implements PileupListener {
 
+	private static final int DEF_REGION_BOUNDARY = 100;
 	private GenomicRegionSortedCollection<? extends GenomicVariant> inputVariants = null;
 	private ReferenceGenome genome;
-	private int bpForGoodRefAln = 5;
+	private int minBPForGoodRefAln = 5;
+	private int maxBPRealignmentEnd = 50;
+	private HammingSequenceDistanceMeasure hammingMeasure = new HammingSequenceDistanceMeasure();
 	
 	
 	private List<? extends GenomicVariant> seqInputVariants;
@@ -185,7 +189,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				}
 			}
 		}
-		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Start max votes: "+(currentPos+maxI)+" indelAlns: "+ indelAlns.size());
+		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Start max votes: "+(currentPos+maxI)+" total alns: "+alignments.size()+"indelAlns: "+ indelAlns.size());
 		
 		//Move indel starts to the position with the largest number of votes
 		int newPredictedEventEnd = moveIndelStarts(indelAlns, currentPos, eventEnd, maxLength, maxI);
@@ -196,11 +200,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			answer = eventEnd-currentPos+1;
 			if(currentPos==posPrint) System.out.println("ConciliateIndels. Predicted span for new indel: "+answer);	
 		}
-		/*if(eventChange) {
-			if(currentPos==posPrint) System.out.println("Recalculating alignments with indels");
-			maxLength = analyzeIndels(alignments,currentPos,eventEnd, varG, lengths,indelAlns,null);
-			if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" indelAlns: "+ indelAlns.size());
-		}*/
+		
 		//Try to realign ends of alignments falling within the event
 		processEndsOfAlignments(alignments,pileup.getSequenceName(), currentPos, eventEnd);
 		return answer;
@@ -280,7 +280,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 					
 					if(indel.getLast() >= firstOverlap && start <=lastOverlap) {
 					//if(start >= currentPos && start <=eventEnd) {		
-						//if(aln.getFirst()==787293) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+currentPos+" new indel start "+(currentPos+maxI)+" read pos: "+aln.getReadPosition(currentPos));
+						//if(aln.getFirst()==1291016) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" offset: "+offset);
 						boolean moved = aln.moveIndelStart(start,first+offset);
 						if(first==posPrint && moved == false) System.err.println("WARN: Failed attempt to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+first+" new indel start "+(first+offset)+" read pos: "+aln.getReadPosition(first));
 						break;
@@ -385,65 +385,183 @@ public class IndelRealignerPileupListener implements PileupListener {
 	
 	
 	private void processEndsOfAlignments(List<ReadAlignment> alignments, String sequenceName, int eventFirst, int eventLast) {
-		CharSequence sequenceBefore = genome.getReference(sequenceName, eventFirst-100, eventFirst);
-		CharSequence sequenceAfter = genome.getReference(sequenceName, eventLast, eventLast+100);
+		CharSequence seqBefore = genome.getReference(sequenceName, eventFirst-DEF_REGION_BOUNDARY, eventFirst);
+		CharSequence seqAfter = genome.getReference(sequenceName, eventLast, eventLast+DEF_REGION_BOUNDARY);
+		CharSequence seqWithin = null;
+		if(eventFirst!=eventLast-1) seqWithin = genome.getReference(sequenceName, eventFirst+1, eventLast-1);
+		String refAlleleBefore = seqBefore!=null?seqBefore.toString():null;
+		String refAlleleAfter = seqAfter!=null?seqAfter.toString():null;
+		if(refAlleleBefore!=null && seqWithin!=null) refAlleleBefore+=seqWithin;
+		if(refAlleleAfter!=null && seqWithin!=null) refAlleleAfter=seqWithin+refAlleleAfter;
+		
+		
+		String insertedConsensusSequence = calculateInsertedConsensusSequence (alignments, eventFirst);
+		if(eventFirst==posPrint) System.out.println("Inserted consensus sequence: "+insertedConsensusSequence);
+		
+		String altAlleleBefore = seqBefore!=null?seqBefore.toString():null;
+		String altAlleleAfter = seqAfter!=null?seqAfter.toString():null;
+		int offset = 0;
+		if(insertedConsensusSequence!=null) {
+			offset = insertedConsensusSequence.length();
+			if(altAlleleBefore!=null) altAlleleBefore+=insertedConsensusSequence;
+			if(altAlleleBefore!=null && seqWithin!=null) altAlleleBefore+=seqWithin;
+			if(altAlleleAfter!=null && seqWithin!=null) altAlleleAfter=seqWithin+altAlleleAfter;
+			if(altAlleleAfter!=null) altAlleleAfter=insertedConsensusSequence+altAlleleAfter;
+		} else {
+			int deletionLength = calculateDeletionConsensusLength (alignments, eventFirst);
+			if(deletionLength>eventLast-eventFirst-1) deletionLength=eventLast-eventFirst-1;
+			offset = -deletionLength;
+			if(altAlleleBefore!=null && seqWithin!=null) {
+				if(deletionLength==0) altAlleleBefore+=seqWithin;
+				else if(deletionLength<seqWithin.length()) {
+					String remainder = seqWithin.toString().substring(deletionLength);
+					altAlleleBefore+=remainder;
+				}
+			}
+			if(altAlleleAfter!=null && seqWithin!=null) {
+				if(deletionLength==0) altAlleleAfter=seqWithin+altAlleleAfter;
+				else if(deletionLength<seqWithin.length()) {
+					String remainder = seqWithin.toString().substring(deletionLength);
+					altAlleleAfter=remainder+altAlleleAfter;
+				}
+			}
+		}
+		if(eventFirst==posPrint) System.out.println("Alt allele after: "+altAlleleAfter);
 		for(ReadAlignment aln:alignments) {
 			int alnFirst = aln.getFirst();
 			int alnLast = aln.getLast();
-			String cigarStr = aln.getCigarString();
 			
-			if(eventFirst-alnFirst<bpForGoodRefAln) {
-				boolean trimStart=true;
-				int readPosAfter = aln.getReadPosition(eventLast);
-				if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnds. Start falls within event. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Event last: "+eventLast+" readPosAfter: "+readPosAfter);
-				if(sequenceBefore!=null && readPosAfter>=bpForGoodRefAln) {
-					CharSequence prefix = aln.getReadCharacters().subSequence(0, readPosAfter);
-					int overlapLength = AbstractLimitedSequence.getOverlapLength (sequenceBefore,prefix);
-					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. overlap length: "+overlapLength);
-					if(overlapLength>=bpForGoodRefAln) {
-						int newAlnFirst = eventFirst-overlapLength+1; 
-						aln.realignStart(newAlnFirst,overlapLength,readPosAfter);
-						trimStart = false;
-						if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned start of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new start: "+aln.getFirst()+" new CIGAR: "+aln.getCigarString());
-					}
+			String cigarStr = aln.getCigarString();
+			boolean hasIndelCallsBefore = aln.hasIndelCalls(alnFirst,eventFirst-1);
+			boolean hasIndelCallsAfter = aln.hasIndelCalls(eventLast+1,alnLast);
+			
+			int bpForGoodRefAln = Math.max(offset, minBPForGoodRefAln);
+			boolean trimStart=eventFirst-alnFirst<bpForGoodRefAln && !hasIndelCallsBefore;
+			int readPosAfter = aln.getReadPosition(eventLast);
+			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignStarts. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosAfter: "+readPosAfter+" offset:"+offset );
+			if(!hasIndelCallsBefore && refAlleleBefore!=null && altAlleleBefore!=null && readPosAfter>=bpForGoodRefAln && readPosAfter-offset<=maxBPRealignmentEnd && readPosAfter<refAlleleBefore.length() && readPosAfter<altAlleleBefore.length() && aln.getIndelCall(eventFirst)==null) {
+				CharSequence readPrefix = aln.getReadCharacters().subSequence(0, readPosAfter);
+				CharSequence refSuffix = refAlleleBefore.substring(refAlleleBefore.length()-readPosAfter);
+				if(eventFirst==posPrint) System.out.println(readPrefix);
+				if(eventFirst==posPrint) System.out.println(refSuffix);
+				double referenceDistance = hammingMeasure.calculateDistance(refSuffix, readPrefix);
+				CharSequence altSuffix = altAlleleBefore.substring(altAlleleBefore.length()-readPosAfter);
+				if(eventFirst==posPrint) System.out.println(altSuffix);
+				double alternativeDistance = hammingMeasure.calculateDistance(altSuffix, readPrefix);
+				int newAlnFirst = eventLast-readPosAfter+1+offset;
+				int firstMatchLength = eventFirst-newAlnFirst+1;
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignStarts. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance+" new aln first: "+newAlnFirst+"");
+				if(alternativeDistance<referenceDistance && alternativeDistance<3 && firstMatchLength>=minBPForGoodRefAln) {
+					aln.realignStart(newAlnFirst,firstMatchLength,readPosAfter);
+					trimStart = false;
+					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned start of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new start: "+aln.getFirst()+" new CIGAR: "+aln.getCigarString());
 				}
-				if(trimStart) {
-					int ignoreBP = eventLast-alnFirst+1;
-					ignoreBP+=aln.getSoftClipStart();
-					byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), ignoreBP);
-					
-					//if(bpToIgnoreStart>10)System.err.println("WARN: Ignoring "+bpToIgnoreStart+" base pairs at the start of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-					aln.setBasesToIgnoreStart(bpToIgnoreStart);
-					if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreStart+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
+			}	
+			if(trimStart) {
+				int ignoreBP = eventLast-alnFirst+1;
+				ignoreBP+=aln.getSoftClipStart();
+				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), ignoreBP);
+				
+				//if(bpToIgnoreStart>10)System.err.println("WARN: Ignoring "+bpToIgnoreStart+" base pairs at the start of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
+				aln.setBasesToIgnoreStart(bpToIgnoreStart);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreStart+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
+			}
+			
+			boolean trimEnd = alnLast-eventLast<bpForGoodRefAln && !hasIndelCallsAfter;
+			int readPosBefore = aln.getReadPosition(eventFirst);
+			CharSequence readSuffix = null;
+			int readSuffixLength = 0;
+			if(readPosBefore>=0 && aln.getReadLength()>readPosBefore) {
+				readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
+				readSuffixLength = readSuffix.length();
+			} else {
+				if (readPosBefore!=-1) System.err.println("WARN: IndelRealigner. Weird answer of read position. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosBefore: "+readPosBefore+" read length: "+aln.getReadLength());
+				continue;
+			}
+			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnd. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" suffix length: "+readSuffixLength);
+			if(!hasIndelCallsAfter && refAlleleAfter!=null && altAlleleAfter!=null && readSuffix!=null && readPosBefore>=bpForGoodRefAln && readSuffixLength-offset<maxBPRealignmentEnd && readSuffixLength<refAlleleAfter.length() && readSuffixLength<altAlleleAfter.length() && (aln.getIndelCall(eventFirst)==null || readPosAfter<0)) {
+				CharSequence refPrefix = refAlleleAfter.substring(0, readSuffixLength);
+				if(eventFirst==posPrint) System.out.println(readSuffix);
+				if(eventFirst==posPrint) System.out.println(refPrefix);
+				double referenceDistance = hammingMeasure.calculateDistance(refPrefix, readSuffix);
+				CharSequence altPrefix = altAlleleAfter.substring(0, readSuffixLength);
+				if(eventFirst==posPrint) System.out.println(altPrefix);
+				double alternativeDistance = hammingMeasure.calculateDistance(altPrefix, readSuffix);
+				int finalMatchLength = readSuffixLength;
+				if(offset>0)finalMatchLength-=offset;
+				int newEventLast = eventFirst+1;
+				if(offset<0) newEventLast-=offset;
+				
+				
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance+" event coords: "+eventFirst+"-"+eventLast+" offset: "+offset+" final match length: "+finalMatchLength);
+				if(alternativeDistance<referenceDistance && alternativeDistance<3 && finalMatchLength>=minBPForGoodRefAln) {
+					aln.realignEnd(readPosBefore, newEventLast, finalMatchLength);
+					trimEnd = false;
+					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned end of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new end: "+aln.getLast()+" new CIGAR: "+aln.getCigarString());
 				}
+				
 				
 			}
-			if(alnLast-eventLast<bpForGoodRefAln) {
-				boolean trimEnd = true;
-				int length = aln.getReadLength();
-				int readPosBefore = aln.getReadPosition(eventFirst);
-				if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnds. End falls within event. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Event last: "+eventLast+" readPosBefore: "+readPosBefore+" length: "+length);
-				int lastReadBp = length - readPosBefore;
-				if(sequenceAfter!=null && lastReadBp>=bpForGoodRefAln) {
-					CharSequence suffix = aln.getReadCharacters().subSequence(readPosBefore+1,length);
-					int overlapLength = AbstractLimitedSequence.getOverlapLength (suffix,sequenceAfter);
-					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. overlap length: "+overlapLength);
-					if(overlapLength>=bpForGoodRefAln) {
-						aln.realignEnd(readPosBefore, eventLast, overlapLength);
-						trimEnd = false;
-						if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned end of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new end: "+aln.getLast()+" new CIGAR: "+aln.getCigarString());
-					}
-				}
-				if(trimEnd) {
-					int ignoreBP = alnLast-eventFirst+1;
-					ignoreBP+=aln.getSoftClipEnd();
-					byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
-					//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-					aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
-					if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
-				}
-				
+			if(trimEnd) {
+				int ignoreBP = alnLast-eventFirst+1;
+				ignoreBP+=aln.getSoftClipEnd();
+				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
+				//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
+				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 		}
+	}
+
+	private String calculateInsertedConsensusSequence(List<ReadAlignment> alignments, int eventFirst) {
+		Map<Integer, List<String>> insertionAllelesByLength = new HashMap<>();
+		for(ReadAlignment aln:alignments) {
+			GenomicVariant call = aln.getIndelCall(eventFirst);
+			if(call==null) continue;
+			CharSequence allele = aln.getAlleleCall(eventFirst);
+			if(allele==null) continue;
+			allele = allele.subSequence(1, allele.length()-1);
+			if(allele.length()==0) continue;
+			//if(eventFirst==posPrint) System.out.println("Calculating insertion consensus allele. Next insertion allele: "+allele+ " read: "+aln.getReadName());
+			List<String> insertionAllelesLength = insertionAllelesByLength.get(allele.length());
+			if(insertionAllelesLength==null) {
+				insertionAllelesLength = new ArrayList<>();
+				insertionAllelesByLength.put(allele.length(), insertionAllelesLength);
+			}
+			insertionAllelesLength.add(allele.toString());
+		}
+		int numAllelesConsensus = 0;
+		List<String> allelesConsensus = null;
+		for(List<String> alleles:insertionAllelesByLength.values()) {
+			if(alleles.size()>numAllelesConsensus) {
+				numAllelesConsensus = alleles.size();
+				allelesConsensus = alleles;
+			}
+		}
+		if(allelesConsensus==null) return null;
+		return HammingSequenceDistanceMeasure.makeHammingConsensus(allelesConsensus);
+	}
+
+	private int calculateDeletionConsensusLength(List<ReadAlignment> alignments, int eventFirst) {
+		Map<Integer, Integer> counts = new HashMap<>();
+		for(ReadAlignment aln:alignments) {
+			GenomicVariant call = aln.getIndelCall(eventFirst);
+			if(call==null) continue;
+			int innerLength = call.getLast()-call.getFirst()-1;
+			Integer count = counts.get(innerLength);
+			if(count == null) count = 0;
+			count++;
+			counts.put(innerLength, count);
+		}
+		int max = 0;
+		int answer = 0;
+		for(int length:counts.keySet()) {
+			int count = counts.get(length);
+			if(max<count) {
+				answer = length;
+				max = count;
+			}
+		}
+		return answer;
 	}
 }

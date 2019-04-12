@@ -748,7 +748,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if(pileup.getPosition()==posPrint) System.out.println("T count: "+helperSNV.getCount("T")+" total: "+helperSNV.getTotalCount() );
 		GenomicVariant variant;
 		if(referenceAllele.length()>1) {
-			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,null,referenceAllele, null); 
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,null,referenceAllele, maxBaseQS, null); 
 			variant = findMultiallelicIndel(pileup, helperIndel);
 			if(variant!=null) {
 				//System.out.println("Called indel at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+" variant type: "+calledVar.getType());
@@ -875,7 +875,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 			CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup, maxBaseQS, sample.getReadGroups());
 			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), h, false);
 		} else {
-			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, sample.getReadGroups()); 
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, maxBaseQS, sample.getReadGroups()); 
 			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
 		}
 		if(calledVar==null) {

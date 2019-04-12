@@ -384,7 +384,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	 * All input alleles are valid for the variant
 	 * @param phasedAlleles
 	 */
-	public void setPhasedAlleles(byte [] phasedAlleles) {
+	public void setIndexesPhasedAlleles(byte [] phasedAlleles) {
 		if(phasedAlleles.length!=totalCopyNumber) return;
 		this.indexesPhasedAlleles = Arrays.copyOf(phasedAlleles, phasedAlleles.length);
 	}

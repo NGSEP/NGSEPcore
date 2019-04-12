@@ -453,7 +453,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 					csnv.setPhasingCN2(phasedAlleles[0]==1);
 				} else if (answer instanceof CalledGenomicVariantImpl) {
 					CalledGenomicVariantImpl call = (CalledGenomicVariantImpl)answer;
-					call.setPhasedAlleles(phasedAlleles);
+					call.setIndexesPhasedAlleles(phasedAlleles);
 				} else {
 					log.severe("Can not load phasing information for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". Phasing of SNVs with high copy number still not supported");
 				}

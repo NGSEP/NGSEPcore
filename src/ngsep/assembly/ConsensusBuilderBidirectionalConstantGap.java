@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.sun.xml.internal.ws.util.StringUtils;
-
 public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilder {
 	int match = 5;
 	int gap = -2;
@@ -21,38 +19,43 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 			List<AssemblyEdge> path = graph.getPaths().get(i);
 			String consensus = "";
 			startConsensus = true;
-			for(AssemblyEdge edge:path)
+			for(int j = 0; j < path.size(); j++)
 			{
-				// FIXME: Look for path direction to check from which to which vertex
+				AssemblyEdge previousEdge = null;
+				if(j > 0)
+					previousEdge = path.get(j - 1);
+				AssemblyEdge edge = path.get(j);
 				AssemblyVertex a = edge.getVertex1();
 				AssemblyVertex b = edge.getVertex2();
-				String s1 = a.getRead().toString();
-				String s2 = b.getRead().toString();
-				//Align original
-				int[][] matrixOrig = alignmentMatrixConstantGap(s1, s2);
-				String[] alignmentOrig = sequencesAlignment(matrixOrig, s1, s2);
-				int scoreOrig = matrixOrig[s1.length()][s2.length()];
-				//Align complementary
-				String s3 = complementaryStrand(s2);
-				int[][] matrixComp = alignmentMatrixConstantGap(s1, s3);
-				String[] alignmentComp = sequencesAlignment(matrixComp, s1, s3);
-				int scoreComp = matrixComp[s1.length()][s3.length()];
-				scoreComp = Integer.MIN_VALUE;
-				/*if(scoreOrig > scoreComp)
+				if(previousEdge == null)
 				{
-					consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentOrig));
+					previousEdge = path.get(j + 1);
+					if(previousEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
+					{
+						a = edge.getVertex2();
+						b = edge.getVertex1();
+					}
 				}
 				else
 				{
-					consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentComp));
-				}*/
+					if(previousEdge.getVertex1().getIndex() == edge.getVertex2().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex2().getIndex())
+					{
+						a = edge.getVertex2();
+						b = edge.getVertex1();
+					}
+				}
+				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
+				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
+				int[][] matrixOrig = alignmentMatrixConstantGap(s1, s2);
+				String[] alignmentOrig = sequencesAlignment(matrixOrig, s1, s2);
+				consensus = consensus.concat(joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignmentOrig));
 			}
 			consensusList.add(consensus);
 		}	
 		return consensusList;
 	}
 	
-	private String joinedString(List<AssembyEmbedded> embedded1, List<AssembyEmbedded> embedded2, String[] alignment)
+	private String joinedString(List<AssemblyEmbedded> embedded1, List<AssemblyEmbedded> embedded2, String[] alignment)
 	{
 		StringBuilder finalString = new StringBuilder();
 		int i = 0;

@@ -1,4 +1,4 @@
-<NGSEP version="3.3.1" date="15-02-2019">
+<NGSEP version="3.3.1" date="14-03-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -633,6 +633,24 @@ Writes to the standard output. See the README.txt file for details on the output
 <argument>POPULATIONS_FILE</argument>
 </command>
 
+<command id="VCFVariantDensityCalculator" class="ngsep.vcf.VCFVariantDensityCalculator">
+<intro>
+Calculates the density of variants in a VCF file across the genome 
+</intro>
+<title>Calculating variants density</title>
+<description>
+Calculates the number of variants within a VCF file in non-overlapping windows across the genome.
+Writes to the standard output a text delimited file with four columns: sequence, window first,
+window last and number of variants. If the VCF_FILE argument is - it expects a VCF from standard
+input
+</description>
+<argument>REFERENCE_FILE</argument>
+<argument>VCF_FILE</argument>
+<option id="w" type="INT" defaultConstant="DEF_WINDOW_LENGTH" attribute="windowLength">
+Length of the window
+</option>
+</command>
+
 <command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
 <intro>
 Calculates a genetic distance matrix from genomic variants in a given VCF file
@@ -1041,6 +1059,31 @@ of an individual genome
 <argument>VCF_FILE</argument>
 <argument>REFERENCE_GENOME</argument>
 <argument>OUT_GENOME</argument>
+</command>
+
+<command id="VCFGoldStandardComparator" class="ngsep.benchmark.VCFGoldStandardComparator">
+<intro>
+Compares a gold standard phased VCF with a VCF with test genotype calls
+</intro>
+<title>Benchmarking variant calls</title>
+<description>
+Takes a VCF file with genotype information from one sample, the reference genome used to build
+the VCF and a phased VCF file with gold standard calls and calculates quality statistics
+comparing gold-standard with test calls. See the README.txt file for details on the output.
+</description>
+<argument>REFERENCE_GENOME</argument>
+<argument>GS_VCF_FILE</argument>
+<argument>TEST_VCF_FILE</argument>
+<option id="m" type="FILE" attribute="complexRegions">
+File with coordinates of complex regions (such as STRs)
+</option>
+<option id="f" type="FILE" attribute="confidenceRegions">
+File with coordinates of regions in which the gold standard can be trusted 
+</option>
+<option id="g" type="BOOLEAN" attribute="genomicVCF">
+Indicates that the gold standard VCF is genomic, which means that confidence regions can be
+extracted from annotated regions with homozygous reference genotypes   
+</option>
 </command>
 
 </NGSEP>

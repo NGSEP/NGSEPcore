@@ -537,7 +537,7 @@ public class SingleIndividualSimulator {
 				//Create variant call
 				CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(var, indexesCalledAlleles);
 				call.setAllelesCopyNumber(allelesCopyNumber);
-				call.setPhasedAlleles(indexesPhasedAlleles);
+				call.setIndexesPhasedAlleles(indexesPhasedAlleles);
 				genomicCalls.add(call);
 				
 				//Update haplotype sequences

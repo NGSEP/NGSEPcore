@@ -1,11 +1,11 @@
 package ngsep.assembly;
 
-public class AssembyEmbedded {
+public class AssemblyEmbedded {
 	private CharSequence read;
 	private int startPosition;
 	private boolean isReverse;
 
-	public AssembyEmbedded(CharSequence read, int startPosition, boolean isReverse) {
+	public AssemblyEmbedded(CharSequence read, int startPosition, boolean isReverse) {
 		this.read = read;
 		this.startPosition = startPosition;
 		this.isReverse = isReverse;
