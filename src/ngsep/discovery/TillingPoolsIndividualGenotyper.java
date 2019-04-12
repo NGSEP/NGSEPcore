@@ -144,7 +144,7 @@ public class TillingPoolsIndividualGenotyper {
 		 if (directoryListing != null) {
 		   for (File poolVCF : directoryListing) {
 			   System.out.println(poolVCF.getName());
-			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF("/home/juan/git/test_vcf/"+poolVCF.getName());
+			    List<CalledGenomicVariant> indPool = VCFFileReader.loadCalledVariantsSingleIndividualVCF(poolsVCFDir+poolVCF.getName());
 			    for(int j=0;j<indPool.size();j++) {
 			    	indPool.get(j).setSampleId(String.valueOf(i)+String.valueOf(j));
 			    }
