@@ -19,7 +19,7 @@ public class LayoutBuilderImplementation implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		new LayoutGraphFilter(graph);
+		// new LayoutGraphFilter(graph);
 		
 		for (AssemblyEdge assemblyEdge : graph.getEdges()) {
 			AssemblyVertex v1 = assemblyEdge.getVertex1();
