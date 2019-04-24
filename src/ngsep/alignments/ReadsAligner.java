@@ -195,7 +195,6 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
-		System.out.println("tandemRepeatsFile: "+tandemRepeatsFile);
 		if(tandemRepeatsFile!=null && !tandemRepeats.isEmpty())loadTRF(tandemRepeatsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
@@ -345,14 +344,20 @@ public class ReadsAligner {
 	}
 
 	private PairEndsAlignments setFlags(ReadAlignment aln1, ReadAlignment aln2,boolean proper) {
-		boolean istandem = isPartOfATandemRepeat(aln1,aln2);
-		if(istandem)System.out.println("Is inside a Tandem Repeat");
+		boolean istandem = isPartOfATandemRepeat(aln1,aln2);		
 		aln1.setPair();
 		aln2.setPair();
 		setMateInfo(aln1,aln2);
 		setMateInfo(aln2,aln1);
 		int flag1 = ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_FIRST_OF_PAIR;
 		int flag2 = ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_SECOND_OF_PAIR;
+
+		if(aln1.isNegativeStrand()) {
+			flag1+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
+		}
+		if(aln2.isNegativeStrand()) {
+			flag2+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
+		}
 
 		if(proper) {
 			flag1+=ReadAlignment.FLAG_PROPER;
@@ -365,6 +370,8 @@ public class ReadsAligner {
 
 
 
+
+
 	private boolean isPartOfATandemRepeat(ReadAlignment aln1, ReadAlignment aln2) {
 		boolean tandem = false;
 		int first = aln1.getFirst();
@@ -373,7 +380,7 @@ public class ReadsAligner {
 			first=aln2.getFirst();
 		}
 		if(tandemRepeats!=null ) {
-			List<GenomicRegion> l =tandemRepeats.get(aln1.getReadName());
+			List<GenomicRegion> l =tandemRepeats.get(aln1.getSequenceName());
 			for (int i = 0; i < l.size(); i++) {
 				GenomicRegion region = l.get(i);
 				tandem = region.getFirst()<first && region.getLast()>first;
