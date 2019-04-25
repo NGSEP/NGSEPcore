@@ -25,8 +25,12 @@ Aligns sequencing reads to a reference genome
 Calculates a list of genomic regions for sites where the reads can be find in the reference genome
 </description>
 <argument>FMINDEX_FILE</argument>
-<argument>READS_FILE</argument>
 <argument>ALIGNMENTS_FILE</argument>
+<argument>READS_FILE 1</argument>
+<argument>READS_FILE 2</argument>
+<option id="t" type="STRING" attribute="tandemRepeatsFile">
+Tandem Repeat file
+</option>
 <option id="p" type="DOUBLE" default="0.7" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
 </option>
