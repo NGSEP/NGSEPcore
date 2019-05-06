@@ -79,7 +79,6 @@ public class TransposonFinder {
 		boolean seen = false;
 		int count = 0; // Count of intermediate kmers that are not over-represented
 		int maxCount = 10; // TODO: tratar de cambiarlo a distancia
-		// GenomicRegionImpl actGenomicRegion = null;
 		Transposon actTransposon = null;
 		// Take into account known STR
 		List<GenomicRegion> actSTRs = null;
@@ -97,22 +96,22 @@ public class TransposonFinder {
 				if(!seen) {
 					if(useSTRs && indexSTR < actSTRs.size()) {
 						GenomicRegion STR = actSTRs.get(indexSTR);
-						if(Math.abs(STR.getFirst() - i) > 200) {
+						if(STR.getFirst() >  i || STR.getLast()<i) { //Check overlap 
 							// Is not a tandem repeat
-							// actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
 							actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
 							seen = true;
 						}
 					}
 					else {
-						//actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
 						actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
 						seen = true;						
 					}
 				}
-				else if (seen && count <= maxCount) {
-					// actGenomicRegion.setLast((i+lengthKmer));
+				else {
+					int actHits = actTransposon.getScore();
 					actTransposon.setLast((i+lengthKmer));
+					actTransposon.setScore(actHits + hits.size());
+					count = 0;
 				}
 			}
 			else if(seen) {
@@ -148,7 +147,7 @@ public class TransposonFinder {
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
 		instance.transposons = new LinkedHashMap();
-		instance.useSTRs = true;
+		instance.useSTRs = false;
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
