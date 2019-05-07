@@ -13,34 +13,16 @@ import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersCounter;
 import ngsep.sequences.QualifiedSequence;
 
-public class Transposon {
-	
-	private GenomicRegionImpl startRegion;
-	
-	private GenomicRegionImpl endRegion;
+public class Transposon extends GenomicRegionImpl{
 	
 	private String type;
 	
-	public Transposon(GenomicRegionImpl start, GenomicRegionImpl end, String ptype) {
-		startRegion = start;
-		endRegion = end;
+	private int score;
+	
+	public Transposon(String sequenceName, int first, int last, String ptype, int pscore) {
+		super(sequenceName, first, last);
 		type = ptype;
-	}
-
-	public GenomicRegionImpl getStartRegion() {
-		return startRegion;
-	}
-
-	public void setStartRegion(GenomicRegionImpl startRegion) {
-		this.startRegion = startRegion;
-	}
-
-	public GenomicRegionImpl getEndRegion() {
-		return endRegion;
-	}
-
-	public void setEndRegion(GenomicRegionImpl endRegion) {
-		this.endRegion = endRegion;
+		score = pscore;
 	}
 
 	public String getType() {
@@ -49,6 +31,14 @@ public class Transposon {
 
 	public void setType(String type) {
 		this.type = type;
+	}
+	
+	public int getScore() {
+		return score;
+	}
+	
+	public void setScore(int score) {
+		this.score = score;
 	}
 	
 }

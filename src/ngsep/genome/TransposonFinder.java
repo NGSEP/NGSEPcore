@@ -30,7 +30,7 @@ public class TransposonFinder {
 		
 	private Map<String, List<GenomicRegion>> STRs;
 		
-	private Map<String, List<GenomicRegion>> crossRegions;
+	private Map<String, List<Transposon>> transposons;
 	
 	private Distribution distrHits = new Distribution(0, 100, 1);
 		
@@ -49,24 +49,18 @@ public class TransposonFinder {
 			CharSequence seq = qs.getCharacters();
 			processSequence(seq, qs.getName(), fm);			
 		}
-		
-		// TODO: Check the form of LRT in the candidates
-		
+				
 		// Save the LTR in a text file
-		saveLTRs(crossRegions, "output.txt");
+		saveLTRs(transposons, "output.txt");
 	}
 	
-	public void saveLTRs(Map<String, List<GenomicRegion>> LTRs, String filename) throws IOException {
+	public void saveLTRs(Map<String, List<Transposon>> LTRs, String filename) throws IOException {
 		System.out.printf("Writing LTR predictions on %s \n", filename);
 		BufferedWriter writer = new BufferedWriter(new FileWriter(new File(filename)));
-		writer.write("LTR Prediction");
-		writer.newLine();
-		writer.write(String.format("%s\t%s\t%s", "Id", "Initial Position", "Final Position"));
-		writer.newLine();
 		for(String actSeq : LTRs.keySet()) {
-			for(GenomicRegion LTR: LTRs.get(actSeq)) {
-				System.out.printf("%s\t%d\t%d\n", actSeq, LTR.getFirst(), LTR.getLast());
-				writer.write(String.format("%s\t%d\t%d", actSeq, LTR.getFirst(), LTR.getLast()));
+			for(Transposon LTR: LTRs.get(actSeq)) {
+				System.out.printf("%s\t%d\t%d\t%d\n", actSeq, LTR.getFirst(), LTR.getLast(), LTR.getScore());
+				writer.write(String.format("%s\t%d\t%d\t%d", actSeq, LTR.getFirst(), LTR.getLast(), LTR.getScore()));
 				writer.newLine();
 			}
 		}
@@ -81,11 +75,11 @@ public class TransposonFinder {
 	 */
 	public void processSequence(CharSequence seq, String name, ReferenceGenomeFMIndex fm) {
 		System.out.printf("Processing Sequence %s \n", name);
-		List<GenomicRegion> repetitiveRegions = new ArrayList();
+		List<Transposon> repetitiveRegions = new ArrayList();
 		boolean seen = false;
 		int count = 0; // Count of intermediate kmers that are not over-represented
 		int maxCount = 10; // TODO: tratar de cambiarlo a distancia
-		GenomicRegionImpl actGenomicRegion = null;
+		Transposon actTransposon = null;
 		// Take into account known STR
 		List<GenomicRegion> actSTRs = null;
 		int indexSTR = 0;
@@ -102,19 +96,22 @@ public class TransposonFinder {
 				if(!seen) {
 					if(useSTRs && indexSTR < actSTRs.size()) {
 						GenomicRegion STR = actSTRs.get(indexSTR);
-						if(Math.abs(STR.getFirst() - i) > 200) {
+						if(STR.getFirst() >  i || STR.getLast()<i) { //Check overlap 
 							// Is not a tandem repeat
-							actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
+							actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
 							seen = true;
 						}
 					}
 					else {
-						actGenomicRegion = new GenomicRegionImpl(name, i, (i+lengthKmer));
+						actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
 						seen = true;						
 					}
 				}
-				else if (seen && count <= maxCount) {
-					actGenomicRegion.setLast((i+lengthKmer));					
+				else {
+					int actHits = actTransposon.getScore();
+					actTransposon.setLast((i+lengthKmer));
+					actTransposon.setScore(actHits + hits.size());
+					count = 0;
 				}
 			}
 			else if(seen) {
@@ -123,8 +120,8 @@ public class TransposonFinder {
 			if(count > maxCount) {
 				seen = false;
 				count = 0;
-				if(actGenomicRegion.length() > (lengthKmer + 1)) { 
-					repetitiveRegions.add(actGenomicRegion);
+				if(actTransposon.length() > (lengthKmer + 1)) { 
+					repetitiveRegions.add(actTransposon);
 				}
 			}
 			// Check that the index of the STR is greater than i
@@ -136,7 +133,7 @@ public class TransposonFinder {
 			}
 		}
 		System.out.printf("Found %d repetitive regions \n",repetitiveRegions.size());
-		crossRegions.put(name, repetitiveRegions);
+		transposons.put(name, repetitiveRegions);
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -149,8 +146,8 @@ public class TransposonFinder {
 		// Put as "arguments" kmer length and min hit size
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
-		instance.crossRegions = new LinkedHashMap();
-		instance.useSTRs = true;
+		instance.transposons = new LinkedHashMap();
+		instance.useSTRs = false;
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
