@@ -183,5 +183,11 @@ public class ReferenceGenomeFMIndex implements Serializable {
 			System.out.println(a.get(i).getSequenceName()+" pos:"+a.get(i).getFirst()+" to: "+a.get(i).getLast()+" flags:"+a.get(i).getFlags());
 		}
 	}
+
+	public boolean isValidAlignment(String sequenceName,int last) {
+		FMIndexSingleSequence internalIndex = internalIndexes.get(sequenceName);
+		if(internalIndex == null) return false;
+		return internalIndex.getSequenceLength()>=last;
+	}
 	
 }

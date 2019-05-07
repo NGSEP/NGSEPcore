@@ -25,9 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -36,6 +34,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
@@ -70,6 +69,12 @@ public class ReadsAligner {
 
 	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
+	public ReadsAligner(String fMIndexFile) throws IOException {
+		fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
+	}
+
+	public ReadsAligner() {	}
+
 	public static void main(String[] args) throws Exception 
 	{
 		ReadsAligner instance = new ReadsAligner();
@@ -78,14 +83,12 @@ public class ReadsAligner {
 		String outFile = args[i++];
 		String readsFile1 = args[i++];
 		String readsFile2="";
-		if(args.length>3) readsFile2 = args[i++];
-
+		if(isPairendParameters(args)) readsFile2 = args[i++];
 		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
-
 		try (PrintStream out = new PrintStream(outFile);
 				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			if(args.length>3)
+			if(isPairendParameters(args))
 			{
 				instance.alignReads(readsFile1,readsFile2, writer);
 			}
@@ -95,11 +98,15 @@ public class ReadsAligner {
 		}
 	}
 
+	private static boolean isPairendParameters(String[] args) {
+		return (args.length>5 &&(args[0].equals("-t")||args[2].equals("-t")) )||(args.length>3 && (!args[0].equals("-t")&&!args[0].equals("-p")));
+	}
+
 	public Map<String, List<GenomicRegion>> loadTRF(String tandemRepeatsFile) {
-		System.out.println(tandemRepeatsFile);
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		try {
 			tandemRepeats=handler.loadRegionsAsMap(tandemRepeatsFile);
+			flat();
 			return tandemRepeats;
 		} 
 		catch (IOException e) {
@@ -107,6 +114,55 @@ public class ReadsAligner {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	private void flat() {
+		Set<String>keys=tandemRepeats.keySet();
+		Iterator<String>it=keys.iterator();
+		while(it.hasNext()) {
+			String key = it.next();
+			List<GenomicRegion> l =tandemRepeats.get(key);
+			List<GenomicRegion> newList = flat(l);
+			while(isOverlappging(newList)) {
+				newList=flat(newList);
+			}
+			tandemRepeats.put(key, newList);
+		}
+	}
+
+	private boolean isOverlappging(List<GenomicRegion>l) {
+		for (int i = 0; i < l.size()-1; i++) {
+			GenomicRegion current = l.get(i);
+			GenomicRegion next = l.get(i+1);
+			if(isOverlappgingSorted(current, next)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isOverlappgingSorted(GenomicRegion a,GenomicRegion b) {
+		return b.getFirst()>=a.getFirst()&&b.getFirst()<=a.getLast();
+	}
+
+	private List<GenomicRegion> flat(List<GenomicRegion> l) {
+		List<GenomicRegion> newList = new ArrayList<GenomicRegion>();
+		for (int i = 0; i < l.size(); i++) {
+			if(i+1==l.size())newList.add(l.get(i));
+			else {
+				GenomicRegion current =l.get(i);
+				GenomicRegion next =l.get(i+1);
+				if(isOverlappgingSorted(current, next)) {
+					newList.add(new GenomicRegionImpl(current.getSequenceName(), current.getFirst(), Math.max(current.getLast(), next.getLast())));
+					i++;
+				}
+				else {
+					newList.add(current);
+				}
+			}	
+		}
+
+		return newList;
 	}
 
 	/**
@@ -148,7 +204,7 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
-		if(tandemRepeatsFile!=null)loadTRF(tandemRepeatsFile);
+		if(tandemRepeatsFile!=null && !tandemRepeatsFile.isEmpty())loadTRF(tandemRepeatsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
@@ -195,7 +251,7 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
-		if(tandemRepeatsFile!=null && !tandemRepeats.isEmpty())loadTRF(tandemRepeatsFile);
+		if(tandemRepeatsFile!=null && !tandemRepeatsFile.isEmpty())loadTRF(tandemRepeatsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int proper = 0;
@@ -241,9 +297,6 @@ public class ReadsAligner {
 						proper++;
 						addPairAlignments(alns, pairAlns);
 					}
-
-
-					//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 					for(ReadAlignment aln:alns) writer.write(aln);	
 					int numAlns = alns.size();
 					totalReads++;
@@ -288,7 +341,6 @@ public class ReadsAligner {
 			if(pairEndsAlignments!=null) {
 				pairEndAlns.add(pairEndsAlignments);
 			}
-
 		}
 		return pairEndAlns;
 	}
@@ -317,8 +369,6 @@ public class ReadsAligner {
 		return r;
 	}
 
-
-
 	public Boolean pairAlignMents(ReadAlignment aln1, ReadAlignment aln2,boolean onlyProper) {
 		if(aln1.getSequenceName().equals(aln2.getSequenceName())) {
 			int start1 = aln1.getFirst();
@@ -344,7 +394,6 @@ public class ReadsAligner {
 	}
 
 	private PairEndsAlignments setFlags(ReadAlignment aln1, ReadAlignment aln2,boolean proper) {
-		boolean istandem = isPartOfATandemRepeat(aln1,aln2);		
 		aln1.setPair();
 		aln2.setPair();
 		setMateInfo(aln1,aln2);
@@ -358,7 +407,6 @@ public class ReadsAligner {
 		if(aln2.isNegativeStrand()) {
 			flag2+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
 		}
-
 		if(proper) {
 			flag1+=ReadAlignment.FLAG_PROPER;
 			flag2+=ReadAlignment.FLAG_PROPER;
@@ -369,24 +417,25 @@ public class ReadsAligner {
 	}
 
 
+	public GenomicRegion findTandemRepeat(ReadAlignment aln1) {
+		if(tandemRepeats==null)return null;
+		List<GenomicRegion> l =tandemRepeats.get(aln1.getSequenceName());
+		return binaryContains(l, 0, l.size()-1, aln1);
+	}
 
-
-
-	private boolean isPartOfATandemRepeat(ReadAlignment aln1, ReadAlignment aln2) {
-		boolean tandem = false;
-		int first = aln1.getFirst();
-		if(aln2.isPositiveStrand())
-		{
-			first=aln2.getFirst();
+	private GenomicRegion binaryContains(List<GenomicRegion> l, int left, int rigth, GenomicRegion element) {
+		if(rigth>=left) {
+			int middle = left +(rigth-left)/2;
+			GenomicRegion actual = l.get(middle);
+			if(isOverlappgingSorted(actual, element)||isOverlappgingSorted(element, actual	)) {
+				return actual;
+			}
+			if(l.get(middle).getFirst()>element.getFirst()) {
+				return binaryContains(l, left, middle-1, element);
+			}
+			return binaryContains(l, middle+1,rigth, element);
 		}
-		if(tandemRepeats!=null ) {
-			List<GenomicRegion> l =tandemRepeats.get(aln1.getSequenceName());
-			for (int i = 0; i < l.size(); i++) {
-				GenomicRegion region = l.get(i);
-				tandem = region.getFirst()<first && region.getLast()>first;
-			}	
-		}
-		return tandem;
+		return null;
 	}
 
 	private ArrayList<ReadAlignment> processUnMapped(RawRead read1, List<ReadAlignment> alns1, RawRead read2, List<ReadAlignment> alns2) {
@@ -441,10 +490,146 @@ public class ReadsAligner {
 		return alns.get(r.nextInt(alns.size())) ;
 	}
 
+	private ReadAlignment buildAln(CharSequence query, String qualityScores, String sequenceName, int first, int last,String cigar, double alnQual) {
+		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
+		aln.setReadCharacters(query);
+		aln.setQualityScores(qualityScores);
+		if(cigar!=null)aln.setCigarString(cigar);
+		aln.setAlignmentQuality((short) Math.round(alnQual));
+		//verify last exists
+		if(!fMIndex.isValidAlignment(sequenceName,aln.getLast())) return null;
+		return aln;
+	}
+
+	public ReadAlignment verifyShortTandemRepeats(ReadAlignment aln, CharSequence read, String qualityScores, GenomicRegion region) {
+		//Case 1
+		if(aln.getFirst()<region.getFirst() && aln.getLast()<region.getLast()) {
+			return alnInLeft(aln, read, qualityScores, region);
+		}
+		//Case 2
+		if(aln.getFirst()>region.getFirst()&&aln.getLast()>region.getLast()) {
+			return alnInRigth(aln, read, qualityScores, region);
+		}
+		//Case 3
+		if(aln.getFirst()<region.getFirst()&&aln.getLast()>region.getLast()) {
+			int overlapLength = region.length();
+
+			int aln1First =Math.max(1,aln.getFirst());
+			int aln1Last=region.getFirst()-1;
+			String aln1SequenceName=aln.getSequenceName();
+			if(aln1First>=aln1Last)return null;
+			ReadAlignment aln1=alnInMid(read,qualityScores, aln1First, aln1Last,aln1SequenceName,overlapLength,false);
+
+			int aln2First=Math.max(1,region.getLast())+1;
+			int aln2Last=aln.getLast();
+			if(aln2First>=aln2Last)return null;
+
+			String aln2SequenceName=aln.getSequenceName();
+			ReadAlignment aln2=alnInMid( read, qualityScores,  aln2First,  aln2Last, aln2SequenceName,overlapLength+aln1Last-aln1First+1,true);
+
+			if(aln1==null||aln2==null)return null;
+			int a = aln1.length()+aln2.length()+region.length();
+			int b = aln.length();
+			int c=a-b;
+			//case 3a
+			int first = aln1.getFirst();
+			int last = aln2.getLast();
+			String cigar = aln1.getCigarString()+""+region.length()+"M"+aln2.getCigarString();
+			double alnQual = (aln1.getAlignmentQuality()+aln2.getAlignmentQuality())/2;
+
+			//case 3b
+			if(c>0) {
+				System.out.println("c: "+c);
+			}
+			//case 3c
+			else if(c<0) {
+				int del1=aln1Last-aln1.getLast();
+				int del2 = aln2.getFirst()-aln2First;
+				cigar = aln1.getCigarString();
+				cigar+=addIfnotEmpty(del1,"D");
+				cigar+=addIfnotEmpty(region.length(),"M");
+				cigar+=addIfnotEmpty(del2,"D");
+				cigar+=aln2.getCigarString();
+			}
+			return buildAln(read, qualityScores, aln1.getSequenceName(), first, last, cigar, alnQual);
+		}
+		return null;
+	}
+
+	private String addIfnotEmpty(int del1, String string) {
+		if(del1>0)return del1+string;
+		return "";
+	}
+
+	private ReadAlignment alnInLeft(ReadAlignment aln, CharSequence read, String qualityScores, GenomicRegion region) {
+		int overlapStart = region.getFirst();
+		int overlapEnd = aln.getLast();
+		int overlapLength = overlapEnd-overlapStart+1;
+		String sequenceName=aln.getSequenceName();
+		int first = Math.max(1, aln.getFirst());
+		int last = overlapStart;
+		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
+		if(overlapLength>1 && overlapLength<90 && refSeq != null)
+		{
+			String readNoSTR=read.subSequence(0, read.length()-overlapLength).toString();
+			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			last = first+result.getSubjectLastIdx();
+			first = first + result.getSubjectStartIdx();
+			String cigar = result.getCigarString()+overlapLength+"S";
+			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			ReadAlignment newaln = buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
+			return newaln;
+		}
+		return null;
+	}
+
+
+	private ReadAlignment alnInMid(CharSequence read,String qualityScores, int pFirst, int pLast,String sequenceName, int overlapLength, boolean rigth) {
+		try {
+			String readNoSTR=read.subSequence(0,pLast-pFirst+1).toString();
+			if(rigth)readNoSTR=read.subSequence(overlapLength,read.length()).toString();
+			CharSequence refSeq = fMIndex.getSequence(sequenceName, pFirst, pLast);
+			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			int last = pFirst+result.getSubjectLastIdx();
+			int first = pFirst + result.getSubjectStartIdx();
+			String cigar = result.getCigarString();
+			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			ReadAlignment newaln = buildAln(readNoSTR, qualityScores, sequenceName, first, last, cigar, alnQual);
+			return newaln;
+		}
+		catch(Exception e) {
+			return null;
+		}
+	}
 
 
 
-
+	private ReadAlignment alnInRigth(ReadAlignment aln, CharSequence read, String qualityScores, GenomicRegion region) {
+		int overlapStart=aln.getFirst();
+		int overlapEnd=region.getLast();
+		int overlapLength = overlapEnd-overlapStart+1;
+		String sequenceName=aln.getSequenceName();
+		int first =Math.max(1, region.getLast()+1);
+		int last = aln.getLast();
+		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
+		if(overlapLength>0 && overlapLength<90 && refSeq != null)
+		{
+			String readNoSTR=read.subSequence(overlapLength, read.length()).toString();
+			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			last = first+result.getSubjectLastIdx();
+			first = first + result.getSubjectStartIdx();
+			String cigar = overlapLength+"S"+result.getCigarString();
+			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			ReadAlignment newaln = buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
+			return newaln;
+		}
+		return null;
+	}
+	/**
+	 * Old and stable
+	 * @param read
+	 * @return
+	 */
 
 	public List<ReadAlignment> alignRead(RawRead read) {
 		List<ReadAlignment> alignments = kmerBasedInexactSearchAlgorithm(read);
@@ -573,14 +758,24 @@ public class ReadsAligner {
 		int numDiffKmers = cluster.getNumDifferentKmers();
 		double prop = (double) numDiffKmers/totalKmers;
 		if(prop<minProportionKmers) return null;
-
-
 		String sequenceName = cluster.getSequenceName();
 		int first = cluster.getFirst();
 		int last = cluster.getLast();
+		int length = last-first+1;
 		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" firstaln: "+cluster.isFirstAlnPresent()+" last aln: "+cluster.isLastAlnPresent());
 		String cigar = query.length()+"M";
+		if(length>query.length()) {
+			cigar+=(length-query.length())+"D";
+		}
 		double alnQual = 100.0;
+		ReadAlignment aln = buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
+		if(aln!=null) {
+			GenomicRegion region =findTandemRepeat(aln);
+			if(region!=null) {
+				ReadAlignment newaln=verifyShortTandemRepeats(aln,query,qualityScores,region);
+				if(newaln!=null) return newaln;
+			}
+		}
 		if (!cluster.isAllConsistent() || !cluster.isFirstAlnPresent() || !cluster.isLastAlnPresent()) {
 			//Perform smith waterman
 			if(!cluster.isFirstAlnPresent()) first -=10;
@@ -589,24 +784,16 @@ public class ReadsAligner {
 			last = Math.min(fMIndex.getReferenceLength(sequenceName), cluster.getLast());
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 			if(refSeq == null) return null;
-			//System.out.println(""+query);
-			//System.out.println(""+refSeq);
 			AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
 			//TODO: Make better score
 			if(result.getDistance()>0.5*query.length()) return null;
-
 			//Last must be updated before first
 			last = first+result.getSubjectLastIdx();
 			first = first + result.getSubjectStartIdx();
 			cigar = result.getCigarString();
 			alnQual = 100.0* (query.length() - result.getDistance())/query.length();
+			aln = buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
 		}
-		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
-		aln.setReadCharacters(query);
-		aln.setQualityScores(qualityScores);
-		//if(aln.getLast()-aln.getFirst()>aln.getReadLength()) System.out.println("Aln for read: "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast());
-		aln.setCigarString(cigar);
-		aln.setAlignmentQuality((short) Math.round(alnQual));
 		return aln;
 	}
 
@@ -676,6 +863,7 @@ public class ReadsAligner {
 		}
 		return result;
 	}
+
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments) {
 		if (alignments.size()==0) return alignments;
 		Collections.sort(alignments, new Comparator<ReadAlignment>() {
@@ -701,210 +889,8 @@ public class ReadsAligner {
 		return filteredAlignments;
 	}
 }
-class AlignmentResult {
-	private int subjectStartIdx;
-	private int subjectLastIdx;
-	private int distance;
-	private LinkedList<Character> path = new LinkedList<>();
-
-	public void addBacktrack(char decision) {
-		path.add(0, decision);
-	}
-
-	public String getCigarString () {
-		StringBuilder cigar = new StringBuilder();
-		int nextCount = 0;
-		char next = 0;
-		for(char c:path) {
-			if(c!=next) {
-				if(nextCount>0) {
-					cigar.append(nextCount);
-					cigar.append(next);
-				}
-				nextCount = 1;
-				next = c;
-			} else {
-				nextCount++;
-			}
-		}
-		if(nextCount>0) {
-			cigar.append(nextCount);
-			cigar.append(next);
-		}
-		return cigar.toString();
-	}
-
-	/**
-	 * @return the subjectStartIdx
-	 */
-	public int getSubjectStartIdx() {
-		return subjectStartIdx;
-	}
-
-	/**
-	 * @param subjectStartIdx the subjectStartIdx to set
-	 */
-	public void setSubjectStartIdx(int subjectStartIdx) {
-		this.subjectStartIdx = subjectStartIdx;
-	}
-
-	/**
-	 * @return the subjectLastIdx
-	 */
-	public int getSubjectLastIdx() {
-		return subjectLastIdx;
-	}
-
-	/**
-	 * @param subjectLastIdx the subjectLastIdx to set
-	 */
-	public void setSubjectLastIdx(int subjectLastIdx) {
-		this.subjectLastIdx = subjectLastIdx;
-	}
-
-	/**
-	 * @return the distance
-	 */
-	public int getDistance() {
-		return distance;
-	}
-
-	/**
-	 * @param distance the distance to set
-	 */
-	public void setDistance(int distance) {
-		this.distance = distance;
-	}
 
 
-}
-class KmerWithStart {
-	private CharSequence kmer;
-	private int start;
-	public KmerWithStart(CharSequence kmer, int start) {
-		super();
-		this.kmer = kmer;
-		this.start = start;
-	}
-	/**
-	 * @return the kmer
-	 */
-	public CharSequence getKmer() {
-		return kmer;
-	}
-	/**
-	 * @return the start
-	 */
-	public int getStart() {
-		return start;
-	}	
-}
-class KmerAlignmentCluster implements GenomicRegion {
-	private CharSequence query;
-	private List<ReadAlignment> alns=new ArrayList<>();
-	private String sequenceName;
-	private int first;
-	private int last;
-	private Set<Integer> kmerNumbers = new HashSet<>();
-	private boolean allConsistent = true;
-	private boolean repeatedNumber = false;
-	private boolean lastAlnPresent = false;
 
-	public KmerAlignmentCluster(CharSequence query, ReadAlignment aln) {
-		this.query = query;
-		sequenceName = aln.getSequenceName();
-		int kmerQueryStart = aln.getReadNumber();
-		first = aln.getFirst() - kmerQueryStart;
-		last = aln.getFirst()+(query.length()-kmerQueryStart-1);
-		alns.add(aln);
-		kmerNumbers.add(kmerQueryStart);
-		lastAlnPresent = kmerQueryStart+aln.length()==query.length();
-	}
-
-	@Override
-	public String getSequenceName() {
-		return sequenceName;
-	}
-
-	@Override
-	public int getFirst() {
-		return first;
-	}
-
-	@Override
-	public int getLast() {
-		return last;
-	}
-
-	@Override
-	public int length() {
-		return last-first+1;
-	}
-
-	@Override
-	public boolean isPositiveStrand() {
-		return true;
-	}
-
-	@Override
-	public boolean isNegativeStrand() {
-		return false;
-	}
-	public boolean addAlignment(ReadAlignment aln) {
-		int kmerQueryStart = aln.getReadNumber();
-		int estFirst = aln.getFirst() - kmerQueryStart;
-		int estLast = aln.getFirst()+(query.length()-kmerQueryStart-1);
-		//System.out.println("Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
-		if(first > estLast || last < estFirst) return false;
-		if(first != estFirst) allConsistent = false;
-		if(last != estLast) allConsistent = false;
-		if(kmerNumbers.contains(kmerQueryStart)) repeatedNumber = true;
-		else kmerNumbers.add(kmerQueryStart);
-		if(kmerQueryStart+aln.length()==query.length()) lastAlnPresent=true;
-		if(first>estFirst) first = estFirst;
-		if(last<estLast) last = estLast;
-		alns.add(aln);
-		return true;	
-	}
-
-	/**
-	 * @return the query
-	 */
-	public CharSequence getQuery() {
-		return query;
-	}
-
-	/**
-	 * 
-	 * @return the kmerNumbers
-	 */
-	public int getNumDifferentKmers() {
-		return kmerNumbers.size();
-	}
-
-	/**
-	 * @return the allConsistent
-	 */
-	public boolean isAllConsistent() {
-		return allConsistent;
-	}
-
-	/**
-	 * @return the repeatedNumber
-	 */
-	public boolean isRepeatedNumber() {
-		return repeatedNumber;
-	}
-
-	public boolean isFirstAlnPresent() {
-		return kmerNumbers.contains(0);
-	}
-	/**
-	 * @return the lastAlnPresent
-	 */
-	public boolean isLastAlnPresent() {
-		return lastAlnPresent;
-	}
-}
 
 
