@@ -137,6 +137,7 @@ public class TransposonFinder {
 	}
 
 	public static void main(String[] args) throws IOException {
+		long start = System.currentTimeMillis();
 		TransposonFinder instance = new TransposonFinder();
 		// Load the genome from a .fa file
 		instance.genome = new ReferenceGenome(args[0]);
@@ -147,10 +148,11 @@ public class TransposonFinder {
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
 		instance.transposons = new LinkedHashMap();
-		instance.useSTRs = false;
+		instance.useSTRs = true;
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
 		instance.run();
+		System.out.println("Total time consumed: " + (System.currentTimeMillis() - start));
 	}
 }
