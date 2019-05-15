@@ -78,7 +78,7 @@ public class TransposonFinder {
 		List<Transposon> repetitiveRegions = new ArrayList();
 		boolean seen = false;
 		int count = 0; // Count of intermediate kmers that are not over-represented
-		int maxCount = 10; // TODO: tratar de cambiarlo a distancia
+		int maxCount = 30; // TODO: tratar de cambiarlo a distancia
 		Transposon actTransposon = null;
 		// Take into account known STR
 		List<GenomicRegion> actSTRs = null;
@@ -120,7 +120,7 @@ public class TransposonFinder {
 			if(count > maxCount) {
 				seen = false;
 				count = 0;
-				if(actTransposon.length() > (lengthKmer + 1)) { 
+				if(actTransposon.length() - (lengthKmer + 1) > 1000) { 
 					repetitiveRegions.add(actTransposon);
 				}
 			}
@@ -137,6 +137,7 @@ public class TransposonFinder {
 	}
 
 	public static void main(String[] args) throws IOException {
+		long start = System.currentTimeMillis();
 		TransposonFinder instance = new TransposonFinder();
 		// Load the genome from a .fa file
 		instance.genome = new ReferenceGenome(args[0]);
@@ -152,5 +153,6 @@ public class TransposonFinder {
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
 		instance.run();
+		System.out.println("Total time consumed: " + (System.currentTimeMillis() - start));
 	}
 }
