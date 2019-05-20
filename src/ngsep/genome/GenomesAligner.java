@@ -530,11 +530,14 @@ public class GenomesAligner {
 				}
 			}
 			//Print D3 linear visualization
-			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearView.html");) {
-				printD3Visualization(outD3Linear,"GenomesAlignerLinearVisualizer.js", 3);
+			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearOrthologView.html");) {
+				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", 5);
 			}
-			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_paralogView.html");) {
+			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_circularParalogView.html");) {
 				printD3Visualization(outD3Linear,"GenomesAlignerCircularParalogVisualizer.js", 5);
+			}
+			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_circularOrthologView.html");) {
+				printD3Visualization(outD3Linear,"GenomesAlignerCircularOrthologVisualizer.js", 5);
 			}
 		}
 

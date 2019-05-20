@@ -13,7 +13,7 @@ const dims = {
     labelRadius: 270 + 120,
     padAngle: 0.02,
     ticksPadAngle: 0.014,
-    ticksSpacing: 200000,
+    ticksSpacing: 8000000,
     ribbonPadAngle: 0.015,
     opacity: 0.7,
     fadedOpacity: 0.01,
@@ -72,18 +72,30 @@ const kiloFormat = d3.formatPrefix(',.0', 1e3);
 const megaFormat = d3.formatPrefix(',.0', 1e6);
 const gigaFormat = d3.formatPrefix(',.0', 1e9);
 
-const update = (genomeData, paralogsData) => {
-    genomeData = genomeData.filter(chromosome => {
+const update = (genomeData1, genomeData2, paralogsData1, paralogsData2, orthologsData1, orthologsData2) => {
+    genomeData1 = genomeData1.filter(chromosome => {
         return chromosome.Length > minimumChromosomeLength;
     });
-
+    genomeData2 = genomeData2.filter(chromosome => {
+        return chromosome.Length > minimumChromosomeLength;
+    });
+    genomeData = [...genomeData1, ...genomeData2];
+    
     const chordGroupData = pie(genomeData);
     let chordTicks = [];
     chordGroupData.map(item => createTicks(item, dims.ticksSpacing)).forEach(item => {
         chordTicks = [...chordTicks, ...item];
     });
-    console.log(chordTicks);
-    ribbonsData = createParalogChords(genomeData, paralogsData, chordGroupData);
+    paralogsData = [...paralogsData1, ...paralogsData2];
+    orthologsData = [...orthologsData1, ...orthologsData2];
+    console.log(paralogsData);
+    console.log(orthologsData);
+
+    ribbonsParalogsData = createParalogChords(genomeData, paralogsData, chordGroupData);
+    console.log(ribbonsParalogsData);
+    ribbonsOrthologsData = createOrthologChords(genomeData, orthologsData, chordGroupData);
+    console.log(ribbonsOrthologsData);
+    ribbonsData = [...ribbonsParalogsData, ...ribbonsOrthologsData];
     console.log(ribbonsData);
     const ribbons = ribbonsGroup.selectAll('.ribbon').data(ribbonsData);
     const arcs = arcsGroup.selectAll('.arc').data(chordGroupData);
@@ -239,7 +251,7 @@ const createParalogChords = (genomeData, paralogs, chromosomes) => {
             sourceRibbonEndAngle = paralog.geneEnd / chromosomes[sourceIndex].value * (sourceChromosomeEndAngle - sourceChromosomeStartAngle) + sourceChromosomeStartAngle;
             targetRibbonStartAngle = paralog.paralogStart / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
             targetRibbonEndAngle = paralog.paralogEnd / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
-            paralogChords.push( {
+            paralogChords.push({
                 source: { index: sourceIndex, subIndex: targetIndex, startAngle: sourceRibbonStartAngle, endAngle: sourceRibbonEndAngle },
                 target: { index: targetIndex, subIndex: sourceIndex, startAngle: targetRibbonStartAngle, endAngle: targetRibbonEndAngle }
             });
@@ -247,6 +259,30 @@ const createParalogChords = (genomeData, paralogs, chromosomes) => {
     }
     );
     return paralogChords;
+}
+const createOrthologChords = (genomeData, orthologs, chromosomes) => {
+    orthologsChords = [];
+    orthologs.forEach(ortholog => {
+        if (chromosomesDisplayed(ortholog.chromosome, ortholog.chromosomeG2, chromosomes)) {
+            const chromosomeIndexes = chromosomeToIndex(genomeData);
+            targetIndex = chromosomeIndexes[ortholog.chromosomeG2];
+            sourceIndex = chromosomeIndexes[ortholog.chromosome];
+            sourceChromosomeStartAngle = chromosomes[sourceIndex].startAngle + dims.ribbonPadAngle;
+            sourceChromosomeEndAngle = chromosomes[sourceIndex].endAngle - dims.ribbonPadAngle;
+            targetChromosomeStartAngle = chromosomes[targetIndex].startAngle + dims.ribbonPadAngle;
+            targetChromosomeEndAngle = chromosomes[targetIndex].endAngle - dims.ribbonPadAngle;
+            sourceRibbonStartAngle = ortholog.geneStart / chromosomes[sourceIndex].value * (sourceChromosomeEndAngle - sourceChromosomeStartAngle) + sourceChromosomeStartAngle;
+            sourceRibbonEndAngle = ortholog.geneEnd / chromosomes[sourceIndex].value * (sourceChromosomeEndAngle - sourceChromosomeStartAngle) + sourceChromosomeStartAngle;
+            targetRibbonStartAngle = ortholog.geneStartG2 / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
+            targetRibbonEndAngle = ortholog.geneEndG2 / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
+            orthologsChords.push({
+                source: { index: sourceIndex, subIndex: targetIndex, startAngle: sourceRibbonStartAngle, endAngle: sourceRibbonEndAngle },
+                target: { index: targetIndex, subIndex: sourceIndex, startAngle: targetRibbonStartAngle, endAngle: targetRibbonEndAngle }
+            });
+        }
+    }
+    );
+    return orthologsChords;
 }
 
 const chromosomesDisplayed = (chromosome, paralogChromosome, chromosomes) => {
@@ -275,9 +311,21 @@ const setOpacity = (elements, opacity) => {
 
 
 d3.tsv(genome1)
-    .then(genomeData => {
-        d3.tsv(paralogsG1)
-            .then(paralogData => {
-                update(genomeData, paralogData);
-            });
+    .then(genomeData1 => {
+        d3.tsv(genome2)
+            .then(genomeData2 => {
+                d3.tsv(paralogsG1)
+                    .then(paralogData1 => {
+                        d3.tsv(paralogsG2)
+                            .then(paralogData2 => {
+                                d3.tsv(orthologsG1)
+                                    .then(orthologsData1 => {
+                                        d3.tsv(orthologsG2)
+                                            .then(orthologsData2 => {
+                                                update(genomeData1, genomeData2, paralogData1, paralogData2, orthologsData1, orthologsData2);
+                                            })
+                                    })
+                            })
+                    });
+            })
     });
