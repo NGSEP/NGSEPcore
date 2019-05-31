@@ -856,8 +856,9 @@ compressed by default
 <option id="o" type="DIR" attribute="outDirectory">
 Directory where the output fastq files will be saved.
 </option>
-<option id="t" type="STRING" attribute="trimSequence">
-If this sequence is found within a read, the read will be trimmed up to the start of this sequence.
+<option id="t" type="STRING" attribute="trimSequences">
+Sequences to trim separated by comma. If any of the given sequences is found within a read,
+the read will be trimmed up to the start of the sequence.
 </option>
 <option id="u" type="BOOLEAN" attribute="uncompressedOutput">
 Output uncompressed files.
