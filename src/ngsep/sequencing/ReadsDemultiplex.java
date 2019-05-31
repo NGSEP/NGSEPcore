@@ -56,7 +56,7 @@ public class ReadsDemultiplex {
 	//private Map<String,Pattern> regExps = new TreeMap<String, Pattern>();
 	private String outDirectory = ".";
 	private String prefix = "";
-	private String trimSequence = null;
+	private String [] trimSequences = null;
 	private int minReadLength = 40;
 	private boolean uncompressedOutput = false;
 	private boolean dualBarcode = false;
@@ -66,7 +66,7 @@ public class ReadsDemultiplex {
 	
 	private ProgressNotifier progressNotifier = null;
 	
-	private Pattern trimRegexp = null;
+	private Pattern [] trimRegexps = null;
 	
 	//Statistics
 	private int total = 0;
@@ -196,20 +196,25 @@ public class ReadsDemultiplex {
 		this.setDualBarcode(dualBarcode.booleanValue());
 	}
 
-	public String getTrimSequence() {
-		return trimSequence;
+	public String [] getTrimSequences() {
+		return trimSequences;
 	}
 
-	public void setTrimSequence(String trimSequence) {
-		this.trimSequence = trimSequence;
-		if(trimSequence!=null) {
-			trimRegexp = Pattern.compile(DegenerateSequence.makeRegularExpression(trimSequence));
+	public void setTrimSequences(String [] trimSequences) {
+		this.trimSequences = trimSequences;
+		if(trimSequences!=null) {
+			trimRegexps = new Pattern[trimSequences.length];
+			for(int i=0;i<trimSequences.length;i++) {
+				trimRegexps[i] = Pattern.compile(DegenerateSequence.makeRegularExpression(trimSequences[i]));
+			}
 		} else {
-			trimRegexp = null;
+			trimRegexps = null;
 		}
  	}
 	
-	
+	public void setTrimSequences(String trimSequencesByComma) {
+		setTrimSequences(trimSequencesByComma.split(","));
+	}
 
 	public boolean isUncompressedOutput() {
 		return uncompressedOutput;
@@ -332,7 +337,9 @@ public class ReadsDemultiplex {
 			//Trim barcode
 			read.trimFirstNucleotides(barcodeLength);
 			//Trim end if sequence appears
-			read.trimFromSequence(trimRegexp);
+			for(Pattern pattern:trimRegexps) {
+				if(read.trimFromSequence(pattern)) break;
+			}
 			if(read.getLength()>=minReadLength) {
 				String sampleId = barcodeData[0];
 				PrintStream out = outFiles.get(sampleId);
@@ -459,7 +466,9 @@ public class ReadsDemultiplex {
 		}
 		//Trim end if sequence appears
 		int l1 = read1.getLength();
-		read1.trimFromSequence(trimRegexp);
+		for(Pattern pattern:trimRegexps) {
+			if(read1.trimFromSequence(pattern)) break;
+		}
 		if(read1.getLength()!=l1) {
 			read2.trimToLength(read1.getLength());
 		}

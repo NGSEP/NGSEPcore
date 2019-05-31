@@ -58,14 +58,21 @@ public class RawRead extends QualifiedSequence {
 		setCharacters(getSequenceString().substring(n));
 		setQualityScores(getQualityScores().substring(n));
 	}
-	public void trimFromSequence(Pattern regexp) {
+	/**
+	 * Trims the end of the read starting from the first appearance of the given pattern 
+	 * @param regexp Sequence to trim reads
+	 * @return boolean true if the read was trimmed
+	 */
+	public boolean trimFromSequence(Pattern regexp) {
 		String sequence = getSequenceString();
-		if(regexp==null) return;
+		if(regexp==null) return false;
 		Matcher m = regexp.matcher(sequence);
 		if(m.find()) {
 			int start = m.start();
 			trimToLength(start);
+			return true;
 		}
+		return false;
 	}
 	public void trimToLength(int newLength) {
 		String sequence = getSequenceString();
