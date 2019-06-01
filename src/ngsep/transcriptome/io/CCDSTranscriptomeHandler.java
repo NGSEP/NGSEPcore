@@ -62,11 +62,8 @@ public class CCDSTranscriptomeHandler {
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
 		Transcriptome answer = new Transcriptome(sequenceNames);
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			in = new BufferedReader(new InputStreamReader(fis));
+		try (FileInputStream fis = new FileInputStream(filename);
+			 BufferedReader in = new BufferedReader(new InputStreamReader(fis)) ) {
 			String line=in.readLine();
 			while(line!=null) {
 				if(line.charAt(0)!='#') {
@@ -82,13 +79,18 @@ public class CCDSTranscriptomeHandler {
 							line=in.readLine();
 							continue;
 						}
+						int first = Integer.parseInt(items[7])+1;
+						int last = Integer.parseInt(items[8])+1;
 						Gene gene =  answer.getGene(items[3]);
 						if(gene == null) {
-							gene = new Gene(items[3],items[2]);
+							gene = new Gene(items[3],items[2],seq.getName(),first, last, reverse);
+						} else {
+							if(gene.getLast()<last) gene.setLast(last);
+							if(gene.getFirst()>first) gene.setFirst(first);
 						}
 						
 						//Add 1 to all starts and ends because CCDS positions are zero indexed
-						Transcript transcript = new Transcript(items[4],seq.getName(),Integer.parseInt(items[7])+1,Integer.parseInt(items[8])+1,reverse);
+						Transcript transcript = new Transcript(items[4],seq.getName(),first,last,reverse);
 						String exonsStr = items[9].substring(1,items[9].length()-1);
 						String [] items2 = exonsStr.split(", ");
 						List<TranscriptSegment> tExons = new ArrayList<TranscriptSegment>();
@@ -105,9 +107,6 @@ public class CCDSTranscriptomeHandler {
 				}
 				line=in.readLine();
 			}
-		} finally {
-			if (in!=null) in.close();
-			if (fis!=null) fis.close();
 		}
 		return answer;
 	}

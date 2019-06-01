@@ -21,13 +21,19 @@ package ngsep.transcriptome;
 
 import java.util.List;
 
+import ngsep.genome.GenomicRegion;
+
 /**
  * Information for a Gene mapped to a reference genome
  * @author Jorge Duitama
  */
-public class Gene {
+public class Gene implements GenomicRegion {
 	private String id;
 	private String name;
+	private String sequenceName;
+	private int first;
+	private int last;
+	private boolean negativeStrand;
 	private List<String> ontologyTerms;
 	private List<String> databaseReferences;
 	
@@ -36,10 +42,13 @@ public class Gene {
 	 * @param id Id of the gene
 	 * @param name Name of the gene
 	 */
-	public Gene(String id, String name) {
-		super();
+	public Gene(String id, String name, String sequenceName, int first, int last, boolean negativeStrand) {
 		this.id = id;
 		this.name = name;
+		this.sequenceName = sequenceName;
+		this.first = first;
+		this.last = last;
+		this.negativeStrand = negativeStrand;
 	}
 	/**
 	 * @return String id of the gene
@@ -68,6 +77,43 @@ public class Gene {
 		this.name = name;
 	}
 	/**
+	 * @return the sequenceName
+	 */
+	public String getSequenceName() {
+		return sequenceName;
+	}
+	/**
+	 * @return the first
+	 */
+	public int getFirst() {
+		return first;
+	}
+	/**
+	 * @param first the first to set
+	 */
+	public void setFirst(int first) {
+		this.first = first;
+	}
+	/**
+	 * @return the last
+	 */
+	public int getLast() {
+		return last;
+	}
+	/**
+	 * @param last the last to set
+	 */
+	public void setLast(int last) {
+		this.last = last;
+	}
+	
+	/**
+	 * @return the negativeStrand
+	 */
+	public boolean isNegativeStrand() {
+		return negativeStrand;
+	}
+	/**
 	 * @return List<String> Ontology terms associated with this gene
 	 */
 	public List<String> getOntologyTerms() {
@@ -92,6 +138,14 @@ public class Gene {
 	 */
 	public void setDatabaseReferences(List<String> databaseReferences) {
 		this.databaseReferences = databaseReferences;
+	}
+	@Override
+	public int length() {
+		return last-first+1;
+	}
+	@Override
+	public boolean isPositiveStrand() {
+		return !negativeStrand;
 	}
 	
 }

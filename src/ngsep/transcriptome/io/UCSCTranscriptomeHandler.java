@@ -57,11 +57,8 @@ public class UCSCTranscriptomeHandler {
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
 		Transcriptome answer = new Transcriptome(sequenceNames);
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			in = new BufferedReader(new InputStreamReader(fis)); 
+		try (FileInputStream fis = new FileInputStream(filename);
+			 BufferedReader in = new BufferedReader(new InputStreamReader(fis)) ) {
 			String line=in.readLine();
 			while(line!=null) {
 				if(line.charAt(0)!='#') {
@@ -93,8 +90,12 @@ public class UCSCTranscriptomeHandler {
 					
 					Gene gene = answer.getGene(geneId);
 					if(gene == null) {
-						gene = new Gene(geneId,geneId);
+						gene = new Gene(geneId,geneId,seq.getName(), start,end,reverse);
+					} else {
+						if(gene.getLast()<end) gene.setLast(end);
+						if(gene.getFirst()>start) gene.setFirst(start);
 					}
+					
 					
 					
 					Transcript transcript = new Transcript(items[0],seq.getName(),start,end,reverse);
@@ -151,9 +152,6 @@ public class UCSCTranscriptomeHandler {
 				}
 				line=in.readLine();
 			}
-		} finally {
-			if (in!=null) in.close();
-			if (fis!=null) fis.close();
 		}
 		
 		return answer;

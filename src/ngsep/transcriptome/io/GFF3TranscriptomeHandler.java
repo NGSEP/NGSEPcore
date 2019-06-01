@@ -48,6 +48,7 @@ import ngsep.transcriptome.Transcriptome;
 public class GFF3TranscriptomeHandler {
 	public static final String FEATURE_TYPE_GENE = "gene";
 	public static final String FEATURE_TYPE_TRGENE = "transposable_element_gene";
+	public static final String FEATURE_TYPE_EXON = "exon";
 	public static final String FEATURE_TYPE_MRNA = "mRNA";
 	public static final String FEATURE_TYPE_5PUTR = "five_prime_UTR";
 	public static final String FEATURE_TYPE_3PUTR = "three_prime_UTR";
@@ -175,9 +176,7 @@ public class GFF3TranscriptomeHandler {
 		int numTranscripts = 0;
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
 			if(FEATURE_TYPE_GENE.equals(feature.getType()) || FEATURE_TYPE_TRGENE.equals(feature.getType())) {
-				String name = feature.getName();
-				if(name ==null) name = feature.getAnnotation("name");
-				Gene gene = new Gene(feature.getId(), name );
+				Gene gene = createGeneFromMRNAFeature(feature);
 				numGenes++;
 				gene.setOntologyTerms(feature.getOntologyTerms());
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
@@ -238,11 +237,24 @@ public class GFF3TranscriptomeHandler {
 		if(sequenceName==null) throw new RuntimeException("Error loading CDS feature with ID: "+feature.getId()+" at  feature lines: "+feature.getLines().size());
 		return new Transcript(feature.getId(), sequenceName, first, last, negativeStrand);
 	}
+	private Gene createGeneFromMRNAFeature(GFF3GenomicFeature feature) {
+		List<GFF3GenomicFeatureLine> geneLines = feature.getLines();
+		if(geneLines.size()>1) {
+			//log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+FEATURE_TYPE_MRNA+" should not have multiple lines. Processing first line only");
+			for(GFF3GenomicFeatureLine line: geneLines) log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+feature.getType()+" should not have multiple lines. Feature at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+" Id: "+line.getId()+" Number: "+line.getLineNumber());
+			throw new RuntimeException();
+		}
+		GFF3GenomicFeatureLine geneLine = geneLines.get(0);
+		String name = feature.getName();
+		if(name ==null) name = feature.getAnnotation("name");
+		Gene gene = new Gene(feature.getId(), name, geneLine.getSequenceName(), geneLine.getFirst(), geneLine.getLast(), geneLine.isNegativeStrand() );
+		return gene;
+	}
 	private Transcript createTranscriptFromMRNAFeature(GFF3GenomicFeature feature) {
 		List<GFF3GenomicFeatureLine> mrnaLines = feature.getLines();
 		if(mrnaLines.size()>1) {
 			//log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+FEATURE_TYPE_MRNA+" should not have multiple lines. Processing first line only");
-			for(GFF3GenomicFeatureLine line: mrnaLines) log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+FEATURE_TYPE_MRNA+" should not have multiple lines. Feature at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+" Id: "+line.getId()+" Number: "+line.getLineNumber());
+			for(GFF3GenomicFeatureLine line: mrnaLines) log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+feature.getType()+" should not have multiple lines. Feature at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+" Id: "+line.getId()+" Number: "+line.getLineNumber());
 			throw new RuntimeException();
 		}
 		GFF3GenomicFeatureLine mrnaLine = mrnaLines.get(0);
