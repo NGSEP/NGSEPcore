@@ -38,13 +38,19 @@ public class GFF3TranscriptomeWriter {
 		out.println(transcript.getSequenceName()+"\tNGSEP\t"+GFF3TranscriptomeHandler.FEATURE_TYPE_MRNA+"\t"+transcript.getFirst()+"\t"+transcript.getLast()+"\t.\t"+negStr+"\t.\tID="+transcript.getId()+";Parent="+transcript.getGeneId());
 		List<TranscriptSegment> segments = transcript.getTranscriptSegments();
 		printRawExons(transcript, segments, negStr, out);
-		int sId = 1;
+		//int sId = 1;
 		for(TranscriptSegment segment:segments) {
-			String type = GFF3TranscriptomeHandler.FEATURE_TYPE_CDS;
+			String type = GFF3TranscriptomeHandler.FEATURE_TYPE_TRGENE;
+			String phase = ".";
 			if(segment.getStatus()==TranscriptSegment.STATUS_5P_UTR) type = GFF3TranscriptomeHandler.FEATURE_TYPE_5PUTR;
 			if(segment.getStatus()==TranscriptSegment.STATUS_3P_UTR) type = GFF3TranscriptomeHandler.FEATURE_TYPE_3PUTR;
-			out.println(transcript.getSequenceName()+"\tNGSEP\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t.\tID="+transcript.getId()+"_s"+sId+";Parent="+transcript.getId());
-			sId++;
+			if(segment.getStatus()==TranscriptSegment.STATUS_CODING) {
+				type = GFF3TranscriptomeHandler.FEATURE_TYPE_CDS;
+				phase = ""+segment.getFirstCodonPositionOffset();
+			}
+			//out.println(transcript.getSequenceName()+"\tNGSEP\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t"+phase+"\tID="+transcript.getId()+"_s"+sId+";Parent="+transcript.getId());
+			out.println(transcript.getSequenceName()+"\tNGSEP\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t"+phase+"\tParent="+transcript.getId());
+			//sId++;
 		}
 	}
 

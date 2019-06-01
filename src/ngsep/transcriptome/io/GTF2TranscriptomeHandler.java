@@ -112,7 +112,7 @@ public class GTF2TranscriptomeHandler {
 				String geneName = attributes.get("ref_gene_name");
 				if(geneName==null) geneName = geneId;
 				if("transcript".equals(type)) {
-					processTranscript (transcript,rawExons);
+					if(processTranscript (transcript,rawExons)) answer.addTranscript(transcript);
 					transcript = null;
 					rawExons.clear();
 					Gene gene = genes.get(geneId);
@@ -150,7 +150,7 @@ public class GTF2TranscriptomeHandler {
 				
 				line = in.readLine();
 			}
-			processTranscript (transcript,rawExons);
+			if(processTranscript (transcript,rawExons))  answer.addTranscript(transcript);
 		}
 		
 		
@@ -168,16 +168,16 @@ public class GTF2TranscriptomeHandler {
 		}
 		return attributes;
 	}
-	private void processTranscript(Transcript transcript, List<GenomicRegion> rawExons) {
-		if(transcript==null || rawExons.size()==0) return; 
+	private boolean processTranscript(Transcript transcript, List<GenomicRegion> rawExons) {
+		if(transcript==null || rawExons.size()==0) return false; 
 		StringBuilder mRNAB = new StringBuilder();
 		Collections.sort(rawExons,GenomicRegionPositionComparator.getInstance());
 		List<GenomicRegion> exonsByTranscript = new ArrayList<>(rawExons);
 		for(GenomicRegion exon:rawExons) {
 			CharSequence nextSeq = genome.getReference(exon);
 			if(nextSeq==null) {
-				System.err.println("Sequence for exon at "+exon.getSequenceName()+":"+exon.getFirst()+"-"+exon.getLast()+" could not be retrieved");
-				return;
+				log.warning("Sequence for exon at "+exon.getSequenceName()+":"+exon.getFirst()+"-"+exon.getLast()+" could not be retrieved");
+				return false;
 			}
 			mRNAB.append(nextSeq);
 		}
@@ -197,11 +197,12 @@ public class GTF2TranscriptomeHandler {
 					maxL = nextP.length;
 					startLongest = i;
 				}
+				if(mRNACharArray.length-i < 3*maxL) break;
 			}
 		}
 		if(startLongest<0) {
 			log.warning("No protein found for "+transcript.getSequenceName()+":"+transcript.getFirst()+"-"+transcript.getLast()+" "+transcript.getId());
-			return;
+			return false;
 		}
 		List<TranscriptSegment> segments = new ArrayList<>();
 		char [] protein = translator.getProteinSequence(mRNACharArray,startLongest,false);
@@ -273,6 +274,9 @@ public class GTF2TranscriptomeHandler {
 			}
 			exonRelativeFirst=exonRelativeLast+1;
 		}
+		transcript.setTranscriptSegments(segments);
+		transcript.setCDNASequence(new DNAMaskedSequence(mRNA));
+		return true;
 	}
 	private byte getPhase(int module) {
 		byte phase = 0;

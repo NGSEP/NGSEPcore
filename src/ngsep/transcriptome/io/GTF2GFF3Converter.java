@@ -31,8 +31,10 @@ public class GTF2GFF3Converter {
 
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
+		System.err.println("Loaded genome");
 		GTF2TranscriptomeHandler gtf2Handler = new GTF2TranscriptomeHandler(genome);
 		Transcriptome t = gtf2Handler.loadMap(args[1]);
+		System.err.println("Loaded transcriptome with "+t.getAllTranscripts().size()+" transcripts");
 		GFF3TranscriptomeWriter writer = new GFF3TranscriptomeWriter();
 		writer.printTranscriptome(t, System.out);
 
