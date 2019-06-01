@@ -41,7 +41,6 @@ public class Transcript implements GenomicRegion {
 	private int last; //Always greater or equal than first
 	private boolean negativeStrand;
 	private DNAMaskedSequence cdnaSequence;
-	private String proteinSequence;
 	private boolean coding=false;
 	private List<TranscriptSegment> transcriptSegments=new ArrayList<TranscriptSegment>();
 	//Precalculated exons information
@@ -409,19 +408,6 @@ public class Transcript implements GenomicRegion {
 		cdnaSequence = sequence;
 	}
 	/**
-	 * @return String the protein sequence after translation
-	 */
-	public String getProteinSequence() {
-		return proteinSequence;
-	}
-	/**
-	 * Changes the protein sequence
-	 * @param proteinSequence New protein sequence
-	 */
-	public void setProteinSequence(String proteinSequence) {
-		this.proteinSequence = proteinSequence;
-	}
-	/**
 	 * Gets the translation to protein for the CDNA sequence of this transcript according with the translator
 	 * @param translator Object that translates CDNA sequences into protein sequences
 	 * @return String Protein sequence after translation
@@ -430,7 +416,7 @@ public class Transcript implements GenomicRegion {
 		if(cdnaSequence==null) return null;
 		int translationStart = getCodingRelativeStart();
 		if(translationStart>=0) {
-			return translator.getProteinSequence(cdnaSequence.subSequence(translationStart));
+			return translator.getProteinSequence(cdnaSequence, translationStart);
 		}
 		return "";
 	}
@@ -470,5 +456,29 @@ public class Transcript implements GenomicRegion {
 	 */
 	public boolean isNegativeStrand() {
 		return negativeStrand;
+	}
+	/**
+	 * Calculates the initial codon of this transcript if it is a coding transcript
+	 * @return Codon first codon of this transcript which should be a start codon
+	 */
+	public Codon getStartCodon () {
+		if(!coding) return null;
+		if(cdnaSequence==null) return null;
+		if(codingRelativeStart==-1) return null;
+		if(codingRelativeStart+2>=cdnaSequence.length()) return null;
+		Codon startCodon = ProteinTranslator.getInstance().getCodon(cdnaSequence.charAt(codingRelativeStart), cdnaSequence.charAt(codingRelativeStart+1), cdnaSequence.charAt(codingRelativeStart+2));
+		return startCodon;
+	}
+	/**
+	 * Calculates the stop codon of this transcript if it is a coding transcript
+	 * @return Codon last codon of this transcript which should be a stop codon
+	 */
+	public Codon getStopCodon () {
+		if(!coding) return null;
+		if(cdnaSequence==null) return null;
+		if(codingRelativeEnd-2<0) return null;
+		if(codingRelativeEnd>=cdnaSequence.length()) return null;
+		Codon stopCodon = ProteinTranslator.getInstance().getCodon(cdnaSequence.charAt(codingRelativeEnd-2), cdnaSequence.charAt(codingRelativeEnd-1), cdnaSequence.charAt(codingRelativeEnd));
+		return stopCodon;
 	}
 }

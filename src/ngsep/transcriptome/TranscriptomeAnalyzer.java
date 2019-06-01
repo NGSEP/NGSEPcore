@@ -160,16 +160,16 @@ public class TranscriptomeAnalyzer {
 			//Collect sequence statistics
 			proteinLengthDist.processDatapoint(protein.length());
 			String cdnaSequence = t.getCDNASequence().toString();
-			Codon startCodon = translator.getCodon(cdnaSequence.charAt(start), cdnaSequence.charAt(start+1), cdnaSequence.charAt(start+2));
+			Codon startCodon = t.getStartCodon();
 			if(startCodon==null) {
-				log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence.substring(start, start+3));
+				log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+"start: "+start);
 				continue;
 			}
-			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence());
+			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+"start: "+start);
 			
-			Codon stopCodon = translator.getCodon(cdnaSequence.charAt(end-2), cdnaSequence.charAt(end-1), cdnaSequence.charAt(end));
-			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence.substring(end-2, end+1));
-			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence());
+			Codon stopCodon = t.getStopCodon();
+			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
+			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
 			
 			if(!selectCompleteProteins || (startCodon.isStart() && stopCodon!=null && stopCodon.isStop())) {
 				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);

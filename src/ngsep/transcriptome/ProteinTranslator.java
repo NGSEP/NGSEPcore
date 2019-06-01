@@ -83,6 +83,16 @@ public class ProteinTranslator {
 	public String getProteinSequence(CharSequence sequence) {
 		return new String(getProteinSequence(sequence.toString().toCharArray(), 0, false));
 	}
+	
+	/**
+	 * Translates the given sequence from the given start
+	 * @param sequence to translate
+	 * @param beginIndex First index to start translating
+	 * @return String Corresponding aminoacid chain
+	 */
+	public String getProteinSequence(CharSequence sequence, int beginIndex) {
+		return new String(getProteinSequence(sequence.toString().toCharArray(), beginIndex, false));
+	}
 
 	/**
 	 * Translates the subsequence of the given sequence according with the given settings
