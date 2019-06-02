@@ -28,11 +28,13 @@ import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
+import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
 
 /**
  * @author Tatiana Garcia
@@ -40,9 +42,12 @@ import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
  */
 public class TranscriptomeAnalyzer {
 
+	public static final int DEF_MIN_PROTEIN_LENGTH=30;
 	private ReferenceGenome genome;
 	
 	private boolean selectCompleteProteins = false;
+	
+	private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	
 	private Logger log = Logger.getLogger(TranscriptomeAnalyzer.class.getName());
 	
@@ -103,6 +108,26 @@ public class TranscriptomeAnalyzer {
 	public void setSelectCompleteProteins(Boolean selectCompleteProteins) {
 		this.setSelectCompleteProteins(selectCompleteProteins.booleanValue());
 	}
+	
+	/**
+	 * @return the minProteinLength
+	 */
+	public int getMinProteinLength() {
+		return minProteinLength;
+	}
+
+	/**
+	 * @param minProteinLength the minProteinLength to set
+	 */
+	public void setMinProteinLength(int minProteinLength) {
+		this.minProteinLength = minProteinLength;
+	}
+	
+	public void setMinProteinLength(String value) {
+		this.setMinProteinLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	
 
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
 		Distribution geneLengthDist = new Distribution (0,10000,200);
@@ -114,7 +139,7 @@ public class TranscriptomeAnalyzer {
 		//Load transcriptome
 		GFF3TranscriptomeHandler gff3Handler = new GFF3TranscriptomeHandler();
 		gff3Handler.setLog(log);
-		QualifiedSequenceList sequenceNames;
+		QualifiedSequenceList sequenceNames=null;
 		if(genome!=null) {
 			sequenceNames = genome.getSequencesMetadata();
 			gff3Handler.setSequenceNames(sequenceNames);
@@ -126,6 +151,9 @@ public class TranscriptomeAnalyzer {
 		List<Transcript> transcriptsList = transcriptome.getAllTranscripts();
 		Set<String> visitedGeneIDs = new HashSet<>();
 		QualifiedSequenceList proteome = new QualifiedSequenceList();
+		
+		Transcriptome filteredTranscriptome = new Transcriptome(sequenceNames);
+		
 		
 		for(Transcript t: transcriptsList) {
 			//Collect transcript structure statistics
@@ -171,12 +199,18 @@ public class TranscriptomeAnalyzer {
 			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
 			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
 			
+			if(protein.length()<minProteinLength) {
+				log.info("Transcript "+t.getId()+" has a very small length: "+protein.length()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length());
+				continue;
+			}
+			
 			if(!selectCompleteProteins || (startCodon.isStart() && stopCodon!=null && stopCodon.isStop())) {
 				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
 				String comments = t.getGeneId();
 				if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
 				qp.setComments(comments);
 				proteome.add(qp);
+				filteredTranscriptome.addTranscript(t);
 			}
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
@@ -201,6 +235,10 @@ public class TranscriptomeAnalyzer {
 			FastaSequencesHandler handler = new FastaSequencesHandler();
 			try (PrintStream out = new PrintStream(outPrefix+"_proteins.fa")) {
 				handler.saveSequences(proteome, out, 100);
+			}
+			GFF3TranscriptomeWriter gff3Writer = new GFF3TranscriptomeWriter();
+			try (PrintStream out = new PrintStream(outPrefix+"_filtered.gff3")) {
+				gff3Writer.printTranscriptome(filteredTranscriptome, out);
 			}
 		}
 	}
