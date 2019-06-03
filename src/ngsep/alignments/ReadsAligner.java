@@ -73,7 +73,12 @@ public class ReadsAligner {
 		fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 	}
 
-	public ReadsAligner() {	}
+	public ReadsAligner() {	
+		
+	}
+	public ReadsAligner(ReferenceGenomeFMIndex index) {	
+		this.fMIndex = index;
+	}
 
 	public static void main(String[] args) throws Exception 
 	{
