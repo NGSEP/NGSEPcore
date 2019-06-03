@@ -408,6 +408,18 @@ public class Transcript implements GenomicRegion {
 		cdnaSequence = sequence;
 	}
 	/**
+	 * For coding transcripts, returns the DNA coding sequence
+	 * @return CharSequence sequence that will be translated
+	 */
+	public CharSequence getCDSSequence() {
+		if(!isCoding()) return null;
+		if(cdnaSequence==null) return null;
+		if(codingRelativeEnd<=codingRelativeStart) return null;
+		if(codingRelativeStart<0) return null;
+		if(codingRelativeEnd>=cdnaSequence.length()) return null;
+		return cdnaSequence.subSequence(codingRelativeStart, codingRelativeEnd+1);
+	}
+	/**
 	 * Gets the translation to protein for the CDNA sequence of this transcript according with the translator
 	 * @param translator Object that translates CDNA sequences into protein sequences
 	 * @return String Protein sequence after translation

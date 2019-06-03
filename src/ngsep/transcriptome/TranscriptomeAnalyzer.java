@@ -151,6 +151,7 @@ public class TranscriptomeAnalyzer {
 		List<Transcript> transcriptsList = transcriptome.getAllTranscripts();
 		Set<String> visitedGeneIDs = new HashSet<>();
 		QualifiedSequenceList proteome = new QualifiedSequenceList();
+		QualifiedSequenceList codingSequences = new QualifiedSequenceList();
 		
 		Transcriptome filteredTranscriptome = new Transcriptome(sequenceNames);
 		
@@ -168,18 +169,7 @@ public class TranscriptomeAnalyzer {
 
 			if(!visitedGeneIDs.contains(geneId)) {
 				//Collect gene statistics
-				List<Transcript> geneTranscripts = transcriptome.getTranscriptsByGene(geneId);
-				transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
-				int minFirst = -1;
-				int maxLast = -1; 
-				for (Transcript tr: geneTranscripts ) {
-					int first = tr.getFirst();
-					int last = tr.getLast();
-					if(minFirst==-1 || minFirst>first) minFirst = first;
-					if(maxLast==-1 || maxLast<last) maxLast = last;	
-				}
-				if(minFirst>=0 && maxLast>=0) geneLengthDist.processDatapoint(maxLast-minFirst+1);
-				
+				geneLengthDist.processDatapoint(t.getGene().length());
 				visitedGeneIDs.add(geneId);
 			}
 			String protein= t.getProteinSequence(translator);
@@ -211,6 +201,12 @@ public class TranscriptomeAnalyzer {
 				qp.setComments(comments);
 				proteome.add(qp);
 				filteredTranscriptome.addTranscript(t);
+				CharSequence cds = t.getCDSSequence();
+				if(cds!=null) {
+					QualifiedSequence qCDS = new QualifiedSequence(t.getId(),cds);
+					qCDS.setComments(comments);
+					codingSequences.add(qCDS);
+				}
 			}
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
@@ -239,6 +235,12 @@ public class TranscriptomeAnalyzer {
 			GFF3TranscriptomeWriter gff3Writer = new GFF3TranscriptomeWriter();
 			try (PrintStream out = new PrintStream(outPrefix+"_filtered.gff3")) {
 				gff3Writer.printTranscriptome(filteredTranscriptome, out);
+			}
+		}
+		if(codingSequences.size()>0) {
+			FastaSequencesHandler handler = new FastaSequencesHandler();
+			try (PrintStream out = new PrintStream(outPrefix+"_cds.fa")) {
+				handler.saveSequences(codingSequences, out, 100);
 			}
 		}
 	}
