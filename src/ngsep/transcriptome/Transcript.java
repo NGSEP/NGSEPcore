@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.sequences.DNAMaskedSequence;
 
@@ -109,6 +110,12 @@ public class Transcript implements GenomicRegion {
 					if(fOff>=0) codingRelativeStart+=fOff;
 				} else if(fOff>=0 && (codingLength+fOff)%3!=0) {
 					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+segment.getFirst()+"-"+segment.getLast()+" looks inconsistent. Coding length "+codingLength+" given offset: "+segment.getFirstCodonPositionOffset());
+				}
+				if (fOff<0) {
+					byte offset = 0;
+					int module = codingLength%3;
+					if(module>0) offset = (byte) (3-module);
+					segment.setFirstCodonPositionOffset(offset);
 				}
 				codingRelativeEnd = length+segment.length()-1;
 				codingLength+=segment.length();
@@ -492,5 +499,18 @@ public class Transcript implements GenomicRegion {
 		if(codingRelativeEnd>=cdnaSequence.length()) return null;
 		Codon stopCodon = ProteinTranslator.getInstance().getCodon(cdnaSequence.charAt(codingRelativeEnd-2), cdnaSequence.charAt(codingRelativeEnd-1), cdnaSequence.charAt(codingRelativeEnd));
 		return stopCodon;
+	}
+	
+	public List<GenomicRegion> getRawExons() {
+		List<GenomicRegion> answer = new ArrayList<>();
+		GenomicRegionImpl nextExon = null;
+		for(TranscriptSegment segment:transcriptSegments) {
+			if(nextExon == null || nextExon.getLast()+1<segment.getFirst()) {
+				if(nextExon!=null) answer.add(nextExon);
+				nextExon = new GenomicRegionImpl(segment.getSequenceName(), segment.getFirst(), segment.getLast());
+			} else if(segment.getLast()>nextExon.getLast()) nextExon.setLast(segment.getLast());
+		}
+		if(nextExon!=null) answer.add(nextExon);
+		return answer;
 	}
 }

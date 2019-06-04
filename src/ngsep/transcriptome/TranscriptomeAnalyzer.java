@@ -42,7 +42,7 @@ import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
  */
 public class TranscriptomeAnalyzer {
 
-	public static final int DEF_MIN_PROTEIN_LENGTH=30;
+	public static final int DEF_MIN_PROTEIN_LENGTH=0;
 	private ReferenceGenome genome;
 	
 	private boolean selectCompleteProteins = false;
@@ -130,11 +130,13 @@ public class TranscriptomeAnalyzer {
 	
 
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
-		Distribution geneLengthDist = new Distribution (0,10000,200);
-		Distribution transcriptLengthDist = new Distribution (0,5000,200); 
-		Distribution numberOfExonsDist = new Distribution (0,50,1);
-		Distribution proteinLengthDist = new Distribution (0,2500,200);
+		Distribution geneLengthDist = new Distribution (0,9999,200);
+		Distribution transcriptLengthDist = new Distribution (0,4999,200);
 		Distribution transcriptsPerGeneDist = new Distribution (0,20,1);
+		Distribution numberOfExonsDist = new Distribution (0,50,1);
+		Distribution cdsLengthDist = new Distribution (0,4999,200);
+		Distribution proteinLengthDist = new Distribution (0,1999,100);
+		
 		
 		//Load transcriptome
 		GFF3TranscriptomeHandler gff3Handler = new GFF3TranscriptomeHandler();
@@ -152,62 +154,85 @@ public class TranscriptomeAnalyzer {
 		Set<String> visitedGeneIDs = new HashSet<>();
 		QualifiedSequenceList proteome = new QualifiedSequenceList();
 		QualifiedSequenceList codingSequences = new QualifiedSequenceList();
+		QualifiedSequenceList cdnaSequences = new QualifiedSequenceList();
 		
-		Transcriptome filteredTranscriptome = new Transcriptome(sequenceNames);
+		Transcriptome filteredTranscriptome = null;
+		if(selectCompleteProteins || minProteinLength>DEF_MIN_PROTEIN_LENGTH) filteredTranscriptome = new Transcriptome(sequenceNames);
 		
 		
 		for(Transcript t: transcriptsList) {
 			//Collect transcript structure statistics
-			if (!t.isCoding()) continue;
 			int start = t.getCodingRelativeStart();
 			int end = t.getCodingRelativeEnd();
-			if(t.getCodingRelativeEnd()<4) continue;
+			String geneId= t.getGeneId(); 
 			transcriptLengthDist.processDatapoint(t.length());
 			List<TranscriptSegment> exons=t.getTranscriptSegments();
-			numberOfExonsDist.processDatapoint(exons.size());		
-			String geneId= t.getGeneId(); 
-
+			numberOfExonsDist.processDatapoint(exons.size());
+			
 			if(!visitedGeneIDs.contains(geneId)) {
 				//Collect gene statistics
+				List<Transcript> geneTranscripts = transcriptome.getTranscriptsByGene(geneId);
+				if(geneTranscripts==null) {
+					log.info("Gene not found for transcript with id"+t.getId()+" gene id: "+geneId);
+					continue;
+				}
+				transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
 				geneLengthDist.processDatapoint(t.getGene().length());
 				visitedGeneIDs.add(geneId);
 			}
-			String protein= t.getProteinSequence(translator);
-			if(protein==null) continue;
 			
-			//Collect sequence statistics
-			proteinLengthDist.processDatapoint(protein.length());
-			String cdnaSequence = t.getCDNASequence().toString();
+			String comments = t.getGeneId();
+			if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
+			CharSequence cdnaSequence = t.getCDNASequence();
+			if(cdnaSequence==null) {
+				continue;
+			}
+			QualifiedSequence qCDNA = new QualifiedSequence(t.getId(),cdnaSequence);
+			qCDNA.setComments(comments);
+			cdnaSequences.add(qCDNA);
+			
+			String protein = null;
+			if(!t.isCoding()) {
+				if(filteredTranscriptome!=null) filteredTranscriptome.addTranscript(t);
+				continue;
+			}
 			Codon startCodon = t.getStartCodon();
 			if(startCodon==null) {
-				log.info("Transcript "+t.getId()+" has an invalid start codon. Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+"start: "+start);
+				log.info("Transcript "+t.getId()+" has an invalid start codon. Length: "+cdnaSequence.length()+" start: "+start);
 				continue;
 			}
-			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+"start: "+start);
-			
+			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+"start: "+start);
 			Codon stopCodon = t.getStopCodon();
-			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
-			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length()+" end: "+end);
+			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Length: "+cdnaSequence.length()+" end: "+end);
+			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+" end: "+end);
 			
-			if(protein.length()<minProteinLength) {
-				log.info("Transcript "+t.getId()+" has a very small length: "+protein.length()+" Sequence: "+cdnaSequence+" length: "+cdnaSequence.length());
+			// Process cds sequence
+			CharSequence cds = t.getCDSSequence();
+			if(cds == null) {
+				log.info("Invalid coding sequence for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
 				continue;
 			}
+			QualifiedSequence qCDS = new QualifiedSequence(t.getId(),cds);
+			qCDS.setComments(comments);
+			codingSequences.add(qCDS);
+			cdsLengthDist.processDatapoint(cds.length());
 			
-			if(!selectCompleteProteins || (startCodon.isStart() && stopCodon!=null && stopCodon.isStop())) {
-				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
-				String comments = t.getGeneId();
-				if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
-				qp.setComments(comments);
-				proteome.add(qp);
-				filteredTranscriptome.addTranscript(t);
-				CharSequence cds = t.getCDSSequence();
-				if(cds!=null) {
-					QualifiedSequence qCDS = new QualifiedSequence(t.getId(),cds);
-					qCDS.setComments(comments);
-					codingSequences.add(qCDS);
-				}
+			// Process protein sequence
+			protein = t.getProteinSequence(translator);
+			if(protein == null) {
+				log.info("Invalid protein for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
+				continue;
 			}
+			proteinLengthDist.processDatapoint(protein.length());
+			QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
+			qp.setComments(comments);
+			proteome.add(qp);
+			
+			if(filteredTranscriptome==null) continue;
+			if(protein.length()<minProteinLength) continue;
+			boolean complete = startCodon.isStart() && stopCodon!=null && stopCodon.isStop();
+			if (selectCompleteProteins && !complete) continue;
+			filteredTranscriptome.addTranscript(t);
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
 			out.println("Gene length"); 
@@ -221,20 +246,21 @@ public class TranscriptomeAnalyzer {
 			out.println();
 			out.println("Transcripts per gene");
 			transcriptsPerGeneDist.printDistributionInt(out);
+			if(codingSequences.size()>0) {
+				out.println();
+				out.println("CDS length");
+				cdsLengthDist.printDistributionInt(out);
+			}
 			if(proteome.size()>0) {
 				out.println();
 				out.println("Protein length");
 				proteinLengthDist.printDistributionInt(out);
 			}
 		}
-		if(proteome.size()>0) {
+		if(cdnaSequences.size()>0) {
 			FastaSequencesHandler handler = new FastaSequencesHandler();
-			try (PrintStream out = new PrintStream(outPrefix+"_proteins.fa")) {
-				handler.saveSequences(proteome, out, 100);
-			}
-			GFF3TranscriptomeWriter gff3Writer = new GFF3TranscriptomeWriter();
-			try (PrintStream out = new PrintStream(outPrefix+"_filtered.gff3")) {
-				gff3Writer.printTranscriptome(filteredTranscriptome, out);
+			try (PrintStream out = new PrintStream(outPrefix+"_cdna.fa")) {
+				handler.saveSequences(cdnaSequences, out, 100);
 			}
 		}
 		if(codingSequences.size()>0) {
@@ -243,5 +269,19 @@ public class TranscriptomeAnalyzer {
 				handler.saveSequences(codingSequences, out, 100);
 			}
 		}
+		if(proteome.size()>0) {
+			FastaSequencesHandler handler = new FastaSequencesHandler();
+			try (PrintStream out = new PrintStream(outPrefix+"_proteins.fa")) {
+				handler.saveSequences(proteome, out, 100);
+			}
+			
+		}
+		if(filteredTranscriptome!=null) {
+			GFF3TranscriptomeWriter gff3Writer = new GFF3TranscriptomeWriter();
+			try (PrintStream out = new PrintStream(outPrefix+"_filtered.gff3")) {
+				gff3Writer.printTranscriptome(filteredTranscriptome, out);
+			}
+		}
+		
 	}
 }

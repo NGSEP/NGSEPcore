@@ -340,7 +340,8 @@ Provides statistics on a transcriptome file in GFF3 format
 </intro>
 <title>Evaluating transcriptome assemblies</title>
 <description>
-Loads a transcriptome annotation in GFF3 format, logs format errors and provides statistics on the asembled transcriptome.
+Loads a transcriptome annotation in GFF3 format, logs format errors, provides statistics on the assembled transcriptome,
+generates cDNA, CDS and protein sequences and generates a filtered gff by CDS length and completion. 
 </description>
 <argument>TRANSCRIPTOME_MAP</argument>
 <argument>OUTPUT_PREFIX</argument>
@@ -348,7 +349,10 @@ Loads a transcriptome annotation in GFF3 format, logs format errors and provides
 Reference genome annotated in the transcriptome file
 </option>
 <option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
-Output only complete proteins (with start and stop codons) in the proteins output file
+Output only complete transcripts (with start and stop codons) in the gff output file
+</option>
+<option id="pl" type="INT" attribute="minProteinLength" defaultConstant="DEF_MIN_PROTEIN_LENGTH">
+Minimum protein length for coding transcripts in the gff output file
 </option>
 </command>
 
