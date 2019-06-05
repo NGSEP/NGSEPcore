@@ -50,6 +50,13 @@ public class DNAShortKmerClusterMap implements KmersMap {
 			createCluster(kmer);
 		}
 	}
+	/**
+	 * Searches the hashmap for a matching kmer. If it is not
+	 * found, it looks for a kmer that is one nucleotide apart
+	 * (e.g ACATCCC[...] would match with ACGTCCC[...]).
+	 * @param kmer
+	 * @return int k or null if no kmer or neighboring kmer found.
+	 */
 	private Integer inexactSearchKmerCluster (DNAShortKmer kmer) {
 		Integer k = index.get(kmer);
 		if(k != null) return k;
@@ -65,6 +72,12 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		}
 		return null;
 	}
+	
+	/**
+	 * Creates a new cluster with index newIndex++, associates it with the given
+	 * kmer and adds the kmer to the table.
+	 * @param kmer
+	 */
 	private void createCluster(DNAShortKmer kmer) {
 		for(int i = 0; i < kmer.length(); i++) {
 			char bp = Character.toUpperCase(kmer.charAt(i));
@@ -76,6 +89,20 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		}
 		index.put(kmer, newIndex++);
 	}
+	
+	/**
+	 * Finds the representative kmer for the given k, and updates the table
+	 * by increasing the count of the correct nucleotide for each char of the
+	 * kmer. (i.e if kmer is ACAT[...] the count for [0][0], [1][1], [2][0],
+	 * [3][3], etc. are updated by one. The first index indicates the position
+	 * on the kmer and the second index indicates the corresponding nucleotide based
+	 * on BASE_ARRAY.)
+	 *
+	 * If after the update, the representative kmer has changed, the hashmap is updated
+	 * to reflect this.
+	 * @param kmer
+	 * @param k
+	 */
 	private void append(DNAShortKmer kmer, int k) {
 		DNAShortKmer oldKmer = getRepresentativeKmer(k);
 		String oldKmerStr = oldKmer.toString();
@@ -91,6 +118,14 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		index.remove(oldKmer);
 		index.put(newKmer, k);
 	}
+	
+	/**
+	 * Finds the kmer with the most likely sequence. (i.e. for each
+	 * char of the kmer, it looks at the cluster table to find the
+	 * nucleotide with most occurrences).
+	 * @param k
+	 * @return DNAShortKmer consensus
+	 */
 	private DNAShortKmer getRepresentativeKmer(int k) {
 		char[] consensus = new char[kmerLength];
 		
@@ -120,6 +155,13 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		}
 		return 0;
 	}
+	
+	/**
+	 * Counts the number of kmers in a given cluster by adding the number of
+	 * occurrences of each nucleotide
+	 * @param k
+	 * @return int count
+	 */
 	private int getCount(Integer k) {
 		int count = 0;
 		for(int j = 0; j < table[k].length; j++) {
