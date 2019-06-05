@@ -233,6 +233,7 @@ class ClusteredReadsCache {
 			clusteredReadsCache.put(k, readsClusterK);
 		}
 		readsClusterK.add(read);
+		totalReads++;
 	}
 	public List<String> getClusteredReadFiles() {
 		return outFiles;
@@ -253,7 +254,7 @@ class ClusteredReadsCache {
 		outFiles.add(singleFilename);
 		try (OutputStream os = new FileOutputStream(singleFilename);
 			 GZIPOutputStream gos = new GZIPOutputStream(os);
-			 PrintStream out = new PrintStream(os);) {
+			 PrintStream out = new PrintStream(gos);) {
 			for(List<RawRead> readsCluster:clusteredReadsCache.values()) {
 				for(RawRead read:readsCluster) {
 					read.save(out);
