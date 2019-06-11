@@ -413,4 +413,17 @@ public class Transcriptome {
 			if(!segmentNotFound) t.setCDNASequence(new DNAMaskedSequence(transcriptSeq.toString().toUpperCase()));
 		}
 	}
+	public void removeTranscript(Transcript t) {
+		transcriptsMap.remove(t.getId());
+		sortedTranscripts.remove(t);
+		String geneId = t.getGeneId();
+		List<Transcript> transcriptsGene = transcriptsByGene.get(geneId);
+		if(transcriptsGene!=null) {
+			transcriptsGene.remove(t);
+			if(transcriptsGene.size()==0) { 
+				transcriptsByGene.remove(geneId);
+				genesMap.remove(geneId);
+			}
+		}
+	}
 }

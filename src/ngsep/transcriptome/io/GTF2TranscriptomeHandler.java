@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
@@ -51,8 +53,11 @@ public class GTF2TranscriptomeHandler {
 	 * @throws IOException If the file can not be read
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
-		Transcriptome answer = new Transcriptome(sequenceNames);
-		Map<String,Gene> genes = new HashMap<>();
+		
+		Map<String, List<Transcript>> transcriptsBySeqName = new HashMap<>();
+		for(QualifiedSequence seq:sequenceNames) {
+			transcriptsBySeqName.put(seq.getName(), new ArrayList<>());
+		}
 		try (FileReader reader = new FileReader(filename);
 			 BufferedReader in = new BufferedReader(reader)) {
 			Transcript transcript = null;
@@ -112,28 +117,13 @@ public class GTF2TranscriptomeHandler {
 				String geneName = attributes.get("ref_gene_name");
 				if(geneName==null) geneName = geneId;
 				if("transcript".equals(type)) {
-					if(processTranscript (transcript,rawExons)) answer.addTranscript(transcript);
+					if(processTranscript (transcript,rawExons)) transcriptsBySeqName.get(transcript.getSequenceName()).add(transcript);
 					transcript = null;
 					rawExons.clear();
-					Gene gene = genes.get(geneId);
-					if(gene == null) {
-						//Write gene
-						gene = new Gene(geneId, geneName,seq.getName(), first, last, negativeStrand);
-						genes.put(geneId, gene);
-					} else if (!seq.getName().equals(gene.getSequenceName())) {
-						log.warning("Error loading transcript at line: "+line+" Inconsistent sequence name. Gene sequence name: "+gene.getSequenceName());
-						line = in.readLine();
-						continue;
-					} else if (negativeStrand!=gene.isNegativeStrand()) {
-						log.warning("Error loading transcript at line: "+line+" Inconsistent strand. Gene positive strand: "+gene.isPositiveStrand());
-						line = in.readLine();
-						continue;
-					} else {
-						if(first < gene.getFirst()) gene.setFirst(first);
-						if(last> gene.getLast()) gene.setLast(last);
-					}
+					//Create gene
+					Gene mockGene = new Gene(geneId, geneName,seq.getName(), first, last, negativeStrand);
 					transcript = new Transcript(transcriptId, seq.getName(), first, last, negativeStrand);
-					transcript.setGene(gene);
+					transcript.setGene(mockGene);
 				} else if (transcript!=null && "exon".equals(type)) {
 					if(!transcript.getId().equals(transcriptId)) {
 						log.warning("Disorganized exon at line: "+line);
@@ -150,12 +140,29 @@ public class GTF2TranscriptomeHandler {
 				
 				line = in.readLine();
 			}
-			if(processTranscript (transcript,rawExons))  answer.addTranscript(transcript);
+			if(processTranscript (transcript,rawExons)) transcriptsBySeqName.get(transcript.getSequenceName()).add(transcript);
 		}
-		
-		
+		//Process transcripts by overlapping clusters
+		Transcriptome answer = new Transcriptome(sequenceNames);
+		Set<String> usedGeneIds = new HashSet<>();
+		for(QualifiedSequence seq:sequenceNames) {
+			List<Transcript> transcripts = transcriptsBySeqName.get(seq.getName());
+			Collections.sort(transcripts,GenomicRegionPositionComparator.getInstance());
+			List<Transcript> nextOverlappingCluster = new ArrayList<>();
+			int lastCluster = 0;
+			for(Transcript t:transcripts) {
+				if(lastCluster - t.getFirst()<100) {
+					processTranscriptsGroup(answer,nextOverlappingCluster,usedGeneIds);
+					nextOverlappingCluster.clear();
+				}
+				nextOverlappingCluster.add(t);
+				lastCluster = Math.max(lastCluster, t.getLast());
+			}
+		}
+		log.warning("Created "+newGeneId+" new gene ids");
 		return answer;
 	}
+	
 	private Map<String, String> loadAttributes(String[] items) {
 		Map<String, String> attributes = new HashMap<>();
 		for(int i=8;i<items.length;i++) {
@@ -172,7 +179,7 @@ public class GTF2TranscriptomeHandler {
 		if(transcript==null || rawExons.size()==0) return false; 
 		StringBuilder mRNAB = new StringBuilder();
 		Collections.sort(rawExons,GenomicRegionPositionComparator.getInstance());
-		List<GenomicRegion> exonsByTranscript = new ArrayList<>(rawExons);
+		
 		for(GenomicRegion exon:rawExons) {
 			CharSequence nextSeq = genome.getReference(exon);
 			if(nextSeq==null) {
@@ -182,15 +189,14 @@ public class GTF2TranscriptomeHandler {
 			mRNAB.append(nextSeq);
 		}
 		String mRNA = mRNAB.toString();
-		if(transcript.isNegativeStrand()) {
-			mRNA = DNAMaskedSequence.getReverseComplement(mRNA);
-			Collections.reverse(exonsByTranscript);
-		}
+		String mRNAReverse = DNAMaskedSequence.getReverseComplement(mRNA); 
+		boolean negativeBySequence = false;
+		
 		int maxL = -1;
 		int startLongest = -1;
 		ProteinTranslator translator = new ProteinTranslator();
 		char [] mRNACharArray = mRNA.toCharArray();
-		for(int i=0;i<mRNA.length();i++) {
+		for(int i=0;i<mRNACharArray.length;i++) {
 			char [] nextP = translator.getProteinSequence(mRNACharArray,i,false);
 			if(nextP.length>0 && nextP[0]=='M') {
 				if(maxL < nextP.length) {
@@ -200,15 +206,39 @@ public class GTF2TranscriptomeHandler {
 				if(mRNACharArray.length-i < 3*maxL) break;
 			}
 		}
+		//Check reverse strand
+		mRNACharArray = mRNAReverse.toCharArray();
+		for(int i=0;i<mRNACharArray.length;i++) {
+			char [] nextP = translator.getProteinSequence(mRNACharArray,i,false);
+			if(nextP.length>0 && nextP[0]=='M') {
+				if(maxL < nextP.length) {
+					maxL = nextP.length;
+					startLongest = i;
+					negativeBySequence = true;
+				}
+				if(mRNACharArray.length-i < 3*maxL) break;
+			}
+		}
 		if(startLongest<0) {
 			log.warning("No protein found for "+transcript.getSequenceName()+":"+transcript.getFirst()+"-"+transcript.getLast()+" "+transcript.getId());
 			return false;
+		}
+		if(transcript.isNegativeStrand()!=negativeBySequence) {
+			log.warning("Changing direction for transcript "+transcript.getSequenceName()+":"+transcript.getFirst()+"-"+transcript.getLast()+" "+transcript.getId()+" protein with length "+maxL+" found on opposite strand");
+			transcript.setNegativeStrand(negativeBySequence);
+		}
+		List<GenomicRegion> exonsByTranscript = new ArrayList<>(rawExons);
+		if(transcript.isNegativeStrand()) {	
+			Collections.reverse(exonsByTranscript);
+		} else {
+			mRNACharArray = mRNA.toCharArray();
 		}
 		List<TranscriptSegment> segments = new ArrayList<>();
 		char [] protein = translator.getProteinSequence(mRNACharArray,startLongest,false);
 		int start3PUTR = startLongest+3*(protein.length+1);
 		int exonRelativeFirst=0;
 		int module = 0;
+		
 		for(GenomicRegion exon:exonsByTranscript) {
 			int exonRelativeLast = exonRelativeFirst+exon.length()-1;
 			if(exonRelativeLast<startLongest) {
@@ -274,14 +304,143 @@ public class GTF2TranscriptomeHandler {
 			}
 			exonRelativeFirst=exonRelativeLast+1;
 		}
-		transcript.setTranscriptSegments(segments);
-		transcript.setCDNASequence(new DNAMaskedSequence(mRNA));
+		List<TranscriptSegment> filteredSegments = filterByUTRs(segments);
+		if(filteredSegments.size()==0) return false;
+		Collections.sort(filteredSegments,GenomicRegionPositionComparator.getInstance());
+		int filteredFirst = filteredSegments.get(0).getFirst();
+		
+		if(filteredFirst!=transcript.getFirst()) {
+			log.warning("Changing start for transcript "+transcript.getSequenceName()+":"+transcript.getFirst()+"-"+transcript.getLast()+" "+transcript.getId()+" new start: "+filteredFirst);
+			transcript.setFirst(filteredFirst);
+		}
+		int filteredLast = filteredSegments.get(filteredSegments.size()-1).getLast();
+		if(filteredLast!=transcript.getLast()) {
+			log.warning("Changing final position for transcript "+transcript.getSequenceName()+":"+transcript.getFirst()+"-"+transcript.getLast()+" "+transcript.getId()+" new last: "+filteredLast);
+			transcript.setLast(filteredLast);
+		}
+		transcript.setTranscriptSegments(filteredSegments);
 		return true;
+	}
+	private List<TranscriptSegment> filterByUTRs(List<TranscriptSegment> segments) {
+		List<TranscriptSegment> filteredSegments = new ArrayList<>();
+		int numCoding = 0;
+		for(TranscriptSegment segment:segments) {
+			if(filteredSegments.size()==0 || segment.isCoding()) {
+				filteredSegments.add(segment);
+				if(segment.isCoding()) numCoding++;
+			} else if (segment.getStatus()==TranscriptSegment.STATUS_5P_UTR) {
+				if(numCoding>0) {
+					throw new RuntimeException("Coding before 5' UTR in transcript segment "+segment.getSequenceName()+":"+segment.getFirst()+"-"+segment.getLast());
+				}
+				filteredSegments.set(0, segment);
+			}
+			if (segment.getStatus()==TranscriptSegment.STATUS_3P_UTR) {
+				filteredSegments.add(segment);
+				break;
+			}
+		}
+		if(numCoding>0) return filteredSegments;
+		return new ArrayList<>();
 	}
 	private byte getPhase(int module) {
 		byte phase = 0;
 		if(module == 1) phase =2;
 		if(module == 2) phase =1;
 		return phase;
+	}
+	
+	private void processTranscriptsGroup(Transcriptome transcriptome, List<Transcript> transcripts, Set<String> usedGeneIds) {
+		if(transcripts == null || transcripts.size()==0) {
+			return;
+		}
+		Transcript first = transcripts.get(0);
+		if(transcripts.size()==1) {
+			Gene nextGene = first.getGene();
+			if(usedGeneIds.contains(first.getGeneId())) {
+				// Create new gene id
+				String nextGeneId = createNewGeneId();
+				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),first.getFirst(),first.getLast(),first.isNegativeStrand());
+				first.setGene(nextGene);
+			} else {
+				nextGene.setFirst(first.getFirst());
+				nextGene.setLast(first.getLast());
+				nextGene.setNegativeStrand(first.isNegativeStrand());
+			}
+			transcriptome.addTranscript(first);
+			usedGeneIds.add(first.getGeneId());
+			return;
+		}
+		//Find out direction and geneIds
+		List<Transcript> positiveTranscripts = new ArrayList<>();
+		List<Transcript> negativeTranscripts = new ArrayList<>();
+		Set<String> positiveGeneIds = new HashSet<>();
+		Set<String> negativeGeneIds = new HashSet<>();
+		int positiveFirst = -1;
+		int positiveLast = 0;
+		int negativeFirst = -1;
+		int negativeLast = 0;
+		
+		for(Transcript t: transcripts) {
+			if(t.isPositiveStrand()) {
+				positiveTranscripts.add(t);
+				positiveGeneIds.add(t.getGeneId());
+				if(positiveFirst==-1 || positiveFirst>t.getFirst()) positiveFirst = t.getFirst();
+				if(positiveLast<t.getLast()) positiveLast = t.getLast();
+			} else {
+				negativeTranscripts.add(t);
+				negativeGeneIds.add(t.getGeneId());
+				if(negativeFirst==-1 || negativeFirst>t.getFirst()) negativeFirst = t.getFirst();
+				if(negativeLast<t.getLast()) negativeLast = t.getLast();
+			}
+		}
+		if(positiveTranscripts.size()==0) {
+			//Treat as single gene
+			Gene nextGene = first.getGene();
+			String geneId = null;
+			if(negativeGeneIds.size()==1) geneId = negativeGeneIds.iterator().next();
+			
+			if(geneId==null || usedGeneIds.contains(geneId)) {
+				// Create new gene id
+				String nextGeneId = createNewGeneId();
+				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),negativeFirst,negativeLast,true);
+			} else {
+				nextGene.setFirst(negativeFirst);
+				nextGene.setLast(negativeLast);
+				nextGene.setNegativeStrand(true);
+			}
+			for(Transcript t:transcripts) {
+				t.setGene(nextGene);
+				transcriptome.addTranscript(t);	
+			}
+			usedGeneIds.add(nextGene.getId());
+			return;
+		}
+		if (negativeTranscripts.size()==0) {
+			//Treat as single gene
+			Gene nextGene = first.getGene();
+			String geneId = null;
+			if(positiveGeneIds.size()==1) geneId = positiveGeneIds.iterator().next();
+			if(geneId==null || usedGeneIds.contains(geneId)) {
+				// Create new gene id
+				String nextGeneId = createNewGeneId();
+				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),positiveFirst,positiveLast,false);
+			} else {
+				nextGene.setFirst(positiveFirst);
+				nextGene.setLast(positiveLast);
+				nextGene.setNegativeStrand(false);
+			}
+			for(Transcript t:transcripts) {
+				t.setGene(nextGene);
+				transcriptome.addTranscript(t);
+			}
+			usedGeneIds.add(nextGene.getId());
+			return;
+		}
+		log.warning("Overlapping positive and negative transcripts in "+first.getSequenceName()+":"+Math.min(positiveFirst, negativeFirst)+"-"+Math.max(positiveLast, negativeLast)+" ignoring: "+transcripts.size()+" transcripts");
+	}
+	private int newGeneId = 0;
+	private String createNewGeneId() {
+		newGeneId++;
+		return "GTF2LoaderGene"+newGeneId;
 	}
 }

@@ -114,6 +114,12 @@ public class Gene implements GenomicRegion {
 		return negativeStrand;
 	}
 	/**
+	 * @param negativeStrand the negativeStrand to set
+	 */
+	public void setNegativeStrand(boolean negativeStrand) {
+		this.negativeStrand = negativeStrand;
+	}
+	/**
 	 * @return List<String> Ontology terms associated with this gene
 	 */
 	public List<String> getOntologyTerms() {
