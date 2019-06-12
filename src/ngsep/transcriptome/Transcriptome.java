@@ -20,10 +20,10 @@
 package ngsep.transcriptome;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
@@ -391,26 +391,15 @@ public class Transcriptome {
 		annotationIntron.setTranscript(t);
 		return annotationIntron;
 	}
-	public void fillSequenceTranscripts(ReferenceGenome genome) {
-		if(sortedTranscripts==null)System.err.println("Null sorted transcripts");
+	public void fillSequenceTranscripts(ReferenceGenome genome, Logger log) {
+		if(sortedTranscripts==null) throw new RuntimeException("Null sorted transcripts");
 		for(Transcript t:sortedTranscripts) {
-			StringBuilder transcriptSeq = new StringBuilder();
-			boolean segmentNotFound = false;
-			List<TranscriptSegment> segments = new ArrayList<TranscriptSegment>(t.getTranscriptSegments());
-			if(t.isNegativeStrand()) Collections.reverse(segments);
-			for (TranscriptSegment e: segments) {
-				CharSequence genomicSeq = genome.getReference(t.getSequenceName(),e.getFirst(),e.getLast());
-				if(genomicSeq == null) {
-					System.err.println("WARN: Transcript segment at genomic location "+t.getSequenceName()+":"+e.getFirst()+"-"+ e.getLast()+" not found for transcript: "+t.getId());
-					segmentNotFound = true;
-					break;
-				}
-				if(t.isNegativeStrand()) {
-					genomicSeq = DNAMaskedSequence.getReverseComplement(genomicSeq);
-				}
-				transcriptSeq.append(genomicSeq);
+			try {
+				t.fillCDNASequence(genome);
+			} catch (Exception e) {
+				if(log!=null) log.warning(e.getMessage());
+				else e.printStackTrace();
 			}
-			if(!segmentNotFound) t.setCDNASequence(new DNAMaskedSequence(transcriptSeq.toString().toUpperCase()));
 		}
 	}
 	public void removeTranscript(Transcript t) {

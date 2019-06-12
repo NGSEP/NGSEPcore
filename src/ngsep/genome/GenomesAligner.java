@@ -158,7 +158,7 @@ public class GenomesAligner {
 		log.info("Loaded genome "+fileGenome);
 		GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
 		Transcriptome transcriptome = transcriptomeHandler.loadMap(fileTranscriptome);
-		transcriptome.fillSequenceTranscripts(genome);
+		transcriptome.fillSequenceTranscripts(genome, log);
 		log.info("Loaded transcriptome "+fileTranscriptome+ " number of transcripts: "+transcriptome.getAllTranscripts().size());
 		AnnotatedReferenceGenome annGenome = new AnnotatedReferenceGenome(genomes.size()+1, genome, transcriptome);
 		log.info("Genome: "+annGenome.getId()+" has "+annGenome.getOrthologyUnits().size()+" total orthology units. Calculating Paralogs");

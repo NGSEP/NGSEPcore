@@ -124,7 +124,7 @@ public class MutatedPeptidesExtractor {
 		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
 		handler.setLog(log);
 		transcriptome = handler.loadMap(transcriptomeMap);
-		transcriptome.fillSequenceTranscripts(genome);
+		transcriptome.fillSequenceTranscripts(genome, log);
 	}
 	
 	public void findMutatedPeptides (String vcfFile, PrintStream out) throws IOException  {

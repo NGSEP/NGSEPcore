@@ -147,7 +147,7 @@ public class TranscriptomeAnalyzer {
 			gff3Handler.setSequenceNames(sequenceNames);
 		}
 		Transcriptome transcriptome = gff3Handler.loadMap(transcriptomeFile); 			
-		if(genome!=null) transcriptome.fillSequenceTranscripts(genome);
+		if(genome!=null) transcriptome.fillSequenceTranscripts(genome, log);
 		else sequenceNames = gff3Handler.getSequenceNames();
 		
 		List<Transcript> transcriptsList = transcriptome.getAllTranscripts();

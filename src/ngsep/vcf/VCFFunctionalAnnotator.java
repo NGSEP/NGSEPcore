@@ -181,7 +181,7 @@ public class VCFFunctionalAnnotator {
 		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
 		handler.setLog(log);
 		transcriptome = handler.loadMap(transcriptomeMap);
-		transcriptome.fillSequenceTranscripts(genome);
+		transcriptome.fillSequenceTranscripts(genome, log);
 	}
 	public void annotate(String variantsFile,PrintStream out) throws IOException {
 		try (VCFFileReader in = new VCFFileReader(variantsFile)){

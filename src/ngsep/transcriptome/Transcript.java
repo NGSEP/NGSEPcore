@@ -26,6 +26,7 @@ import java.util.List;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 
 
@@ -414,6 +415,22 @@ public class Transcript implements GenomicRegion {
 	public void setCDNASequence(DNAMaskedSequence sequence) {
 		cdnaSequence = sequence;
 	}
+	
+	public void fillCDNASequence(ReferenceGenome genome) throws Exception {
+		StringBuilder transcriptSeq = new StringBuilder();
+		for (TranscriptSegment segment: segmentsSortedTranscript) {
+			CharSequence genomicSeq = genome.getReference(segment);
+			if(genomicSeq == null) {
+				throw new Exception("Transcript segment at genomic location "+sequenceName+":"+first+"-"+ last+" not found for transcript: "+id);
+			}
+			if(isNegativeStrand()) {
+				genomicSeq = DNAMaskedSequence.getReverseComplement(genomicSeq);
+			}
+			transcriptSeq.append(genomicSeq);
+		}
+		setCDNASequence(new DNAMaskedSequence(transcriptSeq.toString().toUpperCase()));
+	}
+	
 	/**
 	 * For coding transcripts, returns the DNA coding sequence
 	 * @return CharSequence sequence that will be translated
