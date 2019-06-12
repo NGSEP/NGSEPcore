@@ -129,7 +129,7 @@ public class GTF2TranscriptomeHandler {
 						continue;
 					}
 					if(transcript.getFirst()>first || transcript.getLast()<last) {
-						System.err.println("Exon coordinates outside transcript coordinates. Line: "+line);
+						log.warning("Exon coordinates outside transcript coordinates. Line: "+line);
 						line = in.readLine();
 						continue;
 					}
@@ -149,12 +149,20 @@ public class GTF2TranscriptomeHandler {
 			List<Transcript> nextOverlappingCluster = new ArrayList<>();
 			int lastCluster = 0;
 			for(Transcript t:transcripts) {
-				if(lastCluster - t.getFirst()<100) {
+				int cdsAbsStart = t.getCodingAbsoluteStart();
+				int cdsAbsEnd = t.getCodingAbsoluteEnd();
+				int cdsMin = Math.min(cdsAbsStart, cdsAbsEnd);
+				int cdsMax = Math.max(cdsAbsStart, cdsAbsEnd);
+				if(cdsAbsStart<t.getFirst() || cdsAbsStart>t.getLast() || cdsAbsEnd<t.getFirst() || cdsAbsEnd>t.getLast() ) {
+					log.warning("Improper CDS limits "+cdsAbsStart+"-"+cdsAbsEnd+" for transcript "+t.getId()+" at "+t.getSequenceName()+":"+t.getFirst()+"-"+t.getLast()+". Ignoring");
+					continue;
+				}
+				if(lastCluster <= cdsMin) {
 					processTranscriptsGroup(answer,nextOverlappingCluster,usedGeneIds);
 					nextOverlappingCluster.clear();
 				}
 				nextOverlappingCluster.add(t);
-				lastCluster = Math.max(lastCluster, t.getLast());
+				lastCluster = Math.max(lastCluster, cdsMax);
 			}
 		}
 		log.warning("Created "+newGeneId+" new gene ids");

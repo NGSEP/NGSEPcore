@@ -49,6 +49,9 @@ public class Transcript implements GenomicRegion {
 	private List<TranscriptSegment> segmentsSortedTranscript=new ArrayList<TranscriptSegment>();
 	private int codingRelativeStart = -1;
 	private int codingRelativeEnd = -1;
+	//Genomic start and end of the coding sequence. start > end if the transcript is in the negative strand
+	private int codingAbsoluteStart = -1;
+	private int codingAbsoluteEnd = -1;
 	private int length = 0;
 	
 	/**
@@ -124,7 +127,10 @@ public class Transcript implements GenomicRegion {
 			}
 			length+=segment.length();
 		}
-		
+		if(coding) {
+			codingAbsoluteStart = getAbsolutePosition(codingRelativeStart);
+			codingAbsoluteEnd = getAbsolutePosition(codingRelativeEnd);
+		}
 		//if("PAC:27162177".equals(id)) System.err.println("Coding relative start "+codingRelativeStart+" coding relative end: "+codingRelativeEnd+" total length: "+length);
 	}
 	private void updateSegmentIntronsAround() {
@@ -318,6 +324,18 @@ public class Transcript implements GenomicRegion {
 	}
 	public int getCodingRelativeEnd() {
 		return codingRelativeEnd;
+	}
+	/**
+	 * @return the codingAbsoluteStart
+	 */
+	public int getCodingAbsoluteStart() {
+		return codingAbsoluteStart;
+	}
+	/**
+	 * @return the codingAbsoluteEnd
+	 */
+	public int getCodingAbsoluteEnd() {
+		return codingAbsoluteEnd;
 	}
 	/**
 	 * @return String Id of the gene related with this transcript
