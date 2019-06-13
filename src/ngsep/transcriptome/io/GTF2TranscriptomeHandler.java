@@ -6,10 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
@@ -142,30 +140,7 @@ public class GTF2TranscriptomeHandler {
 		}
 		//Process transcripts by overlapping clusters
 		Transcriptome answer = new Transcriptome(sequenceNames);
-		Set<String> usedGeneIds = new HashSet<>();
-		for(QualifiedSequence seq:sequenceNames) {
-			List<Transcript> transcripts = transcriptsBySeqName.get(seq.getName());
-			Collections.sort(transcripts,GenomicRegionPositionComparator.getInstance());
-			List<Transcript> nextOverlappingCluster = new ArrayList<>();
-			int lastCluster = 0;
-			for(Transcript t:transcripts) {
-				int cdsAbsStart = t.getCodingAbsoluteStart();
-				int cdsAbsEnd = t.getCodingAbsoluteEnd();
-				int cdsMin = Math.min(cdsAbsStart, cdsAbsEnd);
-				int cdsMax = Math.max(cdsAbsStart, cdsAbsEnd);
-				if(cdsAbsStart<t.getFirst() || cdsAbsStart>t.getLast() || cdsAbsEnd<t.getFirst() || cdsAbsEnd>t.getLast() ) {
-					log.warning("Improper CDS limits "+cdsAbsStart+"-"+cdsAbsEnd+" for transcript "+t.getId()+" at "+t.getSequenceName()+":"+t.getFirst()+"-"+t.getLast()+". Ignoring");
-					continue;
-				}
-				if(lastCluster <= cdsMin) {
-					processTranscriptsGroup(answer,nextOverlappingCluster,usedGeneIds);
-					nextOverlappingCluster.clear();
-				}
-				nextOverlappingCluster.add(t);
-				lastCluster = Math.max(lastCluster, cdsMax);
-			}
-		}
-		log.warning("Created "+newGeneId+" new gene ids");
+		answer.loadBulkTranscripts(transcriptsBySeqName, "GTF2LoaderGene", log);
 		return answer;
 	}
 	
@@ -329,10 +304,11 @@ public class GTF2TranscriptomeHandler {
 			transcript.fillCDNASequence(genome);
 		} catch (Exception e) {
 			log.warning(e.getMessage());
+			return false;
 		}
 		return true;
 	}
-	private List<TranscriptSegment> filterByUTRs(List<TranscriptSegment> segments) {
+	public static List<TranscriptSegment> filterByUTRs(List<TranscriptSegment> segments) {
 		List<TranscriptSegment> filteredSegments = new ArrayList<>();
 		int numCoding = 0;
 		for(TranscriptSegment segment:segments) {
@@ -360,125 +336,5 @@ public class GTF2TranscriptomeHandler {
 		return phase;
 	}
 	
-	private void processTranscriptsGroup(Transcriptome transcriptome, List<Transcript> transcripts, Set<String> usedGeneIds) {
-		if(transcripts == null || transcripts.size()==0) {
-			return;
-		}
-		Transcript first = transcripts.get(0);
-		if(transcripts.size()==1) {
-			Gene nextGene = first.getGene();
-			if(usedGeneIds.contains(first.getGeneId())) {
-				// Create new gene id
-				String nextGeneId = createNewGeneId();
-				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),first.getFirst(),first.getLast(),first.isNegativeStrand());
-				first.setGene(nextGene);
-			} else {
-				nextGene.setFirst(first.getFirst());
-				nextGene.setLast(first.getLast());
-				nextGene.setNegativeStrand(first.isNegativeStrand());
-			}
-			transcriptome.addTranscript(first);
-			usedGeneIds.add(first.getGeneId());
-			return;
-		}
-		//Find out direction and geneIds
-		List<Transcript> positiveTranscripts = new ArrayList<>();
-		List<Transcript> negativeTranscripts = new ArrayList<>();
-		Set<String> positiveGeneIds = new HashSet<>();
-		Set<String> negativeGeneIds = new HashSet<>();
-		int positiveFirst = -1;
-		int positiveLast = 0;
-		int negativeFirst = -1;
-		int negativeLast = 0;
-		Transcript longestCDS = null;
-		int maxCDSLen = 0;
-		Set<String> cdsSequences = new HashSet<>();
-		
-		for(Transcript t: transcripts) {
-			CharSequence cdsSeq = t.getCDSSequence();
-			if(cdsSeq == null) continue;
-			int cdsLength = cdsSeq.length();
-			if(cdsLength == 0) continue;
-			if(cdsSequences.contains(cdsSeq.toString())) continue;
-			cdsSequences.add(cdsSeq.toString());
-			if(maxCDSLen<cdsLength) {
-				maxCDSLen = cdsLength;
-				longestCDS = t;
-			}
-			if(t.isPositiveStrand()) {
-				positiveTranscripts.add(t);
-				positiveGeneIds.add(t.getGeneId());
-				if(positiveFirst==-1 || positiveFirst>t.getFirst()) positiveFirst = t.getFirst();
-				if(positiveLast<t.getLast()) positiveLast = t.getLast();
-			} else {
-				negativeTranscripts.add(t);
-				negativeGeneIds.add(t.getGeneId());
-				if(negativeFirst==-1 || negativeFirst>t.getFirst()) negativeFirst = t.getFirst();
-				if(negativeLast<t.getLast()) negativeLast = t.getLast();
-			}
-		}
-		if (negativeTranscripts.size()==0) {
-			//Treat as single gene
-			Gene nextGene = first.getGene();
-			String geneId = null;
-			if(positiveGeneIds.size()==1) geneId = positiveGeneIds.iterator().next();
-			if(geneId==null || usedGeneIds.contains(geneId)) {
-				// Create new gene id
-				String nextGeneId = createNewGeneId();
-				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),positiveFirst,positiveLast,false);
-			} else {
-				nextGene.setFirst(positiveFirst);
-				nextGene.setLast(positiveLast);
-				nextGene.setNegativeStrand(false);
-			}
-			for(Transcript t:positiveTranscripts) {
-				t.setGene(nextGene);
-				transcriptome.addTranscript(t);
-			}
-			usedGeneIds.add(nextGene.getId());
-			return;
-		}
-		if(positiveTranscripts.size()==0) {
-			//Treat as single gene
-			Gene nextGene = first.getGene();
-			String geneId = null;
-			if(negativeGeneIds.size()==1) geneId = negativeGeneIds.iterator().next();
-			
-			if(geneId==null || usedGeneIds.contains(geneId)) {
-				// Create new gene id
-				String nextGeneId = createNewGeneId();
-				nextGene = new Gene(nextGeneId,nextGeneId,first.getSequenceName(),negativeFirst,negativeLast,true);
-			} else {
-				nextGene.setFirst(negativeFirst);
-				nextGene.setLast(negativeLast);
-				nextGene.setNegativeStrand(true);
-			}
-			for(Transcript t:negativeTranscripts) {
-				t.setGene(nextGene);
-				transcriptome.addTranscript(t);	
-			}
-			usedGeneIds.add(nextGene.getId());
-			return;
-		}
-		
-		log.warning("Overlapping positive and negative transcripts in "+longestCDS.getSequenceName()+":"+Math.min(positiveFirst, negativeFirst)+"-"+Math.max(positiveLast, negativeLast)+" choosing best transcript "+longestCDS.getId()+" from "+transcripts.size()+" transcripts");
-		Gene nextGene = longestCDS.getGene();
-		if(usedGeneIds.contains(longestCDS.getGeneId())) {
-			// Create new gene id
-			String nextGeneId = createNewGeneId();
-			nextGene = new Gene(nextGeneId,nextGeneId,longestCDS.getSequenceName(),longestCDS.getFirst(),longestCDS.getLast(),longestCDS.isNegativeStrand());
-			longestCDS.setGene(nextGene);
-		} else {
-			nextGene.setFirst(longestCDS.getFirst());
-			nextGene.setLast(longestCDS.getLast());
-			nextGene.setNegativeStrand(longestCDS.isNegativeStrand());
-		}
-		transcriptome.addTranscript(longestCDS);
-		usedGeneIds.add(longestCDS.getGeneId());
-	}
-	private int newGeneId = 0;
-	private String createNewGeneId() {
-		newGeneId++;
-		return "GTF2LoaderGene"+newGeneId;
-	}
+	
 }

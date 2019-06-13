@@ -20,15 +20,20 @@
 package ngsep.transcriptome;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.GenomicVariant;
 
@@ -414,5 +419,130 @@ public class Transcriptome {
 				genesMap.remove(geneId);
 			}
 		}
+	}
+	public void loadBulkTranscripts(Map<String,List<Transcript>> transcriptsBySeqName, String newGenesPrefix, Logger log ) {
+		for(QualifiedSequence seq:sequenceNames) {
+			List<Transcript> transcripts = transcriptsBySeqName.get(seq.getName());
+			Collections.sort(transcripts,GenomicRegionPositionComparator.getInstance());
+			List<Transcript> nextOverlappingCluster = new ArrayList<>();
+			int lastCluster = 0;
+			for(Transcript t:transcripts) {
+				int cdsAbsStart = t.getCodingAbsoluteStart();
+				int cdsAbsEnd = t.getCodingAbsoluteEnd();
+				int cdsMin = Math.min(cdsAbsStart, cdsAbsEnd);
+				int cdsMax = Math.max(cdsAbsStart, cdsAbsEnd);
+				if(cdsAbsStart<t.getFirst() || cdsAbsStart>t.getLast() || cdsAbsEnd<t.getFirst() || cdsAbsEnd>t.getLast() ) {
+					if(log!=null) log.warning("Improper CDS limits "+cdsAbsStart+"-"+cdsAbsEnd+" for transcript "+t.getId()+" at "+t.getSequenceName()+":"+t.getFirst()+"-"+t.getLast()+". Ignoring");
+				}
+				if(lastCluster <= cdsMin) {
+					createOverlappingTranscripts(nextOverlappingCluster, newGenesPrefix, log);
+					nextOverlappingCluster.clear();
+				}
+				nextOverlappingCluster.add(t);
+				lastCluster = Math.max(lastCluster, cdsMax);
+			}
+			createOverlappingTranscripts(nextOverlappingCluster, newGenesPrefix, log);
+		}
+	}
+	
+	private void createOverlappingTranscripts(List<Transcript> transcripts, String newGenesPrefix, Logger log) {
+		if(transcripts == null || transcripts.size()==0) {
+			return;
+		}
+		Transcript first = transcripts.get(0);
+		if(transcripts.size()==1) {
+			addTranscriptWithNewGene(first, newGenesPrefix);
+			if(log!=null) log.info("Added single transcript with gene id "+first.getGeneId());
+			return;
+		}
+		//Find out direction and geneIds
+		List<Transcript> positiveTranscripts = new ArrayList<>();
+		List<Transcript> negativeTranscripts = new ArrayList<>();
+		Set<String> positiveGeneIds = new HashSet<>();
+		Set<String> negativeGeneIds = new HashSet<>();
+		int positiveFirst = -1;
+		int positiveLast = 0;
+		int negativeFirst = -1;
+		int negativeLast = 0;
+		Transcript longestCDS = null;
+		int maxCDSLen = 0;
+		Set<String> cdsSequences = new HashSet<>();
+		
+		for(Transcript t: transcripts) {
+			CharSequence cdsSeq = t.getCDSSequence();
+			if(cdsSeq == null) continue;
+			int cdsLength = cdsSeq.length();
+			if(cdsLength == 0) continue;
+			if(cdsSequences.contains(cdsSeq.toString())) continue;
+			cdsSequences.add(cdsSeq.toString());
+			if(maxCDSLen<cdsLength) {
+				maxCDSLen = cdsLength;
+				longestCDS = t;
+			}
+			if(t.isPositiveStrand()) {
+				positiveTranscripts.add(t);
+				positiveGeneIds.add(t.getGeneId());
+				if(positiveFirst==-1 || positiveFirst>t.getFirst()) positiveFirst = t.getFirst();
+				if(positiveLast<t.getLast()) positiveLast = t.getLast();
+			} else {
+				negativeTranscripts.add(t);
+				negativeGeneIds.add(t.getGeneId());
+				if(negativeFirst==-1 || negativeFirst>t.getFirst()) negativeFirst = t.getFirst();
+				if(negativeLast<t.getLast()) negativeLast = t.getLast();
+			}
+		}
+		if (negativeTranscripts.size()==0) {
+			//Treat as single gene
+			String geneId = null;
+			if(positiveGeneIds.size()==1) geneId = positiveGeneIds.iterator().next();
+			if(geneId==null || genesMap.containsKey(geneId)) {
+				// Create new gene id
+				geneId = createGeneId(newGenesPrefix);
+			}
+			Gene nextGene = new Gene(geneId,geneId,first.getSequenceName(),positiveFirst,positiveLast,false);
+			for(Transcript t:positiveTranscripts) {
+				t.setGene(nextGene);
+				addTranscript(t);
+			}
+			if(log!=null) log.info("Added gene with "+positiveTranscripts.size()+" positive transcripts. Gene id "+geneId);
+		} else if(positiveTranscripts.size()==0) {
+			//Treat as single gene
+			String geneId = null;
+			if(negativeGeneIds.size()==1) geneId = negativeGeneIds.iterator().next();
+			
+			if(geneId==null || genesMap.containsKey(geneId)) {
+				// Create new gene id
+				geneId = createGeneId(newGenesPrefix);
+				
+			}
+			Gene nextGene = new Gene(geneId,geneId,first.getSequenceName(),negativeFirst,negativeLast,true);
+			for(Transcript t:negativeTranscripts) {
+				t.setGene(nextGene);
+				addTranscript(t);	
+			}
+			if(log!=null) log.info("Added gene with "+negativeTranscripts.size()+" negative transcripts. Gene id "+geneId);
+		} else {
+			addTranscriptWithNewGene(longestCDS, newGenesPrefix);
+			if(log!=null) log.info("Overlapping positive and negative transcripts in "+longestCDS.getSequenceName()+":"+Math.min(positiveFirst, negativeFirst)+"-"+Math.max(positiveLast, negativeLast)+" choosing best transcript "+longestCDS.getId()+" from "+transcripts.size()+" transcripts. Added with gene id "+longestCDS.getGeneId());
+		}
+	}
+	private void addTranscriptWithNewGene(Transcript transcript, String genesPrefix) {
+		String geneId = transcript.getGeneId();
+		if(genesMap.containsKey(geneId)) {
+			// Create new gene id
+			geneId = createGeneId(genesPrefix);
+		}
+		Gene gene = new Gene(geneId,geneId,transcript.getSequenceName(),transcript.getFirst(),transcript.getLast(),transcript.isNegativeStrand());
+		transcript.setGene(gene);
+		addTranscript(transcript);
+	}
+	private int newGeneId = 1;
+	private String createGeneId(String genesPrefix) {
+		String id = genesPrefix+newGeneId;
+		while (genesMap.containsKey(id)) {
+			newGeneId++;
+			id = genesPrefix+newGeneId;
+		}
+		return id;
 	}
 }
