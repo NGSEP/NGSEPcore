@@ -11,7 +11,7 @@ compile:
 copy: 
 	cp -f src/ngsep/transcriptome/ProteinTranslatorDefaultBundle.properties bin/ngsep/transcriptome/
 	cp -f src/ngsep/main/CommandsDescriptor.xml bin/ngsep/main/
-	cp -f src/ngsep/genome/GenomesAlignerLinearVisualizer.js bin/ngsep/genome/
+	cp -f src/ngsep/genome/*.js bin/ngsep/genome/
 
 jar: 
 	mkdir dist
