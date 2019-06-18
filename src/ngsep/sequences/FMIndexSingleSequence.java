@@ -42,7 +42,7 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
 
-	private static final int DEFAULT_TALLY_DISTANCE = 100;
+	private static final int DEFAULT_TALLY_DISTANCE = 64;
 	private static final int DEFAULT_SUFFIX_FRACTION = 100;
 
 	// Start position in the original sequence of some rows of the BW matrix
@@ -63,6 +63,9 @@ public class FMIndexSingleSequence implements Serializable {
 
 	// Burrows Wheeler transform
 	private byte [] bwt;
+	
+	// Compressed bwt
+	private long [] compressedBwt = null; 
 
 	//For each character tells the number of times it appears
 	private Map<Character, Integer> characterCounts;
@@ -121,10 +124,14 @@ public class FMIndexSingleSequence implements Serializable {
 		
 		
 		buildBWT(sequence, sa, reverseSA);
+		if(tallyDistance==DEFAULT_TALLY_DISTANCE && alphabet.length()==4) {
+			buildCompressedBWT(sequence, sa, reverseSA);
+		}
 		createPartialSuffixArray(sa, reverseSA);
 		buildTally();
 		//printIndexInfo();
 	}
+
 	private void printIndexInfo() {
 		System.out.println("Alphabet: "+alphabet);
 		System.out.println("BWT: "+new String(bwt));
@@ -166,6 +173,11 @@ public class FMIndexSingleSequence implements Serializable {
 			}
 			j++;
 		}
+	}
+	
+	private void buildCompressedBWT(CharSequence sequence, int[] sa, int[] reverseSA) {
+		// TODO: Implement
+		
 	}
 
 	private void buildTally() {
@@ -297,6 +309,9 @@ public class FMIndexSingleSequence implements Serializable {
 	public int getTallyCount(char c, int row) {
 		int r = 0;
 
+		if(compressedBwt!=null) {
+			return getTallyCountBitOperations(c, row);
+		}
 		int a = row / tallyDistance;
 		int b = a + 1;
 
@@ -319,6 +334,11 @@ public class FMIndexSingleSequence implements Serializable {
 			}
 		}
 		return r;
+	}
+
+	private int getTallyCountBitOperations(char c, int row) {
+		// TODO Implement
+		return 0;
 	}
 
 	/**
