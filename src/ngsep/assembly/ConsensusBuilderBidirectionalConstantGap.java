@@ -98,7 +98,6 @@ public class ConsensusBuilderBidirectionalConstantGap implements ConsensusBuilde
 					finalString.append(b);
 			}
 		}
-		boolean stop = false;
 		return finalString.toString();
 	}
 	

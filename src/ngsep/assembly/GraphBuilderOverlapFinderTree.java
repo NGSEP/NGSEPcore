@@ -36,8 +36,15 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 		this.kmerIterator = new GraphBuilderKmerIterator(Rate_of_changes, Rate_of_cuts, Rate_of_cover);
 		this.index = index;
 		this.sequences = seq;
+		System.out.println("-----------------");
+		System.out.println("		Finding overlaps");
+		long ini = System.currentTimeMillis();
 		findOverlaps();
+		System.out.println("		found overlaps: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+		System.out.println("		Building graph");
+		ini = System.currentTimeMillis();
 		assemblyGraph = buidAssemblyGraph();
+		System.out.println("		built graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 	}
 
 	@Override

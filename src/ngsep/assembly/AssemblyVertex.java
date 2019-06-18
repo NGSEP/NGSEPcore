@@ -1,10 +1,11 @@
 package ngsep.assembly;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AssemblyVertex {
+public class AssemblyVertex implements Serializable {
 	private CharSequence read;
 	private boolean start;
 	private int index;

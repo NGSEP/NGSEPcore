@@ -2,8 +2,12 @@ package ngsep.assembly;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -34,13 +38,13 @@ public class Assembler {
 
 		System.out.println("building layouts");
 		ini = System.currentTimeMillis();
-		LayourBuilder pathsFinder = new LayoutBuilderImplementation();
+		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
 		pathsFinder.findPaths(graph);
 		System.out.println("build layouts: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
-
+		
 		System.out.println("building consensus");
 		ini = System.currentTimeMillis();
-		ConsensusBuilder consensus =  ConsensusBuilder.NONE;
+		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalFMIndex(2, 20, 1, 18, 7, 2);
 		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
 		System.out.println("build consensus: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 

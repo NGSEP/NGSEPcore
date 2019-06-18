@@ -62,27 +62,51 @@ public class AlignmentAffineGap {
 	    		int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
 	    		m[i][j] = Math.max(m[i-1][j-1] + matchScore, Math.max(x[i-1][j-1] + matchScore, y[i-1][j-1] + matchScore));
 	    		if(m[i][j] == m[i-1][j-1] + matchScore)
+	    		{
 	    			b[0][i][j] = new Traceback(0, i-1, j-1);
+	    		}
 	    		else if(m[i][j] == x[i-1][j-1] + matchScore)
+	    		{
 	    			b[0][i][j] = new Traceback(1, i-1, j-1);
+	    		}
 	    		else if(m[i][j] == y[i-1][j-1] + matchScore)
+	    		{
 	    			b[0][i][j] = new Traceback(2, i-1, j-1);
+	    		}
 	    		x[i][j] = Math.max(m[i-1][j] - openGap, Math.max(x[i-1][j] - extGap, y[i-1][j] - openGap));
 	    		if(x[i][j] == m[i-1][j] - openGap)
+	    		{
 	    			b[1][i][j] = new Traceback(0, i-1, j);
+	    		}
 	    		else if(x[i][j] == x[i-1][j] - extGap)
+	    		{
 	    			b[1][i][j] = new Traceback(1, i-1, j);
+	    		}
 	    		else if(x[i][j] == y[i-1][j] - openGap)
+	    		{
 	    			b[1][i][j] = new Traceback(2, i-1, j);
+	    		}
 	    		y[i][j] = Math.max(m[i][j-1] - openGap, Math.max(x[i][j-1] - openGap, y[i][j-1] - extGap));
 	    		if(y[i][j] == m[i][j-1] - openGap)
+	    		{
 	    			b[2][i][j] = new Traceback(0, i, j-1);
+	    		}
 	    		else if(y[i][j] == x[i][j-1] - openGap)
+	    		{
 	    			b[2][i][j] = new Traceback(1, i, j-1);
+	    		}
 	    		else if(y[i][j] == y[i][j-1] - extGap)
+	    		{
 	    			b[2][i][j] = new Traceback(2, i, j-1);
+	    		}
 	    	}
 	    }
+//		System.out.println("X");
+//		printAlignmentMatrix(x, s1, s2);
+//		System.out.println("Y");
+//		printAlignmentMatrix(y, s1, s2);
+//		System.out.println("M");
+//		printAlignmentMatrix(m, s1, s2);
 	}
 
 	private int getMatchScore(char a, char b)
@@ -102,7 +126,7 @@ public class AlignmentAffineGap {
 	{
 		int k = 0;
 	    int val = m[m.length - 1][m[0].length - 1];
-    	if (val < x[m.length - 1][m[0].length - 1]) 
+    	if (val <= x[m.length - 1][m[0].length - 1]) 
     		k = 1;
     	else if (val <= y[m.length - 1][m[0].length - 1]) 
     		k = 2;
@@ -118,7 +142,7 @@ public class AlignmentAffineGap {
         seqs[1] = "";
         Traceback tb = root;
         int i = tb.i;
-        int j = tb.j;
+        int j = tb.j; 
         while((tb = getNextTraceback(b, tb)) != null)
         {
 	        if (i == tb.i)
@@ -126,16 +150,37 @@ public class AlignmentAffineGap {
 	        else
 	        	sb1.append(s1.charAt(i - 1));
 	        if (j == tb.j)
+	        {
 	        	sb2.append('-');
+	        }
 	        else
 	        	sb2.append(s2.charAt(j - 1));
 	        i = tb.i;
 	        j = tb.j;
         }
-        
+         
         seqs[0] = sb1.reverse().toString();
         seqs[1] = sb2.reverse().toString();
         
         return seqs;
+	}
+	
+	private void printAlignmentMatrix(int[][] matrix, String s1, String s2)
+	{
+		System.out.print("\t-\t");
+		for (int i = 0; i < s2.length(); i++) {
+			System.out.print(s2.charAt(i) + "\t");
+		}
+		System.out.println();
+		for (int i = 0; i < matrix.length; i++) {
+			if(i == 0)
+				System.out.print("-\t");
+			else 
+				System.out.print(s1.charAt(i - 1) + "\t");
+		    for (int j = 0; j < matrix[i].length; j++) {
+		        System.out.print(matrix[i][j] + "\t");
+		    }
+		    System.out.println();
+		}
 	}
 }

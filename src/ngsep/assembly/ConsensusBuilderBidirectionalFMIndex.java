@@ -1,8 +1,10 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,23 +34,28 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	@Override
 	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
 	{
+		//List of final contigs
 		List<CharSequence> consensusList = new ArrayList<CharSequence>();
 		for(int i = 0; i < graph.getPaths().size(); i++)
 		{
+			List<String> globalAlignment = new ArrayList<String>();
 			List<AssemblyEdge> path = graph.getPaths().get(i);
 			String consensus = "";
-			startConsensus = true;
+			int previousOverlap = 0;
 			for(int j = 0; j < path.size(); j++)
 			{
+				//Needed to find which is the origin vertex
 				AssemblyEdge previousEdge = null;
 				if(j > 0)
 					previousEdge = path.get(j - 1);
 				AssemblyEdge edge = path.get(j);
 				AssemblyVertex a = edge.getVertex1();
 				AssemblyVertex b = edge.getVertex2();
-				if(previousEdge == null && path.size() > j + 1)
+				//If the first edge is being checked, compare to the second edge to find the origin vertex
+				if(previousEdge == null && path.size() > 1)
 				{
 					previousEdge = path.get(j + 1);
+					//The common vertex is the second vertex of the path
 					if(previousEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
 					{
 						a = edge.getVertex2();
@@ -57,27 +64,109 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 				}
 				else if (previousEdge != null)
 				{
+					//The common vertex is the first vertex to be compared
 					if(previousEdge.getVertex1().getIndex() == edge.getVertex2().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex2().getIndex())
 					{
 						a = edge.getVertex2();
 						b = edge.getVertex1();
 					}
 				}
-				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
-				s1 = s1.substring(s1.length() - edge.getOverlap() - tolerance);
-				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
-				s2 = s2.substring(0, edge.getOverlap() + tolerance);
-				System.out.println(s2);
-				String[] alignments = getAlignment(s1, s2);
+				//Ignore if both reads are equal
+				if(!a.getRead().toString().equals(b.getRead().toString()))
+				{
+					//If the first string is start, then the reverse complement is added to the consensus
+					String s1 = a.isStart() ? reverseComplement(a.getRead().toString()) : a.getRead().toString();
+					String oriS1 = s1;
+					//If the second string isn't start, then the reverse complement is added to the consensus
+ 					String s2 = !b.isStart() ? reverseComplement(b.getRead().toString()) : b.getRead().toString();
+ 					String oriS2 = s2;
+ 					//If it's starting the consensus, add the first characters that won't be compared to the consensus
+ 					if(j == 1 && s1.length() - edge.getOverlap() > tolerance)
+ 						consensus = s1.substring(0, s1.length() - edge.getOverlap() - tolerance);
+ 					//If the overlap + tolerance is greater than the length of the string, take the whole string
+ 					if(s1.length() - edge.getOverlap() > tolerance)
+						s1 = s1.substring(s1.length() - edge.getOverlap() - tolerance);
+					if(s2.length() - edge.getOverlap() > tolerance)
+						s2 = s2.substring(0, edge.getOverlap() + tolerance);
+					String[] alignments = getAlignment(s1, s2);
+					
+					if(j > 1 && previousOverlap + edge.getOverlap() + (2 * tolerance) < oriS1.length())
+						consensus = consensus.concat(oriS1.substring(previousOverlap + tolerance, oriS1.length() - edge.getOverlap() - tolerance));
+					System.out.println("J " + j);
+					System.out.println("PREV " + previousOverlap);
+					System.out.println("LEN " + oriS1.length());
+					System.out.println("OL " + edge.getOverlap());
+					System.out.println("ALI " + alignments[0].length());
+					if(j == 483)	
+					{
+						int integ = 0;
+					}
+					String joined = joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignments);
+					int startIndex = previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance;
+					System.out.println("IDX " + startIndex);
+					System.out.println("JND " + joined.length());
+					if(j > 1 && startIndex < joined.length())
+						consensus = consensus.concat(joined.substring(previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance));
+					else if (j == 1)
+						consensus = consensus.concat(joined);
+					
+					previousOverlap = edge.getOverlap();
+					//If it's the last edge, add the remaining uncompared string from the last vertex
+					if(j == path.size() - 2)
+						consensus = consensus.concat(s2 = s2.substring(edge.getOverlap() + tolerance));
+				}
 			}
+			
 			consensusList.add(consensus);
-		}	
+		}
+		
 		return consensusList;
 	}
 	
-	private String joinedString()
+	private String joinedString(List<AssemblyEmbedded> embedded1, List<AssemblyEmbedded> embedded2, String[] alignment)
 	{
-		return null;
+		StringBuilder finalString = new StringBuilder();
+		int i = 0;
+		if(startConsensus)
+		{
+			for(i = alignment[0].length() - 1; i >= 0; i--)
+			{
+				char b = alignment[0].charAt(i);
+				if(b != '-')
+					break;
+			}
+			startConsensus = false;
+			i++;
+		}
+		
+		i = 0;
+		for (; i < alignment[0].length(); i++) 
+		{
+			char a = alignment[0].charAt(i);
+			char b = alignment[1].charAt(i);
+			if(a == '-' && b != '-')
+			{
+				finalString.append(b);
+			}
+			else if(a != '-' && b == '-')
+			{
+				finalString.append(a);
+			}
+			else if(a == b)
+			{
+				finalString.append(a);
+			}
+			else if(a != b)
+			{
+				if(embedded1 != null && embedded2 != null)
+					finalString.append(embedded1.size() > embedded2.size() ? a : b);
+				else if (embedded1 != null)
+					finalString.append(a);
+				else 
+					finalString.append(b);
+			}
+		}
+		return finalString.toString();
 	}
 	
 	private String[] getAlignment(String s1, String s2)
@@ -94,7 +183,9 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 			int windowEnd = windowStart + windowSize;
 			boolean found = false;
 			String sub = s2.substring(windowStart, windowEnd);
-			for(Integer x : fm.exactSearch(sub))
+			Set<Integer> foundList = new TreeSet<Integer>();
+			foundList.addAll(fm.exactSearch(sub));
+			for(Integer x : foundList)
 			{
 				if(x >= lastSearched - tolerance && x <= lastSearched + tolerance)
 				{
@@ -129,6 +220,8 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 						seq1 += s1.substring(x, x + windowSize);
 						seq2 += sub;
 					}
+					else if(x < lastSearched)
+						continue;
 					lastSearched = x + windowSize;
 					found = true;
 					break;
@@ -174,14 +267,14 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 		return alignments;
 	}
 	
-	private String complementaryStrand(String s)
+	private String reverseComplement(String s)
 	{
 		StringBuilder complementaryStrand = new StringBuilder();
 		for(int i = 0; i < s.length(); i++)
 		{
 			complementaryStrand.append(complementaryBase(s.charAt(i)));
 		}
-		return complementaryStrand.toString();
+		return complementaryStrand.reverse().toString();
 	}
 	
 	private char complementaryBase(char b)

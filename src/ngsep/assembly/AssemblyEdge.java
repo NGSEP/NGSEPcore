@@ -1,6 +1,8 @@
 package ngsep.assembly;
 
-public class AssemblyEdge {
+import java.io.Serializable;
+
+public class AssemblyEdge implements Serializable {
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
 	private int overlap;
