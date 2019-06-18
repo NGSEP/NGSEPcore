@@ -65,6 +65,10 @@ public class Transcriptome {
 	public Gene getGene (String id) {
 		return genesMap.get(id);
 	}
+	
+	public List<Gene> getAllGenes () {
+		return new ArrayList<>(genesMap.values());
+	}
 	/**
 	 * Adds the given transcript to the transcriptome
 	 * @param t New transcript
