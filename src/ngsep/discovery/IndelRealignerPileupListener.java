@@ -107,7 +107,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(currentPos==posPrint)System.out.println("IndelRealigner. Max indel length: "+maxIndelLength+". Max indel Span: "+maxIndelSpan+" predicted end: "+predictedEventEnd+" time: "+System.currentTimeMillis());
 		}
 		if(predictedEventEnd>currentPos) {
-			int conciliatedSpan = conciliateIndels(pileup,predictedEventEnd,var);
+			int conciliatedSpan = conciliateIndels(pileup,alignments, predictedEventEnd,var);
 			if(conciliatedSpan > 0) referenceSpan = conciliatedSpan;
 			if(currentPos==posPrint)System.out.println("IndelRealigner. New reference span: "+referenceSpan+". STR: "+pileup.isSTR()+" time: "+System.currentTimeMillis());
 		}
@@ -152,13 +152,12 @@ public class IndelRealignerPileupListener implements PileupListener {
 	 * @param varG variant to genotype
 	 * @return int The reference span if indels are called (zero otherwise).
 	 */
-	private int conciliateIndels(PileupRecord pileup, int eventEnd, GenomicVariant varG) {
+	private int conciliateIndels(PileupRecord pileup, List<ReadAlignment> alignments, int eventEnd, GenomicVariant varG) {
 		int answer = 0;
 		int currentPos = pileup.getPosition();
 		boolean fixedEvent = (varG!=null);
 		
 		Set<Integer> lengths = new TreeSet<Integer>();
-		List<ReadAlignment> alignments = pileup.getAlignments();
 		List<ReadAlignment> indelAlns = new ArrayList<ReadAlignment>();
 		//Vote for possible indel starts
 		int [] votes = new int [eventEnd-currentPos+1];

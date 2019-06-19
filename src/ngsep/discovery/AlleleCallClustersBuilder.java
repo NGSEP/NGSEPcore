@@ -69,7 +69,7 @@ public class AlleleCallClustersBuilder {
 		return position;
 	}
 
-	public Set<String> clusterAlleleCalls (List<PileupAlleleCall> calls, String reference, byte maxBaseQS) {
+	public Set<String> clusterAlleleCalls (PileupRecord pileup, List<PileupAlleleCall> calls, String reference, byte maxBaseQS) {
 		Set<String> answer = new TreeSet<>();
 		Map<Integer, List<PileupAlleleCall>> alleleCallsByLength = new HashMap<>();
 		for(PileupAlleleCall call:calls) {
@@ -106,6 +106,9 @@ public class AlleleCallClustersBuilder {
 					//qualities.add(call.getQualityScores());
 				}
 				String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(allelesL);
+				if(!DNASequence.isDNA(consensus)) {
+					System.err.println ("Consensus allele for calls "+allelesL+" of length: "+l+" at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is not DNA: "+consensus  );
+				}
 				if(position == posPrint) System.out.println("Consensus: "+consensus);
 				suggestedAllelesSet.add(consensus);
 				if(l<4 || suggestedAllelesSet.size()>1 || callsL.size()<10) {
@@ -210,6 +213,10 @@ public class AlleleCallClustersBuilder {
 		for(int i=0;i<l;i++) {
 			char c = consensus.charAt(i);
 			int idxC = DNASequence.BASES_STRING.indexOf(c);
+			if(idxC<0) {
+				answer[i]=0;
+				continue;
+			}
 			//Check first if variable
 			boolean variable = false;
 			for(int j=0;j<calls.size() && !variable;j++) {

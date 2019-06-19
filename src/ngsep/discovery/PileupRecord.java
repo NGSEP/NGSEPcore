@@ -20,11 +20,14 @@
 package ngsep.discovery;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.math.FisherExactTest;
 
 /**
@@ -35,16 +38,14 @@ import ngsep.math.FisherExactTest;
 public class PileupRecord {
 	private String sequenceName;
 	private int position;
-	private List<ReadAlignment> alignments = new ArrayList<ReadAlignment>();
+	private Map<String,List<ReadAlignment>> alignmentsMap = new HashMap<>();
 	private int referenceSpan=1;
+	private int numAlignments = 0;
 	private int numUniqueAlns = 0;
 	private int numNegativeStrandAlns = 0;
 	private boolean str = false;
 	private boolean newSTR = false;
 	private boolean embedded = false;
-	
-	//Cache of allele lists
-	private Map<Integer, List<PileupAlleleCall>> alleleCallsCache = new HashMap<>();
 	
 	//DEBUG
 	private int posPrint = -1;
@@ -95,15 +96,40 @@ public class PileupRecord {
 	public void setReferenceSpan(int referenceSpan) {
 		this.referenceSpan = referenceSpan;
 	}
-
 	/**
 	 * Calculates the allele calls from the pileup position with the given span
 	 * @param referenceSpan Length in reference basepairs of the desired allele calls
-	 * @return List<PileupAlleleCall> List of allele calls
+	 * @param readGroups to return alignments. If null, allele calls for all alignments of this pileup are returned
+	 * @return List<PileupAlleleCall> List of allele calls with the given refernce span
+	 */
+	public List<PileupAlleleCall> getAlleleCalls(int referenceSpan, Set<String> readGroups) {
+		List<PileupAlleleCall> alleleCalls = new ArrayList<>();
+		if(readGroups==null) return getAlleleCalls(referenceSpan, (String)null);
+		for(String readGroup:readGroups) {
+			alleleCalls.addAll(getAlleleCalls(referenceSpan, readGroup));
+		}
+		return alleleCalls;
+	}
+	/**
+	 * Calculates the allele calls from the pileup position with the given span considering all alignments spanning this pileup position
+	 * @param referenceSpan Length in reference basepairs of the desired allele calls
+	 * @return List<PileupAlleleCall> List of allele calls with the given reference span
 	 */
 	public List<PileupAlleleCall> getAlleleCalls(int referenceSpan) {
-		if(alleleCallsCache.containsKey(referenceSpan)) return alleleCallsCache.get(referenceSpan);
+		return getAlleleCalls(referenceSpan, (String)null);
+	}
+	/**
+	 * Calculates the allele calls from the pileup position with the given span
+	 * @param referenceSpan Length in reference basepairs of the desired allele calls
+	 * @param readGroup to return alignments. If null, allele calls for all alignments of this pileup are returned
+	 * @return List<PileupAlleleCall> List of allele calls with the given refernce span
+	 */
+	public List<PileupAlleleCall> getAlleleCalls(int referenceSpan, String readGroup) {
 		List<PileupAlleleCall> alleleCalls = new ArrayList<>();
+		List<ReadAlignment> alignments;
+		if(readGroup == null) alignments = getAlignments();
+		else alignments = alignmentsMap.get(readGroup);
+		if(alignments==null) return alleleCalls;
 		for(ReadAlignment aln:alignments) { 
 			CharSequence alleleCall = aln.getAlleleCall(position);
 			if(position==posPrint) System.out.println("getAlleleCalls. Allele call: "+alleleCall+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" refSpan: "+referenceSpan+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd());
@@ -123,24 +149,33 @@ public class PileupRecord {
 			alleleCalls.add(call);
 		}
 		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size());
-		alleleCallsCache.put(referenceSpan, alleleCalls);
 		return alleleCalls;
 	}
 
 	public void addAlignment(ReadAlignment aln) {
 		if(aln.getFirst()>position) return;
 		if(aln.getLast()<position) return;
-		alignments.add(aln);
+		List<ReadAlignment> alnsRG = alignmentsMap.get(aln.getReadGroup());
+		if(alnsRG==null) {
+			alnsRG = new ArrayList<>();
+			alignmentsMap.put(aln.getReadGroup(), alnsRG);
+		}
+		alnsRG.add(aln);
+		numAlignments++;
 		if(aln.isUnique()) numUniqueAlns++;
 		if(aln.isNegativeStrand()) numNegativeStrandAlns++;
-		alleleCallsCache.clear();
 	}
 	
 	public List<ReadAlignment> getAlignments() {
-		return alignments;
+		List<ReadAlignment> answer = new ArrayList<>();
+		for(List<ReadAlignment> alns:alignmentsMap.values()) {
+			answer.addAll(alns);
+		}
+		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
+		return answer;
 	}
 	public int getNumAlignments() {
-		return alignments.size();
+		return numAlignments;
 	}
 
 	public int getNumUniqueAlns() {
@@ -176,9 +211,9 @@ public class PileupRecord {
 	
 	public double calculateStrandBiasPValue () {
 		int a = numNegativeStrandAlns;
-		int c = alignments.size()-a;
-		int b = alignments.size()/2;
-		int d = alignments.size()-b;
+		int c = numAlignments-a;
+		int b = numAlignments/2;
+		int d = numAlignments-b;
 		if(a>c) {
 			//Set a to be the minimum for efficiency
 			int t = a;

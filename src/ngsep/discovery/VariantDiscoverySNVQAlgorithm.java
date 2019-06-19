@@ -18,17 +18,24 @@ public class VariantDiscoverySNVQAlgorithm {
 
 	private static int posPrint = -1;
 	
+	/**
+	 * Calculates counts to call SNVs for the given pileup
+	 * @param pileup with alignments spanning a given position
+	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
+	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
+	 * @return CountsHelper object with counts and probabilities to call SNVs
+	 */
 	public static CountsHelper calculateCountsSNV (PileupRecord pileup, byte maxBaseQS, Set<String> readGroups) {
 		CountsHelper answer = new CountsHelper();
 		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
+		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,readGroups);
 		for(PileupAlleleCall call:calls ) {
-			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
 			byte q = (byte)(Math.min(VariantPileupListener.DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
 			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, call.isNegativeStrand());
 		}
 		return answer;
 	}
+	
 
 	//PRE: Reference base is uppercase
 	public static CalledGenomicVariant callSNV(PileupRecord pileup, CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate, boolean calcStrandBias) {
@@ -283,14 +290,22 @@ public class VariantDiscoverySNVQAlgorithm {
 		return answer;
 	}
 
-	//PRE: Reference allele is not null and its length is larger than 1. If variant is not null, reference allele is the reference allele of the variant
+	//
+	/**
+	 * Calculates counts to call indels for the given pileup
+	 * @param pileup with alignments spanning a given position
+	 * @param variant with alleles to query. if variant!=null, referenceAllele=variant.getReference()
+	 * @param referenceAllele for the possible indel call. referenceAllele!=null referenceAllele.length()>1
+	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
+	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
+	 * @return CountsHelper object with counts and probabilities to call indels
+	 */
 	public static CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele, byte maxBaseQS, Set<String> readGroups) {
 		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
 		String [] indelAlleles;
-		List<PileupAlleleCall> allCalls = pileup.getAlleleCalls(referenceAllele.length());
+		List<PileupAlleleCall> allCalls = pileup.getAlleleCalls(referenceAllele.length(),readGroups);
 		List<PileupAlleleCall> callsRG = new ArrayList<>();
 		for(PileupAlleleCall call:allCalls) {
-			if(readGroups!=null && !readGroups.contains(call.getReadGroup())) continue;
 			
 			if(pileup.getPosition()==posPrint) System.out.println("Selecting allele call: "+call.getAlleleString());
 			callsRG.add(call);	
@@ -300,7 +315,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			indelAlleles = variant.getAlleles();
 		} else {
 			AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
-			Set<String> indelAllelesSet = acBuilder.clusterAlleleCalls(callsRG, referenceAllele, maxBaseQS);
+			Set<String> indelAllelesSet = acBuilder.clusterAlleleCalls(pileup, callsRG, referenceAllele, maxBaseQS);
 			indelAllelesSet.add(referenceAllele);
 			if(indelAllelesSet.size()>100) System.err.println("WARN: Number of alleles for site at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is "+indelAllelesSet.size()+" ref Allele: "+referenceAllele);
 			indelAlleles = new String [indelAllelesSet.size()];
