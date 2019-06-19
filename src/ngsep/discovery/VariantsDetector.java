@@ -969,7 +969,7 @@ public class VariantsDetector implements PileupListener {
 		CharSequence ref1 = genome.getReference(sequenceName, Math.max(first, last-10), last);
 		CharSequence ref2 = genome.getReference(sequenceName, r.getFirst(), r.getLast());
 		if(ref1==null || ref2==null) return false;
-		return AbstractLimitedSequence.getOverlapLength(ref1, ref2)>5;
+		return AbstractLimitedSequence.getOverlapLength(ref1.toString().toUpperCase(), ref2.toString().toUpperCase())>5;
 	}
 
 
@@ -980,7 +980,7 @@ public class VariantsDetector implements PileupListener {
 			System.err.println("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
 			return null;
 		}
-		alleles.add(reference.toString());
+		alleles.add(reference.toString().toUpperCase());
 		GenomicVariantImpl answer = new GenomicVariantImpl(sequenceName, first, alleles);
 		answer.setType(GenomicVariant.TYPE_STR);
 		return answer;
@@ -1103,6 +1103,10 @@ public class VariantsDetector implements PileupListener {
 
 	@Override
 	public void onSequenceEnd(QualifiedSequence sequence) {
+		if(sequence==null) {
+			log.warning("Null sequence");
+			return;
+		}
 		saveSequenceVariants(sequence.getName());
 	}
 	

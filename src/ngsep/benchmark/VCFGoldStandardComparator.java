@@ -451,7 +451,7 @@ public class VCFGoldStandardComparator {
 					System.err.println("WARN: Null reference sequence at "+firstGS.getSequenceName()+": "+regionFirst+"-"+regionLast+" cluster coordinates: "+clusterFirst+"-"+clusterLast+"cluster type: "+clusterGSType+" cluster size: "+gsCalls.size());
 					return;
 				}
-				String reference = refS.toString();
+				String reference = refS.toString().toUpperCase();
 				GoldStandardHaplotypeReconstruction gsHaps = new GoldStandardHaplotypeReconstruction(reference, gsCalls, regionFirst);
 				String [] gsHaplotypes = gsHaps.getPhasedAlleles();
 				int genotypeGS = gsHaps.getGenotypeNumber();

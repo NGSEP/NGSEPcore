@@ -109,7 +109,7 @@ public class VCFIndividualGenomeBuilder {
 					//Fill haplotypes with non variant segment
 					CharSequence segment = genome.getReference(seqName, nextPos, var.getFirst()-1);
 					if(segment!=null) {
-						String nonVariantSegment = segment.toString();
+						String nonVariantSegment = segment.toString().toUpperCase();
 						outSequence.append(nonVariantSegment);
 					} else {
 						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(var.getFirst()-1));
@@ -122,7 +122,7 @@ public class VCFIndividualGenomeBuilder {
 				//End of a chromosome
 				CharSequence nonVarLast = genome.getReference(seqName, nextPos, l);
 				if(nonVarLast!=null) {
-					String nonVariantSegment = nonVarLast.toString();
+					String nonVariantSegment = nonVarLast.toString().toUpperCase();
 					outSequence.append(nonVariantSegment);
 				} else {
 					log.warning("Error loading segment "+seqName+":"+nextPos+"-"+l);

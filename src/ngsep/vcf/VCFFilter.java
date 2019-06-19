@@ -570,7 +570,7 @@ public class VCFFilter {
     	if (genome != null) {
     		CharSequence seq = genome.getReference(v.getSequenceName(), v.getFirst() - 100, v.getLast() + 100);
     		if (seq == null) return true;
-    		String segment = seq.toString();
+    		String segment = seq.toString().toUpperCase();
     		double gcContent = getGCContent(segment);
     		if (gcContent < minGCContent || gcContent > maxGCContent) return true;
 	    }

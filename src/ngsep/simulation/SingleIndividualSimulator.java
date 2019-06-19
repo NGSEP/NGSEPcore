@@ -296,7 +296,7 @@ public class SingleIndividualSimulator {
 					line = in.readLine();
 					continue;
 				}
-				String reference = segment.toString();
+				String reference = segment.toString().toUpperCase();
 				List<String> alleles = new ArrayList<>();
 				alleles.add(reference);
 				STR str = new STR(seqName, first, last, alleles, unit);
@@ -358,7 +358,7 @@ public class SingleIndividualSimulator {
 				List<String> alleles = new ArrayList<>();
 				CharSequence segment = genome.getReference(seqName, first, last);
 				if(segment == null) continue;
-				String refAllele = segment.toString();
+				String refAllele = segment.toString().toUpperCase();
 				if(refAllele == null) continue;
 				alleles.add(refAllele);
 				String altAllele;
@@ -499,7 +499,7 @@ public class SingleIndividualSimulator {
 					if(segment==null) {
 						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(var.getFirst()-1));
 					}
-					String nonVariantSegment = segment.toString();
+					String nonVariantSegment = segment.toString().toUpperCase();
 					//Create reference call
 					CalledGenomicVariant refCall = createReferenceCall(seqName, nextPos, nonVariantSegment);
 					genomicCalls.add(refCall);
@@ -551,7 +551,7 @@ public class SingleIndividualSimulator {
 				//End of a chromosome
 				CharSequence nonVarLast = genome.getReference(seqName, nextPos, l-1);
 				if(nonVarLast!=null) {
-					String nonVariantSegment = nonVarLast.toString();
+					String nonVariantSegment = nonVarLast.toString().toUpperCase();
 					//Create reference call
 					CalledGenomicVariant refCall = createReferenceCall(seqName, nextPos, nonVariantSegment);
 					genomicCalls.add(refCall);

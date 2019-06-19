@@ -160,7 +160,7 @@ public class BiparentalHaploidGoldStandardBuilder {
 		//Extract alleles
 		CharSequence refAlleleC = genome.getReference(sequenceName,first,last);
 		if(refAlleleC==null) return null;
-		String refAllele = refAlleleC.toString();
+		String refAllele = refAlleleC.toString().toUpperCase();
 		if(refAllele.length()==0) throw new RuntimeException("Empty reference at "+sequenceName+":"+first+"-"+last+" clusterCalls: "+serializeCalls(clusterCalls));
 		List<String> alleles = new ArrayList<>();
 		alleles.add(refAllele);
@@ -267,7 +267,7 @@ public class BiparentalHaploidGoldStandardBuilder {
 			if(nextPosCall<call.getFirst()) {
 				CharSequence left = genome.getReference(sequenceName, nextPosCall, call.getFirst()-1);
 				if(left == null ) return null;
-				outCall.append(left);
+				outCall.append(left.toString().toUpperCase());
 			} else if (nextPosCall>call.getFirst()) {
 				//Overlapping calls within a single file
 				return null;
@@ -278,7 +278,7 @@ public class BiparentalHaploidGoldStandardBuilder {
 		if(nextPosCall<=last) {
 			CharSequence right = genome.getReference(sequenceName, nextPosCall, last);
 			if(right == null ) return null;
-			outCall.append(right);
+			outCall.append(right.toString().toUpperCase());
 		} else if (nextPosCall>last+1) {
 			//Calls go over the last position
 			return null;

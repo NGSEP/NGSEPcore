@@ -306,7 +306,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		CharSequence seq = genome.getReference(pileup.getSequenceName(), currentPos+1, alns.get(alns.size()-1).getLast());
 		int lengthRef = 0;
 		if(seq!=null) {
-			String reference = seq.toString();
+			String reference = seq.toString().toUpperCase();
 			lengthRef = checkTandemRepeat(reference);
 		}
 		if(lengthRef>0) {
@@ -388,8 +388,8 @@ public class IndelRealignerPileupListener implements PileupListener {
 		CharSequence seqAfter = genome.getReference(sequenceName, eventLast, eventLast+DEF_REGION_BOUNDARY);
 		CharSequence seqWithin = null;
 		if(eventFirst!=eventLast-1) seqWithin = genome.getReference(sequenceName, eventFirst+1, eventLast-1);
-		String refAlleleBefore = seqBefore!=null?seqBefore.toString():null;
-		String refAlleleAfter = seqAfter!=null?seqAfter.toString():null;
+		String refAlleleBefore = seqBefore!=null?seqBefore.toString().toUpperCase():null;
+		String refAlleleAfter = seqAfter!=null?seqAfter.toString().toUpperCase():null;
 		if(refAlleleBefore!=null && seqWithin!=null) refAlleleBefore+=seqWithin;
 		if(refAlleleAfter!=null && seqWithin!=null) refAlleleAfter=seqWithin+refAlleleAfter;
 		
@@ -397,8 +397,8 @@ public class IndelRealignerPileupListener implements PileupListener {
 		String insertedConsensusSequence = calculateInsertedConsensusSequence (alignments, eventFirst);
 		if(eventFirst==posPrint) System.out.println("Inserted consensus sequence: "+insertedConsensusSequence);
 		
-		String altAlleleBefore = seqBefore!=null?seqBefore.toString():null;
-		String altAlleleAfter = seqAfter!=null?seqAfter.toString():null;
+		String altAlleleBefore = seqBefore!=null?seqBefore.toString().toUpperCase():null;
+		String altAlleleAfter = seqAfter!=null?seqAfter.toString().toUpperCase():null;
 		int offset = 0;
 		if(insertedConsensusSequence!=null) {
 			offset = insertedConsensusSequence.length();
