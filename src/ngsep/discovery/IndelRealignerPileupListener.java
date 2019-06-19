@@ -52,7 +52,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	private int idxNextVariant = 0;
 	
 	//DEBUG
-	private int posPrint = -1;
+	private int posPrint = 65077262;
 
 	public GenomicRegionSortedCollection<? extends GenomicRegion> getInputVariants() {
 		return inputVariants;
@@ -95,6 +95,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			int maxIndelSpan = 0;
 			for(ReadAlignment aln:alignments) {
 				GenomicVariant indel = aln.getIndelCall(currentPos);
+				if(currentPos==posPrint) System.out.println("Read name: "+aln.getReadName()+". Alignment start: "+aln.getFirst()+" CIGAR: "+aln.getCigarString()+" Indels: "+aln.getIndelCalls());
 				if(indel!=null) {
 					int indelSpan = indel.getLast() - indel.getFirst() + 1;
 					int indelLength = indel.length();
@@ -188,7 +189,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				}
 			}
 		}
-		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Start max votes: "+(currentPos+maxI)+" total alns: "+alignments.size()+"indelAlns: "+ indelAlns.size());
+		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Start max votes: "+(currentPos+maxI)+" total alns: "+alignments.size()+" indelAlns: "+ indelAlns.size()+" event end: "+eventEnd+" max length: "+maxLength+" maxI: "+maxI);
 		
 		//Move indel starts to the position with the largest number of votes
 		int newPredictedEventEnd = moveIndelStarts(indelAlns, currentPos, eventEnd, maxLength, maxI);
@@ -285,6 +286,9 @@ public class IndelRealignerPileupListener implements PileupListener {
 						break;
 					}
 				}
+			}
+			indels = aln.getIndelCalls();
+			if(indels!=null) {
 				int alnRefLast = first;
 				for(int start:indels.keySet()) {
 					//This takes into account several close indel events within the same alignment
@@ -294,6 +298,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				}
 				if(alnRefLast>answer) answer = alnRefLast;
 			}
+			if(first==posPrint) System.err.println("Ref end after trying to  move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" is "+answer);
 		}
 		return answer;
 	}
@@ -388,6 +393,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		CharSequence seqAfter = genome.getReference(sequenceName, eventLast, eventLast+DEF_REGION_BOUNDARY);
 		CharSequence seqWithin = null;
 		if(eventFirst!=eventLast-1) seqWithin = genome.getReference(sequenceName, eventFirst+1, eventLast-1);
+		if(seqWithin!=null) seqWithin = seqWithin.toString().toUpperCase();
 		String refAlleleBefore = seqBefore!=null?seqBefore.toString().toUpperCase():null;
 		String refAlleleAfter = seqAfter!=null?seqAfter.toString().toUpperCase():null;
 		if(refAlleleBefore!=null && seqWithin!=null) refAlleleBefore+=seqWithin;

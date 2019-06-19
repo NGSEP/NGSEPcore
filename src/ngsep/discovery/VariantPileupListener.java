@@ -55,6 +55,8 @@ public class VariantPileupListener implements PileupListener {
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
 	private int lastIndelEnd = 0;
 	
+	private static int posPrint = -1;
+	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
@@ -148,6 +150,7 @@ public class VariantPileupListener implements PileupListener {
 	 */
 	public CalledGenomicVariant processPileup(PileupRecord pileup, GenomicVariant variant) {
 		String referenceAllele;
+		if(pileup.getPosition()==posPrint) System.out.println("Processing pileup at "+pileup.getSequenceName()+":"+pileup.getPosition()+" span: "+pileup.getReferenceSpan());
 		if(variant!=null) {
 			referenceAllele = variant.getReference();
 		} else {
@@ -167,9 +170,9 @@ public class VariantPileupListener implements PileupListener {
 				}
 			}
 		}
+		
 		CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup, maxBaseQS, readGroups);
-		//if(pileup.getFirst()==82) System.out.println("Pileup last: "+pileup.getLast()+" Reference allele: "+referenceAllele); 
-		//if(pileup.getPosition()==9052) System.out.println("Reference allele: "+referenceAllele+". Pileup last: "+pileup.getLast());
+		
 		CalledGenomicVariant calledVar;
 		if(referenceAllele.length()>1) {
 			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, maxBaseQS, readGroups); 
