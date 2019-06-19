@@ -52,7 +52,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	private int idxNextVariant = 0;
 	
 	//DEBUG
-	private int posPrint = 65077262;
+	private int posPrint = -1;
 
 	public GenomicRegionSortedCollection<? extends GenomicRegion> getInputVariants() {
 		return inputVariants;
