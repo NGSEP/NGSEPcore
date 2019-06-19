@@ -46,9 +46,11 @@ public class AlleleCompatibilityGenomicVariantComparator implements Comparator<G
 	}
 	private Set<String> buildAlleleStrings(GenomicVariant v, int firstRegion, int lastRegion) {
 		String seqName = v.getSequenceName();
-		String left = genome.getReference(seqName, Math.max(1, firstRegion-3), Math.max(1, v.getFirst()-1)).toString();
+		CharSequence leftC = genome.getReference(seqName, Math.max(1, firstRegion-3), Math.max(1, v.getFirst()-1));
 		int length = seqNames.get(seqName).getLength();
-		String right = genome.getReference(seqName, Math.min(length, v.getLast()+1), Math.min(length, lastRegion+3)).toString();
+		CharSequence rightC = genome.getReference(seqName, Math.min(length, v.getLast()+1), Math.min(length, lastRegion+3));
+		String left = leftC!=null?leftC.toString().toUpperCase():"";
+		String right = rightC!=null?rightC.toString().toUpperCase():"";
 		Set<String> allelesSet = new TreeSet<>();
 		String [] alleles = v.getAlleles();
 		for(int i=0;i<alleles.length;i++) {
