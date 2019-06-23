@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -50,6 +51,8 @@ public class TranscriptomeAnalyzer {
 	private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	
 	private Logger log = Logger.getLogger(TranscriptomeAnalyzer.class.getName());
+	
+	private ProgressNotifier progressNotifier=null;
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	
@@ -75,6 +78,13 @@ public class TranscriptomeAnalyzer {
 		this.log = log;
 	}
 
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
 
 	/**
 	 * @return the genome
@@ -159,7 +169,7 @@ public class TranscriptomeAnalyzer {
 		Transcriptome filteredTranscriptome = null;
 		if(selectCompleteProteins || minProteinLength>DEF_MIN_PROTEIN_LENGTH) filteredTranscriptome = new Transcriptome(sequenceNames);
 		
-		
+		int n = 0;
 		for(Transcript t: transcriptsList) {
 			//Collect transcript structure statistics
 			int start = t.getCodingRelativeStart();
@@ -233,6 +243,13 @@ public class TranscriptomeAnalyzer {
 			boolean complete = startCodon.isStart() && stopCodon!=null && stopCodon.isStop();
 			if (selectCompleteProteins && !complete) continue;
 			filteredTranscriptome.addTranscript(t);
+			n++;
+			if (progressNotifier!=null && n%100==0) {
+				int progress = n/100;
+				if (!progressNotifier.keepRunning(progress)) {
+					return;
+				}
+			}
 		}
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
 			out.println("Gene length"); 
