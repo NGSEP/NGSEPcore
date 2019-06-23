@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.3.1 (14-03-2019)
+Version 3.3.2 (02-07-2019)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -22,20 +22,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 1.8.0. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_3.3.1.tar.gz is located:
+NGSEPcore_3.3.2.tar.gz is located:
 
-tar -xzvf NGSEPcore_3.3.1.tar.gz
-cd NGSEPcore_3.3.1
+tar -xzvf NGSEPcore_3.3.2.tar.gz
+cd NGSEPcore_3.3.2
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_3.3.1.jar NGSEPcore.jar
+cp NGSEPcore_3.3.2.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_3.3.1.jar NGSEPcore.jar
+ln -s NGSEPcore_3.3.2.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -754,7 +754,7 @@ the VCF_FILE argument is - it expects a VCF from standard input
 
 USAGE:
 
-java -jar NGSEPcore_3.3.1.jar VCFVariantDensityCalculator <REFERENCE_FILE> <VCF_FILE>
+java -jar NGSEPcore.jar VCFVariantDensityCalculator <REFERENCE_FILE> <VCF_FILE>
 
 OPTIONS:
 
@@ -1057,7 +1057,7 @@ calculates quality statistics comparing gold-standard with test calls.
 
 USAGE:
 
-java -jar NGSEPcore_3.3.1.jar VCFGoldStandardComparator <REFERENCE_GENOME> <GS_VCF_FILE> <TEST_VCF_FILE>
+java -jar NGSEPcore.jar VCFGoldStandardComparator <REFERENCE_GENOME> <GS_VCF_FILE> <TEST_VCF_FILE>
 
 OPTIONS:
 
@@ -1125,19 +1125,21 @@ OPTIONS:
 
 The output is a series of text files having the ids and physical coordinates of
 the paralogs within each genome and the orthologs between the two genomes.
-The ortholog files, called <PREFIX>_uniqueG1.tsv and <PREFIX>_uniqueG2.tsv,
+The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
 have the following format:
 
 1. Id of the gene in the first genome
 2. Chromosome of the gene in the first genome
 3. Start of the gene in the first genome
 4. End of the gene in the first genome
-5. Id of the ortholog in the second genome
-6. Chromosome of the ortholog in the second genome
-7. Start of the ortholog in the second genome
-8. End of the ortholog in the second genome
-9. Alignment type. It can be "L" if the gene has a unique ortholog in the
-   second genomeand it makes part of a synteny block. "U" if the gene has
+5. Indicates if the gene is unique (Y) or if paralogs were identified
+6. Id of the second genome
+7. Id of the ortholog in the second genome
+8. Chromosome of the ortholog in the second genome
+9. Start of the ortholog in the second genome
+10. End of the ortholog in the second genome
+11. Alignment type. It can be "L" if the gene has am ortholog in the
+   second genome and it makes part of a synteny block. "U" if the gene has
    a unique ortholog but it does not make part of the syntheny block, and
    "M" if the gene has multiple orthologs in the second genome.
 
@@ -1304,6 +1306,25 @@ OPTIONS:
 			  and as part of the name of the sequences in the
 			  simulated genome. Default: Simulated
 	-p INT		: Ploidy of the simulated sample. Default: 2
+
+-----------------------------------
+Evaluating transcriptome assemblies
+-----------------------------------
+
+Loads a transcriptome annotation in GFF3 format, logs format errors, provides
+statistics on the assembled transcriptome, generates cDNA, CDS and protein
+sequences and generates a filtered gff by CDS length and completion.
+
+USAGE:
+
+java -jar NGSEPcore.jar TranscriptomeAnalyzer <TRANSCRIPTOME_MAP> <OUTPUT_PREFIX>
+
+OPTIONS:
+
+        -g GENOME : Reference genome annotated in the transcriptome file
+        -c        : Output only complete transcripts (with start and stop codons) in the gff output file
+        -pl INT   : Minimum protein length for coding transcripts in the gff output file Default: 0
+
 
 ------------------------------
 Citing and supporting packages
