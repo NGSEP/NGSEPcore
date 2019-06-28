@@ -166,6 +166,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			String filename1 = filenamesBySampleId1.get(sampleId);
 			String filename2 = filenamesBySampleId2.get(sampleId);
 			if(filename2 == null) {
+				log.info("Clustering reads from " + filename1);
 				clusterReadsSingleFile (sampleId, filename1, clusteredReadsCache);
 			} else {
 				clusterReadsPairedEndFiles (sampleId, filename1, filename2, clusteredReadsCache);
@@ -176,31 +177,43 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	private void clusterReadsSingleFile(String sampleId, String filename, ClusteredReadsCache clusteredReadsCache) throws IOException {
+		int unmatchedReads = 0;
+		int count = 1;
 		try (FastqFileReader openFile = new FastqFileReader(filename);) {
 			Iterator<RawRead> reader = openFile.iterator();
 			while(reader.hasNext()) {
+				if(count % 100000 == 0) {
+					log.info("Processing read number " + Integer.toString(count));
+					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched so far. ");
+				}
 				RawRead read = reader.next();
 				String s = read.getSequenceString();
 				if(DEF_START + kmerLength>s.length()) continue;
 				String prefix = s.substring(DEF_START,DEF_START + kmerLength);
 				if(!DNASequence.isDNA(prefix)) continue;
 				Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
-				if(clusterId==null) continue;
+				if(clusterId==null) {
+					unmatchedReads++;
+					continue;
+				}
 				clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+"_"+clusterId+"_"+read.getName(), s, read.getQualityScores()));
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
+					log.info("dumping reads");
 					clusteredReadsCache.dump(outPrefix);
 				}
+				count++;
 			}
+			log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename);
+			log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename);
 		}
 	}
-
-
-
 
 	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
 		// TODO Auto-generated method stub
 		return;
 	}
+	
+	
 
 
 
@@ -244,8 +257,9 @@ class ClusteredReadsCache {
 	public int getTotalReads() {
 		return totalReads;
 	}
+	
 	/**
-	 * Dumps the cache to the file wit the given name and clears this cache
+	 * Dumps the cache to the file with the given name and clears this cache
 	 * @param outPrefix prefix of the file to dump the cache
 	 */
 	public void dump(String outPrefix) throws IOException {
@@ -262,5 +276,6 @@ class ClusteredReadsCache {
 			}
 		}
 		clusteredReadsCache.clear();
+		totalReads = 0;
 	}
 }
