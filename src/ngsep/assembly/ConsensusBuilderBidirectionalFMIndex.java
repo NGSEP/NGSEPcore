@@ -20,14 +20,15 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	AlignmentAffineGap aligner;
 	boolean startConsensus = true;
 	
-	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, int tolerance) 
+	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) 
 	{
+		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
 		this.match = match;
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
 		this.windowSize = windowSize;
-		this.tolerance = tolerance;
+		this.tolerance = (int) (Rate_of_cuts * (11.51292546 / rate_of_error));;
 		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
 	}
 	
@@ -71,6 +72,7 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 						b = edge.getVertex1();
 					}
 				}
+				
 				//Ignore if both reads are equal
 				if(!a.getRead().toString().equals(b.getRead().toString()))
 				{
@@ -103,11 +105,15 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 					}
 					String joined = joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignments);
 					int startIndex = previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance;
+					if(startIndex < 0)
+					{
+						int integ2 = 0;
+					}
 					System.out.println("IDX " + startIndex);
 					System.out.println("JND " + joined.length());
-					if(j > 1 && startIndex < joined.length())
+					if(j > 1 && startIndex < joined.length() && startIndex > 0)
 						consensus = consensus.concat(joined.substring(previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance));
-					else if (j == 1)
+					else if (startIndex == 0)
 						consensus = consensus.concat(joined);
 					
 					previousOverlap = edge.getOverlap();
