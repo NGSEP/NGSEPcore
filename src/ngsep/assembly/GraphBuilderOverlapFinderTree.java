@@ -33,6 +33,8 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 
 	private Map<Integer, Embedded> embeddedOverlaps = new Hashtable<>();
 	private Map<Integer, TreeMap<Integer, Alignment>> alignments;
+	private Map<Integer, TreeMap<Integer, Alignment>> alignmentsAux;
+	private Map<Integer, List<Integer>> removeAux;
 	private Deque<Overlap> overlaps = new ArrayDeque<Overlap>();
 	private GraphBuilderKmerIterator kmerIterator;
 
@@ -52,33 +54,12 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 		System.out.println("		built graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		try (PrintWriter pr = new PrintWriter(new File("grafo.txt"))) {
-			for (AssemblyEdge edge : assemblyGraph.getEdges())
+			for (AssemblyEdge edge : assemblyGraph.getEdges()) {
 				pr.println(edge.getVertex1().getIndex() + "-" + edge.getVertex2().getIndex());
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-
-		try (PrintWriter pr = new PrintWriter(new File("grafo2.txt"))) {
-			int L = assemblyGraph.getVertices().size();
-			int[] a = new int[L];
-			for (int i = 0; i < L; i++) {
-				Arrays.fill(a, 0);
-				for (AssemblyEdge edge : assemblyGraph.getVertices().get(i).getEdges()) {
-					int k = (i != edge.getVertex1().getIndex()) ? edge.getVertex1().getIndex()
-							: edge.getVertex2().getIndex();
-					a[k] = 1;
-				}
-				StringBuilder sb = new StringBuilder();
-				for (int j = 0; j < L - 1; j++)
-					sb.append(a[j] + ",");
-				sb.append(a[L - 1]);
-				pr.println(sb);
 			}
-
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	@Override
@@ -88,6 +69,8 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 
 	public void findOverlaps() {
 		alignments = new HashMap<>(sequences.size());
+		alignmentsAux = new HashMap<>(sequences.size());
+		removeAux = new HashMap<>(sequences.size());
 		int Excp = 0;
 		int diff = Math.min(1, (int) (sequences.size() * 0.0025));
 		int prev = 0;
@@ -111,18 +94,35 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 			findAlignments(seqId, kmerIterator.negativeStrand(sequences.get(seqId)));
 			detectOverlap(seqId, true);
 		}
+		printProgressBar(System.out, "		", sequences.size(), sequences.size());
 		System.out.println();
 	}
 
 	private void findAlignments(int id_Ref, Iterable<Entry<Integer, String>> kmerIters) {
 		for (Entry<Integer, String> entry : kmerIters) {
 			int pos_Ref = entry.getKey();
+			alignmentsAux.clear();
+			removeAux.clear();
 			for (ReadAlignment readAlignment : index.search(entry.getValue())) {
 				int id_Lec = Integer.parseInt(readAlignment.getSequenceName());
 				int pos_Lec = readAlignment.getFirst();
 
 				if (id_Ref < id_Lec)
 					addAlingments(id_Ref, pos_Ref, id_Lec, pos_Lec);
+			}
+			for (Entry<Integer, TreeMap<Integer, Alignment>> entry2 : alignments.entrySet()) {
+				int id_Lec = entry2.getKey();
+				TreeMap<Integer, Alignment> treeMap = entry2.getValue();
+
+				List<Integer> removes = removeAux.get(id_Lec);
+				if (removes != null)
+					for (int r : removes)
+						if (treeMap.containsKey(r))
+							treeMap.remove(r);
+
+				TreeMap<Integer, Alignment> treeAux = alignmentsAux.get(id_Lec);
+				if (treeAux != null)
+					treeMap.putAll(treeAux);
 			}
 		}
 	}
@@ -131,22 +131,26 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 		if (embeddedOverlaps.containsKey(id_Lec))
 			return;
 		TreeMap<Integer, Alignment> treeMap = alignments.computeIfAbsent(id_Lec,
-				key -> new TreeMap<Integer, Alignment>());
+				k -> new TreeMap<Integer, Alignment>());
+		TreeMap<Integer, Alignment> treeAux = alignmentsAux.computeIfAbsent(id_Lec,
+				k -> new TreeMap<Integer, Alignment>());
+		List<Integer> removes = removeAux.computeIfAbsent(id_Lec, k -> new LinkedList<Integer>());
 
 		int key = pos_Lec - pos_Ref;
-		Alignment aln = aling(treeMap, key);
+		Alignment aln = aling(treeMap, removes, key);
 
 		if (aln != null) {
 			aln.setLengthLec(kmerIterator.SEARCH_KMER_LENGTH + (pos_Lec - aln.getPosLec()));
 			aln.setLengthRef(kmerIterator.SEARCH_KMER_LENGTH + (pos_Ref - aln.getPosRef()));
 			aln.addhit();
-			treeMap.put(key, aln);
-		} else
-			treeMap.put(key, new Alignment(pos_Ref, pos_Lec, kmerIterator.SEARCH_KMER_LENGTH,
-					kmerIterator.SEARCH_KMER_LENGTH, 1));
+			treeAux.put(key, aln);
+		} else {
+			treeAux.put(key,
+					new Alignment(pos_Ref, pos_Lec, kmerIterator.SEARCH_KMER_LENGTH, kmerIterator.SEARCH_KMER_LENGTH));
+		}
 	}
 
-	private Alignment aling(TreeMap<Integer, Alignment> treeMap, int key) {
+	private Alignment aling(TreeMap<Integer, Alignment> treeMap, List<Integer> removes, int key) {
 		int removeKey = key;
 		int min = kmerIterator.MAX_KMER_DES;
 		Integer celingKey = treeMap.ceilingKey(key), floorKey = treeMap.floorKey(key);
@@ -159,7 +163,9 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 			min = key - floorKey;
 			removeKey = floorKey;
 		}
-		return (min != kmerIterator.MAX_KMER_DES) ? treeMap.remove(removeKey) : null;
+
+		removes.add(removeKey);
+		return (min != kmerIterator.MAX_KMER_DES) ? treeMap.get(removeKey) : null;
 	}
 
 	private void detectOverlap(int id_Ref, boolean isReverse) {
@@ -175,7 +181,7 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 			for (Alignment aln : tree.subMap(embbedLimit - Diff, true, 0 + Diff, true).values()) {
 
 				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) lenghtLec;
-				if (aln.getHits() < 2 && rate < 0.25)
+				if (aln.getHits() < 2 || rate < 0.25)
 					continue;
 
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
@@ -195,7 +201,7 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 			for (Alignment aln : tree.subMap(0 - Diff, true, Integer.MAX_VALUE, true).values()) {
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
 				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtLec - pos_Lec);
-				if (aln.getHits() < 2 && rate < 0.25)
+				if (aln.getHits() < 2 || rate < 0.25)
 					continue;
 
 				if (pos_Lec < 0)
@@ -213,7 +219,7 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 					.values()) {
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
 				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtRef + pos_Lec);
-				if (aln.getHits() < 2 && rate < 0.25)
+				if (aln.getHits() < 2 || rate < 0.25)
 					continue;
 
 				if (pos_Lec > embbedLimit)
@@ -333,12 +339,12 @@ class Alignment {
 	private int lengthRef;
 	private int hits;
 
-	public Alignment(int posRef, int posLec, int lengthLec, int lengthRef, int hits) {
+	public Alignment(int posRef, int posLec, int lengthLec, int lengthRef) {
 		this.posRef = posRef;
 		this.posLec = posLec;
 		this.lengthLec = lengthLec;
 		this.lengthRef = lengthRef;
-		this.hits = hits;
+		this.hits = 1;
 	}
 
 	public void addhit() {
