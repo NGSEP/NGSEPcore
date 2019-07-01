@@ -24,7 +24,7 @@ import ngsep.sequences.FMIndex;
 public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder {
 	private final static double Rate_of_changes = 0.07;
 	private final static double Rate_of_cuts = 0.03;
-	private final static double Rate_of_cover = 1;
+	private final static double Rate_of_cover = 2;
 	public static final double permitedBorderRate = 0.15;
 
 	private List<CharSequence> sequences;
@@ -169,6 +169,7 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 	}
 
 	private void detectOverlap(int id_Ref, boolean isReverse) {
+		double max = 0.12;
 		int lenghtRef = sequences.get(id_Ref).length();
 		int Diff = kmerIterator.MAX_KMER_DES;
 		OtherSequence: for (Entry<Integer, TreeMap<Integer, Alignment>> entry : alignments.entrySet()) {
@@ -180,8 +181,8 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 
 			for (Alignment aln : tree.subMap(embbedLimit - Diff, true, 0 + Diff, true).values()) {
 
-				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) lenghtLec;
-				if (aln.getHits() < 2 || rate < 0.25)
+				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtLec * Rate_of_cover);
+				if (aln.getHits() < 2 || rate < max)
 					continue;
 
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
@@ -200,8 +201,9 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 
 			for (Alignment aln : tree.subMap(0 - Diff, true, Integer.MAX_VALUE, true).values()) {
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
-				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtLec - pos_Lec);
-				if (aln.getHits() < 2 || rate < 0.25)
+				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits()
+						/ (double) (Rate_of_cover * (lenghtLec - pos_Lec));
+				if (aln.getHits() < 2 || rate < max)
 					continue;
 
 				if (pos_Lec < 0)
@@ -218,8 +220,9 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 			for (Alignment aln : tree.descendingMap().subMap(embbedLimit + Diff, true, Integer.MIN_VALUE, true)
 					.values()) {
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
-				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtRef + pos_Lec);
-				if (aln.getHits() < 2 || rate < 0.25)
+				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits()
+						/ (double) (Rate_of_cover * (lenghtRef + pos_Lec));
+				if (aln.getHits() < 2 || rate < max)
 					continue;
 
 				if (pos_Lec > embbedLimit)
