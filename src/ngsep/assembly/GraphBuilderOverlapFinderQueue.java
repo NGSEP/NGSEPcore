@@ -23,10 +23,10 @@ import static ngsep.assembly.TimeUtilities.timeIt;
 import static ngsep.assembly.TimeUtilities.progress;
 
 public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder {
-	private final static double Rate_of_changes = 0.07;
-	private final static double Rate_of_cuts = 0.03;
-	private final static double Rate_of_cover = 1;
-	private final static double MinKmerCoverRate = 0.21*0.4;
+	private final static double Rate_of_changes = 0.02;
+	private final static double Rate_of_cuts = 0.01;
+	private final static double Rate_of_cover = 7;
+	private final static double MinKmerCoverRate = -1;
 
 	private List<CharSequence> sequences;
 	private AssemblyGraph assemblyGraph;
@@ -48,7 +48,7 @@ public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder
 			printRates();
 			timeIt(" --- Find overlaps ", () -> findOverlapsAndEmbedded());
 			assemblyGraph = timeIt(" --- Building graph", () -> mapToAssemblyGraph());
-			
+
 			System.out.println(" = Emmbeded Sequences: " + embeddedOverlaps.size());
 			System.out.println(" = Vertex: " + assemblyGraph.getVertices().size());
 			System.out.println(" = Edges : " + assemblyGraph.getEdges().size());
@@ -146,10 +146,10 @@ public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder
 		// lec is embedded in ref
 		for (int[] aln : tree.subMap(embbedLimit, true, 0, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH * aln[0] /  (double) (lenghtLec * Rate_of_cover);
-			if(rate < MinKmerCoverRate)
+			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtLec);
+			if (rate < MinKmerCoverRate)
 				continue;
-			
+
 			embeddedOverlaps.put(id_Lec,
 					new Embedded(id_Ref, isReverse ? lenghtRef + pos_Lec - lenghtLec : -pos_Lec, isReverse, rate));
 			return;
@@ -158,10 +158,10 @@ public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder
 		// lec -> ref || lec -> ref'
 		for (int[] aln : tree.subMap(0, true, Integer.MAX_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH * aln[0] / (double) (Rate_of_cover * (lenghtLec - pos_Lec));
-			if(rate < MinKmerCoverRate)
+			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtLec - pos_Lec);
+			if (rate < MinKmerCoverRate)
 				continue;
-			
+
 			overlaps.add(new Overlap(id_Lec, false, id_Ref, isReverse, lenghtLec - pos_Lec, rate));
 			break;
 		}
@@ -169,10 +169,10 @@ public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder
 		// ref -> lec || ref' -> lec
 		for (int[] aln : tree.descendingMap().subMap(embbedLimit, true, Integer.MIN_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH * aln[0] / (double) (Rate_of_cover * (lenghtRef + pos_Lec));
-			if(rate < MinKmerCoverRate)
+			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtRef + pos_Lec);
+			if (rate < MinKmerCoverRate)
 				continue;
-			
+
 			overlaps.add(new Overlap(id_Ref, isReverse, id_Lec, false, lenghtRef + pos_Lec, rate));
 			break;
 		}
@@ -203,7 +203,11 @@ public class GraphBuilderOverlapFinderQueue implements GraphBuilderOverlapFinder
 		while (!keys.isEmpty())
 			tree.put(keys.pop(), values.pop());
 	}
-	
+
+	private int numberOfKmers(int size) {
+		return size / (kmerIterator.SEARCH_KMER_LENGTH - kmerIterator.SEARCH_KMER_DISTANCE);
+	}
+
 	private static int closestValidKey(TreeMap<Integer, ? extends Object> treeMap, int key, int diff) {
 		int ans = -1;
 		int min = diff;
