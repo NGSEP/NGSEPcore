@@ -24,7 +24,7 @@ import ngsep.sequences.FMIndex;
 public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder {
 	private final static double Rate_of_changes = 0.07;
 	private final static double Rate_of_cuts = 0.03;
-	private final static double Rate_of_cover = 2;
+	private final static double Rate_of_cover = 1;
 	public static final double permitedBorderRate = 0.15;
 
 	private List<CharSequence> sequences;
@@ -169,7 +169,7 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 	}
 
 	private void detectOverlap(int id_Ref, boolean isReverse) {
-		double max = 0.12;
+		double max = 0.25 / (double) 2;
 		int lenghtRef = sequences.get(id_Ref).length();
 		int Diff = kmerIterator.MAX_KMER_DES;
 		OtherSequence: for (Entry<Integer, TreeMap<Integer, Alignment>> entry : alignments.entrySet()) {
@@ -184,13 +184,13 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 				double rate = kmerIterator.SEARCH_KMER_LENGTH * aln.getHits() / (double) (lenghtLec * Rate_of_cover);
 				if (aln.getHits() < 2 || rate < max)
 					continue;
-
+				
 				int pos_Lec = aln.getPosLec() - aln.getPosRef();
 				if (pos_Lec > 0 || pos_Lec < embbedLimit)
 					continue;
-				if (aln.getPosLec() > lenghtLec * permitedBorderRate
-						|| aln.getPosLec() + aln.getLengthLec() < lenghtLec * (1 - permitedBorderRate))
-					continue;
+//				if (aln.getPosLec() > lenghtLec * permitedBorderRate
+//						|| aln.getPosLec() + aln.getLengthLec() < lenghtLec * (1 - permitedBorderRate))
+//					continue;
 
 				// lec is embedded in ref.
 				if (!embeddedOverlaps.containsKey(id_Lec))
@@ -205,12 +205,12 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 						/ (double) (Rate_of_cover * (lenghtLec - pos_Lec));
 				if (aln.getHits() < 2 || rate < max)
 					continue;
-
+				
 				if (pos_Lec < 0)
 					continue;
-				if (aln.getPosRef() > lenghtRef * permitedBorderRate
-						|| aln.getPosLec() + aln.getLengthLec() < lenghtLec * (1 - permitedBorderRate))
-					continue;
+//				if (aln.getPosRef() > lenghtRef * permitedBorderRate
+//						|| aln.getPosLec() + aln.getLengthLec() < lenghtLec * (1 - permitedBorderRate))
+//					continue;
 
 				// lec -> ref || lec -> ref'
 				overlaps.add(new Overlap(id_Lec, false, id_Ref, isReverse, lenghtLec - pos_Lec, rate));
@@ -224,12 +224,12 @@ public class GraphBuilderOverlapFinderTree implements GraphBuilderOverlapFinder 
 						/ (double) (Rate_of_cover * (lenghtRef + pos_Lec));
 				if (aln.getHits() < 2 || rate < max)
 					continue;
-
+				
 				if (pos_Lec > embbedLimit)
 					continue;
-				if (aln.getPosLec() > lenghtLec * permitedBorderRate
-						|| aln.getPosRef() + aln.getLengthRef() < lenghtRef * (1 - permitedBorderRate))
-					continue;
+//				if (aln.getPosLec() > lenghtLec * permitedBorderRate
+//						|| aln.getPosRef() + aln.getLengthRef() < lenghtRef * (1 - permitedBorderRate))
+//					continue;
 
 				// ref -> lec || ref' -> lec
 				overlaps.add(new Overlap(id_Ref, isReverse, id_Lec, false, lenghtRef + pos_Lec, rate));

@@ -23,7 +23,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		System.out.println("	build FMIndexes: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("	indentifing overlaps");
-		GraphBuilderOverlapFinder overlapFinder = new GraphBuilderOverlapFinderTree();
+		GraphBuilderOverlapFinder overlapFinder = new GraphBuilderOverlapFinderQueue();
 		overlapFinder.calculate(sequences, index);
 		System.out.println("	indentify overlaps: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 		return overlapFinder.getGrap();

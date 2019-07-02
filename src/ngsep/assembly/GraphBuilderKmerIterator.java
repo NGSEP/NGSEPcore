@@ -18,19 +18,15 @@ public class GraphBuilderKmerIterator {
 	public GraphBuilderKmerIterator(double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) {
 		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
 		//SEARCH_KMER_LENGTH = (int) (LN2 / rate_of_error);
-		SEARCH_KMER_LENGTH = (int) (1 / rate_of_error);
+		SEARCH_KMER_LENGTH = (int) ( 1/ rate_of_error);
 		SEARCH_KMER_DISTANCE = (int) (SEARCH_KMER_LENGTH * ((1 / Rate_of_cover) - 1));
 		MAX_KMER_DES = (int) (Rate_of_cuts * (LN100000 / rate_of_error));
 		REAL_KMER_DISTANCE = SEARCH_KMER_DISTANCE + SEARCH_KMER_LENGTH;
-
-		System.out.println("		SEARCH_KMER_LENGTH: " + SEARCH_KMER_LENGTH);
-		System.out.println("		SEARCH_KMER_DISTANCE: " + SEARCH_KMER_DISTANCE);
-		System.out.println("		MAX_KMER_DES: " + MAX_KMER_DES);
 	}
 
 	public Iterable<Entry<Integer, String>> positiveStrand(CharSequence seq) {
 		String str = seq.toString();
-		
+
 		return new Iterable<Entry<Integer, String>>() {
 			public Iterator<Entry<Integer, String>> iterator() {
 				return new Iterator<Entry<Integer, String>>() {
@@ -50,7 +46,7 @@ public class GraphBuilderKmerIterator {
 			};
 		};
 	}
-	
+
 	public Iterable<Entry<Integer, String>> negativeStrand(CharSequence seq) {
 		String str = DNAMaskedSequence.getReverseComplement(seq).toString();
 		return new Iterable<Entry<Integer, String>>() {
