@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.genome.GenomicRegion;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -176,7 +177,7 @@ public class TranscriptomeAnalyzer {
 			int end = t.getCodingRelativeEnd();
 			String geneId= t.getGeneId(); 
 			transcriptLengthDist.processDatapoint(t.length());
-			List<TranscriptSegment> exons=t.getTranscriptSegments();
+			List<GenomicRegion> exons=t.getRawExons();
 			numberOfExonsDist.processDatapoint(exons.size());
 			
 			if(!visitedGeneIDs.contains(geneId)) {

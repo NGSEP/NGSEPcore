@@ -27,18 +27,25 @@ public class LayoutBuilderGreedy implements LayourBuilder
 			edges.computeIfAbsent(v1, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 			edges.computeIfAbsent(v2, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 		}
+		
 		//List of globally used vertices 
 		Set<Integer> usedVerticesGlobal = new HashSet<Integer>(); 
 		//Creates contigs until all the vertices are used or don't have available edges
 		while(usedVerticesGlobal.size() < graph.getVertices().size() && edges.values().stream().filter(e -> e.size() > 0).count() > 0)
 		{			
-			//Look for the vertices with the least edges
+			//Look for the vertices with the least linked vertices
 			List<AssemblyVertex> origins = new ArrayList<AssemblyVertex>();
 			for(int i = 1; i < Integer.MAX_VALUE && origins.size() == 0; i++)
 			{
 				for(Entry<AssemblyVertex, List<AssemblyEdge>> entry : edges.entrySet())
 				{
-					if(entry.getValue().size() == i)
+					//Set of linked vertices to the vertex
+					Set<Integer> vertices = new HashSet<Integer>();
+					for(AssemblyEdge edge : entry.getValue())
+					{
+						vertices.add(edge.getVertex1().getIndex() == entry.getKey().getIndex() ? edge.getVertex2().getIndex() : edge.getVertex1().getIndex());
+					}
+					if(vertices.size() == i)
 					{
 						origins.add(entry.getKey());
 					}

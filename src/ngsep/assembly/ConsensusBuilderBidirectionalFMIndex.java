@@ -20,14 +20,15 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	AlignmentAffineGap aligner;
 	boolean startConsensus = true;
 	
-	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, int tolerance) 
+	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) 
 	{
+		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
 		this.match = match;
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
 		this.windowSize = windowSize;
-		this.tolerance = tolerance;
+		this.tolerance = (int) (Rate_of_cuts * (11.51292546 / rate_of_error));;
 		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
 	}
 	
@@ -36,93 +37,100 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	{
 		//List of final contigs
 		List<CharSequence> consensusList = new ArrayList<CharSequence>();
-		for(int i = 0; i < graph.getPaths().size(); i++)
+		List<List<AssemblyEdge>> paths = graph.getPaths(); 
+		for(int i = 0; i < paths.size(); i++)
 		{
-			List<String> globalAlignment = new ArrayList<String>();
-			List<AssemblyEdge> path = graph.getPaths().get(i);
-			String consensus = "";
-			int previousOverlap = 0;
-			for(int j = 0; j < path.size(); j++)
-			{
-				//Needed to find which is the origin vertex
-				AssemblyEdge previousEdge = null;
-				if(j > 0)
-					previousEdge = path.get(j - 1);
-				AssemblyEdge edge = path.get(j);
-				AssemblyVertex a = edge.getVertex1();
-				AssemblyVertex b = edge.getVertex2();
-				//If the first edge is being checked, compare to the second edge to find the origin vertex
-				if(previousEdge == null && path.size() > 1)
-				{
-					previousEdge = path.get(j + 1);
-					//The common vertex is the second vertex of the path
-					if(previousEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
-					{
-						a = edge.getVertex2();
-						b = edge.getVertex1();
-					}
-				}
-				else if (previousEdge != null)
-				{
-					//The common vertex is the first vertex to be compared
-					if(previousEdge.getVertex1().getIndex() == edge.getVertex2().getIndex() || previousEdge.getVertex2().getIndex() == edge.getVertex2().getIndex())
-					{
-						a = edge.getVertex2();
-						b = edge.getVertex1();
-					}
-				}
-				//Ignore if both reads are equal
-				if(!a.getRead().toString().equals(b.getRead().toString()))
-				{
-					//If the first string is start, then the reverse complement is added to the consensus
-					String s1 = a.isStart() ? reverseComplement(a.getRead().toString()) : a.getRead().toString();
-					String oriS1 = s1;
-					//If the second string isn't start, then the reverse complement is added to the consensus
- 					String s2 = !b.isStart() ? reverseComplement(b.getRead().toString()) : b.getRead().toString();
- 					String oriS2 = s2;
- 					//If it's starting the consensus, add the first characters that won't be compared to the consensus
- 					if(j == 1 && s1.length() - edge.getOverlap() > tolerance)
- 						consensus = s1.substring(0, s1.length() - edge.getOverlap() - tolerance);
- 					//If the overlap + tolerance is greater than the length of the string, take the whole string
- 					if(s1.length() - edge.getOverlap() > tolerance)
-						s1 = s1.substring(s1.length() - edge.getOverlap() - tolerance);
-					if(s2.length() - edge.getOverlap() > tolerance)
-						s2 = s2.substring(0, edge.getOverlap() + tolerance);
-					String[] alignments = getAlignment(s1, s2);
-					
-					if(j > 1 && previousOverlap + edge.getOverlap() + (2 * tolerance) < oriS1.length())
-						consensus = consensus.concat(oriS1.substring(previousOverlap + tolerance, oriS1.length() - edge.getOverlap() - tolerance));
-					System.out.println("J " + j);
-					System.out.println("PREV " + previousOverlap);
-					System.out.println("LEN " + oriS1.length());
-					System.out.println("OL " + edge.getOverlap());
-					System.out.println("ALI " + alignments[0].length());
-					if(j == 483)	
-					{
-						int integ = 0;
-					}
-					String joined = joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignments);
-					int startIndex = previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance;
-					System.out.println("IDX " + startIndex);
-					System.out.println("JND " + joined.length());
-					if(j > 1 && startIndex < joined.length())
-						consensus = consensus.concat(joined.substring(previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance));
-					else if (j == 1)
-						consensus = consensus.concat(joined);
-					
-					previousOverlap = edge.getOverlap();
-					//If it's the last edge, add the remaining uncompared string from the last vertex
-					if(j == path.size() - 2)
-						consensus = consensus.concat(s2 = s2.substring(edge.getOverlap() + tolerance));
-				}
-			}
-			
-			consensusList.add(consensus);
+			List<AssemblyEdge> path = paths.get(i);
+			CharSequence consensusPath = makeConsensus (graph, path);
+			consensusList.add(consensusPath);
 		}
 		
 		return consensusList;
 	}
 	
+	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) {
+		StringBuilder consensus = new StringBuilder();
+		AssemblyVertex lastVertex = null;
+		for(int j = 0; j < path.size(); j++)
+		{
+			//Needed to find which is the origin vertex
+			AssemblyEdge edge = path.get(j);
+			AssemblyVertex a = edge.getVertex1();
+			AssemblyVertex b = edge.getVertex2();
+			//If the first edge is being checked, compare to the second edge to find the origin vertex
+			if(j==0)
+			{
+				AssemblyEdge nextEdge = path.get(j + 1);
+				//The common vertex is the second vertex of the path
+				if(nextEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || nextEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
+				{
+					a = edge.getVertex2();
+					b = edge.getVertex1();
+				}
+			}
+			else if(lastVertex == b) {
+				//The common vertex is the first vertex to be compared
+				a = edge.getVertex2();
+				b = edge.getVertex1();
+			}
+			if(j>0 && lastVertex !=a) {
+				throw new RuntimeException("Inconsistency found in path");
+			}
+			if(j==0) {
+				consensus.append(a.isStart() ? a.getRead().toString(): reverseComplement(a.getRead().toString()));
+			} else if(a.getRead()!=b.getRead())
+			{
+				//If the second string isn't start, then the reverse complement is added to the consensus
+				String nextSequence = b.isStart() ? b.getRead().toString(): reverseComplement(b.getRead().toString());
+					
+				if(nextSequence.length() - edge.getOverlap() > tolerance) {
+					String overlapSegment = nextSequence.substring(0, edge.getOverlap());
+					String remainingSegment = nextSequence.substring(edge.getOverlap());
+					consensus.append(remainingSegment);
+				} else {
+					System.err.println("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+nextSequence.length());
+				}
+					
+				/*
+				
+				if(j > 1 && previousOverlap + edge.getOverlap() + (2 * tolerance) < oriS1.length()) {
+					consensus.append(oriS1.substring(previousOverlap + tolerance, oriS1.length() - edge.getOverlap() - tolerance));
+				}
+				String[] alignedSequences = getAlignment(s1, s2);
+					
+				System.out.println("J " + j);
+				System.out.println("PREV " + previousOverlap);
+				System.out.println("LEN " + oriS1.length());
+				System.out.println("OL " + edge.getOverlap());
+				System.out.println("ALI " + alignedSequences[0].length());
+				if(j == 483)	
+				{
+					int integ = 0;
+				}
+				String joined = joinedString(graph.getEmbedded(j), graph.getEmbedded(j+1), alignedSequences);
+				int startIndex = previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance;
+				if(startIndex < 0)
+				{
+					int integ2 = 0;
+				}
+				System.out.println("IDX " + startIndex);
+				System.out.println("JND " + joined.length());
+				if(j > 1 && startIndex < joined.length() && startIndex > 0)
+					consensus.append(joined.substring(previousOverlap + tolerance - oriS1.length() + edge.getOverlap() + tolerance));
+				else if (startIndex == 0)
+					consensus.append(joined);
+				
+				previousOverlap = edge.getOverlap();
+				//If it's the last edge, add the remaining uncompared string from the last vertex
+				if(j == path.size() - 2)
+					consensus.append(s2 = s2.substring(edge.getOverlap() + tolerance));
+					*/
+			}
+			lastVertex = b;
+		}
+		return consensus;
+	}
+
 	private String joinedString(List<AssemblyEmbedded> embedded1, List<AssemblyEmbedded> embedded2, String[] alignment)
 	{
 		StringBuilder finalString = new StringBuilder();
