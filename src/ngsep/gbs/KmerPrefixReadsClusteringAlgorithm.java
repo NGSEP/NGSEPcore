@@ -283,6 +283,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	 * of variability within the cluster
 	 */
 	public void generateReferenceSequence(int clusterId, ClusteredReadsCache clusteredReadsCache) {
+		
 		int OUTLIER_FACTOR = 2;
 		int MAX_LENGTH = 1000;
 		Map<String, String> clusterInfo = clusteredReadsCache.getClusterInfo(clusterId);
@@ -306,6 +307,41 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 	
+	public String generateReferenceSequenceTable(int clusterId, ClusteredReadsCache clusteredReadsCache) {
+		String repSequence = "";
+		int OUTLIER_FACTOR = 2;
+		int MAX_LENGTH = 100;
+		Map<String, String> clusterInfo = clusteredReadsCache.getClusterInfo(clusterId);
+		double clusterStdDevLength = Double.parseDouble(clusterInfo.get("stdev"));
+		double clusterMeanLength = Double.parseDouble(clusterInfo.get("mean"));
+		double outlierCut = clusterMeanLength - (OUTLIER_FACTOR * clusterStdDevLength);
+		char[] repSeq = new char[MAX_LENGTH];
+		int[][] repSeqTable = new int [MAX_LENGTH][DNASequence.BASES_ARRAY.length];
+		List<RawRead> readsClusterK = clusteredReadsCache.getClusterReads(clusterId);
+		for(RawRead read:readsClusterK) {
+			String s = read.getSequenceString();
+			if((s.length() < MAX_LENGTH)&& (s.length() >= outlierCut)) {		
+				MAX_LENGTH = s.length();
+			}
+			for(int i=0; i==s.length(); i++) {
+				repSeqTable[i][DNASequence.BASES_STRING.indexOf(s.charAt(i))] += 1;
+			}
+		}
+		
+		for(int i = 0; i < MAX_LENGTH; i++) {
+			int max = 0;
+			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
+				int next = repSeqTable[i][j];
+				if(max <= next) {
+					repSeq[i] = DNASequence.BASES_STRING.charAt(j);
+					max = next;
+				}
+			}
+			repSequence += repSeq[i];
+		}
+
+		return repSequence;
+	}
 		
 	private void printStatistics() {
 		// TODO Implement. Create an output file with process statistics
@@ -330,11 +366,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 			}
 		}
-		log.info("Processed a total of " + readCount + " reads for file: "+filename);
-		
+		log.info("Processed a total of " + readCount + " reads for file: "+filename);	
 	}
-	
-	
 }
 
 
