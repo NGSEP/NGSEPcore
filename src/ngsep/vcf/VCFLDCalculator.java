@@ -110,10 +110,20 @@ public class VCFLDCalculator {
 		in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 		//TODO: Implement modes
 		Iterator<VCFRecord> it = in.iterator();
+		String lastSeqName = null;
 		int n=0;
 		while(it.hasNext()) {
 			VCFRecord record = it.next();
-			if(record.getVariant().isBiallelic()) recordsInMemory.add(record);
+			if(!record.getVariant().isBiallelic()) continue;
+			if(!record.getSequenceName().equals(lastSeqName)) {
+				if(recordsInMemory.size()>0) {
+					calculateLDStatistics(recordsInMemory,out);
+					recordsInMemory.clear();
+				}
+				lastSeqName = record.getSequenceName();
+			}
+			recordsInMemory.add(record);
+			
 			n++;
 			if (progressNotifier!=null && n%1000==0) {
 				int progress = n/1000;
@@ -123,8 +133,8 @@ public class VCFLDCalculator {
 				}
 			}
 		}
-		System.out.println("Loaded: "+recordsInMemory.size()+" variants");
-		calculateLDStatistics(recordsInMemory,out);
+		//System.out.println("Loaded: "+recordsInMemory.size()+" variants");
+		if(recordsInMemory.size()>0) calculateLDStatistics(recordsInMemory,out);
 	}
 	/**
 	 * Calculates LD statistics for all pairs of records within the given list
