@@ -334,7 +334,7 @@ Writes to the standard output.
 <argument multiple="true">GENOTYPED_VARIANTS_FILE</argument>
 </command>
 
-<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" printHelp="false">
+<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer">
 <intro>
 Provides statistics on a transcriptome file in GFF3 format
 </intro>
