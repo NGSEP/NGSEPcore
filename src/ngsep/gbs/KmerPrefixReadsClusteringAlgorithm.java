@@ -115,12 +115,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException {
-//		loadFilenamesAndSamples();
-//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-//		buildKmersMap();
-//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-//		List<String> clusteredReadsFilenames = clusterReads();
-		List<String> clusteredReadsFilenames = debug();
+		loadFilenamesAndSamples();
+		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+		buildKmersMap();
+		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+		List<String> clusteredReadsFilenames = clusterReads();
+		//List<String> clusteredReadsFilenames = debug();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
 		log.info("Called variants");
