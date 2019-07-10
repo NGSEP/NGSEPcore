@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -34,6 +35,8 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
+import ngsep.alignments.ReadAlignment;
+import ngsep.discovery.PileupRecord;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -47,6 +50,7 @@ import ngsep.sequencing.ReadsDemultiplex;
 /**
  * @author Jorge Gomez
  * @author Jorge Duitama
+ * @author Andrea Parra
  */
 public class KmerPrefixReadsClusteringAlgorithm {
 
@@ -65,7 +69,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private Pattern regexp=Pattern.compile(DEF_REGEXP_SINGLE);
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
 	private Map<String, String> filenamesBySampleId2=new HashMap<>();
-	private Map<String, String> clusteredFilenames=new HashMap<>();
 	private Map<Integer, String> clusterRefSeqMap = new HashMap<>();  //hashmap of cluster ids and ref seqs.
 	private DNAShortKmerClusterMap kmersMap;
 	
@@ -112,16 +115,23 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException {
-		loadFilenamesAndSamples();
-		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-		buildKmersMap();
-		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-		List<String> clusteredReadsFilenames = clusterReads();
+//		loadFilenamesAndSamples();
+//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+//		buildKmersMap();
+//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+//		List<String> clusteredReadsFilenames = clusterReads();
+		List<String> clusteredReadsFilenames = debug();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
 		log.info("Called variants");
 		printStatistics();
 		log.info("Process finished");
+	}
+	
+	private List<String> debug() {		
+		log.info("Skipping to call variants");
+		List<String> clusteredReadsFilenames = List.of("trial_clusteredReads_0.fastq.gz");
+		return clusteredReadsFilenames;
 	}
 
 	private void loadFilenamesAndSamples() {
@@ -138,12 +148,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 	
 	
-	public void generateClusterReferenceSequence(Integer clusterId)  {
-		
-	}
-	
-	
-
 	public void buildKmersMap() throws IOException {
 		kmersMap = new DNAShortKmerClusterMap();
 		for(String filename:filenamesBySampleId1.values()) {
@@ -191,10 +195,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		try (FastqFileReader openFile = new FastqFileReader(filename);) {
 			Iterator<RawRead> reader = openFile.iterator();
 			while(reader.hasNext()) {
-				if(count % 100000 == 0) {
-					log.info("Processing read number " + Integer.toString(count));
-					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched so far. ");
-				}
 				RawRead read = reader.next();
 				String s = read.getSequenceString();
 				if(DEF_START + kmerLength>s.length()) continue;
@@ -233,116 +233,80 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		//     Add the alignments to the pileup record
 		//     Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
 		
-		String newClusterId = "";
-		String oldClusterId = "";
-		ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache();
-		int clusterTotalReadLength = 0;
-		int clusterSquareTotalLength = 0;
-		double clusterStdDevReadLength;
-		double clusterMeanLength;
-		int readCount = 0;
-		
-		for(String filename:clusteredReadsFilenames) {
-			try (FastqFileReader openFile = new FastqFileReader(filename);) {
-				Iterator<RawRead> reader = openFile.iterator();
-				while(reader.hasNext()) {
-					RawRead read = reader.next();
-					String s = read.getSequenceString();
-					clusterTotalReadLength += s.length();
-					clusterSquareTotalLength += Math.pow(s.length(), 2);
-					readCount++;
-					newClusterId = read.getName().split("_")[1];
-					int clusterId = Integer.parseInt(newClusterId);
-					if(DEF_START + kmerLength>s.length()) continue;
-					clusteredReadsCache.addSingleRead(clusterId, read);
-					if((newClusterId != oldClusterId) && (oldClusterId != "")) {
-						clusterMeanLength = clusterTotalReadLength / readCount;
-						clusterStdDevReadLength = Math.sqrt(((readCount * clusterSquareTotalLength) - Math.pow(clusterTotalReadLength, 2)) / (readCount * (readCount - 1)));
-						clusteredReadsCache.addClusterInfo(clusterId, "stdev", Double.toString(clusterStdDevReadLength));
-						clusteredReadsCache.addClusterInfo(clusterId, "mean", Double.toString(clusterMeanLength));
-						readCount = 0;
-						clusterTotalReadLength = 0;
-						clusterSquareTotalLength = 0;
-						//process cluster for representative sequence
-						//remove cluster from ReadsCache
-					}
-					
-					
-					if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
-						log.info("Single cluster larger than maximum allowed reads in memory");
-					}
-					oldClusterId = newClusterId;
-				}
-			}
-		}
-		
-	}
-	
-	/**
-	 * For each cluster, generates the representative sequence as well as a measurement 
-	 * of variability within the cluster
-	 */
-	public void generateReferenceSequence(int clusterId, ClusteredReadsCache clusteredReadsCache) {
-		
-		int OUTLIER_FACTOR = 2;
-		int MAX_LENGTH = 1000;
-		Map<String, String> clusterInfo = clusteredReadsCache.getClusterInfo(clusterId);
-		double clusterStdDevLength = Double.parseDouble(clusterInfo.get("stdev"));
-		double clusterMeanLength = Double.parseDouble(clusterInfo.get("mean"));
-		double outlierCut = clusterMeanLength - (OUTLIER_FACTOR * clusterStdDevLength);
-		String repSequence = "";
-		
-		List<RawRead> readsClusterK = clusteredReadsCache.getClusterReads(clusterId);
-		for(RawRead read:readsClusterK) {
-			String s = read.getSequenceString();
-			if(s.length() < outlierCut) continue;		// Check that the read is not an outlier
-			if(s.length() < MAX_LENGTH){		
-				MAX_LENGTH = s.length();
-				repSequence = repSequence.substring(0, MAX_LENGTH);
-			}
-			else {
-				s = s.substring(0, MAX_LENGTH);
-			}
-			
-		}
-	}
-	
-	public String generateReferenceSequenceTable(int clusterId, ClusteredReadsCache clusteredReadsCache) {
-		String repSequence = "";
-		int OUTLIER_FACTOR = 2;
-		int MAX_LENGTH = 100;
-		Map<String, String> clusterInfo = clusteredReadsCache.getClusterInfo(clusterId);
-		double clusterStdDevLength = Double.parseDouble(clusterInfo.get("stdev"));
-		double clusterMeanLength = Double.parseDouble(clusterInfo.get("mean"));
-		double outlierCut = clusterMeanLength - (OUTLIER_FACTOR * clusterStdDevLength);
-		char[] repSeq = new char[MAX_LENGTH];
-		int[][] repSeqTable = new int [MAX_LENGTH][DNASequence.BASES_ARRAY.length];
-		List<RawRead> readsClusterK = clusteredReadsCache.getClusterReads(clusterId);
-		for(RawRead read:readsClusterK) {
-			String s = read.getSequenceString();
-			if((s.length() < MAX_LENGTH)&& (s.length() >= outlierCut)) {		
-				MAX_LENGTH = s.length();
-			}
-			for(int i=0; i==s.length(); i++) {
-				repSeqTable[i][DNASequence.BASES_STRING.indexOf(s.charAt(i))] += 1;
-			}
-		}
-		
-		for(int i = 0; i < MAX_LENGTH; i++) {
-			int max = 0;
-			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
-				int next = repSeqTable[i][j];
-				if(max <= next) {
-					repSeq[i] = DNASequence.BASES_STRING.charAt(j);
-					max = next;
-				}
-			}
-			repSequence += repSeq[i];
-		}
 
-		return repSequence;
+		int maxReadLength = 0;
+		int numFiles = 0;
+		for(String filename:clusteredReadsFilenames) {
+			int longestReadOnFile = repSeqLength(filename);
+			if(maxReadLength < longestReadOnFile) {
+				maxReadLength = longestReadOnFile;
+			}
+			numFiles++;
+		}
+		log.info(Integer.toString(numFiles) + " files were read.");
+		log.info("Longest read found: " + Integer.toString(maxReadLength));
+		ReadClusters readClusters = new ReadClusters(maxReadLength, numFiles);
+		int fileIndex = 0;
+		for(String filename:clusteredReadsFilenames) {
+			readClusters.addFile(filename, fileIndex);
+			readClusteredReads(filename, readClusters);
+			fileIndex++;
+		}
 	}
-		
+	
+	public int repSeqLength(String filename) throws IOException {
+		int maxLength = 0;
+		try (FastqFileReader openFile = new FastqFileReader(filename);) {
+			Iterator<RawRead> reader = openFile.iterator();
+			while(reader.hasNext()) {
+				RawRead read = reader.next();
+				String s = read.getSequenceString();
+				if(s.length()>maxLength) {
+					maxLength = s.length();
+				}
+			}
+		}
+		return maxLength;
+	}
+	
+	public void readClusteredReads(String filename, ReadClusters readClusters) throws IOException {
+		Integer oldClusterId = 0;
+		Integer newClusterId;
+		String refSeqByClusterId;
+		String refSeq;
+		int refSeqId;
+		int k;
+		try (FastqFileReader openFile = new FastqFileReader(filename);) {
+			Iterator<RawRead> reader = openFile.iterator();
+			while(reader.hasNext()) {
+				RawRead read = reader.next();
+				String s = read.getSequenceString();
+				newClusterId = Integer.parseInt(read.getName().split("_")[1]);
+				k = newClusterId;
+				if(newClusterId != oldClusterId) {
+					log.info(Integer.toString(newClusterId) + ", " + Integer.toString(oldClusterId));
+					//readClusters.reportClusterCompletionInFile(filename, oldClusterId);
+					refSeq = readClusters.calcRepSeq(oldClusterId);
+					log.info("Ref seq for cluster: " + Integer.toString(oldClusterId) + ": " + refSeq);
+					processCluster(oldClusterId, refSeq, readClusters);
+				} 
+				readClusters.addSequenceToCluster(k, s);
+				oldClusterId = newClusterId;
+				
+			}
+		}
+	}
+	
+	private void processCluster(int k, String refSeq, ReadClusters readClusters) {
+		List<ReadAlignment> clusterReadAlignments = readClusters.getClusterReadAlignments(k);
+		for(int i=0; i<refSeq.length(); i++) {
+			PileupRecord clusterPileUp = new PileupRecord(Integer.toString(k), i);
+			for(ReadAlignment alignment:clusterReadAlignments) {
+				clusterPileUp.addAlignment(alignment);
+			}
+		}
+	}
+	
 	private void printStatistics() {
 		// TODO Implement. Create an output file with process statistics
 		
@@ -370,6 +334,129 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 }
 
+class ReadClusters {
+	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
+	
+	private Map<String, Integer> completionInfo = new HashMap<>();
+	private Map<Integer, int[][]> repSeqTable = new TreeMap<>();
+	private Map<Integer, List<ReadAlignment>> clusterReadAlignments = new TreeMap<>();
+	private int longestRead;
+	private int totalNumFiles;
+	private Integer largestProcessedCluster = null;
+	private Integer[] completionTable; 
+	               
+	public ReadClusters(int longestRead, int totalNumFiles)      
+	{                                                                 
+		this.longestRead = longestRead;                   // this could be done for each cluster  
+		this.totalNumFiles = totalNumFiles;
+		this.completionTable = new Integer[totalNumFiles]; 
+	}
+	
+	public int[][] getClusterTable(int k) {
+		return repSeqTable.get(k);
+		
+	}
+	
+	public List<ReadAlignment> getClusterReadAlignments(int k) {
+		return clusterReadAlignments.get(k);
+	}
+	
+	public void addFile(String filename, int fileIndex) {
+		completionInfo.put(filename, fileIndex);
+	}
+	
+	public void addSequenceToCluster(int k, String s) {
+		//Add readAlignment
+		List<ReadAlignment> alignments = clusterReadAlignments.get(k);
+		ReadAlignment clusterReadAlignment = new ReadAlignment(Integer.toString(k), 1, s.length(), s.length(), 0);
+		alignments.add(clusterReadAlignment);
+		
+		int[][] clusterTable = repSeqTable.get(k);
+		if(clusterTable==null) {
+			clusterTable = new int[this.longestRead][DNASequence.BASES_ARRAY.length];			
+		}
+		int[][] newClusterTable = addRead(s, clusterTable);
+		repSeqTable.put(k, newClusterTable);
+		
+		
+	}
+	
+	public void printClusterTable(int k) {
+		log.info(Arrays.deepToString(repSeqTable.get(k)).replace("], ", "]\n"));
+	}
+	
+	private int[][] addRead(String s, int[][] clusterTable) {
+		for(int i=0; i<s.length(); i++) {
+			if(!DNASequence.isInAlphabeth(s.charAt(i))) {
+				continue;
+			}
+			int j = DNASequence.BASES_STRING.indexOf(s.charAt(i));
+			clusterTable[i][j]++;
+		}
+		return clusterTable;
+	}
+	
+	public String calcRepSeq(int k) {
+		char[] repSeq = new char[this.longestRead];
+		String repSequence = "";
+		
+		int[][] clusterTable = repSeqTable.get(k);
+		for(int i = 0; i < this.longestRead; i++) {
+			int max = 0;
+			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
+				int next = clusterTable[i][j];
+				if((max <= next) && (next != 0)){
+					repSeq[i] = DNASequence.BASES_STRING.charAt(j);
+					max = next;
+				}
+			}
+			repSequence += repSeq[i];
+		}
+		return repSequence;
+	}
+	
+	private double calcAvgHammingDistance(int k) {
+		//TODO
+		double avgHammingDist = 0.0;
+		
+		return avgHammingDist;
+	}
+	
+	public void reportClusterCompletionInFile(String filename, int k) {
+		log.info("File " + filename + " done with cluster " + Integer.toString(k));
+		int indexOfFile = completionInfo.get(filename);
+		completionTable[indexOfFile] = k;
+	}
+	
+	public String checkGeneralClusterCompletion() {
+		Integer candidateCluster = 0;
+		if(largestProcessedCluster != null) {
+			candidateCluster = largestProcessedCluster + 1;
+		}
+		
+		boolean clusterComplete = true;
+		for(int i = 0; i < totalNumFiles; i++) {
+			if (completionTable[i] == null) {
+				clusterComplete = false;
+				break;
+			}
+			if(candidateCluster > completionTable[i])  {
+				clusterComplete = false;
+				break;
+			}
+		}
+		if(clusterComplete) {
+			String seq = calcRepSeq(candidateCluster);
+			double hamDist = calcAvgHammingDistance(candidateCluster);
+			log.info("Cluster " + Integer.toString(candidateCluster) + " was completed.");
+			log.info("Reference sequence: " + seq);
+			largestProcessedCluster = candidateCluster;
+			return seq + "_" + Integer.toString(candidateCluster);
+		} else {
+			return null;
+		}	
+	}
+}
 
 class ClusteredReadsCache {
 	private Map<Integer,List<RawRead>> clusteredReadsCache = new TreeMap<>();
