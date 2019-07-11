@@ -38,6 +38,7 @@ import java.util.zip.GZIPOutputStream;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.discovery.PileupRecord;
+import ngsep.discovery.VariantPileupListener;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -47,6 +48,7 @@ import ngsep.sequences.DNAShortKmerClusterMap;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
+import ngsep.variants.CalledGenomicVariant;
 
 /**
  * @author Jorge Gomez
@@ -131,7 +133,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		List<String> clusteredReadsFilenames = new ArrayList<String>();
 		//List<String> clusteredReadsFilenames = List.of("trial_clusteredReads_0.fastq.gz");
 		List<String> clusteredReadsFilenames = new ArrayList<>();
 		return clusteredReadsFilenames;
@@ -227,28 +228,47 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
-		// TODO Implement. Load in parallel clustered read files. Align reads within clusters build pileups and call variants
-		// For each cluster
-		//     create representative sequence
-		//     For each read within the cluster create a ReadAlignment. first=1, last=read length, flags=0. Set characters and quality scores
-		//     For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
+		// Load in parallel clustered read files. Align reads within clusters build pileups and call variants
 		
-		//     Add the alignments to the pileup record
-		//     Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
 		
 		int numberOfFiles = clusteredReadsFilenames.size();
 		
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
-		RawRead [] currentRead = new RawRead[numberOfFiles];
+		RawRead [] currentReads = new RawRead[numberOfFiles];
+		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
-
-		for(int i=0; i<numberOfFiles; i++) {
-			readers[i] = new FastqFileReader(clusteredReadsFilenames.get(i));
-			Iterator<RawRead> it = readers[i].iterator();
-			iterators.add(it);
-
+		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt")) {
+			int numNotNull = 0;
+			int numCluster = 0;
+			for(int i=0; i<numberOfFiles; i++) {
+				readers[i] = new FastqFileReader(clusteredReadsFilenames.get(i));
+				Iterator<RawRead> it = readers[i].iterator();
+				iterators.add(it);
+				if(it.hasNext()) {
+					currentReads[i] = it.next();
+					numNotNull++;
+				}
+			}
+			while(numNotNull>0) {
+				//gather reads next cluster
+				ReadCluster nextCluster = new ReadCluster(numCluster);
+				for(int i=0; i<numberOfFiles; i++) {
+					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
+					if(currentReads[i]==null) numNotNull--;
+				}
+				List<CalledGenomicVariant> variants = processCluster(nextCluster);
+				//TODO. Imprimir datos de variante en outVariants
+				
+				numCluster++;
+			}
+			
+		} finally {
+			for(FastqFileReader reader:readers) {
+				if(reader!=null) reader.close();
+			}
 		}
+		
 		log.info(Integer.toString(numberOfFiles) + " files were read. Calling variants on clusters.");
 		
 		// for each cluster, create a ReadCluster obj, 
@@ -258,12 +278,53 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 		
 	
-	private void processCluster(ReadCluster readCluster) {
-		char[] refSeq = readCluster.getRefSeq();
-		int clusterNumber = readCluster.getClusterNumber();
-		for(int i=0; i<refSeq.length; i++) {
-			PileupRecord clusterPileUp = new PileupRecord(Integer.toString(clusterNumber), i);
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, RawRead[] currentReads, int i) {
+		RawRead currentRead = currentReads[i];
+		int numCluster = nextCluster.getClusterNumber();
+		while(currentRead!=null) {
+			String readIdWithCluster = currentRead.getName();
+			String [] items = readIdWithCluster.split("_");
+			String sampleId = items[0];
+			int currentReadCluster = Integer.parseInt(items[1]);
+			String readId = items[2];
+			currentRead.setName(readId);
+			if (currentReadCluster>numCluster) break;
+			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorgainzed file. Curret cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
+			nextCluster.addRead(currentRead, sampleId);
+			if(iterator.hasNext()) {
+				currentReads [i] = iterator.next();
+				currentRead = currentReads[i];
+			} else {
+				currentReads [i] = null;
+				currentRead = null;
+			}
 		}
+	}
+
+	private List<CalledGenomicVariant> processCluster(ReadCluster readCluster) {
+		List<CalledGenomicVariant> variants = new ArrayList<>();
+		VariantPileupListener variantsDetector = new VariantPileupListener();
+		//     create representative sequence
+		char[] refSeq = readCluster.calcRefSeq();
+		// TODO: For each read within the cluster create a ReadAlignment. first=1, last=read length, flags=0. Set characters and quality scores
+		
+		//     For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
+		int clusterNumber = readCluster.getClusterNumber();
+		String clusterNumberStr = Integer.toString(clusterNumber);
+		for(int i=0; i<refSeq.length; i++) {
+			PileupRecord clusterPileUp = new PileupRecord(clusterNumberStr, i);
+			// TODO: Add the alignments to the pileup record
+			
+			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
+			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
+			if(variant!=null) variants.add(variant);
+		}
+			
+		
+		
+		
+		
+		return variants;
 	}
 	
 	private void printStatistics() {

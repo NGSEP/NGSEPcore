@@ -1,37 +1,47 @@
 package ngsep.gbs;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.RawRead;
 
 public class ReadCluster {
 	
-	int clusterNumber;
-	int totalReads = 0;
-	int longestRead = 0;
-	int[][] refSeqTable;
-	char[] refSeq;
-	boolean complete;
+	private int clusterNumber;
+	private int totalReads = 0;
+	private int longestRead = 0;
+	private int[][] refSeqTable;
+	private char[] refSeq;
+	private List<RawRead> reads = new ArrayList<>();
+	private List<String> sampleIds = new ArrayList<>();
 	
-	public ReadCluster(int clusterNumber, int longestRead)      
+	public ReadCluster(int clusterNumber)      
 	{                                                                 
 		this.clusterNumber = clusterNumber;
-		this.longestRead = longestRead;
+		
+	}
+	
+	public void addRead(RawRead read, String sampleId) {
+		reads.add(read);
+		sampleIds.add(sampleId);
+		totalReads++;
+	}
+	
+	public char [] calcRefSeq() {
 		this.refSeqTable = new int[this.longestRead][DNASequence.BASES_ARRAY.length];
 		this.refSeq = new char[this.longestRead];
-	}
-	
-	public int[][] addRead(String s) {
-		totalReads++;
-		for(int i=0; i<s.length(); i++) {
-			if(!DNASequence.isInAlphabeth(s.charAt(i))) {
-				continue;
+		for(RawRead read:reads) {
+			String s = read.getSequenceString();
+			if(longestRead<s.length()) longestRead = s.length();
+			for(int i=0; i<s.length(); i++) {
+				if(!DNASequence.isInAlphabeth(s.charAt(i))) {
+					continue;
+				}
+				int j = DNASequence.BASES_STRING.indexOf(s.charAt(i));
+				refSeqTable[i][j]++;
 			}
-			int j = DNASequence.BASES_STRING.indexOf(s.charAt(i));
-			refSeqTable[i][j]++;
 		}
-		return refSeqTable;
-	}
-	
-	public void calcRefSeq() {
 		for(int i = 0; i < this.longestRead; i++) {
 			int max = 0;
 			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
@@ -42,17 +52,11 @@ public class ReadCluster {
 				}
 			}
 		}
-	}
-	
-	public char[] getRefSeq() {
 		return refSeq;
 	}
 	
 	public int getClusterNumber(){
 		return clusterNumber;
-	}
-	public boolean clusterComplete() {
-		return complete;
 	}
 	
 	public int longestRead() {
