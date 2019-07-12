@@ -1121,8 +1121,13 @@ java -jar NGSEPcore.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GEN
 
 OPTIONS:
 
-        -o STRING : Prefix of output files Default: genomesAlignment
-
+	-o STRING	: Prefix of output files Default: genomesAlignment
+	-k INT		: K-mer size to find orthologs Default: 10
+	-p INT		: Minimum percentage of k-mers to find orthologs
+			  Default: 50
+	-MH INT		: Maximum number of homologs per unit to be displayed
+			  in the D3 visualization. Default: 3
+			
 The output is a series of text files having the ids and physical coordinates of
 the paralogs within each genome and the orthologs between the two genomes.
 The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
@@ -1132,23 +1137,31 @@ have the following format:
 2. Chromosome of the gene in the first genome
 3. Start of the gene in the first genome
 4. End of the gene in the first genome
-5. Indicates if the gene is unique (Y) or if paralogs were identified
+5. Number of paralogs of the gene in the first genome
 6. Id of the second genome
 7. Id of the ortholog in the second genome
 8. Chromosome of the ortholog in the second genome
 9. Start of the ortholog in the second genome
 10. End of the ortholog in the second genome
-11. Alignment type. It can be "L" if the gene has am ortholog in the
+11. Alignment type. It can be "L" if the gene has an ortholog in the
    second genome and it makes part of a synteny block. "U" if the gene has
    a unique ortholog but it does not make part of the syntheny block, and
    "M" if the gene has multiple orthologs in the second genome.
 
 The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
-<PREFIX>_paralogsG2.tsv, have the same 8 first columns but columns 5 to 8
-contain genes within the same genome as genes in column 1 to 4. Finally,
-the file called <PREFIX>_linearView.html can be loaded in a web browser
-and provides an interactive view of the alignment based on the d3 web
-development technology (https://d3js.org/).
+<PREFIX>_paralogsG2.tsv, have the same 10 first columns but columns 7 to 10
+contain genes within the same genome as genes in column 1 to 4. The file
+<PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
+that can be inferred from the pairwise homolog relationships.
+
+Finally, the files:
+
+<PREFIX>_linearOrthologView.html
+<PREFIX>_circularOrthologView.html and
+<PREFIX>_circularParalogView.html
+
+can be loaded in a web browser and provide an interactive view of the alignment
+based on the d3 web development technology (https://d3js.org/).
 
 -------------------
 Demultiplexing reads
@@ -1164,9 +1177,9 @@ java -jar NGSEPcore.jar Demultiplex <OPTIONS> <INDEX_FILE> <FASTQ_FILE_1> (<FAST
 
 OPTIONS: 
 	-o DIRECTORY	: Directory where the output fastq files will be saved
-	-t STRING	: If this sequence is found within a read, the read
-			  will be trimmed up to the start of this sequence.
-			  useful to remove adapter contamination
+	-t STRING	: Sequences to trim separated by comma. If any of the
+			  given sequences is found within a read, the read will
+			  be trimmed up to the start of the sequence.
 	-u		: Output uncompressed files
         -a		: Activate demultiplexing with dual barcoding.
 	-d FILE		: Tab-delimited file storing physical locations of the
@@ -1317,11 +1330,10 @@ sequences and generates a filtered gff by CDS length and completion.
 
 USAGE:
 
-java -jar NGSEPcore.jar TranscriptomeAnalyzer <TRANSCRIPTOME_MAP> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar TranscriptomeAnalyzer <GENOME> <TRANSCRIPTOME_MAP> <OUTPUT_PREFIX>
 
 OPTIONS:
 
-        -g GENOME : Reference genome annotated in the transcriptome file
         -c        : Output only complete transcripts (with start and stop codons) in the gff output file
         -pl INT   : Minimum protein length for coding transcripts in the gff output file Default: 0
 
@@ -1330,31 +1342,33 @@ OPTIONS:
 Citing and supporting packages
 ------------------------------
 
-A manuscript with the description of the main modules of NGSEP is available at
-Nucleic Acids research:
+The latest algorithms implemented in NGSEP 3 to improve accuracy for variants
+detection and genotyping were recently published in bioinformatics:
 
-Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
-An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
-Nucleic Acids Research. 42(6): e44. 
-http://doi.org/10.1093/nar/gkt1381
+Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)
+NGSEP3: accurate variant calling across species and sequencing protocols.
+Bioinformatics. in press. btz275
+http://doi.org/10.1093/bioinformatics/btz275
 
-A description of some of the latest modules and recent benchmarks with other
-tools for variants detection on Genotype-By-Sequencing (GBS) data is available
-at BMC Genomics:
+Further details on the pipeline built for variants detection on
+Genotype-By-Sequencing (GBS) data can be found at BMC Genomics:
 
 Perea C, Hoz JFDL, Cruz DF, Lobaton JD, Izquierdo P, Quintero JC, Raatz B and Duitama J. (2016).
 Bioinformatic analysis of genotype by sequencing (GBS) data with NGSEP.
 BMC Genomics, 17:498.
 http://doi.org/10.1186/s12864-016-2827-7
 
-Details of variant detection algorithms implemented in NGSEP can be found in
-the following publications:
+The first manuscript with the initial description of the main modules of NGSEP
+is available at Nucleic Acids research:
 
-SNV detection:
-Duitama J, Srivastava PK, and Mandoiu II. (2012). 
-Towards accurate detection and genotyping of expressed variants from whole transcriptome sequencing data. 
-BMC Genomics, 13(Suppl 2), S6. 
-http://doi.org/10.1186/1471-2164-13-S2-S6
+Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
+An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
+Nucleic Acids Research. 42(6): e44. 
+http://doi.org/10.1093/nar/gkt1381
+
+
+Details of algorithms implemented in NGSEP for different functionalities can be
+found in the following publications:
 
 CNV detection (Read depth analysis):
 Abyzov, A., Urban, A. E., Snyder, M., and Gerstein, M. (2011). 
@@ -1379,8 +1393,15 @@ CNV-seq, a new method to detect copy number variation using high-throughput sequ
 BMC Bioinformatics 10:80.
 http://doi.org/10.1186/1471-2105-10-80
 
-NOTE: Since version 2.1.2, we implemented a new model to integrate paired-end and split-read analysis for detection of large indels.
-Benchmarking with other tools is in progress.
+Since version 2.1.2, we implemented a new model to integrate paired-end
+and split-read analysis for detection of large indels. A recent benchmark
+experiment of this algorithm against other software tools using data from the
+3000 rice genomes project is available at Genome Research:
+
+Fuentes RR, Chebotarov D, Duitama J, Smith S, De la Hoz JF, Mohiyuddin M, et al. (2019).
+Structural variants in 3000 rice genomes.
+Genome Research 29: 870-880.
+http://doi.org/10.1101/gr.241240.118
 
 NGSEP is also supported by the following open source software packages:
 
