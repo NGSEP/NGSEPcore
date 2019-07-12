@@ -20,14 +20,12 @@
 package ngsep.discovery;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.math.FisherExactTest;
 
 /**
@@ -38,6 +36,7 @@ import ngsep.math.FisherExactTest;
 public class PileupRecord {
 	private String sequenceName;
 	private int position;
+	private List<ReadAlignment> alignmentsList = new ArrayList<>();
 	private Map<String,List<ReadAlignment>> alignmentsMap = new HashMap<>();
 	private int referenceSpan=1;
 	private int numAlignments = 0;
@@ -100,7 +99,7 @@ public class PileupRecord {
 	 * Calculates the allele calls from the pileup position with the given span
 	 * @param referenceSpan Length in reference basepairs of the desired allele calls
 	 * @param readGroups to return alignments. If null, allele calls for all alignments of this pileup are returned
-	 * @return List<PileupAlleleCall> List of allele calls with the given refernce span
+	 * @return List<PileupAlleleCall> List of allele calls with the given reference span
 	 */
 	public List<PileupAlleleCall> getAlleleCalls(int referenceSpan, Set<String> readGroups) {
 		List<PileupAlleleCall> alleleCalls = new ArrayList<>();
@@ -155,6 +154,7 @@ public class PileupRecord {
 	public void addAlignment(ReadAlignment aln) {
 		if(aln.getFirst()>position) return;
 		if(aln.getLast()<position) return;
+		alignmentsList.add(aln);
 		List<ReadAlignment> alnsRG = alignmentsMap.get(aln.getReadGroup());
 		if(alnsRG==null) {
 			alnsRG = new ArrayList<>();
@@ -167,12 +167,7 @@ public class PileupRecord {
 	}
 	
 	public List<ReadAlignment> getAlignments() {
-		List<ReadAlignment> answer = new ArrayList<>();
-		for(List<ReadAlignment> alns:alignmentsMap.values()) {
-			answer.addAll(alns);
-		}
-		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
-		return answer;
+		return alignmentsList;
 	}
 	public int getNumAlignments() {
 		return numAlignments;
