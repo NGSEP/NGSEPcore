@@ -60,6 +60,7 @@ public class TranscriptomeAnalyzer {
 	public static void main(String[] args) throws Exception {
 		TranscriptomeAnalyzer instance = new TranscriptomeAnalyzer();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.genome = new ReferenceGenome(args[i++]);
 		String transcriptomeFile = args[i++];
 		String outPrefix = args[i++];
 		instance.processTranscriptome(transcriptomeFile, outPrefix);
@@ -148,18 +149,12 @@ public class TranscriptomeAnalyzer {
 		Distribution cdsLengthDist = new Distribution (0,4999,200);
 		Distribution proteinLengthDist = new Distribution (0,1999,100);
 		
-		
+		QualifiedSequenceList sequenceNames= genome.getSequencesMetadata();
 		//Load transcriptome
-		GFF3TranscriptomeHandler gff3Handler = new GFF3TranscriptomeHandler();
+		GFF3TranscriptomeHandler gff3Handler = new GFF3TranscriptomeHandler(sequenceNames);
 		gff3Handler.setLog(log);
-		QualifiedSequenceList sequenceNames=null;
-		if(genome!=null) {
-			sequenceNames = genome.getSequencesMetadata();
-			gff3Handler.setSequenceNames(sequenceNames);
-		}
 		Transcriptome transcriptome = gff3Handler.loadMap(transcriptomeFile); 			
-		if(genome!=null) transcriptome.fillSequenceTranscripts(genome, log);
-		else sequenceNames = gff3Handler.getSequenceNames();
+		transcriptome.fillSequenceTranscripts(genome, log);
 		
 		List<Transcript> transcriptsList = transcriptome.getAllTranscripts();
 		Set<String> visitedGeneIDs = new HashSet<>();

@@ -1,4 +1,4 @@
-<NGSEP version="3.3.2" date="02-07-2019">
+<NGSEP version="3.3.2" date="15-07-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
 <command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
@@ -341,13 +341,11 @@ Provides statistics on a transcriptome file in GFF3 format
 <title>Evaluating transcriptome assemblies</title>
 <description>
 Loads a transcriptome annotation in GFF3 format, logs format errors, provides statistics on the assembled transcriptome,
-generates cDNA, CDS and protein sequences and generates a filtered gff by CDS length and completion. 
+generates cDNA, CDS and protein sequences and generates a filtered gff by CDS length and presence of start and stop codons. 
 </description>
+<argument>GENOME</argument>
 <argument>TRANSCRIPTOME_MAP</argument>
 <argument>OUTPUT_PREFIX</argument>
-<option id="g" type="GENOME" attribute="genome">
-Reference genome annotated in the transcriptome file
-</option>
 <option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
 Output only complete transcripts (with start and stop codons) in the gff output file
 </option>
