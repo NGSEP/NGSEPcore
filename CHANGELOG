@@ -6,6 +6,8 @@ v3.3.2	15-07-2019
   visualization based on number of connections
 - MultisampleVariantsDetector: Improved efficiency for large numbers of
   samples
+- VariantsDetector: Fixed errors when the reference sequence is lowercase
+  and in some cases when reads contain N characters
 - Demultiplex: Option -t to trim contaminating sequences now accepts more
   than one sequence
   
