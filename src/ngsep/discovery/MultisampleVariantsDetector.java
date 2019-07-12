@@ -559,6 +559,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 
 	public void findVariants() throws IOException {
 		printParameters();
+		if(genome==null) throw new IOException("The reference genome is mandatory");
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		indelRealigner.setGenome(genome);

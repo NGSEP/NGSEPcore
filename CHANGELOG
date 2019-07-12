@@ -1,4 +1,11 @@
-v3.3.2
+v3.3.2	15-07-2019
+- New command TranscriptomeAnalyzer to evaluate genome annotations in gff
+  format, calculate statistics on genes and transcripts and extract cdna,
+  cds and protein sequences
+- GenomesAligner: New option to control the genes displayed in the D3
+  visualization based on number of connections
+- MultisampleVariantsDetector: Improved efficiency for large numbers of
+  samples
 - Demultiplex: Option -t to trim contaminating sequences now accepts more
   than one sequence
   
