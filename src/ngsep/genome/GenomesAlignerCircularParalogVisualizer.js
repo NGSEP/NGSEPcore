@@ -76,6 +76,9 @@ const update = (genomeData, paralogsData) => {
     genomeData = genomeData.filter(chromosome => {
         return chromosome.Length > minimumChromosomeLength;
     });
+    paralogsData = paralogsData.filter(gene => {
+        return gene.paralogsCount <= MAX_HOMOLOGS_UNIT;
+    });
 
     const chordGroupData = pie(genomeData);
     let chordTicks = [];

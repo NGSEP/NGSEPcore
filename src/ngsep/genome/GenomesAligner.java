@@ -56,6 +56,7 @@ public class GenomesAligner {
 	public static final String DEF_OUT_PREFIX = "genomesAlignment";
 	public static final byte DEF_KMER_SIZE = 10;
 	public static final int DEF_MIN_PCT_KMERS = 50;
+	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
 
 
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
@@ -65,6 +66,7 @@ public class GenomesAligner {
 	private String outPrefix = DEF_OUT_PREFIX;
 	private byte kmerSize = DEF_KMER_SIZE;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
+	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 
 	private List<List<OrthologyUnit>> orthologyUnitClusters=new ArrayList<>();
 
@@ -151,6 +153,23 @@ public class GenomesAligner {
 	}
 	public void setMinPctKmers(String value) {
 		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	/**
+	 * @return the maxHomologsUnit
+	 */
+	public int getMaxHomologsUnit() {
+		return maxHomologsUnit;
+	}
+
+	/**
+	 * @param maxHomologsUnit the maxHomologsUnit to set
+	 */
+	public void setMaxHomologsUnit(int maxHomologsUnit) {
+		this.maxHomologsUnit = maxHomologsUnit;
+	}
+	public void setMaxHomologsUnit(String value) {
+		setMaxHomologsUnit((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public void loadGenome(String fileGenome, String fileTranscriptome) throws IOException {
@@ -495,11 +514,12 @@ public class GenomesAligner {
 			printGenomeMetadata(outPrefix+"_genome"+id+".tsv", genome.getSequencesMetadata());
 			// Print paralogs
 			try (PrintStream outParalogs = new PrintStream(outPrefix+"_paralogsG"+id+".tsv");) {
-				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
+				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
 				for(OrthologyUnit unit:genome.getOrthologyUnits()) {
-					for(OrthologyUnit paralog: unit.getParalogs()) {
-						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-						outParalogs.println("\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
+					Collection<OrthologyUnit> paralogs = unit.getParalogs(); 
+					for(OrthologyUnit paralog: paralogs) {
+						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+paralogs.size());
+						outParalogs.println("\t"+id+"\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
 					}
 				}
 			}
@@ -517,27 +537,29 @@ public class GenomesAligner {
 			}
 		}
 
+		try (PrintStream outD3Paralogs = new PrintStream(outPrefix+"_circularParalogView.html");) {
+			printD3Visualization(outD3Paralogs,"GenomesAlignerCircularParalogVisualizer.js", 5);
+		}
+		
 		if(genomes.size()>1) {
 			for(int i=0;i<genomes.size();i++) {
 				AnnotatedReferenceGenome genome = genomes.get(i);
 				int id = genome.getId();
 				// Print orthologs
 				try (PrintStream outOrthologs = new PrintStream(outPrefix+"_orthologsG"+id+".tsv");) {
-					outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tunique\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
+					outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
 					for(OrthologyUnit unit:genome.getOrthologyUnits()) {
 						printOrthologyUnit(unit, outOrthologs);
 					}
 				}
 			}
-			//Print D3 linear visualization
+			//Print D3 visualizations
 			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearOrthologView.html");) {
 				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", 5);
 			}
-			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_circularParalogView.html");) {
-				printD3Visualization(outD3Linear,"GenomesAlignerCircularParalogVisualizer.js", 5);
-			}
-			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_circularOrthologView.html");) {
-				printD3Visualization(outD3Linear,"GenomesAlignerCircularOrthologVisualizer.js", 5);
+			
+			try (PrintStream outD3Circular = new PrintStream(outPrefix+"_circularOrthologView.html");) {
+				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", 5);
 			}
 		}
 
@@ -561,33 +583,32 @@ public class GenomesAligner {
 		if(orthologs.size()>1) type = 'M';
 		OrthologyUnit mateInLCS = unit.getLCSMate(orthologs.get(0).getGenomeId());
 		for(OrthologyUnit ortholog:orthologs) {
-			out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast());
-			out.print(unit.isUnique()?"\tY":"\tN");
+			out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+unit.getParalogs().size());
 			char typePrint = type;
 			if (ortholog==mateInLCS) typePrint = 'L';
 			out.println("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+typePrint);
 		}
 	}
 
-	private void printD3Visualization(PrintStream outD3Linear, String jsFile, int preferredD3Version) throws IOException {
-		outD3Linear.println("<!DOCTYPE html>");
-		outD3Linear.println("<meta charset=\"utf-8\">");
-		outD3Linear.println("<head>");
-		outD3Linear.println("</head>");
-		outD3Linear.println(htmlStyleCode());
-		outD3Linear.println("<body>");
+	private void printD3Visualization(PrintStream outD3, String jsFile, int preferredD3Version) throws IOException {
+		outD3.println("<!DOCTYPE html>");
+		outD3.println("<meta charset=\"utf-8\">");
+		outD3.println("<head>");
+		outD3.println("</head>");
+		outD3.println(htmlStyleCode());
+		outD3.println("<body>");
 		//Adds the buttons for lcs, multiple and uniques
-		outD3Linear.println("<div id=\"option\"></div>\n");
+		outD3.println("<div id=\"option\"></div>\n");
 		if (preferredD3Version == 3) {
-			outD3Linear.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
+			outD3.println("<script src=\"http://d3js.org/d3.v3.min.js\"></script>");
 		}
 		else if(preferredD3Version == 4) {
-			outD3Linear.println("<script src=\"http://d3js.org/d3.v4.min.js\"></script>");
+			outD3.println("<script src=\"http://d3js.org/d3.v4.min.js\"></script>");
 		}
 		else if(preferredD3Version == 5){
-			outD3Linear.println("<script src=\"http://d3js.org/d3.v5.min.js\"></script>");
+			outD3.println("<script src=\"http://d3js.org/d3.v5.min.js\"></script>");
 		}
-		outD3Linear.println("<script>");
+		outD3.println("<script>");
 		//Print D3 script
 		Class<? extends GenomesAligner> c = this.getClass();
 		String resource = "/ngsep/genome/"+jsFile;
@@ -595,22 +616,23 @@ public class GenomesAligner {
 		try (InputStream is = c.getResourceAsStream(resource);
 				BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
-			outD3Linear.println("const orthologsG1 = \""+outPrefix+"_orthologsG1.tsv\";");
-			outD3Linear.println("const orthologsG2 = \""+outPrefix+"_orthologsG2.tsv\";");
-			outD3Linear.println("const paralogsG1 = \""+outPrefix+"_paralogsG1.tsv\";");
-			outD3Linear.println("const paralogsG2 = \""+outPrefix+"_paralogsG2.tsv\";");
-			outD3Linear.println("const uniqueG1 = \""+outPrefix+"_uniqueG1.tsv\";");
-			outD3Linear.println("const uniqueG2 = \""+outPrefix+"_uniqueG2.tsv\";");
-			outD3Linear.println("const genome1 = \""+outPrefix+"_genome1.tsv\";");
-			outD3Linear.println("const genome2 = \""+outPrefix+"_genome2.tsv\";");
+			outD3.println("const MAX_HOMOLOGS_UNIT = "+maxHomologsUnit+";");
+			outD3.println("const orthologsG1 = \""+outPrefix+"_orthologsG1.tsv\";");
+			outD3.println("const orthologsG2 = \""+outPrefix+"_orthologsG2.tsv\";");
+			outD3.println("const paralogsG1 = \""+outPrefix+"_paralogsG1.tsv\";");
+			outD3.println("const paralogsG2 = \""+outPrefix+"_paralogsG2.tsv\";");
+			outD3.println("const uniqueG1 = \""+outPrefix+"_uniqueG1.tsv\";");
+			outD3.println("const uniqueG2 = \""+outPrefix+"_uniqueG2.tsv\";");
+			outD3.println("const genome1 = \""+outPrefix+"_genome1.tsv\";");
+			outD3.println("const genome2 = \""+outPrefix+"_genome2.tsv\";");
 
 			while(line!=null) {
-				outD3Linear.println(line);
+				outD3.println(line);
 				line=in.readLine();
 			}
 		}
-		outD3Linear.println("</script>");
-		outD3Linear.println("</body>");
+		outD3.println("</script>");
+		outD3.println("</body>");
 	}
 
 	private String htmlStyleCode() {

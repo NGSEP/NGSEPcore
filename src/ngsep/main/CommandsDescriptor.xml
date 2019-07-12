@@ -1051,6 +1051,9 @@ K-mer size to find orthologs
 <option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
 Minimum percentage of k-mers to find orthologs
 </option>
+<option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
+Maximum number of homologs per unit to be displayed in the D3 visualization
+</option>
 </command>
 
 <command id="VCFIndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder">
