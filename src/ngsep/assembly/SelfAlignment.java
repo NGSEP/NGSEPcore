@@ -6,82 +6,95 @@ import java.util.List;
  */
 public class SelfAlignment 
 {
-	String mainRead;
-	String[] alignments;
-	AlignmentAffineGap aligner;
-	
 	/**
-	 * Self alignment constructor
+	 * Sets the alignment of the reads with the main read
 	 * @param mainRead Main read that contains every embedded read
 	 * @param embeddedReads List of embedded reads
 	 * @param match Score for a match
 	 * @param openGap Score for a gap opening
 	 * @param extGap Score for a gap extension
 	 * @param mismatch Score for a mismatch
+	 * @return alignments Aligned strings
 	 */
-	public SelfAlignment(String mainRead, List<AssemblyEmbedded> embeddedReads, int match, int openGap, int extGap, int mismatch) 
-	{
-		this.mainRead = mainRead;
-		alignments = new String[embeddedReads.size() + 1];
-		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
-		selfAlign(embeddedReads);
-	}
-	
-	/**
-	 * Sets the alignment of the reads with the main read
-	 * @param embeddedReads List of embedded reads
-	 */
-	private void selfAlign(List<AssemblyEmbedded> embeddedReads)
+	public static String[] selfAlign(String mainRead, List<AssemblyEmbedded> embeddedReads, boolean reverse, int match, int openGap, int extGap, int mismatch)
 	{
 		StringBuilder[] alignmentsB = new StringBuilder[embeddedReads.size() + 1];
+		AlignmentAffineGap aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
 		for(int i = 0; i < embeddedReads.size(); i++)
 		{
-			String s = embeddedReads.get(i).getRead().toString();
-			String[] alignedReads = aligner.getAlignment(mainRead, s);
+			AssemblyEmbedded embeddedRead = embeddedReads.get(i);
+			String embedded = embeddedRead.getRead().toString();
+			int start = embeddedRead.getStartPosition();
+			//If the main and the embedded read have different senses, the embedded read must be reversed
+			if(reverse != embeddedRead.isReverse())
+			{
+				embedded = reverseComplement(embedded);
+			}
+			//If the main read is reversed, the position 0 of the subalignment is the end of the main read,
+			//so the start of the alignment is the end of the main read minus the beginning of the embedding - the length 
+			//of the embedded read
+			if(reverse)
+			{
+				start = mainRead.length() - start - embedded.length();
+			}
+			int end = start + embedded.length();
+			String subMainRead = mainRead.substring(start, end);
+			String[] alignedReads = aligner.getAlignment(subMainRead, embedded);
 			if(i == 0)
 			{
-				alignmentsB[0] = new StringBuilder(alignedReads[0]);
-				alignmentsB[1] = new StringBuilder(alignedReads[1]);
+				alignmentsB[0] = new StringBuilder(mainRead);
 			}
-			else
+			alignmentsB[i + 1] = new StringBuilder();
+			for(int j = 0; j < start; j++)
 			{
-				alignmentsB[i + 1] = new StringBuilder();
-				StringBuilder s1 = new StringBuilder(alignedReads[0]);
-				StringBuilder s2 = new StringBuilder(alignedReads[1]);
-				int j = 0;
-				int k = 0;
-				while(j < s1.length())
-				{
-					char a = alignmentsB[0].charAt(k);
-					char b = s1.charAt(j);
-					if(a == b)
-					{
-						alignmentsB[i + 1].append(s2.charAt(j));
-						j++;
-					}
-					else
-					{
-						if(a == '-')
-						{
-							alignmentsB[i + 1].append('-');
-						}
-						else if (b == '-')
-						{
-							for(int l = 0; l < i + 1; l++)
-							{
-								alignmentsB[l].insert(k, '-');
-							}
-							alignmentsB[i + 1].append(s2.charAt(j));
-							j++;
-						}
-					}
-					k++;
-				}
+				alignmentsB[i + 1].insert(j, '-');
+			}
+			alignmentsB[i + 1].append(alignedReads[1]);
+			for(int j = end; j < mainRead.length(); j++)
+			{
+				alignmentsB[i + 1].insert(j, '-');
 			}
 		}
-		for(int i = 0; i < alignmentsB.length; i++)
+		String[] alignments = new String[alignmentsB.length];
+		if(embeddedReads.size() == 0)
 		{
-			System.out.println(alignmentsB[i]);
+			alignments = new String[]{mainRead};
 		}
+		else
+		{
+			for(int i = 0; i < alignmentsB.length; i++)
+			{
+				alignments[i] = alignmentsB[i].toString();
+			}
+		}
+		return alignments;
  	}
+	
+	private static String reverseComplement(String s)
+	{
+		StringBuilder complementaryStrand = new StringBuilder();
+		for(int i = 0; i < s.length(); i++)
+		{
+			complementaryStrand.append(complementaryBase(s.charAt(i)));
+		}
+		return complementaryStrand.reverse().toString();
+	}
+	
+	private static char complementaryBase(char b)
+	{
+		char complementaryBase;
+		if(b == 'A')
+			complementaryBase = 'T';
+		else if(b == 'T')
+			complementaryBase = 'A';
+		else if(b == 'C')
+			complementaryBase = 'G';
+		else if(b == 'G')
+			complementaryBase = 'C';
+		else if (b == '-')
+			complementaryBase = '-';
+		else
+			complementaryBase = 'N';
+		return complementaryBase;
+	}
 }
