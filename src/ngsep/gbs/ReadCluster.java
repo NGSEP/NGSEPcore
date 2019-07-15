@@ -2,12 +2,16 @@ package ngsep.gbs;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
+
+import com.oracle.tools.packager.Log;
 
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.RawRead;
+import ngsep.sequencing.ReadsDemultiplex;
 
 public class ReadCluster {
-	
+	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
 	private int clusterNumber;
 	private int totalReads = 0;
 	private int longestRead = 0;
@@ -25,10 +29,14 @@ public class ReadCluster {
 	public void addRead(RawRead read, String sampleId) {
 		reads.add(read);
 		sampleIds.add(sampleId);
+		if(read.getLength() >= longestRead) {
+			longestRead = read.getLength();
+		}
 		totalReads++;
 	}
 	
-	public char [] calcRefSeq() {
+	public String getRefSeq() {
+		String refSeq = "";
 		this.refSeqTable = new int[this.longestRead][DNASequence.BASES_ARRAY.length];
 		this.refSeq = new char[this.longestRead];
 		for(RawRead read:reads) {
@@ -47,13 +55,14 @@ public class ReadCluster {
 			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
 				int next = refSeqTable[i][j];
 				if((max <= next) && (next != 0)){
-					refSeq[i] = DNASequence.BASES_STRING.charAt(j);
+					this.refSeq[i] = DNASequence.BASES_STRING.charAt(j);
 					max = next;
 				}
-			}
+			} refSeq += this.refSeq[i];
 		}
 		return refSeq;
 	}
+	
 	
 	public int getClusterNumber(){
 		return clusterNumber;
@@ -65,6 +74,10 @@ public class ReadCluster {
 	
 	public int getNumberOfTotalReads () {
 		return totalReads;
+	}
+	
+	public List<RawRead> getReads() {
+		return reads;
 	}
 	
 }
