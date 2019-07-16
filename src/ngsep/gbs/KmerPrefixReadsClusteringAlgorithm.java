@@ -341,6 +341,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
 			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, refVariant);
+			// CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 			if(variant!=null) variants.add(variant);
 		}
 	 
