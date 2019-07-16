@@ -49,6 +49,14 @@ public class ReferenceGenome {
 		sequences.setAllowChanges(false);
 	}
 	/**
+	 * Creates a reference genome sequence with the given sequence
+	 * @param refQS Unique sequence in this reference. refQS!=null
+	 */
+	public ReferenceGenome(QualifiedSequence refQS) {
+		sequences = new QualifiedSequenceList();
+		sequences.add(refQS);
+	}
+	/**
 	 * Returns the reference base pair at the given coordinate
 	 * @param sequenceName Name of the sequence to search
 	 * @param absolutePosition Position within the sequence

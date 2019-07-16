@@ -36,21 +36,20 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.discovery.PileupRecord;
 import ngsep.discovery.VariantPileupListener;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.DNAShortKmer;
 import ngsep.sequences.DNAShortKmerClusterMap;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
 import ngsep.variants.CalledGenomicVariant;
-import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
 
 /**
  * @author Jorge Gomez
@@ -318,15 +317,17 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		int clusterId = readCluster.getClusterNumber();
 		String clusterNumberStr = Integer.toString(clusterId);
-		VariantPileupListener variantsDetector = new VariantPileupListener();
-		String refSeq = readCluster.getRefSeq();
 		
-		// Workaround TODO: must fix this
-		GenomicVariant refVariant = new GenomicVariantImpl(refSeq, 1, refSeq.length(), Byte.MAX_VALUE);
+		String refSeq = readCluster.getRefSeq();
+		String referenceId = Integer.toString(clusterId);
+		QualifiedSequence refQS = new QualifiedSequence(referenceId, refSeq);
+		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
+		VariantPileupListener variantsDetector = new VariantPileupListener();
+		variantsDetector.setGenome(singleSequenceGenome);
 		
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
 		for(RawRead read:readCluster.getReads()) {
-			ReadAlignment readAlignment = new ReadAlignment(Integer.toString(clusterId), 1, read.getLength(), read.getLength(), 0);
+			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, read.getLength(), read.getLength(), 0);
 			readAlignment.setQualityScores(read.getQualityScores());
 			readAlignment.setReadCharacters(read.getCharacters());
 			readAlignments.add(readAlignment);
@@ -342,7 +343,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				clusterPileUp.addAlignment(readAlgn);
 			}
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
-			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, refVariant);
+			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 			// CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 			if(variant!=null) variants.add(variant);
 		}
