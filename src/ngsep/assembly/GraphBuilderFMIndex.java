@@ -10,7 +10,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private final static int SUFFIX_FRACTION = 25;
 
 	@Override
-	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
+	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
 		System.out.println("	sorting sequences");
 		long ini = System.currentTimeMillis();
 		Collections.sort(sequences, (CharSequence l1, CharSequence l2) -> l2.length() - l1.length());
@@ -23,9 +23,17 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		System.out.println("	build FMIndexes: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("	indentifing overlaps");
-		GraphBuilderOverlapFinder overlapFinder = new GraphBuilderOverlapFinderQueue();
+		GraphBuilderOverlapFinder overlapFinder = new GraphBuilderOverlapFinderQueue2();
 		overlapFinder.calculate(sequences, index);
 		System.out.println("	indentify overlaps: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 		return overlapFinder.getGrap();
 	}
+
+	public static void main(String[] args) throws Exception {
+		System.out.println("¡¡¡ Esta funcion es solo para desarrollo !!!!");
+		List<CharSequence> a = Assembler.load(args[0]);
+		SimplifiedAssemblyGraph assemblyGraph = (new GraphBuilderFMIndex()).buildAssemblyGraph(a);
+		assemblyGraph.save(args[1]);
+	}
+
 }

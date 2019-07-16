@@ -8,5 +8,5 @@ public interface GraphBuilder {
 	 * 
 	 * @param sequences to process
 	 */
-	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences);
+	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences);
 }

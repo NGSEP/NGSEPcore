@@ -1,8 +1,6 @@
 package ngsep.assembly;
 
-import java.io.Serializable;
-
-public class AssemblyEmbedded implements Serializable {
+public class AssemblyEmbedded {
 	private CharSequence read;
 	private int startPosition;
 	private boolean isReverse;

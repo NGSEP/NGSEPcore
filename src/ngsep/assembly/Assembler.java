@@ -29,7 +29,7 @@ public class Assembler {
 		System.out.println("building overlap Graph");
 		long ini = System.currentTimeMillis();
 		GraphBuilder builder = new GraphBuilderFMIndex();
-		graph = builder.buildAssemblyGraph(sequences);
+		graph = builder.buildAssemblyGraph(sequences).getAssemblyGraph();
 		System.out.println("build overlap Graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
 		System.out.println("building layouts");
@@ -37,14 +37,14 @@ public class Assembler {
 		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
 		pathsFinder.findPaths(graph);
 		System.out.println("build layouts: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
-		
+
 		System.out.println("building consensus");
 		ini = System.currentTimeMillis();
 		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalFMIndex(2, 20, 1, 18, 10, 0.07, 0.03, 1);
 		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
 		System.out.println("build consensus: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 
-		exportToFile(fileOut,"assembled", AssembleSequences);
+		exportToFile(fileOut, "assembled", AssembleSequences);
 	}
 
 	/**
@@ -110,7 +110,8 @@ public class Assembler {
 		return sequences;
 	}
 
-	private static void exportToFile(String fileName,String name, List<CharSequence> sequences) throws FileNotFoundException {
+	private static void exportToFile(String fileName, String name, List<CharSequence> sequences)
+			throws FileNotFoundException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
 		int i = 1;

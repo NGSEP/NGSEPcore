@@ -8,6 +8,6 @@ public interface GraphBuilderOverlapFinder {
 
 	public void calculate(List<CharSequence> seq, FMIndex index);
 
-	public AssemblyGraph getGrap();
+	public SimplifiedAssemblyGraph getGrap();
 
 }

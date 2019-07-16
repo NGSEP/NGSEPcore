@@ -1,6 +1,5 @@
 package ngsep.assembly;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,8 +13,8 @@ import java.util.PriorityQueue;
 import java.util.TreeMap;
 import ngsep.sequences.DNAMaskedSequence;
 
-public class AssemblyGraph implements Serializable {
-
+public class AssemblyGraph {
+	
 	private List<CharSequence> sequences;
 	private List<AssemblyVertex> vertices;
 
