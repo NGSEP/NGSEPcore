@@ -104,8 +104,8 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					maxUsedVertices = usedVerticesList.get(i);
 				}
 			}
-			//Adds the longest path to the list of paths of the graph
-			if(maxPath != null)
+			//Adds the longest path to the list of paths of the graph if it has more than one edge
+			if(maxPath != null && maxPath.size() > 1)
 			{
 				graph.addPath(maxPath);
 				usedVerticesGlobal.addAll(maxUsedVertices);

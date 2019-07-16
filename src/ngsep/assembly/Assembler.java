@@ -40,7 +40,7 @@ public class Assembler {
 
 		System.out.println("building consensus");
 		ini = System.currentTimeMillis();
-		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalFMIndex(2, 20, 1, 18, 10, 0.07, 0.03, 1);
+		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalNoGaps(2, 20, 1, 8, 10, 0.07, 0.00, 1);
 		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
 		System.out.println("build consensus: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
 

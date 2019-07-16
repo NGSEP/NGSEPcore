@@ -49,6 +49,8 @@ import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 
 /**
  * @author Jorge Gomez
@@ -72,8 +74,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private Pattern regexp=Pattern.compile(DEF_REGEXP_SINGLE);
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
 	private Map<String, String> filenamesBySampleId2=new HashMap<>();
-	private Map<Integer, String> clusterRefSeqMap = new HashMap<>();  //hashmap of cluster ids and ref seqs.
 	private DNAShortKmerClusterMap kmersMap;
+	private List<RawRead> unClusteredReads = new ArrayList<>();
 	
 	
 	public static void main(String[] args) throws Exception {
@@ -118,12 +120,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException {
-		loadFilenamesAndSamples();
-		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-		buildKmersMap();
-		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-		List<String> clusteredReadsFilenames = clusterReads();
-		//List<String> clusteredReadsFilenames = debug();
+//		loadFilenamesAndSamples();
+//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+//		buildKmersMap();
+//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+//		List<String> clusteredReadsFilenames = clusterReads();
+		List<String> clusteredReadsFilenames = debug();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
 		log.info("Called variants");
@@ -133,8 +135,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		//List<String> clusteredReadsFilenames = List.of("trial_clusteredReads_0.fastq.gz");
-		List<String> clusteredReadsFilenames = new ArrayList<>();
+		List<String> clusteredReadsFilenames = List.of("trial_clusteredReads_0.fastq.gz", "trial_clusteredReads_1.fastq.gz");
+		//List<String> clusteredReadsFilenames = new ArrayList<>();
 		return clusteredReadsFilenames;
 	}
 
@@ -228,9 +230,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
-		// Load in parallel clustered read files. Align reads within clusters build pileups and call variants
-		
-		
 		int numberOfFiles = clusteredReadsFilenames.size();
 		
 		//process files in parallel
@@ -238,7 +237,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		RawRead [] currentReads = new RawRead[numberOfFiles];
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
-		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt")) {
+		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");
+				PrintStream processInfo = new PrintStream(outPrefix+"_processInfo.txt")) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			for(int i=0; i<numberOfFiles; i++) {
@@ -250,80 +250,101 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					numNotNull++;
 				}
 			}
+			log.info("Processing a total of " + Integer.toString(numberOfFiles) + " clustered files.");
 			while(numNotNull>0) {
 				//gather reads next cluster
 				ReadCluster nextCluster = new ReadCluster(numCluster);
 				for(int i=0; i<numberOfFiles; i++) {
-					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
+					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i, processInfo);
 					if(currentReads[i]==null) numNotNull--;
 				}
+				
+				processInfo.print(Integer.toString(numCluster) + "\t" + nextCluster.getRefSeq() + "\t" + Integer.toString(nextCluster.getNumberOfTotalReads()));
+				log.info("Calling variants on cluster: " + Integer.toString(nextCluster.getClusterNumber()));
 				List<CalledGenomicVariant> variants = processCluster(nextCluster);
 				//TODO. Imprimir datos de variante en outVariants
 				
 				numCluster++;
 			}
+			log.info(Integer.toString(this.unClusteredReads.size()) + " reads remained unprocessed.");
 			
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
 		}
-		
-		log.info(Integer.toString(numberOfFiles) + " files were read. Calling variants on clusters.");
-		
-		// for each cluster, create a ReadCluster obj, 
-		// process each file up until the next cluster while adding reads to the ReadCluster obj.
-		// process the ReadCluster obj, move on to next cluster creating a new ReadCluster obj. 
-		
 	}
 		
 	
-	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, RawRead[] currentReads, int i) {
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, 
+			RawRead[] currentReads, int i, PrintStream processInfo) throws IOException {
+		
 		RawRead currentRead = currentReads[i];
+		int readsAdded = 0;
 		int numCluster = nextCluster.getClusterNumber();
 		while(currentRead!=null) {
 			String readIdWithCluster = currentRead.getName();
 			String [] items = readIdWithCluster.split("_");
+			if(items.length < 2) {
+				this.unClusteredReads.add(currentRead);
+				continue;
+			}
 			String sampleId = items[0];
 			int currentReadCluster = Integer.parseInt(items[1]);
 			String readId = items[2];
-			currentRead.setName(readId);
+			//currentRead.setName(readId);
 			if (currentReadCluster>numCluster) break;
 			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorgainzed file. Curret cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
 			nextCluster.addRead(currentRead, sampleId);
+			readsAdded++;
 			if(iterator.hasNext()) {
-				currentReads [i] = iterator.next();
+				currentReads[i] = iterator.next();
 				currentRead = currentReads[i];
+				
 			} else {
-				currentReads [i] = null;
+				log.info("Done with file " + Integer.toString(i) + ".");
+				currentReads[i] = null;
 				currentRead = null;
+				
 			}
 		}
 	}
 
 	private List<CalledGenomicVariant> processCluster(ReadCluster readCluster) {
 		List<CalledGenomicVariant> variants = new ArrayList<>();
-		VariantPileupListener variantsDetector = new VariantPileupListener();
-		//     create representative sequence
-		char[] refSeq = readCluster.calcRefSeq();
-		// TODO: For each read within the cluster create a ReadAlignment. first=1, last=read length, flags=0. Set characters and quality scores
+		List<ReadAlignment> readAlignments = new ArrayList<>();
 		
-		//     For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		int clusterNumber = readCluster.getClusterNumber();
-		String clusterNumberStr = Integer.toString(clusterNumber);
-		for(int i=0; i<refSeq.length; i++) {
+		int clusterId = readCluster.getClusterNumber();
+		String clusterNumberStr = Integer.toString(clusterId);
+		VariantPileupListener variantsDetector = new VariantPileupListener();
+		String refSeq = readCluster.getRefSeq();
+		
+		// Workaround TODO: must fix this
+		GenomicVariant refVariant = new GenomicVariantImpl(refSeq, 1, refSeq.length(), Byte.MAX_VALUE);
+		
+		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
+		for(RawRead read:readCluster.getReads()) {
+			ReadAlignment readAlignment = new ReadAlignment(Integer.toString(clusterId), 1, read.getLength(), read.getLength(), 0);
+			readAlignment.setQualityScores(read.getQualityScores());
+			readAlignment.setReadCharacters(read.getCharacters());
+			readAlignments.add(readAlignment);
+		}
+		
+		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
+		
+		// Start at 1? if not, no readAlignments are added to the pileup CHECK.
+		for(int i=1; i<refSeq.length(); i++) {
 			PileupRecord clusterPileUp = new PileupRecord(clusterNumberStr, i);
-			// TODO: Add the alignments to the pileup record
-			
+			//  Add the alignments to the pileup record
+			for(ReadAlignment readAlgn:readAlignments) {
+				clusterPileUp.addAlignment(readAlgn);
+			}
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
-			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
+			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, refVariant);
+			// CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 			if(variant!=null) variants.add(variant);
 		}
-			
-		
-		
-		
-		
+	 
 		return variants;
 	}
 	

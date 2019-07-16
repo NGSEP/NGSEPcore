@@ -1,0 +1,211 @@
+package ngsep.assembly;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
+	int match;
+	int openGap;
+	int extGap;
+	int mismatch;
+	int windowSize;
+	int tolerance;
+	AlignmentAffineGap aligner;
+	boolean startConsensus = true;
+	
+	public ConsensusBuilderBidirectionalNoGaps(int match, int openGap, int extGap, int mismatch, int windowSize, double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) 
+	{
+		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
+		this.match = match;
+		this.openGap = openGap;
+		this.extGap = extGap;
+		this.mismatch = mismatch;
+		this.windowSize = windowSize;
+		this.tolerance = (int) (Rate_of_cuts * (11.51292546 / rate_of_error));
+		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
+	}
+	
+	@Override
+	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
+	{
+		//List of final contigs
+		List<CharSequence> consensusList = new ArrayList<CharSequence>();
+		List<List<AssemblyEdge>> paths = graph.getPaths(); 
+		for(int i = 0; i < paths.size(); i++)
+		{
+			List<AssemblyEdge> path = paths.get(i);
+			CharSequence consensusPath = makeConsensus (graph, path);
+			consensusList.add(consensusPath);
+		}
+		
+		return consensusList;
+	}
+	
+	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) 
+	{
+		StringBuilder consensus = new StringBuilder();
+		AssemblyVertex lastVertex = null;
+		for(int j = 0; j < path.size(); j++)
+		{
+			//Needed to find which is the origin vertex
+			AssemblyEdge edge = path.get(j);
+			AssemblyVertex a = edge.getVertex1();
+			AssemblyVertex b = edge.getVertex2();
+			//If the first edge is being checked, compare to the second edge to find the origin vertex
+			if(j == 0)
+			{
+				AssemblyEdge nextEdge = path.get(j + 1);
+				//The common vertex is the second vertex of the path
+				if(nextEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || nextEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
+				{
+					a = edge.getVertex2();
+					b = edge.getVertex1();
+				}
+			}
+			else if(lastVertex == b)
+			{
+				//The common vertex is the first vertex to be compared
+				a = edge.getVertex2();
+				b = edge.getVertex1();
+			}
+			if(j > 0 && lastVertex != a) 
+			{
+				throw new RuntimeException("Inconsistency found in path");
+			}
+			
+			
+			if(j == 0) 
+			{
+				int seqId = (int) Math.floor(a.getIndex() / 2.0);
+				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
+				if(embeddedReads == null)
+					embeddedReads = new ArrayList<AssemblyEmbedded>();
+				String seqA = a.isStart() ? a.getRead().toString() : reverseComplement(a.getRead().toString());
+				boolean reverse = !a.isStart();
+				consensus.append(consensusReadEmbeddeds(seqA, embeddedReads, reverse, 0, a.getRead().length()));
+			} 
+			else if(a.getRead() != b.getRead())
+			{
+				int seqId = (int) Math.floor(b.getIndex() / 2.0);
+				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
+				if(embeddedReads == null)
+					embeddedReads = new ArrayList<AssemblyEmbedded>();
+				//If the second string isn't start, then the reverse complement is added to the consensus
+				String nextSequence = b.isStart() ? b.getRead().toString() : reverseComplement(b.getRead().toString());
+				boolean reverse = !b.isStart();
+				
+				if(nextSequence.length() - edge.getOverlap() > tolerance) 
+				{
+					consensus.append(consensusReadEmbeddeds(nextSequence, embeddedReads, reverse, edge.getOverlap(), b.getRead().length()));
+				} 
+				else 
+				{
+					System.err.println("Non embedded edge has overlap: " + edge.getOverlap() + " and length: " + nextSequence.length());
+				}
+			}
+			lastVertex = b;
+		}
+		return consensus;
+	}
+	
+	private String consensusReadEmbeddeds(String read, List<AssemblyEmbedded> embeddedReads, boolean reverse, int start, int end)
+	{
+		StringBuilder consensus = new StringBuilder();
+		List<byte[]> consensusCounts = new ArrayList<byte[]>();
+		//Align the read a with its embedded reads
+		String[] alignedOriginRead = SelfAlignment.selfAlign(read, embeddedReads, reverse, match, openGap, extGap, mismatch);
+		for(int k = 0; k < alignedOriginRead.length; k++)
+		{
+			//Get each aligned read
+			String alignedRead = alignedOriginRead[k].toUpperCase();
+			//Get each character of the aligned read
+			for(int l = start; l < end; l++)
+			{
+				char alignedChar = alignedRead.charAt(l);
+				//Add a new element to the consensus count if its size is less 
+				//than the index of the current character relative to the substring that will be added
+				if(consensusCounts.size() <= l - start)
+				{
+					//0 for A, 1 for T, 2 for C, 3 for G
+					byte[] counts = new byte[4];
+					consensusCounts.add(counts);
+				}
+				byte[] counts = consensusCounts.get(l - start);
+				//Depending on the character, sum to the count in the current position
+				switch (alignedChar)
+				{
+					case 'A':
+						counts[0]++;
+						break;
+					case 'T':
+						counts[1]++;
+						break;
+					case 'C':
+						counts[2]++;
+						break;
+					case 'G':
+						counts[3]++;
+						break;
+				}
+			}
+		}
+		//Find the most common occurrence in each position and add the most common character to the consensus
+		for(byte[] counts : consensusCounts)
+		{
+			int maxIndex = 0;
+			for(int m = 1; m < counts.length; m++)
+			{
+				if(counts[m] > counts[maxIndex])
+				{
+					maxIndex = m;
+				}
+			}
+			char maxChar = '-';
+			switch (maxIndex)
+			{
+				case 0:
+					maxChar = 'A';
+					break;
+				case 1:
+					maxChar = 'T';
+					break;
+				case 2:
+					maxChar = 'C';
+					break;
+				case 3:
+					maxChar = 'G';
+					break;
+			}
+			consensus.append(maxChar);
+		}
+		return consensus.toString();
+	}
+	
+	private String reverseComplement(String s)
+	{
+		StringBuilder complementaryStrand = new StringBuilder();
+		for(int i = 0; i < s.length(); i++)
+		{
+			complementaryStrand.append(complementaryBase(s.charAt(i)));
+		}
+		return complementaryStrand.reverse().toString();
+	}
+	
+	private char complementaryBase(char b)
+	{
+		char complementaryBase;
+		if(b == 'A')
+			complementaryBase = 'T';
+		else if(b == 'T')
+			complementaryBase = 'A';
+		else if(b == 'C')
+			complementaryBase = 'G';
+		else if(b == 'G')
+			complementaryBase = 'C';
+		else if (b == '-')
+			complementaryBase = '-';
+		else
+			complementaryBase = 'N';
+		return complementaryBase;
+	}
+}
