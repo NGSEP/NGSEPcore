@@ -54,6 +54,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 	public SimplifiedAssemblyGraph getGrap() {
 		return assemblyGraph;
 	}
+	
 
 	public void findOverlapsAndEmbedded() {
 		for (int seqId = 0, excp = 0; seqId < sequences.size(); seqId++) {
