@@ -135,7 +135,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		List<String> clusteredReadsFilenames = List.of("trial_clusteredReads_0.fastq.gz", "trial_clusteredReads_1.fastq.gz");
+		List<String> clusteredReadsFilenames = new ArrayList<>();
+		clusteredReadsFilenames.add("trial_clusteredReads_0.fastq.gz");
+		clusteredReadsFilenames.add("trial_clusteredReads_1.fastq.gz");
 		//List<String> clusteredReadsFilenames = new ArrayList<>();
 		return clusteredReadsFilenames;
 	}

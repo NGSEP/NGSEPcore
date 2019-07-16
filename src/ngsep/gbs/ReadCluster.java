@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import com.oracle.tools.packager.Log;
-
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.RawRead;
 import ngsep.sequencing.ReadsDemultiplex;
