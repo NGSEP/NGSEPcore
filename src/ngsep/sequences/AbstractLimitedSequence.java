@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -27,7 +28,9 @@ import java.util.Arrays;
  * @author Jorge Duitama
  *
  */
-public abstract class AbstractLimitedSequence implements LimitedSequence {
+public abstract class AbstractLimitedSequence implements LimitedSequence, Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	int [] sequence= new int [0];
 	private byte lastHashSize=0;
 	private int length=0;

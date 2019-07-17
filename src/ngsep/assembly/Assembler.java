@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -19,18 +20,38 @@ public class Assembler {
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
 	private static final String[] fasta = { ".fasta", ".fa" };
 
+	private static enum Option {
+		Normal, withGraph
+	}
+
 	private List<CharSequence> sequences;
 	private AssemblyGraph graph;
 
 	public Assembler(String fileIn, String fileOut) throws Exception {
-		System.out.println("-----Assembler-----");
-		sequences = load(fileIn);
+		this(fileIn, fileOut, Option.Normal);
+	}
 
-		System.out.println("building overlap Graph");
-		long ini = System.currentTimeMillis();
-		GraphBuilder builder = new GraphBuilderFMIndex();
-		graph = builder.buildAssemblyGraph(sequences).getAssemblyGraph();
-		System.out.println("build overlap Graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+	public Assembler(String fileIn, String fileOut, Option option) throws Exception {
+		long ini;
+		switch (option) {
+		case Normal:
+			System.out.println("-----Assembler-----");
+			sequences = load(fileIn);
+
+			System.out.println("building overlap Graph");
+			ini = System.currentTimeMillis();
+			GraphBuilder builder = new GraphBuilderFMIndex();
+			graph = builder.buildAssemblyGraph(sequences).getAssemblyGraph();
+			System.out.println("build overlap Graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+			break;
+
+		case withGraph:
+			System.out.println("Load graph from: " + fileIn);
+			SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(fileIn);
+			sag.removeDuplicatedEmbeddes();
+			graph = sag.getAssemblyGraph();
+			break;
+		}
 
 		System.out.println("building layouts");
 		ini = System.currentTimeMillis();
@@ -135,6 +156,12 @@ public class Assembler {
 	}
 
 	public static void main(String[] args) throws Exception {
-		new Assembler(args[0], args[1]);
+		try {
+			Option option = (args.length > 2) ? Option.valueOf(args[2].trim()) : Option.Normal;
+			new Assembler(args[0], args[1], option);
+		} catch (IllegalArgumentException e) {
+			System.out.println(
+					"Invalid option: '" + args[2] + "' the valid options are: " + Arrays.toString(Option.values()));
+		}
 	}
 }

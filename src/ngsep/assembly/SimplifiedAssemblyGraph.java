@@ -78,6 +78,26 @@ public class SimplifiedAssemblyGraph implements Serializable {
 		}
 	}
 
+	public void removeDuplicatedEmbeddes() {
+		int count = 0;
+		Iterator<Integer> iter;
+		Set<Integer> in = new HashSet<Integer>();
+		for (Map<Integer, Embedded> subMap : embbeded.values()) {
+			iter = subMap.keySet().iterator();
+			while (iter.hasNext()) {
+				int id = iter.next();
+				if (in.contains(id)) {
+					iter.remove();
+					count++;
+					continue;
+				}
+				in.add(id);
+			}
+		}
+
+		System.out.println("Emmbeded duplicates removed: " + count);
+	}
+
 	public AssemblyGraph getAssemblyGraph() {
 		Queue<Integer> queue = new PriorityQueue<Integer>((Integer a, Integer b) -> a - b);
 		int[] map = new int[sequences.size()];
@@ -88,6 +108,7 @@ public class SimplifiedAssemblyGraph implements Serializable {
 			map[i] = 0;
 		}
 
+		map[0]--;
 		cumulativeSum(map);
 		List<CharSequence> list = sequencesWithoutEmbedded(queue);
 
@@ -99,6 +120,9 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				int embeddedId = entry2.getKey();
 				AssemblyEmbedded embedded = new AssemblyEmbedded(sequences.get(embeddedId), emb.getPos(),
 						emb.isReversed());
+				if (emb.getPos() + sequences.get(embeddedId).length() > sequences.get(parentId).length())
+					System.out.println("error!!" + emb.getPos() + " " + sequences.get(embeddedId) + "  "
+							+ sequences.get(parentId).length());
 				assemblyGraph.addEmbedded(map[parentId], embedded);
 			}
 		}
@@ -144,7 +168,6 @@ public class SimplifiedAssemblyGraph implements Serializable {
 	}
 
 	private void cumulativeSum(int[] map) {
-		map[0] = 0;
 		for (int i = 1; i < map.length; i++)
 			map[i] += map[i - 1];
 	}

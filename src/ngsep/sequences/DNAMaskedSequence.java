@@ -19,16 +19,13 @@
  *******************************************************************************/
 package ngsep.sequences;
 
-import java.io.Serializable;
 
 /**
  * Implementation of AbstractSequence for DNA Sequences masked with lower case characters to 
  * flag repeats
  * @author Jorge Duitama
  */
-public class DNAMaskedSequence extends AbstractLimitedSequence implements Serializable {
-	private static final long serialVersionUID = 1L;
-	
+public class DNAMaskedSequence extends AbstractLimitedSequence{
 	public static final String BASES = "AaCcNngGtT";
 	public static final String [] BASES_ARRAY = {"A","a","C","c","N","n","g","G","t","T"};
 	/**

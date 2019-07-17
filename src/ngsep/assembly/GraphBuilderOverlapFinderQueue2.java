@@ -16,7 +16,7 @@ import static ngsep.assembly.TimeUtilities.timeGroup;
 import static ngsep.assembly.TimeUtilities.timeIt;
 import static ngsep.assembly.TimeUtilities.progress;
 
-public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinder{
+public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinder {
 	private final static double Rate_of_changes = 0.02;
 	private final static double Rate_of_cuts = 0.01;
 	private final static double Rate_of_cover = 7;
@@ -39,9 +39,13 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 
 			printRates();
 			timeIt(" --- Find overlaps ", () -> findOverlapsAndEmbedded());
+
 			assemblyGraph.removeAllEmbeddedsIntoGraph();
 		});
+		System.out.println();
+		System.out.println("-------------Graph Properties----------");
 		assemblyGraph.printInfo();
+		System.out.println("---------------------------------------");
 	}
 
 	public void printRates() {
@@ -54,7 +58,6 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 	public SimplifiedAssemblyGraph getGrap() {
 		return assemblyGraph;
 	}
-	
 
 	public void findOverlapsAndEmbedded() {
 		for (int seqId = 0, excp = 0; seqId < sequences.size(); seqId++) {
@@ -82,7 +85,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 				int id_Lec = Integer.parseInt(readAlignment.getSequenceName());
 				int pos_Lec = readAlignment.getFirst();
 
-				if (id_Ref < id_Lec)
+				if (id_Ref < id_Lec && !assemblyGraph.isEmbedded(id_Lec))
 					hits.computeIfAbsent(id_Lec, x -> new LinkedList<int[]>()).add(new int[] { pos_Ref, pos_Lec });
 			}
 		}
