@@ -28,33 +28,34 @@ public class TestReadGenerator {
 		double rateChanges = (args.length > 8) ? Double.parseDouble(args[8]) : default_rate_of_changes;
 		double rateIndels = (args.length > 9) ? Double.parseDouble(args[9]) : default_rate_of_cuts;
 		String pathGraph = (args.length > 10) ? args[10] : null;
+		int minOveralp = (args.length > 11) ? Integer.parseInt(args[11]) : 100;
 
-		printInfo(path, pathlect, numberOfSequences, odist, numberOfreads, dist, rateChanges, rateIndels, pathGraph);
-		calculate(path, pathlect, numberOfSequences, odist, numberOfreads, dist, rateChanges, rateIndels, pathGraph);
+		printInfo(path, pathlect, numberOfSequences, odist, numberOfreads, dist, rateChanges, rateIndels, pathGraph,
+				minOveralp);
+		calculate(path, pathlect, numberOfSequences, odist, numberOfreads, dist, rateChanges, rateIndels, pathGraph,
+				minOveralp);
 	}
 
 	private static void printInfo(String path, String pathlect, int numberOfSequences, int[] odist, int numberOfreads,
-			int[] dist, double rateChanges, double rateIndels, String pathGraph) {
-		System.out.println("Ruta archivo de referencia: " + path);
-		System.out.println("Ruta levturas: " + pathlect);
-		System.out.println("Referencia");
-		System.out.println("Secuencias:" + numberOfSequences + "   ~Uniforme(" + (odist[0] - odist[1]) + ", "
-				+ (odist[0] + odist[1]) + ")");
-		System.out.println("Lecturas");
-		System.out.println("Secuencias:" + numberOfreads + "   ~Uniforme(" + (dist[0] - dist[1]) + ", "
-				+ (dist[0] + dist[1]) + ")");
+			int[] dist, double rateChanges, double rateIndels, String pathGraph, int minOveralp) {
+		System.out.println("Reference path: " + path);
+		System.out.println("Samples path: " + pathlect);
+		System.out.println("Reference:" + numberOfSequences + "   ~N(mean: " + odist[0] + ", sdev: " + odist[1] + ")");
+		System.out.println("Samples:" + numberOfreads + "   ~N(mean: " + dist[0] + ", sdev: " + dist[1] + ")");
 		System.out.println("Rate of changes: " + rateChanges);
 		System.out.println("Rate of indels: " + rateIndels);
-		if (pathGraph != null)
-			System.out.println("Ruta del grafo generado: " + pathGraph);
+		if (pathGraph != null) {
+			System.out.println();
+			System.out.println("Graph Path: " + pathGraph);
+			System.out.println("Minimun overlap in the graph: " + minOveralp);
+		}
 	}
 
 	private static void calculate(String path, String pathlect, int numberOfSequences, int[] odist, int numberOfreads,
-			int[] dist, double rateChanges, double rateIndels, String pathGraph) throws IOException {
+			int[] dist, double rateChanges, double rateIndels, String pathGraph, int minOveralp) throws IOException {
 
 		String[] refs = new String[numberOfSequences];
 		int[] lenRefs = normalValues(numberOfSequences, odist[0], odist[1]);
-		System.out.println(Arrays.toString(lenRefs));
 		for (int i = 0; i < numberOfSequences; i++)
 			refs[i] = randomsequence(lenRefs[i], DNASequence.BASES_STRING);
 
@@ -76,7 +77,7 @@ public class TestReadGenerator {
 		Assembler.exportToFile(pathlect, "lect", lects);
 
 		if (pathGraph != null) {
-			SimplifiedAssemblyGraph sag = getGraph(lects, refLects, posLects, lenLects, revLects);
+			SimplifiedAssemblyGraph sag = getGraph(lects, minOveralp, refLects, posLects, lenLects, revLects);
 			sag.save(pathGraph);
 		}
 
@@ -134,10 +135,9 @@ public class TestReadGenerator {
 		return ans.toArray(new Integer[0]);
 	}
 
-	private static SimplifiedAssemblyGraph getGraph(String[] lects, int[] refLects, int[] posLects, int[] lenLects,
-			boolean[] revLects) {
+	private static SimplifiedAssemblyGraph getGraph(String[] lects, int minOveralp, int[] refLects, int[] posLects,
+			int[] lenLects, boolean[] revLects) {
 		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(Arrays.asList(lects));
-		System.out.println(lects.length);
 
 		Map<Integer, TreeMap<Integer, Lect>> a = new HashMap<>();
 		for (int i = 0; i < refLects.length; i++)
@@ -148,7 +148,8 @@ public class TestReadGenerator {
 			for (Entry<Integer, Lect> entry : tree.entrySet()) {
 				int pos1 = entry.getKey();
 				Lect lect1 = entry.getValue();
-				for (Entry<Integer, Lect> entry2 : tree.subMap(pos1, false, pos1 + lect1.len, false).entrySet()) {
+				for (Entry<Integer, Lect> entry2 : tree
+						.subMap(pos1, false, Math.max(pos1 + lect1.len - minOveralp, pos1), false).entrySet()) {
 					int pos2 = entry2.getKey();
 					Lect lect2 = entry2.getValue();
 
@@ -168,11 +169,10 @@ public class TestReadGenerator {
 		}
 
 		sag.removeAllEmbeddedsIntoGraph();
+		System.out.println("-------------Graph Properties----------");
 		sag.printInfo();
+		System.out.println("---------------------------------------");
 
-//		for (Entry<Integer, Map<Integer, Alignment>> aas : sag.getEdges().entrySet())
-//			for (int id2 : aas.getValue().keySet())
-//				System.out.println(aas.getKey() + "-" + id2);
 		return sag;
 	}
 
