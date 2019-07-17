@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -119,12 +120,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException {
-//		loadFilenamesAndSamples();
-//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-//		buildKmersMap();
-//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-//		List<String> clusteredReadsFilenames = clusterReads();
-		List<String> clusteredReadsFilenames = debug();
+		loadFilenamesAndSamples();
+		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+		buildKmersMap();
+		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+		List<String> clusteredReadsFilenames = clusterReads();
+		//List<String> clusteredReadsFilenames = debug();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
 		log.info("Called variants");
@@ -262,12 +263,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				
 				processInfo.print(Integer.toString(numCluster) + "\t" + nextCluster.getRefSeq() + "\t" + Integer.toString(nextCluster.getNumberOfTotalReads()));
 				log.info("Calling variants on cluster: " + Integer.toString(nextCluster.getClusterNumber()));
-				List<CalledGenomicVariant> variants = processCluster(nextCluster);
+				//List<CalledGenomicVariant> variants = processCluster(nextCluster);
 				//TODO. Imprimir datos de variante en outVariants
 				
 				numCluster++;
 			}
-			log.info(Integer.toString(this.unClusteredReads.size()) + " reads remained unprocessed.");
+			processInfo.print(Integer.toString(this.unClusteredReads.size()) + " reads remained unprocessed.");
 			
 		} finally {
 			for(FastqFileReader reader:readers) {
@@ -316,35 +317,42 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		List<ReadAlignment> readAlignments = new ArrayList<>();
 		
 		int clusterId = readCluster.getClusterNumber();
-		String clusterNumberStr = Integer.toString(clusterId);
-		
 		String refSeq = readCluster.getRefSeq();
 		String referenceId = Integer.toString(clusterId);
 		QualifiedSequence refQS = new QualifiedSequence(referenceId, refSeq);
 		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
 		VariantPileupListener variantsDetector = new VariantPileupListener();
 		variantsDetector.setGenome(singleSequenceGenome);
+		log.info(Integer.toString(refSeq.length()));
 		
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
 		for(RawRead read:readCluster.getReads()) {
-			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, read.getLength(), read.getLength(), 0);
+			int readLength = read.getLength();
+			String CIGARString = Integer.toString(readLength) + "M"; 
+			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength + 1, readLength, 0);
 			readAlignment.setQualityScores(read.getQualityScores());
 			readAlignment.setReadCharacters(read.getCharacters());
+			readAlignment.setReadName(read.getName());
+			//readAlignment.setCigarString(CIGARString);
 			readAlignments.add(readAlignment);
+			log.info(read.getName());
 		}
 		
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		
 		// Start at 1? if not, no readAlignments are added to the pileup CHECK.
-		for(int i=1; i<refSeq.length(); i++) {
-			PileupRecord clusterPileUp = new PileupRecord(clusterNumberStr, i);
+		for(int i=1; i<=refSeq.length(); i++) {
+			log.info(Integer.toString(i));
+			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			//  Add the alignments to the pileup record
 			for(ReadAlignment readAlgn:readAlignments) {
 				clusterPileUp.addAlignment(readAlgn);
 			}
+			log.info(Integer.toString(clusterPileUp.getNumAlignments()) + " ReadAlignments added.");
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
 			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
-			// CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
+			
+			
 			if(variant!=null) variants.add(variant);
 		}
 	 
