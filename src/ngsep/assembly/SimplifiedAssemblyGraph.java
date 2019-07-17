@@ -168,6 +168,39 @@ public class SimplifiedAssemblyGraph implements Serializable {
 			obs.flush();
 		}
 	}
+
+	public List<CharSequence> getSequences() {
+		return sequences;
+	}
+
+	public void setSequences(List<CharSequence> sequences) {
+		this.sequences = sequences;
+	}
+
+	public Map<Integer, Map<Integer, Alignment>> getEdges() {
+		return edges;
+	}
+
+	public void setEdges(Map<Integer, Map<Integer, Alignment>> edges) {
+		this.edges = edges;
+	}
+
+	public Map<Integer, Map<Integer, Embedded>> getEmbbeded() {
+		return embbeded;
+	}
+
+	public void setEmbbeded(Map<Integer, Map<Integer, Embedded>> embbeded) {
+		this.embbeded = embbeded;
+	}
+
+	public Set<Integer> getIsEmbbeded() {
+		return isEmbbeded;
+	}
+
+	public void setIsEmbbeded(Set<Integer> isEmbbeded) {
+		this.isEmbbeded = isEmbbeded;
+	}
+
 }
 
 class Alignment implements Serializable {

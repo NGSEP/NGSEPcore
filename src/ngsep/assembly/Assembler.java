@@ -110,7 +110,19 @@ public class Assembler {
 		return sequences;
 	}
 
-	private static void exportToFile(String fileName, String name, List<CharSequence> sequences)
+	public static void exportToFile(String fileName, String name, Iterable<? extends CharSequence> sequences)
+			throws FileNotFoundException {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
+		int i = 1;
+		for (CharSequence str : sequences)
+			list.add(new QualifiedSequence(name + "_" + (i++), str));
+		try (PrintStream pr = new PrintStream(new FileOutputStream(fileName))) {
+			handler.saveSequences(list, pr, 1000);
+		}
+	}
+
+	public static <T extends CharSequence> void exportToFile(String fileName, String name, T[] sequences)
 			throws FileNotFoundException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
