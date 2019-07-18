@@ -136,9 +136,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
 		List<String> clusteredReadsFilenames = new ArrayList<>();
-		clusteredReadsFilenames.add("trial_clusteredReads_0.fastq.gz");
-		clusteredReadsFilenames.add("trial_clusteredReads_1.fastq.gz");
-		//List<String> clusteredReadsFilenames = new ArrayList<>();
+		clusteredReadsFilenames.add("trial_debug_clusteredReads_0.fastq.gz");
+		clusteredReadsFilenames.add("trial_debug_clusteredReads_1.fastq.gz");
 		return clusteredReadsFilenames;
 	}
 
@@ -262,8 +261,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 				
 				processInfo.print(Integer.toString(numCluster) + "\t" + nextCluster.getRefSeq() + "\t" + Integer.toString(nextCluster.getNumberOfTotalReads()));
-				log.info("Calling variants on cluster: " + Integer.toString(nextCluster.getClusterNumber()));
-				//List<CalledGenomicVariant> variants = processCluster(nextCluster);
+				List<CalledGenomicVariant> variants = processCluster(nextCluster);
 				//TODO. Imprimir datos de variante en outVariants
 				
 				numCluster++;
@@ -329,11 +327,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		for(RawRead read:readCluster.getReads()) {
 			int readLength = read.getLength();
 			String CIGARString = Integer.toString(readLength) + "M"; 
-			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength + 1, readLength, 0);
+			ReadAlignment readAlignment = new ReadAlignment(referenceId, 0, readLength, readLength, 0);
 			readAlignment.setQualityScores(read.getQualityScores());
 			readAlignment.setReadCharacters(read.getCharacters());
 			readAlignment.setReadName(read.getName());
-			//readAlignment.setCigarString(CIGARString);
+			readAlignment.setCigarString(CIGARString);
 			readAlignments.add(readAlignment);
 			log.info(read.getName());
 		}
@@ -341,20 +339,19 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		
 		// Start at 1? if not, no readAlignments are added to the pileup CHECK.
-		for(int i=1; i<=refSeq.length(); i++) {
-			log.info(Integer.toString(i));
+		for(int i=0; i<refSeq.length(); i++) {
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			//  Add the alignments to the pileup record
 			for(ReadAlignment readAlgn:readAlignments) {
 				clusterPileUp.addAlignment(readAlgn);
 			}
-			log.info(Integer.toString(clusterPileUp.getNumAlignments()) + " ReadAlignments added.");
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
 			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 			
 			
 			if(variant!=null) variants.add(variant);
 		}
+		log.info("num variants: " + Integer.toString(variants.size()));
 	 
 		return variants;
 	}
