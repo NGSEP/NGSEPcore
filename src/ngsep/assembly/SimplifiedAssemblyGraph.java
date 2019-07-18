@@ -79,8 +79,11 @@ public class SimplifiedAssemblyGraph implements Serializable {
 	}
 
 	public void removeDuplicatedEmbeddes() {
-		int count = 0;
-		Iterator<Integer> iter;
+		Iterator<Integer> iter = embbeded.keySet().iterator();
+		while (iter.hasNext())
+			if (isEmbedded(iter.next()))
+				iter.remove();
+
 		Set<Integer> in = new HashSet<Integer>();
 		for (Map<Integer, Embedded> subMap : embbeded.values()) {
 			iter = subMap.keySet().iterator();
@@ -88,14 +91,13 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				int id = iter.next();
 				if (in.contains(id)) {
 					iter.remove();
-					count++;
 					continue;
 				}
 				in.add(id);
 			}
 		}
 
-		System.out.println("Emmbeded duplicates removed: " + count);
+		System.out.println("Emmbeded duplicates removed" );
 	}
 
 	public AssemblyGraph getAssemblyGraph() {
@@ -103,6 +105,7 @@ public class SimplifiedAssemblyGraph implements Serializable {
 		int[] map = new int[sequences.size()];
 		Arrays.fill(map, 1);
 
+		System.out.println(this.isEmbbeded.size());
 		for (int i : isEmbbeded) {
 			queue.add(i);
 			map[i] = 0;
@@ -120,9 +123,12 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				int embeddedId = entry2.getKey();
 				AssemblyEmbedded embedded = new AssemblyEmbedded(sequences.get(embeddedId), emb.getPos(),
 						emb.isReversed());
-				if (emb.getPos() + sequences.get(embeddedId).length() > sequences.get(parentId).length())
-					System.out.println("error!!" + emb.getPos() + " " + sequences.get(embeddedId) + "  "
-							+ sequences.get(parentId).length());
+
+			
+				if (sequences.get(embeddedId).length() + emb.getPos() > list.get(map[parentId]).length()) {
+					System.out.println("ERRORPREV!!");
+				}
+
 				assemblyGraph.addEmbedded(map[parentId], embedded);
 			}
 		}
@@ -139,6 +145,22 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				}
 			}
 		}
+
+		int cunt = 0;
+		for (int i = 0; i < assemblyGraph.getSequences().size(); i++) {
+			CharSequence ref = assemblyGraph.getSequences().get(i);
+			List<AssemblyEmbedded> a = assemblyGraph.getEmbedded(i);
+			if (a == null)
+				continue;
+			for (AssemblyEmbedded ae : a) {
+				CharSequence emb = ae.getRead();
+				if (ae.getStartPosition() + emb.length() > ref.length()) {
+					cunt++;
+					System.out.println("error  " + i + "  " + emb.length() + "   " + ae.getStartPosition());
+				}
+			}
+		}
+		System.out.println("Test finalizado: " + cunt);
 
 		return assemblyGraph;
 	}

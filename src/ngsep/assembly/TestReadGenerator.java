@@ -8,9 +8,6 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import org.omg.CORBA.portable.IDLEntity;
-
 import ngsep.sequences.DNASequence;
 
 public class TestReadGenerator {

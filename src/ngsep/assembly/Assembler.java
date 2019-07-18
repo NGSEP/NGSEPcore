@@ -49,6 +49,7 @@ public class Assembler {
 			System.out.println("Load graph from: " + fileIn);
 			SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(fileIn);
 			sag.removeDuplicatedEmbeddes();
+			sag.printInfo();
 			graph = sag.getAssemblyGraph();
 			break;
 		}
