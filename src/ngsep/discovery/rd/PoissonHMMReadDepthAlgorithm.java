@@ -36,10 +36,9 @@ public class PoissonHMMReadDepthAlgorithm extends AbstractHMMReadDepthAlgorithm 
 		double avgDepthState = avgNormalDepth*copies/getNormalPloidy();
 		if(copies==0) avgDepthState = 1;
 		HMMState state = new PoissonHMMState(copies, avgDepthState, logStart);
-		System.out.println("Created state "+state.getId()+" with average depth "+avgDepthState+" log start "+logStart+" emission 20 reads: "+state.getEmission(20.0, 0));
+		//System.out.println("Created state "+state.getId()+" with average depth "+avgDepthState+" log start "+logStart+" emission 20 reads: "+state.getEmission(20.0, 0));
 		return state; 
 	}
-
 }
 class PoissonHMMState implements HMMState {
 
@@ -66,9 +65,11 @@ class PoissonHMMState implements HMMState {
 		double depth = (Double)value;
 		if(depth<1) depth = 1;
 		PoissonDistribution dist = new PoissonDistribution(averageDepth);
-		double p = Math.abs(dist.cumulative(depth-0.5)-dist.cumulative(depth+0.5));
-		if(copies==0 && p<0.00001) System.out.println("Emission prob "+p+" cumulative 1: "+dist.cumulative(depth-0.5)+"cumulative 2 "+dist.cumulative(depth+0.5)+" depth "+depth);
-		return LogMath.log10(p);
+		double a = dist.probability(depth);
+		//System.out.println("--- depthPoisson ---- " + depth + " ----a--- " + a);
+		// double p = dist.cumulative(depth+0.5)-dist.cumulative(depth-0.5);
+		// if(copies==0 && p<0.00001) System.out.println("Emission prob "+p+" cumulative 1: "+dist.cumulative(depth-0.05)+"cumulative 2 "+dist.cumulative(depth+0.05)+" depth "+depth);
+		return LogMath.log10(a);
 	}
 
 	@Override
