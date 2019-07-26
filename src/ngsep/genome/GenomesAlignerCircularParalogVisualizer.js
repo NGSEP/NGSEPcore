@@ -1,4 +1,3 @@
-
 const option = d3.selectAll("#option");
 const containerSection = option.append('div').attr('class', 'container section');
 containerSection.append('h5').attr('class', 'black-text center').text('Chord visualization');
@@ -76,18 +75,14 @@ const update = (genomeData, paralogsData) => {
     genomeData = genomeData.filter(chromosome => {
         return chromosome.Length > minimumChromosomeLength;
     });
-    paralogsData = paralogsData.filter(gene => {
-        return gene.paralogsCount <= MAX_HOMOLOGS_UNIT;
-    });
-
     const chordGroupData = pie(genomeData);
     let chordTicks = [];
     chordGroupData.map(item => createTicks(item, dims.ticksSpacing)).forEach(item => {
         chordTicks = [...chordTicks, ...item];
     });
-    console.log(chordTicks);
+    
     ribbonsData = createParalogChords(genomeData, paralogsData, chordGroupData);
-    console.log(ribbonsData);
+    
     const ribbons = ribbonsGroup.selectAll('.ribbon').data(ribbonsData);
     const arcs = arcsGroup.selectAll('.arc').data(chordGroupData);
     const axis = circularAxisGroup.selectAll('g').data(chordTicks);
@@ -242,7 +237,7 @@ const createParalogChords = (genomeData, paralogs, chromosomes) => {
             sourceRibbonEndAngle = paralog.geneEnd / chromosomes[sourceIndex].value * (sourceChromosomeEndAngle - sourceChromosomeStartAngle) + sourceChromosomeStartAngle;
             targetRibbonStartAngle = paralog.paralogStart / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
             targetRibbonEndAngle = paralog.paralogEnd / chromosomes[targetIndex].value * (targetChromosomeEndAngle - targetChromosomeStartAngle) + targetChromosomeStartAngle;
-            paralogChords.push( {
+            paralogChords.push({
                 source: { index: sourceIndex, subIndex: targetIndex, startAngle: sourceRibbonStartAngle, endAngle: sourceRibbonEndAngle },
                 target: { index: targetIndex, subIndex: sourceIndex, startAngle: targetRibbonStartAngle, endAngle: targetRibbonEndAngle }
             });
@@ -276,11 +271,4 @@ const setOpacity = (elements, opacity) => {
     elements.style('opacity', opacity);
 };
 
-
-d3.tsv(genome1)
-    .then(genomeData => {
-        d3.tsv(paralogsG1)
-            .then(paralogData => {
-                update(genomeData, paralogData);
-            });
-    });
+update(genome1, paralogsG1);
