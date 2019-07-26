@@ -20,6 +20,7 @@
 package ngsep.genome;
 
 import java.io.BufferedReader;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -64,6 +65,7 @@ public class GenomesAligner {
 
 	private List<AnnotatedReferenceGenome> genomes = new ArrayList<>();
 	private String outPrefix = DEF_OUT_PREFIX;
+	private String jsFilename = outPrefix + "_vizVariables.js";
 	private byte kmerSize = DEF_KMER_SIZE;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
@@ -121,6 +123,7 @@ public class GenomesAligner {
 	 */
 	public void setOutPrefix(String outPrefix) {
 		this.outPrefix = outPrefix;
+		jsFilename = outPrefix + "_vizVariables.js";
 	}
 
 	/**
@@ -507,11 +510,16 @@ public class GenomesAligner {
 	}
 
 	public void printAlignmentResults() throws IOException {
+		 // Create Javascript file for visualization variables
+        try (PrintStream outJS = new PrintStream(jsFilename);) {
+        	outJS.print("");
+        }
+
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
 			int id = genome.getId();
 			//Print metadata
-			printGenomeMetadata(outPrefix+"_genome"+id+".tsv", genome.getSequencesMetadata());
+			printGenomeMetadata(id, genome.getSequencesMetadata());
 			// Print paralogs
 			try (PrintStream outParalogs = new PrintStream(outPrefix+"_paralogsG"+id+".tsv");) {
 				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
@@ -522,6 +530,22 @@ public class GenomesAligner {
 						outParalogs.println("\t"+id+"\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
 					}
 				}
+			}
+			try (PrintStream outParalogsJS = new PrintStream(new FileOutputStream(jsFilename, true));) {
+				outParalogsJS.println("const paralogsG" + id + " = [");
+				for(OrthologyUnit unit:genome.getOrthologyUnits()) {
+					for(OrthologyUnit paralog: unit.getParalogs()) {
+						outParalogsJS.println("{geneId: '"+unit.getId()
+						+"', chromosome: '"+unit.getSequenceName()
+						+"', geneStart: "+unit.getFirst()
+						+", geneEnd: "+unit.getLast()
+						+", paralogId: '"+paralog.getId()
+						+"', paralogChr: '"+paralog.getSequenceName()
+						+"', paralogStart: "+paralog.getFirst()
+						+", paralogEnd: "+paralog.getLast()+"},");
+					}
+				}
+				outParalogsJS.println("];");
 			}
 		}
 
@@ -547,9 +571,13 @@ public class GenomesAligner {
 				int id = genome.getId();
 				// Print orthologs
 				try (PrintStream outOrthologs = new PrintStream(outPrefix+"_orthologsG"+id+".tsv");) {
-					outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
-					for(OrthologyUnit unit:genome.getOrthologyUnits()) {
-						printOrthologyUnit(unit, outOrthologs);
+					try (PrintStream outOrthologsJS = new PrintStream(new FileOutputStream(jsFilename, true));) {
+						outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
+						outOrthologsJS.println("const orthologsG" + id + " = [");
+						for(OrthologyUnit unit:genome.getOrthologyUnits()) {
+							printOrthologyUnit(unit, outOrthologs, outOrthologsJS);
+						}
+						outOrthologsJS.println("];");
 					}
 				}
 			}
@@ -566,17 +594,23 @@ public class GenomesAligner {
 
 
 	}
-	private void printGenomeMetadata(String outFilename, QualifiedSequenceList sequencesMetadata) throws IOException {
+	private void printGenomeMetadata(int id, QualifiedSequenceList sequencesMetadata) throws IOException {
+		String outFilename = outPrefix+"_genome"+id+".tsv";
 		try (PrintStream out = new PrintStream(outFilename)) {
-			out.println("Name\tLength");
-			for(QualifiedSequence seq:sequencesMetadata) {
-				out.println(""+seq.getName()+"\t"+seq.getLength());
+			try (PrintStream outJS = new PrintStream(new FileOutputStream(jsFilename, true))) {
+				outJS.println("const genome" + id + " = [");
+				out.println("Name\tLength");
+				for(QualifiedSequence seq:sequencesMetadata) {
+					out.println(""+seq.getName()+"\t"+seq.getLength());
+					outJS.println("{Name: '"+seq.getName()+"', Length: "+seq.getLength()+"},");
+				}
+				outJS.println("];");
 			}
 		}
 	}
 
 
-	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out) {
+	private void printOrthologyUnit(OrthologyUnit unit, PrintStream out, PrintStream outJS) {
 		List<OrthologyUnit> orthologs = unit.getOrthologsOtherGenomes();
 		if(orthologs.size()==0) return;
 		char type = 'U';
@@ -587,6 +621,16 @@ public class GenomesAligner {
 			char typePrint = type;
 			if (ortholog==mateInLCS) typePrint = 'L';
 			out.println("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+typePrint);
+			outJS.println("{geneId: '"+unit.getId()
+			+"', chromosome: '"+unit.getSequenceName()
+			+"', geneStart: "+unit.getFirst()
+			+", geneEnd: "+unit.getLast()
+			+", genomeId2: '"+ortholog.getGenomeId()
+			+"', geneIdG2: '"+ortholog.getId()
+			+"', chromosomeG2: '"+ortholog.getSequenceName()
+			+"', geneStartG2: "+ortholog.getFirst()
+			+", geneEndG2: "+ortholog.getLast()
+			+", type: '"+typePrint+"'},");
 		}
 	}
 
@@ -608,6 +652,7 @@ public class GenomesAligner {
 		else if(preferredD3Version == 5){
 			outD3.println("<script src=\"http://d3js.org/d3.v5.min.js\"></script>");
 		}
+		outD3.println("<script src="+jsFilename+"></script>");
 		outD3.println("<script>");
 		//Print D3 script
 		Class<? extends GenomesAligner> c = this.getClass();
@@ -617,14 +662,6 @@ public class GenomesAligner {
 				BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
 			outD3.println("const MAX_HOMOLOGS_UNIT = "+maxHomologsUnit+";");
-			outD3.println("const orthologsG1 = \""+outPrefix+"_orthologsG1.tsv\";");
-			outD3.println("const orthologsG2 = \""+outPrefix+"_orthologsG2.tsv\";");
-			outD3.println("const paralogsG1 = \""+outPrefix+"_paralogsG1.tsv\";");
-			outD3.println("const paralogsG2 = \""+outPrefix+"_paralogsG2.tsv\";");
-			outD3.println("const uniqueG1 = \""+outPrefix+"_uniqueG1.tsv\";");
-			outD3.println("const uniqueG2 = \""+outPrefix+"_uniqueG2.tsv\";");
-			outD3.println("const genome1 = \""+outPrefix+"_genome1.tsv\";");
-			outD3.println("const genome2 = \""+outPrefix+"_genome2.tsv\";");
 
 			while(line!=null) {
 				outD3.println(line);
