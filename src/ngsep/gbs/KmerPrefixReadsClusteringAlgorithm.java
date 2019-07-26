@@ -51,6 +51,12 @@ import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.DiversityStatistics;
+import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantAnnotation;
+import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileWriter;
+import ngsep.vcf.VCFRecord;
 
 /**
  * @author Jorge Gomez
@@ -62,6 +68,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
 	private ProgressNotifier progressNotifier = null;
 	
+	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	public static final short DEF_MIN_QUALITY = 40;
+	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final int DEF_KMER_LENGTH = 31;
 	public static final int DEF_START = 8;
 	public static final int DEF_MAX_READS_IN_MEMORY = 1000000;
@@ -77,6 +86,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private DNAShortKmerClusterMap kmersMap;
 	
 	private ProcessInfo processInfo = new ProcessInfo();
+	private short minQuality = DEF_MIN_QUALITY;
+	
+	private double heterozygosityRate = DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID;
+	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private int numClustersWithVariants = 0;
 	private int numClusteredFiles;
 	private int numUnclusteredReads = 0;
@@ -253,6 +266,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
+		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
+		VCFFileWriter writer = new VCFFileWriter ();
+		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
 		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");) {
@@ -277,8 +293,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					if(currentReads[i]==null) numNotNull--;
 				}
 		
-				List<CalledGenomicVariant> variants = processCluster(nextCluster);
-				for(CalledGenomicVariant variant:variants) {
+				List<VCFRecord> records = processCluster(nextCluster, header);
+				writer.printVCFRecords(records, outVariants);
+				/*for(CalledGenomicVariant variant:variants) {
 					String[] alleles = variant.getCalledAlleles();
 					String alls = "";
 					for(String allel:alleles) {
@@ -289,7 +306,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 							Integer.toString(variant.getFirst()) + "\t" +
 							alls + "\t" +
 							variant.getVariantQS());	
-				}
+				}*/
 				
 				numCluster++;
 			}
@@ -335,8 +352,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 
-	private List<CalledGenomicVariant> processCluster(ReadCluster readCluster) {
-		List<CalledGenomicVariant> variants = new ArrayList<>();
+	private List<VCFRecord> processCluster(ReadCluster readCluster, VCFFileHeader vcfFileHeader) {
+		List<VCFRecord> variants = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
 		
 		int clusterId = readCluster.getClusterNumber();
@@ -348,7 +365,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		variantsDetector.setGenome(singleSequenceGenome);
 		
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
-		for(RawRead read:readCluster.getReads()) {
+		List<RawRead> reads = readCluster.getReads();
+		List<String> sampleIds = readCluster.getSampleIds();
+		for(int i=0;i<reads.size();i++) {
+			RawRead read = reads.get(i);
+			String sampleId = sampleIds.get(i);
 			int readLength = read.getLength();
 			String CIGARString = Integer.toString(readLength) + "M"; 
 			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength, readLength, 0);
@@ -356,6 +377,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			readAlignment.setReadCharacters(read.getCharacters());
 			readAlignment.setReadName(read.getName());
 			readAlignment.setCigarString(CIGARString);
+			readAlignment.setReadGroup(sampleId);
 			readAlignments.add(readAlignment);	
 		}
 		
@@ -367,12 +389,24 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			for(ReadAlignment readAlgn:readAlignments) {
 				clusterPileUp.addAlignment(readAlgn);
 			}
+			GenomicVariant variant = findMultiallelicVariant(clusterPileUp, refSeq.charAt(i));
+			
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
-			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
+			//CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
 						
 			if(variant!=null) {
-				variant.setSampleId(referenceId);
-				variants.add(variant);
+				List<CalledGenomicVariant> calls = genotypeVariant(variant, clusterPileUp, refSeq.charAt(i));
+				
+				if(variant.getVariantQS()==0 || variant.getVariantQS() < minQuality) continue;
+				//TODO: The variant could be genotyped again with a different heterozygosity rate
+				
+				DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
+				int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
+				VCFRecord record = new VCFRecord(variant, format, calls, vcfFileHeader);
+				record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
+				record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
+				//record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
+				if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
 			}
 		}
 		if (variants.size() > 0) {
@@ -381,6 +415,16 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return variants;
 	}
 	
+	private GenomicVariant findMultiallelicVariant(PileupRecord clusterPileUp, char reference) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord clusterPileUp, char reference) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 	private void printStatistics() throws IOException {
 		// TODO Implement. Create an output file with process statistics
 		try(PrintStream processStats = new PrintStream(outPrefix+"_processInfo.txt");){

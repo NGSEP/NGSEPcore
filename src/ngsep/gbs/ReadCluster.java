@@ -77,5 +77,13 @@ public class ReadCluster {
 	public List<RawRead> getReads() {
 		return reads;
 	}
+
+	/**
+	 * @return the sampleIds
+	 */
+	public List<String> getSampleIds() {
+		return sampleIds;
+	}
+	
 	
 }
