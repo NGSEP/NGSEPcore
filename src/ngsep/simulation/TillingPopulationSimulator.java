@@ -63,7 +63,7 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=1000;
+	public static final int DEF_MUTATIONS=100;
 	public static final int DEF_INDIVIDUALS=12;
 	public static final int DEF_NUM_FRAGMENTS_POOL=25000;
 	public static final int DEF_READ_LENGTH=100;
@@ -216,9 +216,13 @@ public class TillingPopulationSimulator {
 		printMutations(outPrefix+".vcf");
 		simulatePools();
 		System.out.println("Simulated pools");
+		
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
+			long startTime = System.currentTimeMillis();
 			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq");
+			long estimatedTime = System.currentTimeMillis() - startTime;
+			System.out.println(estimatedTime);
 			System.out.println("Simulated reads pool "+i);
 		}
 		
@@ -285,6 +289,7 @@ public class TillingPopulationSimulator {
 		}
 		return targetSequences;
 	}
+	
 
 	/**
 	 * Writes a VCF file with the simulated mutations
@@ -381,6 +386,29 @@ public class TillingPopulationSimulator {
 		pools.removeIf(p -> p.isEmpty());
 	}
 
+	/**
+	 * Creates the intervals for which the quality of the reads will be calculated.
+	 * @param filename Name of the file to write
+	 * @throws IOException 
+	 */
+	public void generateErrorIntervals() throws IOException {
+		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
+		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
+		double min_qual= min_quality;
+		double max_qual= max_quality;
+		double interval_length = (max_qual-min_qual)/DEF_READ_LENGTH;
+		
+		ArrayList<Double> ceil_error=new ArrayList<Double>();
+		ArrayList<Double> floor_error=new ArrayList<Double>();
+				
+				
+		for(int j=0; j < DEF_READ_LENGTH; j++) {	
+			ceil_error.add(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001));
+			floor_error.add(Math.max(max_qual-(j)*interval_length,min_qual));
+		}
+	
+	}
+	
 	/**
 	 * Simulates sequencing reads for the given pool of individuals
 	 * @param pool Individuals with allele sequences to simulate reads
