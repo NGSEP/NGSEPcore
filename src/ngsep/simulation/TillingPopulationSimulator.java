@@ -65,7 +65,7 @@ public class TillingPopulationSimulator {
 	
 	public static final int DEF_MUTATIONS=100;
 	public static final int DEF_INDIVIDUALS=12;
-	public static final int DEF_NUM_FRAGMENTS_POOL=25000;
+	public static final int DEF_NUM_FRAGMENTS_POOL=2500;
 	public static final int DEF_READ_LENGTH=100;
 	public static final double DEF_ERROR_RATE=0.00001;
 	public static final double DEF_MIN_ERROR_RATE=0.0000001;
@@ -209,6 +209,8 @@ public class TillingPopulationSimulator {
 	}
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
+		
+		long startTime = System.currentTimeMillis();
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
@@ -216,15 +218,15 @@ public class TillingPopulationSimulator {
 		printMutations(outPrefix+".vcf");
 		simulatePools();
 		System.out.println("Simulated pools");
+		ArrayList<ArrayList<Double>> errors=generateErrorIntervals();
 		
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
-			long startTime = System.currentTimeMillis();
-			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq");
-			long estimatedTime = System.currentTimeMillis() - startTime;
-			System.out.println(estimatedTime);
+			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors);
 			System.out.println("Simulated reads pool "+i);
 		}
+		long estimatedTime = System.currentTimeMillis() - startTime;
+		System.out.println(estimatedTime);
 		
 		
 	}
@@ -391,7 +393,7 @@ public class TillingPopulationSimulator {
 	 * @param filename Name of the file to write
 	 * @throws IOException 
 	 */
-	public void generateErrorIntervals() throws IOException {
+	public ArrayList<ArrayList<Double>> generateErrorIntervals() throws IOException {
 		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
 		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
 		double min_qual= min_quality;
@@ -400,12 +402,17 @@ public class TillingPopulationSimulator {
 		
 		ArrayList<Double> ceil_error=new ArrayList<Double>();
 		ArrayList<Double> floor_error=new ArrayList<Double>();
-				
+		ArrayList<ArrayList<Double>> errors=new ArrayList<ArrayList<Double>>();
 				
 		for(int j=0; j < DEF_READ_LENGTH; j++) {	
 			ceil_error.add(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001));
 			floor_error.add(Math.max(max_qual-(j)*interval_length,min_qual));
 		}
+		
+		errors.add(floor_error);
+		errors.add(ceil_error);
+		
+		return errors;
 	
 	}
 	
@@ -415,14 +422,10 @@ public class TillingPopulationSimulator {
 	 * @param file1 Output file for first end of paired end reads
 	 * @param file2 Output file for second end of paired end reads
 	 */
-	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2) throws FileNotFoundException {
+	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors) throws FileNotFoundException {
 		Random random = new Random();
 		String alphabet = DNASequence.BASES_STRING;
-		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
-		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
-		double min_qual= min_quality;
-		double max_qual= max_quality;
-		double interval_length = (max_qual-min_qual)/DEF_READ_LENGTH;
+		
 		
 		PrintStream out = new PrintStream(file1);
 		PrintStream out_rev = new PrintStream(file2);
@@ -441,7 +444,7 @@ public class TillingPopulationSimulator {
 			String qualityReverse="";
 			
 			for(int j=0; j < DEF_READ_LENGTH; j++) {	
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
 				/*System.out.println(String.valueOf(error_prob));*/
 				if(random.nextFloat()<error_prob) {
@@ -459,7 +462,7 @@ public class TillingPopulationSimulator {
 			out.println(qualityForward);
 
 			for(int j=DEF_READ_LENGTH-1; j >= 0; j--) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
 				if(random.nextFloat()<error_prob) {
 					String mutated = alphabet.replaceAll(Character.toString(readReverse[j]), "");
