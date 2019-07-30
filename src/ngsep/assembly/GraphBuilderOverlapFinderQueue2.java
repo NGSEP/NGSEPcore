@@ -17,10 +17,10 @@ import static ngsep.assembly.TimeUtilities.timeIt;
 import static ngsep.assembly.TimeUtilities.progress;
 
 public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinder {
-	private final static double Rate_of_changes = 0.02;
-	private final static double Rate_of_cuts = 0.01;
-	private final static double Rate_of_cover = 7;
-	private final static double MinKmerCoverRate = -1;
+	private final static double Rate_of_changes = 0.05;
+	private final static double Rate_of_cuts = 0.03;
+	private final static double Rate_of_cover = 1;
+	private double MinKmerCoverRate = -1;
 
 	private GraphBuilderKmerIterator kmerIterator;
 	private List<CharSequence> sequences;
@@ -36,6 +36,8 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 			this.index = index;
 			this.sequences = seq;
 			assemblyGraph = new SimplifiedAssemblyGraph(seq);
+			MinKmerCoverRate = Math.exp(-1 * kmerIterator.SEARCH_KMER_LENGTH * 2
+					* (Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts)) / (double) 2;
 
 			printRates();
 			timeIt(" --- Find overlaps ", () -> findOverlapsAndEmbedded());
@@ -52,6 +54,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 		System.out.println(" | SEARCH_KMER_LENGTH: " + kmerIterator.SEARCH_KMER_LENGTH + " |");
 		System.out.println(" | SEARCH_KMER_DISTANCE: " + kmerIterator.SEARCH_KMER_DISTANCE + " |");
 		System.out.println(" | MAX_KMER_DES: " + kmerIterator.MAX_KMER_DES + " |");
+		System.out.println(" | MIN_COVER_RATE: " + MinKmerCoverRate + " |");
 	}
 
 	@Override
@@ -138,7 +141,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 		// lec is embedded in ref
 		for (int[] aln : tree.subMap(embbedLimit, true, 0, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtLec);
+			double rate = aln[0] / (double) numberOfKmers(lenghtLec);
 			if (rate < MinKmerCoverRate)
 				continue;
 
@@ -150,7 +153,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 		// lec -> ref || lec -> ref'
 		for (int[] aln : tree.subMap(0, true, Integer.MAX_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtLec - pos_Lec);
+			double rate = aln[0] / (double) numberOfKmers(lenghtLec - pos_Lec);
 			if (rate < MinKmerCoverRate)
 				continue;
 
@@ -161,7 +164,7 @@ public class GraphBuilderOverlapFinderQueue2 implements GraphBuilderOverlapFinde
 		// ref -> lec || ref' -> lec
 		for (int[] aln : tree.descendingMap().subMap(embbedLimit, true, Integer.MIN_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = kmerIterator.SEARCH_KMER_LENGTH / (double) numberOfKmers(lenghtRef + pos_Lec);
+			double rate = aln[0] / (double) numberOfKmers(lenghtRef + pos_Lec);
 			if (rate < MinKmerCoverRate)
 				continue;
 

@@ -1,12 +1,16 @@
 package ngsep.assembly;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Random;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import ngsep.sequences.DNASequence;
 
@@ -28,7 +32,7 @@ public class TestReadGenerator {
 		double rateChanges = (args.length > 8) ? Double.parseDouble(args[8]) : default_rate_of_changes;
 		double rateIndels = (args.length > 9) ? Double.parseDouble(args[9]) : default_rate_of_cuts;
 		String pathGraph = (args.length > 10) ? args[10] : null;
-		int minOveralp = (args.length > 11) ? Integer.parseInt(args[11]) : 100;
+		int minOveralp = (args.length > 11) ? Integer.parseInt(args[11]) : 0;
 
 		printInfo(path, pathlect, numberOfSequences, odist, numberOfreads, dist, rateChanges, rateIndels, pathGraph,
 				minOveralp);
@@ -136,37 +140,48 @@ public class TestReadGenerator {
 	}
 
 	private static SimplifiedAssemblyGraph getGraph(String[] lects, int minOveralp, int[] refLects, int[] posLects,
-			int[] lenLects, boolean[] revLects) {
+			int[] lenLects, boolean[] revLects) throws FileNotFoundException {
 		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(Arrays.asList(lects));
 
-		Map<Integer, TreeMap<Integer, Lect>> a = new HashMap<>();
+		Map<Integer, List<Lect>> a = new HashMap<>();
 		for (int i = 0; i < refLects.length; i++)
-			a.computeIfAbsent(refLects[i], (x) -> new TreeMap<>()).put(posLects[i],
-					new Lect(i, lenLects[i], revLects[i]));
+			a.computeIfAbsent(refLects[i], (x) -> new ArrayList<>())
+					.add(new Lect(i, lenLects[i], revLects[i], posLects[i]));
 
-		for (TreeMap<Integer, Lect> tree : a.values()) {
-			for (Entry<Integer, Lect> entry : tree.entrySet()) {
-				int pos1 = entry.getKey();
-				Lect lect1 = entry.getValue();
-				for (Entry<Integer, Lect> entry2 : tree
-						.subMap(pos1, false, Math.max(pos1 + lect1.len - minOveralp, pos1), false).entrySet()) {
-					int pos2 = entry2.getKey();
-					Lect lect2 = entry2.getValue();
+		System.out.println("in");
+		for (List<Lect> list : a.values())
+			Collections.sort(list, (Lect x, Lect y) -> {
+				int ans = x.pos - y.pos;
+				if (ans != 0)
+					return ans;
+				return y.len - x.len;
+			});
 
-					int relativePos = pos2 - pos1;
-					if (relativePos + lect2.len > lect1.len)
-						// lect1 -> lect2
-						sag.addEdge((lect1.id << 1) + (lect1.rev ? 0 : 1), (lect2.id << 1) + (lect2.rev ? 1 : 0),
-								lect1.len - relativePos, 1);
-					else {
-						// lect2 into lect1
-						boolean reversed = lect1.rev ^ lect2.rev;
-						relativePos = (lect1.rev) ? lect1.len - lect2.len - relativePos : relativePos;
-						sag.addEmbedded(lect1.id, lect2.id, relativePos, reversed, 1);
+		System.out.println("in");
+		try (PrintStream pr = new PrintStream(new FileOutputStream("kkkk"))) {
+			for (List<Lect> list : a.values()) {
+				for (int i = 0; i < list.size() - 1; i++) {
+					Lect lect1 = list.get(i);
+					pr.println(lect1.id + ") " + lect1.pos + " " + lect1.len);
+					for (int j = i + 1; j < list.size() && list.get(j).pos < lect1.pos + lect1.len; j++) {
+						Lect lect2 = list.get(j);
+
+						int relativePos = lect2.pos - lect1.pos;
+						if (relativePos + lect2.len > lect1.len)
+							// lect1 -> lect2
+							sag.addEdge((lect1.id << 1) + (lect1.rev ? 0 : 1), (lect2.id << 1) + (lect2.rev ? 1 : 0),
+									lect1.len - relativePos, 1);
+						else {
+							// lect2 into lect1
+							boolean reversed = lect1.rev ^ lect2.rev;
+							relativePos = (lect1.rev) ? lect1.len - lect2.len - relativePos : relativePos;
+							sag.addEmbedded(lect1.id, lect2.id, relativePos, reversed, 1);
+						}
 					}
 				}
 			}
 		}
+		System.out.println("out");
 
 		sag.removeAllEmbeddedsIntoGraph();
 		System.out.println("-------------Graph Properties----------");
@@ -177,13 +192,14 @@ public class TestReadGenerator {
 	}
 
 	private static class Lect {
-		public int id, len;
+		public int id, len, pos;
 		public boolean rev;
 
-		public Lect(int id, int len, boolean rev) {
+		public Lect(int id, int len, boolean rev, int pos) {
 			this.id = id;
 			this.len = len;
 			this.rev = rev;
+			this.pos = pos;
 		}
 	}
 
