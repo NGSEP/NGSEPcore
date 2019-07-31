@@ -421,7 +421,7 @@ public class TillingPopulationSimulator {
 	}
 	
 	/**
-	 * Generates dictionary for determining sequencing errors in reads.
+	 * Generates dictionary for determining sequencing errors in reads. 
 	 * @param filename Name of the file to write
 	 * @throws IOException 
 	 */
@@ -443,7 +443,10 @@ public class TillingPopulationSimulator {
 	}
 	
 	/**
-	 * Simulates sequencing reads for the given pool of individuals
+	 * Simulates sequencing reads for the given pool of individuals.
+	 * To optimize the process, the error probabilities of a read and its reverse are the same. Note that this does not mean that 
+	 * either both neither have an error: one can have an error and the other be correct, but the qualities are going to be the
+	 * same.
 	 * @param pool Individuals with allele sequences to simulate reads
 	 * @param file1 Output file for first end of paired end reads
 	 * @param file2 Output file for second end of paired end reads
