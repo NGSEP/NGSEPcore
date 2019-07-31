@@ -78,10 +78,10 @@ public class AssemblyConfiguration {
 		public OverlapConfiguration(double changes, double indels) {
 			// Supposing independence
 			double rate_of_error = changes + indels - changes * indels;
-			kmerLength = (int) (LN2 / rate_of_error);
+			kmerLength = (int) (1.25 * (LN2 / rate_of_error));
 			maxKmerDiff = (int) (indels * (LN100000 / rate_of_error));
 			// empirical
-			rate_of_cover = Math.max(1, rate_of_error * 25);
+			rate_of_cover = Math.max(1, rate_of_error * 50);
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
 			// poison of 0 errors
 			minKmerCoverRate = Math.exp(-2 * kmerLength * rate_of_error) / (double) 2;
