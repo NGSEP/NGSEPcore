@@ -16,7 +16,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private final static int SUFFIX_FRACTION = 25;
 
 	@Override
-	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
+	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences, AssemblyConfiguration config) {
 		System.out.println("	sorting sequences");
 		long ini = System.currentTimeMillis();
 		PriorityQueue<Entry<Integer, Integer>> heap = new PriorityQueue<>(
@@ -53,7 +53,10 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	public static void main(String[] args) throws Exception {
 		System.out.println("¡¡¡ Esta funcion es solo para desarrollo !!!!");
 		List<CharSequence> a = Assembler.load(args[0]);
-		SimplifiedAssemblyGraph assemblyGraph = (new GraphBuilderFMIndex()).buildAssemblyGraph(a);
+		AssemblyConfiguration config = (args.length > 2)
+				? new AssemblyConfiguration(Double.valueOf(args[1]), Double.valueOf(args[2]))
+				: new AssemblyConfiguration();
+		SimplifiedAssemblyGraph assemblyGraph = (new GraphBuilderFMIndex()).buildAssemblyGraph(a, config);
 		assemblyGraph.save(args[1]);
 	}
 

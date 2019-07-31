@@ -15,6 +15,10 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.assembly.SimplifiedAssemblyGraph;
+
+import static ngsep.assembly.TimeUtilities.timeGroup;
+import static ngsep.assembly.TimeUtilities.timeIt;
 
 public class Assembler {
 	private static final String[] fastq = { ".fastq", ".fastq.gz" };
@@ -28,45 +32,46 @@ public class Assembler {
 	private AssemblyGraph graph;
 
 	public Assembler(String fileIn, String fileOut) throws Exception {
-		this(fileIn, fileOut, Option.Normal);
+		this(fileIn, fileOut, Option.Normal, new AssemblyConfiguration());
 	}
 
-	public Assembler(String fileIn, String fileOut, Option option) throws Exception {
-		long ini;
-		switch (option) {
-		case Normal:
-			System.out.println("-----Assembler-----");
-			sequences = load(fileIn);
+	public Assembler(String fileIn, String fileOut, Option option, AssemblyConfiguration config) throws Exception {
+		timeGroup("----------Assembly---------", () -> {
+			switch (option) {
+			case Normal:
+				sequences = timeIt("  Load the sequences", () -> load(fileIn));
+				graph = timeGroup("  Build overlap Graph",
+						() -> (new GraphBuilderFMIndex()).buildAssemblyGraph(sequences, config).getAssemblyGraph());
 
-			System.out.println("building overlap Graph");
-			ini = System.currentTimeMillis();
-			GraphBuilder builder = new GraphBuilderFMIndex();
-			graph = builder.buildAssemblyGraph(sequences).getAssemblyGraph();
-			System.out.println("build overlap Graph: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
-			break;
+				break;
 
-		case withGraph:
-			System.out.println("Load graph from: " + fileIn);
-			SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(fileIn);
-			sag.removeDuplicatedEmbeddes();
-			sag.printInfo();
-			graph = sag.getAssemblyGraph();
-			break;
-		}
+			case withGraph:
+				graph = timeIt("  Load the graph", () -> {
+					SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(fileIn);
+					sag.removeDuplicatedEmbeddes();
+					return sag.getAssemblyGraph();
+				});
+				break;
+			}
 
-		System.out.println("building layouts");
-		ini = System.currentTimeMillis();
-		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
-		pathsFinder.findPaths(graph);
-		System.out.println("build layouts: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+			timeGroup("  Build layouts", () -> {
+				LayourBuilder pathsFinder = new LayoutBuilderGreedy();
+				pathsFinder.findPaths(graph);
+			});
 
-		System.out.println("building consensus");
-		ini = System.currentTimeMillis();
-		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalNoGaps(2, 20, 1, 8, 10, 0.07, 0.00, 1);
-		List<CharSequence> AssembleSequences = consensus.makeConsensus(graph);
-		System.out.println("build consensus: " + (System.currentTimeMillis() - ini) / (double) 1000 + " s");
+			List<CharSequence> AssembleSequences = timeGroup("  Build consensus", () -> {
+				ConsensusBuilder consensus = new ConsensusBuilderBidirectionalNoGaps(2, 20, 1, 8, 10, 0.07, 0.00, 1);
+				return consensus.makeConsensus(graph);
+			});
 
-		exportToFile(fileOut, "assembled", AssembleSequences);
+			timeIt("  Export", () -> {
+				try {
+					exportToFile(fileOut, "assembled", AssembleSequences);
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				}
+			});
+		});
 	}
 
 	/**
@@ -159,7 +164,10 @@ public class Assembler {
 	public static void main(String[] args) throws Exception {
 		try {
 			Option option = (args.length > 2) ? Option.valueOf(args[2].trim()) : Option.Normal;
-			new Assembler(args[0], args[1], option);
+			AssemblyConfiguration config = (args.length > 4)
+					? new AssemblyConfiguration(Double.valueOf(args[3]), Double.valueOf(args[4]))
+					: new AssemblyConfiguration();
+			new Assembler(args[0], args[1], option, config);
 		} catch (IllegalArgumentException e) {
 			System.out.println(
 					"Invalid option: '" + args[2] + "' the valid options are: " + Arrays.toString(Option.values()));

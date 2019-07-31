@@ -96,8 +96,6 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				in.add(id);
 			}
 		}
-
-		System.out.println("Emmbeded duplicates removed" );
 	}
 
 	public AssemblyGraph getAssemblyGraph() {
@@ -124,7 +122,6 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				AssemblyEmbedded embedded = new AssemblyEmbedded(sequences.get(embeddedId), emb.getPos(),
 						emb.isReversed());
 
-			
 				if (sequences.get(embeddedId).length() + emb.getPos() > list.get(map[parentId]).length()) {
 					System.out.println("ERRORPREV!!");
 				}
