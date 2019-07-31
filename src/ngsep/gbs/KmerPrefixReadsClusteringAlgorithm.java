@@ -149,6 +149,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		processInfo.addTime(System.nanoTime(), "Cluster reads start");
 		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		List<String> clusteredReadsFilenames = clusterReads();
+		printStatistics("initial");
 		processInfo.addTime(System.nanoTime(), "Cluster reads end");
 		processInfo.addTime(System.nanoTime(), "Variant calling start");
 		//List<String> clusteredReadsFilenames = debug();
@@ -157,7 +158,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		callVariants(clusteredReadsFilenames);
 		processInfo.addTime(System.nanoTime(), "Variant calling end");
 		log.info("Called variants");
-		printStatistics();
+		printStatistics("final");
 		log.info("Process finished");
 	}
 	
@@ -242,7 +243,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					unmatchedReads++;
 					continue;
 				}
-				clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+"_"+clusterId+"_"+read.getName(), s, read.getQualityScores()));
+				clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+"$"+clusterId+"$"+read.getName(), s, read.getQualityScores()));
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
 					log.info("dumping reads");
 					clusteredReadsCache.dump(outPrefix);
@@ -271,7 +272,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
-		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");) {
+		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");
+				PrintStream clusterInfo = new PrintStream(outPrefix+"_clustersInfo.txt");) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			for(int i=0; i<numberOfFiles; i++) {
@@ -284,6 +286,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 			}
 			log.info("Processing a total of " + Integer.toString(numberOfFiles) + " clustered files.");
+			clusterInfo.println("clusterId \t hammingDist \t totNumReads \t numVariants");
 			outVariants.println("clusterId \t position \t alleles \t variantQS");
 			while(numNotNull>0) {
 				//gather reads next cluster
@@ -307,7 +310,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 							alls + "\t" +
 							variant.getVariantQS());	
 				}*/
-				
+				if(numCluster % 1000 == 0) {
+					log.info("Done with cluster: " + Integer.toString(numCluster));
+				}
 				numCluster++;
 			}
 			
@@ -327,7 +332,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		int numCluster = nextCluster.getClusterNumber();
 		while(currentRead!=null) {
 			String readIdWithCluster = currentRead.getName();
-			String [] items = readIdWithCluster.split("_");
+			String [] items = readIdWithCluster.split("\\$");
 			if(items.length < 2) {
 				continue;
 			}
@@ -412,8 +417,38 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		if (variants.size() > 0) {
 			this.numClustersWithVariants++;
 		}
+//		clusterInfo.println(Integer.toString(clusterId) + "\t" +
+//				readCluster.getAvgHammingDist() + "\t" +
+//				readCluster.getNumberOfTotalReads() + "\t" +
+//				variants.size());
+//		if(variants.size()>10) {
+//			printClusterToFile(readCluster, variants);
+//		}
+		
 		return variants;
 	}
+	
+	private void printClusterToFile(ReadCluster readCluster, List<CalledGenomicVariant> variants) throws IOException {
+		int clusterId = readCluster.getClusterNumber();
+		String refSeq = readCluster.getRefSeq();
+		try(PrintStream clusterDetails = new PrintStream(outPrefix+"_"+Integer.toString(clusterId)+"_clusterDetails.txt");) {
+			clusterDetails.println("refSeq \t refSeqLength \t numVariants");
+			clusterDetails.println(refSeq + "\t" + Integer.toString(refSeq.length()) + "\t" + Integer.toString(variants.size()));
+			clusterDetails.println("###########VARIANTS###########");
+			for(CalledGenomicVariant variant:variants) {
+				clusterDetails.println(Integer.toString(variant.getFirst()) + "\t" +
+						variant.getCalledAlleles() + "\t" +
+						Integer.toString(variant.getVariantQS()));
+			}
+			clusterDetails.println("###########READS###########");
+			for(RawRead read:readCluster.getReads()) {
+				clusterDetails.println(read.getSequenceString() + "\t" + Integer.toString(read.getLength()));
+			}
+		}
+
+	}
+	
+	
 	
 	private GenomicVariant findMultiallelicVariant(PileupRecord clusterPileUp, char reference) {
 		// TODO Auto-generated method stub
@@ -425,9 +460,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return null;
 	}
 
-	private void printStatistics() throws IOException {
+	private void printStatistics(String ref) throws IOException {
 		// TODO Implement. Create an output file with process statistics
-		try(PrintStream processStats = new PrintStream(outPrefix+"_processInfo.txt");){
+		try(PrintStream processStats = new PrintStream(outPrefix+"_"+ref+"_processInfo.txt");){
 			processStats.println("Process times:");
 			processStats.print(this.processInfo.getTimes());
 			processStats.println("Number of Files: " + Integer.toString(this.filenamesBySampleId1.size()));
@@ -436,7 +471,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			processStats.println("Number of Clusters with variants: " + Integer.toString(this.numClustersWithVariants));
 			processStats.println("Number of Reads: " + Integer.toString(this.numTotalReads));
 			processStats.println("Number of Unclustered Reads: " + Integer.toString(this.numUnclusteredReads));
-		}	
+		}
 	}
 	
 	/**

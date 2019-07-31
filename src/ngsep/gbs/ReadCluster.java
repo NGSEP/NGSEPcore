@@ -14,14 +14,27 @@ public class ReadCluster {
 	private int totalReads = 0;
 	private int longestRead = 0;
 	private int[][] refSeqTable;
-	private char[] refSeq;
+	private char[] refCharSeq;
+	private boolean refSeqDone;
 	private List<RawRead> reads = new ArrayList<>();
 	private List<String> sampleIds = new ArrayList<>();
+	String refSeq = "";
 	
 	public ReadCluster(int clusterNumber)      
 	{                                                                 
 		this.clusterNumber = clusterNumber;
 		
+	}
+	
+	public double getAvgHammingDist() {
+		if(reads.size() == 0) {
+			return 0;
+		}
+		double totHammingDist = 0;
+		for(RawRead read:reads) {
+			totHammingDist += hammingDist(read.getSequenceString(), getRefSeq());
+		}
+		return totHammingDist / reads.size();
 	}
 	
 	public void addRead(RawRead read, String sampleId) {
@@ -33,10 +46,9 @@ public class ReadCluster {
 		totalReads++;
 	}
 	
-	public String getRefSeq() {
-		String refSeq = "";
+	private void calcRefSeq() {
 		this.refSeqTable = new int[this.longestRead][DNASequence.BASES_ARRAY.length];
-		this.refSeq = new char[this.longestRead];
+		this.refCharSeq = new char[this.longestRead];
 		for(RawRead read:reads) {
 			String s = read.getSequenceString();
 			if(longestRead<s.length()) longestRead = s.length();
@@ -53,14 +65,33 @@ public class ReadCluster {
 			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
 				int next = refSeqTable[i][j];
 				if((max <= next) && (next != 0)){
-					this.refSeq[i] = DNASequence.BASES_STRING.charAt(j);
+					this.refCharSeq[i] = DNASequence.BASES_STRING.charAt(j);
 					max = next;
 				}
-			} refSeq += this.refSeq[i];
+			} this.refSeq += this.refCharSeq[i];
 		}
-		return refSeq;
+		refSeqDone = true;
 	}
 	
+	public String getRefSeq() {
+		if(refSeqDone) {
+			return refSeq;
+		} else {
+			calcRefSeq();
+			return refSeq;
+		}
+
+	}
+
+	private int hammingDist(String str1, String str2) {
+	    int count = 0;
+	    for(int i = 0; i < str1.length(); i++)
+	    {
+	        if (str1.charAt(i) != str2.charAt(i))
+	            count++;
+	    }
+	    return count;
+	}
 	
 	public int getClusterNumber(){
 		return clusterNumber;
