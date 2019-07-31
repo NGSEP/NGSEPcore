@@ -52,7 +52,6 @@ class TreesHitAligner implements HitsAligner {
 	@Override
 	public void Aling(int id_Ref, int id_Lec, boolean isReverse, List<int[]> hits) {
 		clear();
-
 		int[] aux;
 		for (Entry<Integer, List<Integer>> entry : groupByPosRef(hits).entrySet()) {
 			int pRef = entry.getKey();
