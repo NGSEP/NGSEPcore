@@ -64,13 +64,13 @@ public class TillingPopulationSimulator {
 	private ProgressNotifier progressNotifier=null;
 	
 	public static final int DEF_MUTATIONS=100;
-	public static final int DEF_INDIVIDUALS=12;
+	public static final int DEF_INDIVIDUALS=4;
 	public static final int DEF_NUM_FRAGMENTS_POOL=2500;
 	public static final int DEF_READ_LENGTH=100;
 	public static final double DEF_ERROR_RATE=0.00001;
 	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLAQUE_WIDTH=3;
-	public static final int PLAQUE_HEIGHT=4;
+	public static final int PLAQUE_WIDTH=2;
+	public static final int PLAQUE_HEIGHT=2;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -210,7 +210,7 @@ public class TillingPopulationSimulator {
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
 		
-		long startTime = System.currentTimeMillis();
+		long aTime = System.currentTimeMillis();
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
@@ -219,14 +219,18 @@ public class TillingPopulationSimulator {
 		simulatePools();
 		System.out.println("Simulated pools");
 		ArrayList<ArrayList<Double>> errors=generateErrorIntervals();
+		HashMap<Character,ArrayList<Character>> Seq_err= generateMutatedDictionary();
 		
+		long startTime = System.currentTimeMillis();
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
-			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors);
+			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors,Seq_err);
 			System.out.println("Simulated reads pool "+i);
 		}
 		long estimatedTime = System.currentTimeMillis() - startTime;
+		long bTime = System.currentTimeMillis() - aTime;
 		System.out.println(estimatedTime);
+		System.out.println(bTime);
 		
 		
 	}
@@ -417,14 +421,37 @@ public class TillingPopulationSimulator {
 	}
 	
 	/**
+	 * Generates dictionary for determining sequencing errors in reads.
+	 * @param filename Name of the file to write
+	 * @throws IOException 
+	 */
+	public HashMap<Character,ArrayList<Character>> generateMutatedDictionary() throws IOException {
+		HashMap<Character,ArrayList<Character>> SeqErrors = new HashMap<Character,ArrayList<Character>>();
+		
+		ArrayList<Character> A_mut = new ArrayList<Character>(Arrays.asList('T','C','G'));
+		ArrayList<Character> C_mut = new ArrayList<Character>(Arrays.asList('T','A','G'));
+		ArrayList<Character> T_mut = new ArrayList<Character>(Arrays.asList('A','C','G'));
+		ArrayList<Character> G_mut = new ArrayList<Character>(Arrays.asList('T','C','A'));
+		
+		SeqErrors.put('A', A_mut);
+		SeqErrors.put('C', C_mut);
+		SeqErrors.put('T', T_mut);
+		SeqErrors.put('G', G_mut);
+		
+		return SeqErrors;
+	
+	}
+	
+	/**
 	 * Simulates sequencing reads for the given pool of individuals
 	 * @param pool Individuals with allele sequences to simulate reads
 	 * @param file1 Output file for first end of paired end reads
 	 * @param file2 Output file for second end of paired end reads
 	 */
-	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors) throws FileNotFoundException {
+	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos) throws FileNotFoundException {
+		
 		Random random = new Random();
-		String alphabet = DNASequence.BASES_STRING;
+		/*String alphabet = DNASequence.BASES_STRING;*/
 		
 		
 		PrintStream out = new PrintStream(file1);
@@ -445,33 +472,35 @@ public class TillingPopulationSimulator {
 			
 			for(int j=0; j < DEF_READ_LENGTH; j++) {	
 				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
-				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
-				/*System.out.println(String.valueOf(error_prob));*/
-				if(random.nextFloat()<error_prob) {
+				Double error_prob = Math.pow(10.0, phred_score/(-10.0));
+				
+				if(random.nextDouble()<error_prob) {
+					Character mutated = mut_Pos.get(readForward[j]).get(random.nextInt(3));
+					readForward[j]=mutated;
+					/**
 					String mutated = alphabet.replaceAll(Character.toString(readForward[j]), "");
-					readForward[j]=mutated.charAt(random.nextInt(3));
+					readForward[j]=mutated.charAt(random.nextInt(3));**/
 				}
 				int tt_score=phred_score+33;
 				char symbol=(char) tt_score;
 				qualityForward+=Character.toString(symbol);
+				
+				int k=DEF_READ_LENGTH-1-j;
+				
+				if(random.nextDouble()<error_prob) {
+					Character mutated = mut_Pos.get(readReverse[k]).get(random.nextInt(3));
+					readReverse[k]=mutated;
+					/**
+					String mutated = alphabet.replaceAll(Character.toString(readReverse[k]), "");
+					readReverse[k]=mutated.charAt(random.nextInt(3));**/
+				}
+				qualityReverse+=Character.toString(symbol);
 			}
 			
 			out.println(String.valueOf("@Ind"+queryInd.getId()));
 			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
-
-			for(int j=DEF_READ_LENGTH-1; j >= 0; j--) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
-				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
-				if(random.nextFloat()<error_prob) {
-					String mutated = alphabet.replaceAll(Character.toString(readReverse[j]), "");
-					readReverse[j]=mutated.charAt(random.nextInt(3));
-				}
-				int tt_score=phred_score+33;
-				char symbol=(char) tt_score;
-				qualityReverse+=Character.toString(symbol);
-			}
 			
 			out_rev.println(String.valueOf("@Ind"+queryInd.getId()));
 			out_rev.println(readReverse);
