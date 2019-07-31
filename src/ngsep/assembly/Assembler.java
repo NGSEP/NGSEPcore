@@ -82,15 +82,11 @@ public class Assembler {
 	 * @throws IOException The file cannot opened
 	 */
 	public static List<CharSequence> load(String filename) throws IOException {
-		System.out.println("loading file");
-		long ini = System.currentTimeMillis();
 		if (Stream.of(fastq)
 				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			System.out.println("load file" + ((System.currentTimeMillis() - ini) / (double) 1000) + " s");
 			return loadFastq(filename);
 		} else if (Stream.of(fasta)
 				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			System.out.println("load file: " + ((System.currentTimeMillis() - ini) / (double) 1000) + " s");
 			return loadFasta(filename);
 		} else
 			throw new IOException("the file not is a fasta or fastq file: " + filename);

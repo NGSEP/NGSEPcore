@@ -66,6 +66,14 @@ public class AssemblyConfiguration {
 		 * maximum difference of relative position between two hits of the same align
 		 */
 		private int maxKmerDiff;
+		/**
+		 * the lowest rate of kmers to be considered an align
+		 */
+		private double minKmerCoverRate;
+		/**
+		 * the mean of kmers over a letter in the sequence
+		 */
+		private double rate_of_cover;
 
 		public OverlapConfiguration(double changes, double indels) {
 			// Supposing independence
@@ -73,8 +81,11 @@ public class AssemblyConfiguration {
 			kmerLength = (int) (LN2 / rate_of_error);
 			maxKmerDiff = (int) (indels * (LN100000 / rate_of_error));
 			// empirical
-			double rate_of_cover = rate_of_error * 50;
+			rate_of_cover = Math.max(1, rate_of_error * 25);
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
+			// poison of 0 errors
+			minKmerCoverRate = Math.exp(-2 * kmerLength * rate_of_error) / (double) 2;
+
 		}
 
 		/**
@@ -99,6 +110,19 @@ public class AssemblyConfiguration {
 			return maxKmerDiff;
 		}
 
+		/**
+		 * @return the lowest rate of kmers to be considered an align
+		 */
+		public double getMinKmerCoverRate() {
+			return minKmerCoverRate;
+		}
+
+		/**
+		 * @return the mean of kmers over a letter in the sequence
+		 */
+		public double getRate_of_cover() {
+			return rate_of_cover;
+		}
 	}
 
 	public OverlapConfiguration overlap() {

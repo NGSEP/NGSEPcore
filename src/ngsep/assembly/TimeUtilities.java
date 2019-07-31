@@ -33,7 +33,7 @@ public class TimeUtilities {
 			System.out.println(str);
 			long ini = System.currentTimeMillis();
 			T t = callable.call();
-			System.out.println(str + (System.currentTimeMillis() - ini) + " ms");
+			System.out.println(str + " : " + (System.currentTimeMillis() - ini) + " ms");
 			return t;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
