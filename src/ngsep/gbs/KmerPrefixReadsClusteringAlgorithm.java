@@ -51,12 +51,6 @@ import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
 import ngsep.variants.CalledGenomicVariant;
-import ngsep.variants.DiversityStatistics;
-import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantAnnotation;
-import ngsep.vcf.VCFFileHeader;
-import ngsep.vcf.VCFFileWriter;
-import ngsep.vcf.VCFRecord;
 
 /**
  * @author Jorge Gomez
@@ -67,16 +61,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 
 	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
 	private ProgressNotifier progressNotifier = null;
-	
-	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	public static final short DEF_MIN_QUALITY = 40;
-	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+
 	public static final int DEF_KMER_LENGTH = 31;
 	public static final int DEF_START = 8;
 	public static final int DEF_MAX_READS_IN_MEMORY = 1000000;
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
-	
+
 	private String inputDirectory=".";
 	private String outPrefix="./output";
 	private int kmerLength = DEF_KMER_LENGTH;
@@ -84,18 +75,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
 	private Map<String, String> filenamesBySampleId2=new HashMap<>();
 	private DNAShortKmerClusterMap kmersMap;
-	
+
 	private ProcessInfo processInfo = new ProcessInfo();
-	private short minQuality = DEF_MIN_QUALITY;
-	
-	private double heterozygosityRate = DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID;
-	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private int numClustersWithVariants = 0;
 	private int numClusteredFiles;
 	private int numUnclusteredReads = 0;
 	private int numTotalReads = 0;
-	
-	
+
+
 	public static void main(String[] args) throws Exception {
 		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -103,15 +90,15 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		instance.outPrefix = args[i++];
 		instance.run();
 	}
-	
-	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-	
+
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-	
+
 	public Logger getLog() {
 		return log;
 	}
@@ -132,27 +119,27 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public void setKmerLength(int kmerLength) {
 		this.kmerLength = kmerLength;
 	}
-	
+
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public void run() throws IOException {
-		
-		processInfo.addTime(System.nanoTime(), "Load files start");
-		loadFilenamesAndSamples();
-		processInfo.addTime(System.nanoTime(), "Load files end");
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
-		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-		buildKmersMap();
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
-		processInfo.addTime(System.nanoTime(), "Cluster reads start");
-		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-		List<String> clusteredReadsFilenames = clusterReads();
-		printStatistics("initial");
-		processInfo.addTime(System.nanoTime(), "Cluster reads end");
+
+//		processInfo.addTime(System.nanoTime(), "Load files start");
+//		loadFilenamesAndSamples();
+//		processInfo.addTime(System.nanoTime(), "Load files end");
+//		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
+//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+//		buildKmersMap();
+//		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
+//		processInfo.addTime(System.nanoTime(), "Cluster reads start");
+//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+//		List<String> clusteredReadsFilenames = clusterReads();
+//		printStatistics("initial");
+//		processInfo.addTime(System.nanoTime(), "Cluster reads end");
 		processInfo.addTime(System.nanoTime(), "Variant calling start");
-		//List<String> clusteredReadsFilenames = debug();
+		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
@@ -161,12 +148,30 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		printStatistics("final");
 		log.info("Process finished");
 	}
-	
-	private List<String> debug() {		
+
+	private List<String> debug() {
 		log.info("Skipping to call variants");
 		List<String> clusteredReadsFilenames = new ArrayList<>();
-		clusteredReadsFilenames.add("trial_debug_clusteredReads_0.fastq.gz");
-		clusteredReadsFilenames.add("trial_debug_clusteredReads_1.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_0.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_1.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_2.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_3.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_4.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_5.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_6.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_7.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_8.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_9.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_10.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_11.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_12.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_13.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_14.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_15.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_16.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_17.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_18.fastq.gz");
+		clusteredReadsFilenames.add("run_3_clusteredReads_19.fastq.gz");
 		return clusteredReadsFilenames;
 	}
 
@@ -182,8 +187,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 		}
 	}
-	
-	
+
+
 	public void buildKmersMap() throws IOException {
 		kmersMap = new DNAShortKmerClusterMap();
 		for(String filename:filenamesBySampleId1.values()) {
@@ -207,10 +212,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 		}
 		log.info("Processed a total of " + readCount + " reads for file: "+filename);
-		
+
 	}
 	public List<String> clusterReads() throws IOException {
-		ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(); 
+		ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache();
 		for(String sampleId:filenamesBySampleId1.keySet()) {
 			String filename1 = filenamesBySampleId1.get(sampleId);
 			String filename2 = filenamesBySampleId2.get(sampleId);
@@ -259,17 +264,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		// TODO Auto-generated method stub
 		return;
 	}
-	
+
 
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
 		int numberOfFiles = clusteredReadsFilenames.size();
-		
+
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
-		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
-		VCFFileWriter writer = new VCFFileWriter ();
-		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
 		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");
@@ -295,10 +297,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
 					if(currentReads[i]==null) numNotNull--;
 				}
-		
-				List<VCFRecord> records = processCluster(nextCluster, header);
-				writer.printVCFRecords(records, outVariants);
-				/*for(CalledGenomicVariant variant:variants) {
+				List<CalledGenomicVariant> variants = processCluster(nextCluster, clusterInfo);
+				for(CalledGenomicVariant variant:variants) {
 					String[] alleles = variant.getCalledAlleles();
 					String alls = "";
 					for(String allel:alleles) {
@@ -308,25 +308,25 @@ public class KmerPrefixReadsClusteringAlgorithm {
 							variant.getSampleId() + "\t" +
 							Integer.toString(variant.getFirst()) + "\t" +
 							alls + "\t" +
-							variant.getVariantQS());	
-				}*/
+							variant.getVariantQS());
+				}
 				if(numCluster % 1000 == 0) {
 					log.info("Done with cluster: " + Integer.toString(numCluster));
 				}
 				numCluster++;
 			}
-			
+
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
 		}
 	}
-		
-	
-	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, 
+
+
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator,
 			RawRead[] currentReads, int i) throws IOException {
-		
+
 		RawRead currentRead = currentReads[i];
 		int readsAdded = 0;
 		int numCluster = nextCluster.getClusterNumber();
@@ -347,20 +347,22 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			if(iterator.hasNext()) {
 				currentReads[i] = iterator.next();
 				currentRead = currentReads[i];
-				
+
 			} else {
 				log.info("Done with file " + Integer.toString(i) + ".");
 				currentReads[i] = null;
 				currentRead = null;
-				
+
 			}
 		}
 	}
 
-	private List<VCFRecord> processCluster(ReadCluster readCluster, VCFFileHeader vcfFileHeader) {
-		List<VCFRecord> variants = new ArrayList<>();
+	private List<CalledGenomicVariant> processCluster(ReadCluster readCluster, PrintStream clusterInfo) throws IOException {
+
+
+		List<CalledGenomicVariant> variants = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
-		
+
 		int clusterId = readCluster.getClusterNumber();
 		String refSeq = readCluster.getRefSeq();
 		String referenceId = Integer.toString(clusterId);
@@ -368,24 +370,19 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
 		VariantPileupListener variantsDetector = new VariantPileupListener();
 		variantsDetector.setGenome(singleSequenceGenome);
-		
+
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
-		List<RawRead> reads = readCluster.getReads();
-		List<String> sampleIds = readCluster.getSampleIds();
-		for(int i=0;i<reads.size();i++) {
-			RawRead read = reads.get(i);
-			String sampleId = sampleIds.get(i);
+		for(RawRead read:readCluster.getReads()) {
 			int readLength = read.getLength();
-			String CIGARString = Integer.toString(readLength) + "M"; 
+			String CIGARString = Integer.toString(readLength) + "M";
 			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength, readLength, 0);
 			readAlignment.setQualityScores(read.getQualityScores());
 			readAlignment.setReadCharacters(read.getCharacters());
 			readAlignment.setReadName(read.getName());
 			readAlignment.setCigarString(CIGARString);
-			readAlignment.setReadGroup(sampleId);
-			readAlignments.add(readAlignment);	
+			readAlignments.add(readAlignment);
 		}
-		
+
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		// Start at 1? if not, no readAlignments are added to the pileup CHECK.
 		for(int i=0; i<refSeq.length(); i++) {
@@ -394,40 +391,28 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			for(ReadAlignment readAlgn:readAlignments) {
 				clusterPileUp.addAlignment(readAlgn);
 			}
-			GenomicVariant variant = findMultiallelicVariant(clusterPileUp, refSeq.charAt(i));
-			
 			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
-			//CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
-						
+			CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
+
 			if(variant!=null) {
-				List<CalledGenomicVariant> calls = genotypeVariant(variant, clusterPileUp, refSeq.charAt(i));
-				
-				if(variant.getVariantQS()==0 || variant.getVariantQS() < minQuality) continue;
-				//TODO: The variant could be genotyped again with a different heterozygosity rate
-				
-				DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
-				int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
-				VCFRecord record = new VCFRecord(variant, format, calls, vcfFileHeader);
-				record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
-				record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
-				//record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
-				if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+				variant.setSampleId(referenceId);
+				variants.add(variant);
 			}
 		}
 		if (variants.size() > 0) {
 			this.numClustersWithVariants++;
 		}
-//		clusterInfo.println(Integer.toString(clusterId) + "\t" +
-//				readCluster.getAvgHammingDist() + "\t" +
-//				readCluster.getNumberOfTotalReads() + "\t" +
-//				variants.size());
-//		if(variants.size()>10) {
-//			printClusterToFile(readCluster, variants);
-//		}
-		
+		clusterInfo.println(Integer.toString(clusterId) + "\t" +
+				readCluster.getAvgHammingDist() + "\t" +
+				readCluster.getNumberOfTotalReads() + "\t" +
+				variants.size());
+		if(variants.size()>10) {
+			printClusterToFile(readCluster, variants);
+		}
+
 		return variants;
 	}
-	
+
 	private void printClusterToFile(ReadCluster readCluster, List<CalledGenomicVariant> variants) throws IOException {
 		int clusterId = readCluster.getClusterNumber();
 		String refSeq = readCluster.getRefSeq();
@@ -447,18 +432,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 
 	}
-	
-	
-	
-	private GenomicVariant findMultiallelicVariant(PileupRecord clusterPileUp, char reference) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
-	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord clusterPileUp, char reference) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	private void printStatistics(String ref) throws IOException {
 		// TODO Implement. Create an output file with process statistics
@@ -473,9 +447,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			processStats.println("Number of Unclustered Reads: " + Integer.toString(this.numUnclusteredReads));
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 */
 	public void readClustersFromFile(String filename) throws IOException {
 		int readCount = 0;
@@ -492,19 +466,19 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 			}
 		}
-		log.info("Processed a total of " + readCount + " reads for file: "+filename);	
+		log.info("Processed a total of " + readCount + " reads for file: "+filename);
 	}
 }
 
 class ProcessInfo {
-	private List<Long> processTimes = new ArrayList<>(); 
+	private List<Long> processTimes = new ArrayList<>();
 	private List<String> processTimesLabels = new ArrayList<>();
-	
+
 	public void addTime(long time, String label) {
 		processTimes.add(time);
 		processTimesLabels.add(label);
 	}
-	
+
 	public String getTimes() {
 		String timeInfo = "";
 		for(int i=0; i<processTimes.size(); i++) {
@@ -519,7 +493,7 @@ class ClusteredReadsCache {
 	private Map<Integer, Map<String, String>> clusterInfo = new TreeMap<>();
 	private int totalReads = 0;
 	private List<String> outFiles = new ArrayList<>();
-	
+
 	public void addSingleRead(int k, RawRead read) {
 		List<RawRead> readsClusterK = clusteredReadsCache.get(k);
 		if(readsClusterK==null) {
@@ -529,34 +503,34 @@ class ClusteredReadsCache {
 		readsClusterK.add(read);
 		totalReads++;
 	}
-	
+
 	public void addClusterInfo(int k, String key, String value) {
 		Map<String, String> info = clusterInfo.get(k);
 		if(clusterInfo == null) {
-			info = new HashMap<>();		
+			info = new HashMap<>();
 		}
 		info.put(key, value);
 	}
-	
+
 	public Map<String, String> getClusterInfo(int k) {
 		return clusterInfo.get(k);
 	}
-	
+
 	public List<String> getClusteredReadFiles() {
 		return outFiles;
 	}
-	
+
 	public List<RawRead> getClusterReads(int k) {
 		return clusteredReadsCache.get(k);
 	}
-	
+
 	/**
 	 * @return the totalReads
 	 */
 	public int getTotalReads() {
 		return totalReads;
 	}
-	
+
 	/**
 	 * Dumps the cache to the file with the given name and clears this cache
 	 * @param outPrefix prefix of the file to dump the cache
