@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import ngsep.main.io.ParseUtils;
+
 /**
  * This class is used to accumulate values and infer parameters of a
  * distribution from which the given values could be drawn. Useful to build
@@ -45,7 +47,6 @@ public class Distribution {
 	private double maxValueDistribution;
 	private double binLength;
 	
-	private static DecimalFormat format = new DecimalFormat("##0.0#");
 	public Distribution(double minValueDistribution, double maxValueDistribution, double binLength) {
 		super();
 		this.minValueDistribution = minValueDistribution;
@@ -148,28 +149,56 @@ public class Distribution {
 		}
 		return (estimationF+estimationB)/2;
 	}
-	public void printDistribution(PrintStream out) {
-		if(outliersLess.size()>0) out.println("Less\t"+format.format(outliersLess.size()));
-		for(int i=0;i<distribution.length;i++) {
-			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+format.format(binMinimum)+"\t"+format.format(distribution[i]));
-		}
-		if(outliersMore.size()>0) out.println("More\t"+format.format(outliersMore.size()));
-	}
 	public void printDistribution(PrintStream out,double maxValue) {
+		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
 		int valueBin = (int)((maxValue-minValueDistribution)/binLength);
 		for(int i=0;i<distribution.length && i<=valueBin;i++) {
 			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+format.format(binMinimum)+"\t"+format.format(distribution[i]));
+			out.println(""+fmt.format(binMinimum)+"\t"+fmt.format(distribution[i]));
 		}
 	}
+	public void printDistribution(PrintStream out) {
+		printDistribution(out,false);
+	}
 	public void printDistributionInt(PrintStream out) {
-		if(outliersLess.size()>0) out.println("Less\t"+outliersLess.size());
-		for(int i=0;i<distribution.length && i<=distribution.length;i++) {
-			int binMinimum = (int)(minValueDistribution+i*binLength);
-			out.println(""+binMinimum+"\t"+(int)distribution[i]);
+		printDistribution(out,true);
+	}
+	
+	public void printDistribution(PrintStream out, boolean integerCounts) {
+		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
+		if(outliersLess.size()>0) {
+			out.print("Less\t");
+			if(integerCounts) out.println(outliersLess.size());
+			else out.println(fmt.format(outliersLess.size()));
 		}
-		if(outliersMore.size()>0) out.println("More\t"+outliersMore.size());
+		for(int i=0;i<distribution.length;i++) {
+			if(integerCounts) {
+				int binMinimum = (int)(minValueDistribution+i*binLength);
+				out.println(""+binMinimum+"\t"+(int)distribution[i]);
+			} else {
+				double binMinimum = minValueDistribution+i*binLength;
+				out.println(""+fmt.format(binMinimum)+"\t"+fmt.format(distribution[i]));
+			}
+			
+		}
+		if(outliersMore.size()>0) {
+			out.print("More\t");
+			if(integerCounts) out.println(outliersMore.size());
+			else out.println(fmt.format(outliersMore.size()));
+		}
+		out.println("Count\t"+(int)count);
+		if(integerCounts) {
+			out.println("Sum\t"+(int)sum);
+		} else {
+			out.println("Sum\t"+fmt.format(sum));
+		}
+		
+		if(count>0) out.println("Average\t"+fmt.format(getAverage()));
+		if(count>1) {
+			double variance = getVariance();
+			out.println("Variance\t"+fmt.format(variance));
+			out.println("STDev\t"+fmt.format(Math.sqrt(variance)));
+		}
 	}
 
 }

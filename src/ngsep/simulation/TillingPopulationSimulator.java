@@ -63,14 +63,14 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=1000;
-	public static final int DEF_INDIVIDUALS=12;
-	public static final int DEF_NUM_FRAGMENTS_POOL=25000;
+	public static final int DEF_MUTATIONS=100;
+	public static final int DEF_INDIVIDUALS=4;
+	public static final int DEF_NUM_FRAGMENTS_POOL=2500;
 	public static final int DEF_READ_LENGTH=100;
 	public static final double DEF_ERROR_RATE=0.00001;
 	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLAQUE_WIDTH=3;
-	public static final int PLAQUE_HEIGHT=4;
+	public static final int PLAQUE_WIDTH=2;
+	public static final int PLAQUE_HEIGHT=2;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -209,6 +209,8 @@ public class TillingPopulationSimulator {
 	}
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
+		
+		long aTime = System.currentTimeMillis();
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
@@ -216,11 +218,19 @@ public class TillingPopulationSimulator {
 		printMutations(outPrefix+".vcf");
 		simulatePools();
 		System.out.println("Simulated pools");
+		ArrayList<ArrayList<Double>> errors=generateErrorIntervals();
+		HashMap<Character,ArrayList<Character>> Seq_err= generateMutatedDictionary();
+		
+		long startTime = System.currentTimeMillis();
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
-			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq");
+			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors,Seq_err);
 			System.out.println("Simulated reads pool "+i);
 		}
+		long estimatedTime = System.currentTimeMillis() - startTime;
+		long bTime = System.currentTimeMillis() - aTime;
+		System.out.println(estimatedTime);
+		System.out.println(bTime);
 		
 		
 	}
@@ -285,6 +295,7 @@ public class TillingPopulationSimulator {
 		}
 		return targetSequences;
 	}
+	
 
 	/**
 	 * Writes a VCF file with the simulated mutations
@@ -382,19 +393,69 @@ public class TillingPopulationSimulator {
 	}
 
 	/**
-	 * Simulates sequencing reads for the given pool of individuals
-	 * @param pool Individuals with allele sequences to simulate reads
-	 * @param file1 Output file for first end of paired end reads
-	 * @param file2 Output file for second end of paired end reads
+	 * Creates the intervals for which the quality of the reads will be calculated.
+	 * @param filename Name of the file to write
+	 * @throws IOException 
 	 */
-	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2) throws FileNotFoundException {
-		Random random = new Random();
-		String alphabet = DNASequence.BASES_STRING;
+	public ArrayList<ArrayList<Double>> generateErrorIntervals() throws IOException {
 		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
 		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
 		double min_qual= min_quality;
 		double max_qual= max_quality;
 		double interval_length = (max_qual-min_qual)/DEF_READ_LENGTH;
+		
+		ArrayList<Double> ceil_error=new ArrayList<Double>();
+		ArrayList<Double> floor_error=new ArrayList<Double>();
+		ArrayList<ArrayList<Double>> errors=new ArrayList<ArrayList<Double>>();
+				
+		for(int j=0; j < DEF_READ_LENGTH; j++) {	
+			ceil_error.add(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001));
+			floor_error.add(Math.max(max_qual-(j)*interval_length,min_qual));
+		}
+		
+		errors.add(floor_error);
+		errors.add(ceil_error);
+		
+		return errors;
+	
+	}
+	
+	/**
+	 * Generates dictionary for determining sequencing errors in reads. 
+	 * @param filename Name of the file to write
+	 * @throws IOException 
+	 */
+	public HashMap<Character,ArrayList<Character>> generateMutatedDictionary() throws IOException {
+		HashMap<Character,ArrayList<Character>> SeqErrors = new HashMap<Character,ArrayList<Character>>();
+		
+		ArrayList<Character> A_mut = new ArrayList<Character>(Arrays.asList('T','C','G'));
+		ArrayList<Character> C_mut = new ArrayList<Character>(Arrays.asList('T','A','G'));
+		ArrayList<Character> T_mut = new ArrayList<Character>(Arrays.asList('A','C','G'));
+		ArrayList<Character> G_mut = new ArrayList<Character>(Arrays.asList('T','C','A'));
+		
+		SeqErrors.put('A', A_mut);
+		SeqErrors.put('C', C_mut);
+		SeqErrors.put('T', T_mut);
+		SeqErrors.put('G', G_mut);
+		
+		return SeqErrors;
+	
+	}
+	
+	/**
+	 * Simulates sequencing reads for the given pool of individuals.
+	 * To optimize the process, the error probabilities of a read and its reverse are the same. Note that this does not mean that 
+	 * either both neither have an error: one can have an error and the other be correct, but the qualities are going to be the
+	 * same.
+	 * @param pool Individuals with allele sequences to simulate reads
+	 * @param file1 Output file for first end of paired end reads
+	 * @param file2 Output file for second end of paired end reads
+	 */
+	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos) throws FileNotFoundException {
+		
+		Random random = new Random();
+		/*String alphabet = DNASequence.BASES_STRING;*/
+		
 		
 		PrintStream out = new PrintStream(file1);
 		PrintStream out_rev = new PrintStream(file2);
@@ -413,34 +474,36 @@ public class TillingPopulationSimulator {
 			String qualityReverse="";
 			
 			for(int j=0; j < DEF_READ_LENGTH; j++) {	
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
-				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
-				/*System.out.println(String.valueOf(error_prob));*/
-				if(random.nextFloat()<error_prob) {
+				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
+				Double error_prob = Math.pow(10.0, phred_score/(-10.0));
+				
+				if(random.nextDouble()<error_prob) {
+					Character mutated = mut_Pos.get(readForward[j]).get(random.nextInt(3));
+					readForward[j]=mutated;
+					/**
 					String mutated = alphabet.replaceAll(Character.toString(readForward[j]), "");
-					readForward[j]=mutated.charAt(random.nextInt(3));
+					readForward[j]=mutated.charAt(random.nextInt(3));**/
 				}
 				int tt_score=phred_score+33;
 				char symbol=(char) tt_score;
 				qualityForward+=Character.toString(symbol);
+				
+				int k=DEF_READ_LENGTH-1-j;
+				
+				if(random.nextDouble()<error_prob) {
+					Character mutated = mut_Pos.get(readReverse[k]).get(random.nextInt(3));
+					readReverse[k]=mutated;
+					/**
+					String mutated = alphabet.replaceAll(Character.toString(readReverse[k]), "");
+					readReverse[k]=mutated.charAt(random.nextInt(3));**/
+				}
+				qualityReverse+=Character.toString(symbol);
 			}
 			
 			out.println(String.valueOf("@Ind"+queryInd.getId()));
 			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
-
-			for(int j=DEF_READ_LENGTH-1; j >= 0; j--) {
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001),Math.max(max_qual-(j)*interval_length,min_qual)));
-				Double error_prob = Math.pow(10.0, phred_score/(-10.0)); 
-				if(random.nextFloat()<error_prob) {
-					String mutated = alphabet.replaceAll(Character.toString(readReverse[j]), "");
-					readReverse[j]=mutated.charAt(random.nextInt(3));
-				}
-				int tt_score=phred_score+33;
-				char symbol=(char) tt_score;
-				qualityReverse+=Character.toString(symbol);
-			}
 			
 			out_rev.println(String.valueOf("@Ind"+queryInd.getId()));
 			out_rev.println(readReverse);

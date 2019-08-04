@@ -44,9 +44,13 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) 
 	{
 		StringBuilder consensus = new StringBuilder();
+		List<byte[]> consensusCounts = new ArrayList<byte[]>();
 		AssemblyVertex lastVertex = null;
+		int currentPos = 0;
 		for(int j = 0; j < path.size(); j++)
 		{
+			if(j % 10 == 0)
+				System.out.println("J = " + (String.format("%.2f", (j * 100.0 / path.size())) + "%"));
 			//Needed to find which is the origin vertex
 			AssemblyEdge edge = path.get(j);
 			AssemblyVertex a = edge.getVertex1();
@@ -73,7 +77,7 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			
-			
+			//If it's the first edge in the path, add the first read base count to the consensus
 			if(j == 0) 
 			{
 				int seqId = (int) Math.floor(a.getIndex() / 2.0);
@@ -82,7 +86,8 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 					embeddedReads = new ArrayList<AssemblyEmbedded>();
 				String seqA = a.isStart() ? a.getRead().toString() : reverseComplement(a.getRead().toString());
 				boolean reverse = !a.isStart();
-				consensus.append(consensusReadEmbeddeds(seqA, embeddedReads, reverse, 0, a.getRead().length()));
+				consensusCounts.addAll(consensusReadEmbeddeds(seqA, embeddedReads, reverse));
+				currentPos = seqA.length();
 			} 
 			else if(a.getRead() != b.getRead())
 			{
@@ -94,61 +99,31 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 				String nextSequence = b.isStart() ? b.getRead().toString() : reverseComplement(b.getRead().toString());
 				boolean reverse = !b.isStart();
 				
-				if(nextSequence.length() - edge.getOverlap() > tolerance) 
+				List<byte[]> consensusEmbedded = consensusReadEmbeddeds(nextSequence, embeddedReads, reverse);
+				
+				currentPos = currentPos - edge.getOverlap();
+				for(int i = 0; i < consensusEmbedded.size(); i++)
 				{
-					consensus.append(consensusReadEmbeddeds(nextSequence, embeddedReads, reverse, edge.getOverlap(), b.getRead().length()));
-				} 
-				else 
+					if(consensusCounts.size() == currentPos + i)
+						consensusCounts.add(new byte[4]);
+					byte[] consensusEmbeddedBase = consensusEmbedded.get(i);
+					for(int k = 0; k < consensusEmbeddedBase.length; k++)
+					{
+						//Add the base count of the embeddeds count to the global consensus for each base position
+						byte[] consensusBase = consensusCounts.get(currentPos + i);
+						consensusBase[k] += consensusEmbeddedBase[k];
+					}
+				}
+				currentPos = currentPos + nextSequence.length();
+				
+				if(nextSequence.length() - edge.getOverlap() <= tolerance) 
 				{
 					System.err.println("Non embedded edge has overlap: " + edge.getOverlap() + " and length: " + nextSequence.length());
-				}
+				} 
 			}
 			lastVertex = b;
 		}
-		return consensus;
-	}
-	
-	private String consensusReadEmbeddeds(String read, List<AssemblyEmbedded> embeddedReads, boolean reverse, int start, int end)
-	{
-		StringBuilder consensus = new StringBuilder();
-		List<byte[]> consensusCounts = new ArrayList<byte[]>();
-		//Align the read a with its embedded reads
-		String[] alignedOriginRead = SelfAlignment.selfAlign(read, embeddedReads, reverse, match, openGap, extGap, mismatch);
-		for(int k = 0; k < alignedOriginRead.length; k++)
-		{
-			//Get each aligned read
-			String alignedRead = alignedOriginRead[k].toUpperCase();
-			//Get each character of the aligned read
-			for(int l = start; l < end; l++)
-			{
-				char alignedChar = alignedRead.charAt(l);
-				//Add a new element to the consensus count if its size is less 
-				//than the index of the current character relative to the substring that will be added
-				if(consensusCounts.size() <= l - start)
-				{
-					//0 for A, 1 for T, 2 for C, 3 for G
-					byte[] counts = new byte[4];
-					consensusCounts.add(counts);
-				}
-				byte[] counts = consensusCounts.get(l - start);
-				//Depending on the character, sum to the count in the current position
-				switch (alignedChar)
-				{
-					case 'A':
-						counts[0]++;
-						break;
-					case 'T':
-						counts[1]++;
-						break;
-					case 'C':
-						counts[2]++;
-						break;
-					case 'G':
-						counts[3]++;
-						break;
-				}
-			}
-		}
+		
 		//Find the most common occurrence in each position and add the most common character to the consensus
 		for(byte[] counts : consensusCounts)
 		{
@@ -178,7 +153,50 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 			}
 			consensus.append(maxChar);
 		}
-		return consensus.toString();
+		return consensus;
+	}
+	
+	private List<byte[]> consensusReadEmbeddeds(String read, List<AssemblyEmbedded> embeddedReads, boolean reverse)
+	{
+		List<byte[]> consensusCounts = new ArrayList<byte[]>();
+		//Align the read a with its embedded reads
+		String[] alignedOriginRead = SelfAlignment.selfAlign(read, embeddedReads, reverse, match, openGap, extGap, mismatch);
+		for(int k = 0; k < alignedOriginRead.length; k++)
+		{
+			//Get each aligned read
+			String alignedRead = alignedOriginRead[k].toUpperCase();
+			//Get each character of the aligned read
+			for(int l = 0; l < read.length(); l++)
+			{
+				char alignedChar = alignedRead.charAt(l);
+				//Add a new element to the consensus count if its size is less 
+				//than the index of the current character relative to the substring that will be added
+				if(consensusCounts.size() <= l)
+				{
+					//0 for A, 1 for T, 2 for C, 3 for G
+					byte[] counts = new byte[4];
+					consensusCounts.add(counts);
+				}
+				byte[] counts = consensusCounts.get(l);
+				//Depending on the character, sum to the count in the current position
+				switch (alignedChar)
+				{
+					case 'A':
+						counts[0]++;
+						break;
+					case 'T':
+						counts[1]++;
+						break;
+					case 'C':
+						counts[2]++;
+						break;
+					case 'G':
+						counts[3]++;
+						break;
+				}
+			}
+		}
+		return consensusCounts;
 	}
 	
 	private String reverseComplement(String s)
