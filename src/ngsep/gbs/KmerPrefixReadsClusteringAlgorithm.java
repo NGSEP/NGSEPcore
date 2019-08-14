@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
-import gbsAndrea.ObjectBool;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.CountsHelper;
 import ngsep.discovery.PileupRecord;
