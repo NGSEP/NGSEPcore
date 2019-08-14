@@ -32,17 +32,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
+import gbsAndrea.ObjectBool;
 import ngsep.alignments.ReadAlignment;
+import ngsep.discovery.CountsHelper;
 import ngsep.discovery.PileupRecord;
+import ngsep.discovery.VariantDiscoverySNVQAlgorithm;
 import ngsep.discovery.VariantPileupListener;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.DNAShortKmer;
 import ngsep.sequences.DNAShortKmerClusterMap;
@@ -51,9 +56,13 @@ import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.sequencing.ReadsDemultiplex;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.DiversityStatistics;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
+import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.SNV;
+import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -70,12 +79,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final short DEF_MIN_QUALITY = 40;
+	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
 	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final int DEF_KMER_LENGTH = 31;
 	public static final int DEF_START = 8;
 	public static final int DEF_MAX_READS_IN_MEMORY = 1000000;
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
+	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	
 	private String inputDirectory=".";
 	private String outPrefix="./output";
@@ -87,14 +98,17 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private ProcessInfo processInfo = new ProcessInfo();
 	private short minQuality = DEF_MIN_QUALITY;
+	// FIXME What is this value?
+	private int posPrint = -1;
 	
+	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
 	private double heterozygosityRate = DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
+	private byte normalPloidy = DEF_PLOIDY;
 	private int numClustersWithVariants = 0;
 	private int numClusteredFiles;
 	private int numUnclusteredReads = 0;
 	private int numTotalReads = 0;
-	
 	
 	public static void main(String[] args) throws Exception {
 		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
@@ -139,20 +153,20 @@ public class KmerPrefixReadsClusteringAlgorithm {
 
 	public void run() throws IOException {
 		
-		processInfo.addTime(System.nanoTime(), "Load files start");
-		loadFilenamesAndSamples();
-		processInfo.addTime(System.nanoTime(), "Load files end");
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
-		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-		buildKmersMap();
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
-		processInfo.addTime(System.nanoTime(), "Cluster reads start");
-		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-		List<String> clusteredReadsFilenames = clusterReads();
-		printStatistics("initial");
-		processInfo.addTime(System.nanoTime(), "Cluster reads end");
-		processInfo.addTime(System.nanoTime(), "Variant calling start");
-		//List<String> clusteredReadsFilenames = debug();
+//		processInfo.addTime(System.nanoTime(), "Load files start");
+//		loadFilenamesAndSamples();
+//		processInfo.addTime(System.nanoTime(), "Load files end");
+//		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
+//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+//		buildKmersMap();
+//		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
+//		processInfo.addTime(System.nanoTime(), "Cluster reads start");
+//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+//		List<String> clusteredReadsFilenames = clusterReads();
+//		printStatistics("initial");
+//		processInfo.addTime(System.nanoTime(), "Cluster reads end");
+//		processInfo.addTime(System.nanoTime(), "Variant calling start");
+		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
@@ -165,8 +179,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
 		List<String> clusteredReadsFilenames = new ArrayList<>();
-		clusteredReadsFilenames.add("trial_debug_clusteredReads_0.fastq.gz");
-		clusteredReadsFilenames.add("trial_debug_clusteredReads_1.fastq.gz");
+		clusteredReadsFilenames.add("run_8_clusteredReads_0.fastq.gz");
 		return clusteredReadsFilenames;
 	}
 
@@ -269,11 +282,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		RawRead [] currentReads = new RawRead[numberOfFiles];
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		VCFFileWriter writer = new VCFFileWriter ();
+		
 		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
-		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.txt");
-				PrintStream clusterInfo = new PrintStream(outPrefix+"_clustersInfo.txt");) {
+		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants");
+				PrintStream clusterInfo = new PrintStream(outPrefix+"_clustersInfo.txt");
+				PrintStream stream = new PrintStream(outPrefix+"_clustersVariantsInfoDEBUG_1.txt");) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			for(int i=0; i<numberOfFiles; i++) {
@@ -285,9 +300,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					numNotNull++;
 				}
 			}
+			stream.println("clusterNum\tvariatns1\tvariants2\trecords\tundecidedFlag\thomoxygousFlag\tgenotypeQSFlag");
 			log.info("Processing a total of " + Integer.toString(numberOfFiles) + " clustered files.");
 			clusterInfo.println("clusterId \t hammingDist \t totNumReads \t numVariants");
-			outVariants.println("clusterId \t position \t alleles \t variantQS");
 			while(numNotNull>0) {
 				//gather reads next cluster
 				ReadCluster nextCluster = new ReadCluster(numCluster);
@@ -295,21 +310,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
 					if(currentReads[i]==null) numNotNull--;
 				}
-		
-				List<VCFRecord> records = processCluster(nextCluster, header);
+				List<VCFRecord> records = processCluster(nextCluster, header, stream);
+				if(records.size() > 0) {
+					log.info("record for cluster: " + Integer.toString(nextCluster.getClusterNumber()));
+				}
 				writer.printVCFRecords(records, outVariants);
-				/*for(CalledGenomicVariant variant:variants) {
-					String[] alleles = variant.getCalledAlleles();
-					String alls = "";
-					for(String allel:alleles) {
-						alls += allel + " ";
-					}
-					outVariants.println(
-							variant.getSampleId() + "\t" +
-							Integer.toString(variant.getFirst()) + "\t" +
-							alls + "\t" +
-							variant.getVariantQS());	
-				}*/
+				
 				if(numCluster % 1000 == 0) {
 					log.info("Done with cluster: " + Integer.toString(numCluster));
 				}
@@ -320,6 +326,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
+			// XXX Is it necessary to close the VCF writer?
 		}
 	}
 		
@@ -328,7 +335,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			RawRead[] currentReads, int i) throws IOException {
 		
 		RawRead currentRead = currentReads[i];
-		int readsAdded = 0;
 		int numCluster = nextCluster.getClusterNumber();
 		while(currentRead!=null) {
 			String readIdWithCluster = currentRead.getName();
@@ -338,12 +344,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 			String sampleId = items[0];
 			int currentReadCluster = Integer.parseInt(items[1]);
+			// TODO rename reads without cluster info
 			String readId = items[2];
-			//currentRead.setName(readId);
 			if (currentReadCluster>numCluster) break;
 			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorgainzed file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
 			nextCluster.addRead(currentRead, sampleId);
-			readsAdded++;
 			if(iterator.hasNext()) {
 				currentReads[i] = iterator.next();
 				currentRead = currentReads[i];
@@ -357,10 +362,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 
-	private List<VCFRecord> processCluster(ReadCluster readCluster, VCFFileHeader vcfFileHeader) {
-		List<VCFRecord> variants = new ArrayList<>();
+	private List<VCFRecord> processCluster(ReadCluster readCluster, VCFFileHeader vcfFileHeader, PrintStream stream) throws IOException {
+		List<VCFRecord> records = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
-		
+		List<Sample> samples = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		String refSeq = readCluster.getRefSeq();
 		String referenceId = Integer.toString(clusterId);
@@ -375,6 +380,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		for(int i=0;i<reads.size();i++) {
 			RawRead read = reads.get(i);
 			String sampleId = sampleIds.get(i);
+			Sample sample = new Sample(sampleId);
+			sample.setNormalPloidy(normalPloidy);
+			sample.addReadGroup(sampleId);
 			int readLength = read.getLength();
 			String CIGARString = Integer.toString(readLength) + "M"; 
 			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength, readLength, 0);
@@ -384,27 +392,23 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			readAlignment.setCigarString(CIGARString);
 			readAlignment.setReadGroup(sampleId);
 			readAlignments.add(readAlignment);	
-		}
-		
+			samples.add(sample);
+			}
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		// Start at 1? if not, no readAlignments are added to the pileup CHECK.
+		// FIXME Start at 1? if not, no readAlignments are added to the pileup CHECK.
 		for(int i=0; i<refSeq.length(); i++) {
+			
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
-			//  Add the alignments to the pileup record
 			for(ReadAlignment readAlgn:readAlignments) {
 				clusterPileUp.addAlignment(readAlgn);
 			}
-			GenomicVariant variant = findMultiallelicVariant(clusterPileUp, refSeq.charAt(i));
+			GenomicVariant variant = findMultiallelicVariant(samples, clusterPileUp, refSeq.charAt(i), referenceId);
 			
-			//  Use VariantPileuipListener to discover variants from the pileup record for the discovery step variant=null
-			//CalledGenomicVariant variant = variantsDetector.processPileup(clusterPileUp, null);
-						
 			if(variant!=null) {
-				List<CalledGenomicVariant> calls = genotypeVariant(variant, clusterPileUp, refSeq.charAt(i));
-				
+				short varQS = variant.getVariantQS();
+	
+				List<CalledGenomicVariant> calls = genotypeVariant1(varQS, samples, variant, clusterPileUp, refSeq.charAt(i));
 				if(variant.getVariantQS()==0 || variant.getVariantQS() < minQuality) continue;
-				//TODO: The variant could be genotyped again with a different heterozygosity rate
-				
 				DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
 				int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
 				VCFRecord record = new VCFRecord(variant, format, calls, vcfFileHeader);
@@ -412,58 +416,188 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
 				//record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
 				if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+				records.add(record);
+				
 			}
 		}
-		if (variants.size() > 0) {
-			this.numClustersWithVariants++;
-		}
-//		clusterInfo.println(Integer.toString(clusterId) + "\t" +
-//				readCluster.getAvgHammingDist() + "\t" +
-//				readCluster.getNumberOfTotalReads() + "\t" +
-//				variants.size());
-//		if(variants.size()>10) {
-//			printClusterToFile(readCluster, variants);
-//		}
-		
-		return variants;
+		//printVariantClusterInfo(clusterId, variant1, variant2, recordsNum, stream, undecided.getState(), homozygous.getState(), genotypeQS.getState());
+		return records;
 	}
 	
-	private void printClusterToFile(ReadCluster readCluster, List<CalledGenomicVariant> variants) throws IOException {
-		int clusterId = readCluster.getClusterNumber();
-		String refSeq = readCluster.getRefSeq();
-		try(PrintStream clusterDetails = new PrintStream(outPrefix+"_"+Integer.toString(clusterId)+"_clusterDetails.txt");) {
-			clusterDetails.println("refSeq \t refSeqLength \t numVariants");
-			clusterDetails.println(refSeq + "\t" + Integer.toString(refSeq.length()) + "\t" + Integer.toString(variants.size()));
-			clusterDetails.println("###########VARIANTS###########");
-			for(CalledGenomicVariant variant:variants) {
-				clusterDetails.println(Integer.toString(variant.getFirst()) + "\t" +
-						variant.getCalledAlleles() + "\t" +
-						Integer.toString(variant.getVariantQS()));
-			}
-			clusterDetails.println("###########READS###########");
-			for(RawRead read:readCluster.getReads()) {
-				clusterDetails.println(read.getSequenceString() + "\t" + Integer.toString(read.getLength()));
-			}
-		}
-
-	}
-	
-	
-	
-	private GenomicVariant findMultiallelicVariant(PileupRecord clusterPileUp, char reference) {
-		// TODO Auto-generated method stub
-		
-		return null;
+	private void printVariantClusterInfo(int clusterNum, int variants1, int variants2, int records,  PrintStream stream, boolean undecided, boolean homozygous, boolean genotypeQS) throws IOException {
+		stream.println(Integer.toString(clusterNum) + "\t" + 
+				Integer.toString(variants1) + "\t" + 
+				Integer.toString(variants2) + "\t" + 
+				Integer.toString(records) + "\t" + 
+				Boolean.toString(undecided) + "\t" +
+				Boolean.toString(homozygous) + "\t" +
+				Boolean.toString(genotypeQS));
 	}
 
-	private List<CalledGenomicVariant> genotypeVariant(GenomicVariant variant, PileupRecord clusterPileUp, char reference) {
-		// TODO Auto-generated method stub
-		// this must return the list of variants for a specific clusterPileup
-		return null;
+	// From MultisampleVariantsDetector.java
+	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum) {
+		//if(!callEmbeddedSNVs && pileup.isEmbedded()) return null;
+		
+		String referenceAllele = "" + reference;
+		referenceAllele = referenceAllele.toUpperCase();
+		
+		CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(clusterPileUp,maxBaseQS, null);
+		if(clusterPileUp.getPosition()==posPrint) System.out.println("A count: "+helperSNV.getCount("A")+" total: "+helperSNV.getTotalCount() );
+		if(clusterPileUp.getPosition()==posPrint) System.out.println("C count: "+helperSNV.getCount("C")+" total: "+helperSNV.getTotalCount() );
+		if(clusterPileUp.getPosition()==posPrint) System.out.println("G count: "+helperSNV.getCount("G")+" total: "+helperSNV.getTotalCount() );
+		if(clusterPileUp.getPosition()==posPrint) System.out.println("T count: "+helperSNV.getCount("T")+" total: "+helperSNV.getTotalCount() );
+		GenomicVariant variant;
+		variant = findMultiallelicSNV(samples, clusterPileUp, helperSNV, referenceAllele.charAt(0));
+		return variant;
+	}
+	
+	private GenomicVariant findMultiallelicSNV(List<Sample> samples, PileupRecord pileup, CountsHelper helper, char reference) {
+		if(helper.getTotalCount()==0) {
+			return null;
+		}
+		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
+		if(refIdx<0) {
+			//N reference can in principle be handled but it generates  many non variant sites
+			return null;
+		}
+		//Simple method based on relative counts. To improve later
+		int [] counts = helper.getCounts();
+		int sum = NumberArrays.getSum(counts); 
+		if(pileup.getPosition()==posPrint) System.out.println("Refidx: "+refIdx+" sum: "+sum);
+		boolean [] allelesSupported = new boolean [ counts.length];
+		List<String> alleles = new ArrayList<>();
+		alleles.add(DNASequence.BASES_ARRAY[refIdx]);
+		for(int i=0;i<counts.length;i++) {
+			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=minAlleleFrequency;
+			if(allelesSupported[i] && i!=refIdx) {
+				alleles.add(DNASequence.BASES_ARRAY[i]);
+			}
+		}
+		if(pileup.getPosition()==posPrint) System.out.println("Alleles: "+alleles);
+		GenomicVariant variant = null;
+		if(alleles.size()==2) {
+			variant = new SNV(pileup.getSequenceName(), pileup.getPosition(), reference, alleles.get(1).charAt(0));
+			variant.setType(GenomicVariant.TYPE_BIALLELIC_SNV);
+		} else if (alleles.size()>2){
+			variant = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
+			variant.setType(GenomicVariant.TYPE_MULTIALLELIC_SNV);
+			while(true) {
+				List<CalledGenomicVariant> calls = genotypeVariant(samples, variant, pileup, heterozygosityRate);
+				GenomicVariant newVariant = makeNewVariant(variant, calls);
+				if(newVariant!=variant) variant = newVariant;
+				else break;
+			}
+		}
+		
+		return variant;
+	}
+	
+	/**
+	 * 
+	 * @param variant to evaluate
+	 * @param calls Genotype calls for the given variant
+	 * @return GenomicVariant with less alleles or the same variant if it can not be changed
+	 */
+	private GenomicVariant makeNewVariant (GenomicVariant variant, List<CalledGenomicVariant> calls) {
+		if(variant.getAlleles().length<=2) return variant;
+		Set<String> calledAllelesSet = new TreeSet<>();
+		calledAllelesSet.add(variant.getReference());
+		int n = calls.size();
+		for(int i=0;i<n;i++) {
+			CalledGenomicVariant call = calls.get(i);
+			calledAllelesSet.addAll(Arrays.asList(call.getCalledAlleles()));
+		}
+		if(variant.getAlleles().length !=calledAllelesSet.size()) {
+			variant = makeNewVariant(variant,calledAllelesSet);
+		}
+		return variant;
+		
+	}
+	private GenomicVariant makeNewVariant(GenomicVariant variant, Set<String> newAlleles) {
+		if(variant.getFirst()==posPrint) System.out.println("Recoding alleles for "+variant.getFirst()+" alleles: "+Arrays.asList(variant.getAlleles()));
+		List<String> alleles = new ArrayList<>(newAlleles.size());
+		String reference = variant.getReference(); 
+		alleles.add(reference);
+		for(String allele:newAlleles) {
+			if(!allele.equals(reference)) alleles.add(allele);
+		}
+		if(variant.getFirst()==posPrint) System.out.println("New alleles: "+alleles);
+		if(variant.isSNV() && alleles.size()==2) {
+			return new SNV(variant.getSequenceName(), variant.getFirst(), reference.charAt(0), alleles.get(1).charAt(0));
+		}
+		return new GenomicVariantImpl(variant.getSequenceName(), variant.getFirst(), alleles);
+	}
+	
+	/**
+	 * Calls genotypes and updates the variant quality
+	 * @param variant
+	 * @param pileup
+	 * @param h
+	 * @return
+	 */
+	private List<CalledGenomicVariant> genotypeVariant1(short varQS, List<Sample> samples, GenomicVariant variant, PileupRecord pileup, double h) {
+
+		if(pileup.getPosition()==posPrint) System.out.println("Genotyping variant type: "+variant.getType()+" is SNV: "+variant.isSNV()+" alleles: "+Arrays.asList(variant.getAlleles()));
+		List<CalledGenomicVariant> calls = new ArrayList<>();
+		int n = samples.size();
+		boolean variantQS = false;
+		short varqs = 0;
+		for(int i=0;i<n;i++) {
+			Sample sample = samples.get(i);
+			CalledGenomicVariant call = genotypeVariantSample(variant, pileup, sample, h);
+			if(pileup.getPosition()==posPrint) System.out.println("Sample: "+call.getSampleId()+" Genotype: "+Arrays.asList(call.getCalledAlleles())+" GQ: "+call.getGenotypeQuality());
+			if(!call.isUndecided() && !call.isHomozygousReference()) {
+				variantQS = true;
+			}
+			calls.add(call);
+		}
+		if(variantQS) {
+			variant.setVariantQS(varQS);
+		}
+		
+	
+		return calls;
+	}
+	
+	private List<CalledGenomicVariant> genotypeVariant(List<Sample> samples, GenomicVariant variant, PileupRecord pileup, double h) {
+
+		if(pileup.getPosition()==posPrint) System.out.println("Genotyping variant type: "+variant.getType()+" is SNV: "+variant.isSNV()+" alleles: "+Arrays.asList(variant.getAlleles()));
+		List<CalledGenomicVariant> calls = new ArrayList<>();
+		int n = samples.size();
+		short variantQS = 0;
+		for(int i=0;i<n;i++) {
+			Sample sample = samples.get(i);
+			CalledGenomicVariant call = genotypeVariantSample(variant, pileup, sample, h);
+			if(pileup.getPosition()==posPrint) System.out.println("Sample: "+call.getSampleId()+" Genotype: "+Arrays.asList(call.getCalledAlleles())+" GQ: "+call.getGenotypeQuality());
+			if(!call.isUndecided() && !call.isHomozygousReference() && call.getGenotypeQuality()>variantQS) {
+				variantQS = call.getGenotypeQuality();
+			}
+			calls.add(call);
+		}
+		variant.setVariantQS(variantQS);
+		return calls;
+	}
+	
+	private CalledGenomicVariant genotypeVariantSample(GenomicVariant variant, PileupRecord pileup,  Sample sample, double h) {
+		String referenceAllele = variant.getReference();
+		
+		CalledGenomicVariant calledVar = null;
+		if(variant.isSNV()) {
+			CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(pileup, maxBaseQS, sample.getReadGroups());
+			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), h, false);
+		} else {
+			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, maxBaseQS, sample.getReadGroups()); 
+			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
+		}
+		if(calledVar==null) {
+			calledVar = new CalledGenomicVariantImpl(variant, new byte[0]);
+		}
+		calledVar.setSampleId(sample.getId());
+		calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
+		return calledVar;
 	}
 
 	private void printStatistics(String ref) throws IOException {
-		// TODO Implement. Create an output file with process statistics
 		try(PrintStream processStats = new PrintStream(outPrefix+"_"+ref+"_processInfo.txt");){
 			processStats.println("Process times:");
 			processStats.print(this.processInfo.getTimes());
