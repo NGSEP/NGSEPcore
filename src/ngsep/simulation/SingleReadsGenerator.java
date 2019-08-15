@@ -1,4 +1,4 @@
-package ngsep.assembly;
+package ngsep.simulation;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -12,11 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeSet;
+
+import ngsep.assembly.Assembler;
+import ngsep.assembly.SimplifiedAssemblyGraph;
 import ngsep.sequences.DNASequence;
 
-public class TestReadGenerator {
-	private final static double default_rate_of_changes = 0.07;
-	private final static double default_rate_of_cuts = 0.03;
+public class SingleReadsGenerator {
+	private final static double DEF_SUBSTITUTION_ERROR_RATE = 0.02;
+	private final static double DEF_INDEL_ERROR_RATE = 0.01;
 	private final static Random rnd = new Random();
 
 	public static void main(String[] args) throws Exception {
@@ -29,8 +32,8 @@ public class TestReadGenerator {
 		int[] odist = new int[] { Integer.parseInt(args[3]), Integer.parseInt(args[4]) };
 		int numberOfreads = Integer.parseInt(args[5]);
 		int[] dist = new int[] { Integer.parseInt(args[6]), Integer.parseInt(args[7]) };
-		double rateChanges = (args.length > 8) ? Double.parseDouble(args[8]) : default_rate_of_changes;
-		double rateIndels = (args.length > 9) ? Double.parseDouble(args[9]) : default_rate_of_cuts;
+		double rateChanges = (args.length > 8) ? Double.parseDouble(args[8]) : DEF_SUBSTITUTION_ERROR_RATE;
+		double rateIndels = (args.length > 9) ? Double.parseDouble(args[9]) : DEF_INDEL_ERROR_RATE;
 		String pathGraph = (args.length > 10) ? args[10] : null;
 		int minOveralp = (args.length > 11) ? Integer.parseInt(args[11]) : 0;
 
