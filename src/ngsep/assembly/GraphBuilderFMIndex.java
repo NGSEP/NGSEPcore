@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -81,12 +80,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 			calculateHits(seqId, kmerIterator.positiveStrand(sequences.get(seqId)));
 			for (Entry<Integer, List<int[]>> entry : hits.entrySet())
-				if (hits.size() > 1)
+				if (entry.getValue().size() > 1)
 					aligner.Aling(seqId, entry.getKey(), false, entry.getValue());
 
 			calculateHits(seqId, kmerIterator.negativeStrand(sequences.get(seqId)));
 			for (Entry<Integer, List<int[]>> entry : hits.entrySet())
-				if (hits.size() > 1)
+				if (entry.getValue().size() > 1)
 					aligner.Aling(seqId, entry.getKey(), true, entry.getValue());
 		}
 	}
