@@ -133,7 +133,7 @@ class TreesHitAligner implements HitsAligner {
 	}
 
 	private int numberOfKmers(int size) {
-		return size / (config.overlap().getKmerLength() - config.overlap().getKmerDistance());
+		return size / (config.overlap().getKmerLength() + config.overlap().getKmerDistance());
 	}
 
 	private static Map<Integer, List<Integer>> groupByPosRef(List<int[]> hits) {

@@ -81,10 +81,10 @@ public class AssemblyConfiguration {
 			kmerLength = (int) (1.25 * (LN2 / rate_of_error));
 			maxKmerDiff = (int) (indels * (LN100000 / rate_of_error));
 			// empirical
-			rate_of_cover = Math.max(1, rate_of_error * 50);
+			rate_of_cover = Math.max(1, 2);
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
 			// poison of 0 errors
-			minKmerCoverRate = Math.exp(-2 * kmerLength * rate_of_error) / (double) 2;
+			minKmerCoverRate = Math.exp(-2 * kmerLength * rate_of_error);
 
 		}
 
