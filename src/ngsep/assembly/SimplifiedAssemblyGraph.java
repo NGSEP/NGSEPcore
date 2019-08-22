@@ -43,6 +43,9 @@ public class SimplifiedAssemblyGraph implements Serializable {
 		for (Map<Integer, Alignment> aln : edges.values())
 			sum += aln.size();
 		System.out.println("Edges: " + sum);
+		for(Entry<Integer, Map<Integer, Embedded>> en:embbeded.entrySet())
+			for(Integer i:en.getValue().keySet())
+				System.out.println(en.getKey()+" (->) "+i);
 	}
 
 	public int amuontOfEmbeddedSequences() {
