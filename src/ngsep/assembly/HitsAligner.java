@@ -99,6 +99,7 @@ class TreesHitAligner implements HitsAligner {
 		for (int[] aln : tree.subMap(embbedLimit, true, 0, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
 			double rate = aln[0] / (double) numberOfKmers(lenghtLec);
+			
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
@@ -110,6 +111,7 @@ class TreesHitAligner implements HitsAligner {
 		for (int[] aln : tree.subMap(0, true, Integer.MAX_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
 			double rate = aln[0] / (double) numberOfKmers(lenghtLec - pos_Lec);
+			
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
@@ -121,6 +123,7 @@ class TreesHitAligner implements HitsAligner {
 		for (int[] aln : tree.descendingMap().subMap(embbedLimit, true, Integer.MIN_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
 			double rate = aln[0] / (double) numberOfKmers(lenghtRef + pos_Lec);
+
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
@@ -130,7 +133,7 @@ class TreesHitAligner implements HitsAligner {
 	}
 
 	private int numberOfKmers(int size) {
-		return size / (config.overlap().getKmerLength() - config.overlap().getKmerDistance());
+		return size / (config.overlap().getKmerLength() + config.overlap().getKmerDistance());
 	}
 
 	private static Map<Integer, List<Integer>> groupByPosRef(List<int[]> hits) {

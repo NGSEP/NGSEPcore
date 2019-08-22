@@ -36,5 +36,6 @@ public interface GraphBuilder {
 		System.out.println("---------Graph Properties--------------");
 		assemblyGraph.printInfo();
 		System.out.println("---------------------------------------");
+		
 	}
 }
