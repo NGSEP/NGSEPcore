@@ -1,17 +1,11 @@
 package ngsep.assembly;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
-
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.FMIndex;
 
@@ -35,10 +29,9 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences, AssemblyConfiguration config) {
 		this.sequences = sequences;
 		this.config = config;
-		timeIt("    Sort sequences", () -> {
-			// Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length())
-			TestSort(sequences);
-		});
+		if (!isSorted(sequences)) {
+			timeIt("Sort sequences", () -> Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length()));
+		}
 
 		index = timeGroup("    Build FMindex", () -> {
 			FMIndex ans = new FMIndex();
@@ -56,6 +49,16 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			timeIt("      Clean Graph", () -> assemblyGraph.removeAllEmbeddedsIntoGraph());
 		});
 		return assemblyGraph;
+	}
+
+	/**
+	 * @param sequences
+	 */
+	private boolean isSorted(List<CharSequence> sequences) {
+		for (int i = 0; i < sequences.size() - 1; i++)
+			if (sequences.get(i).length() < sequences.get(i + 1).length())
+				return false;
+		return true;
 	}
 
 	public void printRates() {
@@ -103,30 +106,4 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			}
 		}
 	}
-
-	@SuppressWarnings("unused")
-	/**
-	 * method necessary to generate the files to compare with graphComparator
-	 * 
-	 * @param sequences
-	 */
-	private static void TestSort(List<CharSequence> sequences) {
-		PriorityQueue<Entry<Integer, Integer>> heap = new PriorityQueue<>(
-				(Entry<Integer, Integer> l1, Entry<Integer, Integer> l2) -> l2.getKey() - l1.getKey());
-		for (int i = 0; i < sequences.size(); i++)
-			heap.add(new SimpleEntry<>(sequences.get(i).length(), i));
-		try (PrintStream pr = new PrintStream(new FileOutputStream("ind"))) {
-			List<CharSequence> sorted = new ArrayList<>(sequences.size());
-			while (!heap.isEmpty()) {
-				Entry<Integer, Integer> an = heap.poll();
-				sorted.add(sequences.get(an.getValue()));
-				pr.println(an.getValue());
-			}
-			sequences.clear();
-			sequences.addAll(sorted);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-	}
-
 }
