@@ -52,8 +52,7 @@ public class AssemblyConfiguration {
 	}
 
 	class OverlapConfiguration {
-		private static final double LN100000 = 11.51292546; // Natural logarithm of 10000
-		private static final double LN2 = 0.693147806;// Natural logarithm of 2
+		private static final double LN1000000 = 13.815510557964274; // Natural logarithm of 10000
 		/**
 		 * the length of the kmers
 		 */
@@ -78,15 +77,11 @@ public class AssemblyConfiguration {
 		public OverlapConfiguration(double changes, double indels) {
 			// Supposing independence
 			double rate_of_error = changes + indels - changes * indels;
-			kmerLength = (int) (1.25 * (LN2 / rate_of_error));
-			maxKmerDiff = (int) (indels * (LN100000 / rate_of_error));
-			// empirical
-			
-			rate_of_cover = Math.max(1, rate_of_error * 20);
+			kmerLength = (int) (1.2039728043259361 / (2 * rate_of_error));
+			maxKmerDiff = 3 * (int) (indels * (LN1000000 / rate_of_error));
+			rate_of_cover = Math.max(1, rate_of_error * 50);
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
-			// poison of 0 errors
-			minKmerCoverRate = 0.8 * Math.exp(-2 * kmerLength * rate_of_error);
-
+			minKmerCoverRate = 0.125;
 		}
 
 		/**
