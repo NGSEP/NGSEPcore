@@ -1,10 +1,8 @@
 package ngsep.assembly;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeMap;
@@ -59,11 +57,13 @@ class TreesHitAligner implements HitsAligner {
 			for (int posibleKey : entry.getValue()) {
 				int key = closestValidKey(tree, posibleKey, config.overlap().getMaxKmerDiff());
 				if (key == -1)
-					aux = new int[] { 1, pRef, posibleKey + pRef };
+					aux = new int[] { 1, pRef, posibleKey + pRef, 0, 0 };
 				else {
 					remove.add(key);
 					aux = tree.get(key);
 					aux[0]++;
+					aux[3] = pRef;
+					aux[4] = posibleKey + pRef;
 				}
 				keys.add(posibleKey);
 				values.add(aux);
@@ -91,6 +91,8 @@ class TreesHitAligner implements HitsAligner {
 	}
 
 	private void dectect(int id_Ref, int id_Lec, boolean isReverse, TreeMap<Integer, int[]> tree) {
+		double borderRate = 0.15;
+
 		int lenghtRef = sequences.get(id_Ref).length();
 		int lenghtLec = sequences.get(id_Lec).length();
 		int embbedLimit = lenghtLec - lenghtRef;
@@ -99,8 +101,12 @@ class TreesHitAligner implements HitsAligner {
 		for (int[] aln : tree.subMap(embbedLimit, true, 0, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
 			double rate = aln[0] / (double) numberOfKmers(lenghtLec);
-			
+
 			if (rate < config.overlap().getMinKmerCoverRate())
+				continue;
+
+			if (aln[2] > lenghtLec * borderRate
+					|| (aln[4] + config.overlap().getKmerLength()) < lenghtLec * (1 - borderRate))
 				continue;
 
 			sag.addEmbedded(id_Ref, id_Lec, isReverse ? lenghtRef + pos_Lec - lenghtLec : -pos_Lec, isReverse, rate);
@@ -110,9 +116,13 @@ class TreesHitAligner implements HitsAligner {
 		// lec -> ref || lec -> ref'
 		for (int[] aln : tree.subMap(0, true, Integer.MAX_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = aln[0] / (double) numberOfKmers(lenghtLec - pos_Lec);
-			
+			int len = lenghtLec - pos_Lec;
+			double rate = aln[0] / (double) numberOfKmers(len);
+
 			if (rate < config.overlap().getMinKmerCoverRate())
+				continue;
+
+			if (aln[1] > len * borderRate || (aln[4] + config.overlap().getKmerLength()) < len * (1 - borderRate))
 				continue;
 
 			sag.addEdge((id_Lec << 1) + 1, (id_Ref << 1) + (isReverse ? 1 : 0), lenghtLec - pos_Lec, rate);
@@ -122,9 +132,13 @@ class TreesHitAligner implements HitsAligner {
 		// ref -> lec || ref' -> lec
 		for (int[] aln : tree.descendingMap().subMap(embbedLimit, true, Integer.MIN_VALUE, true).values()) {
 			int pos_Lec = aln[2] - aln[1];
-			double rate = aln[0] / (double) numberOfKmers(lenghtRef + pos_Lec);
+			int len = lenghtRef + pos_Lec;
+			double rate = aln[0] / (double) numberOfKmers(len);
 
 			if (rate < config.overlap().getMinKmerCoverRate())
+				continue;
+
+			if (aln[2] > len * borderRate || (aln[3] + config.overlap().getKmerLength()) < len * (1 - borderRate))
 				continue;
 
 			sag.addEdge((id_Ref << 1) + (isReverse ? 0 : 1), id_Lec << 1, lenghtRef + pos_Lec, rate);
@@ -136,8 +150,8 @@ class TreesHitAligner implements HitsAligner {
 		return size / (config.overlap().getKmerLength() + config.overlap().getKmerDistance());
 	}
 
-	private static Map<Integer, List<Integer>> groupByPosRef(List<int[]> hits) {
-		Map<Integer, List<Integer>> group = new HashMap<Integer, List<Integer>>();
+	private static TreeMap<Integer, List<Integer>> groupByPosRef(List<int[]> hits) {
+		TreeMap<Integer, List<Integer>> group = new TreeMap<Integer, List<Integer>>();
 		int prev = -1;
 		List<Integer> list = null;
 		for (int[] hit : hits) {

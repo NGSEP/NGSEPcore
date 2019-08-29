@@ -1,0 +1,270 @@
+package ngsep.assembly;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.RawRead;
+import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.sequences.io.FastqFileReader;
+
+public class GraphQualityAnalyzer {
+	private static final String[] fastq = { ".fastq", ".fastq.gz" };
+	private static final String[] fasta = { ".fasta", ".fa" };
+
+	private SimplifiedAssemblyGraph lec;
+	private SimplifiedAssemblyGraph ref;
+
+	public GraphQualityAnalyzer(SimplifiedAssemblyGraph graph, List<Sequence> sequences) throws FileNotFoundException {
+		this.lec = graph;
+		this.ref = getGraph(sequences);
+
+		System.out.println("-------------PerfectGraph------------------");
+		ref.printInfo();
+		System.out.println("-------------CurrentGraph------------------");
+		lec.printInfo();
+		System.out.println("-------------------------------------------");
+	}
+
+	public void emmbededTest() {
+		Set<Integer> refEmb = new HashSet<>();
+		for (Map<Integer, Embedded> a : ref.getEmbbeded().values())
+			refEmb.addAll(a.keySet());
+
+		Set<Integer> lectEmb = new HashSet<>();
+		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded().entrySet())
+			lectEmb.addAll(a.getValue().keySet());
+
+		int trueP = 0, falseP = 0;
+		for (int i : lectEmb) {
+			if (refEmb.contains(i))
+				trueP++;
+			else
+				falseP++;
+		}
+
+		int falseN = 0;
+		for (int i : refEmb) {
+			if (!lectEmb.contains(i))
+				falseN++;
+		}
+		int trueN = (ref.getSequences().size() - ref.amuontOfEmbeddedSequences()) - falseP;
+
+		System.out.println("Embedded Sequences");
+		System.out.println("false|true");
+		System.out.println("neg= " + falseN + "|" + trueN);
+		System.out.println("pos= " + falseP + "|" + trueP);
+		System.out.println("precision = " + (100 * trueP) / (double) (trueP + falseP) + " %");
+		System.out.println("recall = " + (100 * trueP) / (double) (trueP + falseN) + " %");
+
+		Set<String> refEdg = new HashSet<>();
+		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges().entrySet()) {
+			int id1 = map.getKey();
+			if (lectEmb.contains(id1) && refEmb.contains(id1))
+				for (int id2 : map.getValue().keySet())
+					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
+						refEdg.add(id1 + "-" + id2);
+		}
+
+		Set<String> lecEdg = new HashSet<>();
+		for (Entry<Integer, Map<Integer, Alignment>> map : lec.getEdges().entrySet()) {
+			int id1 = map.getKey();
+			if (lectEmb.contains(id1) && refEmb.contains(id1))
+				for (int id2 : map.getValue().keySet())
+					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
+						lecEdg.add(id1 + "-" + id2);
+		}
+
+		System.out.println();
+		System.out.println(refEdg.size());
+		System.out.println(lecEdg.size());
+
+		trueP = 0;
+		falseP = 0;
+		for (String i : lecEdg) {
+			if (refEdg.contains(i))
+				trueP++;
+			else
+				falseP++;
+		}
+
+		falseN = 0;
+		for (String i : refEdg) {
+			if (!lecEdg.contains(i))
+				falseN++;
+		}
+		trueN = -1;
+
+		System.out.println("edges (without embeddes in both graphs)");
+		System.out.println("false|true");
+		System.out.println("neg= " + falseN + "|" + trueN);
+		System.out.println("pos= " + falseP + "|" + trueP);
+		System.out.println("precision = " + (100 * trueP) / (double) (trueP + falseP) + " %");
+		System.out.println("recall = " + (100 * trueP) / (double) (trueP + falseN) + " %");
+
+		int s = 0, l = 0;
+		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges().entrySet()) {
+			int id1 = map.getKey();
+			if (lectEmb.contains(id1) && refEmb.contains(id1))
+				for (Entry<Integer, Alignment> a : map.getValue().entrySet()) {
+					int id2 = a.getKey();
+					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
+						if (!lecEdg.contains(id1 + "-" + id2)) {
+							s += a.getValue().getOverlap();
+							l++;
+						}
+				}
+		}
+		System.out.println("mean overlap (edgeFalsePositive) = "+(s / (double) l));
+
+	}
+
+	private SimplifiedAssemblyGraph getGraph(List<Sequence> sequences) throws FileNotFoundException {
+		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(getSequences(sequences));
+
+		Map<Integer, List<Sequence>> a = new HashMap<>();
+		for (Sequence s : sequences)
+			a.computeIfAbsent(s.ref, (x) -> new ArrayList<>()).add(s);
+
+		for (List<Sequence> list : a.values())
+			Collections.sort(list, (Sequence x, Sequence y) -> {
+				int ans = x.pos - y.pos;
+				if (ans != 0)
+					return ans;
+				return y.len - x.len;
+			});
+
+		for (List<Sequence> list : a.values()) {
+			for (int i = 0; i < list.size() - 1; i++) {
+				Sequence lect1 = list.get(i);
+				for (int j = i + 1; j < list.size() && list.get(j).pos < lect1.pos + lect1.len; j++) {
+					Sequence lect2 = list.get(j);
+
+					int relativePos = lect2.pos - lect1.pos;
+					if (relativePos + lect2.len > lect1.len)
+						// lect1 -> lect2
+						sag.addEdge((lect1.id << 1) + (lect1.rev ? 0 : 1), (lect2.id << 1) + (lect2.rev ? 1 : 0),
+								lect1.len - relativePos, 1);
+					else {
+						// lect2 into lect1
+						boolean reversed = lect1.rev ^ lect2.rev;
+						relativePos = (lect1.rev) ? lect1.len - lect2.len - relativePos : relativePos;
+						sag.addEmbedded(lect1.id, lect2.id, relativePos, reversed, 1);
+					}
+				}
+			}
+		}
+
+		sag.removeAllEmbeddedsIntoGraph();
+		return sag;
+	}
+
+	private List<CharSequence> getSequences(List<Sequence> sequences) {
+		return sequences.stream().map((Sequence a) -> a.sequence).collect(Collectors.toList());
+	}
+
+	/**
+	 * Load the sequences of the file
+	 * 
+	 * @param Filename the file path
+	 * @return The sequences
+	 * @throws IOException The file cannot opened
+	 */
+	public static List<Sequence> load(String filename) throws IOException {
+		if (Stream.of(fastq)
+				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
+			return loadFastq(filename);
+		} else if (Stream.of(fasta)
+				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
+			return loadFasta(filename);
+		} else
+			throw new IOException("the file not is a fasta or fastq file: " + filename);
+
+	}
+
+	/**
+	 * Load the sequences of the Fasta file
+	 * 
+	 * @param Filename the file path
+	 * @return The sequences
+	 * @throws IOException The file cannot opened
+	 */
+	private static List<Sequence> loadFasta(String filename) throws IOException {
+		List<Sequence> sequences = new ArrayList<>();
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
+		int i = 0;
+		for (QualifiedSequence seq : seqsQl) {
+			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
+			String[] args = seq.getName().split("-");
+			sequences.add(new Sequence(i++, Integer.valueOf(args[1]), Integer.valueOf(args[2]),
+					Boolean.valueOf(args[3]), characters));
+		}
+		return sequences;
+	}
+
+	/**
+	 * Load the sequences of the Fastq file
+	 * 
+	 * @param Filename the file path
+	 * @return The sequences
+	 * @throws IOException The file cannot opened
+	 */
+	private static List<Sequence> loadFastq(String filename) throws IOException {
+		List<Sequence> sequences = new ArrayList<>();
+		try (FastqFileReader reader = new FastqFileReader(filename)) {
+			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
+			reader.setSequenceType(DNAMaskedSequence.class);
+			Iterator<RawRead> it = reader.iterator();
+			int i = 0;
+			while (it.hasNext()) {
+				RawRead read = it.next();
+				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
+				String[] args = read.getName().split("-");
+				sequences.add(new Sequence(i++, Integer.valueOf(args[1]), Integer.valueOf(args[2]),
+						Boolean.valueOf(args[3]), characters));
+			}
+		}
+		return sequences;
+	}
+
+	public static void main(String[] args) throws FileNotFoundException, ClassNotFoundException, IOException {
+		String pathGraph = args[1];
+		SimplifiedAssemblyGraph graph = new SimplifiedAssemblyGraph(pathGraph);
+		String pathLects = args[0];
+		List<Sequence> sequences = load(pathLects);
+		GraphQualityAnalyzer analizer = new GraphQualityAnalyzer(graph, sequences);
+		analizer.emmbededTest();
+	}
+
+	static class Sequence {
+		int id;
+		int ref;
+		int pos;
+		int len;
+		boolean rev;
+		CharSequence sequence;
+
+		public Sequence(int id, int ref, int position, boolean isReversed, CharSequence sequence) {
+			this.id = id;
+			this.ref = ref;
+			this.pos = position;
+			this.len = sequence.length();
+			this.rev = isReversed;
+			this.sequence = sequence;
+		}
+	}
+}
