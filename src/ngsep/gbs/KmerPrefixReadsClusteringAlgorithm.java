@@ -31,6 +31,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Logger;
@@ -182,8 +184,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		int stop = 139;
-		String run = "11";
+		int stop = 21;
+		String run = "12";
 		String prefix = "run_" + run + "_clusteredReads_";
 		String suffix = ".fastq.gz";
 		List<String> clusteredReadsFilenames = new ArrayList<>();
@@ -289,6 +291,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
 		int numberOfFiles = clusteredReadsFilenames.size();
 		
+		
+		
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
@@ -298,9 +302,16 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
-		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");) {
+		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");
+				PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
 			int numNotNull = 0;
 			int numCluster = 0;
+			
+			// save memory usage every 5 seconds
+			memUsage.println("Time(ms)\tMemoryUsage(MB)");
+			Timer timer = new Timer();
+			timer.schedule(new MemoryUsage(memUsage), 0, 5000);
+			
 			for(int i=0; i<numberOfFiles; i++) {
 				readers[i] = new FastqFileReader(clusteredReadsFilenames.get(i));
 				Iterator<RawRead> it = readers[i].iterator();
@@ -318,11 +329,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
 					if(currentReads[i]==null) numNotNull--;
 				}
-				if(nextCluster.getClusterNumber() < 27376) {
-					System.out.print("Skipping cluster: " + nextCluster.getClusterNumber());
-					numCluster++;
-					continue;
-				}
+//				if(nextCluster.getClusterNumber() < 1000000) {
+//					System.out.print("Skipping cluster: " + nextCluster.getClusterNumber());
+//					numCluster++;
+//					continue;
+//				}
 				List<VCFRecord> records = processCluster(nextCluster, header);
 				writer.printVCFRecords(records, outVariants);
 				
@@ -637,6 +648,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 class ProcessInfo {
 	private List<Long> processTimes = new ArrayList<>(); 
 	private List<String> processTimesLabels = new ArrayList<>();
+
 	
 	public void addTime(long time, String label) {
 		processTimes.add(time);
@@ -650,6 +662,29 @@ class ProcessInfo {
 		}
 		return timeInfo;
 	}
+}
+
+class MemoryUsage extends TimerTask {
+	
+	private PrintStream stream;
+	
+	public MemoryUsage(PrintStream stream) {
+		this.stream = stream;
+	}
+	
+    public void run() {
+       saveMemory(); 
+    }
+    
+    private void saveMemory() {
+    	long MB = 1024L * 1024L;
+    	Runtime runtime = Runtime.getRuntime();
+    	long memory = (runtime.totalMemory() - runtime.freeMemory()) / MB;
+    	long time = System.currentTimeMillis();
+    	stream.println(time + "\t" + memory);
+    	
+    }
+    
 }
 
 class ClusteredReadsCache {
