@@ -1,16 +1,12 @@
 package ngsep.assembly;
 
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
 import java.util.Set;
 
 public class LayoutBuilderGreedy implements LayourBuilder 
@@ -23,7 +19,7 @@ public class LayoutBuilderGreedy implements LayourBuilder
 		for (AssemblyEdge assemblyEdge : graph.getEdges()) 
 		{
 			AssemblyVertex v1 = assemblyEdge.getVertex1();
-			AssemblyVertex v2 = assemblyEdge.getVertex2();
+			AssemblyVertex v2 = assemblyEdge.getVertex2();			
 			edges.computeIfAbsent(v1, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 			edges.computeIfAbsent(v2, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 		}
@@ -45,6 +41,7 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					{
 						vertices.add(edge.getVertex1().getIndex() == entry.getKey().getIndex() ? edge.getVertex2().getIndex() : edge.getVertex1().getIndex());
 					}
+					String seq = entry.getKey().getRead().toString();
 					if(vertices.size() == i)
 					{
 						origins.add(entry.getKey());
@@ -63,7 +60,8 @@ public class LayoutBuilderGreedy implements LayourBuilder
 				//Chosen path for origin
 				List<AssemblyEdge> ans = new LinkedList<AssemblyEdge>();
 				//List of used vertices is initialized with the already accepted used vertices
-				Set<Integer> usedVerticesLocal = usedVerticesGlobal;
+				Set<Integer> usedVerticesLocal = new HashSet<Integer>();
+				usedVerticesLocal.addAll(usedVerticesGlobal);
 				//First used vertex is the origin
 				usedVerticesLocal.add(origin.getIndex());
 				boolean end = false;
@@ -108,8 +106,9 @@ public class LayoutBuilderGreedy implements LayourBuilder
 			if(maxPath != null && maxPath.size() > 1)
 			{
 				graph.addPath(maxPath);
-				usedVerticesGlobal.addAll(maxUsedVertices);
 			}
+			usedVerticesGlobal.addAll(maxUsedVertices);
+			
 
 			//Remove from map all vertices that exist in the used vertices list
 			edges.entrySet().removeIf(e -> usedVerticesGlobal.contains(e.getKey().getIndex()));
