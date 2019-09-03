@@ -90,6 +90,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	
+	//TODO calculate from kmersMaps distribution
+	public int MIN_CLUSTER_DEPTH = 100;
+	public int MAX_CLUSTER_DEPTH = 1000;
+	
 	private String inputDirectory=".";
 	private String outPrefix="./output";
 	private int kmerLength = DEF_KMER_LENGTH;
@@ -97,6 +101,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
 	private Map<String, String> filenamesBySampleId2=new HashMap<>();
 	private DNAShortKmerClusterMap kmersMap;
+	private int[] clusterSizes;
+	private List<Sample> samples = new ArrayList<>();
 	
 	private ProcessInfo processInfo = new ProcessInfo();
 	private short minQuality = DEF_MIN_QUALITY;
@@ -111,8 +117,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int numClustersWithGenVariants = 0;
 	private int numClusteredFiles;
 	private int numUnclusteredReadsI = 0;
-	private int numUnclusteredReadsII = 0;
+	private int numReadsLargeClusters = 0;
+	private int numReadsSmallClusters = 0;
 	private int numLargeClusters = 0;
+	private int numSmallClusters = 0;
 	private int numTotalReads = 0;
 	private int numClusterdFilesI = 0;
 	
@@ -157,22 +165,26 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
+	// TODO fix Large and Small cluster count. 
+	
 	public void run() throws IOException {
 		
-//		processInfo.addTime(System.nanoTime(), "Load files start");
-//		loadFilenamesAndSamples();
-//		processInfo.addTime(System.nanoTime(), "Load files end");
-//		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
-//		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
-//		buildKmersMap();
-//		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
-//		processInfo.addTime(System.nanoTime(), "Cluster reads start");
-//		log.info("Built kmers map with "+kmersMap.size()+" clusters");
-//		List<String> clusteredReadsFilenames = clusterReads();
-//		printStatistics("initial");
-//		processInfo.addTime(System.nanoTime(), "Cluster reads end");
-//		processInfo.addTime(System.nanoTime(), "Variant calling start");
-		List<String> clusteredReadsFilenames = debug();
+		processInfo.addTime(System.nanoTime(), "Load files start");
+		loadFilenamesAndSamples();
+		processInfo.addTime(System.nanoTime(), "Load files end");
+		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
+		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
+		buildSamples();
+		buildKmersMap();
+		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
+		processInfo.addTime(System.nanoTime(), "Cluster reads start");
+		log.info("Built kmers map with "+kmersMap.size()+" clusters");
+		this.clusterSizes = new int[kmersMap.size()];
+		List<String> clusteredReadsFilenames = clusterReads();
+		printStatistics("initial");
+		processInfo.addTime(System.nanoTime(), "Cluster reads end");
+		processInfo.addTime(System.nanoTime(), "Variant calling start");		
+//		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
@@ -182,13 +194,24 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Process finished");
 	}
 	
+	private void buildSamples() {
+		for(String sampleName: filenamesBySampleId1.keySet()){
+			Sample sample = new Sample(sampleName);
+			sample.setNormalPloidy(normalPloidy);
+			sample.addReadGroup(sampleName);
+			samples.add(sample);
+		}
+	}
+	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		int stop = 21;
-		String run = "12";
+		int numClusters = 1831958;
+		int stop = 139;
+		String run = "11";
 		String prefix = "run_" + run + "_clusteredReads_";
 		String suffix = ".fastq.gz";
 		List<String> clusteredReadsFilenames = new ArrayList<>();
+		this.clusterSizes = new int[numClusters];
 		for(int i=0;i<=stop;i++) {
 			clusteredReadsFilenames.add(prefix + i + suffix);
 		}
@@ -271,6 +294,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					unmatchedReads++;
 					continue;
 				}
+				clusterSizes[clusterId]++;
 				clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+"$"+clusterId+"$"+read.getName(), s, read.getQualityScores()));
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
 					log.info("dumping reads");
@@ -282,6 +306,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename);
 		}
 	}
+	
 
 	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
 		// TODO Auto-generated method stub
@@ -290,14 +315,17 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
 		int numberOfFiles = clusteredReadsFilenames.size();
-		
-		
-		
+
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		VCFFileWriter writer = new VCFFileWriter ();
+		
+		// add samples to header
+		for(Sample sample: this.samples) {
+			header.addSample(sample, false);
+		}
 		
 		//TODO: Add sample ids to header
 		Arrays.fill(currentReads, null);
@@ -321,25 +349,38 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					numNotNull++;
 				}
 			}
+			// print header
+			writer.printHeader(header, outVariants);
 			log.info("Processing a total of " + Integer.toString(numberOfFiles) + " clustered files.");
 			while(numNotNull>0) {
+				
 				//gather reads next cluster
 				ReadCluster nextCluster = new ReadCluster(numCluster);
 				for(int i=0; i<numberOfFiles; i++) {
-					addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
+					
+					//skip small clusters
+					if(this.clusterSizes[numCluster] < MIN_CLUSTER_DEPTH) {
+						skipCluster(numCluster, iterators.get(i), currentReads, i);
+					}
+					
+					//skip large clusters
+					else if(this.clusterSizes[numCluster] > MAX_CLUSTER_DEPTH) {
+						skipCluster(numCluster, iterators.get(i), currentReads, i);
+					}
+					
+					else {
+						addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
+					}
+					
 					if(currentReads[i]==null) numNotNull--;
 				}
-//				if(nextCluster.getClusterNumber() < 1000000) {
-//					System.out.print("Skipping cluster: " + nextCluster.getClusterNumber());
-//					numCluster++;
-//					continue;
-//				}
+				
 				List<VCFRecord> records = processCluster(nextCluster, header);
 				writer.printVCFRecords(records, outVariants);
 				
-				if(numCluster % 1000 == 0) {
-					log.info("Done with cluster: " + Integer.toString(numCluster));
-				}
+				if(nextCluster.getClusterNumber()%1000 == 0) {
+					System.out.println("Done with cluster " + nextCluster.getClusterNumber());
+				}	
 				numCluster++;
 			}
 			
@@ -347,7 +388,32 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
-			// XXX Is it necessary to close the VCF writer?
+		}
+	}
+	
+	private void skipCluster(Integer numCluster, Iterator<RawRead> iterator, 
+			RawRead[] currentReads, int i) throws IOException {
+		RawRead currentRead = currentReads[i];
+		while(currentRead!=null) {
+			String readIdWithCluster = currentRead.getName();
+			String [] items = readIdWithCluster.split("\\$");
+			if(items.length < 2) {
+				continue;
+			}
+			int currentReadCluster = Integer.parseInt(items[1]);
+			// TODO rename reads without cluster info
+			String readId = items[2];
+			if (currentReadCluster>numCluster) break;
+			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorgainzed file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
+			if(iterator.hasNext()) {
+				currentReads[i] = iterator.next();
+				currentRead = currentReads[i];
+				
+			} else {
+				log.info("Done with file " + Integer.toString(i) + ".");
+				currentReads[i] = null;
+				currentRead = null;				
+			}
 		}
 	}
 		
@@ -387,7 +453,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		boolean clusterWithGenVar = false;
 		List<VCFRecord> records = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
-		List<Sample> samples = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		String refSeq = readCluster.getRefSeq();
 		String referenceId = Integer.toString(clusterId);
@@ -400,23 +465,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		List<RawRead> reads = readCluster.getReads();
 		List<String> sampleIds = readCluster.getSampleIds();
 		
-		// based on cluster depth, look for sub-clusters
-		if(reads.size()>1000) {
-//			List<ReadCluster> subclusters = findSubClusters(readCluster);
-//			for(ReadCluster subcluster:subclusters) {
-//				processCluster(subcluster, vcfFileHeader, stream);
-//			}
-			this.numLargeClusters++;
-			this.numUnclusteredReadsII += reads.size();
-			return records;
-
-		}
 		for(int i=0;i<reads.size();i++) {
 			RawRead read = reads.get(i);
 			String sampleId = sampleIds.get(i);
-			Sample sample = new Sample(sampleId);
-			sample.setNormalPloidy(normalPloidy);
-			sample.addReadGroup(sampleId);
 			int readLength = read.getLength();
 			String CIGARString = Integer.toString(readLength) + "M"; 
 			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength, readLength, 0);
@@ -426,12 +477,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			readAlignment.setCigarString(CIGARString);
 			readAlignment.setReadGroup(sampleId);
 			readAlignments.add(readAlignment);	
-			vcfFileHeader.addSample(sample, false);
-			samples.add(sample);
 			}
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		// FIXME Start at 1? if not, no readAlignments are added to the pileup CHECK.
 		System.out.println("Cluster " + referenceId);
 		for(int i=1; i<=refSeq.length(); i++) {
 			
@@ -613,13 +661,15 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			processStats.print(this.processInfo.getTimes());
 			processStats.println("Number of Files: " + Integer.toString(this.filenamesBySampleId1.size()));
 			processStats.println("Number of Cluster Files: " + Integer.toString(this.numClusteredFiles));
-			processStats.println("Number of Clusters: " + Integer.toString(kmersMap.size()));
+			if(kmersMap != null) processStats.println("Number of Clusters: " + Integer.toString(kmersMap.size()));
 			processStats.println("Number of Clusters with called variants: " + Integer.toString(this.numClustersWithCalledVariants));
 			processStats.println("Number of Clusters with genotyped variants: " + Integer.toString(this.numClustersWithGenVariants));
 			processStats.println("Number of Large Clusters (>1000): " + Integer.toString(this.numLargeClusters));
+			processStats.println("Number of Small Clusters (<10): " + Integer.toString(this.numSmallClusters));
 			processStats.println("Number of Reads: " + Integer.toString(this.numTotalReads));
 			processStats.println("Number of Unclustered Reads I: " + Integer.toString(this.numUnclusteredReadsI));
-			processStats.println("Number of Unclustered Reads II: " + Integer.toString(this.numUnclusteredReadsII));
+			processStats.println("Number of Reads in Large Clusters: " + Integer.toString(this.numReadsLargeClusters));
+			processStats.println("Number of Reads in Small Clusters: " + Integer.toString(this.numReadsSmallClusters));
 		}
 	}
 	
