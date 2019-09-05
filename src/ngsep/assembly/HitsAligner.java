@@ -91,7 +91,7 @@ class TreesHitAligner implements HitsAligner {
 	}
 
 	private void dectect(int id_Ref, int id_Lec, boolean isReverse, TreeMap<Integer, int[]> tree) {
-		double borderRate = 0.15;
+		int borderRate = 100 * config.overlap().getKmerLength();
 
 		int lenghtRef = sequences.get(id_Ref).length();
 		int lenghtLec = sequences.get(id_Lec).length();
@@ -105,8 +105,7 @@ class TreesHitAligner implements HitsAligner {
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
-			if (aln[2] > lenghtLec * borderRate
-					|| (aln[4] + config.overlap().getKmerLength()) < lenghtLec * (1 - borderRate))
+			if (aln[2] > borderRate || (aln[4] + config.overlap().getKmerLength()) < lenghtLec - borderRate)
 				continue;
 
 			sag.addEmbedded(id_Ref, id_Lec, isReverse ? lenghtRef + pos_Lec - lenghtLec : -pos_Lec, isReverse, rate);
@@ -122,7 +121,7 @@ class TreesHitAligner implements HitsAligner {
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
-			if (aln[1] > len * borderRate || (aln[4] + config.overlap().getKmerLength()) < len * (1 - borderRate))
+			if (aln[1] > borderRate || (aln[4] + config.overlap().getKmerLength() - pos_Lec) < len - borderRate)
 				continue;
 
 			sag.addEdge((id_Lec << 1) + 1, (id_Ref << 1) + (isReverse ? 1 : 0), lenghtLec - pos_Lec, rate);
@@ -138,7 +137,7 @@ class TreesHitAligner implements HitsAligner {
 			if (rate < config.overlap().getMinKmerCoverRate())
 				continue;
 
-			if (aln[2] > len * borderRate || (aln[3] + config.overlap().getKmerLength()) < len * (1 - borderRate))
+			if (aln[2] > borderRate || (aln[3] + config.overlap().getKmerLength() + pos_Lec) < len - borderRate)
 				continue;
 
 			sag.addEdge((id_Ref << 1) + (isReverse ? 0 : 1), id_Lec << 1, lenghtRef + pos_Lec, rate);

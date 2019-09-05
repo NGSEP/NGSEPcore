@@ -25,8 +25,8 @@ package ngsep.assembly;
  *
  */
 public class AssemblyConfiguration {
-	private final static double DEFAULT_RATE_OF_CHANGES = 0.04;
-	private final static double DEFAULT_RATE_OF_INDELS = 0.03;
+	private final static double DEFAULT_RATE_OF_CHANGES = 0.02;
+	private final static double DEFAULT_RATE_OF_INDELS = 0.01;
 
 	/**
 	 * Configuration of Overlap step
@@ -77,11 +77,11 @@ public class AssemblyConfiguration {
 		public OverlapConfiguration(double changes, double indels) {
 			// Supposing independence
 			double rate_of_error = changes + indels - changes * indels;
-			kmerLength = (int) (1.2039728043259361 / (2 * rate_of_error));
+			kmerLength = (int) (2.302585092994/ (2 * rate_of_error));
 			maxKmerDiff = 3 * (int) (indels * (LN1000000 / rate_of_error));
-			rate_of_cover = Math.max(1, rate_of_error * 50);
+			rate_of_cover = 4;
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
-			minKmerCoverRate = 0.125;
+			minKmerCoverRate = 0.02;
 		}
 
 		/**

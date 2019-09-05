@@ -27,10 +27,12 @@ public class GraphQualityAnalyzer {
 
 	private SimplifiedAssemblyGraph lec;
 	private SimplifiedAssemblyGraph ref;
+	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(SimplifiedAssemblyGraph graph, List<Sequence> sequences) throws FileNotFoundException {
+	public GraphQualityAnalyzer(SimplifiedAssemblyGraph graph, String pathLects) throws IOException {
 		this.lec = graph;
-		this.ref = getGraph(sequences);
+		this.nams = load(pathLects);
+		this.ref = getGraph(nams);
 
 		System.out.println("-------------PerfectGraph------------------");
 		ref.printInfo();
@@ -49,11 +51,36 @@ public class GraphQualityAnalyzer {
 			lectEmb.addAll(a.getValue().keySet());
 
 		int trueP = 0, falseP = 0;
-		for (int i : lectEmb) {
-			if (refEmb.contains(i))
-				trueP++;
-			else
-				falseP++;
+		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded().entrySet()) {
+			for (Entry<Integer, Embedded> b : a.getValue().entrySet()) {
+				int i = b.getKey();
+				if (refEmb.contains(i))
+					trueP++;
+				else {
+					int h = nams.get(a.getKey()).pos + nams.get(a.getKey()).len;
+					int j = nams.get(i).pos + nams.get(i).len;
+					int tope = (int) (ref.getSequences().get(i).length() * 0.005);
+					if (Math.abs(h - j) <= tope || Math.abs(nams.get(a.getKey()).pos - nams.get(i).pos) <= tope) {
+						trueP++;
+					} else {
+						falseP++;
+						System.out.println("falso embebido");
+						System.out.println("seq(" + i + ")" + " emb seq(" + a.getKey() + ")");
+						System.out.println(b.getValue().getPos());
+						System.out.println(b.getValue().getRate());
+						System.out.println(b.getValue().isReversed());
+						System.out.println("--------------------------------");
+						System.out.println(nams.get(a.getKey()));
+						System.out.println(nams.get(i));
+						System.out.println("--------------------------------");
+						System.out.println(">ref");
+						System.out.println(ref.getSequences().get(a.getKey()));
+						System.out.println(">lect");
+						System.out.println(ref.getSequences().get(i));
+					}
+				}
+			}
+
 		}
 
 		int falseN = 0;
@@ -128,7 +155,7 @@ public class GraphQualityAnalyzer {
 						}
 				}
 		}
-		System.out.println("mean overlap (edgeFalsePositive) = "+(s / (double) l));
+		System.out.println("mean overlap (edgeFalsePositive) = " + (s / (double) l));
 
 	}
 
@@ -183,7 +210,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public static List<Sequence> load(String filename) throws IOException {
+	public List<Sequence> load(String filename) throws IOException {
 		if (Stream.of(fastq)
 				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
 			return loadFastq(filename);
@@ -202,7 +229,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<Sequence> loadFasta(String filename) throws IOException {
+	private List<Sequence> loadFasta(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
@@ -223,7 +250,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<Sequence> loadFastq(String filename) throws IOException {
+	private List<Sequence> loadFastq(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
@@ -245,8 +272,7 @@ public class GraphQualityAnalyzer {
 		String pathGraph = args[1];
 		SimplifiedAssemblyGraph graph = new SimplifiedAssemblyGraph(pathGraph);
 		String pathLects = args[0];
-		List<Sequence> sequences = load(pathLects);
-		GraphQualityAnalyzer analizer = new GraphQualityAnalyzer(graph, sequences);
+		GraphQualityAnalyzer analizer = new GraphQualityAnalyzer(graph, pathLects);
 		analizer.emmbededTest();
 	}
 
@@ -265,6 +291,11 @@ public class GraphQualityAnalyzer {
 			this.len = sequence.length();
 			this.rev = isReversed;
 			this.sequence = sequence;
+		}
+
+		@Override
+		public String toString() {
+			return "Sequence [id=" + id + ", ref=" + ref + ", pos=" + pos + ", len=" + len + ", rev=" + rev + "]";
 		}
 	}
 }
