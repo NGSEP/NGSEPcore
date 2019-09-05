@@ -59,7 +59,7 @@ public class GraphQualityAnalyzer {
 				else {
 					int h = nams.get(a.getKey()).pos + nams.get(a.getKey()).len;
 					int j = nams.get(i).pos + nams.get(i).len;
-					int tope = (int) (ref.getSequences().get(i).length() * 0.005);
+					int tope = (int) (ref.getSequences().get(i).length() * 0.01);
 					if (Math.abs(h - j) <= tope || Math.abs(nams.get(a.getKey()).pos - nams.get(i).pos) <= tope) {
 						trueP++;
 					} else {
