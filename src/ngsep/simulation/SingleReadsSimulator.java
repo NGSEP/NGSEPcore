@@ -161,18 +161,22 @@ public class SingleReadsSimulator {
 				String read = null;
 				for(int j=0;j<100;j++) {
 					readLength = (int) (rnd.nextGaussian() * stdevReadlength + meanReadLength);
-					nextStart = rnd.nextLong()%(totalLength-readLength);
+					long nextLong = rnd.nextLong();
+					nextStart = nextLong%(totalLength-readLength);
+					if(nextStart<0) continue;
+					
 					int idx1 = Arrays.binarySearch(cumulativeStarts, nextStart);
 					
 					int sequenceIdx;
 					if(idx1>=0) sequenceIdx = idx1;
 					else {
 						//TODO: Choose actual chromosome
-						sequenceIdx = 0;
+						sequenceIdx = -idx1-2;
 					}
-					
+					if(sequenceIdx<0)System.out.println("Next start: "+nextStart+" idx: "+sequenceIdx);
 					seq = genome.getSequenceByIndex(sequenceIdx);
 					relStart = (int) (nextStart-cumulativeStarts[sequenceIdx]);
+					if(relStart<0) System.out.println("Next start: "+nextStart+" seq: "+seq.getName()+" idx: "+sequenceIdx+" start seq: "+cumulativeStarts[sequenceIdx]);
 					int relEnd = relStart+readLength; 
 					if(relEnd<=seq.getLength()) {
 						read = seq.getCharacters().subSequence(relStart, relEnd).toString();

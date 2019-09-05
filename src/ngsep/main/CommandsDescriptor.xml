@@ -1102,12 +1102,24 @@ Generates random single reads from a given reference genome
 </intro>
 <title>Simulating reads</title>
 <description>
-Generates random single reads from a given reference genome
+Generates single reads randomly distributed from a given reference genome. 
 </description>
 <argument>REFERENCE_GENOME</argument>
 <argument>OUT_READS_FILE</argument>
 <option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
 Number of reads
+</option>
+<option id="u" type="INT" attribute="meanReadLength" defaultConstant="DEF_MEAN_READ_LENGTH">
+Average read length
+</option>
+<option id="s" type="INT" attribute="stdevReadlength" defaultConstant="DEF_STDEV_READ_LENGTH">
+Standard deviation read length
+</option>
+<option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
+Substitution error rate
+</option>
+<option id="i" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
+Indel error rate
 </option>
 </command>
 
