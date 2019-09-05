@@ -64,19 +64,19 @@ public class GraphQualityAnalyzer {
 						trueP++;
 					} else {
 						falseP++;
-						System.out.println("falso embebido");
-						System.out.println("seq(" + i + ")" + " emb seq(" + a.getKey() + ")");
-						System.out.println(b.getValue().getPos());
-						System.out.println(b.getValue().getRate());
-						System.out.println(b.getValue().isReversed());
-						System.out.println("--------------------------------");
-						System.out.println(nams.get(a.getKey()));
-						System.out.println(nams.get(i));
-						System.out.println("--------------------------------");
-						System.out.println(">ref");
-						System.out.println(ref.getSequences().get(a.getKey()));
-						System.out.println(">lect");
-						System.out.println(ref.getSequences().get(i));
+//						System.out.println("falso embebido");
+//						System.out.println("seq(" + i + ")" + " emb seq(" + a.getKey() + ")");
+//						System.out.println(b.getValue().getPos());
+//						System.out.println(b.getValue().getRate());
+//						System.out.println(b.getValue().isReversed());
+//						System.out.println("--------------------------------");
+//						System.out.println(nams.get(a.getKey()));
+//						System.out.println(nams.get(i));
+//						System.out.println("--------------------------------");
+//						System.out.println(">ref");
+//						System.out.println(ref.getSequences().get(a.getKey()));
+//						System.out.println(">lect");
+//						System.out.println(ref.getSequences().get(i));
 					}
 				}
 			}
