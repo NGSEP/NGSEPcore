@@ -1096,4 +1096,19 @@ extracted from annotated regions with homozygous reference genotypes
 </option>
 </command>
 
+<command id="SingleReadsSimulator" class="ngsep.simulation.SingleReadsSimulator">
+<intro>
+Generates random single reads from a given reference genome
+</intro>
+<title>Simulating reads</title>
+<description>
+Generates random single reads from a given reference genome
+</description>
+<argument>REFERENCE_GENOME</argument>
+<argument>OUT_READS_FILE</argument>
+<option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
+Number of reads
+</option>
+</command>
+
 </NGSEP>
