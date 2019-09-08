@@ -20,15 +20,8 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	AlignmentAffineGap aligner;
 	boolean startConsensus = true;
 	
-	public ConsensusBuilderBidirectionalFMIndex(int match, int openGap, int extGap, int mismatch, int windowSize, double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) 
+	public ConsensusBuilderBidirectionalFMIndex() 
 	{
-		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
-		this.match = match;
-		this.openGap = openGap;
-		this.extGap = extGap;
-		this.mismatch = mismatch;
-		this.windowSize = windowSize;
-		this.tolerance = (int) (Rate_of_cuts * (11.51292546 / rate_of_error));;
 		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
 	}
 	
