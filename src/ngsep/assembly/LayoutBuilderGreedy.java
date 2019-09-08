@@ -19,7 +19,8 @@ public class LayoutBuilderGreedy implements LayourBuilder
 		for (AssemblyEdge assemblyEdge : graph.getEdges()) 
 		{
 			AssemblyVertex v1 = assemblyEdge.getVertex1();
-			AssemblyVertex v2 = assemblyEdge.getVertex2();			
+			AssemblyVertex v2 = assemblyEdge.getVertex2();
+			
 			edges.computeIfAbsent(v1, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 			edges.computeIfAbsent(v2, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
 		}
@@ -103,11 +104,16 @@ public class LayoutBuilderGreedy implements LayourBuilder
 				}
 			}
 			//Adds the longest path to the list of paths of the graph if it has more than one edge
-			if(maxPath != null && maxPath.size() > 1)
+			if(maxPath != null && maxPath.size() > 5)
 			{
 				graph.addPath(maxPath);
 			}
 			usedVerticesGlobal.addAll(maxUsedVertices);
+			//If the maximum path has 5 vertices, don't build more contigs
+			if (maxPath.size() <= 5)
+			{
+				break;
+			}
 			
 
 			//Remove from map all vertices that exist in the used vertices list
