@@ -60,7 +60,7 @@ public class Assembler {
 			});
 
 			List<CharSequence> AssembleSequences = timeGroup("  Build consensus", () -> {
-				ConsensusBuilder consensus = new ConsensusBuilderBidirectionalNoGaps(2, 20, 1, 8, 10, 0.07, 0.00, 1);
+				ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
 				return consensus.makeConsensus(graph);
 			});
 

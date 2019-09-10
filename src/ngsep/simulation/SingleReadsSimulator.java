@@ -16,9 +16,10 @@ import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 
 public class SingleReadsSimulator {
-	
+
 	private Logger log = Logger.getLogger(SingleReadsSimulator.class.getName());
-	private ProgressNotifier progressNotifier=null;
+	private ProgressNotifier progressNotifier = null;
+
 	public final static int DEF_NUM_READS = 30000;
 	public final static int DEF_MEAN_READ_LENGTH = 10000;
 	public final static int DEF_STDEV_READ_LENGTH = 2000;
@@ -30,11 +31,23 @@ public class SingleReadsSimulator {
 	private int stdevReadlength = DEF_STDEV_READ_LENGTH;
 	private double substitutionErrorRate = DEF_SUBSTITUTION_ERROR_RATE;
 	private double indelErrorRate = DEF_INDEL_ERROR_RATE;
-	
+
 	private ReferenceGenome genome;
-	
-	
-	
+
+	/**
+	 * @return the progressNotifier
+	 */
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+	/**
+	 * @param progressNotifier the progressNotifier to set
+	 */
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
 	/**
 	 * @return the numberOfReads
 	 */
@@ -48,7 +61,7 @@ public class SingleReadsSimulator {
 	public void setNumberOfReads(int numberOfReads) {
 		this.numberOfReads = numberOfReads;
 	}
-	
+
 	public void setNumberOfReads(String value) {
 		this.setNumberOfReads((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
@@ -67,6 +80,10 @@ public class SingleReadsSimulator {
 		this.meanReadLength = meanReadLength;
 	}
 
+	public void setMeanReadLength(String value) {
+		this.setMeanReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
 	/**
 	 * @return the stdevReadlength
 	 */
@@ -75,10 +92,28 @@ public class SingleReadsSimulator {
 	}
 
 	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	/**
 	 * @param stdevReadlength the stdevReadlength to set
 	 */
 	public void setStdevReadlength(int stdevReadlength) {
 		this.stdevReadlength = stdevReadlength;
+	}
+
+	public void setStdevReadlength(String value) {
+		this.setStdevReadlength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	/**
@@ -95,6 +130,10 @@ public class SingleReadsSimulator {
 		this.substitutionErrorRate = substitutionErrorRate;
 	}
 
+	public void setSubstitutionErrorRate(String value) {
+		this.setSubstitutionErrorRate((double) OptionValuesDecoder.decode(value, Double.class));
+	}
+
 	/**
 	 * @return the indelErrorRate
 	 */
@@ -107,6 +146,10 @@ public class SingleReadsSimulator {
 	 */
 	public void setIndelErrorRate(double indelErrorRate) {
 		this.indelErrorRate = indelErrorRate;
+	}
+
+	public void setIndelErrorRate(String value) {
+		this.setIndelErrorRate((double) OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	/**
@@ -128,7 +171,7 @@ public class SingleReadsSimulator {
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String referenceFile = args[i++];
 		String outReads = args[i++];
-		
+
 		instance.genome = new ReferenceGenome(referenceFile);
 		instance.printInfo(referenceFile, outReads);
 		instance.calculate(outReads);
@@ -138,7 +181,8 @@ public class SingleReadsSimulator {
 		System.out.println("Reference path: " + referenceFile);
 		System.out.println("Out file path: " + outReads);
 		System.out.println("Reference total length:" + genome.getTotalLength());
-		System.out.println("Reads:" + numberOfReads + "   ~N(mean: " + meanReadLength + ", sdev: " + stdevReadlength + ")");
+		System.out.println(
+				"Reads:" + numberOfReads + "   ~N(mean: " + meanReadLength + ", sdev: " + stdevReadlength + ")");
 		System.out.println("Substitution error rate: " + substitutionErrorRate);
 		System.out.println("Indel error rate: " + indelErrorRate);
 	}
@@ -146,59 +190,64 @@ public class SingleReadsSimulator {
 	private void calculate(String outPath) throws IOException {
 		long totalLength = genome.getTotalLength();
 		int nSeqs = genome.getNumSequences();
-		long [] cumulativeStarts = new long [nSeqs];
+		long[] cumulativeStarts = new long[nSeqs];
 		cumulativeStarts[0] = 0;
-		for(int i=1;i<nSeqs;i++) {
-			cumulativeStarts[i] = cumulativeStarts[i-1]+genome.getSequenceByIndex(i-1).getLength(); 
+		for (int i = 1; i < nSeqs; i++) {
+			cumulativeStarts[i] = cumulativeStarts[i - 1] + genome.getSequenceByIndex(i - 1).getLength();
 		}
 		try (PrintStream out = new PrintStream(outPath)) {
 			for (int i = 0; i < numberOfReads; i++) {
 				int readLength;
 				long nextStart;
-				QualifiedSequence seq=null;
-				int relStart=0;
-				byte reverse=0;
+				QualifiedSequence seq = null;
+				int relStart = 0;
+				byte reverse = 0;
 				String read = null;
-				for(int j=0;j<100;j++) {
+				for (int j = 0; j < 100; j++) {
 					readLength = (int) (rnd.nextGaussian() * stdevReadlength + meanReadLength);
 					long nextLong = rnd.nextLong();
-					nextStart = nextLong%(totalLength-readLength);
-					if(nextStart<0) continue;
-					
+					nextStart = nextLong % (totalLength - readLength);
+					if (nextStart < 0)
+						continue;
+
 					int idx1 = Arrays.binarySearch(cumulativeStarts, nextStart);
-					
+
 					int sequenceIdx;
-					if(idx1>=0) sequenceIdx = idx1;
+					if (idx1 >= 0)
+						sequenceIdx = idx1;
 					else {
-						//TODO: Choose actual chromosome
-						sequenceIdx = -idx1-2;
+						// TODO: Choose actual chromosome
+						sequenceIdx = -idx1 - 2;
 					}
-					if(sequenceIdx<0)System.out.println("Next start: "+nextStart+" idx: "+sequenceIdx);
+					if (sequenceIdx < 0)
+						System.out.println("Next start: " + nextStart + " idx: " + sequenceIdx);
 					seq = genome.getSequenceByIndex(sequenceIdx);
-					relStart = (int) (nextStart-cumulativeStarts[sequenceIdx]);
-					if(relStart<0) System.out.println("Next start: "+nextStart+" seq: "+seq.getName()+" idx: "+sequenceIdx+" start seq: "+cumulativeStarts[sequenceIdx]);
-					int relEnd = relStart+readLength; 
-					if(relEnd<=seq.getLength()) {
+					relStart = (int) (nextStart - cumulativeStarts[sequenceIdx]);
+					if (relStart < 0)
+						System.out.println("Next start: " + nextStart + " seq: " + seq.getName() + " idx: "
+								+ sequenceIdx + " start seq: " + cumulativeStarts[sequenceIdx]);
+					int relEnd = relStart + readLength;
+					if (relEnd <= seq.getLength()) {
 						read = seq.getCharacters().subSequence(relStart, relEnd).toString();
 						break;
 					}
 				}
-				if(read==null) {
-					//TODO: Warning
+				if (read == null) {
+					// TODO: Warning
 					continue;
 				}
-				if(rnd.nextBoolean()) {
+				if (rnd.nextBoolean()) {
 					reverse = 1;
 					read = DNAMaskedSequence.getReverseComplement(read);
 				}
 				String finalRead = generateErrors(read);
-				String readId = seq.getName()+"_"+relStart+"_"+reverse;
-				out.println(">"+readId);
+				String readId = seq.getName() + "_" + relStart + "_" + reverse;
+				out.println(">" + readId);
 				out.println(finalRead);
 			}
 		}
 	}
-	
+
 	private String generateErrors(String read) {
 		String alphabet = DNASequence.BASES_STRING;
 		int len = read.length();
