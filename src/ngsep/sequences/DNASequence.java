@@ -26,6 +26,10 @@ import java.util.Random;
  * @author Jorge Duitama
  */
 public class DNASequence extends AbstractLimitedSequence{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	public static final String [] BASES_ARRAY = {"A","C","G","T"};
 	public static final String BASES_STRING = "ACGT";
 	

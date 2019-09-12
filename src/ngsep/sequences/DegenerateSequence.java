@@ -24,6 +24,10 @@ package ngsep.sequences;
  *
  */
 public class DegenerateSequence extends AbstractLimitedSequence {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	public static final String bases = "ACGT";
 	public static final String [] iubCodes2 = {"AMRW","MCSY","RSGK","WYKT"};
 	public static final String iubCodes3 = "BDHV";

@@ -30,6 +30,10 @@ import java.util.regex.Pattern;
  * @author Jorge Duitama
  */
 public class RawRead extends QualifiedSequence {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	public RawRead(String id, CharSequence sequence, String qualityScores) {
 		super(id,sequence,qualityScores);
 	}

@@ -26,6 +26,10 @@ package ngsep.sequences;
  * @author Jorge Duitama
  */
 public class DNAMaskedSequence extends AbstractLimitedSequence{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	public static final String BASES = "AaCcNngGtT";
 	public static final String [] BASES_ARRAY = {"A","a","C","c","N","n","g","G","t","T"};
 	/**
