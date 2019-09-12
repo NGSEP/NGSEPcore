@@ -181,6 +181,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		this.clusterSizes = new int[kmersMap.size()];
 		List<String> clusteredReadsFilenames = clusterReads();
+		printDistribution();
 		printStatistics("initial");
 		processInfo.addTime(System.nanoTime(), "Cluster reads end");
 		processInfo.addTime(System.nanoTime(), "Variant calling start");		
@@ -217,6 +218,31 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 		
 		return clusteredReadsFilenames;
+	}
+	
+	private void printDistribution() throws IOException {
+		int[] dist = getClusterSizeDist();
+		log.info("Printing cluster distribution.");
+		try(PrintStream distribution = new PrintStream(outPrefix+"_clusterDist.txt");){
+			distribution.println("clusterSize\tfrequency");
+			for(int i = 0; i < dist.length; i++) {
+				distribution.println(i + "\t" + dist[i]);
+			}
+		}
+	}
+	
+	private int[] getClusterSizeDist() {
+		int max = 0;
+		for(int size: this.clusterSizes) {
+			if(size>=max) {
+				max = size;
+			}
+		}
+		int[] dist = new int[max+1];
+		for(int size: this.clusterSizes) {
+			dist[size]++;
+		}
+		return dist;
 	}
 
 	private void loadFilenamesAndSamples() {
@@ -316,6 +342,17 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
 		int numberOfFiles = clusteredReadsFilenames.size();
 
+		for(int size: this.clusterSizes) {
+			if(size>MAX_CLUSTER_DEPTH) {
+				this.numLargeClusters++;
+				this.numReadsLargeClusters += size;
+			}
+			if(size<MIN_CLUSTER_DEPTH) {
+				this.numSmallClusters++;
+				this.numReadsSmallClusters += size;
+			}
+		}
+		
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
@@ -394,6 +431,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private void skipCluster(Integer numCluster, Iterator<RawRead> iterator, 
 			RawRead[] currentReads, int i) throws IOException {
 		RawRead currentRead = currentReads[i];
+		
 		while(currentRead!=null) {
 			String readIdWithCluster = currentRead.getName();
 			String [] items = readIdWithCluster.split("\\$");
@@ -449,6 +487,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	private List<VCFRecord> processCluster(ReadCluster readCluster, VCFFileHeader vcfFileHeader) throws IOException {
+		
+		
 		boolean clusterWithCalledVar = false;
 		boolean clusterWithGenVar = false;
 		List<VCFRecord> records = new ArrayList<>();

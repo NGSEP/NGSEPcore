@@ -13,18 +13,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	AlignmentAffineGap aligner;
 	boolean startConsensus = true;
 	
-	public ConsensusBuilderBidirectionalSimple(int match, int openGap, int extGap, int mismatch, int windowSize, double Rate_of_changes, double Rate_of_cuts, double Rate_of_cover) 
-	{
-		double rate_of_error = Rate_of_changes + Rate_of_cuts - Rate_of_changes * Rate_of_cuts;
-		this.match = match;
-		this.openGap = openGap;
-		this.extGap = extGap;
-		this.mismatch = mismatch;
-		this.windowSize = windowSize;
-		this.tolerance = (int) (Rate_of_cuts * (11.51292546 / rate_of_error));;
-		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
-	}
-	
 	@Override
 	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
 	{
@@ -45,6 +33,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	{
 		StringBuilder consensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
+		String pathS = "";
 		for(int j = 0; j < path.size(); j++)
 		{
 			//Needed to find which is the origin vertex
@@ -74,6 +63,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			if(j == 0) 
 			{
+				pathS = pathS.concat(a.getIndex() + ",");
 				consensus.append(a.isStart() ? a.getRead().toString(): reverseComplement(a.getRead().toString()));
 			} 
 			else if(a.getRead()!=b.getRead())
@@ -83,6 +73,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 					
 				if(nextSequence.length() - edge.getOverlap() > tolerance) 
 				{
+					pathS = pathS.concat(b.getIndex() + ",");
 					String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = nextSequence.substring(edge.getOverlap());
 					consensus.append(remainingSegment);
@@ -94,6 +85,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			lastVertex = b;
 		}
+		System.out.println(pathS);
 		return consensus;
 	}
 	
