@@ -26,9 +26,8 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private Map<Integer, List<int[]>> hits;
 
 	@Override
-	public SimplifiedAssemblyGraph buildAssemblyGraph(List<CharSequence> sequences, AssemblyConfiguration config) {
+	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = sequences;
-		this.config = config;
 		if (!isSorted(sequences)) {
 			timeIt("Sort sequences", () -> Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length()));
 		}
@@ -48,8 +47,28 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			timeIt("      Find overlaps ", () -> findOverlapsAndEmbedded());
 			timeIt("      Clean Graph", () -> assemblyGraph.removeAllEmbeddedsIntoGraph());
 		});
-		return assemblyGraph;
+		return assemblyGraph.getAssemblyGraph();
 	}
+	
+	
+
+	/**
+	 * @return the config
+	 */
+	public AssemblyConfiguration getConfig() {
+		return config;
+	}
+
+
+
+	/**
+	 * @param config the config to set
+	 */
+	public void setConfig(AssemblyConfiguration config) {
+		this.config = config;
+	}
+
+
 
 	/**
 	 * @param sequences

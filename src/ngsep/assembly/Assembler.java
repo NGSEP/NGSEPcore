@@ -40,9 +40,11 @@ public class Assembler {
 			switch (option) {
 			case Normal:
 				sequences = timeIt("  Load the sequences", () -> load(fileIn));
-				graph = timeGroup("  Build overlap Graph",
-						() -> (new GraphBuilderFMIndex()).buildAssemblyGraph(sequences, config).getAssemblyGraph());
-
+				graph = timeGroup("  Build overlap Graph", () -> {
+						GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
+						gbIndex.setConfig(config);
+						return gbIndex.buildAssemblyGraph(sequences);
+				});
 				break;
 
 			case withGraph:
