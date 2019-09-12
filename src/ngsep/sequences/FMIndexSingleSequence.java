@@ -63,9 +63,6 @@ public class FMIndexSingleSequence implements Serializable {
 
 	// Burrows Wheeler transform
 	private byte [] bwt;
-	
-	// Compressed bwt
-	private long [] compressedBwt = null; 
 
 	//For each character tells the number of times it appears
 	private Map<Character, Integer> characterCounts;
@@ -124,9 +121,7 @@ public class FMIndexSingleSequence implements Serializable {
 		
 		
 		buildBWT(sequence, sa, reverseSA);
-		if(tallyDistance==DEFAULT_TALLY_DISTANCE && alphabet.length()==4) {
-			buildCompressedBWT(sequence, sa, reverseSA);
-		}
+		
 		createPartialSuffixArray(sa, reverseSA);
 		buildTally();
 		//printIndexInfo();
@@ -158,10 +153,7 @@ public class FMIndexSingleSequence implements Serializable {
 	
 	private void buildBWT(CharSequence sequence, int [] sa, int [] reverseSA) {
 		bwt = new byte[sequence.length() + 1];
-		
-		/*bwt[reverseSA[0]] = SPECIAL_CHARACTER;
-		for (int i = 1; i < reverseSA.length; i++) bwt[reverseSA[i]] = sequence.charAt(i - 1);
-		*/
+	
 		if(sa[0]!=sequence.length()) throw new RuntimeException("Suffix array should have "+sequence.length()+" as first entry");
 		//assert sa[0]==sequence.length();
 		int j = 0;
@@ -174,11 +166,6 @@ public class FMIndexSingleSequence implements Serializable {
 			j++;
 		}
 	}
-	
-	private void buildCompressedBWT(CharSequence sequence, int[] sa, int[] reverseSA) {
-		// TODO: Implement
-		
-	}
 
 	private void buildTally() {
 		int tallyRows = bwt.length / tallyDistance;
@@ -187,17 +174,6 @@ public class FMIndexSingleSequence implements Serializable {
 		final int[] arr = new int[alphabet.length()];
 		tallyIndexes = new int[tallyRows][alphabet.length()];
 		
-		/*int posChar = alphabetIndexes[bwt[0]];
-		arr[posChar]++;
-		System.arraycopy(arr, 0, tallyIndexes[0], 0, arr.length);
-	
-		for (int j = 1; j < tallyRows; j++) {
-		    for (int i = (j - 1) * tallyDistance + 1; i <= j * tallyDistance; i++) {
-		    	posChar = alphabetIndexes[bwt[i]];
-		    	if(posChar!=-1) arr[posChar]++;
-		    }
-		    System.arraycopy(arr, 0, tallyIndexes[j], 0, arr.length);
-		}*/
 
 		int j = 0;
 		for (int i = 0; i < bwt.length; i++) {
@@ -309,9 +285,6 @@ public class FMIndexSingleSequence implements Serializable {
 	public int getTallyCount(char c, int row) {
 		int r = 0;
 
-		if(compressedBwt!=null) {
-			return getTallyCountBitOperations(c, row);
-		}
 		int a = row / tallyDistance;
 		int b = a + 1;
 
@@ -334,11 +307,6 @@ public class FMIndexSingleSequence implements Serializable {
 			}
 		}
 		return r;
-	}
-
-	private int getTallyCountBitOperations(char c, int row) {
-		// TODO Implement
-		return 0;
 	}
 
 	/**
