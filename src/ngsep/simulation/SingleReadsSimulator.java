@@ -16,7 +16,6 @@ import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 
 public class SingleReadsSimulator {
-
 	private Logger log = Logger.getLogger(SingleReadsSimulator.class.getName());
 	private ProgressNotifier progressNotifier = null;
 
@@ -25,13 +24,14 @@ public class SingleReadsSimulator {
 	public final static int DEF_STDEV_READ_LENGTH = 2000;
 	public final static double DEF_SUBSTITUTION_ERROR_RATE = 0.02;
 	public final static double DEF_INDEL_ERROR_RATE = 0.01;
-	private final static Random rnd = new Random();
+
 	private int numberOfReads = DEF_NUM_READS;
 	private int meanReadLength = DEF_MEAN_READ_LENGTH;
 	private int stdevReadlength = DEF_STDEV_READ_LENGTH;
 	private double substitutionErrorRate = DEF_SUBSTITUTION_ERROR_RATE;
 	private double indelErrorRate = DEF_INDEL_ERROR_RATE;
 
+	private final static Random rnd = new Random();
 	private ReferenceGenome genome;
 
 	/**

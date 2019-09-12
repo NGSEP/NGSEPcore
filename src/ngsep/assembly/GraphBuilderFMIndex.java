@@ -7,17 +7,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import ngsep.alignments.ReadAlignment;
-import ngsep.sequences.FMIndex;
+import ngsep.sequences.FMIndex2;
 
 import static ngsep.assembly.TimeUtilities.progress;
 import static ngsep.assembly.TimeUtilities.timeGroup;
 import static ngsep.assembly.TimeUtilities.timeIt;
 
 public class GraphBuilderFMIndex implements GraphBuilder {
-	private final static int TALLY_DISTANCE = 100;
-	private final static int SUFFIX_FRACTION = 25;
+	private final static int TALLY_DISTANCE = 4;//*64
+	private final static int SUFFIX_FRACTION = 16;
 
-	private FMIndex index;
+	private FMIndex2 index;
 	private KmerIterator kmerIterator;
 	private List<CharSequence> sequences;
 	private AssemblyConfiguration config;
@@ -34,7 +34,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		}
 
 		index = timeGroup("    Build FMindex", () -> {
-			FMIndex ans = new FMIndex();
+			FMIndex2 ans = new FMIndex2();
 			ans.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
 			return ans;
 		});

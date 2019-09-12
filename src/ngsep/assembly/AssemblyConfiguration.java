@@ -79,7 +79,7 @@ public class AssemblyConfiguration {
 			double rate_of_error = changes + indels - changes * indels;
 			kmerLength = (int) (2.302585092994 / (2 * rate_of_error));
 			maxKmerDiff = 3 * (int) (indels * (LN1000000 / rate_of_error));
-			rate_of_cover = 4;
+			rate_of_cover = 2;
 			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
 			minKmerCoverRate = 0.02;
 		}
