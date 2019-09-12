@@ -25,9 +25,11 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -236,15 +238,12 @@ public class VCFWindowIntrogressionAnalysis {
 		
 	}
 	public void runIntrogressions(VCFFileReader reader) throws IOException {
-		PrintStream outAssignments = null;
-		PrintStream outIntrogressions = null;
-		PrintStream outStatistics = null;
+		
 		PrintStream outVCF = null;
 		VCFFileWriter writer = new VCFFileWriter();
-		try {
-			outAssignments = new PrintStream(outPrefix+"_assignments.txt");
-			outIntrogressions = new PrintStream(outPrefix+"_introgressions.txt");
-			outStatistics = new PrintStream(outPrefix+"_assignmentStats.txt");
+		try (PrintStream outAssignments = new PrintStream(outPrefix+"_assignments.txt");
+			 PrintStream outIntrogressions = new PrintStream(outPrefix+"_introgressions.txt");
+			 PrintStream outStatistics = new PrintStream(outPrefix+"_assignmentStats.txt");) {
 			
 			
 			VCFFileHeader header = reader.getHeader();
@@ -265,6 +264,10 @@ public class VCFWindowIntrogressionAnalysis {
 			SimpleSamplesFileHandler handler = new SimpleSamplesFileHandler();
 			Set<String> groupIds = handler.fillGroups (populationsFile, samples);
 			List<String> groupIdsList = new ArrayList<String>(groupIds);
+			Map<String,Integer> groupIdsReverseIdxMap = new HashMap<>();
+			for(int i=0;i<groupIdsList.size();i++) {
+				groupIdsReverseIdxMap.put(groupIdsList.get(i), i);
+			}
 			printHeaderIntrogressions(groupIdsList,outIntrogressions);
 			int nG = groupIds.size();
 			assignmentStats = new int [nSamples][nG+3];
@@ -284,7 +287,7 @@ public class VCFWindowIntrogressionAnalysis {
 				boolean seqChange = !record.getSequenceName().equals(currentSeqName);
 				if(seqChange) {
 					processWindows(samples, groupIdsList, true, outAssignments);
-					processSequenceIntrogressions(outIntrogressions);
+					processSequenceIntrogressions(outIntrogressions,groupIdsReverseIdxMap);
 					currentSeqName = record.getSequenceName();
 					log.info("Starting sequence: "+currentSeqName);
 					numVarsLastWindow = 0;
@@ -339,12 +342,9 @@ public class VCFWindowIntrogressionAnalysis {
 				}
 			}
 			processWindows(samples, groupIdsList, true, outAssignments);
-			processSequenceIntrogressions(outIntrogressions);
+			processSequenceIntrogressions(outIntrogressions, groupIdsReverseIdxMap);
 			printReport(samples,groupIdsList,numDiscriminative,numHeterozygous,numUndecided,outStatistics);
 		} finally {
-			if(outAssignments!=null) outAssignments.close();
-			if(outIntrogressions!=null) outIntrogressions.close();
-			if(outStatistics!=null) outStatistics.close();
 			if(outVCF!=null) outVCF.close();
 		}
 	}
@@ -360,6 +360,7 @@ public class VCFWindowIntrogressionAnalysis {
 		for(String groupId:groupIdsList) {
 			outIntrogressions.print("\tScore "+groupId);
 		}
+		outIntrogressions.print("\tScore self group");
 		outIntrogressions.println();
 		
 		
@@ -484,33 +485,34 @@ public class VCFWindowIntrogressionAnalysis {
 		}
 		outMap.println();
 	}
-	private void processCurrentIntrogressions(int i, Sample sample, WindowScores window, String bestGroup) {
+	private void processCurrentIntrogressions(int sampleIdx, Sample sample, WindowScores window, String bestGroup) {
 		if(sample.getGroup()==null) return;
-		Introgression introgression = currentIntrogressions[i];
+		Introgression introgression = currentIntrogressions[sampleIdx];
 		if(introgression!=null) {
 			if(!introgression.getForeignGroup().equals(bestGroup)) {
 				sequenceIntrogressions.add(introgression);
-				currentIntrogressions[i] = introgression = null;
+				currentIntrogressions[sampleIdx] = introgression = null;
 			} else {
-				introgression.addWindow(window,i);
+				introgression.addWindow(window,sampleIdx);
 			}
 		}
 		
 		if(introgression == null) {
 			if(bestGroup!=null && !sample.getGroup().equals(bestGroup)) {
-				currentIntrogressions[i] = new Introgression(sample, window, i, bestGroup);
+				currentIntrogressions[sampleIdx] = new Introgression(sample, window, sampleIdx, bestGroup);
 			}
 		} 
 	}
-	private void processSequenceIntrogressions(PrintStream outIntrogressions) {
+	private void processSequenceIntrogressions(PrintStream outIntrogressions, Map<String,Integer> groupIdsReverseIdxMap) {
 		Collections.sort(sequenceIntrogressions,GenomicRegionPositionComparator.getInstance());
 		for(Introgression i:sequenceIntrogressions) {
 			if(!printUnassigned && UNASSIGNED_GROUP_ID.equals(i.getForeignGroup())) continue;
-			printIntrogression(i, outIntrogressions);
+			int sampleGroupIdx = groupIdsReverseIdxMap.get(i.getSample().getGroup());
+			printIntrogression(i, sampleGroupIdx, outIntrogressions);
 		}
 		sequenceIntrogressions.clear();
 	}
-	private void printIntrogression(Introgression i, PrintStream out) {
+	private void printIntrogression(Introgression i, int sampleGroupIdx, PrintStream out) {
 		Sample s = i.getSample();
 		out.print(""+i.getSequenceName()+"\t"+i.getFirst()+"\t"+i.getLast());
 		out.print("\t"+s.getId()+"\t"+s.getGroup()+"\t"+i.getForeignGroup()+"\t"+i.getNumVariants());
@@ -519,6 +521,7 @@ public class VCFWindowIntrogressionAnalysis {
 		for(int j=0;j<scores.length;j++) {
 			out.print("\t"+scores[j]);
 		}
+		out.print("\t"+scores[sampleGroupIdx]);
 		out.println();
 	}
 	private void printReport(List<Sample> samples, List<String> groupIds, int[][] numDiscriminative, int[] numHeterozygous, int[] numUndecided, PrintStream out) {
@@ -643,22 +646,22 @@ class Introgression extends GenomicRegionImpl {
 	private int numVariants = 0;
 	private int numGenotyped = 0;
 	private int [] scoresGroups;
-	public Introgression(Sample sample, WindowScores w, int i, String foreignGroup) {
+	public Introgression(Sample sample, WindowScores w, int sampleIdx, String foreignGroup) {
 		super(w.getSequenceName(), w.getFirst(), w.getLast());
 		this.sample = sample;
 		this.foreignGroup = foreignGroup;
 		scoresGroups = new int [w.getNumGroups()];
 		Arrays.fill(scoresGroups, 0);
-		addWindow(w, i);
+		addWindow(w, sampleIdx);
 		this.numVariants = w.getNumVariants();
-		this.numGenotyped = w.getCountsGenotyped()[i];
+		this.numGenotyped = w.getCountsGenotyped()[sampleIdx];
 		
 	}
-	public void addWindow (WindowScores w, int i) {
+	public void addWindow (WindowScores w, int sampleIdx) {
 		if(getLast()<w.getLast()) setLast(w.getLast());
 		numVariants+=w.getNumVariants();
-		numGenotyped+=w.getCountsGenotyped()[i];
-		int [] scores = w.getScores()[i];
+		numGenotyped+=w.getCountsGenotyped()[sampleIdx];
+		int [] scores = w.getScores()[sampleIdx];
 		for(int j=0;j<scores.length;j++) scoresGroups[j]+=scores[j];
 	}
 	public Sample getSample() {
@@ -679,5 +682,4 @@ class Introgression extends GenomicRegionImpl {
 	public int[] getScoresGroups() {
 		return scoresGroups;
 	}
-	
 }
