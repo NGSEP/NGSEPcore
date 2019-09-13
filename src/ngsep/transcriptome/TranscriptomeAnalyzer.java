@@ -29,14 +29,12 @@ import java.util.logging.Logger;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
-import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
-import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
 
 /**
  * @author Tatiana Garcia
@@ -44,12 +42,7 @@ import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
  */
 public class TranscriptomeAnalyzer {
 
-	public static final int DEF_MIN_PROTEIN_LENGTH=0;
 	private ReferenceGenome genome;
-	
-	private boolean selectCompleteProteins = false;
-	
-	private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	
 	private Logger log = Logger.getLogger(TranscriptomeAnalyzer.class.getName());
 	
@@ -102,45 +95,6 @@ public class TranscriptomeAnalyzer {
 		this.genome = genome;
 	}
 	
-	
-
-	/**
-	 * @return the selectCompleteProteins
-	 */
-	public boolean isSelectCompleteProteins() {
-		return selectCompleteProteins;
-	}
-
-	/**
-	 * @param selectCompleteProteins the selectCompleteProteins to set
-	 */
-	public void setSelectCompleteProteins(boolean selectCompleteProteins) {
-		this.selectCompleteProteins = selectCompleteProteins;
-	}
-	public void setSelectCompleteProteins(Boolean selectCompleteProteins) {
-		this.setSelectCompleteProteins(selectCompleteProteins.booleanValue());
-	}
-	
-	/**
-	 * @return the minProteinLength
-	 */
-	public int getMinProteinLength() {
-		return minProteinLength;
-	}
-
-	/**
-	 * @param minProteinLength the minProteinLength to set
-	 */
-	public void setMinProteinLength(int minProteinLength) {
-		this.minProteinLength = minProteinLength;
-	}
-	
-	public void setMinProteinLength(String value) {
-		this.setMinProteinLength((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-	
-	
-
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
 		Distribution geneLengthDist = new Distribution (0,9999,200);
 		Distribution transcriptLengthDist = new Distribution (0,4999,200);
@@ -161,9 +115,6 @@ public class TranscriptomeAnalyzer {
 		QualifiedSequenceList proteome = new QualifiedSequenceList();
 		QualifiedSequenceList codingSequences = new QualifiedSequenceList();
 		QualifiedSequenceList cdnaSequences = new QualifiedSequenceList();
-		
-		Transcriptome filteredTranscriptome = null;
-		if(selectCompleteProteins || minProteinLength>DEF_MIN_PROTEIN_LENGTH) filteredTranscriptome = new Transcriptome(sequenceNames);
 		
 		int n = 0;
 		for(Transcript t: transcriptsList) {
@@ -198,10 +149,6 @@ public class TranscriptomeAnalyzer {
 			cdnaSequences.add(qCDNA);
 			
 			String protein = null;
-			if(!t.isCoding()) {
-				if(filteredTranscriptome!=null) filteredTranscriptome.addTranscript(t);
-				continue;
-			}
 			Codon startCodon = t.getStartCodon();
 			if(startCodon==null) {
 				log.info("Transcript "+t.getId()+" has an invalid start codon. Length: "+cdnaSequence.length()+" start: "+start);
@@ -233,12 +180,6 @@ public class TranscriptomeAnalyzer {
 			QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
 			qp.setComments(comments);
 			proteome.add(qp);
-			
-			if(filteredTranscriptome==null) continue;
-			if(protein.length()<minProteinLength) continue;
-			boolean complete = startCodon.isStart() && stopCodon!=null && stopCodon.isStop();
-			if (selectCompleteProteins && !complete) continue;
-			filteredTranscriptome.addTranscript(t);
 			n++;
 			if (progressNotifier!=null && n%100==0) {
 				int progress = n/100;
@@ -287,14 +228,6 @@ public class TranscriptomeAnalyzer {
 			try (PrintStream out = new PrintStream(outPrefix+"_proteins.fa")) {
 				handler.saveSequences(proteome, out, 100);
 			}
-			
 		}
-		if(filteredTranscriptome!=null) {
-			GFF3TranscriptomeWriter gff3Writer = new GFF3TranscriptomeWriter();
-			try (PrintStream out = new PrintStream(outPrefix+"_filtered.gff3")) {
-				gff3Writer.printTranscriptome(filteredTranscriptome, out);
-			}
-		}
-		
 	}
 }

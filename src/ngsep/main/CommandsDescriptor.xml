@@ -341,16 +341,43 @@ Provides statistics on a transcriptome file in GFF3 format
 <title>Evaluating transcriptome assemblies</title>
 <description>
 Loads a transcriptome annotation in GFF3 format, logs format errors, provides statistics on the assembled transcriptome,
-generates cDNA, CDS and protein sequences and generates a filtered gff by CDS length and presence of start and stop codons. 
+and generates cDNA, CDS and protein sequences. 
 </description>
 <argument>GENOME</argument>
 <argument>TRANSCRIPTOME_MAP</argument>
 <argument>OUTPUT_PREFIX</argument>
-<option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
-Output only complete transcripts (with start and stop codons) in the gff output file
+
+</command>
+
+<command id="TranscriptomeFilter" class="ngsep.transcriptome.TranscriptomeFilter">
+<intro>
+Executes filter criteria on a transcriptome file in GFF3 format
+</intro>
+<title>Filtering transcriptomes</title>
+<description>
+Loads a transcriptome annotation in GFF3 format and generates a filtered file by CDS length, presence of start and stop codons and intersection with other regions. 
+</description>
+<argument>GENOME</argument>
+<argument>TRANSCRIPTOME_MAP</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="f" type="INT" attribute="outputFormat" defaultConstant="FORMAT_GFF">
+Output format. 0: GFF3, 1: gene list, 2: gene regions, 3: transcript list, 4: transcript regions
 </option>
-<option id="pl" type="INT" attribute="minProteinLength" defaultConstant="DEF_MIN_PROTEIN_LENGTH">
-Minimum protein length for coding transcripts in the gff output file
+<option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
+Output only complete transcripts (with start and stop codons) in the output file
+</option>
+<option id="l" type="INT" attribute="minProteinLength" defaultConstant="DEF_MIN_PROTEIN_LENGTH">
+Minimum protein length for coding transcripts in the output file
+</option>
+<option id="frs" type="FILE" attribute="regionsToFilter">
+File with genomic regions in which variants should be filtered out.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="srs" type="FILE" attribute="regionsToSelect">
+File with genomic regions in which variants should be selected.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
 </command>
 
