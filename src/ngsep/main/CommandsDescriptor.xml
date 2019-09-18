@@ -1148,6 +1148,9 @@ Substitution error rate
 <option id="i" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
 Indel error rate
 </option>
+<option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
+Output format. 0 for fastq, 1 for fasta
+</option>
 </command>
 
 </NGSEP>

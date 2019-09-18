@@ -24,12 +24,15 @@ public class SingleReadsSimulator {
 	public final static int DEF_STDEV_READ_LENGTH = 2000;
 	public final static double DEF_SUBSTITUTION_ERROR_RATE = 0.02;
 	public final static double DEF_INDEL_ERROR_RATE = 0.01;
+	public final static byte OUT_FORMAT_FASTQ = 0;
+	public final static byte OUT_FORMAT_FASTA = 1;
 
 	private int numberOfReads = DEF_NUM_READS;
 	private int meanReadLength = DEF_MEAN_READ_LENGTH;
 	private int stdevReadlength = DEF_STDEV_READ_LENGTH;
 	private double substitutionErrorRate = DEF_SUBSTITUTION_ERROR_RATE;
 	private double indelErrorRate = DEF_INDEL_ERROR_RATE;
+	private byte outFormat = OUT_FORMAT_FASTQ;
 
 	private final static Random rnd = new Random();
 	private ReferenceGenome genome;
@@ -151,6 +154,24 @@ public class SingleReadsSimulator {
 	public void setIndelErrorRate(String value) {
 		this.setIndelErrorRate((double) OptionValuesDecoder.decode(value, Double.class));
 	}
+	
+	/**
+	 * @return the outFormat
+	 */
+	public byte getOutFormat() {
+		return outFormat;
+	}
+
+	/**
+	 * @param outFormat the outFormat to set
+	 */
+	public void setOutFormat(byte outFormat) {
+		this.outFormat = outFormat;
+	}
+	
+	public void setOutFormat(String value) {
+		this.setOutFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
+	}
 
 	/**
 	 * @return the genome
@@ -216,7 +237,6 @@ public class SingleReadsSimulator {
 					if (idx1 >= 0)
 						sequenceIdx = idx1;
 					else {
-						// TODO: Choose actual chromosome
 						sequenceIdx = -idx1 - 2;
 					}
 					if (sequenceIdx < 0)
@@ -242,10 +262,24 @@ public class SingleReadsSimulator {
 				}
 				String finalRead = generateErrors(read);
 				String readId = seq.getName() + "_" + relStart + "_" + reverse;
-				out.println(">" + readId);
-				out.println(finalRead);
+				if(outFormat == OUT_FORMAT_FASTA) {
+					out.println(">" + readId);
+					out.println(finalRead);
+				} else {
+					out.println("@" + readId);
+					out.println(finalRead);
+					out.println("+");
+					out.println(simulateQualities(finalRead.length()));
+				}
+				
 			}
 		}
+	}
+
+	private String simulateQualities(int length) {
+		char [] qualities = new char[length];
+		Arrays.fill(qualities, '5');
+		return new String(qualities);
 	}
 
 	private String generateErrors(String read) {
