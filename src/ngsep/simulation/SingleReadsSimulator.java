@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.TreeSet;
 import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
@@ -285,38 +284,40 @@ public class SingleReadsSimulator {
 	private String generateErrors(String read) {
 		String alphabet = DNASequence.BASES_STRING;
 		int len = read.length();
-		Integer[] cuts = uniformSorted((int) (indelErrorRate * len), len);
-		char[] ans = new char[len - cuts.length];
+		StringBuilder answer = new StringBuilder(len);
 
-		// copy without cuts
-		int i = 0, j = 0;
-		for (int x : cuts) {
-			while (i < x)
-				ans[j++] = read.charAt((i++));
-			i++;
+		for(int i=0;i<len;i++) {
+			
+			if(rnd.nextDouble()<indelErrorRate) {
+				//Generate random indels
+				int length = 0;
+				for (int j=0; j<100 && length == 0;j++) {
+					length = (int) Math.round(rnd.nextGaussian()*2.0);
+				}
+				length = Math.min(length, 10);
+				length = Math.max(length, -10);
+				if(length < 0) {
+					//Deletion
+					i-=(length+1);
+				} else {
+					//Insertion
+					answer.append(read.charAt(i));
+					for (int j=0; j<length;j++) answer.append(alphabet.charAt(0));
+				}
+			} else {
+				char c = read.charAt(i);
+				if(rnd.nextDouble()<substitutionErrorRate) {
+					// Generate random substitution
+					char c2 = c;
+					for (int j=0; j<100 && c == c2;j++) {
+						c2 = alphabet.charAt(rnd.nextInt(alphabet.length()));
+					}
+					c = c2;
+				}
+				answer.append(c);
+			}
 		}
-		while (j < ans.length)
-			ans[j++] = read.charAt((i++));
-
-		// change letters
-		for (int x : uniformSorted((int) (ans.length * substitutionErrorRate), ans.length)) {
-			char k = alphabet.charAt(rnd.nextInt(alphabet.length()));
-			while (k == ans[x])
-				k = alphabet.charAt(rnd.nextInt(alphabet.length()));
-			ans[x] = k;
-		}
-		return new String(ans);
-	}
-
-	public static Integer[] uniformSorted(int samples, int N) {
-		TreeSet<Integer> ans = new TreeSet<Integer>();
-		for (int i = 0; i < samples; i++) {
-			int j = rnd.nextInt(N);
-			while (ans.contains(j))
-				j = rnd.nextInt(N);
-			ans.add(j);
-		}
-		return ans.toArray(new Integer[0]);
+		return answer.toString();
 	}
 
 }
