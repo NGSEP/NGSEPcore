@@ -21,12 +21,14 @@ package ngsep.transcriptome;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionCollectionDensityCalculator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
@@ -50,10 +52,12 @@ public class TranscriptomeAnalyzer {
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	
+	private GenomicRegionCollectionDensityCalculator densityCalculator = new GenomicRegionCollectionDensityCalculator();
+	
 	public static void main(String[] args) throws Exception {
 		TranscriptomeAnalyzer instance = new TranscriptomeAnalyzer();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
+		instance.setGenome(new ReferenceGenome(args[i++]));
 		String transcriptomeFile = args[i++];
 		String outPrefix = args[i++];
 		instance.processTranscriptome(transcriptomeFile, outPrefix);
@@ -93,6 +97,7 @@ public class TranscriptomeAnalyzer {
 	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
+		densityCalculator.setGenome(genome);
 	}
 	
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
@@ -109,85 +114,90 @@ public class TranscriptomeAnalyzer {
 		gff3Handler.setLog(log);
 		Transcriptome transcriptome = gff3Handler.loadMap(transcriptomeFile); 			
 		transcriptome.fillSequenceTranscripts(genome, log);
-		
-		List<Transcript> transcriptsList = transcriptome.getAllTranscripts();
-		Set<String> visitedGeneIDs = new HashSet<>();
+
+		Map<String,Gene> visitedGenes = new HashMap<>();
+		List<GenomicRegion> allRawExons = new ArrayList<GenomicRegion>();
 		QualifiedSequenceList proteome = new QualifiedSequenceList();
 		QualifiedSequenceList codingSequences = new QualifiedSequenceList();
 		QualifiedSequenceList cdnaSequences = new QualifiedSequenceList();
 		
 		int n = 0;
-		for(Transcript t: transcriptsList) {
-			//Collect transcript structure statistics
-			int start = t.getCodingRelativeStart();
-			int end = t.getCodingRelativeEnd();
-			String geneId= t.getGeneId(); 
-			transcriptLengthDist.processDatapoint(t.length());
-			List<GenomicRegion> exons=t.getRawExons();
-			numberOfExonsDist.processDatapoint(exons.size());
-			
-			if(!visitedGeneIDs.contains(geneId)) {
-				//Collect gene statistics
-				List<Transcript> geneTranscripts = transcriptome.getTranscriptsByGene(geneId);
-				if(geneTranscripts==null) {
-					log.info("Gene not found for transcript with id"+t.getId()+" gene id: "+geneId);
+		for(QualifiedSequence seq: sequenceNames) {
+			List<Transcript> transcriptsList = transcriptome.getTranscripts(seq.getName()).asList();
+			for(Transcript t: transcriptsList) {
+				//Collect transcript structure statistics
+				int start = t.getCodingRelativeStart();
+				int end = t.getCodingRelativeEnd();
+				String geneId= t.getGeneId(); 
+				transcriptLengthDist.processDatapoint(t.length());
+				List<GenomicRegion> exons=t.getRawExons();
+				numberOfExonsDist.processDatapoint(exons.size());
+				allRawExons.addAll(exons);
+				
+				if(!visitedGenes.containsKey(geneId)) {
+					//Collect gene statistics
+					List<Transcript> geneTranscripts = transcriptome.getTranscriptsByGene(geneId);
+					if(geneTranscripts==null) {
+						log.info("Gene not found for transcript with id"+t.getId()+" gene id: "+geneId);
+						continue;
+					}
+					transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
+					Gene g = t.getGene();
+					geneLengthDist.processDatapoint(g.length());
+					visitedGenes.put(geneId,g);
+				}
+				String comments = t.getGeneId();
+				if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
+				CharSequence cdnaSequence = t.getCDNASequence();
+				if(cdnaSequence==null) {
 					continue;
 				}
-				transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
-				geneLengthDist.processDatapoint(t.getGene().length());
-				visitedGeneIDs.add(geneId);
-			}
-			
-			String comments = t.getGeneId();
-			if(t.getGeneName()!=null) comments+= " "+t.getGeneName();
-			CharSequence cdnaSequence = t.getCDNASequence();
-			if(cdnaSequence==null) {
-				continue;
-			}
-			QualifiedSequence qCDNA = new QualifiedSequence(t.getId(),cdnaSequence);
-			qCDNA.setComments(comments);
-			cdnaSequences.add(qCDNA);
-			
-			String protein = null;
-			Codon startCodon = t.getStartCodon();
-			if(startCodon==null) {
-				log.info("Transcript "+t.getId()+" has an invalid start codon. Length: "+cdnaSequence.length()+" start: "+start);
-				continue;
-			}
-			else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+"start: "+start);
-			Codon stopCodon = t.getStopCodon();
-			if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Length: "+cdnaSequence.length()+" end: "+end);
-			else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+" end: "+end);
-			
-			// Process cds sequence
-			CharSequence cds = t.getCDSSequence();
-			if(cds == null) {
-				log.info("Invalid coding sequence for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
-				continue;
-			}
-			QualifiedSequence qCDS = new QualifiedSequence(t.getId(),cds);
-			qCDS.setComments(comments);
-			codingSequences.add(qCDS);
-			cdsLengthDist.processDatapoint(cds.length());
-			
-			// Process protein sequence
-			protein = t.getProteinSequence(translator);
-			if(protein == null) {
-				log.info("Invalid protein for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
-				continue;
-			}
-			proteinLengthDist.processDatapoint(protein.length());
-			QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
-			qp.setComments(comments);
-			proteome.add(qp);
-			n++;
-			if (progressNotifier!=null && n%100==0) {
-				int progress = n/100;
-				if (!progressNotifier.keepRunning(progress)) {
-					return;
+				QualifiedSequence qCDNA = new QualifiedSequence(t.getId(),cdnaSequence);
+				qCDNA.setComments(comments);
+				cdnaSequences.add(qCDNA);
+				
+				String protein = null;
+				Codon startCodon = t.getStartCodon();
+				if(startCodon==null) {
+					log.info("Transcript "+t.getId()+" has an invalid start codon. Length: "+cdnaSequence.length()+" start: "+start);
+					continue;
+				}
+				else if(!startCodon.isStart()) log.info("Transcript "+t.getId()+" does not have a standard start codon. Codon: "+startCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+"start: "+start);
+				Codon stopCodon = t.getStopCodon();
+				if(stopCodon==null) log.info("Transcript "+t.getId()+" has an invalid stop codon. Length: "+cdnaSequence.length()+" end: "+end);
+				else if(!stopCodon.isStop()) log.info("Transcript "+t.getId()+" does not have a standard stop codon. Codon: "+stopCodon.getRnaSequence()+" Length: "+cdnaSequence.length()+" end: "+end);
+				
+				// Process cds sequence
+				CharSequence cds = t.getCDSSequence();
+				if(cds == null) {
+					log.info("Invalid coding sequence for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
+					continue;
+				}
+				QualifiedSequence qCDS = new QualifiedSequence(t.getId(),cds);
+				qCDS.setComments(comments);
+				codingSequences.add(qCDS);
+				cdsLengthDist.processDatapoint(cds.length());
+				
+				// Process protein sequence
+				protein = t.getProteinSequence(translator);
+				if(protein == null) {
+					log.info("Invalid protein for transcript "+t.getId()+" Length: "+cdnaSequence.length()+"start: "+start+" end: "+end);
+					continue;
+				}
+				proteinLengthDist.processDatapoint(protein.length());
+				QualifiedSequence qp = new QualifiedSequence(t.getId(),protein);
+				qp.setComments(comments);
+				proteome.add(qp);
+				n++;
+				if (progressNotifier!=null && n%100==0) {
+					int progress = n/100;
+					if (!progressNotifier.keepRunning(progress)) {
+						return;
+					}
 				}
 			}
 		}
+		
 		try (PrintStream out = new PrintStream(outPrefix+"_stats.txt")) {
 			out.println("Gene length"); 
 			geneLengthDist.printDistributionInt(out);
@@ -229,5 +239,16 @@ public class TranscriptomeAnalyzer {
 				handler.saveSequences(proteome, out, 100);
 			}
 		}
+		if(visitedGenes.size()>0) {
+			try (PrintStream out = new PrintStream(outPrefix+"_geneDensity.txt")) {
+				densityCalculator.calculateDensity(visitedGenes.values(), out);	
+			}
+		}
+		if(allRawExons.size()>0) {
+			try (PrintStream out = new PrintStream(outPrefix+"_exonDensity.txt")) {
+				densityCalculator.calculateDensity(allRawExons, out);	
+			}
+		}
+		
 	}
 }
