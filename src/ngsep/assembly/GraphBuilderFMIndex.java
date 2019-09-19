@@ -15,7 +15,7 @@ import static ngsep.assembly.TimeUtilities.timeGroup;
 import static ngsep.assembly.TimeUtilities.timeIt;
 
 public class GraphBuilderFMIndex implements GraphBuilder {
-	private final static int TALLY_DISTANCE = 4;// *64
+	private final static int TALLY_DISTANCE = 100;// *64
 	private final static int SUFFIX_FRACTION = 16;
 
 	private FMIndex index;
