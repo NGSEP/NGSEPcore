@@ -1,5 +1,6 @@
 package ngsep.assembly;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -14,7 +15,7 @@ import static ngsep.assembly.TimeUtilities.timeGroup;
 import static ngsep.assembly.TimeUtilities.timeIt;
 
 public class GraphBuilderFMIndex implements GraphBuilder {
-	private final static int TALLY_DISTANCE = 4;//*64
+	private final static int TALLY_DISTANCE = 4;// *64
 	private final static int SUFFIX_FRACTION = 16;
 
 	private FMIndex index;
@@ -29,7 +30,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
 		return buildSimplifiedAssemblyGraph(sequences).getAssemblyGraph();
 	}
-	
+
 	public SimplifiedAssemblyGraph buildSimplifiedAssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = sequences;
 		if (!isSorted(sequences)) {
@@ -53,8 +54,6 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		});
 		return assemblyGraph;
 	}
-	
-	
 
 	/**
 	 * @return the config
@@ -63,16 +62,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		return config;
 	}
 
-
-
 	/**
 	 * @param config the config to set
 	 */
 	public void setConfig(AssemblyConfiguration config) {
 		this.config = config;
 	}
-
-
 
 	/**
 	 * @param sequences
@@ -128,5 +123,31 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 					hits.computeIfAbsent(id_Lec, x -> new LinkedList<int[]>()).add(new int[] { pos_Ref, pos_Lec });
 			}
 		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		List<CharSequence> sequences = timeIt("Load the sequences", () -> Assembler.load(args[0]));
+
+		SimplifiedAssemblyGraph assemblyGraph = timeGroup("Build overlap Graph", () -> {
+			AssemblyConfiguration config = (args.length > 3)
+					? new AssemblyConfiguration(Double.valueOf(args[2]), Double.valueOf(args[3]))
+					: new AssemblyConfiguration();
+			GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
+			builder.setConfig(config);
+			return builder.buildSimplifiedAssemblyGraph(sequences);
+		});
+
+		timeIt("Save the Graph", () -> {
+			try {
+				assemblyGraph.save(args[1]);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+
+		System.out.println("---------Graph Properties--------------");
+		assemblyGraph.printInfo();
+		System.out.println("---------------------------------------");
+
 	}
 }
