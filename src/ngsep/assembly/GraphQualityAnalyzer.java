@@ -261,14 +261,15 @@ public class GraphQualityAnalyzer {
 	private List<Sequence> loadFastq(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
+			reader.setLoadMode(FastqFileReader.LOAD_MODE_FULL);
 			reader.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
 				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
+
 				String[] args = read.getName().split("_");
-				sequences.add(new Sequence(0, args[0], Integer.valueOf(args[1]), (Integer.valueOf(args[2])==1), characters));
+				sequences.add(new Sequence(0, args[args.length-3], Integer.valueOf(args[args.length-2]), (Integer.valueOf(args[args.length-1])==1), characters));
 			}
 		}
 		return sequences;
