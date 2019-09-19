@@ -27,6 +27,10 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
+		return buildSimplifiedAssemblyGraph(sequences).getAssemblyGraph();
+	}
+	
+	public SimplifiedAssemblyGraph buildSimplifiedAssemblyGraph(List<CharSequence> sequences) {
 		this.sequences = sequences;
 		if (!isSorted(sequences)) {
 			timeIt("Sort sequences", () -> Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length()));
@@ -47,7 +51,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			timeIt("      Find overlaps ", () -> findOverlapsAndEmbedded());
 			timeIt("      Clean Graph", () -> assemblyGraph.removeAllEmbeddedsIntoGraph());
 		});
-		return assemblyGraph.getAssemblyGraph();
+		return assemblyGraph;
 	}
 	
 	

@@ -29,10 +29,19 @@ public class GraphQualityAnalyzer {
 	private SimplifiedAssemblyGraph ref;
 	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(SimplifiedAssemblyGraph graph, String pathLects) throws IOException {
-		this.lec = graph;
+	public GraphQualityAnalyzer(String pathLects) throws IOException {
 		this.nams = load(pathLects);
+		Collections.sort(nams, (l1, l2) -> l2.sequence.length() - l1.sequence.length());
+		int i = 0;
+		for (Sequence seq : nams)
+			seq.id = i++;
+
 		this.ref = getGraph(nams);
+		AssemblyConfiguration ac = new AssemblyConfiguration();
+		GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
+		builder.setConfig(ac);
+		this.lec = builder
+				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
 
 		System.out.println("-------------PerfectGraph------------------");
 		ref.printInfo();
@@ -100,25 +109,25 @@ public class GraphQualityAnalyzer {
 		Set<String> refEdg = new HashSet<>();
 		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges().entrySet()) {
 			int id1 = map.getKey();
-			if (lectEmb.contains(id1) && refEmb.contains(id1))
+			if (!lectEmb.contains(id1>>1) && !refEmb.contains(id1>>1))
 				for (int id2 : map.getValue().keySet())
-					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
+					if (id1 + 1 < id2 && !lectEmb.contains(id2>>1) && !refEmb.contains(id2>>1))
 						refEdg.add(id1 + "-" + id2);
 		}
 
 		Set<String> lecEdg = new HashSet<>();
 		for (Entry<Integer, Map<Integer, Alignment>> map : lec.getEdges().entrySet()) {
 			int id1 = map.getKey();
-			if (lectEmb.contains(id1) && refEmb.contains(id1))
+			if (!lectEmb.contains(id1>>1) && !refEmb.contains(id1>>1))
 				for (int id2 : map.getValue().keySet())
-					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
+					if (id1 + 1 < id2 && !lectEmb.contains(id2>>1) && !refEmb.contains(id2>>1))
 						lecEdg.add(id1 + "-" + id2);
 		}
 
+		
 		System.out.println();
 		System.out.println(refEdg.size());
 		System.out.println(lecEdg.size());
-
 		trueP = 0;
 		falseP = 0;
 		for (String i : lecEdg) {
@@ -162,7 +171,7 @@ public class GraphQualityAnalyzer {
 	private SimplifiedAssemblyGraph getGraph(List<Sequence> sequences) throws FileNotFoundException {
 		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(getSequences(sequences));
 
-		Map<Integer, List<Sequence>> a = new HashMap<>();
+		Map<String, List<Sequence>> a = new HashMap<>();
 		for (Sequence s : sequences)
 			a.computeIfAbsent(s.ref, (x) -> new ArrayList<>()).add(s);
 
@@ -236,9 +245,8 @@ public class GraphQualityAnalyzer {
 		int i = 0;
 		for (QualifiedSequence seq : seqsQl) {
 			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
-			String[] args = seq.getName().split("-");
-			sequences.add(new Sequence(i++, Integer.valueOf(args[1]), Integer.valueOf(args[2]),
-					Boolean.valueOf(args[3]), characters));
+			String[] args = seq.getName().split("_");
+			sequences.add(new Sequence(i++, args[args.length-3], Integer.valueOf(args[args.length-2]), (Integer.valueOf(args[args.length-1])==1), characters));
 		}
 		return sequences;
 	}
@@ -256,35 +264,31 @@ public class GraphQualityAnalyzer {
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
 			reader.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it = reader.iterator();
-			int i = 0;
 			while (it.hasNext()) {
 				RawRead read = it.next();
 				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
-				String[] args = read.getName().split("-");
-				sequences.add(new Sequence(i++, Integer.valueOf(args[1]), Integer.valueOf(args[2]),
-						Boolean.valueOf(args[3]), characters));
+				String[] args = read.getName().split("_");
+				sequences.add(new Sequence(0, args[0], Integer.valueOf(args[1]), (Integer.valueOf(args[2])==1), characters));
 			}
 		}
 		return sequences;
 	}
 
 	public static void main(String[] args) throws FileNotFoundException, ClassNotFoundException, IOException {
-		String pathGraph = args[1];
-		SimplifiedAssemblyGraph graph = new SimplifiedAssemblyGraph(pathGraph);
 		String pathLects = args[0];
-		GraphQualityAnalyzer analizer = new GraphQualityAnalyzer(graph, pathLects);
+		GraphQualityAnalyzer analizer = new GraphQualityAnalyzer(pathLects);
 		analizer.emmbededTest();
 	}
 
 	static class Sequence {
 		int id;
-		int ref;
+		String ref;
 		int pos;
 		int len;
 		boolean rev;
 		CharSequence sequence;
 
-		public Sequence(int id, int ref, int position, boolean isReversed, CharSequence sequence) {
+		public Sequence(int id, String ref, int position, boolean isReversed, CharSequence sequence) {
 			this.id = id;
 			this.ref = ref;
 			this.pos = position;
