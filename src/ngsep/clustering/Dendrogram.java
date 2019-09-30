@@ -1,45 +1,31 @@
 package ngsep.clustering;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 
 
 public class Dendrogram {
 
-  private Dendrogram leftDendro;
-  private Dendrogram rightDendro;
-  //private double leftTreeDistance;
-  //private double rightTreeDistance;
-  private String label;
-  
-  /*
-  Tree(Tree leftTree, Tree rightTree, double leftTreeDistance, double rightTreeDistance, String label) {
-    this.leftTree = leftTree;
-    this.rightTree = rightTree;
-    this.leftTreeDistance = leftTreeDistance;
-    this.rightTreeDistance = rightTreeDistance;
-    this.label = label;
-  }*/
-  
-  Dendrogram(Dendrogram leftDendro, Dendrogram rightDendro,  String label) {
-    this.leftDendro = leftDendro;
-    this.rightDendro = rightDendro;
-    this.label = label;
-  }
+	private String label;
+	private List<DendrogramEdge> children;
 
-  public void printTree(final PrintStream ps) {
-    
-	if (leftDendro != null) {
-		leftDendro.printTree(ps);
-    }
-    ps.print(label);
-    if (rightDendro != null) {
-    	rightDendro.printTree(ps);
-    }
-  }
-
-
-  
-
-
+	public Dendrogram(String label) {
+	    this.label = label;
+	    children = new ArrayList<DendrogramEdge>();
+	}
+	public Dendrogram(String label, List<DendrogramEdge> children) {
+	    this.label = label;
+	    this.children = new ArrayList<DendrogramEdge>();
+	    this.children.addAll(children);
+	}
+	
+	public void printTree(final PrintStream ps) {    
+		ps.print(label);
+		for(DendrogramEdge edge:children) {
+			Dendrogram child = edge.getDestination();
+			child.printTree(ps);
+		}
+	}
 }

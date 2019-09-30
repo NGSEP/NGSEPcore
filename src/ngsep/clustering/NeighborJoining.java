@@ -2,6 +2,7 @@ package ngsep.clustering;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -9,12 +10,10 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 
 
-public class NeighborJoining {
+public class NeighborJoining implements DistanceMatrixClustering {
 
 	private Logger log = Logger.getLogger(NeighborJoining.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	
-	private DistanceMatrix distanceMatrix;
 	
 	
 	public Logger getLog() {
@@ -41,37 +40,24 @@ public class NeighborJoining {
 		
 		String matrixFile = args[k++];
 	 	DistanceMatrix dm = new DistanceMatrix(matrixFile);
-	 	nj.loadMatrix(dm);
-		Dendrogram njTree = nj.constructNJTree();
+		Dendrogram njTree = nj.buildDendrogram(dm);
 		njTree.printTree(System.out);	
 	}
 	
-
-	 /**
-	  * Load Distance matrix.
-	  * @param DistanceMatrix Distance matrix loading , will be used to construct tree.
-	*/
-	public void loadMatrix (DistanceMatrix distanceMatrix){
-		this.distanceMatrix = distanceMatrix;
-	}
 	
+	public Dendrogram buildDendrogram(DistanceMatrix distances) {
 	
-	/**
-	  * Construct NJ tree and make newick out structure.
-	*/
-	public Dendrogram constructNJTree(){
-	
-		double iterableMatrix[][] = distanceMatrix.getDistanceMatrix();
+		double iterableMatrix[][] = distances.getDistances();
 		
-		int nSamples = distanceMatrix.getNumSamples();
+		int nSamples = distances.getNumSamples();
 		
 		int nodesToAssign = nSamples;
 		
 		Map<String, Dendrogram> nodesMerged = new HashMap<>();
 		
-		Dendrogram njTree = new Dendrogram(null, null, "");
+		Dendrogram njTree = new Dendrogram("");
 		
-		ArrayList<String> nodesList = new ArrayList<>(distanceMatrix.getIds());
+		ArrayList<String> nodesList = new ArrayList<>(distances.getIds());
 		
 		
 		while(nodesToAssign>2){
@@ -126,15 +112,18 @@ public class NeighborJoining {
 				
 				//If trees not exist create new ones
 				if(leftTree == null){
-					leftTree = new Dendrogram(null, null, nodesList.get(rowMin));
+					leftTree = new Dendrogram(nodesList.get(rowMin));
 				}
 				
 				if(rightTree == null){
-					rightTree = new Dendrogram(null, null, nodesList.get(colMin));
+					rightTree = new Dendrogram(nodesList.get(colMin));
 				}
 				
 				//Make a new tree with the two joined nodes
-				njTree = new Dendrogram( leftTree, rightTree, nodeMergeId);			
+				List<DendrogramEdge> children = new ArrayList<>();
+				children.add(new DendrogramEdge(1, null, leftTree));
+				children.add(new DendrogramEdge(1, null, rightTree));
+				njTree = new Dendrogram( nodeMergeId, children);			
 				nodesMerged.put(nodeMergeId, njTree);
 				
 				//Next iteration nodes positions
@@ -193,10 +182,10 @@ public class NeighborJoining {
 				String nodeMergeId = nodesList.get(0);
 				
 				// Newick format
-				Dendrogram leftTree = new Dendrogram(null, null, "("+nodesList.get(2)+":"+rightTreeDistance+","+nodesList.get(1)+":"+leftTreeDistance+",");
-				Dendrogram rightTree = new Dendrogram(null, null, ");\n");
+				Dendrogram leftTree = new Dendrogram("("+nodesList.get(2)+":"+rightTreeDistance+","+nodesList.get(1)+":"+leftTreeDistance+",");
+				Dendrogram rightTree = new Dendrogram(");\n");
 			
-				njTree = new Dendrogram(leftTree, rightTree, nodeMergeId+":"+centralTreeDistance);			
+				njTree = new Dendrogram(nodeMergeId+":"+centralTreeDistance);			
 
 			}
 			

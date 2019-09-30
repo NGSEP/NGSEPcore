@@ -9,7 +9,7 @@ import java.util.List;
 public class DistanceMatrix {
 
 	private List<String> ids;
-	private double distanceMatrix[][];
+	private double distances[][];
 	private int matrixOutputType;
 	
 	/**
@@ -29,7 +29,7 @@ public class DistanceMatrix {
 			} catch (Exception e) {
 				throw new IOException("Number format error reading number of samples",e);
 			}
-			distanceMatrix = new double[numSamples][numSamples];
+			distances = new double[numSamples][numSamples];
 			
 		    String matrixRow = br.readLine();
 		    int row = 0;
@@ -61,13 +61,13 @@ public class DistanceMatrix {
 						throw new IOException("Number format error at row "+row+" column: "+column+" value: "+matrixCell[column],e);
 					}
 	    			if(fileMatrixType == 0){ // full matrix
-	    				distanceMatrix[row][column-1]=value;
+	    				distances[row][column-1]=value;
 	    			} else if(fileMatrixType == 1){ // lower
-	    				distanceMatrix[row][column-1]=value;
-	    				distanceMatrix[column-1][row]=value;
+	    				distances[row][column-1]=value;
+	    				distances[column-1][row]=value;
 		    		} else if(fileMatrixType == 2){ // upper
-		    			distanceMatrix[column-1+indent][row]=value;
-		    			distanceMatrix[row][column-1+indent]=value;
+		    			distances[column-1+indent][row]=value;
+		    			distances[row][column-1+indent]=value;
 		    		}
 		    	}
 
@@ -86,7 +86,7 @@ public class DistanceMatrix {
 	*/
 	public DistanceMatrix(List<String> ids, double distanceMatrix[][] ){
 		this.setIds(ids);
-		this.setDistanceMatrix(distanceMatrix);
+		this.setDistances(distanceMatrix);
 	}
 	
 	/**
@@ -102,11 +102,11 @@ public class DistanceMatrix {
 		//print number of samples of the matrix
 	    out.println(this.getNumSamples());
 	    // print samples x samples distance matrix
-	    for(int j=0;j<distanceMatrix.length;j++){
+	    for(int j=0;j<distances.length;j++){
 	    	String row = "";
-    		for(int k=0;k<distanceMatrix[j].length;k++){
+    		for(int k=0;k<distances[j].length;k++){
     			if(this.getMatrixType() == 0 || (this.getMatrixType() == 1 && j>k) || (this.getMatrixType() == 2 && k>j) ) {
-    				row += distanceMatrix[j][k];
+    				row += distances[j][k];
         			row += " ";
         			
     			} else if(this.getMatrixType() == 2 && j>k){
@@ -134,16 +134,16 @@ public class DistanceMatrix {
 		this.ids = ids;
 	}
 
-	public double[][] getDistanceMatrix() {
-		return distanceMatrix;
+	public double[][] getDistances() {
+		return distances;
 	}
 
-	public void setDistanceMatrix(double distanceMatrix[][]) {
-		this.distanceMatrix = distanceMatrix;
+	public void setDistances(double distances[][]) {
+		this.distances = distances;
 	}
 
 	public int getNumSamples() {
-		return distanceMatrix.length;
+		return distances.length;
 	}
 
 	public int getMatrixType() {

@@ -23,6 +23,8 @@ package ngsep.sequences;
  * @author Jorge Duitama
  */
 public interface LimitedSequence extends CharSequence,Comparable<LimitedSequence> {
+	
+	public static final char GAP_CHARACTER = '-';
 	/**
 	 * Makes this sequence equals to the given sequence
 	 * @param sequence Sequence with data to copy
