@@ -39,9 +39,9 @@ java -Xmx2G -jar ${GALAXY_ROOT_DIR}/tools/ngsep/NGSEPcore_3.3.2.jar ConvertVCF
       <option value="Eigensoft">EIGENSOFT</option>
       <option value="Flapjack">Flapjack</option>
       <option value="Darwin">DARwin</option>
-      <option value="TreeMix">TreeMix (*aditional input required,see below)</option>
-      <option value="JoinMap">JoinMap (*aditional input required,see below)</option>
-      <option value="Phase">PHASE (*aditional input required,see below)</option>
+      <option value="TreeMix">TreeMix (*additional input required,see below)</option>
+      <option value="JoinMap">JoinMap (*additional input required,see below)</option>
+      <option value="Phase">PHASE (*additional input required,see below)</option>
     </param>
 
     <param name="treemix_file" type="data" format="txt" optional="true" label="File with population assignments for each sample" help="file should have two columns: sample ids and populations ids"/>
