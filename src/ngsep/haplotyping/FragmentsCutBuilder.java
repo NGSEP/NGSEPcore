@@ -109,16 +109,19 @@ public class FragmentsCutBuilder {
 		for(int i=0;i<allEdges.size() && i<iters;i++) {
 			Edge e=allEdges.get(i);
 			if(e.getWeight()>0) {
-				//System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
+				System.err.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
 				initCut(e);
+				System.err.println("Initialized cut");
 				boolean improvement = true;
 				while(improvement) {
 					heuristic1();
+					System.err.println("Finished heuristic 1");
 					improvement = heuristic2();
+					System.err.println("Improvement: "+improvement);
 				}
 				
 				double score = calculateScore (cut);
-				//System.out.println("Cut score: "+score);
+				System.err.println("Cut score: "+score);
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
@@ -177,6 +180,7 @@ public class FragmentsCutBuilder {
 			assigned[vMax.getPos()] = true;
 			cut[vMax.getPos()] = group;
 			nAssigned++;
+			if(nAssigned%1000==0) System.err.println("Initializing cut. Assigned: "+nAssigned);
 		}
 	}
 	private double getAssignmentDiff(Vertex v, boolean [] assigned) {
