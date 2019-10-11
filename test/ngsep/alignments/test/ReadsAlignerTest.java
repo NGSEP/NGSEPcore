@@ -15,6 +15,7 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadsAligner;
 import ngsep.genome.GenomeIndexer;
 import ngsep.genome.GenomicRegion;
+import org.junit.Test;
 
 public class ReadsAlignerTest extends TestCase {
 	private ReadsAligner readsAligner;

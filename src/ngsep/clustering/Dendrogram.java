@@ -3,13 +3,13 @@ package ngsep.clustering;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Locale;
 
 
 public class Dendrogram {
 
 	private String label;
-	private List<DendrogramEdge> children;
+	private ArrayList<DendrogramEdge> children;
 
 	public Dendrogram(String label) {
 	    this.label = label;
@@ -27,5 +27,45 @@ public class Dendrogram {
 			Dendrogram child = edge.getDestination();
 			child.printTree(ps);
 		}
+	}
+
+	public String toNewick(){
+		if (children.isEmpty())
+			return "()";
+		else {
+			DendrogramEdge firstL = this.children.get(0);
+			DendrogramEdge firstR = this.children.get(1);
+			Dendrogram firstLt = firstL.getDestination();
+			Dendrogram firstRt = firstR.getDestination();
+			double ld = firstL.getWeight();
+			Dendrogram r1 = firstRt.children.get(0).getDestination();
+			Dendrogram r2 = firstRt.children.get(1).getDestination();
+
+			return String.format(Locale.ROOT, "(%s:%f,%s:%f,%s:%f)", toNewick(firstLt), ld, r1.label, firstRt.children.get(0).getWeight(), r2.label, firstRt.children.get(1).getWeight() );
+		}
+	}
+
+	private String toNewick(Dendrogram t){
+		if (isLeaf(t)) return t.label;
+		else {
+			String level = "(";
+			for (int i = 0; i < children.size(); i++) {
+				DendrogramEdge e = children.get(i);
+				level += String.format(Locale.ROOT, "%s:%f", toNewick(e.getDestination()), e.getWeight());
+
+				if (i != children.size() - 1)
+					level += ",";
+			}
+			level += ")";
+			return level;
+		}
+	}
+
+	private boolean isLeaf(Dendrogram t){
+		return t.children.isEmpty();
+	}
+
+	public ArrayList<DendrogramEdge> getChildren(){
+		return this.children;
 	}
 }
