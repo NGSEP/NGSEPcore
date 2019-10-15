@@ -41,19 +41,20 @@ public class Dendrogram {
 			Dendrogram r1 = firstRt.children.get(0).getDestination();
 			Dendrogram r2 = firstRt.children.get(1).getDestination();
 
-			return String.format(Locale.ROOT, "(%s:%f,%s:%f,%s:%f)", toNewick(firstLt), ld, r1.label, firstRt.children.get(0).getWeight(), r2.label, firstRt.children.get(1).getWeight() );
+			return String.format(Locale.ROOT, "(%s:%f,%s)", toNewick(firstLt), ld, toNewick(firstRt));
 		}
 	}
 
 	private String toNewick(Dendrogram t){
 		if (isLeaf(t)) return t.label;
 		else {
+			ArrayList<DendrogramEdge> currentChildren = t.children;
 			String level = "(";
-			for (int i = 0; i < children.size(); i++) {
-				DendrogramEdge e = children.get(i);
+			for (int i = 0; i < currentChildren.size(); i++) {
+				DendrogramEdge e = currentChildren.get(i);
 				level += String.format(Locale.ROOT, "%s:%f", toNewick(e.getDestination()), e.getWeight());
 
-				if (i != children.size() - 1)
+				if (i != currentChildren.size() - 1)
 					level += ",";
 			}
 			level += ")";
@@ -68,4 +69,6 @@ public class Dendrogram {
 	public ArrayList<DendrogramEdge> getChildren(){
 		return this.children;
 	}
+
+	public void setChildren(ArrayList<DendrogramEdge> children){this.children = children;}
 }

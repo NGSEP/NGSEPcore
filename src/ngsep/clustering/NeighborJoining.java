@@ -60,7 +60,7 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	public void initializeSubTrees(List<String> names){
 		subTrees = new ArrayList<>(names.size());
 
-		for (int i = 0; i < subTrees.size(); i++) {
+		for (int i = 0; i < names.size(); i++) {
 			subTrees.add(new Dendrogram(names.get(i)));
 		}
 
@@ -75,8 +75,13 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		String matrixFile = args[k++];
 	 	DistanceMatrix dm = new DistanceMatrix(matrixFile);
 	 	nj.initializeSubTrees(dm.getIds());
+		System.out.println("Previous implementation");
 		Dendrogram njTree = nj.buildDendrogram(dm);
-		njTree.printTree(System.out);	
+		njTree.printTree(System.out);
+
+		Dendrogram njTree1 = nj.execute(dm);
+		System.out.println("New implementation");
+		System.out.println(njTree1.toNewick());
 	}
 	
 	
@@ -234,7 +239,7 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		int n = matrix.getNumSamples();
 		DistanceMatrix oldMatrix = matrix;
 
-		for (int i = n - 3; i >= 0; i++) {
+		for (int i = n - 3; i >= 0; i--) {
 			DistanceMatrix newMatrix = recalculateMatrix(oldMatrix);
 			oldMatrix = newMatrix;
 		}
@@ -435,9 +440,10 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		DendrogramEdge arcRight = new DendrogramEdge(dy, right);
 		Dendrogram newTree = new Dendrogram(newNode);
 
-		ArrayList<DendrogramEdge> children = newTree.getChildren();
+		ArrayList<DendrogramEdge> children = new ArrayList<>();
 		children.add(arcLeft);
 		children.add(arcRight);
+		newTree.setChildren(children);
 
 		newSubTrees.add(newTree);
 

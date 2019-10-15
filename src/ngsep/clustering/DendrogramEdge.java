@@ -5,7 +5,7 @@ public class DendrogramEdge {
 	private double weight;
 	private Dendrogram destination;
 
-	public DendrogramEdge(double weight, Dendrogram origin) {
+	public DendrogramEdge(double weight, Dendrogram destination) {
 		super();
 		this.weight = weight;
 		this.destination = destination;
