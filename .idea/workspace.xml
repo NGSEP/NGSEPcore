@@ -1,0 +1,827 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="c97b2ddb-e545-4beb-b962-adf3e660b804" name="Default" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/NGSEPcore.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/lib.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/NGSEPcore.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/NGSEPcore.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/AlignmentResult.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/BasePairQualityStatisticsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/KmerAlignmentCluster.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/KmerWithStart.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/PairEndsAlignments.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/ReadAlignment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/ReadsAligner$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/ReadsAligner.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/io/ReadAlignmentFileReader$ReadAlignmentFileIterator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/io/ReadAlignmentFileReader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/alignments/io/ReadAlignmentFileWriter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Alignment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AlignmentAffineGap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Assembler$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Assembler$Option.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Assembler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyConfiguration$ConsensusConfiguration.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyConfiguration$LayoutConfiguration.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyConfiguration$OverlapConfiguration.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyConfiguration.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyEdge.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyEmbedded.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyGraph$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyGraph.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/AssemblyVertex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilderBidirectionalAffineGap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilderBidirectionalConstantGap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilderBidirectionalFMIndex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilderBidirectionalNoGaps.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/ConsensusBuilderBidirectionalSimple.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Embedded.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/GraphBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/GraphBuilderFMIndex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/GraphQualityAnalyzer$Sequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/GraphQualityAnalyzer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/HitsAligner.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/KmerIterator$1$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/KmerIterator$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/KmerIterator$2$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/KmerIterator$2.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/KmerIterator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/LayourBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/LayoutBuilderGreedy.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/LayoutBuilderImplementation$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/LayoutBuilderImplementation.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/LayoutGraphFilter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/SelfAlignment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/SimplifiedAssemblyGraph.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/TestConsensusBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/TimeUtilities.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/Traceback.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/assembly/TreesHitAligner.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/BiparentalHaploidGoldStandardBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/GoldStandardComparisonCounts.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/GoldStandardGVCFBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/GoldStandardHaplotypeReconstruction.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/QualityStatisticsInbredBiparentalFamilies.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/QualityStatisticsOutbredF1Families.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/VCFAddADGTField.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/benchmark/VCFGoldStandardComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/BestStarMultipleSequenceAlignmentAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/Dendrogram.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/DendrogramEdge.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/DistanceMatrix.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/DistanceMatrixClustering.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/MultipleSequenceAlignmentAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/clustering/NeighborJoining.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/AlignmentsPileupGenerator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/AlleleCallClustersBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/BAMRelativeAlleleCountsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/CountsHelper.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/CoverageStatisticsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/CoverageStatsPileupListener.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/GenomicRegionWithAlignment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/IndelRealignerPileupListener.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/MultipleMappingRegionsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/MultisampleVariantsDetector.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/PileupAlleleCall.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/PileupListener.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/PileupRecord.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/ReadPairAnalyzer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/SameChromosomeAbnormalLengthAln.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/TillingPoolsIndividualGenotyper.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/VariantDiscoverySNVQAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/VariantPileupListener.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/VariantsDetector.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/AbstractHMMReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/CNVnatorReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/CNVseqAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/EWTReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/GaussFunction.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/Interval.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/LevelRegion.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/MaximumLikelihoodReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/MaximumLikelihoodState.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/PoissonHMMReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/PoissonHMMState.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/RDbinProbabilities.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/ReadDepthBin.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/ReadDepthDistribution.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/discovery/rd/SingleSampleReadDepthAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gbs/ClusteredReadsCache.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gbs/KmerPrefixReadsClusteringAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gbs/MemoryUsage.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gbs/ProcessInfo.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gbs/ReadCluster.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/AnnotatedReferenceGenome.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomeIndexer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomesAligner.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomesAlignerCircularOrthologVisualizer.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomesAlignerCircularParalogVisualizer.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomesAlignerLinearOrthologVisualizer.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegion.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionCollectionDensityCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionPositionComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionSortedCollection.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/GenomicRegionSpanComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/OrthologyUnit.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/ReferenceGenome.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/ReferenceGenomeFMIndex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/Transposon.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/TransposonFinder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/genome/io/SimpleGenomicRegionFileHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/graphs/CliquesFinder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/graphs/NodeIndexPlusDegree.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/gwas/GeneralLinearModel.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/CutHaplotypeTranslator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/DGSSIHAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/Edge.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/EdgesComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/FragmentsCutBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/HaplotypeBlock$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/HaplotypeBlock.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/HaplotypeFragment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/RefhapSIHAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/SIHAlgorithm.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/SingleIndividualHaplotyper.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/haplotyping/Vertex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/AbstractHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/ConstantTransitionHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/HMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/HMMState.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/RecombinationHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/hmm/VariableTransitionHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/Command.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/CommandOption.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/CommandsDescriptor.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/CommandsDescriptor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/OptionValuesDecoder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/ProgressNotifier.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/io/ConcatGZIPInputStream$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/io/ConcatGZIPInputStream$GZIPHelperInputStream.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/io/ConcatGZIPInputStream.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/main/io/ParseUtils.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/CountObjectPair.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/CountsRankHelper$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/CountsRankHelper.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/Distribution.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/FactorialAnova.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/FisherExactTest.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/LogMath.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/NumberArrays.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/math/PhredScoreHelper.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/AbstractLimitedSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/ByteArrayKmersMapImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/CombinedMultisequenceFMIndexMetadata.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DNAMaskedSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DNASequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DNAShortKmer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DNAShortKmerClusterMap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DefaultKmersMapImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/DegenerateSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/FMIndex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/FMIndexSingleSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/FastqFileErrorCorrector.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/HammingSequenceDistanceMeasure.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/KmersCounter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/KmersMap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/LimitedSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/QualifiedSequence.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/QualifiedSequenceList.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/RawRead.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/SequenceDistanceMeasure.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/SimpleEditDistanceMeasure.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/SuffixArrayGenerator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/SuffixCharSequencePositionComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/io/FastaSequencesHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/io/FastqFileReader$FastqFileIterator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/io/FastqFileReader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequences/io/SimpleSequenceListLoader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequencing/BarcodeMap.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequencing/ReadsDemultiplex.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequencing/SequencingLane.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequencing/io/BarcodesFileLoader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/sequencing/io/LaneFilesLoader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/simulation/STR.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/simulation/SimulatedDiploidIndividual.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/simulation/SingleIndividualSimulator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/simulation/SingleReadsSimulator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/simulation/TillingPopulationSimulator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/Codon.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/CodonCDSPairwiseAlignment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/Gene.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/MutatedPeptidesExtractor.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/ProteinTranslator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/ProteinTranslatorDefaultBundle.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/ReportRecord.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/Transcript.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/TranscriptSegment.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/Transcriptome.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/TranscriptomeAnalyzer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/TranscriptomeFilter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/VariantAnnotationParameters.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/VariantFunctionalAnnotation.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/VariantFunctionalAnnotationType$1.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/VariantFunctionalAnnotationType.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/CCDSTranscriptomeHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GFF3GenomicFeature.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GFF3GenomicFeatureLine.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GFF3TranscriptomeHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GFF3TranscriptomeWriter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GTF2GFF3Converter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/GTF2TranscriptomeHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/transcriptome/io/UCSCTranscriptomeHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/AlleleCompatibilityGenomicVariantComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledCNV.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledGenomicVariant.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledGenomicVariantImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledInversion.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledLargeIndel.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/CalledSNV.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/DiversityStatistics.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/GenomicVariant.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/GenomicVariantAnnotation.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/GenomicVariantImpl.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/ReadPairCalledGenomicVariant.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/SNV.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/Sample.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/VariantCallReport.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/DiploidGenotypeImputationHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/GenotypeImputationHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/GenotypeImputer.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/HaplotypeClusterHMMState.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/HaplotypeClustersHMM.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/imputation/HaplotypePairHMMState.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/io/GFFVariantsFileHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/variants/io/SimpleSamplesFileHandler.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/AlleleSharingStatsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/ConsistentVCFFilesMerge.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/GenomicVariantStrictComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/IndividualSampleVariantsMerge.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/Introgression.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/LDStatistics.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFComparator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFConverter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFDistanceMatrixCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFDiversityCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFileHeader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFileReader$VCFFileIterator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFileReader.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFileWriter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFilter.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFFunctionalAnnotator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFHeaderLine.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFIndividualGenomeBuilder.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFLDCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFRecord.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFSummaryStatisticsCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFVariantDensityCalculator.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VCFWindowIntrogressionAnalysis.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/VariantsBasicCounts.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/production/NGSEPcore/ngsep/vcf/WindowScores.class" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/out/test/NGSEPcore/ngsep/alignments/test/ReadsAlignerTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java" afterDir="false" />
+    </list>
+    <ignored path="$PROJECT_DIR$/out/" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="BestStarMultipleSequenceAlignmentAlgorithm.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/BestStarMultipleSequenceAlignmentAlgorithm.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="68">
+              <caret line="4" column="13" selection-start-line="4" selection-start-column="13" selection-end-line="4" selection-end-column="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="NeighborJoining.java" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="157">
+              <caret line="84" selection-start-line="84" selection-end-line="84" />
+              <folding>
+                <element signature="imports" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="DistanceMatrix.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DistanceMatrix.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="292">
+              <caret line="23" selection-start-line="23" selection-end-line="23" />
+              <folding>
+                <element signature="imports" expanded="true" />
+                <element signature="e#3730#3731#0" expanded="true" />
+                <element signature="e#3747#3748#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Dendrogram.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-24">
+              <caret line="44" selection-start-line="44" selection-end-line="44" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="DendrogramEdge.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DendrogramEdge.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="119">
+              <caret line="8" column="16" selection-start-line="8" selection-start-column="16" selection-end-line="8" selection-end-column="16" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="README.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/README.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="13481">
+              <caret line="793" column="33" selection-start-line="793" selection-start-column="30" selection-end-line="793" selection-end-column="33" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="ReadsAlignerTest.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/test/ngsep/alignments/test/ReadsAlignerTest.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="136">
+              <caret line="24" selection-start-line="24" selection-end-line="24" />
+              <folding>
+                <element signature="imports" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>nei</find>
+    </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GradleLocalSettings">
+    <option name="projectSyncType">
+      <map>
+        <entry key="$PROJECT_DIR$/../../infracom/laboratorios/lab3/infracom_transportLayerProtocols" value="PREVIEW" />
+        <entry key="$USER_HOME$/Documents/dev/IDDD_Samples" value="PREVIEW" />
+        <entry key="$USER_HOME$/Documents/dev/extravaganza" value="PREVIEW" />
+      </map>
+    </option>
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/test/ngsep/alignments/test/ReadsAlignerTest.java" />
+        <option value="$PROJECT_DIR$/src/ngsep/clustering/DendrogramEdge.java" />
+        <option value="$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java" />
+        <option value="$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="-9" />
+    <option name="y" value="-9" />
+    <option name="width" value="978" />
+    <option name="height" value="1048" />
+  </component>
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="NGSEPcore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="NGSEPcore" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="NGSEPcore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="NGSEPcore" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="NGSEPcore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="NGSEPcore" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="ngsep" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="NGSEPcore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="NGSEPcore" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="ngsep" type="462c0819:PsiDirectoryNode" />
+              <item name="clustering" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="NGSEPcore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="AndroidView" />
+      <pane id="PackagesPane" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="Downloaded.Files.Path.Enabled" value="false" />
+    <property name="Repository.Attach.JavaDocs" value="false" />
+    <property name="Repository.Attach.Sources" value="false" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager">
+    <configuration name="NeighborJoining" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="ngsep.clustering.NeighborJoining" />
+      <module name="NGSEPcore" />
+      <option name="PROGRAM_PARAMETERS" value="smallMatrix1.txt" />
+      <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="ngsep.clustering.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+    </configuration>
+    <configuration default="true" type="Application" factoryName="Application">
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    </configuration>
+    <configuration default="true" type="JUnit" factoryName="JUnit">
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" />
+      <option name="PACKAGE_NAME" />
+      <option name="MAIN_CLASS_NAME" />
+      <option name="METHOD_NAME" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" value="-ea" />
+      <option name="PARAMETERS" />
+      <option name="WORKING_DIRECTORY" value="%MODULE_WORKING_DIR%" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="singleModule" />
+      </option>
+      <patterns />
+    </configuration>
+    <configuration default="true" type="TestNG" factoryName="TestNG">
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" />
+      <option name="SUITE_NAME" />
+      <option name="PACKAGE_NAME" />
+      <option name="MAIN_CLASS_NAME" />
+      <option name="METHOD_NAME" />
+      <option name="GROUP_NAME" />
+      <option name="TEST_OBJECT" value="CLASS" />
+      <option name="VM_PARAMETERS" value="-ea" />
+      <option name="PARAMETERS" />
+      <option name="WORKING_DIRECTORY" value="%MODULE_WORKING_DIR%" />
+      <option name="OUTPUT_DIRECTORY" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="singleModule" />
+      </option>
+      <option name="USE_DEFAULT_REPORTERS" value="false" />
+      <option name="PROPERTIES_FILE" />
+      <properties />
+      <listeners />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.NeighborJoining" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c97b2ddb-e545-4beb-b962-adf3e660b804" name="Default" comment="" />
+      <created>1570728577216</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1570728577216</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
+    <layout>
+      <window_info anchor="right" id="Palette" order="3" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Messages" order="7" weight="0.32909605" />
+      <window_info anchor="right" id="Palette&#9;" order="3" />
+      <window_info id="Image Layers" order="1" />
+      <window_info anchor="right" id="Capture Analysis" order="3" />
+      <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
+      <window_info anchor="right" id="Maven Projects" order="3" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.22740114" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
+      <window_info anchor="bottom" id="Terminal" order="7" />
+      <window_info id="Capture Tool" order="2" />
+      <window_info id="Designer" order="3" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.4965197" visible="true" weight="0.20067114" />
+      <window_info id="Structure" order="6" sideWeight="0.50348026" side_tool="true" visible="true" weight="0.20067114" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info id="UI Designer" order="4" />
+      <window_info anchor="right" id="Theme Preview" order="3" />
+      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.39124295" />
+      <window_info id="Favorites" order="5" side_tool="true" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Find" order="1" />
+    </layout>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java</url>
+          <line>28</line>
+          <properties />
+          <option name="timeStamp" value="10" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java</url>
+          <line>79</line>
+          <properties />
+          <option name="timeStamp" value="13" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java</url>
+          <line>221</line>
+          <properties />
+          <option name="timeStamp" value="15" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java</url>
+          <line>204</line>
+          <properties />
+          <option name="timeStamp" value="16" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java</url>
+          <line>313</line>
+          <properties />
+          <option name="timeStamp" value="17" />
+        </line-breakpoint>
+      </breakpoints>
+      <option name="time" value="18" />
+    </breakpoint-manager>
+    <watches-manager>
+      <configuration name="Application">
+        <watch expression="((DendrogramEdge)((java.util.ArrayList)((Dendrogram)((DendrogramEdge)((ArrayList)((Dendrogram)this).children).get(1)).destination).children).get(0)).weight" custom="ngsep.clustering.Dendrogram,java.util.ArrayList,ngsep.clustering.DendrogramEdge" />
+      </configuration>
+    </watches-manager>
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/BestStarMultipleSequenceAlignmentAlgorithm.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="68">
+          <caret line="4" column="13" selection-start-line="4" selection-start-column="13" selection-end-line="4" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DistanceMatrix.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2057">
+          <caret line="126" selection-start-line="126" selection-end-line="126" />
+          <folding>
+            <element signature="imports" expanded="true" />
+            <element signature="e#3730#3731#0" expanded="true" />
+            <element signature="e#3747#3748#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="680">
+          <caret line="43" column="99" selection-start-line="43" selection-start-column="99" selection-end-line="43" selection-end-column="99" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DendrogramEdge.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="119">
+          <caret line="7" column="63" selection-start-line="7" selection-start-column="63" selection-end-line="7" selection-end-column="63" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="13481">
+          <caret line="793" column="33" selection-start-line="793" selection-start-column="30" selection-end-line="793" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/ngsep/alignments/test/ReadsAlignerTest.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="24" selection-start-line="24" selection-end-line="24" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1139">
+          <caret line="82" column="46" selection-start-line="82" selection-start-column="46" selection-end-line="82" selection-end-column="46" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/BestStarMultipleSequenceAlignmentAlgorithm.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="68">
+          <caret line="4" column="13" selection-start-line="4" selection-start-column="13" selection-end-line="4" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1054">
+          <caret line="67" column="20" selection-start-line="67" selection-start-column="20" selection-end-line="67" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DendrogramEdge.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="272">
+          <caret line="18" selection-start-line="18" selection-end-line="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="13481">
+          <caret line="793" column="33" selection-start-line="793" selection-start-column="30" selection-end-line="793" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/ngsep/alignments/test/ReadsAlignerTest.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="24" lean-forward="true" selection-start-line="24" selection-end-line="24" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="6749">
+          <caret line="397" column="43" lean-forward="true" selection-start-line="397" selection-start-column="43" selection-end-line="397" selection-end-column="43" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/BestStarMultipleSequenceAlignmentAlgorithm.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="68">
+          <caret line="4" column="13" selection-start-line="4" selection-start-column="13" selection-end-line="4" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/main/CommandsDescriptor.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-5545">
+          <caret line="43" column="13" selection-start-line="43" selection-start-column="13" selection-end-line="43" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/ngsep/alignments/test/ReadsAlignerTest.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="24" selection-start-line="24" selection-end-line="24" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_181/src.zip!/java/io/PrintStream.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="147">
+          <caret line="664" column="16" selection-start-line="664" selection-start-column="16" selection-end-line="664" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DistanceMatrixClustering.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="34">
+          <caret line="2" column="17" selection-start-line="2" selection-start-column="17" selection-end-line="2" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="13481">
+          <caret line="793" column="33" selection-start-line="793" selection-start-column="30" selection-end-line="793" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DistanceMatrix.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="292">
+          <caret line="23" selection-start-line="23" selection-end-line="23" />
+          <folding>
+            <element signature="imports" expanded="true" />
+            <element signature="e#3730#3731#0" expanded="true" />
+            <element signature="e#3747#3748#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/DendrogramEdge.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="119">
+          <caret line="8" column="16" selection-start-line="8" selection-start-column="16" selection-end-line="8" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/Dendrogram.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-24">
+          <caret line="44" selection-start-line="44" selection-end-line="44" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/ngsep/clustering/NeighborJoining.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="157">
+          <caret line="84" selection-start-line="84" selection-end-line="84" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ProjectJDKs.UI">
+        <settings>
+          <last-edited>1.8</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
+  </component>
+</project>

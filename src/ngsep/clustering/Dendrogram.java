@@ -31,17 +31,18 @@ public class Dendrogram {
 
 	public String toNewick(){
 		if (children.isEmpty())
-			return "()";
+			return "();";
 		else {
 			DendrogramEdge firstL = this.children.get(0);
 			DendrogramEdge firstR = this.children.get(1);
 			Dendrogram firstLt = firstL.getDestination();
 			Dendrogram firstRt = firstR.getDestination();
 			double ld = firstL.getWeight();
+			double rd = firstR.getWeight();
 			Dendrogram r1 = firstRt.children.get(0).getDestination();
 			Dendrogram r2 = firstRt.children.get(1).getDestination();
 
-			return String.format(Locale.ROOT, "(%s:%f,%s)", toNewick(firstLt), ld, toNewick(firstRt));
+			return String.format(Locale.ROOT, "(%s:%f,%s);", toNewick(firstLt), ld + rd, toNewick(firstRt));
 		}
 	}
 

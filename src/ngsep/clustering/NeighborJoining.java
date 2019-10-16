@@ -266,20 +266,10 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		// Calculate auxiliary Q matrix
 		double[][] Q = calculateQMatrix(D);
 
-		int x = 0;
-		int y = 0;
-		double min = Double.MAX_VALUE;
-
 		// Find minimum value in Q
-		for (int i = 0; i < n; i++) {
-			for (int j = 0; j < n; j++) {
-				if (i != j && Q[i][j] < min){
-					min = Q[i][j];
-					x = i;
-					y = j;
-				}
-			}
-		}
+		Tuple<Integer, Integer> minCoordinates = findMinimumInMatriz(Q);
+		int x = minCoordinates.first;
+		int y = minCoordinates.second;
 
 		// make a copy of the matrix with the values not in the x or y rows
 		double[][] newD = copyMatrix(D, x, y);
@@ -311,14 +301,42 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		updateSubTrees(x, y, dx, dy, newNode);
 
 		if (n == 3){ // Last update
-			double dz = D[n - 1][x] - dx;
-			ArrayList<String> finalNodes = updateNames(names, 0, 1);
+
+			// Find un-joined node z
+			int z = 0;
+			int[] lastNodes = new int[3];
+			lastNodes[x] = 1;
+			lastNodes[y] = 1;
+			for (int i = 0; i < 3; i++) {
+				if (lastNodes[i] != 1) z = i;
+			}
+
+			double dz = calculateDistanceFromTaxaToNewNode(D, x, y, z);
+			ArrayList<String> finalNodes = updateNames(newNames, 0, 1);
 			String finalNode = finalNodes.get(finalNodes.size() - 1);
-			updateSubTrees(0, 1, dz, 0, finalNode);
+			updateSubTrees(0, 1, dz/2, dz/2, finalNode);
 		}
 
 		return new DistanceMatrix(newNames, newD);
 
+	}
+
+	private Tuple<Integer, Integer> findMinimumInMatriz(double[][] Q){
+		int n = Q.length;
+		int x = 0;
+		int y = 0;
+		double min = Double.MAX_VALUE;
+
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				if (i != j && Q[i][j] < min){
+					min = Q[i][j];
+					x = i;
+					y = j;
+				}
+			}
+		}
+		return new Tuple<>(x, y);
 	}
 
 	/**
