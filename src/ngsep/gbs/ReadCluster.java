@@ -38,6 +38,7 @@ public class ReadCluster {
 	}
 	
 	public void addRead(RawRead read, String sampleId) {
+		refSeqDone = false;
 		reads.add(read);
 		sampleIds.add(sampleId);
 		if(read.getLength() >= longestRead) {

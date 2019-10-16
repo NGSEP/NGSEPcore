@@ -91,7 +91,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	
 	//TODO calculate from kmersMaps distribution
-	public int MIN_CLUSTER_DEPTH = 100;
+	public int MIN_CLUSTER_DEPTH = 10;
 	public int MAX_CLUSTER_DEPTH = 1000;
 	
 	private String inputDirectory=".";
@@ -169,27 +169,27 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public void run() throws IOException {
 		
-		processInfo.addTime(System.nanoTime(), "Load files start");
+		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
-		processInfo.addTime(System.nanoTime(), "Load files end");
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap start");
+		processInfo.addTime(System.currentTimeMillis(), "Load files end");
+		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap start");
 		log.info("Loaded "+filenamesBySampleId1.size()+" samples");
 		buildSamples();
 		buildKmersMap();
-		processInfo.addTime(System.nanoTime(), "BuildKmersMap end");
-		processInfo.addTime(System.nanoTime(), "Cluster reads start");
+		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap end");
+		processInfo.addTime(System.currentTimeMillis(), "Cluster reads start");
 		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		this.clusterSizes = new int[kmersMap.size()];
 		List<String> clusteredReadsFilenames = clusterReads();
 		printDistribution();
 		printStatistics("initial");
-		processInfo.addTime(System.nanoTime(), "Cluster reads end");
-		processInfo.addTime(System.nanoTime(), "Variant calling start");		
+		processInfo.addTime(System.currentTimeMillis(), "Cluster reads end");
+		processInfo.addTime(System.currentTimeMillis(), "Variant calling start");		
 //		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
 		callVariants(clusteredReadsFilenames);
-		processInfo.addTime(System.nanoTime(), "Variant calling end");
+		processInfo.addTime(System.currentTimeMillis(), "Variant calling end");
 		log.info("Called variants");
 		printStatistics("final");
 		log.info("Process finished");
@@ -206,9 +206,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private List<String> debug() {		
 		log.info("Skipping to call variants");
-		int numClusters = 1831958;
-		int stop = 139;
-		String run = "11";
+		int numClusters = 8432655;
+		int stop = 31;
+		String run = "20";
 		String prefix = "run_" + run + "_clusteredReads_";
 		String suffix = ".fastq.gz";
 		List<String> clusteredReadsFilenames = new ArrayList<>();
@@ -249,7 +249,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		File[] files = (new File(inputDirectory)).listFiles();
 		for(File f : files) {
 			String filename = f.getName();
-			//TODO: Use pattern
 			int i = filename.indexOf(".fastq");
 			if(i>=0) {
 				String sampleId = filename.substring(0, i);
@@ -268,6 +267,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 
 	private void addKmersFromFile(String filename) throws IOException {
 		int readCount = 0;
+		System.out.println("Reading file: " + filename);
 		try (FastqFileReader openFile = new FastqFileReader(filename);) {
 			Iterator<RawRead> reader = openFile.iterator();
 			while(reader.hasNext()) {
@@ -704,8 +704,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			if(kmersMap != null) processStats.println("Number of Clusters: " + Integer.toString(kmersMap.size()));
 			processStats.println("Number of Clusters with called variants: " + Integer.toString(this.numClustersWithCalledVariants));
 			processStats.println("Number of Clusters with genotyped variants: " + Integer.toString(this.numClustersWithGenVariants));
-			processStats.println("Number of Large Clusters (>1000): " + Integer.toString(this.numLargeClusters));
-			processStats.println("Number of Small Clusters (<10): " + Integer.toString(this.numSmallClusters));
+			processStats.println("Number of Large Clusters (>"+MAX_CLUSTER_DEPTH+"): " + Integer.toString(this.numLargeClusters));
+			processStats.println("Number of Small Clusters (<" + MIN_CLUSTER_DEPTH + "): " + Integer.toString(this.numSmallClusters));
 			processStats.println("Number of Reads: " + Integer.toString(this.numTotalReads));
 			processStats.println("Number of Unclustered Reads I: " + Integer.toString(this.numUnclusteredReadsI));
 			processStats.println("Number of Reads in Large Clusters: " + Integer.toString(this.numReadsLargeClusters));

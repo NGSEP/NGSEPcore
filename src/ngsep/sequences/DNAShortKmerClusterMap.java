@@ -32,10 +32,11 @@ import ngsep.math.Distribution;
  */
 public class DNAShortKmerClusterMap implements KmersMap {
 	private int kmerLength = 31;
-	private int[][] table=new int [224000000][DNASequence.BASES_ARRAY.length];
+	private int[][] table=new int [256000000][DNASequence.BASES_ARRAY.length];
 	private Map<DNAShortKmer, Integer> index = new HashMap<>();
 	private int newIndex = 0;
 	private int numClusters = 0;
+	private int MAXNUMCLUSTERS = 2000000; 
 	
 	public int getNumClusters() {
 		return this.numClusters;
@@ -52,7 +53,9 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		if(k != null) {
 			append(kmer, k);
 		} else {
-			createCluster(kmer);
+			if (numClusters < MAXNUMCLUSTERS) {
+				createCluster(kmer);
+			}
 		}
 	}
 	/**
