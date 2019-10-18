@@ -49,6 +49,7 @@ public class VCFConverter {
 	private boolean printFasta = false;
 	private boolean printMatrix = false;
 	private boolean printHapmap = false;
+	private boolean printGWASPoly = false;
 	private boolean printPlink = false;
 	private boolean printHaploview = false;
 	private boolean printSpagedi = false;
@@ -71,64 +72,8 @@ public class VCFConverter {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(VCFConverter.class);
-			return;
-		}
 		VCFConverter converter = new VCFConverter();
-		int i=0;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if ("-printStructure".equals(args[i])) {
-				converter.printStructure = true;
-			} else if ("-printFasta".equals(args[i])) {
-				converter.printFasta = true;
-			} else if ("-printrrBLUP".equals(args[i])) {
-				converter.printrrBLUP = true;	
-			} else if ("-printMatrix".equals(args[i])) {
-				converter.printMatrix = true;
-			} else if ("-printHapmap".equals(args[i])) {
-				converter.printHapmap = true;
-			} else if ("-printSpagedi".equals(args[i])) {
-				converter.printSpagedi = true;
-			} else if ("-printPlink".equals(args[i])) {
-				converter.printPlink = true;
-			} else if ("-printHaploview".equals(args[i])) {
-				converter.printHaploview = true;
-			} else if ("-printEmma".equals(args[i])) {
-				converter.printEmma = true;
-			} else if ("-printPowerMarker".equals(args[i])) {
-				converter.printPowerMarker = true;
-			} else if ("-printEigensoft".equals(args[i])) {
-				converter.printEigensoft = true;
-			} else if ("-printFlapjack".equals(args[i])) {
-				converter.printFlapjack = true;
-			}else if ("-printDarwin".equals(args[i])){
-				converter.printDarwin=true;
-			}else if ("-printTreeMix".equals(args[i])){
-				converter.printTreeMix=true;
-			} else if ("-printJoinMap".equals(args[i])) {
-				converter.printJoinMap = true;
-			} else if ("-printPhase".equals(args[i])) {
-				converter.printPhase = true;
-			} else if ("-p1".equals(args[i])) {
-				i++;
-				converter.idParent1 = args[i];
-			} else if ("-p2".equals(args[i])) {
-				i++;
-				converter.idParent2 = args[i];
-			} else if ("-s".equals(args[i])) {
-				i++;
-				converter.sequenceName = args[i];
-			} else if ("-p".equals(args[i])) {
-				i++;
-				converter.populationFile = args[i];
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(VCFConverter.class);
-				return;
-			}
-			i++;
-		}
+		int i=CommandsDescriptor.getInstance().loadOptions(converter, args);
 		String vcfFile = args[i++];
 		String prefix = args[i++];
 		converter.process(vcfFile,prefix);		
@@ -138,6 +83,7 @@ public class VCFConverter {
 		VCFFileReader reader = null;
 		PrintStream outMatrix = null;
 		PrintStream outHapmap = null;
+		PrintStream outGWASPoly = null;
 		PrintStream outJoinMap = null;
 		PrintStream outTreemix = null;
 		//Load the matrix if at least one format need the matrix to be transposed
@@ -148,7 +94,7 @@ public class VCFConverter {
 		try {
 			reader = new VCFFileReader(vcfFile);
 			if(log!=null)reader.setLog(log);
-			reader.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
+			if(!printGWASPoly) reader.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			VCFFileHeader header = reader.getHeader();
 			sampleIds = header.getSampleIds();
 			Iterator<VCFRecord> it = reader.iterator();
@@ -160,6 +106,10 @@ public class VCFConverter {
 			if(printHapmap) {
 				outHapmap = new PrintStream(prefix+"_hmp.txt");
 				printHapmapHeader (sampleIds,outHapmap);
+			}
+			if(printGWASPoly) {
+				outGWASPoly = new PrintStream(prefix+"_GWASPoly.txt");
+				printGWASPolyHeader (sampleIds,outGWASPoly);
 			}
 			Map<String, List<Integer>> groupsWithSampleIdxs = null;
 			if(printTreeMix) {
@@ -198,6 +148,7 @@ public class VCFConverter {
 				//Print genotypes for the current variant for formats that do not need transposition
 				if(outMatrix!=null)printGenotypesMatrix(record,outMatrix);
 				if(outHapmap!=null)printHapmap(record,outHapmap);
+				if(outGWASPoly!=null)printGWASPoly(record,outGWASPoly,(n+1));
 				if(outTreemix!=null && record.getVariant().isBiallelic()) printTreeMix(groupsWithSampleIdxs,record.getCalls(),outTreemix);
 				if(outJoinMap!=null)printJoinMap(record, outJoinMap, ip1, ip2);
 				n++;
@@ -217,6 +168,10 @@ public class VCFConverter {
 			if(outHapmap!=null) {
 				outHapmap.flush();
 				outHapmap.close();
+			}
+			if(outGWASPoly!=null) {
+				outGWASPoly.flush();
+				outGWASPoly.close();
 			}
 			if (outTreemix!=null) {
 				outTreemix.flush();
@@ -246,13 +201,22 @@ public class VCFConverter {
 		if(printEigensoft) printEigensoft(sampleIds,callsPerVariant,prefix);
 		if(printPhase) printPhase(sampleIds,callsPerVariant,prefix+"_"+sequenceName+"_phase.inp");
 	}
-	
+
 	public Logger getLog() {
 		return log;
 	}
 
 	public void setLog(Logger log) {
 		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+
+
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
 	}
 
 
@@ -265,6 +229,10 @@ public class VCFConverter {
 		this.printStructure = printStructure;
 	}
 	
+	public void setPrintStructure(Boolean printStructure) {
+		this.setPrintStructure(printStructure.booleanValue());
+	}
+	
 	
 	public boolean isPrintrrBLUP() {
 		return printrrBLUP;
@@ -273,6 +241,10 @@ public class VCFConverter {
 
 	public void setPrintrrBLUP(boolean printrrBLUP) {
 		this.printrrBLUP = printrrBLUP;
+	}
+	
+	public void setPrintrrBLUP(Boolean printrrBLUP) {
+		this.setPrintrrBLUP(printrrBLUP.booleanValue());
 	}
 	
 	
@@ -284,6 +256,10 @@ public class VCFConverter {
 	public void setPrintFasta(boolean printFasta) {
 		this.printFasta = printFasta;
 	}
+	
+	public void setPrintFasta(Boolean printFasta) {
+		this.setPrintFasta(printFasta.booleanValue());
+	}
 
 
 	public boolean isPrintMatrix() {
@@ -293,6 +269,10 @@ public class VCFConverter {
 
 	public void setPrintMatrix(boolean printMatrix) {
 		this.printMatrix = printMatrix;
+	}
+	
+	public void setPrintMatrix(Boolean printMatrix) {
+		this.setPrintMatrix(printMatrix.booleanValue());
 	}
 
 
@@ -304,7 +284,22 @@ public class VCFConverter {
 	public void setPrintHapmap(boolean printHapmap) {
 		this.printHapmap = printHapmap;
 	}
+	
+	public void setPrintHapmap(Boolean printHapmap) {
+		this.setPrintHapmap(printHapmap.booleanValue());
+	}
+	
+	public boolean isPrintGWASPoly() {
+		return printGWASPoly;
+	}
 
+	public void setPrintGWASPoly(boolean printGWASPoly) {
+		this.printGWASPoly = printGWASPoly;
+	}
+	
+	public void setPrintGWASPoly(Boolean printGWASPoly) {
+		this.setPrintGWASPoly(printGWASPoly.booleanValue());
+	}
 
 	public boolean isPrintPlink() {
 		return printPlink;
@@ -314,15 +309,21 @@ public class VCFConverter {
 	public void setPrintPlink(boolean printPlink) {
 		this.printPlink = printPlink;
 	}
-
+	
+	public void setPrintPlink(Boolean printPlink) {
+		this.setPrintPlink(printPlink.booleanValue());
+	}
 
 	public boolean isPrintHaploview() {
 		return printHaploview;
 	}
 
-
 	public void setPrintHaploview(boolean printHaploview) {
 		this.printHaploview = printHaploview;
+	}
+	
+	public void setPrintHaploview(Boolean printHaploview) {
+		this.setPrintHaploview(printHaploview.booleanValue());
 	}
 
 
@@ -330,11 +331,13 @@ public class VCFConverter {
 		return printSpagedi;
 	}
 
-
 	public void setPrintSpagedi(boolean printSpagedi) {
 		this.printSpagedi = printSpagedi;
 	}
-
+	
+	public void setPrintSpagedi(Boolean printSpagedi) {
+		this.setPrintSpagedi(printSpagedi.booleanValue());
+	}
 
 	public boolean isPrintEmma() {
 		return printEmma;
@@ -344,7 +347,10 @@ public class VCFConverter {
 	public void setPrintEmma(boolean printEmma) {
 		this.printEmma = printEmma;
 	}
-
+	
+	public void setPrintEmma(Boolean printEmma) {
+		this.setPrintEmma(printEmma.booleanValue());
+	}
 
 	public boolean isPrintPowerMarker() {
 		return printPowerMarker;
@@ -354,17 +360,22 @@ public class VCFConverter {
 	public void setPrintPowerMarker(boolean printPowerMarker) {
 		this.printPowerMarker = printPowerMarker;
 	}
-
+	
+	public void setPrintPowerMarker(Boolean printPowerMarker) {
+		this.setPrintPowerMarker(printPowerMarker.booleanValue());
+	}
 
 	public boolean isPrintEigensoft() {
 		return printEigensoft;
 	}
 
-
 	public void setPrintEigensoft(boolean printEigensoft) {
 		this.printEigensoft = printEigensoft;
 	}
-
+	
+	public void setPrintEigensoft(Boolean printEigensoft) {
+		this.setPrintEigensoft(printEigensoft.booleanValue());
+	}
 
 	public boolean isPrintFlapjack() {
 		return printFlapjack;
@@ -373,33 +384,21 @@ public class VCFConverter {
 	public void setPrintFlapjack(boolean printFlapjack) {
 		this.printFlapjack = printFlapjack;
 	}
+	
+	public void setPrintFlapjack(Boolean printFlapjack) {
+		this.setPrintFlapjack(printFlapjack.booleanValue());
+	}
 
 	public boolean isPrintPhase() {
 		return printPhase;
 	}
 
-
 	public void setPrintPhase(boolean printPhase) {
 		this.printPhase = printPhase;
 	}
-
-	public String getSequenceName() {
-		return sequenceName;
-	}
-
-
-	public void setSequenceName(String sequenceName) {
-		this.sequenceName = sequenceName;
-	}
-
-
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
+	
+	public void setPrintPhase(Boolean printPhase) {
+		this.setPrintPhase(printPhase.booleanValue());
 	}
 	
 	public boolean isPrintTreeMix() {
@@ -410,15 +409,21 @@ public class VCFConverter {
 	public void setPrintTreeMix(boolean printTreeMix) {
 		this.printTreeMix = printTreeMix;
 	}
-
+	
+	public void setPrintTreeMix(Boolean printTreeMix) {
+		this.setPrintTreeMix(printTreeMix.booleanValue());
+	}
 
 	public boolean isPrintDarwin() {
 		return printDarwin;
 	}
 
-
 	public void setPrintDarwin(boolean printDarwin) {
 		this.printDarwin = printDarwin;
+	}
+	
+	public void setPrintDarwin(Boolean printDarwin) {
+		this.setPrintDarwin(printDarwin.booleanValue());
 	}
 
 	public boolean isPrintJoinMap() {
@@ -428,7 +433,19 @@ public class VCFConverter {
 	public void setPrintJoinMap(boolean printJoinMap) {
 		this.printJoinMap = printJoinMap;
 	}
+	
+	public void setPrintJoinMap(Boolean printJoinMap) {
+		this.setPrintJoinMap(printJoinMap.booleanValue());
+	}
 
+	public String getSequenceName() {
+		return sequenceName;
+	}
+
+
+	public void setSequenceName(String sequenceName) {
+		this.sequenceName = sequenceName;
+	}
 	
 
 	public String getIdParent1() {
@@ -446,7 +463,8 @@ public class VCFConverter {
 	public void setIdParent2(String idParent2) {
 		this.idParent2 = idParent2;
 	}
-
+	
+	
 	private void printFlapjack(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outPrefix) throws IOException {
 		StringBuilder [] sequences = new StringBuilder[sampleIds.size()];
 		for(int i=0;i<sequences.length;i++) sequences[i] = new StringBuilder(sampleIds.get(i));
@@ -707,7 +725,6 @@ public class VCFConverter {
 			out.print("\t"+sampleId);
 		}
 		out.println();
-		
 	}
 	private void printHapmap(VCFRecord record, PrintStream out) throws IOException{
 		GenomicVariant var = record.getVariant();
@@ -728,6 +745,38 @@ public class VCFConverter {
 			else out.print("\t"+alleles[1]+""+alleles[1]);
 		}
 		out.println();	
+	}
+	
+	private void printGWASPolyHeader(List<String> sampleIds, PrintStream out) {
+		out.print("Marker,Chrom,Position");
+		for(String sampleId:sampleIds) {
+			out.print(","+sampleId);
+		}
+		out.println();
+	}
+
+	private void printGWASPoly(VCFRecord record, PrintStream out, int index) {
+		GenomicVariant var = record.getVariant();
+		if(!(var instanceof SNV)) return;
+		
+		String [] alleles = record.getVariant().getAlleles();
+		out.print(""+index+","+record.getSequenceName()+","+record.getFirst());
+		List<CalledGenomicVariant> calls = record.getCalls();
+		for(int i=0;i<calls.size();i++) {
+			CalledGenomicVariant calledVar = calls.get(i);
+			byte [] allelesCN = calledVar.getAllelesCopyNumber();
+			if(calledVar.isUndecided()) out.print(",NA");
+			else {
+				out.print(",");
+				for(int j=0;j<allelesCN.length;j++) {
+					if(var.getFirst()==2017) System.out.println("Allele "+alleles[j]+" copy number: "+allelesCN[j]);
+					for(int k=0;k<allelesCN[j];k++) {
+						out.print(alleles[j]);
+					}
+				}
+			}
+		}
+		out.println();
 	}
 		
 	private void printStructure(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outFile) throws IOException {

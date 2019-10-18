@@ -510,71 +510,74 @@ different kinds of analysis
 <argument>OPTIONS</argument>
 <argument>INPUT_FILE</argument>
 <argument>OUTPUT_PREFIX</argument>
-<option id="printStructure">
+<option id="printStructure" type="BOOLEAN" attribute="printStructure">
 Prints input format for structure
 </option>
-<option id="printFasta">
+<option id="printFasta" type="BOOLEAN" attribute="printFasta">
 Prints a virtual multiple sequence alignment
 in fasta format. Useful to build distance based dendograms
 </option>
-<option id="printrrBLUP">
+<option id="printrrBLUP" type="BOOLEAN" attribute="printrrBLUP">
 Prints input format for rrBLUP
 </option>
-<option id="printMatrix">
+<option id="printMatrix" type="BOOLEAN" attribute="printMatrix">
 Prints genotypes in a simple ACGT format which can be imported to excel
 </option>
-<option id="printHapmap">
+<option id="printHapmap" type="BOOLEAN" attribute="printHapmap">
 Prints Hapmap format, which can be used in programs such as Tassel
 </option>
-<option id="printSpagedi">
+<option id="printGWASPoly" type="BOOLEAN" attribute="printGWASPoly">
+Prints the input file for GWASPoly 
+</option>
+<option id="printSpagedi" type="BOOLEAN" attribute="printSpagedi">
 Prints the input files for Spagedi
 </option>
-<option id="printPlink">
+<option id="printPlink" type="BOOLEAN" attribute="printPlink">
 Prints the input files for Plink
 </option>
-<option id="printHaploview">
+<option id="printHaploview" type="BOOLEAN" attribute="printHaploview">
 Prints the input files for Haploview
 </option>
-<option id="printEmma">
+<option id="printEmma" type="BOOLEAN" attribute="printEmma">
 Prints the input files for Emma
 </option>
-<option id="printPowerMarker">
+<option id="printPowerMarker" type="BOOLEAN" attribute="printPowerMarker">
 Prints the input files for PowerMarker
 </option>
-<option id="printEigensoft">
+<option id="printEigensoft" type="BOOLEAN" attribute="printEigensoft">
 Prints the input files for Eigensoft
 </option>
-<option id="printFlapjack">
+<option id="printFlapjack" type="BOOLEAN" attribute="printFlapjack">
 Prints the input files for Flapjack
 </option>
-<option id="printDarwin">
+<option id="printDarwin" type="BOOLEAN" attribute="printDarwin">
 Prints the input files for DarWin
 </option>
-<option id="printTreeMix">
+<option id="printTreeMix" type="BOOLEAN" attribute="printTreeMix">
 Prints the input files for TreeMix.
 The option -p is required for this format
 </option>
-<option id="printJoinMap">
+<option id="printJoinMap" type="BOOLEAN" attribute="printJoinMap">
 Prints the input file to build genetic maps with JoinMap.
 The options -p1 and -p2 are required for this format
 </option>
-<option id="printPhase">
+<option id="printPhase" type="BOOLEAN" attribute="printPhase">
 Prints the input files for Phase.
 The option -s is required for this format
 </option>
-<option id="p" type="FILE">
+<option id="p" type="FILE" attribute="populationFile">
 File with population assignments for the samples.
 A two column text file with the sample ids in the
 first column and the ids of the populations in the
 second column. Required for conversion to TreeMix
 </option>
-<option id="p1" type="STRING">
+<option id="p1" type="STRING" attribute="idParent1">
 Id of the first parent for conversion to JoinMap
 </option>
-<option id="p2" type="STRING">
+<option id="p2" type="STRING" attribute="idParent2">
 Id of the second parent for conversion to JoinMap
 </option>
-<option id="s" type="STRING">
+<option id="s" type="STRING" attribute="sequenceName">
 Name of the sequence (chromosome) for conversion to PHASE.
 </option>
 </command>

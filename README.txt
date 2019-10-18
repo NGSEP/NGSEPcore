@@ -663,6 +663,7 @@ OPTIONS:
 				  which can be imported to excel 
 	-printHapmap		: Prints Hapmap format, which can be used in
 				  programs such as Tassel
+	-printGWASPoly		: Prints the input file for GWASPoly
 	-printSpagedi		: Prints the input files for Spagedi
 	-printPlink		: Prints the input files for Plink
 	-printHaploview		: Prints the input files for Haploview
