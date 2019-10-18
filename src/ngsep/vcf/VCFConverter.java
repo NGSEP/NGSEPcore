@@ -769,7 +769,6 @@ public class VCFConverter {
 			else {
 				out.print(",");
 				for(int j=0;j<allelesCN.length;j++) {
-					if(var.getFirst()==2017) System.out.println("Allele "+alleles[j]+" copy number: "+allelesCN[j]);
 					for(int k=0;k<allelesCN[j];k++) {
 						out.print(alleles[j]);
 					}
