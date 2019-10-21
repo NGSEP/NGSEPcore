@@ -84,7 +84,6 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		System.out.println("      SEARCH_KMER_LENGTH: " + config.overlap().getKmerLength());
 		System.out.println("      SEARCH_KMER_DISTANCE: " + config.overlap().getKmerDistance());
 		System.out.println("      MAX_KMER_DES: " + config.overlap().getMaxKmerDiff());
-		System.out.println("      KMER_COVERAGE: " + config.overlap().getRate_of_cover());
 		System.out.println("      MIN_COVER_RATE: " + config.overlap().getMinKmerCoverRate());
 		System.out.println("      --------------------------------");
 	}

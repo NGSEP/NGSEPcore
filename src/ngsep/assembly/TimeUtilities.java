@@ -92,7 +92,7 @@ public class TimeUtilities {
 		string.append("|");
 		int i = 0;
 		while (i < N * (act / max)) {
-			string.append("█");
+			string.append("=");
 			i++;
 		}
 		while (i < N) {

@@ -46,80 +46,13 @@ public class AssemblyConfiguration {
 	}
 
 	public AssemblyConfiguration(double changes, double indels) {
-		overlapConfigurations = new OverlapConfiguration(changes, indels);
+		overlapConfigurations = new OverlapConfiguration(0, 0, 0, indels);
 		layoutConfigurations = new LayoutConfiguration(changes, indels);
 		consuensusConfigurations = new ConsensusConfiguration(changes, indels);
 	}
-
-	class OverlapConfiguration {
-		private static final double LN1000000 = 13.815510557964274; // Natural logarithm of 10000
-		/**
-		 * the length of the kmers
-		 */
-		private int kmerLength;
-		/**
-		 * distance between kmers
-		 */
-		private int KmerDistance;
-		/**
-		 * maximum difference of relative position between two hits of the same align
-		 */
-		private int maxKmerDiff;
-		/**
-		 * the lowest rate of kmers to be considered an align
-		 */
-		private double minKmerCoverRate;
-		/**
-		 * the mean of kmers over a letter in the sequence
-		 */
-		private double rate_of_cover;
-
-		public OverlapConfiguration(double changes, double indels) {
-			// Supposing independence
-			double rate_of_error = changes + indels - changes * indels;
-			kmerLength = (int) (2.302585092994 / (2 * rate_of_error));
-			maxKmerDiff = 20 * (int) (indels * (LN1000000 / rate_of_error));
-			rate_of_cover = 2;
-			KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
-			minKmerCoverRate = 0.02;
-		}
-
-		/**
-		 * @return distance between kmers
-		 */
-		public int getKmerDistance() {
-			return KmerDistance;
-		}
-
-		/**
-		 * @return the length of the kmers
-		 */
-		public int getKmerLength() {
-			return kmerLength;
-		}
-
-		/**
-		 * @return maximum difference of relative position between two hits of the same
-		 *         align
-		 */
-		public int getMaxKmerDiff() {
-			return maxKmerDiff;
-		}
-
-		/**
-		 * @return the lowest rate of kmers to be considered an align
-		 */
-		public double getMinKmerCoverRate() {
-			return minKmerCoverRate;
-		}
-
-		/**
-		 * @return the mean of kmers over a letter in the sequence
-		 */
-		public double getRate_of_cover() {
-			return rate_of_cover;
-		}
-	}
+	
+	
+	
 
 	public OverlapConfiguration overlap() {
 		return overlapConfigurations;
@@ -144,4 +77,78 @@ public class AssemblyConfiguration {
 	public ConsensusConfiguration consuensus() {
 		return consuensusConfigurations;
 	}
+
+	public void setOverlap(OverlapConfiguration overlapConfiguration) {
+		this.overlapConfigurations = overlapConfiguration;
+	}
 }
+
+class OverlapConfiguration {
+	private static final double LN1000000 = 13.815510557964274; // Natural logarithm of 10000
+	/**
+	 * the length of the kmers
+	 */
+	private int kmerLength;
+	/**
+	 * distance between kmers
+	 */
+	private int KmerDistance;
+	/**
+	 * maximum difference of relative position between two hits of the same align
+	 */
+	private int maxKmerDiff;
+	/**
+	 * the lowest rate of kmers to be considered an align
+	 */
+	private double minKmerCoverRate;
+	
+
+//	public OverlapConfiguration(double changes, double indels) {
+//		// Supposing independence
+//		double rate_of_error = changes + indels - changes * indels;
+//		kmerLength = (int) (2.302585092994 / (2 * rate_of_error));
+//		maxKmerDiff = 20 * (int) (indels * (LN1000000 / rate_of_error));
+//		KmerDistance = (int) (kmerLength * ((1 / rate_of_cover) - 1));
+//		minKmerCoverRate = 0.02;
+//	}
+	
+	public OverlapConfiguration(){
+		this(25,25,40,0.02);
+	}
+
+	public OverlapConfiguration(int kmerLength, int KmerDistance,int maxKmerDiff, double minKmerCoverRate) {
+		this.kmerLength = kmerLength;
+		this.maxKmerDiff = maxKmerDiff;
+		this.KmerDistance = KmerDistance;
+		this.minKmerCoverRate = minKmerCoverRate;
+	}
+
+	/**
+	 * @return distance between kmers
+	 */
+	public int getKmerDistance() {
+		return KmerDistance;
+	}
+
+	/**
+	 * @return the length of the kmers
+	 */
+	public int getKmerLength() {
+		return kmerLength;
+	}
+
+	/**
+	 * @return maximum difference of relative position between two hits of the same
+	 *         align
+	 */
+	public int getMaxKmerDiff() {
+		return maxKmerDiff;
+	}
+
+	/**
+	 * @return the lowest rate of kmers to be considered an align
+	 */
+	public double getMinKmerCoverRate() {
+		return minKmerCoverRate;
+	}
+	}
