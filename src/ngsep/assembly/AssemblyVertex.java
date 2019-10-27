@@ -9,6 +9,7 @@ public class AssemblyVertex implements Serializable {
 	private CharSequence read;
 	private boolean start;
 	private int index;
+	private int location=0;
 	private Map<Integer, AssemblyEdge> connectedVertices = new HashMap<>();
 
 	public AssemblyVertex(CharSequence read, boolean start, int index) {
@@ -64,9 +65,19 @@ public class AssemblyVertex implements Serializable {
 		if(v1.getIndex()==index) return v1;
 		return v2;
 	}
-	
-	
-	
-	
+
+	/**
+	 * @return the location
+	 */
+	public int getLocation() {
+		return location;
+	}
+
+	/**
+	 * @param location the location to set
+	 */
+	public void setLocation(int location) {
+		this.location = location;
+	}
 }
 
