@@ -1,13 +1,13 @@
 package ngsep.clustering;
 
 public class DendrogramEdge {
+
 	private double weight;
-	private Dendrogram origin;
 	private Dendrogram destination;
-	public DendrogramEdge(double weight, Dendrogram origin, Dendrogram destination) {
+
+	public DendrogramEdge(double weight, Dendrogram destination) {
 		super();
 		this.weight = weight;
-		this.origin = origin;
 		this.destination = destination;
 	}
 	/**
@@ -16,19 +16,14 @@ public class DendrogramEdge {
 	public double getWeight() {
 		return weight;
 	}
-	/**
-	 * @return the origin
-	 */
-	public Dendrogram getOrigin() {
-		return origin;
-	}
+
 	/**
 	 * @return the destination
 	 */
 	public Dendrogram getDestination() {
 		return destination;
 	}
-	
-	
-	
+
+
+
 }
