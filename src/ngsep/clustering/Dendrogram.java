@@ -39,10 +39,8 @@ public class Dendrogram {
 			Dendrogram firstRt = firstR.getDestination();
 			double ld = firstL.getWeight();
 			double rd = firstR.getWeight();
-			Dendrogram r1 = firstRt.children.get(0).getDestination();
-			Dendrogram r2 = firstRt.children.get(1).getDestination();
 
-			return String.format(Locale.ROOT, "(%s:%f,%s);", toNewick(firstLt), ld + rd, toNewick(firstRt));
+			return String.format(Locale.ROOT, "(%s:%f,%s:%f);", toNewick(firstLt), ld, toNewick(firstRt), rd);
 		}
 	}
 
