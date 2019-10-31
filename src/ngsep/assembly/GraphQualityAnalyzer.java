@@ -46,6 +46,7 @@ public class GraphQualityAnalyzer {
 		builder.setConfig(ac);
 		this.lec = builder
 				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
+		
 		if (extrapolate)
 			timeIt("      Extrapolate Aligns", () -> lec.ExtrapolateAligns());
 
