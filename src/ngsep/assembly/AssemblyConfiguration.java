@@ -113,7 +113,7 @@ class OverlapConfiguration {
 //	}
 	
 	public OverlapConfiguration(){
-		this(25,25,40,0.02);
+		this(15,15,30,0.36);
 	}
 
 	public OverlapConfiguration(int kmerLength, int KmerDistance,int maxKmerDiff, double minKmerCoverRate) {

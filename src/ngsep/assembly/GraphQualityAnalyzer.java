@@ -1,7 +1,5 @@
 package ngsep.assembly;
 
-import static ngsep.assembly.TimeUtilities.timeIt;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,7 +28,7 @@ public class GraphQualityAnalyzer {
 	private SimplifiedAssemblyGraph ref;
 	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration, boolean extrapolate)
+	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration)
 			throws IOException {
 		this.nams = load(pathLects);
 		Collections.sort(nams, (l1, l2) -> l2.sequence.length() - l1.sequence.length());
@@ -46,9 +44,6 @@ public class GraphQualityAnalyzer {
 		builder.setConfig(ac);
 		this.lec = builder
 				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
-		
-		if (extrapolate)
-			timeIt("      Extrapolate Aligns", () -> lec.ExtrapolateAligns());
 
 		System.out.println("-------------PerfectGraph------------------");
 		ref.printInfo();
@@ -289,7 +284,7 @@ public class GraphQualityAnalyzer {
 		String pathLects = args[0];
 		OverlapConfiguration overlapConfiguration = new OverlapConfiguration(Integer.valueOf(args[1]),
 				Integer.valueOf(args[2]), Integer.valueOf(args[3]), Double.valueOf(args[4]));
-		new GraphQualityAnalyzer(pathLects, overlapConfiguration, args.length >= 6 && args[5].equals("true"));
+		new GraphQualityAnalyzer(pathLects, overlapConfiguration);
 		// analizer.emmbededTest();
 	}
 

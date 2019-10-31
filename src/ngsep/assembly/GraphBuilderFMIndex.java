@@ -51,7 +51,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			printRates();
 			timeIt("      Find overlaps ", () -> findOverlapsAndEmbedded());
 			timeIt("      Clean Graph", () -> assemblyGraph.removeAllEmbeddedsIntoGraph());
-			//timeIt("      Extrapolate Aligns", () -> assemblyGraph.ExtrapolateAligns());
+			timeIt("      Extrapolate Aligns", () -> assemblyGraph.ExtrapolateAligns());
 		});
 		return assemblyGraph;
 	}
