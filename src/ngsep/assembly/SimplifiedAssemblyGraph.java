@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,7 +18,11 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
+
+import static ngsep.assembly.TimeUtilities.progress;
 
 public class SimplifiedAssemblyGraph implements Serializable {
 	private static final long serialVersionUID = 1L;
@@ -76,6 +81,108 @@ public class SimplifiedAssemblyGraph implements Serializable {
 				if (isEmbedded(iter.next() >> 1))
 					iter.remove();
 		}
+	}
+
+	public void ExtrapolateAligns() {
+		// Construct the Graph representation
+		Map<Integer, TreeMap<Integer, Integer>> S = new HashMap<>();
+		Map<Integer, Set<Integer>> A = new HashMap<>();
+
+		for (Entry<Integer, Map<Integer, Alignment>> entry : edges.entrySet()) {
+			TreeMap<Integer, Integer> tree = new TreeMap<>();
+			Set<Integer> mark = new HashSet<>();
+			for (Entry<Integer, Alignment> inEntry : entry.getValue().entrySet())
+				if (entry.getKey() >>> 1 != inEntry.getKey() >>> 1) {
+					Alignment aln = inEntry.getValue();
+					tree.put(aln.getOverlap(), inEntry.getKey());
+					mark.add(inEntry.getKey());
+				}
+			S.put(entry.getKey(), tree);
+			A.put(entry.getKey(), mark);
+		}
+
+		// Starts here
+		int c = 0;
+		int u, w;
+		for (int v : edges.keySet()) {
+			progress("      Extrapolate Aligns", c++, edges.size());
+			int compV = comp(v), len = sequences.get(v >>> 1).length();
+			TreeMap<Integer, Integer> Sprev = S.get(v);
+			if (Sprev.isEmpty())
+				continue;
+
+			// Positional
+			Set<Integer> not = new HashSet<>();
+			List<Entry<Integer, Integer>> toAdd = new LinkedList<>();
+			// Positional edges only with the highest overlaps
+			for (Entry<Integer, Integer> entry : Sprev.descendingMap().headMap(len >>> 1).entrySet()) {
+				u = entry.getValue();
+				w = entry.getKey();
+				if (not.contains(u))
+					continue;
+				not.addAll(A.get(comp(u)));
+
+				for (Entry<Integer, Integer> entry2 : S.get(u).tailMap(w + 1).entrySet()) {
+					int uuComp = comp(entry2.getValue()), ww = entry2.getKey();
+					if (!A.get(v).contains(uuComp) && (uuComp >>> 1 != v >>> 1)) {
+						A.get(v).add(uuComp);
+						int overlap = sequences.get(uuComp >>> 1).length() + w - ww;
+						toAdd.add(new AbstractMap.SimpleEntry<Integer, Integer>(overlap, uuComp));
+
+						// TODO: verify the position an is reversed attributes
+						if (len <= overlap) {
+							addEmbedded(uuComp >>> 1, v >>> 1, sequences.get(uuComp >>> 1).length() - overlap,
+									1 != uuComp % 2, -1.0);
+						}
+					}
+				}
+			}
+			for (Entry<Integer, Integer> entry : toAdd) {
+				u = entry.getValue();
+				w = entry.getKey();
+				Sprev.put(w, u);
+				A.get(u).add(v);
+				S.get(u).put(w, v);
+			}
+
+			// Transitive
+			for (Entry<Integer, Integer> entry : S.get(compV).entrySet()) {
+				u = entry.getValue();
+				w = entry.getKey();
+				int lim = len - w;
+				SortedMap<Integer, Integer> Strans = Sprev.tailMap(lim);
+				if (Strans.isEmpty())
+					continue;
+				for (Entry<Integer, Integer> entry2 : Strans.entrySet()) {
+					int uu = entry2.getValue(), ww = entry2.getKey();
+					if (!A.get(uu).contains(u) && (uu >>> 1 != u >>> 1)) {
+						int overlap = ww - lim;
+						S.get(uu).put(overlap, u);
+						S.get(u).put(overlap, uu);
+						A.get(uu).add(u);
+						A.get(u).add(uu);
+					}
+
+				}
+			}
+		}
+
+		for (Entry<Integer, TreeMap<Integer, Integer>> entry : S.entrySet()) {
+			int v = entry.getKey();
+			for (Entry<Integer, Integer> entry2 : entry.getValue().entrySet()) {
+				u = entry2.getValue();
+				w = entry2.getKey();
+				if (((u >>> 1) != (v >>> 1)))
+					addEdge(v, u, w, -1);
+			}
+		}
+
+		removeAllEmbeddedsIntoGraph();
+		removeDuplicatedEmbeddes();
+	}
+
+	private static int comp(int v) {
+		return v + 1 - ((v & 1) << 1);
 	}
 
 	public void removeDuplicatedEmbeddes() {

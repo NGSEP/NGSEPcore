@@ -1,5 +1,7 @@
 package ngsep.assembly;
 
+import static ngsep.assembly.TimeUtilities.timeIt;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,30 +30,31 @@ public class GraphQualityAnalyzer {
 	private SimplifiedAssemblyGraph ref;
 	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(String pathLects,
-			OverlapConfiguration overlapConfiguration) throws IOException {
+	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration, boolean extrapolate)
+			throws IOException {
 		this.nams = load(pathLects);
-		Collections.sort(nams,
-				(l1, l2) -> l2.sequence.length() - l1.sequence.length());
+		Collections.sort(nams, (l1, l2) -> l2.sequence.length() - l1.sequence.length());
 		int i = 0;
 		for (Sequence seq : nams)
 			seq.id = i++;
 
 		this.ref = getGraph(nams);
 
-			AssemblyConfiguration ac = new AssemblyConfiguration();
-			ac.setOverlap(overlapConfiguration);
-			GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
-			builder.setConfig(ac);
-			this.lec = builder.buildSimplifiedAssemblyGraph(this.nams.stream()
-					.map(a -> a.sequence).collect(Collectors.toList()));
+		AssemblyConfiguration ac = new AssemblyConfiguration();
+		ac.setOverlap(overlapConfiguration);
+		GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
+		builder.setConfig(ac);
+		this.lec = builder
+				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
+		if (extrapolate)
+			timeIt("      Extrapolate Aligns", () -> lec.ExtrapolateAligns());
 
-			System.out.println("-------------PerfectGraph------------------");
-			ref.printInfo();
-			System.out.println("-------------CurrentGraph------------------");
-			lec.printInfo();
-			System.out.println("-------------------------------------------");
-			emmbededTest();
+		System.out.println("-------------PerfectGraph------------------");
+		ref.printInfo();
+		System.out.println("-------------CurrentGraph------------------");
+		lec.printInfo();
+		System.out.println("-------------------------------------------");
+		emmbededTest();
 	}
 
 	public void emmbededTest() {
@@ -60,13 +63,11 @@ public class GraphQualityAnalyzer {
 			refEmb.addAll(a.keySet());
 
 		Set<Integer> lectEmb = new HashSet<>();
-		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded()
-				.entrySet())
+		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded().entrySet())
 			lectEmb.addAll(a.getValue().keySet());
 
 		int trueP = 0, falseP = 0;
-		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded()
-				.entrySet()) {
+		for (Entry<Integer, Map<Integer, Embedded>> a : lec.getEmbbeded().entrySet()) {
 			for (Entry<Integer, Embedded> b : a.getValue().entrySet()) {
 				int i = b.getKey();
 				if (refEmb.contains(i))
@@ -75,9 +76,7 @@ public class GraphQualityAnalyzer {
 					int h = nams.get(a.getKey()).pos + nams.get(a.getKey()).len;
 					int j = nams.get(i).pos + nams.get(i).len;
 					int tope = (int) (ref.getSequences().get(i).length() * 0.01);
-					if (Math.abs(h - j) <= tope
-							|| Math.abs(nams.get(a.getKey()).pos
-									- nams.get(i).pos) <= tope) {
+					if (Math.abs(h - j) <= tope || Math.abs(nams.get(a.getKey()).pos - nams.get(i).pos) <= tope) {
 						trueP++;
 					} else {
 						falseP++;
@@ -106,37 +105,30 @@ public class GraphQualityAnalyzer {
 			if (!lectEmb.contains(i))
 				falseN++;
 		}
-		int trueN = (ref.getSequences().size() - ref
-				.amuontOfEmbeddedSequences()) - falseP;
+		int trueN = (ref.getSequences().size() - ref.amuontOfEmbeddedSequences()) - falseP;
 
 		System.out.println("Embedded Sequences");
 		System.out.println("false|true");
 		System.out.println("neg= " + falseN + "|" + trueN);
 		System.out.println("pos= " + falseP + "|" + trueP);
-		System.out.println("precision = " + (100 * trueP)
-				/ (double) (trueP + falseP) + " %");
-		System.out.println("recall = " + (100 * trueP)
-				/ (double) (trueP + falseN) + " %");
+		System.out.println("precision = " + (100 * trueP) / (double) (trueP + falseP) + " %");
+		System.out.println("recall = " + (100 * trueP) / (double) (trueP + falseN) + " %");
 
 		Set<String> refEdg = new HashSet<>();
-		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges()
-				.entrySet()) {
+		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges().entrySet()) {
 			int id1 = map.getKey();
 			if (!lectEmb.contains(id1 >> 1) && !refEmb.contains(id1 >> 1))
 				for (int id2 : map.getValue().keySet())
-					if (id1 + 1 < id2 && !lectEmb.contains(id2 >> 1)
-							&& !refEmb.contains(id2 >> 1))
+					if (id1 + 1 < id2 && !lectEmb.contains(id2 >> 1) && !refEmb.contains(id2 >> 1))
 						refEdg.add(id1 + "-" + id2);
 		}
 
 		Set<String> lecEdg = new HashSet<>();
-		for (Entry<Integer, Map<Integer, Alignment>> map : lec.getEdges()
-				.entrySet()) {
+		for (Entry<Integer, Map<Integer, Alignment>> map : lec.getEdges().entrySet()) {
 			int id1 = map.getKey();
 			if (!lectEmb.contains(id1 >> 1) && !refEmb.contains(id1 >> 1))
 				for (int id2 : map.getValue().keySet())
-					if (id1 + 1 < id2 && !lectEmb.contains(id2 >> 1)
-							&& !refEmb.contains(id2 >> 1))
+					if (id1 + 1 < id2 && !lectEmb.contains(id2 >> 1) && !refEmb.contains(id2 >> 1))
 						lecEdg.add(id1 + "-" + id2);
 		}
 
@@ -163,35 +155,28 @@ public class GraphQualityAnalyzer {
 		System.out.println("false|true");
 		System.out.println("neg= " + falseN + "|" + trueN);
 		System.out.println("pos= " + falseP + "|" + trueP);
-		System.out.println("precision = " + (100 * trueP)
-				/ (double) (trueP + falseP) + " %");
-		System.out.println("recall = " + (100 * trueP)
-				/ (double) (trueP + falseN) + " %");
+		System.out.println("precision = " + (100 * trueP) / (double) (trueP + falseP) + " %");
+		System.out.println("recall = " + (100 * trueP) / (double) (trueP + falseN) + " %");
 
 		int s = 0, l = 0;
-		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges()
-				.entrySet()) {
+		for (Entry<Integer, Map<Integer, Alignment>> map : ref.getEdges().entrySet()) {
 			int id1 = map.getKey();
 			if (lectEmb.contains(id1) && refEmb.contains(id1))
 				for (Entry<Integer, Alignment> a : map.getValue().entrySet()) {
 					int id2 = a.getKey();
-					if (id1 + 1 < id2 && lectEmb.contains(id2)
-							&& refEmb.contains(id2))
+					if (id1 + 1 < id2 && lectEmb.contains(id2) && refEmb.contains(id2))
 						if (!lecEdg.contains(id1 + "-" + id2)) {
 							s += a.getValue().getOverlap();
 							l++;
 						}
 				}
 		}
-		System.out.println("mean overlap (edgeFalsePositive) = "
-				+ (s / (double) l));
+		System.out.println("mean overlap (edgeFalsePositive) = " + (s / (double) l));
 
 	}
 
-	private SimplifiedAssemblyGraph getGraph(List<Sequence> sequences)
-			throws FileNotFoundException {
-		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(
-				getSequences(sequences));
+	private SimplifiedAssemblyGraph getGraph(List<Sequence> sequences) throws FileNotFoundException {
+		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(getSequences(sequences));
 
 		Map<String, List<Sequence>> a = new HashMap<>();
 		for (Sequence s : sequences)
@@ -208,23 +193,19 @@ public class GraphQualityAnalyzer {
 		for (List<Sequence> list : a.values()) {
 			for (int i = 0; i < list.size() - 1; i++) {
 				Sequence lect1 = list.get(i);
-				for (int j = i + 1; j < list.size()
-						&& list.get(j).pos < lect1.pos + lect1.len; j++) {
+				for (int j = i + 1; j < list.size() && list.get(j).pos < lect1.pos + lect1.len; j++) {
 					Sequence lect2 = list.get(j);
 
 					int relativePos = lect2.pos - lect1.pos;
 					if (relativePos + lect2.len > lect1.len)
 						// lect1 -> lect2
-						sag.addEdge((lect1.id << 1) + (lect1.rev ? 0 : 1),
-								(lect2.id << 1) + (lect2.rev ? 1 : 0),
+						sag.addEdge((lect1.id << 1) + (lect1.rev ? 0 : 1), (lect2.id << 1) + (lect2.rev ? 1 : 0),
 								lect1.len - relativePos, 1);
 					else {
 						// lect2 into lect1
 						boolean reversed = lect1.rev ^ lect2.rev;
-						relativePos = (lect1.rev) ? lect1.len - lect2.len
-								- relativePos : relativePos;
-						sag.addEmbedded(lect1.id, lect2.id, relativePos,
-								reversed, 1);
+						relativePos = (lect1.rev) ? lect1.len - lect2.len - relativePos : relativePos;
+						sag.addEmbedded(lect1.id, lect2.id, relativePos, reversed, 1);
 					}
 				}
 			}
@@ -235,42 +216,34 @@ public class GraphQualityAnalyzer {
 	}
 
 	private List<CharSequence> getSequences(List<Sequence> sequences) {
-		return sequences.stream().map((Sequence a) -> a.sequence)
-				.collect(Collectors.toList());
+		return sequences.stream().map((Sequence a) -> a.sequence).collect(Collectors.toList());
 	}
 
 	/**
 	 * Load the sequences of the file
 	 * 
-	 * @param Filename
-	 *            the file path
+	 * @param Filename the file path
 	 * @return The sequences
-	 * @throws IOException
-	 *             The file cannot opened
+	 * @throws IOException The file cannot opened
 	 */
 	public List<Sequence> load(String filename) throws IOException {
-		if (Stream.of(fastq).anyMatch(
-				(String s) -> filename.endsWith(s.toLowerCase())
-						|| filename.endsWith(s.toUpperCase()))) {
+		if (Stream.of(fastq)
+				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
 			return loadFastq(filename);
-		} else if (Stream.of(fasta).anyMatch(
-				(String s) -> filename.endsWith(s.toLowerCase())
-						|| filename.endsWith(s.toUpperCase()))) {
+		} else if (Stream.of(fasta)
+				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
 			return loadFasta(filename);
 		} else
-			throw new IOException("the file not is a fasta or fastq file: "
-					+ filename);
+			throw new IOException("the file not is a fasta or fastq file: " + filename);
 
 	}
 
 	/**
 	 * Load the sequences of the Fasta file
 	 * 
-	 * @param Filename
-	 *            the file path
+	 * @param Filename the file path
 	 * @return The sequences
-	 * @throws IOException
-	 *             The file cannot opened
+	 * @throws IOException The file cannot opened
 	 */
 	private List<Sequence> loadFasta(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
@@ -278,12 +251,10 @@ public class GraphQualityAnalyzer {
 		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
 		int i = 0;
 		for (QualifiedSequence seq : seqsQl) {
-			DNAMaskedSequence characters = (DNAMaskedSequence) seq
-					.getCharacters();
+			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
 			String[] args = seq.getName().split("_");
-			sequences.add(new Sequence(i++, args[args.length - 3], Integer
-					.valueOf(args[args.length - 2]), (Integer
-					.valueOf(args[args.length - 1]) == 1), characters));
+			sequences.add(new Sequence(i++, args[args.length - 3], Integer.valueOf(args[args.length - 2]),
+					(Integer.valueOf(args[args.length - 1]) == 1), characters));
 		}
 		return sequences;
 	}
@@ -291,11 +262,9 @@ public class GraphQualityAnalyzer {
 	/**
 	 * Load the sequences of the Fastq file
 	 * 
-	 * @param Filename
-	 *            the file path
+	 * @param Filename the file path
 	 * @return The sequences
-	 * @throws IOException
-	 *             The file cannot opened
+	 * @throws IOException The file cannot opened
 	 */
 	private List<Sequence> loadFastq(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
@@ -305,26 +274,21 @@ public class GraphQualityAnalyzer {
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
-				DNAMaskedSequence characters = (DNAMaskedSequence) read
-						.getCharacters();
+				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
 
 				String[] args = read.getName().split("_");
-				sequences.add(new Sequence(0, args[args.length - 3], Integer
-						.valueOf(args[args.length - 2]), (Integer
-						.valueOf(args[args.length - 1]) == 1), characters));
+				sequences.add(new Sequence(0, args[args.length - 3], Integer.valueOf(args[args.length - 2]),
+						(Integer.valueOf(args[args.length - 1]) == 1), characters));
 			}
 		}
 		return sequences;
 	}
 
-	public static void main(String[] args) throws FileNotFoundException,
-			ClassNotFoundException, IOException {
+	public static void main(String[] args) throws FileNotFoundException, ClassNotFoundException, IOException {
 		String pathLects = args[0];
-		OverlapConfiguration overlapConfiguration = new OverlapConfiguration(
-				Integer.valueOf(args[1]), Integer.valueOf(args[2]),
-				Integer.valueOf(args[3]), Double.valueOf(args[4]));
-		new GraphQualityAnalyzer(pathLects,
-				overlapConfiguration);
+		OverlapConfiguration overlapConfiguration = new OverlapConfiguration(Integer.valueOf(args[1]),
+				Integer.valueOf(args[2]), Integer.valueOf(args[3]), Double.valueOf(args[4]));
+		new GraphQualityAnalyzer(pathLects, overlapConfiguration, args.length >= 6 && args[5].equals("true"));
 		// analizer.emmbededTest();
 	}
 
@@ -336,8 +300,7 @@ public class GraphQualityAnalyzer {
 		boolean rev;
 		CharSequence sequence;
 
-		public Sequence(int id, String ref, int position, boolean isReversed,
-				CharSequence sequence) {
+		public Sequence(int id, String ref, int position, boolean isReversed, CharSequence sequence) {
 			this.id = id;
 			this.ref = ref;
 			this.pos = position;
@@ -348,12 +311,7 @@ public class GraphQualityAnalyzer {
 
 		@Override
 		public String toString() {
-			return "Sequence [id=" + id + ", ref=" + ref + ", pos=" + pos
-					+ ", len=" + len + ", rev=" + rev + "]";
+			return "Sequence [id=" + id + ", ref=" + ref + ", pos=" + pos + ", len=" + len + ", rev=" + rev + "]";
 		}
 	}
 }
-
-
-
-
