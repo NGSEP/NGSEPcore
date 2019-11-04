@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
+import htsjdk.samtools.cram.common.MutableInt;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.CountsHelper;
 import ngsep.discovery.PileupRecord;
@@ -93,6 +94,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	//TODO calculate from kmersMaps distribution
 	public int MIN_CLUSTER_DEPTH = 10;
 	public int MAX_CLUSTER_DEPTH = 1000;
+	
+	//Variables for parallel VCF
+	private final int MAX_TASK_COUNT = 200;
+	private int NUM_THREADS = 1;
 	
 	private String inputDirectory=".";
 	private String outPrefix="./output";
@@ -167,7 +172,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 
 	// TODO fix Large and Small cluster count. 
 	
-	public void run() throws IOException {
+	public void run() throws IOException, InterruptedException {
 		
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
@@ -339,7 +344,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return;
 	}
 	
-	public void callVariants(List<String> clusteredReadsFilenames) throws IOException {
+	public void callVariants(List<String> clusteredReadsFilenames) throws IOException, InterruptedException {
 		int numberOfFiles = clusteredReadsFilenames.size();
 
 		for(int size: this.clusterSizes) {
@@ -386,6 +391,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					numNotNull++;
 				}
 			}
+			
+			//Create pool manager and statistics
+			ThreadPoolManager poolManager = new ThreadPoolManager(NUM_THREADS, MAX_TASK_COUNT);
+			MutableInt calledVariantsCount = new MutableInt();
+			calledVariantsCount.value = 0;
+			MutableInt geneticVariantsCount = new MutableInt();
+			geneticVariantsCount.value = 0;
+			
 			// print header
 			writer.printHeader(header, outVariants);
 			log.info("Processing a total of " + Integer.toString(numberOfFiles) + " clustered files.");
@@ -412,8 +425,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					if(currentReads[i]==null) numNotNull--;
 				}
 				
-				List<VCFRecord> records = processCluster(nextCluster, header);
-				writer.printVCFRecords(records, outVariants);
+				//Adding new task to the list and starting the new task
+			    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, calledVariantsCount, geneticVariantsCount, outVariants, samples, heterozygosityRate, maxBaseQS, minQuality, minAlleleFrequency);
+			    poolManager.queueTask(newTask);
 				
 				if(nextCluster.getClusterNumber()%1000 == 0) {
 					System.out.println("Done with cluster " + nextCluster.getClusterNumber());
@@ -421,6 +435,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				numCluster++;
 			}
 			
+			//Wait for all dispatched tasks to finish and delete pool reference
+			poolManager.killPool();
+			this.numClustersWithCalledVariants = calledVariantsCount.value;
+			this.numClustersWithGenVariants = geneticVariantsCount.value;
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
