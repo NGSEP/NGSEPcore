@@ -96,8 +96,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public int MAX_CLUSTER_DEPTH = 1000;
 	
 	//Variables for parallel VCF
-	private final int MAX_TASK_COUNT = 200;
-	private int NUM_THREADS = 1;
+	private final int MAX_TASK_COUNT = 20;
+	private int numThreads = 1;
 	
 	private String inputDirectory=".";
 	private String outPrefix="./output";
@@ -134,6 +134,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.inputDirectory = args[i++];
 		instance.outPrefix = args[i++];
+		instance.numThreads = Integer.parseInt(args[i++]);
 		instance.run();
 	}
 	
@@ -393,7 +394,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 			
 			//Create pool manager and statistics
-			ThreadPoolManager poolManager = new ThreadPoolManager(NUM_THREADS, MAX_TASK_COUNT);
+			ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
 			MutableInt calledVariantsCount = new MutableInt();
 			calledVariantsCount.value = 0;
 			MutableInt geneticVariantsCount = new MutableInt();
