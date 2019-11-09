@@ -46,7 +46,7 @@ public class AssemblyConfiguration {
 	}
 
 	public AssemblyConfiguration(double changes, double indels) {
-		overlapConfigurations = new OverlapConfiguration(0, 0, 0, indels);
+		overlapConfigurations = new OverlapConfiguration();
 		layoutConfigurations = new LayoutConfiguration(changes, indels);
 		consuensusConfigurations = new ConsensusConfiguration(changes, indels);
 	}
@@ -113,7 +113,7 @@ class OverlapConfiguration {
 //	}
 	
 	public OverlapConfiguration(){
-		this(15,15,30,0.36);
+		this(15,5,30,0.4);
 	}
 
 	public OverlapConfiguration(int kmerLength, int KmerDistance,int maxKmerDiff, double minKmerCoverRate) {

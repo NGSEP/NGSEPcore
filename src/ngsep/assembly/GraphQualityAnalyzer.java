@@ -28,8 +28,7 @@ public class GraphQualityAnalyzer {
 	private SimplifiedAssemblyGraph ref;
 	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration)
-			throws IOException {
+	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration) throws IOException {
 		this.nams = load(pathLects);
 		Collections.sort(nams, (l1, l2) -> l2.sequence.length() - l1.sequence.length());
 		int i = 0;
@@ -76,22 +75,28 @@ public class GraphQualityAnalyzer {
 						trueP++;
 					} else {
 						falseP++;
-						// System.out.println("falso embebido");
-						// System.out.println("seq(" + i + ")" + " emb seq(" +
-						// a.getKey() + ")");
-						// System.out.println(b.getValue().getPos());
-						// System.out.println(b.getValue().getRate());
-						// System.out.println(b.getValue().isReversed());
-						// System.out.println("--------------------------------");
-						// System.out.println(nams.get(a.getKey()));
-						// System.out.println(nams.get(i));
-						// System.out.println("--------------------------------");
-						// System.out.println(">ref");
-						// System.out.println(ref.getSequences().get(a.getKey()));
-						// System.out.println(">lect");
-						// System.out.println(ref.getSequences().get(i));
+						
 					}
+					
 				}
+				System.out.println("falso embebido");
+				System.out.println("seq(" + i + ")" + " emb seq(" + a.getKey() + ")");
+				System.out.println(b.getValue().getPos());
+				System.out.println(b.getValue().getRate());
+				System.out.println(b.getValue().isReversed());
+				System.out.println("--------------------------------");
+				System.out.println(nams.get(a.getKey()));
+				System.out.println(nams.get(i));
+				System.out.println("--------------------------------");
+				System.out.println(">ref");
+				System.out.println(ref.getSequences().get(a.getKey()));
+				System.out.println(">lect");
+
+				StringBuilder strBuild = new StringBuilder();
+				for (int k = 0; k < b.getValue().getPos(); k++)
+					strBuild.append('-');
+				String seq = (!b.getValue().isReversed())? DNAMaskedSequence.getReverseComplement(ref.getSequences().get(i)):ref.getSequences().get(i).toString();
+				System.out.println(strBuild+seq);
 			}
 
 		}
@@ -171,7 +176,7 @@ public class GraphQualityAnalyzer {
 
 	}
 
-	private SimplifiedAssemblyGraph getGraph(List<Sequence> sequences) throws FileNotFoundException {
+	public static SimplifiedAssemblyGraph getGraph(List<Sequence> sequences) throws FileNotFoundException {
 		SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(getSequences(sequences));
 
 		Map<String, List<Sequence>> a = new HashMap<>();
@@ -211,7 +216,7 @@ public class GraphQualityAnalyzer {
 		return sag;
 	}
 
-	private List<CharSequence> getSequences(List<Sequence> sequences) {
+	public static List<CharSequence> getSequences(List<Sequence> sequences) {
 		return sequences.stream().map((Sequence a) -> a.sequence).collect(Collectors.toList());
 	}
 
@@ -222,7 +227,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public List<Sequence> load(String filename) throws IOException {
+	public static List<Sequence> load(String filename) throws IOException {
 		if (Stream.of(fastq)
 				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
 			return loadFastq(filename);
@@ -241,7 +246,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private List<Sequence> loadFasta(String filename) throws IOException {
+	private static List<Sequence> loadFasta(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
@@ -262,7 +267,7 @@ public class GraphQualityAnalyzer {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private List<Sequence> loadFastq(String filename) throws IOException {
+	private static List<Sequence> loadFastq(String filename) throws IOException {
 		List<Sequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_FULL);

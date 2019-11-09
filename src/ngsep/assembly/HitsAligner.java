@@ -91,7 +91,7 @@ class TreesHitAligner implements HitsAligner {
 	}
 
 	private void dectect(int id_Ref, int id_Lec, boolean isReverse, TreeMap<Integer, int[]> tree) {
-		int borderRate = 100 * config.overlap().getKmerLength();
+		int borderRate = 6 * config.overlap().getKmerLength();
 
 		int lenghtRef = sequences.get(id_Ref).length();
 		int lenghtLec = sequences.get(id_Lec).length();

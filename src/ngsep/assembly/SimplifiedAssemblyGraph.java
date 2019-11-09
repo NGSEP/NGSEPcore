@@ -115,7 +115,8 @@ public class SimplifiedAssemblyGraph implements Serializable {
 			Set<Integer> not = new HashSet<>();
 			List<Entry<Integer, Integer>> toAdd = new LinkedList<>();
 			// Positional edges only with the highest overlaps
-			for (Entry<Integer, Integer> entry : Sprev.descendingMap().headMap(len >>> 1).entrySet()) {
+
+			for (Entry<Integer, Integer> entry : Sprev.tailMap(len).entrySet()) {
 				u = entry.getValue();
 				w = entry.getKey();
 				if (not.contains(u))
@@ -124,9 +125,10 @@ public class SimplifiedAssemblyGraph implements Serializable {
 
 				for (Entry<Integer, Integer> entry2 : S.get(u).tailMap(w + 1).entrySet()) {
 					int uuComp = comp(entry2.getValue()), ww = entry2.getKey();
-					if (!A.get(v).contains(uuComp) && (uuComp >>> 1 != v >>> 1)) {
+					int overlap = sequences.get(uuComp >>> 1).length() + w - ww;
+					if (overlap > 0 && overlap >= w && overlap < len && overlap < sequences.get(uuComp >>> 1).length()
+							&& !A.get(v).contains(uuComp) && (uuComp >>> 1 != v >>> 1)) {
 						A.get(v).add(uuComp);
-						int overlap = sequences.get(uuComp >>> 1).length() + w - ww;
 						toAdd.add(new AbstractMap.SimpleEntry<Integer, Integer>(overlap, uuComp));
 
 						// TODO: verify the position an is reversed attributes
@@ -137,6 +139,8 @@ public class SimplifiedAssemblyGraph implements Serializable {
 					}
 				}
 			}
+			if (v == 1)
+				System.out.println(toAdd);
 			for (Entry<Integer, Integer> entry : toAdd) {
 				u = entry.getValue();
 				w = entry.getKey();
