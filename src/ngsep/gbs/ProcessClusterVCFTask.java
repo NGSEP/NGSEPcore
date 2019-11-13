@@ -152,7 +152,7 @@ public class ProcessClusterVCFTask extends Thread {
 			}
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		System.out.println("Cluster " + referenceId);
+		//System.out.println("Cluster " + referenceId);
 		for(int i=1; i<=refSeq.length(); i++) {
 			
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
@@ -175,10 +175,6 @@ public class ProcessClusterVCFTask extends Thread {
 				if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
 				records.add(record);
 			}
-		}
-		
-		if(records.size()>0) {
-			System.out.println(records.size() +" records generated for cluster " + referenceId);	
 		}
 		
 		return records;

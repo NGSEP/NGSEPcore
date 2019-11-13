@@ -978,9 +978,15 @@ De novo variants discovery from a GBS experiment
 Performs de novo variants discovery from a GBS experiment
 </description>
 <argument>INPUT_DIRECTORY</argument>
-<argument>OUTPUT_DIRECTORY</argument>
+<argument>OUTPUT_PREFIX</argument>
 <option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
+</option>
+<option id="c" type="INT" defaultConstant="DEF_MAX_NUM_CLUSTERS" attribute="maxNumClusters">
+Maximum number of read clusters to process. This parameter controls the amount of memory spent by the process
+</option>
+<option id="t" type="INT" defaultConstant="DEF_NUM_THREADS" attribute="numThreads">
+Number of threads to process read clusters
 </option>
 </command>
 
