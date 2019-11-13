@@ -76,9 +76,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private static final String READID_SEPARATOR="$";
 	
-	//TODO calculate from kmersMaps distribution
-	public int MIN_CLUSTER_DEPTH = 10;
-	public int MAX_CLUSTER_DEPTH = 1000;
+	private int minClusterDepth = 10;
+	private int maxClusterDepth = 1000;
 	
 	//Variables for parallel VCF
 	private final int MAX_TASK_COUNT = 20;
@@ -197,7 +196,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
 		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap start");
 		buildSamples();
-		log.info("Loaded "+samples.size()+" samples");
+		int nSamples = samples.size();
+		minClusterDepth = nSamples;
+		maxClusterDepth = 100*nSamples;
+		log.info("Loaded "+samples.size()+" samples. Min depth: "+minClusterDepth+". Max cluster depth: "+maxClusterDepth);
 		buildKmersMap();
 		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap end");
 		processInfo.addTime(System.currentTimeMillis(), "Cluster reads start");
@@ -330,7 +332,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					continue;
 				}
 				clusterSizes[clusterId]++;
-				if(clusterSizes[clusterId]<MAX_CLUSTER_DEPTH) {
+				if(clusterSizes[clusterId]<maxClusterDepth) {
 					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read.getName(), s, read.getQualityScores()));
 				}
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
@@ -354,11 +356,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		int numberOfFiles = clusteredReadsFilenames.size();
 
 		for(int size: this.clusterSizes) {
-			if(size>MAX_CLUSTER_DEPTH) {
+			if(size>maxClusterDepth) {
 				this.numLargeClusters++;
 				this.numReadsLargeClusters += size;
 			}
-			if(size<MIN_CLUSTER_DEPTH) {
+			if(size<minClusterDepth) {
 				this.numSmallClusters++;
 				this.numReadsSmallClusters += size;
 			}
@@ -414,12 +416,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				for(int i=0; i<numberOfFiles; i++) {
 					
 					//skip small clusters
-					if(this.clusterSizes[numCluster] < MIN_CLUSTER_DEPTH) {
+					if(this.clusterSizes[numCluster] < minClusterDepth) {
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
 					//skip large clusters
-					else if(this.clusterSizes[numCluster] > MAX_CLUSTER_DEPTH) {
+					else if(this.clusterSizes[numCluster] > maxClusterDepth) {
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
@@ -434,8 +436,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, calledVariantsCount, geneticVariantsCount, outVariants, samples, heterozygosityRate, maxBaseQS, minQuality, minAlleleFrequency);
 			    poolManager.queueTask(newTask);
 				
-				if(nextCluster.getClusterNumber()%1000 == 0) {
-					System.out.println("Done with cluster " + nextCluster.getClusterNumber());
+				if(nextCluster.getClusterNumber()%10000 == 0) {
+					log.info("Queued cluster " + nextCluster.getClusterNumber());
 				}	
 				numCluster++;
 			}
@@ -516,8 +518,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			if(kmersMap != null) processStats.println("Number of Clusters: " + Integer.toString(kmersMap.size()));
 			processStats.println("Number of Clusters with called variants: " + Integer.toString(this.numClustersWithCalledVariants));
 			processStats.println("Number of Clusters with genotyped variants: " + Integer.toString(this.numClustersWithGenVariants));
-			processStats.println("Number of Large Clusters (>"+MAX_CLUSTER_DEPTH+"): " + Integer.toString(this.numLargeClusters));
-			processStats.println("Number of Small Clusters (<" + MIN_CLUSTER_DEPTH + "): " + Integer.toString(this.numSmallClusters));
+			processStats.println("Number of Large Clusters (>"+maxClusterDepth+"): " + Integer.toString(this.numLargeClusters));
+			processStats.println("Number of Small Clusters (<" + minClusterDepth + "): " + Integer.toString(this.numSmallClusters));
 			processStats.println("Number of Reads: " + Integer.toString(this.numTotalReads));
 			processStats.println("Number of Unclustered Reads I: " + Integer.toString(this.numUnclusteredReadsI));
 			processStats.println("Number of Reads in Large Clusters: " + Integer.toString(this.numReadsLargeClusters));
