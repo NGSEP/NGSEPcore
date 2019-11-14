@@ -4,8 +4,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import ngsep.assembly.SelfAlignment;
-
 public class ThreadPoolManager {
 	private int maxTaskCount;
 	private final int numThreads;
@@ -24,11 +22,11 @@ public class ThreadPoolManager {
 	 * @throws InterruptedException if the relauch process is interrupted
 	 */
 	public void queueTask(Runnable task) throws InterruptedException {
-		pool.execute(task);
 		int taskCount = pool.getQueue().size();
-		if(taskCount > maxTaskCount) {
+		if(taskCount == maxTaskCount) {
 			relaunchPool();
 		}
+		pool.execute(task);
 	}
 	
 	/**
@@ -38,16 +36,13 @@ public class ThreadPoolManager {
 	public void terminatePool() throws InterruptedException  {
 		pool.shutdown();
     	pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    	if(!pool.isShutdown()) {
+			throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
+		}
+    	pool = null;
 	}
 	
-	/**
-	 * Terminates the pool and also ensures that the pool reference is deleted.
-	 * @throws InterruptedException if the shutdown operation is interrupted
-	 */
-	public void killPool() throws InterruptedException {
-		this.terminatePool();
-		pool = null;
-	}
+	
 	
 	/**
 	 * Shuts down the pool, waiting for all queued tasks to finish. Then, it creates a new one.
@@ -55,11 +50,6 @@ public class ThreadPoolManager {
 	 */
 	private void relaunchPool() throws InterruptedException {
 		this.terminatePool();
-    	
-    	if(!pool.isShutdown()) {
-			throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
-		}
-    	
     	//Create new pool
 		pool = new ThreadPoolExecutor(numThreads, numThreads, Long.MAX_VALUE, TimeUnit.NANOSECONDS, new LinkedBlockingQueue<Runnable>());
 	}

@@ -332,7 +332,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					continue;
 				}
 				clusterSizes[clusterId]++;
-				if(clusterSizes[clusterId]<maxClusterDepth) {
+				if(clusterSizes[clusterId]<=maxClusterDepth) {
 					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read.getName(), s, read.getQualityScores()));
 				}
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
@@ -379,6 +379,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
+		//Create pool manager and statistics
+		ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
 		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");
 				PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
 			int numNotNull = 0;
@@ -399,8 +401,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 			}
 			
-			//Create pool manager and statistics
-			ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
+			
 			MutableInt calledVariantsCount = new MutableInt();
 			calledVariantsCount.value = 0;
 			MutableInt geneticVariantsCount = new MutableInt();
@@ -443,13 +444,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 			
 			//Wait for all dispatched tasks to finish and delete pool reference
-			poolManager.killPool();
+			
 			this.numClustersWithCalledVariants = calledVariantsCount.value;
 			this.numClustersWithGenVariants = geneticVariantsCount.value;
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
+			poolManager.terminatePool();
 		}
 	}
 	
