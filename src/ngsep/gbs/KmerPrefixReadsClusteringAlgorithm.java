@@ -36,7 +36,6 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
-import htsjdk.samtools.cram.common.MutableInt;
 import ngsep.discovery.VariantPileupListener;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -50,6 +49,7 @@ import ngsep.variants.GenomicVariant;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileWriter;
+import ngsep.vcf.VCFRecord;
 
 /**
  * @author Jorge Gomez
@@ -187,6 +187,86 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public void setNumThreads(String value) {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	/**
+	 * @return the minAlleleFrequency
+	 */
+	public double getMinAlleleFrequency() {
+		return minAlleleFrequency;
+	}
+
+	/**
+	 * @param minAlleleFrequency the minAlleleFrequency to set
+	 */
+	public void setMinAlleleFrequency(double minAlleleFrequency) {
+		this.minAlleleFrequency = minAlleleFrequency;
+	}
+	
+	public void setMinAlleleFrequency(String value) {
+		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+
+	/**
+	 * @return the heterozygosityRate
+	 */
+	public double getHeterozygosityRate() {
+		return heterozygosityRate;
+	}
+
+	/**
+	 * @param heterozygosityRate the heterozygosityRate to set
+	 */
+	public void setHeterozygosityRate(double heterozygosityRate) {
+		this.heterozygosityRate = heterozygosityRate;
+	}
+	
+	public void setHeterozygosityRate(String value) {
+		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+	
+
+	/**
+	 * @return the maxBaseQS
+	 */
+	public byte getMaxBaseQS() {
+		return maxBaseQS;
+	}
+
+	/**
+	 * @param maxBaseQS the maxBaseQS to set
+	 */
+	public void setMaxBaseQS(byte maxBaseQS) {
+		this.maxBaseQS = maxBaseQS;
+	}
+	
+	public void setMaxBaseQS(String value) {
+		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+	
+	/**
+	 * @return the minQuality
+	 */
+	public short getMinQuality() {
+		return minQuality;
+	}
+
+	/**
+	 * @param minQuality the minQuality to set
+	 */
+	public void setMinQuality(short minQuality) {
+		this.minQuality = minQuality;
+	}
+	
+	public void setMinQuality(String value) {
+		setMinQuality((byte)OptionValuesDecoder.decode(value, Short.class));
+	}
+
+	/**
+	 * @return the samples
+	 */
+	public List<Sample> getSamples() {
+		return samples;
 	}
 
 	public void run() throws IOException, InterruptedException {
@@ -401,12 +481,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 			}
 			
-			
-			MutableInt calledVariantsCount = new MutableInt();
-			calledVariantsCount.value = 0;
-			MutableInt geneticVariantsCount = new MutableInt();
-			geneticVariantsCount.value = 0;
-			
 			// print header
 			writer.printHeader(header, outVariants);
 			log.info("Processing a total of " + numberOfFiles + " clustered files.");
@@ -434,7 +508,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 				
 				//Adding new task to the list and starting the new task
-			    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, calledVariantsCount, geneticVariantsCount, outVariants, samples, heterozygosityRate, maxBaseQS, minQuality, minAlleleFrequency);
+			    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants);
 			    poolManager.queueTask(newTask);
 				
 				if(nextCluster.getClusterNumber()%10000 == 0) {
@@ -443,10 +517,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				numCluster++;
 			}
 			
-			//Wait for all dispatched tasks to finish and delete pool reference
 			
-			this.numClustersWithCalledVariants = calledVariantsCount.value;
-			this.numClustersWithGenVariants = geneticVariantsCount.value;
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
@@ -527,6 +598,16 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			processStats.println("Number of Reads in Large Clusters: " + Integer.toString(this.numReadsLargeClusters));
 			processStats.println("Number of Reads in Small Clusters: " + Integer.toString(this.numReadsSmallClusters));
 		}
+	}
+
+	public void countVariants(List<VCFRecord> generatedRecords) {
+		if(generatedRecords.size()>0) {
+			numClustersWithCalledVariants++;
+			//TODO: Calculate well
+			numClustersWithGenVariants++;
+		}
+		
+		
 	}
 }
 
