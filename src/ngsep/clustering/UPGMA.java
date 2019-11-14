@@ -1,6 +1,5 @@
 package ngsep.clustering;
 
-import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 
 import java.util.ArrayList;
@@ -11,7 +10,7 @@ import java.util.logging.Logger;
 /**
  * @author Sebastián Lemus Cadena
  */
-public class UPGMA implements DistanceMatrixClustering {
+public class UPGMA implements DistanceMatrixClustering{
 
     private Logger log = Logger.getLogger(UPGMA.class.getName());
     private ProgressNotifier progressNotifier=null;
@@ -65,10 +64,12 @@ public class UPGMA implements DistanceMatrixClustering {
     @Override
     public Dendrogram buildDendrogram(DistanceMatrix distances) {
 
+        initializeSubTrees(distances.getIds());
+
         int n = distances.getNumSamples();
         DistanceMatrix oldMatrix = distances;
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < n - 1; i++) {
             DistanceMatrix newMatrix = recalculateMatrix(oldMatrix);
             oldMatrix = newMatrix;
         }
@@ -112,7 +113,7 @@ public class UPGMA implements DistanceMatrixClustering {
         // Calculate distace for the new node between the clusters with coordinates x and y
         int A = names.get(x).split("!").length;
         int B = names.get(y).split("!").length;
-        calculateDistancesFromNewNode(newD, x, y, A, B);
+        calculateDistancesFromNewNode(D, newD, x, y, A, B);
 
         // update the names according to the new matrix
         ArrayList<String> newNames = updateNames(names, x, y);
@@ -157,7 +158,7 @@ public class UPGMA implements DistanceMatrixClustering {
      * @param A - Cardinality of one of the joined clusters
      * @param B - Cardinality of one of the joined clusters
      */
-    private void calculateDistancesFromNewNode(double[][] D, int x, int y, int A, int B){
+    private void calculateDistancesFromNewNode(double[][] D, double newD[][], int x, int y, int A, int B){
 
         int n = D.length;
         int m = n - 1;
@@ -165,12 +166,14 @@ public class UPGMA implements DistanceMatrixClustering {
 
         for (int i = 0; i < n; i++) {
             if (c == m - 1){
-                D[c][m - 1] = 0;
+                newD[c][m - 1] = 0;
             }else {
-                double newDistance = (D[i][x]*A + D[i][y]*B) / (A + B);
-                D[c][m - 1] = newDistance;
-                D[m - 1][c] = newDistance;
-                c ++;
+                if (i != x && i != y){
+                    double newDistance = (D[i][x]*A + D[i][y]*B) / (A + B);
+                    newD[c][m - 1] = newDistance;
+                    newD[m - 1][c] = newDistance;
+                    c ++;
+                }
             }
         }
     }
@@ -247,20 +250,5 @@ public class UPGMA implements DistanceMatrixClustering {
             }
         }
         return newArr;
-    }
-
-
-    public static void main(String[] args) throws Exception{
-
-        UPGMA upgma = new UPGMA();
-        //Parameters
-        int k=CommandsDescriptor.getInstance().loadOptions(upgma, args);
-
-        String matrixFile = args[k++];
-        DistanceMatrix dm = new DistanceMatrix(matrixFile);
-        upgma.initializeSubTrees(dm.getIds());
-
-        Dendrogram upgmaTree = upgma.buildDendrogram(dm);
-        System.out.println(upgmaTree.toNewick());
     }
 }
