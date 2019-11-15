@@ -1,5 +1,6 @@
 package ngsep.gbs;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ public class ProcessClusterVCFTask extends Thread {
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter vcfWriter;
 	private PrintStream outVariants;
+	private PrintStream outConsensus;
 	
 	private KmerPrefixReadsClusteringAlgorithm parent;
 	
@@ -61,6 +63,10 @@ public class ProcessClusterVCFTask extends Thread {
 	@Override
 	public void run() {
 		List<VCFRecord> generatedRecords = generateRecordsForCluster();
+		
+		synchronized (outConsensus) {
+			generateConsensusFasta();
+		}
 		
 		//Writing synchronously to the centralized vcf writter
 		synchronized (vcfWriter) {
@@ -131,7 +137,10 @@ public class ProcessClusterVCFTask extends Thread {
 		return records;
 	}
 	
-	
+	private void generateConsensusFasta() {
+		outConsensus.println(">Cluster_" + readCluster.getClusterNumber());
+		outConsensus.println(readCluster.getRefSeq());
+	}
 	// From MultisampleVariantsDetector.java
 	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum, double h) {
 		
