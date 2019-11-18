@@ -64,8 +64,10 @@ public class ProcessClusterVCFTask extends Thread {
 	public void run() {
 		List<VCFRecord> generatedRecords = generateRecordsForCluster();
 		
-		synchronized (outConsensus) {
-			generateConsensusFasta();
+		if (outConsensus != null) {
+			synchronized (outConsensus) {
+				generateConsensusFasta();
+			}
 		}
 		
 		//Writing synchronously to the centralized vcf writter
