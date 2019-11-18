@@ -26,7 +26,7 @@ public class ThreadPoolManager {
 	public void queueTask(Runnable task) throws InterruptedException {
 		int taskCount = pool.getQueue().size();
 		if(taskCount == maxTaskCount) {
-			relaunchPool();
+			terminatePool();
 		}
 		pool.execute(task);
 	}
@@ -41,9 +41,7 @@ public class ThreadPoolManager {
     	if(!pool.isShutdown()) {
 			throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
 		}
-    	pool = null;
 	}
-	
 	
 	
 	/**
