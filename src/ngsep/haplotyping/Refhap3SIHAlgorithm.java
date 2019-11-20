@@ -1,19 +1,26 @@
-package ngsep.haplotyping;
-
 /**
  * Copied from SingleIndividualHaplotyper - Efficient heuristic algorithms for the SIH problem
- * @author Jorge Duitama
+ * Based on the initial implementation of the Refhap algorithm for haplotyping
+ * @author Jorge Duitama, Christian Chavarro Espejo, Daniel Bautista
  */
-public class RefhapSIHAlgorithm implements SIHAlgorithm {
+
+package ngsep.haplotyping;
+
+public class Refhap3SIHAlgorithm  implements SIHAlgorithm 
+{
+
+	
 	private boolean [] cut;
 	private byte [] haplotype;
 	
-	@Override
-	public void buildHaplotype(HaplotypeBlock block) {
+	public void buildHaplotype(HaplotypeBlock block) 
+	{
 		FragmentsCutBuilder builder = new FragmentsCutBuilder(block);
-		builder.calculateMaxCut();
+		builder.calculateMaxCutStrategy3();
 		cut = builder.getCut();
 		haplotype=CutHaplotypeTranslator.getHaplotype(block, cut, CutHaplotypeTranslator.CONSENSUS_COMBINED);
 		block.setHaplotype(haplotype);
-	}	
+		
+	}
+
 }

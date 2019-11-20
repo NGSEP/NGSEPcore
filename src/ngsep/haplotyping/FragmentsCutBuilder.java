@@ -40,7 +40,7 @@ public class FragmentsCutBuilder {
 	 * @param block
 	 */
 	public FragmentsCutBuilder(HaplotypeBlock block, boolean useQualityScores) {
-		
+
 		super();
 		int numFragments = block.getNumFragments();
 		graph = new ArrayList<Vertex>(numFragments);
@@ -78,9 +78,9 @@ public class FragmentsCutBuilder {
 	}
 	public double getScore(HaplotypeBlock block, int row1, int row2, boolean useQualityScores) {
 		//if(!useQualityScores) {
-			int score = block.getHamming2(row1, row2);
-			return score;
-			/*int overlap = f1.getOverlappingCount(f2);
+		int score = block.getHamming2(row1, row2);
+		return score;
+		/*int overlap = f1.getOverlappingCount(f2);
 			int disagree = f1.getHammingDistance(f2);
 			int agree = overlap - disagree;
 			return disagree*disagree - agree*agree;
@@ -99,7 +99,7 @@ public class FragmentsCutBuilder {
 	public boolean[] getCut() {
 		return cut;
 	}
-	
+
 	public void calculateMaxCut() {
 		//randomizeCut();
 		boolean [] bestCut = new boolean [cut.length];
@@ -109,25 +109,22 @@ public class FragmentsCutBuilder {
 		for(int i=0;i<allEdges.size() && i<iters;i++) {
 			Edge e=allEdges.get(i);
 			if(e.getWeight()>0) {
-				System.err.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
+				//System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
 				initCut(e);
-				System.err.println("Initialized cut");
 				boolean improvement = true;
 				while(improvement) {
 					heuristic1();
-					System.err.println("Finished heuristic 1");
 					improvement = heuristic2();
-					System.err.println("Improvement: "+improvement);
 				}
-				
+
 				double score = calculateScore (cut);
-				System.err.println("Cut score: "+score);
+				//System.out.println("Cut score: "+score);
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
 				}
 			}
-			
+
 		}
 		copy(cut,bestCut);
 	}
@@ -180,7 +177,35 @@ public class FragmentsCutBuilder {
 			assigned[vMax.getPos()] = true;
 			cut[vMax.getPos()] = group;
 			nAssigned++;
-			if(nAssigned%1000==0) System.err.println("Initializing cut. Assigned: "+nAssigned);
+		}
+	}
+	private void initCutRandom(Edge e) 
+	{
+		boolean [] assigned = new boolean[graph.size()];
+		Arrays.fill(assigned, false);
+		assigned[e.getPos1()] = true;
+		cut[e.getPos1()] = false;
+		assigned[e.getPos2()] = true;
+		cut[e.getPos2()] = true;
+		int nAssigned = 2;
+		while(nAssigned<cut.length) {
+			Vertex vMax = null;
+			double max = 0;
+			boolean group = false;
+			for(Vertex v:graph) {
+				if(!assigned[v.getPos()]) {
+					double diff = getAssignmentDiff(v,assigned);
+					double absDiff = Math.abs(diff);
+					if(vMax == null || absDiff>max) {
+						max = absDiff;
+						vMax = v;
+						group = diff<0;
+					}
+				}
+			}
+			assigned[vMax.getPos()] = true;
+			cut[vMax.getPos()] = group;
+			nAssigned++;
 		}
 	}
 	private double getAssignmentDiff(Vertex v, boolean [] assigned) {
@@ -225,12 +250,12 @@ public class FragmentsCutBuilder {
 		Edge maxEdge;
 		do {
 			maxEdge = null;
-			 
+
 			double improvement = 0;
 			for(Edge e:allEdges) {
 				int pos1 = e.getPos1();
 				int pos2 = e.getPos2();
-				
+
 				Vertex v1 = graph.get(pos1);
 				Vertex v2 = graph.get(pos2);
 				double diff1 = getFlipDifference(v1, cut);
@@ -259,7 +284,8 @@ public class FragmentsCutBuilder {
 	private void flipVertex(int pos) {
 		cut[pos] = !cut[pos];
 	}
-	private double getFlipDifference (Vertex v, boolean [] cut) {
+	private double getFlipDifference (Vertex v, boolean [] cut) 
+	{
 		int pos1 = v.getPos();
 		boolean g1 = cut[pos1]; 
 		List<Edge> edges = v.getEdges();
@@ -278,16 +304,162 @@ public class FragmentsCutBuilder {
 		}
 		return answer;
 	}
+
+	/**
+	 * Implementation of the strategy for the new RefHap Algorithm
+	 */
+	public void calculateMaxCutStrategy2() 
+	{
+		boolean [] bestCut = new boolean [cut.length];
+		double maxScore = 0;
+		//double iters = Math.sqrt(allEdges.size())+1;
+		for(int i=0;i<allEdges.size()/2;i++) 
+		{
+			Edge e=allEdges.get(i);
+			if(e.getWeight()>0) 
+			{
+				initCutRandom(e);
+				boolean improvement = true;
+				int pr=1;
+				while(improvement && pr<300) 
+				{
+					improvement = heuristic2();
+				} pr++;
+
+				double score = calculateScore (cut);
+				if(maxScore < score) 
+				{
+					maxScore = score;
+					copy(bestCut,cut);
+				}
+			}
+
+		}
+		copy(cut,bestCut);
+
+	}
+	/**
+	 * Creates a partition picking random edges. 
+	 * This partition may not be complete
+	 * Some vertices can not be assigned
+	 */
+	private void heuristic3(double probNotExchange)
+	{
+	Vertex maxVertex ;
+		do {
+			maxVertex = null;
+			double improvement = 0;
+			for(Vertex v:graph)
+			{
+				double diff = getFlipDifference(v, cut);
+				if(diff*(1-probNotExchange) > improvement) 
+				{
+					
+					maxVertex = v;
+					improvement = diff;
+				}
+			}
+			if(maxVertex!=null) 
+			{
+				flipVertex(maxVertex.getPos());
+			}
+		} while (maxVertex !=null);
+	}
 	
+	private boolean heuristic4(double probNotExchange) 
+	{
+		boolean totalImp = false;
+		Edge maxEdge;
+		do {
+			maxEdge = null;
+
+			double improvement = 0;
+			for(Edge e:allEdges) {
+				int pos1 = e.getPos1();
+				int pos2 = e.getPos2();
+
+				Vertex v1 = graph.get(pos1);
+				Vertex v2 = graph.get(pos2);
+				double diff1 = getFlipDifference(v1, cut);
+				double diff2 = getFlipDifference(v2, cut);
+				boolean same = cut[pos1]==cut[pos2];
+				if(same) {
+					diff1-=e.getWeight();
+					diff2-=e.getWeight();
+				} else {
+					diff1+=e.getWeight();
+					diff2+=e.getWeight();
+				}
+				if((diff1 + diff2)*(1-probNotExchange) > improvement) {
+					maxEdge = e;
+					improvement = diff1+diff2;
+				}
+			}
+			if(maxEdge!=null) {
+				flipVertex(maxEdge.getPos1());
+				flipVertex(maxEdge.getPos2());
+				totalImp = true;
+			}
+		} while (maxEdge !=null);
+		return totalImp;
+	}
+	/*
+	 * The MaxCut Strategy 3 reduces the running of the edges exchange and the vertex exchange strategies
+	 */
+	public void calculateMaxCutStrategy3() 
+	{
+		boolean [] bestCut = new boolean [cut.length];
+		double maxScore = 0;
+		//double iters = allEdges.size()+1;
+		double iters = Math.sqrt(allEdges.size())+1;
+		for(int i=0;i<allEdges.size() && i<iters;i++) {
+			Edge e=allEdges.get(i);
+			if(e.getWeight()>0) {
+				//System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
+				initCut(e);
+				boolean improvement = true;
+				while(improvement)
+				{
+					double prob = Math.random()*(0.05);
+					heuristic3(prob);
+					improvement = heuristic4(prob);
+				}
+
+				double score = calculateScore (cut);
+				//System.out.println("Cut score: "+score);
+				if(maxScore < score) {
+					maxScore = score;
+					copy(bestCut,cut);
+				}
+			}
+		
+	}
+
 }
-class Vertex {
+class Vertex 
+{
 	private int pos;
 	private List<Edge> edges = new ArrayList<Edge>();
-	public Vertex(int pos) {
+	public Vertex(int pos) 
+	{
 		super();
 		this.pos = pos;
 	}
-	
+
+	public void deleteEdges(Vertex v) 
+	{
+		// TODO Auto-generated method stub
+		
+		for(Edge e:edges)
+		{
+			if(e.getPos1()==pos || e.getPos2()==pos)
+			{
+				edges.remove(e);
+			}
+		}
+		
+	}
+
 	/**
 	 * @return the pos
 	 */
@@ -340,7 +512,7 @@ class Edge {
 	public int getPos2() {
 		return pos2;
 	}
-	
+
 }
 class EdgesComparator implements Comparator<Edge> {
 
@@ -348,5 +520,5 @@ class EdgesComparator implements Comparator<Edge> {
 	public int compare(Edge e1, Edge e2) {
 		return (int)(e2.getWeight() -e1.getWeight());
 	}
-	
+}
 }
