@@ -33,6 +33,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 				}
 				j++;
 			}
+			i++;
 			j = 0;
 		}
 
