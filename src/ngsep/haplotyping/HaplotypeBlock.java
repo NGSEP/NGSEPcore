@@ -48,6 +48,7 @@ public class HaplotypeBlock {
 	 * Indicates if the matrix is already sorted
 	 */
 	private boolean sorted = true;
+
 	
 	/**
 	 * Constructor that initializes the attributes of a HaplotypeBlock with the given parameters.
@@ -224,6 +225,15 @@ public class HaplotypeBlock {
 		return matrix.size();
 	}
 	
+	/**
+	 * Return the HF in a n position of the matrix
+	 * @param n fragment position to get
+	 * @return Haplotype fragment.
+	 */
+	public HaplotypeFragment getHaplotypeFragment(int n)
+	{
+		return matrix.get(n);
+	}
 
 	
 	/**
