@@ -21,10 +21,6 @@ package ngsep.haplotyping;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-
-import com.sun.javafx.css.CalculatedValue;
 
 import ngsep.variants.CalledGenomicVariant;
 
