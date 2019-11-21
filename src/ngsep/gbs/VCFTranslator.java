@@ -24,7 +24,7 @@ public class VCFTranslator {
 	private String outPrefix="./output";
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
-	private Map<String, ArrayList<ReadAlignment>> alignmentsHash;
+	private Map<String, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
 	int skippedRecords = 0;
@@ -67,22 +67,24 @@ public class VCFTranslator {
 			VCFFileWriter writer = new VCFFileWriter ();
 			Iterator<VCFRecord> vcfReader = vcfOpenFile.iterator();
 			while(vcfReader.hasNext()) {
-				ArrayList<VCFRecord> translatedRecords = new ArrayList<>();
+				VCFRecord translatedRecord = null;
 				VCFRecord record = vcfReader.next();
 				if(writeHeader) {
 					writeHeader = false;
 					VCFFileHeader header = record.getHeader();
 					writer.printHeader(header, mappedVCF);
 				}
-				String sequenceName = record.getSequenceName();
-				ArrayList<ReadAlignment> alignments =  alignmentsHash.get(sequenceName);
+				String clusterID = record.getSequenceName().split("_")[1];
+				ReadAlignment alignments =  alignmentsHash.get(clusterID);
 				if(alignments != null ) {
 					// If variant is SNP
 					if(record.getVariant().isSNV()) {
-						translatedRecords = translateSNP(alignments, record);
+						translatedRecord = translateRecord(alignments, record);
 					}
-					writer.printVCFRecords(translatedRecords, mappedVCF);
-					numTranslatedRecords++;
+					if(translatedRecord != null) {
+						writer.printVCFRecord(translatedRecord, mappedVCF);
+						numTranslatedRecords++;
+					}
 				} else {
 					skippedRecords++;
 				}
@@ -91,9 +93,9 @@ public class VCFTranslator {
 		}
 	}
 	
-	private ArrayList<VCFRecord> translateSNP(ArrayList<ReadAlignment> alignments, VCFRecord record) {
-		ArrayList<VCFRecord> mappedRecords = new ArrayList<>();
-
+	private VCFRecord translateRecord(ReadAlignment algn, VCFRecord record) {
+		
+		VCFRecord translatedRecord = null;
 		// Position of alignment with respect to reference forward strand (1-based)
 		int refPos;
 		// True position of variant with respect to reference forward strand (1-based)
@@ -108,54 +110,57 @@ public class VCFTranslator {
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
 		// Alternative Allele based on de-novo VCF
-		String[] relativeAllels = relativeVar.getAlleles();
-		char relativeAlt = relativeAllels[1].charAt(0);
+		String[] relativeAlleles = relativeVar.getAlleles();
+		char relativeAlt = relativeAlleles[1].charAt(0);
 		VCFFileHeader header = record.getHeader();
 		int[] filedsFormat = record.getFieldsFormat();
-
+		char trueAlt = 'N';
+		boolean isTriallelic = false;
 		boolean refInRelativeAllels = false;
-		// True alternative allel, set to relativeAlt to init
-		char trueAlt = relativeAlt;
-		for(ReadAlignment algn: alignments) {
-			int read_length = algn.getReadCharacters().length();
-			String seqName = algn.getSequenceName();
-			refPos = algn.getFirst();
-			if(algn.isNegativeStrand()) {
-				// If read aligns to reverse strand
-				truePos = refPos + read_length - relativePos;
-				relativeRef = algn.getReadCharacters().charAt(read_length - relativePos);
-				trueRef = complement.get(relativeRef);
-			} else {
-				// If read aligns to forward strand
-				//algn.getReferencePosition(relativePos-1);
-				truePos = relativePos + refPos - 1;
-				relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
-				trueRef = relativeRef;
-			}
-			// Exclude reference from allels
-			if(relativeVar.isBiallelic()) {
-				for(String allel: relativeAllels) {
-					if(allel == Character.toString(trueRef)) {
-						refInRelativeAllels = true;
-						continue;
-					} else {
-						trueAlt = allel.charAt(0);
-					}
+	
+		
+		int read_length = algn.getReadCharacters().length();
+		String seqName = algn.getSequenceName();
+		truePos = algn.getReferencePosition(relativePos);
+		CharSequence alleleCall = algn.getAlleleCall(truePos);
+		
+		// if alleleCall is null, then refChar == readChar at truePos
+		// if there is variant, we must get char from the ref-genome. 
+		if(alleleCall == null) {
+			relativeRef = algn.getReadCharacters().charAt(relativePos);
+		} else {
+			//TODO: get actual relativeRef
+			relativeRef = algn.getReadCharacters().charAt(relativePos);
+		}
+		
+		if(algn.isNegativeStrand()) {
+			trueRef = complement.get(relativeRef);
+		} else {
+			trueRef = relativeRef;
+		}
+		// is biallelic in relativeVCF
+		if(relativeVar.isBiallelic()) {
+			for(String allel: relativeAlleles) {
+				if(allel == Character.toString(trueRef)) {
+					refInRelativeAllels = true;
+					continue;
+				} else {
+					trueAlt = allel.charAt(0);
 				}
-//				if(!refInRelativeAllels) {
-//					throw new RuntimeException("Reported reference allel not found in reported alleles");
-//				}
 			}
-			if(seqName != null ) {
-				SNV variant = new SNV(seqName, truePos, trueRef, trueAlt);
-				CalledSNV call = new CalledSNV(variant, genotype);
-				VCFRecord translatedRecord = new VCFRecord(variant, filedsFormat, call, header);
-				mappedRecords.add(translatedRecord);
-			} else {
-				nullReadName++;
+			if(!refInRelativeAllels) {
+				isTriallelic = true;
 			}
 		}
-		return mappedRecords;
+		// Exclude reference from allels
+		if(seqName != null && (!isTriallelic)) {
+			SNV variant = new SNV(seqName, truePos, trueRef, trueAlt);
+			CalledSNV call = new CalledSNV(variant, genotype);
+			translatedRecord = new VCFRecord(variant, filedsFormat, call, header);
+		} else {
+			nullReadName++;
+		}
+		return translatedRecord;
 	}
 	
 	private void explore() throws IOException {
@@ -175,13 +180,9 @@ public class VCFTranslator {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
 			while(bamReader.hasNext()) {
 				ReadAlignment algn = bamReader.next();
+				String algnName = algn.getReadName().split("_")[1];
 				if(!algn.isSecondary()) {
-					ArrayList<ReadAlignment> algns = this.alignmentsHash.get(algn.getReadName());
-					if(algns == null) {
-						algns = new ArrayList<>();
-					}
-					algns.add(algn);
-					this.alignmentsHash.put(algn.getReadName(), algns);
+					this.alignmentsHash.put(algnName, algn);
 				}
 			}
 		}
