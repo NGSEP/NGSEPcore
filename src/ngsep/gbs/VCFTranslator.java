@@ -127,6 +127,7 @@ public class VCFTranslator {
 				trueRef = complement.get(relativeRef);
 			} else {
 				// If read aligns to forward strand
+				//algn.getReferencePosition(relativePos-1);
 				truePos = relativePos + refPos - 1;
 				relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
 				trueRef = relativeRef;
@@ -174,7 +175,7 @@ public class VCFTranslator {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
 			while(bamReader.hasNext()) {
 				ReadAlignment algn = bamReader.next();
-				if(algn.isUnique()) {
+				if(!algn.isSecondary()) {
 					ArrayList<ReadAlignment> algns = this.alignmentsHash.get(algn.getReadName());
 					if(algns == null) {
 						algns = new ArrayList<>();
