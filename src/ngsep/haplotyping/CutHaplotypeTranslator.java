@@ -28,6 +28,7 @@ public class CutHaplotypeTranslator {
 	public static final int CONSENSUS_ALL = 4;
 	public static byte [] getHaplotype(HaplotypeBlock block, boolean[] cut, int consensusType) {
 		int numFragments = block.getNumFragments();
+		
 		int numVariants = block.getNumVariants();
 		byte [] haplotype = new byte [numVariants];
 		
