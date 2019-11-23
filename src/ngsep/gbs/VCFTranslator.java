@@ -39,6 +39,9 @@ public class VCFTranslator {
 	int TruePosNotAlign = 0;
 	int unmappedRead = 0;
 	int notSNV = 0;
+	int refNotInAlleles = 0;
+	int biallelic = 0;
+	int triallelic = 0;
 	private static Map<Character, Character> complement = new HashMap<>();
 
 	public static void main(String[] args) throws Exception {
@@ -67,6 +70,7 @@ public class VCFTranslator {
 	private static ReferenceGenome loadReferenceGenome(String genomeFileName) throws IOException {
 		ReferenceGenome genome = new ReferenceGenome(genomeFileName);
 		System.out.println(genome.getTotalLength());
+		System.out.println(genome.getNumSequences());
 		return genome; 
 	}
 
@@ -75,10 +79,9 @@ public class VCFTranslator {
 		refGenome = loadReferenceGenome(refGenomeFile);
 		getAlignmentHash();
 		System.out.println("Loaded a total of " + alignmentsHash.size() + " alignments.");
-//		System.out.println(refGenome.getReference(0, 16320346, 16320346));
 		
 		translate();
-		//explore();
+//		explore();
 		}
 	
 	/**
@@ -86,8 +89,7 @@ public class VCFTranslator {
 	 * @throws Exception
 	 */
 	private void translate() throws Exception {
-		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);
-				VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF);
+		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF);
 				PrintStream mappedVCF = new PrintStream(outPrefix+"_mapped.vcf");
 				PrintStream log = new PrintStream(outPrefix + "_translation.log");) {
 			
@@ -108,11 +110,11 @@ public class VCFTranslator {
 				}
 				
 				String clusterID = record.getSequenceName().split("_")[1];
-				ReadAlignment alignments =  alignmentsHash.get(clusterID);
-				if(alignments != null ) {
+				ReadAlignment alignment =  alignmentsHash.get(clusterID);
+				if(alignment != null ) {
 					// If variant is SNP
 					if(record.getVariant().isSNV()) {
-						translatedRecord = translateRecord(alignments, record);
+						translatedRecord = translateRecord(alignment, record);
 					} else {
 						notSNV++;
 					}
@@ -131,7 +133,10 @@ public class VCFTranslator {
 					"Not DNA: " + notDNA + "\n" + 
 					"True pos not aligned to ref: " + TruePosNotAlign +"\n"+
 					"Unmapped read: " + unmappedRead + "\n" +
-					"Not SNV: " + notSNV);
+					"Not SNV: " + notSNV + "\n" +
+					"RefAllele not found in alleles: " + refNotInAlleles + "\n" +
+					"Tirallelic: " + triallelic + "\n" +
+					"Biallelic: " + biallelic);
 		}
 	}
 	
@@ -154,13 +159,17 @@ public class VCFTranslator {
 		char trueRef;
 		
 		// Position of variant with respect to the de-novo alignment 1-based
-		// Reference base (the base at position of variant in the consensus seq)
+		// Relative reference base (the base at position of variant in the consensus seq)
 		int relativePos = record.getFirst();
 		char relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
+		int seqLength = record.length();
+		
 		
 		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
 		byte genotype = -1;
 		
+		// describes the agreement between the reported reference in relative VCF and 
+		// true reference in the reference genome
 		boolean agreement = false;
 		
 		// Variant as found in de-novo vcf
@@ -175,6 +184,7 @@ public class VCFTranslator {
 		
 		//TODO: set up logic to deal with triallelic
 		boolean isTriallelic = false;
+		boolean isBiallelic = false;
 		
 		// IF the reference is not in the relativeAlleles, the variant is likely triallelic
 		boolean refInRelativeAllels = false;
@@ -188,17 +198,28 @@ public class VCFTranslator {
 		}
 		
 		//-1 if the read position does not align with the reference
-		truePos = algn.getReferencePosition(relativePos);
-		if(truePos == -1) {
-			TruePosNotAlign++;
-			return null;
+//		XXX: THIS DOESNT WORK BECAUSE THERE IS NO WAY TO GET REFBASE WITH ABSOLUTE POSITION. 
+//		truePos = algn.getReferencePosition(relativePos);
+		
+		//This allows is to get the true position, not absolute, but relative to the genomic region.
+		// This plus the sequence index should get us the reference Allel.
+		if(algn.isNegativeStrand()) {
+			truePos = algn.getFirst() + (seqLength - relativePos);
+		} else {
+			truePos = algn.getFirst() + relativePos - 1;
 		}
+		
+		//Get index of alignment -> make it 0-based. Basically the index of the genomic region
+		int algnIndex = algn.getSequenceIndex();
+		if(algnIndex == -1) {
+			System.out.println("algnIndex = -1");
+		}
+		
+		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
 		
 		// get the calls for this record.
 		List<CalledGenomicVariant> calls = record.getCalls();
-//		System.out.println(truePos);
-		// TODO: Check index. Not clear if Im using it correctly
-		CharSequence trueRefSeq = refGenome.getReference(0, truePos, truePos);
+
 		if(!DNASequence.isDNA(trueRefSeq)) {
 			notDNA++;
 			return null;
@@ -216,16 +237,34 @@ public class VCFTranslator {
 		} 
 		
 		for(String allel: relativeAlleles) {
-			if(allel == Character.toString(trueRef)) {
+			if(allel.charAt(0) == trueRef) {
 				refInRelativeAllels = true;
 				continue;
 			} else {
 				trueAlt = allel.charAt(0);
 			}
 		}
-		if(!refInRelativeAllels) {
+		
+		if(relativeAlleles.length == 2) {
+			if(refInRelativeAllels) {
+				biallelic++;
+				isBiallelic = true;
+			} else {
+				triallelic++;
+				isTriallelic = true;
+			}
+		} else if((relativeAlleles.length == 3) && refInRelativeAllels) {
+			triallelic++;
 			isTriallelic = true;
+		} else {
+			return null;
+		}		
+		
+		if(!refInRelativeAllels) {
+			refNotInAlleles++;
+			
 		}
+		
 		// Exclude reference from allels
 		if(seqName != null && (!isTriallelic)) {
 			SNV variant = new SNV(seqName, truePos, trueRef, trueAlt);
@@ -279,13 +318,23 @@ public class VCFTranslator {
 	
 	
 	private void explore() throws IOException {
-		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF);) {
-			Iterator<VCFRecord> VCFReader = vcfOpenFile.iterator();
-			while(VCFReader.hasNext()) {
-				VCFRecord algn = VCFReader.next();
-				//System.out.print("Read Name: " + algn.getReadName());
-				System.out.print("Sequence Name: " + algn.getSequenceName() + "\n");
+		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);) {
+			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
+			int maxIndex = 0;
+			int minIndex = 100;
+			while(bamReader.hasNext()) {
+				ReadAlignment algn = bamReader.next();
+//				System.out.println("Read Name: " + algn.getReadName());
+				if(algn.getSequenceIndex() >= maxIndex) {
+					maxIndex = algn.getSequenceIndex();
+				}
+				if(algn.getSequenceIndex() <= minIndex) {
+					minIndex = algn.getSequenceIndex();
+				}
+//				System.out.println("Sequence index: " + algn.getSequenceIndex());
 			}
+			System.out.println("Max index: " + maxIndex);
+			System.out.println("Min index: " + minIndex);
 		}
 	}
 	
