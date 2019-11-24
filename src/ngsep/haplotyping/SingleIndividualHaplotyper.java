@@ -21,7 +21,7 @@ import ngsep.vcf.VCFRecord;
 
 public class SingleIndividualHaplotyper {
 
-	private String algorithmClassName = "ngsep.haplotyping.Refhap3SIHAlgorithm";
+	private String algorithmClassName = "ngsep.haplotyping.RefhapSIHAlgorithm";
 	private SIHAlgorithm algorithm;
 	
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;

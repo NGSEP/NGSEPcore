@@ -235,6 +235,17 @@ public class HaplotypeBlock {
 		return matrix.get(n);
 	}
 
+	public ArrayList<Byte> getColumn(int j)
+	{
+		ArrayList<Byte> column = new ArrayList<Byte>();
+		for(int i =0; i<matrix.size();i++)
+		{
+		column.add(getAllele(i, j));
+		}
+		
+		return column;
+		
+	}
 	
 	/**
 	 * Returns the number of variants
@@ -293,4 +304,16 @@ public class HaplotypeBlock {
 			if(call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(haplotype[i]==CalledGenomicVariant.ALLELE_ALTERNATIVE);
 		}
 	}
+	public void deleteFragment(int j) 
+	{
+		matrix.remove(j);
+		sorted = false;
+		
+	}
+	
+	public int getCallsLenght()
+	{
+		return calls.size();
+	}
 }
+
