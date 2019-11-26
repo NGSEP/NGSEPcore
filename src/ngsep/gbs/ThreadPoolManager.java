@@ -26,7 +26,7 @@ public class ThreadPoolManager {
 	public void queueTask(Runnable task) throws InterruptedException {
 		int taskCount = pool.getQueue().size();
 		if(taskCount == maxTaskCount) {
-			terminatePool();
+			relaunchPool();
 		}
 		pool.execute(task);
 	}

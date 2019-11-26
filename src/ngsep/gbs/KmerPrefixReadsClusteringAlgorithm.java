@@ -459,8 +459,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		Arrays.fill(currentReads, null);
 		List<Iterator<RawRead>> iterators = new ArrayList<>();
+		
 		//Create pool manager and statistics
 		ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
+		
+		//Timer for mem checks
+		Timer timer = new Timer();
+		
 		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");
 				PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
 			int numNotNull = 0;
@@ -468,7 +473,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			
 			// save memory usage every 5 seconds
 			memUsage.println("Time(ms)\tMemoryUsage(MB)");
-			Timer timer = new Timer();
 			timer.schedule(new MemoryUsage(memUsage), 0, 5000);
 			
 			for(int i=0; i<numberOfFiles; i++) {
@@ -523,6 +527,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(reader!=null) reader.close();
 			}
 			poolManager.terminatePool();
+			timer.cancel();
 		}
 	}
 	
