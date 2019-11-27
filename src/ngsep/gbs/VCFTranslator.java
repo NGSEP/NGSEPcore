@@ -3,7 +3,7 @@ package ngsep.gbs;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -11,7 +11,7 @@ import java.util.Map;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
-import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNASequence;
@@ -19,6 +19,7 @@ import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.SNV;
+import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
@@ -26,11 +27,11 @@ import ngsep.vcf.VCFRecord;
 
 public class VCFTranslator {
 
-	private String outPrefix="./output";
+	private String outFile="output.vcf";
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
 	private static ReferenceGenome refGenome;
-	private Map<String, ReadAlignment> alignmentsHash;
+	private Map<Integer, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
 	int skippedRecords = 0;
@@ -50,7 +51,7 @@ public class VCFTranslator {
 		instance.filenameAlignmentBAM = args[i++];
 		instance.filenameRelativeVCF = args[i++];
 		String refGenomeFile = args[i++];
-		instance.outPrefix = args[i++];
+		instance.outFile = args[i++];
 		instance.run(refGenomeFile);
 	}
 
@@ -89,37 +90,33 @@ public class VCFTranslator {
 	 * @throws Exception
 	 */
 	private void translate() throws Exception {
-		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF);
-				PrintStream mappedVCF = new PrintStream(outPrefix+"_mapped.vcf");
-				PrintStream log = new PrintStream(outPrefix + "_translation.log");) {
-			
-			boolean writeHeader = true;
-			VCFFileWriter writer = new VCFFileWriter ();
+		List<VCFRecord> translatedRecords = new ArrayList<>();
+		List<Sample> samples;
+		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
+		
+		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF)) {
+			samples = vcfOpenFile.getHeader().getSamples();
+			header.addSamples(samples);
 			Iterator<VCFRecord> vcfReader = vcfOpenFile.iterator();
-			
 			// Iterate over vcfRecords
 			while(vcfReader.hasNext()) {
 				VCFRecord translatedRecord = null;
 				VCFRecord record = vcfReader.next();
 				
-				// Write header on translatedVCF
-				if(writeHeader) {
-					writeHeader = false;
-					VCFFileHeader header = record.getHeader();
-					writer.printHeader(header, mappedVCF);
-				}
 				
-				String clusterID = record.getSequenceName().split("_")[1];
+					
+				
+				int clusterID = Integer.parseInt(record.getSequenceName());
 				ReadAlignment alignment =  alignmentsHash.get(clusterID);
 				if(alignment != null ) {
 					// If variant is SNP
 					if(record.getVariant().isSNV()) {
-						translatedRecord = translateRecord(alignment, record);
+						translatedRecord = translateRecord(alignment, record, header);
 					} else {
 						notSNV++;
 					}
 					if(translatedRecord != null) {
-						writer.printVCFRecord(translatedRecord, mappedVCF);
+						translatedRecords.add(translatedRecord);
 						numTranslatedRecords++;
 					}
 				} else {
@@ -127,17 +124,26 @@ public class VCFTranslator {
 				}
 				totalRecords++;
 			}
-			log.print("Total number of records in relative VCF: " + totalRecords + "\n" +
-					"Number of translated records: " + numTranslatedRecords + "\n" +
-					"Number of skipped records due to lack of a primary alignment: " + skippedRecords + "\n" +
-					"Not DNA: " + notDNA + "\n" + 
-					"True pos not aligned to ref: " + TruePosNotAlign +"\n"+
-					"Unmapped read: " + unmappedRead + "\n" +
-					"Not SNV: " + notSNV + "\n" +
-					"RefAllele not found in alleles: " + refNotInAlleles + "\n" +
-					"Tirallelic: " + triallelic + "\n" +
-					"Biallelic: " + biallelic);
+			
 		}
+		Collections.sort(translatedRecords,new GenomicRegionComparator(refGenome.getSequencesMetadata()));
+		VCFFileWriter writer = new VCFFileWriter ();
+		try (PrintStream mappedVCF = new PrintStream(outFile)) {
+			writer.printHeader(header, mappedVCF);
+			writer.printVCFRecords(translatedRecords, mappedVCF);
+		}
+		
+		
+		System.out.println("Total number of records in relative VCF: " + totalRecords + "\n" +
+				"Number of translated records: " + numTranslatedRecords + "\n" +
+				"Number of skipped records due to lack of a primary alignment: " + skippedRecords + "\n" +
+				"Not DNA: " + notDNA + "\n" + 
+				"True pos not aligned to ref: " + TruePosNotAlign +"\n"+
+				"Unmapped read: " + unmappedRead + "\n" +
+				"Not SNV: " + notSNV + "\n" +
+				"RefAllele not found in alleles: " + refNotInAlleles + "\n" +
+				"Tirallelic: " + triallelic + "\n" +
+				"Biallelic: " + biallelic);
 	}
 	
 	/**
@@ -147,7 +153,7 @@ public class VCFTranslator {
 	 * @param record
 	 * @return translated record
 	 */
-	private VCFRecord translateRecord(ReadAlignment algn, VCFRecord record) {
+	private VCFRecord translateRecord(ReadAlignment algn, VCFRecord record, VCFFileHeader header) {
 		
 		VCFRecord translatedRecord = null;
 		List<CalledGenomicVariant> trueCalls = new ArrayList<>();
@@ -178,7 +184,6 @@ public class VCFTranslator {
 		// Alternative Allele based on de-novo VCF
 		String[] relativeAlleles = relativeVar.getAlleles();
 		
-		VCFFileHeader header = record.getHeader();
 		int[] filedsFormat = record.getFieldsFormat();
 		char trueAlt = 'N';
 		
@@ -308,8 +313,9 @@ public class VCFTranslator {
 			while(bamReader.hasNext()) {
 				ReadAlignment algn = bamReader.next();
 				String algnName = algn.getReadName().split("_")[1];
+				int clusterId = Integer.parseInt(algnName);
 				if(!algn.isSecondary()) {
-					this.alignmentsHash.put(algnName, algn);
+					this.alignmentsHash.put(clusterId, algn);
 				}
 			}
 		}

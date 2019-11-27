@@ -146,6 +146,11 @@ public class VCFFileHeader {
 		}
 	}
 	
+	public void addSamples (List<Sample> samples) {
+		for(Sample sample:samples) {
+			addSample(sample, false);
+		}
+	}
 	public void addSample(Sample s, boolean headerLine) {
 		samples.add(s);
 		samplesIndexMap.put(s.getId(), samples.size()-1);
