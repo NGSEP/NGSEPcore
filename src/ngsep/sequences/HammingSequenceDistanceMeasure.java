@@ -49,6 +49,21 @@ public class HammingSequenceDistanceMeasure implements SequenceDistanceMeasure {
 		}
 		return answer;
 	}
+	/**
+	 * Calculates the hamming distance between the two sequences up to the length of the smallest sequence
+	 * @param seq1 first sequence
+	 * @param seq2 second sequence
+	 * @return double hamming distance between the two sequences
+	 */
+	public double calculateDistanceDifferentLengths(CharSequence seq1, CharSequence seq2) {
+		int answer = 0;
+		int l1 = seq1.length();
+		int l2 = seq2.length();
+		for(int i=0;i<l1 && i<l2;i++) {
+			if(seq1.charAt(i)!=seq2.charAt(i)) answer++;
+		}
+		return answer;
+	}
 	
 	/**
 	 * Calculates the hamming distance between the two sequences divided by the length of the sequences

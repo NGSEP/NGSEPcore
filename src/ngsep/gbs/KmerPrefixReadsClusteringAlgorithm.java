@@ -467,7 +467,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		Timer timer = new Timer();
 		
 		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");
-				PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
+			 PrintStream outConsensus = new PrintStream(outPrefix+"_consensus.fa");
+			 PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			
@@ -510,14 +511,15 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 					if(currentReads[i]==null) numNotNull--;
 				}
-				
-				//Adding new task to the list and starting the new task
-			    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants);
-			    poolManager.queueTask(newTask);
-				
-				if(nextCluster.getClusterNumber()%10000 == 0) {
-					log.info("Queued cluster " + nextCluster.getClusterNumber());
-				}	
+				if(nextCluster.getNumberOfTotalReads()>0) {
+					//Adding new task to the list and starting the new task
+				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
+				    poolManager.queueTask(newTask);
+				}
+				if(numCluster%10000 == 0) {
+					log.info("Processed cluster " + numCluster);
+				}
+					
 				numCluster++;
 			}
 			

@@ -1,6 +1,5 @@
 package ngsep.gbs;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,11 +43,12 @@ public class ProcessClusterVCFTask extends Thread {
 	private KmerPrefixReadsClusteringAlgorithm parent;
 	
 	
-	public ProcessClusterVCFTask(ReadCluster readCluster, VCFFileHeader vcfFileHeader, VCFFileWriter writer, KmerPrefixReadsClusteringAlgorithm parent, PrintStream outVariants) {
+	public ProcessClusterVCFTask(ReadCluster readCluster, VCFFileHeader vcfFileHeader, VCFFileWriter writer, KmerPrefixReadsClusteringAlgorithm parent, PrintStream outVariants, PrintStream outConsensus) {
 		this.readCluster = readCluster;
 		this.vcfFileHeader = vcfFileHeader;
 		this.vcfWriter = writer;
 		this.outVariants = outVariants;
+		this.outConsensus = outConsensus;
 		this.parent = parent;
 	}
 	
@@ -66,7 +66,7 @@ public class ProcessClusterVCFTask extends Thread {
 		
 		if (outConsensus != null) {
 			synchronized (outConsensus) {
-				generateConsensusFasta();
+				writeConsensusFasta();
 			}
 		}
 		
@@ -87,9 +87,9 @@ public class ProcessClusterVCFTask extends Thread {
 		List<VCFRecord> records = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
-		String refSeq = readCluster.getRefSeq();
+		String consensus = readCluster.getConsensusSequence();
 		String referenceId = Integer.toString(clusterId);
-		QualifiedSequence refQS = new QualifiedSequence(referenceId, refSeq);
+		QualifiedSequence refQS = new QualifiedSequence(referenceId, consensus);
 		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
 		VariantPileupListener variantsDetector = new VariantPileupListener();
 		variantsDetector.setGenome(singleSequenceGenome);
@@ -113,7 +113,7 @@ public class ProcessClusterVCFTask extends Thread {
 		}
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		for(int i=1; i<=refSeq.length(); i++) {
+		for(int i=1; i<=consensus.length(); i++) {
 			
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			for(ReadAlignment readAlgn:readAlignments) {
@@ -121,7 +121,7 @@ public class ProcessClusterVCFTask extends Thread {
 			}
 			double h = parent.getHeterozygosityRate();
 			List<Sample> samples = parent.getSamples();
-			GenomicVariant variant = findMultiallelicVariant(samples, clusterPileUp, refSeq.charAt(i-1), referenceId, h);
+			GenomicVariant variant = findMultiallelicVariant(samples, clusterPileUp, consensus.charAt(i-1), referenceId, h);
 			if(variant!=null) {
 				List<CalledGenomicVariant> calls = genotypeVariant(samples, variant, clusterPileUp, h);
 				if(variant.getVariantQS()==0 || variant.getVariantQS() < parent.getMinQuality()) continue;
@@ -139,9 +139,9 @@ public class ProcessClusterVCFTask extends Thread {
 		return records;
 	}
 	
-	private void generateConsensusFasta() {
+	private void writeConsensusFasta() {
 		outConsensus.println(">Cluster_" + readCluster.getClusterNumber());
-		outConsensus.println(readCluster.getRefSeq());
+		outConsensus.println(readCluster.getConsensusSequence());
 	}
 	// From MultisampleVariantsDetector.java
 	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum, double h) {

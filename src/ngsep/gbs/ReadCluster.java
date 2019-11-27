@@ -1,24 +1,19 @@
 package ngsep.gbs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.RawRead;
-import ngsep.sequencing.ReadsDemultiplex;
 
 public class ReadCluster {
-	private Logger log = Logger.getLogger(ReadsDemultiplex.class.getName());
 	private int clusterNumber;
 	private int totalReads = 0;
-	private int longestRead = 0;
-	private int[][] refSeqTable;
-	private char[] refCharSeq;
-	private boolean refSeqDone;
 	private List<RawRead> reads = new ArrayList<>();
 	private List<String> sampleIds = new ArrayList<>();
-	String refSeq = "";
+	private String consensusSequence = null;
 	
 	public ReadCluster(int clusterNumber)      
 	{                                                                 
@@ -26,33 +21,35 @@ public class ReadCluster {
 		
 	}
 	
-	public double getAvgHammingDist() {
+	public double getAverageHammingDistance() {
 		if(reads.size() == 0) {
 			return 0;
 		}
 		double totHammingDist = 0;
+		HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
 		for(RawRead read:reads) {
-			totHammingDist += hammingDist(read.getSequenceString(), getRefSeq());
+			totHammingDist += measure.calculateDistanceDifferentLengths(read.getSequenceString(), getConsensusSequence());
 		}
 		return totHammingDist / reads.size();
 	}
 	
 	public void addRead(RawRead read, String sampleId) {
-		refSeqDone = false;
 		reads.add(read);
 		sampleIds.add(sampleId);
-		if(read.getLength() >= longestRead) {
-			longestRead = read.getLength();
-		}
 		totalReads++;
+		consensusSequence = null;
 	}
 	
-	private void calcRefSeq() {
-		this.refSeqTable = new int[this.longestRead][DNASequence.BASES_ARRAY.length];
-		this.refCharSeq = new char[this.longestRead];
+	private void calculateConsensus() {
+		int longestRead = 0;
 		for(RawRead read:reads) {
 			String s = read.getSequenceString();
 			if(longestRead<s.length()) longestRead = s.length();
+		}
+		int[][] refSeqTable = new int[longestRead][DNASequence.BASES_ARRAY.length];
+		
+		for(RawRead read:reads) {
+			String s = read.getSequenceString();
 			for(int i=0; i<s.length(); i++) {
 				if(!DNASequence.isInAlphabeth(s.charAt(i))) {
 					continue;
@@ -61,45 +58,32 @@ public class ReadCluster {
 				refSeqTable[i][j]++;
 			}
 		}
-		for(int i = 0; i < this.longestRead; i++) {
+		char [] consensusC = new char[longestRead];
+		Arrays.fill(consensusC, 'N');
+		for(int i = 0; i < refSeqTable.length; i++) {
 			int max = 0;
-			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
+			int maxIdx = -1;
+			for(int j = 0; j < refSeqTable[i].length; j++) {
 				int next = refSeqTable[i][j];
-				if((max <= next) && (next != 0)){
-					this.refCharSeq[i] = DNASequence.BASES_STRING.charAt(j);
+				if(next>0 && max <= next){
+					maxIdx = j;
 					max = next;
 				}
-			} this.refSeq += this.refCharSeq[i];
+			}
+			if(maxIdx>=0) consensusC[i] = DNASequence.BASES_STRING.charAt(maxIdx);
 		}
-		refSeqDone = true;
+		consensusSequence = new String(consensusC);
 	}
 	
-	public String getRefSeq() {
-		if(refSeqDone) {
-			return refSeq;
-		} else {
-			calcRefSeq();
-			return refSeq;
+	public String getConsensusSequence() {
+		if(consensusSequence==null) {
+			calculateConsensus();
 		}
-
-	}
-
-	private int hammingDist(String str1, String str2) {
-	    int count = 0;
-	    for(int i = 0; i < str1.length(); i++)
-	    {
-	        if (str1.charAt(i) != str2.charAt(i))
-	            count++;
-	    }
-	    return count;
+		return consensusSequence;
 	}
 	
 	public int getClusterNumber(){
 		return clusterNumber;
-	}
-	
-	public int longestRead() {
-		return longestRead;
 	}
 	
 	public int getNumberOfTotalReads () {
