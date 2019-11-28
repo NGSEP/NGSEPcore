@@ -46,8 +46,8 @@ public class VCFTranslator {
 	int refNotInAlleles = 0;
 	int biallelic = 0;
 	int triallelic = 0;
-	private static Map<Character, Character> complement = new HashMap<>();
-
+	int nonVariant = 0;
+	
 	public static void main(String[] args) throws Exception {
 		VCFTranslator instance = new VCFTranslator();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -58,13 +58,7 @@ public class VCFTranslator {
 		instance.run(refGenomeFile);
 	}
 
-	private static void createComplementMap() {
-		complement.put('A', 'T');
-		complement.put('T', 'A');
-		complement.put('C', 'G');
-		complement.put('G', 'C');
-
-	}
+	
 	/**
 	 * Load reference genome based on provided file
 	 * @param genomeFileName
@@ -79,7 +73,6 @@ public class VCFTranslator {
 	}
 
 	public void run(String refGenomeFile) throws Exception {
-		createComplementMap();
 		refGenome = loadReferenceGenome(refGenomeFile);
 		getAlignmentHash();
 		System.out.println("Loaded a total of " + alignmentsHash.size() + " alignments.");
@@ -147,6 +140,7 @@ public class VCFTranslator {
 		System.out.println("RefAllele not found in alleles: " + refNotInAlleles);
 		System.out.println("Triallelic: " + triallelic);
 		System.out.println("Biallelic: " + biallelic);
+		System.out.println("Non variant: " + nonVariant);
 	}
 	
 	/**
@@ -172,14 +166,6 @@ public class VCFTranslator {
 		int relativePos = record.getFirst();
 		char relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
 		int seqLength = record.length();
-		
-		
-		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
-		byte genotype = -1;
-		
-		// describes the agreement between the reported reference in relative VCF and 
-		// true reference in the reference genome
-		boolean agreement = false;
 		
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
@@ -235,9 +221,9 @@ public class VCFTranslator {
 		for(String allele:relativeAlleles) {
 			if(!DNASequence.isDNA(allele)) continue;
 			if(algn.isNegativeStrand()) {
-				allele = ""+DNASequence.getComplement(allele.charAt(0));
+				allele = DNASequence.getReverseComplement(allele);
 			}
-			if(allele.equals(trueRefSeq)) refInRelativeAllels = true;
+			if(allele.charAt(0)==trueRef) refInRelativeAllels = true;
 			if(!refBasedAlleles.contains(allele)) {
 				refBasedAlleles.add(allele);
 			}
@@ -250,6 +236,7 @@ public class VCFTranslator {
 			variant = new GenomicVariantImpl(seqName, truePos, refBasedAlleles );
 			triallelic++;
 		} else {
+			nonVariant++;
 			return null;
 		}
 		
@@ -265,25 +252,23 @@ public class VCFTranslator {
 		// Translate genotypes 
 		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
 		for(CalledGenomicVariant relativeCall: calls) {
-			if(relativeCall.isHomozygousReference() && agreement) {
-				genotype = 0;
-			} else if(relativeCall.isHomozygousReference() && !agreement) {
-				genotype = 2;
-			} else if(relativeCall.isHomozygous() && agreement) {
-				genotype = 2;
-			} else if(relativeCall.isHomozygous() && !agreement) {
-				genotype = 0;
-			} else if(relativeCall.isHeterozygous()) {
-				genotype = 1;
-			} else {
-				genotype = -1;
-			}
+			String [] calledAlleles = relativeCall.getCalledAlleles();
 			if(variant instanceof SNV) {
+				byte genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
+				if(calledAlleles.length==2) genotype = CalledGenomicVariant.GENOTYPE_HETERO;
+				else if (calledAlleles.length==1) {
+					genotype = CalledGenomicVariant.GENOTYPE_HOMOREF;
+					if(calledAlleles[0].charAt(0)!=trueRef) {
+						genotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
+					}
+				}
 				CalledGenomicVariant trueCall = new CalledSNV((SNV)variant, genotype);
 				trueCalls.add(trueCall);
 			}
 		}
-		translatedRecord = new VCFRecord(variant, filedsFormat, trueCalls, header);
+		if(trueCalls.size()>0) {
+			translatedRecord = new VCFRecord(variant, filedsFormat, trueCalls, header);
+		}
 		return translatedRecord;
 	}
 	
