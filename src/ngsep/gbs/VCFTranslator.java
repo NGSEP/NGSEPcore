@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
@@ -18,6 +20,7 @@ import ngsep.sequences.DNASequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
@@ -134,16 +137,16 @@ public class VCFTranslator {
 		}
 		
 		
-		System.out.println("Total number of records in relative VCF: " + totalRecords + "\n" +
-				"Number of translated records: " + numTranslatedRecords + "\n" +
-				"Number of skipped records due to lack of a primary alignment: " + skippedRecords + "\n" +
-				"Not DNA: " + notDNA + "\n" + 
-				"True pos not aligned to ref: " + TruePosNotAlign +"\n"+
-				"Unmapped read: " + unmappedRead + "\n" +
-				"Not SNV: " + notSNV + "\n" +
-				"RefAllele not found in alleles: " + refNotInAlleles + "\n" +
-				"Tirallelic: " + triallelic + "\n" +
-				"Biallelic: " + biallelic);
+		System.out.println("Total number of records in relative VCF: " + totalRecords);
+		System.out.println("Number of translated records: " + numTranslatedRecords);
+		System.out.println("Number of skipped records due to lack of a primary alignment: " + skippedRecords);
+		System.out.println("Not DNA: " + notDNA); 
+		System.out.println("True pos not aligned to ref: " + TruePosNotAlign);
+		System.out.println("Unmapped read: " + unmappedRead);
+		System.out.println("Not SNV: " + notSNV);
+		System.out.println("RefAllele not found in alleles: " + refNotInAlleles);
+		System.out.println("Triallelic: " + triallelic);
+		System.out.println("Biallelic: " + biallelic);
 	}
 	
 	/**
@@ -181,15 +184,12 @@ public class VCFTranslator {
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
 		
+		if(!(relativeVar instanceof SNV)) notSNV++;
+		
 		// Alternative Allele based on de-novo VCF
 		String[] relativeAlleles = relativeVar.getAlleles();
 		
 		int[] filedsFormat = record.getFieldsFormat();
-		char trueAlt = 'N';
-		
-		//TODO: set up logic to deal with triallelic
-		boolean isTriallelic = false;
-		boolean isBiallelic = false;
 		
 		// IF the reference is not in the relativeAlleles, the variant is likely triallelic
 		boolean refInRelativeAllels = false;
@@ -197,10 +197,11 @@ public class VCFTranslator {
 		// Will be something like Cluster-####
 		String seqName = algn.getSequenceName();
 		
-		if(algn.isReadUnmapped()) {
+		if(algn.isReadUnmapped() || seqName==null) {
 			unmappedRead++;
 			return null;
 		}
+		
 		
 		//-1 if the read position does not align with the reference
 //		XXX: THIS DOESNT WORK BECAUSE THERE IS NO WAY TO GET REFBASE WITH ABSOLUTE POSITION. 
@@ -221,9 +222,6 @@ public class VCFTranslator {
 		}
 		
 		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
-		
-		// get the calls for this record.
-		List<CalledGenomicVariant> calls = record.getCalls();
 
 		if(!DNASequence.isDNA(trueRefSeq)) {
 			notDNA++;
@@ -231,74 +229,61 @@ public class VCFTranslator {
 		} else {
 			trueRef = trueRefSeq.charAt(0);
 		}
-		if(trueRef == relativeRef) {
-			agreement = true;
-		} else {
-			agreement = false;
-		}
-		
-		if(algn.isNegativeStrand()) {
-			trueRef = complement.get(trueRef);
-		} 
-		
-		for(String allel: relativeAlleles) {
-			if(allel.charAt(0) == trueRef) {
-				refInRelativeAllels = true;
-				continue;
-			} else {
-				trueAlt = allel.charAt(0);
+		//TODO: Translate indels
+		List<String> refBasedAlleles = new ArrayList<>();
+		refBasedAlleles.add(""+trueRef);
+		for(String allele:relativeAlleles) {
+			if(!DNASequence.isDNA(allele)) continue;
+			if(algn.isNegativeStrand()) {
+				allele = ""+DNASequence.getComplement(allele.charAt(0));
+			}
+			if(allele.equals(trueRefSeq)) refInRelativeAllels = true;
+			if(!refBasedAlleles.contains(allele)) {
+				refBasedAlleles.add(allele);
 			}
 		}
-		
-		if(relativeAlleles.length == 2) {
-			if(refInRelativeAllels) {
-				biallelic++;
-				isBiallelic = true;
-			} else {
-				triallelic++;
-				isTriallelic = true;
-			}
-		} else if((relativeAlleles.length == 3) && refInRelativeAllels) {
+		GenomicVariant variant;
+		if(refBasedAlleles.size()== 2) {
+			variant = new SNV(seqName, truePos, trueRef, refBasedAlleles.get(1).charAt(0));
+			biallelic++;
+		} else if (refBasedAlleles.size()>= 3) {
+			variant = new GenomicVariantImpl(seqName, truePos, refBasedAlleles );
 			triallelic++;
-			isTriallelic = true;
 		} else {
 			return null;
-		}		
+		}
 		
 		if(!refInRelativeAllels) {
 			refNotInAlleles++;
 			
 		}
-		
+		// get the calls for this record.
+		List<CalledGenomicVariant> calls = record.getCalls();
 		// Exclude reference from allels
-		if(seqName != null && (!isTriallelic)) {
-			SNV variant = new SNV(seqName, truePos, trueRef, trueAlt);
+		
 			
-			// Translate genotypes 
-			//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
-			for(CalledGenomicVariant relativeCall: calls) {
-				if(relativeCall.isHomozygousReference() && agreement) {
-					genotype = 0;
-				} else if(relativeCall.isHomozygousReference() && !agreement) {
-					genotype = 2;
-				} else if(relativeCall.isHomozygous() && agreement) {
-					genotype = 2;
-				} else if(relativeCall.isHomozygous() && !agreement) {
-					genotype = 0;
-				} else if(relativeCall.isHeterozygous()) {
-					genotype = 1;
-				} else {
-					genotype = -1;
-				}
-				
-				CalledGenomicVariant trueCall = new CalledSNV(variant, genotype);
+		// Translate genotypes 
+		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
+		for(CalledGenomicVariant relativeCall: calls) {
+			if(relativeCall.isHomozygousReference() && agreement) {
+				genotype = 0;
+			} else if(relativeCall.isHomozygousReference() && !agreement) {
+				genotype = 2;
+			} else if(relativeCall.isHomozygous() && agreement) {
+				genotype = 2;
+			} else if(relativeCall.isHomozygous() && !agreement) {
+				genotype = 0;
+			} else if(relativeCall.isHeterozygous()) {
+				genotype = 1;
+			} else {
+				genotype = -1;
+			}
+			if(variant instanceof SNV) {
+				CalledGenomicVariant trueCall = new CalledSNV((SNV)variant, genotype);
 				trueCalls.add(trueCall);
 			}
-			translatedRecord = new VCFRecord(variant, filedsFormat, trueCalls, header);
-		
-		} else {
-			nullReadName++;
 		}
+		translatedRecord = new VCFRecord(variant, filedsFormat, trueCalls, header);
 		return translatedRecord;
 	}
 	
