@@ -28,7 +28,7 @@ import ngsep.vcf.VCFFileReader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
 
-public class VCFTranslator {
+public class VCFRelativeCoordinatesTranslator {
 
 	private String outFile="output.vcf";
 	private String filenameAlignmentBAM;
@@ -49,7 +49,7 @@ public class VCFTranslator {
 	int nonVariant = 0;
 	
 	public static void main(String[] args) throws Exception {
-		VCFTranslator instance = new VCFTranslator();
+		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.filenameAlignmentBAM = args[i++];
 		instance.filenameRelativeVCF = args[i++];
@@ -253,6 +253,11 @@ public class VCFTranslator {
 		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
 		for(CalledGenomicVariant relativeCall: calls) {
 			String [] calledAlleles = relativeCall.getCalledAlleles();
+			if (algn.isNegativeStrand()) {
+				for(int i=0;i<calledAlleles.length;i++) {
+					calledAlleles[i] = DNASequence.getReverseComplement(calledAlleles[i]);
+				}
+			}
 			if(variant instanceof SNV) {
 				byte genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 				if(calledAlleles.length==2) genotype = CalledGenomicVariant.GENOTYPE_HETERO;
