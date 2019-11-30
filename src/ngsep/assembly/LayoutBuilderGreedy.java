@@ -27,8 +27,9 @@ public class LayoutBuilderGreedy implements LayourBuilder
 		
 		//List of globally used vertices 
 		Set<Integer> usedVerticesGlobal = new HashSet<Integer>(); 
+		List<AssemblyVertex> graphVertices = graph.getNotEmbeddedVertices();
 		//Creates contigs until all the vertices are used or don't have available edges
-		while(usedVerticesGlobal.size() < graph.getVertices().size() && edges.values().stream().filter(e -> e.size() > 0).count() > 0)
+		while(usedVerticesGlobal.size() < graphVertices.size() && edges.values().stream().filter(e -> e.size() > 0).count() > 0)
 		{			
 			//Look for the vertices with the least linked vertices
 			List<AssemblyVertex> origins = new ArrayList<AssemblyVertex>();

@@ -1,33 +1,58 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.PriorityQueue;
-import java.util.TreeMap;
-import ngsep.sequences.DNAMaskedSequence;
 
+/**
+ * @author Jorge Duitama
+ * @author Juan Camilo Bojaca
+ * @author David Guevara
+ */
 public class AssemblyGraph {
 	
 	private List<CharSequence> sequences;
 	private List<AssemblyVertex> vertices;
 
+	private boolean [] embedded;
 	private List<AssemblyEdge> edges = new ArrayList<>();
-	private Map<Integer, List<AssemblyEmbedded>> embeddedSequences = new HashMap<>();
+	// Map with sequence ids as keys and embedded sequences as objects
+	private Map<Integer, List<AssemblyEmbedded>> embeddedMap = new HashMap<>();
 
 	// Indexes in the vertices list
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 
 	public AssemblyGraph(List<CharSequence> sequences) {
+		int n = sequences.size();
 		this.sequences = Collections.unmodifiableList(sequences);
-		vertices = new ArrayList<>();
-		edges = new ArrayList<>();
+		embedded = new boolean[n];
+		Arrays.fill(embedded, false);
+		vertices = new ArrayList<>(2*n);
+		edges = new ArrayList<>(2*n);
 		for (CharSequence seq : sequences) {
 			AssemblyVertex vS = new AssemblyVertex(seq, true, vertices.size());
 			vertices.add(vS);
@@ -43,6 +68,12 @@ public class AssemblyGraph {
 	public List<CharSequence> getSequences() {
 		return sequences;
 	}
+	public CharSequence getSequence(int sequenceIdx) {
+		return sequences.get(sequenceIdx);
+	}
+	public int getSequenceLength(int sequenceIdx) {
+		return sequences.get(sequenceIdx).length();
+	}
 
 	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int overlap) {
 		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap); 
@@ -55,10 +86,12 @@ public class AssemblyGraph {
 		return vertices.get(2 * indexSequence + (start ? 0 : 1));
 	}
 
-	public void addEmbedded(int ind, AssemblyEmbedded embedded) {
-		List<AssemblyEmbedded> list = embeddedSequences.computeIfAbsent(ind, key -> new LinkedList<>());
-		list.add(embedded);
+	public void addEmbedded(int ind, AssemblyEmbedded embeddedObject) {
+		List<AssemblyEmbedded> list = embeddedMap.computeIfAbsent(ind, key -> new LinkedList<>());
+		list.add(embeddedObject);
+		embedded[embeddedObject.getSequenceId()] = true;
 	}
+	
 
 	/**
 	 * Return the list of embedded sequences for the given read
@@ -67,7 +100,11 @@ public class AssemblyGraph {
 	 * @return list of embedded sequences
 	 */
 	public List<AssemblyEmbedded> getEmbedded(int index) {
-		return embeddedSequences.get(index);
+		return embeddedMap.get(index);
+	}
+	
+	public boolean isEmbedded(int sequenceId) {
+		return embedded[sequenceId];
 	}
 
 	public void addPath(List<AssemblyEdge> path) {
@@ -77,7 +114,18 @@ public class AssemblyGraph {
 	/**
 	 * @return the vertices
 	 */
-	public List<AssemblyVertex> getVertices() {
+	public List<AssemblyVertex> getAllVertices() {
+		return vertices;
+	}
+	
+	public List<AssemblyVertex> getNotEmbeddedVertices() {
+		List<AssemblyVertex> vertices = new ArrayList<>();
+		for(int i=0;i<embedded.length;i++) {
+			if(!embedded[i]) {
+				vertices.add(getVertex(i, true));
+				vertices.add(getVertex(i, false));
+			}
+		}
 		return vertices;
 	}
 
@@ -95,126 +143,16 @@ public class AssemblyGraph {
 		return paths;
 	}
 
-	public List<Map<Integer, CharSequence>> paths() {
-		// calcular los vertices correspondientes
-		List<Map<Integer, CharSequence>>  ans = new ArrayList<>();
-		for (int i = 0; i < paths.size(); i++) {
-			List<AssemblyVertex> vertx = new ArrayList<AssemblyVertex>();
-			List<AssemblyEdge> list = paths.get(i);
 
-			AssemblyVertex v1 = list.get(0).getVertex1();
-			AssemblyVertex v2 = list.get(0).getVertex2();
-			AssemblyVertex v3 = list.get(1).getVertex1();
-			AssemblyVertex v4 = list.get(1).getVertex2();
-
-			AssemblyVertex vact;
-			if (v1 == v3) {
-				vertx.add(v2);
-				vertx.add(v1);
-				vact = v4;
-			} else if (v1 == v4) {
-				vertx.add(v2);
-				vertx.add(v1);
-				vact = v3;
-			} else if (v2 == v3) {
-				vertx.add(v1);
-				vertx.add(v2);
-				vact = v4;
-			} else {
-				vertx.add(v1);
-				vertx.add(v2);
-				vact = v3;
-			}
-
-			for (int j = 2; j < list.size(); j++) {
-				vertx.add(vact);
-				v3 = list.get(j).getVertex1();
-				v4 = list.get(j).getVertex2();
-				vact = (vact == v3) ? v4 : v3;
-			}
-			vertx.add(vact);
-			
-			System.out.println( Arrays.toString(vertx.stream().mapToInt((x) -> x.getIndex()).toArray()));
-
-	
-			TreeMap<Integer,CharSequence> ord = new TreeMap<>();
-			int llll = 0;
-			for (int j = 0; j < vertx.size() - 2; j += 2) {
-				CharSequence str = vertx.get(j).getRead();
-				boolean rev = false;
-				if (vertx.get(j).getIndex() > vertx.get(j + 1).getIndex()) {
-					str = DNAMaskedSequence.getReverseComplement(str);
-					rev = true;
-				}
-				ord.put(llll,str);
-
-				if (embeddedSequences.get(vertx.get(j).getIndex() / 2) != null) {
-					for (AssemblyEmbedded emb : embeddedSequences.get(vertx.get(j).getIndex() / 2)) {
-						str = emb.getRead();
-						int ill = emb.getStartPosition();
-						if (rev ^ emb.isReverse()) {
-							str = DNAMaskedSequence.getReverseComplement(str);
-							ill = list.get(j).getOverlap() - ill - emb.getRead().length();
-						}
-						ord.put( llll + ill,str);
-					}
-				}
-
-				llll += list.get(j).getOverlap() - list.get(j + 1).getOverlap();
-			}
-
-			int j = vertx.size() - 2;
-			CharSequence str = vertx.get(vertx.size() - 1).getRead();
-			boolean rev = false;
-			if (vertx.get(vertx.size() - 2).getIndex() > vertx.get(vertx.size() - 1).getIndex()) {
-				str = DNAMaskedSequence.getReverseComplement(str);
-				rev = true;
-			
-			}
-			ord.put(llll,str);
-
-			if (embeddedSequences.get(vertx.get(j).getIndex() / 2) != null) {
-				for (AssemblyEmbedded emb : embeddedSequences.get(vertx.get(j).getIndex() / 2)) {
-					str = emb.getRead();
-					int ill = emb.getStartPosition();
-					if (rev ^ emb.isReverse()) {
-						str = DNAMaskedSequence.getReverseComplement(str);
-						ill = list.get(j).getOverlap() - ill - emb.getRead().length();
-					}
-					ord.put( llll + ill,str);
-				}
-			}
-			System.out.println(ord.size());
-			
-			ans.add(ord);
-			print(ord);
-		}
-		return ans;
-	}
-	
-	private void print(Map<Integer, CharSequence> ord) {
-		PriorityQueue<StringBuilder> prints = new PriorityQueue<>(new Comparator<StringBuilder>() {
-			public int compare(StringBuilder o1, StringBuilder o2) {
-				return o1.length()-o2.length();
-			}
-		});
-		prints.add(new StringBuilder());
-		StringBuilder trs = null;
-		for(Entry<Integer,CharSequence> ent: ord.entrySet()) {
-			if(prints.peek().length() <= ent.getKey()) {
-				trs = prints.poll();
-			}else {
-				trs = new StringBuilder();
-			}
-			int id = ent.getKey() - trs.length();
-			for(int k =0;k<id;k++)
-				trs.append('-');
-			trs.append(ent.getValue());
-			prints.add(trs);
-			
-		}
+	public void serialize(String outFileGraph) {
+		// TODO : Implement
 		
-		while(!prints.isEmpty())
-			System.out.println(prints.poll());
 	}
+	
+	public static AssemblyGraph load(String filename) throws IOException {
+		//TODO: Implement
+		return null;
+	}
+
+	
 }

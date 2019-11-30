@@ -1,79 +1,191 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.logging.Logger;
+
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
-import ngsep.assembly.SimplifiedAssemblyGraph;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 
-import static ngsep.assembly.TimeUtilities.timeGroup;
-import static ngsep.assembly.TimeUtilities.timeIt;
-
+/**
+ * @author Jorge Duitama
+ * @author Juan Camilo Bojaca
+ * @author David Guevara
+ */
 public class Assembler {
-	private static final String[] fastq = { ".fastq", ".fastq.gz" };
-	private static final String[] fasta = { ".fasta", ".fa" };
 
-	private static enum Option {
-		Normal, withGraph
+	private Logger log = Logger.getLogger(Assembler.class.getName());
+	private ProgressNotifier progressNotifier = null;
+	
+	
+	public static final String INPUT_FORMAT_FASTQ="fastq";
+	public static final String INPUT_FORMAT_FASTA="fasta";
+	public static final String INPUT_FORMAT_GRAPH="graph";
+	public static final int DEF_KMER_SIZE = 15;
+	public static final int DEF_KMER_OFFSET = 15;
+	public static final int DEF_MIN_KMER_PCT = 40;
+	
+	private String inputFormat = INPUT_FORMAT_FASTQ;
+	
+	private String outFileGraph = null;
+	private int kmerLength = DEF_KMER_SIZE;
+	private int kmerOffset = DEF_KMER_OFFSET;
+	private int minKmerPercentage = DEF_MIN_KMER_PCT;
+	
+	
+	public static void main(String[] args) throws Exception {
+		Assembler instance = new Assembler ();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		String inputFile = args[i++];
+		String outputFile = args[i++];
+		instance.run(inputFile, outputFile);
+	}
+	
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+	
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
 	}
 
-	private List<CharSequence> sequences;
-	private AssemblyGraph graph;
-
-	public Assembler(String fileIn, String fileOut) throws Exception {
-		this(fileIn, fileOut, Option.Normal, new AssemblyConfiguration());
+	/**
+	 * @return the inputFormat
+	 */
+	public String getInputFormat() {
+		return inputFormat;
 	}
 
-	public Assembler(String fileIn, String fileOut, Option option, AssemblyConfiguration config) throws Exception {
-		timeGroup("----------Assembly---------", () -> {
-			switch (option) {
-			case Normal:
-				sequences = timeIt("  Load the sequences", () -> load(fileIn));
-				graph = timeGroup("  Build overlap Graph", () -> {
-						GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
-						gbIndex.setConfig(config);
-						return gbIndex.buildAssemblyGraph(sequences);
-				});
-				break;
+	/**
+	 * @param inputFormat the inputFormat to set
+	 */
+	public void setInputFormat(String inputFormat) {
+		this.inputFormat = inputFormat;
+	}
 
-			case withGraph:
-				graph = timeIt("  Load the graph", () -> {
-					SimplifiedAssemblyGraph sag = new SimplifiedAssemblyGraph(fileIn);
-					sag.removeDuplicatedEmbeddes();
-					return sag.getAssemblyGraph();
-				});
-				break;
+	/**
+	 * @return the kmerLength
+	 */
+	public int getKmerLength() {
+		return kmerLength;
+	}
+
+	/**
+	 * @param kmerLength the kmerLength to set
+	 */
+	public void setKmerLength(int kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+
+	public void setKmerLength(String value) {
+		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	/**
+	 * @return the kmerOffset
+	 */
+	public int getKmerOffset() {
+		return kmerOffset;
+	}
+
+	/**
+	 * @param kmerOffset the kmerOffset to set
+	 */
+	public void setKmerOffset(int kmerOffset) {
+		this.kmerOffset = kmerOffset;
+	}
+
+	public void setKmerOffset(String value) {
+		setKmerOffset((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	/**
+	 * @return the minKmerPercentage
+	 */
+	public int getMinKmerPercentage() {
+		return minKmerPercentage;
+	}
+
+	/**
+	 * @param minKmerPercentage the minKmerPercentage to set
+	 */
+	public void setMinKmerPercentage(int minKmerPercentage) {
+		this.minKmerPercentage = minKmerPercentage;
+	}
+	
+	public void setMinKmerPercentage(String value) {
+		setMinKmerPercentage((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public void run(String inputFile, String outputFile) throws IOException {
+		AssemblyGraph graph;
+		if(INPUT_FORMAT_GRAPH.equals(inputFormat)) {
+			graph = AssemblyGraph.load(inputFile);
+			log.info("Loaded assembly graph");
+		} else {
+			List<CharSequence> sequences = load(inputFile);
+			log.info("Loaded "+sequences.size()+" sequences");
+			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
+			gbIndex.setLog(log);
+			graph =  gbIndex.buildAssemblyGraph(sequences);
+			log.info("Built graph");
+			if(outFileGraph!=null) {
+				graph.serialize(outFileGraph);
+				log.info("Saved graph in "+outFileGraph);
 			}
+		}
 
-			timeGroup("  Build layouts", () -> {
-				LayourBuilder pathsFinder = new LayoutBuilderGreedy();
-				pathsFinder.findPaths(graph);
-			});
+		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
+		pathsFinder.findPaths(graph);
+		log.info("Layout complete");
 
-			List<CharSequence> AssembleSequences = timeGroup("  Build consensus", () -> {
-				ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
-				return consensus.makeConsensus(graph);
-			});
-
-			timeIt("  Export", () -> {
-				try {
-					exportToFile(fileOut, "assembled", AssembleSequences);
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-				}
-			});
-		});
+		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
+		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
+		log.info("Built consensus");
+		saveAssembly(outputFile, "contig", assembledSequences);
 	}
 
 	/**
@@ -83,26 +195,19 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public static List<CharSequence> load(String filename) throws IOException {
-		if (Stream.of(fastq)
-				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			return loadFastq(filename);
-		} else if (Stream.of(fasta)
-				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			return loadFasta(filename);
-		} else
-			throw new IOException("the file not is a fasta or fastq file: " + filename);
-
+	public List<CharSequence> load(String filename) throws IOException {
+		if (INPUT_FORMAT_FASTQ.equals(inputFormat)) return loadFastq(filename);
+		else if (INPUT_FORMAT_FASTA.equals(inputFormat)) return loadFasta(filename);
+		else throw new IOException("the file not is a fasta or fastq file: " + filename);
 	}
 
 	/**
 	 * Load the sequences of the Fasta file
-	 * 
-	 * @param Filename the file path
+	 * @param filename the file path
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<CharSequence> loadFasta(String filename) throws IOException {
+	private List<CharSequence> loadFasta(String filename) throws IOException {
 		List<CharSequence> sequences = new ArrayList<>();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
@@ -120,7 +225,7 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<CharSequence> loadFastq(String filename) throws IOException {
+	private List<CharSequence> loadFastq(String filename) throws IOException {
 		List<CharSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
@@ -134,41 +239,26 @@ public class Assembler {
 		}
 		return sequences;
 	}
-
-	public static void exportToFile(String fileName, String name, Iterable<? extends CharSequence> sequences)
-			throws FileNotFoundException {
+	/**
+	 * Saves the given sequences in fasta format
+	 * @param filename name of the output file
+	 * @param prefix of the sequence names
+	 * @param sequences List of sequences corresponding to the final assembly
+	 * @throws IOException If the file can not be generated
+	 */
+	public void saveAssembly(String filename, String prefix, List<CharSequence> sequences) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
 		int i = 1;
-		for (CharSequence str : sequences)
-			list.add(new QualifiedSequence(name + "_" + (i++), str));
-		try (PrintStream pr = new PrintStream(new FileOutputStream(fileName))) {
-			handler.saveSequences(list, pr, 1000);
+		for (CharSequence str : sequences) {
+			list.add(new QualifiedSequence(prefix + "_" + i, str));
+			i++;
+		}
+			
+		try (PrintStream out = new PrintStream(filename)) {
+			handler.saveSequences(list, out, 100);
 		}
 	}
 
-	public static <T extends CharSequence> void exportToFile(String fileName, String name, T[] sequences)
-			throws FileNotFoundException {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
-		int i = 1;
-		for (CharSequence str : sequences)
-			list.add(new QualifiedSequence(name + "_" + (i++), str));
-		try (PrintStream pr = new PrintStream(new FileOutputStream(fileName))) {
-			handler.saveSequences(list, pr, 1000);
-		}
-	}
-
-	public static void main(String[] args) throws Exception {
-		try {
-			Option option = (args.length > 2) ? Option.valueOf(args[2].trim()) : Option.Normal;
-			AssemblyConfiguration config = (args.length > 4)
-					? new AssemblyConfiguration(Double.valueOf(args[3]), Double.valueOf(args[4]))
-					: new AssemblyConfiguration();
-			new Assembler(args[0], args[1], option, config);
-		} catch (IllegalArgumentException e) {
-			System.out.println(
-					"Invalid option: '" + args[2] + "' the valid options are: " + Arrays.toString(Option.values()));
-		}
-	}
+	
 }

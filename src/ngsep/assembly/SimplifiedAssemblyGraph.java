@@ -22,8 +22,6 @@ import java.util.SortedMap;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import static ngsep.assembly.TimeUtilities.progress;
-
 public class SimplifiedAssemblyGraph implements Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -105,7 +103,6 @@ public class SimplifiedAssemblyGraph implements Serializable {
 		int c = 0;
 		int u, w;
 		for (int v : edges.keySet()) {
-			progress("      Extrapolate Aligns", c++, edges.size());
 			int compV = comp(v), len = sequences.get(v >>> 1).length();
 			TreeMap<Integer, Integer> Sprev = S.get(v);
 			if (Sprev.isEmpty())
@@ -230,8 +227,7 @@ public class SimplifiedAssemblyGraph implements Serializable {
 			for (Entry<Integer, Embedded> entry2 : entry.getValue().entrySet()) {
 				Embedded emb = entry2.getValue();
 				int embeddedId = entry2.getKey();
-				AssemblyEmbedded embedded = new AssemblyEmbedded(sequences.get(embeddedId), emb.getPos(),
-						emb.isReversed());
+				AssemblyEmbedded embedded = new AssemblyEmbedded(embeddedId, sequences.get(embeddedId), emb.getPos(), emb.isReversed());
 
 				if (sequences.get(embeddedId).length() + emb.getPos() > list.get(map[parentId]).length()) {
 					System.out.println("ERRORPREV!!");
@@ -303,12 +299,14 @@ public class SimplifiedAssemblyGraph implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public SimplifiedAssemblyGraph(String path) throws FileNotFoundException, IOException, ClassNotFoundException {
+	public SimplifiedAssemblyGraph(String path) throws IOException {
 		try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(path))) {
 			sequences = (List<CharSequence>) ois.readObject();
 			edges = (Map<Integer, Map<Integer, Alignment>>) ois.readObject();
 			embbeded = (Map<Integer, Map<Integer, Embedded>>) ois.readObject();
 			isEmbbeded = (Set<Integer>) ois.readObject();
+		} catch (ClassNotFoundException e) {
+			throw new IOException("Error loading serialized graph",e);
 		}
 	}
 

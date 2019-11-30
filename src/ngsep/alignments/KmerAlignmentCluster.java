@@ -1,15 +1,17 @@
 package ngsep.alignments;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import ngsep.genome.GenomicRegion;
 
-class KmerAlignmentCluster implements GenomicRegion {
+public class KmerAlignmentCluster implements GenomicRegion {
 	private CharSequence query;
 	private List<ReadAlignment> alns=new ArrayList<>();
+	private int sequenceIdx;
 	private String sequenceName;
 	private int first;
 	private int last;
@@ -20,6 +22,7 @@ class KmerAlignmentCluster implements GenomicRegion {
 
 	public KmerAlignmentCluster(CharSequence query, ReadAlignment aln) {
 		this.query = query;
+		sequenceIdx = aln.getSequenceIndex();
 		sequenceName = aln.getSequenceName();
 		int kmerQueryStart = aln.getReadNumber();
 		first = aln.getFirst() - kmerQueryStart;
@@ -32,6 +35,14 @@ class KmerAlignmentCluster implements GenomicRegion {
 	@Override
 	public String getSequenceName() {
 		return sequenceName;
+	}
+	
+
+	/**
+	 * @return the sequenceIdx
+	 */
+	public int getSequenceIdx() {
+		return sequenceIdx;
 	}
 
 	@Override
@@ -112,5 +123,17 @@ class KmerAlignmentCluster implements GenomicRegion {
 	 */
 	public boolean isLastAlnPresent() {
 		return lastAlnPresent;
+	}
+	public static Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
+		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
+		//System.out.println("Alns to cluster: "+sequenceAlns.size());
+		KmerAlignmentCluster cluster=null;
+		for(ReadAlignment aln:sequenceAlns) {
+			if(cluster==null || !cluster.addAlignment(aln)) {
+				cluster = new KmerAlignmentCluster(query, aln);
+				answer.add(cluster);
+			}
+		}
+		return answer;
 	}
 }

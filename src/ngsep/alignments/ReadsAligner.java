@@ -22,7 +22,6 @@ package ngsep.alignments;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -40,7 +39,6 @@ import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
@@ -685,7 +683,7 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores) 
 	{
-		List<KmerWithStart> kmers = selectKmers(query);
+		List<KmerWithStart> kmers = KmerWithStart.selectKmers(query, SEARCH_KMER_LENGTH, SEARCH_KMER_LENGTH);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
 		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
@@ -712,27 +710,7 @@ public class ReadsAligner {
 		return finalAlignments;
 	}
 
-	/**
-	 * Selects the kmers that will be used to query the given sequence
-	 * @param search sequence 
-	 * @return List<KmerWithStart> List of kmers to search. Each k-mer includes the start position in the given sequence
-	 */
-	private List<KmerWithStart> selectKmers(CharSequence search) {
-		List<KmerWithStart> kmers = new ArrayList<>();
-		int n = search.length();
-		int lastPos = 0;
-		for (int i = 0; i+SEARCH_KMER_LENGTH <= n; i+=SEARCH_KMER_LENGTH) {
-			CharSequence kmer = search.subSequence(i, i+SEARCH_KMER_LENGTH);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, i));
-			lastPos = i;
-		}
-		if(n-SEARCH_KMER_LENGTH > lastPos) {
-			CharSequence kmer = search.subSequence(n-SEARCH_KMER_LENGTH, n);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, n-SEARCH_KMER_LENGTH));
-		}
 
-		return kmers;
-	}
 	/**
 	 * Searches the given kmers in the fmIndex 
 	 * @param kmers to search
@@ -756,24 +734,11 @@ public class ReadsAligner {
 		GenomicRegionSortedCollection<ReadAlignment> alnsCollection = new GenomicRegionSortedCollection<>(fMIndex.getSequencesMetadata());
 		alnsCollection.addAll(initialKmerAlns);
 		for(QualifiedSequence seq:seqs) {
-			clusters.addAll(clusterSequenceKmerAlns(query, alnsCollection.getSequenceRegions(seq.getName())));
+			clusters.addAll(KmerAlignmentCluster.clusterSequenceKmerAlns(query, alnsCollection.getSequenceRegions(seq.getName()).asList()));
 		}
 		return clusters;
 	}
 
-
-	private Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, GenomicRegionSortedCollection<ReadAlignment> sequenceAlns) {
-		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
-		//System.out.println("Alns to cluster: "+sequenceAlns.size());
-		KmerAlignmentCluster cluster=null;
-		for(ReadAlignment aln:sequenceAlns) {
-			if(cluster==null || !cluster.addAlignment(aln)) {
-				cluster = new KmerAlignmentCluster(query, aln);
-				answer.add(cluster);
-			}
-		}
-		return answer;
-	}
 
 	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerAlignmentCluster cluster, int totalKmers, CharSequence query, String qualityScores) {
 		int numDiffKmers = cluster.getNumDifferentKmers();

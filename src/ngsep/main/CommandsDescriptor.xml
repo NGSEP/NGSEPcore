@@ -16,6 +16,30 @@ Minimum k-mer abundance to consider a k-mer real
 </option>
 </command>
 
+<command id="Assembler" class="ngsep.assembly.Assembler" printHelp="false">
+<intro>
+Performs de-novo assembly from long reads
+</intro>
+<title>Assembling genomes from long reads</title>
+<description>
+Builds a de-novo assembly from a set of long reads
+</description>
+<argument>READS_FILE</argument>
+<argument>OUTPUT_FILE</argument>
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_SIZE">
+K-mer length to identify overlaps
+</option>
+<option id="o" type="INT" attribute="kmerOffset" defaultConstant="DEF_KMER_OFFSET">
+Offset between queried k-mers
+</option>
+<option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
+Minimum percentage of k-mers to identify an overlap 
+</option>
+<option id="i" type="STRING" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+Format of the input file. It can be fastq or fasta
+</option>
+</command>
+
 <command id="ReadsAligner" class="ngsep.alignments.ReadsAligner" printHelp="false">
 <intro>
 Aligns sequencing reads to a reference genome

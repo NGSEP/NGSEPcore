@@ -21,15 +21,14 @@ import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 
 public class GraphQualityAnalyzer {
-	private static final String[] fastq = { ".fastq", ".fastq.gz" };
-	private static final String[] fasta = { ".fasta", ".fa" };
 
 	private SimplifiedAssemblyGraph lec;
 	private SimplifiedAssemblyGraph ref;
 	private List<Sequence> nams;
 
-	public GraphQualityAnalyzer(String pathLects, OverlapConfiguration overlapConfiguration) throws IOException {
-		this.nams = load(pathLects);
+	public GraphQualityAnalyzer(String inputFile) throws IOException {
+		//TODO: Fix
+		//this.nams = load(inputFile);
 		Collections.sort(nams, (l1, l2) -> l2.sequence.length() - l1.sequence.length());
 		int i = 0;
 		for (Sequence seq : nams)
@@ -37,12 +36,9 @@ public class GraphQualityAnalyzer {
 
 		this.ref = getGraph(nams);
 
-		AssemblyConfiguration ac = new AssemblyConfiguration();
-		ac.setOverlap(overlapConfiguration);
-		GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
-		builder.setConfig(ac);
-		this.lec = builder
-				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
+		
+		//GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
+		//this.lec = builder.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
 
 		System.out.println("-------------PerfectGraph------------------");
 		ref.printInfo();
@@ -220,76 +216,11 @@ public class GraphQualityAnalyzer {
 		return sequences.stream().map((Sequence a) -> a.sequence).collect(Collectors.toList());
 	}
 
-	/**
-	 * Load the sequences of the file
-	 * 
-	 * @param Filename the file path
-	 * @return The sequences
-	 * @throws IOException The file cannot opened
-	 */
-	public static List<Sequence> load(String filename) throws IOException {
-		if (Stream.of(fastq)
-				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			return loadFastq(filename);
-		} else if (Stream.of(fasta)
-				.anyMatch((String s) -> filename.endsWith(s.toLowerCase()) || filename.endsWith(s.toUpperCase()))) {
-			return loadFasta(filename);
-		} else
-			throw new IOException("the file not is a fasta or fastq file: " + filename);
 
-	}
 
-	/**
-	 * Load the sequences of the Fasta file
-	 * 
-	 * @param Filename the file path
-	 * @return The sequences
-	 * @throws IOException The file cannot opened
-	 */
-	private static List<Sequence> loadFasta(String filename) throws IOException {
-		List<Sequence> sequences = new ArrayList<>();
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
-		int i = 0;
-		for (QualifiedSequence seq : seqsQl) {
-			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
-			String[] args = seq.getName().split("_");
-			sequences.add(new Sequence(i++, args[args.length - 3], Integer.valueOf(args[args.length - 2]),
-					(Integer.valueOf(args[args.length - 1]) == 1), characters));
-		}
-		return sequences;
-	}
 
-	/**
-	 * Load the sequences of the Fastq file
-	 * 
-	 * @param Filename the file path
-	 * @return The sequences
-	 * @throws IOException The file cannot opened
-	 */
-	private static List<Sequence> loadFastq(String filename) throws IOException {
-		List<Sequence> sequences = new ArrayList<>();
-		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setLoadMode(FastqFileReader.LOAD_MODE_FULL);
-			reader.setSequenceType(DNAMaskedSequence.class);
-			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
-				RawRead read = it.next();
-				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
-
-				String[] args = read.getName().split("_");
-				sequences.add(new Sequence(0, args[args.length - 3], Integer.valueOf(args[args.length - 2]),
-						(Integer.valueOf(args[args.length - 1]) == 1), characters));
-			}
-		}
-		return sequences;
-	}
-
-	public static void main(String[] args) throws FileNotFoundException, ClassNotFoundException, IOException {
-		String pathLects = args[0];
-		OverlapConfiguration overlapConfiguration = new OverlapConfiguration(Integer.valueOf(args[1]),
-				Integer.valueOf(args[2]), Integer.valueOf(args[3]), Double.valueOf(args[4]));
-		new GraphQualityAnalyzer(pathLects, overlapConfiguration);
+	public static void main(String[] args) throws Exception {
+		new GraphQualityAnalyzer(args[0]);
 		// analizer.emmbededTest();
 	}
 

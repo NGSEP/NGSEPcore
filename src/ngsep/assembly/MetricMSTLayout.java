@@ -18,7 +18,7 @@ public class MetricMSTLayout implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		int N = graph.getVertices().size() * 2;
+		int N = graph.getNotEmbeddedVertices().size() * 2;
 		int[][] G = new int[N][N];
 		for (AssemblyEdge edge : graph.getEdges()) {
 			AssemblyVertex v = edge.getVertex1(), w = edge.getVertex2();

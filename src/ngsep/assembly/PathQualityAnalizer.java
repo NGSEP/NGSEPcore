@@ -31,11 +31,9 @@ public class PathQualityAnalizer {
 
 		this.ref = getGraph(nams);
 
-		AssemblyConfiguration ac = new AssemblyConfiguration();
-		GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
-		builder.setConfig(ac);
-		this.lec = builder
-				.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
+		//TODO: Fix class
+		//GraphBuilderFMIndex builder = new GraphBuilderFMIndex();
+		//this.lec = builder.buildSimplifiedAssemblyGraph(this.nams.stream().map(a -> a.sequence).collect(Collectors.toList()));
 
 		// can't be sure of the map thanks of the embedes
 		for (Entry<Integer, Map<Integer, Embedded>> entry : ref.getEmbbeded().entrySet()) {
@@ -254,8 +252,8 @@ public class PathQualityAnalizer {
 		return sag;
 	}
 
-	public static void main(String[] args) throws FileNotFoundException, ClassNotFoundException, IOException {
-		new PathQualityAnalizer(GraphQualityAnalyzer.load(args[0]));
+	public static void main(String[] args) throws Exception {
+		//new PathQualityAnalizer(new GraphQualityAnalyzer(args[0]));
 	}
 
 }
