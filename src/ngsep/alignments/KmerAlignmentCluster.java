@@ -1,7 +1,6 @@
 package ngsep.alignments;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -69,14 +68,17 @@ public class KmerAlignmentCluster implements GenomicRegion {
 	public boolean isNegativeStrand() {
 		return false;
 	}
-	public boolean addAlignment(ReadAlignment aln) {
+	public boolean addAlignment(ReadAlignment aln, int toleranceChange) {
 		int kmerQueryStart = aln.getReadNumber();
 		int estFirst = aln.getFirst() - kmerQueryStart;
 		int estLast = aln.getFirst()+(query.length()-kmerQueryStart-1);
 		//System.out.println("Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
 		if(first > estLast || last < estFirst) return false;
+		if(toleranceChange>0 && Math.abs(first-estFirst)>toleranceChange) return false;
+		if(toleranceChange>0 && Math.abs(last-estLast)>toleranceChange) return false;
 		if(first != estFirst) allConsistent = false;
 		if(last != estLast) allConsistent = false;
+		
 		if(kmerNumbers.contains(kmerQueryStart)) repeatedNumber = true;
 		else kmerNumbers.add(kmerQueryStart);
 		if(kmerQueryStart+aln.length()==query.length()) lastAlnPresent=true;
@@ -123,17 +125,5 @@ public class KmerAlignmentCluster implements GenomicRegion {
 	 */
 	public boolean isLastAlnPresent() {
 		return lastAlnPresent;
-	}
-	public static Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
-		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
-		//System.out.println("Alns to cluster: "+sequenceAlns.size());
-		KmerAlignmentCluster cluster=null;
-		for(ReadAlignment aln:sequenceAlns) {
-			if(cluster==null || !cluster.addAlignment(aln)) {
-				cluster = new KmerAlignmentCluster(query, aln);
-				answer.add(cluster);
-			}
-		}
-		return answer;
 	}
 }

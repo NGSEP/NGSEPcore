@@ -22,6 +22,7 @@ package ngsep.alignments;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -734,9 +735,21 @@ public class ReadsAligner {
 		GenomicRegionSortedCollection<ReadAlignment> alnsCollection = new GenomicRegionSortedCollection<>(fMIndex.getSequencesMetadata());
 		alnsCollection.addAll(initialKmerAlns);
 		for(QualifiedSequence seq:seqs) {
-			clusters.addAll(KmerAlignmentCluster.clusterSequenceKmerAlns(query, alnsCollection.getSequenceRegions(seq.getName()).asList()));
+			clusters.addAll(clusterSequenceKmerAlns(query, alnsCollection.getSequenceRegions(seq.getName()).asList()));
 		}
 		return clusters;
+	}
+	private Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
+		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
+		//System.out.println("Alns to cluster: "+sequenceAlns.size());
+		KmerAlignmentCluster cluster=null;
+		for(ReadAlignment aln:sequenceAlns) {
+			if(cluster==null || !cluster.addAlignment(aln,0)) {
+				cluster = new KmerAlignmentCluster(query, aln);
+				answer.add(cluster);
+			}
+		}
+		return answer;
 	}
 
 

@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 
@@ -39,11 +40,26 @@ public class FMIndex implements Serializable
 	 * 
 	 */
 	private static final long serialVersionUID = 6155320979838428304L;
+	
+	private Logger log = Logger.getLogger(FMIndex.class.getName());
 	private QualifiedSequenceList sequencesWithNames;
 	private List<Integer> sequenceLengths = new ArrayList<>();
 	private List<FMIndexSingleSequence> internalIndexes = new ArrayList<>();
 	private List<CombinedMultisequenceFMIndexMetadata> internalMetadata = new ArrayList<>();
 
+	
+	/**
+	 * @return the log
+	 */
+	public Logger getLog() {
+		return log;
+	}
+	/**
+	 * @param log the log to set
+	 */
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	/**
 	 * Loads the sequences in the given list to allow searches from these sequences
 	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
@@ -57,10 +73,10 @@ public class FMIndex implements Serializable
 		for(QualifiedSequence seq:sequences) {
 			String next = seq.getCharacters().toString();
 			if(internalSequence.length() + next.length() > 1000000000) {
-				System.out.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+				log.info("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
-				System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				log.info("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
 				internalSequence = new StringBuffer();
@@ -73,10 +89,10 @@ public class FMIndex implements Serializable
 			nI++;
 			i++;
 		}
-		System.out.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+		log.info("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 		long time = System.currentTimeMillis();
 		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
-		System.out.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+		log.info("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 		internalIndexes.add(index);
 		internalMetadata.add(internalIdxMetadata);
 	}
@@ -89,11 +105,10 @@ public class FMIndex implements Serializable
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
 			if(internalSequence.length() + next.length() > (100000000) ) {
-				System.out.println("		Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+				log.info("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
-				System.out.println("		Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
-				System.out.println("		-----------------");
+				log.info("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
 				internalSequence = new StringBuffer();
@@ -105,10 +120,10 @@ public class FMIndex implements Serializable
 			sequenceLengths.add(next.length());
 			nI++;
 		}
-		System.out.println("		Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+		log.info("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 		long time = System.currentTimeMillis();
 		FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,indexl);
-		System.out.println("		Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+		log.info("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 		internalIndexes.add(index);
 		internalMetadata.add(internalIdxMetadata);
 	}
@@ -128,14 +143,22 @@ public class FMIndex implements Serializable
 			{
 				int [] realData = metadata.getSequenceIdxAndStart(internalPosMatch);
 				if(realData==null) continue;
-				if(realData[0]>=sequenceLengths.size()) throw new RuntimeException("Problem with internal index answer: "+realData[0]+"-"+realData[1]+". Absolute: "+internalPosMatch+" total length: "+metadata.getTotalLength()+" first idx: "+metadata.getFirstInputSequenceIdx()+" last idx: "+metadata.getLastInputSequenceIdx());
-				int first = internalPosMatch-realData[1];
-				int l = searchSequence.length();
-				int last = first + l - 1;
-				if(last>=sequenceLengths.get(realData[0])) continue;
-				String seqName = ""+realData[0];
-				if(sequencesWithNames!=null) seqName = sequencesWithNames.get(realData[0]).getName();
-				ReadAlignment alignment = new ReadAlignment(seqName, first, last, l, 0);
+				int sequenceIdx = realData[0];
+				int sequenceStart = realData[1];
+				if(sequenceIdx>=sequenceLengths.size()) throw new RuntimeException("Problem with internal index answer: "+realData[0]+"-"+realData[1]+". Absolute: "+internalPosMatch+" total length: "+metadata.getTotalLength()+" first idx: "+metadata.getFirstInputSequenceIdx()+" last idx: "+metadata.getLastInputSequenceIdx());
+				//Match to other sequences sharing internal index with queried sequence
+				if(sequenceIdx<firstIndex) continue;
+				if(sequenceIdx>lastIndex) continue;
+				int first = internalPosMatch-sequenceStart;
+				int sequenceLength = sequenceLengths.get(sequenceIdx); 
+				int searchLength = searchSequence.length();
+				int last = first + searchLength - 1;
+				//Match with artificial concatenation between sequences
+				if(last>=sequenceLength) continue;
+				String seqName = ""+sequenceIdx;
+				if(sequencesWithNames!=null) seqName = sequencesWithNames.get(sequenceIdx).getName();
+				ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
+				alignment.setSequenceIndex(realData[0]);
 				alignments.add(alignment);
 			}
 		}

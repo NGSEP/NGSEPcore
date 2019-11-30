@@ -22,6 +22,7 @@ package ngsep.assembly;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -168,9 +169,12 @@ public class Assembler {
 		} else {
 			List<CharSequence> sequences = load(inputFile);
 			log.info("Loaded "+sequences.size()+" sequences");
+			Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length());
+			log.info("Sorted "+sequences.size()+" sequences");
+			List<CharSequence> finalSequences = Collections.unmodifiableList(sequences);
 			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
 			gbIndex.setLog(log);
-			graph =  gbIndex.buildAssemblyGraph(sequences);
+			graph =  gbIndex.buildAssemblyGraph(finalSequences);
 			log.info("Built graph");
 			if(outFileGraph!=null) {
 				graph.serialize(outFileGraph);
@@ -180,7 +184,7 @@ public class Assembler {
 
 		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
 		pathsFinder.findPaths(graph);
-		log.info("Layout complete");
+		log.info("Layout complete. Paths: "+graph.getPaths().size());
 
 		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);

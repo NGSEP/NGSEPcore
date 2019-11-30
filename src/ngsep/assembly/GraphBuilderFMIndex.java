@@ -20,6 +20,7 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -72,30 +73,25 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
-		AssemblyGraph graph = new AssemblyGraph(sequences);
-		log.info("Created graph vertices");
-		Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length());
 		
-		log.info("Sorted sequences");
+		AssemblyGraph graph = new AssemblyGraph(sequences);
+		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		// Create FM-Index
 		FMIndex fmIndex = new FMIndex();
 		fmIndex.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
 		log.info("Created FM-Index");
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			if (graph.isEmbedded(seqId)) {
-				continue;
-			}
 			String seq = sequences.get(seqId).toString();
 			updateGraph(graph, seqId, seq, false, fmIndex);
 			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 			updateGraph(graph, seqId, complement, true, fmIndex);
-			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences");
+			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size());
 		}
-		log.info("Built graph");
-		//TODO: Check if needed
-		//assemblyGraph.removeAllEmbeddedsIntoGraph();
-		//assemblyGraph.ExtrapolateAligns();
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Prunning embedded sequences");
+		graph.pruneEmbeddedSequences();
+		log.info("Prunned graph. Edges: "+graph.getEdges().size());
+		
 		return graph;
 	}
 
@@ -103,11 +99,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private void updateGraph(AssemblyGraph graph, int querySequenceId, String sequence, boolean queryRC, FMIndex fmIndex) {
 		List<KmerWithStart> kmers = KmerWithStart.selectKmers(sequence, kmerLength, kmerOffset);
 		if(kmers==null) return;
-		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
+		
 		int kmersCount=kmers.size();
 		List<ReadAlignment> initialKmerAlns = searchKmers (querySequenceId, kmers, fmIndex);
-		List<KmerAlignmentCluster> clusteredKmerAlns = clusterKmerAlignments(sequence, initialKmerAlns, kmersCount); 
-		//System.out.println("Clusters: "+clusteredKmerAlns.size());
+		
+		List<KmerAlignmentCluster> clusteredKmerAlns = clusterKmerAlignments(sequence, initialKmerAlns, kmersCount);
+		//System.out.println("Query id: "+querySequenceId+" length "+sequence.length()+" RC: "+queryRC+" kmers: "+kmers.size()+" Kmer alignments: "+initialKmerAlns.size()+" Clusters: "+clusteredKmerAlns.size());
 		Collections.sort(clusteredKmerAlns, new Comparator<KmerAlignmentCluster>() {
 			@Override
 			public int compare(KmerAlignmentCluster o1, KmerAlignmentCluster o2) {
@@ -136,13 +133,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private List<ReadAlignment> searchKmers(int querySequenceId, List<KmerWithStart> kmers, FMIndex fmIndex) {
 		List<ReadAlignment> answer = new ArrayList<>();
 		for (KmerWithStart kmer:kmers) {
-			List<ReadAlignment> kmerAlns=fmIndex.search(kmer.getKmer().toString());
+			List<ReadAlignment> kmerAlns=fmIndex.search(kmer.getKmer().toString(),0,querySequenceId-1);
+			//if(querySequenceId==1) System.out.println("Query: "+querySequenceId+" Found "+kmerAlns.size()+" alignments for kmer: "+kmer.getKmer().toString());
 			for(ReadAlignment aln:kmerAlns) {
-				if(aln.getSequenceIndex()>querySequenceId) {
-					aln.setReadNumber(kmer.getStart());
-					answer.add(aln);
-				}
-				
+				//if(querySequenceId==1) System.out.println("Kmer start: "+kmer.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
+				aln.setReadNumber(kmer.getStart());
+				answer.add(aln);
 			}
 		}
 		return answer;
@@ -160,25 +156,55 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			targetHits.add(aln);
 		}
 		
-		for(List<ReadAlignment> targetHits:alnsByTargetSequence.values()) {
+		for(int targetIdx:alnsByTargetSequence.keySet()) {
+			List<ReadAlignment> targetHits = alnsByTargetSequence.get(targetIdx);
+			
 			double pct = 100.0*(double)targetHits.size()/numKmers;
 			if(pct<minKmerPercentage) continue;
 			Collections.sort(targetHits,GenomicRegionPositionComparator.getInstance());
-			clusters.addAll(KmerAlignmentCluster.clusterSequenceKmerAlns(query, targetHits));
+			//if(targetIdx==0) printTargetHits(targetHits);
+			clusters.addAll(clusterSequenceKmerAlns(query, targetHits));
 		}
 		return clusters;
 	}
+	private Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
+		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
+		//System.out.println("Alns to cluster: "+sequenceAlns.size());
+		for(ReadAlignment aln:sequenceAlns) {
+			boolean clustered = false;
+			for(KmerAlignmentCluster cluster:answer) {
+				if(cluster.addAlignment(aln,50)) {
+					clustered=true;
+					break;
+				}
+			}
+			if(!clustered) {
+				answer.add(new KmerAlignmentCluster(query, aln));
+			}
+		}
+		return answer;
+	}
+	public void printTargetHits(List<ReadAlignment> targetHits) {
+		for(ReadAlignment aln:targetHits) {
+			System.out.println(aln.getReadNumber()+" "+aln.getSequenceIndex()+":"+aln.getFirst()+"-"+aln.getLast());
+		}
+		
+	}
+
 	private void processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerAlignmentCluster cluster) {
+		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
-		int sequenceLength = graph.getSequenceLength(targetSeqIdx);
+		int targetLength = graph.getSequenceLength(targetSeqIdx);
 		int firstTarget = cluster.getFirst();
 		int lastTarget = cluster.getLast();
-		if(firstTarget>=0 && lastTarget<sequenceLength) {
+		//System.out.println("Processing cluster. Query: "+querySequenceId+" length: "+queryLength+ " target: "+cluster.getSequenceIdx()+" length: "+targetLength);
+		if(firstTarget>=0 && lastTarget<targetLength) {
 			//Embedded
-			AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), firstTarget-1, queryRC);
+			AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), firstTarget, queryRC);
 			graph.addEmbedded(targetSeqIdx, embeddedEvent);
+			//System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
 		} else if (firstTarget>=0) {
-			//Query after the target
+			//Query after target
 			AssemblyVertex vertexTarget = graph.getVertex(targetSeqIdx, false);
 			AssemblyVertex vertexQuery;
 			if(queryRC) {
@@ -186,8 +212,11 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			} else {
 				vertexQuery = graph.getVertex(querySequenceId, true);
 			}
-			graph.addEdge(vertexTarget, vertexQuery, sequenceLength-firstTarget-1);
-		} else {
+			int overlap = targetLength-firstTarget-1;
+			int weight = targetLength + queryLength - overlap;
+			graph.addEdge(vertexTarget, vertexQuery, weight);
+			//System.out.println("Edge between target: "+targetSeqIdx+" and query "+querySequenceId+" overlap: "+overlap+" weight: "+weight);
+		} else if (lastTarget<targetLength) {
 			//Query before target
 			AssemblyVertex vertexTarget = graph.getVertex(targetSeqIdx, true);
 			AssemblyVertex vertexQuery;
@@ -196,7 +225,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			} else {
 				vertexQuery = graph.getVertex(querySequenceId, false);
 			}
-			graph.addEdge(vertexQuery, vertexTarget, lastTarget-1);
+			int overlap = lastTarget-1;
+			int weight = targetLength + queryLength -overlap;
+			graph.addEdge(vertexQuery, vertexTarget, weight);
+			//System.out.println("Edge between query: "+querySequenceId+" and target "+targetSeqIdx+" overlap: "+overlap+" weight: "+weight);
+		} else {
+			log.warning("Possible reverse embedded. Query id: "+querySequenceId+" length: "+queryLength+" target id: "+targetSeqIdx+" length: "+targetLength+" first target: "+firstTarget+" last target: "+lastTarget);
 		}
 	}
 }

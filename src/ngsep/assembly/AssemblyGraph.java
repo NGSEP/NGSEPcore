@@ -35,15 +35,24 @@ import java.util.Map;
  */
 public class AssemblyGraph {
 	
+	/**
+	 * Sequences to build the graph. The index of each sequence is the unique identifier
+	 */
 	private List<CharSequence> sequences;
-	private List<AssemblyVertex> vertices;
+	/**
+	 * Start vertices indexed by sequence index
+	 */
+	private Map<Integer,AssemblyVertex> verticesStart;
+	/**
+	 * End vertices indexed by sequence index
+	 */
+	private Map<Integer,AssemblyVertex> verticesEnd;
 
 	private boolean [] embedded;
-	private List<AssemblyEdge> edges = new ArrayList<>();
+	private Map<AssemblyVertex,List<AssemblyEdge>> edgesMap = new HashMap<>();
 	// Map with sequence ids as keys and embedded sequences as objects
 	private Map<Integer, List<AssemblyEmbedded>> embeddedMap = new HashMap<>();
 
-	// Indexes in the vertices list
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 
 	public AssemblyGraph(List<CharSequence> sequences) {
@@ -51,13 +60,17 @@ public class AssemblyGraph {
 		this.sequences = Collections.unmodifiableList(sequences);
 		embedded = new boolean[n];
 		Arrays.fill(embedded, false);
-		vertices = new ArrayList<>(2*n);
-		edges = new ArrayList<>(2*n);
-		for (CharSequence seq : sequences) {
-			AssemblyVertex vS = new AssemblyVertex(seq, true, vertices.size());
-			vertices.add(vS);
-			AssemblyVertex vE = new AssemblyVertex(seq, false, vertices.size());
-			vertices.add(vE);
+		verticesStart = new HashMap<>(n);
+		verticesEnd = new HashMap<>(n);
+		edgesMap = new HashMap<>(n);
+		for (int i=0;i<sequences.size();i++) {
+			CharSequence seq = sequences.get(i);
+			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
+			verticesStart.put(i,vS);
+			edgesMap.put(vS, new ArrayList<>());
+			AssemblyVertex vE = new AssemblyVertex(seq, false, i);
+			verticesEnd.put(i,vE);
+			edgesMap.put(vE, new ArrayList<>());
 			addEdge(vS, vE, seq.length());
 		}
 	}
@@ -76,20 +89,48 @@ public class AssemblyGraph {
 	}
 
 	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int overlap) {
-		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap); 
-		edges.add(edge);
-		v1.addEdge(edge);
-		v2.addEdge(edge);
+		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap);
+		edgesMap.get(v1).add(edge);
+		edgesMap.get(v2).add(edge);
+	}
+	
+	public void removeEdge (AssemblyEdge edge) {
+		edgesMap.get(edge.getVertex1()).remove(edge);
+		edgesMap.get(edge.getVertex2()).remove(edge);
 	}
 
 	public AssemblyVertex getVertex(int indexSequence, boolean start) {
-		return vertices.get(2 * indexSequence + (start ? 0 : 1));
+		if(start) return verticesStart.get(indexSequence);
+		return verticesEnd.get(indexSequence);
 	}
 
 	public void addEmbedded(int ind, AssemblyEmbedded embeddedObject) {
 		List<AssemblyEmbedded> list = embeddedMap.computeIfAbsent(ind, key -> new LinkedList<>());
 		list.add(embeddedObject);
 		embedded[embeddedObject.getSequenceId()] = true;
+	}
+	
+	public void pruneEmbeddedSequences() {
+		for(int i=0;i<embedded.length;i++) {
+			if(embedded[i]) {
+				removeVertices(i);
+			}
+		}
+	}
+
+	public void removeVertices(int sequenceId) {
+		AssemblyVertex v1 = getVertex(sequenceId, true);
+		List<AssemblyEdge> edgesToRemove = new ArrayList<>(); 
+		edgesToRemove.addAll(edgesMap.get(v1));
+		AssemblyVertex v2 = getVertex(sequenceId, false);
+		edgesToRemove.addAll(edgesMap.get(v2));
+		for(AssemblyEdge edge:edgesToRemove) {
+			removeEdge(edge);
+		}
+		edgesMap.remove(v1);
+		edgesMap.remove(v2);
+		verticesStart.remove(sequenceId);
+		verticesEnd.remove(sequenceId);
 	}
 	
 
@@ -110,13 +151,6 @@ public class AssemblyGraph {
 	public void addPath(List<AssemblyEdge> path) {
 		paths.add(path);
 	}
-
-	/**
-	 * @return the vertices
-	 */
-	public List<AssemblyVertex> getAllVertices() {
-		return vertices;
-	}
 	
 	public List<AssemblyVertex> getNotEmbeddedVertices() {
 		List<AssemblyVertex> vertices = new ArrayList<>();
@@ -133,6 +167,14 @@ public class AssemblyGraph {
 	 * @return the edges
 	 */
 	public List<AssemblyEdge> getEdges() {
+		List<AssemblyEdge> edges = new ArrayList<>();
+		for(AssemblyVertex v:edgesMap.keySet()) {
+			List<AssemblyEdge> edgesVertex = edgesMap.get(v);
+			for(AssemblyEdge edge:edgesVertex) {
+				//Avoid adding twice the same edge
+				if(edge.getVertex1()==v) edges.add(edge);
+			}
+		}
 		return edges;
 	}
 
