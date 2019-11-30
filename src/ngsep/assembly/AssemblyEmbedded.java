@@ -19,10 +19,17 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.Serializable;
+
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEmbedded {
+public class AssemblyEmbedded implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1120528617112863153L;
+	
 	private int sequenceId;
 	private CharSequence read;
 	private int startPosition;

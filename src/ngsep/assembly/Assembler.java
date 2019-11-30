@@ -106,6 +106,20 @@ public class Assembler {
 	public void setInputFormat(String inputFormat) {
 		this.inputFormat = inputFormat;
 	}
+	
+	/**
+	 * @return the outFileGraph
+	 */
+	public String getOutFileGraph() {
+		return outFileGraph;
+	}
+
+	/**
+	 * @param outFileGraph the outFileGraph to set
+	 */
+	public void setOutFileGraph(String outFileGraph) {
+		this.outFileGraph = outFileGraph;
+	}
 
 	/**
 	 * @return the kmerLength
@@ -165,7 +179,7 @@ public class Assembler {
 		AssemblyGraph graph;
 		if(INPUT_FORMAT_GRAPH.equals(inputFormat)) {
 			graph = AssemblyGraph.load(inputFile);
-			log.info("Loaded assembly graph");
+			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
 			List<CharSequence> sequences = load(inputFile);
 			log.info("Loaded "+sequences.size()+" sequences");

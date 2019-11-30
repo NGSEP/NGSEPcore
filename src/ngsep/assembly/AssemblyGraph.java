@@ -19,7 +19,12 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,8 +38,12 @@ import java.util.Map;
  * @author Juan Camilo Bojaca
  * @author David Guevara
  */
-public class AssemblyGraph {
+public class AssemblyGraph implements Serializable {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4780291335510617705L;
 	/**
 	 * Sequences to build the graph. The index of each sequence is the unique identifier
 	 */
@@ -201,14 +210,20 @@ public class AssemblyGraph {
 	}
 
 
-	public void serialize(String outFileGraph) {
-		// TODO : Implement
-		
+	public void serialize(String outFileGraph) throws IOException {
+		try (FileOutputStream fos = new FileOutputStream( outFileGraph );
+			 ObjectOutputStream oos = new ObjectOutputStream( fos );) {
+			oos.writeObject( this );
+		}
 	}
 	
 	public static AssemblyGraph load(String filename) throws IOException {
-		//TODO: Implement
-		return null;
+		try (FileInputStream fis = new FileInputStream(filename);
+			 ObjectInputStream ois = new ObjectInputStream(fis);) {
+			return (AssemblyGraph) ois.readObject();
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("AssemblyGraph class not found",e);
+		}
 	}
 
 	

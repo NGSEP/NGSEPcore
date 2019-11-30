@@ -19,10 +19,17 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.Serializable;
+
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEdge{
+public class AssemblyEdge implements Serializable {
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -52781446837930525L;
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;

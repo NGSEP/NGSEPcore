@@ -38,6 +38,9 @@ Minimum percentage of k-mers to identify an overlap
 <option id="i" type="STRING" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be fastq or fasta
 </option>
+<option id="g" type="STRING" attribute="outFileGraph">
+Path to an output file to save the assembly graph
+</option>
 </command>
 
 <command id="ReadsAligner" class="ngsep.alignments.ReadsAligner" printHelp="false">

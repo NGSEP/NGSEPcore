@@ -83,9 +83,11 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			String seq = sequences.get(seqId).toString();
-			updateGraph(graph, seqId, seq, false, fmIndex);
-			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-			updateGraph(graph, seqId, complement, true, fmIndex);
+			boolean isEmbedded = updateGraph(graph, seqId, seq, false, fmIndex);
+			if(!isEmbedded) {
+				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
+				updateGraph(graph, seqId, complement, true, fmIndex);
+			}
 			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size());
 		}
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Prunning embedded sequences");
@@ -96,9 +98,10 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	}
 
 
-	private void updateGraph(AssemblyGraph graph, int querySequenceId, String sequence, boolean queryRC, FMIndex fmIndex) {
+	private boolean updateGraph(AssemblyGraph graph, int querySequenceId, String sequence, boolean queryRC, FMIndex fmIndex) {
+		boolean isEmbedded = false;
 		List<KmerWithStart> kmers = KmerWithStart.selectKmers(sequence, kmerLength, kmerOffset);
-		if(kmers==null) return;
+		if(kmers==null) return isEmbedded;
 		
 		int kmersCount=kmers.size();
 		List<ReadAlignment> initialKmerAlns = searchKmers (querySequenceId, kmers, fmIndex);
@@ -120,9 +123,10 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			if(pct<minKmerPercentage) break;
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
 			else if (2*numKmersCluster<kmersMaxCluster) break;
-			processAlignment(graph, querySequenceId, queryRC, cluster);
-			
+			isEmbedded = processAlignment(graph, querySequenceId, queryRC, cluster);
+			if(isEmbedded) break;
 		}
+		return isEmbedded;
 	}
 
 	/**
@@ -191,7 +195,8 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 	}
 
-	private void processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerAlignmentCluster cluster) {
+	private boolean processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerAlignmentCluster cluster) {
+		boolean isEmbedded = false;
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
@@ -202,6 +207,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			//Embedded
 			AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), firstTarget, queryRC);
 			graph.addEmbedded(targetSeqIdx, embeddedEvent);
+			isEmbedded = true;
 			//System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
 		} else if (firstTarget>=0) {
 			//Query after target
@@ -232,5 +238,6 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		} else {
 			log.warning("Possible reverse embedded. Query id: "+querySequenceId+" length: "+queryLength+" target id: "+targetSeqIdx+" length: "+targetLength+" first target: "+firstTarget+" last target: "+lastTarget);
 		}
+		return isEmbedded;
 	}
 }
