@@ -55,7 +55,6 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 					currentPath.add(0,nextEdgeLeft);
 					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
 					sequencesInPaths.add(vertexLeft.getIndex());
-					nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
 				} else if(nextEdgeRight!=null) {
 					currentPath.add(nextEdgeRight);
 					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
@@ -63,17 +62,27 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 					currentPath.add(nextEdgeRight);
 					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
 					sequencesInPaths.add(vertexRight.getIndex());
-					nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
 				}
+				nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
+				nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
 				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
 			}
 			System.out.println("Found path of size "+currentPath.size());
+			//printPath(currentPath);
 			graph.addPath(currentPath);
 		}
 		
 		
 		
 		
+	}
+
+	public void printPath(LinkedList<AssemblyEdge> path) {
+		for(AssemblyEdge edge:path) {
+			AssemblyVertex v1 = edge.getVertex1();
+			AssemblyVertex v2 = edge.getVertex2();
+			System.out.println("Edge between "+v1.getIndex()+"-"+v1.isStart()+" and "+v2.getIndex()+"-"+v2.isStart());
+		}	
 	}
 
 	private AssemblyVertex findNextUncoveredVertex(List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {

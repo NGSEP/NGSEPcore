@@ -4,13 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
-	int match;
-	int openGap;
-	int extGap;
-	int mismatch;
-	int windowSize;
 	int tolerance;
-	AlignmentAffineGap aligner;
+	
 	boolean startConsensus = true;
 	
 	@Override
@@ -38,43 +33,46 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		{
 			//Needed to find which is the origin vertex
 			AssemblyEdge edge = path.get(j);
-			AssemblyVertex a = edge.getVertex1();
-			AssemblyVertex b = edge.getVertex2();
+			AssemblyVertex vertexPreviousEdge;
+			AssemblyVertex vertexNextEdge;
 			//If the first edge is being checked, compare to the second edge to find the origin vertex
 			if(j == 0)
 			{
 				AssemblyEdge nextEdge = path.get(j + 1);
-				//The common vertex is the second vertex of the path
-				if(nextEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || nextEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
-				{
-					a = edge.getVertex2();
-					b = edge.getVertex1();
-				}
+				vertexNextEdge = edge.getSharedVertex(nextEdge);
+				if(vertexNextEdge== null) throw new RuntimeException("Inconsistency found in first edge of path");
+				vertexPreviousEdge = edge.getVertex1();
+				if(vertexPreviousEdge == vertexNextEdge) vertexPreviousEdge = edge.getVertex2();
 			}
-			else if(lastVertex == b)
+			else if (lastVertex == edge.getVertex1())
 			{
-				//The common vertex is the first vertex to be compared
-				a = edge.getVertex2();
-				b = edge.getVertex1();
+				vertexPreviousEdge = edge.getVertex1();
+				vertexNextEdge = edge.getVertex2();
 			}
-			if(j > 0 && lastVertex !=a) 
+			else if (lastVertex == edge.getVertex2())
+			{
+				vertexPreviousEdge = edge.getVertex2();
+				vertexNextEdge = edge.getVertex1();
+			}
+			else 
 			{
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			if(j == 0) 
 			{
-				pathS = pathS.concat(a.getIndex() + ",");
-				consensus.append(a.isStart() ? a.getRead().toString(): reverseComplement(a.getRead().toString()));
+				pathS = pathS.concat(vertexPreviousEdge.getIndex() + ",");
+				String seq = vertexPreviousEdge.getRead().toString();
+				consensus.append(vertexPreviousEdge.isStart() ? seq: reverseComplement(seq));
 			} 
-			else if(a.getRead()!=b.getRead())
+			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead())
 			{
 				//If the second string isn't start, then the reverse complement is added to the consensus
-				String nextSequence = b.isStart() ? b.getRead().toString(): reverseComplement(b.getRead().toString());
+				String nextSequence = vertexNextEdge.isStart() ? vertexNextEdge.getRead().toString(): reverseComplement(vertexNextEdge.getRead().toString());
 					
 				if(nextSequence.length() - edge.getOverlap() > tolerance) 
 				{
-					pathS = pathS.concat(b.getIndex() + ",");
-					String overlapSegment = nextSequence.substring(0, edge.getOverlap());
+					pathS = pathS.concat(vertexNextEdge.getIndex() + ",");
+					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = nextSequence.substring(edge.getOverlap());
 					consensus.append(remainingSegment);
 				} 
@@ -83,7 +81,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 					System.err.println("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+nextSequence.length());
 				}
 			}
-			lastVertex = b;
+			lastVertex = vertexNextEdge;
 		}
 		System.out.println(pathS);
 		return consensus;

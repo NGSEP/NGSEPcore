@@ -91,6 +91,12 @@ public class AssemblyEdge implements Serializable {
 		return null;
 	}
 	
+	public AssemblyVertex getSharedVertex (AssemblyEdge edge2) {
+		if(vertex1==edge2.vertex1 || vertex1 == edge2.vertex2) return vertex1;
+		if(vertex2==edge2.vertex1 || vertex2 == edge2.vertex2) return vertex2;
+		return null;
+	}
+	
 	
 
 	
