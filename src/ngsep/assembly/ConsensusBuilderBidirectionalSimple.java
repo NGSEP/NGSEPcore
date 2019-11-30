@@ -29,6 +29,10 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		StringBuilder consensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		String pathS = "";
+		if(path.size()==1) {
+			consensus.append(path.get(0).getVertex1().getRead());
+			return consensus;
+		}
 		for(int j = 0; j < path.size(); j++)
 		{
 			//Needed to find which is the origin vertex
