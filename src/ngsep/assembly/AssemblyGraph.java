@@ -71,7 +71,7 @@ public class AssemblyGraph {
 			AssemblyVertex vE = new AssemblyVertex(seq, false, i);
 			verticesEnd.put(i,vE);
 			edgesMap.put(vE, new ArrayList<>());
-			addEdge(vS, vE, seq.length());
+			addEdge(vS, vE, seq.length(), seq.length());
 		}
 	}
 
@@ -88,8 +88,8 @@ public class AssemblyGraph {
 		return sequences.get(sequenceIdx).length();
 	}
 
-	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int overlap) {
-		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap);
+	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int cost, int overlap) {
+		AssemblyEdge edge = new AssemblyEdge(v1, v2, cost, overlap);
 		edgesMap.get(v1).add(edge);
 		edgesMap.get(v2).add(edge);
 	}
@@ -152,14 +152,9 @@ public class AssemblyGraph {
 		paths.add(path);
 	}
 	
-	public List<AssemblyVertex> getNotEmbeddedVertices() {
+	public List<AssemblyVertex> getVertices() {
 		List<AssemblyVertex> vertices = new ArrayList<>();
-		for(int i=0;i<embedded.length;i++) {
-			if(!embedded[i]) {
-				vertices.add(getVertex(i, true));
-				vertices.add(getVertex(i, false));
-			}
-		}
+		vertices.addAll(edgesMap.keySet());
 		return vertices;
 	}
 
@@ -176,6 +171,26 @@ public class AssemblyGraph {
 			}
 		}
 		return edges;
+	}
+	public List<AssemblyEdge> getEdges(AssemblyVertex vertex) {
+		return edgesMap.get(vertex);
+	}
+	/**
+	 * Returns the edge connecting the given vertex with the corresponding vertex in the same sequence
+	 * @param vertex
+	 * @return AssemblyEdge
+	 */
+	public AssemblyEdge getSameSequenceEdge(AssemblyVertex vertex) {
+		List<AssemblyEdge> edges = edgesMap.get(vertex);
+		for(AssemblyEdge edge:edges) {
+			if(edge.getVertex1()==vertex && edge.getVertex2().getRead()==vertex.getRead()) {
+				return edge;
+			}
+			if(edge.getVertex2()==vertex && edge.getVertex1().getRead()==vertex.getRead()) {
+				return edge;
+			}
+		}
+		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex.getIndex()+"-"+vertex.isStart());
 	}
 
 	/**
@@ -195,6 +210,10 @@ public class AssemblyGraph {
 		//TODO: Implement
 		return null;
 	}
+
+	
+
+	
 
 	
 }

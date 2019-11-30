@@ -26,11 +26,13 @@ public class AssemblyEdge{
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
+	private int cost;
 	private int overlap;
 
-	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
+	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int cost, int overlap) {
 		this.vertex1 = vertex1;
 		this.vertex2 = vertex2;
+		this.cost = cost;
 		this.overlap = overlap;
 	}
 
@@ -49,10 +51,41 @@ public class AssemblyEdge{
 	}
 
 	/**
+	 * @return the cost
+	 */
+	public int getCost() {
+		return cost;
+	}
+
+	/**
+	 * @param cost the cost to set
+	 */
+	public void setCost(int cost) {
+		this.cost = cost;
+	}
+
+	/**
 	 * @return the overlap
 	 */
 	public int getOverlap() {
 		return overlap;
 	}
+
+	/**
+	 * @param overlap the overlap to set
+	 */
+	public void setOverlap(int overlap) {
+		this.overlap = overlap;
+	}
+
+	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {
+		if(vertex1==vertex) return vertex2;
+		if(vertex2==vertex) return vertex1;
+		return null;
+	}
+	
+	
+
+	
 
 }

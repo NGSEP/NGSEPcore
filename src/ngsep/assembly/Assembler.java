@@ -182,7 +182,7 @@ public class Assembler {
 			}
 		}
 
-		LayourBuilder pathsFinder = new LayoutBuilderGreedy();
+		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 
