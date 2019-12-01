@@ -33,6 +33,9 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.alignments.ReadAlignment;
+import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -48,19 +51,20 @@ public class Assembler {
 	private ProgressNotifier progressNotifier = null;
 	
 	
-	public static final String INPUT_FORMAT_FASTQ="fastq";
-	public static final String INPUT_FORMAT_FASTA="fasta";
-	public static final String INPUT_FORMAT_GRAPH="graph";
+	public static final byte INPUT_FORMAT_FASTQ=0;
+	public static final byte INPUT_FORMAT_FASTA=1;
+	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_SIZE = 15;
 	public static final int DEF_KMER_OFFSET = 15;
 	public static final int DEF_MIN_KMER_PCT = 40;
 	
-	private String inputFormat = INPUT_FORMAT_FASTQ;
+	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	
 	private String outFileGraph = null;
 	private int kmerLength = DEF_KMER_SIZE;
 	private int kmerOffset = DEF_KMER_OFFSET;
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
+	private ReferenceGenome targetGenome;
 	
 	
 	public static void main(String[] args) throws Exception {
@@ -93,20 +97,24 @@ public class Assembler {
 		this.log = log;
 	}
 
+	
 	/**
 	 * @return the inputFormat
 	 */
-	public String getInputFormat() {
+	public byte getInputFormat() {
 		return inputFormat;
 	}
 
 	/**
 	 * @param inputFormat the inputFormat to set
 	 */
-	public void setInputFormat(String inputFormat) {
+	public void setInputFormat(byte inputFormat) {
 		this.inputFormat = inputFormat;
 	}
-	
+
+	public void setInputFormat(String value) {
+		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
+	}
 	/**
 	 * @return the outFileGraph
 	 */
@@ -174,18 +182,38 @@ public class Assembler {
 	public void setMinKmerPercentage(String value) {
 		setMinKmerPercentage((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+	
+	/**
+	 * @return the targetGenome
+	 */
+	public ReferenceGenome getTargetGenome() {
+		return targetGenome;
+	}
+
+	/**
+	 * @param targetGenome the targetGenome to set
+	 */
+	public void setTargetGenome(ReferenceGenome targetGenome) {
+		this.targetGenome = targetGenome;
+	}
 
 	public void run(String inputFile, String outputFile) throws IOException {
 		AssemblyGraph graph;
-		if(INPUT_FORMAT_GRAPH.equals(inputFormat)) {
+		AssemblyGraph goldStandardGraph=null;
+		if(INPUT_FORMAT_GRAPH==inputFormat) {
 			graph = AssemblyGraph.load(inputFile);
 			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
-			List<CharSequence> sequences = load(inputFile);
-			log.info("Loaded "+sequences.size()+" sequences");
-			Collections.sort(sequences, (l1, l2) -> l2.length() - l1.length());
-			log.info("Sorted "+sequences.size()+" sequences");
-			List<CharSequence> finalSequences = Collections.unmodifiableList(sequences);
+			List<QualifiedSequence> sequencesQL = load(inputFile);
+			log.info("Loaded "+sequencesQL.size()+" sequences");
+			Collections.sort(sequencesQL, (l1, l2) -> l2.getLength() - l1.getLength());
+			log.info("Sorted "+sequencesQL.size()+" sequences");
+			
+			List<CharSequence> finalSequences = Collections.unmodifiableList(extractReads(sequencesQL));
+			if(targetGenome!=null) {
+				goldStandardGraph = buildGoldStandardGraph(sequencesQL, finalSequences);
+			}
+			
 			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
@@ -199,6 +227,9 @@ public class Assembler {
 		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
+		if(goldStandardGraph!=null) {
+			compareGraphs(goldStandardGraph, graph);
+		}
 
 		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
@@ -213,9 +244,9 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public List<CharSequence> load(String filename) throws IOException {
-		if (INPUT_FORMAT_FASTQ.equals(inputFormat)) return loadFastq(filename);
-		else if (INPUT_FORMAT_FASTA.equals(inputFormat)) return loadFasta(filename);
+	public List<QualifiedSequence> load(String filename) throws IOException {
+		if (INPUT_FORMAT_FASTQ == inputFormat) return loadFastq(filename);
+		else if (INPUT_FORMAT_FASTA==inputFormat) return loadFasta(filename);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
 	}
 
@@ -225,15 +256,12 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private List<CharSequence> loadFasta(String filename) throws IOException {
-		List<CharSequence> sequences = new ArrayList<>();
+	private List<QualifiedSequence> loadFasta(String filename) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList seqsQl = handler.loadSequences(filename);
-		for (QualifiedSequence seq : seqsQl) {
-			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
-			sequences.add(characters);
-		}
-		return sequences;
+		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
+		List<QualifiedSequence> answer = new ArrayList<>();
+		answer.addAll(seqsQL);
+		return answer;
 	}
 
 	/**
@@ -243,17 +271,26 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private List<CharSequence> loadFastq(String filename) throws IOException {
-		List<CharSequence> sequences = new ArrayList<>();
+	private List<QualifiedSequence> loadFastq(String filename) throws IOException {
+		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
+			if(targetGenome==null) reader.setLoadMode(FastqFileReader.LOAD_MODE_MINIMAL);
 			reader.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
 				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
-				sequences.add(characters);
+				sequences.add(new QualifiedSequence(read.getName(), characters));
 			}
+		}
+		return sequences;
+	}
+	
+	private List<CharSequence> extractReads (List<QualifiedSequence> seqsQl) {
+		List<CharSequence> sequences = new ArrayList<>();
+		for (QualifiedSequence seq : seqsQl) {
+			DNAMaskedSequence characters = (DNAMaskedSequence) seq.getCharacters();
+			sequences.add(characters);
 		}
 		return sequences;
 	}
@@ -277,6 +314,207 @@ public class Assembler {
 			handler.saveSequences(list, out, 100);
 		}
 	}
-
 	
+	private AssemblyGraph buildGoldStandardGraph(List<QualifiedSequence> sequencesQL, List<CharSequence> finalSequences) {
+		//Create true alignments of simulated reads to te target genome
+		List<ReadAlignment> alignments = new ArrayList<>();
+		QualifiedSequenceList seqNames = targetGenome.getSequencesMetadata();
+		for(int i=0;i<sequencesQL.size();i++) {
+			QualifiedSequence seq = sequencesQL.get(i);
+			String readName = seq.getName();
+			String [] items = readName.split("_");
+			QualifiedSequence seqName = seqNames.get(items[0]);
+			int first = Integer.parseInt(items[1]);
+			boolean reverse = items[2].charAt(0)=='1';
+			int flags = 0;
+			if (reverse) flags = ReadAlignment.FLAG_READ_REVERSE_STRAND;
+			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
+			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
+			aln.setReadNumber(i);
+			aln.setReadCharacters(finalSequences.get(i));
+			alignments.add(aln);
+		}
+		//Sort by target genome location to calculate edges efficiently 
+		AssemblyGraph graph = new AssemblyGraph(finalSequences);
+		GenomicRegionComparator comparator = new GenomicRegionComparator(seqNames);
+		Collections.sort(alignments, comparator);
+		for(int i=0;i<alignments.size();i++) {
+			ReadAlignment left = alignments.get(i);
+			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
+			
+			for(int j=i+1;j<alignments.size();j++) {
+				ReadAlignment right = alignments.get(j);
+				int cmp = comparator.compare(right, left);
+				if(cmp>1) break;
+				boolean relativeNegative = left.isNegativeStrand()!=right.isNegativeStrand();
+				int relativeStart;
+				
+				if(left.getFirst()== right.getFirst() && left.getLast()<=right.getLast()) {
+					//left is embedded in right
+					if(right.isNegativeStrand()) {
+						relativeStart = right.getLast() - left.getLast();
+					} else {
+						relativeStart = 0;
+					}
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeStart, relativeNegative );
+					graph.addEmbedded(right.getReadNumber(), embeddedEvent);
+					if(left.getLast()<=right.getLast()) {
+						//right is also embedded in left
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), 0, relativeNegative );
+						graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+					}
+					break;
+				}
+				if(right.getLast()<=left.getLast()) {
+					//Right is embedded in left
+					if(left.isNegativeStrand()) {
+						relativeStart = left.getLast() - right.getLast();
+					} else {
+						relativeStart = right.getFirst()-left.getFirst();
+					}
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeStart, relativeNegative );
+					graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+				} else {
+					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
+					int overlap = left.getLast() - right.getFirst() + 1;
+					graph.addEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+				}
+				
+			}
+		}
+		log.info("Created gold standard assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Embedded: "+graph.getEmbeddedCount());
+		graph.pruneEmbeddedSequences();
+		log.info("Prunned graph. Edges: "+graph.getEdges().size());
+		return graph;
+	}
+
+	private void compareGraphs(AssemblyGraph goldStandardGraph, AssemblyGraph testGraph) {
+		//Compare embedded
+		int tpEmbSeqs = 0;
+		int fpEmbSeqs = 0;
+		int fnEmbSeqs = 0;
+		int tpEmbRel = 0;
+		int fpEmbRel = 0;
+		int fnEmbRel = 0;
+		int tpEdges = 0;
+		int fpEdges = 0;
+		int fnEdges = 0;
+		int n = goldStandardGraph.getNumSequences();
+		for(int i=0;i<n;i++) {
+			boolean gsE = goldStandardGraph.isEmbedded(i);
+			boolean testE = testGraph.isEmbedded(i);
+			if(gsE && testE) tpEmbSeqs++;
+			else if (gsE) fnEmbSeqs++;
+			else if (testE) fpEmbSeqs++;
+			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbedded(i);
+			List<AssemblyEmbedded> embeddedTest = testGraph.getEmbedded(i);
+			int tpM = calculateIntersection (embeddedGS,embeddedTest);
+			tpEmbRel+=tpM;
+			fpEmbRel+=(embeddedTest.size()-tpM);
+			fnEmbRel+=(embeddedGS.size()-tpM);
+			if(goldStandardGraph.isEmbedded(i)) continue;
+			AssemblyVertex vGS = goldStandardGraph.getVertex(i, true);
+			List<AssemblyEdge> edgesGS = goldStandardGraph.getEdges(vGS);
+			int tpD1 = searchEdges(testGraph, vGS, edgesGS);
+			tpEdges += tpD1;
+			//The same sequence edge does not count
+			int fnD1 = edgesGS.size()-1-tpD1;
+			if(fnD1>=0) {
+				fnEdges += fnD1;
+			} else {
+				log.warning("Less vertices than true positives for "+i+" with length: "+vGS.getRead().length()+" gsEdges: "+edgesGS.size()+" tp "+tpD1);
+			}
+			
+			AssemblyVertex vTest = testGraph.getVertex(i, true);
+			if(vTest!=null) {
+				List<AssemblyEdge> testEdges = testGraph.getEdges(vTest);
+				int fpD1 = testEdges.size()-1-tpD1; 
+				if(fpD1>=0) {
+					/*if(fpD1>0) {
+						System.out.println("Printing edges comparison for sequence: "+i+" with length: "+vTest.getRead().length()+" start: "+vTest.isStart()+" testEdges: "+testEdges.size()+" gsEdges: "+edgesGS.size()+" tp "+tpD1);
+						printEdgeList("GoldStandard",vGS, edgesGS);
+						printEdgeList("Test",vTest, testEdges);
+					}*/
+					fpEdges += fpD1;
+				} else {
+					log.warning("Less vertices than true positives for "+i+" with length: "+vTest.getRead().length()+" testEdges: "+testEdges.size()+" tp "+tpD1);
+				}
+				
+			}
+			vGS = goldStandardGraph.getVertex(i, false);
+			edgesGS = goldStandardGraph.getEdges(vGS);
+			int tpD2 = searchEdges(testGraph, vGS, edgesGS);
+			tpEdges += tpD2;
+			int fnD2 = edgesGS.size()-1-tpD2;
+			if(fnD2>=0) {
+				fnEdges += fnD2;
+			} else {
+				log.warning("Less vertices than true positives for "+i+" with length: "+vGS.getRead().length()+" gsEdges: "+edgesGS.size()+" tp "+tpD2);
+			}
+			
+			vTest = testGraph.getVertex(i, false);
+			if(vTest!=null) {
+				List<AssemblyEdge> testEdges = testGraph.getEdges(vTest);
+				int fpD2 = testEdges.size()-1-tpD2; 
+				if(fpD2>=0) {
+					fpEdges += fpD2;
+				} else {
+					log.warning("Less vertices than true positives for "+i+" with length: "+vTest.getRead().length()+" testEdges: "+testEdges.size()+" tp "+tpD2);
+				}
+			}
+		}
+		double precision = (double)tpEmbSeqs/(tpEmbSeqs+fpEmbSeqs);
+		double recall = (double)tpEmbSeqs/(tpEmbSeqs+fnEmbSeqs);
+		log.info("EMBEDDED_SEQUENCES\t"+tpEmbSeqs+"\t"+fpEmbSeqs+"\t"+fnEmbSeqs+"\t"+precision+"\t"+recall);
+		precision = (double)tpEmbRel/(tpEmbRel+fpEmbRel);
+		recall = (double)tpEmbRel/(tpEmbRel+fnEmbRel);
+		log.info("EMBEDDED_RELATIONS\t"+tpEmbRel+"\t"+fpEmbRel+"\t"+fnEmbRel+"\t"+precision+"\t"+recall);
+		tpEdges/=2;
+		fpEdges/=2;
+		fnEdges/=2;
+		double precisionEdges = (double)tpEdges/(tpEdges+fpEdges);
+		double recallEdges = (double)tpEdges/(tpEdges+fnEdges);
+		log.info("EDGES\t"+tpEdges+"\t"+fpEdges+"\t"+fnEdges+"\t"+precisionEdges+"\t"+recallEdges);	
+	}
+
+	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges) {
+		System.out.println(text);
+		for(AssemblyEdge edge:edges) {
+			AssemblyVertex vOut = edge.getConnectingVertex(v);
+			System.out.println("Vertex "+vOut.getIndex()+"-"+vOut.isStart()+" length "+vOut.getRead().length()+" overlap "+edge.getOverlap());
+		}
+		
+	}
+
+	private int calculateIntersection(List<AssemblyEmbedded> embeddedGS, List<AssemblyEmbedded> embeddedTest) {
+		int count = 0;
+		for(AssemblyEmbedded eGS:embeddedGS) {
+			for(AssemblyEmbedded eTest:embeddedTest) {
+				if(eGS.getSequenceId()== eTest.getSequenceId() && eGS.isReverse()== eTest.isReverse()) {
+					count++;
+					break;
+				}
+			}
+		}
+		return count;
+	}
+
+	private int searchEdges(AssemblyGraph testGraph, AssemblyVertex vGS, List<AssemblyEdge> edgesGS) {
+		int count = 0;
+		AssemblyVertex testV1 = testGraph.getVertex(vGS.getIndex(), vGS.isStart());
+		if(testV1==null) return count;
+		List<AssemblyEdge> testEdgesV1 = testGraph.getEdges(testV1);
+		for(AssemblyEdge edge:edgesGS) {
+			AssemblyVertex vOutGS = edge.getConnectingVertex(vGS);
+			if(vGS.getIndex()==vOutGS.getIndex()) continue;
+			for(AssemblyEdge testEdge:testEdgesV1) {
+				AssemblyVertex testOut = testEdge.getConnectingVertex(testV1);
+				if(vOutGS.getIndex()==testOut.getIndex() && vOutGS.isStart()==testOut.isStart()) {
+					count ++;
+					break;
+				}
+			}
+		}
+		return count;
+	}
 }

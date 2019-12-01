@@ -81,6 +81,7 @@ public class AssemblyGraph implements Serializable {
 			verticesEnd.put(i,vE);
 			edgesMap.put(vE, new ArrayList<>());
 			addEdge(vS, vE, seq.length(), seq.length());
+			embeddedMap.put(i, new ArrayList<>());
 		}
 	}
 
@@ -95,6 +96,9 @@ public class AssemblyGraph implements Serializable {
 	}
 	public int getSequenceLength(int sequenceIdx) {
 		return sequences.get(sequenceIdx).length();
+	}
+	public int getNumSequences () {
+		return sequences.size();
 	}
 
 	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int cost, int overlap) {
@@ -121,7 +125,7 @@ public class AssemblyGraph implements Serializable {
 	
 	public void pruneEmbeddedSequences() {
 		for(int i=0;i<embedded.length;i++) {
-			if(embedded[i]) {
+			if(embedded[i] && verticesStart.get(i)!=null) {
 				removeVertices(i);
 			}
 		}
@@ -155,6 +159,13 @@ public class AssemblyGraph implements Serializable {
 	
 	public boolean isEmbedded(int sequenceId) {
 		return embedded[sequenceId];
+	}
+	public int getEmbeddedCount () {
+		int count = 0;
+		for(int i=0;i<embedded.length;i++) {
+			if(embedded[i]) count++;
+		}
+		return count;
 	}
 
 	public void addPath(List<AssemblyEdge> path) {

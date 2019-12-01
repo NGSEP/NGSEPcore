@@ -218,7 +218,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			} else {
 				vertexQuery = graph.getVertex(querySequenceId, true);
 			}
-			int overlap = targetLength-firstTarget-1;
+			int overlap = targetLength-firstTarget;
 			int cost = targetLength + queryLength - overlap;
 			graph.addEdge(vertexTarget, vertexQuery, cost, overlap);
 			//System.out.println("Edge between target: "+targetSeqIdx+" and query "+querySequenceId+" overlap: "+overlap+" weight: "+weight);
@@ -231,7 +231,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			} else {
 				vertexQuery = graph.getVertex(querySequenceId, false);
 			}
-			int overlap = lastTarget-1;
+			int overlap = lastTarget+1;
 			int cost = targetLength + queryLength -overlap;
 			graph.addEdge(vertexQuery, vertexTarget, cost, overlap);
 			//System.out.println("Edge between query: "+querySequenceId+" and target "+targetSeqIdx+" overlap: "+overlap+" weight: "+weight);
