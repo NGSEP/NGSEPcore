@@ -212,6 +212,20 @@ public class AssemblyGraph implements Serializable {
 		}
 		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex.getIndex()+"-"+vertex.isStart());
 	}
+	/**
+	 * Searches for an edge between the given vertices
+	 * @param v1
+	 * @param v2
+	 * @return
+	 */
+	public AssemblyEdge getEdge(AssemblyVertex v1, AssemblyVertex v2) {
+		List<AssemblyEdge> edgesV1 = edgesMap.get(v1);
+		if(edgesV1 == null) return null;
+		for(AssemblyEdge edge:edgesV1) {
+			if(edge.getConnectingVertex(v1)==v2) return edge;
+		}
+		return null;
+	}
 
 	/**
 	 * @return the paths
@@ -236,6 +250,8 @@ public class AssemblyGraph implements Serializable {
 			throw new RuntimeException("AssemblyGraph class not found",e);
 		}
 	}
+
+	
 
 	
 

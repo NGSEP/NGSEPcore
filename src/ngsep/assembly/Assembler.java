@@ -385,6 +385,38 @@ public class Assembler {
 		log.info("Created gold standard assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Embedded: "+graph.getEmbeddedCount());
 		graph.pruneEmbeddedSequences();
 		log.info("Prunned graph. Edges: "+graph.getEdges().size());
+		//Build gold standard layouts
+		String lastSeqName = null;
+		List<AssemblyEdge> nextPath = new ArrayList<>();
+		AssemblyVertex lastVertex = null;
+		for(int i=0;i<alignments.size();i++) {
+			ReadAlignment aln = alignments.get(i);
+			if(graph.isEmbedded(aln.getReadNumber())) continue;
+			if(!aln.getSequenceName().equals(lastSeqName)) {
+				if(nextPath.size()>0) graph.addPath(nextPath);
+				lastSeqName = aln.getSequenceName();
+				nextPath = new ArrayList<>();
+				lastVertex = null;
+			}
+			AssemblyVertex leftSequenceVertex = graph.getVertex(aln.getReadNumber(), !aln.isNegativeStrand());
+			AssemblyVertex rightSequenceVertex = graph.getVertex(aln.getReadNumber(), aln.isNegativeStrand());
+			AssemblyEdge edgeSequence = graph.getSameSequenceEdge(leftSequenceVertex);
+			if(lastVertex!=null) {
+				AssemblyEdge connectingEdge = graph.getEdge(lastVertex, leftSequenceVertex);
+				if(connectingEdge==null) {
+					log.info("Discontiguity in gold standard layout");
+					if(nextPath.size()>0) graph.addPath(nextPath);
+					nextPath = new ArrayList<>();
+					lastVertex = null;
+				} else {
+					nextPath.add(connectingEdge);
+				}
+			}
+			
+			
+			nextPath.add(edgeSequence);
+			lastVertex = rightSequenceVertex;
+		}
 		return graph;
 	}
 
