@@ -315,7 +315,7 @@ public class Assembler {
 		}
 	}
 	
-	private AssemblyGraph buildGoldStandardGraph(List<QualifiedSequence> sequencesQL, List<CharSequence> finalSequences) {
+	public AssemblyGraph buildGoldStandardGraph(List<QualifiedSequence> sequencesQL, List<CharSequence> finalSequences) {
 		//Create true alignments of simulated reads to te target genome
 		List<ReadAlignment> alignments = new ArrayList<>();
 		QualifiedSequenceList seqNames = targetGenome.getSequencesMetadata();
