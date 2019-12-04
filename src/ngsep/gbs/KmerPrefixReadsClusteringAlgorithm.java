@@ -75,6 +75,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	
 	private static final String READID_SEPARATOR="$";
+	private static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
+	private static final String PAIRED_END_READS_QS = "00000000000000000000";
 	
 	private int minClusterDepth = 10;
 	private int maxClusterDepth = 1000;
@@ -428,7 +430,47 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 
 	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
-		// TODO Auto-generated method stub
+		int unmatchedReads = 0;
+		int count = 0;
+		try (FastqFileReader file1 = new FastqFileReader(filename1); FastqFileReader file2 = new FastqFileReader(filename2)) {
+			Iterator<RawRead> it1 = file1.iterator();
+			Iterator<RawRead> it2 = file2.iterator();
+			while(it1.hasNext() && it2.hasNext()) {
+				//+1 o +2?
+				this.numTotalReads += 2;
+				RawRead read1 = it1.next();
+				RawRead read2 = it2.next();
+				
+				String read1s = read1.getSequenceString();
+				if(DEF_START + kmerLength > read1s.length()) continue;
+				String prefix = read1s.substring(DEF_START,DEF_START + kmerLength);
+				if(!DNASequence.isDNA(prefix)) continue;
+				
+				Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
+				if(clusterId==null) {
+					this.numUnclusteredReadsI++;
+					unmatchedReads++;
+					continue;
+				}
+				
+				clusterSizes[clusterId]++;
+				if(clusterSizes[clusterId]<=maxClusterDepth) {
+					String read2s = read2.getSequenceString();
+					String mergedRead = String.format("%s%s%s", read1s, PAIRED_END_READS_SEPARATOR, read2s);
+					String mergedScores = String.format("%s%s%s", read1.getQualityScores(), PAIRED_END_READS_QS, read2s);
+					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), mergedRead, mergedScores));
+				}
+				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
+					log.info("dumping reads");
+					clusteredReadsCache.dump(outPrefix);
+				}
+				
+				count++;
+			}
+			
+			log.info(String.format("%d reads remained unmatched for files: %s, %s", unmatchedReads, filename1, filename2));
+			log.info(String.format("%d reads were succesfully matched for files: %s, %s",count ,filename1, filename2));
+		}
 		return;
 	}
 	
