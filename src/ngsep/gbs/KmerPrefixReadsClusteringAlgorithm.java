@@ -87,7 +87,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	
-	private String inputDirectory=".";
+	private String inputDirectory = ".";
+	private String inputDirectory2 = null;
 	private String outPrefix="./output";
 	
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
@@ -118,6 +119,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.inputDirectory = args[i++];
+		instance.inputDirectory2 = "./Data/";
 		instance.outPrefix = args[i++];
 		instance.run();
 	}
@@ -338,17 +340,43 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	private void loadFilenamesAndSamples() {
-		File[] files = (new File(inputDirectory)).listFiles();
-		for(File f : files) {
+		if (inputDirectory2 != null) {
+			loadFilenamesAndSamplesPairedEnd();
+		} else {
+			File[] files = (new File(inputDirectory)).listFiles();
+			for(File f : files) {
+				String filename = f.getName();
+				int i = filename.indexOf(".fastq");
+				if(i>=0) {
+					String sampleId = filename.substring(0, i);
+					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+				}
+			}
+		}
+	}
+	
+	private void loadFilenamesAndSamplesPairedEnd() {
+		File[] files1 = (new File(inputDirectory)).listFiles();
+		File[] files2 = (new File(inputDirectory2)).listFiles();
+		
+		for(File f : files1) {
 			String filename = f.getName();
-			int i = filename.indexOf(".fastq");
+			int i = filename.indexOf("-1.fastq");
 			if(i>=0) {
 				String sampleId = filename.substring(0, i);
 				filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
 			}
 		}
+		
+		for(File f : files2) {
+			String filename = f.getName();
+			int i = filename.indexOf("-2.fastq");
+			if(i>=0) {
+				String sampleId = filename.substring(0, i);
+				filenamesBySampleId2.put(sampleId, f.getAbsolutePath());
+			}
+		}
 	}
-	
 	
 	public void buildKmersMap() throws IOException {
 		kmersMap = new DNAShortKmerClusterMap(kmerLength,maxNumClusters);
