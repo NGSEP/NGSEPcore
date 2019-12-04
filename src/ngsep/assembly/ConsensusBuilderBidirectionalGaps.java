@@ -3,21 +3,19 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
+public class ConsensusBuilderBidirectionalGaps implements ConsensusBuilder {
 	int match;
 	int gap;
 	int mismatch;
 	int windowSize;
-	int tolerance;
 	boolean startConsensus = true;
 	
-	public ConsensusBuilderBidirectionalNoGaps() 
+	public ConsensusBuilderBidirectionalGaps() 
 	{
 		match = 1;
 		mismatch = -1;
-		gap = -3;		
-		windowSize = 15;
-		tolerance = windowSize;
+		gap = -4;		
+		windowSize = 7;
 	}
 	
 	@Override
@@ -42,7 +40,6 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 		List<byte[]> consensusCounts = new ArrayList<byte[]>();
 		AssemblyVertex lastVertex = null;
 		int currentPos = 0;
-		List<Tuple> consensusMax = new ArrayList<Tuple>();
 		for(int j = 0; j < path.size(); j++)
 		{
 			if(j % 10 == 0)
@@ -112,7 +109,7 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 				}
 				currentPos = currentPos + nextSequence.length();
 				
-				if(nextSequence.length() - edge.getOverlap() <= tolerance) 
+				if(nextSequence.length() <= edge.getOverlap()) 
 				{
 					System.err.println("Non-embedded edge has overlap: " + edge.getOverlap() + " and length: " + nextSequence.length());
 				} 
@@ -136,7 +133,7 @@ public class ConsensusBuilderBidirectionalNoGaps implements ConsensusBuilder {
 	{
 		List<byte[]> consensusCounts = new ArrayList<byte[]>();
 		//Align the read a with its embedded reads
-		SelfAlignmentConstantGap embeddedAligner = new SelfAlignmentConstantGap(match, gap, mismatch, windowSize, tolerance);
+		SelfAlignmentConstantGap embeddedAligner = new SelfAlignmentConstantGap(match, gap, mismatch, windowSize, 0);
 		String[] alignedOriginRead = embeddedAligner.selfAlign(read, embeddedReads, reverse);
 		for(int k = 0; k < alignedOriginRead.length; k++)
 		{
