@@ -495,11 +495,21 @@ public class VCFFilter {
     	if(annotations!=null && !hasAnnotation(record)) return false;
     	//System.out.println("Passed Annotation");
     	//TODO: Do not recalculate by default
-    	DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(record.getCalls(), false);
-    	int numCalledAlleles = divStats.getNumCalledAlleles();
-    	int [] counts = divStats.getAlleleCounts();
-    	double maf = divStats.getMaf();
-    	double oh = divStats.getObservedHeterozygosity();
+    	int numCalledAlleles = 0;
+    	int [] counts = null;
+    	double maf = 0;
+    	double oh = 0;
+    	int genotyped = 0;
+    	DiversityStatistics divStats = null;
+    	if(record.getCalls().size()>0) {
+    		divStats = DiversityStatistics.calculateDiversityStatistics(record.getCalls(), false);
+        	numCalledAlleles = divStats.getNumCalledAlleles();
+        	counts = divStats.getAlleleCounts();
+        	maf = divStats.getMaf();
+        	oh = divStats.getObservedHeterozygosity();
+        	genotyped = divStats.getNumSamplesGenotyped();
+    	}
+    	
     	//System.out.println("Count 0: "+counts[0]+" Count 1: "+counts[1]+" Alleles: "+numCalledAlleles+". MAF: "+maf);
     	if (filterInvariant && numCalledAlleles < 2) return false;
     	//System.out.println("Passed invariant");
@@ -509,7 +519,7 @@ public class VCFFilter {
     	//Only alternative alleles
     	if (filterInvariantAlternative && numCalledAlleles == 1 && counts[0]==0) return false;
     	//System.out.println("Passed invariant alternative");
-    	if (divStats.getNumSamplesGenotyped() < minIndividualsGenotyped) return false;
+    	if (genotyped < minIndividualsGenotyped) return false;
     	//System.out.println("Passed minInd. MAF: "+maf);
     	if (maf < minMAF || maf> maxMAF) return false;
     	//System.out.println("Passed MAF");
@@ -522,10 +532,12 @@ public class VCFFilter {
     	if (filterGCContent(var)) return false;
     	//System.out.println("Passed GCContent");
     	//Update annotations if passes filters
-    	record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
-		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
-		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
-		if(divStats.getNumCalledAlleles()==2) record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+    	if(divStats!=null) {
+    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, genotyped));
+    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, numCalledAlleles));
+    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(counts)));
+    		if(divStats.getNumCalledAlleles()==2) record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_MAF, maf));
+    	}
     	return true;
     }
 
