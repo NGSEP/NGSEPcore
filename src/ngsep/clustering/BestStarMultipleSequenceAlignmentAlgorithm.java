@@ -2,8 +2,18 @@ package ngsep.clustering;
 
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.SimpleEditDistanceMeasure;
 
 public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSequenceAlignmentAlgorithm {
+
+	/**
+	 * Attribute that calculates the minimum edit distance and the pairwise alignment
+	 */
+	private SimpleEditDistanceMeasure editDistanceMeasure;
+
+	public BestStarMultipleSequenceAlignmentAlgorithm(){
+		editDistanceMeasure = new SimpleEditDistanceMeasure();
+	}
 
 	@Override
 	public QualifiedSequenceList calculateMultipleSequenceAlignment(QualifiedSequenceList sequences) {
@@ -29,7 +39,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 				if (i == j){
 					D[i][j] = 0.0;
 				}else{
-					D[i][j] = calculateMinEditDistance(seq1.getCharacters(), seq2.getCharacters());
+					D[i][j] = editDistanceMeasure.calculateDistance(seq1.getCharacters(), seq2.getCharacters());
 				}
 				j++;
 			}
@@ -38,49 +48,6 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 		}
 
 		return D;
-	}
-
-
-	/**
-	 * Calculates the edit distance for two strings of characters
-	 * @param s1 - First string
-	 * @param s2 - Second string
-	 * @return The edit distance matrix
-	 */
-	private double[][] calculateEditDistanceMatrix(CharSequence s1, CharSequence s2){
-
-		double[][] E = new double[s1.length() + 1][s2.length() + 1];
-
-		for (int i = 0; i < s1.length() + 1; i++) {
-			E[i][0] = i;
-		}
-
-		for (int i = 0; i < s2.length() + 1; i++) {
-			E[0][i] = i;
-		}
-
-		for (int i = 1; i < s1.length() + 1; i++) {
-			for (int j = 1; j < s2.length() + 1; j++) {
-				if (s1.charAt(i - 1) == s2.charAt(j - 1)){
-					E[i][j] = E[i - 1][j - 1];
-				}else {
-					E[i][j] =
-							Math.min(E[i][j - 1] + 1, Math.min(E[i - 1][j] + 1, E[i - 1][j - 1] + 1));
-				}
-			}
-		}
-
-		return E;
-	}
-
-	/**
-	 * Calculates the minimum edit distance between two strings of characters.
-	 * @param s1 - First string
-	 * @param s2 - Second string
-	 * @return minimum edit distance
-	 */
-	private double calculateMinEditDistance(CharSequence s1, CharSequence s2){
-		return calculateEditDistanceMatrix(s1, s2)[s1.length()][s2.length()];
 	}
 
 	/**
