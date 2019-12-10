@@ -73,10 +73,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
+	public static final String PAIRED_END_READS_QS = "00000000000000000000";
 	
 	private static final String READID_SEPARATOR="$";
-	private static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
-	private static final String PAIRED_END_READS_QS = "00000000000000000000";
 	
 	private int minClusterDepth = 10;
 	private int maxClusterDepth = 1000;
@@ -584,6 +584,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task
 				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
+				    newTask.setPairedEnd(inputDirectory2 != null);
 				    poolManager.queueTask(newTask);
 				}
 				if(numCluster%10000 == 0) {

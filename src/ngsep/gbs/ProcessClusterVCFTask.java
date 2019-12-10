@@ -39,6 +39,7 @@ public class ProcessClusterVCFTask extends Thread {
 	private VCFFileWriter vcfWriter;
 	private PrintStream outVariants;
 	private PrintStream outConsensus;
+	private boolean isPairedEnd;
 	
 	private KmerPrefixReadsClusteringAlgorithm parent;
 	
@@ -50,6 +51,14 @@ public class ProcessClusterVCFTask extends Thread {
 		this.outVariants = outVariants;
 		this.outConsensus = outConsensus;
 		this.parent = parent;
+	}
+	
+	public boolean isPairedEnd() {
+		return isPairedEnd;
+	}
+
+	public void setPairedEnd(boolean isPairedEnd) {
+		this.isPairedEnd = isPairedEnd;
 	}
 	
 	/**
@@ -98,6 +107,10 @@ public class ProcessClusterVCFTask extends Thread {
 		List<RawRead> reads = readCluster.getReads();
 		List<String> sampleIds = readCluster.getSampleIds();
 		
+		if(this.isPairedEnd) {
+			reads = fixReadsLength(reads);
+		}
+		
 		for(int i=0;i<reads.size();i++) {
 			RawRead read = reads.get(i);
 			String sampleId = sampleIds.get(i);
@@ -139,6 +152,22 @@ public class ProcessClusterVCFTask extends Thread {
 		return records;
 	}
 	
+	private List<RawRead> fixReadsLength(List<RawRead> reads) {
+		int maxLength = 0;
+		for (RawRead read : reads) {
+			int l = read.getSequenceString().length();
+			if (maxLength < l) maxLength = l;
+		}
+		
+		List<RawRead> newList = new ArrayList<RawRead>();
+		for (RawRead read: reads) {
+			String s = read.getSequenceString();
+			int insertPos = s.indexOf(KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR);
+		}
+		
+		return null;
+	}
+
 	private void writeConsensusFasta() {
 		outConsensus.println(">Cluster_" + readCluster.getClusterNumber());
 		outConsensus.println(readCluster.getConsensusSequence());
