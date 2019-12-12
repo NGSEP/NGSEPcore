@@ -44,7 +44,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 			CharSequence newCenter = replaceCenter(prevCenter.getCharacters(), nextCenter.getCharacters());
 
 			// Add the sequences to the list
-			alignedSequences.add(0, new QualifiedSequence(prevCenter.getName(), newCenter));
+			alignedSequences.get(0).setCharacters(newCenter);
 			alignedSequences.add(pairedSeq);
 
 			// If the next center has a gap, force this gap into the rest of the sequences (except for the new paired sequence)
