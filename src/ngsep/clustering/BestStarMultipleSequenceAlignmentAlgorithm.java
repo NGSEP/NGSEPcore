@@ -1,8 +1,12 @@
 package ngsep.clustering;
 
+import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.SimpleEditDistanceMeasure;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSequenceAlignmentAlgorithm {
 
@@ -17,8 +21,107 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 
 	@Override
 	public QualifiedSequenceList calculateMultipleSequenceAlignment(QualifiedSequenceList sequences) {
-		// TODO Auto-generated method stub
-		return null;
+		QualifiedSequenceList alignedSequences = new QualifiedSequenceList();
+
+		double[][] D = calculatePairwiseEditDistanceMatrix(sequences);
+		int minSeqIndex = getCenterOfStar(D);
+
+		// get all pairwise alignments
+		List<QualifiedSequenceList> pairwiseAlignments = getAllPairwiseAlignments(sequences, minSeqIndex);
+
+		// add the first pairwise alignment
+		alignedSequences.add(pairwiseAlignments.get(0).get(0));
+		alignedSequences.add(pairwiseAlignments.get(0).get(1));
+
+		// align pairwise alignments
+		for (int i = 1; i < pairwiseAlignments.size(); i++) {
+
+			QualifiedSequence prevCenter = pairwiseAlignments.get(0).get(0);
+			QualifiedSequence nextCenter = pairwiseAlignments.get(i).get(0);
+			QualifiedSequence pairedSeq = pairwiseAlignments.get(i).get(1);
+
+			// get a new center in accordance to the next pairwise alignment
+			CharSequence newCenter = replaceCenter(prevCenter.getCharacters(), nextCenter.getCharacters());
+
+			// Add the sequences to the list
+			alignedSequences.add(0, new QualifiedSequence(prevCenter.getName(), newCenter));
+			alignedSequences.add(pairedSeq);
+
+			// If the next center has a gap, force this gap into the rest of the sequences (except for the new paired sequence)
+			String nextCenterChars = nextCenter.getCharacters().toString();
+			for (int j = 0; j < nextCenterChars.length(); j++) {
+				if (nextCenterChars.charAt(j) == LimitedSequence.GAP_CHARACTER){
+					for (int k = 1; k < alignedSequences.size() - 1; k++) {
+						QualifiedSequence seq = alignedSequences.get(k);
+						StringBuilder seqChars = new StringBuilder(seq.getCharacters());
+						StringBuilder newSeqChars = seqChars.insert(j, LimitedSequence.GAP_CHARACTER);
+						seq.setCharacters(newSeqChars);
+					}
+				}
+			}
+
+			// If there are sequences that do not have the same size as the center, add gaps at the end
+			for (int j = 1; j < alignedSequences.size(); j++) {
+				QualifiedSequence seq = alignedSequences.get(j);
+
+				if (seq.getLength() < newCenter.length()){
+					StringBuilder seqChars = new StringBuilder(seq.getCharacters());
+					for (int k = seqChars.length() - 1; k < newCenter.length(); k++) {
+						seqChars.append(LimitedSequence.GAP_CHARACTER);
+					}
+					seq.setCharacters(seqChars);
+				}
+			}
+
+		}
+
+		return alignedSequences;
+	}
+
+	/**
+	 * Gets a new center for the alignment list. if the next center (result from the next pairwise alignment) has
+	 * greater or equal size than the previous center, this is the new center, otherwise, the new center is equal
+	 * to the next center with the missing characters from the previous center appended to it (such that the length
+	 * of the new center is equal to the maximum lenght between the previous and the next).
+	 * @param prev - Previous center
+	 * @param next - Next center
+	 * @return New center
+	 */
+	private CharSequence replaceCenter(CharSequence prev, CharSequence next){
+		if (next.length() >= prev.length()){
+			return next;
+		}else {
+			StringBuilder newCenter = new StringBuilder(next);
+			for (int i = next.length() - 1; i < prev.length(); i++) {
+				newCenter.append(prev.charAt(i));
+			}
+			return newCenter.toString();
+		}
+	}
+
+	/**
+	 * Gets a list of all pairwise alignments of the sequences with the center of the star given
+	 * by its index.
+	 * @param sequences - Sequences to align
+	 * @param centerIndex - Position of the center of the star in the list of sequences
+	 * @return All pairwise alignments
+	 */
+	private List<QualifiedSequenceList> getAllPairwiseAlignments(QualifiedSequenceList sequences, int centerIndex){
+		QualifiedSequence center = sequences.get(centerIndex);
+		List<QualifiedSequenceList> pairwiseAlignments = new ArrayList<>();
+
+		for (int i = 0; i < sequences.size(); i++) {
+			if (i != centerIndex){
+				QualifiedSequence seq = sequences.get(i);
+				List<CharSequence> alignedChars = editDistanceMeasure.pairwiseAlignment(center.getCharacters(), seq.getCharacters());
+				List<QualifiedSequence> alignedSeqs = new ArrayList<>();
+				alignedSeqs.add(new QualifiedSequence(center.getName(), alignedChars.get(0)));
+				alignedSeqs.add(new QualifiedSequence(seq.getName(), alignedChars.get(1)));
+				pairwiseAlignments.add(new QualifiedSequenceList(alignedSeqs));
+			}
+		}
+
+		return pairwiseAlignments;
 	}
 
 	/**
@@ -27,7 +130,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 	 * @param sequences - The list of sequences
 	 * @return The associated distance matrix
 	 */
-	public double [][] calculatePairwiseEditDistanceMatrix (QualifiedSequenceList sequences) {
+	private double [][] calculatePairwiseEditDistanceMatrix (QualifiedSequenceList sequences) {
 		int n = sequences.size();
 		// Distance matrix between the sequences
 		double [][] D = new double[n][n];
