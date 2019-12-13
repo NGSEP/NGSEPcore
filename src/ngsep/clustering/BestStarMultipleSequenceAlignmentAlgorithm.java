@@ -66,7 +66,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 
 				if (seq.getLength() < newCenter.length()){
 					StringBuilder seqChars = new StringBuilder(seq.getCharacters());
-					for (int k = seqChars.length() - 1; k < newCenter.length(); k++) {
+					for (int k = seqChars.length(); k < newCenter.length(); k++) {
 						seqChars.append(LimitedSequence.GAP_CHARACTER);
 					}
 					seq.setCharacters(seqChars);
@@ -79,6 +79,7 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 	}
 
 	/**
+	 * TODO: Make corrections
 	 * Gets a new center for the alignment list. if the next center (result from the next pairwise alignment) has
 	 * greater or equal size than the previous center, this is the new center, otherwise, the new center is equal
 	 * to the next center with the missing characters from the previous center appended to it (such that the length
@@ -88,15 +89,17 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 	 * @return New center
 	 */
 	private CharSequence replaceCenter(CharSequence prev, CharSequence next){
-		if (next.length() >= prev.length()){
-			return next;
-		}else {
-			StringBuilder newCenter = new StringBuilder(next);
-			for (int i = next.length() - 1; i < prev.length(); i++) {
-				newCenter.append(prev.charAt(i));
+		StringBuilder newCenter = new StringBuilder(prev);
+
+		for (int i = 0; i < next.length(); i++) {
+			if (i > next.length() - 1){
+				newCenter.append(next.charAt(i));
+			} else if (next.charAt(i) == LimitedSequence.GAP_CHARACTER){
+				newCenter.insert(i, LimitedSequence.GAP_CHARACTER);
 			}
-			return newCenter.toString();
 		}
+
+		return newCenter.toString();
 	}
 
 	/**
