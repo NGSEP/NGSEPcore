@@ -19,8 +19,11 @@
  *******************************************************************************/
 package ngsep.gbs;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -88,7 +91,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	
 	private String inputDirectory = ".";
-	private String inputDirectory2 = null;
+	private String filesDescriptor = null;
 	private String outPrefix="./output";
 	
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
@@ -119,8 +122,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.inputDirectory = args[i++];
-		instance.inputDirectory2 = "./Data/";
 		instance.outPrefix = args[i++];
+		if (args.length >= i) {
+			instance.filesDescriptor = args[i++];
+		}
 		instance.run();
 	}
 	
@@ -339,8 +344,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return dist;
 	}
 
-	private void loadFilenamesAndSamples() {
-		if (inputDirectory2 != null) {
+	private void loadFilenamesAndSamples() throws IOException {
+		if (filesDescriptor != null) {
 			loadFilenamesAndSamplesPairedEnd();
 		} else {
 			File[] files = (new File(inputDirectory)).listFiles();
@@ -355,25 +360,55 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 	
-	private void loadFilenamesAndSamplesPairedEnd() {
-		File[] files1 = (new File(inputDirectory)).listFiles();
-		File[] files2 = (new File(inputDirectory2)).listFiles();
+	private void loadFilenamesAndSamplesPairedEnd() throws IOException {
+		List<String> l1 = new ArrayList<>();
+		List<String> l2 = new ArrayList<>();
+		HashMap<String, String> toSampleId = new HashMap<>();
 		
-		for(File f : files1) {
-			String filename = f.getName();
-			int i = filename.indexOf("-1.fastq");
-			if(i>=0) {
-				String sampleId = filename.substring(0, i);
-				filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+		try (BufferedReader descriptor = new BufferedReader(new FileReader(filesDescriptor))) {
+			descriptor.readLine();
+			String line = descriptor.readLine();
+			while(line != null) {
+				String[] payload = line.split("\t");
+				
+				String sampleId = payload[0];
+				String f1 = payload[1];
+				String f2 = payload[2];
+				
+				int i1 = f1.indexOf(".fastq");
+				if(i1>=0) {
+					String filename = f1.substring(0,i1);
+					l1.add(filename);
+					toSampleId.put(filename, sampleId);
+				}
+				
+				int i2 = f2.indexOf(".fastq");
+				if(i2>=0) {
+					String filename = f1.substring(0,i2);
+					l2.add(filename);
+					toSampleId.put(filename, sampleId);
+				}
+				
+				line = descriptor.readLine();
 			}
 		}
 		
-		for(File f : files2) {
+		
+		File[] files = (new File(inputDirectory)).listFiles();
+		for(File f : files) {
 			String filename = f.getName();
-			int i = filename.indexOf("-2.fastq");
+			int i = filename.indexOf(".fastq");
 			if(i>=0) {
-				String sampleId = filename.substring(0, i);
-				filenamesBySampleId2.put(sampleId, f.getAbsolutePath());
+				String prefix = filename.substring(0, i);
+				if (l1.contains(prefix)) {
+					String sampleId = toSampleId.get(prefix);
+					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+				}
+				
+				if (l2.contains(prefix)) {
+					String sampleId = toSampleId.get(prefix);
+					filenamesBySampleId2.put(sampleId, f.getAbsolutePath());
+				}
 			}
 		}
 	}
@@ -584,7 +619,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task
 				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
-				    newTask.setPairedEnd(inputDirectory2 != null);
+				    newTask.setPairedEnd(filesDescriptor != null);
 				    poolManager.queueTask(newTask);
 				}
 				if(numCluster%10000 == 0) {

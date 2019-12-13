@@ -108,7 +108,7 @@ public class ProcessClusterVCFTask extends Thread {
 		List<String> sampleIds = readCluster.getSampleIds();
 		
 		if(this.isPairedEnd) {
-			reads = fixReadsLength(reads);
+			reads = adjustReadsLength(reads);
 		}
 		
 		for(int i=0;i<reads.size();i++) {
@@ -152,7 +152,7 @@ public class ProcessClusterVCFTask extends Thread {
 		return records;
 	}
 	
-	private List<RawRead> fixReadsLength(List<RawRead> reads) {
+	private List<RawRead> adjustReadsLength(List<RawRead> reads) {
 		int maxLength = 0;
 		for (RawRead read : reads) {
 			int l = read.getSequenceString().length();
@@ -162,10 +162,25 @@ public class ProcessClusterVCFTask extends Thread {
 		List<RawRead> newList = new ArrayList<RawRead>();
 		for (RawRead read: reads) {
 			String s = read.getSequenceString();
+			String q = read.getQualityScores();
 			int insertPos = s.indexOf(KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR);
+			char scoreChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_QS.charAt(0);
+			char seqChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR.charAt(0);
+			
+			String seq = "";
+			String score = "";
+			for(int k = s.length(); k < maxLength; k++) {
+				seq += seqChar;
+				score += scoreChar;
+			}
+			
+			s = String.format("%s%s%s", s.substring(0, insertPos), seq, s.substring(insertPos));
+			q = String.format("%s%s%s", q.substring(0, insertPos), score, q.substring(insertPos));
+			RawRead newRead = new RawRead(read.getName(), s, q);
+			newList.add(newRead);
 		}
 		
-		return null;
+		return newList;
 	}
 
 	private void writeConsensusFasta() {
