@@ -105,10 +105,10 @@ public class VariableTransitionHMM extends AbstractHMM {
 	}
 	
 	public void calculateUniformChangeTransitions(double[] changeProbabilities) {
-		getLog().info("Using change probabilities to infer transitions. First probability: "+changeProbabilities[0]);
 		int n = this.getNumStates();
 		int m = getSteps();
 		if(m-1!=changeProbabilities.length) throw new IllegalArgumentException("Length of changes vector "+changeProbabilities.length+" is not consistent with the number of steps "+m+". It should be "+(m-1));
+		if(changeProbabilities.length>0)getLog().info("Using change probabilities to infer transitions. First probability: "+changeProbabilities[0]);
 		Double [][] transitions = new Double [n][n];
 		for(int i=0;i<m-1;i++) {
 			double p = changeProbabilities[i];

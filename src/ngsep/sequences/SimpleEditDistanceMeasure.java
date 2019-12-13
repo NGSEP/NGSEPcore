@@ -62,10 +62,10 @@ public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
                 
 
                 if(diagonal == min){
-                    i--;
-                    j--;
                     alignedSequence1.append(seq1.charAt(i-1));
                     alignedSequence2.append(seq2.charAt(j-1));
+                    i--;
+                    j--;
                 } else if (up == min) {
                 	alignedSequence1.append(seq1.charAt(i-1));
                 	alignedSequence2.append(LimitedSequence.GAP_CHARACTER);
@@ -78,8 +78,8 @@ public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
             }
         }
 		List<CharSequence> answer = new ArrayList<>();
-		answer.add(alignedSequence1.toString());
-		answer.add(alignedSequence2.toString());
+		answer.add(alignedSequence1.reverse().toString());
+		answer.add(alignedSequence2.reverse().toString());
 		return answer;
 	}
 
