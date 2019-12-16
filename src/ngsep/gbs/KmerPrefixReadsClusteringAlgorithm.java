@@ -19,8 +19,11 @@
  *******************************************************************************/
 package ngsep.gbs;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -73,6 +76,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
+	public static final String PAIRED_END_READS_QS = "00000000000000000000";
 	
 	private static final String READID_SEPARATOR="$";
 	
@@ -85,7 +90,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	
-	private String inputDirectory=".";
+	private String inputDirectory = ".";
+	private String filesDescriptor = null;
 	private String outPrefix="./output";
 	
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
@@ -117,6 +123,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.inputDirectory = args[i++];
 		instance.outPrefix = args[i++];
+		if (args.length >= i) {
+			instance.filesDescriptor = args[i++];
+		}
 		instance.run();
 	}
 	
@@ -335,18 +344,74 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return dist;
 	}
 
-	private void loadFilenamesAndSamples() {
+	private void loadFilenamesAndSamples() throws IOException {
+		if (filesDescriptor != null) {
+			loadFilenamesAndSamplesPairedEnd();
+		} else {
+			File[] files = (new File(inputDirectory)).listFiles();
+			for(File f : files) {
+				String filename = f.getName();
+				int i = filename.indexOf(".fastq");
+				if(i>=0) {
+					String sampleId = filename.substring(0, i);
+					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+				}
+			}
+		}
+	}
+	
+	private void loadFilenamesAndSamplesPairedEnd() throws IOException {
+		List<String> l1 = new ArrayList<>();
+		List<String> l2 = new ArrayList<>();
+		HashMap<String, String> toSampleId = new HashMap<>();
+		
+		try (BufferedReader descriptor = new BufferedReader(new FileReader(filesDescriptor))) {
+			descriptor.readLine();
+			String line = descriptor.readLine();
+			while(line != null) {
+				String[] payload = line.split("\t");
+				
+				String sampleId = payload[0];
+				String f1 = payload[1];
+				String f2 = payload[2];
+				
+				int i1 = f1.indexOf(".fastq");
+				if(i1>=0) {
+					String filename = f1.substring(0,i1);
+					l1.add(filename);
+					toSampleId.put(filename, sampleId);
+				}
+				
+				int i2 = f2.indexOf(".fastq");
+				if(i2>=0) {
+					String filename = f1.substring(0,i2);
+					l2.add(filename);
+					toSampleId.put(filename, sampleId);
+				}
+				
+				line = descriptor.readLine();
+			}
+		}
+		
+		
 		File[] files = (new File(inputDirectory)).listFiles();
 		for(File f : files) {
 			String filename = f.getName();
 			int i = filename.indexOf(".fastq");
 			if(i>=0) {
-				String sampleId = filename.substring(0, i);
-				filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+				String prefix = filename.substring(0, i);
+				if (l1.contains(prefix)) {
+					String sampleId = toSampleId.get(prefix);
+					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
+				}
+				
+				if (l2.contains(prefix)) {
+					String sampleId = toSampleId.get(prefix);
+					filenamesBySampleId2.put(sampleId, f.getAbsolutePath());
+				}
 			}
 		}
 	}
-	
 	
 	public void buildKmersMap() throws IOException {
 		kmersMap = new DNAShortKmerClusterMap(kmerLength,maxNumClusters);
@@ -428,7 +493,47 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 
 	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
-		// TODO Auto-generated method stub
+		int unmatchedReads = 0;
+		int count = 0;
+		try (FastqFileReader file1 = new FastqFileReader(filename1); FastqFileReader file2 = new FastqFileReader(filename2)) {
+			Iterator<RawRead> it1 = file1.iterator();
+			Iterator<RawRead> it2 = file2.iterator();
+			while(it1.hasNext() && it2.hasNext()) {
+				//+1 o +2?
+				this.numTotalReads += 2;
+				RawRead read1 = it1.next();
+				RawRead read2 = it2.next();
+				
+				String read1s = read1.getSequenceString();
+				if(DEF_START + kmerLength > read1s.length()) continue;
+				String prefix = read1s.substring(DEF_START,DEF_START + kmerLength);
+				if(!DNASequence.isDNA(prefix)) continue;
+				
+				Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
+				if(clusterId==null) {
+					this.numUnclusteredReadsI++;
+					unmatchedReads++;
+					continue;
+				}
+				
+				clusterSizes[clusterId]++;
+				if(clusterSizes[clusterId]<=maxClusterDepth) {
+					String read2s = read2.getSequenceString();
+					String mergedRead = String.format("%s%s%s", read1s, PAIRED_END_READS_SEPARATOR, read2s);
+					String mergedScores = String.format("%s%s%s", read1.getQualityScores(), PAIRED_END_READS_QS, read2s);
+					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), mergedRead, mergedScores));
+				}
+				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
+					log.info("dumping reads");
+					clusteredReadsCache.dump(outPrefix);
+				}
+				
+				count++;
+			}
+			
+			log.info(String.format("%d reads remained unmatched for files: %s, %s", unmatchedReads, filename1, filename2));
+			log.info(String.format("%d reads were succesfully matched for files: %s, %s",count ,filename1, filename2));
+		}
 		return;
 	}
 	
@@ -514,6 +619,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task
 				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
+				    newTask.setPairedEnd(filesDescriptor != null);
 				    poolManager.queueTask(newTask);
 				}
 				if(numCluster%10000 == 0) {
