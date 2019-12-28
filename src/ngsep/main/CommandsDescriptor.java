@@ -343,9 +343,9 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.println("To cite NGSEP, please include in your references the following manuscript:");
 		System.err.println();
-		System.err.println("Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014).");
-		System.err.println("An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments.");
-		System.err.println("Nucleic Acids Research. 42 (6): e44. doi: 10.1093/nar/gkt1381");
+		System.err.println("Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)");
+		System.err.println("NGSEP3: accurate variant calling across species and sequencing protocols.");
+		System.err.println("Bioinformatics 35(22): 4716–4723. http://doi.org/10.1093/bioinformatics/btz275");
 		System.err.println();
 		System.err.println("See the README.txt file for papers describing the algorithms implemented in NGSEP and supporting packages");
 		System.err.println();

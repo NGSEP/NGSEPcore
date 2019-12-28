@@ -1348,7 +1348,7 @@ detection and genotyping were recently published in bioinformatics:
 
 Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)
 NGSEP3: accurate variant calling across species and sequencing protocols.
-Bioinformatics. in press. btz275
+Bioinformatics 35(22): 4716–4723.
 http://doi.org/10.1093/bioinformatics/btz275
 
 Further details on the pipeline built for variants detection on
