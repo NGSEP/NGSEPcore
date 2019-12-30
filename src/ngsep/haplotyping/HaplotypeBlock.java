@@ -28,7 +28,8 @@ import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 
-public class HaplotypeBlock {
+public class HaplotypeBlock 
+{
 
 	/**
 	 * Represents the matrix of fragments and variants.
@@ -44,6 +45,7 @@ public class HaplotypeBlock {
 	 * Represents a haplotype.
 	 */
 	private byte haplotype[];
+	
 	/**
 	 * Indicates if the matrix is already sorted
 	 */
@@ -61,6 +63,7 @@ public class HaplotypeBlock {
 		haplotype = null;
 
 	}
+	
 	/**
 	 * Add fragment to the matrix
 	 * @param firstColumn where valid allele calls are found
@@ -126,6 +129,7 @@ public class HaplotypeBlock {
 		}	
 		return score;
 	}
+	
 	/**
 	 * Calculates the score of two fragments according to their hamming distance.
 	 * If the call is the same in both fragments it adds -1, if it is different it adds +1, if either is ALLELE_UNDECIDED it adds nothing.
@@ -139,7 +143,8 @@ public class HaplotypeBlock {
 		sort();
 		int score = 0;
 		int lastColRow1 = getLastColumn(row1);
-		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) {
+		for(int i = getFirstColumn(row2) ; i <=lastColRow1 ; i++) 
+		{
 			byte allele1 = getAllele(row1, i);
 			byte allele2 = getAllele(row2, i);
 			score+=getHammingScore(allele1, allele2, true);
@@ -168,11 +173,21 @@ public class HaplotypeBlock {
 		return score;
 	}
 	
-	private int getHammingScore (byte allele1, byte allele2, boolean type2) {
+	/**
+	 * Calculates the hamming score of two alleles
+	 * @param allele1
+	 * @param allele2
+	 * @param type2
+	 * @return
+	 */
+	private int getHammingScore (byte allele1, byte allele2, boolean type2) 
+	{
 		if(allele1 != CalledGenomicVariant.ALLELE_UNDECIDED && allele2!= CalledGenomicVariant.ALLELE_UNDECIDED) {
-			if( allele1 != allele2) {
+			if( allele1 != allele2)
+			{
 				return 1;
-			} else if(type2){
+			} else if(type2)
+			{
 				return -1;
 			}
 		}
@@ -216,6 +231,7 @@ public class HaplotypeBlock {
 		HaplotypeFragment fragment = matrix.get(row);
 		return fragment.getLastColumn();
 	}
+	
 	/**
 	 * Returns the number of fragments in the block.
 	 * @return Number of fragments.
@@ -235,6 +251,11 @@ public class HaplotypeBlock {
 		return matrix.get(n);
 	}
 
+	/**
+	 * Obtains the calls that are in a column of the Haplotype Block 
+	 * @param j
+	 * @return
+	 */
 	public ArrayList<Byte> getColumn(int j)
 	{
 		ArrayList<Byte> column = new ArrayList<Byte>();
@@ -255,17 +276,21 @@ public class HaplotypeBlock {
 	{
 		return calls.size();
 	}
+	
 	/**
 	 * Return the number of non-undecided calls within a specific fragment
 	 * @param row where the fragment is located
 	 * @return int Number of non undecided calls
 	 */
-	public int getFragmentCalls(int row) {
+	public int getFragmentCalls(int row) 
+	{
 		int firstJ = getFirstColumn(row);
 		int lastJ = getLastColumn(row);
 		int count = 0;
-		for(int j=firstJ;j<=lastJ;j++) {
-			if(getAllele(row, j)!=CalledGenomicVariant.ALLELE_UNDECIDED) {
+		for(int j=firstJ;j<=lastJ;j++)
+		{
+			if(getAllele(row, j)!=CalledGenomicVariant.ALLELE_UNDECIDED) 
+			{
 				count++;
 			}
 		}
@@ -280,30 +305,42 @@ public class HaplotypeBlock {
 	{
 		this.haplotype = haplotype;
 	}
+	
 	/**
 	 * Sorts the matrix by first position of the fragment
 	 */
-	private void sort() {
+	private void sort() 
+	{
 		if(sorted) return;
-		Collections.sort(matrix, new Comparator<HaplotypeFragment>() {
+		Collections.sort(matrix, new Comparator<HaplotypeFragment>() 
+		{
 
 			@Override
-			public int compare(HaplotypeFragment f1, HaplotypeFragment f2) {
+			public int compare(HaplotypeFragment f1, HaplotypeFragment f2) 
+			{
 				return f1.getFirstColumn()-f2.getFirstColumn();
 			}
 		});
 		sorted = true;
 		
 	}
+	
 	/**
 	 * Phase the calls within the block using the given haplotype
 	 */
-	public void phaseCallsWithHaplotype() {
-		for(int i=0;i<haplotype.length;i++) {
+	public void phaseCallsWithHaplotype() 
+	{
+		for(int i=0;i<haplotype.length;i++)
+		{
 			CalledGenomicVariant call = calls.get(i);
 			if(call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(haplotype[i]==CalledGenomicVariant.ALLELE_ALTERNATIVE);
 		}
 	}
+	
+	/**
+	 * Deletes the fragment j of the haplotype block
+	 * @param j
+	 */
 	public void deleteFragment(int j) 
 	{
 		matrix.remove(j);
@@ -311,6 +348,10 @@ public class HaplotypeBlock {
 		
 	}
 	
+	/**
+	 * Return the number of calls in the Haplotype Block
+	 * @return
+	 */
 	public int getCallsLenght()
 	{
 		return calls.size();

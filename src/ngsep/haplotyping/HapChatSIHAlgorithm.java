@@ -35,6 +35,10 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 	private byte [] haplotype;
 	private boolean [] cut;
 
+	/**
+	 * Build the haplotypes using the interface implementation of SIHAlgorithm
+	 * This implementation is based in the HapChat Paper publication
+	 */
 	@Override
 	public void buildHaplotype(HaplotypeBlock block) 
 	{
@@ -47,6 +51,9 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 		block.setHaplotype(haplotype);
 	}
 
+	/**
+	 * Calculate the columns corrections of the calls in the HB
+	 */
 	private void columCorrections() 
 	{
 		int j=2;
@@ -111,8 +118,8 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 
 	/**
 	 * Computes all the k corrections of the column	
-	 * @param iColumn
-	 * @return
+	 * @param iColumn list of the calls values in the different reads of the HB, this values represent the same column
+	 * @return the K-Corrections of the column iColumn
 	 */
 	private ArrayList<ArrayList<Byte>> computekCorrections(ArrayList<Byte> iColumn) 
 	{
@@ -145,8 +152,9 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 	}
 
 	/**
-	 * This method calculated the likehood probability of i and j to be in the same haplotype
-	 * @param i
+	 * This method calculated the likehood probability of the i and j  fragments. 
+	 * In order two know if these tow fragments belongs to the same haplotype
+	 * @param i 
 	 * @param j
 	 */
 	private void calculateLikehood(int i, int j) 
@@ -195,48 +203,12 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 
 	}
 
-//	private boolean active (int column, int row)
-//	{
-//		if(block.getAllele(row, column)!=CalledGenomicVariant.ALLELE_UNDECIDED)
-//		{
-//			return true;
-//		}
-//		else
-//		{
-//			return false;
-//		}
-//	}
-
-//	private boolean activeColumsSimilar(int column1, int column2)
-//	{
-//		boolean rta=true;
-//		for(int i =0;i<block.getNumFragments();i++)
-//		{
-//			if(active(column1, i)&&active(column2, i)&&block.getAllele(i, column2)==block.getAllele(i, column1)) {
-//
-//			}
-//			else
-//			{
-//				rta=false;
-//				break;
-//			}
-//		}
-//		return rta;
-//	}
-
-//	private boolean activeColumsIntersection(int column1, int column2)
-//	{
-//		ArrayList<Integer> intersect = new ArrayList<Integer>();
-//		for(int i =0;i<block.getNumFragments();i++)
-//		{
-//			if(active(column1, i)&&active(column2, i)) {
-//				intersect.add(i);
-//			}
-//
-//		}
-//		return intersect.size()>block.getColumn(column1).size()/2;
-//	}
-
+	/**
+	 * Calculates the hamming distance of the columns Mj and Cj
+	 * @param Mj
+	 * @param Cj
+	 * @return the hamming distance of the columns
+	 */
 	private int getHammingScore( ArrayList<Byte> Mj, ArrayList<Byte> Cj)
 	{
 		int hamming=0;
@@ -256,6 +228,12 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 
 	}
 
+	/**
+	 * Calculates a modification of the values of the calls in the colums M.
+	 * The details of this method are defined in the original HapChat Paper
+	 * @param m column to modified
+	 * @return a modification of the values in the original m array
+	 */
 	private ArrayList<Byte> kCorrection(ArrayList<Byte> m)
 	{
 		ArrayList<Byte> mc=m;
@@ -280,6 +258,10 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 		return mc;
 	}
 
+	/**
+	 * Inits a random haplotype cut in the haplotype block given as parameter
+	 * @param b HB to init the cut
+	 */
 	private void initCut(HaplotypeBlock b) 
 	{
 		byte [] hap = new byte [b.getNumVariants()];
@@ -334,7 +316,13 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 
 
 
-
+	/**
+	 * Updates the haplotype in a row
+	 * @param hap haplotype to modify
+	 * @param b  HB to modify the haplotype
+	 * @param row to modify
+	 * @param reverse true if the reverse is the new haplotype in the row in order to modify
+	 */
 	private void updateHaplotype(byte [] hap, HaplotypeBlock b, int row, boolean reverse) 
 	{
 		int firstJ = b.getFirstColumn(row);
@@ -360,6 +348,11 @@ public class HapChatSIHAlgorithm  implements SIHAlgorithm
 
 	}
 
+	/**
+	 * Calculate the haplotype based on a haplotype calculate on a given column
+	 * @param haplotype calculated until now
+	 * @param j column to calculate the haplotype
+	 */
 	private void calculateHaplotype(ArrayList<Byte> haplo, int j) 
 	{
 

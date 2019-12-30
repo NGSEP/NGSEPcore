@@ -6,13 +6,15 @@
 
 package ngsep.haplotyping;
 
+
 public class Refhap3SIHAlgorithm  implements SIHAlgorithm 
 {
-
-	
 	private boolean [] cut;
 	private byte [] haplotype;
 	
+	/**
+	 * Build the haplotypes using a greedy version of the original RefHap Algorithm
+	 */
 	public void buildHaplotype(HaplotypeBlock block) 
 	{
 		FragmentsCutBuilder builder = new FragmentsCutBuilder(block);

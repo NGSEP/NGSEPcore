@@ -10,6 +10,9 @@ public class Refhap2SIHAlgorithm implements SIHAlgorithm
 	private boolean [] cut;
 	private byte [] haplotype;
 	
+	/**
+	 * Build the haplotypes using a greedy version of the original RefHap Algorithm
+	 */
 	@Override
 	public void buildHaplotype(HaplotypeBlock block) 
 	{
