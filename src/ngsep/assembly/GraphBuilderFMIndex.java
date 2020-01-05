@@ -171,8 +171,8 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		}
 		return clusters;
 	}
-	private Collection<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
-		Collection<KmerAlignmentCluster> answer = new ArrayList<>();
+	public static List<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
+		List<KmerAlignmentCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
 		for(ReadAlignment aln:sequenceAlns) {
 			boolean clustered = false;

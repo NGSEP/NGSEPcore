@@ -232,6 +232,7 @@ public class Assembler {
 		}
 
 		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
+		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalGaps();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		saveAssembly(outputFile, "contig", assembledSequences);

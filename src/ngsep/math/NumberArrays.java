@@ -116,4 +116,16 @@ public class NumberArrays {
 		for(int i=0;i<numbers.length;i++) sum+=numbers[i];
 		return sum;
 	}
+	public static int getIndexMaximum (byte [] numbers) {
+		return getIndexMaximum(numbers,-1);
+	}
+	public static int getIndexMaximum (byte [] numbers, int ignoreIndex) {
+		int idxMax = -1;
+		for(int i=0;i<numbers.length;i++) {
+			if(i!=ignoreIndex && (idxMax==-1 || numbers[idxMax]<numbers[i])) {
+				idxMax = i;
+			}
+		}
+		return idxMax;
+	}
 }

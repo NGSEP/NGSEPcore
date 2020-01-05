@@ -3,9 +3,10 @@ package ngsep.assembly;
 import java.util.Arrays;
 
 public class AlignmentConstantGap {
-	int match;
-	int gap;
-	int mismatch;
+	public static final char GAP_CHARACTER = '-';
+	private int match;
+	private int gap;
+	private int mismatch;
 	
 	public AlignmentConstantGap(int match, int gap, int mismatch) 
 	{
@@ -34,38 +35,42 @@ public class AlignmentConstantGap {
 			int left = matrix[i - 1][j];
 			int up = matrix[i][j - 1];
 			
-			if(i > 0 && j > 0 && ((diag == current - mismatch && s1.charAt(i - 1) != s2.charAt(j - 1)) 
-					|| (diag == current - match && s1.charAt(i - 1) == s2.charAt(j - 1))))
+			if( (diag == current - mismatch && s1.charAt(i - 1) != s2.charAt(j - 1)) 
+					|| (diag == current - match && s1.charAt(i - 1) == s2.charAt(j - 1)))
 			{
 				sequences[0] = s1.charAt(i - 1) + sequences[0];
 				sequences[1] = s2.charAt(j - 1) + sequences[1];
 				i--;
 				j--;
 			}
-			else if (j > 0 && up == current - gap)
+			else if (up == current - gap)
 			{
-				sequences[0] = "-" + sequences[0];
+				sequences[0] = GAP_CHARACTER + sequences[0];
 				sequences[1] = s2.charAt(j - 1) + sequences[1];
 				j--;
 			}
-			else if(i > 0 && left == current - gap)
+			else if( left == current - gap)
 			{
 				sequences[0] = s1.charAt(i - 1) + sequences[0];
-				sequences[1] = "-" + sequences[1];
+				sequences[1] = GAP_CHARACTER + sequences[1];
 				i--;
+			}
+			else
+			{
+				throw new RuntimeException("Inconsistency in alignment matrix");
 			}
 		}
-		if(i == 0 && j > 0)
+		if(j > 0)
 		{
 			char[] gaps = new char[j];
-			Arrays.fill(gaps, '-');
+			Arrays.fill(gaps, GAP_CHARACTER);
 			sequences[0] = new String(gaps) + sequences[0];
 			sequences[1] = s2.substring(0, j) + sequences[1];
 		}
-		else if (i > 0 && j == 0)
+		else if (i > 0)
 		{
 			char[] gaps = new char[i];
-			Arrays.fill(gaps, '-');
+			Arrays.fill(gaps, GAP_CHARACTER);
 			sequences[1] = new String(gaps) + sequences[1];
 			sequences[0] = s1.substring(0, i) + sequences[0];
 		}

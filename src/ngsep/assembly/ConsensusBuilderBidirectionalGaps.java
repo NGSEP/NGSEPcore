@@ -1,21 +1,28 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+import ngsep.alignments.ReadAlignment;
+import ngsep.math.NumberArrays;
+import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
+
 
 public class ConsensusBuilderBidirectionalGaps implements ConsensusBuilder {
 	int match;
 	int gap;
 	int mismatch;
-	int windowSize;
 	boolean startConsensus = true;
 	
 	public ConsensusBuilderBidirectionalGaps() 
 	{
 		match = 1;
 		mismatch = -1;
-		gap = -4;		
-		windowSize = 7;
+		gap = -2;		
 	}
 	
 	@Override
@@ -39,240 +46,140 @@ public class ConsensusBuilderBidirectionalGaps implements ConsensusBuilder {
 		StringBuilder consensus = new StringBuilder();
 		List<byte[]> consensusCounts = new ArrayList<byte[]>();
 		AssemblyVertex lastVertex = null;
+		String pathS = "";
+		if(path.size()==1) {
+			consensus.append(path.get(0).getVertex1().getRead());
+			return consensus;
+		}
 		int currentPos = 0;
 		for(int j = 0; j < path.size(); j++)
 		{
-			if(j % 10 == 0)
-				System.out.println("J = " + (String.format("%.2f", (j * 100.0 / path.size())) + "%"));
 			//Needed to find which is the origin vertex
 			AssemblyEdge edge = path.get(j);
-			AssemblyVertex a = edge.getVertex1();
-			AssemblyVertex b = edge.getVertex2();
+			AssemblyVertex vertexPreviousEdge;
+			AssemblyVertex vertexNextEdge;
 			//If the first edge is being checked, compare to the second edge to find the origin vertex
 			if(j == 0)
 			{
 				AssemblyEdge nextEdge = path.get(j + 1);
-				//The common vertex is the second vertex of the path
-				if(nextEdge.getVertex1().getIndex() == edge.getVertex1().getIndex() || nextEdge.getVertex2().getIndex() == edge.getVertex1().getIndex())
-				{
-					a = edge.getVertex2();
-					b = edge.getVertex1();
-				}
+				vertexNextEdge = edge.getSharedVertex(nextEdge);
+				if(vertexNextEdge== null) throw new RuntimeException("Inconsistency found in first edge of path");
+				vertexPreviousEdge = edge.getVertex1();
+				if(vertexPreviousEdge == vertexNextEdge) vertexPreviousEdge = edge.getVertex2();
 			}
-			else if(lastVertex == b)
+			else if (lastVertex == edge.getVertex1())
 			{
-				//The common vertex is the first vertex to be compared
-				a = edge.getVertex2();
-				b = edge.getVertex1();
+				vertexPreviousEdge = edge.getVertex1();
+				vertexNextEdge = edge.getVertex2();
 			}
-			if(j > 0 && lastVertex != a) 
+			else if (lastVertex == edge.getVertex2())
+			{
+				vertexPreviousEdge = edge.getVertex2();
+				vertexNextEdge = edge.getVertex1();
+			}
+			else 
 			{
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			
+			
 			//If it's the first edge in the path, add the first read base count to the consensus
 			if(j == 0) 
 			{
-				int seqId = (int) Math.floor(a.getIndex() / 2.0);
-				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
-				if(embeddedReads == null)
-					embeddedReads = new ArrayList<AssemblyEmbedded>();
-				String seqA = a.isStart() ? a.getRead().toString() : reverseComplement(a.getRead().toString());
-				boolean reverse = !a.isStart();
-				consensusCounts.addAll(consensusReadEmbeddeds(seqA, embeddedReads, reverse));
-				currentPos = seqA.length();
-			} 
-			else if(a.getRead() != b.getRead())
-			{
-				int seqId = (int) Math.floor(b.getIndex() / 2.0);
-				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
-				if(embeddedReads == null)
-					embeddedReads = new ArrayList<AssemblyEmbedded>();
-				//If the second string isn't start, then the reverse complement is added to the consensus
-				String nextSequence = b.isStart() ? b.getRead().toString() : reverseComplement(b.getRead().toString());
-				boolean reverse = !b.isStart();
+				pathS = pathS.concat(vertexPreviousEdge.getIndex() + ",");
+				int seqId = vertexPreviousEdge.getIndex();
+				String seq = vertexPreviousEdge.getRead().toString();
+				boolean reverse = !vertexPreviousEdge.isStart();
+				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				
-				List<byte[]> consensusEmbedded = consensusReadEmbeddeds(nextSequence, embeddedReads, reverse);
-				
-				currentPos = currentPos - edge.getOverlap();
-				for(int i = 0; i < consensusEmbedded.size(); i++)
-				{
-					if(consensusCounts.size() == currentPos + i)
-						consensusCounts.add(new byte[6]);
-					byte[] consensusEmbeddedBase = consensusEmbedded.get(i);
-					for(int k = 0; k < consensusEmbeddedBase.length; k++)
-					{
-						//Add the base count of the embeddeds count to the global consensus for each base position
-						byte[] consensusBase = consensusCounts.get(currentPos + i);
-						consensusBase[k] += consensusEmbeddedBase[k];
-					}
+				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
+				Map<Integer,byte[]> consensusEmbedded = calculateEmbeddedConsensusCounts(seq, embeddedReads, reverse);
+				for(int i = 0; i < seq.length(); i++) {
+					byte [] countsPos;
+					byte [] countsE = consensusEmbedded.get(i);
+					if(countsE==null) countsPos = new byte[DNASequence.BASES_STRING.length()];
+					else countsPos = Arrays.copyOf(countsE, countsE.length);
+					consensusCounts.add(countsPos);
+					int idx = DNASequence.BASES_STRING.indexOf(seq.charAt(i));
+					if(idx>=0) countsPos[idx]++;
+					
 				}
-				currentPos = currentPos + nextSequence.length();
+				currentPos = seq.length();
+			} else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
+				int seqId = vertexNextEdge.getIndex();
+				List<AssemblyEmbedded> embeddedReads = graph.getEmbedded(seqId);
 				
-				if(nextSequence.length() <= edge.getOverlap()) 
+				String seq = vertexNextEdge.getRead().toString();
+				boolean reverse = !vertexNextEdge.isStart();
+				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
+				
+				Map<Integer,byte[]> consensusEmbedded = calculateEmbeddedConsensusCounts(seq, embeddedReads, reverse);
+				//TODO: Actually build alignment
+				currentPos = currentPos - edge.getOverlap();
+				for(int i = 0; i < seq.length(); i++) {
+					byte [] countsPos;
+					byte [] countsE = consensusEmbedded.get(i);
+					if(countsE==null) countsPos = new byte[DNASequence.BASES_STRING.length()];
+					else countsPos = countsE;
+					byte [] countsTotal;
+					if(consensusCounts.size() == currentPos) {
+						countsTotal = Arrays.copyOf(countsPos, countsPos.length);
+						consensusCounts.add(countsTotal);
+					}
+					else {
+						countsTotal = consensusCounts.get(currentPos);
+						for(int k = 0; k < countsTotal.length; k++) {
+							//Add the base count of the embedded count to the global consensus for each base position
+							countsTotal[k] += countsPos[k];
+						}
+					}
+					int idx = DNASequence.BASES_STRING.indexOf(seq.charAt(i));
+					if(idx>=0) countsTotal[idx]++;
+					currentPos++;
+				}
+				
+				if(seq.length() <= edge.getOverlap()) 
 				{
-					System.err.println("Non-embedded edge has overlap: " + edge.getOverlap() + " and length: " + nextSequence.length());
+					System.err.println("Non-embedded edge has overlap: " + edge.getOverlap() + " and length: " + seq.length());
 				} 
 			}
-			lastVertex = b;
+			lastVertex = vertexNextEdge;
 		}
 		
 		//Find the most common occurrence in each position and add the most common character to the consensus
 		for(byte[] counts : consensusCounts)
 		{
-			Tuple countsMaxBase = getMaxFrequencyBase(counts);
-			if(countsMaxBase.getBase() != '-')
-			{
-				consensus.append(countsMaxBase.getBase());
+			int indexMax = NumberArrays.getIndexMaximum(counts);
+			if(indexMax>=0 && counts[indexMax]>0) {
+				char base = DNASequence.BASES_STRING.charAt(indexMax);
+				consensus.append(base);
 			}
 		}
-		return consensus;
+		return consensus.toString();
 	}
 	
-	private List<byte[]> consensusReadEmbeddeds(String read, List<AssemblyEmbedded> embeddedReads, boolean reverse)
-	{
-		List<byte[]> consensusCounts = new ArrayList<byte[]>();
+	private Map<Integer,byte[]> calculateEmbeddedConsensusCounts(String read, List<AssemblyEmbedded> embeddedReads, boolean reverse) {
+		Map<Integer,byte[]> consensusCounts = new TreeMap<Integer,byte[]>();
 		//Align the read a with its embedded reads
-		SelfAlignmentConstantGap embeddedAligner = new SelfAlignmentConstantGap(match, gap, mismatch, windowSize, 0);
-		String[] alignedOriginRead = embeddedAligner.selfAlign(read, embeddedReads, reverse);
-		for(int k = 0; k < alignedOriginRead.length; k++)
-		{
-			//Get each aligned read
-			String alignedRead = alignedOriginRead[k].toUpperCase();
+		EmbeddedReadsAlignerConstantGap embeddedAligner = new EmbeddedReadsAlignerConstantGap(match, gap, mismatch);
+		List<ReadAlignment> embeddedAlns = embeddedAligner.alignEmbeddedReads(read, embeddedReads, reverse);
+		for(ReadAlignment aln:embeddedAlns) {
+			String embeddedRead = aln.getReadCharacters().toString();
 			//Get each character of the aligned read
-			for(int l = 0; l < alignedRead.length(); l++)
+			for(int l = 0; l < embeddedRead.length(); l++)
 			{
-				char alignedChar = alignedRead.charAt(l);
-				//Add a new element to the consensus count if its size is less 
-				//than the index of the current character relative to the substring that will be added
-				if(consensusCounts.size() <= l)
-				{
-					//0 for A, 1 for T, 2 for C, 3 for G, 4 for N, 5 for -
-					byte[] counts = new byte[6];
-					consensusCounts.add(counts);
+				char embeddedChar = embeddedRead.charAt(l);
+				int subjectPos = aln.getReferencePosition(l);
+				if(subjectPos<0) continue;
+				byte [] countsPos = consensusCounts.get(subjectPos);
+				if(countsPos==null) {
+					countsPos = new byte[DNASequence.BASES_STRING.length()];
+					consensusCounts.put(subjectPos,countsPos);
 				}
-				byte[] counts = consensusCounts.get(l);
-				//Depending on the character, sum to the count in the current position
-				switch (alignedChar)
-				{
-					case 'A':
-						counts[0]++;
-						break;
-					case 'T':
-						counts[1]++;
-						break;
-					case 'C':
-						counts[2]++;
-						break;
-					case 'G':
-						counts[3]++;
-						break;
-					case 'N':
-						counts[4]++;
-						break;
-					case '-':
-						counts[5]++;
-						break;
-				}
+				int idx = DNASequence.BASES_STRING.indexOf(embeddedChar);
+				if(idx>=0) countsPos[idx]++;
 			}
 		}
 		return consensusCounts;
-	}
-	
-	private String reverseComplement(String s)
-	{
-		StringBuilder complementaryStrand = new StringBuilder();
-		for(int i = 0; i < s.length(); i++)
-		{
-			complementaryStrand.append(complementaryBase(s.charAt(i)));
-		}
-		return complementaryStrand.reverse().toString();
-	}
-	
-	private char complementaryBase(char b)
-	{
-		char complementaryBase;
-		if(b == 'A')
-			complementaryBase = 'T';
-		else if(b == 'T')
-			complementaryBase = 'A';
-		else if(b == 'C')
-			complementaryBase = 'G';
-		else if(b == 'G')
-			complementaryBase = 'C';
-		else if (b == '-')
-			complementaryBase = '-';
-		else
-			complementaryBase = 'N';
-		return complementaryBase;
-	}
-	
-	private Tuple getMaxFrequencyBase(byte[] counts)
-	{
-		int maxIndex = 5;
-		int countMaxIndex = 0;
-		for(int m = 0; m < counts.length - 1; m++)
-		{
-			if(counts[m] > 0 && counts[m] > countMaxIndex)
-			{
-				maxIndex = m;
-				countMaxIndex = counts[m];
-			}
-		}
-		char maxChar = '-';
-		switch (maxIndex)
-		{
-			case 0:
-				maxChar = 'A';
-				break;
-			case 1:
-				maxChar = 'T';
-				break;
-			case 2:
-				maxChar = 'C';
-				break;
-			case 3:
-				maxChar = 'G';
-				break;
-			case 4:
-				maxChar = 'N';
-				break;
-			case 5:
-				maxChar = '-';
-				break;
-		}
-		return new Tuple(maxChar, countMaxIndex);
-	}
-	
-	private class Tuple
-	{
-		private Character base;
-		private Integer count;
-		
-		public Tuple(Character base, Integer count)
-		{
-			this.base = base;
-			this.count = count;
-		}
-		
-		public Character getBase()
-		{
-			return base;
-		}
-		
-		public void setBase(Character base)
-		{
-			this.base = base;
-		}
-		
-		public Integer getCount()
-		{
-			return count;
-		}
-		
-		public void setCount(Integer count)
-		{
-			this.count = count;
-		}
 	}
 }

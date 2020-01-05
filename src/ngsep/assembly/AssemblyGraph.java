@@ -154,7 +154,9 @@ public class AssemblyGraph implements Serializable {
 	 * @return list of embedded sequences
 	 */
 	public List<AssemblyEmbedded> getEmbedded(int index) {
-		return embeddedMap.get(index);
+		List<AssemblyEmbedded> answer = embeddedMap.get(index);
+		if(answer!=null) return answer;
+		return new ArrayList<AssemblyEmbedded>();
 	}
 	
 	public boolean isEmbedded(int sequenceId) {

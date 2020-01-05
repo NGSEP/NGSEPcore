@@ -3,6 +3,8 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
+import ngsep.sequences.DNASequence;
+
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	int tolerance;
 	
@@ -66,56 +68,31 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			{
 				pathS = pathS.concat(vertexPreviousEdge.getIndex() + ",");
 				String seq = vertexPreviousEdge.getRead().toString();
-				consensus.append(vertexPreviousEdge.isStart() ? seq: reverseComplement(seq));
+				boolean reverse = !vertexPreviousEdge.isStart();
+				if(reverse) seq = DNASequence.getReverseComplement(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead())
 			{
 				//If the second string isn't start, then the reverse complement is added to the consensus
-				String nextSequence = vertexNextEdge.isStart() ? vertexNextEdge.getRead().toString(): reverseComplement(vertexNextEdge.getRead().toString());
+				String seq = vertexNextEdge.getRead().toString();
+				boolean reverse = !vertexNextEdge.isStart();
+				if(reverse) seq = DNASequence.getReverseComplement(seq);
 					
-				if(nextSequence.length() - edge.getOverlap() > tolerance) 
+				if(seq.length() - edge.getOverlap() > tolerance) 
 				{
 					pathS = pathS.concat(vertexNextEdge.getIndex() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
-					String remainingSegment = nextSequence.substring(edge.getOverlap());
+					String remainingSegment = seq.substring(edge.getOverlap());
 					consensus.append(remainingSegment);
 				} 
 				else 
 				{
-					System.err.println("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+nextSequence.length());
+					System.err.println("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+seq.length());
 				}
 			}
 			lastVertex = vertexNextEdge;
 		}
 		System.out.println(pathS);
 		return consensus;
-	}
-	
-	private String reverseComplement(String s)
-	{
-		StringBuilder complementaryStrand = new StringBuilder();
-		for(int i = 0; i < s.length(); i++)
-		{
-			complementaryStrand.append(complementaryBase(s.charAt(i)));
-		}
-		return complementaryStrand.reverse().toString();
-	}
-	
-	private char complementaryBase(char b)
-	{
-		char complementaryBase;
-		if(b == 'A')
-			complementaryBase = 'T';
-		else if(b == 'T')
-			complementaryBase = 'A';
-		else if(b == 'C')
-			complementaryBase = 'G';
-		else if(b == 'G')
-			complementaryBase = 'C';
-		else if (b == '-')
-			complementaryBase = '-';
-		else
-			complementaryBase = 'N';
-		return complementaryBase;
 	}
 }
