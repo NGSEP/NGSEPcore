@@ -22,6 +22,7 @@ package ngsep.transcriptome.io;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +34,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.main.io.ParseUtils;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -105,13 +107,30 @@ public class GFF3TranscriptomeHandler {
 	 * @throws IOException If the file can not be read
 	 */
 	public Transcriptome loadMap(String filename) throws IOException {
+		InputStream is = null;
+		try {
+			is = new FileInputStream(filename);
+			if(filename.toLowerCase().endsWith(".gz")) {
+				is = new ConcatGZIPInputStream(is);
+			}
+			return loadMap(is);
+		} finally {
+			if(is!=null) is.close();
+		}
+		
+	}
+	/**
+	 * Loads the genes, transcripts and exons information from the given map file
+	 * @param is Stream with the transcriptome description in GFF3 format
+	 * @throws IOException If the file can not be read
+	 */
+	public Transcriptome loadMap(InputStream is) throws IOException {
 		Transcriptome answer = new Transcriptome(sequenceNames);
 		Map<String,GFF3GenomicFeature> featuresWithId = new HashMap<String, GFF3GenomicFeature>();
 		List<GFF3GenomicFeatureLine> featureLinesWithParentAndNoId = new ArrayList<>();
-		try (FileInputStream fis = new FileInputStream(filename);
-			 BufferedReader in = new BufferedReader(new InputStreamReader(fis))) {
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
-			if(!line.startsWith("##gff")) throw new IOException("File "+filename+" does not have GFF format");
+			if(!line.startsWith("##gff")) throw new IOException("File does not have GFF format");
 			line=in.readLine();
 			for(int i=1;line!=null;i++) {
 				if("##FASTA".equals(line.trim())) break;

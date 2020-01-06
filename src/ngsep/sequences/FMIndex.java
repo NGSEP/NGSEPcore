@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import ngsep.alignments.ReadAlignment;
-
 /**
  * Class able to build combined FM indexes for multiple small sequences
  * @author German Andrade
@@ -127,18 +125,31 @@ public class FMIndex implements Serializable
 		internalIndexes.add(index);
 		internalMetadata.add(internalIdxMetadata);
 	}
-	public List<ReadAlignment> search (String searchSequence) {
-		return search(searchSequence, 0, sequenceLengths.size());
+	/**
+	 * Searches the given sequence against this FMindex.
+	 * This search is case sensitive.
+	 * @param query Sequence to search
+	 * @return List<FMIndexUngappedSearchHit> exact hits to the sequences indexed by this FMIndex 
+	 */
+	public List<FMIndexUngappedSearchHit> exactSearch (String query) {
+		return exactSearch(query, 0, sequenceLengths.size());
 	}
-	public List<ReadAlignment> search (String searchSequence, int firstIndex, int lastIndex) {
-		List<ReadAlignment> alignments = new ArrayList<>();
-		String searchUp = searchSequence.toUpperCase();
+	/**
+	 * Searches the given sequence against the given subsequences of this FMindex.
+	 * This search is case sensitive.
+	 * @param query Sequence to search
+	 * @param firstIndex of the subject sequence to look for
+	 * @param lastIndex of the subject sequence to look for
+	 * @return
+	 */
+	public List<FMIndexUngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
+		List<FMIndexUngappedSearchHit> hits = new ArrayList<>();
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
 			CombinedMultisequenceFMIndexMetadata metadata = internalMetadata.get(i);
 			if(!metadata.overlapWithIndexes(firstIndex, lastIndex)) continue;
-			Set<Integer> matches = idxSeq.search(searchUp);
+			Set<Integer> matches = idxSeq.exactSearch(query);
 			for (int internalPosMatch:matches) 
 			{
 				int [] realData = metadata.getSequenceIdxAndStart(internalPosMatch);
@@ -149,20 +160,20 @@ public class FMIndex implements Serializable
 				//Match to other sequences sharing internal index with queried sequence
 				if(sequenceIdx<firstIndex) continue;
 				if(sequenceIdx>lastIndex) continue;
-				int first = internalPosMatch-sequenceStart;
+				int start = internalPosMatch-sequenceStart;
 				int sequenceLength = sequenceLengths.get(sequenceIdx); 
-				int searchLength = searchSequence.length();
-				int last = first + searchLength - 1;
+				int queryLength = query.length();
+				int last = start + queryLength - 1;
 				//Match with artificial concatenation between sequences
 				if(last>=sequenceLength) continue;
 				String seqName = ""+sequenceIdx;
 				if(sequencesWithNames!=null) seqName = sequencesWithNames.get(sequenceIdx).getName();
-				ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
-				alignment.setSequenceIndex(realData[0]);
-				alignments.add(alignment);
+				//ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
+				FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(query, sequenceIdx, seqName, start);
+				hits.add(hit);
 			}
 		}
-		return alignments;
+		return hits;
 	}	
 }
 class CombinedMultisequenceFMIndexMetadata implements Serializable {

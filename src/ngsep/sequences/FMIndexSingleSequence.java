@@ -205,7 +205,7 @@ public class FMIndexSingleSequence implements Serializable {
 	 * @param searchSequence Sequence to search
 	 * @return Set<Integer> Set of start positions for the given sequence
 	 */
-	public Set<Integer> search(String searchSequence) {
+	public Set<Integer> ungappedSearch(String searchSequence) {
 		//printIndexInfo();
 		return exactSearch(searchSequence);
 		// return inexactSearchBWAAlgorithm(searchSequence);
@@ -375,7 +375,7 @@ public class FMIndexSingleSequence implements Serializable {
 		f.printIndexInfo();
 		f.printSA();
 		
-		Set<Integer> set = f.search(query);
+		Set<Integer> set = f.ungappedSearch(query);
 		//Set<Integer> set = f.inexactSearchBWAAlgorithm(query);
 		
 		System.out.println("Result indexes: "+set);

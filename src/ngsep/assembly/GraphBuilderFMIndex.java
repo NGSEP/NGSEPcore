@@ -28,12 +28,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import ngsep.alignments.KmerAlignmentCluster;
-import ngsep.alignments.KmerWithStart;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
+import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.KmerWithStart;
 
 /**
  * @author Jorge Duitama
@@ -104,20 +105,20 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		if(kmers==null) return isEmbedded;
 		
 		int kmersCount=kmers.size();
-		List<ReadAlignment> initialKmerAlns = searchKmers (querySequenceId, kmers, fmIndex);
+		List<FMIndexUngappedSearchHit> initialKmerHits = searchKmers (querySequenceId, kmers, fmIndex);
 		
-		List<KmerAlignmentCluster> clusteredKmerAlns = clusterKmerAlignments(sequence, initialKmerAlns, kmersCount);
+		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(sequence, initialKmerHits, kmersCount);
 		//System.out.println("Query id: "+querySequenceId+" length "+sequence.length()+" RC: "+queryRC+" kmers: "+kmers.size()+" Kmer alignments: "+initialKmerAlns.size()+" Clusters: "+clusteredKmerAlns.size());
-		Collections.sort(clusteredKmerAlns, new Comparator<KmerAlignmentCluster>() {
+		Collections.sort(clusteredKmerAlns, new Comparator<KmerHitsCluster>() {
 			@Override
-			public int compare(KmerAlignmentCluster o1, KmerAlignmentCluster o2) {
+			public int compare(KmerHitsCluster o1, KmerHitsCluster o2) {
 				return o2.getNumDifferentKmers()-o1.getNumDifferentKmers();
 			}
 		});
 
 		int kmersMaxCluster = 0;
 		for (int i=0;i<clusteredKmerAlns.size() && i<10;i++) {
-			KmerAlignmentCluster cluster = clusteredKmerAlns.get(i);
+			KmerHitsCluster cluster = clusteredKmerAlns.get(i);
 			int numKmersCluster = cluster.getNumDifferentKmers();
 			double pct = 100.0*(double)numKmersCluster/kmersCount;
 			if(pct<minKmerPercentage) break;
@@ -134,74 +135,77 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	 * @param kmers to search
 	 * @return List of alignments of each kmer. The read number of each alignment contains the kmer number.
 	 */
-	private List<ReadAlignment> searchKmers(int querySequenceId, List<KmerWithStart> kmers, FMIndex fmIndex) {
-		List<ReadAlignment> answer = new ArrayList<>();
+	private List<FMIndexUngappedSearchHit> searchKmers(int querySequenceId, List<KmerWithStart> kmers, FMIndex fmIndex) {
+		List<FMIndexUngappedSearchHit> answer = new ArrayList<>();
 		for (KmerWithStart kmer:kmers) {
-			List<ReadAlignment> kmerAlns=fmIndex.search(kmer.getKmer().toString(),0,querySequenceId-1);
+			List<FMIndexUngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer.getKmer().toString(),0,querySequenceId-1);
 			//if(querySequenceId==1) System.out.println("Query: "+querySequenceId+" Found "+kmerAlns.size()+" alignments for kmer: "+kmer.getKmer().toString());
-			for(ReadAlignment aln:kmerAlns) {
+			for(FMIndexUngappedSearchHit hit:kmerHits) {
 				//if(querySequenceId==1) System.out.println("Kmer start: "+kmer.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
-				aln.setReadNumber(kmer.getStart());
-				answer.add(aln);
+				hit.setQueryIdx(kmer.getStart());
+				answer.add(hit);
 			}
 		}
 		return answer;
 	}
-	private List<KmerAlignmentCluster> clusterKmerAlignments(CharSequence query, List<ReadAlignment> initialKmerAlns, int numKmers) {
-		List<KmerAlignmentCluster> clusters = new ArrayList<>();
-		Map<Integer,List<ReadAlignment>> alnsByTargetSequence = new HashMap<>();
-		for(ReadAlignment aln: initialKmerAlns) {
-			int targetSequenceId = aln.getSequenceIndex();
-			List<ReadAlignment> targetHits = alnsByTargetSequence.get(targetSequenceId);
-			if(targetHits==null) {
-				targetHits = new ArrayList<>();
-				alnsByTargetSequence.put(targetSequenceId, targetHits);
-			}
-			targetHits.add(aln);
+	private List<KmerHitsCluster> clusterKmerHits(CharSequence query, List<FMIndexUngappedSearchHit> initialKmerHits, int numKmers) {
+		List<KmerHitsCluster> clusters = new ArrayList<>();
+		Map<Integer,List<FMIndexUngappedSearchHit>> hitsByTargetSequence = new HashMap<>();
+		for(FMIndexUngappedSearchHit kmerHit: initialKmerHits) {
+			int targetSequenceId = kmerHit.getSequenceIdx();
+			List<FMIndexUngappedSearchHit> targetHits = hitsByTargetSequence.computeIfAbsent(targetSequenceId, k-> new ArrayList<FMIndexUngappedSearchHit>());
+			targetHits.add(kmerHit);
 		}
 		
-		for(int targetIdx:alnsByTargetSequence.keySet()) {
-			List<ReadAlignment> targetHits = alnsByTargetSequence.get(targetIdx);
+		for(int targetIdx:hitsByTargetSequence.keySet()) {
+			List<FMIndexUngappedSearchHit> targetHits = hitsByTargetSequence.get(targetIdx);
 			
 			double pct = 100.0*(double)targetHits.size()/numKmers;
 			if(pct<minKmerPercentage) continue;
-			Collections.sort(targetHits,GenomicRegionPositionComparator.getInstance());
+			Collections.sort(targetHits,new Comparator<FMIndexUngappedSearchHit>() {
+
+				@Override
+				public int compare(FMIndexUngappedSearchHit hit0, FMIndexUngappedSearchHit hit1) {
+					return hit0.getQueryIdx()-hit1.getQueryIdx();
+				}
+			});
 			//if(targetIdx==0) printTargetHits(targetHits);
 			clusters.addAll(clusterSequenceKmerAlns(query, targetHits));
 		}
 		return clusters;
 	}
-	public static List<KmerAlignmentCluster> clusterSequenceKmerAlns(CharSequence query, List<ReadAlignment> sequenceAlns) {
-		List<KmerAlignmentCluster> answer = new ArrayList<>();
+	public static List<KmerHitsCluster> clusterSequenceKmerAlns(CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits) {
+		List<KmerHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
-		for(ReadAlignment aln:sequenceAlns) {
+		for(FMIndexUngappedSearchHit kmerHit: sequenceKmerHits) {
 			boolean clustered = false;
-			for(KmerAlignmentCluster cluster:answer) {
-				if(cluster.addAlignment(aln,50)) {
+			for(KmerHitsCluster cluster:answer) {
+				if(cluster.addKmerHit(kmerHit, 50)) {
 					clustered=true;
 					break;
 				}
 			}
 			if(!clustered) {
-				answer.add(new KmerAlignmentCluster(query, aln));
+				answer.add(new KmerHitsCluster(query, kmerHit));
 			}
 		}
 		return answer;
 	}
-	public void printTargetHits(List<ReadAlignment> targetHits) {
-		for(ReadAlignment aln:targetHits) {
-			System.out.println(aln.getReadNumber()+" "+aln.getSequenceIndex()+":"+aln.getFirst()+"-"+aln.getLast());
+	public void printTargetHits(List<FMIndexUngappedSearchHit> targetHits) {
+		for(FMIndexUngappedSearchHit hit:targetHits) {
+			System.out.println(hit.getQueryIdx()+" "+hit.getSequenceIdx()+":"+hit.getStart());
 		}
 		
 	}
 
-	private boolean processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerAlignmentCluster cluster) {
+	private boolean processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerHitsCluster cluster) {
 		boolean isEmbedded = false;
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
-		int firstTarget = cluster.getFirst();
-		int lastTarget = cluster.getLast();
+		//Zero based limits
+		int firstTarget = cluster.getFirst()-1;
+		int lastTarget = cluster.getLast()-1;
 		//System.out.println("Processing cluster. Query: "+querySequenceId+" length: "+queryLength+ " target: "+cluster.getSequenceIdx()+" length: "+targetLength);
 		if(firstTarget>=0 && lastTarget<targetLength) {
 			//Embedded

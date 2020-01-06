@@ -31,9 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import ngsep.alignments.ReadAlignment;
-import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexSingleSequence;
+import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
@@ -48,7 +47,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 */
 	private static final long serialVersionUID = 5577026857894649939L;
 	private QualifiedSequenceList sequencesMetadata;
-	private Map<String,FMIndexSingleSequence> internalIndexes = new HashMap<>();
+	private Map<Integer,FMIndexSingleSequence> internalIndexes = new HashMap<>();
 	
 	public ReferenceGenomeFMIndex (ReferenceGenome genome) {
 		sequencesMetadata = genome.getSequencesMetadata();
@@ -58,8 +57,8 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		{
 			QualifiedSequence q = genome.getSequenceByIndex(i);
 			CharSequence seqChars = q.getCharacters();
-			FMIndexSingleSequence idxForward = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
-			internalIndexes.put(q.getName(),idxForward);
+			FMIndexSingleSequence idx = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
+			internalIndexes.put(i,idx);
 		}
 	}
 	
@@ -111,51 +110,22 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	}
 	/**
 	 * Searches the given sequence in the index
+	 * This search is case sensitive
 	 * @param searchSequence sequence to search
 	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
 	 */
-	public List<ReadAlignment> search (String searchSequence) {
-		return search(searchSequence, false);
-	}
-	/**
-	 * Searches the given sequence in the index
-	 * @param searchSequence sequence to search
-	 * @param searchReverseComplement If true, the reverse complement of the sequence will be calculated and searched in the index
-	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
-	 */
-	public List<ReadAlignment> search (String searchSequence, boolean searchReverseComplement)
-	{
-		List<ReadAlignment> alignments = new ArrayList<>();
-		String searchUp = searchSequence.toUpperCase();
-		int lq = searchUp.length();
-		for (String seqName:internalIndexes.keySet()) 
-		{
-			FMIndexSingleSequence idxSeq = internalIndexes.get(seqName);
-			Set<Integer> matches = idxSeq.search(searchUp);
-			//System.out.println("Search: "+searchUp+" matches: "+matches);
-			for (int internalPosMatch:matches) 
-			{
-				ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, 0);
-				alignment.setAlignmentQuality((short) 100);
-				alignments.add(alignment);
+	public List<FMIndexUngappedSearchHit> exactSearch (String searchSequence) {
+		List<FMIndexUngappedSearchHit> hits = new ArrayList<>();
+		for (int i=0;i<sequencesMetadata.size();i++) {
+			QualifiedSequence seq = sequencesMetadata.get(i);
+			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
+			Set<Integer> matches = idxSeq.exactSearch(searchSequence);
+			for (int internalPosMatch:matches) {
+				FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(searchSequence, i, seq.getName(), internalPosMatch);
+				hits.add(hit);
 			}
 		}
-		if(searchReverseComplement) {
-			//Search the reverse complement
-			searchUp = DNAMaskedSequence.getReverseComplement(searchUp);
-			for (String seqName:internalIndexes.keySet()) 
-			{
-				FMIndexSingleSequence idxSeq = internalIndexes.get(seqName);
-				Set<Integer> matches = idxSeq.search(searchUp);
-				for (int internalPosMatch:matches) 
-				{
-					ReadAlignment alignment = new ReadAlignment(seqName, internalPosMatch+1, internalPosMatch+lq, lq, ReadAlignment.FLAG_READ_REVERSE_STRAND);
-					alignment.setAlignmentQuality((short) 100);
-					alignments.add(alignment);
-				}
-			}
-		}
-		return alignments;
+		return hits;
 	}
 	
 	/**
@@ -170,18 +140,6 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		if(idxSeq==null) return null;
 		CharSequence seq = idxSeq.getSequence(first-1, last);
 		return seq;
-	}
-	
-	public static void main(String[] args) throws IOException
-	{
-		ReferenceGenome genome = new ReferenceGenome(args[0]);
-		ReferenceGenomeFMIndex f = new ReferenceGenomeFMIndex(genome);
-		f.save(args[1]);
-		f = loadFromBinaries(args[1]);
-		List<ReadAlignment> a = f.search("ata");
-		for (int i = 0; i < a.size(); i++) {
-			System.out.println(a.get(i).getSequenceName()+" pos:"+a.get(i).getFirst()+" to: "+a.get(i).getLast()+" flags:"+a.get(i).getFlags());
-		}
 	}
 
 	public boolean isValidAlignment(String sequenceName,int last) {

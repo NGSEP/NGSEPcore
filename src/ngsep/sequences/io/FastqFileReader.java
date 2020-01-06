@@ -62,6 +62,8 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	
 	private int loadMode = LOAD_MODE_FULL;
 	
+	private boolean keepLowerCase = false;
+	
 	private Class<? extends CharSequence> sequenceType = null;
 	
 	private Constructor<? extends CharSequence> charSequenceConstructor = null;
@@ -91,6 +93,16 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		this.loadMode = loadMode;
 	}
 	
+	public boolean isKeepLowerCase() {
+		return keepLowerCase;
+	}
+	/**
+	 * Changes the behavior to keep lowercase characters if they exist. By default all characters are converted to upper case
+	 * @param keepLowerCase
+	 */
+	public void setKeepLowerCase(boolean keepLowerCase) {
+		this.keepLowerCase = keepLowerCase;
+	}
 	/**
 	 * @return Class datatype for sequences to load
 	 */
@@ -147,6 +159,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		if(id==null) return null;
 		CharSequence seq = in.readLine();
 		if(seq==null) return null;
+		if(!keepLowerCase) seq = seq.toString().toUpperCase();
 		String plus = in.readLine();
 		if(plus==null) return null;
 		String qs = in.readLine();

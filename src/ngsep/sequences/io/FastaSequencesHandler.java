@@ -22,6 +22,7 @@ package ngsep.sequences.io;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
@@ -29,6 +30,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
+import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -57,13 +59,25 @@ public class FastaSequencesHandler {
 	 * @throws IOException If the file can not be read
 	 */
 	public QualifiedSequenceList loadSequences(String filename) throws IOException {
-		QualifiedSequenceList answer = new QualifiedSequenceList();
-		FileInputStream fis = null;
-		BufferedReader in = null;
+		InputStream is = null;
 		try {
-			fis = new FileInputStream(filename);
-			//Open buffer
-			in = new BufferedReader(new InputStreamReader (fis));
+			is = new FileInputStream(filename);
+			if(filename.endsWith(".gz")) {
+				is = new ConcatGZIPInputStream(is);
+			}
+			return loadSequences(is);
+		} finally {
+			if(is!=null) is.close();
+		}
+	}
+	/**
+	 * Loads the sequences present in the given stream
+	 * @param is stream to load sequences in fasta format 
+	 * @throws IOException If the file can not be read
+	 */
+	public QualifiedSequenceList loadSequences(InputStream is) throws IOException {
+		QualifiedSequenceList answer = new QualifiedSequenceList();
+		try (BufferedReader in = new BufferedReader(new InputStreamReader (is))){
 			//Read sequences
 			String id =null;
 			String comment = null;
@@ -101,9 +115,6 @@ public class FastaSequencesHandler {
 				//System.out.println("Adding sequence "+id+". Length: "+nextSequence.length());
 				addSequence(answer,id, comment, nextSequence, buffer);
 			}
-		} finally {
-			if(in!=null) in.close();
-			if(fis!=null) fis.close();
 		}
 		return answer;
 	}

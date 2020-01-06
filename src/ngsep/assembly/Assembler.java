@@ -261,7 +261,10 @@ public class Assembler {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<>();
-		answer.addAll(seqsQL);
+		for(QualifiedSequence seq:seqsQL) {
+			QualifiedSequence upperCase = new QualifiedSequence(seq.getName(),new DNAMaskedSequence(seq.getCharacters().toString().toUpperCase()));
+			answer.add(upperCase);
+		}
 		return answer;
 	}
 

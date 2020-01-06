@@ -1,9 +1,7 @@
-package ngsep.alignments;
+package ngsep.sequences;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import ngsep.sequences.DNASequence;
 
 public class KmerWithStart {
 	private CharSequence kmer;

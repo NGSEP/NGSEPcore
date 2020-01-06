@@ -9,8 +9,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.FMIndex;
+import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.transcriptome.Gene;
@@ -153,9 +153,9 @@ public class AnnotatedReferenceGenome {
 		for(int i=0; i<searchSequence.length()-kmerSize+1; i+=kmerSize) {
 			String kmer = searchSequence.substring(i, i+kmerSize);
 			
-			List <ReadAlignment> kmerHits = index.search(kmer);
-			for(ReadAlignment alns:kmerHits) {
-				String name = alns.getSequenceName();
+			List <FMIndexUngappedSearchHit> kmerHits = index.exactSearch(kmer);
+			for(FMIndexUngappedSearchHit hit:kmerHits) {
+				String name = hit.getSequenceName();
 				if(kmerSupportMap.containsKey(name))
 				{
 					int value = 1 + kmerSupportMap.get(name);

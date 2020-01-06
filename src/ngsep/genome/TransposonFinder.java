@@ -5,15 +5,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import ngsep.alignments.ReadAlignment;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.math.Distribution;
-import ngsep.sequences.DefaultKmersMapImpl;
+import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 
 public class TransposonFinder {
@@ -75,7 +73,7 @@ public class TransposonFinder {
 	 */
 	public void processSequence(CharSequence seq, String name, ReferenceGenomeFMIndex fm) {
 		System.out.printf("Processing Sequence %s \n", name);
-		List<Transposon> repetitiveRegions = new ArrayList();
+		List<Transposon> repetitiveRegions = new ArrayList<>();
 		boolean seen = false;
 		int count = 0; // Count of intermediate kmers that are not over-represented
 		int maxCount = 30; // TODO: tratar de cambiarlo a distancia
@@ -88,8 +86,8 @@ public class TransposonFinder {
 		}
 		//Subsequence 20bp
 		for (int i = 0; i + lengthKmer < seq.length(); i+=10) {
-			CharSequence kmer = seq.subSequence(i, (i+lengthKmer));
-			List<ReadAlignment> hits = fm.search(kmer.toString());
+			String kmer = seq.subSequence(i, (i+lengthKmer)).toString().toUpperCase();
+			List<FMIndexUngappedSearchHit> hits = fm.exactSearch(kmer);
 			distrHits.processDatapoint(hits.size());
 			// If the kmer is more than the min hit size
 			if(hits.size() > minHitSize ) {
@@ -147,7 +145,7 @@ public class TransposonFinder {
 		// Put as "arguments" kmer length and min hit size
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
-		instance.transposons = new LinkedHashMap();
+		instance.transposons = new LinkedHashMap<>();
 		instance.useSTRs = false;
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
