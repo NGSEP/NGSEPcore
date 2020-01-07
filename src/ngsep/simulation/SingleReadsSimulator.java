@@ -13,6 +13,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.RawRead;
 
 public class SingleReadsSimulator {
 	private Logger log = Logger.getLogger(SingleReadsSimulator.class.getName());
@@ -268,18 +269,14 @@ public class SingleReadsSimulator {
 					out.println("@" + readId);
 					out.println(finalRead);
 					out.println("+");
-					out.println(simulateQualities(finalRead.length()));
+					out.println(RawRead.generateFixedQSString('5', finalRead.length()));
 				}
 				
 			}
 		}
 	}
 
-	private String simulateQualities(int length) {
-		char [] qualities = new char[length];
-		Arrays.fill(qualities, '5');
-		return new String(qualities);
-	}
+	
 
 	private String generateErrors(String read) {
 		String alphabet = DNASequence.BASES_STRING;

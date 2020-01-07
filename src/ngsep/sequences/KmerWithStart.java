@@ -34,12 +34,14 @@ public class KmerWithStart {
 		int lastPos = 0;
 		for (int i = 0; i+kmerLength <= n; i+=kmerOffset) {
 			CharSequence kmer = search.subSequence(i, i+kmerLength);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, i));
+			String kmerStr = kmer.toString();
+			if (DNASequence.isDNA(kmerStr) && !KmersCounter.isLowComplexity(kmerStr)) kmers.add(new KmerWithStart(kmer, i));
 			lastPos = i;
 		}
 		if(n-kmerLength > lastPos) {
 			CharSequence kmer = search.subSequence(n-kmerLength, n);
-			if (DNASequence.isDNA(kmer.toString())) kmers.add(new KmerWithStart(kmer, n-kmerLength));
+			String kmerStr = kmer.toString();
+			if (DNASequence.isDNA(kmerStr) && !KmersCounter.isLowComplexity(kmerStr)) kmers.add(new KmerWithStart(kmer, n-kmerLength));
 		}
 
 		return kmers;

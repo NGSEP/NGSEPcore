@@ -49,6 +49,7 @@ public class KmersCounter {
 	private boolean bothStrands = false;
 	private boolean fasta = false;
 	private int kmerSize = DEFAULT_KMER_SIZE;
+	private boolean ignoreLowComplexity = false;
 	
 	
 	public Logger getLog() {
@@ -97,6 +98,14 @@ public class KmersCounter {
 		this.setKmerSize(kmerSize.intValue());
 	}
 	
+	
+	
+	public boolean isIgnoreLowComplexity() {
+		return ignoreLowComplexity;
+	}
+	public void setIgnoreLowComplexity(boolean ignoreLowComplexity) {
+		this.ignoreLowComplexity = ignoreLowComplexity;
+	}
 	/**
 	 * @return the hashKmers
 	 */
@@ -226,7 +235,7 @@ public class KmersCounter {
 			return;
 		}
 		//TODO: Create option to process non DNA k-mers
-		CharSequence [] kmers = extractKmers(seq, kmerSize, true);
+		CharSequence [] kmers = extractKmers(seq, kmerSize, true, ignoreLowComplexity);
 		for(CharSequence kmer:kmers) {
 			if(kmer!=null) kmersMap.addOcurrance(kmer);
 		}	
@@ -234,13 +243,14 @@ public class KmersCounter {
 	/**
 	 * Extracts the k-mers present in the given sequence
 	 * @param source Sequence to process
-	 * @param kmerSize Size of hte output sequences. It must be less or equal than the length of the sequence
+	 * @param kmerSize Size of the output sequences. It must be less or equal than the length of the sequence
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
+	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
 	 */
-	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, boolean onlyDNA) {
-		return extractKmers(source, kmerSize, 0, source.length(), onlyDNA);
+	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, boolean onlyDNA, boolean ignoreLowComplexity) {
+		return extractKmers(source, kmerSize, 0, source.length(), onlyDNA, ignoreLowComplexity);
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence
@@ -249,10 +259,11 @@ public class KmersCounter {
 	 * @param first position to extract k-mers. values for smaller indexes will be null
 	 * @param last position to extract k-mers. The length of the array will be Math.min(last, source.length() - kmerSize) 
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
+	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
 	 */
-	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, int first, int last, boolean onlyDNA) {
+	public static CharSequence [] extractKmers(CharSequence source, int kmerSize, int first, int last, boolean onlyDNA, boolean ignoreLowComplexity) {
 		int n = source.length();
 		if(n<kmerSize) return new CharSequence[0];
 		int lastKmerStart = Math.min(last, n - kmerSize); 
@@ -272,9 +283,17 @@ public class KmersCounter {
 			} catch (IllegalArgumentException e) {
 				if(onlyDNA) continue;
 			}
+			if(ignoreLowComplexity && isLowComplexity(kmerStr)) continue;
 			kmers[i]=kmer;
 		}
 		return kmers;
+	}
+	public static final boolean isLowComplexity(String kmerStr) {
+		// TODO: Actually calculate complexity
+		if(kmerStr.contains("AAAAAAAA")) return true;
+		if(kmerStr.contains("TTTTTTTT")) return true;
+		if(kmerStr.contains("TATATATA")) return true;
+		return false;
 	}
 	public void printResults (PrintStream out) {
 		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");

@@ -22,6 +22,7 @@ package ngsep.sequences;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -91,5 +92,10 @@ public class RawRead extends QualifiedSequence {
 		out.println(this.getCharacters());
 		out.println("+");
 		out.println(this.getQualityScores());
+	}
+	public static final String generateFixedQSString(char qs, int length) {
+		char [] qualities = new char[length];
+		Arrays.fill(qualities, qs);
+		return new String(qualities);
 	}
 }

@@ -126,6 +126,23 @@ public class Distribution {
 		if(maxIdx==-1) return minValueDistribution;
 		return minValueDistribution+maxIdx*binLength;
 	}
+	public double getLocalMode(double leftValue, double rightValue) {
+		int i = (int)((leftValue-minValueDistribution)/binLength);
+		if(i<0) i=0;
+		int endBin = (int)((rightValue-minValueDistribution)/binLength)+1;
+		if(endBin>distribution.length) endBin = distribution.length;
+		int maxBinIdx = i;
+		double maxValue = distribution[i];
+		while(i<endBin) {
+			double value = distribution[i];
+			if(value > maxValue) {
+				maxValue = value;
+				maxBinIdx = i;
+			}
+			i++;
+		}
+		return minValueDistribution+(maxBinIdx*binLength);
+	}
 	public double getEstimatedStandardDeviationPeak(double peakValue) {
 		int peakBin = (int)((peakValue-minValueDistribution)/binLength);
 		if(peakBin<0) peakBin = 0;
