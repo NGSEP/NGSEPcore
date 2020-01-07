@@ -19,7 +19,9 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.BufferedReader;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -85,6 +87,7 @@ public class ReadsFileErrorsCorrector {
 	 * @param inputFormat the inputFormat to set
 	 */
 	public void setInputFormat(byte inputFormat) {
+		if(inputFormat!=INPUT_FORMAT_FASTA && inputFormat!=INPUT_FORMAT_FASTQ) throw new IllegalArgumentException("Invalid input format "+inputFormat);
 		this.inputFormat = inputFormat;
 	}
 
@@ -125,19 +128,47 @@ public class ReadsFileErrorsCorrector {
 	public void process(String inFilename, String outFilename) throws IOException {
 		correctedErrors = 0;
 		buildKmersMap(inFilename);
-		//TODO: Process fasta
 		System.out.println("Processing file: "+inFilename);
-		try (FastqFileReader reader = new FastqFileReader(inFilename);
-			 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
-			 PrintStream out = new PrintStream(os)) {
-			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
-				RawRead read = it.next();
-				processRead (read);
-				read.save(out);
+		int numReads=0;
+		long numBp = 0;
+		long mbp = 0;
+		if(inputFormat==INPUT_FORMAT_FASTQ) {
+			try (FastqFileReader reader = new FastqFileReader(inFilename);
+				 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
+				 PrintStream out = new PrintStream(os)) {
+				Iterator<RawRead> it = reader.iterator();
+				while (it.hasNext()) {
+					RawRead read = it.next();
+					processRead (read);
+					read.save(out);
+					numReads++;
+					numBp+=read.getLength();
+					if(mbp<numBp/1000000) {
+						mbp = numBp/1000000;
+						log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors");
+					}
+				}
+			}
+		} else if (inputFormat==INPUT_FORMAT_FASTA) {
+			try (FileReader reader = new FileReader(inFilename);
+				 BufferedReader in = new BufferedReader(reader);
+				 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
+				 PrintStream out = new PrintStream(os)) {
+				 String line = in.readLine();
+				 while (line!=null) {
+					String readName = line.substring(1);
+					String readSeq = in.readLine();
+					RawRead read = new RawRead(readName, readSeq, RawRead.generateFixedQSString('5', readSeq.length()));
+					processRead (read);
+					read.save(out);
+					numReads++;
+					numBp+=read.getLength();
+					log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors");
+					line = in.readLine();	
+				}
 			}
 		}
-		System.out.println("Corrected "+correctedErrors+" potential errors. Output written to "+outFilename);
+		log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors. Output written to "+outFilename);
 	}
 
 	private void buildKmersMap(String inFilename) throws IOException {

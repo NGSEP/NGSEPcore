@@ -17,11 +17,9 @@ K-mer length
 <option id="f" type="BOOLEAN" attribute="countOnlyForwardStrand">
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
-<!-- 
 <option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
-Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a saved assembly graph
+Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
- -->
 <option id="m" type="INT" defaultConstant="DEF_MIN_KMER_ABUNDANCE" attribute="minCount">
 Minimum k-mer abundance to consider a k-mer real
 </option>
@@ -1016,7 +1014,7 @@ K-mer length
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
 <option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
-Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a saved assembly graph
+Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
 </command>
 
