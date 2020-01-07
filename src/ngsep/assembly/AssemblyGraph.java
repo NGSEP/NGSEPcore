@@ -63,6 +63,11 @@ public class AssemblyGraph implements Serializable {
 	private Map<Integer, List<AssemblyEmbedded>> embeddedMap = new HashMap<>();
 
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
+	
+	/**
+	 * Optional attribute to store the sequence names. Useful for the gold standard graph
+	 */
+	private List<String> readNames;
 
 	public AssemblyGraph(List<CharSequence> sequences) {
 		int n = sequences.size();
@@ -99,6 +104,14 @@ public class AssemblyGraph implements Serializable {
 	}
 	public int getNumSequences () {
 		return sequences.size();
+	}
+	
+	public List<String> getReadNames() {
+		return readNames;
+	}
+
+	public void setReadNames(List<String> readNames) {
+		this.readNames = readNames;
 	}
 
 	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int cost, int overlap) {

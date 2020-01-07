@@ -213,7 +213,8 @@ public class Assembler {
 			if(targetGenome!=null) {
 				goldStandardGraph = buildGoldStandardGraph(sequencesQL, finalSequences);
 			}
-			
+			// Dispose original qualified sequences
+			sequencesQL = null;
 			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
@@ -320,12 +321,14 @@ public class Assembler {
 	}
 	
 	public AssemblyGraph buildGoldStandardGraph(List<QualifiedSequence> sequencesQL, List<CharSequence> finalSequences) {
-		//Create true alignments of simulated reads to te target genome
+		//Create true alignments of simulated reads to the target genome
 		List<ReadAlignment> alignments = new ArrayList<>();
 		QualifiedSequenceList seqNames = targetGenome.getSequencesMetadata();
+		List<String> readNames = new ArrayList<String>(sequencesQL.size());
 		for(int i=0;i<sequencesQL.size();i++) {
 			QualifiedSequence seq = sequencesQL.get(i);
 			String readName = seq.getName();
+			readNames.add(readName);
 			String [] items = readName.split("_");
 			QualifiedSequence seqName = seqNames.get(items[0]);
 			int first = Integer.parseInt(items[1]);
@@ -421,6 +424,7 @@ public class Assembler {
 			nextPath.add(edgeSequence);
 			lastVertex = rightSequenceVertex;
 		}
+		if(nextPath.size()>0) graph.addPath(nextPath);
 		return graph;
 	}
 
@@ -501,16 +505,112 @@ public class Assembler {
 		}
 		double precision = (double)tpEmbSeqs/(tpEmbSeqs+fpEmbSeqs);
 		double recall = (double)tpEmbSeqs/(tpEmbSeqs+fnEmbSeqs);
-		log.info("EMBEDDED_SEQUENCES\t"+tpEmbSeqs+"\t"+fpEmbSeqs+"\t"+fnEmbSeqs+"\t"+precision+"\t"+recall);
+		log.info("EMBEDDED_SEQUENCES\t"+tpEmbSeqs+"\t"+fpEmbSeqs+"\t"+fnEmbSeqs+"\t"+recall+"\t"+precision);
 		precision = (double)tpEmbRel/(tpEmbRel+fpEmbRel);
 		recall = (double)tpEmbRel/(tpEmbRel+fnEmbRel);
-		log.info("EMBEDDED_RELATIONS\t"+tpEmbRel+"\t"+fpEmbRel+"\t"+fnEmbRel+"\t"+precision+"\t"+recall);
+		log.info("EMBEDDED_RELATIONS\t"+tpEmbRel+"\t"+fpEmbRel+"\t"+fnEmbRel+"\t"+recall+"\t"+precision);
 		tpEdges/=2;
 		fpEdges/=2;
 		fnEdges/=2;
 		double precisionEdges = (double)tpEdges/(tpEdges+fpEdges);
 		double recallEdges = (double)tpEdges/(tpEdges+fnEdges);
-		log.info("EDGES\t"+tpEdges+"\t"+fpEdges+"\t"+fnEdges+"\t"+precisionEdges+"\t"+recallEdges);	
+		log.info("EDGES\t"+tpEdges+"\t"+fpEdges+"\t"+fnEdges+"\t"+recallEdges+"\t"+precisionEdges);
+		compareLayouts(goldStandardGraph, testGraph);
+	}
+
+	private void compareLayouts(AssemblyGraph goldStandardGraph, AssemblyGraph testGraph) {
+		List<List<AssemblyEdge>> gsPaths = goldStandardGraph.getPaths();
+		List<List<AssemblyEdge>> testPaths = testGraph.getPaths();
+		int errors = 0;
+		int nonTrivialPaths = 0;
+		int edgesNonTrivialPaths = 0;
+		int foundEdges = 0;
+		int totalGSEdges = 0;
+		for(List<AssemblyEdge> gsPath:gsPaths) {
+			totalGSEdges+=gsPath.size();
+		}
+		
+		for(int i=0;i<testPaths.size();i++) {
+			List<AssemblyEdge> nextPath = testPaths.get(i);
+			if(nextPath.size()<=1) continue; 
+			nonTrivialPaths++;
+			edgesNonTrivialPaths+=nextPath.size();
+			List<AssemblyEdge> nextGSPath = null;
+			int nextGSEdgeIdx = -1;
+			int direction = 0;
+			for(int j=0;j<nextPath.size();j++) {
+				AssemblyEdge nextTestEdge = nextPath.get(j);
+				boolean searchGSEdge = false;
+				boolean countErrorIfNotFound = false;
+				if(nextGSPath==null) {
+					searchGSEdge = true;
+					countErrorIfNotFound=true;
+				} else {
+					if (direction == 0 && nextGSEdgeIdx<nextGSPath.size()-1 && sameEdges(nextGSPath.get(nextGSEdgeIdx+1), nextTestEdge)) direction = 1;
+					else if (direction == 0) direction = -1;
+					nextGSEdgeIdx+=direction;
+					if(nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) {
+						AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
+						if(sameEdges(nextGSEdge, nextTestEdge)) {
+							foundEdges++;
+						} else {
+							errors++;
+							searchGSEdge = true;
+						}
+					} else {
+						errors++;
+						searchGSEdge = true;
+					}
+				}
+				if(searchGSEdge) {
+					direction = 0;
+					int [] gsEdgeLocation = findGSEdgeLocation(gsPaths, nextTestEdge );
+					if(gsEdgeLocation == null) {
+						if(countErrorIfNotFound) errors++;
+						nextGSPath = null;
+						nextGSEdgeIdx = -1;
+						continue;
+					} else {
+						foundEdges++;
+						nextGSPath = gsPaths.get(gsEdgeLocation[0]);
+						nextGSEdgeIdx = gsEdgeLocation[1];
+					}
+				}
+			}
+		}
+		double recall = (double)foundEdges/totalGSEdges;
+		double precision = 0;
+		if(edgesNonTrivialPaths>0) precision = (double)foundEdges/edgesNonTrivialPaths;
+		log.info("PATHS\t"+nonTrivialPaths+"\t"+foundEdges+"\t"+errors+"\t"+edgesNonTrivialPaths+"\t"+totalGSEdges+"\t"+recall+"\t"+precision);
+		
+	}
+
+	private int[] findGSEdgeLocation(List<List<AssemblyEdge>> gsPaths, AssemblyEdge nextTestEdge) {
+		for(int i=0;i<gsPaths.size();i++) {
+			List<AssemblyEdge> nextPath = gsPaths.get(i);
+			for(int j=0;j<nextPath.size();j++) {
+				AssemblyEdge nextGSEdge = nextPath.get(j);
+				if(sameEdges(nextGSEdge, nextTestEdge)) {
+					int [] answer = {i,j};
+					return answer;
+				}
+			}
+			
+		}
+		return null;
+	}
+
+	private boolean sameEdges(AssemblyEdge nextGSEdge, AssemblyEdge nextTestEdge) {
+		AssemblyVertex testV1 = nextTestEdge.getVertex1();
+		AssemblyVertex testV2 = nextTestEdge.getVertex2();
+		AssemblyVertex gsV1 = nextGSEdge.getVertex1();
+		AssemblyVertex gsV2 = nextGSEdge.getVertex2();
+		if (testV1.getIndex()==gsV1.getIndex() && testV1.isStart()==gsV1.isStart()) {
+			if(testV2.getIndex()==gsV2.getIndex() && testV2.isStart()==gsV2.isStart()) return true;
+		} else if (testV1.getIndex()==gsV2.getIndex() && testV1.isStart()==gsV2.isStart()) {
+			if(testV2.getIndex()==gsV1.getIndex() && testV2.isStart()==gsV1.isStart()) return true;
+		}
+		return false;
 	}
 
 	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges) {

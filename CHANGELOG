@@ -1,6 +1,8 @@
-v3.3.3	01-11-2019
+v3.3.3	01-02-2020
+- General. Fasta and gff3 files can now be gzip compressed
 - ConvertVCF: New option -printGWASPoly to convert a VCF file to the
   format received by GWASPoly
+
 v3.3.2	15-07-2019
 - New command TranscriptomeAnalyzer to evaluate genome annotations in gff
   format, calculate statistics on genes and transcripts and extract cdna,
