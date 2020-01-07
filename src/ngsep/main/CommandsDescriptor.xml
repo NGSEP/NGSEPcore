@@ -11,7 +11,7 @@ Builds a k-mer abundance profile and use this profile to identify and correct se
 </description>
 <argument>FASTQ_FILE</argument>
 <argument>OUTPUT_FILE</argument>
-<option id="m" type="INT" default="5" attribute="minCount">
+<option id="m" type="INT" defaultConstant="DEF_MIN_KMER_ABUNDANCE" attribute="minCount">
 Minimum k-mer abundance to consider a k-mer real
 </option>
 </command>

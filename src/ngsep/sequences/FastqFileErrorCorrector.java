@@ -23,7 +23,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Stack;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -37,9 +39,11 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class FastqFileErrorCorrector {
 	private Logger log = Logger.getLogger(FastqFileErrorCorrector.class.getName());
+	public static final int DEF_MIN_KMER_ABUNDANCE = 3;
+	
 	private KmersMap kmersMap;
 	private int kmerSize = KmersCounter.DEFAULT_KMER_SIZE;
-	private int minAbundance = 5;
+	private int minAbundance = DEF_MIN_KMER_ABUNDANCE;
 	private int correctedErrors = 0;
 	/**
 	 * @return the minCount
@@ -77,6 +81,7 @@ public class FastqFileErrorCorrector {
 		KmersCounter counter = new KmersCounter();
 		counter.setLog(log);
 		counter.setKmerSize(kmerSize);
+		counter.setBothStrands(true);
 		counter.processFile(inFilename);
 		kmersMap = counter.getKmersMap();
 		log.info("Filtering from "+kmersMap.size()+" k-mers by minimum abundance: "+minAbundance);
@@ -100,18 +105,90 @@ public class FastqFileErrorCorrector {
 	}
 
 	public void processRead(RawRead read) {
+		//processReadBestSNPChange(read);
+		processReadDeBruijnExploration (read);
+	}
+	private void processReadDeBruijnExploration(RawRead read) {
+		String readStr = read.getCharacters().toString();
+		StringBuilder correctedRead = new StringBuilder();
+		CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerSize , true);
+		int [] readKmerCounts = new int [readKmers.length];
+		Arrays.fill(readKmerCounts, 0);
+		
+		for(int i=0;i<readKmers.length;i++) {
+			CharSequence kmer = readKmers[i];
+			if (kmer!=null) readKmerCounts[i] = kmersMap.getCount(kmer);
+		}
+		int lastRepresented= -1;
+		for(int i=0;i<readKmers.length;i++) {
+			if(readKmerCounts[i] >= minAbundance) {
+				if(i-1!=lastRepresented) {
+					//TODO: Try to correct sequence starts
+					String correctedSegment = null;
+					if(lastRepresented>=0) correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), i, readKmers[i].toString());
+					if(correctedSegment!=null) correctedRead.append(correctedSegment);
+					else correctedRead.append(readStr.substring(lastRepresented+1,i));
+				}
+				correctedRead.append(readStr.charAt(i));
+				lastRepresented = i;
+			}
+		}
+		if(lastRepresented==readKmerCounts.length-1) correctedRead.append(readStr.substring(lastRepresented)+1);
+		else {
+			String correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), readStr.length(), null);
+			if(correctedSegment!=null) correctedRead.append(correctedSegment);
+			else correctedRead.append(readStr.substring(lastRepresented)+1);
+		}
+		
+		
+	}
+
+	private String buildCorrectedSegment(int sourceKmerIdx, String sourceKmer, int destKmerIdx, String destKmer) {
+		int kmerLength = sourceKmer.length();
+		int expectedAssemblyLength = destKmerIdx-sourceKmerIdx-1;
+		int lengthLimit = expectedAssemblyLength;
+		if(destKmer!=null) lengthLimit+=destKmer.length();
+		if(lengthLimit>3*kmerLength) return null;
+		Stack<String> agenda = new Stack<>();
+		agenda.push(sourceKmer);
+		while (agenda.size()>0) {
+			String nextState = agenda.pop();
+			//Satisfability
+			if((destKmer==null && nextState.length()==expectedAssemblyLength)) {
+				correctedErrors++;
+				return nextState.substring(1);
+			}
+			if(destKmer!=null && nextState.length()>destKmer.length()+2 && nextState.endsWith(destKmer)) {
+				correctedErrors++;
+				return nextState.substring(1, nextState.length()-destKmer.length()+1);
+			}
+			//Viability
+			if(nextState.length()>=lengthLimit) continue;
+			//Next states
+			String kMinus1Mer = nextState.substring(nextState.length()-kmerLength+1);
+			String dna = DNASequence.BASES_STRING;
+			for(int i=0;i<dna.length();i++) {
+				char bp = dna.charAt(i);
+				String nextKmer = kMinus1Mer+bp;
+				if(kmersMap.getCount(nextKmer)>=minAbundance) {
+					agenda.push(nextState+bp); 
+				}
+			}
+		}
+		return null;
+	}
+
+	public void processReadBestSNPChange(RawRead read) {
 		for(int h=0;h<3;h++) {
 			String readStr = read.getCharacters().toString();
 			char [] readChars = readStr.toCharArray();
 			CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerSize , true);
 			int [] readKmerCounts = new int [readKmers.length];
+			Arrays.fill(readKmerCounts, 0);
 			
 			for(int i=0;i<readKmers.length;i++) {
 				CharSequence kmer = readKmers[i];
-				if (kmer==null) readKmerCounts[i] = 0;
-				else {
-					readKmerCounts[i] = kmersMap.getCount(kmer);
-				}
+				if (kmer!=null) readKmerCounts[i] = kmersMap.getCount(kmer);
 			}
 			int lastRepresented= -1;
 			boolean corrected = false;
