@@ -22,7 +22,6 @@ package ngsep.alignments;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -36,15 +35,15 @@ import java.util.logging.Logger;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
-import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmerWithStart;
-import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.KmersCounter;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
@@ -58,7 +57,9 @@ public class ReadsAligner {
 
 	private Logger log = Logger.getLogger(ReadsAligner.class.getName());
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
-	static final int SEARCH_KMER_LENGTH = 15;
+	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
+	
+	private int kmerLength = DEF_KMER_LENGTH;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 	private String tandemRepeatsFile = null;
 	private Map<String, List<GenomicRegion>> tandemRepeats;
@@ -72,6 +73,16 @@ public class ReadsAligner {
 
 	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
 
+	public int getKmerLength() {
+		return kmerLength;
+	}
+	public void setKmerLength(int kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+	public void setKmerLength(String value) {
+		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public ReadsAligner(String fMIndexFile) throws IOException {
 		fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
 	}
@@ -684,7 +695,7 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores) 
 	{
-		List<KmerWithStart> kmers = KmerWithStart.selectKmers(query, SEARCH_KMER_LENGTH, SEARCH_KMER_LENGTH);
+		List<KmerWithStart> kmers = KmerWithStart.selectKmers(query, kmerLength, kmerLength);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		if(kmers==null) return finalAlignments;
 		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());

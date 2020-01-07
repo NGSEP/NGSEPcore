@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastqFileReader;
 
@@ -38,14 +39,59 @@ import ngsep.sequences.io.FastqFileReader;
  * @author Jorge Duitama
  *
  */
-public class FastqFileErrorCorrector {
-	private Logger log = Logger.getLogger(FastqFileErrorCorrector.class.getName());
+public class ReadsFileErrorsCorrector {
+	private Logger log = Logger.getLogger(ReadsFileErrorsCorrector.class.getName());
+	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
+	public static final byte INPUT_FORMAT_FASTQ=KmersCounter.INPUT_FORMAT_FASTQ;
+	public static final byte INPUT_FORMAT_FASTA=KmersCounter.INPUT_FORMAT_FASTA;
 	public static final int DEF_MIN_KMER_ABUNDANCE = 5;
 	
 	private KmersMap kmersMap;
-	private int kmerSize = KmersCounter.DEFAULT_KMER_SIZE;
+	private int kmerLength = DEF_KMER_LENGTH;
+	private boolean countOnlyForwardStrand=false;
+	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private int minAbundance = DEF_MIN_KMER_ABUNDANCE;
 	private int correctedErrors = 0;
+	
+	
+	public int getKmerLength() {
+		return kmerLength;
+	}
+	public void setKmerLength(int kmerLength) {
+		this.kmerLength = kmerLength;
+		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
+		else kmersMap = new DefaultKmersMapImpl();
+	}
+	public void setKmerLength(String value) {
+		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	public boolean isCountOnlyForwardStrand() {
+		return countOnlyForwardStrand;
+	}
+	public void setCountOnlyForwardStrand(boolean countOnlyForwardStrand) {
+		this.countOnlyForwardStrand = countOnlyForwardStrand;
+	}
+	public void setCountOnlyForwardStrand(Boolean countOnlyForwardStrand) {
+		this.setCountOnlyForwardStrand(countOnlyForwardStrand.booleanValue());
+	}
+	/**
+	 * @return the inputFormat
+	 */
+	public byte getInputFormat() {
+		return inputFormat;
+	}
+
+	/**
+	 * @param inputFormat the inputFormat to set
+	 */
+	public void setInputFormat(byte inputFormat) {
+		this.inputFormat = inputFormat;
+	}
+
+	public void setInputFormat(String value) {
+		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
+	}
+	
 	/**
 	 * @return the minCount
 	 */
@@ -68,7 +114,7 @@ public class FastqFileErrorCorrector {
 	}
 
 	public static void main(String[] args) throws Exception {
-		FastqFileErrorCorrector instance = new FastqFileErrorCorrector();
+		ReadsFileErrorsCorrector instance = new ReadsFileErrorsCorrector();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String inFilename = args[i++];
 		String outFilename = args[i++];
@@ -79,6 +125,7 @@ public class FastqFileErrorCorrector {
 	public void process(String inFilename, String outFilename) throws IOException {
 		correctedErrors = 0;
 		buildKmersMap(inFilename);
+		//TODO: Process fasta
 		System.out.println("Processing file: "+inFilename);
 		try (FastqFileReader reader = new FastqFileReader(inFilename);
 			 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
@@ -98,8 +145,8 @@ public class FastqFileErrorCorrector {
 		KmersCounter counter = new KmersCounter();
 		counter.setLog(log);
 		counter.setIgnoreLowComplexity(true);
-		counter.setKmerSize(kmerSize);
-		counter.setBothStrands(true);
+		counter.setKmerLength(kmerLength);
+		counter.setCountOnlyForwardStrand(countOnlyForwardStrand);
 		counter.processFile(inFilename);
 		kmersMap = counter.getKmersMap();
 		System.out.println("Extracted "+kmersMap.size()+" k-mers from: "+inFilename+ " (ignoring low complexity)");
@@ -107,7 +154,7 @@ public class FastqFileErrorCorrector {
 		int mode = (int)kmersDist.getLocalMode(5, 125);
 		kmersDist.printDistributionInt(System.out);
 		log.info("Distribution mode: "+mode);
-		if(kmerSize>15) {
+		if(kmerLength>15) {
 			kmersMap.filterKmers(minAbundance);
 			log.info("The Map now has "+kmersMap.size()+" k-mers");
 		}
@@ -122,7 +169,7 @@ public class FastqFileErrorCorrector {
 		String rq = read.getQualityScores();
 		StringBuilder correctedRead = new StringBuilder();
 		StringBuilder correctedQualities = new StringBuilder();
-		CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerSize , true, false);
+		CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerLength , 1, false, true, false);
 		int [] readKmerCounts = new int [readKmers.length];
 		Arrays.fill(readKmerCounts, 0);
 		
@@ -138,11 +185,11 @@ public class FastqFileErrorCorrector {
 					//TODO: Try to correct sequence starts
 					String correctedSegment = null;
 					if(lastRepresented>=0) correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), i, readKmers[i].toString());
-					if(correctedSegment!=null  && correctedSegment.length()>=kmerSize-1 ) {
+					if(correctedSegment!=null  && correctedSegment.length()>=kmerLength-1 ) {
 						corrected = true;
 						correctedRead.append(correctedSegment);
-						correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerSize));
-						correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerSize-1)));
+						correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerLength));
+						correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerLength-1)));
 					}
 					else {
 						correctedRead.append(readStr.substring(lastRepresented+1,i));
@@ -155,17 +202,17 @@ public class FastqFileErrorCorrector {
 				lastRepresented = i;
 			}
 		}
-		if(lastRepresented==readKmerCounts.length-1) {
+		if(lastRepresented==-1 || lastRepresented==readKmerCounts.length-1) {
 			correctedRead.append(readStr.substring(lastRepresented+1));
 			correctedQualities.append(rq.substring(lastRepresented+1));
 		}
 		else {
 			String correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), readStr.length(), null);
-			if(correctedSegment!=null && correctedSegment.length()>=kmerSize-1 ) {
+			if(correctedSegment!=null && correctedSegment.length()>=kmerLength-1 ) {
 				corrected = true;
 				correctedRead.append(correctedSegment);
-				correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerSize));
-				correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerSize-1)));
+				correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerLength));
+				correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerLength-1)));
 				
 			}
 			else {
@@ -219,7 +266,7 @@ public class FastqFileErrorCorrector {
 		for(int h=0;h<3;h++) {
 			String readStr = read.getCharacters().toString();
 			char [] readChars = readStr.toCharArray();
-			CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerSize , true, false);
+			CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerLength , 1, false, true, false);
 			int [] readKmerCounts = new int [readKmers.length];
 			Arrays.fill(readKmerCounts, 0);
 			
@@ -247,7 +294,7 @@ public class FastqFileErrorCorrector {
 
 	private boolean correctErrors(char [] readChars, int lastRepresented, int nextRepresented) {
 		int first = 0;
-		if(lastRepresented>=0) first = lastRepresented+kmerSize;
+		if(lastRepresented>=0) first = lastRepresented+kmerLength;
 		int last = nextRepresented-1;
 		if(last-first < 0) return false;
 		double bestScore = getScore(readChars,lastRepresented+1,last);
@@ -255,7 +302,8 @@ public class FastqFileErrorCorrector {
 		char bestBP = 0;
 		for(int i=first;i<=last;i++) {
 			char origBP = readChars[i];
-			for(int j=0;j<4;j++) {
+			//Simulate all single bp changes
+			for(int j=0;j<DNASequence.BASES_STRING.length();j++) {
 				char changeBP = DNASequence.BASES_STRING.charAt(j);
 				if(changeBP != origBP) {
 					readChars[i] = changeBP;
@@ -278,10 +326,11 @@ public class FastqFileErrorCorrector {
 	}
 
 	private double getScore(char[] readChars, int first, int last) {
-		CharSequence [] readKmers = KmersCounter.extractKmers(new String (readChars), kmerSize , first, last, true,false);
+		String segment = (new String(readChars)).substring(first,last+1);
+		CharSequence [] segmentKmers = KmersCounter.extractKmers(segment, kmerLength , 1, false, true, false);
 		double score = 0;
-		for(int i=first;i<=last&& i<readKmers.length;i++) {
-			CharSequence kmer = readKmers[i];
+		for(int i=0;i<segmentKmers.length;i++) {
+			CharSequence kmer = segmentKmers[i];
 			if (kmer!=null) {
 				int count = kmersMap.getCount(kmer);
 				score+=count;

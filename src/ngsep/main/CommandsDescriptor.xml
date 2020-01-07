@@ -1,9 +1,9 @@
 <NGSEP version="3.3.3" date="01-10-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
-<command id="FastqErrorsCorrection" class="ngsep.sequences.FastqFileErrorCorrector" printHelp="false">
+<command id="ReadErrorsCorrection" class="ngsep.sequences.ReadsFileErrorsCorrector">
 <intro>
-Corrects errors in fastq files based on k-mer abundance
+Corrects errors in read files based on k-mer abundance
 </intro>
 <title>Fixing sequencing errors</title>
 <description>
@@ -11,6 +11,17 @@ Builds a k-mer abundance profile and use this profile to identify and correct se
 </description>
 <argument>FASTQ_FILE</argument>
 <argument>OUTPUT_FILE</argument>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+K-mer length
+</option>
+<option id="f" type="BOOLEAN" attribute="countOnlyForwardStrand">
+If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
+</option>
+<!-- 
+<option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a saved assembly graph
+</option>
+ -->
 <option id="m" type="INT" defaultConstant="DEF_MIN_KMER_ABUNDANCE" attribute="minCount">
 Minimum k-mer abundance to consider a k-mer real
 </option>
@@ -26,7 +37,7 @@ Builds a de-novo assembly from a set of long reads
 </description>
 <argument>READS_FILE</argument>
 <argument>OUTPUT_FILE</argument>
-<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_SIZE">
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
 <option id="o" type="INT" attribute="kmerOffset" defaultConstant="DEF_KMER_OFFSET">
@@ -60,6 +71,9 @@ Calculates a list of genomic regions for sites where the reads can be find in th
 <argument>READS_FILE 2</argument>
 <option id="t" type="STRING" attribute="tandemRepeatsFile">
 Tandem Repeat file
+</option>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+K-mer length
 </option>
 <option id="p" type="DOUBLE" default="0.7" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
@@ -988,14 +1002,21 @@ Writes to standard output the number of k-mers obtained at each specific read de
 </description>
 <argument>OPTIONS</argument>
 <argument>SEQUENCES_FILE</argument>
-<option id="b" type="BOOLEAN" attribute="bothStrands">
-Count k-mers from both strands.
+<option id="b" type="BOOLEAN" attribute="bothStrands" deprecated="true">
+Deprecated. Now the default behavior is to count kmers in both strands. 
+See new option -f for kmer counting only in the forward strand.
 </option>
-<option id="k" type="INT" defaultConstant="DEFAULT_KMER_SIZE" attribute="kmerSize">
+<option id="fasta" type="BOOLEAN" attribute="fasta" deprecated="true">
+Deprecated. See new option -i for input format
+</option>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
 </option>
-<option id="fasta" type="BOOLEAN" attribute="fasta">
-Input is a fasta file.
+<option id="f" type="BOOLEAN" attribute="countOnlyForwardStrand">
+If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
+</option>
+<option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a saved assembly graph
 </option>
 </command>
 
