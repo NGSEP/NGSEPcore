@@ -71,7 +71,7 @@ public class KmerHitsCluster {
 		if(last != estLast) allConsistent = false;
 		
 		if(!kmerNumbers.contains(kmerQueryStart)) kmerNumbers.add(kmerQueryStart);
-		if(kmerQueryStart+kmerQueryStart+kmerHit.getQuery().length()==query.length()) lastKmerPresent=true;
+		if(kmerQueryStart+kmerHit.getQuery().length()==query.length()) lastKmerPresent=true;
 		if(first>estFirst) first = estFirst;
 		if(last<estLast) last = estLast;
 		hits.add(kmerHit);

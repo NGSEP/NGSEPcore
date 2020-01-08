@@ -163,7 +163,10 @@ public class ReadsFileErrorsCorrector {
 					read.save(out);
 					numReads++;
 					numBp+=read.getLength();
-					log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors");
+					if(mbp<numBp/1000000) {
+						mbp = numBp/1000000;
+						log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors");
+					}
 					line = in.readLine();	
 				}
 			}

@@ -2,6 +2,12 @@ v3.3.3	01-02-2020
 - General. Fasta and gff3 files can now be gzip compressed
 - ConvertVCF: New option -printGWASPoly to convert a VCF file to the
   format received by GWASPoly
+- SingleReadsSimulator: Output reads are now gzip compressed
+- KmersCounter: Changed the default behavior. Now it counts kmers on both
+  strands by default. Deprecated option -b and new option -f to count kmers
+  only on the forward strand.
+- KmersCounter: Replaced option -fasta with option -i to indicate the format of
+  the input file
 
 v3.3.2	15-07-2019
 - New command TranscriptomeAnalyzer to evaluate genome annotations in gff

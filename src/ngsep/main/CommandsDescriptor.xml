@@ -1,7 +1,7 @@
 <NGSEP version="3.3.3" date="01-10-2019">
 <title>Next Generation Sequencing Experience Platform</title>
 
-<command id="ReadErrorsCorrection" class="ngsep.sequences.ReadsFileErrorsCorrector">
+<command id="ReadsFileErrorsCorrector" class="ngsep.sequences.ReadsFileErrorsCorrector">
 <intro>
 Corrects errors in read files based on k-mer abundance
 </intro>

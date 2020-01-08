@@ -470,7 +470,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		if(value==null || NO_INFO_CHAR.equals(value)) return null;
 		try {
 			if(integer) {
-				return new Double(Integer.parseInt(value));
+				return 0.0+Integer.parseInt(value);
 			}
 			return Double.parseDouble(value);
 		} catch (NumberFormatException e) {

@@ -25,7 +25,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -253,6 +255,37 @@ public class KmersCounter {
 			if(kmer!=null) kmersMap.addOcurrance(kmer);
 		}	
 	}
+	
+	/**
+	 * Extracts the k-mers present in the given sequence
+	 * @param source Sequence to process
+	 * @param kmerLength Length of the output sequences. It must be less or equal than the length of the sequence
+	 * @param offset Distance between kmers
+	 * @param forceLast Includes last k-mer even if it does not meet the offset requirement
+	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
+	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences 
+	 * @return Map<Integer,CharSequence> Map of kmers indexed and sorted by (zero based) start position in the source sequence
+	 */
+	public static Map<Integer,CharSequence> extractKmersAsMap (CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+		Map<Integer,CharSequence> kmersMap = new LinkedHashMap<Integer, CharSequence>();
+		int n = source.length();
+		if(n<kmerLength) return kmersMap;
+		int lastKmerStart = n - kmerLength;
+		int lastPos = 0;
+		for(int i = 0; i <=lastKmerStart; i+=offset) {
+			CharSequence initialKmer = source.subSequence(i, i+kmerLength);
+			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
+			if(processed!=null) kmersMap.put(i, processed);
+			lastPos = i;
+		}
+		if(forceLast && lastPos < lastKmerStart) {
+			CharSequence initialKmer = source.subSequence(lastKmerStart, n );
+			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
+			if(processed!=null) kmersMap.put(lastKmerStart, processed);
+		}
+
+		return kmersMap;
+	}
 	/**
 	 * Extracts the k-mers present in the given sequence
 	 * @param source Sequence to process
@@ -264,7 +297,7 @@ public class KmersCounter {
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
 	 */
-	public static CharSequence [] extractKmers(CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+	public static CharSequence [] extractKmers (CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
 		int n = source.length();
 		if(n<kmerLength) return new CharSequence[0];
 		int lastKmerStart = n - kmerLength; 
@@ -272,17 +305,18 @@ public class KmersCounter {
 		Arrays.fill(kmers, null);
 		for(int i = 0; i <=lastKmerStart; i+=offset)
 		{
-			String kmerStr = source.subSequence(i,kmerLength + i).toString();	
-			kmers[i]=processKmer(kmerStr, onlyDNA, ignoreLowComplexity);
+			String initialKmer = source.subSequence(i,kmerLength + i).toString();
+			kmers[i]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 		}
 		if(forceLast && kmers[lastKmerStart]==null) {
-			String kmerStr = source.subSequence(lastKmerStart, kmerLength + lastKmerStart).toString();	
-			kmers[lastKmerStart]=processKmer(kmerStr, onlyDNA, ignoreLowComplexity);
+			CharSequence initialKmer = source.subSequence(lastKmerStart, n );	
+			kmers[lastKmerStart]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 		}
 		return kmers;
 	}
 	
-	private static CharSequence processKmer (String kmerStr, boolean onlyDNA, boolean ignoreLowComplexity) {
+	private static CharSequence processKmer (CharSequence initialKmer, boolean onlyDNA, boolean ignoreLowComplexity) {
+		String kmerStr = initialKmer.toString();
 		CharSequence kmer = kmerStr.toUpperCase();
 		try {
 			if(kmerStr.length()<=31) {

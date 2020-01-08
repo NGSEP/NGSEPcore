@@ -1,8 +1,8 @@
 package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
@@ -10,7 +10,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexSingleSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmerWithStart;
+import ngsep.sequences.KmersCounter;
 
 /**
  * Alignment of a main read with its embedded reads
@@ -59,28 +59,22 @@ public class EmbeddedReadsAlignerConstantGap
 
 	private ReadAlignment getAlignment(FMIndexSingleSequence fmIndex, String subject, String query) {
 		int kmerLength = 15;
-		List<KmerWithStart> kmers = KmerWithStart.selectKmers(query, kmerLength, kmerLength);
-		if(kmers==null) return null;
+		Map<Integer,CharSequence> kmersMap = KmersCounter.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<FMIndexUngappedSearchHit> initialKmerHits = new ArrayList<>();
-		for (KmerWithStart kmer:kmers) {
-			Set<Integer> kmerAlns=fmIndex.exactSearch(kmer.getKmer().toString());
+		for (int start:kmersMap.keySet()) {
+			String kmer = kmersMap.get(start).toString();
+			Set<Integer> kmerAlns=fmIndex.exactSearch(kmer);
 			//if(querySequenceId==1) System.out.println("Query: "+querySequenceId+" Found "+kmerAlns.size()+" alignments for kmer: "+kmer.getKmer().toString());
-			for(int start:kmerAlns) {
+			for(int startSubject:kmerAlns) {
 				//if(querySequenceId==1) System.out.println("Kmer start: "+kmer.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
-				FMIndexUngappedSearchHit kmerHit = new FMIndexUngappedSearchHit(query, "", start);
-				kmerHit.setQueryIdx(kmer.getStart());
+				FMIndexUngappedSearchHit kmerHit = new FMIndexUngappedSearchHit(query, "", startSubject);
+				kmerHit.setQueryIdx(start);
 				initialKmerHits.add(kmerHit);
 			}
 		}
 		if(initialKmerHits.size()==0) return null;
 		List<KmerHitsCluster> clusters = GraphBuilderFMIndex.clusterSequenceKmerAlns(query, initialKmerHits);
-		
-		Collections.sort(clusters, new Comparator<KmerHitsCluster>() {
-			@Override
-			public int compare(KmerHitsCluster o1, KmerHitsCluster o2) {
-				return o2.getNumDifferentKmers()-o1.getNumDifferentKmers();
-			}
-		});
+		Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 		return buildCompleteAlignment(subject,query,clusters.get(0));
 		
 	}

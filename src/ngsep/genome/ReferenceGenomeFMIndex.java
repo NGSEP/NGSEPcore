@@ -48,6 +48,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	private static final long serialVersionUID = 5577026857894649939L;
 	private QualifiedSequenceList sequencesMetadata;
 	private Map<Integer,FMIndexSingleSequence> internalIndexes = new HashMap<>();
+	private Map<String, Integer> reverseIndexesMap = new HashMap<String, Integer>();
 	
 	public ReferenceGenomeFMIndex (ReferenceGenome genome) {
 		sequencesMetadata = genome.getSequencesMetadata();
@@ -59,6 +60,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 			CharSequence seqChars = q.getCharacters();
 			FMIndexSingleSequence idx = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
 			internalIndexes.put(i,idx);
+			reverseIndexesMap.put(q.getName(), i);
 		}
 	}
 	
@@ -136,14 +138,18 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @return CharSequence segment of the given sequence between the given coordinates
 	 */
 	public CharSequence getSequence (String sequenceName, int first, int last) {
-		FMIndexSingleSequence idxSeq = internalIndexes.get(sequenceName);
+		Integer index = reverseIndexesMap.get(sequenceName);
+		if(index==null) return null;
+		FMIndexSingleSequence idxSeq = internalIndexes.get(index);
 		if(idxSeq==null) return null;
 		CharSequence seq = idxSeq.getSequence(first-1, last);
 		return seq;
 	}
 
 	public boolean isValidAlignment(String sequenceName,int last) {
-		FMIndexSingleSequence internalIndex = internalIndexes.get(sequenceName);
+		Integer index = reverseIndexesMap.get(sequenceName);
+		if(index==null) return false;
+		FMIndexSingleSequence internalIndex = internalIndexes.get(index);
 		if(internalIndex == null) return false;
 		return internalIndex.getSequenceLength()>=last;
 	}

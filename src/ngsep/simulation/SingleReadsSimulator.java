@@ -1,10 +1,13 @@
 package ngsep.simulation;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
@@ -216,7 +219,8 @@ public class SingleReadsSimulator {
 		for (int i = 1; i < nSeqs; i++) {
 			cumulativeStarts[i] = cumulativeStarts[i - 1] + genome.getSequenceByIndex(i - 1).getLength();
 		}
-		try (PrintStream out = new PrintStream(outPath)) {
+		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outPath));
+			 PrintStream out = new PrintStream(os)) {
 			for (int i = 0; i < numberOfReads; i++) {
 				int readLength;
 				long nextStart;
@@ -261,7 +265,7 @@ public class SingleReadsSimulator {
 					read = DNAMaskedSequence.getReverseComplement(read);
 				}
 				String finalRead = generateErrors(read);
-				String readId = seq.getName() + "_" + relStart + "_" + reverse;
+				String readId = seq.getName() + "_" + (relStart+1) + "_" + reverse;
 				if(outFormat == OUT_FORMAT_FASTA) {
 					out.println(">" + readId);
 					out.println(finalRead);
