@@ -73,8 +73,14 @@ Tandem Repeat file
 <option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
 </option>
-<option id="p" type="DOUBLE" default="0.7" attribute="minProportionKmers">
+<option id="p" type="DOUBLE" defaultConstant="DEF_MIN_PROPORTION_KMERS" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
+</option>
+<option id="i" type="INT" defaultConstant="DEF_MIN_INSERT_LENGTH" attribute="minInsertLength">
+Minimum predicted insert length to consider an alignment proper
+</option>
+<option id="x" type="INT" defaultConstant="DEF_MAX_INSERT_LENGTH" attribute="maxInsertLength">
+Maximum predicted insert length to consider an alignment proper
 </option>
 </command>
 

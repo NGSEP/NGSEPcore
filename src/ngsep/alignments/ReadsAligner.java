@@ -55,22 +55,24 @@ import ngsep.sequences.io.FastqFileReader;
 public class ReadsAligner {
 
 	private Logger log = Logger.getLogger(ReadsAligner.class.getName());
-	public static final double DEF_MIN_PROPORTION_KMERS = 0.7;
+	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
+	public static final int DEF_MIN_INSERT_LENGTH=0;
+	public static final int DEF_MAX_INSERT_LENGTH=1000;
+	public static final int DEFAULT_MAX_ALIGNMENTS=100;
+	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
 	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
 	
 	private int kmerLength = DEF_KMER_LENGTH;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
+	private int minInsertLength = DEF_MIN_INSERT_LENGTH;
+	private int maxInsertLength = DEF_MAX_INSERT_LENGTH;
 	private String tandemRepeatsFile = null;
 	private Map<String, List<GenomicRegion>> tandemRepeats;
 
 	private boolean onlyPositiveStrand = false;
 
 	private ReferenceGenomeFMIndex fMIndex;
-	public static final int DEFAULT_PAIREND_LENGTH_MAX=500;
-	public static final int DEFAULT_MAX_ALIGNMENTS=100;
-
-
-	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
+	
 
 	public int getKmerLength() {
 		return kmerLength;
@@ -80,6 +82,56 @@ public class ReadsAligner {
 	}
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	
+	
+	public int getMinInsertLength() {
+		return minInsertLength;
+	}
+	public void setMinInsertLength(int minInsertLength) {
+		this.minInsertLength = minInsertLength;
+	}
+	public void setMinInsertLength(String value) {
+		setMinInsertLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	public int getMaxInsertLength() {
+		return maxInsertLength;
+	}
+	public void setMaxInsertLength(int maxInsertLength) {
+		this.maxInsertLength = maxInsertLength;
+	}
+	public void setMaxInsertLength(String value) {
+		setMaxInsertLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	/**
+	 * @return the minProportionKmers
+	 */
+	public double getMinProportionKmers() {
+		return minProportionKmers;
+	}
+
+	/**
+	 * @param minProportionKmers the minProportionKmers to set
+	 */
+	public void setMinProportionKmers(double minProportionKmers) {
+		this.minProportionKmers = minProportionKmers;
+	}
+
+	/**
+	 * @param minProportionKmers the minProportionKmers to set
+	 */
+	public void setMinProportionKmers(String value) {
+		this.setMinProportionKmers((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+
+	public String getTandemRepeatsFile() {
+		return tandemRepeatsFile;
+	}
+
+	public void setTandemRepeatsFile(String tandemRepeatsFile) {
+		this.tandemRepeatsFile = tandemRepeatsFile;
 	}
 	
 	public ReadsAligner(String fMIndexFile) throws IOException {
@@ -183,36 +235,7 @@ public class ReadsAligner {
 		return newList;
 	}
 
-	/**
-	 * @return the minProportionKmers
-	 */
-	public double getMinProportionKmers() {
-		return minProportionKmers;
-	}
 
-	/**
-	 * @param minProportionKmers the minProportionKmers to set
-	 */
-	public void setMinProportionKmers(double minProportionKmers) {
-		this.minProportionKmers = minProportionKmers;
-	}
-
-	/**
-	 * @param minProportionKmers the minProportionKmers to set
-	 */
-	public void setMinProportionKmers(Double minProportionKmers) {
-		this.setMinProportionKmers(minProportionKmers.doubleValue());
-	}
-
-	public String getTandemRepeatsFile() {
-		System.out.println("getTandemRepeatsFile: "+tandemRepeatsFile);
-		return tandemRepeatsFile;
-	}
-
-	public void setTandemRepeatsFile(String tandemRepeatsFile) {
-		System.out.println("setTandemRepeatsFile: "+tandemRepeatsFile);
-		this.tandemRepeatsFile = tandemRepeatsFile;
-	}
 
 	/**
 	 * Aligns readsFile with the fMIndexFile
@@ -398,7 +421,8 @@ public class ReadsAligner {
 					|| endMax==end2 && aln2.isNegativeStrand() && startMinimum==start1&& aln1.isPositiveStrand())
 			{
 				if(onlyProper) {
-					return endMax-startMinimum>0 &&	endMax-startMinimum<=DEFAULT_PAIREND_LENGTH_MAX;
+					int insertLength = endMax-startMinimum;
+					return insertLength>=minInsertLength && insertLength<=maxInsertLength;
 				}
 				else{
 					return true;
@@ -710,8 +734,10 @@ public class ReadsAligner {
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
 			else if (2*cluster.getNumDifferentKmers()<kmersMaxCluster) break;
 			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
-			readAln.setReadName(readName);
-			if(readAln!=null) finalAlignments.add(readAln);
+			if(readAln!=null) {
+				readAln.setReadName(readName);
+				finalAlignments.add(readAln);
+			}
 		}
 		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query.toString());
 		return finalAlignments;
