@@ -37,6 +37,7 @@ import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.DiversityStatistics;
@@ -48,46 +49,60 @@ import ngsep.variants.Sample;
 
 public class VCFFilter {
 	
+	public static final int DEF_MIN_GENOTYPE_QUALITY = 0;
+	public static final int DEF_MIN_READ_DEPTH = 0;
+	public static final int DEF_MIN_SAMPLES_GENOTYPED = 0;
+	public static final double DEF_MIN_MAF = 0;
+	public static final double DEF_MAX_MAF = 0.5;
+	public static final double DEF_MIN_OH = 0;
+	public static final double DEF_MAX_OH = 1;
+	public static final double DEF_MIN_GC_CONTENT = 40;
+	public static final double DEF_MAX_GC_CONTENT = 65;
+	
 	private Logger log = Logger.getLogger(VCFFilter.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	private String inputFile = null;
+	private String outputFile = null;
+	
     // Genotype filters
-    private int minGenotypeQuality = 0;
-    private int minCoverage = 0;
+    private int minGenotypeQuality = DEF_MIN_GENOTYPE_QUALITY;
+    private int minReadDepth = DEF_MIN_READ_DEPTH;
     private int minDistance = 0;
-    private int minIndividualsGenotyped = 0;
+    private int minSamplesGenotyped = DEF_MIN_SAMPLES_GENOTYPED;
     private boolean filterInvariant = false;
     private boolean filterInvariantReference = false;
     private boolean filterInvariantAlternative = false;
-    private boolean keepOnlySNVs = false;
-    private double minMAF = 0;
-    private double maxMAF = 0.5;
-    private double minOH = 0;
-    private double maxOH =1;
-    private double minGCContent = 40.0;
-    private double maxGCContent = 65.0;
-    private int maxCNVs = -1;
+    private boolean keepBiallelicSNVs = false;
+    private double minMAF = DEF_MIN_MAF;
+    private double maxMAF = DEF_MAX_MAF;
+    private double minOH = DEF_MIN_OH;
+    private double maxOH =DEF_MAX_OH;
+    private double minGCContent = DEF_MIN_GC_CONTENT;
+    private double maxGCContent = DEF_MAX_GC_CONTENT;
+    private int maxSamplesCNVs = -1;
     private String geneId = null;
     private Set <String> annotations = null;
     
+    private String sampleIdsFile = null;
     private Set<String> sampleIds = null;
     private boolean filterSamples = false;
     
+    private String filterRegionsFile = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
+    
+    private String selectRegionsFile = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
+    
+    private String genomeFile = null;
     private ReferenceGenome genome = null;
     
-    private ProgressNotifier progressNotifier=null;
+    
 
     public static void main(String[] args) throws Exception {
-		VCFFilter filter = new VCFFilter();
-		int i=CommandsDescriptor.getInstance().loadOptions(filter, args);
-		boolean systemInput = "-".equals(args[i]);
-
-		if(systemInput) {
-			filter.processVariantsFile(System.in, System.out);
-		} else {
-			String vcfFile = args[i];
-			filter.processVariantsFile(vcfFile,System.out);
-		}
+		VCFFilter instance = new VCFFilter();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();	
     }
     
     public ProgressNotifier getProgressNotifier() {
@@ -105,6 +120,22 @@ public class VCFFilter {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+
+	public String getOutputFile() {
+		return outputFile;
+	}
+
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 
 	public int getMinGenotypeQuality() {
 		return minGenotypeQuality;
@@ -114,20 +145,21 @@ public class VCFFilter {
 		this.minGenotypeQuality = minGenotypeQuality;
 	}
 
-	public void setMinGenotypeQuality(Integer minGenotypeQuality) {
-		this.setMinGenotypeQuality(minGenotypeQuality.intValue());
+	public void setMinGenotypeQuality(String value) {
+		this.setMinGenotypeQuality((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public int getMinCoverage() {
-		return minCoverage;
+
+	public int getMinReadDepth() {
+		return minReadDepth;
 	}
 
-	public void setMinCoverage(int minCoverage) {
-		this.minCoverage = minCoverage;
+	public void setMinReadDepth(int minReadDepth) {
+		this.minReadDepth = minReadDepth;
 	}
 
-	public void setMinCoverage(Integer minCoverage) {
-		this.setMinCoverage(minCoverage.intValue());
+	public void setMinReadDepth(String value) {
+		this.setMinReadDepth((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public int getMinDistance() {
@@ -138,32 +170,32 @@ public class VCFFilter {
 		this.minDistance = minDistance;
 	}
 	
-	public void setMinDistance(Integer minDistance) {
-		this.setMinDistance(minDistance.intValue());
+	public void setMinDistance(String value) {
+		this.setMinDistance((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
-	public int getMinIndividualsGenotyped() {
-		return minIndividualsGenotyped;
+	public int getMinSamplesGenotyped() {
+		return minSamplesGenotyped;
 	}
 
-	public void setMinIndividualsGenotyped(int minIndividualsGenotyped) {
-		this.minIndividualsGenotyped = minIndividualsGenotyped;
+	public void setMinSamplesGenotyped(int minSamplesGenotyped) {
+		this.minSamplesGenotyped = minSamplesGenotyped;
+	}
+
+	public void setMinSamplesGenotyped(String value) {
+		this.setMinSamplesGenotyped((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public boolean isKeepBiallelicSNVs() {
+		return keepBiallelicSNVs;
+	}
+
+	public void setKeepBiallelicSNVs(boolean keepBiallelicSNVs) {
+		this.keepBiallelicSNVs = keepBiallelicSNVs;
 	}
 	
-	public void setMinIndividualsGenotyped(Integer minIndividualsGenotyped) {
-		this.setMinIndividualsGenotyped(minIndividualsGenotyped.intValue());
-	}
-
-	public boolean isKeepOnlySNVs() {
-		return keepOnlySNVs;
-	}
-
-	public void setKeepOnlySNVs(boolean keepOnlySNVs) {
-		this.keepOnlySNVs = keepOnlySNVs;
-	}
-	
-	public void setKeepOnlySNVs(Boolean keepOnlySNVs) {
-		this.setKeepOnlySNVs(keepOnlySNVs.booleanValue());
+	public void setKeepBiallelicSNVs(Boolean keepBiallelicSNVs) {
+		this.setKeepBiallelicSNVs(keepBiallelicSNVs.booleanValue());
 	}
 
 	public boolean isFilterInvariant() {
@@ -222,8 +254,8 @@ public class VCFFilter {
 		this.minMAF = minMAF;
 	}
 	
-	public void setMinMAF(Double minMAF) {
-		this.setMinMAF(minMAF.doubleValue());
+	public void setMinMAF(String value) {
+		this.setMinMAF((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMaxMAF() {
@@ -234,8 +266,8 @@ public class VCFFilter {
 		this.maxMAF = maxMAF;
 	}
 	
-	public void setMaxMAF(Double maxMAF) {
-		this.setMaxMAF(maxMAF.doubleValue());
+	public void setMaxMAF(String value) {
+		this.setMaxMAF((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMinOH() {
@@ -246,8 +278,8 @@ public class VCFFilter {
 		this.minOH = minOH;
 	}
 	
-	public void setMinOH(Double minOH) {
-		this.setMinOH(minOH.doubleValue());
+	public void setMinOH(String value) {
+		this.setMinOH((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMaxOH() {
@@ -258,8 +290,8 @@ public class VCFFilter {
 		this.maxOH = maxOH;
 	}
 	
-	public void setMaxOH(Double maxOH) {
-		this.setMaxOH(maxOH.doubleValue());
+	public void setMaxOH(String value) {
+		this.setMaxOH((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMinGCContent() {
@@ -270,8 +302,8 @@ public class VCFFilter {
 		this.minGCContent = minGCContent;
 	}
 	
-	public void setMinGCContent(Double minGCContent) {
-		this.setMinGCContent(minGCContent.doubleValue());
+	public void setMinGCContent(String value) {
+		this.setMinGCContent((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMaxGCContent() {
@@ -282,20 +314,20 @@ public class VCFFilter {
 		this.maxGCContent = maxGCContent;
 	}
 	
-	public void setMaxGCContent(Double maxGCContent) {
-		this.setMaxGCContent(maxGCContent.doubleValue());
+	public void setMaxGCContent(String value) {
+		this.setMaxGCContent((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
-	public int getMaxCNVs() {
-		return maxCNVs;
+	public int getMaxSamplesCNVs() {
+		return maxSamplesCNVs;
 	}
 
-	public void setMaxCNVs(int maxCNVs) {
-		this.maxCNVs = maxCNVs;
+	public void setMaxSamplesCNVs(int maxSamplesCNVs) {
+		this.maxSamplesCNVs = maxSamplesCNVs;
 	}
-	
-	public void setMaxCNVs(Integer maxCNVs) {
-		this.setMaxCNVs(maxCNVs.intValue());
+
+	public void setMaxSamplesCNVs(String value) {
+		this.setMaxSamplesCNVs((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public String getGeneId() {
@@ -332,6 +364,14 @@ public class VCFFilter {
 		else this.genome = new ReferenceGenome(genomeFile);
 	}
 	
+	public String getGenomeFile() {
+		return genomeFile;
+	}
+
+	public void setGenomeFile(String genomeFile) {
+		this.genomeFile = genomeFile;
+	}
+
 	public List<GenomicRegion> getRegionsToFilter() {
 		return regionsToFilter.asList();
 	}
@@ -348,6 +388,14 @@ public class VCFFilter {
 		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
 		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
 		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+	
+	public String getFilterRegionsFile() {
+		return filterRegionsFile;
+	}
+
+	public void setFilterRegionsFile(String filterRegionsFile) {
+		this.filterRegionsFile = filterRegionsFile;
 	}
 
 	public List<GenomicRegion> getRegionsToSelect() {
@@ -367,8 +415,14 @@ public class VCFFilter {
 		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
-
 	
+	public String getSelectRegionsFile() {
+		return selectRegionsFile;
+	}
+
+	public void setSelectRegionsFile(String selectRegionsFile) {
+		this.selectRegionsFile = selectRegionsFile;
+	}
 
 	public Set<String> getSampleIds() {
 		return sampleIds;
@@ -398,23 +452,56 @@ public class VCFFilter {
 			throw e;
 		}
 	}
+	
+	public String getSampleIdsFile() {
+		return sampleIdsFile;
+	}
+
+	public void setSampleIdsFile(String sampleIdsFile) {
+		this.sampleIdsFile = sampleIdsFile;
+	}
+
+	public void run() throws Exception {
+		// Load files with optional information
+		if(filterRegionsFile!=null && !filterRegionsFile.isEmpty()) {
+			setRegionsToFilter(filterRegionsFile);
+		}
+		if(selectRegionsFile!=null && !filterRegionsFile.isEmpty()) {
+			setRegionsToSelect(selectRegionsFile);
+		}
+		if(genomeFile!=null && !genomeFile.isEmpty()) {
+			setGenome(genomeFile);
+		}
+		if(sampleIdsFile!=null && !sampleIdsFile.isEmpty()) {
+			setSampleIds(sampleIdsFile);
+		}
+		// Run filter
+		if(inputFile==null) {
+			if(outputFile == null) processVariantsFile(System.in, System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					processVariantsFile(System.in, out);
+				}
+			}
+		} else {
+			if(outputFile == null) processVariantsFile(inputFile,System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					processVariantsFile(inputFile, out);
+				}
+			}
+		}
+	}
 
 	public void processVariantsFile(String vcfFile, PrintStream out) throws IOException {
-		VCFFileReader reader = null;
-		try {
-			reader = new VCFFileReader(vcfFile);
+		try (VCFFileReader reader = new VCFFileReader(vcfFile)){
 			processVariantsFile(reader, out);
-		} finally {
-			if(reader!=null) reader.close();
 		}
 	}
 	public void processVariantsFile(InputStream in, PrintStream out) throws IOException {
-		VCFFileReader reader = null;
-		try {
-			reader = new VCFFileReader(in);
+		
+		try (VCFFileReader reader = new VCFFileReader(in)){
 			processVariantsFile(reader, out);
-		} finally {
-			if(reader!=null) reader.close();
 		}
 	}
 	public void processVariantsFile(VCFFileReader reader, PrintStream out) throws IOException {
@@ -486,15 +573,14 @@ public class VCFFilter {
 	private boolean passFilters(VCFRecord record) {
     	if (record == null) return false;
     	GenomicVariant var = record.getVariant();
-    	if(keepOnlySNVs && !(var instanceof SNV)) return false;
+    	if(keepBiallelicSNVs && !(var instanceof SNV)) return false;
     	//System.out.println("Passing filters for record: "+record.getVariant().getSequenceName()+": "+record.getVariant().getFirst());
-		if(maxCNVs>=0 && calculateNumCNVs(record)>maxCNVs) return false;
+		if(maxSamplesCNVs>=0 && calculateNumCNVs(record)>maxSamplesCNVs) return false;
 		//System.out.println("Passed CNVs");
     	if(geneId!=null && !isInGene(record)) return false;
     	//System.out.println("Passed Gene");
     	if(annotations!=null && !hasAnnotation(record)) return false;
     	//System.out.println("Passed Annotation");
-    	//TODO: Do not recalculate by default
     	int numCalledAlleles = 0;
     	int [] counts = null;
     	double maf = 0;
@@ -519,7 +605,7 @@ public class VCFFilter {
     	//Only alternative alleles
     	if (filterInvariantAlternative && numCalledAlleles == 1 && counts[0]==0) return false;
     	//System.out.println("Passed invariant alternative");
-    	if (genotyped < minIndividualsGenotyped) return false;
+    	if (genotyped < minSamplesGenotyped) return false;
     	//System.out.println("Passed minInd. MAF: "+maf);
     	if (maf < minMAF || maf> maxMAF) return false;
     	//System.out.println("Passed MAF");
@@ -617,7 +703,7 @@ public class VCFFilter {
     		}
     		short q = cv.getGenotypeQuality();
     		int depth = cv.getTotalReadDepth();
-    		if (q < minGenotypeQuality || depth < minCoverage) {
+    		if (q < minGenotypeQuality || depth < minReadDepth) {
     			cv.makeUndecided();
     		}
     		newList.add(cv);

@@ -53,6 +53,6 @@ public class OptionValuesDecoder {
 		if(String.class.equals(type)) {
 			return value;
 		}
-		throw new RuntimeException("Can not decode value of type: "+type.toString());
+		throw new IllegalArgumentException("Can not decode value of type: "+type.toString());
 	}
 }

@@ -467,38 +467,36 @@ Initial or final basepairs of an exon that should be considered as part of the s
 <description>
 Implement different filters on VCF files with genotype information.
 first, it executes the distance filter (-d), then the filtering of
-samples and genotypes (-saf, -fs, -q and -minC). Finally, it 
+samples and genotypes (-saf, -fs, -q and -minRD). Finally, it 
 recalculates the number of samples genotyped, the number of alleles
-called and the MAF to execute the remaining filters. Writes to the standard output.
+called and the MAF to execute the remaining filters. 
+Reads from standard input unless the -i option is used.
+Writes to the standard output unless the -o option is used.
 </description>
 <argument>OPTIONS</argument>
-<argument>INPUT_FILE</argument>
-<option id="frs" type="FILE" attribute="regionsToFilter">
+<option id="i" type="FILE" attribute="inputFile">
+Input file in VCF format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file in VCF format.
+</option>
+<option id="frs" type="FILE" attribute="filterRegionsFile">
 File with genomic regions in which variants should be filtered out.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
-<option id="srs" type="FILE" attribute="regionsToSelect">
+<option id="srs" type="FILE" attribute="selectRegionsFile">
 File with genomic regions in which variants should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
-<option id="d" type="INT" default="0" attribute="minDistance">
-Minimum distance between variants.
+<option id="d" type="INT" attribute="minDistance">
+Minimum distance between variants. Default: No filter
 </option>
-<option id="g" type="FILE" attribute="genome">
-File with the reference genome to calculate the GC-Content of the region surrounding the variant.
+<option id="q" type="INT" attribute="minGenotypeQuality" defaultConstant="DEF_MIN_GENOTYPE_QUALITY">
+Minimum genotyping quality score (GQ field in the VCF). Genotype calls with lower GQ become undecided.
 </option>
-<option id="minGC" type="DOUBLE" attribute="minGCContent">
-Minimum percentage of GC of the 100bp region surrounding the variant.
-</option>
-<option id="maxGC" type="DOUBLE" attribute="maxGCContent">
-Maximum percentage of GC of the 100bp region surrounding the variant.
-</option>
-<option id="q" type="INT" attribute="minGenotypeQuality">
-Minimum genotyping quality score (GQ field in the VCF).
-</option>
-<option id="s" type="BOOLEAN" attribute="keepOnlySNVs">
+<option id="s" type="BOOLEAN" attribute="keepBiallelicSNVs">
 Keep only biallelic SNVs.
 </option>
 <option id="fi" type="BOOLEAN" attribute="filterInvariant">
@@ -510,26 +508,41 @@ Filter sites in which only the reference allele is observed.
 <option id="fia" type="BOOLEAN" attribute="filterInvariantAlternative">
 Filter out sites in which only one alternative allele is observed.
 </option>
-<option id="minI" type="INT" default="0" attribute="minIndividualsGenotyped">
-Minimum number of individuals genotyped to keep the variant.
+<option id="minI" type="INT" deprecated="true">
+Deprecated. See new option -m
 </option>
-<option id="minC" type="INT" default="0" attribute="minCoverage">
-Minimum coverage to keep a genotype call.
+<option id="m" type="INT" attribute="minSamplesGenotyped" defaultConstant="DEF_MIN_SAMPLES_GENOTYPED">
+Minimum number of samples genotyped to keep the variant.
 </option>
-<option id="minMAF" type="DOUBLE" default="0" attribute="minMAF">
+<option id="minC" type="INT" deprecated="true">
+Deprecated. See new option -minRD
+</option>
+<option id="minRD" type="INT" attribute="minReadDepth" defaultConstant="DEF_MIN_READ_DEPTH">
+Minimum read depth (as reported in the DP genotype format field) to keep a genotype call. Genotype calls with less reads become undecided.
+</option>
+<option id="minMAF" type="DOUBLE" attribute="minMAF" defaultConstant="DEF_MIN_MAF">
 Minimum minor allele frequency over the samples in the VCF.
 </option>
-<option id="maxMAF" type="DOUBLE" default="0.5" attribute="maxMAF">
+<option id="maxMAF" type="DOUBLE" attribute="maxMAF" defaultConstant="DEF_MAX_MAF">
 Maximum minor allele frequency over the samples in the VCF.
 </option>
-<option id="minOH" type="DOUBLE" default="0" attribute="minOH">
+<option id="minOH" type="DOUBLE" default="0" attribute="minOH" defaultConstant="DEF_MIN_OH">
 Minimum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="maxOH" type="DOUBLE" default="1" attribute="maxOH">
+<option id="maxOH" type="DOUBLE" default="1" attribute="maxOH" defaultConstant="DEF_MAX_OH">
 Maximum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="maxCNVs" type="INT" default="-1" attribute="maxCNVs">
-Maximum number of samples with copy number variation in the region where the variant is located.
+<option id="g" type="FILE" attribute="genomeFile">
+File with the reference genome to calculate the GC-Content of the region surrounding the variant.
+</option>
+<option id="minGC" type="DOUBLE" attribute="minGCContent" defaultConstant="DEF_MIN_GC_CONTENT">
+Minimum percentage of GC of the 100bp region surrounding the variant.
+</option>
+<option id="maxGC" type="DOUBLE" attribute="maxGCContent" defaultConstant="DEF_MAX_GC_CONTENT">
+Maximum percentage of GC of the 100bp region surrounding the variant.
+</option>
+<option id="maxCNVs" type="INT" attribute="maxSamplesCNVs">
+Maximum number of samples with copy number variation in the region where the variant is located. Default: No filter
 </option>
 <option id="gene" type="STRING" attribute="geneId">
 Id of the gene or the transcript related with the variant.
@@ -538,7 +551,7 @@ Id of the gene or the transcript related with the variant.
 Types of functional annotations (Missense, Nonsense, Synonymous, etc) related with the variant.
 More than one annotation can be set as a comma-separated list.
 </option>
-<option id="saf" type="FILE" attribute="sampleIds">
+<option id="saf" type="FILE" attribute="sampleIdsFile">
 File with the ids of the samples to be selected (or filtered, see -fs option).
 The file should have one line per sample, being the first column the sample id.
 Other columns in the file are ignored.
@@ -694,11 +707,18 @@ Maximum percentage (0-100) of differences between the pair of samples
 <description>
 Generate a report with the variants included in a VCF file for different categories.
 It is specially useful when a complete population is being processed and merged into a
-single annotated file. Writes to the standard output
+single annotated file.
+Reads from standard input unless the -i option is used.
+Writes to the standard output unless the -o option is used.
 </description>
 <argument>OPTIONS</argument>
-<argument>INPUT_FILE</argument>
-<option id="m" type="INT" default="20" attribute="minSamplesGenotyped">
+<option id="i" type="FILE" attribute="inputFile">
+Input file in VCF format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with statistics
+</option>
+<option id="m" type="INT" defaultConstant="DEF_MIN_SAMPLES_GENOTYPED" attribute="minSamplesGenotyped">
 Minimum number of samples genotyped to accurately calculate the minor allele frequency
 </option>
 </command>

@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ParseUtils;
 import ngsep.math.Distribution;
@@ -47,11 +48,18 @@ import ngsep.variants.SNV;
  */
 public class VCFSummaryStatisticsCalculator {
 	
+	public static final int DEF_MIN_SAMPLES_GENOTYPED = 20;
+	
 	private Logger log = Logger.getLogger(VCFSummaryStatisticsCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
-
+	//Parameters
+	private String inputFile = null;
+	private String outputFile = null;
+	
+	private int minSamplesGenotyped = DEF_MIN_SAMPLES_GENOTYPED;
+	
 	private static final String [] VARIANT_CATEGORIES= {"Biallelic SNVs","Biallelic Indels","Biallelic STRs","Other biallelic","Multiallelic SNVs","Multiallelic Indels","Multiallelic STRs","Other Multiallelic"};
-	private int minSamplesGenotyped = 20;
+	
 	private List<String> sampleIds;
 	//Counts for the summary section
 	private VariantsBasicCounts [] summaryCounts = new VariantsBasicCounts[VARIANT_CATEGORIES.length];
@@ -80,14 +88,27 @@ public class VCFSummaryStatisticsCalculator {
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 	public int getMinSamplesGenotyped() {
 		return minSamplesGenotyped;
 	}
 	public void setMinSamplesGenotyped(int minSamplesGenotyped) {
 		this.minSamplesGenotyped = minSamplesGenotyped;
 	}
-	public void setMinSamplesGenotyped(Integer minSamplesGenotyped) {
-		this.setMinSamplesGenotyped(minSamplesGenotyped.intValue());
+	public void setMinSamplesGenotyped(String value) {
+		this.setMinSamplesGenotyped((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	/**
@@ -95,13 +116,24 @@ public class VCFSummaryStatisticsCalculator {
 	 */
 	public static void main(String[] args) throws Exception {
 		VCFSummaryStatisticsCalculator instance = new VCFSummaryStatisticsCalculator();
-		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
-		boolean systemInput = "-".equals(args[i]);
-		if(systemInput) {
-			instance.runStatistics(System.in, System.out);
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	public void run() throws IOException {
+		if(inputFile==null) {
+			if(outputFile == null) runStatistics(System.in, System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					runStatistics(System.in, out);
+				}
+			}
 		} else {
-			String filename = args[i];
-			instance.runStatistics(filename, System.out);
+			if(outputFile == null) runStatistics(inputFile,System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					runStatistics(inputFile, out);
+				}
+			}
 		}
 	}
 	/**

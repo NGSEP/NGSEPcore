@@ -122,6 +122,16 @@ public class CommandOption {
 			}
 		}
 	}
+	public Method findStringSetMethod (Object instance) {
+		if(attribute==null) throw new RuntimeException("Attribute not set for option: "+id);
+		String methodName = "set"+Character.toUpperCase(attribute.charAt(0));
+		if(attribute.length()>0) methodName+=attribute.substring(1);
+		try {
+			return instance.getClass().getMethod(methodName,String.class);
+		} catch (NoSuchMethodException | SecurityException e) {
+			throw new RuntimeException(e);
+		}
+	}
 	private Class<?> getTypeClass() {
 		if(TYPE_BOOLEAN.equals(type)) {
 			return Boolean.class;

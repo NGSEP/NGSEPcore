@@ -230,6 +230,9 @@ public class CommandsDescriptor {
 	public Command getCommand(String name) {
 		return commands.get(name);
 	}
+	public Command getCommandByClass(String classname) {
+		return commandsByClass.get(classname);
+	}
 	/**
 	 * Prints the general usage including the command names and intro information
 	 */

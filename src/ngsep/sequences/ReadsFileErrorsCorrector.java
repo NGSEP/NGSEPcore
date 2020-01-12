@@ -143,10 +143,10 @@ public class ReadsFileErrorsCorrector {
 					read.save(out);
 					numReads++;
 					numBp+=read.getLength();
-					if(mbp<numBp/1000000) {
+					//if(mbp<numBp/1000000) {
 						mbp = numBp/1000000;
 						log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors");
-					}
+					//}
 				}
 			}
 		} else if (inputFormat==INPUT_FORMAT_FASTA) {
