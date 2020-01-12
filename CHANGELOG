@@ -1,8 +1,11 @@
 v3.3.3	01-02-2020
 - General. Fasta and gff3 files can now be gzip compressed
+- New command ReadsFileErrorsCorrector to perform k-mer based error correction
+  on files with raw reads
+- New command SingleReadsSimulator to simulate single reads from a genome in
+  fasta format
 - ConvertVCF: New option -printGWASPoly to convert a VCF file to the
   format received by GWASPoly
-- SingleReadsSimulator: Output reads are now gzip compressed
 - KmersCounter: Changed the default behavior. Now it counts kmers on both
   strands by default. Deprecated option -b and new option -f to count kmers
   only on the forward strand.
@@ -12,11 +15,26 @@ v3.3.3	01-02-2020
   SummaryStats
 - FilterVCF. Replaced option -minC with option -minRD to improve the
   description of the effect of this filter
-- FilterVCF and SummaryStats. New options -i and -o to indicate input and
+- FilterVCF and SummaryStats: New options -i and -o to indicate input and
   output file paths. These commands do not have a required argument anymore.
   Now, if an input file is not provided, the command reads from standard input
   by default and if an output file is not provided, the command writes to
-  standard output by default.   
+  standard output by default.
+- AlleleSharingStats: Now the option -n is used to indicate that introns should
+  be included in the calculation
+- ImputeVCF: Now the overlap between windows is set with the option -v
+- IntrogressionAnalysis: Now the overlap between windows is set with the
+  option -v
+- IntrogressionAnalysis: Now the mismatch score is set with the option -t
+- IntrogressionAnalysis: Now the option -r is used to print a filtered VCF file
+  with the variants used to run the analysis
+- KmersCounter: Options -b and -fasta were replaced by options -s and -n to
+  make them consistent with the new command ReadsFileErrorsCorrector
+- SingleIndividualSimulator: Now the indel mutation rate is set with the 
+  option -n instead of -i
+- SingleIndividualSimulator: Now the indel mutation rate is set with the 
+  option -n instead of -i
+  
 
 v3.3.2	15-07-2019
 - New command TranscriptomeAnalyzer to evaluate genome annotations in gff

@@ -14,10 +14,10 @@ Builds a k-mer abundance profile and use this profile to identify and correct se
 <option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
 </option>
-<option id="f" type="BOOLEAN" attribute="countOnlyForwardStrand">
+<option id="s" type="BOOLEAN" attribute="countOnlyForwardStrand">
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
-<option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+<option id="n" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
 <option id="m" type="INT" defaultConstant="DEF_MIN_KMER_ABUNDANCE" attribute="minCount">
@@ -38,13 +38,13 @@ Builds a de-novo assembly from a set of long reads
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
-<option id="o" type="INT" attribute="kmerOffset" defaultConstant="DEF_KMER_OFFSET">
+<option id="f" type="INT" attribute="kmerOffset" defaultConstant="DEF_KMER_OFFSET">
 Offset between queried k-mers
 </option>
 <option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
 Minimum percentage of k-mers to identify an overlap 
 </option>
-<option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+<option id="n" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a saved assembly graph
 </option>
 <option id="g" type="STRING" attribute="outFileGraph">
@@ -76,10 +76,10 @@ K-mer length
 <option id="p" type="DOUBLE" defaultConstant="DEF_MIN_PROPORTION_KMERS" attribute="minProportionKmers">
 Minimum proportion of k-mers to select alignments
 </option>
-<option id="i" type="INT" defaultConstant="DEF_MIN_INSERT_LENGTH" attribute="minInsertLength">
+<option id="minIL" type="INT" defaultConstant="DEF_MIN_INSERT_LENGTH" attribute="minInsertLength">
 Minimum predicted insert length to consider an alignment proper
 </option>
-<option id="x" type="INT" defaultConstant="DEF_MAX_INSERT_LENGTH" attribute="maxInsertLength">
+<option id="maxIL" type="INT" defaultConstant="DEF_MAX_INSERT_LENGTH" attribute="maxInsertLength">
 Maximum predicted insert length to consider an alignment proper
 </option>
 </command>
@@ -824,7 +824,7 @@ Writes to the standard output. See the README.txt file for details on the output
 GFF3 file with the transcriptome. If this file is provided, statistics will be provided by gene and
 not by window.
 </option>
-<option id="i">
+<option id="n">
 If set, introns will be included in the calculation of pairwise differences. Only useful if the
 -t option is set
 </option>
@@ -862,7 +862,7 @@ the parents are missing
 <option id="w" type="INT" default="5000" attribute="windowSize">
 Size of the window to process variants at the same time
 </option>
-<option id="o" type="INT" default="50" attribute="overlap">
+<option id="v" type="INT" default="50" attribute="overlap">
 Overlap between windows
 </option>
 <option id="c" type="DOUBLE" default="0.001" attribute="avgCMPerKbp">
@@ -912,25 +912,25 @@ variant as representative allele for such population.
 <option id="w" type="INT" default="50" attribute="windowSize">
 Window size as number of variants within each window
 </option>
-<option id="o" type="INT" default="0" attribute="overlap">
+<option id="v" type="INT" default="0" attribute="overlap">
 Overlap as number of variants shared between neighbor windows
 </option>
 <option id="a" type="INT" default="1" attribute="matchScore">
 Score given of a match between homozygous genotypes comparing haplotypes
 </option>
-<option id="i" type="INT" default="-1" attribute="mismatchScore">
+<option id="t" type="INT" default="-1" attribute="mismatchScore">
 Score given of a mismatch between homozygous genotypes comparing haplotypes
 </option>
 <option id="s" type="INT" default="30" attribute="minScore">
 Minimum score to match an individual haplotype with a population-derived haplotype
 </option>
-<option id="v" type="BOOLEAN" attribute="printVCF">
+<option id="r" type="BOOLEAN" attribute="printVCF">
 Outputs a VCF file with the biallelic variants that showed segregation between at least one
 pair of groups and hence were selected for the analysis. 
 </option>
 <option id="u" type="BOOLEAN" attribute="printUnassigned">
 If set, reports introgression events for unassigned haplotypes according to the minimum score defined by
-the options -a -i and -s
+the options -a -t and -s
 </option>
 </command>
 
@@ -1028,18 +1028,18 @@ Writes to standard output the number of k-mers obtained at each specific read de
 <argument>SEQUENCES_FILE</argument>
 <option id="b" type="BOOLEAN" attribute="bothStrands" deprecated="true">
 Deprecated. Now the default behavior is to count kmers in both strands. 
-See new option -f for kmer counting only in the forward strand.
+See new option -s for kmer counting only in the forward strand.
 </option>
 <option id="fasta" type="BOOLEAN" attribute="fasta" deprecated="true">
-Deprecated. See new option -i for input format
+Deprecated. See new option -n for input format
 </option>
 <option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
 </option>
-<option id="f" type="BOOLEAN" attribute="countOnlyForwardStrand">
+<option id="s" type="BOOLEAN" attribute="countOnlyForwardStrand">
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
-<option id="i" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
+<option id="n" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
 </command>
@@ -1117,7 +1117,7 @@ homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative t
 <option id="s" type="DOUBLE" defaultConstant="DEF_SNV_RATE" attribute="snvRate">
 Proportion of reference basepairs with simulated SNV events
 </option>
-<option id="i" type="DOUBLE" defaultConstant="DEF_INDEL_RATE" attribute="indelRate">
+<option id="n" type="DOUBLE" defaultConstant="DEF_INDEL_RATE" attribute="indelRate">
 Proportion of reference basepairs with simulated indel events
 </option>
 <option id="f" type="DOUBLE" defaultConstant="DEF_MUTATED_STR_FRACTION" attribute="mutatedSTRFraction">
@@ -1229,7 +1229,7 @@ Standard deviation read length
 <option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
 Substitution error rate
 </option>
-<option id="i" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
+<option id="d" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
 Indel error rate
 </option>
 <option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
