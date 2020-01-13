@@ -37,12 +37,14 @@ import ngsep.sequences.io.FastaSequencesHandler;
  */
 public class ReferenceGenome { 
 	private QualifiedSequenceList sequences;
+	private String filename;
 	/**
 	 * Creates a new ReferenceGenome with the given data
 	 * @param filename Name of the fasta file with the reference genome 
 	 * @throws IOException If the file can not be read
 	 */
 	public ReferenceGenome (String filename) throws IOException {
+		this.filename = filename;
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		handler.setSequenceType(DNAMaskedSequence.class);
 		sequences = handler.loadSequences(filename);
@@ -55,6 +57,13 @@ public class ReferenceGenome {
 	public ReferenceGenome(QualifiedSequence refQS) {
 		sequences = new QualifiedSequenceList();
 		sequences.add(refQS);
+	}
+	
+	/**
+	 * @return String the path of the file from which this genome was loaded
+	 */
+	public String getFilename() {
+		return filename;
 	}
 	/**
 	 * Returns the reference base pair at the given coordinate

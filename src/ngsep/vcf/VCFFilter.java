@@ -20,6 +20,7 @@
 package ngsep.vcf;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -463,17 +464,22 @@ public class VCFFilter {
 
 	public void run() throws Exception {
 		// Load files with optional information
+		logParameters();
 		if(filterRegionsFile!=null && !filterRegionsFile.isEmpty()) {
 			setRegionsToFilter(filterRegionsFile);
+			if (regionsToFilter != null)  log.info("Number of regions to filter: "+regionsToFilter.size()+" from file: "+filterRegionsFile);
 		}
 		if(selectRegionsFile!=null && !filterRegionsFile.isEmpty()) {
 			setRegionsToSelect(selectRegionsFile);
+			if (regionsToSelect != null)  log.info("Number of regions to select: "+regionsToSelect.size()+" from file: "+selectRegionsFile);
 		}
 		if(genomeFile!=null && !genomeFile.isEmpty()) {
 			setGenome(genomeFile);
+			if (genome != null) log.info("Loaded genome for GC content with "+genome.getNumSequences()+" sequences from file: "+genomeFile);
 		}
 		if(sampleIdsFile!=null && !sampleIdsFile.isEmpty()) {
 			setSampleIds(sampleIdsFile);
+			if (sampleIds != null) log.info("Loaded "+sampleIds.size()+" from file "+sampleIdsFile);
 		}
 		// Run filter
 		if(inputFile==null) {
@@ -491,6 +497,60 @@ public class VCFFilter {
 				}
 			}
 		}
+	}
+
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input file: "+inputFile);
+		else out.println("System standard input");
+		if(outputFile != null) out.println("Output file: "+outputFile);
+		else out.println("System standard output");
+		out.println();
+		
+		out.println("Genotype filters");
+		out.println("Minimum genotype quality: "+minGenotypeQuality);
+		out.println("Minimum read depth: "+minReadDepth);
+		out.println();
+		
+		out.println("Variant context filters");
+		if(minDistance>0) out.println("Minimum distance: "+minDistance);
+		
+		if(filterRegionsFile != null) out.println("File with regions to filter: "+filterRegionsFile);
+		else if (regionsToFilter != null)  out.println("Number of regions to filter: "+regionsToFilter.size());
+	    
+		if (selectRegionsFile != null) out.println("File with regions to select: "+selectRegionsFile);
+		else if (regionsToSelect != null)  out.println("Number of regions to select: "+regionsToSelect.size());
+		
+		boolean printGCContent = genomeFile!=null || genome!=null;
+		if (genomeFile != null)  out.println("File with reference genome for GC content: "+genomeFile);
+		else if (genome != null) out.println("Loaded genome for GC content with "+genome.getNumSequences()+" sequences");
+		if (printGCContent) {
+			out.println("Minimum GC content of the surrounding region: "+minGCContent);
+			out.println("Maximum GC content of the surrounding region: "+maxGCContent);
+		}
+	    if(geneId!=null) out.println("Gene id: "+geneId);
+	    if(annotations!=null) out.println("Annotations: "+annotations);
+		out.println();
+		
+		out.println("Population data filters");
+	    if(minSamplesGenotyped>0) out.println("Minimum samples genotyped: "+minSamplesGenotyped);
+		if(keepBiallelicSNVs) out.println("Keep only biallelic SNVs");
+		if(filterInvariant) out.println("Filter sites where only one allele is observed in the population");
+	    if(filterInvariantReference) out.println("Filter sites where only the reference allele is observed in the population");
+	    if(filterInvariantAlternative) out.println("Filter sites where only one alternative allele is observed in the population");
+	    if(minMAF>0) out.println("Minimum minor allele frequency (MAF): "+minMAF);
+	    if(maxMAF<0.5) out.println("Maximum minor allele frequency (MAF): "+maxMAF);
+	    if(minOH>0) out.println("Minimum observed heterozygosity (OH): "+minOH);
+	    if(maxOH<1) out.println("Maximum observed heterozygosity (OH): "+maxOH);
+	    if(maxSamplesCNVs>=0) out.println("Maximum number of samples with CNVs: "+maxSamplesCNVs);
+	    out.println();
+	    
+	    out.println("Filters for samples");
+	    String action = filterSamples?"filter":"select";
+	    if(sampleIdsFile != null) out.println("File with samples to "+action+": "+sampleIdsFile);
+		else if (sampleIds != null) out.println("Samples to "+action+": "+sampleIds);
+	    log.info(""+os.toString());
 	}
 
 	public void processVariantsFile(String vcfFile, PrintStream out) throws IOException {
