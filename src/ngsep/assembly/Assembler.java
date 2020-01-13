@@ -59,6 +59,9 @@ public class Assembler {
 	public static final int DEF_KMER_OFFSET = 15;
 	public static final int DEF_MIN_KMER_PCT = 40;
 	
+	private String inputFile = null;
+	private String outputFile = null;
+	
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	
 	private String outFileGraph = null;
@@ -70,10 +73,8 @@ public class Assembler {
 	
 	public static void main(String[] args) throws Exception {
 		Assembler instance = new Assembler ();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String inputFile = args[i++];
-		String outputFile = args[i++];
-		instance.run(inputFile, outputFile);
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 	}
 	
 	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
@@ -98,6 +99,7 @@ public class Assembler {
 		this.log = log;
 	}
 
+	
 	
 	/**
 	 * @return the inputFormat
@@ -198,6 +200,9 @@ public class Assembler {
 		this.targetGenome = targetGenome;
 	}
 
+	public void run() throws IOException {
+		run (inputFile, outputFile);
+	}
 	public void run(String inputFile, String outputFile) throws IOException {
 		AssemblyGraph graph;
 		AssemblyGraph goldStandardGraph=null;
@@ -207,8 +212,10 @@ public class Assembler {
 		} else {
 			List<QualifiedSequence> sequencesQL = load(inputFile);
 			log.info("Loaded "+sequencesQL.size()+" sequences");
+			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return; 
 			Collections.sort(sequencesQL, (l1, l2) -> l2.getLength() - l1.getLength());
 			log.info("Sorted "+sequencesQL.size()+" sequences");
+			if(progressNotifier!=null && !progressNotifier.keepRunning(15)) return;
 			
 			List<CharSequence> finalSequences = Collections.unmodifiableList(extractReads(sequencesQL));
 			if(targetGenome!=null) {
@@ -220,6 +227,7 @@ public class Assembler {
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
 			log.info("Built graph");
+			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 			if(outFileGraph!=null) {
 				graph.serialize(outFileGraph);
 				log.info("Saved graph in "+outFileGraph);
@@ -230,6 +238,8 @@ public class Assembler {
 		//LayourBuilder pathsFinder = new MetricMSTLayout();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
+		if(progressNotifier!=null && !progressNotifier.keepRunning(75)) return;
+		
 		if(goldStandardGraph!=null) {
 			compareGraphs(goldStandardGraph, graph);
 		}
@@ -238,6 +248,7 @@ public class Assembler {
 		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalGaps();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
+		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
 		saveAssembly(outputFile, "contig", assembledSequences);
 	}
 

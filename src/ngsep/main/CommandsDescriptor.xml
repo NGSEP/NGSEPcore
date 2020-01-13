@@ -33,8 +33,13 @@ Performs de-novo assembly from long reads
 <description>
 Builds a de-novo assembly from a set of long reads
 </description>
-<argument>READS_FILE</argument>
-<argument>OUTPUT_FILE</argument>
+<argument>OPTIONS</argument>
+<option id="i" type="FILE" attribute="inputFile">
+Input file. See option -n for options on the file format . It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with the assembly in Fasta format.
+</option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
