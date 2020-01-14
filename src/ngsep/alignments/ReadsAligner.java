@@ -42,7 +42,7 @@ import ngsep.main.OptionValuesDecoder;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmersCounter;
+import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
@@ -60,7 +60,9 @@ public class ReadsAligner {
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
 	public static final int DEFAULT_MAX_ALIGNMENTS=100;
 	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
-	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
+	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
+	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
+	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	
 	private int kmerLength = DEF_KMER_LENGTH;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
@@ -717,7 +719,7 @@ public class ReadsAligner {
 	 */
 	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores, String readName) 
 	{
-		Map<Integer,CharSequence> kmersMap = KmersCounter.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
+		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
 		int kmersCount=kmersMap.size();

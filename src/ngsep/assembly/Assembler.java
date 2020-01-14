@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmersCounter;
+import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
@@ -52,10 +52,10 @@ public class Assembler {
 	private ProgressNotifier progressNotifier = null;
 	
 	
-	public static final byte INPUT_FORMAT_FASTQ=KmersCounter.INPUT_FORMAT_FASTQ;
-	public static final byte INPUT_FORMAT_FASTA=KmersCounter.INPUT_FORMAT_FASTA;
+	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
+	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final byte INPUT_FORMAT_GRAPH=2;
-	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
+	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
 	public static final int DEF_MIN_KMER_PCT = 40;
 	

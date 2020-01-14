@@ -43,16 +43,16 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsFileErrorsCorrector {
 	private Logger log = Logger.getLogger(ReadsFileErrorsCorrector.class.getName());
-	public static final int DEF_KMER_LENGTH = KmersCounter.DEF_KMER_LENGTH;
-	public static final byte INPUT_FORMAT_FASTQ=KmersCounter.INPUT_FORMAT_FASTQ;
-	public static final byte INPUT_FORMAT_FASTA=KmersCounter.INPUT_FORMAT_FASTA;
-	public static final int DEF_MIN_KMER_ABUNDANCE = 5;
+	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
+	public static final int DEF_MIN_KMER_COUNT = KmersExtractor.DEF_MIN_KMER_COUNT;
+	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
+	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	
 	private KmersMap kmersMap;
 	private int kmerLength = DEF_KMER_LENGTH;
+	private int minKmerCount = DEF_MIN_KMER_COUNT;
 	private boolean countOnlyForwardStrand=false;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
-	private int minAbundance = DEF_MIN_KMER_ABUNDANCE;
 	private int correctedErrors = 0;
 	
 	
@@ -67,6 +67,17 @@ public class ReadsFileErrorsCorrector {
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+	
+	public int getMinKmerCount() {
+		return minKmerCount;
+	}
+	public void setMinKmerCount(int minKmerCount) {
+		this.minKmerCount = minKmerCount;
+	}
+	public void setMinKmerCount(String value) {
+		setMinKmerCount((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public boolean isCountOnlyForwardStrand() {
 		return countOnlyForwardStrand;
 	}
@@ -93,27 +104,6 @@ public class ReadsFileErrorsCorrector {
 
 	public void setInputFormat(String value) {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
-	}
-	
-	/**
-	 * @return the minCount
-	 */
-	public int getMinAbundance() {
-		return minAbundance;
-	}
-
-	/**
-	 * @param minAbundance the minAbundance to set
-	 */
-	public void setMinAbundance(int minAbundance) {
-		this.minAbundance = minAbundance;
-	}
-	
-	/**
-	 * @param minAbundance the minAbundance to set
-	 */
-	public void setMinAbundance(Integer minAbundance) {
-		this.setMinAbundance(minAbundance.intValue());
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -176,7 +166,7 @@ public class ReadsFileErrorsCorrector {
 
 	private void buildKmersMap(String inFilename) throws IOException {
 		System.out.println("Calculating k-mers map from: "+inFilename);
-		KmersCounter counter = new KmersCounter();
+		KmersExtractor counter = new KmersExtractor();
 		counter.setLog(log);
 		counter.setIgnoreLowComplexity(true);
 		counter.setKmerLength(kmerLength);
@@ -189,7 +179,7 @@ public class ReadsFileErrorsCorrector {
 		kmersDist.printDistributionInt(System.out);
 		log.info("Distribution mode: "+mode);
 		if(kmerLength>15) {
-			kmersMap.filterKmers(minAbundance);
+			kmersMap.filterKmers(minKmerCount);
 			log.info("The Map now has "+kmersMap.size()+" k-mers");
 		}
 	}
@@ -203,7 +193,7 @@ public class ReadsFileErrorsCorrector {
 		String rq = read.getQualityScores();
 		StringBuilder correctedRead = new StringBuilder();
 		StringBuilder correctedQualities = new StringBuilder();
-		CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerLength , 1, false, true, false);
+		CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, false, true, false);
 		int [] readKmerCounts = new int [readKmers.length];
 		Arrays.fill(readKmerCounts, 0);
 		
@@ -214,7 +204,7 @@ public class ReadsFileErrorsCorrector {
 		boolean corrected = false;
 		int lastRepresented= -1;
 		for(int i=0;i<readKmers.length;i++) {
-			if(readKmerCounts[i] >= minAbundance) {
+			if(readKmerCounts[i] >= minKmerCount) {
 				if(i-1!=lastRepresented) {
 					//TODO: Try to correct sequence starts
 					String correctedSegment = null;
@@ -288,7 +278,7 @@ public class ReadsFileErrorsCorrector {
 			for(int i=0;i<dna.length();i++) {
 				char bp = dna.charAt(i);
 				String nextKmer = kMinus1Mer+bp;
-				if(kmersMap.getCount(nextKmer)>=minAbundance) {
+				if(kmersMap.getCount(nextKmer)>=minKmerCount) {
 					agenda.push(nextState+bp); 
 				}
 			}
@@ -300,7 +290,7 @@ public class ReadsFileErrorsCorrector {
 		for(int h=0;h<3;h++) {
 			String readStr = read.getCharacters().toString();
 			char [] readChars = readStr.toCharArray();
-			CharSequence [] readKmers = KmersCounter.extractKmers(readStr, kmerLength , 1, false, true, false);
+			CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, false, true, false);
 			int [] readKmerCounts = new int [readKmers.length];
 			Arrays.fill(readKmerCounts, 0);
 			
@@ -311,7 +301,7 @@ public class ReadsFileErrorsCorrector {
 			int lastRepresented= -1;
 			boolean corrected = false;
 			for(int i=0;i<readKmers.length;i++) {
-				if(readKmerCounts[i] >= minAbundance) {
+				if(readKmerCounts[i] >= minKmerCount) {
 					if(i-1!=lastRepresented) {
 						corrected = corrected || correctErrors (readChars,lastRepresented,i);
 					}
@@ -361,7 +351,7 @@ public class ReadsFileErrorsCorrector {
 
 	private double getScore(char[] readChars, int first, int last) {
 		String segment = (new String(readChars)).substring(first,last+1);
-		CharSequence [] segmentKmers = KmersCounter.extractKmers(segment, kmerLength , 1, false, true, false);
+		CharSequence [] segmentKmers = KmersExtractor.extractKmers(segment, kmerLength , 1, false, true, false);
 		double score = 0;
 		for(int i=0;i<segmentKmers.length;i++) {
 			CharSequence kmer = segmentKmers[i];

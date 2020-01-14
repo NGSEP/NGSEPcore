@@ -47,6 +47,10 @@ public class CNVseqAlgorithm {
 	//------------------------------------------------------------------------------------------------------------------------------------------------
 	//								ATTRIBUTES
 	//------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	public static final int DEF_WINDOW_SIZE = 100;
+	public static final double DEF_MAX_PVALUE = 0.001;
+	
 	// file management
 	// input
 	private String reference;
@@ -81,8 +85,8 @@ public class CNVseqAlgorithm {
 	private boolean gcCorrection = false;
 	private boolean wholeGenomePrnt = false;
 	private boolean bonferroni = false;
-	private double pValue = 0.001;
-	private int binSize = 100;
+	private double pValue = DEF_MAX_PVALUE;
+	private int binSize = DEF_WINDOW_SIZE;
 	
 	//------------------------------------------------------------------------------------------------------------------------------------------------
 	//								MAIN METHODS

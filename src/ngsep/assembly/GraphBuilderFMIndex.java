@@ -31,7 +31,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmersCounter;
+import ngsep.sequences.KmersExtractor;
 
 /**
  * @author Jorge Duitama
@@ -98,7 +98,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 	private boolean updateGraph(AssemblyGraph graph, int querySequenceId, String query, boolean queryRC, FMIndex fmIndex) {
 		boolean isEmbedded = false;
-		Map<Integer,CharSequence> kmersMap = KmersCounter.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
+		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
 		
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return isEmbedded;

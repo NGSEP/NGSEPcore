@@ -42,18 +42,20 @@ import ngsep.sequences.io.FastqFileReader;
  * @author Jorge Duitama
  *
  */
-public class KmersCounter {
+public class KmersExtractor {
 	
 	public static final int DEF_KMER_LENGTH = 15;
+	public static final int DEF_MIN_KMER_COUNT = 5;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
 	
-	private Logger log = Logger.getLogger(KmersCounter.class.getName());
+	private Logger log = Logger.getLogger(KmersExtractor.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	private KmersMap kmersMap;
 	
 	private int kmerLength = DEF_KMER_LENGTH;
+	private int minKmerCount = DEF_MIN_KMER_COUNT;
 	private boolean countOnlyForwardStrand=false;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private boolean ignoreLowComplexity = false;
@@ -85,6 +87,15 @@ public class KmersCounter {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public int getMinKmerCount() {
+		return minKmerCount;
+	}
+	public void setMinKmerCount(int minKmerCount) {
+		this.minKmerCount = minKmerCount;
+	}
+	public void setMinKmerCount(String value) {
+		setMinKmerCount((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public boolean isCountOnlyForwardStrand() {
 		return countOnlyForwardStrand;
 	}
@@ -132,7 +143,7 @@ public class KmersCounter {
 	 */
 	public static void main (String [ ] args) throws Exception {
 
-		KmersCounter kmersCounter = new KmersCounter();
+		KmersExtractor kmersCounter = new KmersExtractor();
 		//Parameters
 		int k=CommandsDescriptor.getInstance().loadOptions(kmersCounter, args);
 		List<String> files = new ArrayList<>();

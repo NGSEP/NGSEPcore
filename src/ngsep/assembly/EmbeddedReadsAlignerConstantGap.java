@@ -10,7 +10,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexSingleSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmersCounter;
+import ngsep.sequences.KmersExtractor;
 
 /**
  * Alignment of a main read with its embedded reads
@@ -59,7 +59,7 @@ public class EmbeddedReadsAlignerConstantGap
 
 	private ReadAlignment getAlignment(FMIndexSingleSequence fmIndex, String subject, String query) {
 		int kmerLength = 15;
-		Map<Integer,CharSequence> kmersMap = KmersCounter.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
+		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<FMIndexUngappedSearchHit> initialKmerHits = new ArrayList<>();
 		for (int start:kmersMap.keySet()) {
 			String kmer = kmersMap.get(start).toString();

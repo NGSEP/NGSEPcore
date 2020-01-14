@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.3.2 (15-07-2019)
+Version 4.0.0 (01-02-2020)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -22,20 +22,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 1.8.0. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_3.3.2.tar.gz is located:
+NGSEPcore_4.0.0.tar.gz is located:
 
-tar -xzvf NGSEPcore_3.3.2.tar.gz
-cd NGSEPcore_3.3.2
+tar -xzvf NGSEPcore_4.0.0.tar.gz
+cd NGSEPcore_4.0.0
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_3.3.2.jar NGSEPcore.jar
+cp NGSEPcore_4.0.0.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_3.3.2.jar NGSEPcore.jar
+ln -s NGSEPcore_4.0.0.jar NGSEPcore.jar
 
 ---------------
 Asking for help
