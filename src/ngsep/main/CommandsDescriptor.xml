@@ -9,7 +9,10 @@ a single file containing reads from a whole sequencing lane (Former Deconvolute)
 <title>Demultiplexing reads</title>
 <description>
 Build individual fastq files for different samples from a single file containing the reads
-for a whole sequencing lane in which several samples were barcoded and sequenced.
+for one or more sequencing lanes in which several samples were barcoded and sequenced.
+More than one file can be provided with the option -d. A single file can be provided instead
+with the option -f (and -f2 for paired-end sequencing). If neither the -d or the -f options are
+specified, the program tries to read sequencing reads from the standard input.
 </description>
 <option id="i" type="FILE" attribute="indexFile" >
 Tab-delimited file with at least four columns by default: flowcell, lane, barcode
@@ -17,15 +20,26 @@ and sampleID. If the -a option for dual barcode is activated, five columns are e
 flowcell, lane, barcode1, barcode2 and sampleID. The file must have a header line. The same
 index file can be used to demultiplex several FASTQ files (see option -d).
 </option>
+<option id="d" type="FILE" attribute="laneFilesDescriptor" >
+Tab-delimited file listing the lane FASTQ files to be demultiplexed. Columns are: Flowcell, lane and
+fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.
+If the reads sequenced for one lane are split in multiple files, each file (or each pair of files)
+should be included in a separate row. If this option is used, the options -f, -f2, -c and -l are ignored.
+</option>
+<option id="o" type="DIR" attribute="outDirectory">
+Directory where the output fastq files will be saved. Files will be gzip compressed by default.
+</option>
 <option id="f" type="FILE" attribute="fastqFile">
 File with raw reads in fastq format. It can be gzip compressed.
 </option>
 <option id="f2" type="FILE" attribute="fastqFile2">
 File with raw reads in fastq format corresponding to the second file for paired end reads. It can be gzip compressed.
 </option>
-
-<option id="o" type="DIR" attribute="outDirectory">
-Directory where the output fastq files will be saved. Files will be gzip compressed by default.
+<option id="c" type="STRING" attribute="flowcell">
+Id of the flowcell corresponding to the input fastq file(s). Required if -d option is not specified.
+</option>
+<option id="l" type="STRING" attribute="lane">
+Id of the lane corresponding to the input fastq file(s). Required if the -d option is not specified.
 </option>
 <option id="t" type="STRING" attribute="trimSequences">
 Sequences to trim separated by comma. If any of the given sequences is found within a read,
@@ -34,30 +48,17 @@ the read will be trimmed up to the start of the sequence.
 <option id="u" type="BOOLEAN" attribute="uncompressedOutput">
 Output uncompressed files.
 </option>
-<option id="r" type="INT" attribute="minReadLength">
-Minimum read length to keep a read after trimming adapter sequences
+<option id="r" type="INT" attribute="minReadLength" defaultConstant="DEF_MIN_READ_LENGTH">
+Minimum read length to keep a read after trimming adapter sequences.
 </option>
 <option id="a" type="BOOLEAN" attribute="dualBarcode">
 Activate demultiplexing with dual barcoding.
-</option>
-<option id="d" type="FILE" attribute="laneFilesDescriptor" >
-Tab-delimited file listing the lane FASTQ files to be demultiplexed. Columns are: Flowcell, lane and
-fastq file (which can be gzip compressed). A second fastq file can be specified for pair-end sequencing.
-If the reads sequenced for one lane are split in multiple files, each file (or each pair of files)
-should be included in a separate row. If this option is used, the options -f, -l and the input fastq
-file(s) are ignored
-</option>
-<option id="c" type="STRING" attribute="flowcell">
-Id of the flowcell corresponding to the input fastq file(s). Required if -d option is not specified.
-</option>
-<option id="l" type="STRING" attribute="lane">
-Id of the lane corresponding to the input fastq file(s). Required if the -d option is not specified.
 </option>
 </command>
 
 <command id="KmersExtractor" class="ngsep.sequences.KmersExtractor">
 <intro>
-Obtains the distribution of k-mer abundances
+Extract k-mers and count abundances from fasta and fastq files
 </intro>
 <title>Obtaining k-mers spectrum from sequences</title>
 <description>
@@ -69,17 +70,20 @@ Writes two files, one with the k-mer distribution and a second file with the act
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files.
 </option>
-<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length
 </option>
-<option id="m" type="INT" defaultConstant="DEF_MIN_KMER_COUNT" attribute="minKmerCount">
+<option id="m" type="INT" attribute="minKmerCount" defaultConstant="DEF_MIN_KMER_COUNT">
 Minimum count to report a k-mer in the output file
 </option>
-<option id="s" type="BOOLEAN" attribute="countOnlyForwardStrand">
+<option id="s" type="BOOLEAN" attribute="onlyForwardStrand">
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file(s). It can be 0 for fastq or 1 for fasta
+</option>
+<option id="c" type="BOOLEAN" attribute="ignoreLowComplexity">
+Ignore low complexity k-mers for counting and reporting
 </option>
 </command>
 
@@ -97,17 +101,20 @@ Input file with raw reads in fastq or fasta format. See option -f for options on
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the corrected reads in fastq format (gzip compressed)
 </option>
+<option id="e" type="FILE" attribute="kmersMapFile">
+Two column tab delimited file with k-mers and their abundances
+</option>
 <option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
 K-mer length
 </option>
-<option id="s" type="BOOLEAN" attribute="countOnlyForwardStrand">
+<option id="m" type="INT" defaultConstant="DEF_MIN_KMER_COUNT" attribute="minKmerCount">
+Minimum k-mer count to consider a k-mer real
+</option>
+<option id="s" type="BOOLEAN" attribute="onlyForwardStrand">
 If set, only the forward strand would be used to extract kmers. Mandatory for non-DNA sequences
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
-</option>
-<option id="m" type="INT" defaultConstant="DEF_MIN_KMER_COUNT" attribute="minKmerCount">
-Minimum k-mer count to consider a k-mer real
 </option>
 </command>
 
@@ -191,7 +198,25 @@ File in VCF format with the variants that will be applied to the input genome.
 <option id="o" type="FILE" attribute="outputFile">
 Output file in fasta format with the modified genome.
 </option>
+</command>
 
+<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
+<intro>
+Creates a FMINDEX for Indexing the genome
+</intro>
+<title>Indexing genome reference files</title>
+<description>
+Create a binary file containing a FMINDEX from genome
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input genome to index in fasta format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output binary file with the FM index associated with the input genome
+</option>
+<option id="t" type="INT" default="100" attribute="tallyDistance">
+Distance between tally indexes
+</option>
 </command>
 
 <command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
@@ -234,24 +259,7 @@ Maximum predicted insert length to consider an alignment proper
 </option>
 </command>
 
-<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
-<intro>
-Creates a FMINDEX for Indexing the genome
-</intro>
-<title>Indexing genome reference files</title>
-<description>
-Create a binary file containing a FMINDEX from genome
-</description>
-<option id="i" type="FILE" attribute="inputFile">
-Input genome to index in fasta format. It can be gzip compressed.
-</option>
-<option id="o" type="FILE" attribute="outputFile">
-Output binary file with the FM index associated with the input genome
-</option>
-<option id="t" type="INT" default="100" attribute="tallyDistance">
-Distance between tally indexes
-</option>
-</command>
+
 
 <command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
 <intro>Module for direct calculation of variants from multiple samples.</intro>

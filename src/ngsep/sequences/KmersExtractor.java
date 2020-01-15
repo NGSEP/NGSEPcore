@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -44,23 +45,29 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class KmersExtractor {
 	
+	// Constants for default values
 	public static final int DEF_KMER_LENGTH = 15;
 	public static final int DEF_MIN_KMER_COUNT = 5;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
 	
+	// Logging and progress
 	private Logger log = Logger.getLogger(KmersExtractor.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private KmersMap kmersMap;
-	
+	// Parameters
+	private String outputPrefix = null;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int minKmerCount = DEF_MIN_KMER_COUNT;
-	private boolean countOnlyForwardStrand=false;
+	private boolean onlyForwardStrand=false;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private boolean ignoreLowComplexity = false;
 	
+	// Model attributes
+	private KmersMap kmersMap;
 	
+	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
@@ -75,6 +82,12 @@ public class KmersExtractor {
 		this.progressNotifier = progressNotifier;
 	}
 	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
 	public int getKmerLength() {
 		return kmerLength;
 	}
@@ -96,39 +109,34 @@ public class KmersExtractor {
 	public void setMinKmerCount(String value) {
 		setMinKmerCount((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-	public boolean isCountOnlyForwardStrand() {
-		return countOnlyForwardStrand;
+	public boolean isOnlyForwardStrand() {
+		return onlyForwardStrand;
 	}
-	public void setCountOnlyForwardStrand(boolean countOnlyForwardStrand) {
-		this.countOnlyForwardStrand = countOnlyForwardStrand;
+	public void setOnlyForwardStrand(boolean onlyForwardStrand) {
+		this.onlyForwardStrand = onlyForwardStrand;
 	}
-	public void setCountOnlyForwardStrand(Boolean countOnlyForwardStrand) {
-		this.setCountOnlyForwardStrand(countOnlyForwardStrand.booleanValue());
+	public void setOnlyForwardStrand(Boolean onlyForwardStrand) {
+		this.setOnlyForwardStrand(onlyForwardStrand.booleanValue());
 	}
-	/**
-	 * @return the inputFormat
-	 */
 	public byte getInputFormat() {
 		return inputFormat;
 	}
-
-	/**
-	 * @param inputFormat the inputFormat to set
-	 */
 	public void setInputFormat(byte inputFormat) {
+		if(inputFormat!=INPUT_FORMAT_FASTA && inputFormat!=INPUT_FORMAT_FASTQ) throw new IllegalArgumentException("Invalid input format "+inputFormat);
 		this.inputFormat = inputFormat;
 	}
-
 	public void setInputFormat(String value) {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
-	
 	
 	public boolean isIgnoreLowComplexity() {
 		return ignoreLowComplexity;
 	}
 	public void setIgnoreLowComplexity(boolean ignoreLowComplexity) {
 		this.ignoreLowComplexity = ignoreLowComplexity;
+	}
+	public void setIgnoreLowComplexity(Boolean ignoreLowComplexity) {
+		this.setIgnoreLowComplexity(ignoreLowComplexity.booleanValue());
 	}
 	/**
 	 * @return the hashKmers
@@ -143,18 +151,15 @@ public class KmersExtractor {
 	 */
 	public static void main (String [ ] args) throws Exception {
 
-		KmersExtractor kmersCounter = new KmersExtractor();
+		KmersExtractor instance = new KmersExtractor();
 		//Parameters
-		int k=CommandsDescriptor.getInstance().loadOptions(kmersCounter, args);
+		int k=CommandsDescriptor.getInstance().loadOptions(instance, args);
 		List<String> files = new ArrayList<>();
 		for(;k<args.length;k++) {
 			files.add(args[k]);
-		}
-		
-		if(files.size()>=1 && "-".equals(files.get(0))) kmersCounter.processFastqFile(System.in); 
-		else kmersCounter.processFiles(files);
-		kmersCounter.printResults(System.out);
-		
+		} 
+		instance.processFiles(files);
+		instance.saveResults();
 	}
 	
 	/**
@@ -163,9 +168,25 @@ public class KmersExtractor {
 	 * @throws IOException If a file can not be read
 	 */
 	public void processFiles(List<String> files) throws IOException {
+		logParameters ();
+		if(files.size()==1 && "-".equals(files.get(0))) processFastqFile(System.in);
 		for(String filename:files) processFile(filename);
+		
 	}
 	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Prefix for output files:"+ outputPrefix);
+		out.println("K-mer length: "+ kmerLength);
+		out.println("Minimum count to save k-mer: "+ minKmerCount);
+		if (onlyForwardStrand) out.println("Extract k-mers only from the forward strand");
+		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
+		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		if (ignoreLowComplexity) out.println("Ignore low complexity k-mers");
+		log.info(os.toString());
+		
+	}
 	/**
 	 * Processes the file with the given name as fasta or fastq and updates the kmers table
 	 * @param sequenceFileName Name of the file with the sequences to process.
@@ -216,7 +237,7 @@ public class KmersExtractor {
 		//Forward		
 		countSequenceKmers(sequence);
 		//Reverse complement
-		if(!countOnlyForwardStrand){
+		if(!onlyForwardStrand){
 			String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 			countSequenceKmers(reverseSequence);
 		}
@@ -237,7 +258,7 @@ public class KmersExtractor {
 			String sequence = seq.getCharacters().toString();
 			countSequenceKmers(sequence);
 			//Reverse complement
-			if(!countOnlyForwardStrand){
+			if(!onlyForwardStrand){
 				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 				countSequenceKmers(reverseSequence);
 			}
@@ -348,10 +369,18 @@ public class KmersExtractor {
 		if(kmerStr.contains("TATATATA")) return true;
 		return false;
 	}
-	public void printResults (PrintStream out) {
+	public void saveResults () throws IOException {
 		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
 		Distribution kmerSpectrum = kmersMap.calculateAbundancesDistribution();
-		out.println("Kmer_frequency\tNumber_of_distinct_kmers");
-		kmerSpectrum.printDistributionInt(out);
+		try (PrintStream out=new PrintStream(outputPrefix+"_distribution.txt")) {
+			out.println("Kmer_frequency\tNumber_of_distinct_kmers");
+			kmerSpectrum.printDistributionInt(out);
+		}
+		kmersMap.filterKmers(minKmerCount);
+		log.info("Saving "+kmersMap.size()+" filtered k-mers with minimum count "+minKmerCount);
+		try (PrintStream out=new PrintStream(outputPrefix+"_kmers.txt")) {
+			kmersMap.save(out);
+		}
+		
 	}	
 }

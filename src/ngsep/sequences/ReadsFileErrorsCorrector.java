@@ -20,6 +20,7 @@
 package ngsep.sequences;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -33,6 +34,7 @@ import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastqFileReader;
 
@@ -42,20 +44,64 @@ import ngsep.sequences.io.FastqFileReader;
  *
  */
 public class ReadsFileErrorsCorrector {
-	private Logger log = Logger.getLogger(ReadsFileErrorsCorrector.class.getName());
+	
+	// Constants for default values
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_KMER_COUNT = KmersExtractor.DEF_MIN_KMER_COUNT;
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	
-	private KmersMap kmersMap;
+	// Logging and progress
+	private Logger log = Logger.getLogger(ReadsFileErrorsCorrector.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String outputFile = null;
+	private String kmersMapFile = null;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int minKmerCount = DEF_MIN_KMER_COUNT;
-	private boolean countOnlyForwardStrand=false;
+	private boolean onlyForwardStrand=false;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
+	
+	
+	// Model attributes
+	private KmersMap kmersMap;
 	private int correctedErrors = 0;
 	
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	public String getKmersMapFile() {
+		return kmersMapFile;
+	}
+	public void setKmersMapFile(String kmersMapFile) {
+		this.kmersMapFile = kmersMapFile;
+	}
 	public int getKmerLength() {
 		return kmerLength;
 	}
@@ -78,46 +124,72 @@ public class ReadsFileErrorsCorrector {
 		setMinKmerCount((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public boolean isCountOnlyForwardStrand() {
-		return countOnlyForwardStrand;
+	public boolean isOnlyForwardStrand() {
+		return onlyForwardStrand;
 	}
-	public void setCountOnlyForwardStrand(boolean countOnlyForwardStrand) {
-		this.countOnlyForwardStrand = countOnlyForwardStrand;
+	public void setOnlyForwardStrand(boolean onlyForwardStrand) {
+		this.onlyForwardStrand = onlyForwardStrand;
 	}
-	public void setCountOnlyForwardStrand(Boolean countOnlyForwardStrand) {
-		this.setCountOnlyForwardStrand(countOnlyForwardStrand.booleanValue());
+	public void setOnlyForwardStrand(Boolean onlyForwardStrand) {
+		this.setOnlyForwardStrand(onlyForwardStrand.booleanValue());
 	}
-	/**
-	 * @return the inputFormat
-	 */
+	
 	public byte getInputFormat() {
 		return inputFormat;
 	}
-
-	/**
-	 * @param inputFormat the inputFormat to set
-	 */
 	public void setInputFormat(byte inputFormat) {
 		if(inputFormat!=INPUT_FORMAT_FASTA && inputFormat!=INPUT_FORMAT_FASTQ) throw new IllegalArgumentException("Invalid input format "+inputFormat);
 		this.inputFormat = inputFormat;
 	}
-
 	public void setInputFormat(String value) {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
 
 	public static void main(String[] args) throws Exception {
 		ReadsFileErrorsCorrector instance = new ReadsFileErrorsCorrector();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String inFilename = args[i++];
-		String outFilename = args[i++];
-		instance.process(inFilename,outFilename);
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+		
 
 	}
 
+	public void run() throws IOException {
+		logParameters();
+		if(inputFile==null) {
+			log.severe("The input file is mandatory");
+			return;
+		}
+		if(outputFile==null) {
+			log.severe("The output file is mandatory");
+			return;
+		}
+		process(inputFile,outputFile);
+	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input file:"+ inputFile);
+		out.println("Output file:"+ outputFile);
+		if(kmersMapFile!=null) out.println("K-mers map file: "+ kmersMapFile);
+		out.println("K-mer length: "+ kmerLength);
+		out.println("Minimum count to save k-mer: "+ minKmerCount);
+		if (onlyForwardStrand) out.println("Extract k-mers only from the forward strand");
+		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
+		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		log.info(os.toString());
+		
+	}
 	public void process(String inFilename, String outFilename) throws IOException {
 		correctedErrors = 0;
-		buildKmersMap(inFilename);
+		if (kmersMapFile!=null) loadKmersMap();
+		else buildKmersMap(inFilename);
+		Distribution kmersDist = kmersMap.calculateAbundancesDistribution();
+		int mode = (int)kmersDist.getLocalMode(5, 125);
+		kmersDist.printDistributionInt(System.out);
+		log.info("Distribution mode: "+mode);
+		kmersMap.filterKmers(minKmerCount);
+		log.info("The Map now has "+kmersMap.size()+" k-mers");
 		System.out.println("Processing file: "+inFilename);
 		int numReads=0;
 		long numBp = 0;
@@ -164,31 +236,45 @@ public class ReadsFileErrorsCorrector {
 		log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors. Output written to "+outFilename);
 	}
 
+	private void loadKmersMap() throws IOException {
+		log.info("Loading k-mers map from : "+kmersMapFile);
+		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
+		else kmersMap = new DefaultKmersMapImpl();
+		try (FileReader reader = new FileReader(kmersMapFile);
+			 BufferedReader in = new BufferedReader(reader)) {
+			String line = in.readLine();
+			while(line!=null) {
+				// TODO: Better method
+				String [] items = line.split("\t");
+				String kmer = items[0];
+				int count = Integer.parseInt(items[1]);
+				if (!KmersExtractor.isLowComplexity(kmer))
+				kmersMap.setCount(kmer,count);
+				line = in.readLine();
+			}
+		}
+		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + inputFile + " (ignoring low complexity)");
+		
+	}
 	private void buildKmersMap(String inFilename) throws IOException {
-		System.out.println("Calculating k-mers map from: "+inFilename);
+		log.info("Calculating k-mers map from reads in : "+inFilename);
 		KmersExtractor counter = new KmersExtractor();
 		counter.setLog(log);
 		counter.setIgnoreLowComplexity(true);
 		counter.setKmerLength(kmerLength);
-		counter.setCountOnlyForwardStrand(countOnlyForwardStrand);
+		counter.setOnlyForwardStrand(onlyForwardStrand);
 		counter.processFile(inFilename);
 		kmersMap = counter.getKmersMap();
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: "+inFilename+ " (ignoring low complexity)");
-		Distribution kmersDist = kmersMap.calculateAbundancesDistribution();
-		int mode = (int)kmersDist.getLocalMode(5, 125);
-		kmersDist.printDistributionInt(System.out);
-		log.info("Distribution mode: "+mode);
-		if(kmerLength>15) {
-			kmersMap.filterKmers(minKmerCount);
-			log.info("The Map now has "+kmersMap.size()+" k-mers");
-		}
+		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + inFilename + " (ignoring low complexity)");
+		
 	}
 
 	public void processRead(RawRead read) {
-		//processReadBestSNPChange(read);
-		processReadDeBruijnExploration (read);
+		// TODO: Option to choose algorithm
+		processReadBestSNPChange(read);
+		//processReadDeBruijnExploration (read);
 	}
-	private void processReadDeBruijnExploration(RawRead read) {
+	public void processReadDeBruijnExploration(RawRead read) {
 		String readStr = read.getCharacters().toString();
 		String rq = read.getQualityScores();
 		StringBuilder correctedRead = new StringBuilder();

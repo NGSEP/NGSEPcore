@@ -1,5 +1,7 @@
 package ngsep.sequences;
 
+import java.io.PrintStream;
+
 import ngsep.math.Distribution;
 
 public interface KmersMap {
@@ -19,6 +21,12 @@ public interface KmersMap {
 	 */
 	public void addOcurrance(CharSequence kmer);
 	/**
+	 * Sets the given count for the given k-mer
+	 * @param kmer to set count
+	 * @param count new k-mer count
+	 */
+	public void setCount(CharSequence kmer, int count);
+	/**
 	 * Filters the k-mers map leaving only k-mers with at least the given abundance
 	 * @param minAbundance Minimum abundance to keep the k-mer
 	 */
@@ -28,4 +36,9 @@ public interface KmersMap {
 	 * @return Distribution
 	 */
 	public Distribution calculateAbundancesDistribution();
+	/**
+	 * Saves the kmers in this map in the given output
+	 * @param out Stream to save the k-mers
+	 */
+	public void save(PrintStream out);
 }

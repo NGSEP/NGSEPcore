@@ -142,7 +142,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		if (stream != null && file != null) throw new IllegalArgumentException("Stream and file are mutually exclusive");
 		if(file!=null) {
 			stream = new FileInputStream(file);
-			if(file.getName().endsWith(".gz")) {
+			if(file.getName().toLowerCase().endsWith(".gz")) {
 				stream = new ConcatGZIPInputStream(stream);
 			}
 		}

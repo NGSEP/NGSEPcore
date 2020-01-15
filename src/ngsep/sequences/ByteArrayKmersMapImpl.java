@@ -1,5 +1,6 @@
 package ngsep.sequences;
 
+import java.io.PrintStream;
 import java.util.Arrays;
 
 import ngsep.math.Distribution;
@@ -65,6 +66,17 @@ public class ByteArrayKmersMapImpl implements KmersMap {
 			if(kmerCounts[i]>0) dist.processDatapoint(kmerCounts[i]);
 		}
 		return dist;
+	}
+
+	@Override
+	public void save(PrintStream out) {
+		for(int i=0;i<kmerCounts.length;i++) {
+			if(kmerCounts[i]>0) {
+				char [] sequence = AbstractLimitedSequence.getSequence(i, kmerLength, dummySequence);
+				out.println(new String(sequence)+"\t"+kmerCounts[i]);
+			}
+		}
+		
 	}
 
 }

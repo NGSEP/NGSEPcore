@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -64,6 +65,11 @@ public class DNAShortKmerClusterMap implements KmersMap {
 				createCluster(kmer);
 			}
 		}
+	}
+	@Override
+	public void setCount(CharSequence kmer, int count) {
+		if(count>Integer.MAX_VALUE) count = Integer.MAX_VALUE;
+		index.put(new DNAShortKmer(kmer), count);
 	}
 	/**
 	 * Searches the hashmap for a matching kmer. If it is not
@@ -209,5 +215,15 @@ public class DNAShortKmerClusterMap implements KmersMap {
 	 */
 	public void dispose () {
 		table = null;
+	}
+
+
+	@Override
+	public void save(PrintStream out) {
+		Iterator<Entry<DNAShortKmer, Integer>> it = index.entrySet().iterator();
+		while (it.hasNext()) {
+			Entry<DNAShortKmer, Integer> entry = it.next();
+			out.println(entry.getKey().toString()+"\t"+entry.getValue());
+		}
 	}
 }

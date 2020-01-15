@@ -1,5 +1,6 @@
 package ngsep.sequences;
 
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,6 +23,7 @@ public class DefaultKmersMapImpl implements KmersMap {
 		return count;
 	}
 
+	@Override
 	public void setCount(CharSequence kmer, int count) {
 		if(count>Short.MAX_VALUE) count = Short.MAX_VALUE;
 		kmersMap.put(kmer, (short) count);
@@ -57,6 +59,16 @@ public class DefaultKmersMapImpl implements KmersMap {
 		    if(entry.getValue() < minAbundance) {
 		    	it.remove();
 		    }
+		}
+		
+	}
+
+	@Override
+	public void save(PrintStream out) {
+		Iterator<Entry<CharSequence, Short>> it = kmersMap.entrySet().iterator();
+		while (it.hasNext()) {
+			Entry<CharSequence, Short> entry = it.next();
+			out.println(entry.getKey().toString()+"\t"+entry.getValue());
 		}
 		
 	}
