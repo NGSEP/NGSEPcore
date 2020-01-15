@@ -414,8 +414,10 @@ public class ReadsDemultiplex {
 			//Trim barcode
 			read.trimFirstNucleotides(barcodeLength);
 			//Trim end if sequence appears
-			for(Pattern pattern:trimRegexps) {
-				if(read.trimFromSequence(pattern)) break;
+			if(trimRegexps!=null) {
+				for(Pattern pattern:trimRegexps) {
+					if(read.trimFromSequence(pattern)) break;
+				}
 			}
 			if(read.getLength()>=minReadLength) {
 				String sampleId = barcodeData[0];
@@ -543,9 +545,12 @@ public class ReadsDemultiplex {
 		}
 		//Trim end if sequence appears
 		int l1 = read1.getLength();
-		for(Pattern pattern:trimRegexps) {
-			if(read1.trimFromSequence(pattern)) break;
+		if(trimRegexps!=null) {
+			for(Pattern pattern:trimRegexps) {
+				if(read1.trimFromSequence(pattern)) break;
+			}
 		}
+		
 		if(read1.getLength()!=l1) {
 			read2.trimToLength(read1.getLength());
 		}
