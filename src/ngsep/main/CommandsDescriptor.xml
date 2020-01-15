@@ -132,7 +132,7 @@ Directory with fastq files to be analyzed
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix for the output VCF file with the discovered variants and genotype calls as well as other output files
 </option>
-<option id="d" type="FILE" attribute="outputPrefix">
+<option id="d" type="FILE" attribute="filesDescriptor">
 Tab delimited text file listing the FASTQ files to be processed for paired-end sequencing. It should have three columns. sample id, first fastq file and second fastq file.
 If this option is activated, the option -i is ignored
 </option>

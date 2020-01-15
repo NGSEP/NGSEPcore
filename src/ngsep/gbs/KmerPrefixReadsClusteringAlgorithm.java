@@ -88,8 +88,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	// Parameters
 	private String inputDirectory = DEF_INPUT_DIRECTORY;
+	private String outputPrefix=null;
 	private String filesDescriptor = null;
-	private String outPrefix=null;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	private int numThreads = DEF_NUM_THREADS;
@@ -139,6 +139,27 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
 		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getInputDirectory() {
+		return inputDirectory;
+	}
+	public void setInputDirectory(String inputDirectory) {
+		this.inputDirectory = inputDirectory;
+	}
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	
+	public String getFilesDescriptor() {
+		return filesDescriptor;
+	}
+	public void setFilesDescriptor(String filesDescriptor) {
+		this.filesDescriptor = filesDescriptor;
 	}
 	
 	public int getKmerLength() {
@@ -289,7 +310,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private void printDistribution() throws IOException {
 		int[] dist = getClusterSizeDist();
 		log.info("Printing cluster distribution.");
-		try(PrintStream distribution = new PrintStream(outPrefix+"_clusterDist.txt");){
+		try(PrintStream distribution = new PrintStream(outputPrefix+"_clusterDist.txt");){
 			distribution.println("clusterSize\tfrequency");
 			for(int i = 0; i < dist.length; i++) {
 				distribution.println(i + "\t" + dist[i]);
@@ -329,7 +350,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	private void loadFilenamesAndSamplesPairedEnd() throws IOException {
 		try (BufferedReader descriptor = new BufferedReader(new FileReader(filesDescriptor))) {
-			descriptor.readLine();
+			//descriptor.readLine();
 			String line = descriptor.readLine();
 			while(line != null) {
 				String[] payload = line.split("\t");
@@ -385,7 +406,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				clusterReadsPairedEndFiles (sampleId, filename1, filename2, clusteredReadsCache);
 			}
 		}
-		clusteredReadsCache.dump(outPrefix);
+		clusteredReadsCache.dump(outputPrefix);
 		return clusteredReadsCache.getClusteredReadFiles();
 	}
 
@@ -413,7 +434,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
 					log.info("dumping reads");
-					clusteredReadsCache.dump(outPrefix);
+					clusteredReadsCache.dump(outputPrefix);
 				}
 				count++;
 			}
@@ -456,7 +477,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
 					log.info("dumping reads");
-					clusteredReadsCache.dump(outPrefix);
+					clusteredReadsCache.dump(outputPrefix);
 				}
 				
 				count++;
@@ -502,9 +523,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		//Timer for mem checks
 		Timer timer = new Timer();
 		
-		try (PrintStream outVariants = new PrintStream(outPrefix+"_variants.vcf");
-			 PrintStream outConsensus = new PrintStream(outPrefix+"_consensus.fa");
-			 PrintStream memUsage = new PrintStream(outPrefix + "_memoryUsage.txt");) {
+		try (PrintStream outVariants = new PrintStream(outputPrefix+"_variants.vcf");
+			 PrintStream outConsensus = new PrintStream(outputPrefix+"_consensus.fa");
+			 PrintStream memUsage = new PrintStream(outputPrefix + "_memoryUsage.txt");) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			
@@ -627,7 +648,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	private void printStatistics(String ref) throws IOException {
-		try(PrintStream processStats = new PrintStream(outPrefix+"_"+ref+"_processInfo.txt");){
+		try(PrintStream processStats = new PrintStream(outputPrefix+"_"+ref+"_processInfo.txt");){
 			processStats.println("Process times:");
 			processStats.print(this.processInfo.getTimes());
 			processStats.println("Number of Files: " + Integer.toString(this.filenamesBySampleId1.size()));
