@@ -264,6 +264,7 @@ public class ReadsDemultiplex {
 			log.info("Demultiplexing paired-end reads from files "+fastqFile+" and "+fastqFile2);
 			demultiplex(fastqFile,fastqFile2);
 		}
+		log.info("Process finished");
 	}
 
 	private void logParameters() {

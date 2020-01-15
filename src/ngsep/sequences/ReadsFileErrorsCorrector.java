@@ -164,6 +164,7 @@ public class ReadsFileErrorsCorrector {
 			return;
 		}
 		process(inputFile,outputFile);
+		log.info("Process finished");
 	}
 	
 	private void logParameters() {
