@@ -21,7 +21,6 @@ package ngsep.gbs;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -39,6 +38,7 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
+import ngsep.discovery.MultisampleVariantsDetector;
 import ngsep.discovery.VariantPileupListener;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -61,39 +61,52 @@ import ngsep.vcf.VCFRecord;
  */
 public class KmerPrefixReadsClusteringAlgorithm {
 
-	private Logger log = Logger.getLogger(KmerPrefixReadsClusteringAlgorithm.class.getName());
-	private ProgressNotifier progressNotifier = null;
+	// Constants for default values
+	public static final String DEF_INPUT_DIRECTORY = ".";
 	
-	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	public static final short DEF_MIN_QUALITY = 40;
-	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
-	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+	
 	public static final int DEF_KMER_LENGTH = 31;
 	public static final int DEF_NUM_THREADS = 1;
+	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = MultisampleVariantsDetector.DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	public static final short DEF_MIN_QUALITY = MultisampleVariantsDetector.DEF_MIN_QUALITY;
+	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
 	public static final int DEF_START = 8;
 	public static final int DEF_MAX_NUM_CLUSTERS = 2000000;
 	public static final int DEF_MAX_READS_IN_MEMORY = 4000000;
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
-	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
+	
 	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
 	public static final String PAIRED_END_READS_QS = "00000000000000000000";
 	
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(KmerPrefixReadsClusteringAlgorithm.class.getName());
+	private ProgressNotifier progressNotifier = null;	
+	
+	// Parameters
+	private String inputDirectory = DEF_INPUT_DIRECTORY;
+	private String filesDescriptor = null;
+	private String outPrefix=null;
+	private int kmerLength = DEF_KMER_LENGTH;
+	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
+	private int numThreads = DEF_NUM_THREADS;
+	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	private byte maxBaseQS = DEF_MAX_BASE_QS;
+	private short minQuality = DEF_MIN_QUALITY;
+	private byte normalPloidy = DEF_PLOIDY;
+	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
+	
+	// Model attributes
 	private static final String READID_SEPARATOR="$";
+	private final int MAX_TASK_COUNT = 20;
 	
 	private int minClusterDepth = 10;
 	private int maxClusterDepth = 1000;
 	
 	//Variables for parallel VCF
-	private final int MAX_TASK_COUNT = 20;
-	private int numThreads = DEF_NUM_THREADS;
-	private int kmerLength = DEF_KMER_LENGTH;
-	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
-	
-	private String inputDirectory = ".";
-	private String filesDescriptor = null;
-	private String outPrefix="./output";
-	
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
 	private Map<String, String> filenamesBySampleId2=new HashMap<>();
 	private DNAShortKmerClusterMap kmersMap;
@@ -101,12 +114,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private List<Sample> samples = new ArrayList<>();
 	
 	private ProcessInfo processInfo = new ProcessInfo();
-	private short minQuality = DEF_MIN_QUALITY;
 	
-	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
-	private double heterozygosityRate = DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID;
-	private byte maxBaseQS = DEF_MAX_BASE_QS;
-	private byte normalPloidy = DEF_PLOIDY;
+	// Statistics
 	private int numClustersWithCalledVariants = 0;
 	private int numClustersWithGenVariants = 0;
 	private int numClusteredFiles;
@@ -117,158 +126,110 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int numSmallClusters = 0;
 	private int numTotalReads = 0;
 	
-	
-	public static void main(String[] args) throws Exception {
-		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.inputDirectory = args[i++];
-		instance.outPrefix = args[i++];
-		if (args.length >= i) {
-			instance.filesDescriptor = args[i++];
-		}
-		instance.run();
+	// Get and set methods
+	public Logger getLog() {
+		return log;
 	}
-	
-	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
-		this.progressNotifier = progressNotifier;
+	public void setLog(Logger log) {
+		this.log = log;
 	}
 	
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
 	
-	public Logger getLog() {
-		return log;
-	}
-
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-
-	/**
-	 * @return the kmerLength
-	 */
 	public int getKmerLength() {
 		return kmerLength;
 	}
-	/**
-	 * @param kmerLength the kmerLength to set
-	 */
 	public void setKmerLength(int kmerLength) {
+		if(kmerLength<=0) throw new IllegalArgumentException("Kmer length should be a positive number");
 		this.kmerLength = kmerLength;
 	}
-	
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	/**
-	 * @return the maxNumClusters
-	 */
 	public int getMaxNumClusters() {
 		return maxNumClusters;
 	}
-
-	/**
-	 * @param maxNumClusters the maxNumClusters to set
-	 */
 	public void setMaxNumClusters(int maxNumClusters) {
+		if(maxNumClusters<=0) throw new IllegalArgumentException("Maximum number of clusters should be a positive number");
 		this.maxNumClusters = maxNumClusters;
 	}
-	
 	public void setMaxNumClusters(String value) {
 		setMaxNumClusters((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
-	/**
-	 * @return the numThreads
-	 */
 	public int getNumThreads() {
 		return numThreads;
 	}
-
-	/**
-	 * @param numThreads the numThreads to set
-	 */
 	public void setNumThreads(int numThreads) {
+		if(numThreads<=0) throw new IllegalArgumentException("Number of threads should be a positive number");
 		this.numThreads = numThreads;
 	}
-	
 	public void setNumThreads(String value) {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+
+	public double getHeterozygosityRate() {
+		return heterozygosityRate;
+	}
+	public void setHeterozygosityRate(double heterozygosityRate) {
+		if(heterozygosityRate<0) throw new IllegalArgumentException("Heterozygosity rate should be a non-negative number");
+		if(heterozygosityRate>1) throw new IllegalArgumentException("Heterozygosity rate should be a number from 0 to 1");
+		this.heterozygosityRate = heterozygosityRate;
+	}
+	public void setHeterozygosityRate(String value) {
+		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
+	}
 	
-	/**
-	 * @return the minAlleleFrequency
-	 */
+	public byte getMaxBaseQS() {
+		return maxBaseQS;
+	}
+	public void setMaxBaseQS(byte maxBaseQS) {
+		if(maxBaseQS<=0) throw new IllegalArgumentException("Maximum base quality score should be a positive number");
+		this.maxBaseQS = maxBaseQS;
+	}
+	public void setMaxBaseQS(String value) {
+		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+	
+	public short getMinQuality() {
+		return minQuality;
+	}
+	public void setMinQuality(short minQuality) {
+		if(minQuality<0) throw new IllegalArgumentException("Minimum variant quality should be a non-negative number");
+		this.minQuality = minQuality;
+	}
+	public void setMinQuality(String value) {
+		setMinQuality((byte)OptionValuesDecoder.decode(value, Short.class));
+	}
+	
+	public byte getNormalPloidy() {
+		return normalPloidy;
+	}
+	public void setNormalPloidy(byte normalPloidy) {
+		if(normalPloidy<=0) throw new IllegalArgumentException("Normal ploidy should be a positive number");
+		this.normalPloidy = normalPloidy;
+	}
+	public void setNormalPloidy(String value) {
+		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+	
 	public double getMinAlleleFrequency() {
 		return minAlleleFrequency;
 	}
-
 	/**
 	 * @param minAlleleFrequency the minAlleleFrequency to set
 	 */
 	public void setMinAlleleFrequency(double minAlleleFrequency) {
 		this.minAlleleFrequency = minAlleleFrequency;
 	}
-	
 	public void setMinAlleleFrequency(String value) {
 		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
-	}
-
-	/**
-	 * @return the heterozygosityRate
-	 */
-	public double getHeterozygosityRate() {
-		return heterozygosityRate;
-	}
-
-	/**
-	 * @param heterozygosityRate the heterozygosityRate to set
-	 */
-	public void setHeterozygosityRate(double heterozygosityRate) {
-		this.heterozygosityRate = heterozygosityRate;
-	}
-	
-	public void setHeterozygosityRate(String value) {
-		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
-	}
-	
-
-	/**
-	 * @return the maxBaseQS
-	 */
-	public byte getMaxBaseQS() {
-		return maxBaseQS;
-	}
-
-	/**
-	 * @param maxBaseQS the maxBaseQS to set
-	 */
-	public void setMaxBaseQS(byte maxBaseQS) {
-		this.maxBaseQS = maxBaseQS;
-	}
-	
-	public void setMaxBaseQS(String value) {
-		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
-	}
-	
-	/**
-	 * @return the minQuality
-	 */
-	public short getMinQuality() {
-		return minQuality;
-	}
-
-	/**
-	 * @param minQuality the minQuality to set
-	 */
-	public void setMinQuality(short minQuality) {
-		this.minQuality = minQuality;
-	}
-	
-	public void setMinQuality(String value) {
-		setMinQuality((byte)OptionValuesDecoder.decode(value, Short.class));
 	}
 
 	/**
@@ -276,6 +237,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	 */
 	public List<Sample> getSamples() {
 		return samples;
+	}
+	
+	public static void main(String[] args) throws Exception {
+		KmerPrefixReadsClusteringAlgorithm instance = new KmerPrefixReadsClusteringAlgorithm();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 	}
 
 	public void run() throws IOException, InterruptedException {
@@ -361,10 +328,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 	
 	private void loadFilenamesAndSamplesPairedEnd() throws IOException {
-		List<String> l1 = new ArrayList<>();
-		List<String> l2 = new ArrayList<>();
-		HashMap<String, String> toSampleId = new HashMap<>();
-		
 		try (BufferedReader descriptor = new BufferedReader(new FileReader(filesDescriptor))) {
 			descriptor.readLine();
 			String line = descriptor.readLine();
@@ -374,41 +337,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				String sampleId = payload[0];
 				String f1 = payload[1];
 				String f2 = payload[2];
-				
-				int i1 = f1.indexOf(".fastq");
-				if(i1>=0) {
-					String filename = f1.substring(0,i1);
-					l1.add(filename);
-					toSampleId.put(filename, sampleId);
-				}
-				
-				int i2 = f2.indexOf(".fastq");
-				if(i2>=0) {
-					String filename = f1.substring(0,i2);
-					l2.add(filename);
-					toSampleId.put(filename, sampleId);
-				}
-				
+				filenamesBySampleId1.put(sampleId, f1);
+				filenamesBySampleId2.put(sampleId, f2);
 				line = descriptor.readLine();
-			}
-		}
-		
-		
-		File[] files = (new File(inputDirectory)).listFiles();
-		for(File f : files) {
-			String filename = f.getName();
-			int i = filename.indexOf(".fastq");
-			if(i>=0) {
-				String prefix = filename.substring(0, i);
-				if (l1.contains(prefix)) {
-					String sampleId = toSampleId.get(prefix);
-					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
-				}
-				
-				if (l2.contains(prefix)) {
-					String sampleId = toSampleId.get(prefix);
-					filenamesBySampleId2.put(sampleId, f.getAbsolutePath());
-				}
 			}
 		}
 	}
@@ -495,11 +426,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
 		int unmatchedReads = 0;
 		int count = 0;
-		try (FastqFileReader file1 = new FastqFileReader(filename1); FastqFileReader file2 = new FastqFileReader(filename2)) {
+		try (FastqFileReader file1 = new FastqFileReader(filename1);
+			 FastqFileReader file2 = new FastqFileReader(filename2)) {
 			Iterator<RawRead> it1 = file1.iterator();
 			Iterator<RawRead> it2 = file2.iterator();
 			while(it1.hasNext() && it2.hasNext()) {
-				//+1 o +2?
 				this.numTotalReads += 2;
 				RawRead read1 = it1.next();
 				RawRead read2 = it2.next();

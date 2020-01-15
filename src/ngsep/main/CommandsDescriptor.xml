@@ -129,17 +129,35 @@ Performs de novo variants discovery from a GBS experiment
 <option id="i" type="FILE" attribute="inputDirectory">
 Directory with fastq files to be analyzed
 </option>
-<option id="o" type="FILE" attribute="outputFile">
-Output VCF file with the discovered variants and genotype calls
+<option id="o" type="FILE" attribute="outputPrefix">
+Prefix for the output VCF file with the discovered variants and genotype calls as well as other output files
 </option>
-<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+<option id="d" type="FILE" attribute="outputPrefix">
+Tab delimited text file listing the FASTQ files to be processed for paired-end sequencing. It should have three columns. sample id, first fastq file and second fastq file.
+If this option is activated, the option -i is ignored
+</option>
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH" >
 K-mer length
 </option>
-<option id="c" type="INT" defaultConstant="DEF_MAX_NUM_CLUSTERS" attribute="maxNumClusters">
+<option id="c" type="INT"  attribute="maxNumClusters" defaultConstant="DEF_MAX_NUM_CLUSTERS">
 Maximum number of read clusters to process. This parameter controls the amount of memory spent by the process
 </option>
-<option id="t" type="INT" defaultConstant="DEF_NUM_THREADS" attribute="numThreads">
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads to process read clusters
+</option>
+<option id="maxBaseQS" type="INT" attribute="maxBaseQS" defaultConstant="DEF_MAX_BASE_QS">
+Maximum value allowed for a base quality score. Larger values will be equalized to this value.
+</option>
+<option id="minQuality" type="INT" attribute="minQuality" defaultConstant="DEF_MIN_QUALITY">
+Minimum variant quality. In this command, this filter applies to the QUAL column of the VCF, which is
+calculated for each variant as the maximum of the genotype qualities of samples with non-homozygous reference genotype calls.
+See the command FilterVCF to apply filters of quality and read depth on individual genotype calls.
+</option>
+<option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
+Prior heterozygosity rate.
+</option>
+<option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
+Default ploidy of the samples.
 </option>
 </command>
 
@@ -279,7 +297,7 @@ Fasta file with the reference genome.
 <option id="o" type="FILE" attribute="outFilename">
 Output VCF file with discovered variants and genotype calls
 </option>
-<option id="h" type="DOUBLE" defaultConstant="DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
+<option id="h" type="DOUBLE" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID" attribute="heterozygosityRate">
 Heterozygosity rate.
 </option>
 <option id="querySeq" type="STRING" attribute="querySeq">

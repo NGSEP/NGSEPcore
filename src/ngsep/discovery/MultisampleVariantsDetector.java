@@ -63,7 +63,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	public static final int DEF_MAX_ALNS_PER_START_POS = AlignmentsPileupGenerator.DEF_MAX_ALNS_PER_START_POS;
 	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
-	public static final double DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final short DEF_MIN_QUALITY = 40;
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
@@ -90,7 +90,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter writer = new VCFFileWriter();
 	
-	private double heterozygosityRate = DEF_MIN_HETEROZYGOSITY_RATE_DIPLOID;
+	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	private String knownSTRsFile = null; 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
