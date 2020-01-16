@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -48,26 +49,27 @@ import ngsep.main.ProgressNotifier;
  */
 public class Assembler {
 
-	private Logger log = Logger.getLogger(Assembler.class.getName());
-	private ProgressNotifier progressNotifier = null;
-	
-	
+	// Constants for default values
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
 	public static final int DEF_MIN_KMER_PCT = 40;
+
+	// Logging and progress
+	private Logger log = Logger.getLogger(Assembler.class.getName());
+	private ProgressNotifier progressNotifier = null;
 	
+	// Parameters
 	private String inputFile = null;
 	private String outputFile = null;
-	
-	private byte inputFormat = INPUT_FORMAT_FASTQ;
-	
-	private String outFileGraph = null;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int kmerOffset = DEF_KMER_OFFSET;
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
+	private byte inputFormat = INPUT_FORMAT_FASTQ;
+	private String outFileGraph = null;
+	private String targetGenomeFile = null;
 	private ReferenceGenome targetGenome;
 	
 	
@@ -77,146 +79,131 @@ public class Assembler {
 		instance.run();
 	}
 	
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
 	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
 		this.progressNotifier = progressNotifier;
 	}
-	
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
 	
-	/**
-	 * @return the log
-	 */
-	public Logger getLog() {
-		return log;
-	}
-	
-	/**
-	 * @param log the log to set
-	 */
-	public void setLog(Logger log) {
-		this.log = log;
-	}
 
 	public String getInputFile() {
 		return inputFile;
 	}
-
 	public void setInputFile(String inputFile) {
 		this.inputFile = inputFile;
 	}
-
 	public String getOutputFile() {
 		return outputFile;
 	}
-
 	public void setOutputFile(String outputFile) {
 		this.outputFile = outputFile;
 	}
+	
+	public int getKmerLength() {
+		return kmerLength;
+	}
+	public void setKmerLength(int kmerLength) {
+		if(kmerLength<=0) throw new IllegalArgumentException("Kmer length should be a positive number");
+		this.kmerLength = kmerLength;
+	}
+	public void setKmerLength(String value) {
+		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public int getKmerOffset() {
+		return kmerOffset;
+	}
+	public void setKmerOffset(int kmerOffset) {
+		if(kmerOffset<=0) throw new IllegalArgumentException("Kmer offset should be a positive number");
+		this.kmerOffset = kmerOffset;
+	}
+	public void setKmerOffset(String value) {
+		setKmerOffset((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	public int getMinKmerPercentage() {
+		return minKmerPercentage;
+	}
+	public void setMinKmerPercentage(int minKmerPercentage) {
+		if(minKmerPercentage<0) throw new IllegalArgumentException("Minimum kmer percentage should be a non-negative number");
+		if(minKmerPercentage>100) throw new IllegalArgumentException("Minimum kmer percentage should be a number from 0 to 100");
+		this.minKmerPercentage = minKmerPercentage;
+	}
+	public void setMinKmerPercentage(String value) {
+		setMinKmerPercentage((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 
-	/**
-	 * @return the inputFormat
-	 */
 	public byte getInputFormat() {
 		return inputFormat;
 	}
-
-	/**
-	 * @param inputFormat the inputFormat to set
-	 */
 	public void setInputFormat(byte inputFormat) {
+		if (inputFormat!=INPUT_FORMAT_FASTA && inputFormat != INPUT_FORMAT_FASTQ && inputFormat!=INPUT_FORMAT_GRAPH) {
+			throw new IllegalArgumentException("Invalid input format "+inputFormat);
+		}
 		this.inputFormat = inputFormat;
 	}
-
 	public void setInputFormat(String value) {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
-	/**
-	 * @return the outFileGraph
-	 */
+	
 	public String getOutFileGraph() {
 		return outFileGraph;
 	}
-
-	/**
-	 * @param outFileGraph the outFileGraph to set
-	 */
 	public void setOutFileGraph(String outFileGraph) {
 		this.outFileGraph = outFileGraph;
 	}
 
-	/**
-	 * @return the kmerLength
-	 */
-	public int getKmerLength() {
-		return kmerLength;
+	public String getTargetGenomeFile() {
+		return targetGenomeFile;
 	}
 
-	/**
-	 * @param kmerLength the kmerLength to set
-	 */
-	public void setKmerLength(int kmerLength) {
-		this.kmerLength = kmerLength;
+	public void setTargetGenomeFile(String targetGenomeFile) {
+		this.targetGenomeFile = targetGenomeFile;
 	}
 
-	public void setKmerLength(String value) {
-		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	/**
-	 * @return the kmerOffset
-	 */
-	public int getKmerOffset() {
-		return kmerOffset;
-	}
-
-	/**
-	 * @param kmerOffset the kmerOffset to set
-	 */
-	public void setKmerOffset(int kmerOffset) {
-		this.kmerOffset = kmerOffset;
-	}
-
-	public void setKmerOffset(String value) {
-		setKmerOffset((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	/**
-	 * @return the minKmerPercentage
-	 */
-	public int getMinKmerPercentage() {
-		return minKmerPercentage;
-	}
-
-	/**
-	 * @param minKmerPercentage the minKmerPercentage to set
-	 */
-	public void setMinKmerPercentage(int minKmerPercentage) {
-		this.minKmerPercentage = minKmerPercentage;
-	}
-	
-	public void setMinKmerPercentage(String value) {
-		setMinKmerPercentage((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-	
-	/**
-	 * @return the targetGenome
-	 */
 	public ReferenceGenome getTargetGenome() {
 		return targetGenome;
 	}
-
-	/**
-	 * @param targetGenome the targetGenome to set
-	 */
 	public void setTargetGenome(ReferenceGenome targetGenome) {
 		this.targetGenome = targetGenome;
 	}
 
 	public void run() throws IOException {
+		logParameters();
+		if (targetGenomeFile!=null ) {
+			log.info("Loading target genome from: "+targetGenomeFile);
+			targetGenome = new ReferenceGenome(targetGenomeFile);
+			log.info("Loaded target genome with: "+targetGenome.getNumSequences()+" sequences");
+		}
 		run (inputFile, outputFile);
+		log.info("Process finished");
 	}
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input file:"+ inputFile);
+		out.println("Output file:"+ outputFile);
+		out.println("K-mer length: "+ kmerLength);
+		out.println("K-mer offset: "+ kmerOffset);
+		out.println("Minimum percentage of k-mers for an overlap: "+ minKmerPercentage);
+		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
+		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		if (inputFormat == INPUT_FORMAT_GRAPH)  out.println("Input is an assembly graph");
+		if (outFileGraph!=null) out.println("Save graph to: "+outFileGraph);
+		if (targetGenomeFile!=null) out.println("Target genome for benchmark available in file: "+targetGenomeFile);
+		else if (targetGenome!=null) out.println("Target genome for benchmark with "+targetGenome.getNumSequences()+" previously loaded from: "+targetGenome.getFilename());
+		log.info(os.toString());
+		
+	}
+
 	public void run(String inputFile, String outputFile) throws IOException {
 		AssemblyGraph graph;
 		AssemblyGraph goldStandardGraph=null;

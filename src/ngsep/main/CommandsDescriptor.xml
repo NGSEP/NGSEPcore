@@ -190,7 +190,7 @@ Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a save
 <option id="g" type="STRING" attribute="outFileGraph">
 Path to an output file to save the assembly graph
 </option>
-<option id="r" type="FILE" attribute="targetGenome">
+<option id="r" type="FILE" attribute="targetGenomeFile">
 Genome used to simulate the given reads. Useful for benchmarking of the graph construction.
 </option>
 </command>
