@@ -70,6 +70,8 @@ public class Assembler {
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String outFileGraph = null;
 	private String targetGenomeFile = null;
+	
+	// Model attributes
 	private ReferenceGenome targetGenome;
 	
 	
@@ -178,6 +180,8 @@ public class Assembler {
 
 	public void run() throws IOException {
 		logParameters();
+		if(inputFile==null) throw new IOException("The input file with raw reads is required");
+		if(outputFile==null) throw new IOException("An output file path is required");
 		if (targetGenomeFile!=null ) {
 			log.info("Loading target genome from: "+targetGenomeFile);
 			targetGenome = new ReferenceGenome(targetGenomeFile);
@@ -201,7 +205,6 @@ public class Assembler {
 		if (targetGenomeFile!=null) out.println("Target genome for benchmark available in file: "+targetGenomeFile);
 		else if (targetGenome!=null) out.println("Target genome for benchmark with "+targetGenome.getNumSequences()+" previously loaded from: "+targetGenome.getFilename());
 		log.info(os.toString());
-		
 	}
 
 	public void run(String inputFile, String outputFile) throws IOException {

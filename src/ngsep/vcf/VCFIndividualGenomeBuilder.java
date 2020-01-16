@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
@@ -42,52 +43,94 @@ import ngsep.variants.GenomicVariant;
  */
 public class VCFIndividualGenomeBuilder {
 
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFIndividualGenomeBuilder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	// Parameters
+	private String genomeFile = null;
+	private String variantsFile = null;
+	private String outputFile = null;
+	
+	// Model attributes
 	private ReferenceGenome genome;
 	
-	public static void main(String[] args) throws Exception {
-		VCFIndividualGenomeBuilder instance = new VCFIndividualGenomeBuilder();
-		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String vcfFile = args[i++];
-		instance.genome = new ReferenceGenome(args[i++]);
-		String outFile = args[i++];
-		try (PrintStream out = new PrintStream(outFile)) {
-			instance.makeGenomeFromVCF(vcfFile,out);
-		}
+	
+	
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
 	}
 	
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
     
-    public Logger getLog() {
-		return log;
+	public String getGenomeFile() {
+		return genomeFile;
 	}
-
-	public void setLog(Logger log) {
-		this.log = log;
+	public void setGenomeFile(String genomeFile) {
+		this.genomeFile = genomeFile;
 	}
 	
-	/**
-	 * @return the genome
-	 */
+	public String getVariantsFile() {
+		return variantsFile;
+	}
+	public void setVariantsFile(String variantsFile) {
+		this.variantsFile = variantsFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
 
-	/**
-	 * @param genome the genome to set
-	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
 
+	public static void main(String[] args) throws Exception {
+		VCFIndividualGenomeBuilder instance = new VCFIndividualGenomeBuilder();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run() throws IOException {
+		logParameters();
+		if(genomeFile==null && genome==null) throw new IOException("The input file with a genome assembly is required");
+		if(variantsFile==null) throw new IOException("A file with variants in VCF format is required");
+		if(outputFile==null) throw new IOException("An output file path is required");
+		if(genomeFile!=null) {
+			log.info("Loading genome from: "+genomeFile);
+			genome = new ReferenceGenome(genomeFile);
+			log.info("Loaded target genome with: "+genome.getNumSequences()+" sequences");
+		}
+		
+		try (PrintStream out = new PrintStream(outputFile)) {
+			makeGenomeFromVCF(variantsFile, out);
+		}
+		log.info("Process finished");
+	}
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(genomeFile!=null) out.println("Genome file:"+ genomeFile);
+		else if (genome!=null) out.println("Genome with "+genome.getNumSequences()+" previously loaded from: "+genome.getFilename());
+		out.println("Variants file:"+ variantsFile);
+		out.println("Output file:"+ outputFile);
+		log.info(os.toString());
+	}
 	public void makeGenomeFromVCF(String vcfFile, PrintStream out) throws IOException {
 		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
 		QualifiedSequenceList individualGenome = new QualifiedSequenceList();
