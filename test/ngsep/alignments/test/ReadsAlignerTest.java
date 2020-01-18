@@ -46,9 +46,9 @@ public class ReadsAlignerTest extends TestCase {
 		ReadAlignment aln2=new ReadAlignment("sequenceName", 5500, 5251, 250, flags2);
 		aln2.setMateNegativeStrand(true);
 
-		boolean proper =readsAligner.pairAlignments(aln1, aln2,true);
+		boolean proper =readsAligner.isValidPair(aln1, aln2,true);
 		assertEquals(true, proper);
-		proper =readsAligner.pairAlignments(aln2, aln1,true);
+		proper =readsAligner.isValidPair(aln2, aln1,true);
 		assertEquals(true, proper);
 
 
@@ -60,14 +60,14 @@ public class ReadsAlignerTest extends TestCase {
 		aln2.setMateNegativeStrand(true);
 
 
-		boolean unProper =readsAligner.pairAlignments(aln1, aln2,true);
+		boolean unProper =readsAligner.isValidPair(aln1, aln2,true);
 		assertEquals(false, unProper);
-		unProper =readsAligner.pairAlignments(aln2, aln1,true);
+		unProper =readsAligner.isValidPair(aln2, aln1,true);
 		assertEquals(false, unProper);
 
-		unProper =readsAligner.pairAlignments(aln1, aln2,false);
+		unProper =readsAligner.isValidPair(aln1, aln2,false);
 		assertEquals(true, unProper);
-		unProper =readsAligner.pairAlignments(aln2, aln1,false);
+		unProper =readsAligner.isValidPair(aln2, aln1,false);
 		assertEquals(true, unProper);
 		afterSetUpReadsAligner();
 	}

@@ -65,7 +65,7 @@ public class ReadsAligner {
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
 	
-	public static final int DEFAULT_MAX_ALIGNMENTS=100;
+	public static final int DEF_MAX_ALIGNMENTS=3;
 	public static final int MAX_SPACE_BETWEEN_KMERS = 50;
 	
 	// Logging and progress
@@ -331,14 +331,11 @@ public class ReadsAligner {
 		Iterator<RawRead> it = reader.iterator();
 		while(it.hasNext()) {
 			RawRead read = it.next();
-			List<ReadAlignment> alns = alignRead(read);
+			List<ReadAlignment> alns = alignRead(read, true);
 			//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 			for(ReadAlignment aln:alns) writer.write(aln);
 			if(alns.size()==0) {
-				ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
-				alnNoMap.setReadName(read.getName());
-				alnNoMap.setReadCharacters(read.getCharacters());
-				alnNoMap.setQualityScores(read.getQualityScores());
+				ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
 				writer.write(alnNoMap);
 			}
 			int numAlns = alns.size();
@@ -383,14 +380,26 @@ public class ReadsAligner {
 			while(it1.hasNext() && it2.hasNext()) {
 				RawRead read1 = it1.next();
 				RawRead read2 = it2.next();
-				List<ReadAlignment> alns1 = alignRead(read1);
-				List<ReadAlignment> alns2 = alignRead(read2);
-				if(alns1.size()==0||alns2.size()==0) {
+				List<ReadAlignment> alns1 = alignRead(read1,false);
+				for(ReadAlignment aln:alns1) aln.setFirstOfPair(true);
+				List<ReadAlignment> alns2 = alignRead(read2,false);
+				for(ReadAlignment aln:alns2) aln.setSecondOfPair(true);
+				totalReads++;
+				if(alns1.size()==0 || alns2.size()==0) {
 					ArrayList<ReadAlignment> unMapped = processUnMapped(read1, alns1,read2,alns2);
-					for (int i = 0; i < Math.min(unMapped.size(),DEFAULT_MAX_ALIGNMENTS); i++) {
-						writer.write(unMapped.get(i));
+					boolean mappedFound = false;
+					for (int i = 0; i < Math.min(unMapped.size(),DEF_MAX_ALIGNMENTS+1); i++) {
+						ReadAlignment aln = unMapped.get(i);
+						if(!aln.isReadUnmapped()) mappedFound=true;
+						writer.write(aln);
+						
 					}
-				}else {
+					if(mappedFound) {
+						readsAligned++;
+						single++;
+					}
+					
+				} else {
 					boolean onlyProper=true;
 					List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
 					List<ReadAlignmentPair> pairAlns = findPairs(alns1, alns2,onlyProper);
@@ -398,23 +407,37 @@ public class ReadsAligner {
 						pairAlns = findPairs(alns1, alns2,false);
 						if(pairAlns.isEmpty()) {
 							single++;
-							alns.addAll(alns1);
-							alns.addAll(alns2);
+							for(int i=0;i<alns1.size();i++) {
+								ReadAlignment aln1 = alns1.get(i);
+								aln1.setPaired(true);
+								aln1.setMateDifferentSequence(true);
+								setMateInfo(aln1, alns2.get(0));
+								if(i>0) aln1.setSecondary(true);
+								alns.add(aln1);
+							}
+							for(int i=0;i<alns2.size();i++) {
+								ReadAlignment aln2 = alns2.get(i);
+								aln2.setPaired(true);
+								aln2.setMateDifferentSequence(true);
+								setMateInfo(aln2, alns1.get(0));
+								if(i>0) aln2.setSecondary(true);
+								alns.add(aln2);
+							}
+							
 						}
 						else {
 							notProper++;
 							addPairAlignments(alns, pairAlns);
+							if(pairAlns.size()==1) uniqueAlignments++;
 						}
 
-					}else {
+					} else {
 						proper++;
 						addPairAlignments(alns, pairAlns);
+						if(pairAlns.size()==1) uniqueAlignments++;
 					}
-					for(ReadAlignment aln:alns) writer.write(aln);	
-					int numAlns = alns.size();
-					totalReads++;
-					if(numAlns>0) readsAligned++;
-					if(numAlns==1) uniqueAlignments++;
+					for(ReadAlignment aln:alns) writer.write(aln);
+					readsAligned++;
 					if(totalReads%100000==0) {
 						log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
 						log.info("Reads aligned proper: "+proper);
@@ -440,8 +463,12 @@ public class ReadsAligner {
 	}
 
 	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns) {
-		for (int i = 0; i < Math.min(pairAlns.size(),DEFAULT_MAX_ALIGNMENTS); i++) {
+		for (int i = 0; i < Math.min(pairAlns.size(),DEF_MAX_ALIGNMENTS); i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
+			if(i>0) {
+				current.getAln1().setSecondary(true);
+				current.getAln2().setSecondary(true);
+			}
 			alns.add(current.getAln1());
 			alns.add(current.getAln2());
 		}
@@ -449,80 +476,67 @@ public class ReadsAligner {
 
 	public List<ReadAlignmentPair> findPairs(List<ReadAlignment> alns1, List<ReadAlignment> alns2,boolean onlyProper){
 		List<ReadAlignmentPair> pairEndAlns = new ArrayList<ReadAlignmentPair>();
-		for (int i = 0; i < Math.min(alns1.size(),DEFAULT_MAX_ALIGNMENTS); i++) {
-			ReadAlignmentPair pairEndsAlignments = findPairForAlignment(alns1.get(i),alns2,onlyProper);
-			if(pairEndsAlignments!=null) {
-				pairEndAlns.add(pairEndsAlignments);
+		for (int i = 0; i < Math.min(alns1.size(),DEF_MAX_ALIGNMENTS); i++) {
+			ReadAlignment aln1 = alns1.get(i);
+			if(aln1.isPaired()) continue;
+			ReadAlignmentPair alnPair = findPairForAlignment(aln1,alns2,onlyProper);
+			if(alnPair!=null) {
+				pairEndAlns.add(alnPair);
 			}
 		}
 		return pairEndAlns;
 	}
 
 	public ReadAlignmentPair findPairForAlignment(ReadAlignment aln1, List<ReadAlignment> alns2,boolean onlyProper) {
-		ReadAlignmentPair pair =null;
 		List<ReadAlignment> candidates = new ArrayList<ReadAlignment>();
-		for (int i = 0; i < alns2.size(); i++) {
+		for (int i = 0; i < Math.min(alns2.size(), DEF_MAX_ALIGNMENTS); i++) {
 			ReadAlignment current =alns2.get(i);
-			if(!current.hasPair() && !aln1.hasPair()) {
-				if(pairAlignments(aln1,current,onlyProper)) {
+			if(!current.isPaired()) {
+				if(isValidPair(aln1,current,onlyProper)) {
 					candidates.add(current);
 				}
 			}
 		}
-		if(candidates.isEmpty()) {
-			//That alignment don't map, we mark it to don't check it again.
-			aln1.setPair();
-		}
-		else if(candidates.size()==1) {
+		if(candidates.size()==1) {
 			return buildPair(aln1, candidates.get(0), onlyProper);
 		}
-		else {
-			return buildPair(aln1, getRandomReadAlignment(alns2), onlyProper);
+		else if (candidates.size()>1){
+			return buildPair(aln1, getRandomReadAlignment(candidates), onlyProper);
 		}
-		return pair;
+		return null;
 	}
 
-	public Boolean pairAlignments(ReadAlignment aln1, ReadAlignment aln2,boolean onlyProper) {
-		if(aln1.getSequenceName().equals(aln2.getSequenceName())) {
-			int start1 = aln1.getFirst();
-			int start2 = aln2.getFirst();
-			int end1 = aln1.getLast();
-			int end2 = aln2.getLast();
+	public boolean isValidPair(ReadAlignment aln1, ReadAlignment aln2,boolean onlyProper) {
+		if(!aln1.getSequenceName().equals(aln2.getSequenceName())) return false;
+		int start1 = aln1.getFirst();
+		int start2 = aln2.getFirst();
+		int end1 = aln1.getLast();
+		int end2 = aln2.getLast();
 
-			int endMax = Math.max(end1, end2);
-			int startMinimum = Math.min(start1, start2);
-			if(endMax==end1 && aln1.isNegativeStrand() && startMinimum==start2&& aln2.isPositiveStrand()
-					|| endMax==end2 && aln2.isNegativeStrand() && startMinimum==start1&& aln1.isPositiveStrand())
-			{
-				if(onlyProper) {
-					int insertLength = endMax-startMinimum;
-					return insertLength>=minInsertLength && insertLength<=maxInsertLength;
-				}
-				else{
-					return true;
-				}
+		int endMax = Math.max(end1, end2);
+		int startMinimum = Math.min(start1, start2);
+		if(endMax==end1 && aln1.isNegativeStrand() && startMinimum==start2&& aln2.isPositiveStrand()
+				|| endMax==end2 && aln2.isNegativeStrand() && startMinimum==start1&& aln1.isPositiveStrand())
+		{
+			if(onlyProper) {
+				int insertLength = endMax-startMinimum;
+				return insertLength>=minInsertLength && insertLength<=maxInsertLength;
 			}
-
+			else{
+				return true;
+			}
 		}
 		return false;
 	}
 
-	private ReadAlignmentPair buildPair(ReadAlignment aln1, ReadAlignment aln2,boolean proper) {
-		aln1.setPair();
-		aln2.setPair();
-		setMateInfo(aln1,aln2);
-		setMateInfo(aln2,aln1);
-		int flag1 = ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_FIRST_OF_PAIR;
-		int flag2 = ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_SECOND_OF_PAIR;
-		if(aln1.isNegativeStrand()) {
-			flag1+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
-		}
-		if(aln2.isNegativeStrand()) {
-			flag2+=ReadAlignment.FLAG_READ_REVERSE_STRAND;
-		}
+	private ReadAlignmentPair buildPair(ReadAlignment aln1, ReadAlignment aln2, boolean proper) {
+		aln1.setPaired(true);
+		
+		aln2.setPaired(true);
+		
 		if(proper) {
-			flag1+=ReadAlignment.FLAG_PROPER;
-			flag2+=ReadAlignment.FLAG_PROPER;
+			aln1.setProperPair(true);
+			aln2.setProperPair(true);
 		}
 		int insertLength1 = aln1.getLast()-aln2.getFirst();
 		int insertLength2 = aln2.getLast()-aln1.getFirst();
@@ -533,9 +547,8 @@ public class ReadsAligner {
 			aln1.setInferredInsertSize(insertLength2);
 			aln2.setInferredInsertSize(-insertLength2);
 		}
-		
-		aln1.setFlags(flag1);
-		aln2.setFlags(flag2);
+		setMateInfo(aln1,aln2);
+		setMateInfo(aln2,aln1);
 		return new ReadAlignmentPair(aln1,aln2);
 	}
 
@@ -563,35 +576,48 @@ public class ReadsAligner {
 
 	private ArrayList<ReadAlignment> processUnMapped(RawRead read1, List<ReadAlignment> alns1, RawRead read2, List<ReadAlignment> alns2) {
 		ArrayList<ReadAlignment> unMappedAlignments= new ArrayList<ReadAlignment>();
-		boolean read1Mapped=true;
-		boolean read2Mapped=true;
-		if(alns1.size()==0) read1Mapped=false;
-		if(alns2.size()==0) read2Mapped=false;
-		if(!read1Mapped&& !read2Mapped) {
-			ReadAlignment alnNoMap=pairEndAlignment(read1, ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED+ReadAlignment.FLAG_MATE_UNMAPPED+ReadAlignment.FLAG_FIRST_OF_PAIR);
-			unMappedAlignments.add(alnNoMap);
-			alnNoMap=pairEndAlignment(read2, ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED+ReadAlignment.FLAG_MATE_UNMAPPED+ReadAlignment.FLAG_SECOND_OF_PAIR);
-			unMappedAlignments.add(alnNoMap);
+		ReadAlignment unmappedAln1 = null;
+		ReadAlignment unmappedAln2 = null;
+		if(alns1.size()==0) unmappedAln1 = createUnmappedAlignment(read1, true, true);
+		if(alns2.size()==0) unmappedAln2 = createUnmappedAlignment(read2, true, false);
+		if(unmappedAln1!= null && unmappedAln2!=null) {
+			unmappedAln1.setMateUnmapped(true);
+			unmappedAln2.setMateUnmapped(true);
+			unMappedAlignments.add(unmappedAln1);
+			unMappedAlignments.add(unmappedAln2);
 		}
-		else if(read1Mapped) readMappedmateUnMapped(read2, alns1, unMappedAlignments);
-		else if(read2Mapped) readMappedmateUnMapped(read1, alns2, unMappedAlignments);
+		else if(unmappedAln2!=null) readMappedmateUnMapped(unmappedAln2, alns1, unMappedAlignments);
+		else if(unmappedAln1!=null) readMappedmateUnMapped(unmappedAln1, alns2, unMappedAlignments);
 		return unMappedAlignments;
 	}
 
-	private void readMappedmateUnMapped(RawRead read1, List<ReadAlignment> alns1,ArrayList<ReadAlignment> unMappedAlignments) {
-		ReadAlignment alnMapped =getRandomReadAlignment(alns1);
-		ReadAlignment alnNoMap = pairEndAlignment(read1, ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_READ_UNMAPPED+ReadAlignment.FLAG_SECOND_OF_PAIR,alnMapped);
-		alnMapped.setFlags(ReadAlignment.FLAG_PAIRED+ReadAlignment.FLAG_MATE_UNMAPPED+ReadAlignment.FLAG_FIRST_OF_PAIR);
-		setMateInfo(alnMapped,alnNoMap);
-		unMappedAlignments.add(alnMapped);
-		unMappedAlignments.add(alnNoMap);
+	private void readMappedmateUnMapped(ReadAlignment unmappedAln, List<ReadAlignment> alns, List<ReadAlignment> unMappedAlignments) {
+		unMappedAlignments.add(unmappedAln);
+		
+		for(int i=0;i<alns.size();i++) {
+			ReadAlignment aln =  alns.get(i);
+			aln.setPaired(true);
+			aln.setMateUnmapped(true);
+			if(i==0) {
+				setMateInfo(unmappedAln, aln);
+			} else {
+				aln.setSecondary(true);
+			}
+			unMappedAlignments.add(aln);
+		}
+		
 	}
 
-	private ReadAlignment pairEndAlignment(RawRead read, int flag) {
-		ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), flag);
+	private ReadAlignment createUnmappedAlignment(RawRead read, boolean paired, boolean first) {
+		ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
 		alnNoMap.setReadName(read.getName());
 		alnNoMap.setReadCharacters(read.getCharacters());
 		alnNoMap.setQualityScores(read.getQualityScores());
+		alnNoMap.setPaired(paired);
+		if(paired) {
+			alnNoMap.setFirstOfPair(first);
+			alnNoMap.setSecondOfPair(!first);
+		}
 		return alnNoMap;
 	}
 
@@ -600,12 +626,6 @@ public class ReadsAligner {
 		alignment.setMateSequenceName(mate.getSequenceName());
 		alignment.setMateNegativeStrand(mate.isNegativeStrand());
 		return alignment;
-	}
-
-	private ReadAlignment pairEndAlignment(RawRead read, int flag,ReadAlignment mate) {
-		ReadAlignment alnNoMap = pairEndAlignment(read,flag);
-		setMateInfo(alnNoMap,mate);
-		return alnNoMap;
 	}
 
 	private static ReadAlignment getRandomReadAlignment(List<ReadAlignment> alns) {
@@ -754,9 +774,9 @@ public class ReadsAligner {
 	 * @return
 	 */
 
-	public List<ReadAlignment> alignRead(RawRead read) {
+	public List<ReadAlignment> alignRead(RawRead read, boolean asignSecondaryStatus) {
 		List<ReadAlignment> alignments = kmerBasedInexactSearchAlgorithm(read);
-		return filterAlignments(alignments);
+		return filterAlignments(alignments, asignSecondaryStatus);
 	}
 
 	/**
@@ -776,7 +796,7 @@ public class ReadsAligner {
 			qual = new StringBuilder(qual).reverse().toString();
 			List<ReadAlignment> alnsR = kmerBasedInexactSearchAlgorithm(readSeq, qual, read.getName());
 			for (ReadAlignment aln:alnsR) {
-				aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_READ_REVERSE_STRAND);
+				aln.setNegativeStrand(true);
 			}
 			alns.addAll(alnsR);
 		}
@@ -802,7 +822,7 @@ public class ReadsAligner {
 		Collections.sort(clusteredKmerHits, (o1, o2) -> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 
 		int kmersMaxCluster = 0;
-		for (int i=0;i<clusteredKmerHits.size() && i<10;i++) {
+		for (int i=0;i<clusteredKmerHits.size() && i<DEF_MAX_ALIGNMENTS;i++) {
 			KmerHitsCluster cluster = clusteredKmerHits.get(i);
 			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getFirst()+"-"+cluster.getLast()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
@@ -981,7 +1001,7 @@ public class ReadsAligner {
 		return result;
 	}
 
-	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments) {
+	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
 		if (alignments.size()==0) return alignments;
 		Collections.sort(alignments, new Comparator<ReadAlignment>() {
 			@Override
@@ -996,8 +1016,8 @@ public class ReadsAligner {
 		int n = alignments.size();
 		for (int i=0;i<n;i++) {
 			ReadAlignment aln = alignments.get(i);
-			if(aln.getAlignmentQuality()<threshold) continue;
-			if(i>0) aln.setFlags(aln.getFlags()+ReadAlignment.FLAG_SECONDARY);
+			if(aln.getAlignmentQuality()<threshold) break;
+			if(assignSecondary && i>0) aln.setSecondary(true);
 			filteredAlignments.add(aln);
 		}
 		if(filteredAlignments.size()>1) {

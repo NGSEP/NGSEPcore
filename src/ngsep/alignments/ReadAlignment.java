@@ -83,8 +83,6 @@ public class ReadAlignment implements GenomicRegion {
     private short [] alleleCallLength; //Length of the allele call at each read position. 0 for skipped bases
     private Map<Integer,GenomicVariant> indelCalls; //Indel calls indexed by the last reference position before the event. Null for alignments without indels 
     private boolean alleleCallsUpdated = false;
-    
-    private boolean hasPair = false;
 	
 	//Read information loaded on demand 
 	private char [] readName=null;
@@ -210,6 +208,16 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	
 	/**
+	 * Changes the negative strand status
+	 * @param negativeStrand true if the read aligned to the negative reference strand
+	 */
+	public void setNegativeStrand (boolean negativeStrand) {
+		if(negativeStrand) flags = flags | FLAG_READ_REVERSE_STRAND;
+		else flags = flags & ~FLAG_READ_REVERSE_STRAND;
+		alleleCallsUpdated = false;
+	}
+	
+	/**
 	 * Information of the alignment according to the SAM format
 	 * @return int information flags
 	 */
@@ -303,6 +311,14 @@ public class ReadAlignment implements GenomicRegion {
 	public boolean isPaired() {
 		return (flags & FLAG_PAIRED)!=0;
 	}
+	/**
+	 * Changes the paired status
+	 * @param paired true if the read is paired
+	 */
+	public void setPaired (boolean paired) {
+		if(paired) flags = flags | FLAG_PAIRED;
+		else flags = flags & ~FLAG_PAIRED;
+	}
 
 	/**
 	 * Tells if this read and its mate were properly aligned according to an expected distance and orientation
@@ -312,6 +328,14 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_PROPER)!=0;
 	}
 	/**
+	 * Changes the read unmapped status
+	 * @param properPair true if the read is not mapped
+	 */
+	public void setProperPair (boolean properPair) {
+		if(properPair) flags = flags | FLAG_PROPER;
+		else flags = flags & ~FLAG_PROPER;
+	}
+	/**
 	 * Tells if this alignment is invalid because the read did not actually align to any position of the reference
 	 * @return boolean true if the read did not align to the reference
 	 */
@@ -319,11 +343,28 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_READ_UNMAPPED)!=0;
 	}
 	/**
+	 * Changes the read unmapped status
+	 * @param mateUnmapped true if the read is not mapped
+	 */
+	public void setReadUnmapped (boolean readUnmapped) {
+		if(readUnmapped) flags = flags | FLAG_READ_UNMAPPED;
+		else flags = flags & ~FLAG_READ_UNMAPPED;
+		alleleCallsUpdated = false;
+	}
+	/**
 	 * Tells if the mate of this read did not align to any position of the reference
 	 * @return boolean true if the mate did not align to the reference
 	 */
 	public boolean isMateUnmapped() {
 		return (flags & FLAG_MATE_UNMAPPED)!=0;
+	}
+	/**
+	 * Changes the set mate unmapped status
+	 * @param mateUnmapped true if the mate is unmapped
+	 */
+	public void setMateUnmapped (boolean mateUnmapped) {
+		if(mateUnmapped) flags = flags | FLAG_MATE_UNMAPPED;
+		else flags = flags & ~FLAG_MATE_UNMAPPED;
 	}
 	
 	/**
@@ -359,6 +400,14 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_FIRST_OF_PAIR)!=0;
 	}
 	/**
+	 * Changes the first of pair status
+	 * @param firstOfPair true if the read is the first of the pair
+	 */
+	public void setFirstOfPair (boolean firstOfPair) {
+		if(firstOfPair) flags = flags | FLAG_FIRST_OF_PAIR;
+		else flags = flags & ~FLAG_FIRST_OF_PAIR;
+	}
+	/**
 	 * Tells if this read is the second of its pair
 	 * @return boolean true if the read is the second of the pair
 	 */
@@ -366,11 +415,27 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_SECOND_OF_PAIR)!=0;
 	}
 	/**
+	 * Changes the second of pair status
+	 * @param secondOfPair true if the read is the second of the pair
+	 */
+	public void setSecondOfPair (boolean secondOfPair) {
+		if(secondOfPair) flags = flags | FLAG_SECOND_OF_PAIR;
+		else flags = flags & ~FLAG_SECOND_OF_PAIR;
+	}
+	/**
 	 * Tells if the alignment is secondary
 	 * @return boolean true if the alignment is secondary
 	 */
 	public boolean isSecondary () {
 		return (flags & FLAG_SECONDARY)!=0;
+	}
+	/**
+	 * Changes the secondary status
+	 * @param secondary true if the read is the second of the pair
+	 */
+	public void setSecondary (boolean secondary) {
+		if(secondary) flags = flags | FLAG_SECONDARY;
+		else flags = flags & ~FLAG_SECONDARY;
 	}
 	/**
 	 * Tells if the alignment fails QC
@@ -407,6 +472,14 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public boolean isMateDifferentSequence () {
 		return (flags & FLAG_MATE_DIFFERENT_SEQUENCE)!=0;
+	}
+	/**
+	 * Changes the mate in different sequence status
+	 * @param mateDifferentSequence true if the mate was aligned in a different sequence
+	 */
+	public void setMateDifferentSequence (boolean mateDifferentSequence) {
+		if(mateDifferentSequence) flags = flags | FLAG_MATE_DIFFERENT_SEQUENCE;
+		else flags = flags & ~FLAG_MATE_DIFFERENT_SEQUENCE;
 	}
 	/**
 	 * Tells if the mate of this read aligned to the same sequence
@@ -1112,15 +1185,4 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return false;
 	}
-
-	public boolean hasPair() {
-		return hasPair;
-	}
-	
-	public void setPair() {
-		hasPair = true;
-	}
-
-	
-
 }
