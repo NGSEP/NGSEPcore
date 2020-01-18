@@ -75,7 +75,8 @@ public class ReadsAlignerTest extends TestCase {
 	public void testLoadTRF() throws IOException {
 		setUpReadsAligner();
 		String path = setUpTRF();
-		Map<String, List<GenomicRegion>> map = readsAligner.loadTRF(path);
+		readsAligner.loadSTRsFile(path);
+		Map<String, List<GenomicRegion>> map = readsAligner.getKnownSTRs(); 
 		assertEquals(false, isOverlappging(map));
 		assertEquals(true, map.get("chrI").size()<=3);
 		assertEquals(true, map.get("chrII").size()<=3);

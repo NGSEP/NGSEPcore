@@ -232,9 +232,6 @@ Input genome to index in fasta format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output binary file with the FM index associated with the input genome
 </option>
-<option id="t" type="INT" default="100" attribute="tallyDistance">
-Distance between tally indexes
-</option>
 </command>
 
 <command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
@@ -243,41 +240,44 @@ Aligns sequencing reads to a reference genome
 </intro>
 <title>Aligning reads to reference genomes</title>
 <description>
-Calculates a list of genomic regions for sites where the reads can be find in the reference genome
+Calculates a list of genomic regions for sites where the reads can be find in the reference genome.
+It receives up to two files with raw reads in fastq format and the FM index of a reference genome (see command GenomeIndexer for details).
+It provides as output a file with alignments to the reference genome in BAM format. 
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Input file with raw reads in fastq or fasta format (see option -f). It can be gzip compressed.
+Input file with raw reads in fastq format. It can be gzip compressed. Required if the second fastq file is provided using the option -i2
 </option>
 <option id="i2" type="FILE" attribute="inputFile2">
-Input file with raw reads in fastq or fasta format (see option -f) corresponding to the second file for paired end reads. It can be gzip compressed.
+Input file with raw reads in fastq format corresponding to the second file for paired end reads. It can be gzip compressed.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the aligned reads in BAM format
 </option>
 <option id="r" type="FILE" attribute="fmIndexFile">
-Index of the reference genome to align the reads. See GenomeIndexer for instructions to generate this file
+Index of the reference genome to align the reads. See GenomeIndexer for instructions to generate this file. Mandatory parameter
 </option>
+<option id="knownSTRs" type="STRING" attribute="knownSTRsFile">
+Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:
+Sequence name (chromosome), region first base pair coordinate (1-based, inclusive) and region last base pair coordinate (1-based, inclusive) 
+</option>
+<!-- 
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
-<option id="t" type="STRING" attribute="tandemRepeatsFile">
-Tandem Repeat file
-</option>
-<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+ -->
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length
 </option>
-<option id="p" type="DOUBLE" defaultConstant="DEF_MIN_PROPORTION_KMERS" attribute="minProportionKmers">
+<option id="p" type="DOUBLE" attribute="minProportionKmers" defaultConstant="DEF_MIN_PROPORTION_KMERS">
 Minimum proportion of k-mers to select alignments
 </option>
-<option id="minIL" type="INT" defaultConstant="DEF_MIN_INSERT_LENGTH" attribute="minInsertLength">
+<option id="minIL" type="INT" attribute="minInsertLength" defaultConstant="DEF_MIN_INSERT_LENGTH">
 Minimum predicted insert length to consider an alignment proper
 </option>
-<option id="maxIL" type="INT" defaultConstant="DEF_MAX_INSERT_LENGTH" attribute="maxInsertLength">
+<option id="maxIL" type="INT" attribute="maxInsertLength"  defaultConstant="DEF_MAX_INSERT_LENGTH">
 Maximum predicted insert length to consider an alignment proper
 </option>
 </command>
-
-
 
 <command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
 <intro>Module for direct calculation of variants from multiple samples.</intro>

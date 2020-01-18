@@ -23,24 +23,66 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
-import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 
 /**
  * Program that build the FM-index related to a genome
  * @author German Andrade
  * @author Jorge Duitama
  */
-public class GenomeIndexer 
-{
+public class GenomeIndexer {
+	// Constants for default values
+	
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(GenomeIndexer.class.getName());
-	private int tallyDistance;
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String outputFile = null;
+	
+	
+	// Get and set methods
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+
 	public static void main(String[] args) throws Exception  {
 		GenomeIndexer instance = new GenomeIndexer();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String genomeFile=args[i++];
-		String outputFile=args[i++];
-		instance.createIndex (genomeFile,outputFile);
-		
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run () throws IOException {
+		if (inputFile==null) throw new IOException("The reference genome is a required parameter");
+		if (outputFile==null) throw new IOException("The path of the output file is a required parameter");
+		createIndex (inputFile,outputFile);
 	}
 
 	public void createIndex(String genomeFile, String outputFile) throws IOException {
@@ -55,17 +97,4 @@ public class GenomeIndexer
 		fMIndex.save(outputFile);
 		log.info("Process completed");
 	}
-
-	public int getTallyDistance() {
-		return tallyDistance;
-	}
-
-	public void setTallyDistance(int tallyDistance) {
-		this.tallyDistance = tallyDistance;
-	}
-	public void setTallyDistance(String value) {
-		this.setTallyDistance((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-	
-
 }

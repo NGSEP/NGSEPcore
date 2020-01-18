@@ -74,13 +74,6 @@ public class Assembler {
 	// Model attributes
 	private ReferenceGenome targetGenome;
 	
-	
-	public static void main(String[] args) throws Exception {
-		Assembler instance = new Assembler ();
-		CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.run();
-	}
-	
 	// Get and set methods
 	public Logger getLog() {
 		return log;
@@ -89,14 +82,13 @@ public class Assembler {
 		this.log = log;
 	}
 	
-	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
-		this.progressNotifier = progressNotifier;
-	}
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
 	
-
 	public String getInputFile() {
 		return inputFile;
 	}
@@ -176,6 +168,12 @@ public class Assembler {
 	}
 	public void setTargetGenome(ReferenceGenome targetGenome) {
 		this.targetGenome = targetGenome;
+	}
+	
+	public static void main(String[] args) throws Exception {
+		Assembler instance = new Assembler ();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 	}
 
 	public void run() throws IOException {

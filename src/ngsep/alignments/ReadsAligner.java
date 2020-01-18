@@ -39,6 +39,7 @@ import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
@@ -54,28 +55,98 @@ import ngsep.sequences.io.FastqFileReader;
  */
 public class ReadsAligner {
 
-	private Logger log = Logger.getLogger(ReadsAligner.class.getName());
+	// Constants for default values
+	
+	
+	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
+	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
+	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
-	public static final int DEFAULT_MAX_ALIGNMENTS=100;
-	public static final int MAX_SPACE_BETWEEN_KMERS = 200;
-	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
-	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
-	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	
+	public static final int DEFAULT_MAX_ALIGNMENTS=100;
+	public static final int MAX_SPACE_BETWEEN_KMERS = 50;
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(ReadsAligner.class.getName());
+	private ProgressNotifier progressNotifier = null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String inputFile2 = null;
+	private String outputFile = null;
+	private String fmIndexFile = null;
+	private String knownSTRsFile = null;
+	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 	private int minInsertLength = DEF_MIN_INSERT_LENGTH;
 	private int maxInsertLength = DEF_MAX_INSERT_LENGTH;
-	private String tandemRepeatsFile = null;
-	private Map<String, List<GenomicRegion>> tandemRepeats;
+	
+	// Model attributes
+	private Map<String, List<GenomicRegion>> knownSTRs;
 
 	private boolean onlyPositiveStrand = false;
 
 	private ReferenceGenomeFMIndex fMIndex;
 	
-
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getInputFile2() {
+		return inputFile2;
+	}
+	public void setInputFile2(String inputFile2) {
+		this.inputFile2 = inputFile2;
+	}
+	
+	public String getFmIndexFile() {
+		return fmIndexFile;
+	}
+	public void setFmIndexFile(String fmIndexFile) {
+		this.fmIndexFile = fmIndexFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public String getKnownSTRsFile() {
+		return knownSTRsFile;
+	}
+	public void setKnownSTRsFile(String knownSTRsFile) {
+		this.knownSTRsFile = knownSTRsFile;
+	}
+	public byte getInputFormat() {
+		return inputFormat;
+	}
+	public void setInputFormat(byte inputFormat) {
+		this.inputFormat = inputFormat;
+	}
+	
 	public int getKmerLength() {
 		return kmerLength;
 	}
@@ -86,8 +157,6 @@ public class ReadsAligner {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	
-	
 	public int getMinInsertLength() {
 		return minInsertLength;
 	}
@@ -97,6 +166,7 @@ public class ReadsAligner {
 	public void setMinInsertLength(String value) {
 		setMinInsertLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+	
 	public int getMaxInsertLength() {
 		return maxInsertLength;
 	}
@@ -107,33 +177,21 @@ public class ReadsAligner {
 		setMaxInsertLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	/**
-	 * @return the minProportionKmers
-	 */
 	public double getMinProportionKmers() {
 		return minProportionKmers;
 	}
-
-	/**
-	 * @param minProportionKmers the minProportionKmers to set
-	 */
 	public void setMinProportionKmers(double minProportionKmers) {
 		this.minProportionKmers = minProportionKmers;
 	}
-
-	/**
-	 * @param minProportionKmers the minProportionKmers to set
-	 */
 	public void setMinProportionKmers(String value) {
 		this.setMinProportionKmers((double)OptionValuesDecoder.decode(value, Double.class));
 	}
-
-	public String getTandemRepeatsFile() {
-		return tandemRepeatsFile;
+	
+	public Map<String, List<GenomicRegion>> getKnownSTRs() {
+		return knownSTRs;
 	}
-
-	public void setTandemRepeatsFile(String tandemRepeatsFile) {
-		this.tandemRepeatsFile = tandemRepeatsFile;
+	public void setKnownSTRs(Map<String, List<GenomicRegion>> knownSTRs) {
+		this.knownSTRs = knownSTRs;
 	}
 	
 	public ReadsAligner(String fMIndexFile) throws IOException {
@@ -143,62 +201,65 @@ public class ReadsAligner {
 	public ReadsAligner() {	
 		
 	}
-	public ReadsAligner(ReferenceGenomeFMIndex index) {	
-		this.fMIndex = index;
-	}
 
 	public static void main(String[] args) throws Exception 
 	{
 		ReadsAligner instance = new ReadsAligner();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String fMIndexFile = args[i++];
-		String outFile = args[i++];
-		String readsFile1 = args[i++];
-		String readsFile2="";
-		if(isPairendParameters(args)) readsFile2 = args[i++];
-		instance.fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
-		QualifiedSequenceList sequences = instance.fMIndex.getSequencesMetadata();
-		try (PrintStream out = new PrintStream(outFile);
-				ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			if(isPairendParameters(args))
-			{
-				instance.alignReads(readsFile1,readsFile2, writer);
-			}
-			else {
-				instance.alignReads(readsFile1, writer);
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run () throws IOException {
+		
+		if(fmIndexFile!=null) {
+			log.info("Loading reference index from file: "+fmIndexFile);
+			fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fmIndexFile);
+		} else if (fMIndex!=null) {
+			log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
+		} else {
+			throw new IOException("The genome index file is a required parameter");
+		}
+		
+		QualifiedSequenceList sequences = fMIndex.getSequencesMetadata();
+		PrintStream out = System.out; 
+		if(outputFile!=null) out = new PrintStream(outputFile); 
+		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
+			if(inputFile!=null && inputFile2!=null) {
+				log.info("Aligning paired end reads from files: "+inputFile + " and "+inputFile2);
+				alignReads(inputFile,inputFile2, writer);
+			} else if (inputFile!=null) {
+				log.info("Aligning single reads from file: "+inputFile);
+				alignReads(inputFile, writer);
+			} else if (inputFile2!=null ) {
+				throw new IOException("The first input file is required for paired end alignment");
+			} else {
+				log.info("Aligning single reads from standard input");
+				try (FastqFileReader reader = new FastqFileReader(System.in)) {
+					reader.setSequenceType(DNAMaskedSequence.class);
+					alignReads(reader, writer);
+				}
+				
 			}
 		}
 	}
-
-	private static boolean isPairendParameters(String[] args) {
-		return (args.length>5 &&(args[0].equals("-t")||args[2].equals("-t")) )||(args.length>3 && (!args[0].equals("-t")&&!args[0].equals("-p")));
-	}
-
-	public Map<String, List<GenomicRegion>> loadTRF(String tandemRepeatsFile) {
+	
+	public void loadSTRsFile(String strsFile) throws IOException {
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
-		try {
-			tandemRepeats=handler.loadRegionsAsMap(tandemRepeatsFile);
-			flat();
-			return tandemRepeats;
-		} 
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
-		}
+		knownSTRs=handler.loadRegionsAsMap(strsFile);
+		flat();
 	}
 
 	private void flat() {
-		Set<String>keys=tandemRepeats.keySet();
+		Set<String>keys=knownSTRs.keySet();
 		Iterator<String>it=keys.iterator();
 		while(it.hasNext()) {
 			String key = it.next();
-			List<GenomicRegion> l =tandemRepeats.get(key);
+			List<GenomicRegion> l =knownSTRs.get(key);
 			List<GenomicRegion> newList = flat(l);
 			while(isOverlappging(newList)) {
 				newList=flat(newList);
 			}
-			tandemRepeats.put(key, newList);
+			knownSTRs.put(key, newList);
 		}
 	}
 
@@ -247,42 +308,53 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
-		if(tandemRepeatsFile!=null && !tandemRepeatsFile.isEmpty())loadTRF(tandemRepeatsFile);
+		
+		if(inputFormat == INPUT_FORMAT_FASTQ) {
+			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
+				//Load as DNAMaskedSequence to allow reverse complement
+				reader.setSequenceType(DNAMaskedSequence.class);
+				alignReads(reader,writer);
+			}
+		} else {
+			//TODO: Implement fasta
+		}
+		
+		
+	}
+	
+	private void alignReads(FastqFileReader reader, ReadAlignmentFileWriter writer) throws IOException {
+		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) loadSTRsFile(knownSTRsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
 		long time = System.currentTimeMillis();
-		try (FastqFileReader reader = new FastqFileReader(readsFile)) {
-			//Load as DNAMaskedSequence to allow reverse complement
-			reader.setSequenceType(DNAMaskedSequence.class);
-			Iterator<RawRead> it = reader.iterator();
-			while(it.hasNext()) {
-				RawRead read = it.next();
-				List<ReadAlignment> alns = alignRead(read);
-				//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-				for(ReadAlignment aln:alns) writer.write(aln);
-				if(alns.size()==0) {
-					ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
-					alnNoMap.setReadName(read.getName());
-					alnNoMap.setReadCharacters(read.getCharacters());
-					alnNoMap.setQualityScores(read.getQualityScores());
-					writer.write(alnNoMap);
-				}
-				int numAlns = alns.size();
-				totalReads++;
-				if(numAlns>0) readsAligned++;
-				if(numAlns==1) uniqueAlignments++;
-				if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+		Iterator<RawRead> it = reader.iterator();
+		while(it.hasNext()) {
+			RawRead read = it.next();
+			List<ReadAlignment> alns = alignRead(read);
+			//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+			for(ReadAlignment aln:alns) writer.write(aln);
+			if(alns.size()==0) {
+				ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
+				alnNoMap.setReadName(read.getName());
+				alnNoMap.setReadCharacters(read.getCharacters());
+				alnNoMap.setQualityScores(read.getQualityScores());
+				writer.write(alnNoMap);
 			}
+			int numAlns = alns.size();
+			totalReads++;
+			if(numAlns>0) readsAligned++;
+			if(numAlns==1) uniqueAlignments++;
+			if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
 		}
+		double seconds = (System.currentTimeMillis()-time);
+		seconds /=1000;
+		log.info("Time: "+seconds+" seconds");
+		
 		log.info("Total reads: "+totalReads);
 		log.info("Reads aligned: "+readsAligned);
 		log.info("Unique alignments: "+uniqueAlignments);
 		log.info("Overall alignment rate: "+(100.0*readsAligned/(double)totalReads)+"%");
-
-		double seconds = (System.currentTimeMillis()-time);
-		seconds /=1000;
-		log.info("Time: "+seconds+" seconds");
 	}
 
 	/**
@@ -294,7 +366,7 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
-		if(tandemRepeatsFile!=null && !tandemRepeatsFile.isEmpty())loadTRF(tandemRepeatsFile);
+		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())loadSTRsFile(knownSTRsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int proper = 0;
@@ -469,8 +541,8 @@ public class ReadsAligner {
 
 
 	public GenomicRegion findTandemRepeat(ReadAlignment aln1) {
-		if(tandemRepeats==null)return null;
-		List<GenomicRegion> l =tandemRepeats.get(aln1.getSequenceName());
+		if(knownSTRs==null)return null;
+		List<GenomicRegion> l =knownSTRs.get(aln1.getSequenceName());
 		return binaryContains(l, 0, l.size()-1, aln1);
 	}
 
