@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.discovery;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -58,9 +59,7 @@ import ngsep.vcf.VCFRecord;
 
 public class MultisampleVariantsDetector implements PileupListener {
 
-	private Logger log = Logger.getLogger(MultisampleVariantsDetector.class.getName());
-	private ProgressNotifier progressNotifier=null;
-	
+	// Constants for default values
 	public static final int DEF_MAX_ALNS_PER_START_POS = AlignmentsPileupGenerator.DEF_MAX_ALNS_PER_START_POS;
 	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
@@ -70,28 +69,23 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	public static final String DEF_OUTPUT_FILE = "variants.vcf";
 	
+	// Logging and progress
+	private Logger log = Logger.getLogger(MultisampleVariantsDetector.class.getName());
+	private ProgressNotifier progressNotifier=null;
 	
-	
-	private double coveredGenomeSize = 0;
-	private long referenceGenomeSize = 0;
-	
-	private AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-	//Listeners
-	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
-
-	
-	private ReferenceGenome genome;
-	private List<String> alignmentFiles = new ArrayList<>();
-	private List<Sample> samples;
+	// Parameters
 	
 	//Output file variables
+	private String genomeFile = null;
+	private ReferenceGenome genome = null;
 	private String outFilename = DEF_OUTPUT_FILE;
 	private PrintStream outFile;
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter writer = new VCFFileWriter();
 	
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	private String knownSTRsFile = null; 
+	private AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+	 
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
 	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
@@ -99,10 +93,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private byte normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
-	private String knownVariantsFile=null;
 	
+	private String knownSTRsFile = null;
+	private String knownVariantsFile=null;
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<>();
 	
+	// Model attributes
+	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
+	private List<String> alignmentFiles = new ArrayList<>();
+	private List<Sample> samples;
+	private double coveredGenomeSize = 0;
+	private long referenceGenomeSize = 0;
 	
 	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
 	private int lastIndelEnd = 0;
@@ -110,56 +111,41 @@ public class MultisampleVariantsDetector implements PileupListener {
 	//DEBUG
 	private int posPrint = -1;
 	
-	public static void main(String[] args) throws Exception {
-		MultisampleVariantsDetector instance = new MultisampleVariantsDetector();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		for(;i<args.length;i++) {
-			instance.alignmentFiles.add(args[i]);
-		}
-		instance.findVariants();
-	}
 	
-	/**
-	 * @return the log
-	 */
+	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-	/**
-	 * @param log the log to set
-	 */
 	public void setLog(Logger log) {
 		this.log = log;
 		generator.setLog(log);
 	}
 
-	/**
-	 * @return the progressNotifier
-	 */
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
 	
-	/**
-	 * @return the alignmentFiles
-	 */
 	public List<String> getAlignmentFiles() {
 		return alignmentFiles;
 	}
-
-	/**
-	 * @param alignmentFiles the alignmentFiles to set
-	 */
 	public void setAlignmentFiles(List<String> alignmentFiles) {
 		this.alignmentFiles = alignmentFiles;
+	}
+	public String getGenomeFile() {
+		return genomeFile;
+	}
+	public void setGenomeFile(String genomeFile) {
+		this.genomeFile = genomeFile;
+	}
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;	
 	}
 
 	/**
@@ -175,173 +161,58 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setOutFilename(String outFilename) {
 		this.outFilename = outFilename;
 	}
-
-	/**
-	 * @return the heterozygosityRate
-	 */
-	public double getHeterozygosityRate() {
-		return heterozygosityRate;
-	}
 	
-	/**
-	 * @param heterozygosityRate the heterozygosityRate to set
-	 */
-	public void setHeterozygosityRate(double heterozygosityRate) {
-		this.heterozygosityRate = heterozygosityRate;
-	}
-	
-	public void setHeterozygosityRate(String value) {
-		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
-	}
-
-
-	/**
-	 * @return the minQuality
-	 */
-	public short getMinQuality() {
-		return minQuality;
-	}
-
-
-	/**
-	 * @param minQuality the minQuality to set
-	 */
-	public void setMinQuality(short minQuality) {
-		this.minQuality = minQuality;
-	}
-	
-	public void setMinQuality(String value) {
-		setMinQuality((short)OptionValuesDecoder.decode(value, Short.class));
-	}
-
-
-	/**
-	 * @return the maxBaseQS
-	 */
-	public byte getMaxBaseQS() {
-		return maxBaseQS;
-	}
-
-	/**
-	 * @param maxBaseQS the maxBaseQS to set
-	 */
-	public void setMaxBaseQS(byte maxBaseQS) {
-		this.maxBaseQS = maxBaseQS;
-	}
-	
-	public void setMaxBaseQS(String value) {
-		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
-	}
-
-	/**
-	 * @return the ignoreLowerCaseRef
-	 */
-	public boolean isIgnoreLowerCaseRef() {
-		return ignoreLowerCaseRef;
-	}
-
-	/**
-	 * @param ignoreLowerCaseRef the ignoreLowerCaseRef to set
-	 */
-	public void setIgnoreLowerCaseRef(boolean ignoreLowerCaseRef) {
-		this.ignoreLowerCaseRef = ignoreLowerCaseRef;
-	}
-	
-	public void setIgnoreLowerCaseRef(Boolean ignoreLowerCaseRef) {
-		setIgnoreLowerCaseRef(ignoreLowerCaseRef.booleanValue());
-	}
-
-	/**
-	 * @return the callEmbeddedSNVs
-	 */
-	public boolean isCallEmbeddedSNVs() {
-		return callEmbeddedSNVs;
-	}
-
-	/**
-	 * @param callEmbeddedSNVs the callEmbeddedSNVs to set
-	 */
-	public void setCallEmbeddedSNVs(boolean callEmbeddedSNVs) {
-		this.callEmbeddedSNVs = callEmbeddedSNVs;
-	}
-	
-	public void setCallEmbeddedSNVs(Boolean callEmbeddedSNVs) {
-		setCallEmbeddedSNVs(callEmbeddedSNVs.booleanValue());
-	}
-	
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;	
-	}
-	
-	/**
-	 * @return the genome
-	 */
-	public ReferenceGenome getGenome() {
-		return genome;
-	}
-
-	/**
-	 * @return the minAlleleFrequency
-	 */
-	public double getMinAlleleFrequency() {
-		return minAlleleFrequency;
-	}
-
-	/**
-	 * @param minAlleleFrequency the minAlleleFrequency to set
-	 */
-	public void setMinAlleleFrequency(double minAlleleFrequency) {
-		this.minAlleleFrequency = minAlleleFrequency;
-	}
-	
-	public void setMinAlleleFrequency(String value) {
-		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
-	}
-	
-	/**
-	 * @return the normalPloidy
-	 */
 	public byte getNormalPloidy() {
 		return normalPloidy;
 	}
-
-	/**
-	 * @param normalPloidy the normalPloidy to set
-	 */
 	public void setNormalPloidy(byte normalPloidy) {
 		this.normalPloidy = normalPloidy;
 	}
-	
 	public void setNormalPloidy(String value) {
 		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
-	/**
-	 * @return the printSamplePloidy
-	 */
 	public boolean isPrintSamplePloidy() {
 		return printSamplePloidy;
 	}
-
-	/**
-	 * @param printSamplePloidy the printSamplePloidy to set
-	 */
 	public void setPrintSamplePloidy(boolean printSamplePloidy) {
 		this.printSamplePloidy = printSamplePloidy;
 	}
-
 	public void setPrintSamplePloidy(Boolean printSamplePloidy) {
 		this.setPrintSamplePloidy(printSamplePloidy.booleanValue());
 	}
-
 	/**
-	 * @return
+	 * @return int
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#getMinMQ()
+	 */
+	public int getMinMQ() {
+		return generator.getMinMQ();
+	}
+	/**
+	 * @param minMQ
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#setMinMQ(int)
+	 */
+	public void setMinMQ(int minMQ) {
+		generator.setMinMQ(minMQ);
+	}
+	public void setMinMQ(String minMQ) {
+		setMinMQ((int)OptionValuesDecoder.decode(minMQ, Integer.class));
+	}
+	
+	public String getKnownVariantsFile() {
+		return knownVariantsFile;
+	}
+	public void setKnownVariantsFile(String knownVariantsFile) {
+		this.knownVariantsFile = knownVariantsFile;
+	}
+	
+	/**
+	 * @return String
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getQuerySeq()
 	 */
 	public String getQuerySeq() {
 		return generator.getQuerySeq();
 	}
-
 	/**
 	 * @param querySeq
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setQuerySeq(java.lang.String)
@@ -351,7 +222,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 
 	/**
-	 * @return
+	 * @return int
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getQueryFirst()
 	 */
 	public int getQueryFirst() {
@@ -365,19 +236,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setQueryFirst(int queryFirst) {
 		generator.setQueryFirst(queryFirst);
 	}
-	
 	public void setQueryFirst(String value) {
 		setQueryFirst((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	/**
-	 * @return
+	 * @return int
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getQueryLast()
 	 */
 	public int getQueryLast() {
 		return generator.getQueryLast();
 	}
-
 	/**
 	 * @param queryLast
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setQueryLast(int)
@@ -385,19 +254,27 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setQueryLast(int queryLast) {
 		generator.setQueryLast(queryLast);
 	}
-
 	public void setQueryLast(String value) {
 		setQueryLast((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public boolean isIgnoreLowerCaseRef() {
+		return ignoreLowerCaseRef;
+	}
+	public void setIgnoreLowerCaseRef(boolean ignoreLowerCaseRef) {
+		this.ignoreLowerCaseRef = ignoreLowerCaseRef;
+	}
+	public void setIgnoreLowerCaseRef(Boolean ignoreLowerCaseRef) {
+		setIgnoreLowerCaseRef(ignoreLowerCaseRef.booleanValue());
+	}
+	
 	/**
-	 * @return
+	 * @return int
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getMaxAlnsPerStartPos()
 	 */
 	public int getMaxAlnsPerStartPos() {
 		return generator.getMaxAlnsPerStartPos();
 	}
-
 	/**
 	 * @param maxAlnsPerStartPos
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setMaxAlnsPerStartPos(int)
@@ -405,19 +282,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setMaxAlnsPerStartPos(int maxAlnsPerStartPos) {
 		generator.setMaxAlnsPerStartPos(maxAlnsPerStartPos);
 	}
-	
 	public void setMaxAlnsPerStartPos(String value) {
 		setMaxAlnsPerStartPos((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-
+	
 	/**
-	 * @return
+	 * @return boolean
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#isProcessNonUniquePrimaryAlignments()
 	 */
 	public boolean isProcessNonUniquePrimaryAlignments() {
 		return generator.isProcessNonUniquePrimaryAlignments();
 	}
-
 	/**
 	 * @param processNonUniquePrimaryAlignments
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setProcessNonUniquePrimaryAlignments(boolean)
@@ -425,19 +300,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setProcessNonUniquePrimaryAlignments(boolean processNonUniquePrimaryAlignments) {
 		generator.setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments);
 	}
-	
 	public void setProcessNonUniquePrimaryAlignments(Boolean processNonUniquePrimaryAlignments) {
 		setProcessNonUniquePrimaryAlignments(processNonUniquePrimaryAlignments.booleanValue());
 	}
-
+	
 	/**
-	 * @return
+	 * @return boolean
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#isProcessSecondaryAlignments()
 	 */
 	public boolean isProcessSecondaryAlignments() {
 		return generator.isProcessSecondaryAlignments();
 	}
-
 	/**
 	 * @param processSecondaryAlignments
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setProcessSecondaryAlignments(boolean)
@@ -445,11 +318,9 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setProcessSecondaryAlignments(boolean processSecondaryAlignments) {
 		generator.setProcessSecondaryAlignments(processSecondaryAlignments);
 	}
-	
 	public void setProcessSecondaryAlignments(Boolean processSecondaryAlignments) {
 		setProcessSecondaryAlignments(processSecondaryAlignments.booleanValue());
 	}
-
 	/**
 	 * @return
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
@@ -457,7 +328,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public byte getBasesToIgnore5P() {
 		return generator.getBasesToIgnore5P();
 	}
-
 	/**
 	 * @param basesToIgnore5P
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
@@ -465,11 +335,9 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setBasesToIgnore5P(byte basesToIgnore5P) {
 		generator.setBasesToIgnore5P(basesToIgnore5P);
 	}
-	
 	public void setBasesToIgnore5P(String basesToIgnore5P) {
 		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(basesToIgnore5P, Byte.class));
 	}
-
 	/**
 	 * @return
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
@@ -477,7 +345,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public byte getBasesToIgnore3P() {
 		return generator.getBasesToIgnore3P();
 	}
-
 	/**
 	 * @param basesToIgnore3P
 	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
@@ -485,81 +352,86 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public void setBasesToIgnore3P(byte basesToIgnore3P) {
 		generator.setBasesToIgnore3P(basesToIgnore3P);
 	}
-	
 	public void setBasesToIgnore3P(String basesToIgnore3P) {
 		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(basesToIgnore3P, Byte.class));
 	}
 
-	/**
-	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getMinMQ()
-	 */
-	public int getMinMQ() {
-		return generator.getMinMQ();
+	public double getHeterozygosityRate() {
+		return heterozygosityRate;
 	}
-
-	/**
-	 * @param minMQ
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setMinMQ(int)
-	 */
-	public void setMinMQ(int minMQ) {
-		generator.setMinMQ(minMQ);
+	public void setHeterozygosityRate(double heterozygosityRate) {
+		this.heterozygosityRate = heterozygosityRate;
+	}	
+	public void setHeterozygosityRate(String value) {
+		setHeterozygosityRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
-	public void setMinMQ(String minMQ) {
-		setMinMQ((int)OptionValuesDecoder.decode(minMQ, Integer.class));
+	public byte getMaxBaseQS() {
+		return maxBaseQS;
 	}
-	
-	
-
-	/**
-	 * @return the knownSTRsFile
-	 */
+	public void setMaxBaseQS(byte maxBaseQS) {
+		this.maxBaseQS = maxBaseQS;
+	}
+	public void setMaxBaseQS(String value) {
+		setMaxBaseQS((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
 	public String getKnownSTRsFile() {
 		return knownSTRsFile;
 	}
-
-	/**
-	 * @param knownSTRsFile the knownSTRsFile to set
-	 */
 	public void setKnownSTRsFile(String knownSTRsFile) {
 		this.knownSTRsFile = knownSTRsFile;
 	}
 	
-	public String getKnownVariantsFile() {
-		return knownVariantsFile;
+	public short getMinQuality() {
+		return minQuality;
+	}
+	public void setMinQuality(short minQuality) {
+		this.minQuality = minQuality;
+	}	
+	public void setMinQuality(String value) {
+		setMinQuality((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 
-	public void setKnownVariantsFile(String knownVariantsFile) {
-		this.knownVariantsFile = knownVariantsFile;
+	public boolean isCallEmbeddedSNVs() {
+		return callEmbeddedSNVs;
+	}
+	public void setCallEmbeddedSNVs(boolean callEmbeddedSNVs) {
+		this.callEmbeddedSNVs = callEmbeddedSNVs;
+	}	
+	public void setCallEmbeddedSNVs(Boolean callEmbeddedSNVs) {
+		setCallEmbeddedSNVs(callEmbeddedSNVs.booleanValue());
 	}
 	
-	public void printParameters() {
-		log.info("Output file: "+outFilename);
-		log.info("Heterozygosity rate: "+getHeterozygosityRate());
-		if(generator.getQuerySeq()!=null) {
-			log.info("Analyze only region at "+generator.getQuerySeq()+":"+generator.getQueryFirst()+"-"+generator.getQueryLast());
-		}
-		log.info("Maximum number of alignments starting at the same position: " + generator.getMaxAlnsPerStartPos());
-		log.info("Ignore variants in lower case reference positions: " + isIgnoreLowerCaseRef());
-		log.info("Process non unique primary alignments: " + generator.isProcessNonUniquePrimaryAlignments());
-		log.info("Process secondary alignments: " + generator.isProcessSecondaryAlignments());
-		log.info("Minimum variant quality score (PHRED): " + getMinQuality());
-		log.info("Maximum base quality score (PHRED): " + getMaxBaseQS());
-		log.info("Base pairs to ignore from the 5' end of each read: " + generator.getBasesToIgnore5P());
-		log.info("Base pairs to ignore from the 3' end of each read: " + generator.getBasesToIgnore3P());
-		log.info("File with known short tandem repeats: " + knownSTRsFile);
-		log.info("File with known variants: " + knownVariantsFile);
-		log.info("Call SNVs within STRs: " + isCallEmbeddedSNVs());
-		
-		log.info("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
-		log.info("Normal ploidy: "+normalPloidy);
-		log.info("Print header with sample ploidy in the vcf file: "+printSamplePloidy);
+	
+	
+	public double getMinAlleleFrequency() {
+		return minAlleleFrequency;
 	}
-
-	public void findVariants() throws IOException {
-		printParameters();
-		if(genome==null) throw new IOException("The reference genome is mandatory");
+	public void setMinAlleleFrequency(double minAlleleFrequency) {
+		this.minAlleleFrequency = minAlleleFrequency;
+	}
+	public void setMinAlleleFrequency(String value) {
+		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+	
+	public static void main(String[] args) throws Exception {
+		MultisampleVariantsDetector instance = new MultisampleVariantsDetector();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		for(;i<args.length;i++) {
+			instance.alignmentFiles.add(args[i]);
+		}
+		instance.run();
+	}
+	
+	public void run() throws IOException {
+		logParameters();
+		if(genomeFile != null && !genomeFile.isEmpty()) {
+			log.info("Loading genome from "+genomeFile);
+			genome = new ReferenceGenome(genomeFile);
+			log.info("Loaded genome with "+genome.getNumSequences()+" and total length "+genome.getTotalLength());
+		} else if (genome==null) {
+			throw new IOException("The reference genome file is a required parameter");
+		}
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		indelRealigner.setGenome(genome);
@@ -597,6 +469,33 @@ public class MultisampleVariantsDetector implements PileupListener {
 			dispose();
 		}
 		log.info("Multisample Variants Detector Completed");
+	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(genomeFile != null && !genomeFile.isEmpty()) out.println("Reference genome file: "+genomeFile);
+		else if (genome!=null) out.println("Loaded genome from: "+genome.getFilename());
+		out.println("Output file: "+outFilename);
+		if(knownVariantsFile!=null) out.println("File with known variants to genotype: " + knownVariantsFile);
+		if(generator.getQuerySeq()!=null) {
+			out.println("Analyze only region at "+getQuerySeq()+":"+getQueryFirst()+"-"+getQueryLast());
+		}
+		out.println("Ignore variants in lower case reference positions: " + isIgnoreLowerCaseRef());
+		out.println("Maximum number of alignments starting at the same position: " + getMaxAlnsPerStartPos());
+		out.println("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
+		out.println("Process non unique primary alignments: " + isProcessNonUniquePrimaryAlignments());
+		out.println("Process secondary alignments: " + isProcessSecondaryAlignments());
+		out.println("Base pairs to ignore from the 5' end of each read: " + getBasesToIgnore5P());
+		out.println("Base pairs to ignore from the 3' end of each read: " + getBasesToIgnore3P());
+		out.println("Prior heterozygosity rate: "+getHeterozygosityRate());
+		out.println("Maximum base quality score (PHRED): " + getMaxBaseQS());
+		if(knownSTRsFile!=null) out.println("File with known short tandem repeats: " + knownSTRsFile);
+		out.println("Minimum variant quality score (PHRED): " + getMinQuality());
+		out.println("Call SNVs within STRs: " + isCallEmbeddedSNVs());
+		out.println("Normal ploidy: "+normalPloidy);
+		out.println("Print header with sample ploidy in the vcf file: "+printSamplePloidy);
+		log.info(os.toString());
 	}
 
 	
