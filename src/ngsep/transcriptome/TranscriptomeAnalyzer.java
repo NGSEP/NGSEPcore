@@ -44,35 +44,26 @@ import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
  */
 public class TranscriptomeAnalyzer {
 
-	private ReferenceGenome genome;
+	// Constants for default values
 	
+	// Logging and progress
 	private Logger log = Logger.getLogger(TranscriptomeAnalyzer.class.getName());
-	
 	private ProgressNotifier progressNotifier=null;
 	
-	private ProteinTranslator translator=  new ProteinTranslator();
+	// Parameters
+	private String inputFile = null;
+	private String outputPrefix = null;
+	private String genomeFile = null;
 	
+	// Model attributes
+	private ReferenceGenome genome;
+	private ProteinTranslator translator=  new ProteinTranslator();
 	private GenomicRegionCollectionDensityCalculator densityCalculator = new GenomicRegionCollectionDensityCalculator();
 	
-	public static void main(String[] args) throws Exception {
-		TranscriptomeAnalyzer instance = new TranscriptomeAnalyzer();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.setGenome(new ReferenceGenome(args[i++]));
-		String transcriptomeFile = args[i++];
-		String outPrefix = args[i++];
-		instance.processTranscriptome(transcriptomeFile, outPrefix);
-	}
-
-	/**
-	 * @return the log
-	 */
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-	/**
-	 * @param log the log to set
-	 */
 	public void setLog(Logger log) {
 		this.log = log;
 	}
@@ -80,26 +71,57 @@ public class TranscriptomeAnalyzer {
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	public String getGenomeFile() {
+		return genomeFile;
+	}
+	public void setGenomeFile(String genomeFile) {
+		this.genomeFile = genomeFile;
+	}
 
-	/**
-	 * @return the genome
-	 */
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-
-	/**
-	 * @param genome the genome to set
-	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 		densityCalculator.setGenome(genome);
 	}
 	
+	public static void main(String[] args) throws Exception {
+		TranscriptomeAnalyzer instance = new TranscriptomeAnalyzer();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run () throws IOException {
+		if (genomeFile!=null ) {
+			log.info("Loading genome from: "+genomeFile);
+			setGenome(new ReferenceGenome(genomeFile));
+			log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength());
+		} else if (genome != null) {
+			log.info("Running with loaded genome from: "+genome.getFilename()+" number of sequences: "+genome.getNumSequences()+". Total length: "+genome.getTotalLength());
+		}
+		if(inputFile==null) throw new IOException("The input transcriptome file is a required parameter");
+		if(outputPrefix==null) throw new IOException("The prefix of the output files is a required parameter");
+		processTranscriptome(inputFile, outputPrefix);
+	}
+
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {
 		Distribution geneLengthDist = new Distribution (0,9999,200);
 		Distribution transcriptLengthDist = new Distribution (0,4999,200);

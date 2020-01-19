@@ -568,10 +568,10 @@ Loads a transcriptome annotation in GFF3 format, logs format errors, provides st
 and generates cDNA, CDS and protein sequences. 
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Input GFF3 file with gene annotations.
+Input GFF3 file with gene annotations. It can be gzip compressed
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
-Prefix of the output files.
+Prefix of the output files. It can be an absolute path finished by the prefix
 </option>
 <option id="r" type="FILE" attribute="genomeFile">
 Fasta file with the reference genome. It can be gzip compressed.
