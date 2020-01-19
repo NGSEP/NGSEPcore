@@ -470,7 +470,7 @@ the genome (e.g. a chromosome or a partial assembly)
 <option id="binSize" type="INT" attribute="binSize" defaultConstant="DEF_BIN_SIZE">
 Size of the bins to analyze read depth.
 </option>
-<option id="algCNV" type="STRING" attribute="algCNV" defaultConstant="DEF_ALG_CNV">
+<option id="algCNV" type="STRING" attribute="algCNV" defaultConstant="DEF_ALGORITHM_CNV">
 Comma-separated list of read depth algorithms to run (e.g. CNVnator,EWT).
 </option>
 <option id="maxPCTOverlapCNVs" type="INT" attribute="maxPCTOverlapCNVs" defaultConstant="DEF_MAX_PCT_OVERLAP_CNVS">

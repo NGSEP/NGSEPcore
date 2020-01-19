@@ -71,6 +71,8 @@ public class VariantsDetector implements PileupListener {
 	public static final short DEF_BIN_SIZE = ReadDepthDistribution.DEFAULT_BIN_SIZE;
 	public static final String DEF_ALGORITHM_CNV = "CNVnator";
 	public static final short DEF_MAX_PCT_OVERLAP_CNVS = 100;
+	public static final int DEF_MAX_LEN_DELETION = ReadPairAnalyzer.DEF_MAX_LEN_DELETION;
+	public static final int DEF_SPLIT_READ_SEED = ReadPairAnalyzer.DEF_SPLIT_READ_SEED;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(VariantsDetector.class.getName());

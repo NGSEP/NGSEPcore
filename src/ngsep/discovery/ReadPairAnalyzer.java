@@ -50,13 +50,15 @@ import ngsep.variants.ReadPairCalledGenomicVariant;
 
 public class ReadPairAnalyzer {
 	public static final String DEF_READGROUP = "";
+	public static final int DEF_MAX_LEN_DELETION = 1000000;
+	public static final int DEF_SPLIT_READ_SEED = 8;
 	
 	private Logger log = Logger.getLogger(ReadPairAnalyzer.class.getName());
-	private int maxLengthDeletion = 1000000;
+	private int maxLengthDeletion = DEF_MAX_LEN_DELETION;
 	private boolean ignoreProperPairFlag = false;
 	private GenomicRegionSortedCollection<CalledCNV> duplications = new GenomicRegionSortedCollection<CalledCNV>();
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	private int seedSize = 8;
+	private int seedSize = DEF_SPLIT_READ_SEED;
 	
 	private ReferenceGenome reference;
 	private List<String> seqNames;
