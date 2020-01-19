@@ -44,51 +44,75 @@ import ngsep.variants.SNV;
 
 public class IndividualSampleVariantsMerge {
 	
-	private ProgressNotifier progressNotifier=null;
+	// Constants for default values
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(IndividualSampleVariantsMerge.class.getName());
+	private ProgressNotifier progressNotifier=null;
 	
-	public static void main(String[] args) throws IOException {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(IndividualSampleVariantsMerge.class);
-			return;
-		}
-		IndividualSampleVariantsMerge merger = new IndividualSampleVariantsMerge();
-		String sequenceNamesFile = args[0];
-		String outFile = args[1];
-		List<String> files = new ArrayList<String>();
-		for(int i=2;i<args.length;i++) {
-			files.add(args[i]);
-		}
-		SimpleSequenceListLoader seqNameHandler = new SimpleSequenceListLoader();
-		QualifiedSequenceList sequenceNames = seqNameHandler.loadSequences(sequenceNamesFile);
-		
-		GenomicRegionSortedCollection<GenomicVariant> variants = merger.mergeVariants(files,sequenceNames);
-		merger.printVariants(outFile, variants);
-	}
-
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
+	// Parameters
+	private String sequenceNamesFile = null;
+	private String outputFile = null;
+	private List<String> vcfFiles = new ArrayList<String>();
 	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
+	
+	
+	public String getSequenceNamesFile() {
+		return sequenceNamesFile;
+	}
+	public void setSequenceNamesFile(String sequenceNamesFile) {
+		this.sequenceNamesFile = sequenceNamesFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public static void main(String[] args) throws Exception {
+		IndividualSampleVariantsMerge instance = new IndividualSampleVariantsMerge();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.vcfFiles = new ArrayList<String>();
+		for(;i<args.length;i++) {
+			instance.vcfFiles.add(args[i]);
+		}
+		instance.run();
+	}
+	
+	public void run () throws IOException {
+		if (sequenceNamesFile==null || sequenceNamesFile.isEmpty()) throw new IOException("The file with sequence names is a required parameter");
+		if (outputFile==null || outputFile.isEmpty()) throw new IOException("The output file is a required parameter");
+		SimpleSequenceListLoader seqNameHandler = new SimpleSequenceListLoader();
+		QualifiedSequenceList sequenceNames = seqNameHandler.loadSequences(sequenceNamesFile);
+		log.info("Loaded "+sequenceNames.size()+" sequence names from file "+sequenceNamesFile);
+		GenomicRegionSortedCollection<GenomicVariant> variants = mergeVariants(vcfFiles,sequenceNames);
+		log.info("Merged variants. Total "+variants.size());
+		printVariants(outputFile, variants);
+	}
 
-	public GenomicRegionSortedCollection<GenomicVariant> mergeVariants(List<String> files, QualifiedSequenceList sequenceNames) throws IOException {
+	public GenomicRegionSortedCollection<GenomicVariant> mergeVariants(List<String> vcfFiles, QualifiedSequenceList sequenceNames) throws IOException {
 		log.info("Loading and merging variants");
 		GenomicRegionComparator comparator = new GenomicRegionComparator(sequenceNames);
 		GenomicRegionSortedCollection<GenomicVariant> variants = new GenomicRegionSortedCollection<GenomicVariant>(sequenceNames);
 		List<GenomicRegionSortedCollection<GenomicVariant>> consolidatedPerSample = new ArrayList<GenomicRegionSortedCollection<GenomicVariant>>();
 		int n=0;
-		for(String f:files) {
+		for(String f:vcfFiles) {
 			log.info("Merging variants from file: "+f); 
 			List <GenomicVariant> sampleVariants = VCFFileReader.loadVariants(f,true);
 			log.info("Loaded "+sampleVariants.size()+" variants");
@@ -353,20 +377,14 @@ public class IndividualSampleVariantsMerge {
 	
 	public void printVariants(String outFile, GenomicRegionSortedCollection<GenomicVariant> variants) throws IOException {
 		VCFFileWriter writer = new VCFFileWriter();
-		PrintStream out = null;
-		try {
-			out = new PrintStream(outFile);
+		
+		try (PrintStream out = new PrintStream(outFile)){
 			VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 			writer.printHeader(header,out);
 			for(GenomicVariant variant:variants) {
 				VCFRecord record = new VCFRecord(variant, VCFRecord.DEF_FORMAT_ARRAY_NONE, new ArrayList<>(), header);
 				writer.printVCFRecord(record, out);
 			}
-		} finally {
-			if(out!=null) {
-				out.flush();
-				out.close();
-			}	
 		}
 	}
 

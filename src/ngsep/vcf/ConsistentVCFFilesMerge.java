@@ -40,54 +40,72 @@ import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.Sample;
-
+/**
+ * @author Jorge Duitama
+ */
 public class ConsistentVCFFilesMerge {
+	// Constants for default values
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(IndividualSampleVariantsMerge.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	private Logger log = Logger.getLogger(ConsistentVCFFilesMerge.class.getName());
 	
+	// Parameters
+	private String sequenceNamesFile = null;
+	private String outputFile = null;
+	private List<String> vcfFiles = new ArrayList<String>();
 	
-	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-
 	public void setLog(Logger log) {
-		if (log == null) throw new NullPointerException("Log can not be null");
 		this.log = log;
 	}
-
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(ConsistentVCFFilesMerge.class);
-			return;
-		}
-		ConsistentVCFFilesMerge merge = new ConsistentVCFFilesMerge();
-		String sequencesFile = args[0];
-		List<String> vcfFiles = new ArrayList<String>();
-		for(int i=1;i<args.length;i++) {
-			vcfFiles.add(args[i]);
-		}
-		SimpleSequenceListLoader listHandler = new SimpleSequenceListLoader();
-		QualifiedSequenceList seqNames = listHandler.loadSequences(sequencesFile);
-		merge.mergeFiles(seqNames, vcfFiles, System.out);
-
-	}
-	
 	
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
 		this.progressNotifier = progressNotifier;
 	}
+	
+	
+	public String getSequenceNamesFile() {
+		return sequenceNamesFile;
+	}
+	public void setSequenceNamesFile(String sequenceNamesFile) {
+		this.sequenceNamesFile = sequenceNamesFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 
+	public static void main(String[] args) throws Exception {
+		ConsistentVCFFilesMerge instance = new ConsistentVCFFilesMerge();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.vcfFiles = new ArrayList<String>();
+		for(;i<args.length;i++) {
+			instance.vcfFiles.add(args[i]);
+		}
+		instance.run();
+	}
+	
+	public void run() throws IOException {
+		if (sequenceNamesFile==null || sequenceNamesFile.isEmpty()) throw new IOException("The file with sequence names is a required parameter");
+		if (outputFile==null || outputFile.isEmpty()) throw new IOException("The output file is a required parameter");
+		SimpleSequenceListLoader listHandler = new SimpleSequenceListLoader();
+		QualifiedSequenceList sequenceNames = listHandler.loadSequences(sequenceNamesFile);
+		log.info("Loaded "+sequenceNames.size()+" sequence names from file "+sequenceNamesFile);
+		try (PrintStream out = new PrintStream(outputFile)) {
+			mergeFiles(sequenceNames, vcfFiles, out);
+		}
+		log.info("Process finished");
+	}
 
 	public void mergeFiles(QualifiedSequenceList sequenceNames, List<String> vcfFiles, PrintStream out) throws IOException {
 		VCFFileWriter writer = new VCFFileWriter();
