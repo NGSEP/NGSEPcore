@@ -20,6 +20,7 @@
 package ngsep.vcf;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -42,45 +43,283 @@ import ngsep.variants.io.SimpleSamplesFileHandler;
 
 public class VCFConverter {
 	
-	public static final String COMMAND_NAME = "ConvertVCF";
+	// Constants for default values
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFConverter.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String outputPrefix = null;
 	private boolean printStructure = false;
-	private boolean printrrBLUP = false;
 	private boolean printFasta = false;
+	private boolean printrrBLUP = false;
 	private boolean printMatrix = false;
 	private boolean printHapmap = false;
 	private boolean printGWASPoly = false;
+	private boolean printSpagedi = false;
 	private boolean printPlink = false;
 	private boolean printHaploview = false;
-	private boolean printSpagedi = false;
 	private boolean printEmma = false;
 	private boolean printPowerMarker = false;
 	private boolean printEigensoft = false;
 	private boolean printFlapjack = false;
-	private boolean printPhase = false;
 	private boolean printDarwin = false;
 	private boolean printTreeMix= false;
-	private String populationFile=null;
 	private boolean printJoinMap= false;
+	private boolean printPhase = false;
+	private String sequenceName = null;
 	private String idParent1 = null;
 	private String idParent2 = null;
-	private String sequenceName = null;
-	private ProgressNotifier progressNotifier=null;
+	private String populationFile=null;
+	
+	
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	public boolean isPrintStructure() {
+		return printStructure;
+	}
+	public void setPrintStructure(boolean printStructure) {
+		this.printStructure = printStructure;
+	}
+	public void setPrintStructure(Boolean printStructure) {
+		this.setPrintStructure(printStructure.booleanValue());
+	}
+	
+	public boolean isPrintFasta() {
+		return printFasta;
+	}
+	public void setPrintFasta(boolean printFasta) {
+		this.printFasta = printFasta;
+	}
+	public void setPrintFasta(Boolean printFasta) {
+		this.setPrintFasta(printFasta.booleanValue());
+	}
+
+	public boolean isPrintrrBLUP() {
+		return printrrBLUP;
+	}
+	public void setPrintrrBLUP(boolean printrrBLUP) {
+		this.printrrBLUP = printrrBLUP;
+	}
+	public void setPrintrrBLUP(Boolean printrrBLUP) {
+		this.setPrintrrBLUP(printrrBLUP.booleanValue());
+	}
+
+	public boolean isPrintMatrix() {
+		return printMatrix;
+	}
+	public void setPrintMatrix(boolean printMatrix) {
+		this.printMatrix = printMatrix;
+	}
+	public void setPrintMatrix(Boolean printMatrix) {
+		this.setPrintMatrix(printMatrix.booleanValue());
+	}
+
+	public boolean isPrintHapmap() {
+		return printHapmap;
+	}
+	public void setPrintHapmap(boolean printHapmap) {
+		this.printHapmap = printHapmap;
+	}
+	public void setPrintHapmap(Boolean printHapmap) {
+		this.setPrintHapmap(printHapmap.booleanValue());
+	}
+	
+	public boolean isPrintGWASPoly() {
+		return printGWASPoly;
+	}
+	public void setPrintGWASPoly(boolean printGWASPoly) {
+		this.printGWASPoly = printGWASPoly;
+	}
+	public void setPrintGWASPoly(Boolean printGWASPoly) {
+		this.setPrintGWASPoly(printGWASPoly.booleanValue());
+	}
+	
+	public boolean isPrintSpagedi() {
+		return printSpagedi;
+	}
+	public void setPrintSpagedi(boolean printSpagedi) {
+		this.printSpagedi = printSpagedi;
+	}
+	public void setPrintSpagedi(Boolean printSpagedi) {
+		this.setPrintSpagedi(printSpagedi.booleanValue());
+	}
+	public boolean isPrintPlink() {
+		return printPlink;
+	}
+
+	public void setPrintPlink(boolean printPlink) {
+		this.printPlink = printPlink;
+	}	
+	public void setPrintPlink(Boolean printPlink) {
+		this.setPrintPlink(printPlink.booleanValue());
+	}
+	public boolean isPrintHaploview() {
+		return printHaploview;
+	}
+	public void setPrintHaploview(boolean printHaploview) {
+		this.printHaploview = printHaploview;
+	}
+	public void setPrintHaploview(Boolean printHaploview) {
+		this.setPrintHaploview(printHaploview.booleanValue());
+	}
+
+	public boolean isPrintEmma() {
+		return printEmma;
+	}
+	public void setPrintEmma(boolean printEmma) {
+		this.printEmma = printEmma;
+	}
+	public void setPrintEmma(Boolean printEmma) {
+		this.setPrintEmma(printEmma.booleanValue());
+	}
+
+	public boolean isPrintPowerMarker() {
+		return printPowerMarker;
+	}
+	public void setPrintPowerMarker(boolean printPowerMarker) {
+		this.printPowerMarker = printPowerMarker;
+	}
+	public void setPrintPowerMarker(Boolean printPowerMarker) {
+		this.setPrintPowerMarker(printPowerMarker.booleanValue());
+	}
+	
+	public boolean isPrintEigensoft() {
+		return printEigensoft;
+	}
+	public void setPrintEigensoft(boolean printEigensoft) {
+		this.printEigensoft = printEigensoft;
+	}
+	public void setPrintEigensoft(Boolean printEigensoft) {
+		this.setPrintEigensoft(printEigensoft.booleanValue());
+	}
+
+	public boolean isPrintFlapjack() {
+		return printFlapjack;
+	}
+	public void setPrintFlapjack(boolean printFlapjack) {
+		this.printFlapjack = printFlapjack;
+	}
+	public void setPrintFlapjack(Boolean printFlapjack) {
+		this.setPrintFlapjack(printFlapjack.booleanValue());
+	}
+
+	public boolean isPrintDarwin() {
+		return printDarwin;
+	}
+	public void setPrintDarwin(boolean printDarwin) {
+		this.printDarwin = printDarwin;
+	}
+	public void setPrintDarwin(Boolean printDarwin) {
+		this.setPrintDarwin(printDarwin.booleanValue());
+	}
+	
+	public boolean isPrintTreeMix() {
+		return printTreeMix;
+	}
+	public void setPrintTreeMix(boolean printTreeMix) {
+		this.printTreeMix = printTreeMix;
+	}
+	public void setPrintTreeMix(Boolean printTreeMix) {
+		this.setPrintTreeMix(printTreeMix.booleanValue());
+	}
+
+	public boolean isPrintJoinMap() {
+		return printJoinMap;
+	}
+	public void setPrintJoinMap(boolean printJoinMap) {
+		this.printJoinMap = printJoinMap;
+	}
+	public void setPrintJoinMap(Boolean printJoinMap) {
+		this.setPrintJoinMap(printJoinMap.booleanValue());
+	}
+	
+	public boolean isPrintPhase() {
+		return printPhase;
+	}
+	public void setPrintPhase(boolean printPhase) {
+		this.printPhase = printPhase;
+	}
+	public void setPrintPhase(Boolean printPhase) {
+		this.setPrintPhase(printPhase.booleanValue());
+	}
+
+	public String getSequenceName() {
+		return sequenceName;
+	}
+	public void setSequenceName(String sequenceName) {
+		this.sequenceName = sequenceName;
+	}
+	
+	public String getIdParent1() {
+		return idParent1;
+	}
+	public void setIdParent1(String idParent1) {
+		this.idParent1 = idParent1;
+	}
+
+	public String getIdParent2() {
+		return idParent2;
+	}
+	public void setIdParent2(String idParent2) {
+		this.idParent2 = idParent2;
+	}
+	
+	public String getPopulationFile() {
+		return populationFile;
+	}
+	public void setPopulationFile(String populationFile) {
+		this.populationFile = populationFile;
+	}
+	
 	
 	/**
 	 * @param args
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
-		VCFConverter converter = new VCFConverter();
-		int i=CommandsDescriptor.getInstance().loadOptions(converter, args);
-		String vcfFile = args[i++];
-		String prefix = args[i++];
-		converter.process(vcfFile,prefix);		
+		VCFConverter instance = new VCFConverter();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run() throws IOException {
+		if(outputPrefix == null) throw new IOException("The prefix of the output files is a required parameter");
+		if(printTreeMix && populationFile==null) throw new IOException("The fie with the description of the populations is required for conversion to TreeMix");
+		if(inputFile==null) {
+			process(System.in,outputPrefix);
+		} else {
+			process(inputFile,outputPrefix);
+		}
 	}
  
 	public void process(String vcfFile, String prefix) throws IOException {
-		VCFFileReader reader = null;
+		try (VCFFileReader reader = new VCFFileReader(vcfFile)) {
+			process(reader,prefix);
+		}
+	}
+	public void process(InputStream is, String prefix) throws IOException {
+		try (VCFFileReader reader = new VCFFileReader(is)) {
+			process(reader,prefix);
+		}
+	}
+	public void process(VCFFileReader reader, String prefix) throws IOException {
+		
 		PrintStream outMatrix = null;
 		PrintStream outHapmap = null;
 		PrintStream outGWASPoly = null;
@@ -92,7 +331,6 @@ public class VCFConverter {
 		List<List<CalledGenomicVariant>> callsPerVariant = new ArrayList<List<CalledGenomicVariant>>();
 		List<String> sampleIds = null;
 		try {
-			reader = new VCFFileReader(vcfFile);
 			if(log!=null)reader.setLog(log);
 			if(!printGWASPoly) reader.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			VCFFileHeader header = reader.getHeader();
@@ -160,7 +398,6 @@ public class VCFConverter {
 				}
 			}
 		} finally {
-			if(reader!=null) reader.close();
 			if(outMatrix!=null) {
 				outMatrix.flush();
 				outMatrix.close();
@@ -201,269 +438,6 @@ public class VCFConverter {
 		if(printEigensoft) printEigensoft(sampleIds,callsPerVariant,prefix);
 		if(printPhase) printPhase(sampleIds,callsPerVariant,prefix+"_"+sequenceName+"_phase.inp");
 	}
-
-	public Logger getLog() {
-		return log;
-	}
-
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-	
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-
-
-	public boolean isPrintStructure() {
-		return printStructure;
-	}
-
-
-	public void setPrintStructure(boolean printStructure) {
-		this.printStructure = printStructure;
-	}
-	
-	public void setPrintStructure(Boolean printStructure) {
-		this.setPrintStructure(printStructure.booleanValue());
-	}
-	
-	
-	public boolean isPrintrrBLUP() {
-		return printrrBLUP;
-	}
-
-
-	public void setPrintrrBLUP(boolean printrrBLUP) {
-		this.printrrBLUP = printrrBLUP;
-	}
-	
-	public void setPrintrrBLUP(Boolean printrrBLUP) {
-		this.setPrintrrBLUP(printrrBLUP.booleanValue());
-	}
-	
-	
-	public boolean isPrintFasta() {
-		return printFasta;
-	}
-
-
-	public void setPrintFasta(boolean printFasta) {
-		this.printFasta = printFasta;
-	}
-	
-	public void setPrintFasta(Boolean printFasta) {
-		this.setPrintFasta(printFasta.booleanValue());
-	}
-
-
-	public boolean isPrintMatrix() {
-		return printMatrix;
-	}
-
-
-	public void setPrintMatrix(boolean printMatrix) {
-		this.printMatrix = printMatrix;
-	}
-	
-	public void setPrintMatrix(Boolean printMatrix) {
-		this.setPrintMatrix(printMatrix.booleanValue());
-	}
-
-
-	public boolean isPrintHapmap() {
-		return printHapmap;
-	}
-
-
-	public void setPrintHapmap(boolean printHapmap) {
-		this.printHapmap = printHapmap;
-	}
-	
-	public void setPrintHapmap(Boolean printHapmap) {
-		this.setPrintHapmap(printHapmap.booleanValue());
-	}
-	
-	public boolean isPrintGWASPoly() {
-		return printGWASPoly;
-	}
-
-	public void setPrintGWASPoly(boolean printGWASPoly) {
-		this.printGWASPoly = printGWASPoly;
-	}
-	
-	public void setPrintGWASPoly(Boolean printGWASPoly) {
-		this.setPrintGWASPoly(printGWASPoly.booleanValue());
-	}
-
-	public boolean isPrintPlink() {
-		return printPlink;
-	}
-
-
-	public void setPrintPlink(boolean printPlink) {
-		this.printPlink = printPlink;
-	}
-	
-	public void setPrintPlink(Boolean printPlink) {
-		this.setPrintPlink(printPlink.booleanValue());
-	}
-
-	public boolean isPrintHaploview() {
-		return printHaploview;
-	}
-
-	public void setPrintHaploview(boolean printHaploview) {
-		this.printHaploview = printHaploview;
-	}
-	
-	public void setPrintHaploview(Boolean printHaploview) {
-		this.setPrintHaploview(printHaploview.booleanValue());
-	}
-
-
-	public boolean isPrintSpagedi() {
-		return printSpagedi;
-	}
-
-	public void setPrintSpagedi(boolean printSpagedi) {
-		this.printSpagedi = printSpagedi;
-	}
-	
-	public void setPrintSpagedi(Boolean printSpagedi) {
-		this.setPrintSpagedi(printSpagedi.booleanValue());
-	}
-
-	public boolean isPrintEmma() {
-		return printEmma;
-	}
-
-
-	public void setPrintEmma(boolean printEmma) {
-		this.printEmma = printEmma;
-	}
-	
-	public void setPrintEmma(Boolean printEmma) {
-		this.setPrintEmma(printEmma.booleanValue());
-	}
-
-	public boolean isPrintPowerMarker() {
-		return printPowerMarker;
-	}
-
-
-	public void setPrintPowerMarker(boolean printPowerMarker) {
-		this.printPowerMarker = printPowerMarker;
-	}
-	
-	public void setPrintPowerMarker(Boolean printPowerMarker) {
-		this.setPrintPowerMarker(printPowerMarker.booleanValue());
-	}
-
-	public boolean isPrintEigensoft() {
-		return printEigensoft;
-	}
-
-	public void setPrintEigensoft(boolean printEigensoft) {
-		this.printEigensoft = printEigensoft;
-	}
-	
-	public void setPrintEigensoft(Boolean printEigensoft) {
-		this.setPrintEigensoft(printEigensoft.booleanValue());
-	}
-
-	public boolean isPrintFlapjack() {
-		return printFlapjack;
-	}
-
-	public void setPrintFlapjack(boolean printFlapjack) {
-		this.printFlapjack = printFlapjack;
-	}
-	
-	public void setPrintFlapjack(Boolean printFlapjack) {
-		this.setPrintFlapjack(printFlapjack.booleanValue());
-	}
-
-	public boolean isPrintPhase() {
-		return printPhase;
-	}
-
-	public void setPrintPhase(boolean printPhase) {
-		this.printPhase = printPhase;
-	}
-	
-	public void setPrintPhase(Boolean printPhase) {
-		this.setPrintPhase(printPhase.booleanValue());
-	}
-	
-	public boolean isPrintTreeMix() {
-		return printTreeMix;
-	}
-
-
-	public void setPrintTreeMix(boolean printTreeMix) {
-		this.printTreeMix = printTreeMix;
-	}
-	
-	public void setPrintTreeMix(Boolean printTreeMix) {
-		this.setPrintTreeMix(printTreeMix.booleanValue());
-	}
-
-	public boolean isPrintDarwin() {
-		return printDarwin;
-	}
-
-	public void setPrintDarwin(boolean printDarwin) {
-		this.printDarwin = printDarwin;
-	}
-	
-	public void setPrintDarwin(Boolean printDarwin) {
-		this.setPrintDarwin(printDarwin.booleanValue());
-	}
-
-	public boolean isPrintJoinMap() {
-		return printJoinMap;
-	}
-
-	public void setPrintJoinMap(boolean printJoinMap) {
-		this.printJoinMap = printJoinMap;
-	}
-	
-	public void setPrintJoinMap(Boolean printJoinMap) {
-		this.setPrintJoinMap(printJoinMap.booleanValue());
-	}
-
-	public String getSequenceName() {
-		return sequenceName;
-	}
-
-
-	public void setSequenceName(String sequenceName) {
-		this.sequenceName = sequenceName;
-	}
-	
-
-	public String getIdParent1() {
-		return idParent1;
-	}
-
-	public void setIdParent1(String idParent1) {
-		this.idParent1 = idParent1;
-	}
-
-	public String getIdParent2() {
-		return idParent2;
-	}
-
-	public void setIdParent2(String idParent2) {
-		this.idParent2 = idParent2;
-	}
-	
 	
 	private void printFlapjack(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outPrefix) throws IOException {
 		StringBuilder [] sequences = new StringBuilder[sampleIds.size()];
@@ -1073,13 +1047,4 @@ public class VCFConverter {
 		}
 		out.println();
 	}
-
-	public String getPopulationFile() {
-		return populationFile;
-	}
-
-	public void setPopulationFile(String populationFile) {
-		this.populationFile = populationFile;
-	}
-	
 }

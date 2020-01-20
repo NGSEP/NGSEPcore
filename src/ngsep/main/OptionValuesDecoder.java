@@ -20,6 +20,7 @@
 package ngsep.main;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
 
@@ -43,16 +44,16 @@ public class OptionValuesDecoder {
 		if(Double.class.equals(type)) {
 			return Double.parseDouble(value);
 		}
-		if(ReferenceGenome.class.equals(type)) {
-			try {
-				return new ReferenceGenome(value);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
 		if(String.class.equals(type)) {
 			return value;
 		}
 		throw new IllegalArgumentException("Can not decode value of type: "+type.toString());
+	}
+
+	public static ReferenceGenome loadGenome(String genomeFile, Logger log) throws IOException {
+		log.info("Loading genome from: "+genomeFile);
+		ReferenceGenome genome = new ReferenceGenome(genomeFile);
+		log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength()+" from file: "+genomeFile);
+		return genome;
 	}
 }

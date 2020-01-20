@@ -60,7 +60,6 @@ public class VCFFunctionalAnnotator {
 	
 	// Parameters
 	private String inputFile = null;
-	private String genomeFile = null;
 	private ReferenceGenome genome;
 	private String transcriptomeFile = null;
 	private Transcriptome transcriptome;
@@ -90,19 +89,16 @@ public class VCFFunctionalAnnotator {
 		this.inputFile = inputFile;
 	}
 	
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
-	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
 	public String getTranscriptomeFile() {
 		return transcriptomeFile;
 	}
@@ -215,16 +211,7 @@ public class VCFFunctionalAnnotator {
 	
 	public void run() throws IOException {
 		logParameters();
-		if (genomeFile!=null ) {
-			log.info("Loading genome from: "+genomeFile);
-			setGenome(new ReferenceGenome(genomeFile));
-			log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength());
-		} else if (genome != null) {
-			log.info("Running with loaded genome from: "+genome.getFilename()+" number of sequences: "+genome.getNumSequences()+". Total length: "+genome.getTotalLength());
-		} else {
-			throw new IOException("The file with the reference genome is a required parameter");
-		}
-		
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
 		loadMap(transcriptomeFile, genome);
 		// Run filter
 		if(inputFile==null) {
@@ -236,7 +223,6 @@ public class VCFFunctionalAnnotator {
 					}
 				}
 			}
-			
 		} else {
 			if(outputFile == null) annotate(inputFile,System.out);
 			else {
@@ -245,6 +231,7 @@ public class VCFFunctionalAnnotator {
 				}
 			}
 		}
+		log.info("Process finished");
 	}
 
 	private void logParameters() {
@@ -253,8 +240,7 @@ public class VCFFunctionalAnnotator {
 		if(inputFile != null) out.println("Input file: "+inputFile);
 		else out.println("System standard input");
 		out.println("GFF transcriptome file: "+transcriptomeFile);
-		if (genomeFile!=null) out.println("Given reference genome file: "+genomeFile);
-		else if (genome!=null) out.println("Reference genome with "+genome.getNumSequences()+" and total length: "+genome.getTotalLength()+" previously loaded from: "+genome.getFilename());
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		if(outputFile != null) out.println("Output file: "+outputFile);
 		else out.println("System standard output");
 		

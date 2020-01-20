@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -48,14 +49,9 @@ public class VCFIndividualGenomeBuilder {
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters
-	private String genomeFile = null;
+	private ReferenceGenome genome;
 	private String variantsFile = null;
 	private String outputFile = null;
-	
-	// Model attributes
-	private ReferenceGenome genome;
-	
-	
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -72,11 +68,14 @@ public class VCFIndividualGenomeBuilder {
 		this.progressNotifier = progressNotifier;
 	}
     
-	public String getGenomeFile() {
-		return genomeFile;
+	public ReferenceGenome getGenome() {
+		return genome;
 	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public String getVariantsFile() {
@@ -92,13 +91,7 @@ public class VCFIndividualGenomeBuilder {
 	public void setOutputFile(String outputFile) {
 		this.outputFile = outputFile;
 	}
-	public ReferenceGenome getGenome() {
-		return genome;
-	}
-
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;
-	}
+	
 
 	public static void main(String[] args) throws Exception {
 		VCFIndividualGenomeBuilder instance = new VCFIndividualGenomeBuilder();
@@ -108,14 +101,9 @@ public class VCFIndividualGenomeBuilder {
 	
 	public void run() throws IOException {
 		logParameters();
-		if(genomeFile==null && genome==null) throw new IOException("The input file with a genome assembly is required");
+		if(genome==null) throw new IOException("The input file with a genome assembly is a required parameter");
 		if(variantsFile==null) throw new IOException("A file with variants in VCF format is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
-		if(genomeFile!=null) {
-			log.info("Loading genome from: "+genomeFile);
-			genome = new ReferenceGenome(genomeFile);
-			log.info("Loaded target genome with: "+genome.getNumSequences()+" sequences");
-		}
 		
 		try (PrintStream out = new PrintStream(outputFile)) {
 			makeGenomeFromVCF(variantsFile, out);
@@ -125,8 +113,7 @@ public class VCFIndividualGenomeBuilder {
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		if(genomeFile!=null) out.println("Genome file:"+ genomeFile);
-		else if (genome!=null) out.println("Genome with "+genome.getNumSequences()+" previously loaded from: "+genome.getFilename());
+		if (genome!=null) out.println("Input genome loaded from: "+genome.getFilename());
 		out.println("Variants file:"+ variantsFile);
 		out.println("Output file:"+ outputFile);
 		log.info(os.toString());

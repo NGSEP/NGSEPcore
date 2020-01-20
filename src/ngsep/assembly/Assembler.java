@@ -69,9 +69,6 @@ public class Assembler {
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String outFileGraph = null;
-	private String targetGenomeFile = null;
-	
-	// Model attributes
 	private ReferenceGenome targetGenome;
 	
 	// Get and set methods
@@ -155,19 +152,14 @@ public class Assembler {
 		this.outFileGraph = outFileGraph;
 	}
 
-	public String getTargetGenomeFile() {
-		return targetGenomeFile;
-	}
-
-	public void setTargetGenomeFile(String targetGenomeFile) {
-		this.targetGenomeFile = targetGenomeFile;
-	}
-
 	public ReferenceGenome getTargetGenome() {
 		return targetGenome;
 	}
 	public void setTargetGenome(ReferenceGenome targetGenome) {
 		this.targetGenome = targetGenome;
+	}
+	public void setTargetGenome(String genomeFile) throws IOException {
+		setTargetGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public static void main(String[] args) throws Exception {
@@ -180,11 +172,6 @@ public class Assembler {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input file with raw reads is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
-		if (targetGenomeFile!=null ) {
-			log.info("Loading target genome from: "+targetGenomeFile);
-			targetGenome = new ReferenceGenome(targetGenomeFile);
-			log.info("Loaded target genome with: "+targetGenome.getNumSequences()+" sequences");
-		}
 		run (inputFile, outputFile);
 		log.info("Process finished");
 	}
@@ -200,7 +187,7 @@ public class Assembler {
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
 		if (inputFormat == INPUT_FORMAT_GRAPH)  out.println("Input is an assembly graph");
 		if (outFileGraph!=null) out.println("Save graph to: "+outFileGraph);
-		if (targetGenomeFile!=null) out.println("Target genome for benchmark available in file: "+targetGenomeFile);
+		if (targetGenome!=null) out.println("Target genome for benchmark loaded from file: "+targetGenome.getFilename());
 		else if (targetGenome!=null) out.println("Target genome for benchmark with "+targetGenome.getNumSequences()+" previously loaded from: "+targetGenome.getFilename());
 		log.info(os.toString());
 	}

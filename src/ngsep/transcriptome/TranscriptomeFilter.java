@@ -36,7 +36,6 @@ public class TranscriptomeFilter {
 	// Parameters
 	private String inputFile = null;
 	private String outputFile = null;
-	private String genomeFile = null;
 	private ReferenceGenome genome;
 	private byte outputFormat = FORMAT_GFF;
 	private boolean selectCompleteProteins = false;
@@ -76,18 +75,14 @@ public class TranscriptomeFilter {
 		this.outputFile = outputFile;
 	}
 	
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public byte getOutputFormat() {
@@ -161,22 +156,15 @@ public class TranscriptomeFilter {
 
 	public void run() throws IOException {
 		logParameters();
-		if (genomeFile!=null ) {
-			log.info("Loading genome from: "+genomeFile);
-			setGenome(new ReferenceGenome(genomeFile));
-			log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength());
-		} else if (genome != null) {
-			log.info("Running with loaded genome from: "+genome.getFilename()+" number of sequences: "+genome.getNumSequences()+". Total length: "+genome.getTotalLength());
-		} else {
-			throw new IOException("The file with the reference genome is a required parameter");
-		}
 		if(inputFile==null) throw new IOException("The input transcriptome file is a required parameter");
+		if(genome==null) throw new IOException("The file with the reference genome is a required parameter");
 		if(outputFile==null) filterTranscriptome(inputFile, System.out);
 		else {
 			try (PrintStream out = new PrintStream(outputFile)) {
-				filterTranscriptome(inputFile, System.out);
+				filterTranscriptome(inputFile, out);
 			}
 		}
+		log.info("Process finished");
 	}
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -184,8 +172,7 @@ public class TranscriptomeFilter {
 		out.println("Input file:"+ inputFile);
 		if(outputFile!=null) out.println("Output file:"+ outputFile);
 		else out.println("Write to standard output");
-		if (genomeFile!=null) out.println("Given reference genome file: "+genomeFile);
-		else if (genome!=null) out.println("Reference genome with "+genome.getNumSequences()+" and total length: "+genome.getTotalLength()+" previously loaded from: "+genome.getFilename());
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		if (outputFormat == FORMAT_GFF) out.println("Output GFF");
 		if (outputFormat == FORMAT_GENE_LIST) out.println("Output list of genes");
 		if (outputFormat == FORMAT_GENE_REGIONS) out.println("Output list of gene annotated genomic regions");

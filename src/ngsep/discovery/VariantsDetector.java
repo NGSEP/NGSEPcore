@@ -82,7 +82,6 @@ public class VariantsDetector implements PileupListener {
 	
 	// Parameters
 	private String inputFile=null;
-	private String genomeFile=null;
 	private ReferenceGenome genome;
 	private String outputPrefix=null;
 	private String knownVariantsFile=null;
@@ -146,19 +145,15 @@ public class VariantsDetector implements PileupListener {
 	public void setInputFile(String inputFile) {
 		this.inputFile = inputFile;
 	}
-
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
 	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 
 	public String getOutputPrefix() {
@@ -582,12 +577,9 @@ public class VariantsDetector implements PileupListener {
 			setHeterozygosityRate(VariantPileupListener.DEF_HETEROZYGOSITY_RATE_HAPLOID);
 		}
 		logParameters();
-		validateParameters();
+		if(inputFile==null) throw new IOException("The input file with alignments is a required parameter");
+		if (genome==null) throw new IOException("The reference genome file is a required parameter");
 		
-		if(genome==null) {
-			log.info("Loading reference sequence from file: "+genomeFile);
-			genome = new ReferenceGenome(genomeFile);
-		}
 		referenceGenomeSize = genome.getTotalLength();
 		log.info("Loaded "+genome.getNumSequences()+" sequences");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(1)) return;  
@@ -646,8 +638,7 @@ public class VariantsDetector implements PileupListener {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		out.println("Input alignments file: "+inputFile);
-		if(genomeFile != null && !genomeFile.isEmpty()) out.println("Reference genome file: "+genomeFile);
-		else if (genome!=null) out.println("Loaded genome from: "+genome.getFilename());
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		out.println("Prefix for output files: "+outputPrefix);
 		out.println("Sample id: "+sampleId);
 		out.println("Normal ploidy: "+normalPloidy);
@@ -691,12 +682,6 @@ public class VariantsDetector implements PileupListener {
 			out.println("Ignore proper pair flag for RP analysis : "+isIgnoreProperPairFlag());
 		}
 		log.info(os.toString());	
-	}
-	private void validateParameters () throws IOException {
-		if(inputFile==null) throw new IOException("The input file with alignments is a required parameter");
-		if(genomeFile == null && genome==null) {
-			throw new IOException("A reference file is required");
-		}
 	}
 	
 	public List<CalledCNV> runRDAnalysis() throws IOException {

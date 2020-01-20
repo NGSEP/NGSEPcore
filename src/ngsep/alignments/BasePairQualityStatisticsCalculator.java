@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 
@@ -44,7 +45,21 @@ import ngsep.sequences.DNASequence;
  * @author Jorge Duitama
  */
 public class BasePairQualityStatisticsCalculator {
+	
+	// Constants for default values
+	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(BasePairQualityStatisticsCalculator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private List<String> inputFiles = new ArrayList<String>();
+	private ReferenceGenome genome = null;
+	private String outputFile;
+	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	
+	// Model attributes
 	private List<Long> mismatches=new ArrayList<Long>();
 	private List<Long> alnsByLength=new ArrayList<Long>();
 	private long totalAlignments = 0;
@@ -53,55 +68,54 @@ public class BasePairQualityStatisticsCalculator {
 	private List<Long> readsUniqueMappingByLength=new ArrayList<Long>();
 	private long readsUniqueMapping = 0;
 	private long basesUniqueMapping = 0;
-	// Progress tracking for external control
-	private ProgressNotifier progressNotifier=null;
-	private ReferenceGenome genome;
-	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-
-	public static void main(String[] args) throws Exception {
-		BasePairQualityStatisticsCalculator stats = new BasePairQualityStatisticsCalculator();
-		int i=CommandsDescriptor.getInstance().loadOptions(stats, args);
-		String reference = args[i++];
-		
-		stats.genome = new ReferenceGenome(reference);
-		while(i<args.length) {
-			String alnsFile = args[i++];
-			stats.processFile(alnsFile);
-		}
-		stats.printStatistics(System.out);
-	}
 	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
 
-	/**
-	 * @return the minMQ
-	 */
+	public List<String> getInputFiles() {
+		return inputFiles;
+	}
+	public void setInputFiles(List<String> inputFiles) {
+		this.inputFiles = inputFiles;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
 	public int getMinMQ() {
 		return minMQ;
 	}
-
-	/**
-	 * @param minMQ the minMQ to set
-	 */
 	public void setMinMQ(int minMQ) {
 		this.minMQ = minMQ;
 	}
-	
-	/**
-	 * @param minMQ the minMQ to set
-	 */
-	public void setMinMQ(Integer minMQ) {
-		this.setMinMQ(minMQ.intValue());
-	}
-
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;
+	public void setMinMQ(String value) {
+		this.setMinMQ((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public long getTotalAlignments() {
@@ -120,12 +134,29 @@ public class BasePairQualityStatisticsCalculator {
 		return basesUniqueMapping;
 	}
 	
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
+	public static void main(String[] args) throws Exception {
+		BasePairQualityStatisticsCalculator instance = new BasePairQualityStatisticsCalculator();
+		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
+		for(;i<args.length;i++) {
+			instance.inputFiles.add(args[i]);
+		}
+		instance.run();
 	}
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
+	
+	public void run() throws IOException {
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		init();
+		for(String alnsFile:inputFiles) {
+			log.info("Processing alignments file "+alnsFile);
+			processFile(alnsFile);
+		}
+		if(outputFile==null) printStatistics(System.out);
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				printStatistics(out);
+			}
+		}
+		log.info("Process finished");
 	}
 	
 	public void init() {
@@ -144,10 +175,7 @@ public class BasePairQualityStatisticsCalculator {
 	 * @throws IOException If the file can not be read
 	 */
 	public void processFile(String filename) throws IOException {
-		
-		ReadAlignmentFileReader reader = null;
-		try {
-			reader = new ReadAlignmentFileReader(filename);
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
@@ -204,8 +232,6 @@ public class BasePairQualityStatisticsCalculator {
 					if (!progressNotifier.keepRunning(progrees)) break;
 				}
 			}
-		} finally {
-			if(reader!=null)reader.close();
 		}
 	}
 	

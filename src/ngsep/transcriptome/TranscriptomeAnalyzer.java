@@ -31,6 +31,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionCollectionDensityCalculator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
@@ -53,10 +54,10 @@ public class TranscriptomeAnalyzer {
 	// Parameters
 	private String inputFile = null;
 	private String outputPrefix = null;
-	private String genomeFile = null;
+	private ReferenceGenome genome;
 	
 	// Model attributes
-	private ReferenceGenome genome;
+	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	private GenomicRegionCollectionDensityCalculator densityCalculator = new GenomicRegionCollectionDensityCalculator();
 	
@@ -88,12 +89,6 @@ public class TranscriptomeAnalyzer {
 	public void setOutputPrefix(String outputPrefix) {
 		this.outputPrefix = outputPrefix;
 	}
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
 
 	public ReferenceGenome getGenome() {
 		return genome;
@@ -101,6 +96,9 @@ public class TranscriptomeAnalyzer {
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 		densityCalculator.setGenome(genome);
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public static void main(String[] args) throws Exception {
@@ -110,16 +108,11 @@ public class TranscriptomeAnalyzer {
 	}
 	
 	public void run () throws IOException {
-		if (genomeFile!=null ) {
-			log.info("Loading genome from: "+genomeFile);
-			setGenome(new ReferenceGenome(genomeFile));
-			log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength());
-		} else if (genome != null) {
-			log.info("Running with loaded genome from: "+genome.getFilename()+" number of sequences: "+genome.getNumSequences()+". Total length: "+genome.getTotalLength());
-		}
 		if(inputFile==null) throw new IOException("The input transcriptome file is a required parameter");
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
 		if(outputPrefix==null) throw new IOException("The prefix of the output files is a required parameter");
 		processTranscriptome(inputFile, outputPrefix);
+		log.info("Process finished");
 	}
 
 	public void processTranscriptome(String transcriptomeFile, String outPrefix) throws IOException {

@@ -89,8 +89,6 @@ public class VCFFilter {
     private boolean filterSamples = false;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
-    
-    private String genomeFile = null;
     private ReferenceGenome genome = null;
     
     
@@ -357,16 +355,9 @@ public class VCFFilter {
 	
 	public void setGenome(String genomeFile) throws IOException {
 		if(genomeFile==null || genomeFile.length()==0) this.genome = null;
-		else this.genome = new ReferenceGenome(genomeFile);
+		else setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
 
 	public List<GenomicRegion> getRegionsToFilter() {
 		return regionsToFilter.asList();
@@ -434,10 +425,6 @@ public class VCFFilter {
 	public void run() throws Exception {
 		// Load files with optional information
 		logParameters();
-		if(genomeFile!=null && !genomeFile.isEmpty()) {
-			setGenome(genomeFile);
-			if (genome != null) log.info("Loaded genome for GC content with "+genome.getNumSequences()+" sequences from file: "+genomeFile);
-		}
 		// Run filter
 		if(inputFile==null) {
 			if(outputFile == null) processVariantsFile(System.in, System.out);
@@ -472,10 +459,8 @@ public class VCFFilter {
 		if(regionsToFilter!=null) out.println("Loaded "+ regionsToFilter.size()+" regions to filter");
 		if(regionsToSelect!=null) out.println("Loaded "+ regionsToSelect.size()+" regions to select");
 		
-		boolean printGCContent = genomeFile!=null || genome!=null;
-		if (genomeFile != null)  out.println("File with reference genome for GC content: "+genomeFile);
-		else if (genome != null) out.println("Loaded genome for GC content with "+genome.getNumSequences()+" sequences");
-		if (printGCContent) {
+		if (genome != null) {
+			out.println("Loaded genome for GC content from "+genome.getFilename());
 			out.println("Minimum GC content of the surrounding region: "+minGCContent);
 			out.println("Maximum GC content of the surrounding region: "+maxGCContent);
 		}

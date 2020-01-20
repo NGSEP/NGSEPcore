@@ -75,8 +75,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	// Parameters
 	
-	//Output file variables
-	private String genomeFile = null;
+	private List<String> inputFiles = new ArrayList<>();
 	private ReferenceGenome genome = null;
 	private String outFilename = DEF_OUTPUT_FILE;
 	private PrintStream outFile;
@@ -100,7 +99,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	// Model attributes
 	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
-	private List<String> alignmentFiles = new ArrayList<>();
+	
 	private List<Sample> samples;
 	private double coveredGenomeSize = 0;
 	private long referenceGenomeSize = 0;
@@ -129,23 +128,21 @@ public class MultisampleVariantsDetector implements PileupListener {
 		this.progressNotifier = progressNotifier;
 	}
 	
-	public List<String> getAlignmentFiles() {
-		return alignmentFiles;
+	public List<String> getInputFiles() {
+		return inputFiles;
 	}
-	public void setAlignmentFiles(List<String> alignmentFiles) {
-		this.alignmentFiles = alignmentFiles;
+	public void setInputFiles(List<String> inputFiles) {
+		this.inputFiles = inputFiles;
 	}
-	public String getGenomeFile() {
-		return genomeFile;
-	}
-	public void setGenomeFile(String genomeFile) {
-		this.genomeFile = genomeFile;
-	}
+	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;	
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 
 	/**
@@ -418,20 +415,14 @@ public class MultisampleVariantsDetector implements PileupListener {
 		MultisampleVariantsDetector instance = new MultisampleVariantsDetector();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		for(;i<args.length;i++) {
-			instance.alignmentFiles.add(args[i]);
+			instance.inputFiles.add(args[i]);
 		}
 		instance.run();
 	}
 	
 	public void run() throws IOException {
 		logParameters();
-		if(genomeFile != null && !genomeFile.isEmpty()) {
-			log.info("Loading genome from "+genomeFile);
-			genome = new ReferenceGenome(genomeFile);
-			log.info("Loaded genome with "+genome.getNumSequences()+" and total length "+genome.getTotalLength());
-		} else if (genome==null) {
-			throw new IOException("The reference genome file is a required parameter");
-		}
+		if (genome==null) throw new IOException("The reference genome file is a required parameter");
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		indelRealigner.setGenome(genome);
@@ -463,7 +454,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 			vcfFileHeader = VCFFileHeader.makeDefaultEmptyHeader();
 			for(Sample s:samples) vcfFileHeader.addSample(s, printSamplePloidy);
 			writer.printHeader(vcfFileHeader, outFile);
-			generator.processFiles(alignmentFiles);
+			generator.processFiles(inputFiles);
 		} finally {
 			if(outFile!=null) outFile.close();
 			dispose();
@@ -474,8 +465,8 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		if(genomeFile != null && !genomeFile.isEmpty()) out.println("Reference genome file: "+genomeFile);
-		else if (genome!=null) out.println("Loaded genome from: "+genome.getFilename());
+		log.info("Input files: "+inputFiles);
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		out.println("Output file: "+outFilename);
 		if(knownVariantsFile!=null) out.println("File with known variants to genotype: " + knownVariantsFile);
 		if(generator.getQuerySeq()!=null) {
@@ -501,9 +492,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
-		log.info("Loading sample ids from: "+alignmentFiles);
-		for(String filename:alignmentFiles) {
-			
+		for(String filename:inputFiles) {
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
 				Map<String, String> samplesHeader = reader.getSampleIdsByReadGroup();
 				for(String readGroup : samplesHeader.keySet()) {
