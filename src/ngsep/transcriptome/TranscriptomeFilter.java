@@ -1,5 +1,6 @@
 package ngsep.transcriptome;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashSet;
@@ -20,52 +21,67 @@ import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
 
 public class TranscriptomeFilter {
 
+	// Constants for default values
 	public static final int DEF_MIN_PROTEIN_LENGTH=0;
 	public static final byte FORMAT_GFF = 0;
 	public static final byte FORMAT_GENE_LIST = 1;
 	public static final byte FORMAT_GENE_REGIONS = 2;
 	public static final byte FORMAT_TRANSCRIPT_LIST = 3;
 	public static final byte FORMAT_TRANSCRIPT_REGIONS = 4;
-	private Logger log = Logger.getLogger(TranscriptomeFilter.class.getName());
 	
+	// Logging and progress
+	private Logger log = Logger.getLogger(TranscriptomeFilter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	// Parameters
+	private String inputFile = null;
+	private String outputFile = null;
+	private String genomeFile = null;
 	private ReferenceGenome genome;
-	
+	private byte outputFormat = FORMAT_GFF;
+	private boolean selectCompleteProteins = false;
+    private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
-    private boolean selectCompleteProteins = false;
-    private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
-    
-	private byte outputFormat = FORMAT_GFF;
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	
-	
-	public static void main(String[] args) throws Exception {
-		TranscriptomeFilter instance = new TranscriptomeFilter();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
-		String transcriptomeFile = args[i++];
-		instance.filterTranscriptome(transcriptomeFile, System.out);
+	// Get and set methods
+    public Logger getLog() {
+		return log;
 	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}	
 	
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
     
-    public Logger getLog() {
-		return log;
-	}
 
-	public void setLog(Logger log) {
-		this.log = log;
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
 	}
 	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public String getGenomeFile() {
+		return genomeFile;
+	}
+	public void setGenomeFile(String genomeFile) {
+		this.genomeFile = genomeFile;
+	}
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
@@ -74,14 +90,43 @@ public class TranscriptomeFilter {
 		this.genome = genome;
 	}
 	
+	public byte getOutputFormat() {
+		return outputFormat;
+	}
+	public void setOutputFormat(byte outputFormat) {
+		if(outputFormat<FORMAT_GFF || outputFormat>FORMAT_TRANSCRIPT_REGIONS) throw new IllegalArgumentException("Invalid output format: "+outputFormat);
+		this.outputFormat = outputFormat;
+	}
+	public void setOutputFormat(String value) {
+		this.setOutputFormat((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+
+	public boolean isSelectCompleteProteins() {
+		return selectCompleteProteins;
+	}
+	public void setSelectCompleteProteins(boolean selectCompleteProteins) {
+		this.selectCompleteProteins = selectCompleteProteins;
+	}
+	public void setSelectCompleteProteins(Boolean selectCompleteProteins) {
+		this.setSelectCompleteProteins(selectCompleteProteins.booleanValue());
+	}
+	
+	public int getMinProteinLength() {
+		return minProteinLength;
+	}
+	public void setMinProteinLength(int minProteinLength) {
+		this.minProteinLength = minProteinLength;
+	}
+	public void setMinProteinLength(String value) {
+		this.setMinProteinLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public List<GenomicRegion> getRegionsToFilter() {
 		return regionsToFilter.asList();
 	}
-
 	public void setRegionsToFilter(List<GenomicRegion> regions) {
 		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
-	
 	public void setRegionsToFilter(String regionsFile) throws IOException {
 		if(regionsFile==null || regionsFile.length()==0) {
 			this.regionsToFilter = null;
@@ -95,11 +140,9 @@ public class TranscriptomeFilter {
 	public List<GenomicRegion> getRegionsToSelect() {
 		return regionsToSelect.asList();
 	}
-
 	public void setRegionsToSelect(List<GenomicRegion> regions) {
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
-	
 	public void setRegionsToSelect(String regionsFile) throws IOException {
 		if(regionsFile==null || regionsFile.length()==0) {
 			this.regionsToSelect = null;
@@ -110,62 +153,51 @@ public class TranscriptomeFilter {
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
 	
-	/**
-	 * @return the selectCompleteProteins
-	 */
-	public boolean isSelectCompleteProteins() {
-		return selectCompleteProteins;
+	public static void main(String[] args) throws Exception {
+		TranscriptomeFilter instance = new TranscriptomeFilter();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 	}
 
-	/**
-	 * @param selectCompleteProteins the selectCompleteProteins to set
-	 */
-	public void setSelectCompleteProteins(boolean selectCompleteProteins) {
-		this.selectCompleteProteins = selectCompleteProteins;
+	public void run() throws IOException {
+		logParameters();
+		if (genomeFile!=null ) {
+			log.info("Loading genome from: "+genomeFile);
+			setGenome(new ReferenceGenome(genomeFile));
+			log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength());
+		} else if (genome != null) {
+			log.info("Running with loaded genome from: "+genome.getFilename()+" number of sequences: "+genome.getNumSequences()+". Total length: "+genome.getTotalLength());
+		} else {
+			throw new IOException("The file with the reference genome is a required parameter");
+		}
+		if(inputFile==null) throw new IOException("The input transcriptome file is a required parameter");
+		if(outputFile==null) filterTranscriptome(inputFile, System.out);
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				filterTranscriptome(inputFile, System.out);
+			}
+		}
 	}
-	public void setSelectCompleteProteins(Boolean selectCompleteProteins) {
-		this.setSelectCompleteProteins(selectCompleteProteins.booleanValue());
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input file:"+ inputFile);
+		if(outputFile!=null) out.println("Output file:"+ outputFile);
+		else out.println("Write to standard output");
+		if (genomeFile!=null) out.println("Given reference genome file: "+genomeFile);
+		else if (genome!=null) out.println("Reference genome with "+genome.getNumSequences()+" and total length: "+genome.getTotalLength()+" previously loaded from: "+genome.getFilename());
+		if (outputFormat == FORMAT_GFF) out.println("Output GFF");
+		if (outputFormat == FORMAT_GENE_LIST) out.println("Output list of genes");
+		if (outputFormat == FORMAT_GENE_REGIONS) out.println("Output list of gene annotated genomic regions");
+		if (outputFormat == FORMAT_TRANSCRIPT_LIST) out.println("Output list of transcripts");
+		if (outputFormat == FORMAT_TRANSCRIPT_REGIONS) out.println("Output list of transcript annotated genomic regions");
+		if(selectCompleteProteins) out.println("Select only proteins with valid start and stop codons");
+		out.println("Minimum protein length: "+ minProteinLength);
+		if(regionsToFilter!=null) out.println("Loaded "+ regionsToFilter.size()+" regions to filter");
+		if(regionsToSelect!=null) out.println("Loaded "+ regionsToSelect.size()+" regions to select");
+		log.info(os.toString());
+		
 	}
-	
-	/**
-	 * @return the minProteinLength
-	 */
-	public int getMinProteinLength() {
-		return minProteinLength;
-	}
-
-	/**
-	 * @param minProteinLength the minProteinLength to set
-	 */
-	public void setMinProteinLength(int minProteinLength) {
-		this.minProteinLength = minProteinLength;
-	}
-	
-	public void setMinProteinLength(String value) {
-		this.setMinProteinLength((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-	
-	
-
-	/**
-	 * @return the outputFormat
-	 */
-	public byte getOutputFormat() {
-		return outputFormat;
-	}
-
-	/**
-	 * @param outputFormat the outputFormat to set
-	 */
-	public void setOutputFormat(byte outputFormat) {
-		if(outputFormat<FORMAT_GFF || outputFormat>FORMAT_TRANSCRIPT_REGIONS) throw new IllegalArgumentException("Invalid output format: "+outputFormat);
-		this.outputFormat = outputFormat;
-	}
-	
-	public void setOutputFormat(String value) {
-		this.setOutputFormat((byte)OptionValuesDecoder.decode(value, Byte.class));
-	}
-
 	/**
 	 * Filters the genes and transcripts in given transcriptome
 	 * @param transcriptomeFile in GFF format with transcripts to filter

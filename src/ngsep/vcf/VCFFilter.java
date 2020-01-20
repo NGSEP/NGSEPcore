@@ -50,6 +50,7 @@ import ngsep.variants.Sample;
 
 public class VCFFilter {
 	
+	// Constants for default values
 	public static final int DEF_MIN_GENOTYPE_QUALITY = 0;
 	public static final int DEF_MIN_READ_DEPTH = 0;
 	public static final int DEF_MIN_SAMPLES_GENOTYPED = 0;
@@ -60,13 +61,13 @@ public class VCFFilter {
 	public static final double DEF_MIN_GC_CONTENT = 40;
 	public static final double DEF_MAX_GC_CONTENT = 65;
 	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFFilter.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	// Parameters
 	private String inputFile = null;
 	private String outputFile = null;
-	
-    // Genotype filters
     private int minGenotypeQuality = DEF_MIN_GENOTYPE_QUALITY;
     private int minReadDepth = DEF_MIN_READ_DEPTH;
     private int minDistance = 0;
@@ -84,15 +85,9 @@ public class VCFFilter {
     private int maxSamplesCNVs = -1;
     private String geneId = null;
     private Set <String> annotations = null;
-    
-    private String sampleIdsFile = null;
     private Set<String> sampleIds = null;
     private boolean filterSamples = false;
-    
-    private String filterRegionsFile = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
-    
-    private String selectRegionsFile = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
     
     private String genomeFile = null;
@@ -390,23 +385,13 @@ public class VCFFilter {
 		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
 		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
-	
-	public String getFilterRegionsFile() {
-		return filterRegionsFile;
-	}
-
-	public void setFilterRegionsFile(String filterRegionsFile) {
-		this.filterRegionsFile = filterRegionsFile;
-	}
 
 	public List<GenomicRegion> getRegionsToSelect() {
 		return regionsToSelect.asList();
 	}
-
 	public void setRegionsToSelect(List<GenomicRegion> regions) {
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
-	
 	public void setRegionsToSelect(String regionsFile) throws IOException {
 		if(regionsFile==null || regionsFile.length()==0) {
 			this.regionsToSelect = null;
@@ -415,14 +400,6 @@ public class VCFFilter {
 		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
 		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
-	}
-	
-	public String getSelectRegionsFile() {
-		return selectRegionsFile;
-	}
-
-	public void setSelectRegionsFile(String selectRegionsFile) {
-		this.selectRegionsFile = selectRegionsFile;
 	}
 
 	public Set<String> getSampleIds() {
@@ -439,8 +416,8 @@ public class VCFFilter {
 			return;
 		}
 		sampleIds = new TreeSet<String>();
-		try ( FileReader fr = new FileReader(sampleIdsFile);
-				BufferedReader in = new BufferedReader(fr);
+		try (FileReader fr = new FileReader(sampleIdsFile);
+			 BufferedReader in = new BufferedReader(fr);
 		) {
 			String line = in.readLine();
 			while (line != null) {
@@ -453,33 +430,13 @@ public class VCFFilter {
 			throw e;
 		}
 	}
-	
-	public String getSampleIdsFile() {
-		return sampleIdsFile;
-	}
-
-	public void setSampleIdsFile(String sampleIdsFile) {
-		this.sampleIdsFile = sampleIdsFile;
-	}
 
 	public void run() throws Exception {
 		// Load files with optional information
 		logParameters();
-		if(filterRegionsFile!=null && !filterRegionsFile.isEmpty()) {
-			setRegionsToFilter(filterRegionsFile);
-			if (regionsToFilter != null)  log.info("Number of regions to filter: "+regionsToFilter.size()+" from file: "+filterRegionsFile);
-		}
-		if(selectRegionsFile!=null && !filterRegionsFile.isEmpty()) {
-			setRegionsToSelect(selectRegionsFile);
-			if (regionsToSelect != null)  log.info("Number of regions to select: "+regionsToSelect.size()+" from file: "+selectRegionsFile);
-		}
 		if(genomeFile!=null && !genomeFile.isEmpty()) {
 			setGenome(genomeFile);
 			if (genome != null) log.info("Loaded genome for GC content with "+genome.getNumSequences()+" sequences from file: "+genomeFile);
-		}
-		if(sampleIdsFile!=null && !sampleIdsFile.isEmpty()) {
-			setSampleIds(sampleIdsFile);
-			if (sampleIds != null) log.info("Loaded "+sampleIds.size()+" from file "+sampleIdsFile);
 		}
 		// Run filter
 		if(inputFile==null) {
@@ -506,21 +463,14 @@ public class VCFFilter {
 		else out.println("System standard input");
 		if(outputFile != null) out.println("Output file: "+outputFile);
 		else out.println("System standard output");
-		out.println();
-		
 		out.println("Genotype filters");
 		out.println("Minimum genotype quality: "+minGenotypeQuality);
 		out.println("Minimum read depth: "+minReadDepth);
-		out.println();
 		
 		out.println("Variant context filters");
 		if(minDistance>0) out.println("Minimum distance: "+minDistance);
-		
-		if(filterRegionsFile != null) out.println("File with regions to filter: "+filterRegionsFile);
-		else if (regionsToFilter != null)  out.println("Number of regions to filter: "+regionsToFilter.size());
-	    
-		if (selectRegionsFile != null) out.println("File with regions to select: "+selectRegionsFile);
-		else if (regionsToSelect != null)  out.println("Number of regions to select: "+regionsToSelect.size());
+		if(regionsToFilter!=null) out.println("Loaded "+ regionsToFilter.size()+" regions to filter");
+		if(regionsToSelect!=null) out.println("Loaded "+ regionsToSelect.size()+" regions to select");
 		
 		boolean printGCContent = genomeFile!=null || genome!=null;
 		if (genomeFile != null)  out.println("File with reference genome for GC content: "+genomeFile);
@@ -531,7 +481,6 @@ public class VCFFilter {
 		}
 	    if(geneId!=null) out.println("Gene id: "+geneId);
 	    if(annotations!=null) out.println("Annotations: "+annotations);
-		out.println();
 		
 		out.println("Population data filters");
 	    if(minSamplesGenotyped>0) out.println("Minimum samples genotyped: "+minSamplesGenotyped);
@@ -539,17 +488,17 @@ public class VCFFilter {
 		if(filterInvariant) out.println("Filter sites where only one allele is observed in the population");
 	    if(filterInvariantReference) out.println("Filter sites where only the reference allele is observed in the population");
 	    if(filterInvariantAlternative) out.println("Filter sites where only one alternative allele is observed in the population");
-	    if(minMAF>0) out.println("Minimum minor allele frequency (MAF): "+minMAF);
-	    if(maxMAF<0.5) out.println("Maximum minor allele frequency (MAF): "+maxMAF);
-	    if(minOH>0) out.println("Minimum observed heterozygosity (OH): "+minOH);
-	    if(maxOH<1) out.println("Maximum observed heterozygosity (OH): "+maxOH);
+	    if(minMAF>DEF_MIN_MAF) out.println("Minimum minor allele frequency (MAF): "+minMAF);
+	    if(maxMAF<DEF_MAX_MAF) out.println("Maximum minor allele frequency (MAF): "+maxMAF);
+	    if(minOH>DEF_MIN_OH) out.println("Minimum observed heterozygosity (OH): "+minOH);
+	    if(maxOH<DEF_MAX_OH) out.println("Maximum observed heterozygosity (OH): "+maxOH);
 	    if(maxSamplesCNVs>=0) out.println("Maximum number of samples with CNVs: "+maxSamplesCNVs);
-	    out.println();
 	    
-	    out.println("Filters for samples");
-	    String action = filterSamples?"filter":"select";
-	    if(sampleIdsFile != null) out.println("File with samples to "+action+": "+sampleIdsFile);
-		else if (sampleIds != null) out.println("Samples to "+action+": "+sampleIds);
+	    if(sampleIds!=null) {
+	    	out.println("Filters for samples");
+		    String action = filterSamples?"filter":"select";
+		    if (sampleIds != null) out.println("Samples to "+action+": "+sampleIds);
+	    }
 	    log.info(""+os.toString());
 	}
 
