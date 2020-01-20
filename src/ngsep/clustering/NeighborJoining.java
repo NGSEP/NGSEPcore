@@ -1,9 +1,9 @@
 package ngsep.clustering;
 
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -12,10 +12,22 @@ import ngsep.main.ProgressNotifier;
 
 public class NeighborJoining implements DistanceMatrixClustering {
 
+	// Constants for default values
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(NeighborJoining.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	//Parameters
+	private String inputFile = null;
+	private String outputFile = null;
 	
+	/**
+	 * Structure to memorize the subtrees that are created by the algorithm
+	 */
+	private ArrayList<Dendrogram> subTrees;
+	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
@@ -29,11 +41,20 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
-	/**
-	 * Structure to memorize the subtrees that are created by the algorithm
-	 */
-	private ArrayList<Dendrogram> subTrees;
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 
 	/**
 	 * Constructor
@@ -47,7 +68,33 @@ public class NeighborJoining implements DistanceMatrixClustering {
 
 	}
 
-	/**
+ 	public static void main (String [ ] args) throws Exception {
+		NeighborJoining instance = new NeighborJoining();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+ 	
+ 	public void run () throws IOException {
+		DistanceMatrix dm;
+		if(inputFile!=null) {
+			log.info("Loading matrix from file "+inputFile);
+			dm = new DistanceMatrix(inputFile);
+		} else {
+			log.info("Loading matrix from standard input");
+			dm = new DistanceMatrix(System.in);
+		}
+		initializeSubTrees(dm.getIds());
+		Dendrogram njTree = buildDendrogram(dm);
+		if(outputFile == null) System.out.println(njTree.toNewick());
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				out.println(njTree.toNewick());
+			}
+		}
+		
+ 	}
+ 	
+ 	/**
 	 * Initial set of trees
 	 * @param names - Names of the nodes
 	 */
@@ -58,20 +105,6 @@ public class NeighborJoining implements DistanceMatrixClustering {
 			subTrees.add(new Dendrogram(names.get(i)));
 		}
 
-	}
-
- 	public static void main (String [ ] args) throws Exception {
-
-		NeighborJoining nj = new NeighborJoining();
-		//Parameters
-		int k=CommandsDescriptor.getInstance().loadOptions(nj, args);
-
-		String matrixFile = args[k++];
-		DistanceMatrix dm = new DistanceMatrix(matrixFile);
-		nj.initializeSubTrees(dm.getIds());
-
-		Dendrogram njTree = nj.buildDendrogram(dm);
-		System.out.println(njTree.toNewick());
 	}
 
 	/**
@@ -317,13 +350,11 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	 */
 	private <T> ArrayList<T> updateArray(Class<T> type, ArrayList<T> arr, int x, int y){
 		int n = arr.size();
-		int c = 0;
 		ArrayList<T> newArr = new ArrayList<>(n - 1);
 
 		for (int i = 0; i < n; i++) {
 			if (i != x && i != y){
 				newArr.add(arr.get(i));
-				c++;
 			}
 		}
 		return newArr;

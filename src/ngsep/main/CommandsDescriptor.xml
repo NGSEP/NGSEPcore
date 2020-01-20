@@ -288,6 +288,7 @@ counts the number of mismatches with the reference for each read position from
 5' to 3' end. This report is useful to detect sequencing error biases.
 Requires alignment files to be in SAM|BAM format, and the reference genome that
 was used to produce the alignments.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <argument multiple="true">ALIGNMENTS_FILE</argument>
 <option id="r" type="FILE" attribute="genome">
@@ -304,6 +305,7 @@ Minimum mapping quality to call an alignment unique
 <description>
 This module calculates the number of base pairs that are covered by reads at
 each coverage level from 1 to a maximum. Alignments must be in SAM|BAM format.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file with alignments to analyze
@@ -540,7 +542,7 @@ Performs single individual molecular haplotyping
 Performs molecular haplotyping on a single individual given a VCF and
 a set of alignments in BAM format. Although theoretically it can work with
 Illumina reads, it is designed to work fine with long (PacBio) reads.
-Writes to standard output the phased VCF
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input VCF file with variants to phase
@@ -584,7 +586,7 @@ Writes a final VCF file with the genotype calls for each variant on each sample.
 Last step to merge genotype calls from different samples into an integrated VCF file.
 Generates a file including the whole set of variants called for all samples.
 The sequence names file is a text file with the ids of the sequences in the reference.
-Writes to the standard output.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <argument multiple="true">GENOTYPED_VARIANTS_FILE</argument>
 <option id="s" type="FILE" attribute="sequenceNamesFile">
@@ -622,7 +624,7 @@ Executes filter criteria on a transcriptome file in GFF3 format
 <title>Filtering transcriptomes</title>
 <description>
 Loads a transcriptome annotation in GFF3 format and generates a filtered file by CDS length, presence of start and stop codons and intersection with other regions.
-Writes to standard output unless the .o option is used to specify an output file.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input GFF3 file with gene annotations. It can be gzip compressed.
@@ -661,8 +663,8 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 <description>
 Generates a VCF file including the functional information related to each variant.
 Requires a gff3 file with gene annotations, and the reference genome in fasta format.
-Reads from the standard output unless the -i option is used to specify an input file.
-Writes to the standard output unless the -o option is used to specify an output file.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input VCF file with variants to annotate. It can be gzip compressed.
@@ -706,7 +708,7 @@ samples and genotypes (-saf, -fs, -q and -minRD). Finally, it
 recalculates the number of samples genotyped, the number of alleles
 called and the MAF to execute the remaining filters. 
 Reads from standard input unless the -i option is used.
-Writes to the standard output unless the -o option is used.
+Writes to standard output unless the -o option is used.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -880,8 +882,6 @@ Id of the second parent for conversion to JoinMap
 </option>
 </command>
 
-
-
 <command id="VCFComparator" class="ngsep.vcf.VCFComparator">
 <intro>Compares the genotype calls included in two different VCF files</intro>
 <title>Comparing VCF files</title>
@@ -889,21 +889,26 @@ Id of the second parent for conversion to JoinMap
 Compare the genotype calls included in two different VCF files.
 Calculate the number and percentage of homozygous and heterozygous
 differences between every pair of samples.
-The first required argument is the FASTA file with the reference genome used to generate the VCF files
-If the -o option is not used, it writes to the standard output.
+The first required argument is the FASTA file with the reference genome used to generate the VCF files.
+If only the first input file is provided, the function provides an internal comparison of the samples within the input file.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
-<argument>FIRST_VCF_FILE</argument>
-<argument>SECOND_VCF_FILE</argument>
-<option id="r" type="FILE" attribute="genomeFile">
+<option id="i" type="FILE" attribute="inputFile">
+Input file in VCF format. It can be gzip compressed.
+</option>
+<option id="i2" type="FILE" attribute="inputFile2">
+Input file in VCF format to compare with the first file. It can be gzip compressed.
+</option>
+<option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the results of the comparison.
 </option>
-<option id="g" type="DOUBLE" default="50" attribute="minPCTGenotyped">
+<option id="g" type="DOUBLE" attribute="minPCTGenotyped" defaultConstant="DEF_MIN_PCT_GENOTYPED">
 Minimum percentage (0-100) of variants genotyped in both samples
 </option>
-<option id="d" type="DOUBLE" default="5" attribute="maxPCTDiffs">
+<option id="d" type="DOUBLE" attribute="maxPCTDiffs" defaultConstant="DEF_MAX_PCT_DIFFS">
 Maximum percentage (0-100) of differences between the pair of samples
 </option>
 </command>
@@ -915,8 +920,8 @@ Maximum percentage (0-100) of differences between the pair of samples
 Generate a report with the variants included in a VCF file for different categories.
 It is specially useful when a complete population is being processed and merged into a
 single annotated file.
-Reads from standard input unless the -i option is used.
-Writes to the standard output unless the -o option is used.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -924,7 +929,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
 </option>
-<option id="m" type="INT" defaultConstant="DEF_MIN_SAMPLES_GENOTYPED" attribute="minSamplesGenotyped">
+<option id="m" type="INT" attribute="minSamplesGenotyped" defaultConstant="DEF_MIN_SAMPLES_GENOTYPED">
 Minimum number of samples genotyped to accurately calculate the minor allele frequency
 </option>
 </command>
@@ -937,7 +942,9 @@ Calculates basic diversity statistics for each variant in a VCF file.
 <description>
 Calculate basic diversity statistics for each variant in a VCF file.
 The populations file is a tab-delimited text file with two columns: sample id and population id.
-Writes to the standard output. See the README.txt file for details on the output. 
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
+See the README.txt file for details on the output. 
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -945,7 +952,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
 </option>
-<option id="p" type="FILE" attribute="populationFile">
+<option id="p" type="FILE" attribute="samplesMap">
 File with population assignments for the samples.
 A two column text file with the sample ids in the
 first column and the ids of the populations in the
@@ -970,10 +977,10 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
 </option>
-<option id="r" type="FILE" attribute="genomeFile">
+<option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
-<option id="w" type="INT" defaultConstant="DEF_WINDOW_LENGTH" attribute="windowLength">
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Length of the window
 </option>
 </command>
@@ -998,15 +1005,15 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the distance matrix. See -f for options on the output format. 
 </option>
-<option id="f" type="INT" default="0" attribute="matrixType">
-Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
-</option>
-<option id="s" type="INT" default="0" attribute="distanceSource">
+<option id="s" type="INT" attribute="distanceSource" defaultConstant="DISTANCE_SOURCE_GENOTYPES_SIMPLE">
 Source of information in the VCF file to calculate distances. 0 for simple genotype calls (GT format field),
 1 for allele copy number (ACN format field), 2 for total copy number (total of ACN format field),
 and 3 for raw allele depth (ADP or BSDP format fields) 
 </option>
-<option id="p" type="INT" default="2" attribute="ploidy">
+<option id="f" type="INT" attribute="matrixType" defaultConstant="MATRIX_TYPE_FULL">
+Matrix output format, 0 is full matrix, 1 lower-left matrix and 2 is upper right matrix.
+</option>
+<option id="p" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
 Default ploidy of the samples. Used if the distance source (-s option) is the raw allele depths
 to recalculate allele dosage based on these counts 
 </option>
@@ -1020,7 +1027,9 @@ Construct a neighbor joining dendrogam given a distance matrix file
 <description>
 Given a distance matrix file, this command builds a dendogram for graphical display of genetic
 distances using the Neighbor Joining algorithm. The distance matrix can be provided as an upper, lower
-or full matrix. The dendrogam is written to standard output in Newick format.
+or full matrix. The dendrogam is written in Newick format.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file with a distance matrix.

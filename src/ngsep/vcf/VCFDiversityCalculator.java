@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.DiversityStatistics;
 import ngsep.variants.GenomicVariant;
@@ -41,56 +42,96 @@ import ngsep.variants.io.SimpleSamplesFileHandler;
 
 public class VCFDiversityCalculator {
 	
-	public static final String COMMAND_DIVERSITYSTATS = "DiversityStats";
+	// Constants for default values
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFDiversityCalculator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String outputFile = null;
 	private Map<String,Sample> samplesMap=null;
+	
+	// Model attributes
 	private boolean assumeAlwaysDiploid = false;
 	private DecimalFormat fmt = new DecimalFormat("#0.0000",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-	
-	public static void main(String[] args) throws Exception {
-		VCFDiversityCalculator instance = new VCFDiversityCalculator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String vcfFile = args[i++];
-		String samplesFile = null;
-		if(i<args.length) {
-			samplesFile = args[i++];
-		}
-		
-		if(samplesFile!=null) instance.loadSamplesFile(samplesFile);
-		if("-".equals(vcfFile)) instance.processFile(System.in,System.out);
-		else instance.processFile(vcfFile,System.out);
-	}
 	
 	public Logger getLog() {
 		return log;
 	}
-
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-
-
-	public void loadSamplesFile(String samplesFile) throws IOException {
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	public Map<String, Sample> getSamplesMap() {
+		return samplesMap;
+	}
+	public void setSamplesMap(Map<String, Sample> samplesMap) {
+		this.samplesMap = samplesMap;
+	}
+	public void setSamplesMap(String samplesFile) throws IOException {
 		SimpleSamplesFileHandler handler = new SimpleSamplesFileHandler();
 		samplesMap = handler.loadSamplesAsMap(samplesFile);
 	}
+	
+	public static void main(String[] args) throws Exception {
+		VCFDiversityCalculator instance = new VCFDiversityCalculator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	public void run () throws IOException {
+		if(samplesMap!=null) log.info("Loaded population information from "+samplesMap.size()+" samples");
+		if(inputFile==null) {
+			log.info("Reading from standard input");
+			try (VCFFileReader in = new VCFFileReader(System.in)) {
+				if(outputFile == null) processFile(in, System.out);
+				else {
+					try (PrintStream out = new PrintStream(outputFile)) {
+						processFile(in, out);
+					}
+				}
+			}
+		} else {
+			log.info("Reading from file: "+inputFile);
+			if(outputFile == null) processFile(inputFile,System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					processFile(inputFile, out);
+				}
+			}
+		}
+		log.info("Process finished");
+	}
 	public void processFile(String vcfFile, PrintStream out) throws IOException {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(vcfFile);
+		try (VCFFileReader in = new VCFFileReader(vcfFile)){
 			processFile(in, out);
-		} finally {
-			if(in!=null) in.close(); 
 		}
 	}
 	public void processFile(InputStream input, PrintStream out) throws IOException {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(input);
+		try (VCFFileReader in = new VCFFileReader(input)){
 			processFile(in, out);
-		} finally {
-			if(in!=null) in.close(); 
 		}
 	}
 	public void processFile(VCFFileReader in, PrintStream out) throws IOException {

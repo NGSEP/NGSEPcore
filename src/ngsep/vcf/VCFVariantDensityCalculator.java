@@ -39,84 +39,98 @@ import ngsep.sequences.QualifiedSequenceList;
  */
 public class VCFVariantDensityCalculator {
 
+	// Constants for default values
 	public static final int DEF_WINDOW_LENGTH=100000;
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFVariantDensityCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
 	private ReferenceGenome genome;
+	private String outputFile = null;
 	private int windowLength = DEF_WINDOW_LENGTH;
 	
-	public static void main(String[] args) throws Exception {
-		VCFVariantDensityCalculator instance = new VCFVariantDensityCalculator();
-		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
-		boolean systemInput = "-".equals(args[i]);
-		if(systemInput) {
-			instance.run(System.in, System.out);
-		} else {
-			String filename = args[i];
-			instance.run(filename, System.out);
-		}
-
-	}
+	// Get and set methods
 	
-	/**
-	 * @return the log
-	 */
 	public Logger getLog() {
 		return log;
 	}
-
-	/**
-	 * @param log the log to set
-	 */
 	public void setLog(Logger log) {
 		this.log = log;
 	}
 
-	/**
-	 * @return the progressNotifier
-	 */
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
 
-	/**
-	 * @return the genome
-	 */
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-
-	/**
-	 * @param genome the genome to set
-	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 
-	/**
-	 * @return the windowLength
-	 */
 	public int getWindowLength() {
 		return windowLength;
 	}
-
-	/**
-	 * @param windowLength the windowLength to set
-	 */
 	public void setWindowLength(int windowLength) {
 		this.windowLength = windowLength;
 	}
-	
 	public void setWindowLength(String value) {
 		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public static void main(String[] args) throws Exception {
+		VCFVariantDensityCalculator instance = new VCFVariantDensityCalculator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+
+	}
+	
+	public void run() throws IOException {
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		log.info("Loaded reference genome from: "+genome.getFilename());
+		log.info("Window length: "+getWindowLength());
+		if(inputFile==null) {
+			log.info("Reading from standard input");
+			if(outputFile == null) run(System.in, System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					run(System.in, out);
+				}
+			}
+		} else {
+			log.info("Reading from file: "+inputFile);
+			if(outputFile == null) run(inputFile,System.out);
+			else {
+				try (PrintStream out = new PrintStream(outputFile)) {
+					run(inputFile, out);
+				}
+			}
+		}
+		log.info("Process finished");
 	}
 
 	public void run(String filename, PrintStream out) throws IOException {

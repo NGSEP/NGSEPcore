@@ -48,16 +48,19 @@ import ngsep.variants.SNV;
  */
 public class VCFSummaryStatisticsCalculator {
 	
+	// Constants for default values
 	public static final int DEF_MIN_SAMPLES_GENOTYPED = 20;
 	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFSummaryStatisticsCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
+	
 	//Parameters
 	private String inputFile = null;
 	private String outputFile = null;
-	
 	private int minSamplesGenotyped = DEF_MIN_SAMPLES_GENOTYPED;
 	
+	// Model attributes
 	private static final String [] VARIANT_CATEGORIES= {"Biallelic SNVs","Biallelic Indels","Biallelic STRs","Other biallelic","Multiallelic SNVs","Multiallelic Indels","Multiallelic STRs","Other Multiallelic"};
 	
 	private List<String> sampleIds;
@@ -76,6 +79,7 @@ public class VCFSummaryStatisticsCalculator {
 	//Counts for the data per sample
 	private VariantsBasicCounts [][] countsPerSample;
 	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
@@ -120,7 +124,9 @@ public class VCFSummaryStatisticsCalculator {
 		instance.run();
 	}
 	public void run() throws IOException {
+		log.info("Minimum number of samples genotyped for calculation of population statistics: "+getMinSamplesGenotyped());
 		if(inputFile==null) {
+			log.info("Reading from standard input");
 			if(outputFile == null) runStatistics(System.in, System.out);
 			else {
 				try (PrintStream out = new PrintStream(outputFile)) {
@@ -128,6 +134,7 @@ public class VCFSummaryStatisticsCalculator {
 				}
 			}
 		} else {
+			log.info("Reading from file: "+inputFile);
 			if(outputFile == null) runStatistics(inputFile,System.out);
 			else {
 				try (PrintStream out = new PrintStream(outputFile)) {
@@ -135,6 +142,7 @@ public class VCFSummaryStatisticsCalculator {
 				}
 			}
 		}
+		log.info("Process finished");
 	}
 	/**
 	 * Calculates summary statistics

@@ -213,7 +213,6 @@ public class VCFFunctionalAnnotator {
 		logParameters();
 		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
 		loadMap(transcriptomeFile, genome);
-		// Run filter
 		if(inputFile==null) {
 			try (VCFFileReader in = new VCFFileReader(System.in)) {
 				if(outputFile == null) annotate(in, System.out);

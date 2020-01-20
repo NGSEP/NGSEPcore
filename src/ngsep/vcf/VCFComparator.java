@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.AlleleCompatibilityGenomicVariantComparator;
@@ -38,101 +40,142 @@ import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 
 /**
- * COmpares two VCF files looking for differences between the genotypes
+ * Compares two VCF files looking for differences between the genotypes
  * @author Jorge Duitama
  *
  */
 public class VCFComparator {
+	
+	// Constants for default values
+	public static final int DEF_MIN_PCT_GENOTYPED = 50;
+	public static final int DEF_MAX_PCT_DIFFS = 5;
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFComparator.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	// Sequence names
-	private ReferenceGenome genome;
-	// Genotyped filter
-	private double minPCTGenotyped = 50;
-	// Differences filter
-	private double maxPCTDiffs = 5;
 	
+	// Parameters
+	private String inputFile;
+	private String inputFile2;
+	private ReferenceGenome genome;
+	private String outputFile;
+	private double minPCTGenotyped = DEF_MIN_PCT_GENOTYPED;
+	private double maxPCTDiffs = DEF_MAX_PCT_DIFFS;
+	
+	// Model attributes
 	private List<String> samples1;
 	private List<String> samples2;
-	// Single file statistics
 	private int [] genotypedF1;
 	private int [] genotypedF2;
-	// Comparison statistics
 	private int [] [] genotypedBothFiles;
 	private int [] [] homozygousDiffs;
 	private int [] [] heterozygousDiffs;
 	
-
-	public static void main(String[] args) throws Exception {
-		VCFComparator instance = new VCFComparator();
-		
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String referenceGenome = args[i++];
-		String vcf1 = args[i++];
-		String vcf2 = args[i++];
-		instance.genome = new ReferenceGenome(referenceGenome);
-		instance.calculateDifferences(vcf1, vcf2);
-		instance.printReport(System.out);
-	}
-
-	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
 
-
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
-
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getInputFile2() {
+		return inputFile2;
+	}
+	public void setInputFile2(String inputFile2) {
+		this.inputFile2 = inputFile2;
+	}
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 	public double getMinPCTGenotyped() {
 		return minPCTGenotyped;
 	}
-
 	public void setMinPCTGenotyped(double minPCTGenotyped) {
+		if(minPCTGenotyped<0 || minPCTGenotyped>100) throw new IllegalArgumentException("Invalid minimum percentage genotyped: "+minPCTGenotyped);
 		this.minPCTGenotyped = minPCTGenotyped;
 	}
-	
-	public void setMinPCTGenotyped(Double minPCTGenotyped) {
-		this.setMinPCTGenotyped(minPCTGenotyped.doubleValue());
+	public void setMinPCTGenotyped(String value) {
+		this.setMinPCTGenotyped((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	public double getMaxPCTDiffs() {
 		return maxPCTDiffs;
 	}
-
 	public void setMaxPCTDiffs(double maxPCTDiffs) {
+		if(maxPCTDiffs<0 || maxPCTDiffs>100) throw new IllegalArgumentException("Invalid maximum percentage of differences: "+maxPCTDiffs);
 		this.maxPCTDiffs = maxPCTDiffs;
 	}
+	public void setMaxPCTDiffs(String value) {
+		this.setMaxPCTDiffs((double)OptionValuesDecoder.decode(value, Double.class));
+	}
 	
-	public void setMaxPCTDiffs(Double maxPCTDiffs) {
-		this.setMaxPCTDiffs(maxPCTDiffs.doubleValue());
+	public static void main(String[] args) throws Exception {
+		VCFComparator instance = new VCFComparator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 	}
-
 	
-
-
-	public ReferenceGenome getGenome() {
-		return genome;
+	public void run () throws IOException {
+		logParameters();
+		if (inputFile == null) throw new IOException("The input VCF file is a required parameter");
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		if(inputFile2==null) {
+			calculateDifferences(inputFile, inputFile);
+		} else {
+			calculateDifferences(inputFile, inputFile2);
+		}
+		if(outputFile == null) printReport(System.out);
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				printReport(out);
+			}
+		}
+		log.info("Process finished");
 	}
 
 
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("First VCF input file: "+inputFile);
+		if(inputFile2 != null) out.println("Second VCF input file: "+inputFile2);
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
+		if(outputFile != null) out.println("Output file: "+outputFile);
+		else out.println("System standard output");
+		out.println("Minimim percentage of variants genotyped in a pair of samples: "+getMinPCTGenotyped());
+		out.println("Maximum percentage of differences between samples: "+getMaxPCTDiffs());
+		log.info(""+os.toString());
 	}
-
-
+	
 	public void calculateDifferences(String vcf1, String vcf2) throws IOException {
 		AlleleCompatibilityGenomicVariantComparator comparator = new AlleleCompatibilityGenomicVariantComparator(genome);
 		boolean debug = false;
