@@ -237,7 +237,7 @@ public class VCFFunctionalAnnotator {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		if(inputFile != null) out.println("Input file: "+inputFile);
-		else out.println("System standard input");
+		else out.println("Read variants from standard input");
 		out.println("GFF transcriptome file: "+transcriptomeFile);
 		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		if(outputFile != null) out.println("Output file: "+outputFile);

@@ -20,6 +20,7 @@
 package ngsep.variants;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -97,6 +98,15 @@ public class Sample {
 			}
 		}
 		return answer;
+	}
+	/**
+	 * Returns the list of sample ids that belong to any of the given groupIds
+	 * @param samples List of samples
+	 * @param groupIds Ids of the groups to look for
+	 * @return String [] List of samples with a group id contained in groupIds
+	 */
+	public static Set<String> getSampleIds (List<Sample> samples, String [] groupIds) {
+		return getSampleIds(samples, Arrays.asList(groupIds));
 	}
 	/**
 	 * Returns a list of sample ids given the list of samples

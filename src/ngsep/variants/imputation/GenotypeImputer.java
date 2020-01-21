@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.variants.imputation;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.logging.Logger;
 
 import ngsep.hmm.RecombinationHMM;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
@@ -45,131 +47,127 @@ import ngsep.vcf.VCFRecord;
 
 
 public class GenotypeImputer {
-	public static final int DEF_K = 8;
-	public static final double DEF_CMPERKBP = 0.001;
-	public static final int DEF_WINDOW = 5000;
-	public static final int DEF_OVERLAP = 50;
 	
+	// Constants for default values
+	public static final int DEF_NUM_HAPLOTYPE_CLUSTERS = 8;
+	public static final int DEF_WINDOW_SIZE = 5000;
+	public static final int DEF_OVERLAP = 50;
+	public static final double DEF_AVG_CM_PER_KBP = 0.001;
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(GenotypeImputer.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	private int progress = 0;
-	private double avgCMPerKbp = DEF_CMPERKBP;
+	
+	// Parameters
+	private String inputFile = null;
+	private String outputPrefix = null;
+	private List<String> parentIds = new ArrayList<String>() ;
+	private int numHaplotypeClusters = DEF_NUM_HAPLOTYPE_CLUSTERS;
+	private int windowSize = DEF_WINDOW_SIZE;
+	private int overlap = DEF_OVERLAP;
+	private double avgCMPerKbp = DEF_AVG_CM_PER_KBP;
 	private boolean skipTransitionsTraining = false;
 	private boolean inbredParents = false;
 	private boolean inbredSamples = false;
-	private List<String> parentIds = new ArrayList<String>() ;
-	private int k = DEF_K;
-	private int windowSize = DEF_WINDOW;
-	private int overlap = DEF_OVERLAP;
+	
+	// Model attributes
 	private PrintStream outAssignments;
-	private PrintStream outGenotypes;
 	 
-	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception {
-		GenotypeImputer instance = new GenotypeImputer();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		
-		String vcfFile = args[i++];
-		String outPrefix = args[i++];
-		String fileAssignments = outPrefix+"_assignments.txt";
-		String fileGenotypes = outPrefix+"_imputed.vcf";
-		
-		instance.outAssignments = null;
-		instance.outGenotypes = null;
-		try {
-			if(instance.parentIds!=null && instance.parentIds.size()>1)instance.outAssignments = new PrintStream(fileAssignments);
-			instance.outGenotypes = new PrintStream(fileGenotypes);
-			instance.impute(vcfFile);
-		} finally {
-			if(instance.outAssignments!=null) instance.outAssignments.close();
-			if(instance.outGenotypes!=null) instance.outGenotypes.close();
-		}
-	}
-	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
 
-	public Double getAvgCMPerKbp() {
-		return avgCMPerKbp;
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
 	}
 	
-	public void setAvgCMPerKbp(Double avgCMPerKbp) {
-		this.avgCMPerKbp = avgCMPerKbp;
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
 	}
 	
 	public List<String> getParentIds() {
 		return parentIds;
 	}
-	
 	public void setParentIds(List<String> parentIds) {
 		this.parentIds = parentIds;
 	}
-	
 	public void setParentIds(String parentIdsStr) {
 		this.setParentIds(Arrays.asList(parentIdsStr.split(",")));
 	}
 	
-	public int getK() {
-		return k;
+	public int getNumHaplotypeClusters() {
+		return numHaplotypeClusters;
 	}
-
-	public void setK(int k) {
-		this.k = k;
+	public void setNumHaplotypeClusters(int numHaplotypeClusters) {
+		this.numHaplotypeClusters = numHaplotypeClusters;
 	}
-	
-	public void setK(Integer k) {
-		this.setK(k.intValue());
+	public void setNumHaplotypeClusters(String value) {
+		setNumHaplotypeClusters((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-	
 	
 	public int getWindowSize() {
 		return windowSize;
 	}
-
 	public void setWindowSize(int windowSize) {
 		this.windowSize = windowSize;
 	}
-	
-	public void setWindowSize(Integer windowSize) {
-		setWindowSize(windowSize.intValue());
+	public void setWindowSize(String value) {
+		setWindowSize((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public int getOverlap() {
 		return overlap;
 	}
-
 	public void setOverlap(int overlap) {
 		this.overlap = overlap;
 	}
+	public void setOverlap(String value) {
+		this.setOverlap((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public double getAvgCMPerKbp() {
+		return avgCMPerKbp;
+	}
+	public void setAvgCMPerKbp(double avgCMPerKbp) {
+		this.avgCMPerKbp = avgCMPerKbp;
+	}
+	public void setAvgCMPerKbp(String value) {
+		setAvgCMPerKbp((double)OptionValuesDecoder.decode(value, Double.class));
+	}
 
-	public void setOverlap(Integer overlap) {
-		this.setOverlap(overlap.intValue());
+	public boolean isSkipTransitionsTraining() {
+		return skipTransitionsTraining;
+	}
+	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
+		this.skipTransitionsTraining = skipTransitionsTraining;
+	}
+	public void setSkipTransitionsTraining(Boolean skipTransitionsTraining) {
+		this.setSkipTransitionsTraining(skipTransitionsTraining.booleanValue());
 	}
 	
 	public boolean isInbredParents() {
 		return inbredParents;
 	}
-
 	public void setInbredParents(boolean inbredParents) {
 		this.inbredParents = inbredParents;
 	}
-	
 	public void setInbredParents(Boolean inbredParents) {
 		this.setInbredParents(inbredParents.booleanValue());
 	}
@@ -177,95 +175,100 @@ public class GenotypeImputer {
 	public boolean isInbredSamples() {
 		return inbredSamples;
 	}
-
 	public void setInbredSamples(boolean inbredSamples) {
 		this.inbredSamples = inbredSamples;
 	}
-
 	public void setInbredSamples(Boolean inbredSamples) {
 		this.setInbredSamples(inbredSamples.booleanValue());
-	}
-
-	public boolean isSkipTransitionsTraining() {
-		return skipTransitionsTraining;
-	}
-
-	public void setSkipTransitionsTraining(boolean skipTransitionsTraining) {
-		this.skipTransitionsTraining = skipTransitionsTraining;
-	}
-	
-	public void setSkipTransitionsTraining(Boolean skipTransitionsTraining) {
-		this.setSkipTransitionsTraining(skipTransitionsTraining.booleanValue());
 	}
 
 	public PrintStream getOutAssignments() {
 		return outAssignments;
 	}
-
-
-
 	public void setOutAssignments(PrintStream outAssignments) {
 		this.outAssignments = outAssignments;
 	}
 
-
-
-	public PrintStream getOutGenotypes() {
-		return outGenotypes;
-	}
-
-
-
-	public void setOutGenotypes(PrintStream outGenotypes) {
-		this.outGenotypes = outGenotypes;
-	}
-
-
-
-	public void impute(String filename) throws IOException {
-		logParameters(filename);
+	public static void main(String[] args) throws Exception {
+		GenotypeImputer instance = new GenotypeImputer();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
 		
-		List<VCFRecord> records = new ArrayList<VCFRecord>();
-		List<VCFRecord> lastRecords = new ArrayList<VCFRecord>();
-		VCFFileReader reader = null;
-		VCFFileWriter out = new VCFFileWriter();
-		try {
-			reader = new VCFFileReader(filename);
-			if(log!=null) reader.setLog(log);
-			//Ids of the samples
-			VCFFileHeader header = reader.getHeader();
-			out.printHeader(header,outGenotypes);
-			List<Sample> samples = header.getSamples();
-			String lastSeqName = null;
-			Iterator<VCFRecord> it = reader.iterator();
-			while(it.hasNext()) {
-				VCFRecord record = it.next();
-				GenomicVariant var = record.getVariant();
-				if(!(var instanceof SNV)) continue;
-				boolean sequenceChange = !var.getSequenceName().equals(lastSeqName); 
-				if(sequenceChange || records.size() == windowSize) {
-					if(lastSeqName!=null) {
-						processRecords(records,samples,lastRecords,out,sequenceChange);
-						for(VCFRecord r:records) out.printVCFRecord(r, outGenotypes);
-						progress++;
-						if(progressNotifier!=null && !progressNotifier.keepRunning(progress)) return;
-					}
-					lastSeqName = var.getSequenceName();
+	}
+
+	public void run () throws IOException {
+		logParameters();
+		if(outputPrefix==null) throw new IOException("The prefix for the output files is a required parameter");
+		outAssignments = null;
+		try (PrintStream outGenotypes = new PrintStream(outputPrefix+"_imputed.vcf")){
+			if(parentIds!=null && parentIds.size()>1) outAssignments = new PrintStream(outputPrefix+"_assignments.txt");
+			if(inputFile!=null) impute(inputFile, outGenotypes);
+			else {
+				try (VCFFileReader reader = new VCFFileReader(System.in)) {
+					impute(reader, outGenotypes);
 				}
-				records.add(record);
-			}
-			if(lastSeqName!=null) {
-				processRecords(records, samples, lastRecords, out, true);
 			}
 		} finally {
-			if (reader!=null) reader.close();
+			if(outAssignments!=null) outAssignments.close();
+		}
+		log.info("Process finished");
+	}
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input file: "+inputFile);
+		else out.println("Read variants from standard input");
+		out.println("Prefix for output files: "+outputPrefix);
+		if(parentIds!=null) out.println("Parents: "+parentIds);
+		out.println("Number of haplotype clusters: "+getNumHaplotypeClusters());
+		out.println("Window size: "+getWindowSize());
+		out.println("Overlap: "+getOverlap());
+		out.println("Average centimorgans per Kbp: "+avgCMPerKbp);
+		if(skipTransitionsTraining) out.println("Transitions will not be modified during the HMM training");
+		if(inbredParents) out.println("Parents of the population are assumed to be inbred");
+		if(inbredSamples) out.println("Samples of the population are assumed to be inbred. All imputed genotype calls will be homozygous");
+		log.info(""+os.toString());
+	}
+	public void impute(String filename, PrintStream outGenotypes) throws IOException {
+		try (VCFFileReader reader = new VCFFileReader(filename)) {
+			impute(reader, outGenotypes);
+		}
+	}
+	public void impute(VCFFileReader reader, PrintStream outGenotypes) throws IOException {
+		List<VCFRecord> records = new ArrayList<VCFRecord>();
+		List<VCFRecord> lastRecords = new ArrayList<VCFRecord>();
+		VCFFileWriter writer = new VCFFileWriter();
+		
+		if(log!=null) reader.setLog(log);
+		//Ids of the samples
+		VCFFileHeader header = reader.getHeader();
+		writer.printHeader(header,outGenotypes);
+		List<Sample> samples = header.getSamples();
+		String lastSeqName = null;
+		Iterator<VCFRecord> it = reader.iterator();
+		while(it.hasNext()) {
+			VCFRecord record = it.next();
+			GenomicVariant var = record.getVariant();
+			if(!(var instanceof SNV)) continue;
+			boolean sequenceChange = !var.getSequenceName().equals(lastSeqName); 
+			if(sequenceChange || records.size() == windowSize) {
+				if(lastSeqName!=null) {
+					processRecords(records,samples,lastRecords, writer, outGenotypes,sequenceChange);
+					for(VCFRecord r:records) writer.printVCFRecord(r, outGenotypes);
+					progress++;
+					if(progressNotifier!=null && !progressNotifier.keepRunning(progress)) return;
+				}
+				lastSeqName = var.getSequenceName();
+			}
+			records.add(record);
+		}
+		if(lastSeqName!=null) {
+			processRecords(records, samples, lastRecords, writer, outGenotypes, true);
 		}
 	}
 	
-	private void processRecords(List<VCFRecord> currentRecords, List<Sample> samples, List<VCFRecord> lastRecords, VCFFileWriter out, boolean sequenceChange) {
+	private void processRecords(List<VCFRecord> currentRecords, List<Sample> samples, List<VCFRecord> lastRecords, VCFFileWriter writer, PrintStream outGenotypes, boolean sequenceChange) {
 		List<VCFRecord> recordsImpute = calculateRecordsImpute (currentRecords,lastRecords);
-		
-		
 		Map<String, List<CalledSNV>> genotypes = convertToCalledGenotypes(samples, recordsImpute);
 		imputeGenotypes(genotypes);
 		int printStart = 0;
@@ -280,7 +283,7 @@ public class GenotypeImputer {
 		//Print records
 		for(int i = printStart;i<printEnd;i++) {
 			VCFRecord r = recordsImpute.get(i);
-			out.printVCFRecord(r, outGenotypes);
+			writer.printVCFRecord(r, outGenotypes);
 		}
 		//Update last records
 		lastRecords.clear();
@@ -321,14 +324,6 @@ public class GenotypeImputer {
 		return genotypes;
 	}
 
-	private void logParameters(String filename) {
-		log.info("Running imputation for VCF file: "+filename);
-		log.info("Average centimorgans per Kbp: "+avgCMPerKbp);
-		if(parentIds!=null) log.info("Number of parents: "+parentIds.size());
-		log.info("Window size: "+windowSize);
-		log.info("Overlap: "+overlap);
-	}
-
 	public void imputeGenotypes(Map<String,List<CalledSNV>> genotypes) {
 		progress = 0;
 		if(inbredSamples) imputeGenotypesHMMInbreds(genotypes);
@@ -336,10 +331,10 @@ public class GenotypeImputer {
 	}
 
 	public void imputeGenotypesHMMInbreds(Map<String, List<CalledSNV>> genotypes) {
-		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
+		GenotypeImputationHMM  hmm = GenotypeImputationHMM.createHMM(genotypes, parentIds, numHaplotypeClusters, inbredParents);
+		hmm.setLog(log);
 		hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
-		hmm.setLog(log);
 		hmm.setTrainingData(makeTrainingDataWithHomozygous(genotypes));
 		if(progressNotifier!=null) {
 			progress++;
@@ -354,7 +349,7 @@ public class GenotypeImputer {
 	}
 	
 	public void imputeGenotypesHMMDiploid(Map<String, List<CalledSNV>> genotypes) {
-		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, k, inbredParents);
+		DiploidGenotypeImputationHMM  hmm = DiploidGenotypeImputationHMM.createHMM(genotypes, parentIds, numHaplotypeClusters, inbredParents);
 		hmm.setAvgCMPerKbp(avgCMPerKbp);
 		hmm.setSkipTransitionsTraining(skipTransitionsTraining);
 		hmm.setLog(log);

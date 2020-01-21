@@ -1039,7 +1039,7 @@ Output file with the dendrogam in Newick format.
 </option>
 </command>
 
-<command id="VCFAlleleSharingStats" class="ngsep.vcf.AlleleSharingStatsCalculator">
+<command id="VCFAlleleSharingStats" class="ngsep.vcf.VCFAlleleSharingStatisticsCalculator">
 <intro>
 Calculates allele sharing diversity statistics, either through windows or through genes
 for inbred populations
@@ -1059,31 +1059,31 @@ Writes to the standard output. See the README.txt file for details on the output
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
 </option>
-<option id="p" type="FILE" attribute="populationFile">
+<option id="p" type="FILE" attribute="samplesMap">
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics. 
 </option>
-<option id="g1">
+<option id="g1" type="STRING" attribute="populationsGroup1">
 Comma-separated list of populations that should be considered as group 1
 </option>
-<option id="g2">
+<option id="g2" type="STRING" attribute="populationsGroup2">
 Comma-separated list of populations that should be considered as group 2
 </option>
-<option id="t" type="FILE">
+<option id="t" type="FILE" attribute="transcriptomeFile">
 GFF3 file with the transcriptome. If this file is provided, statistics will be provided by gene and
 not by window.
 </option>
-<option id="n">
+<option id="n" type="BOOLEAN" attribute="includeIntrons">
 If set, introns will be included in the calculation of pairwise differences. Only useful if the
 -t option is set
 </option>
-<option id="w" type="INT" default="100000">
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Length of each genomic window to calculate pairwise differences between samples. 
 </option>
-<option id="s" type="INT" default="10000">
+<option id="s" type="INT" attribute="stepLength" defaultConstant="DEF_STEP_LENGTH">
 Step between windows to calculate pairwise differences between samples.
 </option>
 </command>
@@ -1100,27 +1100,27 @@ Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
 </option>
-<option id="o" type="FILE" attribute="outputFile">
-Output VCF file with imputed genotypes. 
+<option id="o" type="FILE" attribute="outputPrefix">
+Prefix of the output files. 
 </option>
 <option id="p" type="STRING" attribute="parentIds">
 Comma-separated list of sample ids of the parents of the population.
 Only to be used for bi-parental or multi-parental breeding populations.
 </option>
-<option id="k" type="INT" default="8" attribute="k">
+<option id="k" type="INT" attribute="numHaplotypeClusters" defaultConstant="DEF_NUM_HAPLOTYPE_CLUSTERS">
 Maximum number of groups in which local haplotypes will be clustered.
 For bi-parental or multi-parental breeding populations please set explicitly
 the number of parents of the population even if the list of parents is provided with the
 -p option. This allows to take into account cases of populations in which some of
 the parents are missing
 </option>
-<option id="w" type="INT" default="5000" attribute="windowSize">
+<option id="w" type="INT" attribute="windowSize" defaultConstant="DEF_WINDOW_SIZE">
 Size of the window to process variants at the same time
 </option>
-<option id="v" type="INT" default="50" attribute="overlap">
+<option id="v" type="INT" attribute="overlap" defaultConstant="DEF_OVERLAP">
 Overlap between windows
 </option>
-<option id="c" type="DOUBLE" default="0.001" attribute="avgCMPerKbp">
+<option id="c" type="DOUBLE" attribute="avgCMPerKbp" defaultConstant="DEF_AVG_CM_PER_KBP">
 Estimated average number of centiMorgans per Kbp on euchromatic regions of the genome.
 Typical values of this parameter are 0.001 for human populations, 0.004 for rice and 0.35
 for yeast populations

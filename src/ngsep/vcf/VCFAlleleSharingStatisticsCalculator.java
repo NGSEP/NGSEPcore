@@ -1,5 +1,6 @@
 package ngsep.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -17,6 +18,7 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
@@ -31,102 +33,92 @@ import ngsep.variants.Sample;
 import ngsep.variants.io.SimpleSamplesFileHandler;
 
 
-public class AlleleSharingStatsCalculator {
+public class VCFAlleleSharingStatisticsCalculator {
 	
-	private Logger log = Logger.getLogger(AlleleSharingStatsCalculator.class.getName());
+	// Constants for default values
+	public static final int DEF_WINDOW_LENGTH = 100000;
+	public static final int DEF_STEP_LENGTH = 10000;
 	
-	private List<Sample> samplesDB = new ArrayList<Sample>();
+	// Logging and progress
+	private Logger log = Logger.getLogger(VCFAlleleSharingStatisticsCalculator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile;
+	private List<Sample> samples = new ArrayList<Sample>();
+	private String outputFile;
+	private String populationsGroup1;
+	private String populationsGroup2;
+	private String transcriptomeFile;
 	private Transcriptome transcriptome; 
 	private boolean includeIntrons = false;
-	private int windowSize =100000;
-	private int stepSize =10000;
+	private int windowLength = DEF_WINDOW_LENGTH;
+	private int stepLength = DEF_STEP_LENGTH;
+	
+	// Model attributes
 	private Set<String> samplesG1;
 	private Set<String> samplesG2;
 	
-	private ProgressNotifier progressNotifier=null;
-	
-	public static void main(String[] args) throws Exception {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(AlleleSharingStatsCalculator.class);
-			return;
-		}
-		AlleleSharingStatsCalculator instance = new AlleleSharingStatsCalculator();
-		String transcriptomeFile = null;
-		boolean systemInput = false;
-		int i=0;
-		while(i<args.length && args[i].charAt(0)=='-') {
-			if("-t".equals(args[i])) {
-				i++;
-				transcriptomeFile = args[i];
-			} else if("-i".equals(args[i])) {
-				instance.includeIntrons = true;
-			} else if ("-w".equals(args[i])) {
-				i++;
-				instance.windowSize = Integer.parseInt(args[i]);
-			} else if ("-s".equals(args[i])) {
-				i++;
-				instance.stepSize = Integer.parseInt(args[i]);
-			} else if ("-".equals(args[i])) {
-				systemInput=true;
-				i++;
-				break;
-			} else {
-				System.err.println("Unrecognized option: "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(AlleleSharingStatsCalculator.class);
-				return;
-			}
-			i++;
-		}
-		String vcfFile = null;
-		if(!systemInput) {
-			vcfFile= args[i++];
-		}
-		String samplesFile = args[i++];
-		String [] groups1 = args[i++].split(",");
-		String [] groups2 = args[i++].split(",");
-		instance.loadSamplesDatabase(samplesFile,groups1,groups2);
-		if(transcriptomeFile!=null) {
-			GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler();
-			instance.transcriptome = transcriptomeHandler.loadMap(transcriptomeFile);
-		}
-		Map<String,List<Double>> sharingStats;
-		if(vcfFile!=null) sharingStats = instance.calculateSharingStatistics(vcfFile);
-		else sharingStats = instance.calculateSharingStatistics(System.in);
-		if(sharingStats!=null) instance.printSharingStats (sharingStats,System.out);
-	}
-	
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
 
-	public int getWindowSize() {
-		return windowSize;
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
 	}
-
-	public void setWindowSize(int windowSize) {
-		this.windowSize = windowSize;
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
 	}
-
-	public int getStepSize() {
-		return stepSize;
+	
+	public String getInputFile() {
+		return inputFile;
 	}
-
-	public void setStepSize(int stepSize) {
-		this.stepSize = stepSize;
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
 	}
-
-	public boolean isIncludeIntrons() {
-		return includeIntrons;
+	
+	public List<Sample> getSamples() {
+		return samples;
 	}
-
-	public void setIncludeIntrons(boolean includeIntrons) {
-		this.includeIntrons = includeIntrons;
+	public void setSamples(List<Sample> samples) {
+		this.samples = samples;
 	}
-
+	public void setSamples(String samplesFile) throws IOException {
+		SimpleSamplesFileHandler handler = new SimpleSamplesFileHandler();
+		samples = handler.loadSamples(samplesFile);
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public String getPopulationsGroup1() {
+		return populationsGroup1;
+	}
+	public void setPopulationsGroup1(String populationsGroup1) {
+		this.populationsGroup1 = populationsGroup1;
+	}
+	
+	public String getPopulationsGroup2() {
+		return populationsGroup2;
+	}
+	public void setPopulationsGroup2(String populationsGroup2) {
+		this.populationsGroup2 = populationsGroup2;
+	}
+	
+	public String getTranscriptomeFile() {
+		return transcriptomeFile;
+	}
+	public void setTranscriptomeFile(String transcriptomeFile) {
+		this.transcriptomeFile = transcriptomeFile;
+	}
 	public Transcriptome getTranscriptome() {
 		return transcriptome;
 	}
@@ -135,37 +127,98 @@ public class AlleleSharingStatsCalculator {
 		this.transcriptome = transcriptome;
 	}
 	
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
+	public int getWindowLength() {
+		return windowLength;
 	}
-
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
+	public void setWindowLength(int windowLength) {
+		this.windowLength = windowLength;
 	}
-
-	public void loadSamplesDatabase(String filename,String [] g1,String [] g2) throws IOException {
-		SimpleSamplesFileHandler handler = new SimpleSamplesFileHandler();
-		samplesDB = handler.loadSamples(filename);
-		samplesG1 = Sample.getSampleIds(samplesDB, Arrays.asList(g1));
-		samplesG2 = Sample.getSampleIds(samplesDB, Arrays.asList(g2));
+	public void setWindowLength(String value) {
+		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public int getStepLength() {
+		return stepLength;
+	}
+	public void setStepLength(int stepLength) {
+		this.stepLength = stepLength;
+	}
+	public void setStepLength(String value) {
+		setStepLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public boolean isIncludeIntrons() {
+		return includeIntrons;
+	}
+	public void setIncludeIntrons(boolean includeIntrons) {
+		this.includeIntrons = includeIntrons;
+	}
+	public void setIncludeIntrons(Boolean includeIntrons) {
+		this.setIncludeIntrons(includeIntrons.booleanValue());
+	}
+
+	public static void main(String[] args) throws Exception {
+		VCFAlleleSharingStatisticsCalculator instance = new VCFAlleleSharingStatisticsCalculator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+		
+		
+	}
+
+	public void run() throws IOException {
+		logParameters();
+		samplesG1 = Sample.getSampleIds(samples,populationsGroup1.split(","));
+		log.info("Samples group 1: "+samplesG1);
+		samplesG2 = Sample.getSampleIds(samples,populationsGroup2.split(","));
+		log.info("Samples group 2: "+samplesG1);
+		if(transcriptomeFile!=null) {
+			GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler();
+			transcriptome = transcriptomeHandler.loadMap(transcriptomeFile);
+			log.info("Loaded transcriptome");
+		}
+		Map<String,List<Double>> sharingStats;
+		if(inputFile!=null) sharingStats = calculateSharingStatistics(inputFile);
+		else sharingStats = calculateSharingStatistics(System.in);
+		if(sharingStats==null) {
+			log.info("Process cancelled");
+			return;
+		}
+		if(outputFile==null) printSharingStats (sharingStats,System.out);
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				printSharingStats(sharingStats,out);
+			}
+		}
+		log.info("Process finished");
+	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input VCF file: "+inputFile);
+		else out.println("Read variants from standard input");
+		if(outputFile != null) out.println("Output file: "+outputFile);
+		else out.println("Write to standard output");
+		out.println("Populations group 1: "+populationsGroup1);
+		out.println("Populations group 2: "+populationsGroup2);
+		if(transcriptomeFile!=null) {
+			out.println("Transcriptome file to calculate statistics by gene: "+transcriptomeFile);
+			if (includeIntrons) out.println("Include introns in the calculation");
+		} else {
+			out.println("Window length (bp): "+getWindowLength());
+			out.println("Length of step to next window (bp): "+getStepLength());
+		}
+		log.info(""+os.toString());
+		
+	}
 	public Map<String, List<Double>> calculateSharingStatistics(String vcfFile) throws IOException {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(vcfFile);
+		try (VCFFileReader in = new VCFFileReader(vcfFile)){
 			return calculateSharingStatistics(in);
-		} finally {
-			if(in!=null) in.close();
 		}
 	}
-	public Map<String, List<Double>> calculateSharingStatistics(InputStream is) throws IOException  {
-		VCFFileReader in = null;
-		try {
-			in = new VCFFileReader(is);
+	public Map<String, List<Double>> calculateSharingStatistics(InputStream is) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(is)) {
 			return calculateSharingStatistics(in);
-		} finally {
-			if(in!=null) in.close();
 		}
 	}
 	public Map<String, List<Double>> calculateSharingStatistics(VCFFileReader in) throws IOException  {
@@ -187,19 +240,19 @@ public class AlleleSharingStatsCalculator {
 			VCFRecord record = it.next();
 			GenomicVariant var = record.getVariant();
 			boolean seqNameEq = seqName.equals(record.getVariant().getSequenceName()); 
-			if(!seqNameEq || curWindowStart + windowSize <= var.getFirst()) {
+			if(!seqNameEq || curWindowStart + windowLength <= var.getFirst()) {
 				if(!seqNameEq) {
 					while(variantsInProgress.size()>0) {
 						answer.put(seqName+"\t"+curWindowStart,processWindow(variantsInProgress,sampleIds,curWindowStart));
-						curWindowStart+=stepSize;
+						curWindowStart+=stepLength;
 					}
 					seqName = record.getVariant().getSequenceName();
 					curWindowStart = 1;
 					
 				} else {
-					while(curWindowStart + windowSize <= var.getFirst() ) {
+					while(curWindowStart + windowLength <= var.getFirst() ) {
 						answer.put(seqName+"\t"+curWindowStart,processWindow(variantsInProgress,sampleIds,curWindowStart));
-						curWindowStart+=stepSize;
+						curWindowStart+=stepLength;
 					}
 				}
 			}
@@ -214,7 +267,7 @@ public class AlleleSharingStatsCalculator {
 		}
 		while(variantsInProgress.size()>0) {
 			answer.put(seqName+"\t"+curWindowStart,processWindow(variantsInProgress,sampleIds,curWindowStart));
-			curWindowStart+=stepSize;
+			curWindowStart+=stepLength;
 		}
 		return answer;
 	}
@@ -225,14 +278,14 @@ public class AlleleSharingStatsCalculator {
 		VCFRecord firstNextWindow = null;
 		for(VCFRecord record:variantsInProgress) {
 			int pos = record.getVariant().getFirst();
-			if(windowStart<=pos && pos < windowStart + windowSize ) {
+			if(windowStart<=pos && pos < windowStart + windowLength ) {
 				windowVars.add(record);
 			}
-			if(firstNextWindow==null && windowStart + stepSize < pos) {
+			if(firstNextWindow==null && windowStart + stepLength < pos) {
 				firstNextWindow = record;
 			}
 		}
-		List<Double> answer = calculateSharingStatisticsRegion(windowVars, sampleIds, windowSize);
+		List<Double> answer = calculateSharingStatisticsRegion(windowVars, sampleIds, windowLength);
 		//Remove variants that will not be used in the next window
 		if(firstNextWindow==null) variantsInProgress.clear();
 		else {
