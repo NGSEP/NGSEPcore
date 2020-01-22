@@ -36,6 +36,7 @@ import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.math.LogMath;
@@ -56,52 +57,41 @@ import ngsep.vcf.VCFRecord;
  *
  */
 public class VCFGoldStandardComparator {
-	private Logger log = Logger.getLogger(VCFGoldStandardComparator.class.getName());
-	private ProgressNotifier progressNotifier=null;
 	
+	// Constants for default values
 	public static final int DEF_MIN_CLUSTER_DISTANCE = 5;
 	public static final int DEF_MAX_CLUSTER_DISTANCE = 30;
 	
+	// Logging and progress
+	private Logger log = Logger.getLogger(VCFGoldStandardComparator.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String gsFile = null;
 	private ReferenceGenome genome;
+	private String outputFile = null;
 	private Map<String, List<GenomicRegion>> complexRegions;
 	private Map<String, List<GenomicRegion>> confidenceRegions;
 	private boolean genomicVCF = false;
 	
+	// Model attributes
 	private int mode = 0;
 	private short minQuality = 0;
-	
-	//Calculated statistics
 	private long confidenceRegionsLength = 0;
 	private Map<Byte, GoldStandardComparisonCounts> countsPerType = new HashMap<>();
 	private Distribution distClusterSizeGS = new Distribution(0, 10, 1);
 	private Distribution distClusterTestHet = new Distribution(0, 10, 1);
 	private Distribution distClusterSpan = new Distribution(0, 1000, 100);
-	
-
 	VCFFileWriter writer = new VCFFileWriter();
-	public static void main(String[] args) throws Exception {
-		VCFGoldStandardComparator instance = new VCFGoldStandardComparator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String referenceFile = args[i++];
-		
-		
-		String file1 = args[i++];
-		String file2 = args[i++];
-		
-		if(args.length>=i+2) {
-			instance.mode = Integer.parseInt(args[i++]);
-			instance.minQuality = Short.parseShort(args[i++]);
-		}
-		
-		instance.genome = new ReferenceGenome(referenceFile);
-		instance.compareFiles(file1,file2);
-		instance.printStatistics (System.out);
-	}
+	
+	// Get and set methods
+	
+	
 	
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		if (log == null) throw new NullPointerException("Log can not be null");
 		this.log = log;
@@ -110,69 +100,62 @@ public class VCFGoldStandardComparator {
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
-	/**
-	 * @return the genome
-	 */
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getGsFile() {
+		return gsFile;
+	}
+	public void setGsFile(String gsFile) {
+		this.gsFile = gsFile;
+	}
+	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-	
-	/**
-	 * @param genome the genome to set
-	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
 	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 	
-
-	/**
-	 * @return the genomicVCF
-	 */
 	public boolean isGenomicVCF() {
 		return genomicVCF;
 	}
-
-	/**
-	 * @param genomicVCF the genomicVCF to set
-	 */
 	public void setGenomicVCF(boolean genomicVCF) {
 		this.genomicVCF = genomicVCF;
 	}
-
 	public void setGenomicVCF(Boolean genomicVCF) {
 		this.setGenomicVCF(genomicVCF.booleanValue());
 	}
-	/**
-	 * @return the complexRegions of a sequence
-	 */
+	
 	public List<GenomicRegion> getComplexRegions(String sequenceName) {
 		return complexRegions.get(sequenceName);
 	}
-
-	/**
-	 * @param complexRegionsFile File wit the complexRegions to set
-	 */
 	public void setComplexRegions(String complexRegionsFile) throws IOException {
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		this.complexRegions = handler.loadRegionsAsMap(complexRegionsFile);
 	}
 
-	/**
-	 * @return the confidenceRegions
-	 */
 	public List<GenomicRegion> getConfidenceRegions(String sequenceName) {
 		return confidenceRegions.get(sequenceName);
 	}
-
-	/**
-	 * @param confidenceRegions the confidenceRegions to set
-	 */
 	public void setConfidenceRegions(String regionsFile) throws IOException {
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		this.confidenceRegions = handler.loadRegionsAsMap(regionsFile);
@@ -184,43 +167,26 @@ public class VCFGoldStandardComparator {
 		}
 	}
 	
-	private void loadConfidenceRegionsFromVCF(String filename, QualifiedSequenceList sequenceNames) throws IOException {
-		confidenceRegions = new HashMap<>();
-		confidenceRegionsLength = 0;
-		try (VCFFileReader in = new VCFFileReader(filename)) {
-			in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
-			in.setSequences(sequenceNames);
-			String sequenceName = null;
-			List<GenomicRegion> regionsSeq = null;
-			GenomicRegionImpl r = null;
-			Iterator<VCFRecord> it = in.iterator();
-			while(it.hasNext()) {
-				VCFRecord record = it.next();
-				CalledGenomicVariant call = record.getCalls().get(0); 
-				if(call.isUndecided()) continue;
-				if(sequenceName==null || !sequenceName.equals(call.getSequenceName())) {
-					if(r!=null) {
-						regionsSeq.add(r);
-						confidenceRegionsLength+=r.length();
-					}
-					sequenceName = call.getSequenceName();
-					regionsSeq =  new ArrayList<>();
-					confidenceRegions.put(sequenceName, regionsSeq);
-					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
-				} else if( r.getLast()<record.getFirst()-1) {
-					regionsSeq.add(r);
-					confidenceRegionsLength+=r.length();
-					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
-				} else {
-					r.setLast(Math.max(r.getLast(), record.getLast()));
-				}
-			}
-			if(r!=null) {
-				regionsSeq.add(r);
-				confidenceRegionsLength+=r.length();
+	public static void main(String[] args) throws Exception {
+		VCFGoldStandardComparator instance = new VCFGoldStandardComparator();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		if(args.length>=i+2) {
+			instance.mode = Integer.parseInt(args[i++]);
+			instance.minQuality = Short.parseShort(args[i++]);
+		}
+	}
+	
+	public void run () throws IOException {
+		if (inputFile == null) throw new IOException("The input (test) VCF file is a required parameter");
+		if (gsFile == null) throw new IOException("The gold standard VCF file is a required parameter");
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		compareFiles(inputFile,gsFile);
+		if (outputFile==null) printStatistics (System.out);
+		else {
+			try(PrintStream out = new PrintStream(outputFile)) {
+				printStatistics (out);
 			}
 		}
-		
 	}
 
 	public void compareFiles(String vcfGS, String vcfTest) throws IOException {
@@ -339,6 +305,45 @@ public class VCFGoldStandardComparator {
 			}
 			processClusterCalls (gsCalls, clusterFirst, sequenceNames.get(sequenceIdx).getLength(), clusterType, testCallsSequence, confidenceRegionsSeq, seqLen );
 		}
+	}
+	
+	private void loadConfidenceRegionsFromVCF(String filename, QualifiedSequenceList sequenceNames) throws IOException {
+		confidenceRegions = new HashMap<>();
+		confidenceRegionsLength = 0;
+		try (VCFFileReader in = new VCFFileReader(filename)) {
+			in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
+			in.setSequences(sequenceNames);
+			String sequenceName = null;
+			List<GenomicRegion> regionsSeq = null;
+			GenomicRegionImpl r = null;
+			Iterator<VCFRecord> it = in.iterator();
+			while(it.hasNext()) {
+				VCFRecord record = it.next();
+				CalledGenomicVariant call = record.getCalls().get(0); 
+				if(call.isUndecided()) continue;
+				if(sequenceName==null || !sequenceName.equals(call.getSequenceName())) {
+					if(r!=null) {
+						regionsSeq.add(r);
+						confidenceRegionsLength+=r.length();
+					}
+					sequenceName = call.getSequenceName();
+					regionsSeq =  new ArrayList<>();
+					confidenceRegions.put(sequenceName, regionsSeq);
+					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
+				} else if( r.getLast()<record.getFirst()-1) {
+					regionsSeq.add(r);
+					confidenceRegionsLength+=r.length();
+					r = new GenomicRegionImpl(sequenceName, record.getFirst(), record.getLast());
+				} else {
+					r.setLast(Math.max(r.getLast(), record.getLast()));
+				}
+			}
+			if(r!=null) {
+				regionsSeq.add(r);
+				confidenceRegionsLength+=r.length();
+			}
+		}
+		
 	}
 
 	private VCFRecord loadTestCallsSequence(Iterator<VCFRecord> itTest, String seqName, LinkedList<CalledGenomicVariant> testCallsSequence) {

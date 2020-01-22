@@ -553,8 +553,11 @@ Input BAM file with read alignments
 <option id="o" type="FILE" attribute="outputFile">
 Output VCF file with phased variants
 </option>
-<option id="a" type="STRING" default="Refhap" attribute="AlgorithmName">
+<option id="a" type="STRING" attribute="algorithmName" defaultConstant="DEF_ALGORITHM_NAME" >
 Algorithm for single individual haplotyping. It can be Refhap or DGS
+</option>
+<option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ">
+Minimum mapping quality to call an alignment unique
 </option>
 </command>
 
@@ -1146,44 +1149,45 @@ Runs a window-based analysis to identify the most common haplotype within each o
 populations described in the given populations file and then identify common haplotypes
 of one population introgressed in samples of a different population. Although it can be
 run on any VCF file, it is particularly designed to work with populations of inbred
-samples. 
+samples.
+Reads from standard input unless the -i option is used to specify an input file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
 </option>
-<option id="p" type="FILE" attribute="populationFile">
+<option id="p" type="FILE" attribute="populationsFile">
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files. 
 </option>
-<option id="g" type="DOUBLE" default="80" attribute="minPctGenotyped">
+<option id="g" type="DOUBLE" attribute="minPCTGenotyped" defaultConstant="DEF_MIN_PCT_GENOTYPED">
 Minimum percentage of samples genotyped within a population to identify the most common
 allele.
 </option>
-<option id="d" type="DOUBLE" default="0.6" attribute="minDiffAF">
+<option id="d" type="DOUBLE" attribute="minDiffAF" defaultConstant="DEF_MIN_DIFF_AF">
 Minimum difference between reference allele frequencies of at least two populations
 to consider a variant discriminative.
 </option>
-<option id="m" type="DOUBLE" default="0.4" attribute="maxMAFWithin">
+<option id="m" type="DOUBLE" attribute="maxMAFWithin" defaultConstant="DEF_MAX_MAF_WITHIN">
 Maximum minor allele frequency within a population to consider the major allele of a
 variant as representative allele for such population.
 </option>
-<option id="w" type="INT" default="50" attribute="windowSize">
+<option id="w" type="INT" attribute="windowSize" defaultConstant="DEF_WINDOW_SIZE">
 Window size as number of variants within each window
 </option>
-<option id="v" type="INT" default="0" attribute="overlap">
+<option id="v" type="INT" attribute="overlap" defaultConstant="DEF_OVERLAP">
 Overlap as number of variants shared between neighbor windows
 </option>
-<option id="a" type="INT" default="1" attribute="matchScore">
-Score given of a match between homozygous genotypes comparing haplotypes
+<option id="a" type="INT" attribute="matchScore" defaultConstant="DEF_MATCH_SCORE">
+Score given of a match between a sample homozygous genotype call and a population major allele
 </option>
-<option id="t" type="INT" default="-1" attribute="mismatchScore">
-Score given of a mismatch between homozygous genotypes comparing haplotypes
+<option id="t" type="INT" attribute="mismatchScore" defaultConstant="DEF_MISMATCH_SCORE">
+Score given of a mismatch between a sample homozygous genotype call and a population major allele
 </option>
-<option id="s" type="INT" default="30" attribute="minScore">
-Minimum score to match an individual haplotype with a population-derived haplotype
+<option id="s" type="INT" attribute="minScore" defaultConstant="DEF_MIN_SCORE">
+Minimum score to match a sample haplotype with a population-derived haplotype
 </option>
 <option id="c" type="BOOLEAN" attribute="printVCF">
 Outputs a VCF file with the biallelic variants that showed segregation between at least one
@@ -1194,8 +1198,6 @@ If set, reports introgression events for unassigned haplotypes according to the 
 the options -a -t and -s
 </option>
 </command>
-
-
 
 <command id="CompareRD" class="ngsep.discovery.rd.CNVseqAlgorithm">
 <intro>
@@ -1210,13 +1212,13 @@ Compares the read depth between two samples to identify copy number variation.
 <option id="o" type="FILE" attribute="outputFile">
 File with genomic regions in which the two samples have different read depth
 </option>
-<option id="r" type="FILE" attribute="genomeFile">
+<option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
-<option id="w" type="INT" defaultConstant="DEF_WINDOW_SIZE" attribute="windowSize">
+<option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
 Window size to be used during the read depth comparison.
 </option>
-<option id="p" type="FLOAT" defaultConstant="DEF_MAX_PVALUE">
+<option id="p" type="DOUBLE" attribute="maxPValue" defaultConstant="DEF_MAX_PVALUE">
 Maximum p-value. Only the windows with a p-value lower than that specified will be reported.
 </option>
 <option id="a" type="BOOLEAN" attribute="printAllWindows">
@@ -1225,7 +1227,7 @@ Output an entry for every window in the genome.
 <option id="c" type="BOOLEAN" attribute="gcCorrection">
 Perform GC-correction of the read depth.
 </option>
-<option id="b" type="BOOLEAN" attribute="performBonferroni">
+<option id="b" type="BOOLEAN" attribute="bonferroni">
 Perform the Bonferroni correction for multiple testing.
 </option>
 </command>
@@ -1255,12 +1257,12 @@ Maximum read depth
 <option id="q" type="INT" default="20" attribute="minBaseQualityScore">
 Minimum base quality score (Phred scale)
 </option>
-<option id="frs" type="FILE" attribute="filterRegionsFile">
+<option id="frs" type="FILE" attribute="regionsToFilter">
 File with repeats (or any kind of genomic regions) that should not be taken into account in the analysis.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
-<option id="srs" type="FILE" attribute="selectRegionsFile">
+<option id="srs" type="FILE" attribute="regionsToSelect">
 File with genomic regions that should be taken into account in the analysis.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
@@ -1345,6 +1347,7 @@ Compares a gold standard phased VCF with a VCF with test genotype calls
 Takes a VCF file with genotype information from one sample, the reference genome used to build
 the VCF and a phased VCF file with gold standard calls and calculates quality statistics
 comparing gold-standard with test calls. See the README.txt file for details on the output.
+Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input test file in VCF format. It can be gzip compressed.
@@ -1354,6 +1357,9 @@ Gold standard file in VCF format. It can be gzip compressed.
 </option>
 <option id="r" type="FILE" attribute="genomeFile">
 Fasta file with the reference genome.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with statistics. 
 </option>
 <option id="c" type="FILE" attribute="complexRegions">
 File with coordinates of complex regions (such as STRs)

@@ -449,7 +449,7 @@ public class VCFFilter {
 		if(inputFile != null) out.println("Input file: "+inputFile);
 		else out.println("System standard input");
 		if(outputFile != null) out.println("Output file: "+outputFile);
-		else out.println("System standard output");
+		else out.println("Write to standard output");
 		out.println("Genotype filters");
 		out.println("Minimum genotype quality: "+minGenotypeQuality);
 		out.println("Minimum read depth: "+minReadDepth);

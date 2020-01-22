@@ -1,4 +1,5 @@
 package ngsep.discovery;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DecimalFormat;
@@ -12,6 +13,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
@@ -21,21 +23,30 @@ import ngsep.sequences.QualifiedSequence;
 
 public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 
+	// Constants for default values
+	public static final int DEF_MIN_RD = 10;
+	public static final int DEF_MAX_RD = 1000;
+	public static final int DEF_MIN_BASE_QUALITY_SCORE = 20;
+	
+	
+	// Logging and progress
 	private Logger log = Logger.getLogger(BAMRelativeAlleleCountsCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
-	
 	private long coveredGenomeSize = 0;
-	private AlignmentsPileupGenerator generator;
-	private GenomicRegionSortedCollection<GenomicRegion> repeats;
-	private GenomicRegionSortedCollection<GenomicRegion> selectedRegions;
 	
-	
-	private int minRD = 10;
-	private int maxRD = 1000;
-	private int minBaseQualityScore = 20;
-	private String repeatsFile = null;
-	private String selectedRegionsFile = null;
+	// Parameters
+	private String inputFile = null;
+	private String outputFile;
+	private int minRD = DEF_MIN_RD;
+	private int maxRD = DEF_MAX_RD;
+	private int minBaseQualityScore = DEF_MIN_BASE_QUALITY_SCORE;
+	private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
+	private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
 	private boolean secondaryAlns = false;
+	
+	// Model attributes
+	private AlignmentsPileupGenerator generator;
+	
 	
 	private Distribution distProp = new Distribution(0, 0.5, 0.01);
 	private List<String> sequenceNamesList = new ArrayList<>();
@@ -45,18 +56,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	
 	private static DecimalFormat format = new DecimalFormat("##0.0#");
 	
-	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception {
-		BAMRelativeAlleleCountsCalculator instance = new BAMRelativeAlleleCountsCalculator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		
-		String filename = args[i++];
-		instance.runProcess(filename);
-		instance.printResults(System.out);
-	}
+	// Get and set methods
 	
 	public Logger getLog() {
 		return log;
@@ -72,58 +72,82 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		this.progressNotifier = progressNotifier;
 	}
 	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
 	public int getMinRD() {
 		return minRD;
 	}
-
 	public void setMinRD(int minRD) {
 		this.minRD = minRD;
 	}
-	
-	public void setMinRD(Integer minRD) {
-		this.setMinRD(minRD.intValue());
+	public void setMinRD(String value) {
+		this.setMinRD((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public int getMaxRD() {
 		return maxRD;
 	}
-
 	public void setMaxRD(int maxRD) {
 		this.maxRD = maxRD;
 	}
-
-	public void setMaxRD(Integer maxRD) {
-		this.setMaxRD(maxRD.intValue());
+	public void setMaxRD(String value) {
+		this.setMaxRD((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public int getMinBaseQualityScore() {
 		return minBaseQualityScore;
 	}
-
 	public void setMinBaseQualityScore(int minBaseQualityScore) {
 		this.minBaseQualityScore = minBaseQualityScore;
 	}
-	
-	public void setMinBaseQualityScore(Integer minBaseQualityScore) {
-		this.setMinBaseQualityScore(minBaseQualityScore.intValue());
-	}
-
-	public String getRepeatsFile() {
-		return repeatsFile;
-	}
-
-	public void setRepeatsFile(String repeatsFile) {
-		this.repeatsFile = repeatsFile;
-	}
-
-	public String getSelectedRegionsFile() {
-		return selectedRegionsFile;
+	public void setMinBaseQualityScore(String value) {
+		this.setMinBaseQualityScore((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public void setSelectedRegionsFile(String selectedRegionsFile) {
-		this.selectedRegionsFile = selectedRegionsFile;
+	public GenomicRegionSortedCollection<GenomicRegion> getRegionsToFilter() {
+		return regionsToFilter;
 	}
-
+	public void setRegionsToFilter(GenomicRegionSortedCollection<GenomicRegion> regionsToFilter) {
+		this.regionsToFilter = regionsToFilter;
+	}
+	public void setRegionsToFilter(String regionsFile) throws IOException {
+		if(regionsFile==null || regionsFile.length()==0) {
+			this.regionsToFilter = null;
+			return;
+		}
+		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
+		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
+		this.regionsToFilter = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+	
+	public GenomicRegionSortedCollection<GenomicRegion> getRegionsToSelect() {
+		return regionsToSelect;
+	}
+	public void setRegionsToSelect(GenomicRegionSortedCollection<GenomicRegion> regionsToSelect) {
+		this.regionsToSelect = regionsToSelect;
+	}
+	public void setRegionsToSelect(String regionsFile) throws IOException {
+		if(regionsFile==null || regionsFile.length()==0) {
+			this.regionsToSelect = null;
+			return;
+		}
+		SimpleGenomicRegionFileHandler regionFileHandler = new SimpleGenomicRegionFileHandler();
+		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
+		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
+	}
+	
 	public boolean isSecondaryAlns() {
 		return secondaryAlns;
 	}
@@ -136,6 +160,40 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		this.setSecondaryAlns(secondaryAlns.booleanValue());
 	}
 	
+	public static void main(String[] args) throws Exception {
+		BAMRelativeAlleleCountsCalculator instance = new BAMRelativeAlleleCountsCalculator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run () throws IOException {
+		logParameters();
+		if (inputFile == null) throw new IOException("The alignments input file is a required parameter");
+		runProcess(inputFile);
+		if (outputFile==null ) printResults(System.out);
+		else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				printResults(out);
+			}
+		}
+		log.info("Process finished");
+	}
+	
+	private void logParameters () {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input file: "+inputFile);
+		if(outputFile != null) out.println("Output file: "+outputFile);
+		else out.println("Write to standard output");
+		out.println("Minimum read depth: "+getMinRD());
+		out.println("Maximum read depth: "+getMaxRD());
+		out.println("Minimum base quality score: "+getMinBaseQualityScore());
+		if (regionsToFilter!=null) out.println("Loaded "+regionsToFilter.size()+" regions to filter");
+		if (regionsToSelect!=null) out.println("Loaded "+regionsToSelect.size()+" regions to select");
+		if (secondaryAlns) out.println("Include secondary alignments");
+		log.info(""+os.toString());
+	}
+	
 	public void runProcess (String filename) throws IOException {
 		coveredGenomeSize = 0;
 		generator = new AlignmentsPileupGenerator();
@@ -143,16 +201,6 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		generator.setLog(log);
 		generator.setProcessSecondaryAlignments(secondaryAlns);
 		generator.setMaxAlnsPerStartPos(maxRD);
-		if(repeatsFile!=null) {
-			repeats = new GenomicRegionSortedCollection<GenomicRegion>();
-			SimpleGenomicRegionFileHandler grfh = new SimpleGenomicRegionFileHandler();
-			repeats.addAll(grfh.loadRegions(repeatsFile));
-		}
-		if(selectedRegionsFile!=null) {
-			SimpleGenomicRegionFileHandler grfh = new SimpleGenomicRegionFileHandler();
-			selectedRegions = new GenomicRegionSortedCollection<GenomicRegion>();
-			selectedRegions.addAll(grfh.loadRegions(selectedRegionsFile));
-		}
 		generator.processFile(filename);
 		
 	}
@@ -183,12 +231,12 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		if(repeats!=null) {
-			GenomicRegionSortedCollection<GenomicRegion> spanningRepeats = repeats.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition());
-			if(spanningRepeats.size()>0) return;
+		if(regionsToFilter!=null) {
+			GenomicRegionSortedCollection<GenomicRegion> spanningFilterRegions = regionsToFilter.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition());
+			if(spanningFilterRegions.size()>0) return;
 		}
-		if(selectedRegions!=null) {
-			GenomicRegionSortedCollection<GenomicRegion> spanningRegions = selectedRegions.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition());
+		if(regionsToSelect!=null) {
+			GenomicRegionSortedCollection<GenomicRegion> spanningRegions = regionsToSelect.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition());
 			if(spanningRegions.size()==0) return;
 		}
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
