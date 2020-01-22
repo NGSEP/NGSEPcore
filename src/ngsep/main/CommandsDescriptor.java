@@ -80,23 +80,13 @@ public class CommandsDescriptor {
 	 * Loads the commands descriptor XML
 	 */
 	private void load() {
-		InputStream is = null;
+		
 		Document doc;
-		try {
-			is = this.getClass().getResourceAsStream(resource);
-			if(is==null) throw new RuntimeException("Commands descriptor can not be found");
+		try (InputStream is = this.getClass().getResourceAsStream(resource)) { 
 			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			doc = documentBuilder.parse(new InputSource(is));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
-		} finally {
-			if(is!=null) {
-				try {
-					is.close();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			}
 		}
 		Element rootElement = doc.getDocumentElement();
 		swVersion = rootElement.getAttribute(ATTRIBUTE_VERSION);

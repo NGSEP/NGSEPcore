@@ -1281,7 +1281,7 @@ Simulates a single individual with homozygous and heterozygous mutations from a 
 This simulator takes a (haploid) genome assembly and simulates a single individual including
 homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative to the input assembly.
 </description>
-<option id="i" type="FILE" attribute="inputFile">
+<option id="i" type="FILE" attribute="genome">
 Fasta file with the genome to simulate an individual
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">

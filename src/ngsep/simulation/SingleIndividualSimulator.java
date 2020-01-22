@@ -20,6 +20,7 @@
 package ngsep.simulation;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -52,9 +53,7 @@ import ngsep.vcf.VCFRecord;
 
 public class SingleIndividualSimulator {
 
-	private Logger log = Logger.getLogger(SingleIndividualSimulator.class.getName());
-	private ProgressNotifier progressNotifier=null;
-	
+	// Constants for default values
 	public static final double DEF_SNV_RATE=0.001;
 	public static final double DEF_INDEL_RATE=0.0001;
 	public static final double DEF_MUTATED_STR_FRACTION=0.1;
@@ -62,8 +61,22 @@ public class SingleIndividualSimulator {
 	public static final byte DEF_PLOIDY=2;
 	public static final String DEF_SAMPLE_ID="Simulated";
 	
+	// Logging and progress
+	private Logger log = Logger.getLogger(SingleIndividualSimulator.class.getName());
+	private ProgressNotifier progressNotifier=null;
 	
+	// Parameters
 	private ReferenceGenome genome;
+	private String outputPrefix = null;
+	private double snvRate = DEF_SNV_RATE;
+	private double indelRate = DEF_INDEL_RATE;
+	private double mutatedSTRFraction = DEF_MUTATED_STR_FRACTION;
+	private String strsFile = null;
+	private int strUnitIndex = DEF_STR_UNIT_INDEX;
+	private String sampleId = DEF_SAMPLE_ID;
+	private byte ploidy = DEF_PLOIDY;
+	
+	// Model attributes
 	private GenomicRegionSortedCollection<SNV> snvs;
 	private GenomicRegionSortedCollection<GenomicVariant> indels;
 	private GenomicRegionSortedCollection<STR> strs;
@@ -72,75 +85,41 @@ public class SingleIndividualSimulator {
 	private List<CalledGenomicVariant> genomicCalls;
 	private List<QualifiedSequence> individualGenome;
 	
-	private double snvRate = DEF_SNV_RATE;
-	private double indelRate = DEF_INDEL_RATE;
-	private double mutatedSTRFraction = DEF_MUTATED_STR_FRACTION;
-	private byte ploidy = DEF_PLOIDY;
-	private int strUnitIndex = DEF_STR_UNIT_INDEX;
-	private String sampleId = DEF_SAMPLE_ID;
-	private String strsFile = null;
-	
-	
-
-	public static void main(String[] args) throws Exception {
-		SingleIndividualSimulator instance = new SingleIndividualSimulator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.genome = new ReferenceGenome(args[i++]);
-		String outPrefix = args[i++];
-		instance.runSimulation(outPrefix);
-	}	
-	/**
-	 * @return the log
-	 */
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-	/**
-	 * @param log the log to set
-	 */
 	public void setLog(Logger log) {
 		this.log = log;
 	}
 
-	/**
-	 * @return the progressNotifier
-	 */
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
 
-	/**
-	 * @return the genome
-	 */
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-
-	/**
-	 * @param genome the genome to set
-	 */
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
-
-	/**
-	 * @return the snvRate
-	 */
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	
 	public double getSnvRate() {
 		return snvRate;
 	}
-
-	/**
-	 * @param snvRate the snvRate to set
-	 */
 	public void setSnvRate(double snvRate) {
 		this.snvRate = snvRate;
 	}
@@ -148,127 +127,96 @@ public class SingleIndividualSimulator {
 		this.setSnvRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
-	/**
-	 * @return the indelRate
-	 */
 	public double getIndelRate() {
 		return indelRate;
 	}
-
-	/**
-	 * @param indelRate the indelRate to set
-	 */
 	public void setIndelRate(double indelRate) {
 		this.indelRate = indelRate;
 	}
-	
 	public void setIndelRate(String value) {
 		this.setIndelRate((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
-	/**
-	 * @return the mutatedSTRFraction
-	 */
 	public double getMutatedSTRFraction() {
 		return mutatedSTRFraction;
 	}
-
-	/**
-	 * @param mutatedSTRFraction the mutatedSTRFraction to set
-	 */
 	public void setMutatedSTRFraction(double mutatedSTRFraction) {
 		this.mutatedSTRFraction = mutatedSTRFraction;
 	}
-	
 	public void setMutatedSTRFraction(String value) {
 		this.setMutatedSTRFraction((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
-	/**
-	 * @return the ploidy
-	 */
 	public byte getPloidy() {
 		return ploidy;
 	}
-
-	/**
-	 * @param ploidy the ploidy to set
-	 */
 	public void setPloidy(byte ploidy) {
 		this.ploidy = ploidy;
 	}
-	
 	public void setPloidy(String value) {
 		this.setPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 
-	/**
-	 * @return the strUnitIndex
-	 */
 	public int getStrUnitIndex() {
 		return strUnitIndex;
 	}
-
-	/**
-	 * @param strUnitIndex the strUnitIndex to set
-	 */
 	public void setStrUnitIndex(int strUnitIndex) {
 		this.strUnitIndex = strUnitIndex;
 	}
-	
 	public void setStrUnitIndex(String value) {
 		this.setStrUnitIndex((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	/**
-	 * @return the sampleId
-	 */
 	public String getSampleId() {
 		return sampleId;
 	}
-
-	/**
-	 * @param sampleId the sampleId to set
-	 */
 	public void setSampleId(String sampleId) {
 		this.sampleId = sampleId;
 	}
 	
-	/**
-	 * @return the strsFile
-	 */
 	public String getStrsFile() {
 		return strsFile;
 	}
-
-	/**
-	 * @param strsFile the strsFile to set
-	 */
 	public void setStrsFile(String strsFile) {
 		this.strsFile = strsFile;
 	}
 	
-	public void runSimulation(String outPrefix) throws IOException {
+	public static void main(String[] args) throws Exception {
+		SingleIndividualSimulator instance = new SingleIndividualSimulator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run() throws IOException {
 		logParameters();
+		if(genome==null) throw new IOException("A file with the reference genome is a required parameter");
+		if(outputPrefix==null) throw new IOException("A prefix for the output files is a required parameter");
 		loadSTRs();
 		simulateVariants();
 		buildAssembly();
-		try (PrintStream outGenome = new PrintStream(outPrefix+".fa")) {
+		try (PrintStream outGenome = new PrintStream(outputPrefix+".fa")) {
 			saveIndividualGenome(outGenome);
 		}
-		try (PrintStream outVariants = new PrintStream(outPrefix+".vcf")) {
+		try (PrintStream outVariants = new PrintStream(outputPrefix+".vcf")) {
 			saveVariants(outVariants);
 		}
 	}
 
 	public void logParameters() {
-		log.info("SNV rate: "+snvRate);
-		log.info("Indel rate: "+indelRate);
-		log.info("Mutated STR fraction: "+mutatedSTRFraction);
-		log.info("Ploidy: "+ploidy);
-		log.info("Sample id: "+sampleId);
-		log.info("STRs file: "+strsFile);
-		log.info("STRs unit sequence column: "+strUnitIndex);
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if (genome!=null) out.println("Genome for simulation loaded from file: "+genome.getFilename());
+		out.println("Prefix of the output files:"+ outputPrefix);
+		out.println("SNV rate: "+snvRate);
+		out.println("Indel rate: "+indelRate);
+		if(strsFile!=null) {
+			out.println("Mutated STR fraction: "+mutatedSTRFraction);
+			out.println("Load STRs from: "+strsFile);
+			out.println("Column within the STRs file with the unit sequence (zero-based): "+strUnitIndex);
+		}
+		out.println("Sample id: "+sampleId);
+		out.println("Ploidy: "+ploidy);
+		log.info(os.toString());
 	}
 	public void loadSTRs() throws IOException {
 		if(strsFile==null) return; 
