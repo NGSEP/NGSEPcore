@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -38,6 +39,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
 import ngsep.variants.CalledGenomicVariant;
@@ -53,9 +55,7 @@ import ngsep.variants.io.SimpleSamplesFileHandler;
  */
 public class VCFWindowIntrogressionAnalysis {
 	
-	private Logger log = Logger.getLogger(VCFWindowIntrogressionAnalysis.class.getName());
-	private ProgressNotifier progressNotifier=null;
-	
+	// Constants for default values
 	public static final double DEF_MIN_PCT_GENOTYPED = 80;
 	public static final double DEF_MIN_DIFF_AF = 0.6;
 	public static final double DEF_MAX_MAF_WITHIN = 0.4;
@@ -64,15 +64,19 @@ public class VCFWindowIntrogressionAnalysis {
 	public static final int DEF_MATCH_SCORE = 1;
 	public static final int DEF_MISMATCH_SCORE = -1;
 	public static final int DEF_MIN_SCORE = 30;
-	
 	public static final String UNASSIGNED_GROUP_ID="U";
 	
+	// Logging and progress
+	private Logger log = Logger.getLogger(VCFWindowIntrogressionAnalysis.class.getName());
+	private ProgressNotifier progressNotifier=null;
 
+	// Parameters
+	private String inputFile;
 	private String populationsFile;
-	private double minPctGenotyped = DEF_MIN_PCT_GENOTYPED;
+	private String outputPrefix;
+	private double minPCTGenotyped = DEF_MIN_PCT_GENOTYPED;
 	private double minDiffAF = DEF_MIN_DIFF_AF;
 	private double maxMAFWithin = DEF_MAX_MAF_WITHIN;
-	private String outPrefix;
 	private int windowSize = DEF_WINDOW_SIZE;
 	private int overlap = DEF_OVERLAP;
 	private int matchScore = DEF_MATCH_SCORE;
@@ -81,11 +85,13 @@ public class VCFWindowIntrogressionAnalysis {
 	private boolean printVCF = false;
 	private boolean printUnassigned = false;
 	
+	// Model attributes
 	private Queue<WindowScores> currentWindows = new LinkedList<WindowScores>();
 	private int [][] assignmentStats;
 	private Introgression [] currentIntrogressions;
 	private List<Introgression> sequenceIntrogressions;
 	
+	// Get and set methds
 	public Logger getLog() {
 		return log;
 	}
@@ -100,53 +106,65 @@ public class VCFWindowIntrogressionAnalysis {
 		this.progressNotifier = progressNotifier;
 	}
 	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
 	public String getPopulationsFile() {
 		return populationsFile;
 	}
 	public void setPopulationsFile(String populationsFile) {
 		this.populationsFile = populationsFile;
 	}
-	public double getMinPctGenotyped() {
-		return minPctGenotyped;
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
 	}
-	public void setMinPctGenotyped(double minPctGenotyped) {
-		this.minPctGenotyped = minPctGenotyped;
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
 	}
-	public void setMinPctGenotyped(Double minPctGenotyped) {
-		setMinPctGenotyped(minPctGenotyped.doubleValue());
+	
+	public double getMinPCTGenotyped() {
+		return minPCTGenotyped;
 	}
+	public void setMinPCTGenotyped(double minPctGenotyped) {
+		this.minPCTGenotyped = minPctGenotyped;
+	}
+	public void setMinPCTGenotyped(String value) {
+		setMinPCTGenotyped((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+	
 	public double getMinDiffAF() {
 		return minDiffAF;
 	}
 	public void setMinDiffAF(double minDiffAF) {
 		this.minDiffAF = minDiffAF;
 	}
-	public void setMinDiffAF(Double minDiffAF) {
-		this.setMinDiffAF(minDiffAF.doubleValue());
+	public void setMinDiffAF(String value) {
+		this.setMinDiffAF((double)OptionValuesDecoder.decode(value, Double.class));
 	}
+	
 	public double getMaxMAFWithin() {
 		return maxMAFWithin;
 	}
 	public void setMaxMAFWithin(double maxMAFWithinPops) {
 		this.maxMAFWithin = maxMAFWithinPops;
 	}
-	public void setMaxMAFWithin(Double maxMAFWithinPops) {
-		this.setMaxMAFWithin(maxMAFWithinPops.doubleValue());
+	public void setMaxMAFWithin(String value) {
+		this.setMaxMAFWithin((double)OptionValuesDecoder.decode(value, Double.class));
 	}
-	public String getOutPrefix() {
-		return outPrefix;
-	}
-	public void setOutPrefix(String outPrefix) {
-		this.outPrefix = outPrefix;
-	}
+	
 	public int getWindowSize() {
 		return windowSize;
 	}
 	public void setWindowSize(int windowSize) {
 		this.windowSize = windowSize;
 	}
-	public void setWindowSize(Integer windowSize) {
-		this.setWindowSize(windowSize.intValue());
+	public void setWindowSize(String value) {
+		this.setWindowSize((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	public int getOverlap() {
 		return overlap;
@@ -154,8 +172,8 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setOverlap(int overlap) {
 		this.overlap = overlap;
 	}
-	public void setOverlap(Integer overlap) {
-		this.setOverlap(overlap.intValue());
+	public void setOverlap(String value) {
+		this.setOverlap((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	public int getMatchScore() {
 		return matchScore;
@@ -163,8 +181,8 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setMatchScore(int matchScore) {
 		this.matchScore = matchScore;
 	}
-	public void setMatchScore(Integer matchScore) {
-		this.setMatchScore(matchScore.intValue());
+	public void setMatchScore(String value) {
+		this.setMatchScore((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	public int getMismatchScore() {
 		return mismatchScore;
@@ -172,8 +190,8 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setMismatchScore(int mismatchScore) {
 		this.mismatchScore = mismatchScore;
 	}
-	public void setMismatchScore(Integer mismatchScore) {
-		this.setMismatchScore(mismatchScore.intValue());
+	public void setMismatchScore(String value) {
+		this.setMismatchScore((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	public int getMinScore() {
 		return minScore;
@@ -181,8 +199,8 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setMinScore(int minScore) {
 		this.minScore = minScore;
 	}
-	public void setMinScore(Integer minScore) {
-		this.setMinScore(minScore.intValue());
+	public void setMinScore(String value) {
+		this.setMinScore((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public boolean isPrintVCF() {
@@ -194,6 +212,7 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setPrintVCF(Boolean printVCF) {
 		this.setPrintVCF(printVCF.booleanValue());
 	}
+	
 	public boolean isPrintUnassigned() {
 		return printUnassigned;
 	}
@@ -203,52 +222,68 @@ public class VCFWindowIntrogressionAnalysis {
 	public void setPrintUnassigned(Boolean printUnassigned) {
 		this.setPrintUnassigned(printUnassigned.booleanValue());
 	}
+	
 	public static void main(String[] args) throws Exception {
 		VCFWindowIntrogressionAnalysis instance = new VCFWindowIntrogressionAnalysis();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		
-		boolean systemInput = "-".equals(args[i]);
-		String vcfFile = null;
-		if(!systemInput) vcfFile = args[i++]; 
-		instance.populationsFile = args[i++];
-		instance.outPrefix = args[i++];
-		if(systemInput) {
-			instance.runIntrogressions(System.in);
-		} else {
-			instance.runIntrogressions(vcfFile);
-		}
+		
 	}
+	
+	public void run () throws IOException {
+		logParameters();
+		if(outputPrefix == null) throw new IOException("The prefix of the output files is a required parameter");
+		if(populationsFile==null) throw new IOException("The fie with the description of the populations is a required parameter");
+		if(inputFile == null) {
+			runIntrogressions(System.in);
+		} else {
+			runIntrogressions(inputFile);
+		}
+		log.info("Process finished");
+	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("VCF input file: "+inputFile);
+		else out.println("Read variants from standard input");
+		out.println("Populations information file: "+getPopulationsFile());
+		out.println("Prefix for output files: "+outputPrefix);
+		out.println("Minimim percentage of variants genotyped: "+getMinPCTGenotyped());
+		out.println("Minimum difference in allele frequencies to call a variant segregating: "+getMinDiffAF());
+		out.println("Maximum MAF within a group to call a variant segregating: "+getMaxMAFWithin());
+		out.println("Number of variants per window: "+getWindowSize());
+		out.println("Overlap between windows: "+getOverlap());
+		out.println("Score for a genotype match between a sample haplotype and a population major allele: "+getMatchScore());
+		out.println("Score for a genotype mismatch between a sample haplotype and a population major allele: "+getMismatchScore());
+		out.println("Minimum score to assign a sample haplotype to a population: "+getMinScore());
+		if (printVCF) out.println("Output a VCF file with the variants showing segregation between at least two populations");
+		if (printUnassigned) out.println("Report introgression events for unassigned haplotypes");
+		log.info(""+os.toString());
+	}
+	
 	public void runIntrogressions(InputStream is) throws IOException{
-		VCFFileReader reader = null;
-		try {
-			reader = new VCFFileReader(is);
+		try (VCFFileReader reader = new VCFFileReader(is)){
 			runIntrogressions(reader);
-		} finally {
-			if(reader!=null) reader.close();
 		}
 	}
 	public void runIntrogressions(String vcfFile) throws IOException {
-		VCFFileReader reader = null;
-		try {
-			reader = new VCFFileReader(vcfFile);
-			runIntrogressions(reader);
-		} finally {
-			if(reader!=null) reader.close();
-		}
 		
+		try (VCFFileReader reader = new VCFFileReader(vcfFile)){
+			runIntrogressions(reader);
+		}
 	}
 	public void runIntrogressions(VCFFileReader reader) throws IOException {
-		
 		PrintStream outVCF = null;
 		VCFFileWriter writer = new VCFFileWriter();
-		try (PrintStream outAssignments = new PrintStream(outPrefix+"_assignments.txt");
-			 PrintStream outIntrogressions = new PrintStream(outPrefix+"_introgressions.txt");
-			 PrintStream outStatistics = new PrintStream(outPrefix+"_assignmentStats.txt");) {
+		try (PrintStream outAssignments = new PrintStream(outputPrefix+"_assignments.txt");
+			 PrintStream outIntrogressions = new PrintStream(outputPrefix+"_introgressions.txt");
+			 PrintStream outStatistics = new PrintStream(outputPrefix+"_assignmentStats.txt");) {
 			
 			
 			VCFFileHeader header = reader.getHeader();
 			if(printVCF) {
-				outVCF = new PrintStream(outPrefix+"_segregating.vcf");
+				outVCF = new PrintStream(outputPrefix+"_segregating.vcf");
 				writer.printHeader(header, outVCF);
 				reader.setLoadMode(VCFFileReader.LOAD_MODE_QUALITY);
 			} else {
@@ -414,7 +449,7 @@ public class VCFWindowIntrogressionAnalysis {
 			double totalCount = countsRefAllele[i]+countsAltAllele[i]+countsUndecided[i];
 			double genotypedCount = countsRefAllele[i]+countsAltAllele[i];
 			double pctGenoyped = 100.0*genotypedCount/totalCount;
-			if(pctGenoyped<minPctGenotyped) {
+			if(pctGenoyped<minPCTGenotyped) {
 				answer[i]=-1;
 			} else {
 				answer[i] = countsRefAllele[i]/genotypedCount;
@@ -457,7 +492,7 @@ public class VCFWindowIntrogressionAnalysis {
 		int nVars = window.getNumVariants();
 		for(int i=0;i<scores.length;i++) {
 			double g = genotyped[i];
-			if(g*100.0/nVars<minPctGenotyped) {
+			if(g*100.0/nVars<minPCTGenotyped) {
 				outMap.print("\tM");
 				(assignmentStats[i][groupIds.size()])++;
 				processCurrentIntrogressions(i, samples.get(i), window, null);

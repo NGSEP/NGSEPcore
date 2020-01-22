@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ParseUtils;
 import ngsep.math.PhredScoreHelper;
@@ -48,24 +49,36 @@ public class CNVseqAlgorithm {
 	//								ATTRIBUTES
 	//------------------------------------------------------------------------------------------------------------------------------------------------
 	
+	// Constants for default values
 	public static final int DEF_WINDOW_SIZE = 100;
 	public static final double DEF_MAX_PVALUE = 0.001;
-	
-	// file management
-	// input
-	private String reference;
-	private String bamXfile;
-	ReadDepthDistribution sampleX;
-	private String bamYfile;
-	ReadDepthDistribution sampleY;
-	// output
-	private static Logger log = Logger.getLogger(CNVseqAlgorithm.class.getName());
-	private String outFile;
 	public static final String EMPTY="*";
 	public static final String SEP="\t";
-    private ProgressNotifier progressNotifier=null;
-    private int progress = 0;
-
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(CNVseqAlgorithm.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	private int progress = 0;
+	
+	// Parameters
+	// input
+	private String bamXfile;
+	private String bamYfile;
+	private ReferenceGenome genome;
+	private String outputFile;
+	
+	// optional parameters
+	private double maxPValue = DEF_MAX_PVALUE;
+	private int binSize = DEF_WINDOW_SIZE;
+	private boolean gcCorrection = false;
+	private boolean printAllWindows = false;
+	private boolean bonferroni = false;
+	
+	
+	//Model attributes
+	private ReadDepthDistribution sampleX;
+	private ReadDepthDistribution sampleY;
+	
 	// parameters needed for CNV ratio calculation
 	private long genomeSize;
 	private double readNumX;
@@ -81,12 +94,102 @@ public class CNVseqAlgorithm {
 	private List<Double> ratioRDList;
 	private List<Double> ratioCNVList;
 		
-	// optional parameters
-	private boolean gcCorrection = false;
-	private boolean wholeGenomePrnt = false;
-	private boolean bonferroni = false;
-	private double pValue = DEF_MAX_PVALUE;
-	private int binSize = DEF_WINDOW_SIZE;
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getBamXfile() {
+		return bamXfile;
+	}
+	public void setBamXfile(String bamXfile) {
+		this.bamXfile = bamXfile;
+	}	
+	
+	public String getBamYfile() {
+		return bamYfile;
+	}	
+	public void setBamYfile(String bamYfile) {
+		this.bamYfile = bamYfile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
+	public int getBinSize() {
+		return binSize;
+	}
+	public void setBinSize(int binSize) {
+		this.binSize = binSize;
+	}
+	public void setBinSize(String value) {
+		setBinSize((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public double getMaxPValue() {
+		return maxPValue;
+	}
+	public void setMaxPValue(double maxPValue) {
+		this.maxPValue = maxPValue;
+	}
+	public void setMaxPValue(String value) {
+		setMaxPValue((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+
+	
+	public boolean isPrintAllWindows() {
+		return printAllWindows;
+	}
+	public void setPrintAllWindows(boolean printAllWindows) {
+		this.printAllWindows = printAllWindows;
+	}
+	public void setPrintAllWindows(Boolean printAllWindows) {
+		setPrintAllWindows(printAllWindows.booleanValue());
+	}
+	
+	public boolean isGcCorrection() {
+		return gcCorrection;
+	}
+	public void setGcCorrection(boolean gcCorrection) {
+		this.gcCorrection = gcCorrection;
+	}
+	public void setGcCorrection(Boolean gcCorrection) {
+		setGcCorrection(gcCorrection.booleanValue());
+	}
+	
+	public boolean isBonferroni() {
+		return bonferroni;
+	}
+	public void setBonferroni(boolean bonferroni) {
+		this.bonferroni = bonferroni;
+	}
+	public void setBonferroni(Boolean bonferroni) {
+		setBonferroni(bonferroni.booleanValue());
+	}
 	
 	//------------------------------------------------------------------------------------------------------------------------------------------------
 	//								MAIN METHODS
@@ -94,58 +197,32 @@ public class CNVseqAlgorithm {
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
 	 * @param args
-	 * @throws IOException 
+	 * @throws Exception 
 	 */
-	public static void main(String[] args) throws IOException {
-		if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")){
-			CommandsDescriptor.getInstance().printHelp(CNVseqAlgorithm.class);
-			return;
-		}
-		CNVseqAlgorithm cnvSeq = new CNVseqAlgorithm();
+	public static void main(String[] args) throws Exception {
+		CNVseqAlgorithm instance = new CNVseqAlgorithm();
 
 		// parse arguments from input
-		int i = 0;
-		CNVseqAlgorithm.log.info("Reading from input.");
-		while(i < args.length && args[i].charAt(0) == '-'){
-			if(args[i].equals("-binSize")){
-				i ++;
-				cnvSeq.binSize = Integer.parseInt(args[i]);
-			} else if(args[i].equals("-p")){
-				i ++;
-				cnvSeq.pValue = Double.parseDouble(args[i]);
-			} else if(args[i].equals("-w")){
-				cnvSeq.wholeGenomePrnt = true;
-			} else if(args[i].equals("-g")){
-				cnvSeq.gcCorrection = true;
-			} else if(args[i].equals("-b")){
-				cnvSeq.bonferroni = true;
-			} else {
-				System.err.println("Unrecognized option "+args[i]);
-				CommandsDescriptor.getInstance().printHelp(CNVseqAlgorithm.class);
-				return;
-			}
-			i ++;
-		}
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);;
+		
 		// obtain BAMs and reference file paths
-		cnvSeq.bamXfile = args[i++];
-		cnvSeq.bamYfile = args[i++];
-		cnvSeq.reference = args[i++];
-		cnvSeq.loadFiles(log);
-		
-		// create the output file with the extension .cnvSeq
-		cnvSeq.outFile = args[i++]+".cnvSeq";
-		cnvSeq.runCNVseq(log);
-		
-		CNVseqAlgorithm.log.info("Done.");
+		if(args.length<i+2) throw new IOException("The BAM files to compare are required parameters");
+		instance.bamXfile = args[i++];
+		instance.bamYfile = args[i++];
+		instance.run();
 	}
 	
-	/**
-	 * Constructor
-	 */
-	public CNVseqAlgorithm(){
-		log.info("Starting CNV-seq");
+	public void run () throws IOException {
+		if (bamXfile == null) throw new IOException("The first BAM file is a required parameter");
+		if (bamYfile == null) throw new IOException("The second BAM file is a required parameter");
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		loadFiles();
+		runCNVseq();
+		log.info("Process finished");
 	}
-
+	
+	
+	
 	//------------------------------------------------------------------------------------------------------------------------------------------------
 	//								EXECUTION METHODS
 	//------------------------------------------------------------------------------------------------------------------------------------------------
@@ -155,22 +232,21 @@ public class CNVseqAlgorithm {
 	 * both ReadDepthDistributions using the bam for each sample
 	 * @throws IOException
 	 */
-	public void loadFiles(Logger log) throws IOException{
+	public void loadFiles() throws IOException{
 		// create the object GenomeAssembly using the reference genome file and set the genomeSize attribute
 		log.info("Loading reference genome.");
 		advanceNotifier();
-		ReferenceGenome refGenome = new ReferenceGenome(reference);
-		log.info("Loaded reference genome. Total number of sequences: "+refGenome.getNumSequences());
-		genomeSize = refGenome.getTotalLength();
+		log.info("Loaded reference genome. Total number of sequences: "+genome.getNumSequences());
+		genomeSize = genome.getTotalLength();
 		
 		// create both instances of ReadDepthDistribution, one for each BAM file
 		log.info("Loading bam file for sample X. This can take a couple of minutes, please wait...");
 		advanceNotifier();
-		sampleX = new ReadDepthDistribution(refGenome, binSize);
+		sampleX = new ReadDepthDistribution(genome, binSize);
 		sampleX.processAlignments(bamXfile);
 		log.info("Loading bam file for sample Y. This can take a couple of minutes, please wait...");
 		advanceNotifier();
-		sampleY = new ReadDepthDistribution(refGenome, binSize);
+		sampleY = new ReadDepthDistribution(genome, binSize);
 		sampleY.processAlignments(bamYfile);
 		readNumX = sampleX.getTotalReads();
 		readNumY = sampleY.getTotalReads();
@@ -182,9 +258,9 @@ public class CNVseqAlgorithm {
 	 * This is the principal method, which executes the whole algorithm
 	 * and call the other methods. 
 	 * @param out
-	 * @throws FileNotFoundException 
+	 * @throws IOException 
 	 */
-	public void runCNVseq(Logger log) throws FileNotFoundException{		
+	public void runCNVseq() throws IOException{		
 		// perform GC correction
 		if(gcCorrection){
 			log.info("Correcting by GC content.");
@@ -221,11 +297,11 @@ public class CNVseqAlgorithm {
 		List<Double> pValueList = calculatePvalue(ratioCNVList, ratioRDList, lambdaX, lambdaY);
 		
 		// print the output
-		if(bonferroni) pValue = pValue / pValueList.size();
-		if(wholeGenomePrnt) pValue = 0.5;
+		if(bonferroni) maxPValue = maxPValue / pValueList.size();
+		if(printAllWindows) maxPValue = 0.5;
 		log.info("Writing CNV list.");
 		advanceNotifier();
-		PrintStream out = new PrintStream(outFile);
+		PrintStream out = new PrintStream(outputFile);
 		printCNVList(seqBinsX, rdListX, rdListY, ratioCNVList, pValueList, out);
 		out.flush();
 		out.close();
@@ -336,10 +412,10 @@ public class CNVseqAlgorithm {
 	 * @post a table is created listing all the information from CNV-seq algorithm. each line is a bin in the genome.
 	 */
 	public void printCNVList(List<ReadDepthBin> posList, List<Double> readDepthX, List<Double> readDepthY, List<Double> cnvRatioList, List<Double> pValueList, PrintStream out) {
-		log.info("The maximum p-value reported is: "+ pValue);
+		log.info("The maximum p-value reported is: "+ maxPValue);
 		DecimalFormat df = ParseUtils.ENGLISHFMT;
 		for ( int i = 0 ; i < posList.size() ; i++) {
-			if(pValueList.get(i) <= pValue){
+			if(pValueList.get(i) <= maxPValue){
 				out.print(posList.get(i).getSequenceName()+SEP);
 				out.print(posList.get(i).getFirst()+SEP);
 				out.print(posList.get(i).getLast()+SEP);
@@ -368,11 +444,11 @@ public class CNVseqAlgorithm {
 	public List<CalledCNV> mergeCNV(List<ReadDepthBin> posList, List<Double> cnvRatioList, List<Double> pValueList){
 		List<CalledCNV> mergedCNVs = new ArrayList<CalledCNV>();
 		for(int i = 0 ; i < posList.size() ; i++){
-			if(pValueList.get(i) < pValue){
+			if(pValueList.get(i) < maxPValue){
 				int startBin = i;
 				double avrgPval = 0;
 				double avrgCNVratio = 0;
-				while(pValueList.get(i) < pValue && posList.get(i).getSequenceName().equals(posList.get(startBin).getSequenceName())){
+				while(pValueList.get(i) < maxPValue && posList.get(i).getSequenceName().equals(posList.get(startBin).getSequenceName())){
 					avrgPval += pValueList.get(i);
 					avrgCNVratio += cnvRatioList.get(i);
 					i++;
@@ -395,100 +471,4 @@ public class CNVseqAlgorithm {
 			return;
 		}
 	}
-	
-	
-	//------------------------------------------------------------------------------------------------------------------------------------------------
-	//								SETTERS AND GETTERS
-	//------------------------------------------------------------------------------------------------------------------------------------------------
-
-	public String getReference() {
-		return reference;
-	}	
-	
-	public void setReference(String reference) {
-		this.reference = reference;
-	}	
-	
-	public String getBamXfile() {
-		return bamXfile;
-	}	
-	
-	public void setBamXfile(String bamXfile) {
-		this.bamXfile = bamXfile;
-	}	
-	
-	public String getBamYfile() {
-		return bamYfile;
-	}	
-	
-	public void setBamYfile(String bamYfile) {
-		this.bamYfile = bamYfile;
-	}	
-	
-	public String getOutFile() {
-		return outFile;
-	}	
-	
-	public void setOutFile(String outFile) {
-		this.outFile = outFile;
-	}	
-	
-	public int getBinSize() {
-		return binSize;
-	}	
-	
-	public void setBinSize(int binSize) {
-		this.binSize = binSize;
-	}	
-	
-	public boolean isGcCorrection() {
-		return gcCorrection;
-	}	
-	
-	public void setGcCorrection(boolean gcCorrection) {
-		this.gcCorrection = gcCorrection;
-	}	
-	
-	public boolean isBonferroni() {
-		return bonferroni;
-	}	
-	
-	public void setBonferroni(boolean bonferroni) {
-		this.bonferroni = bonferroni;
-	}	
-	
-	public boolean isWholeGenomePrnt() {
-		return wholeGenomePrnt;
-	}	
-	
-	public void setWholeGenomePrnt(boolean wholeGenomePrnt) {
-		this.wholeGenomePrnt = wholeGenomePrnt;
-	}	
-	
-	public double getpValue() {
-		return pValue;
-	}	
-	
-	public void setpValue(double pValue) {
-		this.pValue = pValue;
-	}	
-	
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}	
-	
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-	
-	/*
-	 * this methods are thought to be implemented when the optimal window size calculation is done
-
-	public int getBinSize() {
-		return binSize;
-	}
-	public void setBinSize(int binSize) {
-		this.binSize = binSize;
-	}
-	*/
 }

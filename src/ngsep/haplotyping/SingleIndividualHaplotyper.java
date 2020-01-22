@@ -2,14 +2,18 @@ package ngsep.haplotyping;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.Iterator;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
@@ -21,44 +25,94 @@ import ngsep.vcf.VCFRecord;
 
 public class SingleIndividualHaplotyper {
 
-	private String algorithmClassName = "ngsep.haplotyping.RefhapSIHAlgorithm";
+	// Constants for default values
+	public static final String DEF_ALGORITHM_NAME="Refhap";
+	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(SingleIndividualHaplotyper.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private String inputFile = null;
+	private String alignmentsFile = null;
+	private String outputFile = null;
+	private String algorithmName = DEF_ALGORITHM_NAME;
 	private SIHAlgorithm algorithm;
+	private int minMQ = DEF_MIN_MQ;
 	
-	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+
+	public String getAlignmentsFile() {
+		return alignmentsFile;
+	}
+	public void setAlignmentsFile(String alignmentsFile) {
+		this.alignmentsFile = alignmentsFile;
+	}
+
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+
 	
-	public static void main(String[] args) throws Exception {
-		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		
-		String vcfFilename = args[i++];
-		String bamFilename = args[i++];
-		instance.process (vcfFilename,bamFilename,System.out);
+	public String getAlgorithmName() {
+		return algorithmName;
+	}
+	public void setAlgorithmName(String name) {
+		algorithmName = name;
 	}
 	
-	/**
-	 * @return the minMQ
-	 */
 	public int getMinMQ() {
 		return minMQ;
 	}
-
-	/**
-	 * @param minMQ the minMQ to set
-	 */
 	public void setMinMQ(int minMQ) {
 		this.minMQ = minMQ;
 	}
-	
-	/**
-	 * @param minMQ the minMQ to set
-	 */
-	public void setMinMQ(Integer minMQ) {
-		this.setMinMQ(minMQ.intValue());
+	public void setMinMQ(String value) {
+		this.setMinMQ((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public void setAlgorithmName(String name) {
-		algorithmClassName = "ngsep.haplotyping."+name+"SIHAlgorithm";
+	
+	
+	public static void main(String[] args) throws Exception {
+		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		
 	}
+	
+	public void run () throws IOException {
+		if (inputFile == null) throw new IOException("The input VCF file is a required parameter");
+		if (alignmentsFile == null) throw new IOException("The file with read alignments is a required parameter");
+		if(outputFile==null) process (inputFile, alignmentsFile, System.out);
+		else {
+			try (PrintStream out=new PrintStream(outputFile)) {
+				process (inputFile, alignmentsFile, out);
+			}
+		}
+	}
+	
 	/**
 	 * 
 	 * @param vcfFilename Input VCF
@@ -69,16 +123,14 @@ public class SingleIndividualHaplotyper {
 		loadAlgorithm();
 		List<VCFRecord> records = new ArrayList<>();
 		List<CalledGenomicVariant> hetCalls = new ArrayList<>();
-		VCFFileReader inputVCF = null;
-		ReadAlignmentFileReader alnReader = null;
+		
+		
 		VCFFileWriter vcfWriter = new VCFFileWriter();
-		try
-		{
-			inputVCF = new VCFFileReader(vcfFilename);
+		try (VCFFileReader inputVCF = new VCFFileReader(vcfFilename);
+			 ReadAlignmentFileReader alnReader = new ReadAlignmentFileReader(bamFilename)) {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);
-			alnReader = new ReadAlignmentFileReader(bamFilename);
 			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			alnReader.setMinMQ(minMQ);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
@@ -114,16 +166,15 @@ public class SingleIndividualHaplotyper {
 				vcfWriter.printVCFRecords(records, out);
 			}
 		}
-		finally{
-			if(inputVCF!=null) inputVCF.close();
-			if(alnReader!=null) alnReader.close();
-		}
 	}
 	private void loadAlgorithm() throws IOException {
 		try {
-			algorithm = (SIHAlgorithm)Class.forName(algorithmClassName).newInstance();
-		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-			throw new IOException("Can not load algorithm with classname: "+algorithmClassName,e);
+			String algorithmClassName = "ngsep.haplotyping."+algorithmName+"SIHAlgorithm";
+			Class<?> algClass = Class.forName(algorithmClassName);
+			Constructor<?> constructor = algClass.getDeclaredConstructors()[0];
+			algorithm = (SIHAlgorithm) constructor.newInstance();
+		} catch (Exception e) {
+			throw new IOException("Can not load algorithm: "+algorithmName,e);
 		}
 		
 	}

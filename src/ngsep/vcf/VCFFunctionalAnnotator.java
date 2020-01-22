@@ -21,6 +21,7 @@ package ngsep.vcf;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.Collections;
 import java.util.Iterator;
@@ -214,20 +215,13 @@ public class VCFFunctionalAnnotator {
 		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
 		loadMap(transcriptomeFile, genome);
 		if(inputFile==null) {
-			try (VCFFileReader in = new VCFFileReader(System.in)) {
-				if(outputFile == null) annotate(in, System.out);
-				else {
-					try (PrintStream out = new PrintStream(outputFile)) {
-						annotate(in, out);
-					}
-				}
-			}
+			
+			if(outputFile == null) annotate(System.in, System.out);
+			else annotate(System.in, outputFile);
 		} else {
 			if(outputFile == null) annotate(inputFile,System.out);
 			else {
-				try (PrintStream out = new PrintStream(outputFile)) {
-					annotate(inputFile, out);
-				}
+				annotate(inputFile,outputFile);
 			}
 		}
 		log.info("Process finished");
@@ -237,11 +231,11 @@ public class VCFFunctionalAnnotator {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		if(inputFile != null) out.println("Input file: "+inputFile);
-		else out.println("System standard input");
+		else out.println("Read variants from standard input");
 		out.println("GFF transcriptome file: "+transcriptomeFile);
 		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
 		if(outputFile != null) out.println("Output file: "+outputFile);
-		else out.println("System standard output");
+		else out.println("Annotated VCF will be written to standard output");
 		
 		out.println("Upstream offset: "+getOffsetUpstream());
 		out.println("Downstream offset: "+getOffsetDownstream());
@@ -263,6 +257,23 @@ public class VCFFunctionalAnnotator {
 		handler.setLog(log);
 		transcriptome = handler.loadMap(transcriptomeMap);
 		transcriptome.fillSequenceTranscripts(genome, log);
+	}
+	public void annotate(String variantsFile,String outputFile) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(variantsFile);
+			 PrintStream out = new PrintStream(outputFile)){
+			annotate(in,out);
+		}
+	}
+	public void annotate(InputStream input,String outputFile) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(input);
+			 PrintStream out = new PrintStream(outputFile)){
+			annotate(in,out);
+		}
+	}
+	public void annotate(InputStream input, PrintStream out) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(input)) {
+			annotate(in,out);
+		}
 	}
 	public void annotate(String variantsFile,PrintStream out) throws IOException {
 		try (VCFFileReader in = new VCFFileReader(variantsFile)){
