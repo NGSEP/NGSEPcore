@@ -20,6 +20,7 @@
 package ngsep.genome;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,24 +55,78 @@ import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
  */
 public class GenomesAligner {
 
+	// Constants for default values
 	public static final String DEF_OUT_PREFIX = "genomesAlignment";
-	public static final byte DEF_KMER_SIZE = 10;
+	public static final byte DEF_KMER_LENGTH = 10;
 	public static final int DEF_MIN_PCT_KMERS = 50;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
 
-
+	// Logging and progress
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
 	private ProgressNotifier progressNotifier=null;
 
+	// Parameters
 	private List<AnnotatedReferenceGenome> genomes = new ArrayList<>();
-	private String outPrefix = DEF_OUT_PREFIX;
-	private String jsFilename = outPrefix + "_vizVariables.js";
-	private byte kmerSize = DEF_KMER_SIZE;
+	private String outputPrefix = DEF_OUT_PREFIX;
+	private String jsFilename = outputPrefix + "_vizVariables.js";
+	private byte kmerLength = DEF_KMER_LENGTH;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 
 	private List<List<OrthologyUnit>> orthologyUnitClusters=new ArrayList<>();
 
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+		jsFilename = outputPrefix + "_vizVariables.js";
+	}
+
+	public byte getKmerLength() {
+		return kmerLength;
+	}
+	public void setKmerLength(byte kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+	public void setKmerLength(String value) {
+		setKmerLength((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+
+	public int getMinPctKmers() {
+		return minPctKmers;
+	}
+	public void setMinPctKmers(int minPctKmers) {
+		this.minPctKmers = minPctKmers;
+	}
+	public void setMinPctKmers(String value) {
+		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public int getMaxHomologsUnit() {
+		return maxHomologsUnit;
+	}
+	public void setMaxHomologsUnit(int maxHomologsUnit) {
+		this.maxHomologsUnit = maxHomologsUnit;
+	}
+	public void setMaxHomologsUnit(String value) {
+		setMaxHomologsUnit((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public static void main(String[] args) throws Exception 
 	{
 		GenomesAligner instance = new GenomesAligner();
@@ -81,100 +136,28 @@ public class GenomesAligner {
 			String fileTranscriptome = args[i++];
 			instance.loadGenome(fileGenome, fileTranscriptome);
 		}
-		instance.alignGenomes();
-		instance.printAlignmentResults ();
-		instance.log.info("Process finished");
-	}
-
-	/**
-	 * @return the log
-	 */
-	public Logger getLog() {
-		return log;
-	}
-	/**
-	 * @param log the log to set
-	 */
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-
-	/**
-	 * @return the progressNotifier
-	 */
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-
-	/**
-	 * @return the outPrefix
-	 */
-	public String getOutPrefix() {
-		return outPrefix;
-	}
-	/**
-	 * @param outPrefix the outPrefix to set
-	 */
-	public void setOutPrefix(String outPrefix) {
-		this.outPrefix = outPrefix;
-		jsFilename = outPrefix + "_vizVariables.js";
-	}
-
-	/**
-	 * @return the kmerSize
-	 */
-	public byte getKmerSize() {
-		return kmerSize;
-	}
-	/**
-	 * @param kmerSize the kmerSize to set
-	 */
-	public void setKmerSize(byte kmerSize) {
-		this.kmerSize = kmerSize;
-	}
-	public void setKmerSize(String value) {
-		setKmerSize((byte)OptionValuesDecoder.decode(value, Byte.class));
-	}
-
-	/**
-	 * @return the minPctKmers
-	 */
-	public int getMinPctKmers() {
-		return minPctKmers;
-	}
-	/**
-	 * @param minPctKmers the minPctKmers to set
-	 */
-	public void setMinPctKmers(int minPctKmers) {
-		this.minPctKmers = minPctKmers;
-	}
-	public void setMinPctKmers(String value) {
-		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
+		
 	}
 	
-	/**
-	 * @return the maxHomologsUnit
-	 */
-	public int getMaxHomologsUnit() {
-		return maxHomologsUnit;
+	public void run () throws IOException {
+		logParameters ();
+		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
+		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
+		alignGenomes();
+		printAlignmentResults ();
+		log.info("Process finished");
 	}
+	
 
-	/**
-	 * @param maxHomologsUnit the maxHomologsUnit to set
-	 */
-	public void setMaxHomologsUnit(int maxHomologsUnit) {
-		this.maxHomologsUnit = maxHomologsUnit;
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Loaded: "+ genomes.size()+" annotated genomes");
+		out.println("Output prefix:"+ outputPrefix);
+		out.println("K-mer length: "+ getKmerLength());
+		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		log.info(os.toString());
 	}
-	public void setMaxHomologsUnit(String value) {
-		setMaxHomologsUnit((int)OptionValuesDecoder.decode(value, Integer.class));
-	}
-
 	public void loadGenome(String fileGenome, String fileTranscriptome) throws IOException {
 		ReferenceGenome genome = new ReferenceGenome(fileGenome);
 		log.info("Loaded genome "+fileGenome);
@@ -184,7 +167,7 @@ public class GenomesAligner {
 		log.info("Loaded transcriptome "+fileTranscriptome+ " number of transcripts: "+transcriptome.getAllTranscripts().size());
 		AnnotatedReferenceGenome annGenome = new AnnotatedReferenceGenome(genomes.size()+1, genome, transcriptome);
 		log.info("Genome: "+annGenome.getId()+" has "+annGenome.getOrthologyUnits().size()+" total orthology units. Calculating Paralogs");
-		annGenome.calculateParalogs(kmerSize, minPctKmers);
+		annGenome.calculateParalogs(kmerLength, minPctKmers);
 		log.info("Paralogs found for Genome: "+annGenome.getId()+" Unique orthology units: "+annGenome.getUniqueOrthologyUnits().size());
 		genomes.add(annGenome);
 	}
@@ -194,7 +177,7 @@ public class GenomesAligner {
 
 		for(int i=0;i<genomes.size();i++) {
 			for (int j=0;j<genomes.size();j++) {
-				if(i!=j) genomes.get(i).calculateOrthologs(genomes.get(j), kmerSize, minPctKmers);
+				if(i!=j) genomes.get(i).calculateOrthologs(genomes.get(j), kmerLength, minPctKmers);
 			}
 		}
 		calculateOrthologClusters();
@@ -521,7 +504,7 @@ public class GenomesAligner {
 			//Print metadata
 			printGenomeMetadata(id, genome.getSequencesMetadata());
 			// Print paralogs
-			try (PrintStream outParalogs = new PrintStream(outPrefix+"_paralogsG"+id+".tsv");) {
+			try (PrintStream outParalogs = new PrintStream(outputPrefix+"_paralogsG"+id+".tsv");) {
 				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd");
 				for(OrthologyUnit unit:genome.getOrthologyUnits()) {
 					Collection<OrthologyUnit> paralogs = unit.getParalogs(); 
@@ -550,7 +533,7 @@ public class GenomesAligner {
 		}
 
 		//Print ortholog clusters
-		try (PrintStream outClusters = new PrintStream(outPrefix+"_clusters.txt");) {
+		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
 			for(List<OrthologyUnit> cluster:orthologyUnitClusters) {
 				outClusters.print(cluster.get(0).getId());
 				for(int i=1;i<cluster.size();i++) {
@@ -561,7 +544,7 @@ public class GenomesAligner {
 			}
 		}
 
-		try (PrintStream outD3Paralogs = new PrintStream(outPrefix+"_circularParalogView.html");) {
+		try (PrintStream outD3Paralogs = new PrintStream(outputPrefix+"_circularParalogView.html");) {
 			printD3Visualization(outD3Paralogs,"GenomesAlignerCircularParalogVisualizer.js", 5);
 		}
 		
@@ -570,7 +553,7 @@ public class GenomesAligner {
 				AnnotatedReferenceGenome genome = genomes.get(i);
 				int id = genome.getId();
 				// Print orthologs
-				try (PrintStream outOrthologs = new PrintStream(outPrefix+"_orthologsG"+id+".tsv");) {
+				try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_orthologsG"+id+".tsv");) {
 					try (PrintStream outOrthologsJS = new PrintStream(new FileOutputStream(jsFilename, true));) {
 						outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\ttype");
 						outOrthologsJS.println("const orthologsG" + id + " = [");
@@ -582,11 +565,11 @@ public class GenomesAligner {
 				}
 			}
 			//Print D3 visualizations
-			try (PrintStream outD3Linear = new PrintStream(outPrefix+"_linearOrthologView.html");) {
+			try (PrintStream outD3Linear = new PrintStream(outputPrefix+"_linearOrthologView.html");) {
 				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", 5);
 			}
 			
-			try (PrintStream outD3Circular = new PrintStream(outPrefix+"_circularOrthologView.html");) {
+			try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
 				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", 5);
 			}
 		}
@@ -595,7 +578,7 @@ public class GenomesAligner {
 
 	}
 	private void printGenomeMetadata(int id, QualifiedSequenceList sequencesMetadata) throws IOException {
-		String outFilename = outPrefix+"_genome"+id+".tsv";
+		String outFilename = outputPrefix+"_genome"+id+".tsv";
 		try (PrintStream out = new PrintStream(outFilename)) {
 			try (PrintStream outJS = new PrintStream(new FileOutputStream(jsFilename, true))) {
 				outJS.println("const genome" + id + " = [");
