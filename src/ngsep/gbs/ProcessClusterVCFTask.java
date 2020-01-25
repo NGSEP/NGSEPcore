@@ -76,6 +76,7 @@ public class ProcessClusterVCFTask extends Thread {
 		if (outConsensus != null) {
 			synchronized (outConsensus) {
 				writeConsensusFasta();
+				//writeClusterDetails();
 			}
 		}
 		
@@ -97,6 +98,7 @@ public class ProcessClusterVCFTask extends Thread {
 		List<ReadAlignment> readAlignments = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		String consensus = readCluster.getConsensusSequence();
+		int consensusLength = consensus.length();
 		String referenceId = Integer.toString(clusterId);
 		QualifiedSequence refQS = new QualifiedSequence(referenceId, consensus);
 		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
@@ -126,7 +128,12 @@ public class ProcessClusterVCFTask extends Thread {
 		}
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
-		for(int i=1; i<=consensus.length(); i++) {
+		
+		if(readCluster.getBreakPosition() != null) {
+			consensusLength = readCluster.getBreakPosition();
+		} 
+		
+		for(int i=1; i<=consensusLength; i++) {
 			
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			for(ReadAlignment readAlgn:readAlignments) {
@@ -185,8 +192,28 @@ public class ProcessClusterVCFTask extends Thread {
 
 	private void writeConsensusFasta() {
 		outConsensus.println(">Cluster_" + readCluster.getClusterNumber());
-		outConsensus.println(readCluster.getConsensusSequence());
+		if(readCluster.getBreakPosition() != null) {
+			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition()));
+		} else {
+			outConsensus.println(readCluster.getConsensusSequence());
+		}
+		
 	}
+	
+	private void writeClusterDetails() {
+		outConsensus.println("Cluster_" + readCluster.getClusterNumber());
+		if(readCluster.getBreakPosition() != null) {
+			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition()));
+		} else {
+			outConsensus.println(readCluster.getConsensusSequence());
+		}
+		outConsensus.println(readCluster.getBreakPosition());
+		List<RawRead> reads = readCluster.getReads();
+		for(RawRead read: reads) {
+			outConsensus.println(read.getSequenceString());	
+		}
+	}
+	
 	// From MultisampleVariantsDetector.java
 	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum, double h) {
 		

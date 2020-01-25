@@ -21,6 +21,7 @@ package ngsep.gbs;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -267,7 +268,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
-		
+		System.out.print("Running in debugging mode");
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
@@ -286,7 +287,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		kmersMap.dispose();
 		printDistribution();
 		printStatistics("initial");
-		processInfo.addTime(System.currentTimeMillis(), "Cluster reads end");
+		processInfo.addTime(System.currentTimeMillis(), "Cluster reads end");	
 		processInfo.addTime(System.currentTimeMillis(), "Variant calling start");		
 //		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
@@ -297,6 +298,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		printStatistics("final");
 		log.info("Process finished");
 	}
+	
 	
 	private void buildSamples() {
 		for(String sampleName: filenamesBySampleId1.keySet()){

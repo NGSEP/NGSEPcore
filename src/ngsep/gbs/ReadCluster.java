@@ -14,6 +14,7 @@ public class ReadCluster {
 	private List<RawRead> reads = new ArrayList<>();
 	private List<String> sampleIds = new ArrayList<>();
 	private String consensusSequence = null;
+	private Integer breakPosition = null;
 	
 	public ReadCluster(int clusterNumber)      
 	{                                                                 
@@ -59,20 +60,40 @@ public class ReadCluster {
 			}
 		}
 		char [] consensusC = new char[longestRead];
+		int prevDepth = 0;
 		Arrays.fill(consensusC, 'N');
+		
 		for(int i = 0; i < refSeqTable.length; i++) {
 			int max = 0;
 			int maxIdx = -1;
+			int depth = 0;
 			for(int j = 0; j < refSeqTable[i].length; j++) {
 				int next = refSeqTable[i][j];
 				if(next>0 && max <= next){
 					maxIdx = j;
 					max = next;
 				}
+				depth = depth + next;
 			}
+			
+			//Report break in cluster structure when depth drops by 50%
+			if(depth > 0) {
+				if((prevDepth / depth) > 2) {
+					this.breakPosition = i;
+				}
+			}
+			prevDepth = depth;
+			
 			if(maxIdx>=0) consensusC[i] = DNASequence.BASES_STRING.charAt(maxIdx);
 		}
 		consensusSequence = new String(consensusC);
+	}
+	
+	/*
+	 * Returns the position at which the depth of the cluster changes drastically (by more than 50%)
+	 */
+	public Integer getBreakPosition() {
+		return breakPosition;
 	}
 	
 	public String getConsensusSequence() {
