@@ -640,7 +640,7 @@ public class ReadsAligner {
 		if(cigar!=null)aln.setCigarString(cigar);
 		aln.setAlignmentQuality((short) Math.round(alnQual));
 		//verify last exists
-		if(!fMIndex.isValidAlignment(sequenceName,aln.getLast())) return null;
+		if(!fMIndex.isValidPosition(sequenceName,aln.getLast())) return null;
 		return aln;
 	}
 

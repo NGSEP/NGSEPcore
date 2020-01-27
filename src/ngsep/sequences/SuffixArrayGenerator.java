@@ -76,7 +76,7 @@ public class SuffixArrayGenerator {
 		for (int i = 0; i < suffixArray.length; i++)
 			suffixArray2[suffixArray[i]] = i;
 
-		System.out.println(
+		System.err.println(
 				"			Time to create the suffix array: " + (System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000) + " s");
 	}
 

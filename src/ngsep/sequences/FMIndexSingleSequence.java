@@ -42,8 +42,8 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
 
-	private static final int DEFAULT_TALLY_DISTANCE = 64;
-	private static final int DEFAULT_SUFFIX_FRACTION = 100;
+	private static final int DEFAULT_TALLY_DISTANCE = 100;
+	private static final int DEFAULT_SUFFIX_FRACTION = 50;
 
 	// Start position in the original sequence of some rows of the BW matrix
 	// representing a partial suffix array
