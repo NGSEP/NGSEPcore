@@ -56,7 +56,7 @@ public class FMIndex implements Serializable
 		int i=0;
 		for(QualifiedSequence seq:sequences) {
 			String next = seq.getCharacters().toString();
-			if(nI>0 && internalSequence.length() + next.length() > 1000000000) {
+			if(nI>0 && internalSequence.length() + next.length() > 100000000) {
 				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
