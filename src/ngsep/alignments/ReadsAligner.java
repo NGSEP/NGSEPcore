@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,8 +89,12 @@ public class ReadsAligner {
 	private Map<String, List<GenomicRegion>> knownSTRs;
 
 	private boolean onlyPositiveStrand = false;
+	
+	private boolean runFullAlignment = true;
 
 	private ReferenceGenomeFMIndex fMIndex;
+	
+	private Set<String> repetitiveKmers = new HashSet<String>();
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -847,7 +852,12 @@ public class ReadsAligner {
 		List<FMIndexUngappedSearchHit> answer = new ArrayList<>();
 		for (int start:kmersMap.keySet()) {
 			String kmer = kmersMap.get(start).toString();
+			if(repetitiveKmers.contains(kmer)) continue;
 			List<FMIndexUngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
+			if(kmerHits.size()>10) {
+				repetitiveKmers.add(kmer);
+				continue;
+			}
 			for(FMIndexUngappedSearchHit hit:kmerHits) {
 				hit.setQueryIdx(start);
 				answer.add(hit);
@@ -913,7 +923,8 @@ public class ReadsAligner {
 				if(newaln!=null) return newaln;
 			}
 		}
-		if (!cluster.isAllConsistent() || !cluster.isFirstKmerPresent() || !cluster.isLastKmerPresent()) {
+		if (!cluster.isAllConsistent()) {
+			if(!runFullAlignment) return null;
 			//Perform smith waterman
 			if(!cluster.isFirstKmerPresent()) first -=10;
 			first = Math.max(1, first);
