@@ -44,8 +44,8 @@ public class RawReadTrimmer {
 		Scanner scanner = new Scanner(new File(fileNamesFile));
 		while (scanner.hasNextLine()) {
 		   String line = scanner.nextLine();
-		   line = line.strip();
-		   fileNames.add(line);
+//		   line = line.strip();
+//		   fileNames.add(line);
 		}
 	}
 	
