@@ -25,13 +25,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-import ngsep.sequences.FMIndexSingleSequence;
+import ngsep.sequences.FMIndex;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -47,21 +43,19 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 */
 	private static final long serialVersionUID = 5577026857894649939L;
 	private QualifiedSequenceList sequencesMetadata;
-	private Map<Integer,FMIndexSingleSequence> internalIndexes = new HashMap<>();
-	private Map<String, Integer> reverseIndexesMap = new HashMap<String, Integer>();
+	private FMIndex internalIndex;
 	
 	public ReferenceGenomeFMIndex (ReferenceGenome genome) {
 		sequencesMetadata = genome.getSequencesMetadata();
 		int n = genome.getNumSequences();
-		
+		internalIndex = new FMIndex();
+		QualifiedSequenceList sequences = new QualifiedSequenceList();
 		for (int i = 0; i < n; i++) 
 		{
 			QualifiedSequence q = genome.getSequenceByIndex(i);
-			CharSequence seqChars = q.getCharacters();
-			FMIndexSingleSequence idx = new FMIndexSingleSequence(seqChars.toString().toUpperCase());
-			internalIndexes.put(i,idx);
-			reverseIndexesMap.put(q.getName(), i);
+			sequences.add(q);
 		}
+		internalIndex.loadQualifiedSequenceList(sequences);
 	}
 	
 	/**
@@ -117,17 +111,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
 	 */
 	public List<FMIndexUngappedSearchHit> exactSearch (String searchSequence) {
-		List<FMIndexUngappedSearchHit> hits = new ArrayList<>();
-		for (int i=0;i<sequencesMetadata.size();i++) {
-			QualifiedSequence seq = sequencesMetadata.get(i);
-			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
-			Set<Integer> matches = idxSeq.exactSearch(searchSequence);
-			for (int internalPosMatch:matches) {
-				FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(searchSequence, i, seq.getName(), internalPosMatch);
-				hits.add(hit);
-			}
-		}
-		return hits;
+		return internalIndex.exactSearch(searchSequence);
 	}
 	
 	/**
@@ -138,20 +122,18 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @return CharSequence segment of the given sequence between the given coordinates
 	 */
 	public CharSequence getSequence (String sequenceName, int first, int last) {
-		Integer index = reverseIndexesMap.get(sequenceName);
-		if(index==null) return null;
-		FMIndexSingleSequence idxSeq = internalIndexes.get(index);
-		if(idxSeq==null) return null;
-		CharSequence seq = idxSeq.getSequence(first-1, last);
-		return seq;
+		return internalIndex.getSequence(sequenceName, first, last);
 	}
-
-	public boolean isValidAlignment(String sequenceName,int last) {
-		Integer index = reverseIndexesMap.get(sequenceName);
-		if(index==null) return false;
-		FMIndexSingleSequence internalIndex = internalIndexes.get(index);
-		if(internalIndex == null) return false;
-		return internalIndex.getSequenceLength()>=last;
+	/**
+	 * Checks if the given position is a valid genome position
+	 * @param sequenceName to search
+	 * @param position to search (1-based included)
+	 * @return boolean true if the position is a valid genomic coordinate, false otherwise
+	 */
+	public boolean isValidPosition(String sequenceName,int position) {
+		QualifiedSequence seq = sequencesMetadata.get(sequenceName);
+		if(seq == null) return false;
+		return position>0 && position<=seq.getLength();
 	}
 	
 }

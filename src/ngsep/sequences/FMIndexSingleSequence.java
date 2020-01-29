@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -42,14 +41,14 @@ public class FMIndexSingleSequence implements Serializable {
 	 */
 	private static final long serialVersionUID = 5981359942407474671L;
 
-	private static final int DEFAULT_TALLY_DISTANCE = 64;
-	private static final int DEFAULT_SUFFIX_FRACTION = 100;
+	/** Character to BWT */
+	public static final char SPECIAL_CHARACTER = 0;
+	private static final int DEFAULT_TALLY_DISTANCE = 100;
+	private static final int DEFAULT_SUFFIX_FRACTION = 50;
 
 	// Start position in the original sequence of some rows of the BW matrix
 	// representing a partial suffix array
 	private Map<Integer, Integer> partialSuffixArray = new HashMap<>();
-	//Partial map indexed by sequence first position
-	private Map<Integer, Integer> partialReverseSuffixArray = new HashMap<>();
 
 	// Ranks in the bwt for each character in the alphabet for some of the rows in
 	// the BW matrix
@@ -63,6 +62,7 @@ public class FMIndexSingleSequence implements Serializable {
 
 	// Burrows Wheeler transform
 	private byte [] bwt;
+	private int rowBWTSpecialCharacter;
 
 	//For each character tells the number of times it appears
 	private Map<Character, Integer> characterCounts;
@@ -108,40 +108,44 @@ public class FMIndexSingleSequence implements Serializable {
 	}
 
 	private void calculate(CharSequence sequence) {
-		SuffixArrayGenerator suffixArrayGenerator = new SuffixArrayGenerator(sequence);
-		alphabet = suffixArrayGenerator.getAlphabet();
-		characterCounts = new TreeMap<>(suffixArrayGenerator.getCharacterCounts());
+		countCharacters (sequence);
 		buildCharacterFirstAndLastRows();
+		SuffixArrayGenerator suffixArrayGenerator = new DC3SuffixArrayGenerator(sequence);
+		//SuffixArrayGenerator suffixArrayGenerator = new CollectionsSortSuffixArrayGenerator(sequence);
 		int [] sa = suffixArrayGenerator.getSuffixArray();
 		//System.out.println("First pos SA: "+sa[0]+" "+sa[1]+" "+sa[2] );
-		int [] reverseSA = suffixArrayGenerator.getReverseSuffixArray();
+		
 		
 		alphabetIndexes = new HashMap<>();
 		for(int i=0;i<alphabet.length();i++) alphabetIndexes.put(alphabet.charAt(i), i);
 		
 		
-		buildBWT(sequence, sa, reverseSA);
+		buildBWT(sequence, sa);
 		
-		createPartialSuffixArray(sa, reverseSA);
+		createPartialSuffixArray(sa);
 		buildTally();
 		//printIndexInfo();
 	}
 
-	private void printIndexInfo() {
-		System.out.println("Alphabet: "+alphabet);
-		System.out.println("BWT: "+new String(bwt));
-		System.out.println("Partial array: "+partialSuffixArray);
-		System.out.println("Partial reverse array: "+partialReverseSuffixArray);
-		System.out.println("First rows: "+firstRowsInMatrix);
-		System.out.println("Last rows: "+lastRowsInMatrix);
+	private void countCharacters(CharSequence sequence) {
+		characterCounts = new HashMap<Character, Integer>();
+		for(int i=0;i<sequence.length();i++) {
+			char c = sequence.charAt(i);
+			characterCounts.compute(c, (k, v) -> (v == null) ? 1 : v+1);
+		}
+		Set<Character> sortedAlphabet = new TreeSet<Character>();
+		sortedAlphabet.addAll(characterCounts.keySet());
+		StringBuilder alphB = new StringBuilder();
+		for(char c:sortedAlphabet) alphB.append(c);
+		alphabet = alphB.toString();
 	}
 
 	private void buildCharacterFirstAndLastRows() {
-		firstRowsInMatrix = new TreeMap<>();
-		lastRowsInMatrix = new TreeMap<>();
-		char spec = SuffixArrayGenerator.SPECIAL_CHARACTER;
-		firstRowsInMatrix.put(spec, 0);
-		lastRowsInMatrix.put(spec, 0);
+		firstRowsInMatrix = new HashMap<>();
+		lastRowsInMatrix = new HashMap<>();
+		
+		firstRowsInMatrix.put(SPECIAL_CHARACTER, 0);
+		lastRowsInMatrix.put(SPECIAL_CHARACTER, 0);
 		int totalChars = 1;
 		for(int i=0;i<alphabet.length();i++) {
 			char c = alphabet.charAt(i);
@@ -151,7 +155,15 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 	}
 	
-	private void buildBWT(CharSequence sequence, int [] sa, int [] reverseSA) {
+	private void printIndexInfo() {
+		System.out.println("Alphabet: "+alphabet);
+		System.out.println("BWT: "+new String(bwt));
+		System.out.println("Partial array: "+partialSuffixArray);
+		System.out.println("First rows: "+firstRowsInMatrix);
+		System.out.println("Last rows: "+lastRowsInMatrix);
+	}
+	
+	private void buildBWT(CharSequence sequence, int [] sa) {
 		bwt = new byte[sequence.length() + 1];
 	
 		if(sa[0]!=sequence.length()) throw new RuntimeException("Suffix array should have "+sequence.length()+" as first entry");
@@ -161,7 +173,8 @@ public class FMIndexSingleSequence implements Serializable {
 			if (i > 0) {
 				bwt[j] = (byte)sequence.charAt(i - 1);
 			} else {
-				bwt[j] = SuffixArrayGenerator.SPECIAL_CHARACTER;
+				bwt[j] = SPECIAL_CHARACTER;
+				rowBWTSpecialCharacter = j;
 			}
 			j++;
 		}
@@ -178,7 +191,7 @@ public class FMIndexSingleSequence implements Serializable {
 		int j = 0;
 		for (int i = 0; i < bwt.length; i++) {
 			char c = (char)bwt[i];
-			if (c != SuffixArrayGenerator.SPECIAL_CHARACTER) {
+			if (c != SPECIAL_CHARACTER) {
 				int indexC = alphabetIndexes.get(c);
 				arr[indexC]++;
 			}
@@ -189,15 +202,15 @@ public class FMIndexSingleSequence implements Serializable {
 		}
 	}
 
-	private void createPartialSuffixArray(int [] sa, int [] reverseSA) {
+	private void createPartialSuffixArray(int [] sa) {
 		partialSuffixArray = new HashMap<>();
-		partialReverseSuffixArray = new HashMap<>();
 		partialSuffixArray.put(0, sa[0]);
-		partialReverseSuffixArray.put(sa[0], 0);
-		for (int i = 0; i < reverseSA.length; i += suffixFraction) {
-			partialSuffixArray.put(reverseSA[i], i);
-			partialReverseSuffixArray.put(i, reverseSA[i]);
+		//Partial suffix array module should be calculated on the suffix values (real sequence positions)
+		for (int i = 1; i < sa.length-1; i ++) {
+			int value = sa[i];
+			if(value%suffixFraction==0) partialSuffixArray.put(i, sa[i]);
 		}
+		partialSuffixArray.put(sa.length-1, sa[sa.length-1]);
 	}
 
 	/**
@@ -283,6 +296,9 @@ public class FMIndexSingleSequence implements Serializable {
 	 * @return int count of appearances of the character c in the bwt up to the given row
 	 */
 	public int getTallyCount(char c, int row) {
+		if(c==SPECIAL_CHARACTER) {
+			return (row>=rowBWTSpecialCharacter)?1:0;
+		}
 		int r = 0;
 
 		int a = row / tallyDistance;
@@ -336,35 +352,6 @@ public class FMIndexSingleSequence implements Serializable {
 		char c = (char)bwt[row];
 		// System.out.println(""+c);
 		return lfMapping(c, row, false);
-	}
-
-	/**
-	 * Return the subsequence of the indexed sequence between the given coordinates
-	 * @param start position of the sequence (0-based, included)
-	 * @param end position of the sequence (0-based, excluded)
-	 * @return CharSequence segment of the indexed sequence between the given coordinates
-	 */
-	public CharSequence getSequence (int start, int end)
-	{
-		if(start>=bwt.length) throw new StringIndexOutOfBoundsException("Invalid coordinate: "+start);
-		if(end>=bwt.length) throw new StringIndexOutOfBoundsException("Invalid coordinate: "+end);
-		if(start>=end) throw new StringIndexOutOfBoundsException("Start position "+start+" should be smaller than end position: "+end);
-		int endReverseSA = end;
-		Integer endRow = partialReverseSuffixArray.get(endReverseSA);
-		if (endRow == null) {
-			endReverseSA = suffixFraction*((endReverseSA/suffixFraction)+1);
-			if(endReverseSA>bwt.length-1) endReverseSA = bwt.length-1;
-			endRow = partialReverseSuffixArray.get(endReverseSA);
-			if(endRow==null) throw new RuntimeException("SA index not found for sequence position: "+endReverseSA+" query: "+start+"-"+end+" sequence length: "+(bwt.length-1));
-		}
-		int j=endRow;
-		StringBuilder answer = new StringBuilder();
-		for(int i=endReverseSA;i>start;i--) {
-			char c = (char)bwt[j];
-			if(i<=end) answer.append(c);
-			j=lfMapping(j);
-		}
-		return answer.reverse();
 	}
 	
 	public static void main(String[] args) {
