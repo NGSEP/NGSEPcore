@@ -48,13 +48,21 @@ public class VCFRelativeCoordinatesTranslator {
 	int triallelic = 0;
 	int nonVariant = 0;
 	
+//	public static void main(String[] args) throws Exception {
+//		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
+//		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+//		instance.filenameAlignmentBAM = args[i++];
+//		instance.filenameRelativeVCF = args[i++];
+//		String refGenomeFile = args[i++];
+//		instance.outFile = args[i++];
+//		instance.run(refGenomeFile);
+//	}
 	public static void main(String[] args) throws Exception {
 		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		instance.filenameAlignmentBAM = args[i++];
-		instance.filenameRelativeVCF = args[i++];
-		String refGenomeFile = args[i++];
-		instance.outFile = args[i++];
+		instance.filenameAlignmentBAM = args[0];
+		instance.filenameRelativeVCF = args[1];
+		String refGenomeFile = args[2];
+		instance.outFile = args[3];
 		instance.run(refGenomeFile);
 	}
 

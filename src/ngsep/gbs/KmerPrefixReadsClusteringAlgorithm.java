@@ -360,8 +360,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				String sampleId = payload[0];
 				String f1 = payload[1];
 				String f2 = payload[2];
-				filenamesBySampleId1.put(sampleId, f1);
-				filenamesBySampleId2.put(sampleId, f2);
+				filenamesBySampleId1.put(sampleId, inputDirectory + f1);
+				filenamesBySampleId2.put(sampleId, inputDirectory + f2);
 				line = descriptor.readLine();
 			}
 		}

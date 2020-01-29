@@ -80,15 +80,15 @@ public class ProcessClusterVCFTask extends Thread {
 			}
 		}
 		
-		//Writing synchronously to the centralized vcf writter
-		synchronized (vcfWriter) {
-			vcfWriter.printVCFRecords(generatedRecords, outVariants);
-		}
-		
-		//Writing synchronously to statistics
-		synchronized (parent) {
-			parent.countVariants(generatedRecords);
-		}
+//		//Writing synchronously to the centralized vcf writter
+//		synchronized (vcfWriter) {
+//			vcfWriter.printVCFRecords(generatedRecords, outVariants);
+//		}
+//		
+//		//Writing synchronously to statistics
+//		synchronized (parent) {
+//			parent.countVariants(generatedRecords);
+//		}
 		
 		hasFinished = true;
 	}
