@@ -474,7 +474,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(clusterSizes[clusterId]<=maxClusterDepth) {
 					String read2s = read2.getSequenceString();
 					String mergedRead = String.format("%s%s%s", read1s, PAIRED_END_READS_SEPARATOR, read2s);
-					String mergedScores = String.format("%s%s%s", read1.getQualityScores(), PAIRED_END_READS_QS, read2s);
+					String mergedScores = String.format("%s%s%s", read1.getQualityScores(), PAIRED_END_READS_QS, read2.getQualityScores());
 					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), mergedRead, mergedScores));
 				}
 				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
