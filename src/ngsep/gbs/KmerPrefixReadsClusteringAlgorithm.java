@@ -556,15 +556,18 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 					//skip small clusters
 					if(this.clusterSizes[numCluster] < minClusterDepth) {
+						System.out.println("Skipping cluster: " + numCluster);
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
 					//skip large clusters
 					else if(this.clusterSizes[numCluster] > maxClusterDepth) {
+						System.out.println("Skipping cluster: " + numCluster);
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
 					else {
+						System.out.println("Adding reads to cluster: " + numCluster);
 						addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
 					}
 					
@@ -636,6 +639,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			// TODO rename reads without cluster info
 			if (currentReadCluster>numCluster) break;
 			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorganized file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
+			System.out.println("From cluster: " + sampleId + "\tFrom read: " + currentRead.getName());
 			nextCluster.addRead(currentRead, sampleId);
 			if(iterator.hasNext()) {
 				currentReads[i] = iterator.next();
