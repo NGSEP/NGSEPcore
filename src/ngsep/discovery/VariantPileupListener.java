@@ -178,7 +178,7 @@ public class VariantPileupListener implements PileupListener {
 			CountsHelper helperIndel = VariantDiscoverySNVQAlgorithm.calculateCountsIndel(pileup,variant,referenceAllele, maxBaseQS, readGroups); 
 			calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, heterozygosityRate, calcStrandBias);
 			if(variant == null) {
-				if(calledVar!=null && minQuality!=DEF_MIN_QUALITY && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
+				if(calledVar!=null && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
 				if(calledVar!=null && (pileup.isInputSTR() || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()))) {
 					//System.out.println("Called indel at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+" variant type: "+calledVar.getType());
 					lastIndelEnd = calledVar.getLast();
@@ -194,7 +194,7 @@ public class VariantPileupListener implements PileupListener {
 		} else {
 			calledVar = VariantDiscoverySNVQAlgorithm.callSNV(pileup, helperSNV, variant, referenceAllele.charAt(0), heterozygosityRate, calcStrandBias);
 		}
-		if(calledVar!=null && minQuality!=DEF_MIN_QUALITY && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
+		if(calledVar!=null && minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
 		if(calledVar != null && (variant!=null || (!calledVar.isUndecided() && !calledVar.isHomozygousReference()) )) {
 			//System.out.println("Called SNV");
 			calledVar.updateAllelesCopyNumberFromCounts(normalPloidy);

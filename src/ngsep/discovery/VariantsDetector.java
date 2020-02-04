@@ -62,7 +62,7 @@ public class VariantsDetector implements PileupListener {
 	public static final int DEF_MAX_ALNS_PER_START_POS = AlignmentsPileupGenerator.DEF_MAX_ALNS_PER_START_POS;
 	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	public static final short DEF_MIN_QUALITY = 40;
+	public static final short DEF_MIN_QUALITY = VariantPileupListener.DEF_MIN_QUALITY;
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
@@ -652,7 +652,6 @@ public class VariantsDetector implements PileupListener {
 			}
 			out.println("Ignore variants in lower case reference positions: " + isIgnoreLowerCaseRef());
 			out.println("Maximum number of alignments starting at the same position: " + getMaxAlnsPerStartPos());
-			out.println("Minimum mapping quality to consider an alignment unique: "+getMinMQ());
 			out.println("Process non unique primary alignments: " + isProcessNonUniquePrimaryAlignments());
 			out.println("Process secondary alignments: " + isProcessSecondaryAlignments());
 			out.println("Base pairs to ignore from the 5' end of each read: " + getBasesToIgnore5P());
