@@ -33,7 +33,7 @@ public class Command {
 	private String groupId;
 	private boolean printHelp = true;
 	
-	private List<String> arguments = new ArrayList<String>();
+	private Map<String,Boolean> arguments = new LinkedHashMap<String,Boolean>();
 	private Map<String, CommandOption> options = new LinkedHashMap<String,CommandOption>();
 	public Command(String id, Class<?> program) {
 		super();
@@ -83,7 +83,14 @@ public class Command {
 		this.printHelp = printHelp;
 	}
 	public List<String> getArguments() {
-		return arguments;
+		List<String> answer = new ArrayList<String>();
+		answer.addAll(arguments.keySet());
+		return answer;
+	}
+	public boolean isMultiple(String argument) {
+		Boolean mult = arguments.get(argument);
+		if(mult==null) mult = false;
+		return mult.booleanValue();
 	}
 	public Map<String, CommandOption> getOptions() {
 		return options;
@@ -95,8 +102,8 @@ public class Command {
 		}
 		return optionsList;
 	}
-	public void addArgument(String argument) {
-		arguments.add(argument);
+	public void addArgument(String argument, boolean isMultiple) {
+		arguments.put(argument,isMultiple);
 	}
 	public void addOption(CommandOption option) {
 		if(options.containsKey(option.getId())) throw new IllegalArgumentException("Duplicated option id: "+option.getId());

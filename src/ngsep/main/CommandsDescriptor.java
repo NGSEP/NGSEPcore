@@ -52,6 +52,7 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_DEFAULT_CONSTANT="defaultConstant";
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
 	public static final String ATTRIBUTE_GROUPID="groupId";
+	public static final String ATTRIBUTE_MULTIPLE="multiple";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ATTRIBUTE_PRINTHELP="printHelp";
 	public static final String ELEMENT_COMMAND="command";
@@ -182,7 +183,10 @@ public class CommandsDescriptor {
 				} else if(ELEMENT_DESCRIPTION.equals(elem.getNodeName())) {
 					cmd.setDescription(loadText(elem));
 				} else if(ELEMENT_ARGUMENT.equals(elem.getNodeName())) {
-					cmd.addArgument(loadText(elem));
+					String optMultiple = elem.getAttribute(ATTRIBUTE_MULTIPLE);
+					boolean multiple = false;
+					if(optMultiple!=null) multiple = "true".equals(optMultiple.trim().toLowerCase());
+					cmd.addArgument(loadText(elem),multiple);
 				} else if(ELEMENT_OPTION.equals(elem.getNodeName())) {
 					String optId = elem.getAttribute(ATTRIBUTE_ID);
 					if(optId==null || optId.length()==0) throw new RuntimeException("Every option must have an id");
@@ -300,7 +304,11 @@ public class CommandsDescriptor {
 		System.err.println("USAGE:");
 		System.err.println();
 		System.err.print("java -jar NGSEPcore_"+swVersion+".jar "+ c.getId()+" <OPTIONS>");
-		for(String arg:c.getArguments()) System.err.print(" <"+arg+">");
+		for(String arg:c.getArguments()) {
+			
+			System.err.print(" <"+arg+">");
+			if(c.isMultiple(arg)) System.err.print("*");
+		}
 		System.err.println();
 		System.err.println();
 		System.err.println("OPTIONS:");
