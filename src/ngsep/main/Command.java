@@ -30,6 +30,7 @@ public class Command {
 	private String title;
 	private String intro;
 	private String description;
+	private String groupId;
 	private boolean printHelp = true;
 	
 	private List<String> arguments = new ArrayList<String>();
@@ -68,6 +69,12 @@ public class Command {
 	}
 	public void setDescription(String description) {
 		this.description = description;
+	}
+	public String getGroupId() {
+		return groupId;
+	}
+	public void setGroupId(String groupId) {
+		this.groupId = groupId;
 	}
 	public boolean isPrintHelp() {
 		return printHelp;

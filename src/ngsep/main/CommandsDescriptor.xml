@@ -1,7 +1,22 @@
-<NGSEP version="4.0.0" date="01-02-2020">
+<NGSEP version="4.0.0" date="14-02-2020">
 <title>Next Generation Sequencing Experience Platform</title>
+<commandgroup id="Reads"> 
+De-novo and reference guided reads processing
+</commandgroup>
+<commandgroup id="Discovery">
+Variants discovery and genotyping
+</commandgroup>
+<commandgroup id="Transcriptome">
+Analysis of annotated gene models and transcripts
+</commandgroup>
+<commandgroup id="VariantsDownstream">
+Variants (VCF) downstream analysis
+</commandgroup>
+<commandgroup id="Benchmark">
+Benchmark and simulation
+</commandgroup>
 
-<command id="Demultiplex" class="ngsep.sequencing.ReadsDemultiplex">
+<command id="Demultiplex" class="ngsep.sequencing.ReadsDemultiplex" groupId="Reads">
 <intro>
 Builds individual fastq files for different samples from
 a single file containing reads from a whole sequencing lane (Former Deconvolute)
@@ -56,7 +71,7 @@ Activate demultiplexing with dual barcoding.
 </option>
 </command>
 
-<command id="KmersExtractor" class="ngsep.sequences.KmersExtractor">
+<command id="KmersExtractor" class="ngsep.sequences.KmersExtractor" groupId="Reads">
 <intro>
 Extract k-mers and count abundances from fasta and fastq files
 </intro>
@@ -87,7 +102,7 @@ Ignore low complexity k-mers for counting and reporting
 </option>
 </command>
 
-<command id="ReadsFileErrorsCorrector" class="ngsep.sequences.ReadsFileErrorsCorrector">
+<command id="ReadsFileErrorsCorrector" class="ngsep.sequences.ReadsFileErrorsCorrector" groupId="Reads">
 <intro>
 Corrects errors in read files based on k-mer abundance
 </intro>
@@ -118,7 +133,7 @@ Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
 </command>
 
-<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm">
+<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" groupId="Reads">
 <intro>
 De novo variants discovery from a GBS experiment
 </intro>
@@ -161,7 +176,7 @@ Default ploidy of the samples.
 </option>
 </command>
 
-<command id="Assembler" class="ngsep.assembly.Assembler">
+<command id="Assembler" class="ngsep.assembly.Assembler" groupId="Reads" printHelp="false">
 <intro>
 Performs de-novo assembly from long reads
 </intro>
@@ -195,7 +210,7 @@ Genome used to simulate the given reads. Useful for benchmarking of the graph co
 </option>
 </command>
 
-<command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder">
+<command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" groupId="Reads">
 <intro>
 Builds a genome in fasta format from homozygous variants in a VCF file
 </intro>
@@ -218,7 +233,7 @@ Output file in fasta format with the modified genome.
 </option>
 </command>
 
-<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer">
+<command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer" groupId="Reads">
 <intro>
 Creates an FM index for Indexing the genome
 </intro>
@@ -234,7 +249,7 @@ Output binary file with the FM index associated with the input genome
 </option>
 </command>
 
-<command id="ReadsAligner" class="ngsep.alignments.ReadsAligner">
+<command id="ReadsAligner" class="ngsep.alignments.ReadsAligner" groupId="Reads">
 <intro>
 Aligns sequencing reads to a reference genome
 </intro>
@@ -279,7 +294,7 @@ Maximum predicted insert length to consider an alignment proper
 </option>
 </command>
 
-<command id="QualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator">
+<command id="QualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator" groupId="Discovery">
 <intro> Detects sequencing error biases</intro>
 <title>Calculating base quality statistics</title>
 <description>
@@ -299,7 +314,7 @@ Minimum mapping quality to call an alignment unique
 </option>
 </command>
 
-<command id="CoverageStats" class="ngsep.discovery.CoverageStatisticsCalculator">
+<command id="CoverageStats" class="ngsep.discovery.CoverageStatisticsCalculator" groupId="Discovery">
 <intro>Shows the uniformity of the sequencing process over the genome</intro>
 <title>Calculating coverage statistics</title>
 <description>
@@ -318,7 +333,80 @@ Minimum mapping quality to call an alignment unique
 </option>
 </command>
 
-<command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector">
+<command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator" groupId="Discovery">
+<intro>
+Calculates the distribution of relative allele counts 
+</intro>
+<title>Obtaining relative allele counts from read alignment files</title>
+<description>
+Calculates a distribution of relative allele counts for sites showing base calls for more than one
+nucleotide from read alignment files in BAM format. This analysis is useful to predict the ploidy
+of a sequenced sample.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input file with read alignments in BAM format.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with statistics.
+</option>
+<option id="m" type="INT" default="10" attribute="minRD">
+Minimum read depth
+</option>
+<option id="M" type="INT" default="1000" attribute="maxRD">
+Maximum read depth
+</option>
+<option id="q" type="INT" default="20" attribute="minBaseQualityScore">
+Minimum base quality score (Phred scale)
+</option>
+<option id="frs" type="FILE" attribute="regionsToFilter">
+File with repeats (or any kind of genomic regions) that should not be taken into account in the analysis.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="srs" type="FILE" attribute="regionsToSelect">
+File with genomic regions that should be taken into account in the analysis.
+The format of this file should contain three columns: Sequence name (chromosome), first position
+in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="s" type="BOOLEAN" attribute="secondaryAlns">
+Consider secondary alignments. By default, only primary alignments are processed
+</option>
+</command>
+
+<command id="CompareRD" class="ngsep.discovery.rd.CNVseqAlgorithm" groupId="Discovery">
+<intro>
+Compares the read depth of two samples
+</intro>
+<title>Comparing read depth between samples</title>
+<description>
+Compares the read depth between two samples to identify copy number variation.
+</description>
+<argument>ALIGNMENTS_FILE_1</argument>
+<argument>ALIGNMENTS_FILE_2</argument>
+<option id="o" type="FILE" attribute="outputFile">
+File with genomic regions in which the two samples have different read depth
+</option>
+<option id="r" type="FILE" attribute="genome">
+Fasta file with the reference genome.
+</option>
+<option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
+Window size to be used during the read depth comparison.
+</option>
+<option id="p" type="DOUBLE" attribute="maxPValue" defaultConstant="DEF_MAX_PVALUE">
+Maximum p-value. Only the windows with a p-value lower than that specified will be reported.
+</option>
+<option id="a" type="BOOLEAN" attribute="printAllWindows">
+Output an entry for every window in the genome.
+</option>
+<option id="c" type="BOOLEAN" attribute="gcCorrection">
+Perform GC-correction of the read depth.
+</option>
+<option id="b" type="BOOLEAN" attribute="bonferroni">
+Perform the Bonferroni correction for multiple testing.
+</option>
+</command>
+
+<command id="MultisampleVariantsDetector" class="ngsep.discovery.MultisampleVariantsDetector" groupId="Discovery">
 <intro>Module for direct calculation of variants from multiple samples.</intro>
 <title>Calling variants over multiple samples</title>
 <description>
@@ -402,7 +490,7 @@ Flag to call SNVs within STRs. By default, STRs are treated as a single locus an
 
 </command>
 
-<command id="SingleSampleVariantsDetector" class="ngsep.discovery.VariantsDetector">
+<command id="SingleSampleVariantsDetector" class="ngsep.discovery.VariantsDetector" groupId="Discovery">
 <intro>The classic module of NGSEP for variants detection in individual samples.</intro>
 <title>Calling variants on individual samples with the variants detector</title>
 <description>
@@ -533,7 +621,7 @@ Turns off detection of SNVs and small indels. In this mode, only structural vari
 </option>
 </command>
 
-<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" printHelp="false">
+<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" groupId="Discovery" printHelp="false">
 <intro>
 Performs single individual molecular haplotyping
 </intro>
@@ -561,7 +649,7 @@ Minimum mapping quality to call an alignment unique
 </option>
 </command>
 
-<command id="MergeVariants" class="ngsep.vcf.IndividualSampleVariantsMerge">
+<command id="MergeVariants" class="ngsep.vcf.IndividualSampleVariantsMerge" groupId="Discovery">
 <intro>
 Generates a VCF file including the whole set of variants called in at least one of the given samples.
 </intro>
@@ -580,7 +668,7 @@ Output VCF file with merged variants
 </option>
 </command>
 
-<command id="VCFMerge" class="ngsep.vcf.ConsistentVCFFilesMerge">
+<command id="VCFMerge" class="ngsep.vcf.ConsistentVCFFilesMerge" groupId="Discovery">
 <intro>
 Writes a final VCF file with the genotype calls for each variant on each sample.
 </intro>
@@ -600,7 +688,7 @@ Output VCF file with merged variants and genotype information
 </option>
 </command>
 
-<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer">
+<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" groupId="Transcriptome">
 <intro>
 Provides statistics on a transcriptome file in GFF3 format
 </intro>
@@ -620,7 +708,7 @@ Fasta file with the reference genome. It can be gzip compressed.
 </option>
 </command>
 
-<command id="TranscriptomeFilter" class="ngsep.transcriptome.TranscriptomeFilter">
+<command id="TranscriptomeFilter" class="ngsep.transcriptome.TranscriptomeFilter" groupId="Transcriptome">
 <intro>
 Executes filter criteria on a transcriptome file in GFF3 format
 </intro>
@@ -659,7 +747,36 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 </option>
 </command>
 
-<command id="VCFAnnotate" class="ngsep.vcf.VCFFunctionalAnnotator">
+<command id="GenomesAligner" class="ngsep.genome.GenomesAligner" groupId="Transcriptome">
+<intro>
+Compares two partially or completely assembled genomes based on their gene annotations
+</intro>
+<title>Comparing genomes</title>
+<description>
+Takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
+and runs a whole genome comparison taking unique genes as orthology units
+</description>
+<argument>GENOME1</argument>
+<argument>TRANSCRIPTOME1</argument>
+<argument>GENOME2</argument>
+<argument>TRANSCRIPTOME2</argument>
+<option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outputPrefix">
+Prefix of output files
+</option>
+<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
+K-mer length to find orthologs
+</option>
+<option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
+Minimum percentage of k-mers to call orthologs
+</option>
+<!--
+<option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
+Maximum number of homologs per unit to be displayed in the D3 visualization
+</option>
+-->
+</command>
+
+<command id="VCFAnnotate" class="ngsep.vcf.VCFFunctionalAnnotator" groupId="VariantsDownstream">
 <intro>Generates a VCF file which includes the functional information related with each variant.
 </intro>
 <title>Functional annotation of variants</title>
@@ -701,7 +818,7 @@ Initial or final basepairs of an exon that should be considered as part of the s
 </option>
 </command>
 
-<command id="VCFFilter" class="ngsep.vcf.VCFFilter">
+<command id="VCFFilter" class="ngsep.vcf.VCFFilter" groupId="VariantsDownstream">
 <intro>Implements different filters on VCF files with genotype information</intro>
 <title>Filtering VCF files</title>
 <description>
@@ -800,7 +917,7 @@ Filter the samples provided with the -saf option instead of selecting them.
 </option> 
 </command>
 
-<command id="VCFConverter" class="ngsep.vcf.VCFConverter">
+<command id="VCFConverter" class="ngsep.vcf.VCFConverter" groupId="VariantsDownstream">
 <intro>Converts genotype calls in VCF format to other formats</intro>
 <title>Convert VCF files to other formats</title>
 <description>
@@ -885,7 +1002,7 @@ Id of the second parent for conversion to JoinMap
 </option>
 </command>
 
-<command id="VCFComparator" class="ngsep.vcf.VCFComparator">
+<command id="VCFComparator" class="ngsep.vcf.VCFComparator" groupId="VariantsDownstream">
 <intro>Compares the genotype calls included in two different VCF files</intro>
 <title>Comparing VCF files</title>
 <description>
@@ -916,7 +1033,7 @@ Maximum percentage (0-100) of differences between the pair of samples
 </option>
 </command>
 
-<command id="VCFSummaryStats" class="ngsep.vcf.VCFSummaryStatisticsCalculator">
+<command id="VCFSummaryStats" class="ngsep.vcf.VCFSummaryStatisticsCalculator" groupId="VariantsDownstream">
 <intro>Generates a report with the numbers of variants included in a VCF file for different categories.</intro>
 <title>Calculating summary statistics</title>
 <description>
@@ -937,7 +1054,7 @@ Minimum number of samples genotyped to accurately calculate the minor allele fre
 </option>
 </command>
 
-<command id="VCFDiversityStats" class="ngsep.vcf.VCFDiversityCalculator">
+<command id="VCFDiversityStats" class="ngsep.vcf.VCFDiversityCalculator" groupId="VariantsDownstream">
 <intro>
 Calculates basic diversity statistics for each variant in a VCF file.
 </intro>
@@ -963,7 +1080,7 @@ second column.
 </option>
 </command>
 
-<command id="VCFVariantDensityCalculator" class="ngsep.vcf.VCFVariantDensityCalculator">
+<command id="VCFVariantDensityCalculator" class="ngsep.vcf.VCFVariantDensityCalculator" groupId="VariantsDownstream">
 <intro>
 Calculates the density of variants in a VCF file across the genome 
 </intro>
@@ -988,7 +1105,7 @@ Length of the window
 </option>
 </command>
 
-<command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator">
+<command id="VCFDistanceMatrixCalculator" class="ngsep.vcf.VCFDistanceMatrixCalculator" groupId="VariantsDownstream">
 <intro>
 Calculates a genetic distance matrix from genomic variants in a given VCF file
 </intro>
@@ -1022,7 +1139,7 @@ to recalculate allele dosage based on these counts
 </option>
 </command>
 
-<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining">
+<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining" groupId="VariantsDownstream">
 <intro>
 Construct a neighbor joining dendrogam given a distance matrix file
 </intro>
@@ -1042,7 +1159,7 @@ Output file with the dendrogam in Newick format.
 </option>
 </command>
 
-<command id="VCFAlleleSharingStats" class="ngsep.vcf.VCFAlleleSharingStatisticsCalculator">
+<command id="VCFAlleleSharingStats" class="ngsep.vcf.VCFAlleleSharingStatisticsCalculator" groupId="VariantsDownstream">
 <intro>
 Calculates allele sharing diversity statistics, either through windows or through genes
 for inbred populations
@@ -1091,7 +1208,7 @@ Step between windows to calculate pairwise differences between samples.
 </option>
 </command>
 
-<command id="VCFImpute" class="ngsep.variants.imputation.GenotypeImputer">
+<command id="VCFImpute" class="ngsep.variants.imputation.GenotypeImputer" groupId="VariantsDownstream">
 <intro>
 Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
 </intro>
@@ -1141,7 +1258,7 @@ Specifies that the samples to impute are inbreds
 </option>
 </command>
 
-<command id="VCFIntrogressionAnalysis" class="ngsep.vcf.VCFWindowIntrogressionAnalysis">
+<command id="VCFIntrogressionAnalysis" class="ngsep.vcf.VCFWindowIntrogressionAnalysis" groupId="VariantsDownstream">
 <intro>Runs a window-based haplotype introgression analysis.</intro>
 <title>Finding haplotype introgressions</title>
 <description>
@@ -1199,80 +1316,7 @@ the options -a -t and -s
 </option>
 </command>
 
-<command id="CompareRD" class="ngsep.discovery.rd.CNVseqAlgorithm">
-<intro>
-Compares the read depth of two samples
-</intro>
-<title>Comparing read depth between samples</title>
-<description>
-Compares the read depth between two samples to identify copy number variation.
-</description>
-<argument>ALIGNMENTS_FILE_1</argument>
-<argument>ALIGNMENTS_FILE_2</argument>
-<option id="o" type="FILE" attribute="outputFile">
-File with genomic regions in which the two samples have different read depth
-</option>
-<option id="r" type="FILE" attribute="genome">
-Fasta file with the reference genome.
-</option>
-<option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
-Window size to be used during the read depth comparison.
-</option>
-<option id="p" type="DOUBLE" attribute="maxPValue" defaultConstant="DEF_MAX_PVALUE">
-Maximum p-value. Only the windows with a p-value lower than that specified will be reported.
-</option>
-<option id="a" type="BOOLEAN" attribute="printAllWindows">
-Output an entry for every window in the genome.
-</option>
-<option id="c" type="BOOLEAN" attribute="gcCorrection">
-Perform GC-correction of the read depth.
-</option>
-<option id="b" type="BOOLEAN" attribute="bonferroni">
-Perform the Bonferroni correction for multiple testing.
-</option>
-</command>
-
-<command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator">
-<intro>
-Calculates the distribution of relative allele counts 
-</intro>
-<title>Obtaining relative allele counts from read alignment files</title>
-<description>
-Calculates a distribution of relative allele counts for sites showing base calls for more than one
-nucleotide from read alignment files in BAM format. This analysis is useful to predict the ploidy
-of a sequenced sample.
-</description>
-<option id="i" type="FILE" attribute="inputFile">
-Input file with read alignments in BAM format.
-</option>
-<option id="o" type="FILE" attribute="outputFile">
-Output file with statistics.
-</option>
-<option id="m" type="INT" default="10" attribute="minRD">
-Minimum read depth
-</option>
-<option id="M" type="INT" default="1000" attribute="maxRD">
-Maximum read depth
-</option>
-<option id="q" type="INT" default="20" attribute="minBaseQualityScore">
-Minimum base quality score (Phred scale)
-</option>
-<option id="frs" type="FILE" attribute="regionsToFilter">
-File with repeats (or any kind of genomic regions) that should not be taken into account in the analysis.
-The format of this file should contain three columns: Sequence name (chromosome), first position
-in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
-</option>
-<option id="srs" type="FILE" attribute="regionsToSelect">
-File with genomic regions that should be taken into account in the analysis.
-The format of this file should contain three columns: Sequence name (chromosome), first position
-in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
-</option>
-<option id="s" type="BOOLEAN" attribute="secondaryAlns">
-Consider secondary alignments. By default, only primary alignments are processed
-</option>
-</command>
-
-<command id="SingleIndividualSimulator" class="ngsep.simulation.SingleIndividualSimulator">
+<command id="SingleIndividualSimulator" class="ngsep.simulation.SingleIndividualSimulator" groupId="Benchmark">
 <intro>
 Simulates a single individual with homozygous and heterozygous mutations from a reference genome
 </intro>
@@ -1311,36 +1355,41 @@ Ploidy of the simulated sample
 </option>
 </command>
 
-<command id="GenomesAligner" class="ngsep.genome.GenomesAligner">
+<command id="SingleReadsSimulator" class="ngsep.simulation.SingleReadsSimulator" groupId="Benchmark">
 <intro>
-Compares two partially or completely assembled genomes
+Generates random single reads from a given reference genome
 </intro>
-<title>Comparing genomes</title>
+<title>Simulating reads</title>
 <description>
-Takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
-and runs a whole genome comparison taking unique genes as orthology units
+Generates single reads randomly distributed from a given reference genome. 
 </description>
-<argument>GENOME1</argument>
-<argument>TRANSCRIPTOME1</argument>
-<argument>GENOME2</argument>
-<argument>TRANSCRIPTOME2</argument>
-<option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outputPrefix">
-Prefix of output files
+<option id="i" type="FILE" attribute="inputFile">
+Fasta file with the genome to simulate reads
 </option>
-<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
-K-mer length to find orthologs
+<option id="o" type="FILE" attribute="outputFile">
+Output file with simulated reads. See option -f for options on the file format
 </option>
-<option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
-Minimum percentage of k-mers to call orthologs
+<option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
+Number of reads
 </option>
-<!--
-<option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
-Maximum number of homologs per unit to be displayed in the D3 visualization
+<option id="u" type="INT" attribute="meanReadLength" defaultConstant="DEF_MEAN_READ_LENGTH">
+Average read length
 </option>
--->
+<option id="s" type="INT" attribute="stdevReadlength" defaultConstant="DEF_STDEV_READ_LENGTH">
+Standard deviation read length
+</option>
+<option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
+Substitution error rate
+</option>
+<option id="d" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
+Indel error rate
+</option>
+<option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
+Output format. 0 for fastq, 1 for fasta
+</option>
 </command>
 
-<command id="VCFGoldStandardComparator" class="ngsep.benchmark.VCFGoldStandardComparator">
+<command id="VCFGoldStandardComparator" class="ngsep.benchmark.VCFGoldStandardComparator" groupId="Benchmark">
 <intro>
 Compares a gold standard phased VCF with a VCF with test genotype calls
 </intro>
@@ -1372,40 +1421,6 @@ File with coordinates of regions in which the gold standard can be trusted
 <option id="e" type="BOOLEAN" attribute="genomicVCF">
 Indicates that the gold standard VCF is genomic, which means that confidence regions can be
 extracted from annotated regions with homozygous reference genotypes   
-</option>
-</command>
-
-<command id="SingleReadsSimulator" class="ngsep.simulation.SingleReadsSimulator">
-<intro>
-Generates random single reads from a given reference genome
-</intro>
-<title>Simulating reads</title>
-<description>
-Generates single reads randomly distributed from a given reference genome. 
-</description>
-<option id="i" type="FILE" attribute="inputFile">
-Fasta file with the genome to simulate reads
-</option>
-<option id="o" type="FILE" attribute="outputFile">
-Output file with simulated reads. See option -f for options on the file format
-</option>
-<option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
-Number of reads
-</option>
-<option id="u" type="INT" attribute="meanReadLength" defaultConstant="DEF_MEAN_READ_LENGTH">
-Average read length
-</option>
-<option id="s" type="INT" attribute="stdevReadlength" defaultConstant="DEF_STDEV_READ_LENGTH">
-Standard deviation read length
-</option>
-<option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
-Substitution error rate
-</option>
-<option id="d" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
-Indel error rate
-</option>
-<option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
-Output format. 0 for fastq, 1 for fasta
 </option>
 </command>
 

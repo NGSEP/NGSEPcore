@@ -19,13 +19,14 @@
  *******************************************************************************/
 package ngsep.main;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -50,9 +51,11 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_DEFAULT_VALUE="default";
 	public static final String ATTRIBUTE_DEFAULT_CONSTANT="defaultConstant";
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
+	public static final String ATTRIBUTE_GROUPID="groupId";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ATTRIBUTE_PRINTHELP="printHelp";
 	public static final String ELEMENT_COMMAND="command";
+	public static final String ELEMENT_COMMANDGROUP="commandgroup";
 	public static final String ELEMENT_TITLE="title";
 	public static final String ELEMENT_INTRO="intro";
 	public static final String ELEMENT_DESCRIPTION="description";
@@ -64,8 +67,10 @@ public class CommandsDescriptor {
 	private String swVersion;
 	private String releaseDate;
 	private String swTitle;
-	private Map<String,Command> commands = new TreeMap<String,Command>();
-	private Map<String,Command> commandsByClass = new TreeMap<String,Command>();
+	private Map<String,List<Command>> commandsByGroup = new HashMap<String,List<Command>>();
+	private Map<String,Command> commandsByClass = new HashMap<String,Command>();
+	private Map<String,Command> commandsById = new HashMap<String,Command>();
+	private Map<String, String> commandGroupNames = new LinkedHashMap<String, String>();
 	public static CommandsDescriptor instance = new CommandsDescriptor();
 	/**
 	 * Private constructor to implement the singleton pattern
@@ -99,11 +104,14 @@ public class CommandsDescriptor {
 	 * @param parent
 	 */
 	private void loadSoftwareDescription(Element parent) {
-		NodeList offspring = parent.getChildNodes(); 
+		NodeList offspring = parent.getChildNodes();
 		for(int i=0;i<offspring.getLength();i++){  
 			Node node = offspring.item(i);
 			if (node instanceof Element){ 
 				Element elem = (Element)node;
+				if(ELEMENT_COMMANDGROUP.equals(elem.getNodeName())) {
+					loadCommandGroup(elem);
+				}
 				if(ELEMENT_COMMAND.equals(elem.getNodeName())) {
 					Command c;
 					try {
@@ -111,8 +119,11 @@ public class CommandsDescriptor {
 					} catch (RuntimeException e) {
 						throw new RuntimeException("Can not load command with id "+elem.getAttribute(ATTRIBUTE_ID),e);
 					}
-					if(commands.containsKey(c.getId())) throw new RuntimeException("Duplicated command id: "+c.getId());
-					commands.put(c.getId(), c);
+					List<Command> commandsList = commandsByGroup.get(c.getGroupId());
+					if(commandsList==null)  throw new RuntimeException("Group "+c.getGroupId()+" not registered for command with id: "+c.getId());
+					if(commandsById.containsKey(c.getId())) throw new RuntimeException("Duplicated command id: "+c.getId());
+					commandsById.put(c.getId(),c);
+					commandsList.add(c);
 					commandsByClass.put(c.getProgram().getName(), c);
 				} else if(ELEMENT_TITLE.equals(elem.getNodeName())) {
 					swTitle = loadText(elem);
@@ -120,6 +131,17 @@ public class CommandsDescriptor {
 			}
 		}
 		
+	}
+	/**
+	 * Loads the basic information of a command group specified by the given element
+	 * @param elem XML element with the command group description
+	 */
+	private void loadCommandGroup(Element elem) {
+		String id = elem.getAttribute(ATTRIBUTE_ID);
+		if(id==null) throw new RuntimeException("Every command group must have an id");
+		String name = loadText(elem);
+		commandGroupNames.put(id,name);
+		commandsByGroup.put(id,new ArrayList<Command>());
 	}
 	/**
 	 * Loads the information of a specific command
@@ -146,7 +168,8 @@ public class CommandsDescriptor {
 		Command cmd = new Command(id,program);
 		String printHelpStr = cmdElem.getAttribute(ATTRIBUTE_PRINTHELP);
 		cmd.setPrintHelp(!"false".equals(printHelpStr));
-		
+		String groupId = cmdElem.getAttribute(ATTRIBUTE_GROUPID);
+		cmd.setGroupId(groupId);
 		NodeList offspring = cmdElem.getChildNodes(); 
 		for(int i=0;i<offspring.getLength();i++){  
 			Node node = offspring.item(i);
@@ -218,7 +241,7 @@ public class CommandsDescriptor {
 		return releaseDate;
 	}
 	public Command getCommand(String name) {
-		return commands.get(name);
+		return commandsById.get(name);
 	}
 	public Command getCommandByClass(String classname) {
 		return commandsByClass.get(classname);
@@ -231,17 +254,21 @@ public class CommandsDescriptor {
 		printVersionHeader();
 		System.err.println("=============================================================================");
 		System.err.println();
-		System.err.println("USAGE: java -jar NGSEPcore_"+swVersion+".jar <MODULE> [options]");
+		System.err.println("USAGE: java -jar NGSEPcore_"+swVersion+".jar <COMMAND> <OPTIONS> <ARGUMENTS>");
 		System.err.println();
-		System.err.println("Modules:");
-		System.err.println();
-		for(String commandName:commands.keySet()) {
-			Command c = commands.get(commandName);
-			if(c.isPrintHelp()) {
-				System.err.println("  > " + commandName);
-				System.err.println("          "+c.getIntro());
+		for(String commandGroupId:commandGroupNames.keySet()) {
+			System.err.println("Commands for "+commandGroupNames.get(commandGroupId));
+			List<Command> commandsGroup = commandsByGroup.get(commandGroupId);
+			System.err.println();
+			for(Command c:commandsGroup) {
+				if(c.isPrintHelp()) {
+					System.err.println("  > " + c.getId());
+					System.err.println("          "+c.getIntro());
+				}
 			}
+			System.err.println();
 		}
+		
 		
 		System.err.println();
 		System.err.println("See http://sourceforge.net/projects/ngsep/files/Library/ for more details.");
@@ -272,7 +299,7 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.println("USAGE:");
 		System.err.println();
-		System.err.print("java -jar NGSEPcore_"+swVersion+".jar "+ c.getId());
+		System.err.print("java -jar NGSEPcore_"+swVersion+".jar "+ c.getId()+" <OPTIONS>");
 		for(String arg:c.getArguments()) System.err.print(" <"+arg+">");
 		System.err.println();
 		System.err.println();
