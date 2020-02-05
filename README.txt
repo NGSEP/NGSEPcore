@@ -1,19 +1,20 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.0.0 (01-02-2020)
+Version 4.0.0 (14-02-2020)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
-analysis of DNA high throughput sequencing (HTS) data. The most important
-use of NGSEP is the construction and downstream analysis of large datasets of
-genomic variation. NGSEP performs accurate detection and genotyping of Single
-Nucleotide Variants (SNVs), small and large indels, short tandem repeats (STRs),
-inversions, and Copy Number Variants (CNVs). NGSEP also provides utilities for
-downstream analysis of variation in VCF files, including functional annotation
-of variants, filtering, format conversion, comparison, clustering, imputation,
-introgression analysis and different kinds of statistics. Other functionalities
-include calculations of k-mer distributions from fasta or fastq files,
-demultiplexing of barcoded sequencing reads, and comparative analysis of read
-depth distributions.
+analysis of DNA high throughput sequencing (HTS) data. The classic
+use of NGSEP is a reference guided construction and downstream analysis of
+large datasets of genomic variation. NGSEP performs accurate detection and
+genotyping of Single Nucleotide Variants (SNVs), small and large indels, short
+tandem repeats (STRs), inversions, and Copy Number Variants (CNVs). NGSEP also
+provides utilities for downstream analysis of variation in VCF files, including
+functional annotation of variants, filtering, format conversion, comparison,
+clustering, imputation, introgression analysis and different kinds of
+statistics. Version 4 includes new modules for read alignment and de-novo
+analysis of short and long reads including calculations of k-mers, error
+correction, de-novo analysis of Genotype-by-sequencing data and (coming soon)
+de-novo assembly of long read whole genome sequencing (WGS) data.
 
 --------------------
 Building NGSEP
@@ -48,6 +49,323 @@ java -jar NGSEPcore.jar <MODULE> --help
 General information and the list of modules can be obtained by typing:
 
 java -jar NGSEPcore.jar [ --help | --version | --citing ]
+
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+Group 1: Commands for de-novo and reference guided reads processing
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+
+--------------------
+Demultiplexing reads
+--------------------
+
+Builds individual fastq files for different samples from fastq files of
+complete sequencing lanes in which several samples were barcoded and sequenced.
+Several lane files can be provided with the option -d or a single file can be
+provided instead with the option -f (and -f2 for paired-end sequencing).
+If neither the -d or the -f options are specified, the program tries to read
+single sequencing reads from the standard input.
+
+USAGE:
+
+java -jar NGSEPcore.jar Demultiplex <OPTIONS>
+
+OPTIONS:
+
+        -i FILE		: Tab-delimited file with at least four columns by
+			  default: flowcell, lane, barcode and sampleID. If
+			  the -a option for dual barcode is activated, five
+			  columns are expected: flowcell, lane, barcode1,
+			  barcode2 and sampleID. The file must have a header
+			  line. The same index file can be used to demultiplex
+			  several FASTQ files (see option -d).
+        -d FILE		: Tab-delimited file listing the lane FASTQ files to be
+			  demultiplexed. Columns are: Flowcell, lane and fastq
+			  file (which can be gzip compressed). A second fastq
+			  file can be specified for pair-end sequencing. If the
+			  reads sequenced for one lane are split in multiple
+			  files, each file (or each pair of files) should be
+			  included in a separate row. If this option is used,
+			  the options -f, -f2, -c and -l are ignored.
+        -o DIR		: Directory where the output fastq files will be saved.
+			  Files will be gzip compressed by default.
+        -f FILE		: File with raw reads in fastq format. It can be gzip
+			  compressed.
+        -f2 FILE	: File with raw reads in fastq format corresponding to
+			  the second file for paired end reads. It can be gzip
+			  compressed.
+        -c STRING	: Id of the flowcell corresponding to the input fastq
+			  file(s). Ignored if the -d option is specified but
+			  required if -d option is not specified.
+        -l STRING	: Id of the lane corresponding to the input fastq
+			  file(s). Ignored if the -d option is specified but
+			  required if the -d option is not specified.
+        -t STRING	: Sequences to trim separated by comma. If any of the
+			  given sequences is found within a read, the read will
+			  be trimmed up to the start of the sequence.
+        -u		: Output uncompressed files.
+        -r INT		: Minimum read length to keep a read after trimming
+			  adapter sequences. Default: 40.
+        -a		: Activate demultiplexing with dual barcoding.
+
+
+----------------------------------------
+Obtaining k-mers spectrum from sequences
+----------------------------------------
+
+Extracts k-mers and generates a distribution of k-mer abundances from a file of
+DNA sequences either in fastq or in fasta format (see -f option). Writes two
+files, one with the k-mer distribution and a second file with the actual k-mers
+and their counts. 
+
+USAGE:
+
+java -jar NGSEPcore.jar KmersExtractor <OPTIONS> <SEQUENCES_FILE>*
+
+OPTIONS:
+
+	-o FILE	: Prefix of the output files.
+	-k INT	: K-mer length. Default: 15
+	-m INT	: Minimum count to report a k-mer in the output file Default: 5
+	-s	: If set, only the forward strand would be used to extract
+		  kmers. Mandatory for non-DNA sequences
+	-f INT  : Format of the input file(s). It can be 0 for fastq or 1 for
+		  fasta. Default: 0
+	-c      : Ignore low complexity k-mers for counting and reporting
+
+
+------------------------
+Fixing sequencing errors
+------------------------
+
+Builds a k-mer abundance profile and use this profile to identify and correct
+sequencing errors. For each predicted single nucleotide error, it looks for the
+single change that would create k-mers within the normal distribution of
+abundances. Using the option -e, this function can also receive a precalculated
+table of k-mers, which could come from a larger number of reads or reads
+sequenced using a different technology. For example, a k-mers profile based on
+Illumina reads could be built using the KmersExtractor command, and then this
+profile could be used to perform error correction on long reads.
+
+USAGE:
+
+java -jar NGSEPcore.jar ReadsFileErrorsCorrector <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input file with raw reads in fastq or fasta format. See
+		  option -f for options on the file format. It can be gzip
+		  compressed.
+	-o FILE	: Output file with the corrected reads in fastq format
+		  (gzip compressed).
+	-e FILE	: Two column tab delimited file with k-mers and their
+		  abundances.
+	-k INT	: K-mer length. Default: 15
+	-m INT	: Minimum k-mer count to consider a k-mer real. Default: 5
+	-s	: If set, only the forward strand would be used to extract
+		  kmers. Mandatory for non-DNA sequences.
+	-f INT	: Format of the input file. It can be 0 for fastq or 1 for
+		  fasta. Default: 0
+
+
+----------------------------------------
+Performing de-novo analysis of GBS reads
+----------------------------------------
+
+Performs de novo variants discovery from a GBS experiment. Runs a clustering
+algorithm based on quasi-exact matches to representative k-mers within the
+first base pairs of each sequence. Then, performs variants detection and sample
+genotyping within each cluster using the same Bayesian model implemented for
+the reference-guided analysis. By now it only discovers and genotypes Single
+Nucleotide Variants (SNVs).
+
+USAGE:
+
+java -jar NGSEPcore.jar DeNovoGBS <OPTIONS>
+
+OPTIONS:
+
+	-i FILE         : Directory with fastq files to be analyzed. Unless the
+			  -d option is used, it processes as single reads all
+			  fastq files within the given directory.
+	-o FILE         : Prefix for the output VCF file with the discovered
+			  variants and genotype calls as well as other output
+			  files describing the behavior of this process.
+	-d FILE         : Tab delimited text file listing the FASTQ files to be
+			  processed for paired-end sequencing. It should have
+			  three columns. sample id, first fastq file and second
+			  fastq file. All files should be located within the
+			  directory provided with the option -i.
+	-k INT          : K-mer length. Default: 31
+	-c INT          : Maximum number of read clusters to process. This
+			  parameter controls the amount of memory spent by the
+			  process. Default: 2000000
+	-t INT          : Number of threads to process read clusters.
+			  Default: 1
+	-maxBaseQS INT  : Maximum value allowed for a base quality score.
+			  Larger values will be equalized to this value.
+			  Default: 100
+	-minQuality INT : Minimum variant quality. In this command, this filter
+			  applies to the QUAL column of the VCF, which is
+			  calculated for each variant as the maximum of the
+			  genotype qualities of samples with non-homozygous
+			  reference genotype calls. See the command FilterVCF
+			  to apply filters of quality and read depth on
+			  individual genotype calls. Default: 40
+	-h DOUBLE       : Prior heterozygosity rate. Default: 0.001
+	-ploidy INT     : Default ploidy of the samples. Default: 2
+
+
+------------------------------
+Updating genomes from variants
+------------------------------
+
+Takes a VCF file with genotype information from one sample and the reference
+genome used to build the VCF and generates a new genome in fasta format
+modified using the alternative alleles from variants called as homozygous
+alternative within the individual. This can be useful to perform polishing of
+new genome assemblies using Illumina data, or in general to construct a haploid
+version of an individual genome
+
+USAGE:
+
+java -jar NGSEPcore.jar IndividualGenomeBuilder <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Fasta file with the original genome.
+	-v FILE	: File in VCF format with the variants that will be applied to
+		  the input genome.
+	-o FILE	: Output file in fasta format with the modified genome.
+
+-------------------------------
+Indexing genome reference files
+-------------------------------
+
+Creates a binary file containing an fm-index for large sequences in fasta
+format (usually a reference genome). This structure facilitates performing
+massive text searches over the indexed sequence. This is a usual preparation
+step for alignment of short and long reads.
+
+USAGE:
+
+java -jar NGSEPcore_4.0.0.jar GenomeIndexer <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input genome to index in fasta format.
+		  It can be gzip compressed.
+	-o FILE	: Output binary file with the FM index associated with the
+		  input genome.
+
+-----------------------------------
+Aligning reads to reference genomes
+-----------------------------------
+
+Calculates a list of genomic regions for sites where the reads can be find in
+the reference genome. It receives up to two files with raw reads in fastq
+format and the FM index of a reference genome (see command GenomeIndexer for
+details). It provides as output a file with alignments to the reference genome
+in BAM format.
+
+USAGE:
+
+java -jar NGSEPcore_4.0.0.jar ReadsAligner <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input file with raw reads in fastq format. It can be
+			  gzip compressed. Required if the second fastq file is
+			  provided using the option -i2.
+	-i2 FILE	: Input file with raw reads in fastq format
+			  corresponding to the second file for paired end reads.
+			  It can be gzip compressed.
+	-o FILE		: Output file with the aligned reads in BAM format.
+	-r FILE		: Index of the reference genome to align the reads. See
+			  GenomeIndexer for instructions to generate this file.
+			  Mandatory parameter.
+	-knownSTRs FILE	: Text file with location of known short tandem repeats
+			  (STRs). It is a tab-delimited file with at least
+			  three columns: Sequence name (chromosome), region
+			  first base pair coordinate (1-based, inclusive) and
+			  region last base pair coordinate (1-based, inclusive).
+	-k INT		: K-mer length. Default: 15
+	-p DOUBLE	: Minimum proportion of k-mers to select alignments.
+			  Default: 0.5
+	-minIL INT	: Minimum predicted insert length to consider an
+			  alignment proper. Default: 0
+	-maxIL INT	: Maximum predicted insert length to consider an
+			  alignment proper. Default: 1000
+
+
+-------------------------------------------------------
+-------------------------------------------------------
+Group 2: Commands for variants discovery and genotyping
+-------------------------------------------------------
+-------------------------------------------------------
+
+----------------------------------------
+Calculating base pair quality statistics
+----------------------------------------
+
+Takes one or more sets of alignments and a reference genome and counts the
+number of mismatches with the reference for each read position from 5' to 3'
+end. This report is useful to detect sequencing error biases. Requires one or
+more alignment files in SAM or BAM format, and the reference genome that was
+used to produce the alignments. Writes to standard output unless the -o option
+is used to specify an output file.
+
+USAGE:
+
+java -jar NGSEPcore.jar BasePairQualStats <OPTIONS> <ALIGNMENTS_FILE>*
+
+OPTIONS:
+
+	-o FILE		: Output file with the base pair quality statistics.
+	-r FILE		: Fasta file with the reference genome.
+	-minMQ INT	: Minimum mapping quality to call an alignment unique.
+			  Default: 20
+						  
+The file(s) with alignments must be given in SAM or BAM format and the
+reference file in fasta format. The output is a text file with five columns:
+- Position: 1- based from 5' to 3'
+- Number of reads with a base call different than the reference (Considering
+  all alignments)
+- Number of reads with a base call different than the reference (Considering
+  only reads with unique alignments)
+- Number of total alignments counted with read length equal or larger than the
+  position in the first column. The percentage of mismatches including all
+  alignments is the ratio of column 2 divided by this column
+- Number of uniquely aligned reads counted with read length equal or larger
+  than the position in the first column. The percentage of mismatches for
+  uniquely aligned reads is the ratio of column 3 divided by this column
+
+-------------------------------
+Calculating coverage statistics
+-------------------------------
+
+Calculates the number of base pairs that are covered by reads at each read depth
+level from 1 to a maximum. Alignments must be in SAM or BAM format. Writes to
+standard output unless the -o option is used to specify an output file.
+
+USAGE:
+
+java -jar NGSEPcore.jar CoverageStats <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input file with alignments to analyze.
+	-o FILE		: Output file with the coverage distribution.
+	-minMQ INT	: Minimum mapping quality to call an alignment unique.
+			  Default: 20
+
+The alignments file must be given in SAM or BAM format. The output is a text
+file with three columns:
+- Coverage
+- Number of reference sites with this coverage (Considering all alignments)
+- Number of reference sites with this coverage (Considering only reads with 
+  unique alignments)
 
 --------------------------------------
 Calling variants over multiple samples
@@ -220,8 +538,6 @@ reference genome has lowercase characters for repetitive regions (usually
 called softmasked), these regions can be directly filtered using the option
 -ignoreLowerCaseRef. These regions can also be filtered at later stages of
 the analysis using the FilterVCF command.
-
-
 
 -----------------------------------------------------------------
 Calling variants on individual samples with the variants detector
@@ -423,60 +739,85 @@ RAD-Seq or GBS samples becomes:
 
 java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
 
------------------------------------
-Calculating base quality statistics
------------------------------------
+----------------------------------------------------------
+Obtaining relative allele counts from read alignment files
+----------------------------------------------------------
 
-This module takes one or more sets of alignments and a reference genome and
-writes to standard output a report counting the number of mismatches with the 
-reference for each read position from 5' to 3' end. This report is useful to 
-detect sequencing error biases. The usage for this tool is the following:
-
-USAGE:
-
-java -jar NGSEPcore.jar QualStats <OPTIONS> <REFERENCE_FILE> <ALIGNMENTS_FILE>*
-
-OPTIONS:
-	-minMQ INT	: Minimum mapping quality to call an alignment unique.
-			  Default: 20
-						  
-The file(s) with alignments must be given in SAM or BAM format and the
-reference file in fasta format. The output is a text file with five columns:
-- Position: 1- based from 5' to 3'
-- Number of reads with a base call different than the reference (Considering
-  all alignments)
-- Number of reads with a base call different than the reference (Considering
-  only reads with unique alignments)
-- Number of total alignments counted with read length equal or larger than the
-  position in the first column. The percentage of mismatches including all
-  alignments is the ratio of column 2 divided by this column
-- Number of uniquely aligned reads counted with read length equal or larger
-  than the position in the first column. The percentage of mismatches for
-  uniquely aligned reads is the ratio of column 3 divided by this column
-
--------------------------------
-Calculating coverage statistics
--------------------------------
-
-This module calculates the number of base pairs that are covered by reads at
-each coverage level from 1 to a maximum. This statistic is useful to visualize
-how uniform was the sequencing process over the genome. The usage is as follows
+Calculates a distribution of relative allele counts for sites showing base calls
+for more than one nucleotide from read alignment files in BAM format. This
+analysis is useful to predict the ploidy of a sequenced sample.
 
 USAGE:
 
-java -jar NGSEPcore.jar CoverageStats <OPTIONS> <ALIGNMENTS_FILE> <OUTPUT_FILE>
+java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
 
 OPTIONS:
-	-minMQ INT	: Minimum mapping quality to call an alignment unique.
-			  Default: 20
+
+        -m INT	: Minimum read depth Default: 10
+        -M INT	: Maximum read depth Default: 1000
+        -q INT	: Minimum base quality score (Phred scale) Default: 20
+        -r FILE : File with repeats (or any kind of genomic regions) that
+		  should not be taken into account in the analysis. The format
+		  of this file should contain three columns: Sequence name
+		  (chromosome), first position in the sequence, and last
+		  position in the sequence. Both positions are assumed to be
+		  1-based.
+        -f FILE : File with genomic regions that should be taken into account
+		  in the analysis. The format of this file should contain three
+		  columns: Sequence name (chromosome), first position in the
+		  sequence, and last position in the sequence. Both positions
+		  are assumed to be 1-based.
+        -s      : Consider secondary alignments. By default, only primary
+		  alignments are processed
+
+------------------------------------
+Comparing read depth between samples
+------------------------------------
+
+This function compares the read depth of two samples. It takes two alignment
+files and a reference genome, splits the genome into windows, and for each
+window compares the read depth between the two samples. It outputs a text file
+containing the list of windows of the genome in which the normalized read depth 
+ratio between the two samples is significantly different from 1. The text file
+contains the following columns:
+
+1. Chromosome
+2. Window start
+3. Window end
+4. Read depth sample 1
+5. Read depth sample 2
+6. Normalized read depth ratio
+7. P-value
+
+USAGE:
+
+java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2> <REFERENCE> <OUT_PREFIX>
+
+OPTIONS:
+
+	-binSize INT	: Window size to be used during the read depth
+			  comparison. Default: 100
+	-p FLOAT	: Maximum p-value. Only the windows with a p-value
+			  lower than that specified will be reported.
+			  Default: 0.001
+	-w		: Output an entry for every window in the genome
+	-g		: Perform GC-correction of the read depth
+	-b		: Perform the Bonferroni correction for multiple 
+			  testing
+
+----------------------------------------------------------
+----------------------------------------------------------
+Group 3: Analysis of annotated gene models and transcripts
+----------------------------------------------------------
+----------------------------------------------------------
 
 
-The alignments file must be given in SAM or BAM format. The output is a text
-file with three columns:
-- Coverage
-- Number of reference sites with this coverage (Considering all alignments)
-- Number of reference sites with this coverage (Considering only reads with 
-  unique alignments)
+
+--------------------------------------------------------
+--------------------------------------------------------
+Group 4: Commands for Variants (VCF) downstream analysis
+--------------------------------------------------------
+--------------------------------------------------------
 
 ---------------------------------
 Functional annotation of variants
@@ -1033,21 +1374,6 @@ By default, this function outputs three files:
    each population, and the number of regions non genotyped, unassigned and
    assigned to more than one population.
 
-------------------------------
-Building genomes from variants
-------------------------------
-
-This module takes a VCF file with genotype information from one sample and the
-reference genome used to build the VCF and generates a new genome in fasta
-format modified using the alternative alleles from variants called as
-homozygous alternative within the individual. This can be useful to perform
-polishing of new genome assemblies using Illumina data, or in general to
-construct a haploid version of an individual genome.
-
-USAGE:
-
-java -jar NGSEPcore.jar VCFIndividualGenomeBuilder <VCF_FILE> <REFERENCE_GENOME> <OUT_GENOME>
-
 --------------------------
 Benchmarking variant calls
 --------------------------
@@ -1164,131 +1490,7 @@ Finally, the files:
 can be loaded in a web browser and provide an interactive view of the alignment
 based on the d3 web development technology (https://d3js.org/).
 
--------------------
-Demultiplexing reads
--------------------
 
-This option allows to build individual fastq files for different samples from
-a single file containing the reads for a whole sequencing lane in which several
-samples were barcoded and sequenced.
-
-USAGE:
-
-java -jar NGSEPcore.jar Demultiplex <OPTIONS> <INDEX_FILE> <FASTQ_FILE_1> (<FASTQ_FILE_2>) 
-
-OPTIONS: 
-	-o DIRECTORY	: Directory where the output fastq files will be saved
-	-t STRING	: Sequences to trim separated by comma. If any of the
-			  given sequences is found within a read, the read will
-			  be trimmed up to the start of the sequence.
-	-u		: Output uncompressed files
-        -a		: Activate demultiplexing with dual barcoding.
-	-d FILE		: Tab-delimited file storing physical locations of the
-			  files to be demultiplexed. Columns of the file should
-			  be Flowcell, lane and fastq file (which can be gzip
-			  compressed). A second fastq file can be specified if
-			  the lane was sequenced in paired-end mode. If the
-			  reads sequenced for one lane are split in multiple
-			  files, each file (or each pair of files) should be
-			  included in a separate row. If this option is used,
-			  the options -f, -l and the input fastq file(s) are
-			  ignored.
-	-f STRING	: Id of the flowcell corresponding to the input fastq
-			  file(s). Ignored if the -d option is specified but
-			  required if the -d option is not specified.
-	-l STRING	: Id of the lane corresponding to the input fastq
-			  file(s). Ignored if the -d option is specified but
-			  required if the -d option is not specified.
-
-INDEX_FILE is a tab-delimited text file with four columns by default: flowcell,
-lane, barcode and sampleID. If the -a option for dual barcode is activated,
-five columns are expected: flowcell, lane, barcode1, barcode2 and sampleID. The
-file must have a header line. The same index file can be used to demultiplex
-several FASTQ files. Out FASTQ files will be gzip compressed by default.
-
-------------------------------------
-Comparing read depth between samples
-------------------------------------
-
-This function compares the read depth of two samples. It takes two alignment
-files and a reference genome, splits the genome into windows, and for each
-window compares the read depth between the two samples. It outputs a text file
-containing the list of windows of the genome in which the normalized read depth 
-ratio between the two samples is significantly different from 1. The text file
-contains the following columns:
-
-1. Chromosome
-2. Window start
-3. Window end
-4. Read depth sample 1
-5. Read depth sample 2
-6. Normalized read depth ratio
-7. P-value
-
-USAGE:
-
-java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2> <REFERENCE> <OUT_PREFIX>
-
-OPTIONS:
-
-	-binSize INT	: Window size to be used during the read depth
-			  comparison. Default: 100
-	-p FLOAT	: Maximum p-value. Only the windows with a p-value
-			  lower than that specified will be reported.
-			  Default: 0.001
-	-w		: Output an entry for every window in the genome
-	-g		: Perform GC-correction of the read depth
-	-b		: Perform the Bonferroni correction for multiple 
-			  testing
-
-----------------------------------------
-Obtaining k-mers spectrum from sequences
-----------------------------------------
-
-Generate a distribution of k-mer abundances from a file of DNA sequences either
-in fastq or in fasta format. Writes to standard output the number of k-mers
-obtained at each specific read depth.
-
-USAGE:
-
-java -jar NGSEPcore.jar KmersCounter <OPTIONS> <SEQUENCES_FILE>
-
-OPTIONS:
-
-        -b     : Count k-mers from both strands.
-        -k INT : K-mer length. Default: 21
-        -fasta : Input is a fasta file.
-
-----------------------------------------------------------
-Obtaining relative allele counts from read alignment files
-----------------------------------------------------------
-
-Calculates a distribution of relative allele counts for sites showing base calls
-for more than one nucleotide from read alignment files in BAM format. This
-analysis is useful to predict the ploidy of a sequenced sample.
-
-USAGE:
-
-java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
-
-OPTIONS:
-
-        -m INT	: Minimum read depth Default: 10
-        -M INT	: Maximum read depth Default: 1000
-        -q INT	: Minimum base quality score (Phred scale) Default: 20
-        -r FILE : File with repeats (or any kind of genomic regions) that
-		  should not be taken into account in the analysis. The format
-		  of this file should contain three columns: Sequence name
-		  (chromosome), first position in the sequence, and last
-		  position in the sequence. Both positions are assumed to be
-		  1-based.
-        -f FILE : File with genomic regions that should be taken into account
-		  in the analysis. The format of this file should contain three
-		  columns: Sequence name (chromosome), first position in the
-		  sequence, and last position in the sequence. Both positions
-		  are assumed to be 1-based.
-        -s      : Consider secondary alignments. By default, only primary
-		  alignments are processed
 
 ----------------------------------------------
 Simulating individuals from a reference genome
