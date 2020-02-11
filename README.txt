@@ -1015,21 +1015,27 @@ Group 4: Commands for Variants (VCF) downstream analysis
 Functional annotation of variants
 ---------------------------------
 
-This module takes a VCF file produced by NGSEP, the reference genome in fasta
-format, and a gff3 file with gene annotations related with the given genome
-(see http://www.sequenceontology.org/gff3.shtml for details) and generates a
-VCF file which includes the functional information related with each variant.
-The usage is as follows
+Generates a VCF file including the functional information related to each
+variant. Requires a gff3 file with gene annotations, and the reference genome
+in fasta format. Reads from standard input unless the -i option is used to
+specify an input file. Writes to standard output unless the -o option is used
+to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar Annotate <OPTIONS> <VARIANTS_FILE> <TRANSCRIPTOME_MAP> <REFERENCE_FILE>
+java -jar NGSEPcore.jar VCFAnnotate <OPTIONS>
 
 OPTIONS:
-	-u INT	: Maximum bp before a gene to classify a variant as Upstream.
-		  Default: 1000
-	-d INT	: Maximum bp after a gene to classify a variant as Downstream.
-		  Default: 300
+
+	-i FILE : Input VCF file with variants to annotate. It can be gzip
+		  compressed.
+	-r FILE : Fasta file with the reference genome.
+	-t FILE : Input GFF3 file with gene annotations.
+	-o FILE	: Output VCF file with annotated variants.
+	-u INT	: Maximum bp before the start of a transcript to classify a
+		  variant as Upstream. Default: 1000
+	-d INT	: Maximum bp after the end of a transcript to classify a
+		  variant as Downstream. Default: 300
         -sd INT : Initial basepairs of an intron that should be considered as
 		  splice donor. Default: 2
         -sa INT : Final basepairs of an intron that should be considered as
@@ -1039,8 +1045,11 @@ OPTIONS:
         -se INT : Initial or final basepairs of an exon that should be
 		  considered as part of the splice region. Default: 2
 
-The vcf file with functional annotations is written in the standard output.
-Annotations are included using the following custom fields in the INFO column:
+Gene annotations related with the given genome should be provided in standard
+GFF3 format. See http://www.sequenceontology.org/gff3.shtml for details.
+
+Annotations in the output VCF file are included using the following custom
+fields in the INFO column:
 
 TA (STRING): 	Annotation based on a gene model. Annotation names are terms in
 		the sequence ontology database (http://www.sequenceontology.org)
@@ -1055,25 +1064,27 @@ TACH (String):	Description of the aminoacid change produced by a
 		non-synonymous mutation. String encoded as reference aminoacid,
 		position and mutated aminoacid
 
-
 -------------------
 Filtering VCF files
 -------------------
 
 This module implements different filters on VCF files with genotype
-information. It writes to standard output a VCF file with variants passing the
-filtering criteria. Since version 2.0.6, the default behavior does not perform
-any filtering. The filtering order is as follows: first, it executes the
+information and generates a VCF file with variants passing the
+filtering criteria. The filtering order is as follows: first, it executes the
 distance filter (-d option), then the filtering of samples and genotypes (-saf,
--fs, -q and -minC options). Finally, it recalculates the number of samples 
-genotyped, the number of alleles called and the MAF to execute the remaining 
-filters.
+-fs, -q and -minRD options). Finally, it recalculates the number of samples
+genotyped, the number of alleles called and the MAF to execute the remaining
+filters. Since version 2.0.6, the default behavior does not perform any
+filtering. 
 
 USAGE:
 
-java -jar NGSEPcore.jar FilterVCF <OPTIONS> <INPUT_FILE>
+java -jar NGSEPcore.jar VCFFilter <OPTIONS>
 
 OPTIONS:
+
+	-i FILE		: Input file in VCF format. It can be gzip compressed.
+	-o FILE		: Output file in VCF format.
 	-frs FILE	: File with genomic regions in which variants should be
 			  filtered out. The format of this file should contain
 			  at least three columns: Sequence name (chromosome),
@@ -1086,35 +1097,39 @@ OPTIONS:
 			  first position in the sequence, and last position in
 			  the sequence. Both positions are assumed to be
 			  1-based.
-	-d INT		: Minimum distance between variants.
+	-d INT		: Minimum distance between variants. Default: No filter
+	-q INT		: Minimum genotyping quality score (GQ format field in
+			  the VCF). Genotype calls with lower GQ become
+			  undecided. Default: 0
+        -minRD INT	: Minimum read depth (as reported in the DP genotype
+			  format field) to keep a genotype call. Genotype calls
+			  with less reads become undecided. Default: 0
+	-s		: Keep only biallelic SNVs.
+        -fi		: Filter out sites in which only one allele is
+			  observed.
+        -fir		: Filter sites in which only the reference allele is
+			  observed.
+        -fia		: Filter out sites in which only one alternative allele
+			  is observed.
+	-m INT		: Minimum number of samples genotyped to keep the
+			  variant. Default: 0 (No filter)
+	-minMAF FLOAT	: Minimum minor allele frequency over the samples in
+			  the VCF file. Default: 0 (No filter)
+	-maxMAF FLOAT	: Maximum minor allele frequency over the samples in
+			  the VCF file. Default: 0.5 (No filter)
+	-minOH FLOAT	: Minimum observed heterozygosity over the samples in
+			  the VCF file. Default: 0 (No filter)
+	-maxOH FLOAT	: Maximum observed heterozygosity over the samples in
+			  the VCF file. Default: 1 (No filter)
 	-g FILE		: File with the reference genome to calculate the
 			  GC-Content of the region surrounding the variant.
 	-minGC FLOAT	: Minimum percentage of GC of the 100bp region
-			  surrounding the variant.
+			  surrounding the variant. Default: 40.0
 	-maxGC FLOAT	: Maximum percentage of GC of the 100bp region
-			  surrounding the variant.
-	-q INT		: Minimum genotyping quality score (GQ field for each
-			  genotype call in the vcf file).
-	-s		: Keep only biallelic SNVs.
-	-fi		: Flag to filter sites in which only one allele is
-			  observed.
-	-fir		: Flag to filter sites in which only the reference
-			  allele is observed.
-	-fia		: Flag to filter sites in which only one alternative
-			  allele is observed.
-	-minI INT	: Minimum number of individuals genotyped to keep the
-			  variant.
-	-minC INT	: Minimum coverage to keep a genotype call.
-	-minMAF FLOAT	: Minimum minor allele frequency over the samples in
-			  the VCF file.
-	-maxMAF FLOAT	: Maximum minor allele frequency over the samples in
-			  the VCF file.
-	-minOH FLOAT	: Minimum observed heterozygosity over the samples in
-			  the VCF file.
-	-maxOH FLOAT	: Maximum observed heterozygosity over the samples in
-			  the VCF file.
+			  surrounding the variant. Default: 65.0
 	-maxCNVs INT	: Maximum number of samples with copy number variation
 			  in the region where the variant is located.
+			  Default: No filter
 	-gene STRING	: Id of the gene or the transcript related with the
 			  variant.
 	-a STRING	: Types of functional annotations (Missense, Nonsense,
@@ -1131,47 +1146,52 @@ OPTIONS:
 Convert VCF files to other formats
 ----------------------------------
 
-This module allows to convert genotype calls in VCF format to other formats
-commonly used to perform different kinds of analysis.
+Convert genotype calls in VCF format to other formats commonly used to perform
+different kinds of downstream analysis.
 
 USAGE:
 
-java -jar NGSEPcore.jar ConvertVCF <OPTIONS> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar VCFConverter <OPTIONS> <INPUT_FILE> <OUTPUT_PREFIX>
 
 OPTIONS:
-	-printStructure		: Prints input format for structure
-	-printFasta		: Prints a virtual multiple sequence alignment
-				  in fasta format. Useful to build phylogenetic
-				  trees
-	-printrrBLUP		: Prints the input files for rrBLUP
-	-printMatrix		: Prints genotypes in a simple ACGT format
-				  which can be imported to excel 
-	-printHapmap		: Prints Hapmap format, which can be used in
-				  programs such as Tassel
-	-printGWASPoly		: Prints the input file for GWASPoly
-	-printSpagedi		: Prints the input files for Spagedi
-	-printPlink		: Prints the input files for Plink
-	-printHaploview		: Prints the input files for Haploview
-	-printEmma		: Prints the input files for Emma
-	-printPowerMarker	: Prints the input files for Powermarker
-	-printEigensoft		: Prints the input files for Eigensoft
-	-printFlapjack		: Prints the input files for Flapjack
-	-printDarwin		: Prints the input files for DarWin
-	-printTreeMix		: Prints the input files for TreeMix
-	-printJoinMap		: Prints the input file to build genetic maps
-				  with JoinMap
-	-printPhase		: Prints the input file for PHASE
-	-p1 STRING		: Id of the first parent for conversion to
-				  JoinMap
-	-p2 STRING		: Id of the second parent for conversion to
-				  JoinMap
-	-s STRING		: Name of the sequence (chromosome) for
-				  conversion to PHASE 
-	-p FILE			: File with population assignments for the
-				  samples. This should be a two column text
-				  file with the sample ids in the first column
-				  and the ids of the populations in the second
-				  column. Required for conversion to TreeMix
+
+	-i FILE		: Input VCF file with variants and genotype data.
+			  It can be gzip compressed.
+	-o FILE		: Prefix of the output files.
+	-structure	: Generates the input format for structure.
+	-fasta		: Generates a virtual multiple sequence alignment in
+			  fasta format. It could be used to build distance
+			  based dendograms.
+	-rrBLUP		: Generates the input files for rrBLUP.
+	-matrix		: Generates a simple ACGT format which can be imported
+			  to excel.
+	-printHapmap	: Generates the Hapmap format, which can be used in
+			  programs such as Tassel.
+	-GWASPoly	: Generates the input file for GWASPoly.
+	-spagedi	: Generates the input files for Spagedi.
+	-plink		: Generates the input files for Plink.
+	-haploview	: Generates the input files for Haploview.
+	-emma		: Generates the input files for Emma.
+	-powerMarker	: Generates the input files for Powermarker
+	-eigensoft	: Generates the input files for Eigensoft
+	-flapjack	: Generates the input files for Flapjack
+	-darwin		: Generates the input files for DarWin
+	-treeMix	: Generates the input files for TreeMix. The option -p
+			  is required for this format.
+	-joinMap	: Generates the input file to build genetic maps with
+			  JoinMap. The options -p1 and -p2 are required for
+			  this format.
+	-phase		: Generates the input file for PHASE. The option -s is
+			  required for this format.
+	-s STRING	: Name of the sequence (chromosome) for conversion to
+			  PHASE.
+	-p FILE		: File with population assignments for the samples.
+			  This should be a two column text file with the sample
+			  ids in the first column and the ids of the
+			  populations in the second column. Required for
+			  conversion to TreeMix.
+	-p1 STRING	: Id of the first parent for conversion to JoinMap
+	-p2 STRING	: Id of the second parent for conversion to JoinMap
 
 WARNING: FASTA convertion does not use IUPAC codes, heterozygous SNPs are 
 changed to N.
@@ -1181,33 +1201,93 @@ to reduce the number of chromosomes and to remove all scaffolds.
 WARNING 3: To generate dendograms in Tassel, it is better to use the HapMap 
 format.
 
+-------------------
+Comparing VCF files
+-------------------
+Compares the genotype calls included in two different VCF files. Calculates
+the number and percentage of homozygous and heterozygous differences between
+every pair of samples. It requires the FASTA file with the reference genome
+used to build the VCF files. If only the first input file is provided, this
+module provides an internal comparison of the samples within the input file.
+Writes to standard output unless the -o option is used to specify an output
+file.
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFComparator <OPTIONS>
+
+OPTIONS: 
+
+	-i FILE		: Input file in VCF format. It can be gzip compressed.
+	-i2 FILE	: Input file in VCF format to compare with the first
+			  file. It can be gzip compressed.
+	-r FILE		: Fasta file with the reference genome.
+	-o FILE		: Output file with the results of the comparison.
+	-g DOUBLE	: Minimum percentage (0-100) of variants genotyped in
+			  both samples. Default: 50.
+	-d DOUBLE	: Maximum percentage (0-100) of differences between the
+			  pair of samples. Default: 5.
+
+Default values of optional parameters are set to facilitate the detection of
+duplicated (or very similar) samples. To report the complete set of sample
+pairs, use -g 0 -d 100. The output is a tab-delimited report with the following
+fields:
+
+1. Id sample VCF 1
+2. Id sample VCF 2
+3. Number of variants genotyped in sample 1
+4. Number of variants genotyped in sample 2
+5. Number of variants genotyped in both samples
+6. Number of heterozygous differences
+7. Percentage of heterozygous differences (sixth field / fifth field)
+8. Number of homozygous differences
+9. Percentage of homozygous differences (eighth field / fifth field)
+10. Number of total differences
+11. Percentage of total differences (tenth field / fifth field) 
+
 ------------------------------
 Calculating summary statistics
 ------------------------------
 
-This module writes to the standard output a report with the numbers of variants
-included in a VCF file for different categories. Although it can be called for
-any VCF file generated by the pipeline, this report is specially useful when a
-complete population is being processed and merged into a single annotated file.
+Generate a report with the variants included in a VCF file for different
+categories. It is specially useful when a complete population is being
+processed and merged into a single annotated file. Reads from standard input
+unless the -i option is used to specify an input file. Writes to standard
+output unless the -o option is used to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar SummaryStats <OPTIONS> <INPUT_FILE> 
+java -jar NGSEPcore.jar VCFSummaryStats <OPTIONS>
 
 OPTIONS:
-	-m INT			: Minimum number of samples genotyped to
-				  accurately calculate the minor allele
-				  frequency. Default: 20
+
+	-i FILE	: Input file in VCF format. It can be gzip compressed.
+	-o FILE	: Output file with statistics.
+	-m INT	: Minimum number of samples genotyped to accurately calculate
+		  the minor allele frequency. Default: 20
 
 -----------------------------------------
 Calculating diversity statistics per site
 -----------------------------------------
 
-This module produces basic diversity statistics for each variant in a VCF file.
-It receives a VCF file and an optional text file with population assignments for
-each sample included in the VCF and writes to the standard output the
-coordinates of each variant plus the following statistics separated by
-semicolon:
+Calculates basic diversity statistics for each variant in a VCF file. Reads
+from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFDiversityStats <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input file in VCF format. It can be gzip compressed.
+	-o FILE	: Output file with statistics.
+	-p FILE	: File with population assignments for the samples. A two
+		  column text file with the sample ids in the first column and
+		  the ids of the populations in the second column.
+
+The output file contains the coordinates of each variant plus the following
+statistics separated by semicolon:
 
 1. Number of samples genotyped
 2. Expected heterozygosity (under HWE)
@@ -1220,31 +1300,27 @@ semicolon:
 If a file with population assignments is provided, this module will output one
 column of statistics for the whole group and one column for each population.
 
-USAGE:
-
-java -jar NGSEPcore.jar DiversityStats <VCF_FILE> <POPULATIONS_FILE>
-
-
-The populations file is a tab-delimited text file with two columns: sample id
-and population id.
-
 
 ----------------------------
 Calculating variants density
 ----------------------------
 
 Calculates the number of variants within a VCF file in non-overlapping windows
-across the genome. Writes to the standard output a text delimited file with
-four columns: sequence, window first, window last and number of variants. If
-the VCF_FILE argument is - it expects a VCF from standard input
+across the genome. Writes a text delimited file with four columns: sequence,
+window first, window last and number of variants. Reads from standard input
+unless the -i option is used to specify an input file. Writes to standard
+output unless the -o option is used to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar VCFVariantDensityCalculator <REFERENCE_FILE> <VCF_FILE>
+java -jar NGSEPcore.jar VCFVariantDensityCalculator <OPTIONS>
 
 OPTIONS:
 
-        -w INT : Length of the window Default: 100000
+	-i FILE	: Input file in VCF format. It can be gzip compressed.
+	-o FILE	: Output file with statistics.
+	-r FILE	: Fasta file with the reference genome.
+	-w INT  : Length of the window. Default: 100000
 
 -------------------------------------------------------
 Calculation of genetic distance matrices from VCF files
@@ -1256,22 +1332,27 @@ options to infer the genotype call information are implemented. In particular,
 users can choose predicted allele dosages of CNVs or direct estimations of
 allele dosage per site per individual based on relative allele-specific read
 counts. The latter option is useful to improve distance estimations in
-polyploids. It writes to standard output the matrix of genetic distances in a
-generic format.
+polyploids. It writes the matrix of genetic distances in a generic format.
+Reads from standard input unless the -i option is used to specify an input
+file. Writes to standard output unless the -o option is used to specify an
+output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar VCFDistanceMatrixCalculator <OPTIONS> <VCF_FILE>
+java -jar NGSEPcore.jar VCFDistanceMatrixCalculator <OPTIONS>
 
 OPTIONS:
 
-	-t INT	: Matrix output format, 0 is full matrix, 1 lower-left matrix
-		  and 2 is upper right matrix. Default: 0
+	-i FILE	: Input file in VCF format. It can be gzip compressed.
+	-o FILE	: Output file with the distance matrix. See -f for options on
+		  the output format.
 	-s INT	: Source of information in the VCF file to calculate distances.
 		  0 for simple genotype calls (GT format field), 1 for allele
 		  copy number (ACN format field), 2 for total copy number
 		  (total of ACN format field), and 3 for raw allele depth (ADP
 		  or BSDP format fields). Default: 0
+	-f INT	: Matrix output format, 0 is full matrix, 1 lower-left matrix
+		  and 2 is upper right matrix. Default: 0
 	-p INT	: Default ploidy of the samples. Used if the distance source
 		  (-s option) is the raw allele depths to recalculate allele
 		  dosage based on these counts. Default: 2
@@ -1283,11 +1364,18 @@ Building dendograms using the Neighbor-Joining algorithm
 Given a distance matrix file, this command builds a dendogram for graphical
 display of genetic distances using the Neighbor Joining algorithm. The distance
 matrix can be provided as an upper, lower or full matrix. The dendogram is
-written to standard output in Newick format.
+written in Newick format. Reads from standard input unless the -i option is
+used to specify an input file. Writes to standard output unless the -o option
+is used to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar NeighborJoining <MATRIX_FILE>
+java -jar NGSEPcore.jar NeighborJoining <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input file with a distance matrix.
+	-o FILE	: Output file with the dendrogam in Newick format.
 
 
 -------------------------------------
@@ -1346,45 +1434,7 @@ report with the following fields:
 16. Tajima D within the group 2 
 
 If the -t option is used, the first two columns are replaced by the transcript
-id and gene id respectively
-
-
-
--------------------
-Comparing VCF files
--------------------
-This module allows to compare the genotype calls included in two different VCF
-files, calculating the number and percentage of homozygous and heterozygous
-differences between every pair of samples. This writes to standard output a
-tab-delimited report with the following fields:
-
-1. Id sample VCF 1
-2. Id sample VCF 2
-3. Number of variants genotyped in sample 1
-4. Number of variants genotyped in sample 2
-5. Number of variants genotyped in both samples
-6. Number of heterozygous differences
-7. Percentage of heterozygous differences (sixth field / fifth field)
-8. Number of homozygous differences
-9. Percentage of homozygous differences (eighth field / fifth field)
-10. Number of total differences
-11. Percentage of total differences (tenth field / fifth field) 
-
-USAGE:
-
-java -jar NGSEPcore.jar CompareVCF <OPTIONS> <REFERENCE_FILE> <FIRST_VCF_FILE> <SECOND_VCF_FILE>
-
-OPTIONS: 
-
-	-g FLOAT	: Minimum percentage (0-100) of variants genotyped in
-			  both samples. Default: 50.
-	-d FLOAT	: Maximum percentage (0-100) of differences between the
-			  pair of samples. Default: 5.
-
-The first required argument is the FASTA file with the reference genome used to
-generate the VCF files. Default values of optional parameters are set to
-facilitate the detection of duplicated (or very similar) samples. To report the
-complete set of sample pairs, use -g 0 -d 100. 
+id and gene id respectively.
 
 -------------------
 Genotype imputation
