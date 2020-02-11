@@ -352,29 +352,30 @@ Minimum mapping quality to call an alignment unique.
 <intro>Module for direct calculation of variants from multiple samples.</intro>
 <title>Calling variants over multiple samples</title>
 <description>
-This modules allows to call variants over a group of samples separated by files or read group tags.
+This module allows to call variants over a group of samples separated by files or read group tags.
 This is now the recommended method to perform variants detection on genotype-by-sequencing (GBS), RAD sequencing,
 whole exome sequencing (WES), RNA-seq and low coverage (less than 10x) whole genome sequencing (WGS) data.
 Although it can also be used on high coverage WGS data, the classic sample-by-sample analysis
 (commands FindVariants, MergeVariants and MergeVCF) is still recommended to identify structural variants.
-Requires one or more read alignment files in SAM or BAM format and the reference genome that was used to produce the alignments.
+This module requires one or more read alignment files in SAM or BAM format and the reference genome that was used to produce the alignments.
 </description>
 <argument multiple="true">BAM_FILE</argument>
 <option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
-<option id="o" type="FILE" attribute="outFilename">
-Output VCF file with discovered variants and genotype calls
+<option id="o" type="FILE" attribute="outFilename" defaultConstant="DEF_OUTPUT_FILE">
+Output VCF file with discovered variants and genotype calls.
 </option>
 <option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
 Default ploidy of the samples.
 </option>
 <option id="psp" type="BOOLEAN" attribute="printSamplePloidy">
 Print id and ploidy of the sample in the VCF header.
-The header generated with this option is not a standard VCF header. However, it helps NGSEP to keep track of the ploidy of the samples through downstream analyses
+The header generated with this option is not a standard VCF header.
+However, it helps NGSEP to keep track of the ploidy of the samples through downstream analyses.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ">
-Minimum mapping quality to call an alignment unique
+Minimum mapping quality to call an alignment unique.
 </option>
 <option id="knownVariants" type="FILE" attribute="knownVariantsFile">
 VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
@@ -411,7 +412,7 @@ Ignore this many base pairs from the 5' end of the reads.
 Ignore this many base pairs from the 3' end of the reads.
 </option>
 <option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
-Heterozygosity rate.
+Prior heterozygosity rate.
 </option>
 <option id="maxBaseQS" type="INT" attribute="maxBaseQS" defaultConstant="DEF_MAX_BASE_QS">
 Maximum value allowed for a base quality score. Larger values will be equalized to this value.
@@ -447,20 +448,22 @@ Input file with read alignments in BAM format.
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
-Prefix for the output files
+Prefix for the output files.
 </option>
 <option id="sampleId" type="STRING" attribute="sampleId" defaultConstant="DEF_SAMPLE_ID">
-Id of the sample for the VCF file. If not set it looks in the BAM file header for an SM header tag. If not present, it uses the default value.
+Id of the sample for the VCF file. If not set it looks in the BAM file header for an SM header tag. 
+If this tag is not present, it uses the default value.
 </option>
 <option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
 Ploidy of the sample.
 </option>
 <option id="psp" type="BOOLEAN" attribute="printSamplePloidy">
 Print id and ploidy of the sample in the VCF header.
-The header generated with this option is not a standard VCF header. However, it helps NGSEP to keep track of the ploidy of each sample through downstream analyses
+The header generated with this option is not a standard VCF header.
+However, it helps NGSEP to keep track of the ploidy of each sample through downstream analyses.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ">
-Minimum mapping quality to call an alignment unique
+Minimum mapping quality to call an alignment unique.
 </option>
 <option id="knownVariants" type="FILE" attribute="knownVariantsFile">
 VCF file with variants to be genotyped. Only these variants will appear in the output VCF.
@@ -485,10 +488,11 @@ For GBS or RAD sequencing data use a large value such as 100.
 </option>
 <option id="p" type="BOOLEAN" attribute="processNonUniquePrimaryAlignments">
 Process non unique primary alignments in the pileup process. 
-The default behavior is to process alignments that are unique (see option -minMQ) 
+The default behavior is to process alignments that are unique (see option -minMQ). 
 </option> 
 <option id="s" type="BOOLEAN" attribute="processSecondaryAlignments">
-Consider secondary alignments in the pileup process. Non-unique primary alignments will also be considered in this mode.
+Consider secondary alignments in the pileup process.
+Non-unique primary alignments will also be considered in this mode.
 </option>
 <option id="ignore5" type="INT" attribute="basesToIgnore5P" default="0">
 Ignore this many base pairs from the 5' end of the reads.
@@ -497,7 +501,7 @@ Ignore this many base pairs from the 5' end of the reads.
 Ignore this many base pairs from the 3' end of the reads.
 </option>
 <option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
-Heterozygosity rate
+Prior heterozygosity rate.
 </option>
 <option id="maxBaseQS" type="INT" attribute="maxBaseQS" defaultConstant="DEF_MAX_BASE_QS">
 Maximum value allowed for a base quality score. Larger values will be equalized to this value.
@@ -508,13 +512,15 @@ columns: chromosome, first position and last position. Positions should be 1-bas
 inclusive.
 </option>
 <option id="minQuality" type="INT" attribute="minQuality" defaultConstant="DEF_MIN_QUALITY">
-Minimum variant quality.
+Minimum genotype quality to accept a SNV call.
+Genotype quality is calculated as 1 minus the posterior probability of the genotype given the reads (in phred scale).
 </option>
 <option id="embeddedSNVs" type="BOOLEAN" attribute="callEmbeddedSNVs">
-Flag to call SNVs within STRs. By default, STRs are treated as a single locus and hence no SNV will be called within an STR.
+Flag to call SNVs within STRs.
+By default, STRs are treated as a single locus and hence no SNV will be called within an STR.
 </option>
 <option id="csb" type="BOOLEAN" attribute="calcStrandBias">
-Calculate a exact fisher test p-value for strand bias between the reference and the alternative allele
+Calculate a exact fisher test p-value for strand bias between the reference and the alternative allele.
 </option>
 <option id="knownSVs" type="FILE" attribute="knownSVsFile">
 File with coordinates of known structural variants in GFF format.
@@ -529,11 +535,11 @@ Turns on the procedure to find repetitive regions based on reads with multiple a
 Turns on read depth (RD) analysis to identify CNVs.
 </option>
 <option id="noNewCNV" type="BOOLEAN" deprecated="true">
-Deprecated. Now this is the default behavior if known SVs are provided
+Deprecated. Now this is the default behavior if known SVs are provided.
 </option>
 <option id="genomeSize" type="INT" attribute="inputGenomeSize">
 Total size of the genome to use during detection of CNVs. This should be used when the reference file only includes a part of
-the genome (e.g. a chromosome or a partial assembly)
+the genome (e.g. a chromosome or a partial assembly).
 </option>
 <option id="binSize" type="INT" attribute="binSize" defaultConstant="DEF_BIN_SIZE">
 Size of the bins to analyze read depth.
@@ -558,7 +564,7 @@ With this option, the proper pair flag will not be taken into accout to decide i
 By default, the distribution of insert length is estimated only taking into account reads with the proper pair flag turned on.
 </option>
 <option id="runOnlySVs" type="BOOLEAN" attribute="runOnlySVsAnalyses">
-Turns off detection of SNVs and small indels. In this mode, only structural variation will be called
+Turns off detection of SNVs and small indels. In this mode, only structural variation will be called.
 </option>
 </command>
 
@@ -646,13 +652,13 @@ Input file with read alignments in BAM format.
 Output file with statistics.
 </option>
 <option id="m" type="INT" attribute="minRD" defaultConstant="DEF_MIN_RD">
-Minimum read depth
+Minimum read depth.
 </option>
 <option id="M" type="INT" attribute="maxRD" defaultConstant="DEF_MAX_RD">
-Maximum read depth
+Maximum read depth.
 </option>
 <option id="q" type="INT" attribute="minBaseQualityScore" defaultConstant="DEF_MIN_BASE_QUALITY_SCORE">
-Minimum base quality score (Phred scale)
+Minimum base quality score (Phred scale).
 </option>
 <option id="frs" type="FILE" attribute="regionsToFilter">
 File with repeats (or any kind of genomic regions) that should not be taken into account in the analysis.
@@ -665,7 +671,7 @@ The format of this file should contain three columns: Sequence name (chromosome)
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
 <option id="s" type="BOOLEAN" attribute="secondaryAlns">
-Consider secondary alignments. By default, only primary alignments are processed
+Consider secondary alignments. By default, only primary alignments are processed.
 </option>
 </command>
 
@@ -675,12 +681,14 @@ Compares the read depth of two samples
 </intro>
 <title>Comparing read depth between samples</title>
 <description>
-Compares the read depth between two samples to identify copy number variation.
+This function compares the read depth of two samples to predict regions with relative copy number variation (CNVS).
+It takes two alignment files and a reference genome, splits the genome into windows, and for each window compares the read depth between the two samples.
+It outputs a text file containing the list of windows of the genome in which the normalized read depth ratio between the two samples is significantly different from 1 (See README.txt for details).
 </description>
 <argument>ALIGNMENTS_FILE_1</argument>
 <argument>ALIGNMENTS_FILE_2</argument>
 <option id="o" type="FILE" attribute="outputFile">
-File with genomic regions in which the two samples have different read depth
+File with genomic regions in which the two samples have different read depth.
 </option>
 <option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
@@ -712,10 +720,10 @@ Loads a transcriptome annotation in GFF3 format, logs format errors, provides st
 and generates cDNA, CDS and protein sequences. 
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Input GFF3 file with gene annotations. It can be gzip compressed
+Input GFF3 file with gene annotations. It can be gzip compressed.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
-Prefix of the output files. It can be an absolute path finished by the prefix
+Prefix of the output files. It can be an absolute path finished by the prefix.
 </option>
 <option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome. It can be gzip compressed.
@@ -735,27 +743,27 @@ Writes to standard output unless the -o option is used to specify an output file
 Input GFF3 file with gene annotations. It can be gzip compressed.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
-Output file with filtered genes. See option -f for output format options
+Output file with filtered genes. See option -f for output format options.
 </option>
 <option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="f" type="INT" attribute="outputFormat" defaultConstant="FORMAT_GFF">
-Output format. 0: GFF3, 1: gene list, 2: gene regions, 3: transcript list, 4: transcript regions
+Output format. 0: GFF3, 1: gene list, 2: gene regions, 3: transcript list, 4: transcript regions.
 </option>
 <option id="c" type="BOOLEAN" attribute="selectCompleteProteins">
-Output only complete transcripts (with start and stop codons) in the output file
+Output only complete transcripts (with start and stop codons) in the output file.
 </option>
 <option id="l" type="INT" attribute="minProteinLength" defaultConstant="DEF_MIN_PROTEIN_LENGTH">
-Minimum protein length for coding transcripts in the output file
+Minimum protein length for coding transcripts in the output file.
 </option>
 <option id="frs" type="FILE" attribute="regionsToFilter">
-File with genomic regions in which variants should be filtered out.
+File with genomic regions in which transcripts should be filtered out.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
 <option id="srs" type="FILE" attribute="regionsToSelect">
-File with genomic regions in which variants should be selected.
+File with genomic regions in which transcripts should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
@@ -767,20 +775,21 @@ Compares two partially or completely assembled genomes based on their gene annot
 </intro>
 <title>Comparing genomes</title>
 <description>
-Takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
-and runs a whole genome comparison taking unique genes as orthology units
+This module takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
+and runs a whole genome comparison taking unique genes as orthology units.
+It also predicts paralogs within each genome.
 </description>
 <argument>GENOME1</argument>
 <argument>TRANSCRIPTOME1</argument>
 <argument>GENOME2</argument>
 <argument>TRANSCRIPTOME2</argument>
-<option id="o" type="STRING" defaultConstant="DEF_OUT_PREFIX" attribute="outputPrefix">
-Prefix of output files
+<option id="o" type="STRING" attribute="outputPrefix" defaultConstant="DEF_OUT_PREFIX">
+Prefix of output files.
 </option>
-<option id="k" type="INT" defaultConstant="DEF_KMER_LENGTH" attribute="kmerLength">
-K-mer length to find orthologs
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
+K-mer length to find orthologs.
 </option>
-<option id="p" type="INT" defaultConstant="DEF_MIN_PCT_KMERS" attribute="minPctKmers">
+<option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
 Minimum percentage of k-mers to call orthologs
 </option>
 <!--

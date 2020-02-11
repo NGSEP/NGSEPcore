@@ -371,15 +371,15 @@ file with three columns:
 Calling variants over multiple samples
 --------------------------------------
 
-This modules allows to call variants over a group of samples separated by files
+This module allows to call variants over a group of samples separated by files
 or read group tags. This is now the recommended method to perform variants
 detection on genotype-by-sequencing (GBS), RAD sequencing, whole exome
 sequencing (WES), RNA-seq and low coverage (less than 10x) whole genome
 sequencing (WGS) data. Although it can also be used on high coverage WGS data,
 the classic sample-by-sample analysis (commands FindVariants, MergeVariants and
 MergeVCF) is still recommended to identify structural variants. This module
-requires one or more read alignment files in BAM format and the reference genome
-that was used to produce the alignments.
+requires one or more read alignment files in SAM or BAM format and the
+reference genome that was used to produce the alignments.
 
 USAGE:
 
@@ -388,8 +388,18 @@ java -jar NGSEPcore.jar MultisampleVariantsDetector <OPTIONS> <BAM_FILE>*
 OPTIONS:
 
 	-r GENOME		: Fasta file with the reference genome.
-	-o FILE			: Output file. Default: variants.vcf
-	-h DOUBLE		: Heterozygosity rate. Default: 0.001
+	-o FILE			: Output VCF file with discovered variants and
+				  genotype calls. Default: variants.vcf
+	-ploidy INT             : Default ploidy of the samples. Default: 2
+	-psp                    : Print id and ploidy of the sample in the VCF
+				  header. The header generated with this option
+				  is not a standard VCF header. However, it
+				  helps NGSEP to keep track of the ploidy of
+				  the samples through downstream analyses.
+	-minMQ INT              : Minimum mapping quality to call an alignment
+				  unique. Default: 20
+	-knownVariants FILE     : VCF file with variants to be genotyped. Only
+				  these variants will appear in the output VCF.
 	-querySeq STRING	: Call variants just for this sequence.
 	-first INT		: Call variants just from this position in the
 				  given query sequence.
@@ -401,9 +411,9 @@ OPTIONS:
 				  at the same reference site. This parameter
 				  helps to control false positives produced by
 				  PCR amplification artifacts. In this command,
-				  this filter is executed independently for each
-				  read group. For GBS or RAD sequencing data use
-				  a large value such as 100. Default: 5
+				  this filter is executed independently for
+				  each read group. For GBS or RAD sequencing
+				  data use a large value such as 100. Default: 5
 	-p			: Process non unique primary alignments in the
 				  pileup process. The default behavior is to
 				  process alignments that are unique
@@ -411,38 +421,32 @@ OPTIONS:
 	-s			: Consider secondary alignments in the pileup
 				  process. Non-unique primary alignments will
 				  also be considered in this mode.
-	-minQuality INT         : Minimum variant quality. In this command, this
-				  filter applies to the QUAL column of the VCF,
-				  which is calculated for each variant as the
-				  maximum of the genotype qualities of samples
-				  with non-homozygous reference genotype calls.
-				  See the command FilterVCF to apply filters of
-				  quality and read depth on individual genotype
-				  calls. Default: 40
-	-maxBaseQS INT          : Maximum value allowed for a base quality score.
-				  Larger values will be equalized to this value. Default: 100
 	-ignore5 INT            : Ignore this many base pairs from the 5' end of
 				  the reads. Default: 0
 	-ignore3 INT            : Ignore this many base pairs from the 3' end of
 				  the reads. Default: 0
+	-h DOUBLE		: Prior heterozygosity rate. Default: 0.001
+	-maxBaseQS INT          : Maximum value allowed for a base quality
+				  score. Larger values will be equalized to
+				  this value. This parameter allows to reduce
+				  the effect of sequencing errors with high
+				  base quality scores. Default: 100
 	-knownSTRs FILE         : File with known short tandem repeats (STRs).
 				  This is a text file with at least three
 				  columns: chromosome, first position and last
 				  position. Positions should be 1-based and
 				  inclusive.
-	-knownVariants FILE     : VCF file with variants to be genotyped. Only
-				  these variants will appear in the output VCF.
+	-minQuality INT         : Minimum variant quality. In this command,
+				  this filter applies to the QUAL column of the
+				  VCF, which is calculated for each variant as
+				  the maximum of the genotype qualities of
+				  samples with non-homozygous reference
+				  genotype calls. See the command FilterVCF to
+				  apply filters of quality and read depth on
+				  individual genotype calls. Default: 40
 	-embeddedSNVs           : Flag to call SNVs within STRs. By default,
 				  STRs are treated as a single locus and hence
 				  no SNV will be called within an STR.
-	-minMQ INT              : Minimum mapping quality to call an alignment
-				  unique Default: 20
-	-ploidy INT             : Default ploidy of the samples. Default: 2
-	-psp                    : Print id and ploidy of the sample in the VCF
-				  header. The header generated with this option
-				  is not a standard VCF header. However, it helps
-				  NGSEP to keep track of the ploidy of the samples
-				  through downstream analyses
 
 Alignments should be provided in BAM v1 format
 (see http://samtools.github.io/hts-specs/SAMv1.pdf for details).
@@ -513,7 +517,7 @@ the value of the parameter to about 100 to retain high sensitivity while
 avoiding a severe penalty in memory usage. The default usage for RAD-Seq or GBS
 samples becomes:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -r <REFERENCE> <BAM_FILE>*
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
 
 WARNING 2: Unlike the behavior of the classical individual analysis per sample,
 in this command the filter executed using the minQuality option applies to the
@@ -530,7 +534,7 @@ Default values of other parameters are also set to maximize sensitivity. For
 conservative variant detection including control for errors in base quality
 scores and PCR amplification artifacts use:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -maxBaseQS 30 -r <REFERENCE> <BAM_FILE>*
+java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -maxBaseQS 30 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
@@ -550,11 +554,32 @@ alignments, and a prefix for the output files.
 
 USAGE: 
 
-java -jar NGSEPcore.jar FindVariants <OPTIONS> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector <OPTIONS>
 
-OPTIONS:	
-	-h FLOAT		: Heterozygosity rate. Default: 0.001
-	-querySeq STRING	: Call variants just for this sequence name 
+OPTIONS:
+
+	-i FILE			: Input file with read alignments in BAM format.
+	-r FILE			: Fasta file with the reference genome.
+	-o FILE			: Prefix for the output files.
+	-sampleId STRING	: Id of the sample for the VCF file. If not set
+				  it looks in the BAM file header for an SM
+				  header tag. If this tag is not present, it
+				  uses the default value. Default: Sample
+	-ploidy INT		: Ploidy of the sample to be analyzed.
+				  Default 2
+	-psp			: Flag to print a header in the VCF file with
+				  the id and the ploidy of the sample. The
+				  header generated with this option is not a
+				  standard VCF header. However, it helps NGSEP
+				  to keep track of the ploidy of each sample
+				  through downstream analyses.
+	-minMQ INT		: Minimum mapping quality to call an alignment
+				  unique. Default: 20
+	-knownVariants FILE	: VCF file with variants to be genotyped. Only
+				  these variants will appear in the output vcf
+				  file. With this option homozygous calls to
+				  the reference allele will be reported
+	-querySeq STRING	: Call variants just for this sequence.
 	-first INT		: Call variants just from this position in the
 				  given query sequence
 	-last INT		: Call variants just until this position in the
@@ -574,40 +599,45 @@ OPTIONS:
 	-s			: Consider secondary alignments while calling
 				  SNVs. Non-unique primary alignments will also
 				  be considered in this mode.
-	-csb		: Calculate a exact fisher test p-value for strand bias between
-				  the reference and the alternative allele
-	-minQuality	INT	: Minimum genotype quality to accept a SNV call
-				  Genotype quality is calculated as 1 minus the
-				  posterior probability of the genotype given
-				  the reads (in phred scale). Default: 0
+	-ignore5 INT		: Ignore this many base pairs from the 5' end
+				  of the reads. Default: 0
+	-ignore3 INT		: Ignore this many base pairs from the 3' end
+				  of the reads. Default: 0
+	-h FLOAT		: Prior heterozygosity rate. Default: 0.001
 	-maxBaseQS INT		: Maximum value allowed for a base quality
 				  score. Larger values will be equalized to
 				  this value. This parameter allows to reduce
 				  the effect of sequencing errors with high
 				  base quality scores. Default: 100
-	-ignore5 INT		: Ignore this many base pairs from the 5' end
-				  of the reads. Default: 0
-	-ignore3 INT		: Ignore this many base pairs from the 3' end
-				  of the reads. Default: 0
-	-knownSTRs FILE		: File with known short tandem repeats (STRs)
+	-knownSTRs FILE		: File with known short tandem repeats (STRs).
 				  This is a text file with at least three
 				  columns, chromosome, first position and last
 				  position. Positions should be 1-based and
 				  inclusive.
-	-knownVariants FILE	: VCF file with variants to be genotyped. Only
-				  these variants will appear in the output vcf
-				  file. With this option homozygous calls to
-				  the reference allele will be reported
+	-minQuality	INT	: Minimum genotype quality to accept a SNV call
+				  Genotype quality is calculated as 1 minus the
+				  posterior probability of the genotype given
+				  the reads (in phred scale). Default: 0
 	-embeddedSNVs		: Flag to call SNVs within STRs. By default,
 				  STRs are treated as a single locus and hence
 				  no SNV will be called within an STR.
+	-csb			: Calculate a exact fisher test p-value for
+				  strand bias between the reference and the
+				  alternative allele
+	-knownSVs FILE		: File with coordinates of known structural
+				  variants in GFF format.
 	-minSVQuality INT	: Minimum quality score (in PHRED scale) for
 				  structural variants. Default: 20
+	-runRep			: Turns on the procedure to find repetitive
+				  regions based on reads with multiple
+				  alignments.
+	-runRD			: Turns on read depth (RD) analysis to identify
+				  CNVs
 	-genomeSize INT		: Total size of the genome to use during
 				  detection of CNVs. This should be used when
 				  the reference file only includes a part of
 				  the genome (e.g. a chromosome or a partial
-				  assembly)   
+				  assembly).
 	-binSize INT		: Size of the bins to analyze read depth.
 				  Default: 100
 	-algCNV	STRING		: Comma-separated list of read depth algorithms
@@ -615,8 +645,11 @@ OPTIONS:
 	-maxPCTOverlapCNVs INT	: Maximum percentage of overlap of a new CNV
 				  with an input CNV to include it in the output
 				  Default: 100 (No filter)
-	-maxLenDeletion INT	: Maximum length of deletions that the read-pair
-				  analysis can identify. Default: 1000000
+	-runRP			: Turns on read pair plus split-read analysis
+				  (RP+SR) to identify large indels and
+				  inversions.
+	-maxLenDeletion INT	: Maximum length of deletions that the
+				  RP analysis can identify. Default: 1000000
 	-sizeSRSeed INT		: Size of the seed to look for split-read
 				  alignments. Default: 8
 	-ignoreProperPairFlag	: With this option, the proper pair flag will
@@ -624,30 +657,7 @@ OPTIONS:
 				  of each fragment are properly aligned. By
 				  default, the distribution of insert length is
 				  estimated only taking into account reads with
-				  the proper pair flag turned on
-	-knownSVs FILE		: File with coordinates of known structural
-				  variants in GFF format.
-	-minMQ INT		: Minimum mapping quality to call an alignment unique.
-				  Default: 20
-	-sampleId STRING	: Id of the sample that will appear in the
-				  output vcf file
-	-ploidy INT		: Ploidy of the sample to be analyzed. 
-				  Default 2
-	-psp			: Flag to print a header in the VCF file with
-				  the id and the ploidy of the sample. The
-				  header generated with this option is not a
-				  standard VCF header. However, it helps NGSEP
-				  to keep track of the ploidy of each sample
-				  through downstream analyses
-	-runRep			: Turns on the procedure to find repetitive
-				  regions based on reads with multiple alignments
-	-runRD			: Turns on read depth (RD) analysis to identify
-				  CNVs
-	-noNewCNV		: Turns off finding new CNVs with the read depth
-				  analysis. Input CNVs and repeats will still
-				  be genotyped using the RD distribution
-	-runRP			: Turns on read pair plus split-read analysis
-				  (RP+SR) to identify large indels and inversions
+				  the proper pair flag turned on.
 	-noSNVS			: Turns off SNV detection. In this mode, only
 				  structural variation will be called
 
@@ -711,13 +721,13 @@ will maximize the number of called variants at the cost of generating some
 false positives in samples with small coverage or high sequencing error rates.
 For conservative variant calling from whole genome sequencing reads use:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 If interested in structural variation, you can add the options to run read
 depth (RD) and read pair plus split read (RP+SR) approaches to identify
 structural variation:
 
-java -jar NGSEPcore.jar FindVariants -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
@@ -737,7 +747,69 @@ avoiding a severe penalty in memory usage. Also, structural variants should not
 be called using these data. The usage for conservative variant calling in
 RAD-Seq or GBS samples becomes:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+
+----------------------------------------
+Merging variants from individual samples
+----------------------------------------
+
+The classical pipeline of NGSEP performs two steps to merge variants and
+genotype calls from different samples into an integrated VCF file. After
+independent variant discovery using the command SingleSampleVariantsDetector
+for each sample, the next step is to generate a file including the whole set of
+variants called in at least one of the samples. This can be done calling the
+MergeVariants command, which has the following usage:
+
+USAGE:
+
+java -jar NGSEPcore.jar MergeVariants <OPTIONS> <VARIANTS_FILE>*
+
+OPTIONS:
+
+	-s FILE	: List of sequence names as they appear in the original
+		  reference genome
+	-o FILE	: Output VCF file with merged variants
+
+The sequence names file is a text file which just has the ids of the sequences
+in the reference. It is used by the program to determine the order of the
+reference sequences. In unix systems this file can be obtained running the
+following command on the fasta file with the reference genome:
+
+awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REFERENCE_FILE> > <SEQUENCE_NAMES_FILE>
+
+If samtools is available. The fai index file provided by this tool can also be
+used as a sequence names file. The fai index is generated with this command:
+
+samtools faidx <REFERENCE_FILE>
+
+The output file of the merge program is a vcf with the union of variants
+reported by the input files but without any genotype information. 
+
+The next step is to genotype for each sample the variants produced by
+MergeVariants using the variants detector (See SingleSampleVariantsDetector).
+For each sample, the command to execute at this stage (in conservative mode)
+should look like this:
+
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownVariants <VARS_FILE> -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+
+where VARS_FILE is the output file obtained in the first step of the merging
+process. At the end, this will produce a second set of vcf files which will
+differ from the first set in the sense that they will include calls to the
+reference allele. The last step is to join these new vcf files using the
+VCFMerge command:
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFMerge <OPTIONS> <GENOTYPED_VARIANTS_FILE>*
+
+OPTIONS:
+
+	-s FILE	: List of sequence names as they appear in the original
+		  reference genome
+	-o FILE	: Output VCF file with merged variants and genotype information
+
+This command will write the final vcf file with the genotype calls for each
+variant on each sample.
 
 ----------------------------------------------------------
 Obtaining relative allele counts from read alignment files
@@ -749,37 +821,60 @@ analysis is useful to predict the ploidy of a sequenced sample.
 
 USAGE:
 
-java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS> <ALIGNMENTS_FILE>
+java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS>
 
 OPTIONS:
 
-        -m INT	: Minimum read depth Default: 10
-        -M INT	: Maximum read depth Default: 1000
-        -q INT	: Minimum base quality score (Phred scale) Default: 20
-        -r FILE : File with repeats (or any kind of genomic regions) that
-		  should not be taken into account in the analysis. The format
-		  of this file should contain three columns: Sequence name
-		  (chromosome), first position in the sequence, and last
-		  position in the sequence. Both positions are assumed to be
-		  1-based.
-        -f FILE : File with genomic regions that should be taken into account
-		  in the analysis. The format of this file should contain three
-		  columns: Sequence name (chromosome), first position in the
-		  sequence, and last position in the sequence. Both positions
-		  are assumed to be 1-based.
-        -s      : Consider secondary alignments. By default, only primary
-		  alignments are processed
+	-i FILE		: Input file with read alignments in BAM format.
+	-o FILE		: Output file with statistics.
+	-m INT		: Minimum read depth Default: 10
+	-M INT		: Maximum read depth Default: 1000
+	-q INT		: Minimum base quality score (Phred scale) Default: 20
+	-frs FILE	: File with repeats (or any kind of genomic regions)
+			  that should not be taken into account in the
+			  analysis. The format of this file should contain
+			  three columns: Sequence name (chromosome), first
+			  position in the sequence, and last position in the
+			  sequence. Both positions are assumed to be 1-based.
+	-srs FILE	: File with genomic regions that should be taken into
+			  account in the analysis. The format of this file
+			  should contain three columns: Sequence name
+			  (chromosome), first position in the sequence, and
+			  last position in the sequence. Both positions are
+			  assumed to be 1-based.
+	-s		: Consider secondary alignments. By default, only
+			  primary alignments are processed.
 
 ------------------------------------
 Comparing read depth between samples
 ------------------------------------
 
-This function compares the read depth of two samples. It takes two alignment
-files and a reference genome, splits the genome into windows, and for each
-window compares the read depth between the two samples. It outputs a text file
-containing the list of windows of the genome in which the normalized read depth 
-ratio between the two samples is significantly different from 1. The text file
-contains the following columns:
+This function compares the read depth of two samples to predict regions with
+relative copy number variation (CNVS). It takes two alignment files and a
+reference genome, splits the genome into windows, and for each window compares
+the read depth between the two samples. It outputs a text file containing the
+list of windows of the genome in which the normalized read depth ratio between
+the two samples is significantly different from 1.
+
+USAGE:
+
+java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2>
+
+OPTIONS:
+
+	-o FILE		: File with genomic regions in which the two samples
+			  have different read depth.
+	-r FILE		: Fasta file with the reference genome.
+	-w INT		: Window size to be used during the read depth
+			  comparison. Default: 100
+	-p FLOAT	: Maximum p-value. Only the windows with a p-value
+			  lower than that specified will be reported.
+			  Default: 0.001
+	-a		: Output an entry for every window in the genome
+	-c		: Perform GC-correction of the read depth
+	-b		: Perform the Bonferroni correction for multiple 
+			  testing
+The output text file contains the following columns:
 
 1. Chromosome
 2. Window start
@@ -789,28 +884,125 @@ contains the following columns:
 6. Normalized read depth ratio
 7. P-value
 
-USAGE:
-
-java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2> <REFERENCE> <OUT_PREFIX>
-
-OPTIONS:
-
-	-binSize INT	: Window size to be used during the read depth
-			  comparison. Default: 100
-	-p FLOAT	: Maximum p-value. Only the windows with a p-value
-			  lower than that specified will be reported.
-			  Default: 0.001
-	-w		: Output an entry for every window in the genome
-	-g		: Perform GC-correction of the read depth
-	-b		: Perform the Bonferroni correction for multiple 
-			  testing
-
 ----------------------------------------------------------
 ----------------------------------------------------------
 Group 3: Analysis of annotated gene models and transcripts
 ----------------------------------------------------------
 ----------------------------------------------------------
 
+-----------------------------------
+Evaluating transcriptome assemblies
+-----------------------------------
+
+Loads a transcriptome annotation in GFF3 format, logs format errors, provides
+statistics on the assembled transcriptome, generates cDNA, CDS and protein
+sequences.
+
+USAGE:
+
+java -jar NGSEPcore.jar TranscriptomeAnalyzer <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input GFF3 file with gene annotations. It can be gzip
+		  compressed.
+	-o FILE	: Prefix of the output files. It can be an absolute path
+		  finished by the prefix
+	-r FILE	: Fasta file with the reference genome. It can be gzip
+		  compressed.
+
+------------------------
+Filtering transcriptomes
+------------------------
+
+Loads a transcriptome annotation in GFF3 format and generates a filtered file
+by CDS length, presence of start and stop codons and intersection with other
+regions. Writes to standard output unless the -o option is used to specify an
+output file.
+
+USAGE:
+
+java -jar NGSEPcore.jar TranscriptomeFilter <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input GFF3 file with gene annotations. It can be gzip
+			  compressed.
+	-o FILE		: Output file with filtered genes. See option -f for
+			  output format options.
+	-r FILE		: Fasta file with the reference genome.
+	-f INT		: Output format. 0: GFF3, 1: gene list, 2: gene
+			  regions, 3: transcript list, 4: transcript regions.
+			  Default: 0
+	-c		: Output only complete transcripts (with start and stop
+			  codons) in the output file.
+	-l INT		: Minimum protein length for coding transcripts in the
+			  output file. Default: 0
+	-frs FILE	: File with genomic regions in which transcripts should
+			  be filtered out. The format of this file should
+			  contain three columns: Sequence name (chromosome),
+			  first position in the sequence, and last position in
+			  the sequence. Both positions are assumed to be 1-based.
+	-srs FILE	: File with genomic regions in which transcripts should
+			  be selected. The format of this file should contain
+			  three columns: Sequence name (chromosome), first
+			  position in the sequence, and last position in the
+			  sequence. Both positions are assumed to be 1-based.
+
+-----------------
+Comparing genomes
+-----------------
+
+This module takes two assembled genomes in fasta format and their corresponding
+transcriptome gene annotations in GFF3 format and runs a whole genome
+comparison taking unique genes as orthology units. It also predicts paralogs
+within each genome.
+
+USAGE:
+
+java -jar NGSEPcore.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GENOME2> <TRANSCRIPTOME2>
+
+OPTIONS:
+
+	-o STRING	: Prefix of output files. Default: genomesAlignment
+	-k INT		: K-mer length to find orthologs. Default: 10
+	-p INT		: Minimum percentage of k-mers to find orthologs.
+			  Default: 50
+			
+The output is a series of text files having the ids and physical coordinates of
+the paralogs within each genome and the orthologs between the two genomes.
+The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
+have the following format:
+
+1. Id of the gene in the first genome
+2. Chromosome of the gene in the first genome
+3. Start of the gene in the first genome
+4. End of the gene in the first genome
+5. Number of paralogs of the gene in the first genome
+6. Id of the second genome
+7. Id of the ortholog in the second genome
+8. Chromosome of the ortholog in the second genome
+9. Start of the ortholog in the second genome
+10. End of the ortholog in the second genome
+11. Alignment type. It can be "L" if the gene has an ortholog in the
+   second genome and it makes part of a synteny block. "U" if the gene has
+   a unique ortholog but it does not make part of the syntheny block, and
+   "M" if the gene has multiple orthologs in the second genome.
+
+The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
+<PREFIX>_paralogsG2.tsv, have the same 10 first columns but columns 7 to 10
+contain genes within the same genome as genes in column 1 to 4. The file
+<PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
+that can be inferred from the pairwise homolog relationships.
+
+Finally, the files:
+
+<PREFIX>_linearOrthologView.html
+<PREFIX>_circularOrthologView.html and
+<PREFIX>_circularParalogView.html
+
+can be loaded in a web browser and provide an interactive view of the alignment
+based on the d3 web development technology (https://d3js.org/).
 
 
 --------------------------------------------------------
@@ -863,54 +1055,6 @@ TACH (String):	Description of the aminoacid change produced by a
 		non-synonymous mutation. String encoded as reference aminoacid,
 		position and mutated aminoacid
 
-----------------------------------------
-Merging variants from individual samples
-----------------------------------------
-
-NGSEP can be used to merge variants from different samples into an
-integrated VCF file. The pipeline for this purpose is as follows.
-
-The first step is to generate a file including the whole set of variants called
-in at least one of the samples. This can be done calling the MergeVariants
-command as follows:
-
-USAGE:
-
-java -jar NGSEPcore.jar MergeVariants <SEQUENCE_NAMES_FILE> <OUTPUT_FILE> <VARIANTS_FILE>*
-
-
-The sequence names file is a text file which just has the ids of the sequences
-in the reference. It is used by the program to determine the order of the
-reference sequences. In unix systems this file can be obtained running the
-following command on the fasta file with the reference genome:
-
-awk '{if(substr($1,1,1)==">") print substr($1,2) }' <REFERENCE_FILE> > <SEQUENCE_NAMES_FILE>
-
-If samtools is available. The fai index file provided by this tool can also be
-used as a sequence names file. The fai index is generated with this command:
-
-samtools faidx <REFERENCE_FILE>
-
-The output file of the merge program is a vcf with the union of variants
-reported by the input files but without any genotype information. 
-
-The second step is to genotype for each sample the variants produced at the
-first step using the variants detector (See FindVariants command). For each
-sample, the command to execute at this stage (in conservative mode) should look
-like this:
-
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownVariants <VARS_FILE> <REFERENCE> <INPUT_FILE> <OUTPUT_PREFIX>
-
-where VARS_FILE is the output file obtained in the first step of the merging
-process. At the end, this will produce a second set of vcf files which will
-differ from the first set in the sense that they will include calls to the
-reference allele. The third step is to join these new vcf files using the
-following command:
-
-java -jar NGSEPcore.jar MergeVCF <SEQUENCE_NAMES_FILE> <GENOTYPED_VARIANTS_FILE>*
-
-This command will write to standard output the final vcf file with the genotype
-calls for each variant on each sample.
 
 -------------------
 Filtering VCF files
@@ -1433,65 +1577,6 @@ The output is a tab delimited file with the following fields:
 The current output also includes distributions of gold standard variants per
 cluster, heterozygous test variants per cluster and genome span per cluster
 
------------------
-Comparing genomes
------------------
-
-This module takes two assembled genomes in fasta format and their corresponding
-transcriptome gene annotations in GFF3 format and runs a whole genome
-comparison taking unique genes as orthology units. It also calculate paralogs
-within each genome. 
-
-USAGE:
-
-java -jar NGSEPcore.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GENOME2> <TRANSCRIPTOME2>
-
-OPTIONS:
-
-	-o STRING	: Prefix of output files Default: genomesAlignment
-	-k INT		: K-mer size to find orthologs Default: 10
-	-p INT		: Minimum percentage of k-mers to find orthologs
-			  Default: 50
-	-MH INT		: Maximum number of homologs per unit to be displayed
-			  in the D3 visualization. Default: 3
-			
-The output is a series of text files having the ids and physical coordinates of
-the paralogs within each genome and the orthologs between the two genomes.
-The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
-have the following format:
-
-1. Id of the gene in the first genome
-2. Chromosome of the gene in the first genome
-3. Start of the gene in the first genome
-4. End of the gene in the first genome
-5. Number of paralogs of the gene in the first genome
-6. Id of the second genome
-7. Id of the ortholog in the second genome
-8. Chromosome of the ortholog in the second genome
-9. Start of the ortholog in the second genome
-10. End of the ortholog in the second genome
-11. Alignment type. It can be "L" if the gene has an ortholog in the
-   second genome and it makes part of a synteny block. "U" if the gene has
-   a unique ortholog but it does not make part of the syntheny block, and
-   "M" if the gene has multiple orthologs in the second genome.
-
-The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
-<PREFIX>_paralogsG2.tsv, have the same 10 first columns but columns 7 to 10
-contain genes within the same genome as genes in column 1 to 4. The file
-<PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
-that can be inferred from the pairwise homolog relationships.
-
-Finally, the files:
-
-<PREFIX>_linearOrthologView.html
-<PREFIX>_circularOrthologView.html and
-<PREFIX>_circularParalogView.html
-
-can be loaded in a web browser and provide an interactive view of the alignment
-based on the d3 web development technology (https://d3js.org/).
-
-
-
 ----------------------------------------------
 Simulating individuals from a reference genome
 ----------------------------------------------
@@ -1523,22 +1608,7 @@ OPTIONS:
 			  simulated genome. Default: Simulated
 	-p INT		: Ploidy of the simulated sample. Default: 2
 
------------------------------------
-Evaluating transcriptome assemblies
------------------------------------
 
-Loads a transcriptome annotation in GFF3 format, logs format errors, provides
-statistics on the assembled transcriptome, generates cDNA, CDS and protein
-sequences and generates a filtered gff by CDS length and completion.
-
-USAGE:
-
-java -jar NGSEPcore.jar TranscriptomeAnalyzer <GENOME> <TRANSCRIPTOME_MAP> <OUTPUT_PREFIX>
-
-OPTIONS:
-
-        -c        : Output only complete transcripts (with start and stop codons) in the gff output file
-        -pl INT   : Minimum protein length for coding transcripts in the gff output file Default: 0
 
 
 ------------------------------
