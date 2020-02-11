@@ -1200,7 +1200,9 @@ be applied to VCFs containing populations of inbred samples. Each group can eith
 populations within the populations file. Multiple population names within one group should be separated
 by comma (without white spaces).
 The populations file is a tab-delimited text file with two columns: sample id and population id.
-Writes to the standard output. See the README.txt file for details on the output.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
+See the README.txt file for details on the output.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -1213,10 +1215,10 @@ A two column text file with the sample ids in the first column and the ids of th
 Output file with statistics. 
 </option>
 <option id="g1" type="STRING" attribute="populationsGroup1">
-Comma-separated list of populations that should be considered as group 1
+Comma-separated list of populations that should be considered as group 1.
 </option>
 <option id="g2" type="STRING" attribute="populationsGroup2">
-Comma-separated list of populations that should be considered as group 2
+Comma-separated list of populations that should be considered as group 2.
 </option>
 <option id="t" type="FILE" attribute="transcriptomeFile">
 GFF3 file with the transcriptome. If this file is provided, statistics will be provided by gene and
@@ -1224,7 +1226,7 @@ not by window.
 </option>
 <option id="n" type="BOOLEAN" attribute="includeIntrons">
 If set, introns will be included in the calculation of pairwise differences. Only useful if the
--t option is set
+-t option is set.
 </option>
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Length of each genomic window to calculate pairwise differences between samples. 
@@ -1240,8 +1242,15 @@ Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
 </intro>
 <title>Genotype imputation</title>
 <description>
-Impute missing genotypes from unphased multilocus SNP genotype data in a VCF.
-* Only biallelic SNPs are imputed and included in the output VCF file.
+This module allows imputation of missing genotypes from unphased multilocus SNP genotype data in a VCF.
+The current version is a reimplementation of the Hidden Markov Model (HMM) implemented in the package fastPHASE
+This implementation allows to process VCF files and produces its output also as a VCF.
+However, only biallelic SNPs are imputed and included in the output VCF file.
+The current version supports imputation of either highly homozygous or heterozygous populations.
+Parental lines can be provided for both types of populations using the -p option.
+The options -ip and -is tell the model that either the parental accessions (-ip) or the entire population (-is) are inbred samples with low heterozygosity.
+In the latter mode, the model will only produce homozygous genotype calls.
+See the README.txt file for details on the output files.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -1261,15 +1270,15 @@ the number of parents of the population even if the list of parents is provided 
 the parents are missing
 </option>
 <option id="w" type="INT" attribute="windowSize" defaultConstant="DEF_WINDOW_SIZE">
-Size of the window to process variants at the same time
+Window size as number of variants within each window.
 </option>
 <option id="v" type="INT" attribute="overlap" defaultConstant="DEF_OVERLAP">
-Overlap between windows
+Overlap as number of variants shared between neighbor windows.
 </option>
 <option id="c" type="DOUBLE" attribute="avgCMPerKbp" defaultConstant="DEF_AVG_CM_PER_KBP">
 Estimated average number of centiMorgans per Kbp on euchromatic regions of the genome.
 Typical values of this parameter are 0.001 for human populations, 0.004 for rice and 0.35
-for yeast populations
+for yeast populations.
 </option>
 <option id="t" type="BOOLEAN" attribute="skipTransitionsTraining">
 If set, transition probabilities in the HMM will NOT be updated during the Baum-Welch
@@ -1277,10 +1286,10 @@ training of the HMM. Not recommended unless the -c option is set to a value allo
 reasonable initial estimation of the transition probabilities.
 </option>
 <option id="ip" type="BOOLEAN" attribute="inbredParents">
-Specifies that parents of the population are inbreds
+Specifies that parents of the population are inbred.
 </option>
 <option id="is" type="BOOLEAN" attribute="inbredSamples">
-Specifies that the samples to impute are inbreds
+Specifies that the samples to impute are inbred.
 </option>
 </command>
 
@@ -1294,6 +1303,7 @@ of one population introgressed in samples of a different population. Although it
 run on any VCF file, it is particularly designed to work with populations of inbred
 samples.
 Reads from standard input unless the -i option is used to specify an input file.
+See the README.txt file for details on the output files.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
@@ -1306,8 +1316,7 @@ A two column text file with the sample ids in the first column and the ids of th
 Prefix of the output files. 
 </option>
 <option id="g" type="DOUBLE" attribute="minPCTGenotyped" defaultConstant="DEF_MIN_PCT_GENOTYPED">
-Minimum percentage of samples genotyped within a population to identify the most common
-allele.
+Minimum percentage of samples genotyped within a population to identify the most common allele.
 </option>
 <option id="d" type="DOUBLE" attribute="minDiffAF" defaultConstant="DEF_MIN_DIFF_AF">
 Minimum difference between reference allele frequencies of at least two populations
@@ -1318,19 +1327,19 @@ Maximum minor allele frequency within a population to consider the major allele 
 variant as representative allele for such population.
 </option>
 <option id="w" type="INT" attribute="windowSize" defaultConstant="DEF_WINDOW_SIZE">
-Window size as number of variants within each window
+Window size as number of variants within each window.
 </option>
 <option id="v" type="INT" attribute="overlap" defaultConstant="DEF_OVERLAP">
-Overlap as number of variants shared between neighbor windows
+Overlap as number of variants shared between neighbor windows.
 </option>
 <option id="a" type="INT" attribute="matchScore" defaultConstant="DEF_MATCH_SCORE">
-Score given of a match between a sample homozygous genotype call and a population major allele
+Score given of a match between a sample homozygous genotype call and a population major allele.
 </option>
 <option id="t" type="INT" attribute="mismatchScore" defaultConstant="DEF_MISMATCH_SCORE">
-Score given of a mismatch between a sample homozygous genotype call and a population major allele
+Score given of a mismatch between a sample homozygous genotype call and a population major allele.
 </option>
 <option id="s" type="INT" attribute="minScore" defaultConstant="DEF_MIN_SCORE">
-Minimum score to match a sample haplotype with a population-derived haplotype
+Minimum score to match a sample haplotype with a population-derived haplotype.
 </option>
 <option id="c" type="BOOLEAN" attribute="printVCF">
 Outputs a VCF file with the biallelic variants that showed segregation between at least one
@@ -1338,7 +1347,7 @@ pair of groups and hence were selected for the analysis.
 </option>
 <option id="u" type="BOOLEAN" attribute="printUnassigned">
 If set, reports introgression events for unassigned haplotypes according to the minimum score defined by
-the options -a -t and -s
+the options -a -t and -s.
 </option>
 </command>
 
@@ -1350,34 +1359,34 @@ Simulates a single individual with homozygous and heterozygous mutations from a 
 <description>
 This simulator takes a (haploid) genome assembly and simulates a single individual including
 homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative to the input assembly.
+It produces two files, a fasta file with the simulated genome, and a phased VCF file with the simulated variants.
 </description>
 <option id="i" type="FILE" attribute="genome">
-Fasta file with the genome to simulate an individual
+Fasta file with the genome to simulate an individual.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
-Prefix of the output files
+Prefix of the output files.
 </option>
 <option id="s" type="DOUBLE" defaultConstant="DEF_SNV_RATE" attribute="snvRate">
-Proportion of reference basepairs with simulated SNV events
+Proportion of reference basepairs with simulated SNV events.
 </option>
 <option id="n" type="DOUBLE" defaultConstant="DEF_INDEL_RATE" attribute="indelRate">
-Proportion of reference basepairs with simulated indel events
+Proportion of reference basepairs with simulated indel events.
 </option>
 <option id="f" type="DOUBLE" defaultConstant="DEF_MUTATED_STR_FRACTION" attribute="mutatedSTRFraction">
-Fraction of input STRs for which a mutation will be simulated
+Fraction of input STRs for which a mutation will be simulated.
 </option>
 <option id="t" type="FILE" attribute="strsFile">
-Path to a text file describing the known STRs in the given genome
+Path to a text file describing the known STRs in the given genome.
 </option>
 <option id="u" type="INT" defaultConstant="DEF_STR_UNIT_INDEX" attribute="strUnitIndex">
-Zero-based index in the STR file where the unit sequence is located
+Zero-based index in the STR file where the unit sequence is located.
 </option>
 <option id="d" type="STRING" defaultConstant="DEF_SAMPLE_ID" attribute="sampleId">
-ID of the simulated sample. Appears in the VCF header and as part of the name of the sequences in the
-simulated genome
+ID of the simulated sample. Appears in the VCF header and as part of the name of the sequences in the simulated genome.
 </option>
 <option id="p" type="INT" defaultConstant="DEF_PLOIDY" attribute="ploidy">
-Ploidy of the simulated sample 
+Ploidy of the simulated sample.
 </option>
 </command>
 
@@ -1390,28 +1399,28 @@ Generates random single reads from a given reference genome
 Generates single reads randomly distributed from a given reference genome. 
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Fasta file with the genome to simulate reads
+Fasta file with the genome to simulate reads.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
-Output file with simulated reads. See option -f for options on the file format
+Output file with simulated reads. See option -f for options on the file format.
 </option>
 <option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
-Number of reads
+Number of reads.
 </option>
 <option id="u" type="INT" attribute="meanReadLength" defaultConstant="DEF_MEAN_READ_LENGTH">
-Average read length
+Average read length.
 </option>
 <option id="s" type="INT" attribute="stdevReadlength" defaultConstant="DEF_STDEV_READ_LENGTH">
-Standard deviation read length
+Standard deviation read length.
 </option>
 <option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
-Substitution error rate
+Substitution error rate.
 </option>
 <option id="d" type="DOUBLE" attribute="indelErrorRate" defaultConstant="DEF_INDEL_ERROR_RATE">
-Indel error rate
+Indel error rate.
 </option>
 <option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
-Output format. 0 for fastq, 1 for fasta
+Output format. 0 for fastq, 1 for fasta.
 </option>
 </command>
 
@@ -1423,8 +1432,9 @@ Compares a gold standard phased VCF with a VCF with test genotype calls
 <description>
 Takes a VCF file with genotype information from one sample, the reference genome used to build
 the VCF and a phased VCF file with gold standard calls and calculates quality statistics
-comparing gold-standard with test calls. See the README.txt file for details on the output.
+comparing gold-standard with test calls. 
 Writes to standard output unless the -o option is used to specify an output file.
+See the README.txt file for details on the output.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input test file in VCF format. It can be gzip compressed.
@@ -1439,14 +1449,14 @@ Fasta file with the reference genome.
 Output file with statistics. 
 </option>
 <option id="c" type="FILE" attribute="complexRegions">
-File with coordinates of complex regions (such as STRs)
+File with coordinates of complex regions (such as STRs).
 </option>
 <option id="f" type="FILE" attribute="confidenceRegions">
-File with coordinates of regions in which the gold standard can be trusted 
+File with coordinates of regions in which the gold standard can be trusted.
 </option>
 <option id="e" type="BOOLEAN" attribute="genomicVCF">
 Indicates that the gold standard VCF is genomic, which means that confidence regions can be
-extracted from annotated regions with homozygous reference genotypes   
+extracted from annotated regions with homozygous reference genotypes.
 </option>
 </command>
 

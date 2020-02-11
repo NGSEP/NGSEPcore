@@ -1004,7 +1004,6 @@ Finally, the files:
 can be loaded in a web browser and provide an interactive view of the alignment
 based on the d3 web development technology (https://d3js.org/).
 
-
 --------------------------------------------------------
 --------------------------------------------------------
 Group 4: Commands for Variants (VCF) downstream analysis
@@ -1390,29 +1389,42 @@ of pairwise differences per Kbp, Fst and Tajima D. This functionality should
 only be applied to VCFs containing populations of inbred samples. Each group
 can either be one or more than populations wthin the populations file. Multiple
 population names within one group should be separated by comma (without white
-spaces). 
+spaces). Reads from standard input unless the -i option is used to specify an
+input file. Writes to standard output unless the -o option is used to specify
+an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar AlleleSharingStats <VCF_FILE> <POPULATIONS_FILE> <GROUP_1> <GROUP_2>
+java -jar NGSEPcore.jar VCFAlleleSharingStats <OPTIONS>
 
 OPTIONS:
+
+
+	-i FILE		: Input file in VCF format. It can be gzip compressed.
+	-p FILE		: File with population assignments for the samples.
+			  A two column text file with the sample ids in the
+			  first column and the ids of the populations in the
+			  second column.
+	-o FILE		: Output file with statistics.
+	-g1 STRING	: Comma-separated list of populations that should be
+			  considered as group 1.
+	-g2 STRING	: Comma-separated list of populations that should be
+			  considered as group 2.
 	-t FILE		: GFF3 file with the transcriptome. If this file is
 			  provided, statistics will be provided by gene and not
 			  by window.
-        -i		: If set, introns will be included in the calculation
+	-n		: If set, introns will be included in the calculation
 			  of pairwise differences. Only useful if the -t option
 			  is set.
-        -w INT		: Length of each genomic window to calculate pairwise
+	-w INT		: Length of each genomic window to calculate pairwise
 			  differences between samples. Default: 100000
-        -s INT		: Step between windows to calculate pairwise
+	-s INT		: Step between windows to calculate pairwise
 			  differences between samples. Default: 10000
 
 
-
 The populations file is a tab-delimited text file with two columns:
-sample id and population id. Writes to the standard output a tab-delimited
-report with the following fields:
+sample id and population id. Writes a tab-delimited report with the following
+fields:
 
 1. Chromosome
 2. Window start
@@ -1439,6 +1451,7 @@ id and gene id respectively.
 -------------------
 Genotype imputation
 -------------------
+
 This module allows imputation of missing genotypes from unphased multilocus
 SNP genotype data in a VCF. The current version is a reimplementation of the
 Hidden Markov Model (HMM) implemented in the package fastPHASE
@@ -1449,15 +1462,17 @@ version supports imputation of either highly homozygous or heterozygous
 populations. Parental lines can be provided for both types of populations using
 the -p option. The options -ip and -is tell the model that either the parental
 accessions (-ip) or the entire population (-is) are inbred samples with low
-expected heterozygosity. In the latter mode, the model will only produce
-homozygous genotypes
+heterozygosity. In the latter mode, the model will only produce homozygous
+genotype calls.
 
 USAGE:
 
-java -jar NGSEPcore.jar ImputeVCF <OPTIONS> <VCF_FILE> <OUT_PREFIX>
+java -jar NGSEPcore.jar ImputeVCF <OPTIONS>
 
 OPTIONS: 
 
+	-i FILE		: Input file in VCF format. It can be gzip compressed.
+	-o FILE		: Prefix of the output files.
 	-p STRING	: Comma-separated list of sample ids of the parents of
 			  the breeding population. This should only be used for
 			  bi-parental or multi-parental breeding populations.
@@ -1470,25 +1485,23 @@ OPTIONS:
 			  is provided with the -p option. This allows to take
 			  into account cases of populations in which some of
 			  the parents are missing. Default: 8
-	-w INT		: Size of the window to process variants at the same
-			  time. Default: 5000
-        -o INT		: Overlap between windows. Default: 50
+	-w INT		: Window size as number of variants within each window.
+			  Default: 5000
+        -v INT		: Overlap as number of variants shared between neighbor
+			  windows. Default: 50
 	-c FLOAT	: Estimated average number of centiMorgans per Kbp on
 			  euchromatic regions of the genome. This value is used
 			  by the model to estimate initial transitions between
 			  the states of the HMM. Typical values of this
 			  parameter are 0.001 for human populations, 0.004 for
-			  rice and 0.35 for yeast populations. We expect to
-			  implement an option to allow setting the estimated
-			  recombination rate per site in future versions.
-			  Default: 0.001
+			  rice and 0.35 for yeast populations. Default: 0.001
 	-t		: If set, transition probabilities in the HMM will NOT
 			  be updated during the Baum-Welch training of the HMM. 
 			  Not recommended unless the -c option is set to a
 			  value allowing a reasonable initial estimation of the
 			  transition probabilities.
-        -ip		: Specifies that parents of the population are inbreds
-        -is		: Specifies that the samples to impute are inbreds
+        -ip		: Specifies that parents of the population are inbred.
+        -is		: Specifies that the samples to impute are inbred.
 
 
 This module outputs two files, the first is a VCF file including the imputed
@@ -1500,19 +1513,26 @@ that most likely originated the observed haplotype of the individual.
 Finding haplotype introgressions
 --------------------------------
 
-This module runs a window-based analysis to identify the most common haplotype
-within each of the populations described in the given populations file and then
-identifies common haplotypes of one population introgressed in samples of a
-different population. Although it can be run on any VCF file, it is
-particularly designed to work with populations of inbred samples.
+Runs a window-based analysis to identify the most common haplotype within each
+of the populations described in the given populations file and then identify
+common haplotypes of one population introgressed in samples of a different
+population. Although it can be run on any VCF file, it is particularly designed
+to work with populations of inbred samples. Reads from standard input unless the
+-i option is used to specify an input file.
 
 USAGE:
 
-java -jar NGSEPcore.jar IntrogressionAnalysis <OPTIONS> <VCF_FILE> <POPULATIONS_FILE> <OUT_PREFIX>
+java -jar NGSEPcore.jar VCFIntrogressionAnalysis <OPTIONS>
 
 OPTIONS:
 
-	-p FLOAT	: Minimum percentage of samples genotyped within a
+	-i FILE		: Input file in VCF format. It can be gzip compressed.
+	-p FILE		: File with population assignments for the samples.
+			  A two column text file with the sample ids in the
+			  first column and the ids of the populations in the
+			  second column.
+	-o FILE		: Prefix of the output files.
+	-g FLOAT	: Minimum percentage of samples genotyped within a
 			  population to identify the most common allele.
 			  Default: 80
 	-d FLOAT	: Minimum difference between reference allele
@@ -1522,17 +1542,17 @@ OPTIONS:
 			  consider the major allele of a variant as
 			  representative allele for such population.
 			  Default: 0.4
-	-w INT		: Window size as number of variants within each window
+	-w INT		: Window size as number of variants within each window.
 			  Default: 50
-	-o INT		: Overlap as number of variants shared between neighbor
-			  windows Default: 0
+        -v INT		: Overlap as number of variants shared between neighbor
+			  windows. Default: 0
 	-a INT		: Score given of a match between homozygous genotypes
 			  comparing haplotypes Default: 1
-	-i INT		: Score given of a mismatch between homozygous
+	-t INT		: Score given of a mismatch between homozygous
 			  genotypes comparing haplotypes Default: -1
 	-s INT		: Minimum score to match an individual haplotype with a
 			  population-derived haplotype Default: 30
-	-v		: Outputs a VCF file with the biallelic variants that
+	-c		: Outputs a VCF file with the biallelic variants that
 			  showed segregation between at least one pair of
 			  groups and hence were selected for the analysis.
         -u		: If set, reports introgression events for unassigned
@@ -1568,24 +1588,102 @@ By default, this function outputs three files:
    each population, and the number of regions non genotyped, unassigned and
    assigned to more than one population.
 
+
+---------------------------------
+---------------------------------
+Group 5: Simulation and benchmark
+---------------------------------
+---------------------------------
+
+----------------------------------------------
+Simulating individuals from a reference genome
+----------------------------------------------
+
+This simulator takes a (haploid) genome assembly and simulates a single
+individual including homozygous and heterozygous mutations (SNPs, indels and
+mutated STRs) relative to the input assembly. It produces two files, a fasta
+file with the simulated genome, and a phased VCF file with the simulated
+variants.
+
+USAGE:
+
+java -jar NGSEPcore.jar SingleIndividualSimulator <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Fasta file with the genome to simulate an individual.
+	-o FILE		: Prefix of the output files.
+	-s DOUBLE	: Proportion of reference basepairs with simulated SNV
+			  events. Default: 0.001
+	-n DOUBLE	: Proportion of reference basepairs with simulated
+			  indel events. Default: 1.0E-4
+	-f DOUBLE	: Fraction of input STRs for which a mutation will be
+			  simulated. Default: 0.1
+	-t FILE		: Path to a text file describing the known STRs in the
+			  given genome.
+	-u INT		: Zero-based index in the STR file where the unit
+			  sequence is located. Default: 14
+	-d STRING	: ID of the simulated sample. Appears in the VCF header
+			  and as part of the name of the sequences in the
+			  simulated genome. Default: Simulated
+	-p INT		: Ploidy of the simulated sample. Default: 2
+
+The file with known STRs should have at least four columns:
+
+1. Sequence name (chromosome)
+2. First basepair of the STR (1-based inclusive)
+3. Last basepair of the STR (1-based inclusive)
+4. STR unit sequence
+
+The option -u allows to indicate the actual column where the unit sequence is
+located. At this moment, the default value corresponds to the column where this
+sequence is located in the (proceesed) output of tandem repeats finder (TRF).
+
+----------------
+Simulating reads
+----------------
+
+Generates single reads randomly distributed from a given reference genome.
+
+USAGE:
+
+java -jar NGSEPcore.jar SingleReadsSimulator <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Fasta file with the genome to simulate reads.
+	-o FILE		: Output file with simulated reads. See option -f for
+			  options on the file format.
+	-n INT		: Number of reads. Default: 30000
+	-u INT		: Average read length. Default: 10000
+	-s INT		: Standard deviation read length. Default: 2000
+	-e DOUBLE	: Substitution error rate. Default: 0.02
+	-d DOUBLE	: Indel error rate. Default: 0.01
+	-f INT		: Output format. 0 for fastq, 1 for fasta Default: 0
+
 --------------------------
 Benchmarking variant calls
 --------------------------
 
 Takes a VCF file with genotype information from one sample, the reference
 genome used to build the VCF and a phased VCF file with gold standard calls and
-calculates quality statistics comparing gold-standard with test calls.
+calculates quality statistics comparing gold-standard with test calls. Writes
+to standard output unless the -o option is used to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar VCFGoldStandardComparator <REFERENCE_GENOME> <GS_VCF_FILE> <TEST_VCF_FILE>
+java -jar NGSEPcore.jar VCFGoldStandardComparator <OPTIONS>
 
 OPTIONS:
 
-	-m FILE	: File with coordinates of complex regions (such as STRs)
+	-i FILE	: Input test file in VCF format. It can be gzip compressed.
+	-g FILE	: Gold standard file in VCF format. It can be gzip compressed.
+	-r FILE	: Fasta file with the reference genome.
+	-o FILE	: Output file with statistics.
+	-c FILE	: File with coordinates of complex regions (such as STRs).
 	-f FILE	: File with coordinates of regions in which the gold standard
-		  can be trusted
-	-g	: Indicates that the gold standard VCF is genomic, which means
+		  can be trusted.
+	-e	: Indicates that the gold standard VCF is genomic, which means
 		  that confidence regions can be extracted from annotated
 		  regions with homozygous reference genotypes.
 
@@ -1626,40 +1724,6 @@ The output is a tab delimited file with the following fields:
 
 The current output also includes distributions of gold standard variants per
 cluster, heterozygous test variants per cluster and genome span per cluster
-
-----------------------------------------------
-Simulating individuals from a reference genome
-----------------------------------------------
-
-This simulator takes a (haploid) genome assembly and simulates a single
-individual including homozygous and heterozygous mutations (SNPs, indels and
-mutated STRs) relative to the input assembly. It produces two files, a fasta
-file with the simulated genome, and a phased VCF file with the simulated
-variants.
-
-USAGE:
-
-java -jar NGSEPcore.jar SingleIndividualSimulator <OPTIONS> <GENOME> <OUT_PREFIX>
-
-OPTIONS:
-
-	-s DOUBLE	: Proportion of reference basepairs with simulated SNV
-			  events. Default: 0.001
-	-i DOUBLE	: Proportion of reference basepairs with simulated
-			  indel events. Default: 0.0001
-	-f DOUBLE	: Fraction of input STRs for which a mutation will be
-			  simulated. Default: 0.1
-	-t FILE		: Path to a text file describing the known STRs in the
-			  given genome
-        -u INT		: Zero-based index in the STR file where the unit
-			  sequence is located. Default: 14
-	-d STRING	: ID of the simulated sample. Appears in the VCF header
-			  and as part of the name of the sequences in the
-			  simulated genome. Default: Simulated
-	-p INT		: Ploidy of the simulated sample. Default: 2
-
-
-
 
 ------------------------------
 Citing and supporting packages
