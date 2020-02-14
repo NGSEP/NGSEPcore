@@ -45,7 +45,7 @@ _________________
     them according to their Barcodes, Lane, and Flowcell. If you already have 
     one FASTQ file per sample, skip this step.
 
-        $ java -jar NGSEPcore_<VERSION>.jar Demultiplex -t <TRIM_SEQ> -o <DIR> -d <LANE_DESCRIPTOR> <INDEX_FILE> >& demultiplexing.log
+        $ java -jar NGSEPcore_<VERSION>.jar Demultiplex -t <TRIM_SEQ> -o <DIR> -d <LANE_DESCRIPTOR> -i <INDEX_FILE> >& demultiplexing.log
 
     <FASTQ_FILE> : That huge FASTQ file as it came out from the sequencer.
     <TRIM_SEQ>   : Adapter sequence for trimming at the end of the reads; IUPAC
@@ -89,7 +89,7 @@ ___________
 
     - Fourth, check the quality and fragment size of the alignment:
 
-        $ java -jar NGSEPcore_<VERSION>.jar QualStats <REF.fa> <SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_readpos.stats
+        $ java -jar NGSEPcore_<VERSION>.jar BasePairQualStats -r <REF.fa> -o <SMPL>_bowtie2_readpos.stats *_bowtie2_sorted.bam 
     (only for paired end:)
         $ java -jar picard.jar CollectInsertSizeMetrics I=<SMPL>_bowtie2_sorted.bam O=<SMPL>_bowtie2_insertLength.stats H=<SMPL>_bowtie2_insertLength.pdf
 
@@ -117,15 +117,15 @@ ______________
 
     - Annotate the variants present in the population VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1> population_annotated.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar VCFAnnotate -i population.vcf -t <GFF3_FILE> -r <REF.fa> -o population_annotated.vcf
 
     - Calculate the Summary Statistics for your annotated VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1> population_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar VCFSummaryStats -m 1 -i population_annotated.vcf -o population_summary.stats
 
     - Compare differences between your samples and find possible duplicates:
 
-        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf > population_sampleComparison.txt
+        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 -r <REF.fa> -i population.vcf -o population_sampleComparison.txt
 
     <REF.fa>    : The FASTA file of the reference genome.
     <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
@@ -136,11 +136,11 @@ __________
 
     - Apply filters as you wish, the following are only some suggestions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FilterVCF -d 20 -q 20 -s -fi -minI <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs population_annotated.vcf 1> population_annotated_filtered.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar VCFFilter -d 20 -q 20 -s -fi -m <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs -i population_annotated.vcf -o population_annotated_filtered.vcf
 
     - Check the effects of the filters in the VCF:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated_filtered.vcf 1> population_filtered_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar VCFSummaryStats -m 1 -i population_annotated_filtered.vcf -o population_filtered_summary.stats
 ______________
 5. Imputation:
     {INPUT: a filtered VCF file from your population -
@@ -149,7 +149,7 @@ ______________
     - If you are willing to reduce the number of missing data points in a VCF, 
     NGSEP offers a module for haplotype imputation:
 
-        $ java -jar NGSEPcore_<VERSION>.jar ImputeVCF population_annotated_filtered.vcf population_annotated_filtered >& population_imputation.log
+        $ java -jar NGSEPcore_<VERSION>.jar VCFImpute -i population_annotated_filtered.vcf -o population_annotated_filtered >& population_imputation.log
 __________
 6. Export:
     {INPUT: a filtered and annotated VCF file from your population -
@@ -164,11 +164,11 @@ __________
     - For further analysis, export your VCF file into one of the most common 
     formats for NGS analysis:
 
-        $ java -jar NGSEPcore_<VERSION>.jar ConvertVCF -print<FORMAT> population_annotated_filtered_imputed.vcf population
+        $ java -jar NGSEPcore_<VERSION>.jar VCFConverter -<FORMAT> -i population_annotated_filtered_imputed.vcf -o population
 
-    <FORMAT> : Any of the following formats: Structure, Fasta, rrBLUP, Matrix, 
-               HapMap, Spagedi, Plink, Haploview, Emma, PowerMarker, Eigensoft,
-               Flapjack, Darwin, TreeMix, JoinMap, Phase.
+    <FORMAT> : Any of the following formats: structure, fasta, rrBLUP, matrix, 
+               hapmap, spagedi, plink, haploview, emma, powerMarker, eigensoft,
+               flapjack, darwin, treeMix, joinMap, phase.
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -195,8 +195,8 @@ ___________
 
     - Fourth, check the quality and fragment size of the alignment:
 
-        $ java -jar NGSEPcore_<VERSION>.jar QualStats <REF.fa> <SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_readpos.stats
-        $ java -jar NGSEPcore_<VERSION>.jar CoverageStats <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_coverage.stats >& <SMPL>_bowtie2_coverage.log
+        $ java -jar NGSEPcore_<VERSION>.jar BasePairQualStats -r <REF.fa> -o <SMPL>_bowtie2_readpos.stats <SMPL>_bowtie2_sorted.bam >& <SMPL>_bowtie2_readpos.log
+        $ java -jar NGSEPcore_<VERSION>.jar CoverageStats -i <SMPL>_bowtie2_sorted.bam -o <SMPL>_bowtie2_coverage.stats >& <SMPL>_bowtie2_coverage.log
         $ java -jar picard.jar CollectInsertSizeMetrics I=<SMPL>_bowtie2_sorted.bam O=<SMPL>_bowtie2_insertLength.stats H=<SMPL>_bowtie2_insertLength.pdf
 
     <REF.fa> : The FASTA file of the reference genome.
@@ -213,7 +213,7 @@ _______________________________________________________________
     - First, find all high-quality variants in the population, running the 
     following command for each sample:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -runRep -runRD -runRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar SingleSampleVariantsDetector -runRep -runRD -runRP -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -algCNV CNVnator,EWT -sampleId <SMPL> -r <REF.fa> -i <SMPL>_bowtie2_sorted.bam -o <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
         * if you are not sure of how many bases to ignore at each end of the 
           read, run this command on each of your readpos.stats files:
@@ -223,15 +223,15 @@ _______________________________________________________________
     - Second, collect the position of all the high-quality variants in the 
     population:
 
-        $ java -jar NGSEPcore_<VERSION>.jar MergeVariants <SEQ_NAMES> variants_list.vcf <VCF_FILES>* >& variants_list.log
+        $ java -jar NGSEPcore_<VERSION>.jar MergeVariants -s <SEQ_NAMES> -o variants_list.vcf <VCF_FILES>* >& variants_list.log
 
     - Third, genotype all your samples in the high-quality positions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FindVariants -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> <REF.fa> <SMPL>_bowtie2_sorted.bam <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
+        $ java -jar NGSEPcore_<VERSION>.jar SingleSampleVariantsDetector -knownVariants population_variants.vcf -knownSVs <SMPL>_bowtie2_NGSEP_SV.gff -ignore5 <TRIM_5'> -ignore3 <TRIM_3'> -maxBaseQS 30 -maxAlnsPerStartPos 2 -sampleId <SMPL> -r <REF.fa> -i <SMPL>_bowtie2_sorted.bam -o <SMPL>_bowtie2_NGSEP >& <SMPL>_bowtie2_NGSEP.log
 
     - Fourth, merge all the genotyped samples in a single VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar MergeVCF <SEQ_NAMES> <VCF_FILES>* 1> population.vcf 2> population.log
+        $ java -jar NGSEPcore_<VERSION>.jar VCFMerge -s <SEQ_NAMES> -o population.vcf <VCF_FILES>*
 
     <REF.fa>     : The FASTA file of the reference genome.
     <SMPL>       : The ID of the sample.
@@ -255,15 +255,15 @@ ______________
 
     - Annotate the variants present in the population VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar Annotate population.vcf <GFF3_FILE> <REF.fa> 1> population_annotated.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar VCFAnnotate -i population.vcf -t <GFF3_FILE> -r <REF.fa> -o population_annotated.vcf
 
     - Calculate the Summary Statistics for your annotated VCF file:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m 1 population_annotated.vcf 1> population_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar VCFSummaryStats -m 1 -i population_annotated.vcf -o population_summary.stats
 
     - Compare differences between your samples and find possible duplicates:
 
-        $ java -jar NGSEPcore_<VERSION>.jar CompareVCF -g 0 -d 100 <REF.fa> population.vcf population.vcf 1>population_sampleComparation.txt
+        $ java -jar NGSEPcore_<VERSION>.jar VCFComparator -g 0 -d 100 -r <REF.fa> -i population.vcf -o population_sampleComparation.txt
 
     <REF.fa>    : The FASTA file of the reference genome.
     <GFF3_FILE> : The GFF3 file with annotation for the reference genome.
@@ -274,11 +274,11 @@ __________
 
     - Apply filters as you wish, the following are only some suggestions:
 
-        $ java -jar NGSEPcore_<VERSION>.jar FilterVCF -d 20 -q 40 -s -fi -minI <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs population_annotated.vcf 1> population_annotated_filtered.vcf
+        $ java -jar NGSEPcore_<VERSION>.jar VCFFilter -d 20 -q 40 -s -fi -m <85%_of_samples> -minMAF 0.05 -saf duplicates_to_remove.txt -fs -i population_annotated.vcf -o population_annotated_filtered.vcf
 
     - Check the effects of the filters in the VCF:
 
-        $ java -jar NGSEPcore_<VERSION>.jar SummaryStats -m <85%_of_samples> population_annotated_filtered.vcf 1>population_filtered_summary.stats
+        $ java -jar NGSEPcore_<VERSION>.jar VCFSummaryStats -m <85%_of_samples> -i population_annotated_filtered.vcf -o population_filtered_summary.stats
 __________
 5. Export:
     {INPUT: a filtered and annotated VCF file from your population -
@@ -293,11 +293,11 @@ __________
     - For further analysis, export your VCF file into one of the most common 
     formats for NGS analysis:
 
-        $ java -jar NGSEPcore_<VERSION>.jar ConvertVCF -print<FORMAT> population_annotated_filtered_imputed.vcf population
+        $ java -jar NGSEPcore_<VERSION>.jar VCFConverter -<FORMAT> -i population_annotated_filtered_imputed.vcf -o population
 
-    <FORMAT> : Any of the following formats: Structure, Fasta, rrBLUP, Matrix, 
-               HapMap, Spagedi, Plink, Haploview, Emma, PowerMarker, Eigensoft,
-               Flapjack, Darwin, TreeMix, JoinMap, Phase.
+    <FORMAT> : Any of the following formats: structure, fasta, rrBLUP, matrix, 
+               hapmap, spagedi, plink, haploview, emma, powerMarker, eigensoft,
+               flapjack, darwin, treeMix, joinMap, phase.
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -434,7 +434,7 @@ This step is used to determine the sites in which at least one sample has
 a genotype different than the reference. More stringent filters can be done 
 at later stages. The command for this is MergeVariants, should look like this:
 
-  $ java -jar /path/to/NGSEPcore_<VERSION>.jar MergeVariants /path/to/reference/reference_seqNames.txt AllSamples_variants.vcf *_NGSEP.vcf
+  $ java -jar /path/to/NGSEPcore_<VERSION>.jar MergeVariants -s /path/to/reference/reference_seqNames.txt -o AllSamples_variants.vcf *_NGSEP.vcf
 
 The file "AllSamples_variants.vcf" is the output file containing all genomic 
 locations with some evidence of variation, as explained above. This file still 
@@ -456,9 +456,9 @@ information as possible. The quality filter can be done with the FilterVCF
 command of NGSEP.
 _____
 6. Final merge of the genotype files. 
-This is done with the MergeVCF command of NGSEP as follows:
+This is done with the VCFMerge command of NGSEP as follows:
 
-  $ java -jar /path/to/NGSEPcore_<VERSION>.jar MergeVCF /path/to/reference/reference_seqNames.txt *_NGSEP_gt.vcf > AllSamples_genotypes.vcf
+  $ java -jar /path/to/NGSEPcore_<VERSION>.jar VCFMerge -s /path/to/reference/reference_seqNames.txt -o AllSamples_genotypes.vcf *_NGSEP_gt.vcf > 
 
 The file "AllSamples_genotypes.vcf" will be the final file with genotype calls 
 for every site identified in the step 4 and for every sample analyzed. 

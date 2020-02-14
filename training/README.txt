@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 3.3.2
+Version 4.0.0
 ===========================================================================
 Training directory:
 ===================

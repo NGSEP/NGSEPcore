@@ -23,6 +23,6 @@ ${BOWTIE2} --rg-id ${p} --rg SM:${p} --rg PL:ILLUMINA -I ${i} -X ${x} ${o} -k 3 
 rm -rf ${p}_tmpdir;
 
  # calculate statistics from the alignments file
-${JAVA} -Xmx3g -jar ${NGSEP} QualStats ${REFERENCE} ${p}_bowtie2_sorted.bam >& ${p}_bowtie2_readpos.stats;
-${JAVA} -Xmx3g -jar ${NGSEP} CoverageStats ${p}_bowtie2_sorted.bam ${p}_bowtie2_coverage.stats >& ${p}_bowtie2_coverage.log;
+${JAVA} -Xmx3g -jar ${NGSEP} BasePairQualStats -r ${REFERENCE} -o ${p}_bowtie2_readpos.stats ${p}_bowtie2_sorted.bam >& ${p}_bowtie2_readpos.log
+${JAVA} -Xmx3g -jar ${NGSEP} CoverageStats -i ${p}_bowtie2_sorted.bam -o ${p}_bowtie2_coverage.stats >& ${p}_bowtie2_coverage.log;
 ${SAMTOOLS} view -F 268 ${p}_bowtie2_sorted.bam | awk '{l=$9;if(l>=0){i=sprintf("%d",l/25)+1;if(i<100)a[i]++;else aM++}}END{for(i=1;i<100;i++)print (i-1)*25,a[i];print "More",aM}' >> ${p}_insertLength.stats;
