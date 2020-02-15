@@ -157,6 +157,8 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	private RawRead load (BufferedReader in) throws IOException {
 		String id = in.readLine();
 		if(id==null) return null;
+		int i = id.indexOf(" ");
+		if(i>0) id = id.substring(0,i);
 		CharSequence seq = in.readLine();
 		if(seq==null) return null;
 		if(!keepLowerCase) seq = seq.toString().toUpperCase();

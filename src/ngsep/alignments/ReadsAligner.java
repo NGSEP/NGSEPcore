@@ -61,7 +61,7 @@ public class ReadsAligner {
 	
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
+	public static final int DEF_KMER_LENGTH = 20;
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
@@ -524,7 +524,7 @@ public class ReadsAligner {
 				|| endMax==end2 && aln2.isNegativeStrand() && startMinimum==start1&& aln1.isPositiveStrand())
 		{
 			if(onlyProper) {
-				int insertLength = endMax-startMinimum;
+				int insertLength = endMax-startMinimum+1;
 				return insertLength>=minInsertLength && insertLength<=maxInsertLength;
 			}
 			else{
@@ -543,8 +543,8 @@ public class ReadsAligner {
 			aln1.setProperPair(true);
 			aln2.setProperPair(true);
 		}
-		int insertLength1 = aln1.getLast()-aln2.getFirst();
-		int insertLength2 = aln2.getLast()-aln1.getFirst();
+		int insertLength1 = aln1.getLast()-aln2.getFirst()+1;
+		int insertLength2 = aln2.getLast()-aln1.getFirst()+1;
 		if(insertLength1>insertLength2) {
 			aln1.setInferredInsertSize(-insertLength1);
 			aln2.setInferredInsertSize(insertLength1);
