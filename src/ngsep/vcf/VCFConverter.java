@@ -324,6 +324,7 @@ public class VCFConverter {
 		} else {
 			process(inputFile,outputPrefix);
 		}
+		log.info("Process finished");
 	}
 	
 	private void logParameters() {
