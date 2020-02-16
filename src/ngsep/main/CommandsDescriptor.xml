@@ -956,60 +956,61 @@ Input VCF file with variants and genotype data. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files.
 </option>
-<option id="structure" type="BOOLEAN" attribute="printStructure">
-Generates the input format for structure.
-</option>
-<option id="fasta" type="BOOLEAN" attribute="printFasta">
-Generates a virtual multiple sequence alignment in fasta format. It could be used to build distance based dendograms.
-</option>
-<option id="rrBLUP" type="BOOLEAN" attribute="printrrBLUP">
-Generates the input format for rrBLUP.
-</option>
-<option id="matrix" type="BOOLEAN" attribute="printMatrix">
-Generates a simple ACGT format which can be imported to excel.
-</option>
-<option id="hapmap" type="BOOLEAN" attribute="printHapmap">
-Generates the Hapmap format, which can be used in programs such as Tassel.
-</option>
-<option id="GWASPoly" type="BOOLEAN" attribute="printGWASPoly">
-Generates the input file for GWASPoly.
-</option>
-<option id="spagedi" type="BOOLEAN" attribute="printSpagedi">
-Generates the input files for Spagedi.
-</option>
-<option id="plink" type="BOOLEAN" attribute="printPlink">
-Generates the input files for Plink.
-</option>
-<option id="haploview" type="BOOLEAN" attribute="printHaploview">
-Generates the input files for Haploview.
-</option>
-<option id="emma" type="BOOLEAN" attribute="printEmma">
-Generates the input files for Emma.
-</option>
-<option id="powerMarker" type="BOOLEAN" attribute="printPowerMarker">
-Generates the input files for PowerMarker.
+<option id="darwin" type="BOOLEAN" attribute="printDarwin">
+Generates the input files for DarWin.
 </option>
 <option id="eigensoft" type="BOOLEAN" attribute="printEigensoft">
 Generates the input files for Eigensoft.
 </option>
+<option id="emma" type="BOOLEAN" attribute="printEmma">
+Generates the input files for Emma.
+</option>
+<option id="fasta" type="BOOLEAN" attribute="printFasta">
+Generates a virtual multiple sequence alignment in fasta format. It could be used to build distance based dendograms.
+</option>
 <option id="flapjack" type="BOOLEAN" attribute="printFlapjack">
 Generates the input files for Flapjack.
 </option>
-<option id="darwin" type="BOOLEAN" attribute="printDarwin">
-Generates the input files for DarWin.
+<option id="GWASPoly" type="BOOLEAN" attribute="printGWASPoly">
+Generates the input file for GWASPoly.
 </option>
-<option id="treeMix" type="BOOLEAN" attribute="printTreeMix">
-Generates the input files for TreeMix.
-The option -p is required for this format.
+<option id="haploview" type="BOOLEAN" attribute="printHaploview">
+Generates the input files for Haploview.
+</option>
+<option id="hapmap" type="BOOLEAN" attribute="printHapmap">
+Generates the Hapmap format, which can be used in programs such as Tassel.
 </option>
 <option id="joinMap" type="BOOLEAN" attribute="printJoinMap">
 Generates the input file to build genetic maps with JoinMap.
 The options -p1 and -p2 are required for this format.
 </option>
+<option id="matrix" type="BOOLEAN" attribute="printMatrix">
+Generates a simple ACGT format which can be imported to excel.
+</option>
 <option id="phase" type="BOOLEAN" attribute="printPhase">
 Generates the input files for Phase.
 The option -s is required for this format.
 </option>
+<option id="plink" type="BOOLEAN" attribute="printPlink">
+Generates the input files for Plink.
+</option>
+<option id="powerMarker" type="BOOLEAN" attribute="printPowerMarker">
+Generates the input files for PowerMarker.
+</option>
+<option id="rrBLUP" type="BOOLEAN" attribute="printrrBLUP">
+Generates the input format for rrBLUP.
+</option>
+<option id="spagedi" type="BOOLEAN" attribute="printSpagedi">
+Generates the input files for Spagedi.
+</option>
+<option id="structure" type="BOOLEAN" attribute="printStructure">
+Generates the input format for structure.
+</option>
+<option id="treeMix" type="BOOLEAN" attribute="printTreeMix">
+Generates the input files for TreeMix.
+The option -p is required for this format.
+</option>
+
 <option id="s" type="STRING" attribute="sequenceName">
 Name of the sequence (chromosome) for conversion to PHASE.
 </option>

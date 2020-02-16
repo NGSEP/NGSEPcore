@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.vcf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -89,7 +90,21 @@ public class VCFConverter {
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	
 	public boolean isPrintStructure() {
 		return printStructure;
 	}
@@ -299,13 +314,49 @@ public class VCFConverter {
 	}
 	
 	public void run() throws IOException {
+		logParameters();
 		if(outputPrefix == null) throw new IOException("The prefix of the output files is a required parameter");
-		if(printTreeMix && populationFile==null) throw new IOException("The fie with the description of the populations is required for conversion to TreeMix");
+		if(printTreeMix && populationFile==null) throw new IOException("The file with the description of the populations is required for conversion to TreeMix");
+		if(printPhase && sequenceName==null) throw new IOException("The sequence name is required for conversion to Phase");
+		if(printJoinMap && (idParent1==null || idParent2==null)) throw new IOException("Parent ids are required for conversion to JoinMap");
 		if(inputFile==null) {
 			process(System.in,outputPrefix);
 		} else {
 			process(inputFile,outputPrefix);
 		}
+	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input file: "+inputFile);
+		else out.println("System standard input");
+		if(outputPrefix != null) out.println("Prefix for output files: "+outputPrefix);
+		out.println("Formats:");
+		if (printDarwin) out.print(" darwin");
+		if (printEigensoft) out.print(" eigensoft");
+		if (printEmma) out.print(" emma");
+		if (printFasta) out.print(" fasta");
+		if (printFlapjack) out.print(" flapjack");
+		if (printGWASPoly) out.print(" GWASPoly");
+		if (printHaploview) out.print(" haploview");
+		if (printHapmap) out.print(" hapmap");
+		if (printJoinMap) out.print(" joinMap");
+		if (printMatrix) out.print(" matrix");
+		if (printPhase) out.print(" phase");
+		if (printPlink) out.print(" plink");
+		if (printPowerMarker) out.print(" powerMarker");
+		if (printrrBLUP) out.print(" rrBLUP");
+		if (printSpagedi) out.print(" spagedi");
+		if (printStructure) out.print(" structure");
+		if (printTreeMix) out.print(" treeMix");
+		out.println();
+		if (sequenceName!=null) out.println("Sequence name for Phase: "+sequenceName);
+		if (populationFile!=null) out.println("File with population assignments: "+populationFile);
+		if (idParent1!=null) out.println("First parent: "+idParent1);
+		if (idParent2!=null) out.println("Second parent: "+idParent2);
+	   
+	    log.info(""+os.toString());
 	}
  
 	public void process(String vcfFile, String prefix) throws IOException {
@@ -431,8 +482,8 @@ public class VCFConverter {
 		if(printrrBLUP) printrrBLUP(sampleIds,callsPerVariant,prefix);
 		if(printSpagedi) printSpagedi(sampleIds, callsPerVariant, prefix+"_spagedi.in");
 		if(printEmma) printEmma(callsPerVariant, prefix+"_emma.in");
-		if(printPlink) printPlink(sampleIds,callsPerVariant,prefix,true);
-		if(printHaploview) printPlink(sampleIds,callsPerVariant,prefix,false);
+		if(printPlink) printPlink(sampleIds,callsPerVariant,prefix+"_plink",true);
+		if(printHaploview) printPlink(sampleIds,callsPerVariant,prefix+"_haploview",false);
 		if(printPowerMarker) printPowerMarker(sampleIds,callsPerVariant,prefix);
 		if(printFlapjack) printFlapjack(sampleIds,callsPerVariant,prefix);
 		if(printEigensoft) printEigensoft(sampleIds,callsPerVariant,prefix);
