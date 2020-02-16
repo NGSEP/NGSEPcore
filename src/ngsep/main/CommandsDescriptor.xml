@@ -1,4 +1,4 @@
-<NGSEP version="4.0.0" date="14-02-2020">
+<NGSEP version="4.0.0" date="17-02-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -140,7 +140,7 @@ Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>
 </command>
 
-<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" groupId="Reads">
+<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" groupId="Reads" printHelp="false">
 <intro>
 De novo variants discovery from a GBS experiment
 </intro>
