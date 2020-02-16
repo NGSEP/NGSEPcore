@@ -74,7 +74,7 @@ Activate demultiplexing with dual barcoding.
 </option>
 </command>
 
-<command id="KmersExtractor" class="ngsep.sequences.KmersExtractor" groupId="Reads">
+<command id="KmersExtractor" class="ngsep.sequences.KmersExtractor" groupId="Reads" formerId="KmersCounter">
 <intro>
 Extract k-mers and count abundances from fasta and fastq files
 </intro>
@@ -220,7 +220,7 @@ Genome used to simulate the given reads. Useful for benchmarking of the graph co
 </option>
 </command>
 
-<command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" groupId="Reads">
+<command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" groupId="Reads" formerId="VCFIndividualGenomeBuilder">
 <intro>
 Builds a genome in fasta format from homozygous variants in a VCF file
 </intro>
@@ -306,7 +306,7 @@ Maximum predicted insert length to consider an alignment proper.
 </option>
 </command>
 
-<command id="BasePairQualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator" groupId="Discovery">
+<command id="BasePairQualStats" class="ngsep.alignments.BasePairQualityStatisticsCalculator" groupId="Discovery" formerId="QualStats">
 <intro> Detects sequencing error biases</intro>
 <title>Calculating base pair quality statistics</title>
 <description>
@@ -432,7 +432,7 @@ Flag to call SNVs within STRs. By default, STRs are treated as a single locus an
 </option>
 </command>
 
-<command id="SingleSampleVariantsDetector" class="ngsep.discovery.VariantsDetector" groupId="Discovery">
+<command id="SingleSampleVariantsDetector" class="ngsep.discovery.VariantsDetector" groupId="Discovery" formerId="FindVariants">
 <intro>The classic module of NGSEP for variants detection in individual samples.</intro>
 <title>Calling variants on individual samples with the variants detector</title>
 <description>
@@ -615,7 +615,7 @@ Output VCF file with merged variants
 </option>
 </command>
 
-<command id="VCFMerge" class="ngsep.vcf.ConsistentVCFFilesMerge" groupId="Discovery">
+<command id="VCFMerge" class="ngsep.vcf.ConsistentVCFFilesMerge" groupId="Discovery" formerId="MergeVCF">
 <intro>
 Writes a final VCF file with the genotype calls for each variant on each sample.
 </intro>
@@ -800,7 +800,7 @@ Maximum number of homologs per unit to be displayed in the D3 visualization
 -->
 </command>
 
-<command id="VCFAnnotate" class="ngsep.vcf.VCFFunctionalAnnotator" groupId="VariantsDownstream">
+<command id="VCFAnnotate" class="ngsep.vcf.VCFFunctionalAnnotator" groupId="VariantsDownstream" formerId="Annotate">
 <intro>Generates a VCF file which includes the functional information related with each variant.
 </intro>
 <title>Functional annotation of variants</title>
@@ -843,7 +843,7 @@ Initial or final basepairs of an exon that should be considered as part of the s
 </option>
 </command>
 
-<command id="VCFFilter" class="ngsep.vcf.VCFFilter" groupId="VariantsDownstream">
+<command id="VCFFilter" class="ngsep.vcf.VCFFilter" groupId="VariantsDownstream" formerId="FilterVCF">
 <intro>Implements different filters on VCF files with genotype information</intro>
 <title>Filtering VCF files</title>
 <description>
@@ -943,7 +943,7 @@ Filter the samples provided with the -saf option instead of selecting them.
 </option> 
 </command>
 
-<command id="VCFConverter" class="ngsep.vcf.VCFConverter" groupId="VariantsDownstream">
+<command id="VCFConverter" class="ngsep.vcf.VCFConverter" groupId="VariantsDownstream" formerId="ConvertVCF">
 <intro>Converts genotype calls in VCF format to other formats</intro>
 <title>Convert VCF files to other formats</title>
 <description>
@@ -1027,7 +1027,7 @@ Id of the second parent for conversion to JoinMap.
 </option>
 </command>
 
-<command id="VCFComparator" class="ngsep.vcf.VCFComparator" groupId="VariantsDownstream">
+<command id="VCFComparator" class="ngsep.vcf.VCFComparator" groupId="VariantsDownstream" formerId="CompareVCF">
 <intro>Compares the genotype calls included in two different VCF files</intro>
 <title>Comparing VCF files</title>
 <description>
@@ -1058,7 +1058,7 @@ Maximum percentage (0-100) of differences between the pair of samples
 </option>
 </command>
 
-<command id="VCFSummaryStats" class="ngsep.vcf.VCFSummaryStatisticsCalculator" groupId="VariantsDownstream">
+<command id="VCFSummaryStats" class="ngsep.vcf.VCFSummaryStatisticsCalculator" groupId="VariantsDownstream" formerId="SummaryStats">
 <intro>Generates a report with the numbers of variants included in a VCF file for different categories.</intro>
 <title>Calculating summary statistics</title>
 <description>
@@ -1079,7 +1079,7 @@ Minimum number of samples genotyped to accurately calculate the minor allele fre
 </option>
 </command>
 
-<command id="VCFDiversityStats" class="ngsep.vcf.VCFDiversityCalculator" groupId="VariantsDownstream">
+<command id="VCFDiversityStats" class="ngsep.vcf.VCFDiversityCalculator" groupId="VariantsDownstream" formerId="DiversityStats">
 <intro>
 Calculates basic diversity statistics for each variant in a VCF file.
 </intro>
@@ -1185,7 +1185,7 @@ Output file with the dendrogam in Newick format.
 </option>
 </command>
 
-<command id="VCFAlleleSharingStats" class="ngsep.vcf.VCFAlleleSharingStatisticsCalculator" groupId="VariantsDownstream">
+<command id="VCFAlleleSharingStats" class="ngsep.vcf.VCFAlleleSharingStatisticsCalculator" groupId="VariantsDownstream" formerId="AlleleSharingStats">
 <intro>
 Calculates allele sharing diversity statistics, either through windows or through genes
 for inbred populations
@@ -1236,7 +1236,7 @@ Step between windows to calculate pairwise differences between samples.
 </option>
 </command>
 
-<command id="VCFImpute" class="ngsep.variants.imputation.GenotypeImputer" groupId="VariantsDownstream">
+<command id="VCFImpute" class="ngsep.variants.imputation.GenotypeImputer" groupId="VariantsDownstream" formerId="ImputeVCF">
 <intro>
 Imputes missing genotypes from unphased multilocus SNP genotype data in a VCF.
 </intro>
@@ -1293,7 +1293,7 @@ Specifies that the samples to impute are inbred.
 </option>
 </command>
 
-<command id="VCFIntrogressionAnalysis" class="ngsep.vcf.VCFWindowIntrogressionAnalysis" groupId="VariantsDownstream">
+<command id="VCFIntrogressionAnalysis" class="ngsep.vcf.VCFWindowIntrogressionAnalysis" groupId="VariantsDownstream" formerId="IntrogressionAnalysis">
 <intro>Runs a window-based haplotype introgression analysis.</intro>
 <title>Finding haplotype introgressions</title>
 <description>

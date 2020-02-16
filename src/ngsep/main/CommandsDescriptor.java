@@ -53,6 +53,7 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_ATTRIBUTE="attribute";
 	public static final String ATTRIBUTE_GROUPID="groupId";
 	public static final String ATTRIBUTE_MULTIPLE="multiple";
+	public static final String ATTRIBUTE_FORMERID="formerId";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ATTRIBUTE_PRINTHELP="printHelp";
 	public static final String ELEMENT_COMMAND="command";
@@ -72,6 +73,7 @@ public class CommandsDescriptor {
 	private Map<String,Command> commandsByClass = new HashMap<String,Command>();
 	private Map<String,Command> commandsById = new HashMap<String,Command>();
 	private Map<String, String> commandGroupNames = new LinkedHashMap<String, String>();
+	private Map<String,String> formerCommandIds = new HashMap<String, String>();
 	public static CommandsDescriptor instance = new CommandsDescriptor();
 	/**
 	 * Private constructor to implement the singleton pattern
@@ -171,6 +173,10 @@ public class CommandsDescriptor {
 		cmd.setPrintHelp(!"false".equals(printHelpStr));
 		String groupId = cmdElem.getAttribute(ATTRIBUTE_GROUPID);
 		cmd.setGroupId(groupId);
+		String formerId = cmdElem.getAttribute(ATTRIBUTE_FORMERID);
+		if(formerId!=null) {
+			formerCommandIds.put(formerId, cmd.getId());
+		}
 		NodeList offspring = cmdElem.getChildNodes(); 
 		for(int i=0;i<offspring.getLength();i++){  
 			Node node = offspring.item(i);
@@ -291,7 +297,14 @@ public class CommandsDescriptor {
 	 */
 	public void printHelp(Class<?> program) {
 		Command c = commandsByClass.get(program.getName());
-		//if(!c.isPrintHelp()) return;
+		printHelp(c);
+	}
+	/**
+	 * Prints the help for a specific program. Locates the command from the Class where the program is implemented
+	 * @param program
+	 */
+	public void printHelp(Command c) {
+		
 		int titleLength = c.getTitle().length();
 		for(int i=0;i<titleLength;i++)System.err.print("-");
 		System.err.println();
@@ -434,6 +447,9 @@ public class CommandsDescriptor {
 			i++;
 		}
 		return i;
+	}
+	public String getCurrentCommandId(String formerId) {
+		return formerCommandIds.get(formerId);
 	}
 	
 }

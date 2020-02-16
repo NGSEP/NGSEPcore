@@ -47,8 +47,16 @@ public class NGSEPcore {
 		
 		Command command = descriptor.getCommand(args[0]);
 		if(command == null) {
-			System.err.println("ERROR: Unrecognized command "+args[0]);
-			//System.err.println(UserHelp.VALID + UserHelp.HELP);
+			String currentCommandId = descriptor.getCurrentCommandId(args[0]);
+			if(currentCommandId!=null) {
+				System.err.println();
+				System.err.println("ERROR: Command "+args[0]+" was replaced by command "+currentCommandId+ ". See new usage below.");
+				System.err.println();
+				command = descriptor.getCommand(currentCommandId);
+				descriptor.printHelp(command);
+			} else {
+				System.err.println("ERROR: Unrecognized command "+args[0]);
+			}
 			System.exit(1);
 		}
 		Class<?> program = command.getProgram();
