@@ -635,7 +635,7 @@ Output VCF file with merged variants and genotype information
 </option>
 </command>
 
-<command id="RelativeAlleleCounts" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator" groupId="Discovery">
+<command id="RelativeAlleleCountsCalculator" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator" groupId="Discovery" formerId="RelativeAlleleCounts">
 <intro>
 Calculates the distribution of relative allele counts 
 </intro>
@@ -675,7 +675,7 @@ Consider secondary alignments. By default, only primary alignments are processed
 </option>
 </command>
 
-<command id="CompareRD" class="ngsep.discovery.rd.CNVseqAlgorithm" groupId="Discovery">
+<command id="ReadDepthComparator" class="ngsep.discovery.rd.CNVseqAlgorithm" groupId="Discovery" formerId="CompareRD">
 <intro>
 Compares the read depth of two samples
 </intro>
