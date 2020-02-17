@@ -1399,7 +1399,7 @@ Generates random single reads from a given reference genome
 <description>
 Generates single reads randomly distributed from a given reference genome. 
 </description>
-<option id="i" type="FILE" attribute="inputFile">
+<option id="i" type="FILE" attribute="genome">
 Fasta file with the genome to simulate reads.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

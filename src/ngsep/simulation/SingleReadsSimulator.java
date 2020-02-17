@@ -71,6 +71,13 @@ public class SingleReadsSimulator {
 	public void setGenome(String genomeFile) throws IOException {
 		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 
 	public int getNumberOfReads() {
 		return numberOfReads;
