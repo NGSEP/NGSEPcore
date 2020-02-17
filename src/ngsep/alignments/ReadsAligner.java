@@ -559,8 +559,9 @@ public class ReadsAligner {
 
 
 	public GenomicRegion findTandemRepeat(ReadAlignment aln1) {
-		if(knownSTRs==null)return null;
+		if(knownSTRs==null) return null;
 		List<GenomicRegion> l =knownSTRs.get(aln1.getSequenceName());
+		if(l==null) return null;
 		return binaryContains(l, 0, l.size()-1, aln1);
 	}
 
@@ -639,6 +640,7 @@ public class ReadsAligner {
 	}
 
 	private ReadAlignment buildAln(CharSequence query, String qualityScores, String sequenceName, int first, int last,String cigar, double alnQual) {
+		if(first <=0) return null;
 		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
 		aln.setReadCharacters(query);
 		aln.setQualityScores(qualityScores);
@@ -919,7 +921,7 @@ public class ReadsAligner {
 			GenomicRegion region =findTandemRepeat(aln);
 			if(region!=null) {
 				ReadAlignment newaln=verifyShortTandemRepeats(aln,query,qualityScores,region);
-				System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
+				//System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
 				if(newaln!=null) return newaln;
 			}
 		}

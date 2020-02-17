@@ -1443,7 +1443,7 @@ Input test file in VCF format. It can be gzip compressed.
 <option id="g" type="FILE" attribute="gsFile">
 Gold standard file in VCF format. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genomeFile">
+<option id="r" type="FILE" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

@@ -174,13 +174,14 @@ public class VCFGoldStandardComparator {
 			instance.mode = Integer.parseInt(args[i++]);
 			instance.minQuality = Short.parseShort(args[i++]);
 		}
+		instance.run();
 	}
 	
 	public void run () throws IOException {
 		if (inputFile == null) throw new IOException("The input (test) VCF file is a required parameter");
 		if (gsFile == null) throw new IOException("The gold standard VCF file is a required parameter");
 		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
-		compareFiles(inputFile,gsFile);
+		compareFiles(gsFile,inputFile);
 		if (outputFile==null) printStatistics (System.out);
 		else {
 			try(PrintStream out = new PrintStream(outputFile)) {
