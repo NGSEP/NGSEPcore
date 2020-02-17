@@ -468,7 +468,10 @@ const divideOrthologs = orthologs => {
     orthologsMultiple = [];
     orthologsUnique = [];
     orthologs.map(ortholog => {
-        if (ortholog.type === 'L') orthologsLCS.push(ortholog)
+        if (ortholog.type === 'L') {
+		orthologsLCS.push(ortholog)
+		orthologsUnique.push(ortholog)
+	}
         if (ortholog.type === 'M') orthologsMultiple.push(ortholog)
         if (ortholog.type === 'U') orthologsUnique.push(ortholog)
     });

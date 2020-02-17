@@ -136,7 +136,7 @@ public class GenomesAligner {
 			String fileTranscriptome = args[i++];
 			instance.loadGenome(fileGenome, fileTranscriptome);
 		}
-		
+		instance.run();
 	}
 	
 	public void run () throws IOException {
