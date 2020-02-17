@@ -1212,7 +1212,7 @@ See the README.txt file for details on the output.
 <option id="i" type="FILE" attribute="inputFile">
 Input file in VCF format. It can be gzip compressed.
 </option>
-<option id="p" type="FILE" attribute="samplesMap">
+<option id="p" type="FILE" attribute="samples">
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
 </option>
