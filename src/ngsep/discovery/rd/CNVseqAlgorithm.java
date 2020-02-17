@@ -62,8 +62,8 @@ public class CNVseqAlgorithm {
 	
 	// Parameters
 	// input
-	private String bamXfile;
-	private String bamYfile;
+	private String inputFile;
+	private String controlFile;
 	private ReferenceGenome genome;
 	private String outputFile;
 	
@@ -76,21 +76,21 @@ public class CNVseqAlgorithm {
 	
 	
 	//Model attributes
-	private ReadDepthDistribution sampleX;
-	private ReadDepthDistribution sampleY;
+	private ReadDepthDistribution readDepthInput;
+	private ReadDepthDistribution readDepthControl;
 	
 	// parameters needed for CNV ratio calculation
 	private long genomeSize;
-	private double readNumX;
-	private double readNumY;
-	private double lambdaX;
-	private double lambdaY;
+	private double readNumInput;
+	private double readNumControl;
+	private double lambdaInput;
+	private double lambdaControl;
 	
 	// lists to manage the read count for each bin 
-	private List<ReadDepthBin> seqBinsX;
-	private List<ReadDepthBin> seqBinsY;
-	private List<Double> rdListX;
-	private List<Double> rdListY;
+	private List<ReadDepthBin> seqBinsInput;
+	private List<ReadDepthBin> seqBinsControl;
+	private List<Double> rdListInput;
+	private List<Double> rdListControl;
 	private List<Double> ratioRDList;
 	private List<Double> ratioCNVList;
 		
@@ -109,20 +109,19 @@ public class CNVseqAlgorithm {
 		this.progressNotifier = progressNotifier;
 	}
 	
-	public String getBamXfile() {
-		return bamXfile;
+	public String getInputFile() {
+		return inputFile;
 	}
-	public void setBamXfile(String bamXfile) {
-		this.bamXfile = bamXfile;
-	}	
-	
-	public String getBamYfile() {
-		return bamYfile;
-	}	
-	public void setBamYfile(String bamYfile) {
-		this.bamYfile = bamYfile;
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
 	}
 	
+	public String getControlFile() {
+		return controlFile;
+	}
+	public void setControlFile(String controlFile) {
+		this.controlFile = controlFile;
+	}
 	public String getOutputFile() {
 		return outputFile;
 	}
@@ -203,18 +202,13 @@ public class CNVseqAlgorithm {
 		CNVseqAlgorithm instance = new CNVseqAlgorithm();
 
 		// parse arguments from input
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);;
-		
-		// obtain BAMs and reference file paths
-		if(args.length<i+2) throw new IOException("The BAM files to compare are required parameters");
-		instance.bamXfile = args[i++];
-		instance.bamYfile = args[i++];
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
 	
 	public void run () throws IOException {
-		if (bamXfile == null) throw new IOException("The first BAM file is a required parameter");
-		if (bamYfile == null) throw new IOException("The second BAM file is a required parameter");
+		if (inputFile == null) throw new IOException("The input BAM file is a required parameter");
+		if (controlFile == null) throw new IOException("The control BAM file is a required parameter");
 		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
 		loadFiles();
 		runCNVseq();
@@ -240,17 +234,17 @@ public class CNVseqAlgorithm {
 		genomeSize = genome.getTotalLength();
 		
 		// create both instances of ReadDepthDistribution, one for each BAM file
-		log.info("Loading bam file for sample X. This can take a couple of minutes, please wait...");
+		log.info("Loading input BAM file. This can take a couple of minutes, please wait...");
 		advanceNotifier();
-		sampleX = new ReadDepthDistribution(genome, binSize);
-		sampleX.processAlignments(bamXfile);
-		log.info("Loading bam file for sample Y. This can take a couple of minutes, please wait...");
+		readDepthInput = new ReadDepthDistribution(genome, binSize);
+		readDepthInput.processAlignments(inputFile);
+		readNumInput = readDepthInput.getTotalReads();
+		log.info("Loading control BAM file. This can take a couple of minutes, please wait...");
 		advanceNotifier();
-		sampleY = new ReadDepthDistribution(genome, binSize);
-		sampleY.processAlignments(bamYfile);
-		readNumX = sampleX.getTotalReads();
-		readNumY = sampleY.getTotalReads();
-		log.info("Both bam files loaded."+"\n"+ "bamX with "+ readNumX +" reads, bamY with "+ readNumY +" reads.");
+		readDepthControl = new ReadDepthDistribution(genome, binSize);
+		readDepthControl.processAlignments(controlFile);	
+		readNumControl = readDepthControl.getTotalReads();
+		log.info("Both bam files loaded."+"\n"+ "input file with "+ readNumInput +" reads, control with "+ readNumControl +" reads.");
 		advanceNotifier();
 	}
 	
@@ -265,26 +259,26 @@ public class CNVseqAlgorithm {
 		if(gcCorrection){
 			log.info("Correcting by GC content.");
 			advanceNotifier();
-			sampleX.correctDepthByGCContent();
-			sampleY.correctDepthByGCContent();
+			readDepthInput.correctDepthByGCContent();
+			readDepthControl.correctDepthByGCContent();
 		}
 		
 		// get lists of bins
-		seqBinsX = new ArrayList<ReadDepthBin>();
-		seqBinsX = sampleX.getAllBins();
-		seqBinsY = new ArrayList<ReadDepthBin>();
-		seqBinsY = sampleY.getAllBins();
+		seqBinsInput = new ArrayList<ReadDepthBin>();
+		seqBinsInput = readDepthInput.getAllBins();
+		seqBinsControl = new ArrayList<ReadDepthBin>();
+		seqBinsControl = readDepthControl.getAllBins();
 		advanceNotifier();
 
 		// get the list of the CNV ratio between sampleX:sampleY
 		log.info("Obtaining read depth for each bin.");
 		advanceNotifier();
-		rdListX = getRDList(seqBinsX);
-		rdListY = getRDList(seqBinsY);
-		double totalCountRatio = (readNumY/readNumX);
+		rdListInput = getRDList(seqBinsInput);
+		rdListControl = getRDList(seqBinsControl);
+		double totalCountRatio = (readNumControl/readNumInput);
 		log.info("Calculating read depth ratio for each bin.");
 		advanceNotifier();
-		ratioRDList = getRDratios(rdListX, rdListY);
+		ratioRDList = getRDratios(rdListInput, rdListControl);
 		log.info("Estimating CNV ratio for each bin.");
 		advanceNotifier();
 		ratioCNVList = calculateCNVratios(ratioRDList, totalCountRatio);	
@@ -292,9 +286,9 @@ public class CNVseqAlgorithm {
 		// perform statistical significance test
 		log.info("Calculating p-value for each CNV ratio.");
 		advanceNotifier();
-		lambdaX = readNumX*binSize/genomeSize; 
-		lambdaY = readNumY*binSize/genomeSize; 
-		List<Double> pValueList = calculatePvalue(ratioCNVList, ratioRDList, lambdaX, lambdaY);
+		lambdaInput = readNumInput*binSize/genomeSize; 
+		lambdaControl = readNumControl*binSize/genomeSize; 
+		List<Double> pValueList = calculatePvalue(ratioCNVList, ratioRDList, lambdaInput, lambdaControl);
 		
 		// print the output
 		if(bonferroni) maxPValue = maxPValue / pValueList.size();
@@ -302,7 +296,7 @@ public class CNVseqAlgorithm {
 		log.info("Writing CNV list.");
 		advanceNotifier();
 		PrintStream out = new PrintStream(outputFile);
-		printCNVList(seqBinsX, rdListX, rdListY, ratioCNVList, pValueList, out);
+		printCNVList(seqBinsInput, rdListInput, rdListControl, ratioCNVList, pValueList, out);
 		out.flush();
 		out.close();
 		advanceNotifier();
@@ -334,14 +328,14 @@ public class CNVseqAlgorithm {
 
 	/**
 	 * This method calculates the ratio between read counts for each bin given in the lists
-	 * @param List of the read depth for each bin in sample X
-	 * @param List of the read depth for each bin in sample Y
+	 * @param List of the read depth for each bin in input sample
+	 * @param List of the read depth for each bin in control sample
 	 * @return List containing the read depth ratio for each bin X:Y
 	 */
-	public List<Double> getRDratios(List<Double> countSampleX, List<Double> countSampleY){
+	public List<Double> getRDratios(List<Double> countInput, List<Double> countControl){
 		List<Double> readCountRatios = new ArrayList<Double>();
-		for(int i=0;i<countSampleX.size();i++){
-			double countRatio = countSampleX.get(i)/countSampleY.get(i);
+		for(int i=0;i<countInput.size();i++){
+			double countRatio = countInput.get(i)/countControl.get(i);
 			readCountRatios.add(countRatio);
 		}
 		return readCountRatios;
@@ -373,12 +367,12 @@ public class CNVseqAlgorithm {
 	 * @param double Average number of reads per window in random sequencing of sample Y
 	 * @return List of p-values are given for each CNV ratio in the list 
 	 */
-	public List<Double> calculatePvalue(List<Double> cnvRatios, List<Double> rdRatios, double lambX, double lambY){
+	public List<Double> calculatePvalue(List<Double> cnvRatios, List<Double> rdRatios, double lambInput, double lambControl){
 		List<Double> pValues = new ArrayList<Double>();
 		NormalDistribution normDist = new NormalDistribution();
 		// to get p-value, the cumulative normal distribution is used
 		for(int i = 0; i < rdRatios.size(); i++){
-			double t = z2tTransform(rdRatios.get(i),lambX,lambY);
+			double t = z2tTransform(rdRatios.get(i),lambInput,lambControl);
 			if(cnvRatios.get(i) >= 1){
 				pValues.add(1-normDist.cumulative(t));
 			}
@@ -392,12 +386,12 @@ public class CNVseqAlgorithm {
 	/**
 	 * this method performs the Geary-Hinkley trasnformation of z to t
 	 * @param z read depth ratio for one bin 
-	 * @param lambdaX mean and variance in sample X read depth distribution
-	 * @param lambdaY mean and variance in sample Y read depth distribution
+	 * @param lambdaInput mean and variance in sample X read depth distribution
+	 * @param lambdaControl mean and variance in sample Y read depth distribution
 	 * @return z transformed to t
 	 */
-	private double z2tTransform(double z, double lambdaX, double lambdaY){
-		return ((lambdaY*z)-lambdaX)/(StrictMath.sqrt((lambdaY*(z*z))+lambdaX));
+	private double z2tTransform(double z, double lambdaInput, double lambdaControl){
+		return ((lambdaControl*z)-lambdaInput)/(StrictMath.sqrt((lambdaControl*(z*z))+lambdaInput));
 	}
 	
 	/**
@@ -411,7 +405,7 @@ public class CNVseqAlgorithm {
 	 * @throws FileNotFoundException 
 	 * @post a table is created listing all the information from CNV-seq algorithm. each line is a bin in the genome.
 	 */
-	public void printCNVList(List<ReadDepthBin> posList, List<Double> readDepthX, List<Double> readDepthY, List<Double> cnvRatioList, List<Double> pValueList, PrintStream out) {
+	public void printCNVList(List<ReadDepthBin> posList, List<Double> readDepthInput, List<Double> readDepthControl, List<Double> cnvRatioList, List<Double> pValueList, PrintStream out) {
 		log.info("The maximum p-value reported is: "+ maxPValue);
 		DecimalFormat df = ParseUtils.ENGLISHFMT;
 		for ( int i = 0 ; i < posList.size() ; i++) {
@@ -419,10 +413,10 @@ public class CNVseqAlgorithm {
 				out.print(posList.get(i).getSequenceName()+SEP);
 				out.print(posList.get(i).getFirst()+SEP);
 				out.print(posList.get(i).getLast()+SEP);
-				if(readDepthX.get(i) == null) out.print(EMPTY+SEP);
-				else out.print(df.format(readDepthX.get(i))+SEP);
-				if(readDepthY.get(i) == null) out.print(EMPTY+SEP);
-				else out.print(df.format(readDepthY.get(i))+SEP);
+				if(readDepthInput.get(i) == null) out.print(EMPTY+SEP);
+				else out.print(df.format(readDepthInput.get(i))+SEP);
+				if(readDepthControl.get(i) == null) out.print(EMPTY+SEP);
+				else out.print(df.format(readDepthControl.get(i))+SEP);
 				if(cnvRatioList.get(i) == null) out.print(EMPTY+SEP);
 				else out.print(cnvRatioList.get(i)+SEP);
 				if(pValueList.get(i) == null) out.print(EMPTY);

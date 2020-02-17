@@ -850,30 +850,33 @@ Comparing read depth between samples
 ------------------------------------
 
 This function compares the read depth of two samples to predict regions with
-relative copy number variation (CNVS). It takes two alignment files and a
-reference genome, splits the genome into windows, and for each window compares
-the read depth between the two samples. It outputs a text file containing the
-list of windows of the genome in which the normalized read depth ratio between
-the two samples is significantly different from 1.
+relative copy number variation (CNV) between a sample and a control. It takes
+two alignment files and a reference genome, splits the genome into windows, and
+for each window compares the read depth between the two samples. It outputs a
+text file containing the list of windows of the genome in which the normalized
+read depth ratio between the two samples is significantly different from 1.
 
 USAGE:
 
-java -jar NGSEPcore.jar CompareRD <OPTIONS> <ALIGNMENTS_FILE_1> <ALIGNMENTS_FILE_2>
+java -jar NGSEPcore.jar CompareRD <OPTIONS>
 
 OPTIONS:
 
+	-i FILE		: Input sorted BAM file with alignments to a reference genome.
+	-c FILE		: Sorted BAM file corresponding to the control (wild type) sample.
 	-o FILE		: File with genomic regions in which the two samples
 			  have different read depth.
 	-r FILE		: Fasta file with the reference genome.
-	-w INT		: Window size to be used during the read depth
+	-w INT		: Window length to be used during the read depth
 			  comparison. Default: 100
-	-p FLOAT	: Maximum p-value. Only the windows with a p-value
+	-p DOUBLE	: Maximum p-value. Only the windows with a p-value
 			  lower than that specified will be reported.
 			  Default: 0.001
-	-a		: Output an entry for every window in the genome
-	-c		: Perform GC-correction of the read depth
+	-a		: Output an entry for every window in the genome.
+	-gc		: Perform GC-correction of the read depth.
 	-b		: Perform the Bonferroni correction for multiple 
-			  testing
+			  testing.
+
 The output text file contains the following columns:
 
 1. Chromosome

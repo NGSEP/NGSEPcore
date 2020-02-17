@@ -681,12 +681,16 @@ Compares the read depth of two samples
 </intro>
 <title>Comparing read depth between samples</title>
 <description>
-This function compares the read depth of two samples to predict regions with relative copy number variation (CNVS).
+This function compares the read depth of two samples to predict regions with relative copy number variation (CNV) between a sample and a control.
 It takes two alignment files and a reference genome, splits the genome into windows, and for each window compares the read depth between the two samples.
 It outputs a text file containing the list of windows of the genome in which the normalized read depth ratio between the two samples is significantly different from 1 (See README.txt for details).
 </description>
-<argument>ALIGNMENTS_FILE_1</argument>
-<argument>ALIGNMENTS_FILE_2</argument>
+<option id="i" type="FILE" attribute="inputFile">
+Input sorted BAM file with alignments to a reference genome.
+</option>
+<option id="c" type="FILE" attribute="controlFile">
+Sorted BAM file corresponding to the control (wild type) sample.
+</option>
 <option id="o" type="FILE" attribute="outputFile">
 File with genomic regions in which the two samples have different read depth.
 </option>
@@ -694,7 +698,7 @@ File with genomic regions in which the two samples have different read depth.
 Fasta file with the reference genome.
 </option>
 <option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
-Window size to be used during the read depth comparison.
+Window length to be used during the read depth comparison.
 </option>
 <option id="p" type="DOUBLE" attribute="maxPValue" defaultConstant="DEF_MAX_PVALUE">
 Maximum p-value. Only the windows with a p-value lower than that specified will be reported.
@@ -702,7 +706,7 @@ Maximum p-value. Only the windows with a p-value lower than that specified will 
 <option id="a" type="BOOLEAN" attribute="printAllWindows">
 Output an entry for every window in the genome.
 </option>
-<option id="c" type="BOOLEAN" attribute="gcCorrection">
+<option id="gc" type="BOOLEAN" attribute="gcCorrection">
 Perform GC-correction of the read depth.
 </option>
 <option id="b" type="BOOLEAN" attribute="bonferroni">
