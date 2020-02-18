@@ -45,6 +45,8 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.LimitedSequence;
+import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastqFileReader;
@@ -659,7 +661,7 @@ public class ReadsAligner {
 		}
 		//Case 2
 		if(aln.getFirst()>region.getFirst()&&aln.getLast()>region.getLast()) {
-			return alnInRigth(aln, read, qualityScores, region);
+			return alnInRight(aln, read, qualityScores, region);
 		}
 		//Case 3
 		if(aln.getFirst()<region.getFirst()&&aln.getLast()>region.getLast()) {
@@ -718,16 +720,17 @@ public class ReadsAligner {
 		int overlapLength = overlapEnd-overlapStart+1;
 		String sequenceName=aln.getSequenceName();
 		int first = Math.max(1, aln.getFirst());
-		int last = overlapStart;
+		int last = overlapStart-1;
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
-		if(overlapLength>1 && overlapLength<90 && refSeq != null)
+		if(overlapLength>1 && overlapLength<0.8*read.length() && refSeq != null)
 		{
 			String readNoSTR=read.subSequence(0, read.length()-overlapLength).toString();
-			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
-			last = first+result.getSubjectLastIdx();
-			first = first + result.getSubjectStartIdx();
-			String cigar = result.getCigarString()+overlapLength+"S";
-			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			//AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(readNoSTR, refSeq.toString(), false);
+			last = first+pAln.getSubjectLastIdx();
+			first = first + pAln.getSubjectStartIdx();
+			String cigar = pAln.getCigar()+overlapLength+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+			double alnQual = 100.0* (readNoSTR.length() - pAln.getMismatches())/read.length();
 			ReadAlignment newaln = buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
 			return newaln;
 		}
@@ -740,11 +743,12 @@ public class ReadsAligner {
 			String readNoSTR=read.subSequence(0,pLast-pFirst+1).toString();
 			if(rigth)readNoSTR=read.subSequence(overlapLength,read.length()).toString();
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, pFirst, pLast);
-			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
-			int last = pFirst+result.getSubjectLastIdx();
-			int first = pFirst + result.getSubjectStartIdx();
-			String cigar = result.getCigarString();
-			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			//AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(readNoSTR, refSeq.toString(), false);
+			int last = pFirst+pAln.getSubjectLastIdx();
+			int first = pFirst + pAln.getSubjectStartIdx();
+			String cigar = pAln.getCigar();
+			double alnQual = 100.0* (read.length() - pAln.getMismatches())/read.length();
 			ReadAlignment newaln = buildAln(readNoSTR, qualityScores, sequenceName, first, last, cigar, alnQual);
 			return newaln;
 		}
@@ -755,7 +759,7 @@ public class ReadsAligner {
 
 
 
-	private ReadAlignment alnInRigth(ReadAlignment aln, CharSequence read, String qualityScores, GenomicRegion region) {
+	private ReadAlignment alnInRight(ReadAlignment aln, CharSequence read, String qualityScores, GenomicRegion region) {
 		int overlapStart=aln.getFirst();
 		int overlapEnd=region.getLast();
 		int overlapLength = overlapEnd-overlapStart+1;
@@ -766,11 +770,12 @@ public class ReadsAligner {
 		if(overlapLength>0 && overlapLength<90 && refSeq != null)
 		{
 			String readNoSTR=read.subSequence(overlapLength, read.length()).toString();
-			AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
-			last = first+result.getSubjectLastIdx();
-			first = first + result.getSubjectStartIdx();
-			String cigar = overlapLength+"S"+result.getCigarString();
-			double alnQual = 100.0* (read.length() - result.getDistance())/read.length();
+			//AlignmentResult result = smithWatermanLocalAlignment(readNoSTR,refSeq);
+			PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(readNoSTR, refSeq.toString(), false);
+			last = first+pAln.getSubjectLastIdx();
+			first = first + pAln.getSubjectStartIdx();
+			String cigar = overlapLength+"S"+pAln.getCigar();
+			double alnQual = 100.0* (read.length() - pAln.getMismatches())/read.length();
 			ReadAlignment newaln = buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
 			return newaln;
 		}
@@ -936,14 +941,18 @@ public class ReadsAligner {
 		last = Math.min(fMIndex.getReferenceLength(sequenceName), cluster.getLast());
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 		if(refSeq == null) return null;
-		AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
+		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
+		//AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
+		PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(query, refSeq.toString(), false);
 		//TODO: Make better score
-		if(result.getDistance()>0.05*query.length()) return null;
+		//System.out.println("Pairwise alignment found from relative : "+pAln.getSubjectStartIdx()+" to "+pAln.getSubjectLastIdx()+" CIGAR:" +pAln.getCigar()+" ");
+		if(pAln.getMismatches()>0.05*query.length()) return null;
 		//Last must be updated before first
-		last = first+result.getSubjectLastIdx();
-		first = first + result.getSubjectStartIdx();
-		cigar = result.getCigarString();
-		alnQual = 100.0* (query.length() - result.getDistance())/query.length();
+		last = first + pAln.getSubjectLastIdx();
+		first = first + pAln.getSubjectStartIdx();
+		cigar = pAln.getCigar();
+		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar);
+		alnQual = 100.0* (query.length() - pAln.getMismatches())/query.length();
 		return buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
 	}
 
@@ -958,7 +967,8 @@ public class ReadsAligner {
 		mismatches+=Math.abs(query.length()-refSeq.length());
 		return mismatches;
 	}
-	private AlignmentResult smithWatermanLocalAlignment(CharSequence query, CharSequence subject) {
+	
+	private AlignmentResult smithWatermanLocalAlignment(String query, String subject) {
 		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
 		int[][] scores = new int[query.length()+1][subject.length()+1]; 
 		int minLastRow = scores.length*scores[0].length;
@@ -1049,6 +1059,109 @@ public class ReadsAligner {
 		}
 		return filteredAlignments;
 	}
+}
+
+class PairwiseAlignmentWithCigar {
+	private static PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
+	private String query;
+	private String subject;
+	private int subjectStartIdx=-1;
+	private int subjectLastIdx=-1;
+	private String cigar;
+	private int mismatches=0;
+	
+	public PairwiseAlignmentWithCigar (String query, String subject, boolean includeEndSubject) {
+		//System.out.println("Query length: "+query.length()+" subject length: "+subject.length());
+		this.query = query;
+		this.subject = subject;
+		String [] alignment = aligner.getAlignment(query, subject);
+		String alnQuery = alignment[0];
+		//System.out.println(alnQuery);
+		String alnSubject = alignment[1];
+		//System.out.println(alnSubject);
+		StringBuilder cigarBuilder = new StringBuilder();
+		boolean queryStarted = false;
+		int subjectIdx = 0;
+		byte nextOpCode = -1;
+		int nextOpLength = 0;
+		for(int i=0;i<alnQuery.length();i++) {
+			char q = alnQuery.charAt(i);
+			char s = alnSubject.charAt(i);
+			byte opCode = ReadAlignment.ALIGNMENT_MATCH;
+			if(q!=LimitedSequence.GAP_CHARACTER) {
+				if(s!=LimitedSequence.GAP_CHARACTER) {
+					if(!queryStarted) {
+						queryStarted=true;
+						subjectStartIdx = subjectIdx;  
+					}
+					if(q!=s) mismatches++;
+					subjectIdx++;
+				} else {
+					if(subjectIdx==0 || subjectIdx>=subject.length()) {
+						opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
+					} else {
+						opCode = ReadAlignment.ALIGNMENT_INSERTION;
+					}
+					
+				}
+			} else if (s!=LimitedSequence.GAP_CHARACTER) {
+				opCode = ReadAlignment.ALIGNMENT_DELETION;
+				subjectIdx++;
+			}
+			if(opCode!=nextOpCode) {
+				if(nextOpCode>=0) {
+					if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx +=nextOpLength;
+					if(cigarBuilder.length()>0 || nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
+						cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
+						if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH) mismatches+=2;
+						 
+					}
+				}
+				nextOpCode = opCode;
+				nextOpLength = 0;
+			}
+			nextOpLength++;
+		}
+		if(nextOpCode>=0) {
+			if(nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
+				cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
+				if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH) mismatches+=2;
+				if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx += nextOpLength;
+			}
+		}
+		cigar = cigarBuilder.toString();
+	}
+
+	public String getQuery() {
+		return query;
+	}
+
+	public String getSubject() {
+		return subject;
+	}
+
+
+	public int getSubjectStartIdx() {
+		return subjectStartIdx;
+	}
+	
+	public int getSubjectLastIdx() {
+		return subjectLastIdx;
+	}
+	
+	
+
+	public String getCigar() {
+		return cigar;
+	}
+
+	public int getMismatches() {
+		return mismatches;
+	}
+	
+	
+	
+	
 }
 
 

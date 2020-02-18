@@ -1,8 +1,30 @@
-package ngsep.assembly;
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
+package ngsep.sequences;
 
-//https://www.itu.dk/~sestoft/bsa/Match2.java
-
-public class AlignmentAffineGap {
+/**
+ * Performs pairwise alignment using the affine gap method.
+ * Adapted from https://www.itu.dk/~sestoft/bsa/Match2.java
+ * @author David Guevara
+ */
+public class PairwiseAlignmentAffineGap {
 	
 	int match;
 	int openGap;
@@ -13,7 +35,7 @@ public class AlignmentAffineGap {
 	int[][] m;
 	Traceback[][][] b;
 	
-	public AlignmentAffineGap(int match, int openGap, int extGap, int mismatch) 
+	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch) 
 	{
 		this.match = match;
 		this.openGap = openGap;
@@ -117,19 +139,21 @@ public class AlignmentAffineGap {
 			return -mismatch;
 	}
 	
-	private Traceback getNextTraceback(Traceback[][][] m, Traceback t)
+	private Traceback getNextTraceback(Traceback t)
 	{
-		return m[t.k][t.i][t.j];
+		return b[t.k][t.i][t.j];
 	}
 	
 	private int getMaxK(int[][] m, int[][] x, int[][] y)
 	{
 		int k = 0;
 	    int val = m[m.length - 1][m[0].length - 1];
-    	if (val <= x[m.length - 1][m[0].length - 1]) 
+    	if (val < x[m.length - 1][m[0].length - 1]) {
     		k = 1;
-    	else if (val <= y[m.length - 1][m[0].length - 1]) 
+    	}
+    	else if (val < y[m.length - 1][m[0].length - 1]) {
     		k = 2;
+    	}
     	return k;
 	}
 	
@@ -143,18 +167,18 @@ public class AlignmentAffineGap {
         Traceback tb = root;
         int i = tb.i;
         int j = tb.j; 
-        while((tb = getNextTraceback(b, tb)) != null)
-        {
-	        if (i == tb.i)
-	        	sb1.append('-');
-	        else
+        while((tb = getNextTraceback(tb)) != null) {
+	        if (i == tb.i) {
+	        	sb1.append(LimitedSequence.GAP_CHARACTER);
+	        } else {
 	        	sb1.append(s1.charAt(i - 1));
-	        if (j == tb.j)
-	        {
-	        	sb2.append('-');
+	        }	
+	        if (j == tb.j) {
+	        	sb2.append(LimitedSequence.GAP_CHARACTER);
 	        }
-	        else
+	        else {
 	        	sb2.append(s2.charAt(j - 1));
+	        }
 	        i = tb.i;
 	        j = tb.j;
         }
@@ -184,3 +208,17 @@ public class AlignmentAffineGap {
 		}
 	}
 }
+class Traceback 
+{
+	int k;
+	int i;
+	int j;
+	public Traceback(int k, int i, int j) 
+	{
+		this.k = k;
+		this.i = i;
+		this.j = j;
+	}
+
+}
+

@@ -8,6 +8,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.FMIndexSingleSequence;
 
 public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
@@ -17,12 +18,12 @@ public class ConsensusBuilderBidirectionalFMIndex implements ConsensusBuilder {
 	int mismatch;
 	int windowSize;
 	int tolerance;
-	AlignmentAffineGap aligner;
+	PairwiseAlignmentAffineGap aligner;
 	boolean startConsensus = true;
 	
 	public ConsensusBuilderBidirectionalFMIndex() 
 	{
-		aligner = new AlignmentAffineGap(match, openGap, extGap, mismatch);
+		aligner = new PairwiseAlignmentAffineGap(match, openGap, extGap, mismatch);
 	}
 	
 	@Override

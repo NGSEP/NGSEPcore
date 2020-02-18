@@ -3,6 +3,8 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
+import ngsep.sequences.PairwiseAlignmentAffineGap;
+
 public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder {
 	int match = 2;
 	int openGap = 20;
@@ -46,7 +48,7 @@ public class ConsensusBuilderBidirectionalAffineGap implements ConsensusBuilder 
 				}
 				String s1 = a.isStart() ? a.getRead().toString() : complementaryStrand(a.getRead().toString());
 				String s2 = b.isStart() ? b.getRead().toString() : complementaryStrand(b.getRead().toString());
-				AlignmentAffineGap alignment = new AlignmentAffineGap(match, openGap, extGap, mismatch);
+				PairwiseAlignmentAffineGap alignment = new PairwiseAlignmentAffineGap(match, openGap, extGap, mismatch);
 				String[] alignments = alignment.getAlignment(s1, s2);	
 				System.out.println(alignments[0]);
 				System.out.println(alignments[1]);

@@ -1,4 +1,4 @@
-<NGSEP version="4.0.0" date="17-02-2020">
+<NGSEP version="4.0.0" date="18-02-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
