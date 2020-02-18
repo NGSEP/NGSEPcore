@@ -61,7 +61,7 @@ public class ReadsAligner {
 	
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = 20;
+	public static final int DEF_KMER_LENGTH = 25;
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
@@ -558,11 +558,12 @@ public class ReadsAligner {
 	}
 
 
-	public GenomicRegion findTandemRepeat(ReadAlignment aln1) {
+	public GenomicRegion findTandemRepeat(String sequenceName, int first, int last) {
+		GenomicRegionImpl region = new GenomicRegionImpl(sequenceName, first, last);
 		if(knownSTRs==null) return null;
-		List<GenomicRegion> l =knownSTRs.get(aln1.getSequenceName());
+		List<GenomicRegion> l =knownSTRs.get(sequenceName);
 		if(l==null) return null;
-		return binaryContains(l, 0, l.size()-1, aln1);
+		return binaryContains(l, 0, l.size()-1, region);
 	}
 
 	private GenomicRegion binaryContains(List<GenomicRegion> l, int left, int rigth, GenomicRegion element) {
@@ -796,12 +797,12 @@ public class ReadsAligner {
 		List<ReadAlignment> alns = new ArrayList<>();
 		DNAMaskedSequence readSeq = (DNAMaskedSequence)read.getCharacters();
 		String qual = read.getQualityScores();
-		alns.addAll(kmerBasedInexactSearchAlgorithm(readSeq, qual, read.getName()));
+		alns.addAll(kmerBasedInexactSearchAlgorithm(readSeq.toString(), qual, read.getName()));
 
 		if(!onlyPositiveStrand) {
 			readSeq = readSeq.getReverseComplement();
 			qual = new StringBuilder(qual).reverse().toString();
-			List<ReadAlignment> alnsR = kmerBasedInexactSearchAlgorithm(readSeq, qual, read.getName());
+			List<ReadAlignment> alnsR = kmerBasedInexactSearchAlgorithm(readSeq.toString(), qual, read.getName());
 			for (ReadAlignment aln:alnsR) {
 				aln.setNegativeStrand(true);
 			}
@@ -816,11 +817,11 @@ public class ReadsAligner {
 	 * Only tries to align the given quey in the positive strand
 	 * @return List<ReadAlignment>
 	 */
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (CharSequence query, String qualityScores, String readName) 
+	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (String query, String qualityScores, String readName) 
 	{
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
-		//System.out.println("Query: "+query.toString()+" kmers: "+kmers.size());
+		//System.out.println("Query: "+query.toString()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return finalAlignments;
 		List<FMIndexUngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
@@ -840,7 +841,7 @@ public class ReadsAligner {
 				finalAlignments.add(readAln);
 			}
 		}
-		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query.toString());
+		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query);
 		return finalAlignments;
 	}
 
@@ -868,7 +869,7 @@ public class ReadsAligner {
 		return answer;
 	}
 
-	private List<KmerHitsCluster> clusterKmerHits(CharSequence query, List<FMIndexUngappedSearchHit> initialKmerHits) {
+	private List<KmerHitsCluster> clusterKmerHits(String query, List<FMIndexUngappedSearchHit> initialKmerHits) {
 		List<KmerHitsCluster> clusters = new ArrayList<>();
 		Map<String,List<FMIndexUngappedSearchHit>> hitsBySubjectName = new LinkedHashMap<String, List<FMIndexUngappedSearchHit>>();
 		for(FMIndexUngappedSearchHit hit:initialKmerHits) {
@@ -887,7 +888,7 @@ public class ReadsAligner {
 		}
 		return clusters;
 	}
-	private List<KmerHitsCluster> clusterSequenceKmerAlns(CharSequence query, List<FMIndexUngappedSearchHit> sequenceHits) {
+	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, List<FMIndexUngappedSearchHit> sequenceHits) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
 		KmerHitsCluster cluster=null;
@@ -901,52 +902,62 @@ public class ReadsAligner {
 	}
 
 
-	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, int totalKmers, CharSequence query, String qualityScores) {
+	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, int totalKmers, String query, String qualityScores) {
 		int numDiffKmers = cluster.getNumDifferentKmers();
 		double prop = (double) numDiffKmers/totalKmers;
 		if(prop<minProportionKmers) return null;
 		String sequenceName = cluster.getSequenceName();
 		int first = cluster.getFirst();
 		int last = cluster.getLast();
-		int length = last-first+1;
-		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
+		int lastPerfect = first+query.length()-1;
+		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" lastPerfect: "+lastPerfect+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
 		String cigar = query.length()+"M";
-		if(length>query.length()) {
-			cigar+=(length-query.length())+"D";
-		}
 		double alnQual = 100.0;
-		ReadAlignment aln = buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
-		//System.out.println("Built alignment at "+sequenceName+":"+first+"-"+last+" CIGAR: "+cigar+" Aln: "+aln);
+		ReadAlignment aln = buildAln(query, qualityScores, sequenceName, first, lastPerfect, cigar, alnQual);
 		if(aln!=null) {
-			GenomicRegion region =findTandemRepeat(aln);
+			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+cigar);
+			GenomicRegion region =findTandemRepeat(sequenceName,first,last);
 			if(region!=null) {
 				ReadAlignment newaln=verifyShortTandemRepeats(aln,query,qualityScores,region);
 				//System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
 				if(newaln!=null) return newaln;
 			}
+			if(cluster.isAllConsistent()) {
+				int mismatches = countMismatches (query, aln);
+				//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
+				if(mismatches<3) return aln;
+			}
 		}
-		if (!cluster.isAllConsistent()) {
-			if(!runFullAlignment) return null;
-			//Perform smith waterman
-			if(!cluster.isFirstKmerPresent()) first -=10;
-			first = Math.max(1, first);
-			if(!cluster.isLastKmerPresent()) last+=10;
-			last = Math.min(fMIndex.getReferenceLength(sequenceName), cluster.getLast());
-			CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
-			if(refSeq == null) return null;
-			AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
-			//TODO: Make better score
-			if(result.getDistance()>0.5*query.length()) return null;
-			//Last must be updated before first
-			last = first+result.getSubjectLastIdx();
-			first = first + result.getSubjectStartIdx();
-			cigar = result.getCigarString();
-			alnQual = 100.0* (query.length() - result.getDistance())/query.length();
-			aln = buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
-		}
-		return aln;
+		if(!runFullAlignment) return null;
+		//Perform smith waterman
+		if(!cluster.isFirstKmerPresent()) first -=10;
+		first = Math.max(1, first);
+		if(!cluster.isLastKmerPresent()) last+=10;
+		last = Math.min(fMIndex.getReferenceLength(sequenceName), cluster.getLast());
+		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
+		if(refSeq == null) return null;
+		AlignmentResult result = smithWatermanLocalAlignment(query.toString(),refSeq);
+		//TODO: Make better score
+		if(result.getDistance()>0.05*query.length()) return null;
+		//Last must be updated before first
+		last = first+result.getSubjectLastIdx();
+		first = first + result.getSubjectStartIdx();
+		cigar = result.getCigarString();
+		alnQual = 100.0* (query.length() - result.getDistance())/query.length();
+		return buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
 	}
 
+	private int countMismatches(CharSequence query, ReadAlignment aln) {
+		int mismatches = 0;
+		String refSeq = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast()).toString();
+		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
+			if(query.charAt(i)!=refSeq.charAt(i)) {
+				mismatches++;
+			}
+		}
+		mismatches+=Math.abs(query.length()-refSeq.length());
+		return mismatches;
+	}
 	private AlignmentResult smithWatermanLocalAlignment(CharSequence query, CharSequence subject) {
 		//Matrix for dynamic programming saves the lowest weight from 0,0 to i,j
 		int[][] scores = new int[query.length()+1][subject.length()+1]; 

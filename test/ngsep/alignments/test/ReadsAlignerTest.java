@@ -87,7 +87,7 @@ public class ReadsAlignerTest extends TestCase {
 		CharSequence read =    "TCGGATCGAAATGAACGATATTCTCCCTTATATTATCAGCCAGTAGCGTATACTCTGGCATTTTTCATTTATTTGACTTATTTTTATTTN";
 		String qualityScores = "####################################@@@@BBEEEEEEEEEEEEEEEEEBEEEEE>EEEEEEEEEEEEEE,+,35,.50#";
 		//	122176	122235 -> 122176	122234
-		GenomicRegion region =readsAligner.findTandemRepeat(aln);
+		GenomicRegion region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
 		ReadAlignment newAln=readsAligner.verifyShortTandemRepeats(aln,read,qualityScores,region);
 		assertEquals(122176, newAln.getFirst());
 		assertEquals(122234, newAln.getLast());
@@ -99,7 +99,7 @@ public class ReadsAlignerTest extends TestCase {
 		read =          "TTTTTATTATGCATTTAAGAGTAGTCTCTACTTATGAACATTTTCTCTGGCCTCTGATCACGTTACTTTATTACCCGGATACTGATCATN";
 		qualityScores = "####################BEEEEEEEEEBBBBBEEEEEEEEEEEEEEEEEEEEAA@A@EEEEEAAAAABBBBBEEEEE<<<<<5474#";
 		//	151281	151370 -> 151286	151370
-		region =readsAligner.findTandemRepeat(aln);
+		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
 		newAln=readsAligner.verifyShortTandemRepeats(aln,read,qualityScores,region);
 		assertEquals(151286, newAln.getFirst());
 		assertEquals(151370, newAln.getLast());
@@ -112,7 +112,7 @@ public class ReadsAlignerTest extends TestCase {
 		qualityScores= "FGGGGGEGGGGGGGGFGGGGFGGGGGGGGGGGGEFGGGGGGGGGECDEEEGGGGGGFDGAGGGFGGDGGFDG:DGGGGG?EDFDFGFGBG";
 		//Left:  255867 255900
 		//Right: 255919 255956
-		region =readsAligner.findTandemRepeat(aln);
+		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
 		newAln=readsAligner.verifyShortTandemRepeats(aln,read,qualityScores,region);
 		assertNotNull(newAln);
 		assertEquals(255867, newAln.getFirst());
@@ -126,7 +126,7 @@ public class ReadsAlignerTest extends TestCase {
 		qualityScores= "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGFGGGFEGGGGGEGGGEFEEEEEEEE=EE?DDBDBCCCA>8*??@CACCCAC.BC";
 		//Left:  459953 460002
 		//Right: 460020 460042
-		region =readsAligner.findTandemRepeat(aln);
+		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
 		newAln=readsAligner.verifyShortTandemRepeats(aln,read,qualityScores,region);
 		assertNotNull(newAln);
 		assertEquals(459966, newAln.getFirst());
