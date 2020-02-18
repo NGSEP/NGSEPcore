@@ -169,54 +169,6 @@ OPTIONS:
 		  fasta. Default: 0
 
 
-----------------------------------------
-Performing de-novo analysis of GBS reads
-----------------------------------------
-
-Performs de novo variants discovery from a GBS experiment. Runs a clustering
-algorithm based on quasi-exact matches to representative k-mers within the
-first base pairs of each sequence. Then, performs variants detection and sample
-genotyping within each cluster using the same Bayesian model implemented for
-the reference-guided analysis. By now it only discovers and genotypes Single
-Nucleotide Variants (SNVs).
-
-USAGE:
-
-java -jar NGSEPcore.jar DeNovoGBS <OPTIONS>
-
-OPTIONS:
-
-	-i FILE         : Directory with fastq files to be analyzed. Unless the
-			  -d option is used, it processes as single reads all
-			  fastq files within the given directory.
-	-o FILE         : Prefix for the output VCF file with the discovered
-			  variants and genotype calls as well as other output
-			  files describing the behavior of this process.
-	-d FILE         : Tab delimited text file listing the FASTQ files to be
-			  processed for paired-end sequencing. It should have
-			  three columns. sample id, first fastq file and second
-			  fastq file. All files should be located within the
-			  directory provided with the option -i.
-	-k INT          : K-mer length. Default: 31
-	-c INT          : Maximum number of read clusters to process. This
-			  parameter controls the amount of memory spent by the
-			  process. Default: 2000000
-	-t INT          : Number of threads to process read clusters.
-			  Default: 1
-	-maxBaseQS INT  : Maximum value allowed for a base quality score.
-			  Larger values will be equalized to this value.
-			  Default: 100
-	-minQuality INT : Minimum variant quality. In this command, this filter
-			  applies to the QUAL column of the VCF, which is
-			  calculated for each variant as the maximum of the
-			  genotype qualities of samples with non-homozygous
-			  reference genotype calls. See the command FilterVCF
-			  to apply filters of quality and read depth on
-			  individual genotype calls. Default: 40
-	-h DOUBLE       : Prior heterozygosity rate. Default: 0.001
-	-ploidy INT     : Default ploidy of the samples. Default: 2
-
-
 ------------------------------
 Updating genomes from variants
 ------------------------------
@@ -290,7 +242,7 @@ OPTIONS:
 			  three columns: Sequence name (chromosome), region
 			  first base pair coordinate (1-based, inclusive) and
 			  region last base pair coordinate (1-based, inclusive).
-	-k INT		: K-mer length. Default: 15
+	-k INT		: K-mer length. Default: 25
 	-p DOUBLE	: Minimum proportion of k-mers to select alignments.
 			  Default: 0.5
 	-minIL INT	: Minimum predicted insert length to consider an
