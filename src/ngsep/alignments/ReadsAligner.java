@@ -893,8 +893,7 @@ public class ReadsAligner {
 					cigarLeft = leftPart.getCigar().substring(0,leftPart.getCigar().length()-softClipSubstr.length());
 					softClipLeft+=(read.length()-readSegment.length());
 				}
-			}
-			
+			}	
 		}
 		if(last>region.getLast()+5) {
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, region.getLast()+1, last+10);
@@ -913,9 +912,7 @@ public class ReadsAligner {
 					cigarRight = rightPart.getCigar().substring(softClipSubstr.length());
 					softClipRight+=startReadSegment;
 				}
-				
-			}
-			
+			}	
 		}
 		if(leftPart==null && rightPart ==null) {
 			return null;
@@ -955,6 +952,8 @@ public class ReadsAligner {
 			// Region length < middle length. Add insertion
 			cigar+=(-difference)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
 			if(middleLength>0) cigar+= (region.length())+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		} else {
+			if(middleLength>0) cigar+= (middleLength)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
 		}
 		
 		cigar+=cigarRight;
