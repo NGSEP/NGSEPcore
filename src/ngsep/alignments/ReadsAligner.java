@@ -921,7 +921,8 @@ public class ReadsAligner {
 			//Left alignment with right soft clip
 			first = firstLeftPart + leftPart.getSubjectStartIdx();
 			last = region.getFirst()-1;
-			String cigar = cigarLeft+""+softClipLeft+""+softClipChar;
+			String cigar = cigarLeft;
+			if(softClipLeft>0) cigar+=""+softClipLeft+""+softClipChar;
 			double alnQual = 100.0* (read.length() - leftPart.getMismatches())/read.length();
 			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
 			return buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
@@ -930,7 +931,9 @@ public class ReadsAligner {
 			//Right alignment with left soft clip
 			first = region.getLast()+1;
 			last = first + rightPart.getSubjectLastIdx();
-			String cigar = ""+softClipRight+""+softClipChar+cigarRight;
+			String cigar = "";
+			if(softClipRight>0) cigar+=softClipRight+""+softClipChar;
+			cigar+=cigarRight;
 			double alnQual = 100.0* (read.length() - rightPart.getMismatches())/read.length();
 			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
 			return buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
