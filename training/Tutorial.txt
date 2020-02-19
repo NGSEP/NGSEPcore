@@ -118,7 +118,7 @@ Tutorial:
 
         $ cd ../mapping/
 
-        $ java -jar ~/javaPrograms/NGSEPcore.jar ReadsAligner -r ../reference/Saccharomyces_cerevisiae.fm -i ../reads/ER7A_1.fastq.gz -i2 ../reads/ER7A_2.fastq.gz -o ER7A.bam >& ER7A.log
+        $ java -jar ~/javaPrograms/NGSEPcore.jar ReadsAligner -r ../reference/Saccharomyces_cerevisiae.fm -i ../reads/ER7A_1.fastq.gz -i2 ../reads/ER7A_2.fastq.gz -o ER7A.bam >& ER7A_aln.log
         
         $ mkdir tmpdir_sort_ER7A
         $ java -jar ~/javaPrograms/picard.jar SortSam SO=coordinate CREATE_INDEX=true TMP_DIR=tmpdir_sort_ER7A I=ER7A.bam O=ER7A_sorted.bam >& ER7A_sort.log 
@@ -131,12 +131,12 @@ Tutorial:
         $ java -jar ~/javaPrograms/picard.jar CollectInsertSizeMetrics I=ER7A_sorted.bam O=ER7A_insertLength.stats H=ER7A_insertLength.pdf
 
     This should produce a set of files, with the mapping results and some useful statistics from the process:
-        ER7A_bowtie2.log
-        ER7A_bowtie2_coverage.stats
-        ER7A_bowtie2_insertLength.stats
-        ER7A_bowtie2_readpos.stats
-        ER7A_bowtie2_sorted.bai
-        ER7A_bowtie2_sorted.bam
+        ER7A_aln.log
+        ER7A_coverage.stats
+        ER7A_insertLength.stats
+        ER7A_readpos.stats
+        ER7A_sorted.bai
+        ER7A_sorted.bam
     
     After this step, there are two alternatives to discover and genotype variants. If only interested in the type of variants that can be discovered out of the pileup process
     (SNVs, small indels and short tandem repeats), follow step 5 and then jump to step 7. To learn how to run the sample-by-sample analysis to discover also structural variants
@@ -152,7 +152,7 @@ Tutorial:
     Once reads of the different samples are aligned to the reference genome, a database of variants can be directly generated running the command MultisampleVariantsDetector
     as follows:
     
-        $ java -jar ~/javaPrograms/NGSEPcore.jar MultisampleVariantsDetector -maxBaseQS 30 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -r ../reference/Saccharomyces_cerevisiae.fa -o yeastDemo.vcf CBS4C_bowtie2_sorted.bam ER7A_bowtie2_sorted.bam >& yeastDemoMVD.log
+        $ java -jar ~/javaPrograms/NGSEPcore.jar MultisampleVariantsDetector -maxBaseQS 30 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -r ../reference/Saccharomyces_cerevisiae.fa -o yeastDemo.vcf CBS4C_sorted.bam ER7A_sorted.bam >& yeastDemoMVD.log
 
     This command will directly generate the VCF file yeastDemo.vcf with the genotype information of the samples listed at the end of step 1 for the SNVs, indels and STRs that are variable within the samples analyzed.
     To continue, jump to step 7 
@@ -164,9 +164,9 @@ Tutorial:
         $ java -jar ~/javaPrograms/NGSEPcore.jar SingleSampleVariantsDetector -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -sampleId ER7A -r ../reference/Saccharomyces_cerevisiae.fa -i ER7A_sorted.bam -o ER7A_NGSEP >& ER7A_NGSEP.log
 
     This will produce three files, a VCF with SNPs and small indels, a GFF with structural variants and a log file.
-        ER7A_bowtie2_NGSEP.vcf
-        ER7A_bowtie2_NGSEP_SV.gff
-        ER7A_bowtie2_NGSEP.log
+        ER7A_NGSEP.vcf
+        ER7A_NGSEP_SV.gff
+        ER7A_NGSEP.log
 
     The VCF file contains a list of all the SNVs, small indels and STRs, and the quality information of each variant in each sample. The GFF file contains the information about structural variation in each sample, including calls to repetitive regions, insertions, inversions, inversions and Copy Number Variation (CNVs).
 

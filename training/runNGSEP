@@ -11,4 +11,4 @@ JAVA="/path/to/java -d64 -XX:MaxHeapSize=1g";
  # jars for java packages
 NGSEP=/path/to/NGSEPcore.jar;
 
-${JAVA} -Xmx4g -jar ${NGSEP} SingleSampleVariantsDetector -ignore5 ${f} -ignore3 ${t} -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -sampleId ${p} -r ${REFERENCE} -i ${p}_bowtie2_sorted.bam -o ${p}_bowtie2_NGSEP >& ${p}_bowtie2_NGSEP.log;
+${JAVA} -Xmx4g -jar ${NGSEP} SingleSampleVariantsDetector -ignore5 ${f} -ignore3 ${t} -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -sampleId ${p} -r ${REFERENCE} -i ${p}_sorted.bam -o ${p}_NGSEP >& ${p}_NGSEP.log;
