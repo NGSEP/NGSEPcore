@@ -5,12 +5,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import ngsep.sequences.FMIndex;
-import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.transcriptome.Gene;
@@ -25,12 +21,12 @@ public class AnnotatedReferenceGenome {
 	private ReferenceGenome genome;
 	private Transcriptome transcriptome;
 	private QualifiedSequenceList sequencesMetadata;
-	private List<OrthologyUnit> orthologyUnitsList;
-	private GenomicRegionSortedCollection<OrthologyUnit> orthologyUnitsBySequence;
-	private Map<String, OrthologyUnit> orthologyUnitsMap;
-	private FMIndex indexOrthologyUnits;
+	private List<HomologyUnit> homologyUnitsList;
+	private GenomicRegionSortedCollection<HomologyUnit> homologyUnitsBySequence;
+	private Map<String, HomologyUnit> homologyUnitsMap;
+	private FMIndex indexHomologyUnits;
 	
-	private GenomicRegionSortedCollection<OrthologyUnit> uniqueOrthologyUnitsBySequence;
+	private GenomicRegionSortedCollection<HomologyUnit> uniqueHomologyUnitsBySequence;
 	
 	public AnnotatedReferenceGenome(int id, ReferenceGenome genome, Transcriptome transcriptome) {
 		super();
@@ -40,18 +36,18 @@ public class AnnotatedReferenceGenome {
 		this.sequencesMetadata = genome.getSequencesMetadata();
 		//Create orthology units based on transcripts
 		//Query each orthology unit against its own genome and select the units that are unique
-		extractOrthologyUnits();
+		extractHomologyUnits();
 		//log.info("Genome total units "+orthologyUnitsList.size()+" Building FM Index");
 		buildFMIndex ();
 	}
 	
 	/**
-	 * Builds the orthology units for this annotated genome based on the largest transcript of each gene
+	 * Builds the homology units for this annotated genome based on the largest transcript of each gene
 	 */
-	private void extractOrthologyUnits() {
-		orthologyUnitsList = new ArrayList<>();
-		orthologyUnitsMap = new HashMap<>();
-		orthologyUnitsBySequence = new GenomicRegionSortedCollection<>(sequencesMetadata);
+	private void extractHomologyUnits() {
+		homologyUnitsList = new ArrayList<>();
+		homologyUnitsMap = new HashMap<>();
+		homologyUnitsBySequence = new GenomicRegionSortedCollection<>(sequencesMetadata);
 		List<Transcript> allTranscripts = transcriptome.getAllTranscripts();
 		Gene lastGene = null; 
 		List<Transcript> transcriptsGene = new ArrayList<>();
@@ -59,11 +55,11 @@ public class AnnotatedReferenceGenome {
 			Gene gene = tr.getGene();
 			if(lastGene != gene) {
 				if(lastGene!=null) {
-					OrthologyUnit unit = buildOrthologyUnitGene(lastGene, transcriptsGene);
+					HomologyUnit unit = buildHomologyUnitGene(lastGene, transcriptsGene);
 					if (unit!=null) {
-						orthologyUnitsList.add(unit);
-						orthologyUnitsMap.put(unit.getId(), unit);
-						orthologyUnitsBySequence.add(unit);
+						homologyUnitsList.add(unit);
+						homologyUnitsMap.put(unit.getId(), unit);
+						homologyUnitsBySequence.add(unit);
 					}
 				}
 				lastGene = gene;
@@ -71,11 +67,11 @@ public class AnnotatedReferenceGenome {
 			}
 			transcriptsGene.add(tr);
 		}
-		OrthologyUnit unit = buildOrthologyUnitGene(lastGene, transcriptsGene);
+		HomologyUnit unit = buildHomologyUnitGene(lastGene, transcriptsGene);
 		if (unit!=null) {
-			orthologyUnitsList.add(unit);
-			orthologyUnitsMap.put(unit.getId(), unit);
-			orthologyUnitsBySequence.add(unit);
+			homologyUnitsList.add(unit);
+			homologyUnitsMap.put(unit.getId(), unit);
+			homologyUnitsBySequence.add(unit);
 		}
 	}
 	
@@ -85,7 +81,7 @@ public class AnnotatedReferenceGenome {
 	 * @param transcriptsGene
 	 * @return Orthology Unit related to the gene or null if the protein can not be assembled for any transcript
 	 */
-	private OrthologyUnit buildOrthologyUnitGene( Gene gene, List<Transcript> transcriptsGene) {
+	private HomologyUnit buildHomologyUnitGene( Gene gene, List<Transcript> transcriptsGene) {
 		String geneId = gene.getId();
 		Transcript bestTranscript = null;
 		int bestLength = 0;
@@ -106,82 +102,28 @@ public class AnnotatedReferenceGenome {
 		int first = bestTranscript.getFirst();
 		int last = bestTranscript.getLast();
 		String sequenceName = bestTranscript.getSequenceName();
-		OrthologyUnit unit = new OrthologyUnit(id, geneId, sequenceName, first, last);
+		HomologyUnit unit = new HomologyUnit(id, geneId, sequenceName, first, last);
 		unit.setUnitSequence(bestProtein);
 		return unit;
 	}
 	
 	private void buildFMIndex() {
-		indexOrthologyUnits = new FMIndex();
+		indexHomologyUnits = new FMIndex();
 		QualifiedSequenceList unitSequences = new QualifiedSequenceList();
-		for (OrthologyUnit ql:orthologyUnitsList) {
+		for (HomologyUnit ql:homologyUnitsList) {
 			String unitSequence = ql.getUnitSequence();
 			String unitId = ql.getId();
 			QualifiedSequence qualifiedSequence = new QualifiedSequence(unitId, unitSequence);
 			unitSequences.add(qualifiedSequence);
 		}
-		indexOrthologyUnits.loadQualifiedSequenceList(unitSequences);
+		indexHomologyUnits.loadQualifiedSequenceList(unitSequences);
 	}
 	
-	public void calculateParalogs(byte kmerSize, int minPctKmers) {
-		for (OrthologyUnit unit:orthologyUnitsList) {
-			//Orthology unit ids of similar proteins
-			Set<String> hits = findOrthologyUnits(indexOrthologyUnits, unit.getUnitSequence(), kmerSize, minPctKmers);
-			for(String paralogId:hits) {
-				if(!paralogId.equals(unit.getId())) {
-					OrthologyUnit paralog = orthologyUnitsMap.get(paralogId);
-					unit.addParalog(paralog);
-					paralog.addParalog(unit);
-				}
-			}
+	public void selectUniqueOrthologyUnits () {
+		uniqueHomologyUnitsBySequence = new GenomicRegionSortedCollection<>(sequencesMetadata);
+		for(HomologyUnit unit:homologyUnitsList) {
+			if(unit.isUnique()) uniqueHomologyUnitsBySequence.add(unit);
 		}
-		selectUniqueOrthologyUnits();
-	}
-	
-	private void selectUniqueOrthologyUnits () {
-		uniqueOrthologyUnitsBySequence = new GenomicRegionSortedCollection<>(sequencesMetadata);
-		for(OrthologyUnit unit:orthologyUnitsList) {
-			if(unit.isUnique()) uniqueOrthologyUnitsBySequence.add(unit);
-		}
-	}
-	
-	private Set<String> findOrthologyUnits(FMIndex index, String searchSequence, byte kmerSize, int minPctKmers) {	
-		//Counts of k-mers mapping to each protein in the FM-index
-		Map<String,Integer> kmerSupportMap = new TreeMap<>();
-		int totalKmers = 0;
-		//Step 1: Generate k-mers to query the FM-Index looking for homologous transcripts to calculate the kmer counts
-		for(int i=0; i<searchSequence.length()-kmerSize+1; i+=kmerSize) {
-			String kmer = searchSequence.substring(i, i+kmerSize);
-			
-			List <FMIndexUngappedSearchHit> kmerHits = index.exactSearch(kmer);
-			for(FMIndexUngappedSearchHit hit:kmerHits) {
-				String name = hit.getSequenceName();
-				if(kmerSupportMap.containsKey(name))
-				{
-					int value = 1 + kmerSupportMap.get(name);
-					kmerSupportMap.put(name, value);
-				}
-				else
-				{
-					kmerSupportMap.put(name, 1);
-				}
-			}
-			totalKmers = totalKmers +1;
-		}
-
-		//Step 2: Fill list traversing the counts and choosing transcripts for which at least x% of the k-mers support the match
-		Set<String> answer = new TreeSet<>();
-		
-		for(Map.Entry<String,Integer> entry : kmerSupportMap.entrySet()) {
-			String name = entry.getKey();
-			double transcriptKmers = entry.getValue();
-			double percent = (transcriptKmers/totalKmers)*100;
-			if(percent >= minPctKmers)
-			{
-				answer.add(name);
-			}
-		}
-		return answer;
 	}
 	
 	/**
@@ -190,51 +132,63 @@ public class AnnotatedReferenceGenome {
 	public int getId() {
 		return id;
 	}
+	
 	/**
-	 * Finds orthologs of the orthology units in this genome in the given genome
-	 * @param genome2 to search for orthologs
+	 * @return List<HomologyUnit> Homology units for this genome
 	 */
-	public void calculateOrthologs (AnnotatedReferenceGenome genome2, byte kmerSize, int minPctKmers) {
-		for (OrthologyUnit unit:orthologyUnitsList) {
-			//Orthology unit ids of similar proteins
-			Set<String> hits = findOrthologyUnits(genome2.indexOrthologyUnits, unit.getUnitSequence(), kmerSize, minPctKmers);
-			for(String orthologId:hits) {
-				OrthologyUnit ortholog = genome2.orthologyUnitsMap.get(orthologId);
-				unit.addOrtholog(ortholog);
-				ortholog.addOrtholog(unit);
-			}
-		}
-	}
-	/**
-	 * @return List<OrthologyUnit> Orthology units for this genome
-	 */
-	public List<OrthologyUnit> getOrthologyUnits() {
-		return Collections.unmodifiableList(orthologyUnitsList);
+	public List<HomologyUnit> getHomologyUnits() {
+		return Collections.unmodifiableList(homologyUnitsList);
 	}
 	
 	/**
-	 * Returns the list of all orthology units for the given sequence name
+	 * @return int total number of homology units
+	 */
+	public int getTotalHomologyUnits () {
+		return homologyUnitsList.size();
+	}
+	
+	/**
+	 * Returns the list of all homology units for the given sequence name
 	 * @param name Sequence name
-	 * @return List<OrthologyUnit> units with the given sequence name
+	 * @return List<HomologyUnit> units with the given sequence name
 	 */
-	public List<OrthologyUnit> getOrthologyUnits(String name) {
-		return orthologyUnitsBySequence.getSequenceRegions(name).asList();
+	public List<HomologyUnit> getHomologyUnits(String name) {
+		return homologyUnitsBySequence.getSequenceRegions(name).asList();
 	}
 	
 	/**
-	 * @return List<OrthologyUnit> List of unique orthology units in this genome
+	 * Returns an FM-index of the homology units
+	 * @return FMIndex to search for homologs
 	 */
-	public List<OrthologyUnit> getUniqueOrthologyUnits() {
-		return uniqueOrthologyUnitsBySequence.asList();
+	public FMIndex getIndexHomologyUnits() {
+		return indexHomologyUnits;
+	}
+	
+	public HomologyUnit getHomologyUnit(String unitId) {
+		return homologyUnitsMap.get(unitId);
+	}
+
+	/**
+	 * @return List<HomologyUnit> List of unique homology units in this genome
+	 */
+	public List<HomologyUnit> getUniqueHomologyUnits() {
+		return uniqueHomologyUnitsBySequence.asList();
 	}
 	
 	/**
-	 * Returns the list of unique orthology units for the given sequence name
+	 * @return int total number of unique homology units within the genome
+	 */
+	public int getNumberUniqueHomologyUnits () {
+		return uniqueHomologyUnitsBySequence.size();
+	}
+	
+	/**
+	 * Returns the list of unique homology units for the given sequence name
 	 * @param name Sequence name
-	 * @return List<OrthologyUnit> unique units with the given sequence name
+	 * @return List<HomologyUnit> unique units with the given sequence name
 	 */
-	public List<OrthologyUnit> getUniqueOrthologyUnits(String name) {
-		return uniqueOrthologyUnitsBySequence.getSequenceRegions(name).asList();
+	public List<HomologyUnit> getUniqueHomologyUnits(String name) {
+		return uniqueHomologyUnitsBySequence.getSequenceRegions(name).asList();
 	}
 
 	/**

@@ -30,7 +30,7 @@ import java.util.Map;
  * @author Daniel Tello
  * @author Jorge Duitama
  */
-public class OrthologyUnit implements GenomicRegion {
+public class HomologyUnit implements GenomicRegion {
 	private String id;
 	private int genomeId;
 	private String sequenceName;
@@ -38,21 +38,22 @@ public class OrthologyUnit implements GenomicRegion {
 	private int last;
 	private boolean negativeStrand = false;
 	private String unitSequence;
-	//Orthologs of other genomes
-	private Map<Integer, Map<String,OrthologyUnit>> orthologsMap = new HashMap<>();
-	private int totalOrthologs = 0;
+	
+	//Homolog relationships
+	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();
+	private int totalHomologs = 0;
 	
 	//LCS mates of this orthology unit
-	private Map<Integer, OrthologyUnit> matesInLCS = new HashMap<>();
+	private Map<Integer, HomologyUnit> matesInLCS = new HashMap<>();
 	
-	public OrthologyUnit(int genomeId, String id, String sequenceName, int first, int last) {
+	public HomologyUnit(int genomeId, String id, String sequenceName, int first, int last) {
 		super();
 		this.genomeId = genomeId;
 		this.id = id;
 		this.sequenceName = sequenceName;
 		this.first = first;
 		this.last = last;
-		orthologsMap.put(genomeId, new HashMap<>());
+		homologsMap.put(genomeId, new HashMap<>());
 	}
 	
 
@@ -114,55 +115,45 @@ public class OrthologyUnit implements GenomicRegion {
 	public void setUnitSequence(String unitSequence) {
 		this.unitSequence = unitSequence;
 	}
+	
+	/**
+	 * Adds a new ortholog to this unit
+	 * @param unit to associate as ortholog
+	 */
+	public void addHomologRelationship (HomologyEdge edge) {
+		HomologyUnit subjectUnit = edge.getSubjectUnit();
+		int genomeId = subjectUnit.getGenomeId();
+		String unitId = subjectUnit.getId();
+		Map<String,HomologyEdge> unitsGenome = homologsMap.computeIfAbsent(genomeId, V -> new HashMap<String, HomologyEdge>());
+		if(!unitsGenome.containsKey(unitId)) totalHomologs++;
+		unitsGenome.put(unitId, edge);
+	}
 
 
 	/**
 	 * @return the paralogs
 	 */
-	public Collection<OrthologyUnit> getParalogs() {
-		return Collections.unmodifiableCollection(orthologsMap.get(genomeId).values());
-	}
-	
-	/**
-	 * Adds a new paralog to this unit
-	 * @param unit to associate as paralog
-	 */
-	public void addParalog (OrthologyUnit unit) {
-		if(unit.getGenomeId()!=genomeId) throw new RuntimeException("Can not add a paralog from a different genome. This genome id: "+genomeId+" unit id: "+unit.getGenomeId());
-		addOrtholog(unit);
+	public Collection<HomologyEdge> getParalogRelationships() {
+		return Collections.unmodifiableCollection(homologsMap.get(genomeId).values());
 	}
 
-
 	/**
-	 * Searches orthologs from the given genome id
+	 * Searches ortholog relationships to the given genome id
 	 * @param id of the genome to query
-	 * @return Orthologs from the given id
+	 * @return Homolog relationships to units in the given genome id
 	 */
-	public Collection<OrthologyUnit> getOrthologs(int genomeId) {
-		Map<String,OrthologyUnit> orthologs = orthologsMap.get(genomeId);
+	public Collection<HomologyEdge> getOrthologRelationships(int genomeId) {
+		Map<String,HomologyEdge> orthologs = homologsMap.get(genomeId);
 		if(orthologs==null) return new ArrayList<>();
 		return Collections.unmodifiableCollection(orthologs.values());
 	}
 	
-	/**
-	 * Get all orthologs from genomes different than that of this orthology unit
-	 * @return List<OrthologyUnit> 
-	 */
-	public List<OrthologyUnit> getOrthologsOtherGenomes() {
-		List<OrthologyUnit> answer = new ArrayList<>();
-		for(int id:orthologsMap.keySet()) {
-			if(id!=genomeId) answer.addAll(orthologsMap.get(id).values());
-		}
-		return answer;
-	}
-	/**
-	 * Get all orthologs from all genomes including the genome of this unit
-	 * @return List<OrthologyUnit> 
-	 */
-	public List<OrthologyUnit> getOrthologsAllGenomes() {
-		List<OrthologyUnit> answer = new ArrayList<>();
-		for(int id:orthologsMap.keySet()) {
-			answer.addAll(orthologsMap.get(id).values());
+	public Collection<HomologyUnit> getOrthologUnits(int genomeId) {
+		List<HomologyUnit> answer = new ArrayList<>();
+		Map<String,HomologyEdge> orthologRelationships = homologsMap.get(genomeId);
+		if(orthologRelationships==null) return answer;
+		for(HomologyEdge edge:orthologRelationships.values()) {
+			answer.add(edge.getSubjectUnit());
 		}
 		return answer;
 	}
@@ -172,10 +163,10 @@ public class OrthologyUnit implements GenomicRegion {
 	 * @param genomeId Id of the genome to query
 	 * @return OrthologyUnit ortholog of this unit or null if there are not orthologs or if the ortholog is not unique
 	 */
-	public OrthologyUnit getUniqueOrtholog(int genomeId) {
-		Collection<OrthologyUnit> orthologs = getOrthologs(genomeId);
-		if(orthologs.size()!=1) return null;
-		return orthologs.iterator().next();
+	public HomologyUnit getUniqueOrtholog(int genomeId) {
+		Collection<HomologyEdge> orthologRelationships = getOrthologRelationships(genomeId);
+		if(orthologRelationships.size()!=1) return null;
+		return orthologRelationships.iterator().next().getSubjectUnit();
 		
 	}
 	
@@ -185,10 +176,12 @@ public class OrthologyUnit implements GenomicRegion {
 	 * @param id of the unit to look for
 	 * @return OrthologyUnit ortholog of this unit or null if the ortholog was not found
 	 */
-	public OrthologyUnit getOrtholog(int genomeId, String id) {
-		Map<String,OrthologyUnit> orthologs = orthologsMap.get(genomeId);
-		if(orthologs==null) return null;
-		return orthologs.get(id);
+	public HomologyUnit getOrtholog(int genomeId, String id) {
+		Map<String,HomologyEdge> orthologRelationships = homologsMap.get(genomeId);
+		if(orthologRelationships==null) return null;
+		HomologyEdge edge = orthologRelationships.get(id);
+		if(edge == null) return null;
+		return edge.getSubjectUnit();
 		
 	}
 	/**
@@ -196,42 +189,26 @@ public class OrthologyUnit implements GenomicRegion {
 	 * @param unit to search
 	 * @return boolean true if the given ortholog was found in the list of orthologs of this unit 
 	 */
-	public boolean isOrtholog (OrthologyUnit unit) {
+	public boolean isOrtholog (HomologyUnit unit) {
 		return getOrtholog(unit.getGenomeId(), unit.getId())!=null;
 	}
 
 	/**
 	 * @return the total number of orthologs
 	 */
-	public int getTotalOrthologs() {
-		return totalOrthologs;
-	}
-
-
-	/**
-	 * Adds a new ortholog to this unit
-	 * @param unit to associate as ortholog
-	 */
-	public void addOrtholog (OrthologyUnit unit) {
-		int genomeId = unit.getGenomeId();
-		Map<String,OrthologyUnit> unitsGenome = orthologsMap.get(genomeId);
-		if(unitsGenome == null) {
-			unitsGenome = new HashMap<>();
-			orthologsMap.put(genomeId, unitsGenome);
-		}
-		if(!unitsGenome.containsKey(unit.getId())) totalOrthologs++;
-		unitsGenome.put(unit.getId(),unit);
+	public int getTotalHomologs() {
+		return totalHomologs;
 	}
 	
 	public boolean isUnique() {
-		return orthologsMap.get(genomeId).size()==0;
+		return homologsMap.get(genomeId).size()==0;
 	}
 	
-	public OrthologyUnit getLCSMate (int genomeId) {
+	public HomologyUnit getLCSMate (int genomeId) {
 		return matesInLCS.get(genomeId);
 	}
 	
-	public void setMateInLCS (OrthologyUnit mate) {
+	public void setMateInLCS (HomologyUnit mate) {
 		matesInLCS.put(mate.genomeId,mate);
 	}
 	public String getUniqueKey() {
