@@ -187,7 +187,7 @@ public class ReadsFileErrorsCorrector {
 		else buildKmersMap(inFilename);
 		Distribution kmersDist = kmersMap.calculateAbundancesDistribution();
 		int mode = (int)kmersDist.getLocalMode(5, 125);
-		kmersDist.printDistributionInt(System.out);
+		//kmersDist.printDistributionInt(System.out);
 		log.info("Distribution mode: "+mode);
 		kmersMap.filterKmers(minKmerCount);
 		log.info("The Map now has "+kmersMap.size()+" k-mers");
@@ -254,7 +254,7 @@ public class ReadsFileErrorsCorrector {
 				line = in.readLine();
 			}
 		}
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + inputFile + " (ignoring low complexity)");
+		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + kmersMapFile + " (ignoring low complexity)");
 		
 	}
 	private void buildKmersMap(String inFilename) throws IOException {
@@ -272,8 +272,8 @@ public class ReadsFileErrorsCorrector {
 
 	public void processRead(RawRead read) {
 		// TODO: Option to choose algorithm
-		processReadBestSNPChange(read);
-		//processReadDeBruijnExploration (read);
+		//processReadBestSNPChange(read);
+		processReadDeBruijnExploration (read);
 	}
 	public void processReadDeBruijnExploration(RawRead read) {
 		String readStr = read.getCharacters().toString();
@@ -294,13 +294,24 @@ public class ReadsFileErrorsCorrector {
 			if(readKmerCounts[i] >= minKmerCount) {
 				if(i-1!=lastRepresented) {
 					//TODO: Try to correct sequence starts
+					int regionLength = i-lastRepresented-1;
+					//if(lastRepresented>=0) System.out.println("Trying to correct from "+lastRepresented+" to "+i+" Length: "+regionLength+" last kmer: "+readKmers[lastRepresented]+" next kmer: "+readKmers[i]);
+					
 					String correctedSegment = null;
 					if(lastRepresented>=0) correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), i, readKmers[i].toString());
-					if(correctedSegment!=null  && correctedSegment.length()>=kmerLength-1 ) {
+					//System.out.println("Corrected segment "+correctedSegment);
+					if(correctedSegment!=null ) {
+						int segmentLength = correctedSegment.length();
+						//System.out.println("Corrected segment length "+segmentLength);
 						corrected = true;
 						correctedRead.append(correctedSegment);
-						correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerLength));
-						correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerLength-1)));
+						if(segmentLength>=regionLength) {
+							correctedQualities.append(rq.substring(lastRepresented+1,i));
+							if (segmentLength>regionLength) correctedQualities.append(RawRead.generateFixedQSString('+', segmentLength-regionLength));
+						} else {
+							int endCorrected = lastRepresented+1+segmentLength;
+							correctedQualities.append(rq.substring(lastRepresented+1,endCorrected));
+						}
 					}
 					else {
 						correctedRead.append(readStr.substring(lastRepresented+1,i));
@@ -343,11 +354,12 @@ public class ReadsFileErrorsCorrector {
 		if(destKmerIdx-sourceKmerIdx<kmerLength) return null;
 		int expectedAssemblyLength = destKmerIdx-sourceKmerIdx;
 		if(destKmer!=null) expectedAssemblyLength+=destKmer.length();
-		if(expectedAssemblyLength>3*kmerLength) return null;
+		if(expectedAssemblyLength>4*kmerLength) return null;
 		Stack<String> agenda = new Stack<>();
 		agenda.push(sourceKmer);
 		while (agenda.size()>0) {
 			String nextState = agenda.pop();
+			//if(sourceKmerIdx==388) System.out.println("Next state: "+nextState);
 			//Satisfability
 			if((destKmer==null && nextState.length()==expectedAssemblyLength)) {
 				correctedErrors++;
