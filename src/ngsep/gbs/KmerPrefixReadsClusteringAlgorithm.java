@@ -21,7 +21,6 @@ package ngsep.gbs;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -227,7 +226,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		this.minQuality = minQuality;
 	}
 	public void setMinQuality(String value) {
-		setMinQuality((byte)OptionValuesDecoder.decode(value, Short.class));
+		setMinQuality((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 	
 	public byte getNormalPloidy() {
