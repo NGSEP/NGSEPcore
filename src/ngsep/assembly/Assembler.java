@@ -233,8 +233,8 @@ public class Assembler {
 			compareGraphs(goldStandardGraph, graph);
 		}
 
-		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
-		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalGaps();
+		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
+		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalWithPolishing();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;

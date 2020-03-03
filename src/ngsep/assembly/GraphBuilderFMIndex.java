@@ -169,16 +169,19 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	}
 	public static List<KmerHitsCluster> clusterSequenceKmerAlns(CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
-		//System.out.println("Alns to cluster: "+sequenceAlns.size());
+		//System.out.println("Hits to cluster: "+sequenceKmerHits.size());
 		for(FMIndexUngappedSearchHit kmerHit: sequenceKmerHits) {
 			boolean clustered = false;
 			for(KmerHitsCluster cluster:answer) {
-				if(cluster.addKmerHit(kmerHit, 50)) {
+				// TODO: Figure out better this threshold
+				if(cluster.addKmerHit(kmerHit, 100)) {
 					clustered=true;
 					break;
 				}
+				//System.out.println("Kmer hit with idx: "+kmerHit.getQueryIdx()+" not clustered");
 			}
 			if(!clustered) {
+				//System.out.println("creating new cluster for hit with idx: "+kmerHit.getQueryIdx());
 				answer.add(new KmerHitsCluster(query, kmerHit));
 			}
 		}

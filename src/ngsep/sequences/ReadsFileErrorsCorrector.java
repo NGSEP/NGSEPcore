@@ -27,8 +27,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Stack;
+import java.util.PriorityQueue;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -295,7 +296,7 @@ public class ReadsFileErrorsCorrector {
 				if(i-1!=lastRepresented) {
 					//TODO: Try to correct sequence starts
 					int regionLength = i-lastRepresented-1;
-					//if(lastRepresented>=0) System.out.println("Trying to correct from "+lastRepresented+" to "+i+" Length: "+regionLength+" last kmer: "+readKmers[lastRepresented]+" next kmer: "+readKmers[i]);
+					//if(lastRepresented>=0) System.out.println("Trying to correct from "+lastRepresented+" to "+i+" Length: "+regionLength+" last kmer: "+readKmers[lastRepresented]+" count: "+readKmerCounts[lastRepresented]+" next kmer: "+readKmers[i]+" count: "+readKmerCounts[i]);
 					
 					String correctedSegment = null;
 					if(lastRepresented>=0) correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), i, readKmers[i].toString());
@@ -355,11 +356,20 @@ public class ReadsFileErrorsCorrector {
 		int expectedAssemblyLength = destKmerIdx-sourceKmerIdx;
 		if(destKmer!=null) expectedAssemblyLength+=destKmer.length();
 		if(expectedAssemblyLength>4*kmerLength) return null;
-		Stack<String> agenda = new Stack<>();
-		agenda.push(sourceKmer);
-		while (agenda.size()>0) {
-			String nextState = agenda.pop();
-			//if(sourceKmerIdx==388) System.out.println("Next state: "+nextState);
+		//Stack<String> agenda = new Stack<>();
+		PriorityQueue<String> agenda = new PriorityQueue<String>(new Comparator<String>() {
+			@Override
+			public int compare(String state1, String state2) {
+				int score1 = getScore (state1, destKmer);
+				int score2 = getScore (state2, destKmer);
+				return score2-score1;
+			}	
+		});
+		
+		agenda.add(sourceKmer);
+		for (int candidates = 0;agenda.size()>0 && candidates < 5000;candidates++) {
+			String nextState = agenda.remove();
+			//if(sourceKmerIdx==2528) System.out.println("Next state: "+nextState+" length: "+nextState.length()+" score: "+getScore(nextState, destKmer)+" agenda size: "+agenda.size());
 			//Satisfability
 			if((destKmer==null && nextState.length()==expectedAssemblyLength)) {
 				correctedErrors++;
@@ -370,7 +380,7 @@ public class ReadsFileErrorsCorrector {
 				return nextState.substring(1, nextState.length()-destKmer.length());
 			}
 			//Viability
-			if(nextState.length()>expectedAssemblyLength+10) continue;
+			if(nextState.length()>expectedAssemblyLength+5) continue;
 			//Next states
 			String kMinus1Mer = nextState.substring(nextState.length()-kmerLength+1);
 			String dna = DNASequence.BASES_STRING;
@@ -378,11 +388,19 @@ public class ReadsFileErrorsCorrector {
 				char bp = dna.charAt(i);
 				String nextKmer = kMinus1Mer+bp;
 				if(kmersMap.getCount(nextKmer)>=minKmerCount) {
-					agenda.push(nextState+bp); 
+					agenda.add(nextState+bp); 
 				}
 			}
 		}
 		return null;
+	}
+	
+	private static int getScore(String state, String destKmer) {
+		if(destKmer==null) return 0;
+		for(int i=destKmer.length();i>0;i--) {
+			if(state.endsWith(destKmer.substring(0,i))) return i;
+		}
+		return 0;
 	}
 
 	public void processReadBestSNPChange(RawRead read) {
@@ -463,3 +481,5 @@ public class ReadsFileErrorsCorrector {
 	}
 
 }
+
+

@@ -63,7 +63,7 @@ public class KmerHitsCluster {
 		int kmerQueryStart = kmerHit.getQueryIdx();
 		int estFirst = kmerHit.getStart() - kmerQueryStart +1;
 		int estLast = kmerHit.getStart()+(query.length()-kmerQueryStart);
-		//System.out.println("Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
+		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
 		if(first > estLast || last < estFirst) return false;
 		if(toleranceChange>0 && Math.abs(first-estFirst)>toleranceChange) return false;
 		if(toleranceChange>0 && Math.abs(last-estLast)>toleranceChange) return false;
@@ -112,6 +112,7 @@ public class KmerHitsCluster {
 	
 	public List<FMIndexUngappedSearchHit> getHitsByQueryIdx () {
 		List<FMIndexUngappedSearchHit> sortedHits = new ArrayList<FMIndexUngappedSearchHit>(hits.size());
+		sortedHits.addAll(hits);
 		Collections.sort(sortedHits, new Comparator<FMIndexUngappedSearchHit>() {
 			@Override
 			public int compare(FMIndexUngappedSearchHit hit0, FMIndexUngappedSearchHit hit1) {
