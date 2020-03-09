@@ -55,7 +55,7 @@ public class Assembler {
 	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
-	public static final int DEF_MIN_KMER_PCT = 40;
+	public static final int DEF_MIN_KMER_PCT = 20;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(Assembler.class.getName());
