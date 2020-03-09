@@ -21,9 +21,12 @@ package ngsep.sequences;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -36,6 +39,7 @@ import java.util.zip.GZIPOutputStream;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastqFileReader;
 
@@ -219,7 +223,7 @@ public class ReadsFileErrorsCorrector {
 				 OutputStream os = new GZIPOutputStream(new FileOutputStream(outFilename));
 				 PrintStream out = new PrintStream(os)) {
 				 String line = in.readLine();
-				 while (line!=null) {
+				 while (line!=null) {	
 					String readName = line.substring(1);
 					String readSeq = in.readLine();
 					RawRead read = new RawRead(readName, readSeq, RawRead.generateFixedQSString('5', readSeq.length()));
@@ -242,32 +246,35 @@ public class ReadsFileErrorsCorrector {
 		log.info("Loading k-mers map from : "+kmersMapFile);
 		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
 		else kmersMap = new DefaultKmersMapImpl();
-		try (FileReader reader = new FileReader(kmersMapFile);
-			 BufferedReader in = new BufferedReader(reader)) {
-			String line = in.readLine();
-			while(line!=null) {
-				// TODO: Better method
-				String [] items = line.split("\t");
-				String kmer = items[0];
-				int count = Integer.parseInt(items[1]);
-				if (!KmersExtractor.isLowComplexity(kmer))
-				kmersMap.setCount(kmer,count);
-				line = in.readLine();
+		try (FileInputStream fis = new FileInputStream(kmersMapFile)) {
+			InputStream is=fis;
+			if(kmersMapFile.toLowerCase().endsWith(".gz")) {
+				is = new ConcatGZIPInputStream(is);
+			}
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
+				String line = in.readLine();
+				while(line!=null) {
+					String [] items = line.split("\t| ");
+					String kmer = items[0];
+					int count = Integer.parseInt(items[1]);
+					kmersMap.setCount(kmer,count);
+					line = in.readLine();
+				}
 			}
 		}
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + kmersMapFile + " (ignoring low complexity)");
+		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + kmersMapFile);
 		
 	}
 	private void buildKmersMap(String inFilename) throws IOException {
 		log.info("Calculating k-mers map from reads in : "+inFilename);
 		KmersExtractor counter = new KmersExtractor();
 		counter.setLog(log);
-		counter.setIgnoreLowComplexity(true);
+		counter.setIgnoreLowComplexity(false);
 		counter.setKmerLength(kmerLength);
 		counter.setOnlyForwardStrand(onlyForwardStrand);
 		counter.processFile(inFilename);
 		kmersMap = counter.getKmersMap();
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + inFilename + " (ignoring low complexity)");
+		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + inFilename);
 		
 	}
 

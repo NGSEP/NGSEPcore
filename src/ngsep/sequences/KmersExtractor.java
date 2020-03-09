@@ -20,8 +20,10 @@
 package ngsep.sequences;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -372,13 +375,14 @@ public class KmersExtractor {
 	public void saveResults () throws IOException {
 		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
 		Distribution kmerSpectrum = kmersMap.calculateAbundancesDistribution();
-		try (PrintStream out=new PrintStream(outputPrefix+"_distribution.txt")) {
+		try (PrintStream out=new PrintStream(outputPrefix+"_kmers_distribution.txt")) {
 			out.println("Kmer_frequency\tNumber_of_distinct_kmers");
 			kmerSpectrum.printDistributionInt(out);
 		}
 		kmersMap.filterKmers(minKmerCount);
 		log.info("Saving "+kmersMap.size()+" filtered k-mers with minimum count "+minKmerCount);
-		try (PrintStream out=new PrintStream(outputPrefix+"_kmers.txt")) {
+		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outputPrefix+"_kmers.txt.gz"));
+			 PrintStream out = new PrintStream(os)) {
 			kmersMap.save(out);
 		}
 		
