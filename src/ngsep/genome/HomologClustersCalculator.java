@@ -41,6 +41,7 @@ public class HomologClustersCalculator {
 		}
 		
 		log.info(String.format("reference count  == %d", reference.size()));
+		log.info(String.format("Edges count == %d ", homologyEdges.size()));
 		
 		SparseMatrix similarityMatrix = new SparseMatrix(reference.size(), reference.size());
 		for (int i = 0; i < reference.size(); i++) {
@@ -53,7 +54,9 @@ public class HomologClustersCalculator {
 		}
 		
 		log.info("==== Similarity matrix ====");
-		log.info(similarityMatrix.getMatrixAsString());
+		for(String l : similarityMatrix.getMatrixAsString()) {
+			log.info(l);
+		}
 		
 		return orthologyUnitClusters;
 	}

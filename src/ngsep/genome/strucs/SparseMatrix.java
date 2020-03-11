@@ -1,6 +1,11 @@
 package ngsep.genome.strucs;
 
-import java.util.HashMap; 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+
+import com.sun.xml.internal.bind.v2.schemagen.xmlschema.List; 
 
 public class SparseMatrix {
 	private SparseVector[] vectors;
@@ -28,10 +33,10 @@ public class SparseMatrix {
 		return line;
 	}
 	
-	public String getMatrixAsString() {
-		String matrix = "";
+	public Collection<String> getMatrixAsString() {
+		ArrayList<String> matrix = new ArrayList();
 		for (int i = 0; i < vectors.length; i++) {
-			matrix = matrix.concat(String.format("%s\n", this.getLineAsString(i)));
+			matrix.add(this.getLineAsString(i));
 		}
 		return matrix;
 	}
