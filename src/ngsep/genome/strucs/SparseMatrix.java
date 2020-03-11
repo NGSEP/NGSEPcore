@@ -34,7 +34,9 @@ public class SparseMatrix {
 	public Collection<String> getMatrixAsString() {
 		ArrayList<String> matrix = new ArrayList<String>();
 		for (int i = 0; i < vectors.length; i++) {
+			System.out.println(String.format("STARTED MATRIX LINE %d", i));
 			matrix.add(this.getLineAsString(i));
+			System.out.println(String.format("FINISHED MATRIX LINE %d", i));
 		}
 		return matrix;
 	}
