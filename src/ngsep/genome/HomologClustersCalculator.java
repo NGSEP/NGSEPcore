@@ -54,7 +54,8 @@ public class HomologClustersCalculator {
 		}
 		
 		log.info("==== Similarity matrix ====");
-		for(String l : similarityMatrix.getMatrixAsString()) {
+		Collection<String> matrixAsString = similarityMatrix.getMatrixAsString();
+		for(String l : matrixAsString) {
 			log.info(l);
 		}
 		
