@@ -40,7 +40,7 @@ public class HomologClustersCalculator {
 			}
 		}
 		
-		log.info(String.format("reference count  == %d", reference.size()));
+		log.info(String.format("Reference count  == %d", reference.size()));
 		log.info(String.format("Edges count == %d ", homologyEdges.size()));
 		
 		SparseMatrix similarityMatrix = new SparseMatrix(reference.size(), reference.size());
