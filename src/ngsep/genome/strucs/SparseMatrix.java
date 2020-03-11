@@ -5,8 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 
-import com.sun.xml.internal.bind.v2.schemagen.xmlschema.List; 
-
 public class SparseMatrix {
 	private SparseVector[] vectors;
 	
