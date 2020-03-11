@@ -295,7 +295,12 @@ public class VCFRelativeCoordinatesTranslator {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
 			while(bamReader.hasNext()) {
 				ReadAlignment algn = bamReader.next();
-				String algnName = algn.getReadName().split("_")[1];
+				String algnName = "";
+				if(algn.getReadName().contains("_")) {
+					algnName = algn.getReadName().split("_")[1];
+				} else {
+					algnName = algn.getReadName();
+				}
 				int clusterId = Integer.parseInt(algnName);
 				if(!algn.isSecondary()) {
 					this.alignmentsHash.put(clusterId, algn);
