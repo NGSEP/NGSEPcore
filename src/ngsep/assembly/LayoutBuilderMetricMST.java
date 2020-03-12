@@ -14,35 +14,24 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.Map.Entry;
 
-public class MetricMSTLayout implements LayourBuilder {
+public class LayoutBuilderMetricMST implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		int N = graph.getVertices().size() * 2;
-		int[][] G = new int[N][N];
-		for (AssemblyEdge edge : graph.getEdges()) {
-			AssemblyVertex v = edge.getVertex1(), w = edge.getVertex2();
-			int www = v.getRead().length() + w.getRead().length() - edge.getOverlap();
-			G[v.getIndex()][w.getIndex()] = www;
-			G[w.getIndex()][v.getIndex()] = www;
-		}
 
-		Collection<Edge> mst = MinimumSpanningTreeGenerator.KRUSKAL.generate(G);
-		int[] map = indTrues(oddDegree(G, mst));
-		int[][] induced = inducedSubGraph(G, map);
-		Collection<Edge> match = (new Blossom()).generate(induced);
-		for (Edge edge : match)
-			mst.add(new Edge(map[edge.getV()], map[edge.getW()], edge.getWeigth()));
+		Collection<Edge> mst = MinimumSpanningTreeGenerator.KRUSKAL.generate(graph);
+		Set<Integer> oddDegree = selectVerticesWithOddDegree(graph.getVertices().size(), mst);
+		Collection<Edge> match = (new Blossom()).generate(graph, oddDegree);
+		mst.addAll(match);
+			
 		LinkedList<Integer> path = EulerianCircuitGenerator.HIERHOLZER.generate(mst);
 
 		// to start with a valid sequence
-		if (path.get(0) / 2 == path.get(path.size() - 1) / 2)
+		if (path.get(0) / 2 == path.get(path.size() - 1) / 2) {
 			path.addFirst(path.removeLast());
-
-		removeDuplicateNodes(G, path);
-		
+		}
+		removeDuplicateNodes(graph, path);
 		addPathsToTheGraph(graph, path);
-
 	}
 
 	/**
@@ -60,7 +49,7 @@ public class MetricMSTLayout implements LayourBuilder {
 			m.get(v).put(w, edge);
 			m.get(w).put(v, edge);
 		}
-		
+
 		// Cut the path if there is not an real edge
 		List<AssemblyEdge> aux = new LinkedList<>();
 		for (int i = 0; i < path.size() - 1; i++) {
@@ -76,11 +65,11 @@ public class MetricMSTLayout implements LayourBuilder {
 
 	/**
 	 * Removes the duplicated nodes of the path
-	 * 
+	 *
 	 * @param G    the graph
 	 * @param path the path
 	 */
-	private void removeDuplicateNodes(int[][] G, LinkedList<Integer> path) {
+	private void removeDuplicateNodes(AssemblyGraph graph, LinkedList<Integer> path) {
 		Integer[] p = (Integer[]) path.toArray();
 
 		// The list of all the appears of the vertex
@@ -89,20 +78,29 @@ public class MetricMSTLayout implements LayourBuilder {
 			added.putIfAbsent(p[i], new LinkedList<>());
 			added.get(p[i]).add(i);
 		}
-
+		List<AssemblyVertex> vertices = graph.getVertices();
 		// Keep the vertex with the less edge weight
 		Set<Integer> toRemove = new HashSet<>();
 		for (Entry<Integer, List<Integer>> entry : added.entrySet())
 			if (entry.getValue().size() > 2) {
-				int min = Integer.MAX_VALUE, n = -1;
-				for (int i : entry.getValue())
-					if (min > Math.min(G[p[i]][p[i] - 1], G[p[i]][p[i] + 1])) {
-						min = Math.min(G[p[i]][p[i] - 1], G[p[i]][p[i] + 1]);
-						n = i;
+				int min = Integer.MAX_VALUE;
+				AssemblyVertex vertex = vertices.get(entry.getKey());
+				int indexMin = -1;
+				for (int i : entry.getValue()) {
+					AssemblyVertex previous = vertices.get(p[i-1]);
+					AssemblyEdge e1 = graph.getEdge(vertex, previous);
+					AssemblyVertex next = vertices.get(p[i+1]);
+					AssemblyEdge e2 = graph.getEdge(vertex, next);
+					int nextMin = Math.min(e1.getCost(), e2.getCost());
+					
+					if (min > nextMin) {
+						min = nextMin;
+						indexMin = i;
 					}
-				for (int i : entry.getValue())
-					if (i != n)
-						toRemove.add(i);
+				}
+				for (int i : entry.getValue()) {
+					if (i != indexMin) toRemove.add(i);
+				}
 			}
 
 		// remove in the list
@@ -114,63 +112,25 @@ public class MetricMSTLayout implements LayourBuilder {
 
 		}
 	}
-
-	/**
-	 * 
-	 * @param graph    the source
-	 * @param vertexes the vertex to keep
-	 * @return a sub graph only with the vertexes
-	 */
-	private static int[][] inducedSubGraph(int[][] graph, int[] vertexes) {
-		int[][] induced = new int[vertexes.length][vertexes.length];
-		for (int i = 0; i < vertexes.length; i++)
-			for (int j = 0; j < vertexes.length; j++)
-				induced[i][j] = graph[vertexes[i]][vertexes[j]];
-		return induced;
-	}
-
-	/**
-	 * 
-	 * @param array of booleans
-	 * @return an integer array with the index of every True
-	 */
-	private static int[] indTrues(boolean[] array) {
-		int[] map = new int[countTrues(array)];
-		for (int i = 0, j = 0; i < array.length; i++)
-			if (array[i])
-				map[j++] = i;
-		return map;
-	}
-
-	/**
-	 * 
-	 * @param array
-	 * @return the number of Trues
-	 */
-	private static int countTrues(boolean[] array) {
-		int count = 0;
-		for (int i = 0; i < array.length; i++)
-			if (array[i])
-				count++;
-		return count;
-	}
-
 	/**
 	 * return the array marking the odd degree vertex in the the minimum spanning
 	 * tree
-	 * 
+	 *
 	 * @param graph the graph
 	 * @param mst   the minimum spanning tree
 	 */
-	private static boolean[] oddDegree(int[][] graph, Collection<Edge> mst) {
-		int[] count = new int[graph.length];
+	private static Set<Integer> selectVerticesWithOddDegree(int n, Collection<Edge> mst) {
+		int[] count = new int[n];
 		for (Edge edge : mst) {
 			count[edge.getV()]++;
 			count[edge.getW()]++;
 		}
-		boolean[] ans = new boolean[graph.length];
-		for (int i = 0; i < ans.length; i++)
-			ans[i] = (count[i] & 1) == 1;
+		Set<Integer> ans = new HashSet<Integer>();
+		for (int i = 0; i < n; i++) {
+			if (count[i]%2==1) {
+				ans.add(i);
+			}
+		}
 		return ans;
 	}
 
@@ -178,26 +138,33 @@ public class MetricMSTLayout implements LayourBuilder {
 
 @FunctionalInterface
 interface MinimumSpanningTreeGenerator {
-	public Collection<Edge> generate(int[][] graph);
+	public Collection<Edge> generate(AssemblyGraph graph);
 
-	public static MinimumSpanningTreeGenerator KRUSKAL = (int[][] G) -> {
+	public static MinimumSpanningTreeGenerator KRUSKAL = (AssemblyGraph graph) -> {
 		List<Edge> ans = new ArrayList<>();
 		// Add all the sets
+		List<AssemblyVertex> vertices = graph.getVertices();
 		HashMap<Integer, DisjointSet> sets = new HashMap<>();
-		for (int v = 0; v < G.length; v++)
+		for (int v = 0; v < vertices.size(); v++)
 			sets.put(v, new DisjointSet());
 
 		// Sort the edges
 		PriorityQueue<Edge> edges = new PriorityQueue<>((Edge a, Edge b) -> a.getWeigth() - b.getWeigth());
-		for (int v = 1; v < G.length; v++)
-			for (int w = 0; w < v; w++)
-				edges.add(new Edge(v, w, G[v][w]));
+		for (int v = 1; v < vertices.size(); v++) {
+			AssemblyVertex vertex = vertices.get(v);
+			List<AssemblyEdge> edgesG = graph.getEdges(vertex);
+			for(AssemblyEdge edge:edgesG) {
+				AssemblyVertex v2 = edge.getConnectingVertex(vertex);
+				//TODO: Make this more efficient
+				int w = vertices.indexOf(v2);
+				if (w<v) edges.add(new Edge(v, w, edge.getCost()));
+			}
+		}	
 
 		// Fuse the sets
 		for (Edge edge : edges) {
 			DisjointSet a = sets.get(edge.getV()).find(), b = sets.get(edge.getW()).find();
-			if (a == b)
-				continue;
+			if (a == b) continue;
 			ans.add(edge);
 			a.union(b);
 			if (ans.size() == sets.size())
@@ -210,7 +177,7 @@ interface MinimumSpanningTreeGenerator {
 
 /**
  * A element of the disjoint set
- * 
+ *
  * @author jc.bojaca
  */
 class DisjointSet {
@@ -223,7 +190,7 @@ class DisjointSet {
 	}
 
 	/**
-	 * 
+	 *
 	 * @return the set of the value
 	 */
 	DisjointSet find() {
@@ -237,7 +204,7 @@ class DisjointSet {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param y the set to merge
 	 */
 	void union(DisjointSet y) {
@@ -263,21 +230,17 @@ class DisjointSet {
 	}
 }
 
-@FunctionalInterface
-interface MinimunWeigthPerfectMatchGenerator {
-	public Collection<Edge> generate(int[][] graph);
-}
 
-class Blossom implements MinimunWeigthPerfectMatchGenerator {
+
+class Blossom {
 	Map<Node, Node> matches = new HashMap<>();
 	Map<Node, Tree> forest = new HashMap<>();
 	Stack<Node> pendingVertexes = new Stack<>();
 	Set<Node> G;
 
-	@Override
-	public Collection<Edge> generate(int[][] graph) {
+	public Collection<Edge> generate(AssemblyGraph graph, Set<Integer> selectedVertices) {
 		List<Edge> ans = new ArrayList<>();
-		G = getGraph(graph);
+		G = getNodes(graph, selectedVertices);
 
 		initializeDualVariables();
 		refreshEdges();
@@ -288,11 +251,18 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 		}
 
 		adjustMatches();
+		List<AssemblyVertex> vertices = graph.getVertices();
 
-		for (Entry<Node, Node> entry : matches.entrySet())
-			if (entry.getKey().id < entry.getValue().id)
-				ans.add(new Edge(entry.getKey().id, entry.getValue().id,
-						graph[entry.getKey().id][entry.getValue().id]));
+		for (Entry<Node, Node> entry : matches.entrySet()) {
+			int id1 = entry.getKey().id;
+			int id2 = entry.getValue().id;
+			if (id1 < id2) {
+				AssemblyVertex v1 = vertices.get(id1);
+				AssemblyVertex v2 = vertices.get(id2);
+				AssemblyEdge edge = graph.getEdge(v1, v2);
+				ans.add(new Edge(entry.getKey().id, entry.getValue().id, edge.getCost()));
+			}
+		}	
 		return ans;
 	}
 
@@ -318,7 +288,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * Corrects the match of the contracted list of a blossom node
-	 * 
+	 *
 	 * @param node the node
 	 */
 	private void blossomMatchAdjust(Node node) {
@@ -345,7 +315,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * make all the primary updates over the current graph
-	 * 
+	 *
 	 * @param unmatched
 	 * @return
 	 */
@@ -382,7 +352,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	}
 
 	/**
-	 * 
+	 *
 	 * @return the maximum delta for grow operations (4a) (u,v) with u(+) v(0)
 	 */
 	private double deltaGrow() {
@@ -397,7 +367,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * make all the primary updates over the current graph
-	 * 
+	 *
 	 * @param unmatched
 	 * @return
 	 */
@@ -436,7 +406,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	/**
 	 * Primary operation Shrink: contracts a blossom to a single node argument it
 	 * takes a edge (nodeA,nodeB) and contacts using as base the common parent
-	 * 
+	 *
 	 * @param nodeA node leaf in the tree
 	 * @param nodeB node leaf in the tree
 	 * @return the contracted node
@@ -477,7 +447,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param base
 	 * @param blossomNodes
 	 * @param blossomNode
@@ -490,7 +460,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * make the corrections in the graph to add a blossom node
-	 * 
+	 *
 	 * @param blossomNode the new node
 	 */
 	private void updateBlossomInGraph(Node blossomNode) {
@@ -511,7 +481,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param a    tree
 	 * @param b    tree
 	 * @param path list to add the path of the blossom sequence starting by the base
@@ -544,7 +514,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	/**
 	 * Primary operation argument: takes the alternating path between two nodes and
 	 * argument it takes a edge (nodeA,nodeB) and argument the path of the tree
-	 * 
+	 *
 	 * @param nodeA node leaf in the tree
 	 * @param nodeB node leaf in the tree
 	 */
@@ -574,7 +544,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	/**
 	 * Primary operation Grow: The child and its match is added to the tree of
 	 * parent
-	 * 
+	 *
 	 * @param parent node
 	 * @param child  node
 	 * @return the match node of child
@@ -589,7 +559,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * Primary operation Expand
-	 * 
+	 *
 	 * @param v the node that is a blossom and needs to be expanded (is not added to
 	 *          the tree)
 	 */
@@ -616,7 +586,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 
 	/**
 	 * Fill the Three (with roots) and the pending Vertexes with the parameter
-	 * 
+	 *
 	 * @param unmatched the collection of unmatched vertex
 	 */
 	private void restartTree(Collection<Node> unmatched) {
@@ -628,7 +598,7 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	}
 
 	/**
-	 * 
+	 *
 	 * @return the collection of nodes without a match
 	 */
 	private Collection<Node> unmatchedNodes() {
@@ -656,31 +626,37 @@ class Blossom implements MinimunWeigthPerfectMatchGenerator {
 	}
 
 	/**
-	 * 
-	 * @param G the graph representation
-	 * @return a new Node
+	 *
+	 * @param graph the graph representation
+	 * @return Set<Node> the graph as a set of Node objects
 	 */
-	private Set<Node> getGraph(int[][] G) {
-		Map<Integer, Node> map = new HashMap<>();
-
-		for (int v = 0; v < G.length; v++)
-			map.put(v, new Node(v));
-
-		for (int v = 0; v < G.length; v++) {
-			Node a = map.get(v);
-			for (int w = 0; w < G.length; w++)
-				if (v != w)
-					a.edges.put(map.get(w), (double) G[v][w]);
+	private Set<Node> getNodes(AssemblyGraph graph, Set<Integer> selectedVertices) {
+		Map<Integer,Node> nodes = new HashMap<Integer, Node>();
+		List<AssemblyVertex> vertices = graph.getVertices();
+		for (int v:selectedVertices) {
+			Node a = new Node(v);
+			nodes.put(v,a);
 		}
-
-		return new HashSet<>(map.values());
+		for (int v:selectedVertices) {
+			Node a = nodes.get(v);
+			AssemblyVertex vertex = vertices.get(v);
+			List<AssemblyEdge> edges = graph.getEdges(vertex);
+			for(AssemblyEdge edge:edges) {
+				AssemblyVertex v2 = edge.getConnectingVertex(vertex);
+				//TODO: Make this more efficient
+				int w = vertices.indexOf(v2);
+				Node n2 = nodes.get(w);
+				if (n2!=null) a.edges.put(n2, (double)edge.getCost());
+			}
+		}
+		return new HashSet<>(nodes.values());
 	}
 
 }
 
 /**
  * Alternating Tree
- * 
+ *
  * @author jc.bojaca
  *
  */
@@ -699,7 +675,7 @@ class Tree {
 	}
 
 	/**
-	 * 
+	 *
 	 * @return the root of the tree
 	 */
 	Tree root() {
@@ -713,7 +689,7 @@ class Tree {
 
 /**
  * A node of the contracted graph could represent a node or a contracted blossom
- * 
+ *
  * @author jc.bojaca
  *
  */
@@ -773,11 +749,11 @@ interface EulerianCircuitGenerator {
 	public static EulerianCircuitGenerator HIERHOLZER = (Collection<Edge> edges) -> {
 		Iterator<Integer> iter;
 		// create the map of pending task
-		Map<Integer, Set<Integer>> map = new HashMap<>();
+		Map<Integer, List<Integer>> map = new HashMap<>();
 		for (Edge edge : edges) {
-			map.putIfAbsent(edge.getV(), new HashSet<>());
+			map.putIfAbsent(edge.getV(), new LinkedList<>());
 			map.get(edge.getV()).add(edge.getW());
-			map.putIfAbsent(edge.getW(), new HashSet<>());
+			map.putIfAbsent(edge.getW(), new LinkedList<>());
 			map.get(edge.getW()).add(edge.getV());
 		}
 		int t = 1;
@@ -786,7 +762,7 @@ interface EulerianCircuitGenerator {
 		ListNode root = new ListNode(0);
 		ListNode act = root;
 		iter = map.get(0).iterator();
-		int v = 0, a = iter.next();
+		Integer v = 0, a = iter.next();
 		iter.remove();
 		map.get(a).remove(v);
 		do {
