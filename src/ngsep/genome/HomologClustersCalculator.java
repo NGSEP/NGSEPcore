@@ -11,6 +11,7 @@ import java.util.Queue;
 import java.util.logging.Logger;
 
 import ngsep.genome.strucs.SparseMatrix;
+import ngsep.genome.strucs.ValuePair;
 import ngsep.math.Distribution;
 
 public class HomologClustersCalculator {
@@ -33,8 +34,10 @@ public class HomologClustersCalculator {
 		HashMap<String, Integer> indexOf = new HashMap<>();
 		for (AnnotatedReferenceGenome genome : genomes) {
 			for (HomologyUnit unit: genome.getHomologyUnits()) {
-				String newId = String.format("%s___%s", genome.getId(), unit.getId());
-				if(indexOf.containsKey(newId)) log.info("The id combination is already in use. This is bad, very very bad.");
+				String newId = String.format("%d___%s", genome.getId(), unit.getId());
+				if(indexOf.containsKey(newId)) {
+					log.info(String.format("The id combination is already in use. This is bad, very very bad. == %s", newId));
+				}
 				indexOf.put(newId, reference.size());
 				reference.add(unit);
 			}
@@ -43,22 +46,67 @@ public class HomologClustersCalculator {
 		log.info(String.format("Reference count  == %d", reference.size()));
 		log.info(String.format("Edges count == %d ", homologyEdges.size()));
 		
-		SparseMatrix similarityMatrix = new SparseMatrix(reference.size(), reference.size());
+		SparseMatrix scoreMatrix = new SparseMatrix(reference.size(), reference.size());
 		for (int i = 0; i < reference.size(); i++) {
 			HomologyUnit unit = reference.get(i);
 			Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
 			for(HomologyEdge edge : edges) {
-				String id_composed = String.format("%s___%s", edge.getSubjectUnit().getGenomeId(), edge.getSubjectUnit().getId());
-				similarityMatrix.set(i, indexOf.get(id_composed), edge.getScore());
+				String id_composed = String.format("%d___%s", edge.getSubjectUnit().getGenomeId(), edge.getSubjectUnit().getId());
+				scoreMatrix.set(i, indexOf.get(id_composed), edge.getScore());
+			}
+		}
+		SparseMatrix similarityMatrix = normalizeMatrix(scoreMatrix);
+		
+		log.info("Similarity matrix is ready");
+		SparseMatrix results = simulateFlow(similarityMatrix, 1000, 10);
+		log.info("Results are ready");
+		log.info("===== Results =====");
+		for (String l : results.getMatrixAsString()) {
+			log.info(l);
+		}
+		log.info("===== Results =====");
+		
+		return orthologyUnitClusters;
+	}
+	
+	public SparseMatrix normalizeMatrix(SparseMatrix matrix) {
+		SparseMatrix normalized = new SparseMatrix(matrix.length(), matrix.height());
+		for(int i = 0; i < matrix.length(); i++) {
+			List<ValuePair> tuples = matrix.getRowAsTuples(i);
+			double sum = matrix.sumOfRow(i);
+			double selfLoop = sum/tuples.size();
+			sum += (selfLoop);
+			normalized.set(i, i, selfLoop/sum);
+			for(ValuePair p : tuples) {
+				normalized.set(i, p.index, p.value/sum);
+			}
+		}
+		return normalized;
+	}
+	
+	public SparseMatrix simulateFlow(SparseMatrix similarityMatrix, int depth, int iterations) {
+		SparseMatrix counts = new SparseMatrix(similarityMatrix.length(), similarityMatrix.height());
+		
+		for(int z = 0; z < iterations; z++) {
+			int currentNode = (int) Math.random()*similarityMatrix.length();
+			for(int i = 0; i < depth; i++) {
+				List<ValuePair> spread = similarityMatrix.getRowAsTuples(currentNode);
+				
+				double odds = Math.random();
+				ValuePair next = null;
+				for (int k = 0; k < spread.size() && next == null; k++) {
+					ValuePair current = spread.get(k);
+					odds -= current.value;
+					if (odds <= 0) {
+						next = current;
+					}
+				}
+				
+				counts.set(currentNode, next.index, counts.get(currentNode, next.index) + 1);
+				currentNode = next.index;
 			}
 		}
 		
-		log.info("==== Similarity matrix ====");
-		Collection<String> matrixAsString = similarityMatrix.getMatrixAsString();
-		for(String l : matrixAsString) {
-			log.info(l);
-		}
-		
-		return orthologyUnitClusters;
+		return counts;
 	}
 }

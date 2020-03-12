@@ -1,16 +1,20 @@
 package ngsep.genome.strucs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 
 public class SparseMatrix {
 	private SparseVector[] vectors;
+	private int length;
+	private int height;
 	
 	public SparseMatrix(int length, int height) {
 		vectors = new SparseVector[length];
 		for (int i = 0; i < length; i++) vectors[i] = new SparseVector(height);
+		this.length = length;
+		this.height = height;
 	}
 	
 	public double get(int i, int j) {
@@ -21,9 +25,38 @@ public class SparseMatrix {
 		vectors[i].set(j, k);
 	}
 	
+	public double sumOfRow(int i) {
+		double sum = 0;
+		List<ValuePair> values = vectors[i].valuePairs();
+		for(ValuePair p : values) {
+			sum += p.value;
+		}
+		return sum;
+	}
+	
+	public List<ValuePair> getRowAsTuples(int i) {
+		return vectors[i].valuePairs();
+	}
+	
+	public double sumOfColumn(int j) {
+		double sum = 0;
+		for(int i = 0; i < length; i++) {
+			sum += this.get(i, j);
+		}
+		return sum;
+	}
+	
+	public int length() {
+		return length;
+	}
+	
+	public int height() {
+		return height;
+	}
+	
 	public String getLineAsString(int i) {
 		String line = "[";
-		for (int j = 0; j < vectors.length; j++) {
+		for (int j = 0; j < height; j++) {
 			line = line.concat(String.format(" %f,", this.get(i, j)));
 		}
 		line = line.substring(0,line.length() - 1);
@@ -33,47 +66,12 @@ public class SparseMatrix {
 	
 	public Collection<String> getMatrixAsString() {
 		ArrayList<String> matrix = new ArrayList<String>();
-		for (int i = 0; i < vectors.length; i++) {
-			System.out.println(String.format("STARTED MATRIX LINE %d", i));
-			matrix.add(this.getLineAsString(i));
-			System.out.println(String.format("FINISHED MATRIX LINE %d", i));
+		for (int i = 0; i < length; i++) {
+			List<ValuePair> tuples = vectors[i].valuePairs();
+			String line = String.format("Row %d: %s", i, Arrays.toString(tuples.toArray()));
+			matrix.add(line);
 		}
 		return matrix;
-	}
-	
-	class SparseVector {
-		private int length = 0;  
-		private HashMap<Integer, Double> vector;
-		
-		public SparseVector(int length) {
-			vector = new HashMap<>();
-			this.length = length;
-		}
-		
-		public void set(int pos, double k) {
-			if (pos < 0 || pos >= length) {
-				throw new IndexOutOfBoundsException();
-			} else {
-				vector.put(pos, k);
-				length++;
-			}
-		}
-		
-		public double get(int pos) {
-			if (pos < 0 || pos >= length) {
-				throw new IndexOutOfBoundsException();
-			} else {
-				if (vector.containsKey(pos)) {
-					return vector.get(pos);
-				} else {
-					return 0;
-				}
-			}
-		}
-		
-		public void append(double k) {
-			vector.put(length++, k);
-		}
 	}
 	
 	public static void main(String[] args) {
