@@ -20,17 +20,22 @@ public class LayoutBuilderMetricMST implements LayourBuilder {
 	public void findPaths(AssemblyGraph graph) {
 
 		Collection<Edge> mst = MinimumSpanningTreeGenerator.KRUSKAL.generate(graph);
+		System.out.println("Generated minimum spanning tree. Number of edges: "+mst.size());
 		Set<Integer> oddDegree = selectVerticesWithOddDegree(graph.getVertices().size(), mst);
+		System.out.println("Number of nodes with odd degree in MST: "+oddDegree.size());
 		Collection<Edge> match = (new Blossom()).generate(graph, oddDegree);
+		System.out.println("Calculated min cost match in subgraph. Edges: "+match.size());
 		mst.addAll(match);
 			
-		LinkedList<Integer> path = EulerianCircuitGenerator.HIERHOLZER.generate(mst);
-
+		LinkedList<Integer> path = (new EulerianCircuitGenerator()).generate(mst);
+		System.out.println("Calculated eulerian path. Size: "+path.size());
+		
 		// to start with a valid sequence
 		if (path.get(0) / 2 == path.get(path.size() - 1) / 2) {
 			path.addFirst(path.removeLast());
 		}
 		removeDuplicateNodes(graph, path);
+		System.out.println("Removed duplicates. Size: "+path.size());
 		addPathsToTheGraph(graph, path);
 	}
 
@@ -235,19 +240,28 @@ class DisjointSet {
 class Blossom {
 	Map<Node, Node> matches = new HashMap<>();
 	Map<Node, Tree> forest = new HashMap<>();
-	Stack<Node> pendingVertexes = new Stack<>();
+	
 	Set<Node> G;
 
 	public Collection<Edge> generate(AssemblyGraph graph, Set<Integer> selectedVertices) {
 		List<Edge> ans = new ArrayList<>();
+		//Build internal subgraph
 		G = getNodes(graph, selectedVertices);
-
+		System.out.println("Built subgraph with: "+G.size()+" vertices");
 		initializeDualVariables();
+		System.out.println("Initialized dual variables");
 		refreshEdges();
+		System.out.println("refreshed edges");
 		Collection<Node> unmatched = primalUpdates();
+		int numUnmatched = unmatched.size();
+		System.out.println("Matching performed. Number of unmatched: "+unmatched.size());
 		while (!unmatched.isEmpty()) {
-			dualUpdates();
+			updateSlackValues();
+			System.out.println("Performed update of slack values");
 			unmatched = primalUpdates();
+			System.out.println("Matching performed. Number of unmatched: "+unmatched.size());
+			if(numUnmatched==unmatched.size()) throw new RuntimeException("Number of unmatched edges could not be reduced");
+			numUnmatched = unmatched.size();
 		}
 
 		adjustMatches();
@@ -270,9 +284,10 @@ class Blossom {
 	 * calculate the real match recursively on blossom nodes
 	 */
 	private void adjustMatches() {
-		pendingVertexes.addAll(G);
-		while (!pendingVertexes.isEmpty()) {
-			Node node = pendingVertexes.pop();
+		Stack<Node> pendingVertices = new Stack<>();
+		pendingVertices.addAll(G);
+		while (!pendingVertices.isEmpty()) {
+			Node node = pendingVertices.pop();
 			if (node.isBlossom()) {
 				Node match = matches.get(node);
 				Node real = node.edgeSuport.get(match);
@@ -281,7 +296,7 @@ class Blossom {
 				matches.put(match, real);
 				matches.put(real, match);
 
-				pendingVertexes.addAll(node.contracted);
+				pendingVertices.addAll(node.contracted);
 			}
 		}
 	}
@@ -305,7 +320,7 @@ class Blossom {
 
 			Iterator<Node> iter = queue.iterator();
 			iter.next();// base
-			for (int i = 0; i < queue.size() - 1; i += 2) {
+			for (int i = 1; i < queue.size() - 1; i += 2) {
 				Node a = iter.next(), b = iter.next();
 				matches.put(a, b);
 				matches.put(b, a);
@@ -319,21 +334,27 @@ class Blossom {
 	 * @param unmatched
 	 * @return
 	 */
-	private void dualUpdates() {
-		double delta = Math.min(deltaExpand(), Math.min(deltaGrow(), deltaArgumentShrink()));
+	private void updateSlackValues() {
+		double value1 = calculateMinimumNegativeBlossomVertexExpand();
+		double value2 = calculateMinimumGrow();
+		double value3 = calculateMinimumPositiveVertexShrink();
+		double delta = Math.min(value1, Math.min(value2, value3));
 		for (Tree t : forest.values())
 			t.node.y += ((t.positive) ? 1 : -1) * delta;
 		refreshEdges();
 	}
 
 	/**
-	 * @return the maximum delta for Expand operations u with u.isblosom and y(u)=0
+	 * @return the minimum delta for Expand operations u with u.isblosom and y(u)=0
 	 */
-	private double deltaExpand() {
+	private double calculateMinimumNegativeBlossomVertexExpand() {
 		double delta = Double.POSITIVE_INFINITY;
-		for (Node v : G)
-			if (forest.containsKey(v) && !forest.get(v).positive && forest.get(v).node.isBlossom())
+		for (Node v : G) {
+			Tree vTree = forest.get(v);
+			if(vTree!=null && !vTree.positive && vTree.node.isBlossom()) {
 				delta = Math.min(delta, v.y);
+			}
+		}		
 		return delta;
 	}
 
@@ -341,27 +362,37 @@ class Blossom {
 	 * @return the maximum delta for argument and shrink operations (u,v) with u(+)
 	 *         v(+)
 	 */
-	private double deltaArgumentShrink() {
+	private double calculateMinimumPositiveVertexShrink() {
 		double delta = Double.POSITIVE_INFINITY;
-		for (Node v : G)
-			if (forest.containsKey(v) && forest.get(v).positive)
+		for (Node v : G) {
+			Tree vTree = forest.get(v);
+			if (vTree!=null && vTree.positive) {
 				for (Entry<Node, Double> edge : v.edges.entrySet())
 					if (forest.containsKey(edge.getKey()) && forest.get(edge.getKey()).positive)
 						delta = Math.min(delta, (edge.getValue() - v.y - edge.getKey().y) / (double) 2);
+			}
+			
+		}
+			
 		return delta;
 	}
 
 	/**
 	 *
-	 * @return the maximum delta for grow operations (4a) (u,v) with u(+) v(0)
+	 * @return the minimum delta for grow operations (4a) (u,v) with u(+) v(0)
 	 */
-	private double deltaGrow() {
+	private double calculateMinimumGrow() {
 		double delta = Double.POSITIVE_INFINITY;
-		for (Node v : G)
-			if (!forest.containsKey(v))
+		for (Node v : G) {
+			Tree vTree = forest.get(v);
+			if (vTree!=null) {
 				for (Entry<Node, Double> edge : v.edges.entrySet())
 					if (forest.containsKey(edge.getKey()) && forest.get(edge.getKey()).positive)
 						delta = Math.min(delta, edge.getValue() - v.y - edge.getKey().y);
+			}
+				
+		}
+			
 		return delta;
 	}
 
@@ -372,36 +403,54 @@ class Blossom {
 	 * @return
 	 */
 	private Collection<Node> primalUpdates() {
-		restartTree(unmatchedNodes());
-		while (!pendingVertexes.isEmpty()) {
-			Node v = pendingVertexes.pop();
-			if (!G.contains(v))
-				continue;
+		LinkedList<Node> unmatchedNodes = getUnmatchedNodes();
+		Stack<Node> pendingVertices = new Stack<>();
+		pendingVertices.addAll(unmatchedNodes);
+		forest.clear();
+		for (Node node : unmatchedNodes) forest.put(node, new Tree(node, null));
+		
+		while (!pendingVertices.isEmpty()) {
+			Node v = pendingVertices.pop();
+			if (!G.contains(v)) continue;
+			//if(!forest.containsKey(v)) continue;
 
 			for (Node w : v.tights) {
-				if (matches.get(w) == v)
-					continue;
+				if (matches.get(w) == v) continue;
 
 				if (!forest.containsKey(w)) {
 					if (w.isBlossom() && w.y == 0) {
 						Expand(w);
-						pendingVertexes.add(v);// is added again to Grow latter
+						pendingVertices.add(v);// is added again to Grow latter
 						break;
-					} else
-						pendingVertexes.add(Grow(v, w));
+					} else {
+						// Grow tree
+						Tree vTree = forest.get(v);
+						Tree wTree = new Tree(w, vTree);
+						forest.put(w, wTree);
+						Node match = matches.get(w);
+						Tree matchTree = new Tree(match, wTree);
+						forest.put(match, matchTree);
+						pendingVertices.add(match);
+					}		
+				} else if (haveSameRoot(v, w)) {
+					addToMatching(v, w);
+					unmatchedNodes = getUnmatchedNodes();
+					pendingVertices.clear();
+					pendingVertices.addAll(unmatchedNodes);
+					forest.clear();
+					for (Node node : unmatchedNodes) forest.put(node, new Tree(node, null));
+					break;
 				} else {
-					if (sameTree(v, w)) {
-						Argument(v, w);
-						restartTree(unmatchedNodes());
-						break;
-					} else
-						pendingVertexes.add(Shrink(v, w));
-
+					pendingVertices.add(Shrink(v, w));
+					if (!forest.containsKey(v)) break;
 				}
 			}
 		}
-		return unmatchedNodes();
+		return getUnmatchedNodes();
 	}
+	
+
+
 
 	/**
 	 * Primary operation Shrink: contracts a blossom to a single node argument it
@@ -488,12 +537,12 @@ class Blossom {
 	 * @return the base of the blossom
 	 */
 	private Tree getBlossom(Tree a, Tree b, LinkedList<Node> path) {
-		if (a.heith < b.heith) {
+		if (a.heigth < b.heigth) {
 			Tree t = a;
 			a = b;
 			b = t;
 		}
-		while (a.heith > b.heith) {
+		while (a.heigth > b.heigth) {
 			path.addFirst(a.node);
 			a = a.parent;
 		}
@@ -507,22 +556,27 @@ class Blossom {
 		return a;
 	}
 
-	private boolean sameTree(Node v, Node w) {
-		return forest.get(w).root() != forest.get(v).root();
+	private boolean haveSameRoot(Node v, Node w) {
+		Tree tW = forest.get(w);
+		Tree tV = forest.get(v);
+		if(tV==null) throw new RuntimeException("v is not in the forest");
+		if(tW==null) throw new RuntimeException("W is not in the forest");
+		return tW!=null && tV!=null && tW.root() != tV.root();
 	}
 
 	/**
-	 * Primary operation argument: takes the alternating path between two nodes and
-	 * argument it takes a edge (nodeA,nodeB) and argument the path of the tree
+	 * Changes the matching to include a direct matching between the given nodes.
+	 * Removes matching edges between A and B and adds unmatching edges
 	 *
 	 * @param nodeA node leaf in the tree
 	 * @param nodeB node leaf in the tree
 	 */
-	private void Argument(Node nodeA, Node nodeB) {
+	private void addToMatching(Node nodeA, Node nodeB) {
 		// remove the current match
-		Tree a = forest.get(nodeA), b = forest.get(nodeB);
+		Tree a = forest.get(nodeA);
+		Tree b = forest.get(nodeB);
 		for (Tree tree : new Tree[] { a, b }) {
-			while (tree.parent != null) {
+			while (tree != null && tree.parent != null) {
 				matches.remove(tree.node);
 				matches.remove(tree.parent.node);
 				tree = tree.parent.parent;
@@ -531,7 +585,7 @@ class Blossom {
 
 		// add the new ones
 		for (Tree tree : new Tree[] { a.parent, b.parent }) {
-			while (tree != null) {
+			while (tree != null && tree.parent != null) {
 				matches.put(tree.node, tree.parent.node);
 				matches.put(tree.parent.node, tree.node);
 				tree = tree.parent.parent;
@@ -541,21 +595,6 @@ class Blossom {
 		matches.put(nodeB, nodeA);
 	}
 
-	/**
-	 * Primary operation Grow: The child and its match is added to the tree of
-	 * parent
-	 *
-	 * @param parent node
-	 * @param child  node
-	 * @return the match node of child
-	 */
-	private Node Grow(Node parent, Node child) {
-		Tree aux = new Tree(child, forest.get(parent));
-		forest.put(child, aux);
-		Node match = matches.get(child);
-		forest.put(match, new Tree(match, aux));
-		return match;
-	}
 
 	/**
 	 * Primary operation Expand
@@ -584,28 +623,16 @@ class Blossom {
 		blossomMatchAdjust(v);
 	}
 
-	/**
-	 * Fill the Three (with roots) and the pending Vertexes with the parameter
-	 *
-	 * @param unmatched the collection of unmatched vertex
-	 */
-	private void restartTree(Collection<Node> unmatched) {
-		forest.clear();
-		pendingVertexes.clear();
-		pendingVertexes.addAll(unmatched);
-		for (Node node : unmatched)
-			forest.put(node, new Tree(node, null));
-	}
+
 
 	/**
 	 *
 	 * @return the collection of nodes without a match
 	 */
-	private Collection<Node> unmatchedNodes() {
+	private LinkedList<Node> getUnmatchedNodes() {
 		LinkedList<Node> ans = new LinkedList<>();
 		for (Node node : G)
-			if (!matches.containsKey(node))
-				ans.add(node);
+			if (!matches.containsKey(node)) ans.add(node);
 		return ans;
 	}
 
@@ -664,14 +691,13 @@ class Tree {
 	Node node;
 	Tree parent;
 	boolean positive;
-	int heith = 0;
+	int heigth = 0;
 
 	public Tree(Node node, Tree parent) {
 		this.node = node;
 		this.parent = parent;
 		this.positive = (parent == null) || !parent.positive;
-		if (parent != null)
-			heith = parent.heith + 1;
+		if (parent != null) heigth = parent.heigth + 1;
 	}
 
 	/**
@@ -680,8 +706,7 @@ class Tree {
 	 */
 	Tree root() {
 		Tree x = this;
-		while (x.parent != null)
-			x = x.parent;
+		while (x.parent != null) x = x.parent;
 		return x;
 	}
 
@@ -715,8 +740,7 @@ class Node {
 	double minEdge() {
 		double min = Double.POSITIVE_INFINITY;
 		for (double edgeW : edges.values())
-			if (edgeW < min)
-				min = edgeW;
+			if (edgeW < min) min = edgeW;
 		return min;
 	}
 
@@ -742,11 +766,8 @@ class Node {
 
 }
 
-@FunctionalInterface
-interface EulerianCircuitGenerator {
-	LinkedList<Integer> generate(Collection<Edge> edges);
-
-	public static EulerianCircuitGenerator HIERHOLZER = (Collection<Edge> edges) -> {
+class EulerianCircuitGenerator {
+	LinkedList<Integer> generate(Collection<Edge> edges) {
 		Iterator<Integer> iter;
 		// create the map of pending task
 		Map<Integer, List<Integer>> map = new HashMap<>();
@@ -806,7 +827,7 @@ interface EulerianCircuitGenerator {
 			act = act.next;
 		}
 		return ans;
-	};
+	}
 
 	static long key(int a, int b) {
 		return ((long) a << 32) | b;
