@@ -58,6 +58,12 @@ public class HomologClustersCalculator {
 		SparseMatrix similarityMatrix = normalizeMatrix(scoreMatrix);
 		
 		log.info("Similarity matrix is ready");
+		log.info("===== Similarity =====");
+		for (String l : similarityMatrix.getMatrixAsString()) {
+			log.info(l);
+		}
+		log.info("===== Similarity =====");
+		
 		SparseMatrix results = simulateFlow(similarityMatrix, 1000, 10);
 		log.info("Results are ready");
 		log.info("===== Results =====");
@@ -93,7 +99,7 @@ public class HomologClustersCalculator {
 			for(int i = 0; i < depth; i++) {
 				List<ValuePair> spread = similarityMatrix.getRowAsTuples(currentNode);
 				
-				double odds = Math.random();
+				double odds = Math.random(); 
 				ValuePair next = null;
 				for (int k = 0; k < spread.size() && next == null; k++) {
 					ValuePair current = spread.get(k);
