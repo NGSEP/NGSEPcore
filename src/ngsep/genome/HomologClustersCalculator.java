@@ -88,6 +88,7 @@ public class HomologClustersCalculator {
 		SparseMatrix counts = new SparseMatrix(similarityMatrix.length(), similarityMatrix.height());
 		
 		for(int z = 0; z < iterations; z++) {
+			int outOfOddsCount = 0;
 			int currentNode = (int) Math.random()*similarityMatrix.length();
 			for(int i = 0; i < depth; i++) {
 				List<ValuePair> spread = similarityMatrix.getRowAsTuples(currentNode);
@@ -102,6 +103,11 @@ public class HomologClustersCalculator {
 					}
 				}
 				
+				if (next == null) {
+					outOfOddsCount++;
+					log.info(String.format("Failed to set odds at %d. Spread was: [%s], odds value was %f", outOfOddsCount, Arrays.toString(spread.toArray()), odds));
+					next = spread.get(spread.size()-1);
+				}
 				counts.set(currentNode, next.index, counts.get(currentNode, next.index) + 1);
 				currentNode = next.index;
 			}
