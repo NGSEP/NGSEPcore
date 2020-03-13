@@ -123,7 +123,7 @@ public class HomologClustersCalculator {
 				
 				if (next == null) {
 					outOfOddsCount++;
-					log.info(String.format("Failed to set odds at %d. Spread was: [%s], odds value was %f", outOfOddsCount, Arrays.toString(spread.toArray()), odds));
+					log.info(String.format("FAILED ODDS at %d. Spread was: [%s], odds value was %f", outOfOddsCount, Arrays.toString(spread.toArray()), odds));
 					next = spread.get(spread.size()-1);
 				}
 				counts.set(currentNode, next.index, counts.get(currentNode, next.index) + 1);
