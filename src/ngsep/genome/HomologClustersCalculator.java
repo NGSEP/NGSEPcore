@@ -45,20 +45,23 @@ public class HomologClustersCalculator {
 		
 		log.info(String.format("Reference count  == %d", reference.size()));
 		log.info(String.format("Edges count == %d ", homologyEdges.size()));
-		log.info(String.format("Avg vertex degree == %d", homologyEdges.size()/reference.size()));
+		log.info(String.format("Avg vertex degree == %f", (double)homologyEdges.size()/(double)reference.size()));
 		
 		int maxNodeDegree = 0;
 		SparseMatrix scoreMatrix = new SparseMatrix(reference.size(), reference.size());
 		for (int i = 0; i < reference.size(); i++) {
 			HomologyUnit unit = reference.get(i);
 			Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
+			if(edges.size() > maxNodeDegree) {
+				maxNodeDegree = edges.size();
+			}
 			for(HomologyEdge edge : edges) {
 				String id_composed = String.format("%d___%s", edge.getSubjectUnit().getGenomeId(), edge.getSubjectUnit().getId());
 				scoreMatrix.set(i, indexOf.get(id_composed), edge.getScore());
 			}
 		}
 		
-		log.info(String.format("Max vertex defree == %d", maxNodeDegree));
+		log.info(String.format("Max vertex degree == %d", maxNodeDegree));
 		
 		SparseMatrix similarityMatrix = normalizeMatrix(scoreMatrix);
 		
@@ -104,7 +107,7 @@ public class HomologClustersCalculator {
 		
 		for(int z = 0; z < iterations; z++) {
 			int outOfOddsCount = 0;
-			int currentNode = (int) Math.random()*similarityMatrix.length();
+			int currentNode = (int)(Math.random()*similarityMatrix.length());
 			for(int i = 0; i < depth; i++) {
 				List<ValuePair> spread = similarityMatrix.getRowAsTuples(currentNode);
 				
