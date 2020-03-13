@@ -45,7 +45,9 @@ public class HomologClustersCalculator {
 		
 		log.info(String.format("Reference count  == %d", reference.size()));
 		log.info(String.format("Edges count == %d ", homologyEdges.size()));
+		log.info(String.format("Avg vertex degree == %d", homologyEdges.size()/reference.size()));
 		
+		int maxNodeDegree = 0;
 		SparseMatrix scoreMatrix = new SparseMatrix(reference.size(), reference.size());
 		for (int i = 0; i < reference.size(); i++) {
 			HomologyUnit unit = reference.get(i);
@@ -55,6 +57,9 @@ public class HomologClustersCalculator {
 				scoreMatrix.set(i, indexOf.get(id_composed), edge.getScore());
 			}
 		}
+		
+		log.info(String.format("Max vertex defree == %d", maxNodeDegree));
+		
 		SparseMatrix similarityMatrix = normalizeMatrix(scoreMatrix);
 		
 		log.info("Similarity matrix is ready");
@@ -80,11 +85,15 @@ public class HomologClustersCalculator {
 		for(int i = 0; i < matrix.length(); i++) {
 			List<ValuePair> tuples = matrix.getRowAsTuples(i);
 			double sum = matrix.sumOfRow(i);
-			double selfLoop = sum/tuples.size();
-			sum += (selfLoop);
-			normalized.set(i, i, selfLoop/sum);
-			for(ValuePair p : tuples) {
-				normalized.set(i, p.index, p.value/sum);
+			if (sum > 0) {
+				double selfLoop = sum/tuples.size();
+				sum += (selfLoop);
+				normalized.set(i, i, selfLoop/sum);
+				for(ValuePair p : tuples) {
+					normalized.set(i, p.index, p.value/sum);
+				}
+			} else {
+				normalized.set(i, i, 1);
 			}
 		}
 		return normalized;

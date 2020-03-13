@@ -68,8 +68,10 @@ public class SparseMatrix {
 		ArrayList<String> matrix = new ArrayList<String>();
 		for (int i = 0; i < length; i++) {
 			List<ValuePair> tuples = vectors[i].valuePairs();
-			String line = String.format("Row %d: %s", i, Arrays.toString(tuples.toArray()));
-			matrix.add(line);
+			if (tuples.size() != 0) {
+				String line = String.format("Row %d: %s", i, Arrays.toString(tuples.toArray()));
+				matrix.add(line);
+			}
 		}
 		return matrix;
 	}
