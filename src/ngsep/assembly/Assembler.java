@@ -224,7 +224,7 @@ public class Assembler {
 		}
 
 		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
-		//LayourBuilder pathsFinder = new MetricMSTLayout();
+		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 		if(progressNotifier!=null && !progressNotifier.keepRunning(75)) return;

@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.Map.Entry;
 
-public class LayoutBuilderMetricMST implements LayourBuilder {
+public class LayoutBuilderMetricMSTChristofides implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
