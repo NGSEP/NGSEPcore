@@ -162,6 +162,7 @@ public class FMIndex implements Serializable
 				hits.add(hit);
 			}
 		}
+		for(FMIndexUngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
 		return hits;
 	}
 	public CharSequence getSequence(String sequenceName, int first, int last) {

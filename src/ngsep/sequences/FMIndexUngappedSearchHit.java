@@ -7,6 +7,7 @@ public class FMIndexUngappedSearchHit {
 	private String sequenceName;
 	//Zero based start of this hit within the sequence
 	private int start;
+	private int totalHitsQuery = 0;
 	/**
 	 * Creates a new ungapped hit to an FMIndex sequence
 	 * @param query sequence
@@ -51,6 +52,10 @@ public class FMIndexUngappedSearchHit {
 	public int getStart() {
 		return start;
 	}
-	
-	
+	public int getTotalHitsQuery() {
+		return totalHitsQuery;
+	}
+	public void setTotalHitsQuery(int totalHitsQuery) {
+		this.totalHitsQuery = totalHitsQuery;
+	}
 }
