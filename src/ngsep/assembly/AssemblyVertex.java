@@ -35,12 +35,12 @@ public class AssemblyVertex implements Serializable {
 	private static final long serialVersionUID = 5185570963647916821L;
 	private CharSequence read;
 	private boolean start;
-	private int index;
+	private int sequenceIndex;
 
-	public AssemblyVertex(CharSequence read, boolean start, int index) {
+	public AssemblyVertex(CharSequence read, boolean start, int sequenceIndex) {
 		this.read = read;
 		this.start = start;
-		this.index = index;
+		this.sequenceIndex = sequenceIndex;
 	}
 
 	/**
@@ -56,9 +56,14 @@ public class AssemblyVertex implements Serializable {
 	public boolean isStart() {
 		return start;
 	}
-	public int getIndex () {
-		return index;
+
+	public int getSequenceIndex() {
+		return sequenceIndex;
 	}
 	
+	public int getUniqueNumber () {
+		if(isStart()) return sequenceIndex;
+		return -sequenceIndex-1;
+	}
 }
 

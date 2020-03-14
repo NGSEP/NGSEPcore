@@ -223,8 +223,9 @@ public class Assembler {
 			}
 		}
 
-		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
+		//LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
+		LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 		if(progressNotifier!=null && !progressNotifier.keepRunning(75)) return;
@@ -233,8 +234,8 @@ public class Assembler {
 			compareGraphs(goldStandardGraph, graph);
 		}
 
-		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
-		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalWithPolishing();
+		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
+		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalWithPolishing();
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
@@ -607,10 +608,10 @@ public class Assembler {
 		AssemblyVertex testV2 = nextTestEdge.getVertex2();
 		AssemblyVertex gsV1 = nextGSEdge.getVertex1();
 		AssemblyVertex gsV2 = nextGSEdge.getVertex2();
-		if (testV1.getIndex()==gsV1.getIndex() && testV1.isStart()==gsV1.isStart()) {
-			if(testV2.getIndex()==gsV2.getIndex() && testV2.isStart()==gsV2.isStart()) return true;
-		} else if (testV1.getIndex()==gsV2.getIndex() && testV1.isStart()==gsV2.isStart()) {
-			if(testV2.getIndex()==gsV1.getIndex() && testV2.isStart()==gsV1.isStart()) return true;
+		if (testV1.getUniqueNumber()==gsV1.getUniqueNumber()) {
+			if(testV2.getUniqueNumber()==gsV2.getUniqueNumber()) return true;
+		} else if (testV1.getUniqueNumber()==gsV2.getUniqueNumber()) {
+			if(testV2.getUniqueNumber()==gsV1.getUniqueNumber()) return true;
 		}
 		return false;
 	}
@@ -619,7 +620,7 @@ public class Assembler {
 		System.out.println(text);
 		for(AssemblyEdge edge:edges) {
 			AssemblyVertex vOut = edge.getConnectingVertex(v);
-			System.out.println("Vertex "+vOut.getIndex()+"-"+vOut.isStart()+" length "+vOut.getRead().length()+" overlap "+edge.getOverlap());
+			System.out.println("Vertex "+vOut.getSequenceIndex()+"-"+vOut.isStart()+" length "+vOut.getRead().length()+" overlap "+edge.getOverlap());
 		}
 		
 	}
@@ -639,15 +640,15 @@ public class Assembler {
 
 	private int searchEdges(AssemblyGraph testGraph, AssemblyVertex vGS, List<AssemblyEdge> edgesGS) {
 		int count = 0;
-		AssemblyVertex testV1 = testGraph.getVertex(vGS.getIndex(), vGS.isStart());
+		AssemblyVertex testV1 = testGraph.getVertex(vGS.getSequenceIndex(), vGS.isStart());
 		if(testV1==null) return count;
 		List<AssemblyEdge> testEdgesV1 = testGraph.getEdges(testV1);
 		for(AssemblyEdge edge:edgesGS) {
 			AssemblyVertex vOutGS = edge.getConnectingVertex(vGS);
-			if(vGS.getIndex()==vOutGS.getIndex()) continue;
+			if(vGS.getSequenceIndex()==vOutGS.getSequenceIndex()) continue;
 			for(AssemblyEdge testEdge:testEdgesV1) {
 				AssemblyVertex testOut = testEdge.getConnectingVertex(testV1);
-				if(vOutGS.getIndex()==testOut.getIndex() && vOutGS.isStart()==testOut.isStart()) {
+				if(vOutGS.getUniqueNumber()==testOut.getUniqueNumber()) {
 					count ++;
 					break;
 				}

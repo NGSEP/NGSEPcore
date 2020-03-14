@@ -66,7 +66,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			if(j == 0) 
 			{
-				pathS = pathS.concat(vertexPreviousEdge.getIndex() + ",");
+				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
 				String seq = vertexPreviousEdge.getRead().toString();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
@@ -80,7 +80,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 					
 				if(seq.length() - edge.getOverlap() > tolerance) 
 				{
-					pathS = pathS.concat(vertexNextEdge.getIndex() + ",");
+					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = seq.substring(edge.getOverlap());
 					consensus.append(remainingSegment);

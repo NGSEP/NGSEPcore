@@ -108,7 +108,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			if(j == 0) {
-				pathS = pathS.concat(vertexPreviousEdge.getIndex() + ",");
+				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
 				String seq = vertexPreviousEdge.getRead().toString();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
@@ -121,7 +121,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
 				int overlap = edge.getOverlap();
 				if(seq.length() - overlap > 0) {
-					pathS = pathS.concat(vertexNextEdge.getIndex() + ",");
+					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = seq.substring(edge.getOverlap());
 					rawConsensus.append(remainingSegment.toUpperCase());
@@ -141,7 +141,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if (alnRead!=null) alignments.add(alnRead);
 				else unalignedReads++;
 				
-				List<AssemblyEmbedded> embeddedList = graph.getEmbedded(vertexPreviousEdge.getIndex());
+				List<AssemblyEmbedded> embeddedList = graph.getEmbedded(vertexPreviousEdge.getSequenceIndex());
 				for(AssemblyEmbedded embedded:embeddedList) {
 					CharSequence embeddedRead = embedded.getRead();
 					boolean reverseE = (reverse!=embedded.isReverse());

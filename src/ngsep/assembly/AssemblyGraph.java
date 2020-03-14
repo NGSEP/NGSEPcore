@@ -33,6 +33,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.math.Distribution;
+
 /**
  * @author Jorge Duitama
  * @author Juan Camilo Bojaca
@@ -225,7 +227,7 @@ public class AssemblyGraph implements Serializable {
 				return edge;
 			}
 		}
-		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex.getIndex()+"-"+vertex.isStart());
+		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex.getSequenceIndex()+"-"+vertex.isStart());
 	}
 	/**
 	 * Searches for an edge between the given vertices
@@ -264,6 +266,18 @@ public class AssemblyGraph implements Serializable {
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("AssemblyGraph class not found",e);
 		}
+	}
+
+	/**
+	 * Calculates the distribution of vertex degrees
+	 * @return Distribution of degrees of vertices
+	 */
+	public Distribution getVertexDegreeDistribution() {
+		Distribution answer = new Distribution(0, edgesMap.size(), 1);
+		for(List<AssemblyEdge> edges:edgesMap.values()) {
+			answer.processDatapoint(edges.size());
+		}
+		return answer;
 	}
 
 	

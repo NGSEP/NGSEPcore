@@ -41,7 +41,7 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					Set<Integer> vertices = new HashSet<Integer>();
 					for(AssemblyEdge edge : entry.getValue())
 					{
-						vertices.add(edge.getVertex1().getIndex() == entry.getKey().getIndex() ? edge.getVertex2().getIndex() : edge.getVertex1().getIndex());
+						vertices.add(edge.getVertex1().getSequenceIndex() == entry.getKey().getSequenceIndex() ? edge.getVertex2().getSequenceIndex() : edge.getVertex1().getSequenceIndex());
 					}
 					String seq = entry.getKey().getRead().toString();
 					if(vertices.size() == i)
@@ -65,7 +65,7 @@ public class LayoutBuilderGreedy implements LayourBuilder
 				Set<Integer> usedVerticesLocal = new HashSet<Integer>();
 				usedVerticesLocal.addAll(usedVerticesGlobal);
 				//First used vertex is the origin
-				usedVerticesLocal.add(origin.getIndex());
+				usedVerticesLocal.add(origin.getSequenceIndex());
 				boolean end = false;
 				AssemblyVertex pre = origin;
 				while(!end)
@@ -74,8 +74,8 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					//Picks the edge with the longest overlap for the current vertex
 					for(AssemblyEdge e : edges.get(pre))
 					{
-						AssemblyVertex post = e.getVertex1().getIndex() == pre.getIndex() ? e.getVertex2() : e.getVertex1();
-						if((max == null || e.getOverlap() > max.getOverlap()) && !usedVerticesLocal.contains(post.getIndex()))
+						AssemblyVertex post = e.getVertex1().getSequenceIndex() == pre.getSequenceIndex() ? e.getVertex2() : e.getVertex1();
+						if((max == null || e.getOverlap() > max.getOverlap()) && !usedVerticesLocal.contains(post.getSequenceIndex()))
 							max = e;
 					}
 					//If there's no edge found, the path ends
@@ -84,8 +84,8 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					else
 					{
 						ans.add(max);
-						usedVerticesLocal.add(pre.getIndex());
-						pre = max.getVertex1().getIndex() == pre.getIndex() ? max.getVertex2() : max.getVertex1();
+						usedVerticesLocal.add(pre.getSequenceIndex());
+						pre = max.getVertex1().getSequenceIndex() == pre.getSequenceIndex() ? max.getVertex2() : max.getVertex1();
 					}
 				}
 				paths.add(ans);
@@ -118,13 +118,13 @@ public class LayoutBuilderGreedy implements LayourBuilder
 			
 
 			//Remove from map all vertices that exist in the used vertices list
-			edges.entrySet().removeIf(e -> usedVerticesGlobal.contains(e.getKey().getIndex()));
+			edges.entrySet().removeIf(e -> usedVerticesGlobal.contains(e.getKey().getSequenceIndex()));
 			//Remove from map all edges that have an used vertex
 			for(Entry<AssemblyVertex, List<AssemblyEdge>> entry : edges.entrySet())
 			{
 				entry.getValue().removeIf(e -> 
-					usedVerticesGlobal.contains(e.getVertex1().getIndex()) ||
-					usedVerticesGlobal.contains(e.getVertex2().getIndex())
+					usedVerticesGlobal.contains(e.getVertex1().getSequenceIndex()) ||
+					usedVerticesGlobal.contains(e.getVertex2().getSequenceIndex())
 				);
 			}
 		}
