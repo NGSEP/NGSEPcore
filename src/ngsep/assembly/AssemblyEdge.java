@@ -32,6 +32,7 @@ public class AssemblyEdge implements Serializable {
 	private AssemblyVertex vertex2;
 	private int cost;
 	private int overlap;
+	private boolean layoutEdge = false;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int cost, int overlap) {
 		this.vertex1 = vertex1;
@@ -97,9 +98,14 @@ public class AssemblyEdge implements Serializable {
 	public boolean isSameSequenceEdge() {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
 	}
-	
-	
 
+	public boolean isLayoutEdge() {
+		return layoutEdge;
+	}
+
+	public void setLayoutEdge(boolean layoutEdge) {
+		this.layoutEdge = layoutEdge;
+	}
 	
 
 }
