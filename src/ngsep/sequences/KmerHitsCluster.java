@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import ngsep.genome.GenomicRegion;
+
 /**
  * 
  * @author Jorge Duitama
  *
  */
-public class KmerHitsCluster implements Serializable {
+public class KmerHitsCluster implements GenomicRegion, Serializable {
 
 	private static final long serialVersionUID = -4473724263138366546L;
 	private CharSequence query;
@@ -271,6 +273,17 @@ public class KmerHitsCluster implements Serializable {
 
 	public FMIndexUngappedSearchHit getKmerHit(int queryKmerIdx) {
 		return hitsMap.get(queryKmerIdx);
+	}
+
+	@Override
+	public boolean isPositiveStrand() {
+		return true;
+	}
+
+	@Override
+	public boolean isNegativeStrand() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 	
 	

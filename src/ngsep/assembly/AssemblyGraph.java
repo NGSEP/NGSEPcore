@@ -310,32 +310,61 @@ public class AssemblyGraph implements Serializable {
 	public void filterEdgesAndEmbedded(int sequenceId) {
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
-		List<AssemblyEdge> edgesSeq = new ArrayList<AssemblyEdge>();
-		if(vS!=null) edgesSeq.addAll(getEdges(vS));
-		if(vE!=null) edgesSeq.addAll(getEdges(vE));
-		double maxScore = 0;
-		for(AssemblyEdge edge: edgesSeq) {
+		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
+		if(vS!=null) edgesS.addAll(getEdges(vS));
+		double maxScoreS = 0;			
+		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
-			if(score > maxScore) {
-				maxScore = score;
+			if(score > maxScoreS) {
+				maxScoreS = score;
 			}
 		}
-		for(AssemblyEdge edge: edgesSeq) {
+		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
-			if(score < 0.5*maxScore) {
+			if(score < 0.4*maxScoreS) {
 				removeEdge(edge);
 			}
 		}
+		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
+		if(vE!=null) edgesE.addAll(getEdges(vE));
+		double maxScoreE = 0;			
+		for(AssemblyEdge edge: edgesE) {
+			if(edge.isSameSequenceEdge()) continue;
+			KmerHitsCluster cluster = edge.getEvidence();
+			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(score > maxScoreE) {
+				maxScoreE = score;
+			}
+		}
+		for(AssemblyEdge edge: edgesE) {
+			if(edge.isSameSequenceEdge()) continue;
+			KmerHitsCluster cluster = edge.getEvidence();
+			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(score < 0.4*maxScoreE) {
+				removeEdge(edge);
+			}
+		}
+		
+		double maxScore = Math.max(maxScoreS, maxScoreE);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
+		double maxE = 0;
+		AssemblyEmbedded maxEmbedded = null;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			KmerHitsCluster cluster = embedded.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
-			if(score < 0.5*maxScore) {
+			if(score > 0.5*maxScore && score > maxE) {
+				maxE = score;
+				maxEmbedded = embedded;
+			}
+		}
+		if(maxEmbedded==null) return;
+		for(AssemblyEmbedded embedded:embeddedList) {
+			if(embedded!=maxEmbedded) {
 				removeEmbedded(embedded);
 			}
 		}

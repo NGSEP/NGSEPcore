@@ -48,6 +48,8 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	private int kmerOffset;
 	private int minKmerPercentage;
 	
+	private static int idxDebug = -1;
+	
 	
 
 	public GraphBuilderFMIndex(int kmerLength, int kmerOffset, int minKmerPercentage) {
@@ -86,6 +88,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 			updateGraph(graph, seqId, complement, true, fmIndex);
 			graph.filterEdgesAndEmbedded (seqId);
+			if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
 		}
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
@@ -98,7 +101,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 	private void updateGraph(AssemblyGraph graph, int querySequenceId, String query, boolean queryRC, FMIndex fmIndex) {
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
-		int idxDebug = 274;
+		
 		
 		//Search kmers using the FM index
 		if(kmersMap.size()==0) return;
@@ -124,7 +127,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 		
 		//Filter repetitive kmer hits
-		if(querySequenceId==idxDebug) System.out.println("Quey: "+querySequenceId+" complement: "+queryRC+" Average hits "+averageHits);
+		if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Average hits "+averageHits);
 		List<FMIndexUngappedSearchHit> filteredHits = new ArrayList<FMIndexUngappedSearchHit>();
 		Set<Integer> kmerStarts = new HashSet<Integer>();
 		for(FMIndexUngappedSearchHit hit:initialKmerHits) {
@@ -137,7 +140,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		kmersCount = kmerStarts.size();
 		if(kmersCount==0) return;
 		int minKmers = (int) (0.5*minKmerPercentage*kmersCount/100);
-		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(query, filteredHits, Math.max(10, minKmers));
+		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(querySequenceId, query, filteredHits, Math.max(10, minKmers));
 		if(querySequenceId==idxDebug) System.out.println("Query id: "+querySequenceId+" RC: "+queryRC+" kmers: "+kmersCount+" Clusters: "+clusteredKmerAlns.size());
 		
 		//Process clusters
@@ -148,7 +151,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			KmerHitsCluster cluster = clusteredKmerAlns.get(i);
 			cluster.summarize(averageHits, kmersCount);
 			double pct = 100.0*cluster.getProportionKmers();
-			if(querySequenceId==idxDebug) System.out.println("Processing cluster. Subject: "+cluster.getSequenceIdx()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct);
+			if(querySequenceId==idxDebug) System.out.println("Processing cluster. Subject: "+cluster.getSequenceIdx()+" first: "+cluster.getFirst()+" last: "+cluster.getLast()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
 			if(pct<minKmerPercentage) break;
 			if(i==0) {
 				firstScoreCluster = pct;
@@ -159,7 +162,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		}
 	}
 
-	private List<KmerHitsCluster> clusterKmerHits(CharSequence query, List<FMIndexUngappedSearchHit> kmerHits, int minKmers) {
+	private List<KmerHitsCluster> clusterKmerHits(int querySequenceId, CharSequence query, List<FMIndexUngappedSearchHit> kmerHits, int minKmers) {
 		List<KmerHitsCluster> clusters = new ArrayList<>();
 		Map<Integer,List<FMIndexUngappedSearchHit>> hitsByTargetSequence = new HashMap<>();
 		for(FMIndexUngappedSearchHit kmerHit: kmerHits) {
@@ -170,17 +173,17 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 		for(int targetIdx:hitsByTargetSequence.keySet()) {
 			List<FMIndexUngappedSearchHit> targetHits = hitsByTargetSequence.get(targetIdx);
-			if(targetHits.size()>=minKmers) clusters.addAll(clusterSequenceKmerAlns(query, targetHits));
+			if(targetHits.size()>=minKmers) clusters.addAll(clusterSequenceKmerAlns(querySequenceId, query, targetHits));
 		}
 		return clusters;
 	}
-	public static List<KmerHitsCluster> clusterSequenceKmerAlns(CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits) {
+	public static List<KmerHitsCluster> clusterSequenceKmerAlns(int querySequenceId, CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
-		//System.out.println("Hits to cluster: "+sequenceKmerHits.size());
+		
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceKmerHits);
+		if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
 		answer.add(uniqueCluster);
-		List<FMIndexUngappedSearchHit> clusteredHits = uniqueCluster.getHitsByQueryIdx(); 
-		if(clusteredHits.size()>0.8*sequenceKmerHits.size()) return answer;
+		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceKmerHits.size()) return answer;
 		//Cluster remaining hits
 		List<FMIndexUngappedSearchHit> remainingHits = new ArrayList<FMIndexUngappedSearchHit>();
 		for(FMIndexUngappedSearchHit hit:sequenceKmerHits) {
@@ -214,7 +217,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 				AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, targetSeqIdx, firstTarget);
 				embeddedEvent.setEvidence(cluster);
 				graph.addEmbedded(embeddedEvent);
-				System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
+				if (querySequenceId==53) System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
 			}
 		} else if (firstTarget>=0) {
 			//Query after target

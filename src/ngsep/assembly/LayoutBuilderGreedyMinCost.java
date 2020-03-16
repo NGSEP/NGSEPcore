@@ -67,9 +67,11 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 				nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
 				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
 			}
-			System.out.println("Found path of size "+currentPath.size());
-			//printPath(currentPath);
-			graph.addPath(currentPath);
+			if(currentPath.size()>1) {
+				System.out.println("Found path of size "+currentPath.size());
+				//printPath(currentPath);
+				graph.addPath(currentPath);
+			}
 		}
 		
 		

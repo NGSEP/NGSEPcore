@@ -29,6 +29,7 @@ import java.util.Map;
 
 import ngsep.assembly.AlignmentConstantGap;
 import ngsep.assembly.GraphBuilderFMIndex;
+import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.sequences.FMIndexUngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
@@ -84,14 +85,15 @@ public class LongReadsAligner {
 			initialKmerHits.add(hit);
 		}
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = GraphBuilderFMIndex.clusterSequenceKmerAlns(read, initialKmerHits);
+		List<KmerHitsCluster> clusters = GraphBuilderFMIndex.clusterSequenceKmerAlns(0, read, initialKmerHits);
 		Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 		if(clusters.size()>1) {
-			int l0 = clusters.get(0).getNumDifferentKmers();
-			int l1 = clusters.get(1).getNumDifferentKmers();
-			if(l0<0.9*initialKmerHits.size()) {
-				System.out.println("Number of clusters: "+clusters.size()+" best cluster length: "+l0+" start: "+clusters.get(0).getFirst()+" end: "+clusters.get(0).getLast());
-				System.out.println("Second cluster length: "+l1+" start: "+clusters.get(1).getFirst()+" end: "+clusters.get(1).getLast());
+			KmerHitsCluster c1 = clusters.get(0);
+			KmerHitsCluster c2 = clusters.get(1);
+			int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(c1.getFirst(), c1.getLast(), c2.getFirst(), c2.getLast());
+			if((overlap <0.9*c1.length() || overlap < 0.9*c2.length()) && c1.getNumDifferentKmers()<0.9*initialKmerHits.size()) {
+				System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+c1.getNumDifferentKmers()+" start: "+c1.getFirst()+" end: "+c1.getLast());
+				System.out.println("Second cluster kmers: "+c2.getNumDifferentKmers()+" start: "+c2.getFirst()+" end: "+c2.getLast());
 				return null;
 			}	
 		}
@@ -102,7 +104,7 @@ public class LongReadsAligner {
 		
 		int clusterFirst = kmerHitsCluster.getFirst();
 		int subjectNext = Math.max(0, clusterFirst-1);
-		System.out.println("Consensus current length: "+subject.length()+". Next query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext);
+		//System.out.println("Consensus current length: "+subject.length()+". Next query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext);
 		int queryNext = 0;
 		int alnStart = -1;
 		char matchOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
@@ -155,9 +157,9 @@ public class LongReadsAligner {
 			cigar.append(""+nextMatchLength+""+matchOp);
 			nextMatchLength = 0;
 		}
-		int alnFirst = alnStart+1;
+		//int alnFirst = alnStart+1;
 		int alnLast = subjectNext;
-		System.out.println("Aligned query. first: "+alnFirst+" last: "+alnLast+" CIGAR: "+cigar+" query next: "+queryNext+" query length: "+query.length());
+		//System.out.println("Aligned query. first: "+alnFirst+" last: "+alnLast+" CIGAR: "+cigar+" query next: "+queryNext+" query length: "+query.length());
 		if(queryNext<query.length()) {
 			//TODO: check if it is worth to align the sequence end
 			/*

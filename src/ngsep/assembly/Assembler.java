@@ -350,8 +350,9 @@ public class Assembler {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			if(graph.isEmbedded(left.getReadNumber())) continue;
 			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
-			
+			boolean pathEdgeFound = false;
 			for(int j=i+1;j<alignments.size();j++) {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
@@ -368,7 +369,7 @@ public class Assembler {
 					}
 					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeNegative, right.getReadNumber(), relativeStart);
 					graph.addEmbedded(embeddedEvent);
-					if(left.getLast()<=right.getLast()) {
+					if(right.getLast()<=left.getLast()) {
 						//right is also embedded in left
 						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), 0 );
 						graph.addEmbedded(embeddedEvent);
@@ -389,6 +390,10 @@ public class Assembler {
 					int overlap = left.getLast() - right.getFirst() + 1;
 					AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
 					graph.addEdge(edge);
+					if(!pathEdgeFound) {
+						edge.setLayoutEdge(true);
+						pathEdgeFound = true;
+					}
 				}
 				
 			}
@@ -419,9 +424,11 @@ public class Assembler {
 					if(nextPath.size()>0) graph.addPath(nextPath);
 					nextPath = new ArrayList<>();
 					lastVertex = null;
-				} else {
+				} else if (connectingEdge.isLayoutEdge()) {
+					//System.out.println("Next layout edge between "+lastVertex.getSequenceIndex()+" start " +lastVertex.isStart()+" and "+leftSequenceVertex.getSequenceIndex()+" start "+leftSequenceVertex.isStart()+" read id: "+aln.getSequenceName()+" first: "+aln.getFirst());
 					nextPath.add(connectingEdge);
-					connectingEdge.setLayoutEdge(true);
+				} else {
+					log.warning("Inconsistency in gold standard layout edge");
 				}
 			}
 			nextPath.add(edgeSequence);
@@ -482,7 +489,7 @@ public class Assembler {
 					}
 				}
 			}
-			if(pathEdge!=null) System.out.println("Path edge not found between "+pathEdge.getVertex1().getSequenceIndex()+ " length "+pathEdge.getVertex1().getRead().length()+ " and "+pathEdge.getVertex2().getSequenceIndex()+ " length "+pathEdge.getVertex2().getRead().length());
+			if(pathEdge!=null) System.out.println("Path edge not found between "+pathEdge.getVertex1().getSequenceIndex()+" start "+pathEdge.getVertex1().isStart()+ " and "+pathEdge.getVertex2().getSequenceIndex()+ " start "+pathEdge.getVertex2().isStart());
 			tpEdges += tpD1;
 			//The same sequence edge does not count
 			int fnD1 = edgesGS.size()-1-tpD1;
