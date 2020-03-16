@@ -1,5 +1,6 @@
 package ngsep.sequences;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,7 +12,9 @@ import java.util.TreeMap;
  * @author Jorge Duitama
  *
  */
-public class KmerHitsCluster {
+public class KmerHitsCluster implements Serializable {
+
+	private static final long serialVersionUID = -4473724263138366546L;
 	private CharSequence query;
 	//Map indexed by query start
 	private Map<Integer,FMIndexUngappedSearchHit> hitsMap=new TreeMap<Integer, FMIndexUngappedSearchHit>();
@@ -21,7 +24,12 @@ public class KmerHitsCluster {
 	private int last;
 	private int queryStart;
 	private int queryEnd;
+	private int numDifferentKmers = 0;
+	private double averageHitsQuery;
+	private int totalKmersQuery;
+	private double weightedCount=0;
 	private boolean allConsistent = true;
+	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
 	
 	public KmerHitsCluster(CharSequence query, List<FMIndexUngappedSearchHit> inputHits) {
@@ -117,6 +125,8 @@ public class KmerHitsCluster {
 		queryStart = kmerHit.getQueryIdx();
 		queryEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
 		hitsMap.put(kmerQueryStart, kmerHit);
+		numDifferentKmers = 1;
+		firstKmerPresent = queryStart == 0;
 		lastKmerPresent = queryEnd==query.length();
 	}
 	
@@ -129,7 +139,9 @@ public class KmerHitsCluster {
 		last = Math.max(last, estLast);
 		queryStart = Math.min(queryStart, hit.getQueryIdx());
 		queryEnd = Math.max(queryEnd, hit.getQueryIdx() + hit.getQuery().length());
+		if(queryStart==0) firstKmerPresent = true;
 		if (queryEnd==query.length()) lastKmerPresent = true;
+		numDifferentKmers++;
 	}
 	
 	public boolean addKmerHit(FMIndexUngappedSearchHit kmerHit, int toleranceChange) {
@@ -150,12 +162,25 @@ public class KmerHitsCluster {
 	private int estimateSubjectLast(FMIndexUngappedSearchHit hit) {
 		return hit.getStart()+(query.length()-hit.getQueryIdx());
 	}
+	
+	public void summarize(double averageHitsQuery, int kmersQuery) {
+		this.averageHitsQuery = averageHitsQuery;
+		this.totalKmersQuery = kmersQuery;
+		numDifferentKmers = hitsMap.size();
+		weightedCount = 0;
+		for(FMIndexUngappedSearchHit hit: hitsMap.values()) {
+			double n = hit.getTotalHitsQuery(); 
+			if(n<=averageHitsQuery) weightedCount++;
+			else weightedCount += averageHitsQuery/n;
+		}
+		//Disposes detailed information about hits
+		hitsMap.clear();
+	}
 
 	public String getSequenceName() {
 		return sequenceName;
 	}
 	
-
 	/**
 	 * @return the sequenceIdx
 	 */
@@ -175,13 +200,39 @@ public class KmerHitsCluster {
 		return last-first+1;
 	}
 
-
-
 	/**
 	 * @return the query
 	 */
 	public CharSequence getQuery() {
 		return query;
+	}
+	
+	public int getQueryStart() {
+		return queryStart;
+	}
+
+	public int getQueryEnd() {
+		return queryEnd;
+	}
+	
+	public double getQueryCoverage () {
+		double queryCoverage = queryEnd-queryStart;
+		return queryCoverage / query.length();
+	}
+	
+	public int getTotalKmersQuery() {
+		return totalKmersQuery;
+	}
+
+	public double getAverageHitsQuery() {
+		return averageHitsQuery;
+	}
+	public double getWeightedCount() {
+		return weightedCount;
+	}
+	
+	public double getProportionKmers () {
+		return weightedCount / (double)totalKmersQuery;
 	}
 
 	/**
@@ -189,7 +240,7 @@ public class KmerHitsCluster {
 	 * @return the kmerNumbers
 	 */
 	public int getNumDifferentKmers() {
-		return hitsMap.size();
+		return numDifferentKmers;
 	}
 
 	/**
@@ -200,7 +251,7 @@ public class KmerHitsCluster {
 	}
 
 	public boolean isFirstKmerPresent() {
-		return hitsMap.containsKey(0);
+		return firstKmerPresent;
 	}
 	/**
 	 * @return the lastAlnPresent
@@ -209,18 +260,18 @@ public class KmerHitsCluster {
 		return lastKmerPresent;
 	}
 	
+	
+	
+	
 	public List<FMIndexUngappedSearchHit> getHitsByQueryIdx () {
 		List<FMIndexUngappedSearchHit> sortedHits = new ArrayList<FMIndexUngappedSearchHit>();
 		sortedHits.addAll(hitsMap.values());
 		return sortedHits;
 	}
 
-	public FMIndexUngappedSearchHit getKmerHit(int queryIdx) {
-		return hitsMap.get(queryIdx);
+	public FMIndexUngappedSearchHit getKmerHit(int queryKmerIdx) {
+		return hitsMap.get(queryKmerIdx);
 	}
 	
-	public double getQueryCoverage () {
-		double queryCoverage = queryEnd-queryStart;
-		return queryCoverage / query.length();
-	}
+	
 }

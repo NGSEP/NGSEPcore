@@ -26,7 +26,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -34,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import ngsep.math.Distribution;
+import ngsep.sequences.KmerHitsCluster;
 
 /**
  * @author Jorge Duitama
@@ -58,11 +58,18 @@ public class AssemblyGraph implements Serializable {
 	 * End vertices indexed by sequence index
 	 */
 	private Map<Integer,AssemblyVertex> verticesEnd;
-
-	private boolean [] embedded;
-	private Map<AssemblyVertex,List<AssemblyEdge>> edgesMap = new HashMap<>();
+	/**
+	 * All vertices indexed by unique number
+	 */
+	private Map<Integer,AssemblyVertex> verticesByUnique;
+	
+	private Map<Integer,List<AssemblyEdge>> edgesMap = new HashMap<>();
+	
 	// Map with sequence ids as keys and embedded sequences as objects
-	private Map<Integer, List<AssemblyEmbedded>> embeddedMap = new HashMap<>();
+	private Map<Integer, List<AssemblyEmbedded>> embeddedMapByHost = new HashMap<>();
+	
+	
+	private Map<Integer, List<AssemblyEmbedded>> embeddedMapBySequence = new HashMap<>();
 
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 	
@@ -74,21 +81,22 @@ public class AssemblyGraph implements Serializable {
 	public AssemblyGraph(List<CharSequence> sequences) {
 		int n = sequences.size();
 		this.sequences = Collections.unmodifiableList(sequences);
-		embedded = new boolean[n];
-		Arrays.fill(embedded, false);
 		verticesStart = new HashMap<>(n);
 		verticesEnd = new HashMap<>(n);
+		verticesByUnique = new HashMap<>(n);
 		edgesMap = new HashMap<>(n);
 		for (int i=0;i<sequences.size();i++) {
 			CharSequence seq = sequences.get(i);
 			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
 			verticesStart.put(i,vS);
-			edgesMap.put(vS, new ArrayList<>());
+			verticesByUnique.put(vS.getUniqueNumber(), vS);
+			edgesMap.put(vS.getUniqueNumber(), new ArrayList<>());
 			AssemblyVertex vE = new AssemblyVertex(seq, false, i);
 			verticesEnd.put(i,vE);
-			edgesMap.put(vE, new ArrayList<>());
-			addEdge(vS, vE, seq.length(), seq.length());
-			embeddedMap.put(i, new ArrayList<>());
+			verticesByUnique.put(vE.getUniqueNumber(), vE);
+			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
+			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.length(), seq.length());
+			addEdge(edge);
 		}
 	}
 
@@ -116,15 +124,14 @@ public class AssemblyGraph implements Serializable {
 		this.readNames = readNames;
 	}
 
-	public void addEdge(AssemblyVertex v1, AssemblyVertex v2, int cost, int overlap) {
-		AssemblyEdge edge = new AssemblyEdge(v1, v2, cost, overlap);
-		edgesMap.get(v1).add(edge);
-		edgesMap.get(v2).add(edge);
+	public void addEdge(AssemblyEdge edge) {
+		edgesMap.get(edge.getVertex1().getUniqueNumber()).add(edge);
+		edgesMap.get(edge.getVertex2().getUniqueNumber()).add(edge);
 	}
 	
 	public void removeEdge (AssemblyEdge edge) {
-		edgesMap.get(edge.getVertex1()).remove(edge);
-		edgesMap.get(edge.getVertex2()).remove(edge);
+		edgesMap.get(edge.getVertex1().getUniqueNumber()).remove(edge);
+		edgesMap.get(edge.getVertex2().getUniqueNumber()).remove(edge);
 	}
 
 	public AssemblyVertex getVertex(int indexSequence, boolean start) {
@@ -132,15 +139,26 @@ public class AssemblyGraph implements Serializable {
 		return verticesEnd.get(indexSequence);
 	}
 
-	public void addEmbedded(int ind, AssemblyEmbedded embeddedObject) {
-		List<AssemblyEmbedded> list = embeddedMap.computeIfAbsent(ind, key -> new LinkedList<>());
+	public void addEmbedded(AssemblyEmbedded embeddedObject) {
+		List<AssemblyEmbedded> list = embeddedMapByHost.computeIfAbsent(embeddedObject.getHostId(), key -> new LinkedList<>());
 		list.add(embeddedObject);
-		embedded[embeddedObject.getSequenceId()] = true;
+		List<AssemblyEmbedded> list2 = embeddedMapBySequence.computeIfAbsent(embeddedObject.getSequenceId(), key -> new LinkedList<>());
+		list2.add(embeddedObject);
+		
+	}
+	
+	public void removeEmbedded (AssemblyEmbedded embeddedObject) {
+		int hostId = embeddedObject.getHostId();
+		embeddedMapByHost.get(hostId).remove(embeddedObject);
+		if(embeddedMapByHost.get(hostId).size()==0) embeddedMapByHost.remove(hostId);
+		int seqId = embeddedObject.getSequenceId();
+		embeddedMapBySequence.get(seqId).remove(embeddedObject);
+		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(hostId);
 	}
 	
 	public void pruneEmbeddedSequences() {
-		for(int i=0;i<embedded.length;i++) {
-			if(embedded[i] && verticesStart.get(i)!=null) {
+		for(int i:embeddedMapBySequence.keySet()) {
+			if(verticesStart.get(i)!=null) {
 				removeVertices(i);
 			}
 		}
@@ -149,40 +167,49 @@ public class AssemblyGraph implements Serializable {
 	public void removeVertices(int sequenceId) {
 		AssemblyVertex v1 = getVertex(sequenceId, true);
 		List<AssemblyEdge> edgesToRemove = new ArrayList<>(); 
-		edgesToRemove.addAll(edgesMap.get(v1));
+		edgesToRemove.addAll(edgesMap.get(v1.getUniqueNumber()));
 		AssemblyVertex v2 = getVertex(sequenceId, false);
-		edgesToRemove.addAll(edgesMap.get(v2));
+		edgesToRemove.addAll(edgesMap.get(v2.getUniqueNumber()));
 		for(AssemblyEdge edge:edgesToRemove) {
 			removeEdge(edge);
 		}
-		edgesMap.remove(v1);
-		edgesMap.remove(v2);
+		edgesMap.remove(v1.getUniqueNumber());
+		edgesMap.remove(v2.getUniqueNumber());
 		verticesStart.remove(sequenceId);
 		verticesEnd.remove(sequenceId);
+		verticesByUnique.remove(v1.getUniqueNumber());
+		verticesByUnique.remove(v2.getUniqueNumber());
 	}
 	
 
 	/**
 	 * Return the list of embedded sequences for the given read
 	 * 
-	 * @param index of the read
+	 * @param index of the read having embedded sequences
 	 * @return list of embedded sequences
 	 */
-	public List<AssemblyEmbedded> getEmbedded(int index) {
-		List<AssemblyEmbedded> answer = embeddedMap.get(index);
-		if(answer!=null) return answer;
-		return new ArrayList<AssemblyEmbedded>();
+	public List<AssemblyEmbedded> getEmbeddedByHostId(int hostIndex) {
+		List<AssemblyEmbedded> answer = embeddedMapByHost.get(hostIndex);
+		if(answer == null) return new ArrayList<AssemblyEmbedded>();
+		return answer;
+	}
+	
+	/**
+	 * 
+	 * @param seqIndex
+	 * @return List<AssemblyEmbedded> Sequences where this is embedded
+	 */
+	public List<AssemblyEmbedded> getEmbeddedBySequenceId(int seqIndex) {
+		List<AssemblyEmbedded> answer = embeddedMapBySequence.get(seqIndex);
+		if(answer == null) return new ArrayList<AssemblyEmbedded>();
+		return answer;
 	}
 	
 	public boolean isEmbedded(int sequenceId) {
-		return embedded[sequenceId];
+		return embeddedMapBySequence.get(sequenceId)!=null;
 	}
 	public int getEmbeddedCount () {
-		int count = 0;
-		for(int i=0;i<embedded.length;i++) {
-			if(embedded[i]) count++;
-		}
-		return count;
+		return embeddedMapBySequence.size();
 	}
 
 	public void addPath(List<AssemblyEdge> path) {
@@ -191,7 +218,7 @@ public class AssemblyGraph implements Serializable {
 	
 	public List<AssemblyVertex> getVertices() {
 		List<AssemblyVertex> vertices = new ArrayList<>();
-		vertices.addAll(edgesMap.keySet());
+		vertices.addAll(verticesByUnique.values());
 		return vertices;
 	}
 
@@ -200,8 +227,8 @@ public class AssemblyGraph implements Serializable {
 	 */
 	public List<AssemblyEdge> getEdges() {
 		List<AssemblyEdge> edges = new ArrayList<>();
-		for(AssemblyVertex v:edgesMap.keySet()) {
-			List<AssemblyEdge> edgesVertex = edgesMap.get(v);
+		for(AssemblyVertex v:verticesByUnique.values()) {
+			List<AssemblyEdge> edgesVertex = edgesMap.get(v.getUniqueNumber());
 			for(AssemblyEdge edge:edgesVertex) {
 				//Avoid adding twice the same edge
 				if(edge.getVertex1()==v) edges.add(edge);
@@ -210,7 +237,7 @@ public class AssemblyGraph implements Serializable {
 		return edges;
 	}
 	public List<AssemblyEdge> getEdges(AssemblyVertex vertex) {
-		return edgesMap.get(vertex);
+		return edgesMap.get(vertex.getUniqueNumber());
 	}
 	/**
 	 * Returns the edge connecting the given vertex with the corresponding vertex in the same sequence
@@ -218,7 +245,7 @@ public class AssemblyGraph implements Serializable {
 	 * @return AssemblyEdge
 	 */
 	public AssemblyEdge getSameSequenceEdge(AssemblyVertex vertex) {
-		List<AssemblyEdge> edges = edgesMap.get(vertex);
+		List<AssemblyEdge> edges = edgesMap.get(vertex.getUniqueNumber());
 		for(AssemblyEdge edge:edges) {
 			if(edge.getVertex1()==vertex && edge.getVertex2().getRead()==vertex.getRead()) {
 				return edge;
@@ -236,7 +263,7 @@ public class AssemblyGraph implements Serializable {
 	 * @return
 	 */
 	public AssemblyEdge getEdge(AssemblyVertex v1, AssemblyVertex v2) {
-		List<AssemblyEdge> edgesV1 = edgesMap.get(v1);
+		List<AssemblyEdge> edgesV1 = edgesMap.get(v1.getUniqueNumber());
 		if(edgesV1 == null) return null;
 		for(AssemblyEdge edge:edgesV1) {
 			if(edge.getConnectingVertex(v1)==v2) return edge;
@@ -280,11 +307,38 @@ public class AssemblyGraph implements Serializable {
 		return answer;
 	}
 
-	
-
-	
-
-	
-
+	public void filterEdgesAndEmbedded(int sequenceId) {
+		AssemblyVertex vS = verticesStart.get(sequenceId);
+		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		List<AssemblyEdge> edgesSeq = new ArrayList<AssemblyEdge>();
+		if(vS!=null) edgesSeq.addAll(getEdges(vS));
+		if(vE!=null) edgesSeq.addAll(getEdges(vE));
+		double maxScore = 0;
+		for(AssemblyEdge edge: edgesSeq) {
+			if(edge.isSameSequenceEdge()) continue;
+			KmerHitsCluster cluster = edge.getEvidence();
+			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(score > maxScore) {
+				maxScore = score;
+			}
+		}
+		for(AssemblyEdge edge: edgesSeq) {
+			if(edge.isSameSequenceEdge()) continue;
+			KmerHitsCluster cluster = edge.getEvidence();
+			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(score < 0.5*maxScore) {
+				removeEdge(edge);
+			}
+		}
+		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
+		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
+		for(AssemblyEmbedded embedded:embeddedList) {
+			KmerHitsCluster cluster = embedded.getEvidence();
+			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(score < 0.5*maxScore) {
+				removeEmbedded(embedded);
+			}
+		}
+	}
 	
 }

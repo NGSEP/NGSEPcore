@@ -366,12 +366,12 @@ public class Assembler {
 					} else {
 						relativeStart = 0;
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeStart, relativeNegative );
-					graph.addEmbedded(right.getReadNumber(), embeddedEvent);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeNegative, right.getReadNumber(), relativeStart);
+					graph.addEmbedded(embeddedEvent);
 					if(left.getLast()<=right.getLast()) {
 						//right is also embedded in left
-						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), 0, relativeNegative );
-						graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), 0 );
+						graph.addEmbedded(embeddedEvent);
 					}
 					break;
 				}
@@ -382,12 +382,13 @@ public class Assembler {
 					} else {
 						relativeStart = right.getFirst()-left.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeStart, relativeNegative );
-					graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), relativeStart );
+					graph.addEmbedded(embeddedEvent);
 				} else {
 					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 					int overlap = left.getLast() - right.getFirst() + 1;
-					graph.addEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+					AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+					graph.addEdge(edge);
 				}
 				
 			}
@@ -449,8 +450,8 @@ public class Assembler {
 			if(gsE && testE) tpEmbSeqs++;
 			else if (gsE) fnEmbSeqs++;
 			else if (testE) fpEmbSeqs++;
-			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbedded(i);
-			List<AssemblyEmbedded> embeddedTest = testGraph.getEmbedded(i);
+			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbeddedByHostId(i);
+			List<AssemblyEmbedded> embeddedTest = testGraph.getEmbeddedByHostId(i);
 			int tpM = calculateIntersection (embeddedGS,embeddedTest);
 			tpEmbRel+=tpM;
 			fpEmbRel+=(embeddedTest.size()-tpM);

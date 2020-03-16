@@ -1,6 +1,9 @@
 package ngsep.sequences;
 
-public class FMIndexUngappedSearchHit {
+import java.io.Serializable;
+
+public class FMIndexUngappedSearchHit implements Serializable {
+	private static final long serialVersionUID = 5920964399280119643L;
 	private int queryIdx=-1;
 	private String query;
 	private int sequenceIdx=-1;

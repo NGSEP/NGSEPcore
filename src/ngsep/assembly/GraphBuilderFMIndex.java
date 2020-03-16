@@ -82,14 +82,13 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			String seq = sequences.get(seqId).toString();
-			boolean isEmbedded = updateGraph(graph, seqId, seq, false, fmIndex);
-			if(!isEmbedded) {
-				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-				updateGraph(graph, seqId, complement, true, fmIndex);
-			}
-			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size());
+			updateGraph(graph, seqId, seq, false, fmIndex);
+			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
+			updateGraph(graph, seqId, complement, true, fmIndex);
+			graph.filterEdgesAndEmbedded (seqId);
+			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
 		}
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Prunning embedded sequences");
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
 		graph.pruneEmbeddedSequences();
 		log.info("Prunned graph. Edges: "+graph.getEdges().size());
 		
@@ -97,12 +96,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	}
 
 
-	private boolean updateGraph(AssemblyGraph graph, int querySequenceId, String query, boolean queryRC, FMIndex fmIndex) {
-		boolean isEmbedded = false;
+	private void updateGraph(AssemblyGraph graph, int querySequenceId, String query, boolean queryRC, FMIndex fmIndex) {
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
 		int idxDebug = 274;
 		
-		if(kmersMap.size()==0) return isEmbedded;
+		//Search kmers using the FM index
+		if(kmersMap.size()==0) return;
 		int kmersCount=0;
 		double averageHits = 0;
 		List<FMIndexUngappedSearchHit> initialKmerHits = new ArrayList<>();
@@ -120,8 +119,11 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 				initialKmerHits.add(hit);
 			}
 		}
-		if(kmersCount==0) return isEmbedded;
+		if(kmersCount==0) return;
 		averageHits/=kmersCount;
+		
+		
+		//Filter repetitive kmer hits
 		if(querySequenceId==idxDebug) System.out.println("Quey: "+querySequenceId+" complement: "+queryRC+" Average hits "+averageHits);
 		List<FMIndexUngappedSearchHit> filteredHits = new ArrayList<FMIndexUngappedSearchHit>();
 		Set<Integer> kmerStarts = new HashSet<Integer>();
@@ -130,27 +132,31 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			filteredHits.add(hit);
 			kmerStarts.add(hit.getQueryIdx());
 		}
+		
+		// Cluster hits by target region
 		kmersCount = kmerStarts.size();
-		if(kmersCount==0) return isEmbedded;
+		if(kmersCount==0) return;
 		int minKmers = (int) (0.5*minKmerPercentage*kmersCount/100);
 		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(query, filteredHits, Math.max(10, minKmers));
 		if(querySequenceId==idxDebug) System.out.println("Query id: "+querySequenceId+" RC: "+queryRC+" kmers: "+kmersCount+" Clusters: "+clusteredKmerAlns.size());
+		
+		//Process clusters
 		Collections.sort(clusteredKmerAlns, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
-
-		double maxScoreCluster = 0;
+		double firstScoreCluster = 0;
+		double firstQueryCoverage = 0;
 		for (int i=0;i<clusteredKmerAlns.size() && i<10;i++) {
 			KmerHitsCluster cluster = clusteredKmerAlns.get(i);
-			double weightedCountCluster = getWeightedCount(cluster,averageHits);
-			double pct = 100.0*weightedCountCluster/kmersCount;
-			if(querySequenceId==idxDebug) System.out.println("Processing cluster. Subject: "+cluster.getSequenceIdx()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+weightedCountCluster+" pct: "+pct);
+			cluster.summarize(averageHits, kmersCount);
+			double pct = 100.0*cluster.getProportionKmers();
+			if(querySequenceId==idxDebug) System.out.println("Processing cluster. Subject: "+cluster.getSequenceIdx()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct);
 			if(pct<minKmerPercentage) break;
-			if(i==0) maxScoreCluster = weightedCountCluster;
-			else if (3.0*weightedCountCluster<maxScoreCluster) break;
-			isEmbedded = processAlignment(graph, querySequenceId, queryRC, cluster, weightedCountCluster/kmersCount);
-			if(querySequenceId==idxDebug) System.out.println("Processing cluster. Subject: "+cluster.getSequenceIdx()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+weightedCountCluster+" embedded: "+isEmbedded);
-			if(isEmbedded) break;
+			if(i==0) {
+				firstScoreCluster = pct;
+				firstQueryCoverage = cluster.getQueryCoverage();
+			}
+			else if (3.0*pct<firstScoreCluster || 2.0*cluster.getQueryCoverage()<firstQueryCoverage) break;
+			processAlignment(graph, querySequenceId, queryRC, cluster);
 		}
-		return isEmbedded;
 	}
 
 	private List<KmerHitsCluster> clusterKmerHits(CharSequence query, List<FMIndexUngappedSearchHit> kmerHits, int minKmers) {
@@ -183,16 +189,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		answer.add(new KmerHitsCluster(query, remainingHits));
 		return answer;
 	}
-	private double getWeightedCount(KmerHitsCluster cluster, double averageHits) {
-		List<FMIndexUngappedSearchHit> hits = cluster.getHitsByQueryIdx();
-		double count = 0;
-		for(FMIndexUngappedSearchHit hit: hits) {
-			double n = hit.getTotalHitsQuery(); 
-			if(n<=averageHits) count++;
-			else count+= averageHits/n;
-		}
-		return count;
-	}
+	
 	public void printTargetHits(List<FMIndexUngappedSearchHit> targetHits) {
 		for(FMIndexUngappedSearchHit hit:targetHits) {
 			System.out.println(hit.getQueryIdx()+" "+hit.getSequenceIdx()+":"+hit.getStart());
@@ -200,22 +197,24 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 	}
 
-	private boolean processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerHitsCluster cluster, double weightedProportion) {
-		boolean isEmbedded = false;
+	private void processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerHitsCluster cluster) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
+		double pct = 100.0*cluster.getProportionKmers();
+		double queryCoverage = cluster.getQueryCoverage();
+		int queryRegionLength = cluster.getQueryEnd()-cluster.getQueryStart();
 		//Zero based limits
 		int firstTarget = cluster.getFirst()-1;
 		int lastTarget = cluster.getLast()-1;
 		//System.out.println("Processing cluster. Query: "+querySequenceId+" length: "+queryLength+ " target: "+cluster.getSequenceIdx()+" length: "+targetLength);
 		if(firstTarget>=0 && lastTarget<targetLength) {
 			//TODO: improve rules for embedded sequences
-			if(100*weightedProportion>=2*minKmerPercentage && cluster.getQueryCoverage()>=0.5) {
-				AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), firstTarget, queryRC);
-				graph.addEmbedded(targetSeqIdx, embeddedEvent);
-				isEmbedded = true;
-				//System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
+			if(pct>=2*minKmerPercentage && queryCoverage>=0.5) {
+				AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, targetSeqIdx, firstTarget);
+				embeddedEvent.setEvidence(cluster);
+				graph.addEmbedded(embeddedEvent);
+				System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);
 			}
 		} else if (firstTarget>=0) {
 			//Query after target
@@ -227,12 +226,14 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 				vertexQuery = graph.getVertex(querySequenceId, true);
 			}
 			int overlap = targetLength-firstTarget;
-			if (cluster.getQueryCoverage()*queryLength > 0.5*overlap) {
+			if (queryRegionLength > 0.5*overlap) {
 				// TODO: design well cost function
 				//double overlapCost = weightedProportion*overlap;
 				//int cost = targetLength + queryLength - (int)Math.round(overlapCost);
 				int cost = targetLength + queryLength - overlap;
-				graph.addEdge(vertexTarget, vertexQuery, cost, overlap);
+				AssemblyEdge edge = new AssemblyEdge(vertexTarget, vertexQuery, cost, overlap);
+				edge.setEvidence(cluster);
+				graph.addEdge(edge);
 			}
 			
 			//System.out.println("Edge between target: "+targetSeqIdx+" and query "+querySequenceId+" overlap: "+overlap+" weight: "+weight);
@@ -248,12 +249,13 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			int overlap = lastTarget+1;
 			if (cluster.getQueryCoverage()*queryLength > 0.5*overlap) {
 				int cost = targetLength + queryLength -overlap;
-				graph.addEdge(vertexQuery, vertexTarget, cost, overlap);
+				AssemblyEdge edge = new AssemblyEdge(vertexQuery, vertexTarget, cost, overlap);
+				edge.setEvidence(cluster);
+				graph.addEdge(edge);
 			}
 			//System.out.println("Edge between query: "+querySequenceId+" and target "+targetSeqIdx+" overlap: "+overlap+" weight: "+weight);
-		} else if(100*weightedProportion>=2*minKmerPercentage && cluster.getQueryCoverage()>=0.5) {
+		} else if(pct>=2*minKmerPercentage && cluster.getQueryCoverage()>=0.5) {
 			log.warning("Possible reverse embedded. Query id: "+querySequenceId+" length: "+queryLength+" target id: "+targetSeqIdx+" length: "+targetLength+" first target: "+firstTarget+" last target: "+lastTarget);
 		}
-		return isEmbedded;
 	}
 }

@@ -141,7 +141,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if (alnRead!=null) alignments.add(alnRead);
 				else unalignedReads++;
 				
-				List<AssemblyEmbedded> embeddedList = graph.getEmbedded(vertexPreviousEdge.getSequenceIndex());
+				List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
 				for(AssemblyEmbedded embedded:embeddedList) {
 					CharSequence embeddedRead = embedded.getRead();
 					boolean reverseE = (reverse!=embedded.isReverse());

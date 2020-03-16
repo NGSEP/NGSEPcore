@@ -21,6 +21,8 @@ package ngsep.assembly;
 
 import java.io.Serializable;
 
+import ngsep.sequences.KmerHitsCluster;
+
 /**
  * @author Jorge Duitama
  */
@@ -32,14 +34,18 @@ public class AssemblyEmbedded implements Serializable {
 	
 	private int sequenceId;
 	private CharSequence read;
-	private int startPosition;
 	private boolean isReverse;
+	private int hostId;
+	private int startPosition;
+	private KmerHitsCluster evidence;
+	
 
-	public AssemblyEmbedded(int sequenceId, CharSequence read, int startPosition, boolean isReverse) {
+	public AssemblyEmbedded(int sequenceId, CharSequence read, boolean isReverse, int hostId, int startPosition) {
 		this.sequenceId = sequenceId;
 		this.read = read;
-		this.startPosition = startPosition;
 		this.isReverse = isReverse;
+		this.hostId = hostId;
+		this.startPosition = startPosition;
 	}
 
 	
@@ -55,6 +61,25 @@ public class AssemblyEmbedded implements Serializable {
 		return read;
 	}
 
+	public boolean isReverse() {
+		return isReverse;
+	}
+
+	public void setReverse(boolean isReverse) {
+		this.isReverse = isReverse;
+	}
+	
+	
+	public int getHostId() {
+		return hostId;
+	}
+
+
+	public void setHostId(int hostId) {
+		this.hostId = hostId;
+	}
+
+
 	public int getStartPosition() {
 		return startPosition;
 	}
@@ -63,11 +88,14 @@ public class AssemblyEmbedded implements Serializable {
 		this.startPosition = startPosition;
 	}
 
-	public boolean isReverse() {
-		return isReverse;
+
+	public KmerHitsCluster getEvidence() {
+		return evidence;
 	}
 
-	public void setReverse(boolean isReverse) {
-		this.isReverse = isReverse;
+	public void setEvidence(KmerHitsCluster evidence) {
+		this.evidence = evidence;
 	}
+	
+	
 }

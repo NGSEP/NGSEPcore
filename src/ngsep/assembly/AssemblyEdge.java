@@ -21,6 +21,8 @@ package ngsep.assembly;
 
 import java.io.Serializable;
 
+import ngsep.sequences.KmerHitsCluster;
+
 /**
  * @author Jorge Duitama
  */
@@ -32,6 +34,7 @@ public class AssemblyEdge implements Serializable {
 	private AssemblyVertex vertex2;
 	private int cost;
 	private int overlap;
+	private KmerHitsCluster evidence; 
 	private boolean layoutEdge = false;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int cost, int overlap) {
@@ -97,6 +100,14 @@ public class AssemblyEdge implements Serializable {
 	
 	public boolean isSameSequenceEdge() {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
+	}
+
+	public KmerHitsCluster getEvidence() {
+		return evidence;
+	}
+
+	public void setEvidence(KmerHitsCluster evidence) {
+		this.evidence = evidence;
 	}
 
 	public boolean isLayoutEdge() {
