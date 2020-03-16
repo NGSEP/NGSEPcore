@@ -72,7 +72,7 @@ public class HomologClustersCalculator {
 		}
 		log.info("===== Similarity =====");
 		
-		SparseMatrix results = simulateFlow(similarityMatrix, 1000, 10);
+		SparseMatrix results = simulateFlow(similarityMatrix, 1000, 1000);
 		log.info("Results are ready");
 		log.info("===== Results =====");
 		for (String l : results.getMatrixAsString()) {
