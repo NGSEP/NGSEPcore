@@ -63,6 +63,11 @@ public class HomologClustersCalculator {
 		
 		log.info(String.format("Max vertex degree == %d", maxNodeDegree));
 		
+		log.info("===== SCORES UNNORMALIZED =====");
+		for (String l : scoreMatrix.getMatrixAsString()) {
+			log.info(l);
+		}
+		
 		SparseMatrix similarityMatrix = normalizeMatrix(scoreMatrix);
 		
 		log.info("Similarity matrix is ready");
