@@ -138,6 +138,10 @@ public class AssemblyGraph implements Serializable {
 		if(start) return verticesStart.get(indexSequence);
 		return verticesEnd.get(indexSequence);
 	}
+	
+	public AssemblyVertex getVertexByUniqueId(int uniqueId) {
+		return verticesByUnique.get(uniqueId);
+	}
 
 	public void addEmbedded(AssemblyEmbedded embeddedObject) {
 		List<AssemblyEmbedded> list = embeddedMapByHost.computeIfAbsent(embeddedObject.getHostId(), key -> new LinkedList<>());

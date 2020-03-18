@@ -112,9 +112,13 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			String kmer = kmersMap.get(start).toString();
 			//List<FMIndexUngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer,0,querySequenceId-1);
 			List<FMIndexUngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer);
+			int numHits = kmerHits.size();
+			//Remove from count hit to self
+			if(!queryRC) numHits--;
+			if(numHits==0) continue;
 			kmersCount++;
-			averageHits+=kmerHits.size();
-			//if(querySequenceId==52) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Found "+kmerHits.size()+" hits for kmer: "+kmer);
+			averageHits+=numHits;
+			if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Found "+numHits+" hits for kmer at: "+start);
 			for(FMIndexUngappedSearchHit hit:kmerHits) {
 				//if(querySequenceId==52) System.out.println("Kmer start: "+hit.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
 				if(hit.getSequenceIdx()>=querySequenceId) continue;
@@ -124,13 +128,14 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		}
 		if(kmersCount==0) return;
 		averageHits/=kmersCount;
-		
+		if(averageHits<1) averageHits = 1;
 		
 		//Filter repetitive kmer hits
-		if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Average hits "+averageHits);
+		if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" kmers: "+kmersCount+" Average hits "+averageHits);
 		List<FMIndexUngappedSearchHit> filteredHits = new ArrayList<FMIndexUngappedSearchHit>();
 		Set<Integer> kmerStarts = new HashSet<Integer>();
 		for(FMIndexUngappedSearchHit hit:initialKmerHits) {
+			//if(querySequenceId==idxDebug) System.out.println("Next kmer: "+hit.getQuery()+" total hits: "+hit.getTotalHitsQuery());
 			if(hit.getTotalHitsQuery()>5*averageHits) continue;
 			filteredHits.add(hit);
 			kmerStarts.add(hit.getQueryIdx());
