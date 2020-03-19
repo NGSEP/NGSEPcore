@@ -116,6 +116,7 @@ public class HomologClustersCalculator {
 		}
 		
 		HashMap<String, Boolean> marked = new HashMap<>();
+		for(HomologyUnit unit : filteredUnits) marked.put(unit.getUniqueKey(), false);
 		for (int i = 0; i < filteredUnits.size(); i++) {
 			if (marked.get(filteredUnits.get(i).getUniqueKey())) continue;
 			Queue<HomologyUnit> queue = new LinkedList<>();
