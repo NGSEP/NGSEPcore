@@ -28,7 +28,22 @@ public class HomologClustersCalculator {
 
 	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
 		log.info("Clustering orthologs and paralogs");
-		List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
+		
+		List<HomologyUnit> units = new ArrayList<>();
+		for(AnnotatedReferenceGenome genome : genomes) units.addAll(genome.getHomologyUnits()); 
+		List<List<HomologyUnit>> partitions = divideUnits(units);
+		
+		Distribution distClusterSizes = new Distribution(0, 50, 1);
+		for(List<HomologyUnit> partition : partitions) distClusterSizes.processDatapoint(partition.size());
+		log.info("===== Cluster Distribution =====");
+		log.info(String.format("AVG %f || MIN %f || MAX %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData()));
+		
+		return partitions;
+	}
+	
+	public List<List<HomologyUnit>> oldClusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
+		log.info("Clustering orthologs and paralogs");
+		List<List<HomologyUnit>> orthologyUnitClusters = new ArrayList<>();
 		
 		List<HomologyUnit> reference = new ArrayList<>();
 		HashMap<String, Integer> indexOf = new HashMap<>();
@@ -61,6 +76,8 @@ public class HomologClustersCalculator {
 			}
 		}
 		
+		//AL AGREGAR EJES, PONER 20 PTS
+		
 		log.info(String.format("Max vertex degree == %d", maxNodeDegree));
 		
 		log.info("===== SCORES UNNORMALIZED =====");
@@ -86,6 +103,60 @@ public class HomologClustersCalculator {
 		log.info("===== Results =====");
 		
 		return orthologyUnitClusters;
+	}
+	
+	public List<List<HomologyUnit>> divideUnits(List<HomologyUnit> units) {
+		List<List<HomologyUnit>> partitions = new ArrayList<>();
+		
+		List<HomologyUnit> filteredUnits = new ArrayList<>();
+		for(HomologyUnit unit : units) {
+			if (unit.getTotalHomologs() > 0) {
+				filteredUnits.add(unit);
+			}
+		}
+		
+		HashMap<String, Boolean> marked = new HashMap<>();
+		for (int i = 0; i < filteredUnits.size(); i++) {
+			if (marked.get(filteredUnits.get(i).getUniqueKey())) continue;
+			Queue<HomologyUnit> queue = new LinkedList<>();
+			List<HomologyUnit> currentCluster = new ArrayList<>();
+			
+			queue.add(filteredUnits.get(i));
+			while(!queue.isEmpty()) {
+				HomologyUnit currentUnit = queue.poll();
+				if(currentCluster.contains(currentUnit)) {
+					//Element already inside cluster.
+					continue;
+				} else {
+					if(marked.get(currentUnit.getUniqueKey())) {
+						//Element inside different cluster, merge with current cluster.
+						boolean merged = false;
+						for(int j = 0; j < partitions.size() && !merged; j++) {
+							List<HomologyUnit> set = partitions.get(j);
+							if(set.contains(currentUnit)) {
+								merged = true;
+								currentCluster.addAll(set);
+								partitions.remove(j);
+							}
+						}
+						
+						if(!merged) log.warning(String.format("Did not find cluster to merge, but unit was marked. ID: %s", currentUnit.getUniqueKey()));
+					} else {
+						//Add element to cluster and add its edges to the queue
+						marked.put(currentUnit.getUniqueKey(), true);
+						currentCluster.add(currentUnit);
+						Collection<HomologyEdge> edges = currentUnit.getAllHomologyRelationships();
+						for(HomologyEdge edge : edges) {
+							queue.add(edge.getSubjectUnit());
+						}
+					}
+				}
+			}
+			
+			partitions.add(currentCluster);
+		}
+			
+		return partitions;
 	}
 	
 	public SparseMatrix normalizeMatrix(SparseMatrix matrix) {
