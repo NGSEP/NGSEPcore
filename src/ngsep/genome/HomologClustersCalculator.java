@@ -116,9 +116,8 @@ public class HomologClustersCalculator {
 		}
 		
 		HashMap<String, Boolean> marked = new HashMap<>();
-		for(HomologyUnit unit : filteredUnits) marked.put(unit.getUniqueKey(), false);
 		for (int i = 0; i < filteredUnits.size(); i++) {
-			if (marked.get(filteredUnits.get(i).getUniqueKey())) continue;
+			if (marked.get(filteredUnits.get(i).getUniqueKey()) != null) continue;
 			Queue<HomologyUnit> queue = new LinkedList<>();
 			List<HomologyUnit> currentCluster = new ArrayList<>();
 			
@@ -129,7 +128,7 @@ public class HomologClustersCalculator {
 					//Element already inside cluster.
 					continue;
 				} else {
-					if(marked.get(currentUnit.getUniqueKey())) {
+					if(marked.get(currentUnit.getUniqueKey()) != null) {
 						//Element inside different cluster, merge with current cluster.
 						boolean merged = false;
 						for(int j = 0; j < partitions.size() && !merged; j++) {
