@@ -118,7 +118,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			if(numHits==0) continue;
 			kmersCount++;
 			averageHits+=numHits;
-			if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Found "+numHits+" hits for kmer at: "+start);
+			//if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Found "+numHits+" hits for kmer at: "+start);
 			for(FMIndexUngappedSearchHit hit:kmerHits) {
 				//if(querySequenceId==52) System.out.println("Kmer start: "+hit.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
 				if(hit.getSequenceIdx()>=querySequenceId) continue;
@@ -136,7 +136,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		Set<Integer> kmerStarts = new HashSet<Integer>();
 		for(FMIndexUngappedSearchHit hit:initialKmerHits) {
 			//if(querySequenceId==idxDebug) System.out.println("Next kmer: "+hit.getQuery()+" total hits: "+hit.getTotalHitsQuery());
-			if(hit.getTotalHitsQuery()>5*averageHits) continue;
+			//if(hit.getTotalHitsQuery()>5*averageHits) continue;
 			filteredHits.add(hit);
 			kmerStarts.add(hit.getQueryIdx());
 		}
