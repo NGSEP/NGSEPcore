@@ -20,12 +20,13 @@
 package ngsep.alignments;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ngsep.assembly.AlignmentConstantGap;
 import ngsep.assembly.GraphBuilderFMIndex;
@@ -44,29 +45,29 @@ public class LongReadsAligner {
 	private int maxLengthFullPairwiseAlignment = 2000;
 	private PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
 	public Map<CharSequence, Integer> extractUniqueKmers(CharSequence sequence, int start, int end) {
-		CharSequence [] rawKmers = KmersExtractor.extractKmers(sequence, 15, 1, true, true, true);
+		Map<Integer, CharSequence> rawKmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, start, end, true, true, true);
 		Map<CharSequence, Integer> answer = new LinkedHashMap<CharSequence, Integer>();
 		Map<CharSequence, Integer> reverseMap = new HashMap<CharSequence,Integer>();
-		boolean [] unique = new boolean[rawKmers.length];
-		Arrays.fill(unique, true);
-		end = Math.min(end, rawKmers.length);
+		Set<Integer> multiple = new HashSet<>();
 		for(int i=start;i<end;i++) {
-			CharSequence kmer = rawKmers[i];
+			CharSequence kmer = rawKmers.get(i);
 			if(kmer == null) {
-				unique[i] = false;
+				multiple.add(i);
 				continue;
 			}
 			Integer previousStart = reverseMap.get(kmer);
 			if(previousStart!=null) {
-				unique[previousStart] = false;
-				unique[i] = false;
+				multiple.add(i);
 				continue;
 			}
 			reverseMap.put(kmer,i);
 		}
 		for(int i=start;i<end;i++) {
-			CharSequence kmer = rawKmers[i];
-			if(kmer!=null && unique[i]) answer.put(kmer,i);
+			CharSequence kmer = rawKmers.get(i);
+			if(kmer!=null && !multiple.contains(i)) {
+				answer.put(kmer,i);
+			}
+			
 		}
 		return answer;
 	}

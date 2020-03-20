@@ -285,7 +285,7 @@ public class KmersExtractor {
 			return;
 		}
 		//TODO: Create option to process non DNA k-mers
-		CharSequence [] kmers = extractKmers(seq, kmerLength, 1, false, true, ignoreLowComplexity);
+		CharSequence [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, true, ignoreLowComplexity);
 		for(CharSequence kmer:kmers) {
 			if(kmer!=null) kmersMap.addOcurrance(kmer);
 		}	
@@ -302,19 +302,38 @@ public class KmersExtractor {
 	 * @return Map<Integer,CharSequence> Map of kmers indexed and sorted by (zero based) start position in the source sequence
 	 */
 	public static Map<Integer,CharSequence> extractKmersAsMap (CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
-		Map<Integer,CharSequence> kmersMap = new LinkedHashMap<Integer, CharSequence>();
+		return extractKmersAsMap(source, kmerLength, offset, 0, source.length(), forceLast, onlyDNA, ignoreLowComplexity);
+				
+	}
+	/**
+	 * Extracts the k-mers present in the given sequence
+	 * @param source Sequence to process
+	 * @param kmerLength Length of the output sequences. It must be less or equal than the length of the sequence
+	 * @param offset Distance between kmers
+	 * @param start index to extract kmers
+	 * @param end index to extract kmers
+	 * @param forceLast Includes last k-mer even if it does not meet the offset requirement
+	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
+	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences 
+	 * @return Map<Integer,CharSequence> Map of kmers indexed and sorted by (zero based) start position in the source sequence
+	 */
+	public static Map<Integer,CharSequence> extractKmersAsMap (CharSequence source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
+		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
 		int n = source.length();
-		if(n<kmerLength) return kmersMap;
-		int lastKmerStart = n - kmerLength;
+		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
+		Map<Integer,CharSequence> kmersMap = new LinkedHashMap<Integer, CharSequence>();
+		if (n < kmerLength) return kmersMap;
+		int lastKmerStart = end - kmerLength;
 		int lastPos = 0;
-		for(int i = 0; i <=lastKmerStart; i+=offset) {
+		for(int i = start; i <=lastKmerStart; i+=offset) {
 			CharSequence initialKmer = source.subSequence(i, i+kmerLength);
 			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 			if(processed!=null) kmersMap.put(i, processed);
 			lastPos = i;
 		}
 		if(forceLast && lastPos < lastKmerStart) {
-			CharSequence initialKmer = source.subSequence(lastKmerStart, n );
+			CharSequence initialKmer = source.subSequence(lastKmerStart, end );
 			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 			if(processed!=null) kmersMap.put(lastKmerStart, processed);
 		}
@@ -332,19 +351,21 @@ public class KmersExtractor {
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
 	 */
-	public static CharSequence [] extractKmers (CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+	public static CharSequence [] extractKmers (CharSequence source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
+		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
 		int n = source.length();
+		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
 		if(n<kmerLength) return new CharSequence[0];
-		int lastKmerStart = n - kmerLength; 
+		int lastKmerStart = end - kmerLength; 
 		CharSequence [] kmers = new CharSequence [lastKmerStart+1];
 		Arrays.fill(kmers, null);
-		for(int i = 0; i <=lastKmerStart; i+=offset)
-		{
-			String initialKmer = source.subSequence(i,kmerLength + i).toString();
+		for(int i = start; i <=lastKmerStart; i+=offset) {
+			CharSequence initialKmer = source.subSequence(i, i+kmerLength);
 			kmers[i]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 		}
 		if(forceLast && kmers[lastKmerStart]==null) {
-			CharSequence initialKmer = source.subSequence(lastKmerStart, n );	
+			CharSequence initialKmer = source.subSequence(lastKmerStart, end );	
 			kmers[lastKmerStart]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
 		}
 		return kmers;

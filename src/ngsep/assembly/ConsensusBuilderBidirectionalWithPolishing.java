@@ -120,13 +120,25 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
 				int overlap = edge.getOverlap();
-				if(seq.length() - overlap > 0) {
+				int remainder;
+				
+				//TODO: Improve method to identify remainder
+				//ReadAlignment aln = aligner.alignRead(rawConsensus, seq, Math.max(0, rawConsensus.length()-overlap), rawConsensus.length(), MOCK_REFERENCE_NAME);
+				//if(aln== null) {
+					//log.info("Path sequence with id "+vertexNextEdge.getSequenceIndex()+" and length "+seq.length()+" could not be aligned to consensus");
+				remainder = seq.length()-overlap;
+				//} else {
+					//remainder = aln.getSoftClipEnd();
+					//System.out.println("Next path read id: "+vertexNextEdge.getSequenceIndex()+" Remainder calculated from alignment: "+remainder+" remainder from edge: "+(seq.length()-overlap)+" overlap: "+overlap+" length: "+seq.length());
+				//}
+				
+				if(remainder > 0) {
 					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
-					String remainingSegment = seq.substring(edge.getOverlap());
+					String remainingSegment = seq.substring(seq.length()-remainder);
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
-					log.warning("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+seq.length());
+					log.warning("Non embedded edge has overlap: "+edge.getOverlap()+ " length: "+seq.length()+ " and remainder: "+remainder);
 				}
 				
 			}
@@ -159,6 +171,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		log.info("Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 		log.info("Path: "+pathS);
 		String consensus = rawConsensus.toString();
+		//return consensus;
 		List<CalledGenomicVariant> variants = callVariants(consensus,alignments);
 		log.info("Identified "+variants.size()+" total variants from read alignments");
 		return applyVariants(consensus, variants);
