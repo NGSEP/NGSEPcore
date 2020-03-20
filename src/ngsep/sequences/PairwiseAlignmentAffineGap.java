@@ -37,27 +37,36 @@ public class PairwiseAlignmentAffineGap {
 	
 	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch) 
 	{
+		System.out.println("Creating pairwise aligner");
 		this.match = match;
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
+		x = new int [2100][2100];
+		y = new int [2100][2100];
+		m = new int [2100][2100];
+		b = new Traceback [3][2100][2100];
 	}
 	
 	public String[] getAlignment(String s1, String s2) 
 	{		
 		initMatrices(s1, s2);
 	    calculateMatrices(s1, s2);
-	    int k = getMaxK(m, x, y);
+	    int k = getMaxK(s1.length(), s2.length());
     	Traceback root = new Traceback(k, s1.length(), s2.length());	    
         return getAlignedStrings(root, s1, s2);
 	}
 	
 	private void initMatrices(String s1, String s2)
 	{
-		x = new int[s1.length() + 1][s2.length() + 1];
-		y = new int[s1.length() + 1][s2.length() + 1];
-		m = new int[s1.length() + 1][s2.length() + 1];
-		b = new Traceback[3][s1.length() + 1][s2.length() + 1];
+		if(x==null || x.length<s1.length()+1 || x[0].length < s2.length() +1 ) {
+			System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
+			x = new int[s1.length() + 1][s2.length() + 1];
+			y = new int[s1.length() + 1][s2.length() + 1];
+			m = new int[s1.length() + 1][s2.length() + 1];
+			b = new Traceback[3][s1.length() + 1][s2.length() + 1];
+		}
+		
 		
 		for (int i = 1; i < x.length; i++) 
 		{
@@ -77,9 +86,9 @@ public class PairwiseAlignmentAffineGap {
 	
 	private void calculateMatrices(String s1, String s2)
 	{
-		for (int i = 1; i < x.length; i++)
+		for (int i = 1; i <= s1.length(); i++)
 	    {
-	    	for (int j = 1; j < x[0].length; j++)
+	    	for (int j = 1; j <= s2.length(); j++)
 	    	{
 	    		int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
 	    		m[i][j] = Math.max(m[i-1][j-1] + matchScore, Math.max(x[i-1][j-1] + matchScore, y[i-1][j-1] + matchScore));
@@ -144,14 +153,15 @@ public class PairwiseAlignmentAffineGap {
 		return b[t.k][t.i][t.j];
 	}
 	
-	private int getMaxK(int[][] m, int[][] x, int[][] y)
+	private int getMaxK(int i, int j)
 	{
 		int k = 0;
-	    int val = m[m.length - 1][m[0].length - 1];
-    	if (val < x[m.length - 1][m[0].length - 1]) {
+	    int val = m[i][j];
+    	if (val < x[i][j]) {
     		k = 1;
+    		val = x[i][j];
     	}
-    	else if (val < y[m.length - 1][m[0].length - 1]) {
+    	if (val < y[i][j]) {
     		k = 2;
     	}
     	return k;
@@ -189,7 +199,7 @@ public class PairwiseAlignmentAffineGap {
         return seqs;
 	}
 	
-	private void printAlignmentMatrix(int[][] matrix, String s1, String s2)
+	public void printAlignmentMatrix(int[][] matrix, String s1, String s2)
 	{
 		System.out.print("\t-\t");
 		for (int i = 0; i < s2.length(); i++) {

@@ -33,7 +33,7 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
-	private static int idxDebug = -1;
+	private static int idxDebug = -2;
 	
 	public KmerHitsCluster(CharSequence query, List<FMIndexUngappedSearchHit> inputHits) {
 		this.query = query;

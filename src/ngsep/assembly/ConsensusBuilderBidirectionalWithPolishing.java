@@ -137,6 +137,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				int startConsensus = Math.max(0, rawConsensus.length() - read.length()-10);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,startConsensus,rawConsensus.length());
 				totalReads++;
+				if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME);
 				if (alnRead!=null) alignments.add(alnRead);
 				else unalignedReads++;
@@ -147,6 +148,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNASequence.getReverseComplement(embeddedRead.toString());
 					totalReads++;
+					if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME);
 					if(alnEmbedded!=null) alignments.add(alnEmbedded);
 					else unalignedReads++;

@@ -40,7 +40,8 @@ import ngsep.sequences.RawRead;
  * @author Jorge Duitama
  */
 public class LongReadsAligner {
-	
+
+	private int maxLengthFullPairwiseAlignment = 2000;
 	private PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
 	public Map<CharSequence, Integer> extractUniqueKmers(CharSequence sequence, int start, int end) {
 		CharSequence [] rawKmers = KmersExtractor.extractKmers(sequence, 15, 1, true, true, true);
@@ -126,7 +127,7 @@ public class LongReadsAligner {
 				//Kmer does not overlap with already aligned segments
 				String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
 				String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
-				if(subjectStr.length()==queryStr.length() && subjectStr.length()<10) {
+				if(subjectStr.length()==queryStr.length() && (subjectStr.length()<10 || subjectStr.length()>maxLengthFullPairwiseAlignment)) {
 					nextMatchLength+=subjectStr.length();
 				} else {
 					if(nextMatchLength>0 && (subjectStr.length()>0 || queryStr.length()>0)) {
@@ -135,7 +136,8 @@ public class LongReadsAligner {
 						nextMatchLength = 0;
 					}
 					if(subjectStr.length()>0 && queryStr.length()>0) {
-						//System.out.println("Aligning segment of length "+subjectStr.length()+" of subject with total length: "+subject.length()+" to segment with length "+queryStr.length()+" of query with total length: "+query.length());
+						//if (subjectStr.length()>100 || queryStr.length()>100) System.out.println("Aligning segment of length "+subjectStr.length()+" of subject with total length: "+subject.length()+" to segment with length "+queryStr.length()+" of query with total length: "+query.length());
+						if (subjectStr.length()>maxLengthFullPairwiseAlignment || queryStr.length()>maxLengthFullPairwiseAlignment) return null;
 						String [] alignedFragments = aligner.getAlignment(subjectStr, queryStr);
 						String cigarSegment = buildCigar(alignedFragments[0],alignedFragments[1]);
 						cigar.append(cigarSegment);
