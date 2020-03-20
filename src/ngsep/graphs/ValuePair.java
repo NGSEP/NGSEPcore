@@ -1,4 +1,4 @@
-package ngsep.genome.strucs;
+package ngsep.graphs;
 
 public class ValuePair {
 	public int index;

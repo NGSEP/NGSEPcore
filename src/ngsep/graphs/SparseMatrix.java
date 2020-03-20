@@ -1,4 +1,4 @@
-package ngsep.genome.strucs;
+package ngsep.graphs;
 
 import java.util.ArrayList;
 import java.util.Arrays;

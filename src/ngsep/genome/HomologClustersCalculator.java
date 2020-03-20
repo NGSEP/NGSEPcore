@@ -10,8 +10,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.logging.Logger;
 
-import ngsep.genome.strucs.SparseMatrix;
-import ngsep.genome.strucs.ValuePair;
+import ngsep.graphs.MCLJob;
+import ngsep.graphs.SparseMatrix;
+import ngsep.graphs.ValuePair;
 import ngsep.math.Distribution;
 
 public class HomologClustersCalculator {
@@ -36,7 +37,9 @@ public class HomologClustersCalculator {
 		Distribution distClusterSizes = new Distribution(0, 50, 1);
 		for(List<HomologyUnit> partition : partitions) distClusterSizes.processDatapoint(partition.size());
 		log.info("===== Cluster Distribution =====");
-		log.info(String.format("AVG %f || MIN %f || MAX %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData()));
+		log.info(String.format("AVG %f || MIN %f || MAX %f || COUNT %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData(), distClusterSizes.getCount()));
+		
+		
 		
 		return partitions;
 	}
@@ -130,7 +133,7 @@ public class HomologClustersCalculator {
 				} else {
 					if(marked.get(currentUnit.getUniqueKey()) != null) {
 						//Element inside different cluster, merge with current cluster.
-						boolean merged = false;
+						boolean merged = false; 
 						for(int j = 0; j < partitions.size() && !merged; j++) {
 							List<HomologyUnit> set = partitions.get(j);
 							if(set.contains(currentUnit)) {
@@ -153,10 +156,37 @@ public class HomologClustersCalculator {
 				}
 			}
 			
-			partitions.add(currentCluster);
+			if (currentCluster.size() > 0) partitions.add(currentCluster);
 		}
 			
 		return partitions;
+	}
+	
+	public List<List<HomologyUnit>> processPartition(List<HomologyUnit> partition) {
+		List<List<HomologyUnit>> clusters = new ArrayList<>();
+		
+		if (partition.size() <= 10) {
+			//Clique
+		} else if (partition.size() <= 1000){
+			//MCL
+			
+			HashMap<String, Integer> indexOf = new HashMap<>();
+			for(int i = 0; i < partition.size(); i++) { 
+				indexOf.put(partition.get(i).getUniqueKey(), i);
+			}
+			
+			float[][] matrix = new float[partition.size()][partition.size()];
+			for(int i = 0; i < partition.size(); i++) {
+				HomologyUnit currentUnit = partition.get(i);
+				for(HomologyEdge edge : currentUnit.getAllHomologyRelationships()) {
+					matrix[i][indexOf.get(edge.getQueryUnit().getUniqueKey())] = (float) edge.getScore();
+				}
+			}
+			
+			MCLJob job = new MCLJob(matrix);
+		}
+		
+		return clusters;
 	}
 	
 	public SparseMatrix normalizeMatrix(SparseMatrix matrix) {
