@@ -113,7 +113,15 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	public List<FMIndexUngappedSearchHit> exactSearch (String searchSequence) {
 		return internalIndex.exactSearch(searchSequence);
 	}
-	
+	/**
+	 * Return the sequence with the given name
+	 * @param sequenceName Name of the sequence to search
+	 * @return CharSequence sequence with the given name. Null if the name is not found
+	 */
+	public CharSequence getSequence(String sequenceName) {
+		return internalIndex.getSequence(sequenceName);
+	}
+
 	/**
 	 * Return the subsequence of the indexed sequence between the given genomic coordinates
 	 * @param sequenceName Name of the sequence to search

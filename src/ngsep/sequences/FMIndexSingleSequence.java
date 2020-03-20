@@ -241,6 +241,7 @@ public class FMIndexSingleSequence implements Serializable {
 	 * null if the sequence can not be found
 	 */
 	public int[] getRange(String query) {
+		if(query.length()==0) return null;
 		char actualChar = query.charAt(query.length() - 1);
 
 		Integer rowS = firstRowsInMatrix.get(actualChar);

@@ -287,11 +287,9 @@ Index of the reference genome to align the reads. See GenomeIndexer for instruct
 Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:
 Sequence name (chromosome), region first base pair coordinate (1-based, inclusive) and region last base pair coordinate (1-based, inclusive).
 </option>
-<!-- 
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
- -->
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
 </option>

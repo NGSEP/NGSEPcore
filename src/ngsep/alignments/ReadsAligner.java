@@ -20,6 +20,7 @@
 package ngsep.alignments;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,8 +48,10 @@ import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.FastqFileReader;
 
 /**
@@ -97,6 +100,8 @@ public class ReadsAligner {
 	private ReferenceGenomeFMIndex fMIndex;
 	
 	private Set<String> repetitiveKmers = new HashSet<String>();
+	
+	private LongReadsAligner longReadsAligner = new LongReadsAligner();
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -152,6 +157,9 @@ public class ReadsAligner {
 	}
 	public void setInputFormat(byte inputFormat) {
 		this.inputFormat = inputFormat;
+	}
+	public void setInputFormat(String value) {
+		setInputFormat((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
 	public int getKmerLength() {
@@ -241,11 +249,7 @@ public class ReadsAligner {
 				throw new IOException("The first input file is required for paired end alignment");
 			} else {
 				log.info("Aligning single reads from standard input");
-				try (FastqFileReader reader = new FastqFileReader(System.in)) {
-					reader.setSequenceType(DNAMaskedSequence.class);
-					alignReads(reader, writer);
-				}
-				
+				alignReads(System.in, writer);
 			}
 		}
 	}
@@ -315,41 +319,92 @@ public class ReadsAligner {
 	 * @throws IOException
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
-		
-		if(inputFormat == INPUT_FORMAT_FASTQ) {
-			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
-				//Load as DNAMaskedSequence to allow reverse complement
-				reader.setSequenceType(DNAMaskedSequence.class);
-				alignReads(reader,writer);
-			}
-		} else {
-			//TODO: Implement fasta
-		}
-		
-		
-	}
-	
-	private void alignReads(FastqFileReader reader, ReadAlignmentFileWriter writer) throws IOException {
 		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) loadSTRsFile(knownSTRsFile);
 		int totalReads = 0;
 		int readsAligned = 0;
 		int uniqueAlignments=0;
 		long time = System.currentTimeMillis();
-		Iterator<RawRead> it = reader.iterator();
-		while(it.hasNext()) {
-			RawRead read = it.next();
-			List<ReadAlignment> alns = alignRead(read, true);
-			//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-			for(ReadAlignment aln:alns) writer.write(aln);
-			if(alns.size()==0) {
-				ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
-				writer.write(alnNoMap);
+		if(inputFormat == INPUT_FORMAT_FASTQ) {
+			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
+				//Load as DNAMaskedSequence to allow reverse complement
+				reader.setSequenceType(DNAMaskedSequence.class);
+				Iterator<RawRead> it = reader.iterator();
+				while(it.hasNext()) {
+					RawRead read = it.next();
+					List<ReadAlignment> alns = alignRead(read, true);
+					//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+					for(ReadAlignment aln:alns) writer.write(aln);
+					if(alns.size()==0) {
+						ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
+						writer.write(alnNoMap);
+					}
+					int numAlns = alns.size();
+					totalReads++;
+					if(numAlns>0) readsAligned++;
+					if(numAlns==1) uniqueAlignments++;
+					if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+				}
 			}
-			int numAlns = alns.size();
-			totalReads++;
-			if(numAlns>0) readsAligned++;
-			if(numAlns==1) uniqueAlignments++;
-			if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+		} else if(inputFormat== INPUT_FORMAT_FASTA) {
+			try (FastaFileReader reader = new FastaFileReader(readsFile)) {
+				reader.setSequenceType(DNAMaskedSequence.class);
+				Iterator<QualifiedSequence> it = reader.iterator();
+				while(it.hasNext()) {
+					QualifiedSequence seq = it.next();
+					System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
+					String qualityScores = RawRead.generateFixedQSString('5', seq.getLength());
+					RawRead read = new RawRead(seq.getName(), seq.getCharacters(), qualityScores);
+					List<ReadAlignment> alns = alignRead(read, true);
+					//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+					for(ReadAlignment aln:alns) writer.write(aln);
+					if(alns.size()==0) {
+						ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
+						writer.write(alnNoMap);
+					}
+					int numAlns = alns.size();
+					totalReads++;
+					if(numAlns>0) readsAligned++;
+					if(numAlns==1) uniqueAlignments++;
+					if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+				}
+			}
+		}
+		double seconds = (System.currentTimeMillis()-time);
+		seconds /=1000;
+		log.info("Time: "+seconds+" seconds");
+		
+		log.info("Total reads: "+totalReads);
+		log.info("Reads aligned: "+readsAligned);
+		log.info("Unique alignments: "+uniqueAlignments);
+		log.info("Overall alignment rate: "+(100.0*readsAligned/(double)totalReads)+"%");
+		
+		
+	}
+	
+	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException {
+		int totalReads = 0;
+		int readsAligned = 0;
+		int uniqueAlignments=0;
+		long time = System.currentTimeMillis();
+		try (FastqFileReader reader = new FastqFileReader(in)) {
+			//Load as DNAMaskedSequence to allow reverse complement
+			reader.setSequenceType(DNAMaskedSequence.class);
+			Iterator<RawRead> it = reader.iterator();
+			while(it.hasNext()) {
+				RawRead read = it.next();
+				List<ReadAlignment> alns = alignRead(read, true);
+				//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+				for(ReadAlignment aln:alns) writer.write(aln);
+				if(alns.size()==0) {
+					ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
+					writer.write(alnNoMap);
+				}
+				int numAlns = alns.size();
+				totalReads++;
+				if(numAlns>0) readsAligned++;
+				if(numAlns==1) uniqueAlignments++;
+				if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+			}
 		}
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
@@ -630,31 +685,50 @@ public class ReadsAligner {
 		return aln;
 	}
 
-	public List<ReadAlignment> alignRead(RawRead read, boolean asignSecondaryStatus) {
-		List<ReadAlignment> alignments = kmerBasedInexactSearchAlgorithm(read);
-		return filterAlignments(alignments, asignSecondaryStatus);
-	}
-
-	/**
-	 * First approach to allow inexact search
-	 * It iterates the Sequences of the genome and if there is at least MIN_ACCURACY percentage of the kmers
-	 * it allow the alignment with the first an the last position of the kmers ocurrence
-	 * @return 
-	 */
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (RawRead read) {
-		List<ReadAlignment> alns = new ArrayList<>();
-		DNAMaskedSequence readSeq = (DNAMaskedSequence)read.getCharacters();
+	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus) {
+		List<ReadAlignment> alignments = new ArrayList<>();
+		String readSeq = read.getSequenceString();
 		String qual = read.getQualityScores();
-		alns.addAll(kmerBasedInexactSearchAlgorithm(readSeq.toString(), qual, read.getName()));
-
+		String reverseComplement = null;
+		String reverseQS = null;
 		if(!onlyPositiveStrand) {
-			readSeq = readSeq.getReverseComplement();
-			qual = new StringBuilder(qual).reverse().toString();
-			List<ReadAlignment> alnsR = kmerBasedInexactSearchAlgorithm(readSeq.toString(), qual, read.getName());
-			for (ReadAlignment aln:alnsR) {
-				aln.setNegativeStrand(true);
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq);
+			reverseQS = new StringBuilder(qual).reverse().toString();
+		}
+		if(readSeq.length()<500) {
+			alignments.addAll(exactSingleStrandSearch(readSeq, qual, read.getName()));
+			if(reverseComplement!=null) {
+				List<ReadAlignment> alnsR = exactSingleStrandSearch(reverseComplement, reverseQS, read.getName());
+				for (ReadAlignment aln:alnsR) {
+					aln.setNegativeStrand(true);
+				}
+				alignments.addAll(alnsR);
 			}
-			alns.addAll(alnsR);
+		}
+		if(alignments.size()==0) {
+			alignments.addAll(kmerBasedSingleStrandInexactSearchAlgorithm(readSeq, qual, read.getName()));
+
+			if(reverseComplement!=null) {
+				List<ReadAlignment> alnsR = kmerBasedSingleStrandInexactSearchAlgorithm(reverseComplement, reverseQS, read.getName());
+				for (ReadAlignment aln:alnsR) {
+					aln.setNegativeStrand(true);
+				}
+				alignments.addAll(alnsR);
+			}
+		}
+		
+		return filterAlignments(alignments, assignSecondaryStatus);
+	}
+	private List<ReadAlignment> exactSingleStrandSearch(String query, String qualityScores, String readName) {
+		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
+		List<FMIndexUngappedSearchHit> readHits=fMIndex.exactSearch(query);
+		for(FMIndexUngappedSearchHit hit: readHits) {
+			String cigar = ""+query.length();
+			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			ReadAlignment aln = buildAln (query,qualityScores,hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
+			if(aln==null) continue;
+			aln.setReadName(readName);
+			alns.add(aln);
 		}
 		return alns;
 	}
@@ -665,7 +739,7 @@ public class ReadsAligner {
 	 * Only tries to align the given quey in the positive strand
 	 * @return List<ReadAlignment>
 	 */
-	private List<ReadAlignment> kmerBasedInexactSearchAlgorithm (String query, String qualityScores, String readName) 
+	private List<ReadAlignment> kmerBasedSingleStrandInexactSearchAlgorithm (String query, String qualityScores, String readName) 
 	{
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
@@ -683,7 +757,14 @@ public class ReadsAligner {
 			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getFirst()+"-"+cluster.getLast()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
 			else if (2*cluster.getNumDifferentKmers()<kmersMaxCluster) break;
-			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
+			ReadAlignment readAln;
+			if (query.length()<500) {
+				readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
+			} else {
+				CharSequence subject = fMIndex.getSequence(cluster.getSequenceName());
+				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getFirst()), Math.min(subject.length(), cluster.getLast()), cluster.getSequenceName());
+			}
+			
 			if(readAln!=null) {
 				readAln.setReadName(readName);
 				finalAlignments.add(readAln);
@@ -725,13 +806,7 @@ public class ReadsAligner {
 			hitsSeq.add(hit);
 		}
 		for(List<FMIndexUngappedSearchHit> hitsSeq:hitsBySubjectName.values()) {
-			Collections.sort(hitsSeq, new Comparator<FMIndexUngappedSearchHit>() {
-
-				@Override
-				public int compare(FMIndexUngappedSearchHit hit0, FMIndexUngappedSearchHit hit1) {
-					return hit0.getStart()-hit1.getStart();
-				}
-			});
+			Collections.sort(hitsSeq, (hit0,hit1)-> hit0.getStart()-hit1.getStart());
 			clusters.addAll(clusterSequenceKmerAlns(query, hitsSeq));
 		}
 		return clusters;

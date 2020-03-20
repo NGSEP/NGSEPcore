@@ -165,6 +165,23 @@ public class FMIndex implements Serializable
 		for(FMIndexUngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
 		return hits;
 	}
+	/**
+	 * Return the sequence with the given name
+	 * @param sequenceName Name of the sequence to search
+	 * @return CharSequence sequence with the given name. Null if the name is not found
+	 */
+	public CharSequence getSequence(String sequenceName) {
+		QualifiedSequence seq = sequencesWithNames.get(sequenceName);
+		if(seq==null) return null;
+		return seq.getCharacters();
+	}
+	/**
+	 * Return the subsequence of the indexed sequence between the given genomic coordinates
+	 * @param sequenceName Name of the sequence to search
+	 * @param first position of the sequence (1-based, included)
+	 * @param last position of the sequence (1-based, included)
+	 * @return CharSequence segment of the given sequence between the given coordinates
+	 */
 	public CharSequence getSequence(String sequenceName, int first, int last) {
 		QualifiedSequence seq = sequencesWithNames.get(sequenceName);
 		if(seq==null) return null;
