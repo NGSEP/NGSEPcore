@@ -74,10 +74,12 @@ public class LongReadsAligner {
 
 	public ReadAlignment alignRead(CharSequence subject, CharSequence read, int start, int end, String subjectName) {
 		Map<CharSequence, Integer> uniqueKmersSubject = extractUniqueKmers(subject,start,end);
+		//System.out.println("Number of unique k-mers subject: "+uniqueKmersSubject.size());
 		return alignRead(subject, read, uniqueKmersSubject, subjectName);
 	}
 	public ReadAlignment alignRead(CharSequence subject, CharSequence read, Map<CharSequence, Integer> uniqueKmersSubject, String subjectName) {
 		Map<CharSequence, Integer> uniqueKmersRead = extractUniqueKmers(read,0,read.length());
+		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<FMIndexUngappedSearchHit> initialKmerHits = new ArrayList<FMIndexUngappedSearchHit>();
 		for(CharSequence kmerRead:uniqueKmersRead.keySet()) {
 			Integer subjectPos = uniqueKmersSubject.get(kmerRead);
@@ -89,24 +91,33 @@ public class LongReadsAligner {
 		if(initialKmerHits.size()==0) return null;
 		List<KmerHitsCluster> clusters = GraphBuilderFMIndex.clusterSequenceKmerAlns(0, read, initialKmerHits);
 		Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
+		//printClusters(clusters);
 		if(clusters.size()>1) {
 			KmerHitsCluster c1 = clusters.get(0);
 			KmerHitsCluster c2 = clusters.get(1);
 			int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(c1.getFirst(), c1.getLast(), c2.getFirst(), c2.getLast());
 			if((overlap <0.9*c1.length() || overlap < 0.9*c2.length()) && c1.getNumDifferentKmers()<0.9*initialKmerHits.size()) {
-				System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+c1.getNumDifferentKmers()+" start: "+c1.getFirst()+" end: "+c1.getLast());
-				System.out.println("Second cluster kmers: "+c2.getNumDifferentKmers()+" start: "+c2.getFirst()+" end: "+c2.getLast());
 				return null;
 			}	
 		}
-		return buildCompleteAlignment(subject, read.toString(), clusters.get(0), subjectName);
+		KmerHitsCluster bestCluster = clusters.get(0);
+		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
+		return buildCompleteAlignment(subject, read.toString(), bestCluster, subjectName);
 	}
+	public void printClusters(List<KmerHitsCluster> clusters) {
+		System.out.println("Clusters: "+clusters.size());
+		for(KmerHitsCluster cluster:clusters) {
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" first: "+cluster.getFirst()+" last: "+cluster.getLast()+" query limits "+cluster.getQueryStart()+"-"+cluster.getQueryEnd());
+		}
+		
+	}
+
 	private ReadAlignment buildCompleteAlignment(CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster, String subjectName) {
 		List<FMIndexUngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		
 		int clusterFirst = kmerHitsCluster.getFirst();
 		int subjectNext = Math.max(0, clusterFirst-1);
-		//System.out.println("Consensus current length: "+subject.length()+". Next query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext);
+		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getLast());
 		int queryNext = 0;
 		int alnStart = -1;
 		char matchOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);

@@ -42,14 +42,14 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		FMIndexUngappedSearchHit firstHit = inputHits.get(0);
 		sequenceIdx = firstHit.getSequenceIdx();
 		sequenceName = firstHit.getSequenceName();
-		if(sequenceIdx==idxDebug) System.out.println("Clustering "+inputHits.size()+" hits. Target idx: "+sequenceIdx);
+		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Target idx: "+sequenceIdx);
 		Map<Integer,List<FMIndexUngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<FMIndexUngappedSearchHit>>();
 		
 		for(FMIndexUngappedSearchHit hit:inputHits) {
 			List<FMIndexUngappedSearchHit> list = hitsMultiMap.computeIfAbsent(hit.getQueryIdx(), l -> new ArrayList<FMIndexUngappedSearchHit>());
 			list.add(hit);
 		}
-		if(sequenceIdx==idxDebug) System.out.println("Num different kmers: "+hitsMultiMap.size());
+		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Num different kmers: "+hitsMultiMap.size());
 		List<Integer> subjectStarts = new ArrayList<Integer>();
 		//Try first with local unique hits
 		double sum = 0;
@@ -64,7 +64,7 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 			sum2+=estFirst*estFirst;
 			n++;
 		}
-		if(sequenceIdx==idxDebug) System.out.println("Num unique: "+n);
+		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
 		if(n<5) {
 			subjectStarts.clear();
 			sum=sum2=n=0;
@@ -73,7 +73,7 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 					int estFirst = estimateSubjectFirst(hit);
 					subjectStarts.add(estFirst);
 					sum+=estFirst;
-					sum2+=estFirst*estFirst;
+					sum2+=(estFirst*estFirst);
 					n++;
 				}
 				
@@ -81,12 +81,13 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		}
 		Collections.sort(subjectStarts);
 		int median = subjectStarts.get(subjectStarts.size()/2);
-		double stdev = Math.sqrt((sum2-sum*sum/n)/(n-1));
-		if(sequenceIdx==idxDebug) System.out.println("Num unique: "+n+" median: "+median+" stdev: "+stdev);
-		int maxDistance = (int)stdev;
-		if(maxDistance<5) maxDistance*=2;
-		if(stdev<0.1*query.length()) maxDistance*=2;
-		else if (stdev>0.2*query.length()) maxDistance/=2;
+		double variance = (sum2-sum*sum/n)/(n-1);
+		double stdev = (variance>0)?Math.sqrt(variance):0;
+		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Num unique: "+n+" median: "+median+" variance: "+variance+" stdev: "+stdev);
+		int maxDistance = (int)(stdev);
+		if(maxDistance < 50) maxDistance=50;
+		if(maxDistance<0.1*query.length()) maxDistance*=2;
+		else if (maxDistance>0.2*query.length()) maxDistance/=2;
 		
 		first = -1;
 		for(List<FMIndexUngappedSearchHit> hits:hitsMultiMap.values()) {

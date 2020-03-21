@@ -743,7 +743,7 @@ public class ReadsAligner {
 	{
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
-		//System.out.println("Query: "+query.toString()+" kmers: "+kmersMap.size());
+		//System.out.println("Read name: "+readName+" length "+query.length()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return finalAlignments;
 		List<FMIndexUngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
@@ -762,7 +762,9 @@ public class ReadsAligner {
 				readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
 			} else {
 				CharSequence subject = fMIndex.getSequence(cluster.getSequenceName());
+				//System.out.println("Subject length: "+subject.length()+" cluster limits: "+cluster.getFirst()+" - "+cluster.getLast());
 				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getFirst()), Math.min(subject.length(), cluster.getLast()), cluster.getSequenceName());
+				//if(readAln!=null) System.out.println("Found alignment for cluster "+i+" at "+readAln.getSequenceName()+":"+readAln.getFirst()+"-"+readAln.getLast());
 			}
 			
 			if(readAln!=null) {
@@ -770,7 +772,7 @@ public class ReadsAligner {
 				finalAlignments.add(readAln);
 			}
 		}
-		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query);
+		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+readName);
 		return finalAlignments;
 	}
 
