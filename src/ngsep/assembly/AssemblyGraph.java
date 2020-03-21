@@ -373,5 +373,40 @@ public class AssemblyGraph implements Serializable {
 			}
 		}
 	}
+
+	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
+		Map<Integer,AssemblyEmbedded> embeddedSequencesMap = new HashMap<Integer,AssemblyEmbedded>();
+		LinkedList<Integer> agenda = new LinkedList<Integer>();
+		agenda.add(sequenceIndex);
+		while (agenda.size()>0) {
+			
+			int nextSequenceIdx = agenda.removeFirst();
+			List<AssemblyEmbedded> embeddedList = getEmbeddedByHostId(nextSequenceIdx);
+			for(AssemblyEmbedded embedded:embeddedList) {
+				int seqId = embedded.getSequenceId();
+				if(embeddedSequencesMap.containsKey(seqId)) {
+					System.err.println("Found two embedded relationships for sequence "+seqId+" parents: "+embedded.getHostId()+" and "+embeddedSequencesMap.get(seqId).getHostId());
+					continue;
+				}
+				AssemblyEmbedded parentObject = embeddedSequencesMap.get(embedded.getHostId());
+				if(parentObject==null) {
+					embeddedSequencesMap.put(seqId, embedded);
+				} else {
+					int rootStartParent = parentObject.getStartPosition();
+					int rootStartSequence = rootStartParent+embedded.getStartPosition();
+					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
+					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence));
+				}
+				
+				agenda.add(embedded.getSequenceId());
+			}
+					
+		}
+		List<AssemblyEmbedded> answer = new ArrayList<AssemblyEmbedded>();
+		answer.addAll(embeddedSequencesMap.values());
+		Collections.sort(answer, (a1,a2)-> a1.getStartPosition()-a2.getStartPosition());
+		
+		return answer;
+	}
 	
 }

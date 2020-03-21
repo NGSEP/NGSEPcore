@@ -474,17 +474,14 @@ public class IndelRealignerPileupListener implements PileupListener {
 			
 			boolean trimEnd = alnLast-eventLast<bpForGoodRefAln && !hasIndelCallsAfter;
 			int readPosBefore = aln.getReadPosition(eventFirst);
-			CharSequence readSuffix = null;
+			//
 			int readSuffixLength = 0;
-			if(readPosBefore>=0 && readPosBefore<aln.getReadLength()-1) {
-				readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
-				readSuffixLength = readSuffix.length();
-			} else {
-				if (readPosBefore!=-1) System.err.println("WARN: IndelRealigner. Weird answer of read position. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosBefore: "+readPosBefore+" read length: "+aln.getReadLength());
-				continue;
+			if(readPosBefore>=0) { 
+				readSuffixLength = aln.getReadLength()-readPosBefore-1;
 			}
 			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignEnd. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+" Event first: "+eventFirst+" readPosBefore: "+readPosBefore+" suffix length: "+readSuffixLength);
-			if(!hasIndelCallsAfter && refAlleleAfter!=null && altAlleleAfter!=null && readSuffix!=null && readPosBefore>=bpForGoodRefAln && readSuffixLength-offset<maxBPRealignmentEnd && readSuffixLength<refAlleleAfter.length() && readSuffixLength<altAlleleAfter.length() && (aln.getIndelCall(eventFirst)==null || readPosAfter<0)) {
+			if(!hasIndelCallsAfter && refAlleleAfter!=null && altAlleleAfter!=null && readSuffixLength>=bpForGoodRefAln && readSuffixLength-offset<=maxBPRealignmentEnd && readSuffixLength<refAlleleAfter.length() && readSuffixLength<altAlleleAfter.length() && (aln.getIndelCall(eventFirst)==null || readPosAfter<0)) {
+				CharSequence readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
 				CharSequence refPrefix = refAlleleAfter.substring(0, readSuffixLength);
 				if(eventFirst==posPrint) System.out.println(readSuffix);
 				if(eventFirst==posPrint) System.out.println(refPrefix);
