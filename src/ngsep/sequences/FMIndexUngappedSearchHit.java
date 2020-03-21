@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class FMIndexUngappedSearchHit implements Serializable {
 	private static final long serialVersionUID = 5920964399280119643L;
 	private int queryIdx=-1;
-	private String query;
+	private CharSequence query;
 	private int sequenceIdx=-1;
 	private String sequenceName;
 	//Zero based start of this hit within the sequence
@@ -18,7 +18,7 @@ public class FMIndexUngappedSearchHit implements Serializable {
 	 * @param sequenceName Name of the subject sequence
 	 * @param start zero based first position of the hit within the subject
 	 */
-	public FMIndexUngappedSearchHit(String query, String sequenceName, int start) {
+	public FMIndexUngappedSearchHit(CharSequence query, String sequenceName, int start) {
 		this.query = query;
 		this.sequenceName = sequenceName;
 		this.start = start;
@@ -30,13 +30,13 @@ public class FMIndexUngappedSearchHit implements Serializable {
 	 * @param sequenceName Name of the subject sequence
 	 * @param start zero based first position of the hit within the subject
 	 */
-	public FMIndexUngappedSearchHit(String query, int sequenceIdx, String sequenceName, int start) {
+	public FMIndexUngappedSearchHit(CharSequence query, int sequenceIdx, String sequenceName, int start) {
 		this.query = query;
 		this.sequenceIdx = sequenceIdx;
 		this.sequenceName = sequenceName;
 		this.start = start;
 	}
-	public String getQuery() {
+	public CharSequence getQuery() {
 		return query;
 	}
 	public int getQueryIdx() {

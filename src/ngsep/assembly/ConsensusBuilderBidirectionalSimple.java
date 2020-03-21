@@ -3,6 +3,7 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
@@ -67,14 +68,14 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			if(j == 0) 
 			{
 				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
-				String seq = vertexPreviousEdge.getRead().toString();
+				CharSequence seq = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) seq = DNASequence.getReverseComplement(seq);
+				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead())
 			{
 				//If the second string isn't start, then the reverse complement is added to the consensus
-				String seq = vertexNextEdge.getRead().toString();
+				CharSequence seq = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
 					
@@ -82,7 +83,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				{
 					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
-					String remainingSegment = seq.substring(edge.getOverlap());
+					String remainingSegment = seq.subSequence(edge.getOverlap(),seq.length()).toString();
 					consensus.append(remainingSegment);
 				} 
 				else 

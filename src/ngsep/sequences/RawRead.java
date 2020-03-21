@@ -23,6 +23,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,9 +95,17 @@ public class RawRead extends QualifiedSequence {
 		out.println("+");
 		out.println(this.getQualityScores());
 	}
+	
+	private static Map<Character,String> largeFixedQSStrings = new HashMap<Character, String>();
+	
 	public static final String generateFixedQSString(char qs, int length) {
-		char [] qualities = new char[length];
-		Arrays.fill(qualities, qs);
-		return new String(qualities);
+		String charsStr = largeFixedQSStrings.get(qs);
+		if(charsStr==null || charsStr.length()<length) {
+			char [] qualities = new char[Math.max(length,500000)];
+			Arrays.fill(qualities, qs);
+			charsStr = new String(qualities);
+			largeFixedQSStrings.put(qs, charsStr);
+		}
+		return charsStr.substring(0,length);
 	}
 }

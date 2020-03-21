@@ -692,7 +692,7 @@ public class ReadsAligner {
 		String reverseComplement = null;
 		String reverseQS = null;
 		if(!onlyPositiveStrand) {
-			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq);
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
 			reverseQS = new StringBuilder(qual).reverse().toString();
 		}
 		if(readSeq.length()<500) {

@@ -32,8 +32,10 @@ import ngsep.discovery.IndelRealignerPileupListener;
 import ngsep.discovery.VariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
 
 /**
@@ -109,50 +111,58 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			}
 			if(j == 0) {
 				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
-				String seq = vertexPreviousEdge.getRead().toString();
+				CharSequence seq = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) seq = DNASequence.getReverseComplement(seq);
-				rawConsensus.append(seq.toUpperCase());
+				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
+				rawConsensus.append(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
-				//If the second string is not start, then the reverse complement is added to the consensus
-				String seq = vertexNextEdge.getRead().toString();
+				// Augment consensus with the next path read
+				CharSequence nextPathSequence = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
-				if(reverse) seq = DNASequence.getReverseComplement(seq);
+				if(reverse) nextPathSequence = new DNAMaskedSequence(DNAMaskedSequence.getReverseComplement(nextPathSequence));
+				
+				
 				int overlap = edge.getOverlap();
-				int remainder;
 				
 				//TODO: Improve method to identify remainder
-				//ReadAlignment aln = aligner.alignRead(rawConsensus, seq, Math.max(0, rawConsensus.length()-overlap), rawConsensus.length(), MOCK_REFERENCE_NAME);
-				//if(aln== null) {
-					//log.info("Path sequence with id "+vertexNextEdge.getSequenceIndex()+" and length "+seq.length()+" could not be aligned to consensus");
-				remainder = seq.length()-overlap;
-				//} else {
-					//remainder = aln.getSoftClipEnd();
+				ReadAlignment aln = aligner.alignRead(rawConsensus, nextPathSequence, Math.max(0, rawConsensus.length()-overlap), rawConsensus.length(), MOCK_REFERENCE_NAME);
+				if(aln== null) {
+					log.info("Path sequence with id "+vertexNextEdge.getSequenceIndex()+" and length "+rawConsensus.length()+" could not be aligned to consensus");
+				} else {
+					int newOverlap = aln.getReadPosition(rawConsensus.length()-1);
+					if(newOverlap >0 && Math.abs(newOverlap-overlap)<20 ) {
+						overlap = newOverlap;
+					} else if (newOverlap>0) {
+						log.info("Aligning "+vertexNextEdge.getSequenceIndex()+" to consensus end. Consensus length:"+rawConsensus.length()+" Overlap from kmers "+overlap+". Overlap from alignment "+newOverlap);
+					}
 					//System.out.println("Next path read id: "+vertexNextEdge.getSequenceIndex()+" Remainder calculated from alignment: "+remainder+" remainder from edge: "+(seq.length()-overlap)+" overlap: "+overlap+" length: "+seq.length());
-				//}
+				}
 				
-				if(remainder > 0) {
+				if(overlap<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
-					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
-					String remainingSegment = seq.substring(seq.length()-remainder);
+					String remainingSegment = nextPathSequence.subSequence(overlap, nextPathSequence.length()).toString();
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
-					log.warning("Non embedded edge has overlap: "+edge.getOverlap()+ " length: "+seq.length()+ " and remainder: "+remainder);
+					log.warning("Non embedded edge has overlap: "+overlap+ " and length: "+nextPathSequence.length());
 				}
 				
 			}
 			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
+				//Align to consensus next path read and its embedded sequences
 				CharSequence read = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) read = DNASequence.getReverseComplement(read.toString());
 				int startConsensus = Math.max(0, rawConsensus.length() - read.length()-10);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,startConsensus,rawConsensus.length());
 				totalReads++;
-				if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME);
-				if (alnRead!=null) alignments.add(alnRead);
+				if (alnRead!=null) {
+					alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
+					alignments.add(alnRead);
+				}
 				else unalignedReads++;
+				if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				
 				List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
 				for(AssemblyEmbedded embedded:embeddedList) {
@@ -160,10 +170,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNASequence.getReverseComplement(embeddedRead.toString());
 					totalReads++;
-					if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME);
-					if(alnEmbedded!=null) alignments.add(alnEmbedded);
+					if(alnEmbedded!=null) {
+						alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
+						alignments.add(alnEmbedded);
+					}
 					else unalignedReads++;
+					if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				}
 			}
 			lastVertex = vertexNextEdge;

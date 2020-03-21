@@ -241,7 +241,7 @@ public class KmersExtractor {
 		countSequenceKmers(sequence);
 		//Reverse complement
 		if(!onlyForwardStrand){
-			String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
+			CharSequence reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 			countSequenceKmers(reverseSequence);
 		}
 	}
@@ -262,7 +262,7 @@ public class KmersExtractor {
 			countSequenceKmers(sequence);
 			//Reverse complement
 			if(!onlyForwardStrand){
-				String reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
+				CharSequence reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
 				countSequenceKmers(reverseSequence);
 			}
 			log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());

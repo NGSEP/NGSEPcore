@@ -170,7 +170,7 @@ public class GTF2TranscriptomeHandler {
 			mRNAB.append(nextSeq);
 		}
 		String mRNA = mRNAB.toString();
-		String mRNAReverse = DNAMaskedSequence.getReverseComplement(mRNA); 
+		String mRNAReverse = DNAMaskedSequence.getReverseComplement(mRNA).toString(); 
 		boolean negativeBySequence = false;
 		
 		int maxL = -1;

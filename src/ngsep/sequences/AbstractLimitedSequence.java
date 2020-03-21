@@ -20,6 +20,7 @@
 package ngsep.sequences;
 
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
 
 /**
@@ -124,8 +125,9 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		}
 		AbstractLimitedSequence answer;
 		try {
-			answer = this.getClass().newInstance();
-		} catch (InstantiationException | IllegalAccessException e) {
+			Constructor<?> emptyConstructor = this.getClass().getConstructor();
+			answer = (AbstractLimitedSequence) emptyConstructor.newInstance();
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		if(start== end) return answer; 

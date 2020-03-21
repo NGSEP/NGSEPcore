@@ -867,7 +867,7 @@ public class ReadPairAnalyzer {
 			if(readCandidate) {
 				String read = aln.getReadCharacters().toString().toUpperCase();
 				if(aln.isReadUnmapped() && !aln.isMateNegativeStrand()) {
-					read = DNAMaskedSequence.getReverseComplement(read);
+					read = DNAMaskedSequence.getReverseComplement(read).toString();
 				}
 				if(refFirst > debugStart && refFirst<debugEnd) System.out.println("Next split-read candidate: "+aln.getReadName()+". seqence: "+read);		
 				int s = 100;
@@ -1070,7 +1070,7 @@ public class ReadPairAnalyzer {
 			
 			String read = aln.getReadCharacters().toString().toUpperCase();
 			if(aln.isReadUnmapped() && !aln.isMateNegativeStrand()) {
-				read = DNAMaskedSequence.getReverseComplement(read);
+				read = DNAMaskedSequence.getReverseComplement(read).toString();
 			}
 			if(refFirst > debugStart && refFirst<debugEnd) System.out.println("Next split-read candidate: "+aln.getReadName()+". sequence: "+read);		
 			//Object with the last coordinate of the left side and the first coordinate of the right side 

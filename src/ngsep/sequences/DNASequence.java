@@ -97,10 +97,13 @@ public class DNASequence extends AbstractLimitedSequence{
 	/**
 	 * Returns the reverse complement of a DNA sequence encoded in the given String
 	 * @param sequence Sequence to be translated
-	 * @return String reverse complement of the given sequence
+	 * @return CharSequence reverse complement of the given sequence
 	 */
-	public static String getReverseComplement(String sequence) {
-		return new DNASequence(sequence).getReverseComplement().toString();
+	public static CharSequence getReverseComplement(CharSequence sequence) {
+		if (sequence instanceof DNASequence) {
+			return ((DNASequence)sequence).getReverseComplement();
+		}
+		return new DNASequence(sequence).getReverseComplement();
 	}
 	/**
 	 * Test main for methods of AbstractLimitedSequence

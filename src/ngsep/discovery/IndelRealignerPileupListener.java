@@ -476,7 +476,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			int readPosBefore = aln.getReadPosition(eventFirst);
 			CharSequence readSuffix = null;
 			int readSuffixLength = 0;
-			if(readPosBefore>=0 && aln.getReadLength()>readPosBefore) {
+			if(readPosBefore>=0 && readPosBefore<aln.getReadLength()-1) {
 				readSuffix = aln.getReadCharacters().subSequence(readPosBefore+1,aln.getReadLength());
 				readSuffixLength = readSuffix.length();
 			} else {
