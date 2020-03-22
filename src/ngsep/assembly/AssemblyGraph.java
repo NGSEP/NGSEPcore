@@ -161,7 +161,7 @@ public class AssemblyGraph implements Serializable {
 		if(embeddedMapByHost.get(hostId).size()==0) embeddedMapByHost.remove(hostId);
 		int seqId = embeddedObject.getSequenceId();
 		embeddedMapBySequence.get(seqId).remove(embeddedObject);
-		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(hostId);
+		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(seqId);
 	}
 	
 	public void pruneEmbeddedSequences() {
@@ -323,6 +323,7 @@ public class AssemblyGraph implements Serializable {
 	}
 
 	public void filterEdgesAndEmbedded(int sequenceId) {
+		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
@@ -344,6 +345,7 @@ public class AssemblyGraph implements Serializable {
 				removeEdge(edge);
 			}
 		}
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max score end: "+maxScoreS+" remaining edges: "+edgesMap.get(vS.getUniqueNumber()).size());
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
 		if(vE!=null) edgesE.addAll(getEdges(vE));
 		double maxScoreE = 0;			
@@ -363,6 +365,7 @@ public class AssemblyGraph implements Serializable {
 				removeEdge(edge);
 			}
 		}
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
 		
 		double maxScore = Math.max(maxScoreS, maxScoreE);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
@@ -372,15 +375,16 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEmbedded embedded:embeddedList) {
 			KmerHitsCluster cluster = embedded.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
 			if(score > 0.5*maxScore && score > maxE) {
 				maxE = score;
 				maxEmbedded = embedded;
 			}
 		}
-		if(maxEmbedded==null) return;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			if(embedded!=maxEmbedded) {
 				removeEmbedded(embedded);
+				if(sequenceId == debugIdx) System.out.println("Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
 			}
 		}
 	}

@@ -43,7 +43,6 @@ public class LayoutBuilderGreedy implements LayourBuilder
 					{
 						vertices.add(edge.getVertex1().getSequenceIndex() == entry.getKey().getSequenceIndex() ? edge.getVertex2().getSequenceIndex() : edge.getVertex1().getSequenceIndex());
 					}
-					String seq = entry.getKey().getRead().toString();
 					if(vertices.size() == i)
 					{
 						origins.add(entry.getKey());

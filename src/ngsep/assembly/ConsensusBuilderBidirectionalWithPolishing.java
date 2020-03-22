@@ -153,7 +153,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				CharSequence read = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) read = DNASequence.getReverseComplement(read.toString());
-				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,rawConsensus.length()-read.length(),rawConsensus.length());
+				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());
 				totalReads++;
 				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
 				if (alnRead!=null) {
