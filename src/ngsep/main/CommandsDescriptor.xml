@@ -1,4 +1,4 @@
-<NGSEP version="4.0.0" date="18-02-2020">
+<NGSEP version="4.0.1" date="17-04-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -214,6 +214,9 @@ Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a save
 </option>
 <option id="g" type="STRING" attribute="outFileGraph">
 Path to an output file to save the assembly graph
+</option>
+<option id="t" type="INT" attribute="numThreads">
+Number of threads
 </option>
 <option id="r" type="FILE" attribute="targetGenome">
 Genome used to simulate the given reads. Useful for benchmarking of the graph construction.

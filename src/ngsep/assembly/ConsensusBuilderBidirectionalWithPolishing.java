@@ -120,7 +120,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				// Augment consensus with the next path read
 				CharSequence nextPathSequence = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
-				if(reverse) nextPathSequence = new DNAMaskedSequence(DNAMaskedSequence.getReverseComplement(nextPathSequence));
+				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				
 				
 				int overlap = edge.getOverlap();
@@ -197,12 +197,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(MOCK_REFERENCE_NAME, consensus));
 		generator.setSequencesMetadata(genome.getSequencesMetadata());
 		generator.setMaxAlnsPerStartPos(100);
-		generator.setMinMQ(0);
+		generator.setMinMQ(80);
 		IndelRealignerPileupListener realignerListener = new IndelRealignerPileupListener();
 		realignerListener.setGenome(genome);
 		generator.addListener(realignerListener);
 		VariantPileupListener varListener = new VariantPileupListener();
-		varListener.setMinQuality((short) 80);
+		varListener.setMinQuality((short) 30);
 		varListener.setGenome(genome);
 		generator.addListener(varListener);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
