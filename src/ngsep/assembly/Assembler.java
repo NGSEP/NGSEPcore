@@ -56,6 +56,7 @@ public class Assembler {
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
 	public static final int DEF_MIN_KMER_PCT = 20;
+	public static final int DEF_NUM_THREADS = 4;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(Assembler.class.getName());
@@ -69,6 +70,7 @@ public class Assembler {
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String outFileGraph = null;
+	private int numThreads = DEF_NUM_THREADS;
 	private ReferenceGenome targetGenome;
 	
 	// Get and set methods
@@ -151,7 +153,17 @@ public class Assembler {
 	public void setOutFileGraph(String outFileGraph) {
 		this.outFileGraph = outFileGraph;
 	}
-
+	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public ReferenceGenome getTargetGenome() {
 		return targetGenome;
 	}
@@ -212,7 +224,7 @@ public class Assembler {
 			}
 			// Dispose original qualified sequences
 			sequencesQL = null;
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
+			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
 			log.info("Built graph");

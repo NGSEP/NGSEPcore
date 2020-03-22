@@ -73,6 +73,8 @@ public class AssemblyGraph implements Serializable {
 
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 	
+	private int numEdges = 0;
+	
 	/**
 	 * Optional attribute to store the sequence names. Useful for the gold standard graph
 	 */
@@ -127,11 +129,13 @@ public class AssemblyGraph implements Serializable {
 	public void addEdge(AssemblyEdge edge) {
 		edgesMap.get(edge.getVertex1().getUniqueNumber()).add(edge);
 		edgesMap.get(edge.getVertex2().getUniqueNumber()).add(edge);
+		numEdges++;
 	}
 	
 	public void removeEdge (AssemblyEdge edge) {
 		edgesMap.get(edge.getVertex1().getUniqueNumber()).remove(edge);
 		edgesMap.get(edge.getVertex2().getUniqueNumber()).remove(edge);
+		numEdges--;
 	}
 
 	public AssemblyVertex getVertex(int indexSequence, boolean start) {
@@ -225,6 +229,12 @@ public class AssemblyGraph implements Serializable {
 		vertices.addAll(verticesByUnique.values());
 		return vertices;
 	}
+	
+	
+
+	public int getNumEdges() {
+		return numEdges;
+	}
 
 	/**
 	 * @return the edges
@@ -240,6 +250,7 @@ public class AssemblyGraph implements Serializable {
 		}
 		return edges;
 	}
+	
 	public List<AssemblyEdge> getEdges(AssemblyVertex vertex) {
 		return edgesMap.get(vertex.getUniqueNumber());
 	}

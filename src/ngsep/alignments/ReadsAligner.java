@@ -351,12 +351,15 @@ public class ReadsAligner {
 				Iterator<QualifiedSequence> it = reader.iterator();
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
-					System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
+					//System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
 					String qualityScores = RawRead.generateFixedQSString('5', seq.getLength());
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(), qualityScores);
 					List<ReadAlignment> alns = alignRead(read, true);
 					//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-					for(ReadAlignment aln:alns) writer.write(aln);
+					for(ReadAlignment aln:alns) {
+						aln.setQualityScores(RawRead.generateFixedQSString('5', seq.getLength()));
+						writer.write(aln);
+					}
 					if(alns.size()==0) {
 						ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
 						writer.write(alnNoMap);
@@ -365,7 +368,7 @@ public class ReadsAligner {
 					totalReads++;
 					if(numAlns>0) readsAligned++;
 					if(numAlns==1) uniqueAlignments++;
-					if(totalReads%100000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+					if(totalReads%100==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
 				}
 			}
 		}
@@ -763,7 +766,8 @@ public class ReadsAligner {
 			} else {
 				CharSequence subject = fMIndex.getSequence(cluster.getSequenceName());
 				//System.out.println("Subject length: "+subject.length()+" cluster limits: "+cluster.getFirst()+" - "+cluster.getLast());
-				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getFirst()), Math.min(subject.length(), cluster.getLast()), cluster.getSequenceName());
+				//TODO: Make parameter
+				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getFirst()), Math.min(subject.length(), cluster.getLast()), cluster.getSequenceName(), 0.8);
 				//if(readAln!=null) System.out.println("Found alignment for cluster "+i+" at "+readAln.getSequenceName()+":"+readAln.getFirst()+"-"+readAln.getLast());
 			}
 			

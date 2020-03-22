@@ -25,9 +25,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import ngsep.alignments.LongReadsAligner;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.FMIndexUngappedSearchHit;
@@ -41,21 +45,25 @@ import ngsep.sequences.KmersExtractor;
  */
 public class GraphBuilderFMIndex implements GraphBuilder {
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
-	private final static int TALLY_DISTANCE = 100;
-	private final static int SUFFIX_FRACTION = 20;
+	private final static int TALLY_DISTANCE = 200;
+	private final static int SUFFIX_FRACTION = 40;
+	
+	private static final int TIMEOUT_SECONDS = 30;
 
 	private int kmerLength;
 	private int kmerOffset;
 	private int minKmerPercentage;
+	private int numThreads;
 	
 	private static int idxDebug = -1;
 	
 	
 
-	public GraphBuilderFMIndex(int kmerLength, int kmerOffset, int minKmerPercentage) {
+	public GraphBuilderFMIndex(int kmerLength, int kmerOffset, int minKmerPercentage, int numThreads) {
 		this.kmerLength = kmerLength;
 		this.kmerOffset = kmerOffset;
 		this.minKmerPercentage = minKmerPercentage;
+		this.numThreads = numThreads;
 	}
 	
 	/**
@@ -80,16 +88,29 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		// Create FM-Index
 		FMIndex fmIndex = new FMIndex();
 		fmIndex.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
+		
 		log.info("Created FM-Index");
+		
+		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			String seq = sequences.get(seqId).toString();
-			updateGraph(graph, seqId, seq, false, fmIndex);
-			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-			updateGraph(graph, seqId, complement, true, fmIndex);
-			graph.filterEdgesAndEmbedded (seqId);
-			if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
-			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
+			CharSequence seq = sequences.get(seqId);
+			if(numThreads==1) {
+				processSequence(graph, fmIndex, seqId, seq);
+				if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
+				continue;
+			}
+			Runnable task = new ProcessSequenceTask(this, graph, fmIndex, seqId, seq);
+			pool.execute(task);
+		}
+		pool.shutdown();
+		try {
+			pool.awaitTermination(2*sequences.size(), TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+    	if(!pool.isShutdown()) {
+			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
 		}
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
 		graph.pruneEmbeddedSequences();
@@ -98,8 +119,18 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		return graph;
 	}
 
+	void processSequence(AssemblyGraph graph, FMIndex fmIndex, int seqId, CharSequence seq) {
+		updateGraph(graph, seqId, seq, false, fmIndex);
+		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
+		updateGraph(graph, seqId, complement, true, fmIndex);
+		synchronized (graph) {
+			graph.filterEdgesAndEmbedded (seqId);
+		}
+		if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
+	}
 
-	private void updateGraph(AssemblyGraph graph, int querySequenceId, String query, boolean queryRC, FMIndex fmIndex) {
+
+	private void updateGraph(AssemblyGraph graph, int querySequenceId, CharSequence query, boolean queryRC, FMIndex fmIndex) {
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
 		
 		
@@ -163,7 +194,9 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 				firstQueryCoverage = cluster.getQueryCoverage();
 			}
 			else if (3.0*pct<firstScoreCluster || 2.0*cluster.getQueryCoverage()<firstQueryCoverage) break;
-			processAlignment(graph, querySequenceId, queryRC, cluster);
+			synchronized (graph) {
+				processAlignment(graph, querySequenceId, queryRC, cluster);
+			}
 		}
 	}
 
@@ -178,25 +211,12 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 		for(int targetIdx:hitsByTargetSequence.keySet()) {
 			List<FMIndexUngappedSearchHit> targetHits = hitsByTargetSequence.get(targetIdx);
-			if(targetHits.size()>=minKmers) clusters.addAll(clusterSequenceKmerAlns(querySequenceId, query, targetHits));
+			// TODO: choose better min coverage
+			if(targetHits.size()>=minKmers) clusters.addAll(LongReadsAligner.clusterSequenceKmerAlns(querySequenceId, query, targetHits, 0));
 		}
 		return clusters;
 	}
-	public static List<KmerHitsCluster> clusterSequenceKmerAlns(int querySequenceId, CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits) {
-		List<KmerHitsCluster> answer = new ArrayList<>();
-		
-		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceKmerHits);
-		if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
-		answer.add(uniqueCluster);
-		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceKmerHits.size()) return answer;
-		//Cluster remaining hits
-		List<FMIndexUngappedSearchHit> remainingHits = new ArrayList<FMIndexUngappedSearchHit>();
-		for(FMIndexUngappedSearchHit hit:sequenceKmerHits) {
-			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
-		}
-		answer.add(new KmerHitsCluster(query, remainingHits));
-		return answer;
-	}
+	
 	
 	public void printTargetHits(List<FMIndexUngappedSearchHit> targetHits) {
 		for(FMIndexUngappedSearchHit hit:targetHits) {
@@ -266,4 +286,31 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			log.warning("Possible reverse embedded. Query id: "+querySequenceId+" length: "+queryLength+" target id: "+targetSeqIdx+" length: "+targetLength+" first target: "+firstTarget+" last target: "+lastTarget);
 		}
 	}
+}
+class ProcessSequenceTask implements Runnable {
+	private GraphBuilderFMIndex parent;
+	private AssemblyGraph graph;
+	private FMIndex fmIndex;
+	private int sequenceId;
+	private CharSequence sequence;
+	
+	
+	
+	
+	public ProcessSequenceTask(GraphBuilderFMIndex parent, AssemblyGraph graph, FMIndex fmIndex, int sequenceId, CharSequence sequence) {
+		super();
+		this.parent = parent;
+		this.graph = graph;
+		this.fmIndex = fmIndex;
+		this.sequenceId = sequenceId;
+		this.sequence = sequence;
+	}
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		parent.processSequence(graph, fmIndex, sequenceId, sequence);
+		if ((sequenceId+1)%100==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
+	}
+	
+	
 }

@@ -124,7 +124,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				
 				
 				int overlap = edge.getOverlap();
-				ReadAlignment aln = aligner.alignRead(rawConsensus, nextPathSequence, Math.max(0, rawConsensus.length()-overlap-10), rawConsensus.length(), MOCK_REFERENCE_NAME);
+				//TODO: see if it is worth to improve the estimated overlap
+				/*ReadAlignment aln = aligner.alignRead(rawConsensus, nextPathSequence, Math.max(0, rawConsensus.length()-overlap-10), rawConsensus.length(), MOCK_REFERENCE_NAME);
 				if(aln== null) {
 					log.info("Path sequence with id "+vertexNextEdge.getSequenceIndex()+" and length "+rawConsensus.length()+" could not be aligned to consensus");
 				} else {
@@ -136,7 +137,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					}
 					//System.out.println("Next path read id: "+vertexNextEdge.getSequenceIndex()+" Remainder calculated from alignment: "+remainder+" remainder from edge: "+(seq.length()-overlap)+" overlap: "+overlap+" length: "+seq.length());
 					//if(newStart > 0 && newStart>lastIntegratedReadStart-200 && newStart<lastIntegratedReadStart ) lastIntegratedReadStart = newStart;
-				}
+				}*/
 				
 				if(overlap<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
@@ -154,7 +155,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if(reverse) read = DNASequence.getReverseComplement(read.toString());
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,rawConsensus.length()-read.length(),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME);
+				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
 				if (alnRead!=null) {
 					alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 					alignments.add(alnRead);
@@ -169,7 +170,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNASequence.getReverseComplement(embeddedRead.toString());
 					totalReads++;
-					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME);
+					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
 					if(alnEmbedded!=null) {
 						alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
@@ -201,7 +202,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		realignerListener.setGenome(genome);
 		generator.addListener(realignerListener);
 		VariantPileupListener varListener = new VariantPileupListener();
-		varListener.setMinQuality((short) 40);
+		varListener.setMinQuality((short) 80);
 		varListener.setGenome(genome);
 		generator.addListener(varListener);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());

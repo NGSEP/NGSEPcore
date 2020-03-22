@@ -41,9 +41,9 @@ public class PairwiseAlignmentAffineGap {
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
-		insertionScores = new int [2100][2100];
-		deletionScores = new int [2100][2100];
-		matchScores = new int [2100][2100];
+		insertionScores = new int [4100][4100];
+		deletionScores = new int [4100][4100];
+		matchScores = new int [4100][4100];
 	}
 	
 	public String[] getAlignment(String s1, String s2) 
