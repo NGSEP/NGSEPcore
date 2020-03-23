@@ -41,7 +41,7 @@ import ngsep.sequences.PairwiseAlignmentAffineGap;
 public class LongReadsAligner {
 
 	private int maxLengthFullPairwiseAlignment = 4000;
-	private PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
+	private PairwiseAlignmentAffineGap aligner = null;
 	public Map<CharSequence, Integer> extractUniqueKmers(CharSequence sequence, int start, int end) {
 		Map<Integer, CharSequence> rawKmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, start, end, true, true, true);
 		Map<CharSequence, Integer> answer = new LinkedHashMap<CharSequence, Integer>();
@@ -134,6 +134,7 @@ public class LongReadsAligner {
 	}
 
 	private ReadAlignment buildCompleteAlignment(CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster, String subjectName) {
+		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		
 		int clusterFirst = kmerHitsCluster.getFirst();

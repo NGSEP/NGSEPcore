@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import ngsep.math.Distribution;
+
 public class MinimizersTable {
 	private int kmerLength;
 	private int windowLength;
 	
 	
-	private Map<Integer, List<Long>> entriesByMinimizer = new HashMap<Integer, List<Long>>();
+	private Map<Integer, List<Integer>> sequencesByMinimizer = new HashMap<Integer, List<Integer>>();
 	private List<Integer> minimizerCountsBySequence = new ArrayList<Integer>();
 	
 	
@@ -28,15 +30,15 @@ public class MinimizersTable {
 		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence, kmerLength, 1, 0, sequence.length(), false, true, true);
 		Map<Integer, List<MinimizerEntry>> minimizersSeq = computeSequenceMinimizers(kmers, sequence.length());
 		for(int minimizer:minimizersSeq.keySet()) {
-			synchronized (entriesByMinimizer) {
-				List<Long> minList = entriesByMinimizer.computeIfAbsent(minimizer, l -> new ArrayList<Long>());
-				List<MinimizerEntry> entries = minimizersSeq.get(minimizer); 
-				for(MinimizerEntry entry:entries) minList.add(entry.encode());
+			//List<MinimizerEntry> entries = minimizersSeq.get(minimizer);
+			synchronized (sequencesByMinimizer) {
+				List<Integer> minList = sequencesByMinimizer.computeIfAbsent(minimizer, l -> new ArrayList<Integer>());
+				minList.add(minimizerCountsBySequence.size());
 			}
 		}
 		minimizerCountsBySequence.add(minimizersSeq.size());
 		int seqId = minimizerCountsBySequence.size();
-		if (seqId%100==0) System.out.println("Added "+seqId+" sequences. Total minimizers:"+entriesByMinimizer.size());
+		if (seqId%100==0) System.out.println("Added "+seqId+" sequences. Total minimizers:"+sequencesByMinimizer.size());
 	}
 
 	private Map<Integer, List<MinimizerEntry>> computeSequenceMinimizers(Map<Integer, CharSequence> kmers, int n) {
@@ -104,16 +106,16 @@ public class MinimizersTable {
 		//System.out.println("Computed: "+minimizersSeq.size()+" minimizers for sequence "+queryIdx);
 		Map<Integer,Integer> answer = new HashMap<Integer, Integer>();
 		for(int minimizer:minimizersSeq.keySet()) {
-			List<Long> entriesMatching = entriesByMinimizer.get(minimizer);
+			List<Integer> entriesMatching = sequencesByMinimizer.get(minimizer);
 			if (entriesMatching==null) {
 				System.out.println("Warning. Zero matches for minimizer: "+minimizer+" from sequence "+queryIdx+" matches query: "+minimizersSeq.get(minimizer).size());
 				continue;
 			}
 			Set<Integer> targetSeqs = new HashSet<Integer>();
-			for(Long matchingEntryCode:entriesMatching) {
-				MinimizerEntry matchingEntry = new MinimizerEntry(matchingEntryCode);
-				if (matchingEntry.getSequenceId()==queryIdx) continue;
-				targetSeqs.add(matchingEntry.getSequenceId()); 
+			for(int sequenceId:entriesMatching) {
+				//MinimizerEntry matchingEntry = new MinimizerEntry(matchingEntryCode);
+				if (sequenceId==queryIdx) continue;
+				targetSeqs.add(sequenceId); 
 			}
 			for(int targetId:targetSeqs) {
 				int count = answer.computeIfAbsent(targetId, v->0);
@@ -121,6 +123,15 @@ public class MinimizersTable {
 			}
 		}
 		return answer;
+	}
+
+	public Distribution calculateDistributionHits() {
+		Distribution dist = new Distribution(1, 50, 1);
+		for(List<Integer> list:sequencesByMinimizer.values()) {
+			dist.processDatapoint(list.size());
+			
+		}
+		return dist;
 	}
 }
 class MinimizerEntry {

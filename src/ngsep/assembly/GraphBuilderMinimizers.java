@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.LongReadsAligner;
+import ngsep.math.Distribution;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
@@ -81,15 +82,20 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId);
-			poolCreate.execute (new Runnable() {
-				@Override
-				public void run() {
-					table.addSequence(seq.toString());
-				}
-			});
+			if(numThreads==1) table.addSequence(seq);
+			else {
+				poolCreate.execute (new Runnable() {
+					@Override
+					public void run() {
+						table.addSequence(seq);
+					}
+				});
+			}
 		}
 		waitToFinish(time, poolCreate);
 		log.info("Built minimizers");
+		Distribution minimizerHitsDist = table.calculateDistributionHits();
+		minimizerHitsDist.printDistributionInt(System.out);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
