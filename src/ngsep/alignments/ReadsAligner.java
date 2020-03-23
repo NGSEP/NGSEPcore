@@ -43,7 +43,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.LimitedSequence;
@@ -724,8 +724,8 @@ public class ReadsAligner {
 	}
 	private List<ReadAlignment> exactSingleStrandSearch(String query, String qualityScores, String readName) {
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
-		List<FMIndexUngappedSearchHit> readHits=fMIndex.exactSearch(query);
-		for(FMIndexUngappedSearchHit hit: readHits) {
+		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
+		for(UngappedSearchHit hit: readHits) {
 			String cigar = ""+query.length();
 			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
 			ReadAlignment aln = buildAln (query,qualityScores,hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
@@ -749,7 +749,7 @@ public class ReadsAligner {
 		//System.out.println("Read name: "+readName+" length "+query.length()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return finalAlignments;
-		List<FMIndexUngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
+		List<UngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
 		List<KmerHitsCluster> clusteredKmerHits = clusterKmerHits(query, initialKmerHits); 
 		//System.out.println("Initial kmer hits: "+initialKmerHits.size()+" Clusters: "+clusteredKmerHits.size());
 		Collections.sort(clusteredKmerHits, (o1, o2) -> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
@@ -786,17 +786,17 @@ public class ReadsAligner {
 	 * @param kmers to search
 	 * @return List of alignments of each kmer. The read number of each alignment contains the kmer number.
 	 */
-	private List<FMIndexUngappedSearchHit> searchKmers(Map<Integer,CharSequence> kmersMap) {
-		List<FMIndexUngappedSearchHit> answer = new ArrayList<>();
+	private List<UngappedSearchHit> searchKmers(Map<Integer,CharSequence> kmersMap) {
+		List<UngappedSearchHit> answer = new ArrayList<>();
 		for (int start:kmersMap.keySet()) {
 			String kmer = kmersMap.get(start).toString();
 			if(repetitiveKmers.contains(kmer)) continue;
-			List<FMIndexUngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
+			List<UngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
 			if(kmerHits.size()>10) {
 				repetitiveKmers.add(kmer);
 				continue;
 			}
-			for(FMIndexUngappedSearchHit hit:kmerHits) {
+			for(UngappedSearchHit hit:kmerHits) {
 				hit.setQueryIdx(start);
 				answer.add(hit);
 			}
@@ -804,25 +804,25 @@ public class ReadsAligner {
 		return answer;
 	}
 
-	private List<KmerHitsCluster> clusterKmerHits(String query, List<FMIndexUngappedSearchHit> initialKmerHits) {
+	private List<KmerHitsCluster> clusterKmerHits(String query, List<UngappedSearchHit> initialKmerHits) {
 		List<KmerHitsCluster> clusters = new ArrayList<>();
-		Map<String,List<FMIndexUngappedSearchHit>> hitsBySubjectName = new LinkedHashMap<String, List<FMIndexUngappedSearchHit>>();
-		for(FMIndexUngappedSearchHit hit:initialKmerHits) {
-			List<FMIndexUngappedSearchHit> hitsSeq = hitsBySubjectName.computeIfAbsent(hit.getSequenceName(), k -> new ArrayList<>());
+		Map<String,List<UngappedSearchHit>> hitsBySubjectName = new LinkedHashMap<String, List<UngappedSearchHit>>();
+		for(UngappedSearchHit hit:initialKmerHits) {
+			List<UngappedSearchHit> hitsSeq = hitsBySubjectName.computeIfAbsent(hit.getSequenceName(), k -> new ArrayList<>());
 			hitsSeq.add(hit);
 		}
-		for(List<FMIndexUngappedSearchHit> hitsSeq:hitsBySubjectName.values()) {
+		for(List<UngappedSearchHit> hitsSeq:hitsBySubjectName.values()) {
 			Collections.sort(hitsSeq, (hit0,hit1)-> hit0.getStart()-hit1.getStart());
 			clusters.addAll(clusterSequenceKmerAlns(query, hitsSeq));
 		}
 		return clusters;
 	}
 	
-	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, List<FMIndexUngappedSearchHit> sequenceHits) {
+	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, List<UngappedSearchHit> sequenceHits) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
 		KmerHitsCluster cluster=null;
-		for(FMIndexUngappedSearchHit kmerHit:sequenceHits) {
+		for(UngappedSearchHit kmerHit:sequenceHits) {
 			if(cluster==null || !cluster.addKmerHit(kmerHit, 0)) {
 				cluster = new KmerHitsCluster(query, kmerHit);
 				answer.add(cluster);

@@ -11,7 +11,7 @@ import java.util.Map;
 
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.math.Distribution;
-import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 
 public class TransposonFinder {
@@ -87,7 +87,7 @@ public class TransposonFinder {
 		//Subsequence 20bp
 		for (int i = 0; i + lengthKmer < seq.length(); i+=10) {
 			String kmer = seq.subSequence(i, (i+lengthKmer)).toString().toUpperCase();
-			List<FMIndexUngappedSearchHit> hits = fm.exactSearch(kmer);
+			List<UngappedSearchHit> hits = fm.exactSearch(kmer);
 			distrHits.processDatapoint(hits.size());
 			// If the kmer is more than the min hit size
 			if(hits.size() > minHitSize ) {

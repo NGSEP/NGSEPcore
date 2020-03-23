@@ -2,7 +2,7 @@ package ngsep.sequences;
 
 import java.io.Serializable;
 
-public class FMIndexUngappedSearchHit implements Serializable {
+public class UngappedSearchHit implements Serializable {
 	private static final long serialVersionUID = 5920964399280119643L;
 	private int queryIdx=-1;
 	private CharSequence query;
@@ -18,7 +18,7 @@ public class FMIndexUngappedSearchHit implements Serializable {
 	 * @param sequenceName Name of the subject sequence
 	 * @param start zero based first position of the hit within the subject
 	 */
-	public FMIndexUngappedSearchHit(CharSequence query, String sequenceName, int start) {
+	public UngappedSearchHit(CharSequence query, String sequenceName, int start) {
 		this.query = query;
 		this.sequenceName = sequenceName;
 		this.start = start;
@@ -27,13 +27,11 @@ public class FMIndexUngappedSearchHit implements Serializable {
 	 * Creates a new ungapped hit to an FMIndex sequence
 	 * @param query sequence
 	 * @param sequenceIdx id of the subject sequence
-	 * @param sequenceName Name of the subject sequence
 	 * @param start zero based first position of the hit within the subject
 	 */
-	public FMIndexUngappedSearchHit(CharSequence query, int sequenceIdx, String sequenceName, int start) {
+	public UngappedSearchHit(CharSequence query, int sequenceIdx, int start) {
 		this.query = query;
 		this.sequenceIdx = sequenceIdx;
-		this.sequenceName = sequenceName;
 		this.start = start;
 	}
 	public CharSequence getQuery() {
@@ -51,6 +49,9 @@ public class FMIndexUngappedSearchHit implements Serializable {
 	}
 	public String getSequenceName() {
 		return sequenceName;
+	}
+	public void setSequenceName(String sequenceName) {
+		this.sequenceName = sequenceName;
 	}
 	public int getStart() {
 		return start;

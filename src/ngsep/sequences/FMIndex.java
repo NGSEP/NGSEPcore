@@ -89,7 +89,7 @@ public class FMIndex implements Serializable
 		int nI=0;
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
-			if(nI>0 && internalSequence.length() + next.length() > (100000000) ) {
+			if(nI>0 && internalSequence.length() + next.length() > (500000000) ) {
 				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
@@ -120,7 +120,7 @@ public class FMIndex implements Serializable
 	 * @param query Sequence to search
 	 * @return List<FMIndexUngappedSearchHit> exact hits to the sequences indexed by this FMIndex 
 	 */
-	public List<FMIndexUngappedSearchHit> exactSearch (String query) {
+	public List<UngappedSearchHit> exactSearch (String query) {
 		return exactSearch(query, 0, sequenceLengths.size());
 	}
 	/**
@@ -131,8 +131,8 @@ public class FMIndex implements Serializable
 	 * @param lastIndex of the subject sequence to look for
 	 * @return
 	 */
-	public List<FMIndexUngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
-		List<FMIndexUngappedSearchHit> hits = new ArrayList<>();
+	public List<UngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
+		List<UngappedSearchHit> hits = new ArrayList<>();
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
@@ -155,14 +155,14 @@ public class FMIndex implements Serializable
 				int last = start + queryLength - 1;
 				//Match with artificial concatenation between sequences
 				if(last>=sequenceLength) continue;
-				String seqName = ""+sequenceIdx;
-				if(sequencesWithNames!=null) seqName = sequencesWithNames.get(sequenceIdx).getName();
+				
 				//ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
-				FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(query, sequenceIdx, seqName, start);
+				UngappedSearchHit hit = new UngappedSearchHit(query, sequenceIdx, start);
+				if(sequencesWithNames!=null) hit.setSequenceName(sequencesWithNames.get(sequenceIdx).getName());
 				hits.add(hit);
 			}
 		}
-		for(FMIndexUngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
+		for(UngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
 		return hits;
 	}
 	/**

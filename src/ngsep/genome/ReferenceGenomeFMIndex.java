@@ -28,7 +28,7 @@ import java.io.Serializable;
 import java.util.List;
 
 import ngsep.sequences.FMIndex;
-import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
@@ -110,7 +110,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 * @param searchSequence sequence to search
 	 * @return List<ReadAlignment> Alignments of the given sequence to segments of sequences in this index
 	 */
-	public List<FMIndexUngappedSearchHit> exactSearch (String searchSequence) {
+	public List<UngappedSearchHit> exactSearch (String searchSequence) {
 		return internalIndex.exactSearch(searchSequence);
 	}
 	/**

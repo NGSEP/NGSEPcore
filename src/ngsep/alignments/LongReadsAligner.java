@@ -30,7 +30,7 @@ import java.util.Set;
 
 import ngsep.assembly.AlignmentConstantGap;
 import ngsep.genome.GenomicRegionSpanComparator;
-import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
@@ -69,6 +69,17 @@ public class LongReadsAligner {
 		}
 		return answer;
 	}
+	public List<UngappedSearchHit> alignUniqueKmers(int subjectIdx, Map<CharSequence, Integer> uniqueKmersSubject, Map<CharSequence, Integer> uniqueKmersQuery) {
+		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();
+		for(CharSequence kmerRead:uniqueKmersQuery.keySet()) {
+			Integer subjectPos = uniqueKmersSubject.get(kmerRead);
+			if(subjectPos==null) continue;
+			UngappedSearchHit hit = new UngappedSearchHit(kmerRead, subjectIdx , subjectPos);
+			hit.setQueryIdx(uniqueKmersQuery.get(kmerRead));
+			initialKmerHits.add(hit);
+		}
+		return initialKmerHits;
+	}
 
 	public ReadAlignment alignRead(CharSequence subject, CharSequence read, int start, int end, String subjectName, double minQueryCoverage) {
 		Map<CharSequence, Integer> uniqueKmersSubject = extractUniqueKmers(subject,start,end);
@@ -78,14 +89,7 @@ public class LongReadsAligner {
 	public ReadAlignment alignRead(CharSequence subject, CharSequence read, Map<CharSequence, Integer> uniqueKmersSubject, String subjectName, double minQueryCoverage) {
 		Map<CharSequence, Integer> uniqueKmersRead = extractUniqueKmers(read,0,read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
-		List<FMIndexUngappedSearchHit> initialKmerHits = new ArrayList<FMIndexUngappedSearchHit>();
-		for(CharSequence kmerRead:uniqueKmersRead.keySet()) {
-			Integer subjectPos = uniqueKmersSubject.get(kmerRead);
-			if(subjectPos==null) continue;
-			FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(kmerRead, "", subjectPos);
-			hit.setQueryIdx(uniqueKmersRead.get(kmerRead));
-			initialKmerHits.add(hit);
-		}
+		List<UngappedSearchHit> initialKmerHits = alignUniqueKmers(-1,uniqueKmersSubject, uniqueKmersRead);
 		if(initialKmerHits.size()==0) return null;
 		List<KmerHitsCluster> clusters = clusterSequenceKmerAlns(0, read, initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
@@ -102,7 +106,9 @@ public class LongReadsAligner {
 		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
 		return buildCompleteAlignment(subject, read, bestCluster, subjectName);
 	}
-	public static List<KmerHitsCluster> clusterSequenceKmerAlns(int querySequenceId, CharSequence query, List<FMIndexUngappedSearchHit> sequenceKmerHits, double minQueryCoverage) {
+
+	
+	public static List<KmerHitsCluster> clusterSequenceKmerAlns(int querySequenceId, CharSequence query, List<UngappedSearchHit> sequenceKmerHits, double minQueryCoverage) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceKmerHits);
@@ -111,8 +117,8 @@ public class LongReadsAligner {
 		answer.add(uniqueCluster);
 		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceKmerHits.size()) return answer;
 		//Cluster remaining hits
-		List<FMIndexUngappedSearchHit> remainingHits = new ArrayList<FMIndexUngappedSearchHit>();
-		for(FMIndexUngappedSearchHit hit:sequenceKmerHits) {
+		List<UngappedSearchHit> remainingHits = new ArrayList<UngappedSearchHit>();
+		for(UngappedSearchHit hit:sequenceKmerHits) {
 			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
 		}
 		KmerHitsCluster cluster2 = new KmerHitsCluster(query, remainingHits);
@@ -128,7 +134,7 @@ public class LongReadsAligner {
 	}
 
 	private ReadAlignment buildCompleteAlignment(CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster, String subjectName) {
-		List<FMIndexUngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
+		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		
 		int clusterFirst = kmerHitsCluster.getFirst();
 		int subjectNext = Math.max(0, clusterFirst-1);
@@ -141,7 +147,7 @@ public class LongReadsAligner {
 		char softClipOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
 		StringBuilder cigar = new StringBuilder();
 		int nextMatchLength = 0;
-		for(FMIndexUngappedSearchHit kmerHit:kmerHits) {
+		for(UngappedSearchHit kmerHit:kmerHits) {
 			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {

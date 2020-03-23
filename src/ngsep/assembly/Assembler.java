@@ -55,8 +55,8 @@ public class Assembler {
 	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
-	public static final int DEF_MIN_KMER_PCT = 20;
-	public static final int DEF_NUM_THREADS = 1;
+	public static final int DEF_MIN_KMER_PCT = GraphBuilderMinimizers.DEF_MIN_KMER_PCT;
+	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(Assembler.class.getName());
@@ -224,10 +224,18 @@ public class Assembler {
 			}
 			// Dispose original qualified sequences
 			sequencesQL = null;
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
-			gbIndex.setLog(log);
-			graph =  gbIndex.buildAssemblyGraph(finalSequences);
-			log.info("Built graph");
+			//GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
+			//gbIndex.setLog(log);
+			//graph =  gbIndex.buildAssemblyGraph(finalSequences);
+			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
+			builder.setKmerLength(kmerLength);
+			//builder.setWindowLength(windowLength);
+			builder.setMinKmerPercentage(minKmerPercentage);
+			builder.setNumThreads(numThreads);
+			builder.setLog(log);
+			graph = builder.buildAssemblyGraph(finalSequences);
+			log.info("Built assembly graph");
+			
 			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 			if(outFileGraph!=null) {
 				graph.serialize(outFileGraph);
