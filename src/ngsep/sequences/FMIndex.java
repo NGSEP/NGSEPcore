@@ -89,7 +89,7 @@ public class FMIndex implements Serializable
 		int nI=0;
 		for(int i=0;i<n;i++) {
 			String next = sequences.get(i).toString();
-			if(nI>0 && internalSequence.length() + next.length() > (500000000) ) {
+			if(nI>0 && internalSequence.length() + next.length() > (100000000) ) {
 				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
