@@ -112,6 +112,7 @@ public class FMIndex implements Serializable
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
+			internalSequence = new StringBuffer();
 		}
 	}
 	/**

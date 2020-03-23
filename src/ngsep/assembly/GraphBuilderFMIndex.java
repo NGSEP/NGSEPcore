@@ -39,8 +39,8 @@ import ngsep.sequences.KmersExtractor;
  */
 public class GraphBuilderFMIndex implements GraphBuilder {
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
-	private final static int TALLY_DISTANCE = 200;
-	private final static int SUFFIX_FRACTION = 40;
+	private final static int TALLY_DISTANCE = 100;
+	private final static int SUFFIX_FRACTION = 20;
 	
 	private static final int TIMEOUT_SECONDS = 30;
 
