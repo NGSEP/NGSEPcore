@@ -21,7 +21,7 @@ public class HomologClustersCalculator {
 	private int countClique = 0;
 	private int countMCL = 0;
  
-	private Logger log.info;
+	private Logger log;
 	
 	public Logger getLog() {
 		return log;
