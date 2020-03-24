@@ -1,28 +1,111 @@
 package ngsep.graphs;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class MCLJob extends Thread {
-	private static final float FAKE_LINK_VALUE = 20;
-	private static final float ZERO_THRESHOLD = 0.0001f;
-	private static final float INFLATION_COEFFICIENT = 2;
+	private static final double FAKE_LINK_VALUE = 20;
+	private static final double ZERO_THRESHOLD = 0.001;
+	private static final int E_POWER = 2;
+	private static final double INFLATION_COEFFICIENT = 2;
+	private static final double DEVIATION_THRESHOLD = 0.000001;
 	
-	private float[][] similarityMatrix;
+	private double[][] matrixCopy;
+	private double[][] similarityMatrix;
+	private List<List<Integer>> clusters;
 	
-	public MCLJob(float[][] similarityMatrix) {
+	public MCLJob(double[][] providedMatrix) {
 		super();
-		this.similarityMatrix = similarityMatrix;
+		this.similarityMatrix = providedMatrix;
+		this.matrixCopy = copyOf(similarityMatrix);
+		this.clusters = new ArrayList<>();
 	}
 
 	@Override
 	public void run() {
 		similarityMatrix = completeMatrix(similarityMatrix);
-		similarityMatrix = normalizeMatrix(similarityMatrix);
+		similarityMatrix = fitMatrix(similarityMatrix);
+		
+		int runs = 0;
+		boolean convergenceState = false;
+		double[][] backup;
+		while(!convergenceState) {
+			//System.out.println(String.format("Runs count %d", ++runs));
+			
+			backup = copyOf(similarityMatrix);
+			backup = squareMatrixTimes(backup, E_POWER);
+			backup = inflateMatrix(backup, INFLATION_COEFFICIENT);
+			convergenceState = verifyConvergence(backup, similarityMatrix, DEVIATION_THRESHOLD);
+			similarityMatrix = backup;
+		}
+		
+		similarityMatrix = consolidateAttractors(similarityMatrix);
+		clusters = extractResults(similarityMatrix);
+	}
+
+	public double[][] getSimilarityMatrix() {
+		return similarityMatrix;
 	}
 	
-	public float[][] getSimilarityMatrix() {
-		return similarityMatrix;
+	public void printMatrix(double[][] matrix) {
+		for(double[] arr : matrix) {
+			double sum = 0;
+			for(int i = 0; i < arr.length; i++) sum += arr[i];
+			System.out.println(String.format("%s || %f", Arrays.toString(arr), sum));
+		}
+	}
+	
+	private List<List<Integer>> extractResults(double[][] matrix) {
+		List<List<Integer>> clusters = new ArrayList<>();
+		
+		for(int j = 0; j < matrix.length; j++) {
+			ArrayList<Integer> cluster = new ArrayList<>();
+			for(int i = 0; i < matrix.length; i++) {
+				if(matrix[i][j] > 0) {
+					cluster.add(i);
+				}
+			}
+			if(cluster.size() > 0) clusters.add(cluster);
+		}
+		
+		return clusters;
+	}
+	
+	/**
+	 * Verifies if the standard deviation the matrix is below the desired threshold. Each matrix needs to have the same dimensions.
+	 * @param oldState one state to be compared
+	 * @param newState other state to be compared
+	 * @return true if the std is below the desired threshold, false otherwise.
+	 */
+	private boolean verifyConvergence(double[][] oldState, double[][] newState, double threshold) {
+		double squaredSum = 0;
+		for(int i = 0; i < oldState.length; i++) {
+			for(int j = 0; j < oldState[0].length; j++) {
+				double errVal = oldState[i][j] - newState[i][j];
+				squaredSum += (errVal)*(errVal);
+			}
+		}
+		double count = (oldState.length*oldState[0].length) - 1;
+		double std = Math.sqrt(squaredSum/(count));
+		//System.out.println(String.format("STD WAS %f", std));
+		return std <= threshold;
+	}
+	
+	private double[][] consolidateAttractors(double[][] matrix) {
+		for(int i = 0; i < matrix.length; i++) {
+			int index = 0;
+			double max = 0;
+			for(int j = 0; j < matrix.length; j++) {
+				if(max < matrix[i][j]) {
+					index = j;
+					max = matrix[i][j];
+				}
+				matrix[i][j] = 0;
+			}
+			matrix[i][index] = 1;
+		}
+		return matrix;
 	}
 	
 	/**
@@ -30,9 +113,9 @@ public class MCLJob extends Thread {
 	 * @param matrix matrix to be normalized
 	 * @return
 	 */
-	private float[][] normalizeMatrix(float[][] matrix) {
+	private double[][] fitMatrix(double[][] matrix) {
 		for(int i = 0; i < matrix.length; i++) {
-			float sum = 0;
+			double sum = 0;
 			int valid = 0;
 			for(int j = 0; j < matrix.length; j++) {
 				if (matrix[i][j] > 0) {
@@ -53,11 +136,31 @@ public class MCLJob extends Thread {
 	}
 	
 	/**
+	 * Normalizes a given row, taking the weight of each edge and returning a distribution probability over all edges.
+	 * @param row row to be normalized
+	 * @return normalized row
+	 */
+	private double[] normalizeRow(double[] row) {
+		double sum = 0;
+		for(int j = 0; j < row.length; j++) {
+			if (row[j] > 0) {
+				sum += row[j];
+			}
+		}
+		
+		if(sum > 0) {
+			for(int j = 0; j < row.length; j++) row[j] = row[j]/sum;
+		}
+		
+		return row;
+	}
+	
+	/**
 	 * Returns a matrix where if node_i has a link to node_j, then node_j will have a link to node_i. The added links have the value given by constant FAKE_LINK_VALUE
 	 * @param matrix matrix to be completed
 	 * @return
 	 */
-	private float[][] completeMatrix(float[][] matrix) {
+	private double[][] completeMatrix(double[][] matrix) {
 		for(int i = 0; i < matrix.length; i++) {
 			for(int j = 0; j < matrix.length - i; j++) {
 				if(i == j) continue;
@@ -78,21 +181,22 @@ public class MCLJob extends Thread {
 	 * @param times iterations to square the matrix, has to be > 0. e.g. times = 4 returns M^16
 	 * @return
 	 */
-	private float[][] squareMatrixTimes(float[][] matrix, int times) {
+	private double[][] squareMatrixTimes(double[][] matrix, int times) {
 		if(times < 1) {
 			return matrix;
 		}
 		
 		for(int k = 0; k < times; k++) {
-			float[][] base = new float[matrix.length][];
-			for(int i = 0; i < matrix.length; i++) base[i] = new float[matrix.length];
+			double[][] base = new double[matrix.length][];
+			for(int i = 0; i < matrix.length; i++) base[i] = new double[matrix.length];
 			
 			for(int i = 0; i < matrix.length; i++) {
 				for(int j = 0; j < matrix.length; j++) {
-					float val = 0;
+					double val = 0;
 					for(int z = 0; z < matrix.length; z++) {
 						val += matrix[i][z]*matrix[z][j];
 					}
+					if(val <= ZERO_THRESHOLD) val = 0;
 					base[i][j] = val;
 				}
 			}
@@ -104,17 +208,20 @@ public class MCLJob extends Thread {
 	}
 	
 	/**
-	 * Takes the provided matrix and multiplies every value by the given coefficient.
+	 * Takes the provided matrix and elevates a random row to the given coefficient, then normalizes all rows.
 	 * @param matrix matrix to be inflated.
 	 * @param coefficient coefficient to be used.
 	 * @return
 	 */
-	private float[][] inflateMatrix(float[][] matrix, float coefficient) {
-		for(int i = 0; i < matrix.length; i++) {
-			for(int j = 0; j < matrix.length; j++) {
-				matrix[i][j] = matrix[i][j]*coefficient;
-			}
+	private double[][] inflateMatrix(double[][] matrix, double coefficient) {
+		//Select random row
+		int k = (int) (Math.random()*matrix.length);
+		//Elevate to the coefficient
+		for(int j = 0; j < matrix.length; j++) {
+			matrix[k][j] = (double) Math.pow(matrix[k][j], coefficient);
 		}
+		//Normalize row
+		for(int i = 0; i < matrix.length; i++) matrix[i] = this.normalizeRow(matrix[i]);
 		return matrix;
 	}
 	
@@ -123,19 +230,49 @@ public class MCLJob extends Thread {
 	 * @param matrix matrix to be copied.
 	 * @return
 	 */
-	private float[][] copyOf(float[][] matrix) {
-		float[][] copy = new float[matrix.length][];
+	private double[][] copyOf(double[][] matrix) {
+		double[][] copy = new double[matrix.length][];
 		for(int i = 0; i < matrix.length; i++) copy[i] = Arrays.copyOf(matrix[i], matrix[i].length);
 		return copy;
 	}
 	
 	public static void main(String[] args) {
-		float[][] test = {{1,2,3},{4,5,6},{7,8,9}};
-		MCLJob job = new MCLJob(test);
-		test = job.squareMatrixTimes(test, 3);
+		double[][] basic = {
+				{},
+				{},
+				{},
+				{},
+				{},
+				{}
+		};
 		
-		for(float[] arr : test) {
-			System.out.println(Arrays.toString(arr));
+		double[][] complex = {
+				{0, 0.33f, 0.34f, 0.33f, 0, 0, 0, 0},
+				{0.5f, 0, 0.5f, 0, 0, 0, 0, 0},
+				{0.399f, 0.3f, 0, 0.3f, 0.001f, 0, 0, 0},
+				{0.5f, 0, 0.5f, 0, 0, 0, 0, 0},
+				{0, 0, 0.001f, 0, 0, 0.3f, 0.3f, 0.399f},
+				{0, 0, 0, 0, 0.5f, 0, 0, 0.5f},
+				{0, 0, 0, 0, 0.5f, 0, 0, 0.5f},
+				{0, 0, 0, 0, 0.34f, 0.33f, 0.33f, 0},
+			};
+		
+		double[][] test = complex;
+		for(double[] arr : test) {
+			double sum = 0;
+			for(int i = 0; i < arr.length; i++) sum += arr[i];
+			System.out.println(String.format("%s || %f", Arrays.toString(arr), sum));
 		}
+		
+		MCLJob job = new MCLJob(test);
+		job.run();
+		List<List<Integer>>results = job.getResults();
+		for(List<Integer> arr : results) {
+			System.out.println(String.format("%s", Arrays.toString(arr.toArray())));
+		}
+	}
+
+	public List<List<Integer>> getResults() {
+		return clusters;
 	}
 }
