@@ -35,7 +35,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
-	private static int idxDebug = 400;
+	private static int idxDebug = -1;
 	
 	public Logger getLog() {
 		return log;
@@ -78,15 +78,18 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, minKmerPercentage);
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
-		int time = 2*sequences.size();
 		
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId);
 			table.addSequence(seqId, seq);
 		}
-		log.info("Built minimizers");
+		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
+		
+		table.clearSingletonMinimizers();
+		log.info("Minimizers after removing singletons: "+table.getTotalMinimizers());
+		
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -99,8 +102,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
 			poolSearch.execute(task);
 		}
-		
-		waitToFinish(time, poolSearch);
+		int finishTime = 2*sequences.size();
+		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
 		graph.pruneEmbeddedSequences();
 		log.info("Prunned graph. Edges: "+graph.getEdges().size());

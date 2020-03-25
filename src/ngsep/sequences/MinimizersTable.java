@@ -131,4 +131,19 @@ public class MinimizersTable {
 		}
 		return dist;
 	}
+
+	/**
+	 * Removes minimizers observed only one time 
+	 */
+	public void clearSingletonMinimizers() {
+		List<Integer> minimizers = new ArrayList<Integer>();
+		minimizers.addAll(sequencesByMinimizer.keySet());
+		for(int minimizer:minimizers) {
+			if(getTotalHits(minimizer)==1) sequencesByMinimizer.remove(minimizer);
+		}
+	}
+
+	public int getTotalMinimizers() {
+		return sequencesByMinimizer.size();
+	}
 }
