@@ -24,9 +24,14 @@ public class MCLJob extends Thread {
 	}
 
 	@Override
-	public void run() {
+	public void run() {		
 		similarityMatrix = completeMatrix(similarityMatrix);
 		similarityMatrix = fitMatrix(similarityMatrix);
+		
+		System.out.println("==== START MATRIX ====");
+		printMatrix(matrixCopy);
+		System.out.println("==== FITTED MATRIX ====");
+		printMatrix(similarityMatrix);
 		
 		int runs = 0;
 		boolean convergenceState = false;
@@ -41,7 +46,7 @@ public class MCLJob extends Thread {
 			similarityMatrix = backup;
 		}
 		
-		System.out.println("==== FINAL MATRIX ====");
+		System.out.println(String.format("==== FINAL MATRIX after %d runs ====", runs));
 		printMatrix(similarityMatrix);
 		similarityMatrix = consolidateAttractors(similarityMatrix);
 		System.out.println("==== ATTRACTORS ====");
