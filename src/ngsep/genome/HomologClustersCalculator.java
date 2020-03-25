@@ -136,7 +136,7 @@ public class HomologClustersCalculator {
 			for(int i = 0; i < partition.size(); i++) {
 				HomologyUnit currentUnit = partition.get(i);
 				for(HomologyEdge edge : currentUnit.getAllHomologyRelationships()) {
-					matrix[i][indexOf.get(edge.getQueryUnit().getUniqueKey())] = edge.getScore();
+					matrix[i][indexOf.get(edge.getSubjectUnit().getUniqueKey())] = edge.getScore();
 				}
 			}
 			
