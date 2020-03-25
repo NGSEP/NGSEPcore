@@ -41,7 +41,11 @@ public class MCLJob extends Thread {
 			similarityMatrix = backup;
 		}
 		
+		System.out.println("==== FINAL MATRIX ====");
+		printMatrix(similarityMatrix);
 		similarityMatrix = consolidateAttractors(similarityMatrix);
+		System.out.println("==== ATTRACTORS ====");
+		printMatrix(similarityMatrix);
 		clusters = extractResults(similarityMatrix);
 	}
 
