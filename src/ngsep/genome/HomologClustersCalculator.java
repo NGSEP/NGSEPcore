@@ -57,7 +57,7 @@ public class HomologClustersCalculator {
 		log.info("==== Size Statistics=====");
 		log.info(String.format("SKIPPED: %d || CLIQUES: %d || MCL: %d", countSkipped, countClique, countMCL));
 		log.info("==== Clustering Statistics =====");
-		log.info(String.format("AVG %f || MIN %f || MAX %f || COUNT %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData(), clusters.size()));
+		log.info(String.format("AVG %f || MIN %f || MAX %f || COUNT %d", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData(), clusters.size()));
 		
 		return partitions;
 	}
