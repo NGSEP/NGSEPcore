@@ -445,7 +445,7 @@ produce the alignments, and a prefix for the output files.
 <option id="i" type="FILE" attribute="inputFile">
 Input file with read alignments in BAM format.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
@@ -695,7 +695,7 @@ Sorted BAM file corresponding to the control (wild type) sample.
 <option id="o" type="FILE" attribute="outputFile">
 File with genomic regions in which the two samples have different read depth.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
@@ -730,7 +730,7 @@ Input GFF3 file with gene annotations. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files. It can be an absolute path finished by the prefix.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome. It can be gzip compressed.
 </option>
 </command>
@@ -750,7 +750,7 @@ Input GFF3 file with gene annotations. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with filtered genes. See option -f for output format options.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="f" type="INT" attribute="outputFormat" defaultConstant="FORMAT_GFF">
@@ -819,7 +819,7 @@ See the README.txt file for further details of input and output files.
 <option id="i" type="FILE" attribute="inputFile">
 Input VCF file with variants to annotate. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="t" type="FILE" attribute="transcriptomeFile">
@@ -919,7 +919,7 @@ Minimum observed heterozygosity over the samples in the VCF.
 <option id="maxOH" type="DOUBLE" default="1" attribute="maxOH" defaultConstant="DEF_MAX_OH">
 Maximum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="g" type="FILE" attribute="genome">
+<option id="g" type="GENOME" attribute="genome">
 File with the reference genome to calculate the GC-Content of the region surrounding the variant.
 </option>
 <option id="minGC" type="DOUBLE" attribute="minGCContent" defaultConstant="DEF_MIN_GC_CONTENT">
@@ -1050,7 +1050,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="i2" type="FILE" attribute="inputFile2">
 Input file in VCF format to compare with the first file. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
@@ -1127,7 +1127,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
@@ -1448,7 +1448,7 @@ Input test file in VCF format. It can be gzip compressed.
 <option id="g" type="FILE" attribute="gsFile">
 Gold standard file in VCF format. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

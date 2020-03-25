@@ -131,7 +131,12 @@ public class ReadsAligner {
 	public void setInputFile2(String inputFile2) {
 		this.inputFile2 = inputFile2;
 	}
-	
+	public ReferenceGenomeFMIndex getfMIndex() {
+		return fMIndex;
+	}
+	public void setfMIndex(ReferenceGenomeFMIndex fMIndex) {
+		this.fMIndex = fMIndex;
+	}
 	public String getFmIndexFile() {
 		return fmIndexFile;
 	}

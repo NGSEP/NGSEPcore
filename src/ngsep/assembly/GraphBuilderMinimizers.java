@@ -1,5 +1,7 @@
 package ngsep.assembly;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +18,7 @@ import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
+import ngsep.sequences.MinimizersTableEntry;
 
 public class GraphBuilderMinimizers implements GraphBuilder {
 
@@ -32,9 +35,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
-	private LongReadsAligner aligner = new LongReadsAligner();
-	
-	private static int idxDebug = -1;
+	private static int idxDebug = 400;
 	
 	public Logger getLog() {
 		return log;
@@ -78,21 +79,11 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, minKmerPercentage);
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
 		int time = 2*sequences.size();
-		ThreadPoolExecutor poolCreate =  new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId);
-			if(numThreads==1) table.addSequence(seq);
-			else {
-				poolCreate.execute (new Runnable() {
-					@Override
-					public void run() {
-						table.addSequence(seq);
-					}
-				});
-			}
+			table.addSequence(seqId, seq);
 		}
-		waitToFinish(time, poolCreate);
 		log.info("Built minimizers");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
@@ -130,53 +121,66 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 	}
 	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq) {
-		int queryCount = table.getMinimizerCountBySequenceId(seqId);
-		Map<Integer,Integer> minimizerCounts = table.countMinimizerHits(seqId, seq);
+		updateGraph(finder, seqId, seq, false, table);
+		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
+		updateGraph(finder, seqId, complement, true, table);
+		AssemblyGraph graph = finder.getGraph();
+		synchronized (graph) {
+			graph.filterEdgesAndEmbedded (seqId);
+		}
+		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
+	}
+	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int querySequenceId, CharSequence query, boolean queryRC, MinimizersTable table) {
+		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(query, kmerLength, 1, 0, query.length(), false, true, true);
+		Map<Integer, List<MinimizersTableEntry>> minimizersQuery = table.computeSequenceMinimizers(querySequenceId, query.length(), kmers);
+		int queryCount = minimizersQuery.size();
+		
+		int minCount = minKmerPercentage*queryCount/100;
+		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Counting hits for query: "+querySequenceId+" queryCount: "+queryCount+" min count: "+minCount);
+		Map<Integer,List<MinimizersTableEntry>> minimizerHitsBySubject = table.calculateMinimizerHits(querySequenceId, minimizersQuery);
 		Set<Integer> subjectIdxs = new HashSet<Integer>();
 		int totalHits = 0;
 		int maxSubjectCount = 0;
-		for(int subjectIdx:minimizerCounts.keySet()) {
-			int subjectCount = minimizerCounts.get(subjectIdx);
-			if (seqId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+seqId+" total: "+queryCount+" Subject sequence: "+subjectIdx+" hits: "+subjectCount);
+		for(int subjectIdx:minimizerHitsBySubject.keySet()) {
+			int subjectCount = minimizerHitsBySubject.get(subjectIdx).size();
 			totalHits+=subjectCount;
-			int minCount = minKmerPercentage*queryCount/100;
-			if(subjectIdx< seqId && subjectCount>=minCount) {
+			if(subjectIdx< querySequenceId && subjectCount>=minCount) {
+				if (querySequenceId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+querySequenceId+" total: "+queryCount+" Subject sequence: "+subjectIdx+" hits: "+subjectCount);
 				subjectIdxs.add(subjectIdx);
 				maxSubjectCount = Math.max(maxSubjectCount, subjectCount);
 			}
 		}
 		//Aproximate average minimizer hits
-		double average = totalHits / queryCount;
-		if(average<1) average = 1;
-			
-		Set<Integer> subjectFilteredIdxs = new HashSet<Integer>();
+		double averageHits = totalHits / queryCount;
+		if(averageHits<1) averageHits = 1;
+		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Query: "+querySequenceId+" Subject sequences: "+subjectIdxs.size()+" hits: "+totalHits+" average: "+averageHits);
 		for(int subjectIdx:subjectIdxs) {
-			int subjectCount = minimizerCounts.get(subjectIdx);
-			if(subjectIdx< seqId && subjectCount > 0.5*maxSubjectCount) subjectFilteredIdxs.add(subjectIdx);
-		}
-		if (seqId == idxDebug || subjectFilteredIdxs.size()>10) System.out.println("GraphBuilderMinimizers. Query: "+seqId+" Subject sequences: "+subjectFilteredIdxs.size()+" hits: "+totalHits+" average: "+average);
-		
-		updateGraph(finder, seqId, seq, false, subjectFilteredIdxs, average);
-		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
-		updateGraph(finder, seqId, complement, true, subjectIdxs, average);
-		AssemblyGraph graph = finder.getGraph();
-		synchronized (graph) {
-			graph.filterEdgesAndEmbedded (seqId);
-		}
-		if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
-	}
-	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int querySequenceId, CharSequence query, boolean queryRC, Set<Integer> subjectIdxs, double averageHits) {
-		Map<CharSequence,Integer> queryKmers = aligner.extractUniqueKmers(query, 0, query.length());
-		AssemblyGraph graph = finder.getGraph();
-		for (int subjectId:subjectIdxs) {
-			CharSequence subject = graph.getSequence(subjectId);
-			Map<CharSequence,Integer> subjectKmers = aligner.extractUniqueKmers(subject, 0, subject.length());
-			List<UngappedSearchHit> hits = aligner.alignUniqueKmers(subjectId, subjectKmers, queryKmers);
-			if (querySequenceId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+querySequenceId+" "+queryRC+" Subject idx: "+subjectId+" kmers: "+subjectKmers.size()+" hits: "+hits.size());
+			List<MinimizersTableEntry> subjectMinHits = minimizerHitsBySubject.get(subjectIdx);
+			//Filter sequences with less than half of the maximum hits
+			if(subjectMinHits.size()<maxSubjectCount/2) continue;
+			Collections.sort(subjectMinHits,(h1,h2) -> h1.getStart()-h2.getStart());
+			List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
+			for(MinimizersTableEntry entry: subjectMinHits) {
+				int minimizer = entry.getMinimizer();
+				List<MinimizersTableEntry> queryHits = minimizersQuery.get(minimizer);
+				if (queryHits == null || queryHits.size() != 1) continue;
+				
+				MinimizersTableEntry queryEntry = queryHits.get(0);
+				CharSequence kmer = kmers.get(queryEntry.getStart());
+				if(kmer == null) {
+					//Neighbor kmers normally share minimizers
+					continue;
+				}
+				UngappedSearchHit kmerHit = new UngappedSearchHit(kmer, subjectIdx, entry.getStart());
+				kmerHit.setQueryIdx(queryEntry.getStart());
+				kmerHit.setTotalHitsQuery(table.getTotalHits(minimizer));
+				hits.add(kmerHit);
+					
+			}
 			if(hits.size()==0) continue;
 			List<KmerHitsCluster> subjectClusters = LongReadsAligner.clusterSequenceKmerAlns(querySequenceId, query, hits, 0);
-			if (querySequenceId == idxDebug) System.out.println("Query: "+querySequenceId+" "+queryRC+" Subject idx: "+subjectId+" clusters: "+subjectClusters.size());
-			finder.updateGraphWithKmerClusters(querySequenceId, queryRC, queryKmers.size(), averageHits, subjectClusters);
+			if (querySequenceId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+querySequenceId+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size());
+			finder.updateGraphWithKmerClusters(querySequenceId, queryRC, queryCount, averageHits, subjectClusters);
 		}
 	}
 }

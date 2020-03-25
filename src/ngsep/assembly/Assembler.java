@@ -224,16 +224,16 @@ public class Assembler {
 			}
 			// Dispose original qualified sequences
 			sequencesQL = null;
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
+			/*GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
-			//GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
-			//builder.setKmerLength(kmerLength);
-			//builder.setWindowLength(windowLength);
-			//builder.setMinKmerPercentage(minKmerPercentage);
-			//builder.setNumThreads(numThreads);
-			//builder.setLog(log);
-			//graph = builder.buildAssemblyGraph(finalSequences);
+			*/
+			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
+			builder.setKmerLength(kmerLength);
+			builder.setMinKmerPercentage(minKmerPercentage);
+			builder.setNumThreads(numThreads);
+			builder.setLog(log);
+			graph = builder.buildAssemblyGraph(finalSequences);
 			log.info("Built assembly graph");
 			
 			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
