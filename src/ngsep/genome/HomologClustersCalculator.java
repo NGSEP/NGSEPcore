@@ -54,10 +54,10 @@ public class HomologClustersCalculator {
 		Distribution distClusterSizes = new Distribution(0, 50, 1);
 		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
 		
-		log.info("==== SIZE STATISTICS =====");
-		log.info(String.format("SKIPPED: %d || CLIQUES: %d || MCL: %d", countSkipped, countClique, countMCL, clusters.size()));
-		log.info("==== CLUSTERING STATISTICS =====");
-		log.info(String.format("AVG %f || MIN %f || MAX %f || COUNT %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData(), distClusterSizes.getCount()));
+		log.info("==== Size Statistics=====");
+		log.info(String.format("SKIPPED: %d || CLIQUES: %d || MCL: %d", countSkipped, countClique, countMCL));
+		log.info("==== Clustering Statistics =====");
+		log.info(String.format("AVG %f || MIN %f || MAX %f || COUNT %f", distClusterSizes.getAverage(), distClusterSizes.getMinValueData(), distClusterSizes.getMaxValueData(), clusters.size()));
 		
 		return partitions;
 	}

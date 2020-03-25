@@ -13,6 +13,7 @@ public class MCLJob extends Thread {
 	
 	private double[][] matrixCopy;
 	private double[][] similarityMatrix;
+	private int nextColumn = 0;
 	private List<List<Integer>> clusters;
 	
 	public MCLJob(double[][] providedMatrix) {
@@ -214,13 +215,16 @@ public class MCLJob extends Thread {
 	 * @return
 	 */
 	private double[][] inflateMatrix(double[][] matrix, double coefficient) {
-		//Select random row
-		int k = (int) (Math.random()*matrix.length);
+		//Select next row
+		int k = nextColumn;
+		if(++nextColumn >= matrix.length) nextColumn = 0;
+			
 		//Elevate to the coefficient
 		for(int j = 0; j < matrix.length; j++) {
 			matrix[k][j] = (double) Math.pow(matrix[k][j], coefficient);
 		}
-		//Normalize row
+		
+		//Normalize rows
 		for(int i = 0; i < matrix.length; i++) matrix[i] = this.normalizeRow(matrix[i]);
 		return matrix;
 	}
