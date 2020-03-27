@@ -5,13 +5,12 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MCLJob extends Thread {
-	private static final double FAKE_LINK_VALUE = 20;
+	private static final double INFERED_EDGE_VALUE = 5;
 	private static final double ZERO_THRESHOLD = 0.001;
 	private static final int E_POWER = 2;
 	private static final double INFLATION_COEFFICIENT = 2;
 	private static final double DEVIATION_THRESHOLD = 0.000001;
 	
-	private double[][] matrixCopy;
 	private double[][] similarityMatrix;
 	private int nextColumn = 0;
 	private List<List<Integer>> clusters;
@@ -19,7 +18,6 @@ public class MCLJob extends Thread {
 	public MCLJob(double[][] providedMatrix) {
 		super();
 		this.similarityMatrix = providedMatrix;
-		this.matrixCopy = copyOf(similarityMatrix);
 		this.clusters = new ArrayList<>();
 	}
 
@@ -28,17 +26,11 @@ public class MCLJob extends Thread {
 		similarityMatrix = completeMatrix(similarityMatrix);
 		similarityMatrix = fitMatrix(similarityMatrix);
 		
-		System.out.println("==== START MATRIX ====");
-		printMatrix(matrixCopy);
-		System.out.println("==== FITTED MATRIX ====");
-		printMatrix(similarityMatrix);
-		
 		int runs = 0;
 		boolean convergenceState = false;
 		double[][] backup;
 		while(!convergenceState) {
-			//System.out.println(String.format("Runs count %d", ++runs));
-			
+			runs++;
 			backup = copyOf(similarityMatrix);
 			backup = squareMatrixTimes(backup, E_POWER);
 			backup = inflateMatrix(backup, INFLATION_COEFFICIENT);
@@ -46,11 +38,8 @@ public class MCLJob extends Thread {
 			similarityMatrix = backup;
 		}
 		
-		System.out.println(String.format("==== FINAL MATRIX after %d runs ====", runs));
-		printMatrix(similarityMatrix);
+		System.out.println(String.format("Matrix converged after %d runs", runs));
 		similarityMatrix = consolidateAttractors(similarityMatrix);
-		System.out.println("==== ATTRACTORS ====");
-		printMatrix(similarityMatrix);
 		clusters = extractResults(similarityMatrix);
 	}
 
@@ -66,6 +55,11 @@ public class MCLJob extends Thread {
 		}
 	}
 	
+	/**
+	 * Takes all nodes from each column with a value of 1 an puts them into the same cluster. Each column is a boolean representation of each cluster.
+	 * @param matrix matrix to extract results from.
+	 * @return lists with all-non empty clusters, with the cluster being represented as a list of indexes.
+	 */
 	private List<List<Integer>> extractResults(double[][] matrix) {
 		List<List<Integer>> clusters = new ArrayList<>();
 		
@@ -98,10 +92,15 @@ public class MCLJob extends Thread {
 		}
 		double count = (oldState.length*oldState[0].length) - 1;
 		double std = Math.sqrt(squaredSum/(count));
-		//System.out.println(String.format("STD WAS %f", std));
 		return std <= threshold;
 	}
 	
+	/**
+	 * Each row gets fitted so that each node can only belong to 1 cluster. Gets rid of any ties in the matrix, and selects the cluster with the highest probability for the node to be fitted to.
+	 * As a result, all values for the resulting matrix will be either 1 or 0.
+	 * @param matrix matrix to fit.
+	 * @return matrix with clear clusters.
+	 */
 	private double[][] consolidateAttractors(double[][] matrix) {
 		for(int i = 0; i < matrix.length; i++) {
 			int index = 0;
@@ -176,9 +175,9 @@ public class MCLJob extends Thread {
 				if(i == j) continue;
 				
 				if(matrix[i][j] > 0 && matrix[j][i] == 0) {
-					matrix[j][i] = FAKE_LINK_VALUE;
+					matrix[j][i] = INFERED_EDGE_VALUE;
 				} else if (matrix[j][i] > 0 && matrix[i][j] == 0) {
-					matrix[i][j] = FAKE_LINK_VALUE;
+					matrix[i][j] = INFERED_EDGE_VALUE;
 				}
 			}
 		}
@@ -249,16 +248,11 @@ public class MCLJob extends Thread {
 		return copy;
 	}
 	
+	public List<List<Integer>> getResults() {
+		return clusters;
+	}
+	
 	public static void main(String[] args) {
-		double[][] basic = {
-				{},
-				{},
-				{},
-				{},
-				{},
-				{}
-		};
-		
 		double[][] complex = {
 				{0, 0.33f, 0.34f, 0.33f, 0, 0, 0, 0},
 				{0.5f, 0, 0.5f, 0, 0, 0, 0, 0},
@@ -283,9 +277,5 @@ public class MCLJob extends Thread {
 		for(List<Integer> arr : results) {
 			System.out.println(String.format("%s", Arrays.toString(arr.toArray())));
 		}
-	}
-
-	public List<List<Integer>> getResults() {
-		return clusters;
 	}
 }
