@@ -39,8 +39,8 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	public void updateGraphWithKmerHits(int querySequenceId, CharSequence query, boolean queryRC, List<UngappedSearchHit> kmerHitsList, int kmersCount, double averageHits) {
 		// Cluster hits by target region
-		int minKmers = (int) (0.5*minKmerPercentage*kmersCount/100.0);
-		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(querySequenceId, query, kmerHitsList, Math.max(10, minKmers));
+		int minKmers = (int) Math.max(10, 0.5*minKmerPercentage*kmersCount/100.0);
+		List<KmerHitsCluster> clusteredKmerAlns = clusterKmerHits(querySequenceId, query, kmerHitsList, minKmers);
 		if(querySequenceId==idxDebug) System.out.println("Query id: "+querySequenceId+" RC: "+queryRC+" kmers: "+kmersCount+" Clusters: "+clusteredKmerAlns.size());
 		
 		updateGraphWithKmerClusters(querySequenceId, queryRC, kmersCount, averageHits, clusteredKmerAlns);
@@ -53,7 +53,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			KmerHitsCluster cluster = clusteredKmerAlns.get(i);
 			cluster.summarize(averageHits, kmersCount);
 			double pct = 100.0*cluster.getProportionKmers();
-			if(querySequenceId==idxDebug) System.out.println("Processing cluster. QueryStart: "+cluster.getQueryStart()+" query end: "+cluster.getQueryEnd()+" Subject: "+cluster.getSequenceIdx()+" first: "+cluster.getFirst()+" last: "+cluster.getLast()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
+			if(querySequenceId==idxDebug) System.out.println("Processing cluster. QueryStart: "+cluster.getQueryStart()+" query end: "+cluster.getQueryEnd()+" total query count "+cluster.getTotalKmersQuery()+" Subject: "+cluster.getSequenceIdx()+" first: "+cluster.getFirst()+" last: "+cluster.getLast()+" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
 			if(pct<minKmerPercentage) break;
 			synchronized (graph) {
 				processAlignment(graph, querySequenceId, queryRC, cluster);

@@ -26,6 +26,8 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	private int last;
 	private int queryStart;
 	private int queryEnd;
+	private int subjectEvidenceStart;
+	private int subjectEvidenceEnd;
 	private int numDifferentKmers = 0;
 	private double averageHitsQuery;
 	private int totalKmersQuery;
@@ -98,6 +100,8 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 					last = estimateSubjectLast(hit);
 					queryStart = hit.getQueryIdx();
 					queryEnd = hit.getQueryIdx() + hit.getQuery().length();
+					subjectEvidenceStart = hit.getStart();
+					subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
 				}
 				addHit(hit);
 			}
@@ -133,6 +137,8 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		last = estimateSubjectLast(kmerHit);
 		queryStart = kmerHit.getQueryIdx();
 		queryEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
+		subjectEvidenceStart = kmerHit.getStart();
+		subjectEvidenceEnd = subjectEvidenceStart+kmerHit.getQuery().length();
 		hitsMap.put(kmerQueryStart, kmerHit);
 		numDifferentKmers = 1;
 		firstKmerPresent = queryStart == 0;
@@ -148,6 +154,8 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		last = Math.max(last, estLast);
 		queryStart = Math.min(queryStart, hit.getQueryIdx());
 		queryEnd = Math.max(queryEnd, hit.getQueryIdx() + hit.getQuery().length());
+		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getStart());
+		subjectEvidenceEnd = Math.max(subjectEvidenceEnd, hit.getStart()+hit.getQuery().length());
 		if(queryStart==0) firstKmerPresent = true;
 		if (queryEnd==query.length()) lastKmerPresent = true;
 		numDifferentKmers++;
@@ -231,7 +239,15 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	public int getQueryEnd() {
 		return queryEnd;
 	}
-	
+
+	public int getSubjectEvidenceStart() {
+		return subjectEvidenceStart;
+	}
+
+	public int getSubjectEvidenceEnd() {
+		return subjectEvidenceEnd;
+	}
+
 	public double getQueryCoverage () {
 		double queryCoverage = queryEnd-queryStart;
 		return queryCoverage / query.length();
@@ -249,6 +265,9 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	}
 	
 	public double getProportionKmers () {
+		return numDifferentKmers / (double)totalKmersQuery;
+	}
+	public double getWeightedProportionKmers () {
 		return weightedCount / (double)totalKmersQuery;
 	}
 

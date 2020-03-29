@@ -110,7 +110,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			if(j == 0) {
-				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
+				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
 				CharSequence seq = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
@@ -121,7 +121,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				CharSequence nextPathSequence = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
-				
+				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
 				int overlap = edge.getOverlap();
 				//TODO: see if it is worth to improve the estimated overlap
@@ -140,8 +140,9 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				}*/
 				
 				if(overlap<nextPathSequence.length()) {
-					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
+					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					String remainingSegment = nextPathSequence.subSequence(overlap, nextPathSequence.length()).toString();
+					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
 					log.warning("Non embedded edge has overlap: "+overlap+ " and length: "+nextPathSequence.length());
@@ -161,6 +162,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alignments.add(alnRead);
 				}
 				else unalignedReads++;
+				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
 				if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
@@ -190,6 +192,21 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return applyVariants(consensus, variants);
 	}
 
+
+	private void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
+		for(int j = pathPos; j < path.size(); j++) {
+			AssemblyEdge edge = path.get(j);
+			if(edge.isSameSequenceEdge()) continue;
+			AssemblyEdge alt1 = graph.getEdge(vertexPreviousEdge, edge.getVertex1());
+			AssemblyEdge alt2 = graph.getEdge(vertexPreviousEdge, edge.getVertex2());
+			if(alt1==null && alt2==null) continue;
+			if(alt1!=null) System.out.println("Edge between: "+alt1.getVertex1().getUniqueNumber()+" and "+alt1.getVertex2().getUniqueNumber()+" overlap: "+alt1.getOverlap()+" coverage: "+alt1.getEvidence().getQueryCoverage());
+			if(alt2!=null) System.out.println("Edge between: "+alt2.getVertex1().getUniqueNumber()+" and "+alt2.getVertex2().getUniqueNumber()+" overlap: "+alt2.getOverlap()+" coverage: "+alt2.getEvidence().getQueryCoverage());
+			
+			
+		}
+		
+	}
 
 	private List<CalledGenomicVariant> callVariants(String consensus, List<ReadAlignment> alignments) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();

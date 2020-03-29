@@ -67,7 +67,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			if(j == 0) 
 			{
-				pathS = pathS.concat(vertexPreviousEdge.getSequenceIndex() + ",");
+				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
 				CharSequence seq = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
@@ -78,12 +78,12 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				CharSequence seq = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
-					
 				if(seq.length() - edge.getOverlap() > tolerance) 
 				{
-					pathS = pathS.concat(vertexNextEdge.getSequenceIndex() + ",");
+					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = seq.subSequence(edge.getOverlap(),seq.length()).toString();
+					//if (consensus.length()>490000 && consensus.length()<510000) System.out.println("Consensus length: "+consensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+seq.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					consensus.append(remainingSegment);
 				} 
 				else 

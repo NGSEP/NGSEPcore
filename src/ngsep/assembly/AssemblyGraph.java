@@ -28,9 +28,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ngsep.math.Distribution;
 import ngsep.sequences.KmerHitsCluster;
@@ -170,6 +172,69 @@ public class AssemblyGraph implements Serializable {
 				removeVertices(i);
 			}
 		}
+	}
+	
+	public void selectEmbeddedSequences() {
+		List<Integer> currentEmbedded = new ArrayList<Integer>();
+		currentEmbedded.addAll(embeddedMapBySequence.keySet());
+		Collections.sort(currentEmbedded);
+		Set<Integer> freezedEmbedded = new HashSet<Integer>();
+		for(int i:currentEmbedded) {
+			List<AssemblyEmbedded> embeddedRelations = embeddedMapBySequence.get(i);
+			AssemblyEmbedded toRemove = null;
+			if(!freezedEmbedded.contains(i) && embeddedRelations.size()==1) {
+				AssemblyEmbedded embedded = embeddedRelations.get(0);
+				if (makeSpecialEdge (embedded)) {
+					toRemove = embedded;
+				}
+			}
+			if(toRemove==null) {
+				if (verticesStart.get(i)!=null) removeVertices(i);
+			} else {
+				removeEmbedded(toRemove);
+				List<AssemblyEmbedded> children = embeddedMapByHost.get(i);
+				if(children==null) return;
+				for(AssemblyEmbedded child:children) {
+					freezedEmbedded.add(child.getSequenceId());
+				}
+			}
+		}
+	}
+
+	private boolean makeSpecialEdge(AssemblyEmbedded embedded) {
+		//TODO: Parameters instead of hard filters
+		int seqIdHost = embedded.getHostId();
+		CharSequence host = sequences.get(seqIdHost);
+		int seqIdEmb = embedded.getSequenceId();
+		CharSequence seq = sequences.get(seqIdEmb);
+		if(seq.length()<5000) return false;
+		if(seq==null || host == null) return false;
+		if (seq.length()<0.7*host.length()) return false;
+		if (seq.length()>0.95*host.length()) return false;
+		if(embeddedMapBySequence.containsKey(embedded.getHostId())) return false;
+		int left = embedded.getStartPosition();
+		int right = host.length()-(left+seq.length());
+		if(Math.abs(left-right)<100) return false;
+		AssemblyVertex vHost = null;
+		AssemblyVertex vSeq = null;
+		if (left < right) {
+			if (left > 100) return false;
+			vHost = verticesStart.get(seqIdHost);
+			if (embedded.isReverse()) vSeq = verticesStart.get(seqIdEmb);
+			else vSeq = verticesEnd.get(seqIdEmb);
+		} else {
+			if (right > 100) return false;
+			vHost = verticesEnd.get(seqIdHost);
+			if (embedded.isReverse()) vSeq = verticesEnd.get(seqIdEmb);
+			else vSeq = verticesStart.get(seqIdEmb);
+		}
+		if(vHost==null || vSeq == null ) return false;
+		if(getEdge(vHost, vSeq)==null) {
+			AssemblyEdge specialEdge = new AssemblyEdge(vHost, vSeq, host.length()+10, seq.length());
+			specialEdge.setEvidence(embedded.getEvidence());
+		}
+		System.out.println("Special edge created for embedded sequence: "+seqIdEmb+" with length "+seq.length()+" in host: "+seqIdHost+" length "+host.length()+" leftover first: "+left+" leftover right: "+ right);
+		return true;
 	}
 
 	public void removeVertices(int sequenceId) {
@@ -322,6 +387,83 @@ public class AssemblyGraph implements Serializable {
 		return answer;
 	}
 
+	public void removeVerticesChimericReads () {
+		for(int i=0;i<sequences.size();i++) {
+			if(isChimeric(i)) {
+				removeVertices(i);
+				removeEmbeddedRelations(i);
+			}
+		}
+	}
+	
+	private boolean isChimeric(int sequenceId) {
+		int idxDebug = -1;
+		int seqLength = getSequenceLength(sequenceId);
+		int firstEvidence = -1;
+		int lastEvidence = -1;
+		int lastUnknownRight = -1;
+		/*AssemblyVertex vS = verticesStart.get(sequenceId);
+		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		for(AssemblyEdge edge:edgesMap.get(vS.getUniqueNumber())) {
+			KmerHitsCluster cluster = edge.getEvidence();
+			if(edge.isSameSequenceEdge() || cluster==null) continue;
+			if(firstEvidence==-1) {
+				firstEvidence = 1;
+			}
+			int unknown = cluster.getLast()-cluster.getSubjectEvidenceEnd();
+			
+			lastEvidence = Math.max(lastEvidence, cluster.getSubjectEvidenceEnd());
+		}*/
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Left edges evidence limits: "+firstEvidence+" "+lastEvidence);
+		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
+		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
+		if(emb==null) return false;
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Embedded sequences "+emb.size());
+		embeddedList.addAll(emb);
+		Collections.sort(embeddedList,(e1,e2)->e1.getEvidence().getSubjectEvidenceStart()-e2.getEvidence().getSubjectEvidenceStart());
+		
+		for(AssemblyEmbedded embedded:embeddedList) {
+			KmerHitsCluster cluster = embedded.getEvidence();
+			if(cluster==null) continue;
+			
+			int nextLeft = cluster.getSubjectEvidenceStart();
+			int nextRight = cluster.getSubjectEvidenceEnd();
+			int unknownLeft = nextLeft - cluster.getFirst();
+			int unknownRight = cluster.getLast() - nextRight;
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" coverage: "+cluster.getQueryCoverage()+" proportion: "+cluster.getProportionKmers()+" weighted: "+cluster.getWeightedProportionKmers());
+			if(firstEvidence==-1) {
+				firstEvidence = nextLeft;
+				lastEvidence = nextRight;
+			}
+			if(nextLeft>lastEvidence) {
+				int distance = nextLeft-lastEvidence;
+				if(lastEvidence>1000 && seqLength-nextLeft >1000 && lastUnknownRight>2*distance && unknownLeft>2*distance) {
+					System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" last evidence: "+lastEvidence+" next: "+nextLeft+" unknown limits : "+lastUnknownRight+" "+unknownLeft);
+					return true;
+				}
+			}
+			if(lastEvidence<nextRight) {
+				lastEvidence = nextRight;
+				lastUnknownRight = unknownRight;
+			}	
+		}
+		//TODO: check end
+		
+		return false;
+	}
+	
+	private void removeEmbeddedRelations(int sequenceId) {
+		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
+		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
+		if(emb!=null) embeddedList.addAll(emb);
+		emb = embeddedMapBySequence.get(sequenceId);
+		if(emb!=null) embeddedList.addAll(emb);
+		for(AssemblyEmbedded embedded: embeddedList) {
+			removeEmbedded(embedded);
+		}
+	}
+
+
 	public void filterEdgesAndEmbedded(int sequenceId) {
 		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
@@ -342,6 +484,7 @@ public class AssemblyGraph implements Serializable {
 			KmerHitsCluster cluster = edge.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
 			if(score < 0.4*maxScoreS) {
+				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
 		}
@@ -362,6 +505,7 @@ public class AssemblyGraph implements Serializable {
 			KmerHitsCluster cluster = edge.getEvidence();
 			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
 			if(score < 0.4*maxScoreE) {
+				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
 		}

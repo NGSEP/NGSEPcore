@@ -96,6 +96,8 @@ public class AssemblyEmbedded implements Serializable {
 	public void setEvidence(KmerHitsCluster evidence) {
 		this.evidence = evidence;
 	}
-	
+	public String toString () {
+		return ""+sequenceId+"_"+isReverse+"_"+hostId+"_"+startPosition;
+	}
 	
 }

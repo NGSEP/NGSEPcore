@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import ngsep.math.Distribution;
 
 public class MinimizersTable {
+	
+	private Logger log = Logger.getLogger(MinimizersTable.class.getName());
 	private int kmerLength;
 	private int windowLength;
+	private int maxAbundanceMinimizer = 0;
 	
 	
 	private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
@@ -22,21 +26,46 @@ public class MinimizersTable {
 		this.windowLength = windowLength;
 		 
 	}
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public int getMaxAbundanceMinimizer() {
+		return maxAbundanceMinimizer;
+	}
+	public void setMaxAbundanceMinimizer(int maxAbundanceMinimizer) {
+		this.maxAbundanceMinimizer = maxAbundanceMinimizer;
+	}
 
 	public void addSequence (int sequenceId, CharSequence sequence) {
-		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence, kmerLength, 1, 0, sequence.length(), false, true, true);
+		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, 0, sequence.length(), false, true, true);
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = computeSequenceMinimizers(sequenceId, sequence.length(), kmers);
 		for(int minimizer:minimizersSeq.keySet()) {
 			List<MinimizersTableEntry> entries = minimizersSeq.get(minimizer);
+			if (entries.size()== 0 || !overlapping(entries)) continue; 
 			synchronized (sequencesByMinimizer) {
 				List<Long> minList = sequencesByMinimizer.computeIfAbsent(minimizer, l -> new ArrayList<Long>());
-				for(MinimizersTableEntry entry:entries ) {
+				if (maxAbundanceMinimizer==0 || minList.size()<=maxAbundanceMinimizer) minList.add(entries.get(0).encode());
+				/*for(MinimizersTableEntry entry:entries ) {
 					minList.add(entry.encode());
-				}
+				}*/
 			}
 		}
 		numSequences++;
 		if ((sequenceId+1)%100==0) System.out.println("Added "+numSequences+" sequences. Total minimizers:"+sequencesByMinimizer.size());
+	}
+
+	private boolean overlapping(List<MinimizersTableEntry> entries) {
+		if(entries.size()<2) return true;
+		int firstStart = entries.get(0).getStart();
+		for(MinimizersTableEntry entry:entries) {
+			if(Math.abs(firstStart-entry.getStart())>2*windowLength) return false;
+		}
+		return true;
 	}
 
 	public Map<Integer, List<MinimizersTableEntry>> computeSequenceMinimizers(int sequenceId, int sequenceLength, Map<Integer, CharSequence> sequenceKmers) {
@@ -95,7 +124,8 @@ public class MinimizersTable {
 	}
 
 	private int getHash(CharSequence kmer) {
-		return kmer.toString().hashCode();
+		//return kmer.toString().hashCode();
+		return kmer.hashCode();
 	}
 	
 	public int getTotalHits(int minimizer) {
@@ -135,11 +165,13 @@ public class MinimizersTable {
 	/**
 	 * Removes minimizers observed only one time 
 	 */
-	public void clearSingletonMinimizers() {
+	public void clearSingletonAndOverrepresentedMinimizers() {
 		List<Integer> minimizers = new ArrayList<Integer>();
 		minimizers.addAll(sequencesByMinimizer.keySet());
 		for(int minimizer:minimizers) {
-			if(getTotalHits(minimizer)==1) sequencesByMinimizer.remove(minimizer);
+			int totalHits = getTotalHits(minimizer); 
+			if(totalHits==1 ) sequencesByMinimizer.remove(minimizer);
+			else if (maxAbundanceMinimizer>0 && totalHits>maxAbundanceMinimizer) sequencesByMinimizer.remove(minimizer); 
 		}
 	}
 

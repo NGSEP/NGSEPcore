@@ -78,7 +78,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, minKmerPercentage);
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
-		
+		//TODO: Make parameter
+		table.setMaxAbundanceMinimizer(50);
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId);
 			table.addSequence(seqId, seq);
@@ -87,7 +88,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
-		table.clearSingletonMinimizers();
+		table.clearSingletonAndOverrepresentedMinimizers();
 		log.info("Minimizers after removing singletons: "+table.getTotalMinimizers());
 		
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
@@ -105,6 +106,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		int finishTime = 2*sequences.size();
 		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
+		graph.removeVerticesChimericReads();
+		for (int seqId = 0; seqId < sequences.size(); seqId++) {
+			graph.filterEdgesAndEmbedded(seqId);
+		}
 		graph.pruneEmbeddedSequences();
 		log.info("Prunned graph. Edges: "+graph.getEdges().size());
 		//Create reverse map
@@ -128,9 +133,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		updateGraph(finder, seqId, complement, true, table);
 		AssemblyGraph graph = finder.getGraph();
-		synchronized (graph) {
-			graph.filterEdgesAndEmbedded (seqId);
-		}
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
 	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int querySequenceId, CharSequence query, boolean queryRC, MinimizersTable table) {
@@ -139,28 +141,27 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		int queryCount = minimizersQuery.size();
 		
 		int minCount = minKmerPercentage*queryCount/100;
-		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Counting hits for query: "+querySequenceId+" queryCount: "+queryCount+" min count: "+minCount);
+		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Counting hits for query: "+querySequenceId+" "+queryRC+" queryCount: "+queryCount+" min count: "+minCount);
 		Map<Integer,List<MinimizersTableEntry>> minimizerHitsBySubject = table.calculateMinimizerHits(querySequenceId, minimizersQuery);
 		Set<Integer> subjectIdxs = new HashSet<Integer>();
 		int totalHits = 0;
-		int maxSubjectCount = 0;
 		for(int subjectIdx:minimizerHitsBySubject.keySet()) {
 			int subjectCount = minimizerHitsBySubject.get(subjectIdx).size();
 			totalHits+=subjectCount;
 			if(subjectIdx< querySequenceId && subjectCount>=minCount) {
-				if (querySequenceId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+querySequenceId+" total: "+queryCount+" Subject sequence: "+subjectIdx+" hits: "+subjectCount);
+				if (querySequenceId == idxDebug) System.out.println("GraphBuilderMinimizers. Query: "+querySequenceId+" "+queryRC+" total: "+queryCount+" Subject sequence: "+subjectIdx+" hits: "+subjectCount);
 				subjectIdxs.add(subjectIdx);
-				maxSubjectCount = Math.max(maxSubjectCount, subjectCount);
 			}
 		}
 		//Aproximate average minimizer hits
 		double averageHits = totalHits / queryCount;
 		if(averageHits<1) averageHits = 1;
-		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Query: "+querySequenceId+" Subject sequences: "+subjectIdxs.size()+" hits: "+totalHits+" average: "+averageHits);
+		int minHits = (int) Math.max(10, 0.5*minKmerPercentage*minCount/100.0);
+		if (querySequenceId == idxDebug) log.info("GraphBuilderMinimizers. Query: "+querySequenceId+" "+queryRC+" Subject sequences: "+subjectIdxs.size()+" hits: "+totalHits+" average: "+averageHits);
 		for(int subjectIdx:subjectIdxs) {
 			List<MinimizersTableEntry> subjectMinHits = minimizerHitsBySubject.get(subjectIdx);
 			//Filter sequences with less than half of the maximum hits
-			if(subjectMinHits.size()<maxSubjectCount/2) continue;
+			if(subjectMinHits.size()<minHits) continue;
 			Collections.sort(subjectMinHits,(h1,h2) -> h1.getStart()-h2.getStart());
 			List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
 			for(MinimizersTableEntry entry: subjectMinHits) {
