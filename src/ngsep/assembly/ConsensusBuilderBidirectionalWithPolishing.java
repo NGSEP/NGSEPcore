@@ -250,6 +250,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			polishedConsensus.append(nonVarLast);
 		}
 		log.info("Applied "+appliedVariants+" homozygous alternative variants");
-		return new DNASequence(polishedConsensus.toString());
+		return new DNAMaskedSequence(polishedConsensus.toString());
 	}
 }

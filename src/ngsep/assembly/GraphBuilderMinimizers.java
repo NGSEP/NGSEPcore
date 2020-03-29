@@ -79,7 +79,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, minKmerPercentage);
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
 		//TODO: Make parameter
-		table.setMaxAbundanceMinimizer(50);
+		table.setMaxAbundanceMinimizer(100);
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId);
 			table.addSequence(seqId, seq);
