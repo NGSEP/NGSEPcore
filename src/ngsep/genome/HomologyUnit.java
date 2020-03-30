@@ -128,7 +128,18 @@ public class HomologyUnit implements GenomicRegion {
 		if(!unitsGenome.containsKey(unitId)) totalHomologs++;
 		unitsGenome.put(unitId, edge);
 	}
-
+	
+	
+	public Collection<HomologyEdge> getAllHomologyRelationships() {
+		ArrayList<HomologyEdge> relationships = new ArrayList<>();
+		for(Integer id : homologsMap.keySet()) {
+			Map<String, HomologyEdge> genomeEdges = homologsMap.get(id);
+			for(String geneId : genomeEdges.keySet()) {
+				relationships.add(genomeEdges.get(geneId));
+			}
+		}
+		return relationships;
+	}
 
 	/**
 	 * @return the paralogs
