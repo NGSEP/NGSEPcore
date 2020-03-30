@@ -33,7 +33,6 @@ import ngsep.discovery.VariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
@@ -153,7 +152,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				//Align to consensus next path read and its embedded sequences
 				CharSequence read = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) read = DNASequence.getReverseComplement(read.toString());
+				if(reverse) read = DNAMaskedSequence.getReverseComplement(read);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());
 				totalReads++;
 				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
@@ -170,7 +169,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				for(AssemblyEmbedded embedded:embeddedList) {
 					CharSequence embeddedRead = embedded.getRead();
 					boolean reverseE = (reverse!=embedded.isReverse());
-					if(reverseE) embeddedRead = DNASequence.getReverseComplement(embeddedRead.toString());
+					if(reverseE) embeddedRead = DNAMaskedSequence.getReverseComplement(embeddedRead);
 					totalReads++;
 					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
 					if(alnEmbedded!=null) {
