@@ -55,6 +55,12 @@ public class HomologyUnit implements GenomicRegion {
 		this.last = last;
 		homologsMap.put(genomeId, new HashMap<>());
 	}
+	public HomologyUnit(int genomeId, String id, String unitSequence) {
+		this.genomeId = genomeId;
+		this.id = id;
+		this.unitSequence = unitSequence;
+		homologsMap.put(genomeId, new HashMap<>());
+	}
 	
 
 	public String getId() {
