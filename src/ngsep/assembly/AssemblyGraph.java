@@ -428,9 +428,9 @@ public class AssemblyGraph implements Serializable {
 			
 			int nextLeft = cluster.getSubjectEvidenceStart();
 			int nextRight = cluster.getSubjectEvidenceEnd();
-			int unknownLeft = nextLeft - cluster.getFirst();
-			int unknownRight = cluster.getLast() - nextRight;
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" coverage: "+cluster.getQueryCoverage()+" proportion: "+cluster.getProportionKmers()+" weighted: "+cluster.getWeightedProportionKmers());
+			int unknownLeft = nextLeft - cluster.getSubjectPredictedStart();
+			int unknownRight = cluster.getSubjectPredictedEnd() - nextRight;
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" coverage: "+cluster.getQueryCoverage()+" count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount());
 			if(firstEvidence==-1) {
 				firstEvidence = nextLeft;
 				lastEvidence = nextRight;
@@ -465,7 +465,7 @@ public class AssemblyGraph implements Serializable {
 
 
 	public void filterEdgesAndEmbedded(int sequenceId) {
-		int debugIdx = -1;
+		int debugIdx = 90;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
@@ -474,7 +474,7 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
-			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			double score = (cluster.getQueryEnd()-cluster.getQueryStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
 			if(score > maxScoreS) {
 				maxScoreS = score;
 			}
@@ -482,8 +482,9 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
-			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
-			if(score < 0.4*maxScoreS) {
+			double score = (cluster.getQueryEnd()-cluster.getQueryStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" plain count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount()+" score: "+score+" Max score start: "+maxScoreS);
+			if(score < 0.2*maxScoreS) {
 				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -495,7 +496,7 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
-			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			double score = (cluster.getQueryEnd()-cluster.getQueryStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
 			if(score > maxScoreE) {
 				maxScoreE = score;
 			}
@@ -503,8 +504,9 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			KmerHitsCluster cluster = edge.getEvidence();
-			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
-			if(score < 0.4*maxScoreE) {
+			double score = (cluster.getQueryEnd()-cluster.getQueryStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" plain count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount()+" score: "+score+" Max score end: "+maxScoreE);
+			if(score < 0.2*maxScoreE) {
 				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}

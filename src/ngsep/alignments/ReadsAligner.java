@@ -772,7 +772,7 @@ public class ReadsAligner {
 				CharSequence subject = fMIndex.getSequence(cluster.getSequenceName());
 				//System.out.println("Subject length: "+subject.length()+" cluster limits: "+cluster.getFirst()+" - "+cluster.getLast());
 				//TODO: Make parameter
-				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getFirst()), Math.min(subject.length(), cluster.getLast()), cluster.getSequenceName(), 0.8);
+				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getSubjectPredictedStart()), Math.min(subject.length(), cluster.getSubjectPredictedEnd()), cluster.getSequenceName(), 0.8);
 				//if(readAln!=null) System.out.println("Found alignment for cluster "+i+" at "+readAln.getSequenceName()+":"+readAln.getFirst()+"-"+readAln.getLast());
 			}
 			
@@ -841,8 +841,8 @@ public class ReadsAligner {
 		double prop = (double) numDiffKmers/totalKmers;
 		if(prop<minProportionKmers) return null;
 		String sequenceName = cluster.getSequenceName();
-		int first = cluster.getFirst();
-		int last = cluster.getLast();
+		int first = cluster.getSubjectPredictedStart()+1;
+		int last = cluster.getSubjectPredictedEnd();
 		int lastPerfect = first+query.length()-1;
 		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" lastPerfect: "+lastPerfect+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
 		String cigar = query.length()+"M";
@@ -867,7 +867,7 @@ public class ReadsAligner {
 		if(!cluster.isFirstKmerPresent()) first -=10;
 		first = Math.max(1, first);
 		if(!cluster.isLastKmerPresent()) last+=10;
-		last = Math.min(fMIndex.getReferenceLength(sequenceName), cluster.getLast());
+		last = Math.min(fMIndex.getReferenceLength(sequenceName), last);
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 		if(refSeq == null) return null;
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());

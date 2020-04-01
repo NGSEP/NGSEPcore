@@ -20,6 +20,7 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -81,7 +82,8 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
-		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, minKmerPercentage);
+		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
+		edgesFinder.setMinKmerPercentage(minKmerPercentage);
 		// Create FM-Index
 		FMIndex fmIndex = new FMIndex();
 		fmIndex.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
@@ -128,45 +130,24 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	}
 
 
-	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int querySequenceId, CharSequence query, boolean queryRC, FMIndex fmIndex) {
+	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, FMIndex fmIndex) {
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
 		//Search kmers using the FM index
 		if(kmersMap.size()==0) return;
-		int kmersCount=0;
-		double averageHits = 0;
-		List<UngappedSearchHit> kmerHitsList = new ArrayList<>();
+		Map<Integer,List<UngappedSearchHit>> kmerHitsMap = new HashMap<Integer, List<UngappedSearchHit>>();
 		for (int start:kmersMap.keySet()) {
 			String kmer = kmersMap.get(start).toString();
-			//List<FMIndexUngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer,0,querySequenceId-1);
 			List<UngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer);
-			int numHits = kmerHits.size();
-			//Remove from count hit to self
-			if(!queryRC) numHits--;
-			if(numHits==0) continue;
-			boolean added = false;
-			//if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" Found "+numHits+" hits for kmer at: "+start);
 			for(UngappedSearchHit hit:kmerHits) {
 				//if(querySequenceId==52) System.out.println("Kmer start: "+hit.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
-				if(hit.getSequenceIdx()>=querySequenceId) continue;
 				hit.setQueryIdx(start);
+				hit.setTotalHitsQuery(kmerHits.size());
+				List<UngappedSearchHit> kmerHitsList = kmerHitsMap.computeIfAbsent(hit.getSequenceIdx(), l->new ArrayList<UngappedSearchHit>());
 				kmerHitsList.add(hit);
-				added = true;
-			}
-			if(added) {
-				kmersCount++;
-				averageHits+=numHits;
 			}
 		}
-		if(kmersCount==0) return;
-		averageHits/=kmersCount;
-		if(averageHits<1) averageHits = 1;
-		
-		if(querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" complement: "+queryRC+" kmers: "+kmersCount+" Average hits "+averageHits);
-		
-		finder.updateGraphWithKmerHits(querySequenceId, query, queryRC, kmerHitsList, kmersCount, averageHits);
+		finder.updateGraphWithKmerHitsMap(queryIdx, query, queryRC, kmersMap.size(), kmerHitsMap);
 	}
-
-	
 }
 class GraphBuilderFMIndexProcessSequenceTask implements Runnable {
 	private GraphBuilderFMIndex parent;

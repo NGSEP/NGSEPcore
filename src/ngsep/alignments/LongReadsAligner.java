@@ -91,14 +91,16 @@ public class LongReadsAligner {
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<UngappedSearchHit> initialKmerHits = alignUniqueKmers(-1,uniqueKmersSubject, uniqueKmersRead);
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = clusterSequenceKmerAlns(0, read, initialKmerHits, minQueryCoverage);
+		List<KmerHitsCluster> clusters = clusterRegionKmerAlns(0, read, initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
 		if(clusters.size()>1) {
 			Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster c1 = clusters.get(0);
 			KmerHitsCluster c2 = clusters.get(1);
-			int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(c1.getFirst(), c1.getLast(), c2.getFirst(), c2.getLast());
-			if((overlap <0.9*c1.length() || overlap < 0.9*c2.length()) && c1.getNumDifferentKmers()<0.9*initialKmerHits.size()) {
+			int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(c1.getSubjectPredictedStart(), c1.getSubjectPredictedEnd(), c2.getSubjectPredictedStart(), c2.getSubjectPredictedEnd());
+			int c1Length = c1.getSubjectPredictedEnd()-c1.getSubjectPredictedStart();
+			int c2Length = c2.getSubjectPredictedEnd()-c2.getSubjectPredictedStart();
+			if((overlap <0.9*c1Length || overlap < 0.9*c2Length) && c1.getNumDifferentKmers()<0.9*initialKmerHits.size()) {
 				return null;
 			}	
 		} else if (clusters.size()==0) return null;
@@ -108,17 +110,17 @@ public class LongReadsAligner {
 	}
 
 	
-	public static List<KmerHitsCluster> clusterSequenceKmerAlns(int querySequenceId, CharSequence query, List<UngappedSearchHit> sequenceKmerHits, double minQueryCoverage) {
+	public static List<KmerHitsCluster> clusterRegionKmerAlns(int querySequenceId, CharSequence query, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
-		
-		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceKmerHits);
+		Collections.sort(sequenceHits,(h1,h2) -> h1.getStart()-h2.getStart());
+		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
 		if (uniqueCluster.getQueryCoverage()<minQueryCoverage) return answer;
 		answer.add(uniqueCluster);
-		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceKmerHits.size()) return answer;
+		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceHits.size()) return answer;
 		//Cluster remaining hits
 		List<UngappedSearchHit> remainingHits = new ArrayList<UngappedSearchHit>();
-		for(UngappedSearchHit hit:sequenceKmerHits) {
+		for(UngappedSearchHit hit:sequenceHits) {
 			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
 		}
 		KmerHitsCluster cluster2 = new KmerHitsCluster(query, remainingHits);
@@ -128,7 +130,7 @@ public class LongReadsAligner {
 	public void printClusters(List<KmerHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
 		for(KmerHitsCluster cluster:clusters) {
-			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" first: "+cluster.getFirst()+" last: "+cluster.getLast()+" query limits "+cluster.getQueryStart()+"-"+cluster.getQueryEnd());
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryStart()+"-"+cluster.getQueryEnd());
 		}
 		
 	}
@@ -136,9 +138,7 @@ public class LongReadsAligner {
 	private ReadAlignment buildCompleteAlignment(CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster, String subjectName) {
 		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
-		
-		int clusterFirst = kmerHitsCluster.getFirst();
-		int subjectNext = Math.max(0, clusterFirst-1);
+		int subjectNext = Math.max(0, kmerHitsCluster.getSubjectPredictedStart());
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getLast());
 		int queryNext = 0;
 		int alnStart = -1;

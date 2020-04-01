@@ -7,14 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import ngsep.genome.GenomicRegion;
-
 /**
  * 
  * @author Jorge Duitama
  *
  */
-public class KmerHitsCluster implements GenomicRegion, Serializable {
+public class KmerHitsCluster implements Serializable {
 
 	private static final long serialVersionUID = -4473724263138366546L;
 	private CharSequence query;
@@ -22,15 +20,14 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	private Map<Integer,UngappedSearchHit> hitsMap=new TreeMap<Integer, UngappedSearchHit>();
 	private int sequenceIdx;
 	private String sequenceName;
-	private int first;
-	private int last;
+	private int subjectPredictedStart;
+	private int subjectPredictedEnd;
 	private int queryStart;
 	private int queryEnd;
 	private int subjectEvidenceStart;
 	private int subjectEvidenceEnd;
 	private int numDifferentKmers = 0;
 	private double averageHitsQuery;
-	private int totalKmersQuery;
 	private double weightedCount=0;
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
@@ -60,10 +57,10 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			if(hits.size()>1) continue;
 			UngappedSearchHit hit = hits.get(0);
-			int estFirst = estimateSubjectFirst(hit);
-			subjectStarts.add(estFirst);
-			sum+=estFirst;
-			sum2+=estFirst*estFirst;
+			int estStart = estimateSubjectStart(hit);
+			subjectStarts.add(estStart);
+			sum+=estStart;
+			sum2+=estStart*estStart;
 			n++;
 		}
 		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
@@ -72,10 +69,10 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 			sum=sum2=n=0;
 			for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 				for(UngappedSearchHit hit:hits) {
-					int estFirst = estimateSubjectFirst(hit);
-					subjectStarts.add(estFirst);
-					sum+=estFirst;
-					sum2+=(estFirst*estFirst);
+					int estStart = estimateSubjectStart(hit);
+					subjectStarts.add(estStart);
+					sum+=estStart;
+					sum2+=(estStart*estStart);
 					n++;
 				}
 				
@@ -91,13 +88,13 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		if(maxDistance<0.1*query.length()) maxDistance*=2;
 		else if (maxDistance>0.2*query.length()) maxDistance/=2;
 		
-		first = -1;
+		subjectPredictedStart = -1;
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits,median, Math.min(query.length()/20, maxDistance));
 			if(hit!=null) {
-				if(first==-1) {
-					first = estimateSubjectFirst(hit);
-					last = estimateSubjectLast(hit);
+				if(subjectPredictedStart==-1) {
+					subjectPredictedStart = estimateSubjectStart(hit);
+					subjectPredictedEnd = estimateSubjectEnd(hit);
 					queryStart = hit.getQueryIdx();
 					queryEnd = hit.getQueryIdx() + hit.getQuery().length();
 					subjectEvidenceStart = hit.getStart();
@@ -106,16 +103,16 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 				addHit(hit);
 			}
 		}
-		if(sequenceIdx==idxDebug) System.out.println("Final hits: "+hitsMap.size()+" first: "+first+" last: "+last);
+		if(sequenceIdx==idxDebug) System.out.println("Final hits: "+hitsMap.size()+" start: "+subjectPredictedStart+" end: "+subjectPredictedEnd);
 	}
 
 	private UngappedSearchHit selectHit(List<UngappedSearchHit> hits, int median, int maxDistance) {
 		UngappedSearchHit answer = null;
 		int minDistance = 0;
 		for(UngappedSearchHit hit:hits) {
-			int estFirst = estimateSubjectFirst(hit);
-			int distance = Math.abs(estFirst-median);
-			if(sequenceIdx==idxDebug) System.out.println("Next hit: "+hit.getQueryIdx()+" first: "+estFirst+" distance: "+distance+ " max: "+maxDistance);
+			int estStart = estimateSubjectStart(hit);
+			int distance = Math.abs(estStart-median);
+			if(sequenceIdx==idxDebug) System.out.println("Next hit: "+hit.getQueryIdx()+" start: "+estStart+" distance: "+distance+ " max: "+maxDistance);
 			if(distance <= maxDistance) {
 				if(answer == null || minDistance>distance) {
 					answer = hit;
@@ -133,8 +130,8 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		sequenceIdx = kmerHit.getSequenceIdx();
 		sequenceName = kmerHit.getSequenceName();
 		int kmerQueryStart = kmerHit.getQueryIdx();
-		first = estimateSubjectFirst(kmerHit);
-		last = estimateSubjectLast(kmerHit);
+		subjectPredictedStart = estimateSubjectStart(kmerHit);
+		subjectPredictedEnd = estimateSubjectEnd(kmerHit);
 		queryStart = kmerHit.getQueryIdx();
 		queryEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
 		subjectEvidenceStart = kmerHit.getStart();
@@ -147,11 +144,11 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	
 	private void addHit(UngappedSearchHit hit) {
 		hitsMap.put(hit.getQueryIdx(), hit);
-		int estFirst = estimateSubjectFirst(hit);
-		int estLast = estimateSubjectLast(hit);
-		if(estFirst!=first || estLast!=last) allConsistent = false;
-		first = Math.min(first, estFirst);
-		last = Math.max(last, estLast);
+		int estStart = estimateSubjectStart(hit);
+		int estEnd = estimateSubjectEnd(hit);
+		if(estStart!=subjectPredictedStart || estEnd!=subjectPredictedEnd) allConsistent = false;
+		subjectPredictedStart = Math.min(subjectPredictedStart, estStart);
+		subjectPredictedEnd = Math.max(subjectPredictedEnd, estEnd);
 		queryStart = Math.min(queryStart, hit.getQueryIdx());
 		queryEnd = Math.max(queryEnd, hit.getQueryIdx() + hit.getQuery().length());
 		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getStart());
@@ -162,27 +159,26 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	}
 	
 	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
-		int estFirst = estimateSubjectFirst(kmerHit);
-		int estLast = estimateSubjectLast(kmerHit);
+		int estStart = estimateSubjectStart(kmerHit);
+		int estEnd = estimateSubjectEnd(kmerHit);
 		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
-		if(first > estLast || last < estFirst) return false;
-		if(toleranceChange>0 && Math.abs(first-estFirst)>toleranceChange) return false;
-		if(toleranceChange>0 && Math.abs(last-estLast)>toleranceChange) return false;
+		if(subjectPredictedStart > estEnd || subjectPredictedEnd < estStart) return false;
+		if(toleranceChange>0 && Math.abs(subjectPredictedStart-estStart)>toleranceChange) return false;
+		if(toleranceChange>0 && Math.abs(subjectPredictedEnd-estEnd)>toleranceChange) return false;
 		addHit(kmerHit);
-		return true;	
+		return true;
 	}
 	
-	private int estimateSubjectFirst(UngappedSearchHit hit) {
-		return hit.getStart() - hit.getQueryIdx() +1;
+	private int estimateSubjectStart(UngappedSearchHit hit) {
+		return hit.getStart() - hit.getQueryIdx();
 	}
 
-	private int estimateSubjectLast(UngappedSearchHit hit) {
+	private int estimateSubjectEnd(UngappedSearchHit hit) {
 		return hit.getStart()+(query.length()-hit.getQueryIdx());
 	}
 	
-	public void summarize(double averageHitsQuery, int kmersQuery) {
+	public void summarize(double averageHitsQuery) {
 		this.averageHitsQuery = averageHitsQuery;
-		this.totalKmersQuery = kmersQuery;
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
 		for(UngappedSearchHit hit: hitsMap.values()) {
@@ -205,24 +201,18 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		return sequenceIdx;
 	}
 
-	public int getFirst() {
-		return first;
+	public int getSubjectPredictedStart() {
+		return subjectPredictedStart;
+	}
+
+	public int getSubjectPredictedEnd() {
+		return subjectPredictedEnd;
 	}
 	
-
-	public void setFirst(int first) {
-		this.first = first;
-	}
-
-	public int getLast() {
-		return last;
-	}
-	public void setLast(int last) {
-		this.last = last;
-	}
-
-	public int length() {
-		return last-first+1;
+	public void setSubjectPredictedLimits (int predictedStart, int predictedEnd) {
+		if(predictedEnd<=predictedStart) throw new IllegalArgumentException("Predicted end "+predictedEnd+" must be larger than predicted start: "+predictedStart);
+		subjectPredictedStart = predictedStart;
+		subjectPredictedEnd = predictedEnd;
 	}
 
 	/**
@@ -252,23 +242,12 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		double queryCoverage = queryEnd-queryStart;
 		return queryCoverage / query.length();
 	}
-	
-	public int getTotalKmersQuery() {
-		return totalKmersQuery;
-	}
 
 	public double getAverageHitsQuery() {
 		return averageHitsQuery;
 	}
 	public double getWeightedCount() {
 		return weightedCount;
-	}
-	
-	public double getProportionKmers () {
-		return numDifferentKmers / (double)totalKmersQuery;
-	}
-	public double getWeightedProportionKmers () {
-		return weightedCount / (double)totalKmersQuery;
 	}
 
 	/**
@@ -296,9 +275,6 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 		return lastKmerPresent;
 	}
 	
-	
-	
-	
 	public List<UngappedSearchHit> getHitsByQueryIdx () {
 		List<UngappedSearchHit> sortedHits = new ArrayList<UngappedSearchHit>();
 		sortedHits.addAll(hitsMap.values());
@@ -308,17 +284,5 @@ public class KmerHitsCluster implements GenomicRegion, Serializable {
 	public UngappedSearchHit getKmerHit(int queryKmerIdx) {
 		return hitsMap.get(queryKmerIdx);
 	}
-
-	@Override
-	public boolean isPositiveStrand() {
-		return true;
-	}
-
-	@Override
-	public boolean isNegativeStrand() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-	
 	
 }

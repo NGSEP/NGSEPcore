@@ -192,7 +192,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	}
 
 
-	private void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
+	public void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
 		for(int j = pathPos; j < path.size(); j++) {
 			AssemblyEdge edge = path.get(j);
 			if(edge.isSameSequenceEdge()) continue;
