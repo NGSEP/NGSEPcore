@@ -15,16 +15,14 @@ public class MinimizersTableTest extends TestCase {
 	public void testEncodeDecode () {
 		MinimizersTable table = new MinimizersTable(15, 5);
 		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, 0, sequence.length(), false, true, true);
-		Map<Integer, List<MinimizersTableEntry>> minimizers = table.computeSequenceMinimizers(0, sequence.length(), kmers);
-		for (int minimizer:minimizers.keySet()) {
-			for(MinimizersTableEntry entry:minimizers.get(minimizer)) {
-				long code = entry.encode();
-				MinimizersTableEntry copy = new MinimizersTableEntry(minimizer, code);
-				assertEquals(entry.getMinimizer(), copy.getMinimizer());
-				assertEquals(entry.getSequenceId(), copy.getSequenceId());
-				assertEquals(entry.getStart(), copy.getStart());
-			}
-			
+		List<MinimizersTableEntry> minimizers = table.computeSequenceMinimizers(0, 0, sequence.length(), kmers);
+		
+		for(MinimizersTableEntry entry:minimizers) {
+			long code = entry.encode();
+			MinimizersTableEntry copy = new MinimizersTableEntry(entry.getMinimizer(), code);
+			assertEquals(entry.getMinimizer(), copy.getMinimizer());
+			assertEquals(entry.getSequenceId(), copy.getSequenceId());
+			assertEquals(entry.getStart(), copy.getStart());
 		}
 	}
 	public void testSearchSelf () {

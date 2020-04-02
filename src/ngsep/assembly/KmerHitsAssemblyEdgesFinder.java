@@ -19,6 +19,8 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private double minProportionOverlap = 0.1;
 	
+	private double minProportionEvidence = 0.5;
+	
 	private int meanDepth = 10;
 	
 	
@@ -26,7 +28,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private LongReadsAligner aligner = new LongReadsAligner();
 	
-	private int idxDebug = 726;
+	private int idxDebug = -1;
 	
 	
 	
@@ -68,7 +70,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
 			if(subjectIdx< queryIdx) {
-				if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount);
+				if (queryIdx == idxDebug && subjectCount>10) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount);
 				subjectIdxs.add(subjectIdx);
 			}
 		}
@@ -95,11 +97,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			double overlap = estimateOverlap (cluster, queryLength, targetLength);
 			double regionSelfCount = overlap*selfHitsCount/queryLength;
 			double pct = 100.0*cluster.getNumDifferentKmers()/regionSelfCount;
-			int queryRegionLength = cluster.getQueryEnd()-cluster.getQueryStart();
+			int queryEvidenceLength = cluster.getQueryEnd()-cluster.getQueryStart();
+			int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
 			if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Processing cluster. query length "+queryLength+" target length: "+targetLength+" QueryStart: "+cluster.getQueryStart()+" query end: "+cluster.getQueryEnd()+" overlap "+overlap+" Subject: "+cluster.getSequenceIdx()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" evidence limits: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
 			//TODO: Parameters
 			if(overlap < minProportionOverlap*queryLength || overlap < minProportionOverlap*targetLength) continue;
-			if(queryRegionLength < 0.3*overlap) continue;
+			if(queryEvidenceLength < minProportionEvidence*overlap || subjectEvidenceLength < minProportionEvidence*overlap) continue;
 			if(pct<minKmerPercentage) continue;
 			synchronized (graph) {
 				processAlignment(graph, querySequenceId, queryRC, cluster);

@@ -465,7 +465,7 @@ public class AssemblyGraph implements Serializable {
 
 
 	public void filterEdgesAndEmbedded(int sequenceId) {
-		int debugIdx = 90;
+		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
@@ -531,6 +531,9 @@ public class AssemblyGraph implements Serializable {
 			if(embedded!=maxEmbedded) {
 				removeEmbedded(embedded);
 				if(sequenceId == debugIdx) System.out.println("Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
+			} else {
+				removeVertices(embedded.getSequenceId());
+				if(sequenceId == debugIdx) System.out.println("Removed vertices for sequence: "+embedded.getSequenceId());
 			}
 		}
 	}
