@@ -144,7 +144,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
-					log.warning("Non embedded edge has overlap: "+overlap+ " and length: "+nextPathSequence.length());
+					log.warning("Non embedded edge btween vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " and length: "+nextPathSequence.length());
 				}
 				
 			}

@@ -71,6 +71,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				CharSequence seq = vertexPreviousEdge.getRead();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
+				consensus.append(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead())
 			{
@@ -78,17 +79,17 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				CharSequence seq = vertexNextEdge.getRead();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) seq = DNASequence.getReverseComplement(seq);
-				if(seq.length() - edge.getOverlap() > tolerance) 
+				if(edge.getOverlap() < seq.length()) 
 				{
 					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					//String overlapSegment = nextSequence.substring(0, edge.getOverlap());
 					String remainingSegment = seq.subSequence(edge.getOverlap(),seq.length()).toString();
 					//if (consensus.length()>490000 && consensus.length()<510000) System.out.println("Consensus length: "+consensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+seq.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
-					consensus.append(remainingSegment);
+					consensus.append(remainingSegment.toUpperCase());
 				} 
 				else 
 				{
-					System.err.println("Non embedded edge has overlap: "+edge.getOverlap()+ " and length: "+seq.length());
+					System.err.println("Non embedded edge between vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+edge.getOverlap()+ " and length: "+seq.length());
 				}
 			}
 			lastVertex = vertexNextEdge;
