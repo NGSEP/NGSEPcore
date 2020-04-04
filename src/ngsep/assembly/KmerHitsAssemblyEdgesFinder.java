@@ -100,7 +100,6 @@ public class KmerHitsAssemblyEdgesFinder {
 			int queryEvidenceLength = cluster.getQueryEnd()-cluster.getQueryStart();
 			int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
 			if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Processing cluster. query length "+queryLength+" target length: "+targetLength+" QueryStart: "+cluster.getQueryStart()+" query end: "+cluster.getQueryEnd()+" overlap "+overlap+" Subject: "+cluster.getSequenceIdx()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" evidence limits: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
-			//TODO: Parameters
 			if(overlap < minProportionOverlap*queryLength || overlap < minProportionOverlap*targetLength) continue;
 			if(queryEvidenceLength < minProportionEvidence*overlap || subjectEvidenceLength < minProportionEvidence*overlap) continue;
 			if(pct<minKmerPercentage) continue;
@@ -181,8 +180,6 @@ public class KmerHitsAssemblyEdgesFinder {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
-		
-		int startTarget = cluster.getSubjectPredictedStart();
 		AssemblyVertex vertexTarget = graph.getVertex(targetSeqIdx, false);
 		AssemblyVertex vertexQuery;
 		if(queryRC) {
@@ -190,7 +187,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else {
 			vertexQuery = graph.getVertex(querySequenceId, true);
 		}
-		int overlap = targetLength-startTarget;
+		int overlap = cluster.getPredictedOverlap();
 		int cost = targetLength + queryLength - overlap;
 		AssemblyEdge edge = new AssemblyEdge(vertexTarget, vertexQuery, cost, overlap);
 		edge.setEvidence(cluster);
@@ -201,7 +198,6 @@ public class KmerHitsAssemblyEdgesFinder {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
-		int endTarget = cluster.getSubjectPredictedEnd();
 		AssemblyVertex vertexTarget = graph.getVertex(targetSeqIdx, true);
 		AssemblyVertex vertexQuery;
 		if(queryRC) {
@@ -209,7 +205,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else {
 			vertexQuery = graph.getVertex(querySequenceId, false);
 		}
-		int overlap = endTarget;
+		int overlap = cluster.getPredictedOverlap();
 		int cost = targetLength + queryLength -overlap;
 		AssemblyEdge edge = new AssemblyEdge(vertexQuery, vertexTarget, cost, overlap);
 		edge.setEvidence(cluster);

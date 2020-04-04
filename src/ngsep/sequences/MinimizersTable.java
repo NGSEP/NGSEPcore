@@ -18,6 +18,7 @@ public class MinimizersTable {
 	
 	
 	private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
+	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>(); 
 	private int numSequences = 0;
 	
 	
@@ -61,6 +62,7 @@ public class MinimizersTable {
 	 */
 	public void addSequence (int sequenceId, CharSequence sequence) {
 		int n = sequence.length();
+		sequenceLengths.put(sequenceId, n);
 		int step = 50000000;
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
@@ -206,6 +208,7 @@ public class MinimizersTable {
 				
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(queryEntry.getStart());
+				hit.setSequenceLength(sequenceLengths.get(subjectIdx));
 				hit.setTotalHitsQuery(codesMatching.size());
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);

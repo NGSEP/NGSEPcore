@@ -20,12 +20,14 @@ public class KmerHitsCluster implements Serializable {
 	private Map<Integer,UngappedSearchHit> hitsMap=new TreeMap<Integer, UngappedSearchHit>();
 	private int sequenceIdx;
 	private String sequenceName;
+	private int sequenceLength;
 	private int subjectPredictedStart;
 	private int subjectPredictedEnd;
 	private int queryStart;
 	private int queryEnd;
 	private int subjectEvidenceStart;
 	private int subjectEvidenceEnd;
+	private int predictedOverlap;
 	private int numDifferentKmers = 0;
 	private double averageHitsQuery;
 	private double weightedCount=0;
@@ -41,6 +43,7 @@ public class KmerHitsCluster implements Serializable {
 		UngappedSearchHit firstHit = inputHits.get(0);
 		sequenceIdx = firstHit.getSequenceIdx();
 		sequenceName = firstHit.getSequenceName();
+		sequenceLength = firstHit.getSequenceLength();
 		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Target idx: "+sequenceIdx);
 		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
 		
@@ -181,13 +184,86 @@ public class KmerHitsCluster implements Serializable {
 		this.averageHitsQuery = averageHitsQuery;
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
-		for(UngappedSearchHit hit: hitsMap.values()) {
-			double n = hit.getTotalHitsQuery(); 
+		
+		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
+		hits.addAll(hitsMap.values());
+		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
+		for(UngappedSearchHit hit: hits) {
+			double n = hit.getTotalHitsQuery();
 			if(n<=averageHitsQuery) weightedCount++;
 			else weightedCount += averageHitsQuery/n;
 		}
+		predictStart (hits);
+		predictEnd (hits);
+		predictOverlap (hits);
+		
 		//Disposes detailed information about hits
 		hitsMap.clear();
+	}
+
+	private void predictOverlap(List<UngappedSearchHit> hits) {
+		List<Integer> estimatedOverlaps = new ArrayList<Integer>();
+		for(UngappedSearchHit hit:hits) {
+			int overlap = estimateOverlap (hit);
+			estimatedOverlaps.add(overlap);
+		}
+		predictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
+		if (subjectPredictedStart>0 && subjectPredictedEnd>sequenceLength) {
+			//Average with estimation from subject start
+			predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart))/2;
+		} else if (subjectPredictedStart<0 && subjectPredictedEnd<sequenceLength) {
+			//Average with estimation from subject end
+			predictedOverlap = (predictedOverlap+subjectPredictedEnd)/2;
+		}
+	}
+
+	private int estimateOverlap(UngappedSearchHit hit) {
+		int start = estimateSubjectStart(hit);
+		int end = estimateSubjectEnd(hit);
+		int qS = hit.getQueryIdx() - hit.getStart();
+		int qE = hit.getQueryIdx()+(sequenceLength-hit.getStart());
+		int overlap = Math.min(query.length(), sequenceLength);
+		overlap = Math.min(overlap, sequenceLength-start);
+		overlap = Math.min(overlap, end);
+		overlap = Math.min(overlap, query.length()-qS);
+		overlap = Math.min(overlap, qE);
+		
+		return overlap;
+	}
+
+	private void predictStart(List<UngappedSearchHit> hits) {
+		List<Integer> estimatedStarts = new ArrayList<Integer>();
+		double totalSum = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=0;i<n && i < 100;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			int estStart = estimateSubjectStart(hit);
+			estimatedStarts.add(estStart);
+			double weight = ((double)(n-i))/n;
+			weightSum += weight;
+			totalSum += weight*estStart;
+		}
+		subjectPredictedStart = (int) Math.round(totalSum / weightSum);
+		//subjectPredictedStart = estimatedStarts.get(estimatedStarts.size()/2);
+	}
+
+	private void predictEnd(List<UngappedSearchHit> hits) {
+		List<Integer> estimatedEnds = new ArrayList<Integer>();
+		double totalSum = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=Math.max(0, n-100);i<n;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			int estEnd = estimateSubjectEnd(hit);
+			estimatedEnds.add(estEnd);
+			double weight = ((double)i)/n;
+			weightSum += weight;
+			totalSum += weight*estEnd;
+		}
+		subjectPredictedEnd = (int) Math.round(totalSum / weightSum);
+		//subjectPredictedEnd = estimatedEnds.get(estimatedEnds.size()/2);
+		
 	}
 
 	public String getSequenceName() {
@@ -208,11 +284,14 @@ public class KmerHitsCluster implements Serializable {
 	public int getSubjectPredictedEnd() {
 		return subjectPredictedEnd;
 	}
-	
 	public void setSubjectPredictedLimits (int predictedStart, int predictedEnd) {
 		if(predictedEnd<=predictedStart) throw new IllegalArgumentException("Predicted end "+predictedEnd+" must be larger than predicted start: "+predictedStart);
 		subjectPredictedStart = predictedStart;
 		subjectPredictedEnd = predictedEnd;
+	}
+
+	public int getPredictedOverlap() {
+		return predictedOverlap;
 	}
 
 	/**

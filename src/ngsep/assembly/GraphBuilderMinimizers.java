@@ -129,13 +129,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
 		finder.updateGraphWithKmerHitsMap(seqId, seq, false, selfHitsCount, hitsBySubjectIdx);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
-		updateGraph(finder, seqId, complement, true, table);
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, selfHitsCount, table.match(complement));
 		AssemblyGraph graph = finder.getGraph();
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
-	}
-	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, MinimizersTable table) {
-		
 	}
 	
 }

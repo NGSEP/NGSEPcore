@@ -8,6 +8,7 @@ public class UngappedSearchHit implements Serializable {
 	private CharSequence query;
 	private int sequenceIdx=-1;
 	private String sequenceName;
+	private int sequenceLength;
 	//Zero based start of this hit within the sequence
 	private int start;
 	private int totalHitsQuery = 0;
@@ -52,6 +53,12 @@ public class UngappedSearchHit implements Serializable {
 	}
 	public void setSequenceName(String sequenceName) {
 		this.sequenceName = sequenceName;
+	}
+	public int getSequenceLength() {
+		return sequenceLength;
+	}
+	public void setSequenceLength(int sequenceLength) {
+		this.sequenceLength = sequenceLength;
 	}
 	public int getStart() {
 		return start;
