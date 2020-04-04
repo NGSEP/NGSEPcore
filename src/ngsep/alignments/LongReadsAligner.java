@@ -69,12 +69,13 @@ public class LongReadsAligner {
 		}
 		return answer;
 	}
-	public List<UngappedSearchHit> alignUniqueKmers(int subjectIdx, Map<CharSequence, Integer> uniqueKmersSubject, Map<CharSequence, Integer> uniqueKmersQuery) {
+	public List<UngappedSearchHit> alignUniqueKmers(int subjectIdx, int subjectLength, Map<CharSequence, Integer> uniqueKmersSubject, Map<CharSequence, Integer> uniqueKmersQuery) {
 		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();
 		for(CharSequence kmerRead:uniqueKmersQuery.keySet()) {
 			Integer subjectPos = uniqueKmersSubject.get(kmerRead);
 			if(subjectPos==null) continue;
 			UngappedSearchHit hit = new UngappedSearchHit(kmerRead, subjectIdx , subjectPos);
+			hit.setSequenceLength(subjectLength);
 			hit.setQueryIdx(uniqueKmersQuery.get(kmerRead));
 			initialKmerHits.add(hit);
 		}
@@ -89,7 +90,7 @@ public class LongReadsAligner {
 	public ReadAlignment alignRead(CharSequence subject, CharSequence read, Map<CharSequence, Integer> uniqueKmersSubject, String subjectName, double minQueryCoverage) {
 		Map<CharSequence, Integer> uniqueKmersRead = extractUniqueKmers(read,0,read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
-		List<UngappedSearchHit> initialKmerHits = alignUniqueKmers(-1,uniqueKmersSubject, uniqueKmersRead);
+		List<UngappedSearchHit> initialKmerHits = alignUniqueKmers(-1,subject.length(),uniqueKmersSubject, uniqueKmersRead);
 		if(initialKmerHits.size()==0) return null;
 		List<KmerHitsCluster> clusters = clusterRegionKmerAlns(0, read, initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
@@ -130,7 +131,7 @@ public class LongReadsAligner {
 	public void printClusters(List<KmerHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
 		for(KmerHitsCluster cluster:clusters) {
-			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryStart()+"-"+cluster.getQueryEnd());
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
 		}
 		
 	}

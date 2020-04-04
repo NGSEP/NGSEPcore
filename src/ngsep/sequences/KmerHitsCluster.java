@@ -23,8 +23,10 @@ public class KmerHitsCluster implements Serializable {
 	private int sequenceLength;
 	private int subjectPredictedStart;
 	private int subjectPredictedEnd;
-	private int queryStart;
-	private int queryEnd;
+	private int queryPredictedStart;
+	private int queryPredictedEnd;
+	private int queryEvidenceStart;
+	private int queryEvidenceEnd;
 	private int subjectEvidenceStart;
 	private int subjectEvidenceEnd;
 	private int predictedOverlap;
@@ -60,6 +62,10 @@ public class KmerHitsCluster implements Serializable {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			if(hits.size()>1) continue;
 			UngappedSearchHit hit = hits.get(0);
+			if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
+				//Invalid kmer position in subject
+				continue;
+			}
 			int estStart = estimateSubjectStart(hit);
 			subjectStarts.add(estStart);
 			sum+=estStart;
@@ -68,10 +74,15 @@ public class KmerHitsCluster implements Serializable {
 		}
 		if(sequenceIdx==idxDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
 		if(n<5) {
+			System.out.println("Few unique kmers for hits to "+sequenceIdx+" initial: "+hitsMultiMap.size()+" final: "+n);
 			subjectStarts.clear();
 			sum=sum2=n=0;
 			for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 				for(UngappedSearchHit hit:hits) {
+					if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
+						//Invalid kmer position in subject
+						continue;
+					}
 					int estStart = estimateSubjectStart(hit);
 					subjectStarts.add(estStart);
 					sum+=estStart;
@@ -98,21 +109,27 @@ public class KmerHitsCluster implements Serializable {
 				if(subjectPredictedStart==-1) {
 					subjectPredictedStart = estimateSubjectStart(hit);
 					subjectPredictedEnd = estimateSubjectEnd(hit);
-					queryStart = hit.getQueryIdx();
-					queryEnd = hit.getQueryIdx() + hit.getQuery().length();
 					subjectEvidenceStart = hit.getStart();
 					subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
+					queryPredictedStart = estimateQueryStart(hit);
+					queryPredictedEnd = estimateQueryEnd(hit);
+					queryEvidenceStart = hit.getQueryIdx();
+					queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
+					
 				}
 				addHit(hit);
 			}
 		}
 		if(sequenceIdx==idxDebug) System.out.println("Final hits: "+hitsMap.size()+" start: "+subjectPredictedStart+" end: "+subjectPredictedEnd);
 	}
-
 	private UngappedSearchHit selectHit(List<UngappedSearchHit> hits, int median, int maxDistance) {
 		UngappedSearchHit answer = null;
 		int minDistance = 0;
 		for(UngappedSearchHit hit:hits) {
+			if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
+				//Invalid kmer position in subject
+				continue;
+			}
 			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
 			if(sequenceIdx==idxDebug) System.out.println("Next hit: "+hit.getQueryIdx()+" start: "+estStart+" distance: "+distance+ " max: "+maxDistance);
@@ -135,14 +152,16 @@ public class KmerHitsCluster implements Serializable {
 		int kmerQueryStart = kmerHit.getQueryIdx();
 		subjectPredictedStart = estimateSubjectStart(kmerHit);
 		subjectPredictedEnd = estimateSubjectEnd(kmerHit);
-		queryStart = kmerHit.getQueryIdx();
-		queryEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
 		subjectEvidenceStart = kmerHit.getStart();
 		subjectEvidenceEnd = subjectEvidenceStart+kmerHit.getQuery().length();
+		queryPredictedStart = estimateQueryStart(kmerHit);
+		queryPredictedEnd = estimateQueryEnd(kmerHit);
+		queryEvidenceStart = kmerHit.getQueryIdx();
+		queryEvidenceEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
 		hitsMap.put(kmerQueryStart, kmerHit);
 		numDifferentKmers = 1;
-		firstKmerPresent = queryStart == 0;
-		lastKmerPresent = queryEnd==query.length();
+		firstKmerPresent = queryEvidenceStart == 0;
+		lastKmerPresent = queryEvidenceEnd==query.length();
 	}
 	
 	private void addHit(UngappedSearchHit hit) {
@@ -152,16 +171,19 @@ public class KmerHitsCluster implements Serializable {
 		if(estStart!=subjectPredictedStart || estEnd!=subjectPredictedEnd) allConsistent = false;
 		subjectPredictedStart = Math.min(subjectPredictedStart, estStart);
 		subjectPredictedEnd = Math.max(subjectPredictedEnd, estEnd);
-		queryStart = Math.min(queryStart, hit.getQueryIdx());
-		queryEnd = Math.max(queryEnd, hit.getQueryIdx() + hit.getQuery().length());
 		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getStart());
 		subjectEvidenceEnd = Math.max(subjectEvidenceEnd, hit.getStart()+hit.getQuery().length());
-		if(queryStart==0) firstKmerPresent = true;
-		if (queryEnd==query.length()) lastKmerPresent = true;
+		queryPredictedStart = Math.min(queryPredictedStart, estimateQueryStart(hit));
+		queryPredictedEnd = Math.max(queryPredictedEnd, estimateQueryEnd(hit));
+		queryEvidenceStart = Math.min(queryEvidenceStart, hit.getQueryIdx());
+		queryEvidenceEnd = Math.max(queryEvidenceEnd, hit.getQueryIdx() + hit.getQuery().length());
+		if(queryEvidenceStart==0) firstKmerPresent = true;
+		if (queryEvidenceEnd==query.length()) lastKmerPresent = true;
 		numDifferentKmers++;
 	}
 	
 	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
+		if(estimateQueryEnd(kmerHit)<kmerHit.getQueryIdx()+kmerHit.getQuery().length()) return false;
 		int estStart = estimateSubjectStart(kmerHit);
 		int estEnd = estimateSubjectEnd(kmerHit);
 		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
@@ -180,6 +202,15 @@ public class KmerHitsCluster implements Serializable {
 		return hit.getStart()+(query.length()-hit.getQueryIdx());
 	}
 	
+	private int estimateQueryStart(UngappedSearchHit hit) {
+		return hit.getQueryIdx() - hit.getStart();
+	}
+
+	private int estimateQueryEnd(UngappedSearchHit hit) {
+		return hit.getQueryIdx()+(sequenceLength-hit.getStart());
+	}
+
+	
 	public void summarize(double averageHitsQuery) {
 		this.averageHitsQuery = averageHitsQuery;
 		numDifferentKmers = hitsMap.size();
@@ -187,14 +218,17 @@ public class KmerHitsCluster implements Serializable {
 		
 		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
 		hits.addAll(hitsMap.values());
-		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
 		for(UngappedSearchHit hit: hits) {
 			double n = hit.getTotalHitsQuery();
 			if(n<=averageHitsQuery) weightedCount++;
 			else weightedCount += averageHitsQuery/n;
 		}
-		predictStart (hits);
-		predictEnd (hits);
+		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
+		predictSubjectStart (hits);
+		predictSubjectEnd (hits);
+		Collections.sort(hits, (h1,h2)->h1.getQueryIdx()-h2.getQueryIdx());
+		predictQueryStart (hits);
+		predictQueryEnd (hits);
 		predictOverlap (hits);
 		
 		//Disposes detailed information about hits
@@ -208,20 +242,70 @@ public class KmerHitsCluster implements Serializable {
 			estimatedOverlaps.add(overlap);
 		}
 		predictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
-		if (subjectPredictedStart>0 && subjectPredictedEnd>sequenceLength) {
+		if (subjectPredictedStart>0 && subjectPredictedEnd>sequenceLength && queryPredictedEnd<query.length()) {
 			//Average with estimation from subject start
-			predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart))/2;
-		} else if (subjectPredictedStart<0 && subjectPredictedEnd<sequenceLength) {
+			predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart)+queryPredictedEnd)/3;
+		} else if (subjectPredictedStart<0 && subjectPredictedEnd<sequenceLength && queryPredictedStart>0) {
 			//Average with estimation from subject end
-			predictedOverlap = (predictedOverlap+subjectPredictedEnd)/2;
+			predictedOverlap = (predictedOverlap+subjectPredictedEnd+(query.length()-queryPredictedStart))/3;
 		}
 	}
 
+	private void predictSubjectStart(List<UngappedSearchHit> hits) {
+		double totalSumSubject = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=0;i<n && i < 100;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)(n-i))/n;
+			weightSum += weight;
+			totalSumSubject += weight*estimateSubjectStart(hit);
+		}
+		subjectPredictedStart = (int) Math.round(totalSumSubject / weightSum);
+	}
+	private void predictQueryStart(List<UngappedSearchHit> hits) {
+		double totalSumQuery = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=0;i<n && i < 100;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)(n-i))/n;
+			weightSum += weight;
+			totalSumQuery += weight*estimateQueryStart(hit);
+		}
+		queryPredictedStart = (int) Math.round(totalSumQuery / weightSum);
+	}
+
+	private void predictSubjectEnd(List<UngappedSearchHit> hits) {
+		double totalSumSubject = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=Math.max(0, n-100);i<n;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)i)/n;
+			weightSum += weight;
+			totalSumSubject += weight*estimateSubjectEnd(hit);
+		}
+		subjectPredictedEnd = (int) Math.round(totalSumSubject / weightSum);
+	}
+	private void predictQueryEnd(List<UngappedSearchHit> hits) {
+		double totalSumQuery = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=Math.max(0, n-100);i<n;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)i)/n;
+			weightSum += weight;
+			totalSumQuery += weight*estimateQueryEnd(hit);
+		}
+		queryPredictedEnd = (int) Math.round(totalSumQuery / weightSum);
+	}
+	
 	private int estimateOverlap(UngappedSearchHit hit) {
 		int start = estimateSubjectStart(hit);
 		int end = estimateSubjectEnd(hit);
-		int qS = hit.getQueryIdx() - hit.getStart();
-		int qE = hit.getQueryIdx()+(sequenceLength-hit.getStart());
+		int qS = estimateQueryStart(hit);
+		int qE = estimateQueryEnd(hit);
 		int overlap = Math.min(query.length(), sequenceLength);
 		overlap = Math.min(overlap, sequenceLength-start);
 		overlap = Math.min(overlap, end);
@@ -229,41 +313,6 @@ public class KmerHitsCluster implements Serializable {
 		overlap = Math.min(overlap, qE);
 		
 		return overlap;
-	}
-
-	private void predictStart(List<UngappedSearchHit> hits) {
-		List<Integer> estimatedStarts = new ArrayList<Integer>();
-		double totalSum = 0;
-		double weightSum = 0;
-		int n = hits.size();
-		for(int i=0;i<n && i < 100;i++) {
-			UngappedSearchHit hit = hits.get(i);
-			int estStart = estimateSubjectStart(hit);
-			estimatedStarts.add(estStart);
-			double weight = ((double)(n-i))/n;
-			weightSum += weight;
-			totalSum += weight*estStart;
-		}
-		subjectPredictedStart = (int) Math.round(totalSum / weightSum);
-		//subjectPredictedStart = estimatedStarts.get(estimatedStarts.size()/2);
-	}
-
-	private void predictEnd(List<UngappedSearchHit> hits) {
-		List<Integer> estimatedEnds = new ArrayList<Integer>();
-		double totalSum = 0;
-		double weightSum = 0;
-		int n = hits.size();
-		for(int i=Math.max(0, n-100);i<n;i++) {
-			UngappedSearchHit hit = hits.get(i);
-			int estEnd = estimateSubjectEnd(hit);
-			estimatedEnds.add(estEnd);
-			double weight = ((double)i)/n;
-			weightSum += weight;
-			totalSum += weight*estEnd;
-		}
-		subjectPredictedEnd = (int) Math.round(totalSum / weightSum);
-		//subjectPredictedEnd = estimatedEnds.get(estimatedEnds.size()/2);
-		
 	}
 
 	public String getSequenceName() {
@@ -284,12 +333,32 @@ public class KmerHitsCluster implements Serializable {
 	public int getSubjectPredictedEnd() {
 		return subjectPredictedEnd;
 	}
+	public int getSubjectEvidenceStart() {
+		return subjectEvidenceStart;
+	}
+
+	public int getSubjectEvidenceEnd() {
+		return subjectEvidenceEnd;
+	}
 	public void setSubjectPredictedLimits (int predictedStart, int predictedEnd) {
 		if(predictedEnd<=predictedStart) throw new IllegalArgumentException("Predicted end "+predictedEnd+" must be larger than predicted start: "+predictedStart);
 		subjectPredictedStart = predictedStart;
 		subjectPredictedEnd = predictedEnd;
 	}
-
+	
+	public int getQueryPredictedStart() {
+		return queryPredictedStart;
+	}
+	public int getQueryPredictedEnd() {
+		return queryPredictedEnd;
+	}
+	public int getQueryEvidenceStart() {
+		return queryEvidenceStart;
+	}
+	public int getQueryEvidenceEnd() {
+		return queryEvidenceEnd;
+	}
+	
 	public int getPredictedOverlap() {
 		return predictedOverlap;
 	}
@@ -300,25 +369,11 @@ public class KmerHitsCluster implements Serializable {
 	public CharSequence getQuery() {
 		return query;
 	}
+
 	
-	public int getQueryStart() {
-		return queryStart;
-	}
-
-	public int getQueryEnd() {
-		return queryEnd;
-	}
-
-	public int getSubjectEvidenceStart() {
-		return subjectEvidenceStart;
-	}
-
-	public int getSubjectEvidenceEnd() {
-		return subjectEvidenceEnd;
-	}
 
 	public double getQueryCoverage () {
-		double queryCoverage = queryEnd-queryStart;
+		double queryCoverage = queryEvidenceEnd-queryEvidenceStart;
 		return queryCoverage / query.length();
 	}
 

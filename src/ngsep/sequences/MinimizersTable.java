@@ -109,7 +109,7 @@ public class MinimizersTable {
 	 */
 	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, CharSequence sequence,int start,int end) {
 		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
-		return computeSequenceMinimizers(sequenceId, start, end, kmers);
+		return computeSequenceMinimizers(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), kmers);
 	}
 	/**
 	 * Calculates the minimizers of the sequence represented by the given kmers
@@ -205,7 +205,10 @@ public class MinimizersTable {
 			for(long entryCode:codesMatching) {
 				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);
 				int subjectIdx = matchingEntry.getSequenceId();
-				
+				if (subjectIdx <0) {
+					System.err.println("Invalid subject "+subjectIdx+" minimizer: "+minimizer+" matching code: "+entryCode+" start: "+matchingEntry.getStart());
+					continue;
+				}
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(queryEntry.getStart());
 				hit.setSequenceLength(sequenceLengths.get(subjectIdx));

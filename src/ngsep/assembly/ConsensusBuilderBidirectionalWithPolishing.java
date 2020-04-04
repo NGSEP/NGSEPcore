@@ -33,6 +33,7 @@ import ngsep.discovery.VariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
@@ -123,28 +124,25 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
 				int overlap = edge.getOverlap();
-				//TODO: see if it is worth to improve the estimated overlap
-				/*ReadAlignment aln = aligner.alignRead(rawConsensus, nextPathSequence, Math.max(0, rawConsensus.length()-overlap-10), rawConsensus.length(), MOCK_REFERENCE_NAME);
-				if(aln== null) {
-					log.info("Path sequence with id "+vertexNextEdge.getSequenceIndex()+" and length "+rawConsensus.length()+" could not be aligned to consensus");
-				} else {
-					int newOverlap = aln.getReadPosition(rawConsensus.length()-1);
-					if(newOverlap >0 && Math.abs(newOverlap-overlap)<20 ) {
-						overlap = newOverlap;
-					} else if (newOverlap>0) {
-						log.info("Aligning "+vertexNextEdge.getSequenceIndex()+" to consensus end. Consensus length:"+rawConsensus.length()+" Overlap from kmers "+overlap+". Overlap from alignment "+newOverlap);
+				int startSuffix = overlap;
+				KmerHitsCluster cluster = edge.getEvidence();
+				if(cluster!=null) {
+					if (vertexPreviousEdge.getSequenceIndex()== cluster.getSequenceIdx()) {
+						if (!vertexPreviousEdge.isStart()) startSuffix = cluster.getQueryPredictedEnd();
+						else startSuffix = nextPathSequence.length() - cluster.getQueryPredictedStart();
+					} else if (vertexNextEdge.getSequenceIndex() == cluster.getSequenceIdx()) {
+						if (vertexNextEdge.isStart()) startSuffix = cluster.getSubjectPredictedEnd();
+						else startSuffix = nextPathSequence.length() - cluster.getSubjectPredictedStart();
 					}
-					//System.out.println("Next path read id: "+vertexNextEdge.getSequenceIndex()+" Remainder calculated from alignment: "+remainder+" remainder from edge: "+(seq.length()-overlap)+" overlap: "+overlap+" length: "+seq.length());
-					//if(newStart > 0 && newStart>lastIntegratedReadStart-200 && newStart<lastIntegratedReadStart ) lastIntegratedReadStart = newStart;
-				}*/
+				}
 				
-				if(overlap<nextPathSequence.length()) {
+				if(startSuffix<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
-					String remainingSegment = nextPathSequence.subSequence(overlap, nextPathSequence.length()).toString();
+					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
 					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
-					log.warning("Non embedded edge btween vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " and length: "+nextPathSequence.length());
+					log.warning("Non embedded edge btween vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " start suffix "+startSuffix+" and length: "+nextPathSequence.length());
 				}
 				
 			}
@@ -209,7 +207,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 
 	private List<CalledGenomicVariant> callVariants(String consensus, List<ReadAlignment> alignments) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-		
+		generator.setLog(log);
 		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(MOCK_REFERENCE_NAME, consensus));
 		generator.setSequencesMetadata(genome.getSequencesMetadata());
 		generator.setMaxAlnsPerStartPos(100);
@@ -222,7 +220,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		varListener.setGenome(genome);
 		generator.addListener(varListener);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-		for(ReadAlignment aln:alignments) generator.processAlignment(aln);
+		int count = 0;
+		for(ReadAlignment aln:alignments) {
+			generator.processAlignment(aln);
+			count++;
+			if(count%100==0) log.info("Processed "+count+" alignments. Called variants: "+varListener.getCalledVariants().size()); 
+		}
 		return varListener.getCalledVariants();
 	}
 

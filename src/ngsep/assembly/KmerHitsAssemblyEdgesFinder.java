@@ -97,9 +97,9 @@ public class KmerHitsAssemblyEdgesFinder {
 			double overlap = estimateOverlap (cluster, queryLength, targetLength);
 			double regionSelfCount = overlap*selfHitsCount/queryLength;
 			double pct = 100.0*cluster.getNumDifferentKmers()/regionSelfCount;
-			int queryEvidenceLength = cluster.getQueryEnd()-cluster.getQueryStart();
+			int queryEvidenceLength = cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart();
 			int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
-			if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Processing cluster. query length "+queryLength+" target length: "+targetLength+" QueryStart: "+cluster.getQueryStart()+" query end: "+cluster.getQueryEnd()+" overlap "+overlap+" Subject: "+cluster.getSequenceIdx()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" evidence limits: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
+			if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Processing cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+targetLength+" Subject: "+cluster.getSequenceIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct+" coverage: "+cluster.getQueryCoverage());
 			if(overlap < minProportionOverlap*queryLength || overlap < minProportionOverlap*targetLength) continue;
 			if(queryEvidenceLength < minProportionEvidence*overlap || subjectEvidenceLength < minProportionEvidence*overlap) continue;
 			if(pct<minKmerPercentage) continue;
