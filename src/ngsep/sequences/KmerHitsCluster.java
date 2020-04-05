@@ -388,13 +388,6 @@ public class KmerHitsCluster implements Serializable {
 		return query;
 	}
 
-	
-
-	public double getQueryCoverage () {
-		double queryCoverage = queryEvidenceEnd-queryEvidenceStart;
-		return queryCoverage / query.length();
-	}
-
 	public double getAverageHitsQuery() {
 		return averageHitsQuery;
 	}

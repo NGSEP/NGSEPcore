@@ -430,7 +430,7 @@ public class AssemblyGraph implements Serializable {
 			int nextRight = cluster.getSubjectEvidenceEnd();
 			int unknownLeft = nextLeft - cluster.getSubjectPredictedStart();
 			int unknownRight = cluster.getSubjectPredictedEnd() - nextRight;
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" coverage: "+cluster.getQueryCoverage()+" count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount());
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount());
 			if(firstEvidence==-1) {
 				firstEvidence = nextLeft;
 				lastEvidence = nextRight;
@@ -520,7 +520,7 @@ public class AssemblyGraph implements Serializable {
 		AssemblyEmbedded maxEmbedded = null;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			KmerHitsCluster cluster = embedded.getEvidence();
-			double score = cluster.getQueryCoverage()*cluster.getWeightedCount();
+			double score = 1.0*(cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/cluster.getQuery().length();
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
 			if(score > 0.5*maxScore && score > maxE) {
 				maxE = score;

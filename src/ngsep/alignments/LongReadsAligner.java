@@ -116,7 +116,7 @@ public class LongReadsAligner {
 		Collections.sort(sequenceHits,(h1,h2) -> h1.getStart()-h2.getStart());
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
-		if (uniqueCluster.getQueryCoverage()<minQueryCoverage) return answer;
+		if (uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*query.length()) return answer;
 		answer.add(uniqueCluster);
 		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceHits.size()) return answer;
 		//Cluster remaining hits
@@ -125,7 +125,7 @@ public class LongReadsAligner {
 			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
 		}
 		KmerHitsCluster cluster2 = new KmerHitsCluster(query, remainingHits);
-		if(cluster2.getQueryCoverage()>=minQueryCoverage) answer.add(cluster2);
+		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*query.length()) answer.add(cluster2);
 		return answer;
 	}
 	public void printClusters(List<KmerHitsCluster> clusters) {
@@ -143,6 +143,7 @@ public class LongReadsAligner {
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getLast());
 		int queryNext = 0;
 		int alnStart = -1;
+		int queryStart = -1;
 		char matchOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
 		char insertionOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
 		char deletionOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION);
@@ -154,6 +155,7 @@ public class LongReadsAligner {
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {
 				alnStart = kmerHit.getStart();
+				queryStart = kmerHit.getQueryIdx();
 				if(kmerHit.getQueryIdx()>0) cigar.append(""+kmerHit.getQueryIdx()+""+softClipOp);
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
@@ -232,7 +234,8 @@ public class LongReadsAligner {
 		finalAlignment.setReadCharacters(query);
 		finalAlignment.setCigarString(cigar.toString());
 		//TODO: Define better alignment quality
-		finalAlignment.setAlignmentQuality((short) Math.round(100*kmerHitsCluster.getQueryCoverage()));
+		double cov = 1.0*(queryNext-queryStart)/query.length();
+		finalAlignment.setAlignmentQuality((short) Math.round(100*cov));
 		return finalAlignment;
 	}
 

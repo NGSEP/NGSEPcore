@@ -197,10 +197,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			AssemblyEdge alt1 = graph.getEdge(vertexPreviousEdge, edge.getVertex1());
 			AssemblyEdge alt2 = graph.getEdge(vertexPreviousEdge, edge.getVertex2());
 			if(alt1==null && alt2==null) continue;
-			if(alt1!=null) System.out.println("Edge between: "+alt1.getVertex1().getUniqueNumber()+" and "+alt1.getVertex2().getUniqueNumber()+" overlap: "+alt1.getOverlap()+" coverage: "+alt1.getEvidence().getQueryCoverage());
-			if(alt2!=null) System.out.println("Edge between: "+alt2.getVertex1().getUniqueNumber()+" and "+alt2.getVertex2().getUniqueNumber()+" overlap: "+alt2.getOverlap()+" coverage: "+alt2.getEvidence().getQueryCoverage());
-			
-			
+			if(alt1!=null) System.out.println("Edge between: "+alt1.getVertex1().getUniqueNumber()+" and "+alt1.getVertex2().getUniqueNumber()+" overlap: "+alt1.getOverlap());
+			if(alt2!=null) System.out.println("Edge between: "+alt2.getVertex1().getUniqueNumber()+" and "+alt2.getVertex2().getUniqueNumber()+" overlap: "+alt2.getOverlap());	
 		}
 		
 	}
