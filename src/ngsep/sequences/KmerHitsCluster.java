@@ -102,7 +102,8 @@ public class KmerHitsCluster implements Serializable {
 		double stdev = (variance>0)?Math.sqrt(variance):0;
 		Distribution dist = new Distribution(0, 100, 1);
 		for(int start:subjectStarts) {
-			dist.processDatapoint(Math.abs(start-median));
+			int distance = Math.abs(start-median);
+			if (distance < stdev) dist.processDatapoint(distance);
 		}
 		
 		if(sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n+" median: "+median+" variance: "+variance+" stdev: "+stdev+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
@@ -141,7 +142,7 @@ public class KmerHitsCluster implements Serializable {
 			}
 			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
-			if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
 			if(distance <= maxDistance) {
 				if(answer == null || minDistance>distance) {
 					answer = hit;
@@ -281,12 +282,12 @@ public class KmerHitsCluster implements Serializable {
 			double weight = ((double)(n-i))/n;
 			weightSum += weight;
 			totalSumQuery += weight*estimateQueryStart(hit);
-			if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqStart: "+estimateQueryStart(hit)+" weight: "+weight+" sum: "+totalSumQuery);
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqStart: "+estimateQueryStart(hit)+" weight: "+weight+" sum: "+totalSumQuery);
 		}
 		queryPredictedStart = (int) Math.round(totalSumQuery / weightSum);
 		if(sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("KmerHitsCluster. evidenceStart "+queryEvidenceStart+" predicted start: "+queryPredictedStart+" sum: "+totalSumQuery+" weight sum: "+weightSum);
-		int d = queryPredictedStart-queryEvidenceStart;
-		if (d>=50) System.out.println("WARN: Predicted start "+queryPredictedStart+" for cluster to subject: "+sequenceIdx+" much larger than evidence: "+queryEvidenceStart+" query length: "+query.length());
+		//int d = queryPredictedStart-queryEvidenceStart;
+		//if (n>100 && d>=50) System.out.println("WARN: Predicted start "+queryPredictedStart+" for cluster to subject: "+sequenceIdx+" much larger than evidence: "+queryEvidenceStart+" query length: "+query.length());
 	}
 
 	private void predictSubjectEnd(List<UngappedSearchHit> hits) {
@@ -310,12 +311,12 @@ public class KmerHitsCluster implements Serializable {
 			double weight = ((double)i)/n;
 			weightSum += weight;
 			totalSumQuery += weight*estimateQueryEnd(hit);
-			if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqEnd: "+estimateQueryEnd(hit)+" weight: "+weight+" sum: "+totalSumQuery);
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqEnd: "+estimateQueryEnd(hit)+" weight: "+weight+" sum: "+totalSumQuery);
 		}
 		queryPredictedEnd = (int) Math.round(totalSumQuery / weightSum);
 		if(sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("KmerHitsCluster. evidenceEnd "+queryEvidenceEnd+" predicted end: "+queryPredictedEnd+" sum: "+totalSumQuery+" weight sum: "+weightSum);
-		int d = queryEvidenceEnd-queryPredictedEnd;
-		if (d>=50) System.out.println("WARN: Predicted end "+queryPredictedEnd+" for cluster to subject: "+sequenceIdx+" much smaller than evidence: "+queryEvidenceEnd+" query length: "+query.length());
+		//int d = queryEvidenceEnd-queryPredictedEnd;
+		//if (n>100 && d>=50) System.out.println("WARN: Predicted end "+queryPredictedEnd+" for cluster to subject: "+sequenceIdx+" much smaller than evidence: "+queryEvidenceEnd+" query length: "+query.length());
 	}
 	
 	private int estimateOverlap(UngappedSearchHit hit) {
