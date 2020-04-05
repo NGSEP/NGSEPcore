@@ -78,7 +78,7 @@ public class KmerHitsCluster implements Serializable {
 		}
 		if(sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
 		if(n<5) {
-			System.out.println("WARN. Few unique kmers for hits to "+sequenceIdx+" initial: "+hitsMultiMap.size()+" final: "+n);
+			//System.out.println("WARN. Few unique kmers for hits to "+sequenceIdx+" initial: "+hitsMultiMap.size()+" final: "+n);
 			subjectStarts.clear();
 			sum=sum2=n=0;
 			for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
