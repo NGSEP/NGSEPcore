@@ -84,7 +84,9 @@ public class LongReadsAligner {
 					cluster = new KmerHitsCluster(query, hit);
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					QualifiedSequence refSeq = genome.getSequenceByIndex(hit.getSequenceIdx());
-					ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,cluster.getSubjectPredictedStart(),cluster.getSubjectPredictedEnd(),0.3);
+					int subjectStart = Math.max(0, cluster.getSubjectPredictedStart());
+					int subjectEnd = Math.min(refSeq.getLength(), cluster.getSubjectPredictedEnd());
+					ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
 					if(aln!=null) {
 						aln.setSequenceName(refSeq.getName());
 						answer.add(aln);
