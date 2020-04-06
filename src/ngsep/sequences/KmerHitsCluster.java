@@ -209,7 +209,7 @@ public class KmerHitsCluster implements Serializable {
 	}
 
 	
-	public void summarize(double averageHitsQuery) {
+	public void summarize(double averageHitsQuery, boolean dispose) {
 		this.averageHitsQuery = averageHitsQuery;
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
@@ -221,16 +221,16 @@ public class KmerHitsCluster implements Serializable {
 			if(n<=averageHitsQuery) weightedCount++;
 			else weightedCount += averageHitsQuery/n;
 		}
+		//Hits are already sorted by query id
+		predictQueryStart (hits);
+		predictQueryEnd (hits);
 		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
 		predictSubjectStart (hits);
 		predictSubjectEnd (hits);
-		Collections.sort(hits, (h1,h2)->h1.getQueryIdx()-h2.getQueryIdx());
-		predictQueryStart (hits);
-		predictQueryEnd (hits);
-		predictOverlap (hits);
 		
+		predictOverlap (hits);
 		//Disposes detailed information about hits
-		hitsMap.clear();
+		if (dispose) hitsMap.clear();
 	}
 
 	private void predictOverlap(List<UngappedSearchHit> hits) {
@@ -416,6 +416,24 @@ public class KmerHitsCluster implements Serializable {
 
 	public UngappedSearchHit getKmerHit(int queryKmerIdx) {
 		return hitsMap.get(queryKmerIdx);
+	}
+	
+	public static List<KmerHitsCluster> clusterRegionKmerAlns(CharSequence query, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
+		List<KmerHitsCluster> answer = new ArrayList<>();
+		Collections.sort(sequenceHits,(h1,h2) -> h1.getStart()-h2.getStart());
+		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceHits);
+		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
+		if (uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*query.length()) return answer;
+		answer.add(uniqueCluster);
+		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceHits.size()) return answer;
+		//Cluster remaining hits
+		List<UngappedSearchHit> remainingHits = new ArrayList<UngappedSearchHit>();
+		for(UngappedSearchHit hit:sequenceHits) {
+			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
+		}
+		KmerHitsCluster cluster2 = new KmerHitsCluster(query, remainingHits);
+		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*query.length()) answer.add(cluster2);
+		return answer;
 	}
 	
 }

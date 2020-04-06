@@ -75,13 +75,13 @@ public class KmerHitsAssemblyEdgesFinder {
 			}
 		}
 	
-		//COmbined query min coverage and percentage of kmers
+		//Combined query min coverage and percentage of kmers
 		int minCount = (int) (minProportionOverlap*minKmerPercentage*selfHitsCount/100);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
 		for(int subjectIdx:subjectIdxs) {
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
 			if(hits.size()<minCount) continue;
-			List<KmerHitsCluster> subjectClusters = LongReadsAligner.clusterRegionKmerAlns(queryIdx, query, hits, 0);
+			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query, hits, 0);
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size());
 			updateGraphWithKmerClusters(queryIdx, query.length(), queryRC, selfHitsCount, subjectClusters);
 		}
@@ -93,7 +93,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			KmerHitsCluster cluster = clusteredKmerAlns.get(i);
 			int targetSeqIdx = cluster.getSequenceIdx();
 			int targetLength = graph.getSequenceLength(targetSeqIdx);
-			cluster.summarize(meanDepth);
+			cluster.summarize(meanDepth,true);
 			double overlap = estimateOverlap (cluster, queryLength, targetLength);
 			double regionSelfCount = overlap*selfHitsCount/queryLength;
 			double pct = 100.0*cluster.getNumDifferentKmers()/regionSelfCount;

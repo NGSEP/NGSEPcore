@@ -74,28 +74,54 @@ public class LongReadsAligner {
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference = minimizersTable.match(query);
+		List<KmerHitsCluster> clusters = new ArrayList<KmerHitsCluster>();
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getStart()-h2.getStart());
 			KmerHitsCluster cluster = null;
 			for(UngappedSearchHit hit:totalHitsSubject) {
-				//if (cluster!=null) System.out.println("Qlen: "+query.length()+" next cluster "+hit.getSequenceIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hit "+hit.getStart());
+				if(hit.getTotalHitsQuery()>5) continue;
 				if(cluster==null) {
 					cluster = new KmerHitsCluster(query, hit);
 				} else if (!cluster.addKmerHit(hit, 0)) {
-					QualifiedSequence refSeq = genome.getSequenceByIndex(hit.getSequenceIdx());
-					int subjectStart = Math.max(0, cluster.getSubjectPredictedStart());
-					int subjectEnd = Math.min(refSeq.getLength(), cluster.getSubjectPredictedEnd());
-					ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
-					if(aln!=null) {
-						aln.setSequenceName(refSeq.getName());
-						answer.add(aln);
+					if (cluster.getNumDifferentKmers()>=0.01*query.length()) {
+						List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(query, cluster.getHitsByQueryIdx(), 0.3);
+						//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSequenceIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+						clusters.addAll(regionClusters);
 					}
 					cluster = new KmerHitsCluster(query, hit);
 				}
 			}
+			if(cluster!=null && cluster.getNumDifferentKmers()>=0.01*query.length()) {
+				List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(query, cluster.getHitsByQueryIdx(), 0.3);
+				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSequenceIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+				clusters.addAll(regionClusters);
+			}
+		}
+		
+		double maxCount = 0;
+		for (KmerHitsCluster cluster:clusters) {
+			cluster.summarize(1,false);
+			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+		}
+		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
+		//TODO: Parameter
+		for (int i=0;i<clusters.size() && i<5;i++) {
+			KmerHitsCluster cluster = clusters.get(i);
+			int sequenceIdx = cluster.getSequenceIdx();
+			if(cluster.getWeightedCount()<0.2*maxCount) break;
+			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
+			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
+			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSequenceIdx()+": "+subjectStart+" "+subjectEnd+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
+			if(aln!=null) {
+				aln.setSequenceName(refSeq.getName());
+				answer.add(aln);
+			}
 			
 		}
+		
+		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
 	}
 
@@ -137,7 +163,7 @@ public class LongReadsAligner {
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<UngappedSearchHit> initialKmerHits = alignUniqueKmers(-1,subject.length(),uniqueKmersSubject, uniqueKmersRead);
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = clusterRegionKmerAlns(0, read, initialKmerHits, minQueryCoverage);
+		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read, initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
 		if(clusters.size()>1) {
 			Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
@@ -167,24 +193,6 @@ public class LongReadsAligner {
 		return initialKmerHits;
 	}
 
-	
-	public static List<KmerHitsCluster> clusterRegionKmerAlns(int querySequenceId, CharSequence query, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
-		List<KmerHitsCluster> answer = new ArrayList<>();
-		Collections.sort(sequenceHits,(h1,h2) -> h1.getStart()-h2.getStart());
-		KmerHitsCluster uniqueCluster = new KmerHitsCluster(query, sequenceHits);
-		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
-		if (uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*query.length()) return answer;
-		answer.add(uniqueCluster);
-		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceHits.size()) return answer;
-		//Cluster remaining hits
-		List<UngappedSearchHit> remainingHits = new ArrayList<UngappedSearchHit>();
-		for(UngappedSearchHit hit:sequenceHits) {
-			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
-		}
-		KmerHitsCluster cluster2 = new KmerHitsCluster(query, remainingHits);
-		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*query.length()) answer.add(cluster2);
-		return answer;
-	}
 	public void printClusters(List<KmerHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
 		for(KmerHitsCluster cluster:clusters) {
@@ -197,7 +205,7 @@ public class LongReadsAligner {
 		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = Math.max(0, kmerHitsCluster.getSubjectPredictedStart());
-		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getLast());
+		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int queryNext = 0;
 		int alnStart = -1;
 		int queryStart = -1;
@@ -268,7 +276,7 @@ public class LongReadsAligner {
 		}
 		//int alnFirst = alnStart+1;
 		int alnLast = subjectNext;
-		//System.out.println("Aligned query. first: "+alnFirst+" last: "+alnLast+" CIGAR: "+cigar+" query next: "+queryNext+" query length: "+query.length());
+		//System.out.println("Aligned query. first: "+alnStart+" last: "+alnLast+" CIGAR: "+cigar+" query next: "+queryNext+" query length: "+query.length());
 		if(queryNext<query.length()) {
 			//TODO: check if it is worth to align the sequence end
 			/*
