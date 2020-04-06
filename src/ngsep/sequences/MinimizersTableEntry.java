@@ -14,8 +14,8 @@ public class MinimizersTableEntry {
 
 	public MinimizersTableEntry (int minimizer, long entryCode) {
 		this.minimizer = minimizer;
-		start = (int) (entryCode & 0xFFFF);
-		sequenceId = (int) (entryCode >> 16);
+		start = (int) (entryCode & 0xFFFFFFFF);
+		sequenceId = (int) (entryCode >> 32);
 	}
 
 	/**
@@ -24,7 +24,7 @@ public class MinimizersTableEntry {
 	 */
 	public long encode() {
 		long code = sequenceId;
-		code = code << 16;
+		code = code << 32;
 		code+=start;
 		return code;
 	}

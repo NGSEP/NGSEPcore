@@ -89,7 +89,7 @@ public class MinimizersTable {
 			}
 		}
 		numSequences++;
-		if ((sequenceId+1)%100==0) System.out.println("Added "+numSequences+" sequences. Total minimizers:"+sequencesByMinimizer.size());
+		if (numSequences%100==0) System.out.println("Added "+numSequences+" sequences. Total minimizers:"+sequencesByMinimizer.size());
 	}
 
 	private boolean overlapping(List<MinimizersTableEntry> entries) {

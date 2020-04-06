@@ -66,10 +66,6 @@ public class KmerHitsCluster implements Serializable {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			if(hits.size()>1) continue;
 			UngappedSearchHit hit = hits.get(0);
-			if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
-				//Invalid kmer position in subject
-				continue;
-			}
 			int estStart = estimateSubjectStart(hit);
 			subjectStarts.add(estStart);
 			sum+=estStart;
@@ -83,10 +79,6 @@ public class KmerHitsCluster implements Serializable {
 			sum=sum2=n=0;
 			for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 				for(UngappedSearchHit hit:hits) {
-					if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
-						//Invalid kmer position in subject
-						continue;
-					}
 					int estStart = estimateSubjectStart(hit);
 					subjectStarts.add(estStart);
 					sum+=estStart;
@@ -136,10 +128,6 @@ public class KmerHitsCluster implements Serializable {
 		UngappedSearchHit answer = null;
 		int minDistance = 0;
 		for(UngappedSearchHit hit:hits) {
-			if(estimateQueryEnd(hit)<hit.getQueryIdx()+hit.getQuery().length()) {
-				//Invalid kmer position in subject
-				continue;
-			}
 			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
 			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
@@ -159,6 +147,7 @@ public class KmerHitsCluster implements Serializable {
 		this.query = query;
 		sequenceIdx = kmerHit.getSequenceIdx();
 		sequenceName = kmerHit.getSequenceName();
+		sequenceLength = kmerHit.getSequenceLength();
 		int kmerQueryStart = kmerHit.getQueryIdx();
 		subjectPredictedStart = estimateSubjectStart(kmerHit);
 		subjectPredictedEnd = estimateSubjectEnd(kmerHit);
@@ -193,7 +182,6 @@ public class KmerHitsCluster implements Serializable {
 	}
 	
 	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
-		if(estimateQueryEnd(kmerHit)<kmerHit.getQueryIdx()+kmerHit.getQuery().length()) return false;
 		int estStart = estimateSubjectStart(kmerHit);
 		int estEnd = estimateSubjectEnd(kmerHit);
 		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);

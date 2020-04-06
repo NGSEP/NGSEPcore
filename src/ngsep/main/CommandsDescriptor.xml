@@ -283,8 +283,12 @@ Input file with raw reads in fastq format corresponding to the second file for p
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the aligned reads in BAM format.
 </option>
-<option id="r" type="FILE" attribute="fmIndexFile">
-Index of the reference genome to align the reads. See GenomeIndexer for instructions to generate this file. Mandatory parameter.
+<option id="r" type="FILE" attribute="genome">
+Reference genome to align reads in FASTA format. Required unless an FM-index is provided with the option -d. It can be gzip compressed. 
+</option>
+<option id="d" type="FILE" attribute="fmIndexFile">
+FM-index of the reference genome to align short reads. See GenomeIndexer for instructions to generate this file.
+Either this or the reference genome are required.
 </option>
 <option id="knownSTRs" type="STRING" attribute="knownSTRsFile">
 Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:
@@ -304,6 +308,9 @@ Minimum predicted insert length to consider an alignment proper.
 </option>
 <option id="maxIL" type="INT" attribute="maxInsertLength"  defaultConstant="DEF_MAX_INSERT_LENGTH">
 Maximum predicted insert length to consider an alignment proper.
+</option>
+<option id="l" type="BOOLEAN" attribute="longReads">
+Input reads are long (Pacbio or Nanopore)
 </option>
 </command>
 

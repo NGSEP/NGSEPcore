@@ -37,6 +37,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
+import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
@@ -66,7 +67,8 @@ public class ReadsAligner {
 	
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = 25;
+	public static final int DEF_KMER_LENGTH = 15;
+	public static final int DEF_WINDOW_LENGTH = 5;
 	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
@@ -86,9 +88,11 @@ public class ReadsAligner {
 	private String knownSTRsFile = null;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private int kmerLength = DEF_KMER_LENGTH;
+	private int windowLength = DEF_WINDOW_LENGTH;
 	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 	private int minInsertLength = DEF_MIN_INSERT_LENGTH;
 	private int maxInsertLength = DEF_MAX_INSERT_LENGTH;
+	private boolean longReads = false;
 	
 	// Model attributes
 	private Map<String, List<GenomicRegion>> knownSTRs;
@@ -96,6 +100,8 @@ public class ReadsAligner {
 	private boolean onlyPositiveStrand = false;
 	
 	private boolean runFullAlignment = true;
+	
+	private ReferenceGenome genome;
 
 	private ReferenceGenomeFMIndex fMIndex;
 	
@@ -131,10 +137,20 @@ public class ReadsAligner {
 	public void setInputFile2(String inputFile2) {
 		this.inputFile2 = inputFile2;
 	}
-	public ReferenceGenomeFMIndex getfMIndex() {
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
+	public ReferenceGenomeFMIndex getFMIndex() {
 		return fMIndex;
 	}
-	public void setfMIndex(ReferenceGenomeFMIndex fMIndex) {
+	public void setFMIndex(ReferenceGenomeFMIndex fMIndex) {
 		this.fMIndex = fMIndex;
 	}
 	public String getFmIndexFile() {
@@ -214,12 +230,14 @@ public class ReadsAligner {
 		this.knownSTRs = knownSTRs;
 	}
 	
-	public ReadsAligner(String fMIndexFile) throws IOException {
-		fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fMIndexFile);
+	public boolean isLongReads() {
+		return longReads;
 	}
-
-	public ReadsAligner() {	
-		
+	public void setLongReads(boolean longReads) {
+		this.longReads = longReads;
+	}
+	public void setLongReads(Boolean longReads) {
+		this.setLongReads(longReads.booleanValue());
 	}
 
 	public static void main(String[] args) throws Exception 
@@ -230,17 +248,29 @@ public class ReadsAligner {
 	}
 	
 	public void run () throws IOException {
-		
-		if(fmIndexFile!=null) {
-			log.info("Loading reference index from file: "+fmIndexFile);
-			fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fmIndexFile);
-		} else if (fMIndex!=null) {
-			log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
+		logParameters ();
+		QualifiedSequenceList sequences;
+		if(genome==null) {
+			if (fmIndexFile!=null) {
+				log.info("Loading reference index from file: "+fmIndexFile);
+				fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fmIndexFile);
+			} else if (fMIndex!=null) {
+				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
+			} else {
+				throw new IOException("The genome index file is a required parameter");
+			}
+			sequences = fMIndex.getSequencesMetadata();
 		} else {
-			throw new IOException("The genome index file is a required parameter");
+			sequences = genome.getSequencesMetadata();
+			if (!longReads) {
+				log.info("Calculating FM-index from genome file: "+genome.getFilename());
+				fMIndex = new ReferenceGenomeFMIndex(genome);
+			} else {
+				longReadsAligner.setLog(log);
+				longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+			}
 		}
-		
-		QualifiedSequenceList sequences = fMIndex.getSequencesMetadata();
+		 
 		PrintStream out = System.out; 
 		if(outputFile!=null) out = new PrintStream(outputFile); 
 		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
@@ -259,6 +289,10 @@ public class ReadsAligner {
 		}
 	}
 	
+	private void logParameters() {
+		// TODO Auto-generated method stub
+		
+	}
 	public void loadSTRsFile(String strsFile) throws IOException {
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		knownSTRs=handler.loadRegionsAsMap(strsFile);
@@ -357,8 +391,8 @@ public class ReadsAligner {
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
 					//System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
-					String qualityScores = RawRead.generateFixedQSString('5', seq.getLength());
-					RawRead read = new RawRead(seq.getName(), seq.getCharacters(), qualityScores);
+				
+					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),"");
 					List<ReadAlignment> alns = alignRead(read, true);
 					//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 					for(ReadAlignment aln:alns) {
@@ -681,11 +715,10 @@ public class ReadsAligner {
 		return alns.get(r.nextInt(alns.size())) ;
 	}
 
-	private ReadAlignment buildAln(CharSequence query, String qualityScores, String sequenceName, int first, int last,String cigar, double alnQual) {
+	private ReadAlignment buildAln(CharSequence query, String sequenceName, int first, int last, String cigar, double alnQual) {
 		if(first <=0) return null;
 		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
 		aln.setReadCharacters(query);
-		aln.setQualityScores(qualityScores);
 		if(cigar!=null)aln.setCigarString(cigar);
 		aln.setAlignmentQuality((short) Math.round(alnQual));
 		//verify last exists
@@ -697,57 +730,71 @@ public class ReadsAligner {
 		List<ReadAlignment> alignments = new ArrayList<>();
 		String readSeq = read.getSequenceString();
 		String qual = read.getQualityScores();
-		String reverseComplement = null;
 		String reverseQS = null;
-		if(!onlyPositiveStrand) {
-			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
+		if(qual == null || qual.length()!=readSeq.length()) {
+			qual = RawRead.generateFixedQSString('5', readSeq.length());
+			reverseQS = qual;
+		} else if (!onlyPositiveStrand) {
 			reverseQS = new StringBuilder(qual).reverse().toString();
 		}
-		if(readSeq.length()<500) {
-			alignments.addAll(exactSingleStrandSearch(readSeq, qual, read.getName()));
+		String reverseComplement = null;
+		if(!onlyPositiveStrand) {
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
+			
+		}
+		if(fMIndex!=null && readSeq.length()<500) {
+			alignments.addAll(exactSingleStrandSearch(readSeq));
 			if(reverseComplement!=null) {
-				List<ReadAlignment> alnsR = exactSingleStrandSearch(reverseComplement, reverseQS, read.getName());
-				for (ReadAlignment aln:alnsR) {
-					aln.setNegativeStrand(true);
-				}
+				List<ReadAlignment> alnsR = exactSingleStrandSearch(reverseComplement);
+				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 				alignments.addAll(alnsR);
 			}
 		}
 		if(alignments.size()==0) {
-			alignments.addAll(kmerBasedSingleStrandInexactSearchAlgorithm(readSeq, qual, read.getName()));
-
+			alignments.addAll(inexactSearchAlgorithm(readSeq));
 			if(reverseComplement!=null) {
-				List<ReadAlignment> alnsR = kmerBasedSingleStrandInexactSearchAlgorithm(reverseComplement, reverseQS, read.getName());
-				for (ReadAlignment aln:alnsR) {
-					aln.setNegativeStrand(true);
-				}
+				List<ReadAlignment> alnsR = inexactSearchAlgorithm(reverseComplement);
+				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 				alignments.addAll(alnsR);
 			}
+		}
+		for(ReadAlignment aln:alignments) {
+			aln.setReadName(read.getName());
+			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
+			else aln.setQualityScores(reverseQS);
 		}
 		
 		return filterAlignments(alignments, assignSecondaryStatus);
 	}
-	private List<ReadAlignment> exactSingleStrandSearch(String query, String qualityScores, String readName) {
+	private List<ReadAlignment> exactSingleStrandSearch(String query) {
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
 		for(UngappedSearchHit hit: readHits) {
 			String cigar = ""+query.length();
 			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
-			ReadAlignment aln = buildAln (query,qualityScores,hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
 			if(aln==null) continue;
-			aln.setReadName(readName);
 			alns.add(aln);
 		}
 		return alns;
 	}
+	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
+		List<ReadAlignment> alignments;
+		if(longReads) {
+			alignments = longReadsAligner.alignQueryToReference(readSeq);
+		} else {
+			alignments = kmerBasedSingleStrandInexactSearchAlgorithm(readSeq);
+		}
+		return alignments;
+	}
 	/**
-	 * First approach to allow inexact search
+	 * Inexact search of kmers to an FM-index
 	 * It iterates the Sequences of the genome and if there is at least MIN_ACCURACY percentage of the kmers
 	 * it allow the alignment with the first an the last position of the kmers ocurrence
 	 * Only tries to align the given quey in the positive strand
 	 * @return List<ReadAlignment>
 	 */
-	private List<ReadAlignment> kmerBasedSingleStrandInexactSearchAlgorithm (String query, String qualityScores, String readName) 
+	private List<ReadAlignment> kmerBasedSingleStrandInexactSearchAlgorithm (String query) 
 	{
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
@@ -765,21 +812,8 @@ public class ReadsAligner {
 			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getFirst()+"-"+cluster.getLast()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
 			else if (2*cluster.getNumDifferentKmers()<kmersMaxCluster) break;
-			ReadAlignment readAln;
-			if (query.length()<500) {
-				readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query, qualityScores);
-			} else {
-				CharSequence subject = fMIndex.getSequence(cluster.getSequenceName());
-				//System.out.println("Subject length: "+subject.length()+" cluster limits: "+cluster.getFirst()+" - "+cluster.getLast());
-				//TODO: Make parameter
-				readAln = longReadsAligner.alignRead(subject, query, Math.max(0, cluster.getSubjectPredictedStart()), Math.min(subject.length(), cluster.getSubjectPredictedEnd()), cluster.getSequenceName(), 0.8);
-				//if(readAln!=null) System.out.println("Found alignment for cluster "+i+" at "+readAln.getSequenceName()+":"+readAln.getFirst()+"-"+readAln.getLast());
-			}
-			
-			if(readAln!=null) {
-				readAln.setReadName(readName);
-				finalAlignments.add(readAln);
-			}
+			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query);
+			if(readAln!=null) finalAlignments.add(readAln);
 		}
 		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+readName);
 		return finalAlignments;
@@ -836,7 +870,7 @@ public class ReadsAligner {
 		return answer;
 	}
 
-	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, int totalKmers, String query, String qualityScores) {
+	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, int totalKmers, String query) {
 		int numDiffKmers = cluster.getNumDifferentKmers();
 		double prop = (double) numDiffKmers/totalKmers;
 		if(prop<minProportionKmers) return null;
@@ -847,12 +881,12 @@ public class ReadsAligner {
 		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" lastPerfect: "+lastPerfect+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
 		String cigar = query.length()+"M";
 		double alnQual = 100.0;
-		ReadAlignment aln = buildAln(query, qualityScores, sequenceName, first, lastPerfect, cigar, alnQual);
+		ReadAlignment aln = buildAln(query, sequenceName, first, lastPerfect, cigar, alnQual);
 		if(aln!=null) {
 			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+cigar);
 			GenomicRegion region =findTandemRepeat(sequenceName,first,last);
 			if(region!=null) {
-				ReadAlignment newaln=verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(), aln.getLast(),query,qualityScores,region);
+				ReadAlignment newaln=verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(), aln.getLast(),query,region);
 				//System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
 				if(newaln!=null) return newaln;
 			}
@@ -881,7 +915,7 @@ public class ReadsAligner {
 		cigar = pAln.getCigar();
 		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar);
 		alnQual = 100.0* (query.length() - pAln.getMismatches())/query.length();
-		return buildAln(query, qualityScores, sequenceName, first, last, cigar, alnQual);
+		return buildAln(query, sequenceName, first, last, cigar, alnQual);
 	}
 
 	private int countMismatches(CharSequence query, ReadAlignment aln) {
@@ -952,7 +986,7 @@ public class ReadsAligner {
 	 * @param region
 	 * @return
 	 */
-	public ReadAlignment verifyShortTandemRepeats(String sequenceName, int first, int last, String read, String qualityScores, GenomicRegion region) {
+	public ReadAlignment verifyShortTandemRepeats(String sequenceName, int first, int last, String read, GenomicRegion region) {
 		PairwiseAlignmentWithCigar leftPart = null;
 		PairwiseAlignmentWithCigar rightPart = null;
 		int firstLeftPart = Math.max(first-10,1);
@@ -1011,7 +1045,7 @@ public class ReadsAligner {
 			if(softClipLeft>0) cigar+=""+softClipLeft+""+softClipChar;
 			double alnQual = 100.0* (read.length() - leftPart.getMismatches())/read.length();
 			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			return buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
+			return buildAln(read, sequenceName, first, last, cigar, alnQual);
 		}
 		if(leftPart==null) {
 			//Right alignment with left soft clip
@@ -1022,7 +1056,7 @@ public class ReadsAligner {
 			cigar+=cigarRight;
 			double alnQual = 100.0* (read.length() - rightPart.getMismatches())/read.length();
 			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			return buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
+			return buildAln(read, sequenceName, first, last, cigar, alnQual);
 		}
 		first = firstLeftPart + leftPart.getSubjectStartIdx();
 		last = region.getLast()+1 + rightPart.getSubjectLastIdx();
@@ -1049,7 +1083,7 @@ public class ReadsAligner {
 		double alnQual = 100.0* (read.length() - leftPart.getMismatches()-rightPart.getMismatches())/read.length();
 		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+cigar);
 		
-		return buildAln(read, qualityScores, sequenceName, first, last, cigar, alnQual);
+		return buildAln(read, sequenceName, first, last, cigar, alnQual);
 	}
 }
 

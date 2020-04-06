@@ -136,7 +136,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else if (endTarget<=targetLength) {
 			addQueryBeforeTargetEdge(graph, querySequenceId, queryRC, cluster);
 		} else {
-			ReadAlignment aln = aligner.alignRead(graph.getSequence(targetSeqIdx), graph.getSequence(querySequenceId), 0, targetLength, "Subject", 0.5);
+			ReadAlignment aln = aligner.alignRead(targetSeqIdx, graph.getSequence(targetSeqIdx), graph.getSequence(querySequenceId), 0, targetLength, 0.5);
 			if(aln!=null) {
 				int firstQueryMatch = 0;
 				int newStart = targetLength;

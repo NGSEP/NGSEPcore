@@ -24,6 +24,18 @@ public class MinimizersTableTest extends TestCase {
 			assertEquals(entry.getSequenceId(), copy.getSequenceId());
 			assertEquals(entry.getStart(), copy.getStart());
 		}
+		
+	}
+	public void testMassiveEncodeDecode () {
+		for (int i=0;i<100000;i++) {
+			for(int j=0;j<100000;j++) {
+				MinimizersTableEntry entry = new MinimizersTableEntry(0,i,j);
+				long code = entry.encode();
+				MinimizersTableEntry copy = new MinimizersTableEntry(0, code);
+				assertEquals(i, copy.getSequenceId());
+				assertEquals(j, copy.getStart());
+			}
+		}
 	}
 	public void testSearchSelf () {
 		MinimizersTable table = new MinimizersTable(15, 5);

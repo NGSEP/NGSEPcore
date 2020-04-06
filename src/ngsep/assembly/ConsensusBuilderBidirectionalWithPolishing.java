@@ -153,8 +153,9 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if(reverse) read = DNAMaskedSequence.getReverseComplement(read);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = aligner.alignRead(rawConsensus, read, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
+				ReadAlignment alnRead = aligner.alignRead(vertexPreviousEdge.getSequenceIndex(), rawConsensus, read, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
+					alnRead.setSequenceName(MOCK_REFERENCE_NAME);
 					alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 					alignments.add(alnRead);
 				}
@@ -169,8 +170,9 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNAMaskedSequence.getReverseComplement(embeddedRead);
 					totalReads++;
-					ReadAlignment alnEmbedded = aligner.alignRead(rawConsensus, embeddedRead, uniqueKmersSubject, MOCK_REFERENCE_NAME, 0.5);
+					ReadAlignment alnEmbedded = aligner.alignRead(embedded.getSequenceId(), rawConsensus, embeddedRead, uniqueKmersSubject, 0.5);
 					if(alnEmbedded!=null) {
+						alnEmbedded.setSequenceName(MOCK_REFERENCE_NAME);
 						alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
 					}
