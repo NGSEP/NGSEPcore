@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -69,11 +68,10 @@ public class ReadsAligner {
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_KMER_LENGTH = 15;
 	public static final int DEF_WINDOW_LENGTH = 5;
-	public static final double DEF_MIN_PROPORTION_KMERS = 0.5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
 	
-	public static final int DEF_MAX_ALIGNMENTS=3;
+	public static final int DEF_MAX_ALNS_PER_READ=3;
 	public static final int MAX_SPACE_BETWEEN_KMERS = 50;
 	
 	// Logging and progress
@@ -87,11 +85,12 @@ public class ReadsAligner {
 	private String fmIndexFile = null;
 	private String knownSTRsFile = null;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
+	private int maxAlnsPerRead = DEF_MAX_ALNS_PER_READ;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
-	private double minProportionKmers = DEF_MIN_PROPORTION_KMERS;
 	private int minInsertLength = DEF_MIN_INSERT_LENGTH;
 	private int maxInsertLength = DEF_MAX_INSERT_LENGTH;
+	
 	private boolean longReads = false;
 	
 	// Model attributes
@@ -183,6 +182,15 @@ public class ReadsAligner {
 		setInputFormat((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
+	public int getMaxAlnsPerRead() {
+		return maxAlnsPerRead;
+	}
+	public void setMaxAlnsPerRead(int maxAlnsPerRead) {
+		this.maxAlnsPerRead = maxAlnsPerRead;
+	}
+	public void setMaxAlnsPerRead(String value) {
+		setMaxAlnsPerRead((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public int getKmerLength() {
 		return kmerLength;
 	}
@@ -212,17 +220,6 @@ public class ReadsAligner {
 	public void setMaxInsertLength(String value) {
 		setMaxInsertLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-	
-	public double getMinProportionKmers() {
-		return minProportionKmers;
-	}
-	public void setMinProportionKmers(double minProportionKmers) {
-		this.minProportionKmers = minProportionKmers;
-	}
-	public void setMinProportionKmers(String value) {
-		this.setMinProportionKmers((double)OptionValuesDecoder.decode(value, Double.class));
-	}
-	
 	public Map<String, List<GenomicRegion>> getKnownSTRs() {
 		return knownSTRs;
 	}
@@ -239,7 +236,13 @@ public class ReadsAligner {
 	public void setLongReads(Boolean longReads) {
 		this.setLongReads(longReads.booleanValue());
 	}
-
+	
+	public int getWindowLength() {
+		return windowLength;
+	}
+	public void setWindowLength(int windowLength) {
+		this.windowLength = windowLength;
+	}
 	public static void main(String[] args) throws Exception 
 	{
 		ReadsAligner instance = new ReadsAligner();
@@ -489,10 +492,11 @@ public class ReadsAligner {
 				List<ReadAlignment> alns2 = alignRead(read2,false);
 				for(ReadAlignment aln:alns2) aln.setSecondOfPair(true);
 				totalReads++;
+				//System.out.println("Alignments found: "+alns1.size()+" "+alns2.size());
 				if(alns1.size()==0 || alns2.size()==0) {
 					ArrayList<ReadAlignment> unMapped = processUnMapped(read1, alns1,read2,alns2);
 					boolean mappedFound = false;
-					for (int i = 0; i < Math.min(unMapped.size(),DEF_MAX_ALIGNMENTS+1); i++) {
+					for (int i = 0; i < Math.min(unMapped.size(),maxAlnsPerRead+1); i++) {
 						ReadAlignment aln = unMapped.get(i);
 						if(!aln.isReadUnmapped()) mappedFound=true;
 						writer.write(aln);
@@ -567,7 +571,8 @@ public class ReadsAligner {
 	}
 
 	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns) {
-		for (int i = 0; i < Math.min(pairAlns.size(),DEF_MAX_ALIGNMENTS); i++) {
+		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
+		for (int i = 0; i < n; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
 			if(i>0) {
 				current.getAln1().setSecondary(true);
@@ -580,7 +585,8 @@ public class ReadsAligner {
 
 	public List<ReadAlignmentPair> findPairs(List<ReadAlignment> alns1, List<ReadAlignment> alns2,boolean onlyProper){
 		List<ReadAlignmentPair> pairEndAlns = new ArrayList<ReadAlignmentPair>();
-		for (int i = 0; i < Math.min(alns1.size(),DEF_MAX_ALIGNMENTS); i++) {
+		int n = Math.min(alns1.size(),maxAlnsPerRead);
+		for (int i = 0; i < n; i++) {
 			ReadAlignment aln1 = alns1.get(i);
 			if(aln1.isPaired()) continue;
 			ReadAlignmentPair alnPair = findPairForAlignment(aln1,alns2,onlyProper);
@@ -593,7 +599,8 @@ public class ReadsAligner {
 
 	public ReadAlignmentPair findPairForAlignment(ReadAlignment aln1, List<ReadAlignment> alns2,boolean onlyProper) {
 		List<ReadAlignment> candidates = new ArrayList<ReadAlignment>();
-		for (int i = 0; i < Math.min(alns2.size(), DEF_MAX_ALIGNMENTS); i++) {
+		int n = Math.min(alns2.size(),maxAlnsPerRead);
+		for (int i = 0; i < n; i++) {
 			ReadAlignment current =alns2.get(i);
 			if(!current.isPaired()) {
 				if(isValidPair(aln1,current,onlyProper)) {
@@ -743,21 +750,26 @@ public class ReadsAligner {
 			
 		}
 		if(fMIndex!=null && readSeq.length()<500) {
-			alignments.addAll(exactSingleStrandSearch(readSeq));
+			alignments.addAll(oneMismatchSingleStrandSearch(readSeq));
+			//System.out.println("Read: "+read.getName()+" Forward exact alignments: "+alignments.size());
 			if(reverseComplement!=null) {
-				List<ReadAlignment> alnsR = exactSingleStrandSearch(reverseComplement);
+				List<ReadAlignment> alnsR = oneMismatchSingleStrandSearch(reverseComplement);
+				//System.out.println("Read: "+read.getName()+" Reverse exact alignments: "+alnsR.size());
 				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 				alignments.addAll(alnsR);
 			}
 		}
 		if(alignments.size()==0) {
 			alignments.addAll(inexactSearchAlgorithm(readSeq));
+			//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
 			if(reverseComplement!=null) {
 				List<ReadAlignment> alnsR = inexactSearchAlgorithm(reverseComplement);
+				//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
 				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 				alignments.addAll(alnsR);
 			}
 		}
+		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
 		for(ReadAlignment aln:alignments) {
 			aln.setReadName(read.getName());
 			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
@@ -766,15 +778,44 @@ public class ReadsAligner {
 		
 		return filterAlignments(alignments, assignSecondaryStatus);
 	}
-	private List<ReadAlignment> exactSingleStrandSearch(String query) {
+	private List<ReadAlignment> oneMismatchSingleStrandSearch(String query) {
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
+		String cigar = ""+query.length();
+		cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		// Whole read exact search
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
 		for(UngappedSearchHit hit: readHits) {
-			String cigar = ""+query.length();
-			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
 			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
-			if(aln==null) continue;
-			alns.add(aln);
+			if(aln!=null) alns.add(aln);
+		}
+		if (alns.size()>0) return alns;
+		//One mismatch search
+		int middle = query.length()/2;
+		if(middle < 5) return alns;
+		String firstPart = query.substring(0,middle);
+		readHits=fMIndex.exactSearch(firstPart);
+		for(UngappedSearchHit hit: readHits) {
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
+			if (aln==null) continue;
+			int mismatches = countMismatches(query, aln);
+			if(mismatches<=3) {
+				aln.setAlignmentQuality((short) (aln.getAlignmentQuality()-mismatches));
+				alns.add(aln);
+			}
+		}
+		if (alns.size()>0) return alns;
+		String secondPart = query.substring(middle);
+		readHits=fMIndex.exactSearch(secondPart);
+		for(UngappedSearchHit hit: readHits) {
+			int start = hit.getStart()-middle;
+			if(start<0) continue;
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), cigar, 100);
+			if (aln==null) continue;
+			int mismatches = countMismatches(query, aln);
+			if(mismatches<=3) {
+				aln.setAlignmentQuality((short) (aln.getAlignmentQuality()-mismatches));
+				alns.add(aln);
+			}
 		}
 		return alns;
 	}
@@ -798,7 +839,7 @@ public class ReadsAligner {
 	{
 		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
-		//System.out.println("Read name: "+readName+" length "+query.length()+" kmers: "+kmersMap.size());
+		//System.out.println("Read: "+query+" length "+query.length()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return finalAlignments;
 		List<UngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
@@ -807,15 +848,15 @@ public class ReadsAligner {
 		Collections.sort(clusteredKmerHits, (o1, o2) -> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 
 		int kmersMaxCluster = 0;
-		for (int i=0;i<clusteredKmerHits.size() && i<DEF_MAX_ALIGNMENTS;i++) {
+		for (int i=0;i<clusteredKmerHits.size() && i<maxAlnsPerRead;i++) {
 			KmerHitsCluster cluster = clusteredKmerHits.get(i);
-			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getFirst()+"-"+cluster.getLast()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
+			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = cluster.getNumDifferentKmers();
 			else if (2*cluster.getNumDifferentKmers()<kmersMaxCluster) break;
-			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, kmersCount, query);
+			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
 			if(readAln!=null) finalAlignments.add(readAln);
 		}
-		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+readName);
+		//System.out.println("Found "+finalAlignments.size()+" alignments for query: "+query);
 		return finalAlignments;
 	}
 
@@ -831,6 +872,7 @@ public class ReadsAligner {
 			String kmer = kmersMap.get(start).toString();
 			if(repetitiveKmers.contains(kmer)) continue;
 			List<UngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
+			//System.out.println("Kmer: "+kmer+" hits: "+kmerHits.size());
 			if(kmerHits.size()>10) {
 				repetitiveKmers.add(kmer);
 				continue;
@@ -870,10 +912,7 @@ public class ReadsAligner {
 		return answer;
 	}
 
-	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, int totalKmers, String query) {
-		int numDiffKmers = cluster.getNumDifferentKmers();
-		double prop = (double) numDiffKmers/totalKmers;
-		if(prop<minProportionKmers) return null;
+	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, String query) {
 		String sequenceName = cluster.getSequenceName();
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
@@ -893,7 +932,7 @@ public class ReadsAligner {
 			if(cluster.isAllConsistent()) {
 				int mismatches = countMismatches (query, aln);
 				//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
-				if(mismatches<3) return aln;
+				if(mismatches<4) return aln;
 			}
 		}
 		if(!runFullAlignment) return null;
@@ -920,7 +959,9 @@ public class ReadsAligner {
 
 	private int countMismatches(CharSequence query, ReadAlignment aln) {
 		int mismatches = 0;
-		String refSeq = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast()).toString();
+		CharSequence refS = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast());
+		if(refS==null) return query.length();
+		String refSeq = refS.toString();
 		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
 			if(query.charAt(i)!=refSeq.charAt(i)) {
 				mismatches++;
@@ -932,17 +973,12 @@ public class ReadsAligner {
 
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
 		if (alignments.size()==0) return alignments;
-		Collections.sort(alignments, new Comparator<ReadAlignment>() {
-			@Override
-			public int compare(ReadAlignment aln1, ReadAlignment aln2) {
-				return aln2.getAlignmentQuality() - aln1.getAlignmentQuality();
-			}
-		});
+		Collections.sort(alignments, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
 		short bestQual = alignments.get(0).getAlignmentQuality();
 		//TODO. Investigate alignment score
 		double threshold = 0.8*bestQual;
 		List<ReadAlignment> filteredAlignments = new ArrayList<>();
-		int n = alignments.size();
+		int n = Math.min(alignments.size(),maxAlnsPerRead);
 		for (int i=0;i<n;i++) {
 			ReadAlignment aln = alignments.get(i);
 			if(aln.getAlignmentQuality()<threshold) break;

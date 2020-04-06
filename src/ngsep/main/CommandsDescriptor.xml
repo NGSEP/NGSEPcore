@@ -300,9 +300,6 @@ Format of the input file. It can be 0 for fastq or 1 for fasta
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
 </option>
-<option id="p" type="DOUBLE" attribute="minProportionKmers" defaultConstant="DEF_MIN_PROPORTION_KMERS">
-Minimum proportion of k-mers to select alignments.
-</option>
 <option id="minIL" type="INT" attribute="minInsertLength" defaultConstant="DEF_MIN_INSERT_LENGTH">
 Minimum predicted insert length to consider an alignment proper.
 </option>
@@ -310,7 +307,10 @@ Minimum predicted insert length to consider an alignment proper.
 Maximum predicted insert length to consider an alignment proper.
 </option>
 <option id="l" type="BOOLEAN" attribute="longReads">
-Input reads are long (Pacbio or Nanopore)
+Input reads are long (Pacbio or Nanopore).
+</option>
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
+Window length to compute minimizers.
 </option>
 </command>
 
