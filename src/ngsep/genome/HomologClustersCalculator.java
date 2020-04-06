@@ -50,6 +50,25 @@ public class HomologClustersCalculator {
 		return clusters;
 	}
 	
+	public List<List<HomologyUnit>> clusterHomologsOrganisms(List<OrganismHomologyCatalog> organisms, List<HomologyEdge> homologyEdges) {
+		log.info("Clustering orthologs and paralogs");
+		
+		//Separate homologs into smaller partitions
+		List<HomologyUnit> units = new ArrayList<>();
+		for(OrganismHomologyCatalog organism : organisms) units.addAll(organism.getHomologyUnits()); 
+		List<List<HomologyUnit>> partitions = divideUnits(units);
+		
+		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
+		//Infer clusters from each resulting partition
+		for(List<HomologyUnit> partition : partitions) {
+			List<List<HomologyUnit>> result = this.processPartition(partition);
+			if(result.size() > 0) clusters.addAll(result);
+		}
+		generateStatistics(clusters);
+		
+		return clusters;
+	}
+	
 	/**
 	 * Prints out useful statistics from the generated clusters to the logger.
 	 * @param clusters resulting clusters.

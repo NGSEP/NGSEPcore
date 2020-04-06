@@ -1,0 +1,145 @@
+package ngsep.genome;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
+
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.io.FastaFileReader;
+import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.transcriptome.ProteinTranslator;
+import ngsep.transcriptome.Transcript;
+
+public class OrganismsAligner {
+	// Constants for default values
+	public static final String DEF_OUT_PREFIX = "organismsAlignment";
+	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
+	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
+	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
+	
+	// Logging and progress
+	private Logger log = Logger.getLogger(OrganismsAligner.class.getName());
+	private ProgressNotifier progressNotifier=null;
+	
+	// Parameters
+	private List<OrganismHomologyCatalog> organisms = new ArrayList<>();
+	private String outputPrefix = DEF_OUT_PREFIX;
+	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
+	
+	// Model attributes
+	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
+	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
+	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
+	
+	//logging
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	//program arguments
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	public byte getKmerLength() {
+		return homologRelationshipsFinder.getKmerLength();
+	}
+	public void setKmerLength(byte kmerLength) {
+		homologRelationshipsFinder.setKmerLength(kmerLength);
+	}
+	public void setKmerLength(String value) {
+		setKmerLength((byte)OptionValuesDecoder.decode(value, Byte.class));
+	}
+	public int getMinPctKmers() {
+		return homologRelationshipsFinder.getMinPctKmers();
+	}
+	public void setMinPctKmers(int minPctKmers) {
+		homologRelationshipsFinder.setMinPctKmers(minPctKmers);
+	}
+	public void setMinPctKmers(String value) {
+		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public static void main(String[] args) throws Exception {
+		OrganismsAligner instance = new OrganismsAligner();
+		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
+		while(i<args.length-1) {
+			String fileOrganism = args[i++];
+			instance.loadFile(fileOrganism);
+		}
+		instance.run();
+	}
+	
+	private void loadFile(String fileName) throws IOException {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		List<QualifiedSequence> sequences = handler.loadSequences(fileName);
+		
+		List<HomologyUnit> units = new ArrayList<>();
+		for(QualifiedSequence seq : sequences) {
+			HomologyUnit unit = new HomologyUnit(organisms.size()+1, seq.getName(), );
+			units.add(unit);
+		}
+		
+		OrganismHomologyCatalog catalog = new OrganismHomologyCatalog(units);
+		organisms.add(catalog);
+		
+	}
+	
+	public void run () throws IOException {
+		logParameters();
+		if(organisms.size()==0) throw new IOException("At least one organism's data should be provided");
+		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
+		alignOrganisms();
+		//printAlignmentResults ();
+		log.info("Process finished");
+	}
+	
+	public void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Loaded: "+ organisms.size()+" annotated genomes");
+		out.println("Output prefix:"+ outputPrefix);
+		out.println("K-mer length: "+ getKmerLength());
+		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		log.info(os.toString());
+	}
+	
+	public void alignOrganisms() {
+		for(int i=0;i<organisms.size();i++) {
+			OrganismHomologyCatalog catalog = organisms.get(i);
+			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogsOrganism(catalog));
+			log.info("Paralogs found for Organism: "+ homologyEdges.size());
+		}
+		
+		
+		for(int i=0;i<organisms.size();i++) {
+			OrganismHomologyCatalog catalog1 = organisms.get(i);
+			for (int j=0;j<organisms.size();j++) {
+				OrganismHomologyCatalog catalog2 = organisms.get(i);
+				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
+			}
+		}
+		HomologClustersCalculator calculator = new HomologClustersCalculator();
+		calculator.setLog(log);
+		orthologyUnitClusters = calculator.clusterHomologsOrganisms(organisms, homologyEdges);
+	}	
+}

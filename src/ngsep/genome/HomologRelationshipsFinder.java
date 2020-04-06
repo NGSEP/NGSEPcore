@@ -31,10 +31,20 @@ public class HomologRelationshipsFinder {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
 		List<HomologyUnit> units = genome.getHomologyUnits();
 		for (HomologyUnit unit:units) {
-			List<HomologyEdge> hits = findHomologs(unit, genome);
+			List<HomologyEdge> hits = findHomologs(unit, genome.getHomologyCatalog());
 			edges.addAll(hits);
 		}
 		genome.selectUniqueOrthologyUnits();
+		return edges;
+	}
+	
+	public List<HomologyEdge> calculateParalogsOrganism(OrganismHomologyCatalog catalog) {
+		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
+		List<HomologyUnit> units = catalog.getHomologyUnits();
+		for (HomologyUnit unit:units) {
+			List<HomologyEdge> hits = findHomologs(unit, catalog);
+			edges.addAll(hits);
+		}
 		return edges;
 	}
 	
@@ -42,19 +52,19 @@ public class HomologRelationshipsFinder {
 	 * Finds orthologs of the orthology units in this genome in the given genome
 	 * @param genome2 to search for orthologs
 	 */
-	public List<HomologyEdge> calculateOrthologs (AnnotatedReferenceGenome genome1, AnnotatedReferenceGenome genome2) {
+	public List<HomologyEdge> calculateOrthologs(OrganismHomologyCatalog catalog1, OrganismHomologyCatalog catalog2) {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
-		List<HomologyUnit> units = genome1.getHomologyUnits();
+		List<HomologyUnit> units = catalog1.getHomologyUnits();
 		for (HomologyUnit unit:units) {
-			List<HomologyEdge> hits = findHomologs(unit, genome2);
+			List<HomologyEdge> hits = findHomologs(unit, catalog2);
 			edges.addAll(hits);
 		}
 		return edges;
 	}
 	
-	private List<HomologyEdge> findHomologs(HomologyUnit unit, AnnotatedReferenceGenome genome) {
+	private List<HomologyEdge> findHomologs(HomologyUnit unit, OrganismHomologyCatalog catalog) {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
-		FMIndex indexGenome = genome.getIndexHomologyUnits();
+		FMIndex indexCatalog = catalog.getIndexHomologyUnits();
 		//Counts of k-mers mapping to each protein in the FM-index
 		Map<String,Integer> kmerSupportMap = new TreeMap<>();
 		int totalKmers = 0;
@@ -63,7 +73,7 @@ public class HomologRelationshipsFinder {
 		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=kmerLength) {
 			String kmer = searchSequence.substring(i, i+kmerLength);
 			
-			List <UngappedSearchHit> kmerHits = indexGenome.exactSearch(kmer);
+			List <UngappedSearchHit> kmerHits = indexCatalog.exactSearch(kmer);
 			for(UngappedSearchHit hit:kmerHits) {
 				String name = hit.getSequenceName();
 				if(kmerSupportMap.containsKey(name)) {
@@ -83,7 +93,7 @@ public class HomologRelationshipsFinder {
 			double transcriptKmers = entry.getValue();
 			double percent = (transcriptKmers/totalKmers)*100;
 			if(percent < minPctKmers) continue;
-			HomologyUnit homolog = genome.getHomologyUnit(homologId);
+			HomologyUnit homolog = catalog.getHomologyUnit(homologId);
 			if(homolog==null) continue;
 			if(homolog==unit) continue;
 			// TODO: calculate score

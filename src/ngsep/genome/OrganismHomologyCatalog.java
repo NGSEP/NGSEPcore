@@ -1,5 +1,6 @@
 package ngsep.genome;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +39,11 @@ public class OrganismHomologyCatalog {
 		return indexHomologyUnits;
 	}
 	
+	public List<HomologyUnit> getHomologyUnits() {
+		return new ArrayList<>(homologyUnitsMap.values());
+	}
+	
 	public HomologyUnit getHomologyUnit(String unitId) {
 		return homologyUnitsMap.get(unitId);
 	}
-	
-	
 }

@@ -178,7 +178,7 @@ public class GenomesAligner {
 			AnnotatedReferenceGenome genome1 = genomes.get(i);
 			for (int j=0;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1, genome2));
+				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog()));
 			}
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();

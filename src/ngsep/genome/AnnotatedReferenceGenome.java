@@ -147,6 +147,15 @@ public class AnnotatedReferenceGenome {
 		return catalog.getIndexHomologyUnits();
 	}
 	
+	/**
+	 * Return the homology catalog for this reference genome
+	 * @return OrganismHomologyCatalog to search for homology units
+	 */
+	public OrganismHomologyCatalog getHomologyCatalog() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
 	public HomologyUnit getHomologyUnit(String unitId) {
 		return catalog.getHomologyUnit(unitId);
 	}
