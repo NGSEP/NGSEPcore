@@ -29,7 +29,11 @@ import ngsep.genome.GenomicRegion;
 import ngsep.math.NumberArrays;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
-
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class ReadAlignment implements GenomicRegion {
 
 	public static final int FLAG_PAIRED = 0x1;
@@ -1032,7 +1036,7 @@ public class ReadAlignment implements GenomicRegion {
 			}
 		}
 		if(readCharacters!=null && expectedReadLength!=readCharacters.length())  new IllegalArgumentException("Malformed CIGAR. Expected read length: "+expectedReadLength+" different than read length: "+readCharacters.length());
-		alignment = NumberArrays.toIntArray(alignmentList);
+		alignment = NumberArrays.toIntArray(collapseEqualEvents (alignmentList));
 		if(expectedReadLength != this.readLength) {
 			System.out.println("WARN. New CIGAR changes read length for read at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
 			this.readLength = expectedReadLength;
@@ -1045,6 +1049,24 @@ public class ReadAlignment implements GenomicRegion {
 		alleleCallsUpdated = false;
 	}
 	
+	private List<Integer> collapseEqualEvents(List<Integer> alignmentList) {
+		List<Integer> answer = new ArrayList<Integer>();
+		byte lastOperator=-1;
+		int totalLength = 0;
+		for(int alnValue:alignmentList) {
+			int length = getOperationLength(alnValue);
+			byte op = getOperator(alnValue);
+			if(op!=lastOperator) {
+				if(totalLength>0) answer.add(getAlnValue(totalLength, lastOperator));
+				totalLength = 0;
+				lastOperator = op;
+			}
+			totalLength+=length;
+		}
+		if(totalLength>0) answer.add(getAlnValue(totalLength, lastOperator));
+		return answer;
+	}
+
 	private void fillQualityScores() {
 		int l = readCharacters.length(); 
 		if(l>qualityScores.length) {
