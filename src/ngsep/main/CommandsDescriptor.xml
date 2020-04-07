@@ -1495,6 +1495,7 @@ K-mer length to find orthologs.
 </option>
 <option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
 Minimum percentage of k-mers to call orthologs
+</option>
 </command>
 
 </NGSEP>
