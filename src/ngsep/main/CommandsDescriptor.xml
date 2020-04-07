@@ -1473,4 +1473,29 @@ extracted from annotated regions with homozygous reference genotypes.
 </option>
 </command>
 
+<!--
+<option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
+Maximum number of homologs per unit to be displayed in the D3 visualization
+</option>
+-->
+</command>
+
+<command id="OrganismsAligner" class="ngsep.genome.OrganismsAligner" groupId="Transcriptome">
+<intro>Infer ortholog groups from a set of organisms' transcriptomes</intro>
+<title>Comparing organisms</title>
+<description>
+this module takes many DNA transcriptomes in fasta format and infers orthology relationships to form ortholog groups.
+See the README.txt file for further details of input and output files.
+</description>
+<argument multiple="true">TRANSCRIPTOME</argument>
+<option id="o" type="STRING" attribute="outputPrefix" defaultConstant="DEF_OUT_PREFIX">
+Prefix of output files.
+</option>
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
+K-mer length to find orthologs.
+</option>
+<option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
+Minimum percentage of k-mers to call orthologs
+</command>
+
 </NGSEP>
