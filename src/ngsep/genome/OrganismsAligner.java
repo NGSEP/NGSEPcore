@@ -1,6 +1,7 @@
 package ngsep.genome;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public class OrganismsAligner {
 	
 	// Parameters
 	private List<OrganismHomologyCatalog> organisms = new ArrayList<>();
+	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	
@@ -95,13 +97,12 @@ public class OrganismsAligner {
 		
 		List<HomologyUnit> units = new ArrayList<>();
 		for(QualifiedSequence seq : sequences) {
-			HomologyUnit unit = new HomologyUnit(organisms.size()+1, seq.getName(), );
+			HomologyUnit unit = new HomologyUnit(organisms.size()+1, seq.getName(), translator.getProteinSequence(seq.getCharacters()));
 			units.add(unit);
 		}
 		
 		OrganismHomologyCatalog catalog = new OrganismHomologyCatalog(units);
 		organisms.add(catalog);
-		
 	}
 	
 	public void run () throws IOException {
@@ -109,7 +110,7 @@ public class OrganismsAligner {
 		if(organisms.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		alignOrganisms();
-		//printAlignmentResults ();
+		printResults();
 		log.info("Process finished");
 	}
 	
@@ -141,5 +142,19 @@ public class OrganismsAligner {
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
 		orthologyUnitClusters = calculator.clusterHomologsOrganisms(organisms, homologyEdges);
-	}	
+	}
+	
+	public void printResults() throws FileNotFoundException {
+		//Print ortholog clusters
+		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
+			for(List<HomologyUnit> cluster:orthologyUnitClusters) {
+				outClusters.print(cluster.get(0).getId());
+				for(int i=1;i<cluster.size();i++) {
+					HomologyUnit unit = cluster.get(i);
+					outClusters.print("\t"+unit.getId());
+				}
+				outClusters.println();
+			}
+		}
+	}
 }

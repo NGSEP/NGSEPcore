@@ -87,7 +87,6 @@ public class HomologRelationshipsFinder {
 		}
 
 		//Step 2: Fill list traversing the counts and choosing transcripts for which at least x% of the k-mers support the match
-		
 		for(Map.Entry<String,Integer> entry : kmerSupportMap.entrySet()) {
 			String homologId = entry.getKey();
 			double transcriptKmers = entry.getValue();
