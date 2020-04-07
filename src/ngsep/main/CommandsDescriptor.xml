@@ -1478,7 +1478,6 @@ extracted from annotated regions with homozygous reference genotypes.
 Maximum number of homologs per unit to be displayed in the D3 visualization
 </option>
 -->
-</command>
 
 <command id="OrganismsAligner" class="ngsep.genome.OrganismsAligner" groupId="Transcriptome">
 <intro>Infer ortholog groups from a set of organisms' transcriptomes</intro>
