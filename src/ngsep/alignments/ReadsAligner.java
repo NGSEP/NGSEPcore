@@ -256,6 +256,10 @@ public class ReadsAligner {
 	public void setWindowLength(int windowLength) {
 		this.windowLength = windowLength;
 	}
+	public void setWindowLength(String value) {
+		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public static void main(String[] args) throws Exception 
 	{
 		ReadsAligner instance = new ReadsAligner();

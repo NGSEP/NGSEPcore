@@ -235,7 +235,7 @@ variants called as homozygous alternative within the individual. This can be use
 polishing of new genome assemblies using Illumina data, or in general to construct a haploid version
 of an individual genome 
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the original genome.
 </option>
 <option id="v" type="FILE" attribute="variantsFile">
@@ -283,7 +283,7 @@ Input file with raw reads in fastq format corresponding to the second file for p
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the aligned reads in BAM format.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Reference genome to align reads in FASTA format. Required unless an FM-index is provided with the option -d. It can be gzip compressed. 
 </option>
 <option id="d" type="FILE" attribute="fmIndexFile">
@@ -299,6 +299,9 @@ Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
+</option>
+<option id="m" type="INT" attribute="maxAlnsPerRead" defaultConstant="DEF_MAX_ALNS_PER_READ">
+Maximum alignments per read.
 </option>
 <option id="minIL" type="INT" attribute="minInsertLength" defaultConstant="DEF_MIN_INSERT_LENGTH">
 Minimum predicted insert length to consider an alignment proper.
@@ -329,7 +332,7 @@ Writes to standard output unless the -o option is used to specify an output file
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the base pair quality statistics.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ_UNIQUE_ALIGNMENT">
@@ -368,7 +371,7 @@ Although it can also be used on high coverage WGS data, the classic sample-by-sa
 This module requires one or more read alignment files in SAM or BAM format and the reference genome that was used to produce the alignments.
 </description>
 <argument multiple="true">BAM_FILE</argument>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outFilename" defaultConstant="DEF_OUTPUT_FILE">
@@ -1374,7 +1377,7 @@ This simulator takes a (haploid) genome assembly and simulates a single individu
 homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative to the input assembly.
 It produces two files, a fasta file with the simulated genome, and a phased VCF file with the simulated variants.
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the genome to simulate an individual.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
@@ -1411,7 +1414,7 @@ Generates random single reads from a given reference genome
 <description>
 Generates single reads randomly distributed from a given reference genome. 
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the genome to simulate reads.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

@@ -21,8 +21,6 @@ package ngsep.main;
 
 import java.lang.reflect.Method;
 
-import ngsep.genome.ReferenceGenome;
-
 public class CommandOption {
 	public static final String TYPE_INT = "INT";
 	public static final String TYPE_LONG = "LONG";
@@ -149,7 +147,7 @@ public class CommandOption {
 			return Double.class;
 		}
 		if(TYPE_GENOME.equals(type)) {
-			return ReferenceGenome.class;
+			return String.class;
 		}
 		if(TYPE_STRING.equals(type)) {
 			return String.class;
