@@ -202,8 +202,8 @@ public class VCFRelativeCoordinatesTranslator {
 		// This plus the sequence index should get us the reference Allel.
 		if(algn.isNegativeStrand()) {
 			// truePos = algn.getFirst() + (seqLength - relativePos);
-			truePos = algn.getLast() + relativePos - 1;
-			System.out.println(truePos + "\t" + (algn.getFirst() + (seqLength - relativePos)));
+			truePos = algn.getLast() - (relativePos - 1);
+//			System.out.println(truePos + "\t" + (algn.getFirst() + (algn.getReadLength() - relativePos)));
 		} else {
 			truePos = algn.getFirst() + relativePos - 1;
 		}
