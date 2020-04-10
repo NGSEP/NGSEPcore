@@ -40,6 +40,7 @@ public class VCFRelativeCoordinatesTranslator {
 	int TruePosNotAlign = 0;
 	int unmappedRead = 0;
 	int notSNV = 0;
+	int notRefSeq = 0;
 	int refNotInAlleles = 0;
 	int biallelic = 0;
 	int triallelic = 0;
@@ -146,6 +147,7 @@ public class VCFRelativeCoordinatesTranslator {
 		System.out.println("Triallelic: " + triallelic);
 		System.out.println("Biallelic: " + biallelic);
 		System.out.println("Non variant: " + nonVariant);
+		System.out.println("Reference seq is null: " + notRefSeq);
 	}
 	
 	/**
@@ -215,9 +217,13 @@ public class VCFRelativeCoordinatesTranslator {
 		if(truePos < 0) {
 			System.out.println("True pos < 0");
 			return null;
-		}
+		} 
 		
 		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
+		if(trueRefSeq == null) {
+			notRefSeq++;
+			return null;
+		}
 		System.out.println(trueRefSeq + "\t" + truePos + "\t" + refGenome.getTotalLength());
 		
 		if(!DNASequence.isDNA(trueRefSeq)) {
