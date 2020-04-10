@@ -169,8 +169,6 @@ public class VCFRelativeCoordinatesTranslator {
 		// Position of variant with respect to the de-novo alignment 1-based
 		// Relative reference base (the base at position of variant in the consensus seq)
 		int relativePos = record.getFirst();
-		char relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
-		int seqLength = record.length();
 		
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
