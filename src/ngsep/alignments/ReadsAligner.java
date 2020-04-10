@@ -404,7 +404,8 @@ public class ReadsAligner {
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
 					RawRead read = it.next();
-					processSingleRead(read, writer);
+					if (!processSingleRead(read, writer)) break;
+					
 				}
 			}
 		} else if(inputFormat== INPUT_FORMAT_FASTA) {
@@ -416,7 +417,7 @@ public class ReadsAligner {
 					//System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
 				
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
-					processSingleRead(read, writer);
+					if (!processSingleRead(read, writer)) break;
 				}
 			}
 		}
@@ -453,7 +454,7 @@ public class ReadsAligner {
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
 					RawRead read = it.next();
-					processSingleRead(read, writer);
+					if (!processSingleRead(read, writer)) break;
 				}
 			}
 		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
@@ -463,7 +464,7 @@ public class ReadsAligner {
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
-					processSingleRead(read, writer);
+					if (!processSingleRead(read, writer)) break;
 				}
 			}
 		}
@@ -474,7 +475,7 @@ public class ReadsAligner {
 		
 		printStatistics(false);
 	}
-	private void processSingleRead(RawRead read, ReadAlignmentFileWriter writer) {
+	private boolean processSingleRead(RawRead read, ReadAlignmentFileWriter writer) {
 		List<ReadAlignment> alns = alignRead(read, true);
 		//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 		for(ReadAlignment aln:alns) writer.write(aln);
@@ -486,8 +487,18 @@ public class ReadsAligner {
 		totalReads++;
 		if(numAlns>0) readsAligned++;
 		if(numAlns==1) uniqueAlignments++;
-		if(!longReads && totalReads%10000==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned+". Complete alignments tried: "+completeAlns);
-		if(longReads && totalReads%100==0) log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+		boolean report = totalReads%10000==0 || (longReads && totalReads%100==0);
+		int progress = totalReads/100;
+		if (!longReads) progress = progress/100;
+		if(report) {
+			log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
+			if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
+				log.info("Process cancelled by user");
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 	/**
@@ -570,11 +581,12 @@ public class ReadsAligner {
 					}
 					for(ReadAlignment aln:alns) writer.write(aln);
 					readsAligned++;
-					if(totalReads%100000==0) {
-						log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
-						log.info("Reads aligned proper: "+proper);
-						log.info("Reads aligned notProper: "+notProper);
-						log.info("Reads aligned single: "+single);	
+					if(totalReads%10000==0) {
+						log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned+ " proper pairs "+proper);
+						if (progressNotifier!=null && !progressNotifier.keepRunning(totalReads/10000)) {
+							log.info("Process cancelled by user");
+							break;
+						}
 					} 
 				}
 			}
