@@ -310,7 +310,7 @@ public class Transcriptome {
 			VariantFunctionalAnnotation annotationCoding;
 			byte altAlleleIdx = (byte) i;
 			String alternative = alleles[altAlleleIdx];
-			String alternativeR = DNAMaskedSequence.getReverseComplement(alternative);
+			String alternativeR = DNAMaskedSequence.getReverseComplement(alternative).toString();
 			int differenceBases = alternative.length() - reference.length();
 			int expectedProteinIncrease = differenceBases/3;
 			String testA = alternative;

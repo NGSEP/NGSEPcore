@@ -1,4 +1,4 @@
-<NGSEP version="4.0.0" date="18-02-2020">
+<NGSEP version="4.0.1" date="17-04-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -215,6 +215,9 @@ Format of the input file. It can be 0 for fastq, 1 for fasta or 2 to load a save
 <option id="g" type="STRING" attribute="outFileGraph">
 Path to an output file to save the assembly graph
 </option>
+<option id="t" type="INT" attribute="numThreads">
+Number of threads
+</option>
 <option id="r" type="FILE" attribute="targetGenome">
 Genome used to simulate the given reads. Useful for benchmarking of the graph construction.
 </option>
@@ -232,7 +235,7 @@ variants called as homozygous alternative within the individual. This can be use
 polishing of new genome assemblies using Illumina data, or in general to construct a haploid version
 of an individual genome 
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the original genome.
 </option>
 <option id="v" type="FILE" attribute="variantsFile">
@@ -280,29 +283,37 @@ Input file with raw reads in fastq format corresponding to the second file for p
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the aligned reads in BAM format.
 </option>
-<option id="r" type="FILE" attribute="fmIndexFile">
-Index of the reference genome to align the reads. See GenomeIndexer for instructions to generate this file. Mandatory parameter.
+<option id="r" type="GENOME" attribute="genome">
+Reference genome to align reads in FASTA format. Required unless an FM-index is provided with the option -d. It can be gzip compressed. 
+</option>
+<option id="d" type="FILE" attribute="fmIndexFile">
+FM-index of the reference genome to align short reads. See GenomeIndexer for instructions to generate this file.
+Either this or the reference genome are required.
 </option>
 <option id="knownSTRs" type="STRING" attribute="knownSTRsFile">
 Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:
 Sequence name (chromosome), region first base pair coordinate (1-based, inclusive) and region last base pair coordinate (1-based, inclusive).
 </option>
-<!-- 
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta
 </option>
- -->
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
 </option>
-<option id="p" type="DOUBLE" attribute="minProportionKmers" defaultConstant="DEF_MIN_PROPORTION_KMERS">
-Minimum proportion of k-mers to select alignments.
+<option id="m" type="INT" attribute="maxAlnsPerRead" defaultConstant="DEF_MAX_ALNS_PER_READ">
+Maximum alignments per read.
 </option>
 <option id="minIL" type="INT" attribute="minInsertLength" defaultConstant="DEF_MIN_INSERT_LENGTH">
 Minimum predicted insert length to consider an alignment proper.
 </option>
 <option id="maxIL" type="INT" attribute="maxInsertLength"  defaultConstant="DEF_MAX_INSERT_LENGTH">
 Maximum predicted insert length to consider an alignment proper.
+</option>
+<option id="l" type="BOOLEAN" attribute="longReads">
+Input reads are long (Pacbio or Nanopore).
+</option>
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
+Window length to compute minimizers.
 </option>
 </command>
 
@@ -321,7 +332,7 @@ Writes to standard output unless the -o option is used to specify an output file
 <option id="o" type="FILE" attribute="outputFile">
 Output file with the base pair quality statistics.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ_UNIQUE_ALIGNMENT">
@@ -360,7 +371,7 @@ Although it can also be used on high coverage WGS data, the classic sample-by-sa
 This module requires one or more read alignment files in SAM or BAM format and the reference genome that was used to produce the alignments.
 </description>
 <argument multiple="true">BAM_FILE</argument>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outFilename" defaultConstant="DEF_OUTPUT_FILE">
@@ -444,7 +455,7 @@ produce the alignments, and a prefix for the output files.
 <option id="i" type="FILE" attribute="inputFile">
 Input file with read alignments in BAM format.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
@@ -694,7 +705,7 @@ Sorted BAM file corresponding to the control (wild type) sample.
 <option id="o" type="FILE" attribute="outputFile">
 File with genomic regions in which the two samples have different read depth.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="w" type="INT" attribute="binSize" defaultConstant="DEF_WINDOW_SIZE">
@@ -729,7 +740,7 @@ Input GFF3 file with gene annotations. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files. It can be an absolute path finished by the prefix.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome. It can be gzip compressed.
 </option>
 </command>
@@ -749,7 +760,7 @@ Input GFF3 file with gene annotations. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with filtered genes. See option -f for output format options.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="f" type="INT" attribute="outputFormat" defaultConstant="FORMAT_GFF">
@@ -818,7 +829,7 @@ See the README.txt file for further details of input and output files.
 <option id="i" type="FILE" attribute="inputFile">
 Input VCF file with variants to annotate. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="t" type="FILE" attribute="transcriptomeFile">
@@ -918,7 +929,7 @@ Minimum observed heterozygosity over the samples in the VCF.
 <option id="maxOH" type="DOUBLE" default="1" attribute="maxOH" defaultConstant="DEF_MAX_OH">
 Maximum observed heterozygosity over the samples in the VCF.
 </option>
-<option id="g" type="FILE" attribute="genome">
+<option id="g" type="GENOME" attribute="genome">
 File with the reference genome to calculate the GC-Content of the region surrounding the variant.
 </option>
 <option id="minGC" type="DOUBLE" attribute="minGCContent" defaultConstant="DEF_MIN_GC_CONTENT">
@@ -1049,7 +1060,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="i2" type="FILE" attribute="inputFile2">
 Input file in VCF format to compare with the first file. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
@@ -1126,7 +1137,7 @@ Input file in VCF format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
@@ -1366,7 +1377,7 @@ This simulator takes a (haploid) genome assembly and simulates a single individu
 homozygous and heterozygous mutations (SNPs, indels and mutated STRs) relative to the input assembly.
 It produces two files, a fasta file with the simulated genome, and a phased VCF file with the simulated variants.
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the genome to simulate an individual.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
@@ -1403,7 +1414,7 @@ Generates random single reads from a given reference genome
 <description>
 Generates single reads randomly distributed from a given reference genome. 
 </description>
-<option id="i" type="FILE" attribute="genome">
+<option id="i" type="GENOME" attribute="genome">
 Fasta file with the genome to simulate reads.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
@@ -1447,7 +1458,7 @@ Input test file in VCF format. It can be gzip compressed.
 <option id="g" type="FILE" attribute="gsFile">
 Gold standard file in VCF format. It can be gzip compressed.
 </option>
-<option id="r" type="FILE" attribute="genome">
+<option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

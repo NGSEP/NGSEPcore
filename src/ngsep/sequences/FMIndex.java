@@ -112,6 +112,7 @@ public class FMIndex implements Serializable
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
+			internalSequence = new StringBuffer();
 		}
 	}
 	/**
@@ -120,7 +121,7 @@ public class FMIndex implements Serializable
 	 * @param query Sequence to search
 	 * @return List<FMIndexUngappedSearchHit> exact hits to the sequences indexed by this FMIndex 
 	 */
-	public List<FMIndexUngappedSearchHit> exactSearch (String query) {
+	public List<UngappedSearchHit> exactSearch (String query) {
 		return exactSearch(query, 0, sequenceLengths.size());
 	}
 	/**
@@ -131,8 +132,8 @@ public class FMIndex implements Serializable
 	 * @param lastIndex of the subject sequence to look for
 	 * @return
 	 */
-	public List<FMIndexUngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
-		List<FMIndexUngappedSearchHit> hits = new ArrayList<>();
+	public List<UngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
+		List<UngappedSearchHit> hits = new ArrayList<>();
 		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
@@ -155,15 +156,33 @@ public class FMIndex implements Serializable
 				int last = start + queryLength - 1;
 				//Match with artificial concatenation between sequences
 				if(last>=sequenceLength) continue;
-				String seqName = ""+sequenceIdx;
-				if(sequencesWithNames!=null) seqName = sequencesWithNames.get(sequenceIdx).getName();
+				
 				//ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
-				FMIndexUngappedSearchHit hit = new FMIndexUngappedSearchHit(query, sequenceIdx, seqName, start);
+				UngappedSearchHit hit = new UngappedSearchHit(query, sequenceIdx, start);
+				if(sequencesWithNames!=null) hit.setSequenceName(sequencesWithNames.get(sequenceIdx).getName());
 				hits.add(hit);
 			}
 		}
+		for(UngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
 		return hits;
 	}
+	/**
+	 * Return the sequence with the given name
+	 * @param sequenceName Name of the sequence to search
+	 * @return CharSequence sequence with the given name. Null if the name is not found
+	 */
+	public CharSequence getSequence(String sequenceName) {
+		QualifiedSequence seq = sequencesWithNames.get(sequenceName);
+		if(seq==null) return null;
+		return seq.getCharacters();
+	}
+	/**
+	 * Return the subsequence of the indexed sequence between the given genomic coordinates
+	 * @param sequenceName Name of the sequence to search
+	 * @param first position of the sequence (1-based, included)
+	 * @param last position of the sequence (1-based, included)
+	 * @return CharSequence segment of the given sequence between the given coordinates
+	 */
 	public CharSequence getSequence(String sequenceName, int first, int last) {
 		QualifiedSequence seq = sequencesWithNames.get(sequenceName);
 		if(seq==null) return null;

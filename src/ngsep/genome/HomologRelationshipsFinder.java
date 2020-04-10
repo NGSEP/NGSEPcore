@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import ngsep.sequences.FMIndex;
-import ngsep.sequences.FMIndexUngappedSearchHit;
+import ngsep.sequences.UngappedSearchHit;
 
 public class HomologRelationshipsFinder {
 	public static final byte DEF_KMER_LENGTH = 10;
@@ -63,8 +63,8 @@ public class HomologRelationshipsFinder {
 		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=kmerLength) {
 			String kmer = searchSequence.substring(i, i+kmerLength);
 			
-			List <FMIndexUngappedSearchHit> kmerHits = indexGenome.exactSearch(kmer);
-			for(FMIndexUngappedSearchHit hit:kmerHits) {
+			List <UngappedSearchHit> kmerHits = indexGenome.exactSearch(kmer);
+			for(UngappedSearchHit hit:kmerHits) {
 				String name = hit.getSequenceName();
 				if(kmerSupportMap.containsKey(name)) {
 					int value = 1 + kmerSupportMap.get(name);

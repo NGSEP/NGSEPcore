@@ -55,6 +55,12 @@ public class HomologyUnit implements GenomicRegion {
 		this.last = last;
 		homologsMap.put(genomeId, new HashMap<>());
 	}
+	public HomologyUnit(int genomeId, String id, String unitSequence) {
+		this.genomeId = genomeId;
+		this.id = id;
+		this.unitSequence = unitSequence;
+		homologsMap.put(genomeId, new HashMap<>());
+	}
 	
 
 	public String getId() {
@@ -128,7 +134,18 @@ public class HomologyUnit implements GenomicRegion {
 		if(!unitsGenome.containsKey(unitId)) totalHomologs++;
 		unitsGenome.put(unitId, edge);
 	}
-
+	
+	
+	public Collection<HomologyEdge> getAllHomologyRelationships() {
+		ArrayList<HomologyEdge> relationships = new ArrayList<>();
+		for(Integer id : homologsMap.keySet()) {
+			Map<String, HomologyEdge> genomeEdges = homologsMap.get(id);
+			for(String geneId : genomeEdges.keySet()) {
+				relationships.add(genomeEdges.get(geneId));
+			}
+		}
+		return relationships;
+	}
 
 	/**
 	 * @return the paralogs

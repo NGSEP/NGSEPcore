@@ -30,97 +30,66 @@ public class PairwiseAlignmentAffineGap {
 	int openGap;
 	int extGap;
 	int mismatch;
-	int[][] x;
-	int[][] y;
-	int[][] m;
-	Traceback[][][] b;
+	int[][] insertionScores;
+	int[][] deletionScores;
+	int[][] matchScores;
 	
 	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch) 
 	{
+		System.out.println("Creating pairwise aligner");
 		this.match = match;
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
+		insertionScores = new int [4100][4100];
+		deletionScores = new int [4100][4100];
+		matchScores = new int [4100][4100];
 	}
 	
 	public String[] getAlignment(String s1, String s2) 
 	{		
 		initMatrices(s1, s2);
-	    calculateMatrices(s1, s2);
-	    int k = getMaxK(m, x, y);
-    	Traceback root = new Traceback(k, s1.length(), s2.length());	    
-        return getAlignedStrings(root, s1, s2);
+	    calculateMatrices(s1, s2);	    
+        return getAlignedStrings(s1, s2);
 	}
 	
 	private void initMatrices(String s1, String s2)
 	{
-		x = new int[s1.length() + 1][s2.length() + 1];
-		y = new int[s1.length() + 1][s2.length() + 1];
-		m = new int[s1.length() + 1][s2.length() + 1];
-		b = new Traceback[3][s1.length() + 1][s2.length() + 1];
+		if(insertionScores.length<s1.length()+1 || insertionScores[0].length < s2.length() +1 ) {
+			System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
+			insertionScores = new int[s1.length() + 1][s2.length() + 1];
+			deletionScores = new int[s1.length() + 1][s2.length() + 1];
+			matchScores = new int[s1.length() + 1][s2.length() + 1];
+		}
 		
-		for (int i = 1; i < x.length; i++) 
+		matchScores[0][0] = 0;
+		for (int i = 1; i < insertionScores.length; i++) 
 		{
-			x[i][0] = - openGap - extGap * (i - 1);
-	    	y[i][0] = s1.length() * -openGap * 1000;
-	    	m[i][0] = y[i][0];
-	    	b[1][i][0] = new Traceback(1, i-1, 0);
+			insertionScores[i][0] = - openGap - extGap * (i - 1);
+	    	deletionScores[i][0] = s1.length() * -openGap * 1000;
+	    	matchScores[i][0] = deletionScores[i][0];
 	    }
-	    for (int i = 1; i < x[0].length; i++) 
+	    for (int i = 1; i < insertionScores[0].length; i++) 
 	    {
-	    	y[0][i] = - openGap - extGap * (i - 1);
-	        x[0][i] = s2.length() * -openGap * 1000;
-	        m[0][i] = x[0][i];
-	    	b[2][0][i] = new Traceback(2, 0, i-1);
+	    	deletionScores[0][i] = - openGap - extGap * (i - 1);
+	        insertionScores[0][i] = s2.length() * -openGap * 1000;
+	        matchScores[0][i] = insertionScores[0][i];
 	    }
 	}
 	
 	private void calculateMatrices(String s1, String s2)
 	{
-		for (int i = 1; i < x.length; i++)
+		for (int i = 1; i <= s1.length(); i++)
 	    {
-	    	for (int j = 1; j < x[0].length; j++)
+	    	for (int j = 1; j <= s2.length(); j++)
 	    	{
 	    		int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
-	    		m[i][j] = Math.max(m[i-1][j-1] + matchScore, Math.max(x[i-1][j-1] + matchScore, y[i-1][j-1] + matchScore));
-	    		if(m[i][j] == m[i-1][j-1] + matchScore)
-	    		{
-	    			b[0][i][j] = new Traceback(0, i-1, j-1);
-	    		}
-	    		else if(m[i][j] == x[i-1][j-1] + matchScore)
-	    		{
-	    			b[0][i][j] = new Traceback(1, i-1, j-1);
-	    		}
-	    		else if(m[i][j] == y[i-1][j-1] + matchScore)
-	    		{
-	    			b[0][i][j] = new Traceback(2, i-1, j-1);
-	    		}
-	    		x[i][j] = Math.max(m[i-1][j] - openGap, Math.max(x[i-1][j] - extGap, y[i-1][j] - openGap));
-	    		if(x[i][j] == m[i-1][j] - openGap)
-	    		{
-	    			b[1][i][j] = new Traceback(0, i-1, j);
-	    		}
-	    		else if(x[i][j] == x[i-1][j] - extGap)
-	    		{
-	    			b[1][i][j] = new Traceback(1, i-1, j);
-	    		}
-	    		else if(x[i][j] == y[i-1][j] - openGap)
-	    		{
-	    			b[1][i][j] = new Traceback(2, i-1, j);
-	    		}
-	    		y[i][j] = Math.max(m[i][j-1] - openGap, Math.max(x[i][j-1] - openGap, y[i][j-1] - extGap));
-	    		if(y[i][j] == m[i][j-1] - openGap)
-	    		{
-	    			b[2][i][j] = new Traceback(0, i, j-1);
-	    		}
-	    		else if(y[i][j] == x[i][j-1] - openGap)
-	    		{
-	    			b[2][i][j] = new Traceback(1, i, j-1);
-	    		}
-	    		else if(y[i][j] == y[i][j-1] - extGap)
-	    		{
-	    			b[2][i][j] = new Traceback(2, i, j-1);
-	    		}
+	    		matchScores[i][j] = Math.max(matchScores[i-1][j-1] + matchScore, Math.max(insertionScores[i-1][j-1] + matchScore, deletionScores[i-1][j-1] + matchScore));
+	    		
+	    		insertionScores[i][j] = Math.max(matchScores[i-1][j] - openGap, Math.max(insertionScores[i-1][j] - extGap, deletionScores[i-1][j] - openGap));
+	    		
+	    		deletionScores[i][j] = Math.max(matchScores[i][j-1] - openGap, Math.max(insertionScores[i][j-1] - openGap, deletionScores[i][j-1] - extGap));
+	    		
 	    	}
 	    }
 //		System.out.println("X");
@@ -139,57 +108,73 @@ public class PairwiseAlignmentAffineGap {
 			return -mismatch;
 	}
 	
-	private Traceback getNextTraceback(Traceback t)
-	{
-		return b[t.k][t.i][t.j];
-	}
 	
-	private int getMaxK(int[][] m, int[][] x, int[][] y)
-	{
-		int k = 0;
-	    int val = m[m.length - 1][m[0].length - 1];
-    	if (val < x[m.length - 1][m[0].length - 1]) {
-    		k = 1;
-    	}
-    	else if (val < y[m.length - 1][m[0].length - 1]) {
-    		k = 2;
-    	}
-    	return k;
-	}
 	
-	private String[] getAlignedStrings(Traceback root, String s1, String s2)
+	private String[] getAlignedStrings(String s1, String s2)
 	{
 		StringBuffer sb1 = new StringBuffer();
-    	StringBuffer sb2 = new StringBuffer();
-	    String[] seqs = new String[2];
-        seqs[0] = "";
-        seqs[1] = "";
-        Traceback tb = root;
-        int i = tb.i;
-        int j = tb.j; 
-        while((tb = getNextTraceback(tb)) != null) {
-	        if (i == tb.i) {
-	        	sb1.append(LimitedSequence.GAP_CHARACTER);
-	        } else {
-	        	sb1.append(s1.charAt(i - 1));
-	        }	
-	        if (j == tb.j) {
-	        	sb2.append(LimitedSequence.GAP_CHARACTER);
-	        }
-	        else {
-	        	sb2.append(s2.charAt(j - 1));
-	        }
-	        i = tb.i;
-	        j = tb.j;
+		StringBuffer sb2 = new StringBuffer();
+		int i = s1.length();
+		int j = s2.length();
+		int k = 0;
+	    int val = matchScores[i][j];
+    	if (val < insertionScores[i][j]) {
+    		k = 1;
+    		val = insertionScores[i][j];
+    	}
+    	if (val < deletionScores[i][j]) {
+    		k = 2;
+    	}
+		while(i>0 && j>0) {
+			int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
+			if (k==0) {
+				//Match matrix
+				sb1.append(s1.charAt(i - 1));
+				sb2.append(s2.charAt(j - 1));
+				int score = matchScores[i][j]; 
+				if(score == matchScores[i-1][j-1] + matchScore) k = 0;
+	    		else if(score == insertionScores[i-1][j-1] + matchScore) k = 1;
+	    		else if(score == deletionScores[i-1][j-1] + matchScore) k = 2;
+	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
+				i--;
+    			j--;
+			} else if (k==1) {
+				sb1.append(s1.charAt(i - 1));
+				sb2.append(LimitedSequence.GAP_CHARACTER);
+				int score = insertionScores[i][j];
+				if(score == matchScores[i-1][j] - openGap) k = 0;
+	    		else if(score == insertionScores[i-1][j] - extGap) k = 1;
+	    		else if(score == deletionScores[i-1][j] - openGap) k = 2;
+	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
+				i--;
+			} else {
+				sb1.append(LimitedSequence.GAP_CHARACTER);
+				sb2.append(s2.charAt(j - 1));
+				int score = deletionScores[i][j];
+				if(score == matchScores[i][j-1] - openGap) k = 0;
+	    		else if(score == insertionScores[i][j-1] - openGap) k = 1;
+	    		else if(score == deletionScores[i][j-1] - extGap) k = 2;
+	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
+				j--;
+			}
         }
-         
+		while (i>0) {
+			sb1.append(s1.charAt(i - 1));
+			sb2.append(LimitedSequence.GAP_CHARACTER);
+			i--;
+		}
+		while (j>0) {
+			sb1.append(LimitedSequence.GAP_CHARACTER);
+			sb2.append(s2.charAt(j - 1));
+			j--;
+		}
+        String[] seqs = new String[2]; 
         seqs[0] = sb1.reverse().toString();
         seqs[1] = sb2.reverse().toString();
-        
         return seqs;
 	}
 	
-	private void printAlignmentMatrix(int[][] matrix, String s1, String s2)
+	public void printAlignmentMatrix(int[][] matrix, String s1, String s2)
 	{
 		System.out.print("\t-\t");
 		for (int i = 0; i < s2.length(); i++) {
@@ -208,17 +193,3 @@ public class PairwiseAlignmentAffineGap {
 		}
 	}
 }
-class Traceback 
-{
-	int k;
-	int i;
-	int j;
-	public Traceback(int k, int i, int j) 
-	{
-		this.k = k;
-		this.i = i;
-		this.j = j;
-	}
-
-}
-

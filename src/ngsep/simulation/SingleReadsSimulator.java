@@ -184,8 +184,7 @@ public class SingleReadsSimulator {
 					readLength = (int) (rnd.nextGaussian() * stdevReadlength + meanReadLength);
 					long nextLong = rnd.nextLong();
 					nextStart = nextLong % (totalLength - readLength);
-					if (nextStart < 0)
-						continue;
+					if (nextStart < 0) continue;
 
 					int idx1 = Arrays.binarySearch(cumulativeStarts, nextStart);
 
@@ -195,26 +194,18 @@ public class SingleReadsSimulator {
 					else {
 						sequenceIdx = -idx1 - 2;
 					}
-					if (sequenceIdx < 0)
-						System.out.println("Next start: " + nextStart + " idx: " + sequenceIdx);
 					seq = genome.getSequenceByIndex(sequenceIdx);
 					relStart = (int) (nextStart - cumulativeStarts[sequenceIdx]);
-					if (relStart < 0)
-						System.out.println("Next start: " + nextStart + " seq: " + seq.getName() + " idx: "
-								+ sequenceIdx + " start seq: " + cumulativeStarts[sequenceIdx]);
 					int relEnd = relStart + readLength;
 					if (relEnd <= seq.getLength()) {
 						read = seq.getCharacters().subSequence(relStart, relEnd).toString();
 						break;
 					}
 				}
-				if (read == null) {
-					// TODO: Warning
-					continue;
-				}
+				if (read == null) continue;
 				if (rnd.nextBoolean()) {
 					reverse = 1;
-					read = DNAMaskedSequence.getReverseComplement(read);
+					read = DNAMaskedSequence.getReverseComplement(read).toString();
 				}
 				String finalRead = generateErrors(read);
 				String readId = seq.getName() + "_" + (relStart+1) + "_" + reverse;

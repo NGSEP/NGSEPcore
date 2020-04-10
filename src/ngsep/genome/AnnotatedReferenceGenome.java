@@ -2,9 +2,7 @@ package ngsep.genome;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
@@ -23,8 +21,7 @@ public class AnnotatedReferenceGenome {
 	private QualifiedSequenceList sequencesMetadata;
 	private List<HomologyUnit> homologyUnitsList;
 	private GenomicRegionSortedCollection<HomologyUnit> homologyUnitsBySequence;
-	private Map<String, HomologyUnit> homologyUnitsMap;
-	private FMIndex indexHomologyUnits;
+	private OrganismHomologyCatalog catalog;
 	
 	private GenomicRegionSortedCollection<HomologyUnit> uniqueHomologyUnitsBySequence;
 	
@@ -38,7 +35,7 @@ public class AnnotatedReferenceGenome {
 		//Query each orthology unit against its own genome and select the units that are unique
 		extractHomologyUnits();
 		//log.info("Genome total units "+orthologyUnitsList.size()+" Building FM Index");
-		buildFMIndex ();
+		catalog = new OrganismHomologyCatalog(homologyUnitsList); 
 	}
 	
 	/**
@@ -46,7 +43,6 @@ public class AnnotatedReferenceGenome {
 	 */
 	private void extractHomologyUnits() {
 		homologyUnitsList = new ArrayList<>();
-		homologyUnitsMap = new HashMap<>();
 		homologyUnitsBySequence = new GenomicRegionSortedCollection<>(sequencesMetadata);
 		List<Transcript> allTranscripts = transcriptome.getAllTranscripts();
 		Gene lastGene = null; 
@@ -58,7 +54,6 @@ public class AnnotatedReferenceGenome {
 					HomologyUnit unit = buildHomologyUnitGene(lastGene, transcriptsGene);
 					if (unit!=null) {
 						homologyUnitsList.add(unit);
-						homologyUnitsMap.put(unit.getId(), unit);
 						homologyUnitsBySequence.add(unit);
 					}
 				}
@@ -70,9 +65,9 @@ public class AnnotatedReferenceGenome {
 		HomologyUnit unit = buildHomologyUnitGene(lastGene, transcriptsGene);
 		if (unit!=null) {
 			homologyUnitsList.add(unit);
-			homologyUnitsMap.put(unit.getId(), unit);
 			homologyUnitsBySequence.add(unit);
 		}
+		
 	}
 	
 	/**
@@ -105,18 +100,6 @@ public class AnnotatedReferenceGenome {
 		HomologyUnit unit = new HomologyUnit(id, geneId, sequenceName, first, last);
 		unit.setUnitSequence(bestProtein);
 		return unit;
-	}
-	
-	private void buildFMIndex() {
-		indexHomologyUnits = new FMIndex();
-		QualifiedSequenceList unitSequences = new QualifiedSequenceList();
-		for (HomologyUnit ql:homologyUnitsList) {
-			String unitSequence = ql.getUnitSequence();
-			String unitId = ql.getId();
-			QualifiedSequence qualifiedSequence = new QualifiedSequence(unitId, unitSequence);
-			unitSequences.add(qualifiedSequence);
-		}
-		indexHomologyUnits.loadQualifiedSequenceList(unitSequences);
 	}
 	
 	public void selectUniqueOrthologyUnits () {
@@ -161,11 +144,11 @@ public class AnnotatedReferenceGenome {
 	 * @return FMIndex to search for homologs
 	 */
 	public FMIndex getIndexHomologyUnits() {
-		return indexHomologyUnits;
+		return catalog.getIndexHomologyUnits();
 	}
 	
 	public HomologyUnit getHomologyUnit(String unitId) {
-		return homologyUnitsMap.get(unitId);
+		return catalog.getHomologyUnit(unitId);
 	}
 
 	/**

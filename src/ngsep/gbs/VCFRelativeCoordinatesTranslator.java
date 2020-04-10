@@ -8,14 +8,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
-import ngsep.main.CommandsDescriptor;
 import ngsep.sequences.DNASequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
@@ -231,7 +228,7 @@ public class VCFRelativeCoordinatesTranslator {
 		for(String allele:relativeAlleles) {
 			if(!DNASequence.isDNA(allele)) continue;
 			if(algn.isNegativeStrand()) {
-				allele = DNASequence.getReverseComplement(allele);
+				allele = DNASequence.getReverseComplement(allele).toString();
 			}
 			if(allele.charAt(0)==trueRef) refInRelativeAllels = true;
 			if(!refBasedAlleles.contains(allele)) {
@@ -265,7 +262,7 @@ public class VCFRelativeCoordinatesTranslator {
 			String [] calledAlleles = relativeCall.getCalledAlleles();
 			if (algn.isNegativeStrand()) {
 				for(int i=0;i<calledAlleles.length;i++) {
-					calledAlleles[i] = DNASequence.getReverseComplement(calledAlleles[i]);
+					calledAlleles[i] = DNASequence.getReverseComplement(calledAlleles[i]).toString();
 				}
 			}
 			if(variant instanceof SNV) {

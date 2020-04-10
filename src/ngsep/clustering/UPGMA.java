@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * @author Sebastián Lemus Cadena
+ * @author Sebastian Lemus Cadena
  */
 public class UPGMA implements DistanceMatrixClustering{
 

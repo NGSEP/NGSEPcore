@@ -42,7 +42,7 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 			AssemblyEdge nextEdgeLeft = graph.getSameSequenceEdge (vertex);
 			AssemblyEdge nextEdgeRight = nextEdgeLeft;
 			currentPath.add(nextEdgeRight);
-			sequencesInPaths.add(vertex.getIndex());
+			sequencesInPaths.add(vertex.getSequenceIndex());
 			AssemblyVertex vertexLeft = nextEdgeRight.getVertex1();
 			nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
 			AssemblyVertex vertexRight = nextEdgeRight.getVertex2();
@@ -54,22 +54,24 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 					nextEdgeLeft = graph.getSameSequenceEdge (vertexLeft);
 					currentPath.add(0,nextEdgeLeft);
 					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
-					sequencesInPaths.add(vertexLeft.getIndex());
+					sequencesInPaths.add(vertexLeft.getSequenceIndex());
 				} else if(nextEdgeRight!=null) {
 					currentPath.add(nextEdgeRight);
 					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
 					nextEdgeRight = graph.getSameSequenceEdge (vertexRight);
 					currentPath.add(nextEdgeRight);
 					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
-					sequencesInPaths.add(vertexRight.getIndex());
+					sequencesInPaths.add(vertexRight.getSequenceIndex());
 				}
 				nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
 				nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
 				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
 			}
-			System.out.println("Found path of size "+currentPath.size());
-			//printPath(currentPath);
-			graph.addPath(currentPath);
+			if(currentPath.size()>1) {
+				System.out.println("Found path of size "+currentPath.size());
+				//printPath(currentPath);
+				graph.addPath(currentPath);
+			}
 		}
 		
 		
@@ -81,13 +83,13 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 		for(AssemblyEdge edge:path) {
 			AssemblyVertex v1 = edge.getVertex1();
 			AssemblyVertex v2 = edge.getVertex2();
-			System.out.println("Edge between "+v1.getIndex()+"-"+v1.isStart()+" and "+v2.getIndex()+"-"+v2.isStart());
+			System.out.println("Edge between "+v1.getSequenceIndex()+"-"+v1.isStart()+" and "+v2.getSequenceIndex()+"-"+v2.isStart());
 		}	
 	}
 
 	private AssemblyVertex findNextUncoveredVertex(List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {
 		for(AssemblyVertex vertex:vertices) {
-			if(!sequencesInPaths.contains(vertex.getIndex())) return vertex;
+			if(!sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
 		}
 		return null;
 	}
@@ -97,7 +99,7 @@ public class LayoutBuilderGreedyMinCost implements LayourBuilder {
 		AssemblyEdge minEdge = null;
 		for(AssemblyEdge edge:edgesVertex) {
 			AssemblyVertex connectingVertex = edge.getConnectingVertex(vertex);
-			if(!sequencesInPaths.contains(connectingVertex.getIndex())) {
+			if(!sequencesInPaths.contains(connectingVertex.getSequenceIndex())) {
 				if(minEdge == null || minCost>edge.getCost()) {
 					minCost = edge.getCost();
 					minEdge = edge;

@@ -55,7 +55,8 @@ public class Assembler {
 	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
-	public static final int DEF_MIN_KMER_PCT = 20;
+	public static final int DEF_MIN_KMER_PCT = GraphBuilderMinimizers.DEF_MIN_KMER_PCT;
+	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(Assembler.class.getName());
@@ -69,6 +70,7 @@ public class Assembler {
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String outFileGraph = null;
+	private int numThreads = DEF_NUM_THREADS;
 	private ReferenceGenome targetGenome;
 	
 	// Get and set methods
@@ -151,7 +153,17 @@ public class Assembler {
 	public void setOutFileGraph(String outFileGraph) {
 		this.outFileGraph = outFileGraph;
 	}
-
+	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public ReferenceGenome getTargetGenome() {
 		return targetGenome;
 	}
@@ -212,10 +224,18 @@ public class Assembler {
 			}
 			// Dispose original qualified sequences
 			sequencesQL = null;
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage);
+			/*GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
 			gbIndex.setLog(log);
 			graph =  gbIndex.buildAssemblyGraph(finalSequences);
-			log.info("Built graph");
+			*/
+			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
+			builder.setKmerLength(kmerLength);
+			builder.setMinKmerPercentage(minKmerPercentage);
+			builder.setNumThreads(numThreads);
+			builder.setLog(log);
+			graph = builder.buildAssemblyGraph(finalSequences);
+			log.info("Built assembly graph");
+			
 			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 			if(outFileGraph!=null) {
 				graph.serialize(outFileGraph);
@@ -224,7 +244,8 @@ public class Assembler {
 		}
 
 		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
-		//LayourBuilder pathsFinder = new MetricMSTLayout();
+		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
+		//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 		if(progressNotifier!=null && !progressNotifier.keepRunning(75)) return;
@@ -349,8 +370,9 @@ public class Assembler {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			if(graph.isEmbedded(left.getReadNumber())) continue;
 			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
-			
+			boolean pathEdgeFound = false;
 			for(int j=i+1;j<alignments.size();j++) {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
@@ -365,12 +387,12 @@ public class Assembler {
 					} else {
 						relativeStart = 0;
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeStart, relativeNegative );
-					graph.addEmbedded(right.getReadNumber(), embeddedEvent);
-					if(left.getLast()<=right.getLast()) {
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeNegative, right.getReadNumber(), relativeStart);
+					graph.addEmbedded(embeddedEvent);
+					if(right.getLast()<=left.getLast()) {
 						//right is also embedded in left
-						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), 0, relativeNegative );
-						graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), 0 );
+						graph.addEmbedded(embeddedEvent);
 					}
 					break;
 				}
@@ -381,12 +403,17 @@ public class Assembler {
 					} else {
 						relativeStart = right.getFirst()-left.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeStart, relativeNegative );
-					graph.addEmbedded(left.getReadNumber(), embeddedEvent);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), relativeStart );
+					graph.addEmbedded(embeddedEvent);
 				} else {
 					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 					int overlap = left.getLast() - right.getFirst() + 1;
-					graph.addEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+					AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+					graph.addEdge(edge);
+					if(!pathEdgeFound) {
+						edge.setLayoutEdge(true);
+						pathEdgeFound = true;
+					}
 				}
 				
 			}
@@ -417,12 +444,13 @@ public class Assembler {
 					if(nextPath.size()>0) graph.addPath(nextPath);
 					nextPath = new ArrayList<>();
 					lastVertex = null;
-				} else {
+				} else if (connectingEdge.isLayoutEdge()) {
+					//System.out.println("Next layout edge between "+lastVertex.getSequenceIndex()+" start " +lastVertex.isStart()+" and "+leftSequenceVertex.getSequenceIndex()+" start "+leftSequenceVertex.isStart()+" read id: "+aln.getSequenceName()+" first: "+aln.getFirst());
 					nextPath.add(connectingEdge);
+				} else {
+					log.warning("Inconsistency in gold standard layout edge");
 				}
 			}
-			
-			
 			nextPath.add(edgeSequence);
 			lastVertex = rightSequenceVertex;
 		}
@@ -431,7 +459,6 @@ public class Assembler {
 	}
 
 	private void compareGraphs(AssemblyGraph goldStandardGraph, AssemblyGraph testGraph) {
-		//Compare embedded
 		int tpEmbSeqs = 0;
 		int fpEmbSeqs = 0;
 		int fnEmbSeqs = 0;
@@ -441,6 +468,8 @@ public class Assembler {
 		int tpEdges = 0;
 		int fpEdges = 0;
 		int fnEdges = 0;
+		int tpPathEdges = 0;
+		int totalPathEdges = 0;
 		int n = goldStandardGraph.getNumSequences();
 		for(int i=0;i<n;i++) {
 			boolean gsE = goldStandardGraph.isEmbedded(i);
@@ -448,8 +477,8 @@ public class Assembler {
 			if(gsE && testE) tpEmbSeqs++;
 			else if (gsE) fnEmbSeqs++;
 			else if (testE) fpEmbSeqs++;
-			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbedded(i);
-			List<AssemblyEmbedded> embeddedTest = testGraph.getEmbedded(i);
+			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbeddedByHostId(i);
+			List<AssemblyEmbedded> embeddedTest = testGraph.getEmbeddedByHostId(i);
 			int tpM = calculateIntersection (embeddedGS,embeddedTest);
 			tpEmbRel+=tpM;
 			fpEmbRel+=(embeddedTest.size()-tpM);
@@ -457,7 +486,30 @@ public class Assembler {
 			if(goldStandardGraph.isEmbedded(i)) continue;
 			AssemblyVertex vGS = goldStandardGraph.getVertex(i, true);
 			List<AssemblyEdge> edgesGS = goldStandardGraph.getEdges(vGS);
-			int tpD1 = searchEdges(testGraph, vGS, edgesGS);
+			AssemblyEdge pathEdge = null;
+			for(AssemblyEdge edgeGS:edgesGS) {
+				if(edgeGS.isLayoutEdge()) {
+					pathEdge = edgeGS;
+					totalPathEdges++;
+					break;
+				}
+			}
+			AssemblyVertex testVertex = testGraph.getVertex(vGS.getSequenceIndex(), vGS.isStart());
+			int tpD1 = 0;
+			if(testVertex!=null) {
+				List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
+				tpD1 = searchEdges(testVertex, testEdges, vGS, edgesGS);
+				for(AssemblyEdge edgeGS:edgesGS) {
+					if(edgeGS.isLayoutEdge()) {
+						if(searchEdge(testVertex, testEdges, vGS, edgeGS)) {
+							pathEdge = null;
+							tpPathEdges++;
+							break;
+						}
+					}
+				}
+			}
+			if(pathEdge!=null) System.out.println("Path edge not found between "+pathEdge.getVertex1().getSequenceIndex()+" start "+pathEdge.getVertex1().isStart()+ " and "+pathEdge.getVertex2().getSequenceIndex()+ " start "+pathEdge.getVertex2().isStart());
 			tpEdges += tpD1;
 			//The same sequence edge does not count
 			int fnD1 = edgesGS.size()-1-tpD1;
@@ -485,7 +537,30 @@ public class Assembler {
 			}
 			vGS = goldStandardGraph.getVertex(i, false);
 			edgesGS = goldStandardGraph.getEdges(vGS);
-			int tpD2 = searchEdges(testGraph, vGS, edgesGS);
+			pathEdge = null;
+			for(AssemblyEdge edgeGS:edgesGS) {
+				if(edgeGS.isLayoutEdge()) {
+					pathEdge = edgeGS;
+					totalPathEdges++;
+					break;
+				}
+			}
+			testVertex = testGraph.getVertex(vGS.getSequenceIndex(), vGS.isStart());
+			int tpD2 = 0;
+			if(testVertex!=null) {
+				List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
+				tpD2 = searchEdges(testVertex, testEdges, vGS, edgesGS);
+				for(AssemblyEdge edgeGS:edgesGS) {
+					if(edgeGS.isLayoutEdge()) {
+						if(searchEdge(testVertex, testEdges, vGS, edgeGS)) {
+							pathEdge = null;
+							tpPathEdges++;
+							break;
+						}
+					}
+				}
+			}
+			if(pathEdge!=null) System.out.println("Path edge not found between "+pathEdge.getVertex1().getSequenceIndex()+ " length "+pathEdge.getVertex1().getRead().length()+ " and "+pathEdge.getVertex2().getSequenceIndex()+ " length "+pathEdge.getVertex2().getRead().length());
 			tpEdges += tpD2;
 			int fnD2 = edgesGS.size()-1-tpD2;
 			if(fnD2>=0) {
@@ -514,9 +589,12 @@ public class Assembler {
 		tpEdges/=2;
 		fpEdges/=2;
 		fnEdges/=2;
+		tpPathEdges/=2;
+		totalPathEdges/=2;
 		double precisionEdges = (double)tpEdges/(tpEdges+fpEdges);
 		double recallEdges = (double)tpEdges/(tpEdges+fnEdges);
-		log.info("EDGES\t"+tpEdges+"\t"+fpEdges+"\t"+fnEdges+"\t"+recallEdges+"\t"+precisionEdges);
+		double recallPathEdges = (double)tpPathEdges/totalPathEdges;
+		log.info("EDGES\t"+tpEdges+"\t"+fpEdges+"\t"+fnEdges+"\t"+recallEdges+"\t"+precisionEdges+"\t"+tpPathEdges+"\t"+totalPathEdges+"\t"+recallPathEdges);
 		compareLayouts(goldStandardGraph, testGraph);
 	}
 
@@ -607,10 +685,10 @@ public class Assembler {
 		AssemblyVertex testV2 = nextTestEdge.getVertex2();
 		AssemblyVertex gsV1 = nextGSEdge.getVertex1();
 		AssemblyVertex gsV2 = nextGSEdge.getVertex2();
-		if (testV1.getIndex()==gsV1.getIndex() && testV1.isStart()==gsV1.isStart()) {
-			if(testV2.getIndex()==gsV2.getIndex() && testV2.isStart()==gsV2.isStart()) return true;
-		} else if (testV1.getIndex()==gsV2.getIndex() && testV1.isStart()==gsV2.isStart()) {
-			if(testV2.getIndex()==gsV1.getIndex() && testV2.isStart()==gsV1.isStart()) return true;
+		if (testV1.getUniqueNumber()==gsV1.getUniqueNumber()) {
+			if(testV2.getUniqueNumber()==gsV2.getUniqueNumber()) return true;
+		} else if (testV1.getUniqueNumber()==gsV2.getUniqueNumber()) {
+			if(testV2.getUniqueNumber()==gsV1.getUniqueNumber()) return true;
 		}
 		return false;
 	}
@@ -619,7 +697,7 @@ public class Assembler {
 		System.out.println(text);
 		for(AssemblyEdge edge:edges) {
 			AssemblyVertex vOut = edge.getConnectingVertex(v);
-			System.out.println("Vertex "+vOut.getIndex()+"-"+vOut.isStart()+" length "+vOut.getRead().length()+" overlap "+edge.getOverlap());
+			System.out.println("Vertex "+vOut.getSequenceIndex()+"-"+vOut.isStart()+" length "+vOut.getRead().length()+" overlap "+edge.getOverlap());
 		}
 		
 	}
@@ -637,22 +715,24 @@ public class Assembler {
 		return count;
 	}
 
-	private int searchEdges(AssemblyGraph testGraph, AssemblyVertex vGS, List<AssemblyEdge> edgesGS) {
+	private int searchEdges(AssemblyVertex testVertex, List<AssemblyEdge> testEdges, AssemblyVertex vGS, List<AssemblyEdge> edgesGS) {
 		int count = 0;
-		AssemblyVertex testV1 = testGraph.getVertex(vGS.getIndex(), vGS.isStart());
-		if(testV1==null) return count;
-		List<AssemblyEdge> testEdgesV1 = testGraph.getEdges(testV1);
 		for(AssemblyEdge edge:edgesGS) {
-			AssemblyVertex vOutGS = edge.getConnectingVertex(vGS);
-			if(vGS.getIndex()==vOutGS.getIndex()) continue;
-			for(AssemblyEdge testEdge:testEdgesV1) {
-				AssemblyVertex testOut = testEdge.getConnectingVertex(testV1);
-				if(vOutGS.getIndex()==testOut.getIndex() && vOutGS.isStart()==testOut.isStart()) {
-					count ++;
-					break;
-				}
+			if(edge.isSameSequenceEdge()) continue;
+			if(searchEdge(testVertex, testEdges, vGS, edge)) {
+				count ++;
 			}
 		}
 		return count;
+	}
+	private boolean searchEdge (AssemblyVertex testVertex, List<AssemblyEdge> testEdges, AssemblyVertex vGS, AssemblyEdge edgeGS) {
+		AssemblyVertex vOutGS = edgeGS.getConnectingVertex(vGS);
+		for(AssemblyEdge testEdge:testEdges) {
+			AssemblyVertex testOut = testEdge.getConnectingVertex(testVertex);
+			if(vOutGS.getUniqueNumber()==testOut.getUniqueNumber()) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

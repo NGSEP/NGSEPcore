@@ -28,7 +28,8 @@ public class ReadsAlignerTest extends TestCase {
 			GenomeIndexer genomeIndexer=new GenomeIndexer();
 			genomeIndexer.createIndex(FASTA_PATH,FM_INDEX_PATH);	
 		}
-		readsAligner=new ReadsAligner(FM_INDEX_PATH);
+		readsAligner=new ReadsAligner();
+		readsAligner.setFmIndexFile(FM_INDEX_PATH);
 	}
 
 	public void afterSetUpReadsAligner() {
@@ -85,10 +86,9 @@ public class ReadsAlignerTest extends TestCase {
 		//Region "chrXI 122235 122272"
 		ReadAlignment aln=new ReadAlignment("chrXI", 122176, 122265, 90, 0);
 		String read =    "TCGGATCGAAATGAACGATATTCTCCCTTATATTATCAGCCAGTAGCGTATACTCTGGCATTTTTCATTTATTTGACTTATTTTTATTTN";
-		String qualityScores = "####################################@@@@BBEEEEEEEEEEEEEEEEEBEEEEE>EEEEEEEEEEEEEE,+,35,.50#";
 		//	122176	122235 -> 122176	122234
 		GenomicRegion region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		ReadAlignment newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,qualityScores,region);
+		ReadAlignment newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
 		assertEquals(122176, newAln.getFirst());
 		assertEquals(122234, newAln.getLast());
 		assertEquals("59M31S", newAln.getCigarString());
@@ -97,10 +97,9 @@ public class ReadsAlignerTest extends TestCase {
 		//Region "chrII 151275 151285"
 		aln=new ReadAlignment("chrII", 151281, 151370, 90, 0);
 		read =          "TTTTTATTATGCATTTAAGAGTAGTCTCTACTTATGAACATTTTCTCTGGCCTCTGATCACGTTACTTTATTACCCGGATACTGATCATN";
-		qualityScores = "####################BEEEEEEEEEBBBBBEEEEEEEEEEEEEEEEEEEEAA@A@EEEEEAAAAABBBBBEEEEE<<<<<5474#";
 		//	151281	151370 -> 151286	151370
 		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,qualityScores,region);
+		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
 		assertEquals(151286, newAln.getFirst());
 		assertEquals(151370, newAln.getLast());
 		assertEquals("5S85M", newAln.getCigarString());
@@ -109,11 +108,10 @@ public class ReadsAlignerTest extends TestCase {
 		//Region "chrIX 255901 255918"
 		aln=new ReadAlignment("chrIX", 255867, 255956, 90, 0);
 		read =         "ATTTTCTTTTATTTTTTTGATAAAACTACTACGCTAAAAATAAAATAAAAATGTATGATTTCCCTCCATTTCCGACCAATTGTATAATTT";
-		qualityScores= "FGGGGGEGGGGGGGGFGGGGFGGGGGGGGGGGGEFGGGGGGGGGECDEEEGGGGGGFDGAGGGFGGDGGFDG:DGGGGG?EDFDFGFGBG";
 		//Left:  255867 255900
 		//Right: 255919 255956
 		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,qualityScores,region);
+		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
 		assertNotNull(newAln);
 		assertEquals(255867, newAln.getFirst());
 		assertEquals(255956, newAln.getLast());
@@ -123,11 +121,10 @@ public class ReadsAlignerTest extends TestCase {
 		//Region "chrXII 460003 460019"
 		aln=new ReadAlignment("chrXII", 459953, 460042, 90, 0);
 		read =         "GATATGTACAAACAATATCCTCCTCCGATATTCTCCTCCGATATTCCTACAAAAAAAAAAACACTCCGGTTTTGTTCTCTTCCCTCCATT";
-		qualityScores= "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGFGGGFEGGGGGEGGGEFEEEEEEEE=EE?DDBDBCCCA>8*??@CACCCAC.BC";
 		//Left:  459953 460002
 		//Right: 460020 460042
 		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,qualityScores,region);
+		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
 		assertNotNull(newAln);
 		assertEquals(459966, newAln.getFirst());
 		assertEquals(460042, newAln.getLast());

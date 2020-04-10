@@ -386,7 +386,7 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.println("Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)");
 		System.err.println("NGSEP3: accurate variant calling across species and sequencing protocols.");
-		System.err.println("Bioinformatics 35(22): 4716–4723. http://doi.org/10.1093/bioinformatics/btz275");
+		System.err.println("Bioinformatics 35(22): 4716-4723. http://doi.org/10.1093/bioinformatics/btz275");
 		System.err.println();
 		System.err.println("See the README.txt file for papers describing the algorithms implemented in NGSEP and supporting packages");
 		System.err.println();

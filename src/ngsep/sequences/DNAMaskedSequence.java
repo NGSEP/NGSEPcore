@@ -89,9 +89,15 @@ public class DNAMaskedSequence extends AbstractLimitedSequence{
 	/**
 	 * Returns the reverse complement of a DNA sequence encoded in the given String
 	 * @param sequence Sequence to be translated
-	 * @return String reverse complement of the given sequence
+	 * @return CharSequence reverse complement of the given sequence
 	 */
-	public static String getReverseComplement(CharSequence sequence) {
-		return new DNAMaskedSequence(sequence).getReverseComplement().toString();
+	public static CharSequence getReverseComplement(CharSequence sequence) {
+		if(sequence instanceof DNASequence) {
+			return ((DNASequence)sequence).getReverseComplement();
+		}
+		if(sequence instanceof DNAMaskedSequence) {
+			return ((DNAMaskedSequence)sequence).getReverseComplement();
+		}
+		return new DNAMaskedSequence(sequence).getReverseComplement();
 	}
 }
