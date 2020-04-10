@@ -212,11 +212,6 @@ public class VCFRelativeCoordinatesTranslator {
 		int algnIndex = algn.getSequenceIndex();
 		if(algnIndex == -1) {
 			System.out.println("algnIndex = -1");
-		}
-		
-		if(truePos < 0) {
-			System.out.println("True pos < 0");
-			return null;
 		} 
 		
 		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
@@ -224,7 +219,6 @@ public class VCFRelativeCoordinatesTranslator {
 			notRefSeq++;
 			return null;
 		}
-		System.out.println(trueRefSeq + "\t" + truePos + "\t" + refGenome.getTotalLength());
 		
 		if(!DNASequence.isDNA(trueRefSeq)) {
 			notDNA++;
