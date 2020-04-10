@@ -203,7 +203,7 @@ public class VCFRelativeCoordinatesTranslator {
 		if(algn.isNegativeStrand()) {
 			// truePos = algn.getFirst() + (seqLength - relativePos);
 			truePos = algn.getLast() + relativePos - 1;
-			System.out.print(truePos + "\t" + (algn.getFirst() + (seqLength - relativePos)));
+			System.out.println(truePos + "\t" + (algn.getFirst() + (seqLength - relativePos)));
 		} else {
 			truePos = algn.getFirst() + relativePos - 1;
 		}
