@@ -204,7 +204,9 @@ public class VCFRelativeCoordinatesTranslator {
 		//This allows is to get the true position, not absolute, but relative to the genomic region.
 		// This plus the sequence index should get us the reference Allel.
 		if(algn.isNegativeStrand()) {
-			truePos = algn.getFirst() + (seqLength - relativePos);
+			// truePos = algn.getFirst() + (seqLength - relativePos);
+			truePos = algn.getLast() + relativePos - 1;
+			System.out.print(truePos + "\t" + (algn.getFirst() + (seqLength - relativePos)));
 		} else {
 			truePos = algn.getFirst() + relativePos - 1;
 		}
