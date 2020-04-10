@@ -218,7 +218,7 @@ public class VCFRelativeCoordinatesTranslator {
 		}
 		
 		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
-		System.out.println(trueRefSeq);
+		System.out.println(trueRefSeq + "\t" + truePos);
 		
 		if(!DNASequence.isDNA(trueRefSeq)) {
 			notDNA++;
