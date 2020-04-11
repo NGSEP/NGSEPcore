@@ -40,6 +40,7 @@ public class VCFRelativeCoordinatesTranslator {
 	int TruePosNotAlign = 0;
 	int unmappedRead = 0;
 	int notSNV = 0;
+	int notRefSeq = 0;
 	int refNotInAlleles = 0;
 	int biallelic = 0;
 	int triallelic = 0;
@@ -146,6 +147,7 @@ public class VCFRelativeCoordinatesTranslator {
 		System.out.println("Triallelic: " + triallelic);
 		System.out.println("Biallelic: " + biallelic);
 		System.out.println("Non variant: " + nonVariant);
+		System.out.println("Reference seq is null: " + notRefSeq);
 	}
 	
 	/**
@@ -169,8 +171,6 @@ public class VCFRelativeCoordinatesTranslator {
 		// Position of variant with respect to the de-novo alignment 1-based
 		// Relative reference base (the base at position of variant in the consensus seq)
 		int relativePos = record.getFirst();
-		char relativeRef = algn.getReadCharacters().charAt(relativePos - 1);
-		int seqLength = record.length();
 		
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
@@ -201,7 +201,9 @@ public class VCFRelativeCoordinatesTranslator {
 		//This allows is to get the true position, not absolute, but relative to the genomic region.
 		// This plus the sequence index should get us the reference Allel.
 		if(algn.isNegativeStrand()) {
-			truePos = algn.getFirst() + (seqLength - relativePos);
+			// truePos = algn.getFirst() + (seqLength - relativePos);
+			truePos = algn.getLast() - (relativePos - 1);
+//			System.out.println(truePos + "\t" + (algn.getFirst() + (algn.getReadLength() - relativePos)));
 		} else {
 			truePos = algn.getFirst() + relativePos - 1;
 		}
@@ -210,10 +212,14 @@ public class VCFRelativeCoordinatesTranslator {
 		int algnIndex = algn.getSequenceIndex();
 		if(algnIndex == -1) {
 			System.out.println("algnIndex = -1");
-		}
+		} 
 		
 		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
-
+		if(trueRefSeq == null) {
+			notRefSeq++;
+			return null;
+		}
+		
 		if(!DNASequence.isDNA(trueRefSeq)) {
 			notDNA++;
 			return null;
