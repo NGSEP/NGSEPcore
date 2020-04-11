@@ -70,6 +70,7 @@ public class VCFConverter {
 	private boolean printTreeMix= false;
 	private boolean printJoinMap= false;
 	private boolean printPhase = false;
+	private boolean printFineStructure = false;
 	private String sequenceName = null;
 	private String idParent1 = null;
 	private String idParent2 = null;
@@ -274,6 +275,16 @@ public class VCFConverter {
 		this.setPrintPhase(printPhase.booleanValue());
 	}
 
+	public boolean isPrintFineStructure() {
+		return printFineStructure;
+	}
+	public void setPrintFineStructure(boolean printFineStructure) {
+		this.printFineStructure = printFineStructure;
+	}
+	public void setPrintFineStructure(Boolean printFineStructure) {
+		this.setPrintFineStructure(printFineStructure.booleanValue());
+	}
+	
 	public String getSequenceName() {
 		return sequenceName;
 	}
@@ -317,7 +328,8 @@ public class VCFConverter {
 		logParameters();
 		if(outputPrefix == null) throw new IOException("The prefix of the output files is a required parameter");
 		if(printTreeMix && populationFile==null) throw new IOException("The file with the description of the populations is required for conversion to TreeMix");
-		if(printPhase && sequenceName==null) throw new IOException("The sequence name is required for conversion to Phase");
+		if(printPhase && sequenceName==null) throw new IOException("The sequence name is required for conversion to phase");
+		if(printFineStructure && sequenceName==null) throw new IOException("The sequence name is required for conversion to fineStructure");
 		if(printJoinMap && (idParent1==null || idParent2==null)) throw new IOException("Parent ids are required for conversion to JoinMap");
 		if(inputFile==null) {
 			process(System.in,outputPrefix);
@@ -338,6 +350,7 @@ public class VCFConverter {
 		if (printEigensoft) out.print(" eigensoft");
 		if (printEmma) out.print(" emma");
 		if (printFasta) out.print(" fasta");
+		if (printFineStructure) out.print(" fineStructure");
 		if (printFlapjack) out.print(" flapjack");
 		if (printGWASPoly) out.print(" GWASPoly");
 		if (printHaploview) out.print(" haploview");
@@ -345,6 +358,7 @@ public class VCFConverter {
 		if (printJoinMap) out.print(" joinMap");
 		if (printMatrix) out.print(" matrix");
 		if (printPhase) out.print(" phase");
+		
 		if (printPlink) out.print(" plink");
 		if (printPowerMarker) out.print(" powerMarker");
 		if (printrrBLUP) out.print(" rrBLUP");
@@ -352,7 +366,7 @@ public class VCFConverter {
 		if (printStructure) out.print(" structure");
 		if (printTreeMix) out.print(" treeMix");
 		out.println();
-		if (sequenceName!=null) out.println("Sequence name for Phase: "+sequenceName);
+		if (sequenceName!=null) out.println("Sequence name for phase or fineStructure: "+sequenceName);
 		if (populationFile!=null) out.println("File with population assignments: "+populationFile);
 		if (idParent1!=null) out.println("First parent: "+idParent1);
 		if (idParent2!=null) out.println("Second parent: "+idParent2);
@@ -378,7 +392,7 @@ public class VCFConverter {
 		PrintStream outJoinMap = null;
 		PrintStream outTreemix = null;
 		//Load the matrix if at least one format need the matrix to be transposed
-		boolean loadMatrix = printFasta || printStructure || printrrBLUP || printSpagedi || printEmma || printPlink || printHaploview || printPowerMarker || printFlapjack || printEigensoft || printDarwin;
+		boolean loadMatrix = printFasta || printStructure || printrrBLUP || printSpagedi || printEmma || printPlink || printHaploview || printPowerMarker || printFlapjack || printEigensoft || printDarwin || printFineStructure;
 		boolean loadMatrixSeqName = printPhase;
 		List<List<CalledGenomicVariant>> callsPerVariant = new ArrayList<List<CalledGenomicVariant>>();
 		List<String> sampleIds = null;
@@ -489,6 +503,7 @@ public class VCFConverter {
 		if(printFlapjack) printFlapjack(sampleIds,callsPerVariant,prefix);
 		if(printEigensoft) printEigensoft(sampleIds,callsPerVariant,prefix);
 		if(printPhase) printPhase(sampleIds,callsPerVariant,prefix+"_"+sequenceName+"_phase.inp");
+		if(printFineStructure) printFineStructure(sampleIds.size(),callsPerVariant,prefix+"_fs_"+sequenceName+".phase");
 	}
 	
 	private void printFlapjack(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outPrefix) throws IOException {
@@ -933,19 +948,72 @@ public class VCFConverter {
 			}
 		}
 		if(nSites==0) throw new IOException("No biallelic variants found for the given sequence name");
-		PrintStream out = new PrintStream(outFile);
-		out.println(sampleIds.size());
-		out.println(nSites);
-		out.println(linePositions);
-		for(int i=0;i<nSites;i++) out.print("S");
-		out.println();
-		for(int i=0;i<sampleIds.size();i++) {
-			out.println("#"+sampleIds.get(i));
-			out.println(sequences[2*i].toString());
-			out.println(sequences[2*i+1].toString());
+		try (PrintStream out = new PrintStream(outFile)) {
+			out.println(sampleIds.size());
+			out.println(nSites);
+			out.println(linePositions);
+			for(int i=0;i<nSites;i++) out.print("S");
+			out.println();
+			for(int i=0;i<sampleIds.size();i++) {
+				out.println("#"+sampleIds.get(i));
+				out.println(sequences[2*i].toString());
+				out.println(sequences[2*i+1].toString());
+			}
 		}
-		out.flush();
-		out.close();
+	}
+	
+	private void printFineStructure(int numSamples, List<List<CalledGenomicVariant>> calls, String outFile) throws IOException {
+		//log.info("Converting to fineStructure. Variants: "+calls.size()+" samples: "+numSamples);
+		StringBuilder [] sequences = new StringBuilder[2*numSamples];
+		for(int i=0;i<sequences.length;i++) sequences[i] = new StringBuilder();
+		StringBuilder linePositions = new StringBuilder("P");
+		int nSites =0;
+		for(List<CalledGenomicVariant> callsVariant:calls) {
+			if(callsVariant.size()==0 || !callsVariant.get(0).isBiallelic()) continue;
+			GenomicVariant variant = callsVariant.get(0);
+			if(!variant.getSequenceName().equals(sequenceName)) continue;
+			if(callsVariant.size()!=numSamples) {
+				log.warning("Number of samples for variant "+variant.getSequenceName()+":"+variant.getFirst()+" does not match expected number: "+numSamples);
+				continue;
+			}
+			linePositions.append(" "+variant.getFirst());
+			for(int i=0;i<callsVariant.size();i++) {
+				CalledGenomicVariant calledVar = callsVariant.get(i);
+				byte [] idxsPhasedAlleles = calledVar.getIndexesPhasedAlleles();
+				String allele1 = "0";
+				String allele2 = "0";
+				if(!calledVar.isUndecided()) {
+					if(calledVar.isHeterozygous()) {
+						if(idxsPhasedAlleles!=null) {
+							allele1 = ""+idxsPhasedAlleles[0];
+							allele2 = ""+idxsPhasedAlleles[1];
+						} else {
+							log.warning("Unphased heterozygous call at variant at "+variant.getSequenceName()+":"+variant.getFirst()+" indivudual: "+i);
+						}
+		
+					} else if (!calledVar.isHomozygousReference()) {
+						allele1 = "1";
+						allele2 = "1";
+					}
+				} else {
+					log.warning("Imputing reference genotype for undecided call at variant at "+variant.getSequenceName()+":"+variant.getFirst()+" indivudual: "+i);
+				}
+				sequences[2*i].append(allele1);
+				sequences[2*i+1].append(allele2);
+			}
+			
+			nSites++;
+		}
+		if(nSites==0) throw new IOException("No biallelic variants found for the given sequence name");
+		try (PrintStream out = new PrintStream(outFile)) {
+			out.println(2*numSamples);
+			out.println(nSites);
+			out.println(linePositions);
+			for(int i=0;i<numSamples;i++) {
+				out.println(sequences[2*i].toString());
+				out.println(sequences[2*i+1].toString());
+			}
+		}
 	}
 	
 	private void printTreeMixHeader(Set<String> groups, PrintStream out) throws IOException {

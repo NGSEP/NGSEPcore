@@ -1,4 +1,4 @@
-<NGSEP version="4.0.1" date="17-04-2020">
+<NGSEP version="4.0.1" date="27-04-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -252,9 +252,9 @@ Creates an FM index for indexing the genome
 </intro>
 <title>Indexing genome reference files</title>
 <description>
-Creates a binary file containing an fm-index for large sequences in fasta format (usually a reference genome).
-This structure facilitates performing massive text searches over the indexed sequence. This is a usual preparation step for
-alignment of short and long reads.
+Creates a binary file containing an FM index for large sequences in fasta format (usually a reference genome).
+This structure facilitates performing massive text searches over the indexed sequence.
+This is a usual preparation step for alignment of short reads.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome to index in fasta format. It can be gzip compressed.
@@ -270,9 +270,11 @@ Aligns sequencing reads to a reference genome
 </intro>
 <title>Aligning reads to reference genomes</title>
 <description>
-Calculates a list of genomic regions for sites where the reads can be find in the reference genome.
-It receives up to two files with raw reads in fastq format and the FM index of a reference genome (see command GenomeIndexer for details).
-It provides as output a file with alignments to the reference genome in BAM format. 
+Calculates a list of genomic regions for sites where the reads can be found in a reference genome.
+It receives up to two files with raw reads in fastq format and the reference genome.
+To map short reads to long genomes, a precalculated FM index can also be provided with the option -d.
+See command GenomeIndexer for construction of the FM index.
+It provides as output a file with alignments to the reference genome in BAM format.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file with raw reads in fastq format. It can be gzip compressed. Required if the second fastq file is provided using the option -i2.
@@ -298,7 +300,8 @@ Sequence name (chromosome), region first base pair coordinate (1-based, inclusiv
 Id of the sample.
 </option>
 <option id="p" type="STRING" attribute="platform" defaultConstant="DEF_PLATFORM">
-Sequencing platform used to produce the reads. It can be ILLUMINA, IONTORRENT, PACBIO or ONT.
+Sequencing platform used to produce the reads. 
+Supported platforms include ILLUMINA, IONTORRENT, PACBIO and ONT. Default: ILLUMINA
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta.
@@ -989,6 +992,9 @@ Generates the input files for Emma.
 <option id="fasta" type="BOOLEAN" attribute="printFasta">
 Generates a virtual multiple sequence alignment in fasta format. It could be used to build distance based dendograms.
 </option>
+<option id="fineStructure" type="BOOLEAN" attribute="printFineStructure">
+Generates the input files for FineStructure. The option -s is required for this format.
+</option>
 <option id="flapjack" type="BOOLEAN" attribute="printFlapjack">
 Generates the input files for Flapjack.
 </option>
@@ -1009,8 +1015,7 @@ The options -p1 and -p2 are required for this format.
 Generates a simple ACGT format which can be imported to excel.
 </option>
 <option id="phase" type="BOOLEAN" attribute="printPhase">
-Generates the input files for Phase.
-The option -s is required for this format.
+Generates the input files for Phase. The option -s is required for this format.
 </option>
 <option id="plink" type="BOOLEAN" attribute="printPlink">
 Generates the input files for Plink.

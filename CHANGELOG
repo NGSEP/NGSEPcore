@@ -1,3 +1,13 @@
+v4.0.1	27-04-2020
+- ReadsAligner. Implemented algorithm based on minimizers to add support to
+  long reads. Added sample id and platform fields (options -s and -p)
+- ReadsAligner. Added multithread support (option -t) and option -m to specify
+  the maximum number of alignments to report for each read
+- ReadsAligner. Option -r now receives directly the reference genome.
+  Alternatively, an FM-index for short read alignment can be provided with the
+  option -d
+- VCFConverter. Added conversion to the input needed by FineStructure
+
 v4.0.0	18-02-2020
 - Major changes across command names and arguments. Standarized options -i and
   -o to indicate input and output file or directory paths. See the README.txt
@@ -13,7 +23,7 @@ v4.0.0	18-02-2020
   were moved to this command.
 - New command SingleReadsSimulator to simulate single reads from a genome in
   fasta format.
-- ConvertVCF: New option -printGWASPoly to convert a VCF file to the
+- VCFConverter: New option -printGWASPoly to convert a VCF file to the
   format received by GWASPoly.
 - KmersExtractor: Changed the default behavior. Now it counts kmers on both
   strands by default. Deprecated option -b and new option -f to count kmers
