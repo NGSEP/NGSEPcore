@@ -1,13 +1,38 @@
-package ngsep.gbs;
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
+package ngsep.main;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 
+ * @author Jorge Gomez
+ *
+ */
 public class ThreadPoolManager {
 	private static final int TIMEOUT_SECONDS = 30;
 	
 	private int maxTaskCount;
+	private int secondsPerTask=1;
 	private final int numThreads;
 	private ThreadPoolExecutor pool;
 	
@@ -37,7 +62,7 @@ public class ThreadPoolManager {
 	 */
 	public void terminatePool() throws InterruptedException  {
 		pool.shutdown();
-    	pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    	pool.awaitTermination(maxTaskCount*secondsPerTask, TimeUnit.SECONDS);
     	if(!pool.isShutdown()) {
 			throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
 		}

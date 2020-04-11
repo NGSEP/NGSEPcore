@@ -68,6 +68,17 @@ public class ReadAlignment implements GenomicRegion {
 	
 	public static final String DEF_READ_GROUP = "";
 	
+	public enum Platform {
+		ILLUMINA,
+		IONTORRENT,
+		PACBIO,
+		ONT;
+		
+		public boolean isLongReads () {
+			return this == PACBIO || this == ONT;
+		}
+	}
+	
 	
 	private int sequenceIndex;
 	private String sequenceName;

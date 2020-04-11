@@ -294,8 +294,14 @@ Either this or the reference genome are required.
 Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:
 Sequence name (chromosome), region first base pair coordinate (1-based, inclusive) and region last base pair coordinate (1-based, inclusive).
 </option>
+<option id="s" type="STRING" attribute="sampleId" defaultConstant="DEF_SAMPLE_ID">
+Id of the sample.
+</option>
+<option id="p" type="STRING" attribute="platform" defaultConstant="DEF_PLATFORM">
+Sequencing platform used to produce the reads. It can be ILLUMINA, IONTORRENT, PACBIO or ONT.
+</option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
-Format of the input file. It can be 0 for fastq or 1 for fasta
+Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
@@ -309,11 +315,11 @@ Minimum predicted insert length to consider an alignment proper.
 <option id="maxIL" type="INT" attribute="maxInsertLength"  defaultConstant="DEF_MAX_INSERT_LENGTH">
 Maximum predicted insert length to consider an alignment proper.
 </option>
-<option id="l" type="BOOLEAN" attribute="longReads">
-Input reads are long (Pacbio or Nanopore).
-</option>
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Window length to compute minimizers.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads used to align reads.
 </option>
 </command>
 

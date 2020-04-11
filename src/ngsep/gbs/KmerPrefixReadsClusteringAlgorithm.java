@@ -43,6 +43,7 @@ import ngsep.discovery.VariantPileupListener;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.DNAShortKmer;
 import ngsep.sequences.DNAShortKmerClusterMap;

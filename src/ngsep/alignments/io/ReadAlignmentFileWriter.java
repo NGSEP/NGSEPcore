@@ -26,6 +26,7 @@ import java.util.List;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -41,8 +42,10 @@ import ngsep.sequences.QualifiedSequenceList;
  */
 public class ReadAlignmentFileWriter implements Closeable {
 	
-	private SAMFileWriter writer;
+	private SAMFileWriter writer=null;
 	private SAMFileHeader samFileHeader;
+	private String sampleId;
+	private PrintStream out;
 
 	public ReadAlignmentFileWriter (QualifiedSequenceList sequences, PrintStream out)
 	{
@@ -53,11 +56,12 @@ public class ReadAlignmentFileWriter implements Closeable {
 			sequenceDictionary.addSequence(sequenceRecord);
 		}
 		samFileHeader.setSequenceDictionary(sequenceDictionary);
-		writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, false, out);
+		this.out = out;
 	}
 	
 	public void write(ReadAlignment readAlignment)
 	{
+		if(writer == null) writer= new SAMFileWriterFactory().makeBAMWriter(samFileHeader, false, out);
 		SAMRecord samRecord= new SAMRecord(samFileHeader);
 		samRecord.setReadName(readAlignment.getReadName());
 		samRecord.setFlags(readAlignment.getFlags());
@@ -88,6 +92,9 @@ public class ReadAlignmentFileWriter implements Closeable {
 		//QUAL
 		samRecord.setBaseQualityString(readAlignment.getQualityScores());
 		
+		//Read group
+		samRecord.setAttribute("RG", sampleId);
+		
 		//System.out.println("Bases: "+samRecord.getReadString()+" qual: "+samRecord.getBaseQualityString());
 		List<SAMValidationError> errors= samRecord.isValid();
 		if(errors!=null) System.out.println("errors: "+errors.size()+errors.get(0));
@@ -96,5 +103,14 @@ public class ReadAlignmentFileWriter implements Closeable {
 	}
 	public void close() {
 		writer.close();
+		out.close();
+	}
+	public void setSampleInfo(String sampleId, ReadAlignment.Platform platform) {
+		this.sampleId = sampleId;
+		SAMReadGroupRecord sampleRecord = new SAMReadGroupRecord(sampleId);
+		sampleRecord.setSample(sampleId);
+		sampleRecord.setPlatform(platform.toString());
+		System.out.println("Adding read group. SampleId: "+sampleId+" platform: "+platform);
+		samFileHeader.addReadGroup(sampleRecord);
 	}
 }

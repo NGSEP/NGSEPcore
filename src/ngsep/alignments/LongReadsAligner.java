@@ -202,7 +202,7 @@ public class LongReadsAligner {
 	}
 
 	private ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) {
-		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
+		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1, 4100);
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = Math.max(0, kmerHitsCluster.getSubjectPredictedStart());
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());

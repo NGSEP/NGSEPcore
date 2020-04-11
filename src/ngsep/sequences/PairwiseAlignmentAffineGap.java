@@ -34,16 +34,15 @@ public class PairwiseAlignmentAffineGap {
 	int[][] deletionScores;
 	int[][] matchScores;
 	
-	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch) 
+	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch, int capacity) 
 	{
-		System.out.println("Creating pairwise aligner");
 		this.match = match;
 		this.openGap = openGap;
 		this.extGap = extGap;
 		this.mismatch = mismatch;
-		insertionScores = new int [4100][4100];
-		deletionScores = new int [4100][4100];
-		matchScores = new int [4100][4100];
+		insertionScores = new int [capacity][capacity];
+		deletionScores = new int [capacity][capacity];
+		matchScores = new int [capacity][capacity];
 	}
 	
 	public String[] getAlignment(String s1, String s2) 
