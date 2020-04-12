@@ -85,10 +85,11 @@ public class ReadAlignment implements GenomicRegion {
 	private int first;
 	private int last;
 	private int flags = 0;
-	private short alignmentQuality = 0;
+	private byte alignmentQuality = 0;
     private String mateSequenceName = null;
     private int mateFirst = 0;
     private int inferredInsertSize = 0;
+    private short numMismatches = 0;
     
     //Replaces the CIGAR. value / 8 is the length and value % 8 is the operation. See constants above
     private int [] alignment;
@@ -258,7 +259,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * Provides the alignment quality as a phred score
 	 * @return short Alignment quality
 	 */
-	public short getAlignmentQuality() {
+	public byte getAlignmentQuality() {
 		return alignmentQuality;
 	}
 
@@ -266,7 +267,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * Changes the alignment quality
 	 * @param alignmentQuality New Quality as a phred score
 	 */
-	public void setAlignmentQuality(short alignmentQuality) {
+	public void setAlignmentQuality(byte alignmentQuality) {
 		this.alignmentQuality = alignmentQuality;
 	}
 	
@@ -645,6 +646,21 @@ public class ReadAlignment implements GenomicRegion {
 		else this.readGroup = DEF_READ_GROUP;
 	}
 	
+	/**
+	 * @return Approximate number of mismatches
+	 */
+	public short getNumMismatches() {
+		return numMismatches;
+	}
+
+	/**
+	 * Changes the approximate number of mismatches
+	 * @param numMismatches New number of mismatches
+	 */
+	public void setNumMismatches(short numMismatches) {
+		this.numMismatches = numMismatches;
+	}
+
 	/**
 	 * Tells if the alignment is partial (if it has soft clipped basepairs)
 	 * @param minClipLength Minimum length of the clip to be considered 

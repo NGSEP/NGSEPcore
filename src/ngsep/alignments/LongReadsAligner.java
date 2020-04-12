@@ -300,7 +300,7 @@ public class LongReadsAligner {
 		finalAlignment.setCigarString(cigar.toString());
 		//TODO: Define better alignment quality
 		double cov = 1.0*(queryNext-queryStart)/query.length();
-		finalAlignment.setAlignmentQuality((short) Math.round(100*cov));
+		finalAlignment.setAlignmentQuality((byte) Math.round(100*cov));
 		return finalAlignment;
 	}
 

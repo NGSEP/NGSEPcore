@@ -30,6 +30,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMValidationError;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.QualifiedSequence;
@@ -93,7 +94,8 @@ public class ReadAlignmentFileWriter implements Closeable {
 		samRecord.setBaseQualityString(readAlignment.getQualityScores());
 		
 		//Read group
-		samRecord.setAttribute("RG", sampleId);
+		samRecord.setAttribute(SAMTag.RG.toString(), sampleId);
+		samRecord.setAttribute(SAMTag.NM.toString(), Integer.valueOf(readAlignment.getNumMismatches()));
 		
 		//System.out.println("Bases: "+samRecord.getReadString()+" qual: "+samRecord.getBaseQualityString());
 		List<SAMValidationError> errors= samRecord.isValid();
@@ -110,7 +112,6 @@ public class ReadAlignmentFileWriter implements Closeable {
 		SAMReadGroupRecord sampleRecord = new SAMReadGroupRecord(sampleId);
 		sampleRecord.setSample(sampleId);
 		sampleRecord.setPlatform(platform.toString());
-		System.out.println("Adding read group. SampleId: "+sampleId+" platform: "+platform);
 		samFileHeader.addReadGroup(sampleRecord);
 	}
 }
