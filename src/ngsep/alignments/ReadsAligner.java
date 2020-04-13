@@ -896,10 +896,15 @@ public class ReadsAligner {
 		for(UngappedSearchHit hit: readHits) {
 			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar);
 			if (aln==null) continue;
-			int mismatches = countMismatches(query, aln);
-			if(mismatches<=maxMismatches) {
-				aln.setAlignmentQuality((byte) (100-5*mismatches));
-				aln.setNumMismatches((short) mismatches);
+			int[] mismatches = countMismatches(query, aln);
+			if(mismatches==null) continue;
+			if(mismatches[0]<=maxMismatches) {
+				if (mismatches[1]+mismatches[2]>0) {
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], makeCigar(query.length(),mismatches));
+				}
+				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
+				aln.setNumMismatches((short) mismatches[0]);
+				
 				alns.add(aln);
 				//Best alignments selected during the filtering step
 				if(alns.size()>=3*maxAlnsPerRead) break;
@@ -913,16 +918,35 @@ public class ReadsAligner {
 			if(start<0) continue;
 			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), cigar);
 			if (aln==null) continue;
-			int mismatches = countMismatches(query, aln);
-			if(mismatches<=maxMismatches) {
-				aln.setAlignmentQuality((byte) (100-5*mismatches));
-				aln.setNumMismatches((short) mismatches);
+			int[] mismatches = countMismatches(query, aln);
+			if(mismatches==null) continue;
+			if(mismatches[0]<=maxMismatches) {
+				if (mismatches[1]+mismatches[2]>0) {
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], makeCigar(query.length(),mismatches));
+				}
+				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
+				aln.setNumMismatches((short) mismatches[0]);
 				alns.add(aln);
 				//Best alignments selected during the filtering step
 				if(alns.size()>=3*maxAlnsPerRead) break;
 			}
 		}
 		return alns;
+	}
+	private String makeCigar(int length, int[] mismatches) {
+		String cigar = "";
+		int l2 = length-mismatches[1]-mismatches[2];
+		if(mismatches[1]>0) {
+			cigar+=mismatches[1];
+			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+		}
+		cigar+=l2;
+		cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		if(mismatches[2]>0) {
+			cigar+=mismatches[2];
+			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+		}
+		return cigar;
 	}
 	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
 		List<ReadAlignment> alignments;
@@ -1038,10 +1062,14 @@ public class ReadsAligner {
 				if(newaln!=null) return newaln;
 			}
 			if(cluster.getNumDifferentKmers()>2 && cluster.isAllConsistent()) {
-				int mismatches = countMismatches (query, aln);
-				aln.setAlignmentQuality((byte) Math.round(100-5*mismatches));
+				int [] mismatches = countMismatches (query, aln);
+				if (mismatches[1]+mismatches[2]>0) {
+					aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], makeCigar(query.length(),mismatches));
+				}
+				aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
+				aln.setNumMismatches((short) mismatches[0]);
 				//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
-				if(mismatches<0.05*query.length()) return aln;
+				if(mismatches[0]<0.05*query.length()) return aln;
 			}
 		}
 		if(!runFullAlignment) return null;
@@ -1069,18 +1097,39 @@ public class ReadsAligner {
 		return aln;
 	}
 
-	private int countMismatches(CharSequence query, ReadAlignment aln) {
-		int mismatches = 0;
+	private int [] countMismatches(CharSequence query, ReadAlignment aln) {
+		int [] answer = {0,0,0};
 		CharSequence refS = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast());
-		if(refS==null) return query.length();
+		if(refS==null) return null;
 		String refSeq = refS.toString();
+		int lastMismatch = -1;
 		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
 			if(query.charAt(i)!=refSeq.charAt(i)) {
-				mismatches++;
+				answer[0]++;
+				lastMismatch=i;
+			} else if (answer[0]+3<i) answer[1]=lastMismatch+1;
+		}
+		if (query.length()!=refSeq.length()) {
+			answer[0]+=Math.abs(query.length()-refSeq.length());
+			answer[2]=Math.max(0, query.length()-refSeq.length());
+		} else {
+			lastMismatch=refSeq.length();
+			int numM =0;
+			for (int i=query.length()-1;i>=0;i-- ) {
+				if (query.charAt(i)!=refSeq.charAt(i)) {
+					lastMismatch = i;
+					numM++;
+				} else {
+					int revIdx = refSeq.length()-1-i;
+					if (numM+3<revIdx) {
+						answer[2]=refSeq.length()-lastMismatch;
+						break;
+					}
+				}
 			}
 		}
-		mismatches+=Math.abs(query.length()-refSeq.length());
-		return mismatches;
+		
+		return answer;
 	}
 
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
@@ -1270,19 +1319,33 @@ class PairwiseAlignmentWithCigar {
 		int queryIdx = 0;
 		byte nextOpCode = -1;
 		int nextOpLength = 0;
+		int lastMismatches = 0;
+		boolean addDeletions = includeEndSubject;
 		for(int i=0;i<alnQuery.length();i++) {
 			char q = alnQuery.charAt(i);
 			char s = alnSubject.charAt(i);
+			boolean match = q==s;
 			byte opCode = ReadAlignment.ALIGNMENT_MATCH;
 			if(q!=LimitedSequence.GAP_CHARACTER) {
 				if(s!=LimitedSequence.GAP_CHARACTER) {
-					if(subjectStartIdx==-1) subjectStartIdx = subjectIdx;
-					if(queryStartIdx==-1) queryStartIdx = queryIdx;
-					queryLastIdx = queryIdx;
-					if(q!=s) mismatches++;
+					if(subjectStartIdx==-1) {
+						if (match) {
+							subjectStartIdx = subjectIdx;
+							queryStartIdx = queryIdx;
+						}
+						else opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
+					}
+					if (queryStartIdx>=0) {
+						subjectLastIdx = subjectIdx;
+						queryLastIdx = queryIdx;
+					}
+					if(!match) {
+						mismatches++;
+						lastMismatches++;
+					} else lastMismatches=0;
 					subjectIdx++;
 				} else {
-					if(subjectIdx==0 || subjectIdx>=subject.length()) {
+					if(subjectStartIdx<0 || subjectIdx>=subject.length()) {
 						opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
 					} else {
 						opCode = ReadAlignment.ALIGNMENT_INSERTION;
@@ -1294,25 +1357,37 @@ class PairwiseAlignmentWithCigar {
 				subjectIdx++;
 			}
 			if(opCode!=nextOpCode) {
-				if(nextOpCode>=0) {
-					if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx +=nextOpLength;
-					if(cigarBuilder.length()>0 || nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
-						cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-						if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-						 
+				if( nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || addDeletions) {
+					int lastSkip = 0;
+					if(nextOpCode == ReadAlignment.ALIGNMENT_MATCH && lastMismatches>0 && (subjectIdx>=subject.length()||queryIdx>=query.length())) {
+						//TODO: Improve end management
+						lastSkip=Math.min(lastMismatches, nextOpLength-1);
+						nextOpLength-=lastSkip;
+						subjectLastIdx-=lastSkip;
+						queryLastIdx-=lastSkip;
 					}
+					if(nextOpLength>0) cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
+					if (lastSkip>0) cigarBuilder.append(lastSkip+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+					if(nextOpCode>=0 && nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
+					if(nextOpLength>0 && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) addDeletions=true;
 				}
 				nextOpCode = opCode;
 				nextOpLength = 0;
+				lastMismatches = 0;
 			}
 			nextOpLength++;
 		}
-		if(nextOpCode>=0) {
-			if(nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
-				cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-				if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-				if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx += nextOpLength;
+		if( nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
+			int lastSkip = 0;
+			if(nextOpCode == ReadAlignment.ALIGNMENT_MATCH && lastMismatches>0) {
+				lastSkip=Math.min(lastMismatches, nextOpLength-1);
+				nextOpLength-=lastSkip;
+				subjectLastIdx-=lastSkip;
+				queryLastIdx-=lastSkip;
 			}
+			if(nextOpLength>0) cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
+			if (lastSkip>0) cigarBuilder.append(lastSkip+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+			if(nextOpCode>=0 && nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
 		}
 		cigar = cigarBuilder.toString();
 	}
