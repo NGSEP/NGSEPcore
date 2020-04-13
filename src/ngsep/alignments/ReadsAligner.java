@@ -1063,13 +1063,15 @@ public class ReadsAligner {
 			}
 			if(cluster.getNumDifferentKmers()>2 && cluster.isAllConsistent()) {
 				int [] mismatches = countMismatches (query, aln);
-				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], makeCigar(query.length(),mismatches));
+				if(mismatches !=null && mismatches[0]<0.05*query.length() && mismatches[1]+mismatches[2] < 0.1*query.length()) {
+					int ends = mismatches[1]+mismatches[2]; 
+					//if (ends > mismatches[0]) System.err.println("Problem counting mismatches for "+sequenceName+":"+first+" read: "+query+" mismatches: "+mismatches[0]+" "+mismatches[1]+" "+mismatches[2]);
+					if (ends>0) aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], makeCigar(query.length(),mismatches));
+					aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
+					aln.setNumMismatches((short) mismatches[0]);
+					//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
+					return aln;
 				}
-				aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
-				aln.setNumMismatches((short) mismatches[0]);
-				//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
-				if(mismatches[0]<0.05*query.length()) return aln;
 			}
 		}
 		if(!runFullAlignment) return null;
@@ -1103,11 +1105,15 @@ public class ReadsAligner {
 		if(refS==null) return null;
 		String refSeq = refS.toString();
 		int lastMismatch = -1;
+		boolean startAssigned = false;
 		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
 			if(query.charAt(i)!=refSeq.charAt(i)) {
 				answer[0]++;
 				lastMismatch=i;
-			} else if (answer[0]+3<i) answer[1]=lastMismatch+1;
+			} else if (startAssigned==false && answer[0]+3<i) {
+				answer[1]=lastMismatch+1;
+				startAssigned = true;
+			}
 		}
 		if (query.length()!=refSeq.length()) {
 			answer[0]+=Math.abs(query.length()-refSeq.length());
