@@ -26,25 +26,91 @@ package ngsep.sequences;
  */
 public class PairwiseAlignmentAffineGap {
 	
-	int match;
-	int openGap;
-	int extGap;
-	int mismatch;
-	int[][] insertionScores;
-	int[][] deletionScores;
-	int[][] matchScores;
+	private int match=1;
+	private int openGap=3;
+	private int extGap=1;
+	private int mismatch=1;
 	
-	public PairwiseAlignmentAffineGap(int match, int openGap, int extGap, int mismatch, int capacity) 
+	private boolean forceStart1 = true;
+	private boolean forceStart2 = true;
+	private boolean forceEnd1 = true;
+	private boolean forceEnd2 = true;
+	
+	private int[][] insertionScores;
+	private int[][] deletionScores;
+	private int[][] matchScores;
+	
+	public PairwiseAlignmentAffineGap(int capacity) 
 	{
-		this.match = match;
-		this.openGap = openGap;
-		this.extGap = extGap;
-		this.mismatch = mismatch;
 		insertionScores = new int [capacity][capacity];
 		deletionScores = new int [capacity][capacity];
 		matchScores = new int [capacity][capacity];
 	}
 	
+	public int getMatch() {
+		return match;
+	}
+
+	public void setMatch(int match) {
+		this.match = match;
+	}
+
+	public int getOpenGap() {
+		return openGap;
+	}
+
+	public void setOpenGap(int openGap) {
+		this.openGap = openGap;
+	}
+
+	public int getExtGap() {
+		return extGap;
+	}
+
+	public void setExtGap(int extGap) {
+		this.extGap = extGap;
+	}
+
+	public int getMismatch() {
+		return mismatch;
+	}
+
+	public void setMismatch(int mismatch) {
+		this.mismatch = mismatch;
+	}
+
+	public boolean isForceStart1() {
+		return forceStart1;
+	}
+
+	public void setForceStart1(boolean forceStart1) {
+		this.forceStart1 = forceStart1;
+	}
+
+	public boolean isForceStart2() {
+		return forceStart2;
+	}
+
+	public void setForceStart2(boolean forceStart2) {
+		this.forceStart2 = forceStart2;
+	}
+
+	public boolean isForceEnd1() {
+		return forceEnd1;
+	}
+
+	public void setForceEnd1(boolean forceEnd1) {
+		this.forceEnd1 = forceEnd1;
+	}
+
+	public boolean isForceEnd2() {
+		return forceEnd2;
+	}
+
+	public void setForceEnd2(boolean forceEnd2) {
+		this.forceEnd2 = forceEnd2;
+	}
+
 	public String[] getAlignment(String s1, String s2) 
 	{		
 		initMatrices(s1, s2);
@@ -55,7 +121,7 @@ public class PairwiseAlignmentAffineGap {
 	private void initMatrices(String s1, String s2)
 	{
 		if(insertionScores.length<s1.length()+1 || insertionScores[0].length < s2.length() +1 ) {
-			System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
+			//System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
 			insertionScores = new int[s1.length() + 1][s2.length() + 1];
 			deletionScores = new int[s1.length() + 1][s2.length() + 1];
 			matchScores = new int[s1.length() + 1][s2.length() + 1];
@@ -64,13 +130,15 @@ public class PairwiseAlignmentAffineGap {
 		matchScores[0][0] = 0;
 		for (int i = 1; i < insertionScores.length; i++) 
 		{
-			insertionScores[i][0] = - openGap - extGap * (i - 1);
+			if (forceStart1) insertionScores[i][0] = - openGap - extGap * (i - 1);
+			else insertionScores[i][0] = 0;
 	    	deletionScores[i][0] = s1.length() * -openGap * 1000;
 	    	matchScores[i][0] = deletionScores[i][0];
 	    }
 	    for (int i = 1; i < insertionScores[0].length; i++) 
 	    {
-	    	deletionScores[0][i] = - openGap - extGap * (i - 1);
+	    	if (forceStart2) deletionScores[0][i] = - openGap - extGap * (i - 1);
+	    	else deletionScores[0][i] = 0;
 	        insertionScores[0][i] = s2.length() * -openGap * 1000;
 	        matchScores[0][i] = insertionScores[0][i];
 	    }
@@ -91,12 +159,6 @@ public class PairwiseAlignmentAffineGap {
 	    		
 	    	}
 	    }
-//		System.out.println("X");
-//		printAlignmentMatrix(x, s1, s2);
-//		System.out.println("Y");
-//		printAlignmentMatrix(y, s1, s2);
-//		System.out.println("M");
-//		printAlignmentMatrix(m, s1, s2);
 	}
 
 	private int getMatchScore(char a, char b)
@@ -117,13 +179,48 @@ public class PairwiseAlignmentAffineGap {
 		int j = s2.length();
 		int k = 0;
 	    int val = matchScores[i][j];
-    	if (val < insertionScores[i][j]) {
-    		k = 1;
-    		val = insertionScores[i][j];
+	    if(forceEnd1 && forceEnd2) {
+	    	if (val < insertionScores[i][j]) {
+	    		k = 1;
+	    		val = insertionScores[i][j];
+	    	}
+	    	if (val < deletionScores[i][j]) {
+	    		k = 2;
+	    	}
+	    }
+    	if (!forceEnd1) {
+    		// Find better score over the last column
+    		for (int h=i;h>=0;h--) {
+    			int score = matchScores[h][s2.length()];
+    			if (score>val) {
+    				i=h;
+    				k=0;
+    				val = score; 
+    			}
+    		}
     	}
-    	if (val < deletionScores[i][j]) {
-    		k = 2;
+    	if (!forceEnd2) {
+    		// Find better score over the last row
+    		for (int h=j;h>=0;h--) {
+    			int score = matchScores[s1.length()][h];
+    			if (score>val) {
+    				i=s1.length();
+    				j=h;
+    				k=0;
+    				val = score; 
+    			}
+    		}
     	}
+    	for (int h = s1.length();h>i;h--) {
+    		sb1.append(s1.charAt(h - 1));
+			sb2.append(LimitedSequence.GAP_CHARACTER);
+    	}
+    	for (int h = s2.length();h>j;h--) {
+    		sb1.append(LimitedSequence.GAP_CHARACTER);
+			sb2.append(s2.charAt(j - 1));
+    	}
+    	
+    	// Traceback cycle
 		while(i>0 && j>0) {
 			int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
 			if (k==0) {

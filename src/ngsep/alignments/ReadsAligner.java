@@ -119,6 +119,10 @@ public class ReadsAligner {
 	
 	private ThreadPoolManager pool;
 	
+	private PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(1000);
+	private PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(500);
+	private PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(500);
+	
 	// Statistics
 	private int totalReads = 0;
 	private int readsAligned = 0;
@@ -320,7 +324,11 @@ public class ReadsAligner {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
 				fMIndex = new ReferenceGenomeFMIndex(genome);
 			}
-		} 
+		}
+		alignerSTRsLeft.setForceEnd1(false);
+		alignerSTRsRight.setForceStart1(false);
+		alignerFullRead.setForceStart2(false);
+		alignerFullRead.setForceEnd2(false);
 		boolean longReads = platform.isLongReads();
 		boolean paired = false;
 		PrintStream out = System.out;
@@ -637,13 +645,13 @@ public class ReadsAligner {
 					if(alns2.size()==1) numUnique++;
 				}
 				else {
-					addPairAlignments(alns, pairAlns);
+					addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
 					asPair=true;
 					if(pairAlns.size()==1) numUnique=2;
 				}
 
 			} else {
-				addPairAlignments(alns, pairAlns);
+				addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
 				asPair=true;
 				proper=true;
 				if(pairAlns.size()==1) numUnique=2;
@@ -660,7 +668,7 @@ public class ReadsAligner {
 		}
 	}
 
-	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns) {
+	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired) {
 		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
@@ -673,6 +681,10 @@ public class ReadsAligner {
 			if (n>1) {
 				aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
 				aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
+			} else if ((!aln1.isProperPair() || !aln2.isProperPair()) && numAlnsUnpaired>2) {
+				double div = numAlnsUnpaired-1;
+				aln1.setAlignmentQuality((byte) Math.round(aln1.getAlignmentQuality()/div));
+				aln2.setAlignmentQuality((byte) Math.round(aln2.getAlignmentQuality()/div));
 			}
 			alns.add(aln1);
 			alns.add(aln2);
@@ -920,6 +932,7 @@ public class ReadsAligner {
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
+			//System.out.println("Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+cigar);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
 					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], makeCigar(query.length(),mismatches));
@@ -1076,14 +1089,14 @@ public class ReadsAligner {
 		}
 		if(!runFullAlignment) return null;
 		//Perform smith waterman
-		first = Math.max(1, first);
-		last = Math.min(fMIndex.getReferenceLength(sequenceName), last);
+		first = Math.max(1, first-3);
+		last = Math.min(fMIndex.getReferenceLength(sequenceName), last+3);
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 		if(refSeq == null) return null;
 		if(refSeq.length()>1.5*query.length()) return null;
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
 		completeAlns++;
-		PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(query, refSeq.toString(), false);
+		PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(query, refSeq.toString(), false, alignerFullRead);
 		//System.out.println("Pairwise alignment found from relative : "+pAln.getSubjectStartIdx()+" to "+pAln.getSubjectLastIdx()+" CIGAR:" +pAln.getCigar()+" ");
 		short mismatches = (short) pAln.getMismatches();
 		if(mismatches>0.1*query.length()) return null;
@@ -1148,11 +1161,12 @@ public class ReadsAligner {
 		int n = Math.min(alignments.size(),maxAlnsPerRead);
 		for (int i=0;i<n;i++) {
 			ReadAlignment aln = alignments.get(i);	
-			if(aln.getAlignmentQuality()<=threshold) break;
 			//System.out.println("read: "+aln.getReadCharacters()+" First: "+aln.getFirst()+" flags: "+aln.getFlags()+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
+			if(aln.getAlignmentQuality()<=threshold) break;
 			if(assignSecondary && i>0) aln.setSecondary(true);
 			filteredAlignments.add(aln);
 		}
+		//System.out.println("Initial alignments: "+alignments.size()+" final: "+filteredAlignments.size());
 		return filteredAlignments;
 	}
 	
@@ -1203,7 +1217,7 @@ public class ReadsAligner {
 				String readSegment = read.substring(0,endReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				leftPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false);
+				leftPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false, alignerSTRsLeft);
 				softClipLeft = readSegment.length()-1 - leftPart.getQueryLastIdx();
 				String softClipSubstr = "";
 				if(softClipLeft>0) softClipSubstr = ""+softClipLeft+""+softClipChar;
@@ -1223,7 +1237,7 @@ public class ReadsAligner {
 				String readSegment = read.substring(startReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				rightPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false);
+				rightPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false, alignerSTRsRight);
 				softClipRight = rightPart.getQueryStartIdx();
 				String softClipSubstr = "";
 				if(softClipRight>0) softClipSubstr = ""+softClipRight+""+softClipChar;
@@ -1297,7 +1311,7 @@ public class ReadsAligner {
 }
 
 class PairwiseAlignmentWithCigar {
-	private static PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1, 1000);
+	
 	private String query;
 	private String subject;
 	private int subjectStartIdx=-1;
@@ -1307,7 +1321,7 @@ class PairwiseAlignmentWithCigar {
 	private String cigar;
 	private int mismatches=0;
 	
-	public PairwiseAlignmentWithCigar (String query, String subject, boolean includeEndSubject) {
+	public PairwiseAlignmentWithCigar (String query, String subject, boolean includeEndSubject, PairwiseAlignmentAffineGap aligner) {
 		//System.out.println("Query length: "+query.length()+" subject length: "+subject.length());
 		this.query = query;
 		this.subject = subject;
@@ -1376,6 +1390,7 @@ class PairwiseAlignmentWithCigar {
 					if (lastSkip>0) cigarBuilder.append(lastSkip+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 					if(nextOpCode>=0 && nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
 					if(nextOpLength>0 && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) addDeletions=true;
+					//System.out.println("New cigar: "+cigarBuilder.toString()+" opcode from: "+nextOpCode+" to "+opCode);
 				}
 				nextOpCode = opCode;
 				nextOpLength = 0;
