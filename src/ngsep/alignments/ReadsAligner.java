@@ -631,6 +631,7 @@ public class ReadsAligner {
 						setMateInfo(aln1, alns2.get(0));
 						if(i>0) aln1.setSecondary(true);
 						if (n>1) aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
+						else aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
 						alns.add(aln1);
 					}
 					if(n==1) numUnique++;
@@ -642,6 +643,7 @@ public class ReadsAligner {
 						setMateInfo(aln2, alns1.get(0));
 						if(i>0) aln2.setSecondary(true);
 						if (n>1) aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
+						else aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
 						alns.add(aln2);
 					}
 					if(alns2.size()==1) numUnique++;
@@ -683,10 +685,10 @@ public class ReadsAligner {
 			if (n>1) {
 				aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
 				aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
-			} else if ((!aln1.isProperPair() || !aln2.isProperPair()) && numAlnsUnpaired>2) {
-				double div = numAlnsUnpaired-1;
-				aln1.setAlignmentQuality((byte) Math.round(aln1.getAlignmentQuality()/div));
-				aln2.setAlignmentQuality((byte) Math.round(aln2.getAlignmentQuality()/div));
+			} else if (!aln1.isProperPair() || !aln2.isProperPair()) {
+				double div = Math.max(numAlnsUnpaired-1,1);
+				aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()/div));
+				aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()/div));
 			}
 			alns.add(aln1);
 			alns.add(aln2);
@@ -1281,9 +1283,9 @@ public class ReadsAligner {
 		if(encodedRightAln==null) {
 			//Left alignment with right soft clip
 			if(softClipLeft>0) encodedLeftAln.add(ReadAlignment.getAlnValue(softClipLeft, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
-			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
 			ReadAlignment aln = buildAln(read, sequenceName, firstLeftPart, region.getFirst()-1, encodedLeftAln);
 			if(aln==null) return null;
+			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
 			if (!aln.clipBorders(kmerLength)) return null;
 			aln.setAlignmentQuality((byte)(90-5*leftMismatches));
 			aln.setNumMismatches((short) leftMismatches);
@@ -1292,10 +1294,10 @@ public class ReadsAligner {
 		if(encodedLeftAln==null) {
 			//Right alignment with left soft clip
 			first = region.getLast()+1;
-			if(softClipRight>0) encodedRightAln.add(ReadAlignment.getAlnValue(softClipRight, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
-			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
+			if(softClipRight>0) encodedRightAln.addFirst(ReadAlignment.getAlnValue(softClipRight, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 			ReadAlignment aln = buildAln(read, sequenceName, region.getLast()+1, last, encodedRightAln);
 			if(aln==null) return null;
+			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
 			if (!aln.clipBorders(kmerLength)) return null;
 			aln.setAlignmentQuality((byte)(90-5*rightMismatches));
 			aln.setNumMismatches((short) rightMismatches);
@@ -1324,9 +1326,9 @@ public class ReadsAligner {
 		
 		alignmentList.addAll(encodedRightAln);
 		short mismatches = (short) (leftMismatches+rightMismatches);
-		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+cigar);
 		ReadAlignment aln = buildAln(read, sequenceName, first, last, alignmentList);
 		if(aln==null) return null;
+		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+aln.getCigarString());
 		if (!aln.clipBorders(kmerLength)) return null;
 		aln.setAlignmentQuality((byte)(100-5*mismatches));
 		aln.setNumMismatches(mismatches);
