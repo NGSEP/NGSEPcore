@@ -84,6 +84,7 @@ public class FMIndex implements Serializable
 			System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 			long time = System.currentTimeMillis();
 			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+			index.setMaxHitsQuery(maxHitsQuery);
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
