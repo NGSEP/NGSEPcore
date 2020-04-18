@@ -49,6 +49,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		sequencesMetadata = genome.getSequencesMetadata();
 		int n = genome.getNumSequences();
 		internalIndex = new FMIndex();
+		internalIndex.setMaxHitsQuery(50);
 		QualifiedSequenceList sequences = new QualifiedSequenceList();
 		for (int i = 0; i < n; i++) 
 		{

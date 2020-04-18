@@ -74,6 +74,9 @@ public class FMIndexSingleSequence implements Serializable {
 	// BW matrix
 	private Map<Character, Integer> lastRowsInMatrix;
 	
+	//Maximum hits to return per query
+	private int maxHitsQuery = 100000;
+	
 	
 
 	// Inferred alphabet of the sequence ordered lexicographical
@@ -96,10 +99,15 @@ public class FMIndexSingleSequence implements Serializable {
 	public int getTallyDistance() {
 		return tallyDistance;
 	}
-
-	public void setTallyDistance(int tallyDistance) {
-		this.tallyDistance = tallyDistance;
+	
+	public int getMaxHitsQuery() {
+		return maxHitsQuery;
 	}
+
+	public void setMaxHitsQuery(int maxHitsQuery) {
+		this.maxHitsQuery = maxHitsQuery;
+	}
+
 	/**
 	 * @return Length of the sequence represented by this FMIndex
 	 */
@@ -275,7 +283,7 @@ public class FMIndexSingleSequence implements Serializable {
 		Set<Integer> startIndexes = new TreeSet<>();
 		// From this point is just transform the range into the real indexes in the
 		// sequence
-		for (int i = firstRow; i <= lastRow; i++) {
+		for (int i = firstRow; i <= lastRow && startIndexes.size()<maxHitsQuery; i++) {
 			int row = i;
 			Integer begin = partialSuffixArray.get(row);
 			int steps;

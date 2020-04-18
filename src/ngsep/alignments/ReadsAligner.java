@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -319,6 +320,7 @@ public class ReadsAligner {
 			if (platform.isLongReads()) {
 				longReadsAligner = new LongReadsAligner();
 				longReadsAligner.setLog(log);
+				longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
 				longReadsAligner.loadGenome (genome, kmerLength, windowLength);
 			} else {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
@@ -830,11 +832,11 @@ public class ReadsAligner {
 		return alns.get(r.nextInt(alns.size())) ;
 	}
 
-	private ReadAlignment buildAln(CharSequence query, String sequenceName, int first, int last, String cigar) {
+	private ReadAlignment buildAln(CharSequence query, String sequenceName, int first, int last, List<Integer> alignmentCodes) {
 		if(first <=0) return null;
 		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
 		aln.setReadCharacters(query);
-		if(cigar!=null)aln.setCigarString(cigar);
+		if(alignmentCodes!=null)aln.setAlignment(alignmentCodes);
 		//verify last exists
 		if(!fMIndex.isValidPosition(sequenceName,aln.getLast())) return null;
 		return aln;
@@ -889,13 +891,13 @@ public class ReadsAligner {
 	}
 	private List<ReadAlignment> fewMismatchesSingleStrandSearch(String query, int maxMismatches) {
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
-		String cigar = ""+query.length();
-		cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		List<Integer> alignment = new ArrayList<Integer>(1);
+		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
 		// Whole read exact search
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
 		for(int i=0;i<readHits.size()&& i<maxAlnsPerRead;i++) {
 			UngappedSearchHit hit = readHits.get(i);
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
 			aln.setAlignmentQuality((byte) 100);
 			if(aln!=null) alns.add(aln);
 		}
@@ -906,13 +908,13 @@ public class ReadsAligner {
 		String firstPart = query.substring(0,middle);
 		readHits=fMIndex.exactSearch(firstPart);
 		for(UngappedSearchHit hit: readHits) {
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], makeCigar(query.length(),mismatches));
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
 				aln.setNumMismatches((short) mismatches[0]);
@@ -928,14 +930,14 @@ public class ReadsAligner {
 		for(UngappedSearchHit hit: readHits) {
 			int start = hit.getStart()-middle;
 			if(start<0) continue;
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), cigar);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), alignment);
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
 			//System.out.println("Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+cigar);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], makeCigar(query.length(),mismatches));
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
 				aln.setNumMismatches((short) mismatches[0]);
@@ -946,20 +948,17 @@ public class ReadsAligner {
 		}
 		return alns;
 	}
-	private String makeCigar(int length, int[] mismatches) {
-		String cigar = "";
+	private List<Integer> encodeAlignment(int length, int[] mismatches) {
+		List<Integer> answer = new LinkedList<Integer>();
 		int l2 = length-mismatches[1]-mismatches[2];
 		if(mismatches[1]>0) {
-			cigar+=mismatches[1];
-			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+			answer.add(ReadAlignment.getAlnValue(mismatches[1], ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 		}
-		cigar+=l2;
-		cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		answer.add(ReadAlignment.getAlnValue(l2, ReadAlignment.ALIGNMENT_MATCH));
 		if(mismatches[2]>0) {
-			cigar+=mismatches[2];
-			cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+			answer.add(ReadAlignment.getAlnValue(mismatches[2], ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 		}
-		return cigar;
+		return answer;
 	}
 	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
 		List<ReadAlignment> alignments;
@@ -1063,23 +1062,25 @@ public class ReadsAligner {
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
 		int lastPerfect = first+query.length()-1;
-		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" lastPerfect: "+lastPerfect+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
-		String cigar = ""+query.length()+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
-		ReadAlignment aln = buildAln(query, sequenceName, first, lastPerfect, cigar);
+		List<Integer> alignment = new ArrayList<Integer>(1);
+		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
+		ReadAlignment aln = buildAln(query, sequenceName, first, lastPerfect, alignment);
 		if(aln!=null) {
-			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+cigar);
+			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString());
 			GenomicRegion region =findTandemRepeat(sequenceName,first,last);
 			if(region!=null) {
 				ReadAlignment newaln=verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(), aln.getLast(),query,region);
 				//System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
-				if(newaln!=null) return newaln;
+				if(newaln!=null) {
+					return newaln;
+				}
 			}
 			if(cluster.getNumDifferentKmers()>2 && cluster.isAllConsistent()) {
 				int [] mismatches = countMismatches (query, aln);
 				if(mismatches !=null && mismatches[0]<0.05*query.length() && mismatches[1]+mismatches[2] < 0.1*query.length()) {
 					int ends = mismatches[1]+mismatches[2]; 
 					//if (ends > mismatches[0]) System.err.println("Problem counting mismatches for "+sequenceName+":"+first+" read: "+query+" mismatches: "+mismatches[0]+" "+mismatches[1]+" "+mismatches[2]);
-					if (ends>0) aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], makeCigar(query.length(),mismatches));
+					if (ends>0) aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], encodeAlignment(query.length(),mismatches));
 					aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
 					aln.setNumMismatches((short) mismatches[0]);
 					//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
@@ -1091,27 +1092,45 @@ public class ReadsAligner {
 		//Perform smith waterman
 		first = Math.max(1, first-3);
 		last = Math.min(fMIndex.getReferenceLength(sequenceName), last+3);
+		if(last-first+1>1.5*query.length()) return null;
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 		if(refSeq == null) return null;
-		if(refSeq.length()>1.5*query.length()) return null;
+		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
 		completeAlns++;
-		PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(query, refSeq.toString(), false, alignerFullRead);
-		//System.out.println("Pairwise alignment found from relative : "+pAln.getSubjectStartIdx()+" to "+pAln.getSubjectLastIdx()+" CIGAR:" +pAln.getCigar()+" ");
-		short mismatches = (short) pAln.getMismatches();
+		String [] rawAln;
+		synchronized (alignerFullRead) {
+			rawAln = alignerFullRead.getAlignment(query, refSeq.toString());
+		}
+		int mismatches = countMismatches(rawAln);
 		if(mismatches>0.1*query.length()) return null;
-		//Last must be updated before first
-		last = first + pAln.getSubjectLastIdx();
-		first = first + pAln.getSubjectStartIdx();
-		cigar = pAln.getCigar();
-		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar);
-		aln = buildAln(query, sequenceName, first, last, cigar);
-		
+		LinkedList<Integer> alnCodes = ReadAlignment.encodePairwiseAlignment(rawAln);
+		aln = buildAln(query, sequenceName, first, last, alnCodes);
+		if(aln==null) return null;
+		if (!aln.clipBorders(kmerLength)) return null;
+		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
 		aln.setAlignmentQuality((byte) Math.round(100-5*mismatches));
-		aln.setNumMismatches(mismatches);
+		aln.setNumMismatches((short)mismatches);
+		
 		return aln;
 	}
-
+	private int countMismatches(String[] alignedSequences) {
+		int answer = 0;
+		boolean lastIsGap = true;
+		for(int i=0;i<alignedSequences[0].length();i++) {
+			char c1 = alignedSequences[0].charAt(i);
+			char c2 = alignedSequences[1].charAt(i);
+			if(c1==LimitedSequence.GAP_CHARACTER || c2 == LimitedSequence.GAP_CHARACTER) {
+				if(!lastIsGap) answer+=2;
+				lastIsGap = true;
+			} else {
+				if(c1!=c2) answer++;
+				lastIsGap = false;
+			}
+		}
+		if(lastIsGap) answer-=2;
+		return answer;
+	}
 	private int [] countMismatches(CharSequence query, ReadAlignment aln) {
 		int [] answer = {0,0,0};
 		CharSequence refS = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast());
@@ -1202,14 +1221,13 @@ public class ReadsAligner {
 	 * @return
 	 */
 	public ReadAlignment verifyShortTandemRepeats(String sequenceName, int first, int last, String read, GenomicRegion region) {
-		PairwiseAlignmentWithCigar leftPart = null;
-		PairwiseAlignmentWithCigar rightPart = null;
 		int firstLeftPart = Math.max(first,1);
 		int softClipLeft = 0;
 		int softClipRight = 0;
-		String cigarLeft=null;
-		String cigarRight=null;
-		char softClipChar = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+		LinkedList<Integer> encodedLeftAln = null;
+		LinkedList<Integer> encodedRightAln = null;
+		int leftMismatches = 0;
+		int rightMismatches = 0;
 		if(first<region.getFirst()-5) {
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, firstLeftPart, region.getFirst()-1).toString();
 			if(refSeq!=null) {
@@ -1217,17 +1235,20 @@ public class ReadsAligner {
 				String readSegment = read.substring(0,endReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				leftPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false, alignerSTRsLeft);
-				softClipLeft = readSegment.length()-1 - leftPart.getQueryLastIdx();
-				String softClipSubstr = "";
-				if(softClipLeft>0) softClipSubstr = ""+softClipLeft+""+softClipChar;
-				//System.out.println("Left part query start: "+leftPart.getQueryStartIdx()+" subject start: "+leftPart.getSubjectStartIdx()+" mismatches: "+leftPart.getMismatches()+" cigar: "+leftPart.getCigar()+" soft clip: "+softClipLeft);
-				if(leftPart.getMismatches()>3 || firstLeftPart+leftPart.getSubjectLastIdx()!=region.getFirst()-1 || !leftPart.getCigar().endsWith(softClipSubstr)) leftPart = null;
-				else {
-					//Remove soft clip part and update soft clip total with removed segment of the read
-					cigarLeft = leftPart.getCigar().substring(0,leftPart.getCigar().length()-softClipSubstr.length());
-					softClipLeft+=(read.length()-readSegment.length());
+				String [] alignmentLeft;
+				synchronized (alignerSTRsLeft) {
+					alignmentLeft = alignerSTRsLeft.getAlignment(readSegment, refSeq.toString());
 				}
+				leftMismatches = countMismatches(alignmentLeft);
+				encodedLeftAln = ReadAlignment.encodePairwiseAlignment(alignmentLeft);
+				int lastCode = encodedLeftAln.getLast();
+				if (leftMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(lastCode)==ReadAlignment.ALIGNMENT_INSERTION) {
+					softClipLeft = ReadAlignment.getOperationLength(lastCode);
+					encodedLeftAln.removeLast();
+				} else {
+					encodedLeftAln = null;
+				}
+				softClipLeft+=(read.length()-endReadSegment);
 			}	
 		}
 		if(last>region.getLast()+5) {
@@ -1237,212 +1258,78 @@ public class ReadsAligner {
 				String readSegment = read.substring(startReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				rightPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false, alignerSTRsRight);
-				softClipRight = rightPart.getQueryStartIdx();
-				String softClipSubstr = "";
-				if(softClipRight>0) softClipSubstr = ""+softClipRight+""+softClipChar;
-				//System.out.println("Right part query start: "+rightPart.getQueryStartIdx()+" subject start: "+rightPart.getSubjectStartIdx()+" mismatches: "+rightPart.getMismatches()+" cigar: "+rightPart.getCigar()+" soft clip: "+softClipRight);
-				if(rightPart.getMismatches()>3 || rightPart.getSubjectStartIdx()!=0 || !rightPart.getCigar().startsWith(softClipSubstr)) rightPart = null;
-				else {
-					cigarRight = rightPart.getCigar().substring(softClipSubstr.length());
-					softClipRight+=startReadSegment;
+				String [] alignmentRight;
+				synchronized (alignerSTRsRight) {
+					alignmentRight = alignerSTRsRight.getAlignment(readSegment, refSeq.toString());
 				}
+				rightMismatches = countMismatches(alignmentRight);
+				encodedRightAln = ReadAlignment.encodePairwiseAlignment(alignmentRight);
+				int firstCode = encodedRightAln.getFirst();
+				if (rightMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(firstCode)==ReadAlignment.ALIGNMENT_INSERTION) {
+					softClipRight = ReadAlignment.getOperationLength(firstCode);
+					encodedRightAln.removeFirst();
+				} else {
+					encodedRightAln=null;
+				}
+				softClipRight+=startReadSegment;
+				
 			}	
 		}
-		if(leftPart==null && rightPart ==null) {
+		if(encodedLeftAln==null && encodedRightAln ==null) {
 			return null;
 		}
-		if(rightPart==null) {
+		if(encodedRightAln==null) {
 			//Left alignment with right soft clip
-			first = firstLeftPart + leftPart.getSubjectStartIdx();
-			last = region.getFirst()-1;
-			String cigar = cigarLeft;
-			if(softClipLeft>0) cigar+=""+softClipLeft+""+softClipChar;
-			short mismatches = (short) leftPart.getMismatches();
+			if(softClipLeft>0) encodedLeftAln.add(ReadAlignment.getAlnValue(softClipLeft, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			ReadAlignment aln = buildAln(read, sequenceName, first, last, cigar);
-			aln.setAlignmentQuality((byte)(90-5*mismatches));
-			aln.setNumMismatches(mismatches);
+			ReadAlignment aln = buildAln(read, sequenceName, firstLeftPart, region.getFirst()-1, encodedLeftAln);
+			if(aln==null) return null;
+			if (!aln.clipBorders(kmerLength)) return null;
+			aln.setAlignmentQuality((byte)(90-5*leftMismatches));
+			aln.setNumMismatches((short) leftMismatches);
 			return aln;
 		}
-		if(leftPart==null) {
+		if(encodedLeftAln==null) {
 			//Right alignment with left soft clip
 			first = region.getLast()+1;
-			last = first + rightPart.getSubjectLastIdx();
-			String cigar = "";
-			if(softClipRight>0) cigar+=softClipRight+""+softClipChar;
-			cigar+=cigarRight;
-			short mismatches = (short) rightPart.getMismatches();
+			if(softClipRight>0) encodedRightAln.add(ReadAlignment.getAlnValue(softClipRight, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			ReadAlignment aln = buildAln(read, sequenceName, first, last, cigar);
-			aln.setAlignmentQuality((byte)(90-5*mismatches));
-			aln.setNumMismatches(mismatches);
+			ReadAlignment aln = buildAln(read, sequenceName, region.getLast()+1, last, encodedRightAln);
+			if(aln==null) return null;
+			if (!aln.clipBorders(kmerLength)) return null;
+			aln.setAlignmentQuality((byte)(90-5*rightMismatches));
+			aln.setNumMismatches((short) rightMismatches);
 			return aln;
 		}
-		first = firstLeftPart + leftPart.getSubjectStartIdx();
-		last = region.getLast()+1 + rightPart.getSubjectLastIdx();
+		first = firstLeftPart;
 		int alignedLeft = read.length()-softClipLeft;
 		int alignedRight = read.length()-softClipRight;
 		int middleLength = read.length()-alignedLeft-alignedRight;
 		if(middleLength<0) return null;
 		int difference = region.length()-middleLength;
 		//System.out.println("Aligned left: "+alignedLeft+" aligned right: "+alignedRight+" middle length: "+middleLength+" difference: "+difference);
-		String cigar = cigarLeft;
+		LinkedList<Integer> alignmentList = new LinkedList<Integer>();
+		alignmentList.addAll(encodedLeftAln);
 		if(difference>0) {
 			// Region length > middle length. Add deletion
-			cigar+=(difference)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION);
-			if(middleLength>0) cigar+= (middleLength)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			alignmentList.add(ReadAlignment.getAlnValue(difference, ReadAlignment.ALIGNMENT_DELETION));
+			if(middleLength>0) alignmentList.add(ReadAlignment.getAlnValue(middleLength, ReadAlignment.ALIGNMENT_MATCH));
 		} else if (difference<0) {
 			// Region length < middle length. Add insertion
-			cigar+=(-difference)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
-			if(middleLength>0) cigar+= (region.length())+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			alignmentList.add(ReadAlignment.getAlnValue(-difference, ReadAlignment.ALIGNMENT_INSERTION));
+			if(region.length()>0) alignmentList.add(ReadAlignment.getAlnValue(region.length(), ReadAlignment.ALIGNMENT_MATCH));
 		} else {
-			if(middleLength>0) cigar+= (middleLength)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			if(middleLength>0) alignmentList.add(ReadAlignment.getAlnValue(middleLength, ReadAlignment.ALIGNMENT_MATCH));
 		}
 		
-		cigar+=cigarRight;
-		short mismatches = (short) (leftPart.getMismatches()+rightPart.getMismatches());
+		alignmentList.addAll(encodedRightAln);
+		short mismatches = (short) (leftMismatches+rightMismatches);
 		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+cigar);
-		ReadAlignment aln = buildAln(read, sequenceName, first, last, cigar);
+		ReadAlignment aln = buildAln(read, sequenceName, first, last, alignmentList);
+		if(aln==null) return null;
+		if (!aln.clipBorders(kmerLength)) return null;
 		aln.setAlignmentQuality((byte)(100-5*mismatches));
 		aln.setNumMismatches(mismatches);
 		return aln;
-	}
-}
-
-class PairwiseAlignmentWithCigar {
-	
-	private String query;
-	private String subject;
-	private int subjectStartIdx=-1;
-	private int subjectLastIdx=-1;
-	private int queryStartIdx=-1;
-	private int queryLastIdx=-1;
-	private String cigar;
-	private int mismatches=0;
-	
-	public PairwiseAlignmentWithCigar (String query, String subject, boolean includeEndSubject, PairwiseAlignmentAffineGap aligner) {
-		//System.out.println("Query length: "+query.length()+" subject length: "+subject.length());
-		this.query = query;
-		this.subject = subject;
-		String [] alignment;
-		synchronized (aligner) {
-			alignment = aligner.getAlignment(query, subject);
-		}
-		 
-		String alnQuery = alignment[0];
-		//System.out.println(alnQuery);
-		String alnSubject = alignment[1];
-		//System.out.println(alnSubject);
-		StringBuilder cigarBuilder = new StringBuilder();
-		int subjectIdx = 0;
-		int queryIdx = 0;
-		byte nextOpCode = -1;
-		int nextOpLength = 0;
-		int lastMismatches = 0;
-		boolean addDeletions = includeEndSubject;
-		for(int i=0;i<alnQuery.length();i++) {
-			char q = alnQuery.charAt(i);
-			char s = alnSubject.charAt(i);
-			boolean match = q==s;
-			byte opCode = ReadAlignment.ALIGNMENT_MATCH;
-			if(q!=LimitedSequence.GAP_CHARACTER) {
-				if(s!=LimitedSequence.GAP_CHARACTER) {
-					if(subjectStartIdx==-1) {
-						if (match) {
-							subjectStartIdx = subjectIdx;
-							queryStartIdx = queryIdx;
-						}
-						else opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
-					}
-					if (queryStartIdx>=0) {
-						subjectLastIdx = subjectIdx;
-						queryLastIdx = queryIdx;
-					}
-					if(!match) {
-						mismatches++;
-						lastMismatches++;
-					} else lastMismatches=0;
-					subjectIdx++;
-				} else {
-					if(subjectStartIdx<0 || subjectIdx>=subject.length()) {
-						opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
-					} else {
-						opCode = ReadAlignment.ALIGNMENT_INSERTION;
-					}
-				}
-				queryIdx++;
-			} else if (s!=LimitedSequence.GAP_CHARACTER) {
-				opCode = ReadAlignment.ALIGNMENT_DELETION;
-				subjectIdx++;
-			}
-			if(opCode!=nextOpCode) {
-				if( nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || addDeletions) {
-					int lastSkip = 0;
-					if(nextOpCode == ReadAlignment.ALIGNMENT_MATCH && lastMismatches>0 && (subjectIdx>=subject.length()||queryIdx>=query.length())) {
-						//TODO: Improve end management
-						lastSkip=Math.min(lastMismatches, nextOpLength-1);
-						nextOpLength-=lastSkip;
-						subjectLastIdx-=lastSkip;
-						queryLastIdx-=lastSkip;
-					}
-					if(nextOpLength>0) cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-					if (lastSkip>0) cigarBuilder.append(lastSkip+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD));
-					if(nextOpCode>=0 && nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-					if(nextOpLength>0 && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) addDeletions=true;
-					//System.out.println("New cigar: "+cigarBuilder.toString()+" opcode from: "+nextOpCode+" to "+opCode);
-				}
-				nextOpCode = opCode;
-				nextOpLength = 0;
-				lastMismatches = 0;
-			}
-			nextOpLength++;
-		}
-		if( nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
-			int lastSkip = 0;
-			if(nextOpCode == ReadAlignment.ALIGNMENT_MATCH && lastMismatches>0) {
-				lastSkip=Math.min(lastMismatches, nextOpLength-1);
-				nextOpLength-=lastSkip;
-				subjectLastIdx-=lastSkip;
-				queryLastIdx-=lastSkip;
-			}
-			if(nextOpLength>0) cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-			if (lastSkip>0) cigarBuilder.append(lastSkip+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD));
-			if(nextOpCode>=0 && nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-		}
-		cigar = cigarBuilder.toString();
-	}
-
-	public String getQuery() {
-		return query;
-	}
-
-	public String getSubject() {
-		return subject;
-	}
-
-
-	public int getSubjectStartIdx() {
-		return subjectStartIdx;
-	}
-	
-	public int getSubjectLastIdx() {
-		return subjectLastIdx;
-	}
-	
-	public int getQueryStartIdx() {
-		return queryStartIdx;
-	}
-
-	public int getQueryLastIdx() {
-		return queryLastIdx;
-	}
-
-	public String getCigar() {
-		return cigar;
-	}
-
-	public int getMismatches() {
-		return mismatches;
 	}
 }
