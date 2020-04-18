@@ -231,12 +231,13 @@ public class LongReadsAligner {
 			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {
+				if (kmerHit.getStart()<subjectNext) continue;
 				alnStart = kmerHit.getStart();
 				queryStart = kmerHit.getQueryIdx();
 				if(queryStart>0 && queryStart<maxLengthEndsPairwiseAlignment) {
 					String queryStr = query.subSequence(0,queryStart).toString();
 					queryStart = 0;
-					alnStart = Math.max(0, kmerHitsCluster.getSubjectPredictedStart()-5);
+					alnStart = Math.max(0, subjectNext-5);
 					String subjectStr = subject.subSequence(alnStart,kmerHit.getStart()).toString();
 					String [] alignedFragments = alignerStart.getAlignment(queryStr, subjectStr);
 					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
