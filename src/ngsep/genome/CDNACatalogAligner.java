@@ -18,7 +18,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.ProteinTranslator;
 import ngsep.transcriptome.Transcript;
 
-public class OrganismsAligner {
+public class CDNACatalogAligner {
 	// Constants for default values
 	public static final String DEF_OUT_PREFIX = "organismsAlignment";
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
@@ -26,11 +26,11 @@ public class OrganismsAligner {
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
 	
 	// Logging and progress
-	private Logger log = Logger.getLogger(OrganismsAligner.class.getName());
+	private Logger log = Logger.getLogger(CDNACatalogAligner.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters
-	private List<OrganismHomologyCatalog> organisms = new ArrayList<>();
+	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
@@ -82,7 +82,7 @@ public class OrganismsAligner {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		OrganismsAligner instance = new OrganismsAligner();
+		CDNACatalogAligner instance = new CDNACatalogAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		while(i<args.length-1) {
 			String fileOrganism = args[i++];
@@ -97,19 +97,19 @@ public class OrganismsAligner {
 		
 		List<HomologyUnit> units = new ArrayList<>();
 		for(QualifiedSequence seq : sequences) {
-			HomologyUnit unit = new HomologyUnit(organisms.size()+1, seq.getName(), translator.getProteinSequence(seq.getCharacters()));
+			HomologyUnit unit = new HomologyUnit(cdnaCatalogs.size()+1, seq.getName(), translator.getProteinSequence(seq.getCharacters()));
 			units.add(unit);
 		}
 		
-		OrganismHomologyCatalog catalog = new OrganismHomologyCatalog(units);
-		organisms.add(catalog);
+		HomologyCatalog catalog = new HomologyCatalog(units);
+		cdnaCatalogs.add(catalog);
 	}
 	
 	public void run () throws IOException {
 		logParameters();
-		if(organisms.size()==0) throw new IOException("At least one organism's data should be provided");
+		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		alignOrganisms();
+		alignCatalogs();
 		printResults();
 		log.info("Process finished");
 	}
@@ -117,31 +117,31 @@ public class OrganismsAligner {
 	public void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		out.println("Loaded: "+ organisms.size()+" annotated genomes");
+		out.println("Loaded: "+ cdnaCatalogs.size()+" annotated genomes");
 		out.println("Output prefix:"+ outputPrefix);
 		out.println("K-mer length: "+ getKmerLength());
 		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
 		log.info(os.toString());
 	}
 	
-	public void alignOrganisms() {
-		for(int i=0;i<organisms.size();i++) {
-			OrganismHomologyCatalog catalog = organisms.get(i);
+	public void alignCatalogs() {
+		for(int i=0;i<cdnaCatalogs.size();i++) {
+			HomologyCatalog catalog = cdnaCatalogs.get(i);
 			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogsOrganism(catalog));
 			log.info("Paralogs found for Organism: "+ homologyEdges.size());
 		}
 		
 		
-		for(int i=0;i<organisms.size();i++) {
-			OrganismHomologyCatalog catalog1 = organisms.get(i);
-			for (int j=0;j<organisms.size();j++) {
-				OrganismHomologyCatalog catalog2 = organisms.get(i);
+		for(int i=0;i<cdnaCatalogs.size();i++) {
+			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
+			for (int j=0;j<cdnaCatalogs.size();j++) {
+				HomologyCatalog catalog2 = cdnaCatalogs.get(i);
 				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
 			}
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsOrganisms(organisms, homologyEdges);
+		orthologyUnitClusters = calculator.clusterHomologsOrganisms(cdnaCatalogs, homologyEdges);
 	}
 	
 	public void printResults() throws FileNotFoundException {

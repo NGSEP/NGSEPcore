@@ -9,11 +9,11 @@ import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
-public class OrganismHomologyCatalog {
+public class HomologyCatalog {
 	private Map<String, HomologyUnit> homologyUnitsMap= new HashMap<String, HomologyUnit>();
 	private FMIndex indexHomologyUnits=null;
 	
-	public OrganismHomologyCatalog (List<HomologyUnit> units) {
+	public HomologyCatalog (List<HomologyUnit> units) {
 		for(HomologyUnit unit: units) {
 			homologyUnitsMap.put(unit.getId(), unit);
 		}

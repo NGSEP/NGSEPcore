@@ -38,7 +38,7 @@ public class HomologRelationshipsFinder {
 		return edges;
 	}
 	
-	public List<HomologyEdge> calculateParalogsOrganism(OrganismHomologyCatalog catalog) {
+	public List<HomologyEdge> calculateParalogsOrganism(HomologyCatalog catalog) {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
 		List<HomologyUnit> units = catalog.getHomologyUnits();
 		for (HomologyUnit unit:units) {
@@ -52,7 +52,7 @@ public class HomologRelationshipsFinder {
 	 * Finds orthologs of the orthology units in this genome in the given genome
 	 * @param genome2 to search for orthologs
 	 */
-	public List<HomologyEdge> calculateOrthologs(OrganismHomologyCatalog catalog1, OrganismHomologyCatalog catalog2) {
+	public List<HomologyEdge> calculateOrthologs(HomologyCatalog catalog1, HomologyCatalog catalog2) {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
 		List<HomologyUnit> units = catalog1.getHomologyUnits();
 		for (HomologyUnit unit:units) {
@@ -62,7 +62,7 @@ public class HomologRelationshipsFinder {
 		return edges;
 	}
 	
-	private List<HomologyEdge> findHomologs(HomologyUnit unit, OrganismHomologyCatalog catalog) {
+	private List<HomologyEdge> findHomologs(HomologyUnit unit, HomologyCatalog catalog) {
 		List<HomologyEdge> edges = new ArrayList<HomologyEdge>();
 		FMIndex indexCatalog = catalog.getIndexHomologyUnits();
 		//Counts of k-mers mapping to each protein in the FM-index

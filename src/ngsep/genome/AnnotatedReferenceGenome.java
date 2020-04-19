@@ -21,7 +21,7 @@ public class AnnotatedReferenceGenome {
 	private QualifiedSequenceList sequencesMetadata;
 	private List<HomologyUnit> homologyUnitsList;
 	private GenomicRegionSortedCollection<HomologyUnit> homologyUnitsBySequence;
-	private OrganismHomologyCatalog catalog;
+	private HomologyCatalog catalog;
 	
 	private GenomicRegionSortedCollection<HomologyUnit> uniqueHomologyUnitsBySequence;
 	
@@ -35,7 +35,7 @@ public class AnnotatedReferenceGenome {
 		//Query each orthology unit against its own genome and select the units that are unique
 		extractHomologyUnits();
 		//log.info("Genome total units "+orthologyUnitsList.size()+" Building FM Index");
-		catalog = new OrganismHomologyCatalog(homologyUnitsList); 
+		catalog = new HomologyCatalog(homologyUnitsList); 
 	}
 	
 	/**
@@ -151,9 +151,8 @@ public class AnnotatedReferenceGenome {
 	 * Return the homology catalog for this reference genome
 	 * @return OrganismHomologyCatalog to search for homology units
 	 */
-	public OrganismHomologyCatalog getHomologyCatalog() {
-		// TODO Auto-generated method stub
-		return null;
+	public HomologyCatalog getHomologyCatalog() {
+		return this.catalog;
 	}
 	
 	public HomologyUnit getHomologyUnit(String unitId) {

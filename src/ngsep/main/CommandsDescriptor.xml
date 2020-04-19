@@ -1479,7 +1479,7 @@ Maximum number of homologs per unit to be displayed in the D3 visualization
 </option>
 -->
 
-<command id="OrganismsAligner" class="ngsep.genome.OrganismsAligner" groupId="Transcriptome">
+<command id="CDNACatalogAligner" class="ngsep.genome.CDNACatalogAligner" groupId="Transcriptome">
 <intro>Infer ortholog groups from a set of organisms' transcriptomes</intro>
 <title>Comparing organisms</title>
 <description>
