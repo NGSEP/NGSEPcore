@@ -59,7 +59,10 @@ public class HomologClustersCalculator {
 		List<List<HomologyUnit>> partitions = divideUnits(units);
 		
 		//Skip mcl, return connected components
-		if(skipMCL) return partitions;
+		if(skipMCL) {
+			log.info("Skipped MCL, returning connected components instead.");
+			return partitions;
+		}
 		
 			List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
 		//Infer clusters from each resulting partition
