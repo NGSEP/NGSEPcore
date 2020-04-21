@@ -50,15 +50,18 @@ public class HomologClustersCalculator {
 		return clusters;
 	}
 	
-	public List<List<HomologyUnit>> clusterHomologsOrganisms(List<HomologyCatalog> organisms, List<HomologyEdge> homologyEdges) {
+	public List<List<HomologyUnit>> clusterHomologsOrganisms(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges, boolean skipMCL) {
 		log.info("Clustering orthologs and paralogs");
 		
 		//Separate homologs into smaller partitions
 		List<HomologyUnit> units = new ArrayList<>();
-		for(HomologyCatalog organism : organisms) units.addAll(organism.getHomologyUnits()); 
+		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits()); 
 		List<List<HomologyUnit>> partitions = divideUnits(units);
 		
-		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
+		//Skip mcl, return connected components
+		if(skipMCL) return partitions;
+		
+			List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
 		//Infer clusters from each resulting partition
 		for(List<HomologyUnit> partition : partitions) {
 			List<List<HomologyUnit>> result = this.processPartition(partition);

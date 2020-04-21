@@ -34,6 +34,7 @@ public class CDNACatalogAligner {
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
+	private boolean skipMCL= false;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -61,6 +62,13 @@ public class CDNACatalogAligner {
 	}
 	public void setOutputPrefix(String outputPrefix) {
 		this.outputPrefix = outputPrefix;
+	}
+	//program arguments
+	public boolean getSkipMCL() {
+		return skipMCL;
+	}
+	public void setSkipMCL(boolean skipMCL) {
+		this.skipMCL = skipMCL;
 	}
 	public byte getKmerLength() {
 		return homologRelationshipsFinder.getKmerLength();
