@@ -70,6 +70,9 @@ public class CDNACatalogAligner {
 	public void setSkipMCL(boolean skipMCL) {
 		this.skipMCL = skipMCL;
 	}
+	public void setSkipMCL(String value) {
+		setSkipMCL((boolean)OptionValuesDecoder.decode(value, Boolean.class));
+	}
 	public byte getKmerLength() {
 		return homologRelationshipsFinder.getKmerLength();
 	}
