@@ -149,7 +149,7 @@ public class CDNACatalogAligner {
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsOrganisms(cdnaCatalogs, homologyEdges);
+		orthologyUnitClusters = calculator.clusterHomologsOrganisms(cdnaCatalogs, homologyEdges, skipMCL);
 	}
 	
 	public void printResults() throws FileNotFoundException {
