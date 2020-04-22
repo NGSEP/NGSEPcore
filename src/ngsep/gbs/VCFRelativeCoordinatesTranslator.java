@@ -108,7 +108,7 @@ public class VCFRelativeCoordinatesTranslator {
 				
 					
 				
-				int clusterID = Integer.parseInt(record.getSequenceName());
+				String clusterID = record.getSequenceName();
 				ReadAlignment alignment =  alignmentsHash.get(clusterID);
 				if(alignment != null ) {
 					// If variant is SNP
