@@ -194,7 +194,7 @@ public class GenomesAligner {
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
+		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges, skipMCL);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
