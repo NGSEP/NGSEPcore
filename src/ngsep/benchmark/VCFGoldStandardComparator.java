@@ -442,7 +442,7 @@ public class VCFGoldStandardComparator {
 					counts.update(0,row,k);
 					counts.update(row+1,lastRowCounts,9+genotypeFirstGS);
 					if(mode == 3 && genotypeFirstGS!=genotypeFirstTest &&  qualFirstTest>=minQuality) {
-						System.out.println("Variant "+firstGS.getSequenceName()+": "+firstGS.getFirst()+" genotypeGS: "+genotypeFirstGS+" genotypeTest: "+genotypeFirstTest+" alternativeGS: "+firstGS.getAlleles()[1]+" alternative Test: "+firstTest.getAlleles()[1]);
+						System.out.println("Variant "+firstGS.getSequenceName()+": "+firstGS.getFirst()+"genotypeGS: "+genotypeFirstGS+" genotypeTest: "+genotypeFirstTest+" alternativeGS: "+firstGS.getAlleles()[1]+" alternative Test: "+firstTest.getAlleles()[1]);
 					}
 				} else {
 					//Isolated SNV calls in different close positions or with different alternative alleles
@@ -482,7 +482,7 @@ public class VCFGoldStandardComparator {
 				counts.update(0,row,k);
 				counts.update(row+1,lastRowCounts,9+genotypeGS);
 				if(mode == 3 && genotypeGS!=genotypeTest &&  qualTest>=minQuality) {
-					System.out.println("Variant "+gsCalls.get(0).getSequenceName()+": "+gsHaps.getFirst()+" genotypeGS: "+genotypeGS+" genotypeTest: "+genotypeTest+" sequenceMismatch: "+sequenceMismatch);
+					System.out.println("Variant "+gsCalls.get(0).getSequenceName()+": "+gsHaps.getFirst()+" type: "+clusterGSType+" genotypeGS: "+genotypeGS+" genotypeTest: "+genotypeTest+" sequenceMismatch: "+sequenceMismatch);
 					System.out.println(gsHaplotypes[0]);
 					System.out.println(gsHaplotypes[1]);
 					System.out.println(matchingHaplotypes[0]);

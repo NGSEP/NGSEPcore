@@ -24,12 +24,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import ngsep.assembly.AlignmentConstantGap;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.UngappedSearchHit;
@@ -46,9 +46,18 @@ public class LongReadsAligner {
 
 	private Logger log = Logger.getLogger(LongReadsAligner.class.getName());
 	private int maxLengthFullPairwiseAlignment = 4000;
-	private PairwiseAlignmentAffineGap aligner = null;
+	private int maxLengthEndsPairwiseAlignment = 500;
+	private PairwiseAlignmentAffineGap alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
+	private PairwiseAlignmentAffineGap alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+	private PairwiseAlignmentAffineGap alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+	private int maxAlnsPerRead = 3;
 	private ReferenceGenome genome;
 	private MinimizersTable minimizersTable;
+	
+	public LongReadsAligner() {
+		alignerStart.setForceStart2(false);
+		alignerEnd.setForceEnd2(false);
+	}
 	public Logger getLog() {
 		return log;
 	}
@@ -56,6 +65,15 @@ public class LongReadsAligner {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public int getMaxAlnsPerRead() {
+		return maxAlnsPerRead;
+	}
+
+	public void setMaxAlnsPerRead(int maxAlnsPerRead) {
+		this.maxAlnsPerRead = maxAlnsPerRead;
+	}
+
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength) {
 		this.genome = genome;
 		int n = genome.getNumSequences();
@@ -105,8 +123,7 @@ public class LongReadsAligner {
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
 		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
-		//TODO: Parameter
-		for (int i=0;i<clusters.size() && i<5;i++) {
+		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			KmerHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSequenceIdx();
 			if(cluster.getWeightedCount()<0.2*maxCount) break;
@@ -201,27 +218,30 @@ public class LongReadsAligner {
 		
 	}
 
-	private ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) {
-		if (aligner == null) aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
+	private ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) { 
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = Math.max(0, kmerHitsCluster.getSubjectPredictedStart());
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int queryNext = 0;
 		int alnStart = -1;
 		int queryStart = -1;
-		char matchOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
-		char insertionOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
-		char deletionOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION);
-		char softClipOp = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
-		StringBuilder cigar = new StringBuilder();
+		LinkedList<Integer> alignmentEncoding = new LinkedList<Integer>();
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
 			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {
+				if (kmerHit.getStart()<subjectNext) continue;
 				alnStart = kmerHit.getStart();
 				queryStart = kmerHit.getQueryIdx();
-				if(kmerHit.getQueryIdx()>0) cigar.append(""+kmerHit.getQueryIdx()+""+softClipOp);
+				if(queryStart>0 && queryStart<maxLengthEndsPairwiseAlignment) {
+					String queryStr = query.subSequence(0,queryStart).toString();
+					queryStart = 0;
+					alnStart = Math.max(0, subjectNext-5);
+					String subjectStr = subject.subSequence(alnStart,kmerHit.getStart()).toString();
+					String [] alignedFragments = alignerStart.getAlignment(queryStr, subjectStr);
+					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+				} else if (queryStart>0) alignmentEncoding.add(ReadAlignment.getAlnValue(queryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
@@ -234,7 +254,7 @@ public class LongReadsAligner {
 				} else {
 					if(nextMatchLength>0 && (subjectNextLength>0 || queryNextLength>0)) {
 						//System.out.println("Found internal segment for possible alignment. Subject length "+subjectStr.length()+" query length "+queryStr.length()+" current match length: "+nextMatchLength);
-						cigar.append(""+nextMatchLength+""+matchOp);
+						alignmentEncoding.add(ReadAlignment.getAlnValue(nextMatchLength, ReadAlignment.ALIGNMENT_MATCH));
 						nextMatchLength = 0;
 					}
 					if(subjectNextLength>0 && queryNextLength>0) {		
@@ -242,14 +262,13 @@ public class LongReadsAligner {
 						String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
 						String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
 						//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
-						String [] alignedFragments = aligner.getAlignment(subjectStr, queryStr);
-						String cigarSegment = buildCigar(alignedFragments[0],alignedFragments[1]);
-						cigar.append(cigarSegment);
+						String [] alignedFragments = alignerCenter.getAlignment(queryStr,subjectStr);
+						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						
 					} else if (subjectNextLength>0) {
-						cigar.append(""+subjectNextLength+""+deletionOp);
+						alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength, ReadAlignment.ALIGNMENT_DELETION));
 					} else if (queryNextLength>0) {
-						cigar.append(""+queryNextLength+""+insertionOp);
+						alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength, ReadAlignment.ALIGNMENT_INSERTION));
 					}
 				}
 				nextMatchLength+=kmerLength;
@@ -271,62 +290,40 @@ public class LongReadsAligner {
 			//System.out.println("Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
 		}
 		if(nextMatchLength>0) {
-			cigar.append(""+nextMatchLength+""+matchOp);
+			alignmentEncoding.add(ReadAlignment.getAlnValue(nextMatchLength, ReadAlignment.ALIGNMENT_MATCH));
 			nextMatchLength = 0;
 		}
-		//int alnFirst = alnStart+1;
-		int alnLast = subjectNext;
-		//System.out.println("Aligned query. first: "+alnStart+" last: "+alnLast+" CIGAR: "+cigar+" query next: "+queryNext+" query length: "+query.length());
+		int alnEnd = subjectNext;
 		if(queryNext<query.length()) {
-			//TODO: check if it is worth to align the sequence end
-			/*
-			if(subjectNext<subject.length()) {
-				String queryStr = query.substring(queryNext);
-				String subjectStr = subject.substring(subjectNext,Math.min(clusterLast, subject.length()));
-				//TODO: Softclip if it starts with indel
-				System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
-				String [] alignedFragments = aligner.getAlignment(subjectStr, queryStr);
-				String cigarSegment = buildCigar(alignedFragments[0],alignedFragments[1]);
-				
-				cigar.append(cigarSegment);	
-			} else {*/
-				//Ignore last bp
 			int remainder = query.length()-queryNext;
-			cigar.append(""+remainder+""+softClipOp);
-			//}
+			boolean endAligned = false;
+			if(subjectNext<subject.length()) {
+				String queryStr = query.subSequence(queryNext,query.length()).toString();
+				int end = Math.min(subjectNext+remainder+5, subject.length());
+				String subjectStr = subject.subSequence(subjectNext,end).toString();
+				if(queryStr.length()<maxLengthEndsPairwiseAlignment && subjectStr.length()<=maxLengthEndsPairwiseAlignment) {
+					//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
+					String [] alignedFragments = alignerEnd.getAlignment(queryStr, subjectStr);
+					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+					alnEnd = end;
+					endAligned = true;
+				}
+				
+				
+			} 
+			if(!endAligned) {
+				//Ignore last bp
+				alignmentEncoding.add(ReadAlignment.getAlnValue(remainder, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+			}
 		}
-		ReadAlignment finalAlignment = new ReadAlignment(subjectIdx, alnStart+1, alnLast, query.length(), 0);
+		//TODO: Mismatches and check again for assembly
+		ReadAlignment finalAlignment = new ReadAlignment(subjectIdx, alnStart+1, alnEnd, query.length(), 0);
 		finalAlignment.setReadCharacters(query);
-		finalAlignment.setCigarString(cigar.toString());
+		finalAlignment.setAlignment(alignmentEncoding);
 		//TODO: Define better alignment quality
 		double cov = 1.0*(queryNext-queryStart)/query.length();
-		finalAlignment.setAlignmentQuality((short) Math.round(100*cov));
+		finalAlignment.setAlignmentQuality((byte) Math.round(100*cov));
+		finalAlignment.clipBorders(10);
 		return finalAlignment;
-	}
-
-	private String buildCigar(String subjectAln, String queryAln) {
-		StringBuilder cigar = new StringBuilder();
-		char nextOperator = 0;
-		int nextLength = 0;
-		for(int i=0;i<subjectAln.length();i++) {
-			char subjectChar = subjectAln.charAt(i);
-			char queryChar = queryAln.charAt(i);
-			char op = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
-			if(subjectChar == AlignmentConstantGap.GAP_CHARACTER) {
-				op = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
-			} else if(queryChar == AlignmentConstantGap.GAP_CHARACTER) {
-				op = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION);
-			}
-			if(op != nextOperator) {
-				if(nextLength>0) {
-					cigar.append(""+nextLength+""+nextOperator);
-				}
-				nextOperator = op;
-				nextLength = 0;
-			}
-			nextLength++;
-		}
-		if (nextLength>0) cigar.append(""+nextLength+""+nextOperator);
-		return cigar.toString();
 	}
 }

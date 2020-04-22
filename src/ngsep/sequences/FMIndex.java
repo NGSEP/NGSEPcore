@@ -42,8 +42,14 @@ public class FMIndex implements Serializable
 	private List<Integer> sequenceLengths = new ArrayList<>();
 	private List<FMIndexSingleSequence> internalIndexes = new ArrayList<>();
 	private List<CombinedMultisequenceFMIndexMetadata> internalMetadata = new ArrayList<>();
-
+	private int maxHitsQuery = 100000;
 		
+	public int getMaxHitsQuery() {
+		return maxHitsQuery;
+	}
+	public void setMaxHitsQuery(int maxHitsQuery) {
+		this.maxHitsQuery = maxHitsQuery;
+	}
 	/**
 	 * Loads the sequences in the given list to allow searches from these sequences
 	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
@@ -60,6 +66,7 @@ public class FMIndex implements Serializable
 				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+				index.setMaxHitsQuery(maxHitsQuery);
 				System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
@@ -77,6 +84,7 @@ public class FMIndex implements Serializable
 			System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 			long time = System.currentTimeMillis();
 			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
+			index.setMaxHitsQuery(maxHitsQuery);
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
@@ -93,6 +101,7 @@ public class FMIndex implements Serializable
 				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
+				index.setMaxHitsQuery(maxHitsQuery);
 				System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
@@ -109,6 +118,7 @@ public class FMIndex implements Serializable
 			System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
 			long time = System.currentTimeMillis();
 			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
+			index.setMaxHitsQuery(maxHitsQuery);
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
@@ -134,7 +144,7 @@ public class FMIndex implements Serializable
 	 */
 	public List<UngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
 		List<UngappedSearchHit> hits = new ArrayList<>();
-		for (int i=0;i<internalIndexes.size();i++) 
+		for (int i=0;i<internalIndexes.size() && hits.size()<maxHitsQuery;i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
 			CombinedMultisequenceFMIndexMetadata metadata = internalMetadata.get(i);
@@ -161,6 +171,7 @@ public class FMIndex implements Serializable
 				UngappedSearchHit hit = new UngappedSearchHit(query, sequenceIdx, start);
 				if(sequencesWithNames!=null) hit.setSequenceName(sequencesWithNames.get(sequenceIdx).getName());
 				hits.add(hit);
+				if(hits.size()>=maxHitsQuery) break;
 			}
 		}
 		for(UngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());

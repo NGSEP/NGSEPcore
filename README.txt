@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.0.0 (18-02-2020)
+Version 4.0.1 (27-04-2020)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -25,18 +25,18 @@ NGSEP has been compiled and run successfully on the standard jdk version
 command line environment run the following commands in the directory where
 NGSEPcore_4.0.0.tar.gz is located:
 
-tar -xzvf NGSEPcore_4.0.0.tar.gz
-cd NGSEPcore_4.0.0
+tar -xzvf NGSEPcore_4.0.1.tar.gz
+cd NGSEPcore_4.0.1
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_4.0.0.jar NGSEPcore.jar
+cp NGSEPcore_4.0.1.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_4.0.0.jar NGSEPcore.jar
+ln -s NGSEPcore_4.0.1.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -195,14 +195,14 @@ OPTIONS:
 Indexing genome reference files
 -------------------------------
 
-Creates a binary file containing an fm-index for large sequences in fasta
-format (usually a reference genome). This structure facilitates performing
-massive text searches over the indexed sequence. This is a usual preparation
-step for alignment of short and long reads.
+Creates a binary file containing an FM index for large sequences in fasta format
+(usually a reference genome). This structure facilitates performing massive text
+searches over the indexed sequence. This is a usual preparation step for
+alignment of short reads.
 
 USAGE:
 
-java -jar NGSEPcore_4.0.0.jar GenomeIndexer <OPTIONS>
+java -jar NGSEPcore.jar GenomeIndexer <OPTIONS>
 
 OPTIONS:
 
@@ -215,15 +215,16 @@ OPTIONS:
 Aligning reads to reference genomes
 -----------------------------------
 
-Calculates a list of genomic regions for sites where the reads can be find in
-the reference genome. It receives up to two files with raw reads in fastq
-format and the FM index of a reference genome (see command GenomeIndexer for
-details). It provides as output a file with alignments to the reference genome
-in BAM format.
+Calculates a list of genomic regions for sites where the reads can be found in
+a reference genome. It receives up to two files with raw reads in fastq format
+and the reference genome. To map short reads to long genomes, a precalculated
+FM index can also be provided with the option -d. See command GenomeIndexer for
+construction of the FM index. It provides as output a file with alignments to
+the reference genome in BAM format.
 
 USAGE:
 
-java -jar NGSEPcore_4.0.0.jar ReadsAligner <OPTIONS>
+java -jar NGSEPcore.jar ReadsAligner <OPTIONS>
 
 OPTIONS:
 
@@ -234,21 +235,31 @@ OPTIONS:
 			  corresponding to the second file for paired end reads.
 			  It can be gzip compressed.
 	-o FILE		: Output file with the aligned reads in BAM format.
-	-r FILE		: Index of the reference genome to align the reads. See
+	-r GENOME	: Reference genome to align reads in FASTA format.
+			  Required unless an FM-index is provided with the
+			  option -d. It can be gzip compressed.
+	-d FILE		: Index of the reference genome to align the reads. See
 			  GenomeIndexer for instructions to generate this file.
-			  Mandatory parameter.
+			  Recommended only for short reads and large genomes.
+	-s STRING	: Id of the sample. Default: Sample
+	-p STRING	: Sequencing platform used to produce the reads.
+			  Supported platforms include ILLUMINA, IONTORRENT,
+			  PACBIO and ONT. Default: ILLUMINA
 	-knownSTRs FILE	: Text file with location of known short tandem repeats
 			  (STRs). It is a tab-delimited file with at least
 			  three columns: Sequence name (chromosome), region
 			  first base pair coordinate (1-based, inclusive) and
 			  region last base pair coordinate (1-based, inclusive).
+	-f INT		: Format of the input file. It can be 0 for fastq or 1
+			  for fasta. Default: 0
 	-k INT		: K-mer length. Default: 25
-	-p DOUBLE	: Minimum proportion of k-mers to select alignments.
-			  Default: 0.5
+	-m INT		: Maximum alignments per read. Default: 3
 	-minIL INT	: Minimum predicted insert length to consider an
 			  alignment proper. Default: 0
 	-maxIL INT	: Maximum predicted insert length to consider an
 			  alignment proper. Default: 1000
+	-w INT		: Window length to compute minimizers. Default: 5
+	-t INT		: Number of threads used to align reads. Default: 1
 
 
 -------------------------------------------------------
@@ -1112,31 +1123,33 @@ OPTIONS:
 	-i FILE		: Input VCF file with variants and genotype data.
 			  It can be gzip compressed.
 	-o FILE		: Prefix of the output files.
-	-structure	: Generates the input format for structure.
+	-darwin		: Generates the input files for DarWin
+	-eigensoft	: Generates the input files for Eigensoft
+	-emma		: Generates the input files for Emma.
 	-fasta		: Generates a virtual multiple sequence alignment in
 			  fasta format. It could be used to build distance
 			  based dendograms.
-	-rrBLUP		: Generates the input files for rrBLUP.
-	-matrix		: Generates a simple ACGT format which can be imported
-			  to excel.
-	-printHapmap	: Generates the Hapmap format, which can be used in
-			  programs such as Tassel.
-	-GWASPoly	: Generates the input file for GWASPoly.
-	-spagedi	: Generates the input files for Spagedi.
-	-plink		: Generates the input files for Plink.
-	-haploview	: Generates the input files for Haploview.
-	-emma		: Generates the input files for Emma.
-	-powerMarker	: Generates the input files for Powermarker
-	-eigensoft	: Generates the input files for Eigensoft
+        -fineStructure	: Generates the input files for FineStructure. The
+			  option -s is required for this format.
 	-flapjack	: Generates the input files for Flapjack
-	-darwin		: Generates the input files for DarWin
-	-treeMix	: Generates the input files for TreeMix. The option -p
-			  is required for this format.
+	-GWASPoly	: Generates the input file for GWASPoly.
+	-haploview	: Generates the input files for Haploview.
+	-hapmap		: Generates the Hapmap format, which can be used in
+			  programs such as Tassel.
 	-joinMap	: Generates the input file to build genetic maps with
 			  JoinMap. The options -p1 and -p2 are required for
 			  this format.
+	-matrix		: Generates a simple ACGT format which can be imported
+			  to excel.
 	-phase		: Generates the input file for PHASE. The option -s is
 			  required for this format.
+	-plink		: Generates the input files for Plink.
+	-powerMarker	: Generates the input files for Powermarker.
+	-rrBLUP		: Generates the input files for rrBLUP.
+	-spagedi	: Generates the input files for Spagedi.
+	-structure	: Generates the input format for structure.
+	-treeMix	: Generates the input files for TreeMix. The option -p
+			  is required for this format.
 	-s STRING	: Name of the sequence (chromosome) for conversion to
 			  PHASE.
 	-p FILE		: File with population assignments for the samples.

@@ -21,10 +21,12 @@ package ngsep.alignments;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import ngsep.assembly.AlignmentConstantGap;
 import ngsep.genome.GenomicRegion;
 import ngsep.math.NumberArrays;
 import ngsep.variants.GenomicVariant;
@@ -68,16 +70,28 @@ public class ReadAlignment implements GenomicRegion {
 	
 	public static final String DEF_READ_GROUP = "";
 	
+	public enum Platform {
+		ILLUMINA,
+		IONTORRENT,
+		PACBIO,
+		ONT;
+		
+		public boolean isLongReads () {
+			return this == PACBIO || this == ONT;
+		}
+	}
+	
 	
 	private int sequenceIndex;
 	private String sequenceName;
 	private int first;
 	private int last;
 	private int flags = 0;
-	private short alignmentQuality = 0;
+	private byte alignmentQuality = 0;
     private String mateSequenceName = null;
     private int mateFirst = 0;
     private int inferredInsertSize = 0;
+    private short numMismatches = 0;
     
     //Replaces the CIGAR. value / 8 is the length and value % 8 is the operation. See constants above
     private int [] alignment;
@@ -247,7 +261,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * Provides the alignment quality as a phred score
 	 * @return short Alignment quality
 	 */
-	public short getAlignmentQuality() {
+	public byte getAlignmentQuality() {
 		return alignmentQuality;
 	}
 
@@ -255,7 +269,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * Changes the alignment quality
 	 * @param alignmentQuality New Quality as a phred score
 	 */
-	public void setAlignmentQuality(short alignmentQuality) {
+	public void setAlignmentQuality(byte alignmentQuality) {
 		this.alignmentQuality = alignmentQuality;
 	}
 	
@@ -635,6 +649,21 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	
 	/**
+	 * @return Approximate number of mismatches
+	 */
+	public short getNumMismatches() {
+		return numMismatches;
+	}
+
+	/**
+	 * Changes the approximate number of mismatches
+	 * @param numMismatches New number of mismatches
+	 */
+	public void setNumMismatches(short numMismatches) {
+		this.numMismatches = numMismatches;
+	}
+
+	/**
 	 * Tells if the alignment is partial (if it has soft clipped basepairs)
 	 * @param minClipLength Minimum length of the clip to be considered 
 	 * @return boolean true if the alignment starts or ends with softclipped basepairs 
@@ -961,27 +990,27 @@ public class ReadAlignment implements GenomicRegion {
 		return getOperator(alignment[itemIndex]);
 	}
 	//Alignment encoding / decoding methods
-	private int getOperationLength(int alnValue) {
+	public static int getOperationLength(int alnValue) {
 		return alnValue/8;
 	}
 
-	private byte getOperator(int alnValue) {
+	public static byte getOperator(int alnValue) {
 		return (byte)(alnValue & 0x7);
 	}
 	
-	private boolean consumesReadBases (int alnValue) {
+	public static boolean consumesReadBases (int alnValue) {
 		return (alnValue & 0x2) != 0;
 	}
 	
-	private boolean consumesReferenceBases (int alnValue) {
+	public static boolean consumesReferenceBases (int alnValue) {
 		return (alnValue & 0x1) != 0;
 	}
 	
-	private int getAlnValue (int operationLength , byte operator) {
+	public static int getAlnValue (int operationLength , byte operator) {
 		return 8*operationLength + operator;
 	}
 	
-	private boolean isIndel(byte operator) {
+	public static boolean isIndel(byte operator) {
 		return operator == ALIGNMENT_DELETION || operator == ALIGNMENT_INSERTION;
 	}
 	
@@ -1046,6 +1075,34 @@ public class ReadAlignment implements GenomicRegion {
 			this.last = expectedEnd - 1;
 		}
 		if(first == posPrint && alignment.length >=3) System.out.println("Alignment codes: "+alignment[0]+" "+alignment[1]+" "+alignment[2]+" Expected read length: "+expectedReadLength);
+		alleleCallsUpdated = false;
+	}
+	
+	/**
+	 * Changes the current alignment of this read
+	 * @param alignmentCodesList List with encoded alignment operations. The last three bits of each number encode the alignment operation.
+	 * The remaining bits encode the length
+	 */
+	public void setAlignment (List<Integer> alignmentCodesList) {
+		alignment = NumberArrays.toIntArray(collapseEqualEvents (alignmentCodesList));
+		//Check consistency of alignment last position and expected read length
+		int expectedReadLength = 0;
+		int expectedEnd = first;
+		for (int i=0;i<alignment.length;i++) {
+			int nextAlnCode = alignment[i];
+			int nextLength = getOperationLength(nextAlnCode);
+			if(consumesReferenceBases(nextAlnCode))expectedEnd+=nextLength;
+			if(consumesReadBases(nextAlnCode))expectedReadLength+=nextLength;
+			
+		}
+		if(expectedReadLength != this.readLength) {
+			System.out.println("WARN. New alignment changes read length for read at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
+			this.readLength = expectedReadLength;
+		}
+		if(expectedEnd -1 != this.last) {
+			System.out.println("WARN. New alignment changes last alignment position for read at "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1));
+			this.last = expectedEnd - 1;
+		}
 		alleleCallsUpdated = false;
 	}
 	
@@ -1206,5 +1263,79 @@ public class ReadAlignment implements GenomicRegion {
 			if(i>=referenceFirst && i<=referenceLast) return true;
 		}
 		return false;
+	}
+	public static LinkedList<Integer> encodePairwiseAlignment(String [] queryToSubjectAln ) {
+		LinkedList<Integer> answer = new LinkedList<Integer>();
+		byte nextOperator = 0;
+		int nextLength = 0;
+		String queryAln = queryToSubjectAln[0];
+		String subjectAln = queryToSubjectAln[1];
+		if(queryAln.length()!=subjectAln.length()) throw new IllegalArgumentException("Inconsistent length of alignment. Query length: "+queryAln.length()+" subject length: "+subjectAln.length());
+		for(int i=0;i<subjectAln.length();i++) {
+			char subjectChar = subjectAln.charAt(i);
+			char queryChar = queryAln.charAt(i);
+			byte op = ReadAlignment.ALIGNMENT_MATCH;
+			if(subjectChar == AlignmentConstantGap.GAP_CHARACTER) {
+				op = ReadAlignment.ALIGNMENT_INSERTION;
+			} else if(queryChar == AlignmentConstantGap.GAP_CHARACTER) {
+				op = ReadAlignment.ALIGNMENT_DELETION;
+			}
+			if(op != nextOperator) {
+				if(nextLength>0) {
+					answer.add(getAlnValue(nextLength, nextOperator));
+				}
+				nextOperator = op;
+				nextLength = 0;
+			}
+			nextLength++;
+		}
+		if(nextLength>0) {
+			answer.add(getAlnValue(nextLength, nextOperator));
+		}
+		return answer;
+	}
+	public boolean clipBorders(int minMatchLength) {
+		LinkedList<Integer> alnList = new LinkedList<Integer>();
+		int removedBpSequenceStart=0;
+		int removedBpQueryStart=0;
+		int i=0;
+		for (;i<alignment.length;i++) {
+			int code = alignment[i];
+			int length = getOperationLength(code);
+			byte op = getOperator(code);
+			if(length>=minMatchLength && op== ALIGNMENT_MATCH) break;
+			
+			if(consumesReadBases(code)) removedBpQueryStart+=length;
+			if(consumesReferenceBases(code)) removedBpSequenceStart+=length;
+		}
+		
+		
+		
+		int removedBpSequenceEnd=0;
+		int removedBpQueryEnd=0;
+		int j=alignment.length-1;
+		for(;j>=0;j--) {
+			int code = alignment[j];
+			int length = ReadAlignment.getOperationLength(code);
+			byte op = ReadAlignment.getOperator(code);
+			if(length>=minMatchLength && op== ReadAlignment.ALIGNMENT_MATCH) break;
+			if(consumesReadBases(code)) removedBpQueryEnd+=length;
+			if(consumesReferenceBases(code)) removedBpSequenceEnd+=length;
+			
+		}
+		if(i>j) {
+			//System.err.println("WARN: Failed to clip ends of read alignment at "+sequenceName+":"+first+" CIGAR: "+getCigarString());
+			return false;
+		}
+		
+		if(removedBpSequenceStart>0) first+=removedBpSequenceStart;
+		if(removedBpSequenceEnd>0) last-=removedBpSequenceEnd;
+		if(removedBpQueryStart>0) alnList.add(ReadAlignment.getAlnValue(removedBpQueryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+		for(;i<=j;i++) {
+			alnList.add(alignment[i]);
+		}
+		if(removedBpQueryEnd>0) alnList.add(ReadAlignment.getAlnValue(removedBpQueryEnd, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+		setAlignment(alnList);
+		return true;
 	}
 }

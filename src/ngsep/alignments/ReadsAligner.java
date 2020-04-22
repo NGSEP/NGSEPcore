@@ -23,11 +23,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -43,6 +45,8 @@ import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
+import ngsep.main.io.ParseUtils;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
@@ -64,15 +68,18 @@ public class ReadsAligner {
 
 	// Constants for default values
 	
-	
+	public static final String DEF_SAMPLE_ID = "Sample";
+	public static final ReadAlignment.Platform DEF_PLATFORM = ReadAlignment.Platform.ILLUMINA;
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
+	public static final int DEF_MAX_ALNS_PER_READ=3;
 	public static final int DEF_KMER_LENGTH = 15;
 	public static final int DEF_WINDOW_LENGTH = 5;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
+	public static final int DEF_NUM_THREADS=1;
 	
-	public static final int DEF_MAX_ALNS_PER_READ=3;
+
 	public static final int MAX_SPACE_BETWEEN_KMERS = 50;
 	
 	// Logging and progress
@@ -85,6 +92,8 @@ public class ReadsAligner {
 	private String outputFile = null;
 	private String fmIndexFile = null;
 	private String knownSTRsFile = null;
+	private String sampleId = DEF_SAMPLE_ID;
+	private ReadAlignment.Platform platform = DEF_PLATFORM;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private int maxAlnsPerRead = DEF_MAX_ALNS_PER_READ;
 	private int kmerLength = DEF_KMER_LENGTH;
@@ -92,7 +101,7 @@ public class ReadsAligner {
 	private int minInsertLength = DEF_MIN_INSERT_LENGTH;
 	private int maxInsertLength = DEF_MAX_INSERT_LENGTH;
 	
-	private boolean longReads = false;
+	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
 	private Map<String, List<GenomicRegion>> knownSTRs;
@@ -109,12 +118,18 @@ public class ReadsAligner {
 	
 	private LongReadsAligner longReadsAligner;
 	
+	private ThreadPoolManager pool;
+	
+	private PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(1000);
+	private PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(500);
+	private PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(500);
+	
 	// Statistics
 	private int totalReads = 0;
 	private int readsAligned = 0;
-	private int proper = 0;
-	private int notProper = 0;
-	private int single = 0;
+	private int numProperPairs = 0;
+	private int numNonProperPairs = 0;
+	private int numAlignedSingle = 0;
 	private int uniqueAlignments=0;
 	
 	private int fewMismatchesAlns = 0;
@@ -185,6 +200,26 @@ public class ReadsAligner {
 	public void setKnownSTRsFile(String knownSTRsFile) {
 		this.knownSTRsFile = knownSTRsFile;
 	}
+	
+	public String getSampleId() {
+		return sampleId;
+	}
+	public void setSampleId(String sampleId) {
+		this.sampleId = sampleId;
+	}
+	
+	public ReadAlignment.Platform getPlatform() {
+		return platform;
+	}
+	public void setPlatform(ReadAlignment.Platform platform) {
+		this.platform = platform;
+	}
+	public void setPlatform(String value) {
+		ReadAlignment.Platform platform = ReadAlignment.Platform.valueOf(value);
+		this.setPlatform(platform);
+	}
+	
+	
 	public byte getInputFormat() {
 		return inputFormat;
 	}
@@ -240,16 +275,6 @@ public class ReadsAligner {
 		this.knownSTRs = knownSTRs;
 	}
 	
-	public boolean isLongReads() {
-		return longReads;
-	}
-	public void setLongReads(boolean longReads) {
-		this.longReads = longReads;
-	}
-	public void setLongReads(Boolean longReads) {
-		this.setLongReads(longReads.booleanValue());
-	}
-	
 	public int getWindowLength() {
 		return windowLength;
 	}
@@ -260,6 +285,15 @@ public class ReadsAligner {
 		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public static void main(String[] args) throws Exception 
 	{
 		ReadsAligner instance = new ReadsAligner();
@@ -268,6 +302,7 @@ public class ReadsAligner {
 	}
 	
 	public void run () throws IOException {
+		long time = System.currentTimeMillis();
 		logParameters ();
 		QualifiedSequenceList sequences;
 		if(genome==null) {
@@ -282,23 +317,34 @@ public class ReadsAligner {
 			sequences = fMIndex.getSequencesMetadata();
 		} else {
 			sequences = genome.getSequencesMetadata();
-			if (!longReads) {
-				log.info("Calculating FM-index from genome file: "+genome.getFilename());
-				fMIndex = new ReferenceGenomeFMIndex(genome);
-			} else {
+			if (platform.isLongReads()) {
 				longReadsAligner = new LongReadsAligner();
 				longReadsAligner.setLog(log);
+				longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
 				longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+			} else {
+				log.info("Calculating FM-index from genome file: "+genome.getFilename());
+				fMIndex = new ReferenceGenomeFMIndex(genome);
 			}
 		}
-		 
-		PrintStream out = System.out; 
+		alignerSTRsLeft.setForceEnd1(false);
+		alignerSTRsRight.setForceStart1(false);
+		alignerFullRead.setForceStart2(false);
+		alignerFullRead.setForceEnd2(false);
+		boolean longReads = platform.isLongReads();
+		boolean paired = false;
+		PrintStream out = System.out;
 		if(outputFile!=null) out = new PrintStream(outputFile); 
 		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			if(inputFile!=null && inputFile2!=null) {
+			// TODO: Enable threads for long reads
+			if(numThreads>1 && !longReads) pool = new ThreadPoolManager(numThreads, platform.isLongReads()?1000:100000);
+			writer.setSampleInfo(sampleId, platform);
+			if(!longReads && inputFile!=null && inputFile2!=null) {
 				log.info("Aligning paired end reads from files: "+inputFile + " and "+inputFile2);
 				alignReads(inputFile,inputFile2, writer);
+				paired = true;
 			} else if (inputFile!=null) {
+				if(longReads && inputFile2!=null) log.warning("Paired end alignment not supported for long reads. Ignoring file "+ inputFile2);
 				log.info("Aligning single reads from file: "+inputFile);
 				alignReads(inputFile, writer);
 			} else if (inputFile2!=null ) {
@@ -307,7 +353,18 @@ public class ReadsAligner {
 				log.info("Aligning single reads from standard input");
 				alignReads(System.in, writer);
 			}
+			if(pool!=null) {
+				pool.terminatePool();
+			}
+			
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
 		}
+		double seconds = (System.currentTimeMillis()-time);
+		seconds /=1000;
+		log.info("Time: "+seconds+" seconds");
+		printStatistics(paired);
+		
 	}
 	
 	private void logParameters() {
@@ -318,16 +375,19 @@ public class ReadsAligner {
 		out.println("Output file:"+ outputFile);
 		if (genome!=null) out.println("Reference genome loaded from file: "+genome.getFilename());
 		else if (fmIndexFile!=null) out.println("FM index file "+fmIndexFile);
+		out.println("Sample id: "+ sampleId);
+		out.println("Platform: "+ platform);
 		out.println("K-mer length: "+ kmerLength);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
 		if (knownSTRsFile!=null) out.println("Fie with known short tandem repeats "+knownSTRsFile);
 		out.println("Maximum alignments per read: "+ maxAlnsPerRead);
-		if(longReads) {
+		if(platform.isLongReads()) {
 			out.println("Window length to calculate minimizers: "+ windowLength);
 		} else if (inputFile2!=null) {
 			out.println("Proper limits for paired-end alignment. Minimum: "+ minInsertLength+" maximum: "+maxInsertLength);
 		}
+		out.println("Number of threads: "+ numThreads);
 		log.info(os.toString());
 	}
 	public void loadSTRsFile(String strsFile) throws IOException {
@@ -393,10 +453,10 @@ public class ReadsAligner {
 	 * @param readsFile Fastq file with the reads to align
 	 * @param out
 	 * @throws IOException
+	 * @throws InterruptedException 
 	 */
-	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException {
+	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) loadSTRsFile(knownSTRsFile);
-		long time = System.currentTimeMillis();
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
 				//Load as DNAMaskedSequence to allow reverse complement
@@ -404,8 +464,9 @@ public class ReadsAligner {
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
 					RawRead read = it.next();
-					if (!processSingleRead(read, writer)) break;
-					
+					if (pool == null) processSingleRead(read, writer);
+					else pool.queueTask( () -> processSingleRead(read, writer));
+					if (!checkProgress()) break;
 				}
 			}
 		} else if(inputFormat== INPUT_FORMAT_FASTA) {
@@ -417,36 +478,31 @@ public class ReadsAligner {
 					//System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
 				
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
-					if (!processSingleRead(read, writer)) break;
+					if (pool == null) processSingleRead(read, writer);
+					else pool.queueTask( () -> processSingleRead(read, writer));
+					if (!checkProgress()) break;
 				}
 			}
 		}
-		double seconds = (System.currentTimeMillis()-time);
-		seconds /=1000;
-		log.info("Time: "+seconds+" seconds");
-		printStatistics(false);
-		
-		
 	}
 	private void printStatistics(boolean paired) {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
+		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
 		out.println("Reads with less than 2 mismatches: "+fewMismatchesAlns);
 		out.println("Complete alignments tried: "+completeAlns);
 		out.println("Total reads: "+totalReads);
 		out.println("Reads aligned: "+readsAligned);
 		if(paired) {
-			out.println("Reads aligned proper: "+proper);
-			out.println("Reads aligned notProper: "+notProper);
-			out.println("Reads aligned single: "+single);
-			out.println("Overall pairend alignment rate: "+(100.0*(proper+notProper)/(double)totalReads)+"%");
+			out.println("    Reads aligned as proper pairs: "+numProperPairs+ " Percentage: "+fmt.format(100.0*numProperPairs/(double)totalReads)+"%");
+			out.println("    Reads aligned as non proper pairs: "+numNonProperPairs+ " Percentage: "+fmt.format(100.0*numNonProperPairs/(double)totalReads)+"%");
+			out.println("    Reads aligned single: "+numAlignedSingle+ " Percentage: "+fmt.format(100.0*numAlignedSingle/(double)totalReads)+"%");
 		}
-		out.println("Unique alignments: "+uniqueAlignments);
-		out.println("Overall alignment rate: "+(100.0*readsAligned/(double)totalReads)+"%");
+		out.println("Unique alignments: "+uniqueAlignments+ " Percentage: "+fmt.format(100.0*uniqueAlignments/(double)totalReads)+"%");
+		out.println("Overall alignment rate: "+fmt.format(100.0*readsAligned/(double)totalReads)+"%");
 		log.info(os.toString());
 	}
-	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException {
-		long time = System.currentTimeMillis();
+	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(in)) {
 				//Load as DNAMaskedSequence to allow reverse complement
@@ -454,7 +510,9 @@ public class ReadsAligner {
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
 					RawRead read = it.next();
-					if (!processSingleRead(read, writer)) break;
+					if (pool == null) processSingleRead(read, writer);
+					else pool.queueTask( () -> processSingleRead(read, writer));
+					if (!checkProgress()) break;
 				}
 			}
 		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
@@ -464,40 +522,44 @@ public class ReadsAligner {
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
-					if (!processSingleRead(read, writer)) break;
+					if (pool == null) processSingleRead(read, writer);
+					else pool.queueTask( () -> processSingleRead(read, writer));
+					if (!checkProgress()) break;
 				}
 			}
 		}
-		
-		double seconds = (System.currentTimeMillis()-time);
-		seconds /=1000;
-		log.info("Time: "+seconds+" seconds");
-		
-		printStatistics(false);
 	}
-	private boolean processSingleRead(RawRead read, ReadAlignmentFileWriter writer) {
+	private void processSingleRead(RawRead read, ReadAlignmentFileWriter writer) {
 		List<ReadAlignment> alns = alignRead(read, true);
 		//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-		for(ReadAlignment aln:alns) writer.write(aln);
-		if(alns.size()==0) {
-			ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
-			writer.write(alnNoMap);
+		if(alns.size()>1) {
+			for(ReadAlignment aln:alns) aln.setAlignmentQuality((byte) Math.round(0.2*aln.getAlignmentQuality()/(double)alns.size()));
 		}
-		int numAlns = alns.size();
-		totalReads++;
-		if(numAlns>0) readsAligned++;
-		if(numAlns==1) uniqueAlignments++;
-		boolean report = totalReads%10000==0 || (longReads && totalReads%100==0);
-		int progress = totalReads/100;
-		if (!longReads) progress = progress/100;
-		if(report) {
-			log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned);
-			if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
-				log.info("Process cancelled by user");
-				return false;
+		synchronized (writer) {
+			for(ReadAlignment aln:alns) writer.write(aln);
+			if(alns.size()==0) {
+				ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
+				writer.write(alnNoMap);
 			}
+			totalReads++;
+			int numAlns = alns.size();
+			if(numAlns>0) readsAligned++;
+			if(numAlns==1) uniqueAlignments++;
 		}
+	}
+	private int lastProgress = 0;
+	private boolean checkProgress () {
+		int totalReadsFixed = totalReads;
+		int progress = totalReadsFixed/100;
+		if (!platform.isLongReads()) progress = progress/100;
+		if(lastProgress==progress) return true;
 		
+		log.info("Processed "+totalReadsFixed+" reads. Aligned: "+readsAligned);
+		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
+			log.info("Process cancelled by user");
+			return false;
+		}
+		lastProgress = progress;
 		return true;
 	}
 
@@ -508,106 +570,128 @@ public class ReadsAligner {
 	 * @param readsFile2 Fastq file with the reads to align
 	 * @param out
 	 * @throws IOException
+	 * @throws InterruptedException 
 	 */
-	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException {
+	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())loadSTRsFile(knownSTRsFile);
-		
-		long time = System.currentTimeMillis();
-		try (FastqFileReader reader1 = new FastqFileReader(readsFile1); FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
+		try (FastqFileReader reader1 = new FastqFileReader(readsFile1);
+			 FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
 			reader1.setSequenceType(DNAMaskedSequence.class);
 			reader2.setSequenceType(DNAMaskedSequence.class);
-			//Load as DNAMaskedSequence to allow reverse complement
 			Iterator<RawRead> it1 = reader1.iterator();
 			Iterator<RawRead> it2 = reader2.iterator();
 			while(it1.hasNext() && it2.hasNext()) {
 				RawRead read1 = it1.next();
 				RawRead read2 = it2.next();
-				List<ReadAlignment> alns1 = alignRead(read1,false);
-				for(ReadAlignment aln:alns1) aln.setFirstOfPair(true);
-				List<ReadAlignment> alns2 = alignRead(read2,false);
-				for(ReadAlignment aln:alns2) aln.setSecondOfPair(true);
-				totalReads++;
-				//System.out.println("Alignments found: "+alns1.size()+" "+alns2.size());
-				if(alns1.size()==0 || alns2.size()==0) {
-					ArrayList<ReadAlignment> unMapped = processUnMapped(read1, alns1,read2,alns2);
-					boolean mappedFound = false;
-					for (int i = 0; i < Math.min(unMapped.size(),maxAlnsPerRead+1); i++) {
-						ReadAlignment aln = unMapped.get(i);
-						if(!aln.isReadUnmapped()) mappedFound=true;
-						writer.write(aln);
-						
-					}
-					if(mappedFound) {
-						readsAligned++;
-						single++;
-					}
-					
-				} else {
-					boolean onlyProper=true;
-					List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
-					List<ReadAlignmentPair> pairAlns = findPairs(alns1, alns2,onlyProper);
-					if(pairAlns.isEmpty()) {
-						pairAlns = findPairs(alns1, alns2,false);
-						if(pairAlns.isEmpty()) {
-							single++;
-							for(int i=0;i<alns1.size();i++) {
-								ReadAlignment aln1 = alns1.get(i);
-								aln1.setPaired(true);
-								aln1.setMateDifferentSequence(true);
-								setMateInfo(aln1, alns2.get(0));
-								if(i>0) aln1.setSecondary(true);
-								alns.add(aln1);
-							}
-							for(int i=0;i<alns2.size();i++) {
-								ReadAlignment aln2 = alns2.get(i);
-								aln2.setPaired(true);
-								aln2.setMateDifferentSequence(true);
-								setMateInfo(aln2, alns1.get(0));
-								if(i>0) aln2.setSecondary(true);
-								alns.add(aln2);
-							}
-							
-						}
-						else {
-							notProper++;
-							addPairAlignments(alns, pairAlns);
-							if(pairAlns.size()==1) uniqueAlignments++;
-						}
-
-					} else {
-						proper++;
-						addPairAlignments(alns, pairAlns);
-						if(pairAlns.size()==1) uniqueAlignments++;
-					}
-					for(ReadAlignment aln:alns) writer.write(aln);
-					readsAligned++;
-					if(totalReads%10000==0) {
-						log.info("Processed "+totalReads+" reads. Aligned: "+readsAligned+ " proper pairs "+proper);
-						if (progressNotifier!=null && !progressNotifier.keepRunning(totalReads/10000)) {
-							log.info("Process cancelled by user");
-							break;
-						}
-					} 
-				}
+				if (pool==null) processPairedEndRead(read1, read2, writer);
+				else pool.queueTask(()->processPairedEndRead(read1, read2, writer));
+				if(!checkProgress()) break;
 			}
-
 		}
-		double seconds = (System.currentTimeMillis()-time);
-		seconds /=1000;
-		log.info("Time: "+seconds+" seconds");
-		printStatistics(true);
+	}
+	
+	private void processPairedEndRead (RawRead read1, RawRead read2, ReadAlignmentFileWriter writer) {
+		List<ReadAlignment> alns1 = alignRead(read1,false);
+		for(ReadAlignment aln:alns1) aln.setFirstOfPair(true);
+		List<ReadAlignment> alns2 = alignRead(read2,false);
+		for(ReadAlignment aln:alns2) aln.setSecondOfPair(true);
+		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
+		//System.out.println("Alignments found: "+alns1.size()+" "+alns2.size());
+		int numMapped = 0;
+		boolean proper = false;
+		boolean asPair = false;
+		int numUnique = 0;
+		if(alns1.size()==0 || alns2.size()==0) {
+			ArrayList<ReadAlignment> unMapped = processUnMapped(read1, alns1,read2,alns2);
+			int n = unMapped.size();
+			boolean mappedFound = false;
+			for (int i = 0; i < Math.min(n,maxAlnsPerRead+1); i++) {
+				ReadAlignment aln = unMapped.get(i);
+				if(!aln.isReadUnmapped()) {
+					mappedFound=true;
+					if (n>2) aln.setAlignmentQuality((byte) Math.round(0.2*aln.getAlignmentQuality()/(double)n));
+				}
+				alns.add(aln);
+			}
+			if(mappedFound) {
+				numMapped = 1;
+				if(n==2) numUnique = 1;
+			}
+		} else {
+			numMapped = 2;
+			List<ReadAlignmentPair> pairAlns = findPairs(alns1, alns2, true);
+			if(pairAlns.isEmpty()) {
+				pairAlns = findPairs(alns1, alns2,false);
+				if(pairAlns.isEmpty()) {
+					int n = alns1.size();
+					for(int i=0;i<n;i++) {
+						ReadAlignment aln1 = alns1.get(i);
+						aln1.setPaired(true);
+						aln1.setMateDifferentSequence(true);
+						setMateInfo(aln1, alns2.get(0));
+						if(i>0) aln1.setSecondary(true);
+						if (n>1) aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
+						else aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
+						alns.add(aln1);
+					}
+					if(n==1) numUnique++;
+					n = alns2.size();
+					for(int i=0;i<n;i++) {
+						ReadAlignment aln2 = alns2.get(i);
+						aln2.setPaired(true);
+						aln2.setMateDifferentSequence(true);
+						setMateInfo(aln2, alns1.get(0));
+						if(i>0) aln2.setSecondary(true);
+						if (n>1) aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
+						else aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
+						alns.add(aln2);
+					}
+					if(alns2.size()==1) numUnique++;
+				}
+				else {
+					addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
+					asPair=true;
+					if(pairAlns.size()==1) numUnique=2;
+				}
+
+			} else {
+				addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
+				asPair=true;
+				proper=true;
+				if(pairAlns.size()==1) numUnique=2;
+			}
+		}
+		synchronized (writer) {
+			for(ReadAlignment aln:alns) writer.write(aln);
+			totalReads+=2;
+			readsAligned+=numMapped;
+			if(proper) numProperPairs+=2;
+			else if (asPair) numNonProperPairs+=2;
+			else numAlignedSingle+=numMapped;
+			uniqueAlignments+=numUnique;
+		}
 	}
 
-	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns) {
+	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired) {
 		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
+			ReadAlignment aln1 = current.getAln1();
+			ReadAlignment aln2 = current.getAln2();
 			if(i>0) {
-				current.getAln1().setSecondary(true);
-				current.getAln2().setSecondary(true);
+				aln1.setSecondary(true);
+				aln2.setSecondary(true);
 			}
-			alns.add(current.getAln1());
-			alns.add(current.getAln2());
+			if (n>1) {
+				aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
+				aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
+			} else if (!aln1.isProperPair() || !aln2.isProperPair()) {
+				double div = Math.max(numAlnsUnpaired-1,1);
+				aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()/div));
+				aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()/div));
+			}
+			alns.add(aln1);
+			alns.add(aln2);
 		}
 	}
 
@@ -750,12 +834,11 @@ public class ReadsAligner {
 		return alns.get(r.nextInt(alns.size())) ;
 	}
 
-	private ReadAlignment buildAln(CharSequence query, String sequenceName, int first, int last, String cigar, double alnQual) {
+	private ReadAlignment buildAln(CharSequence query, String sequenceName, int first, int last, List<Integer> alignmentCodes) {
 		if(first <=0) return null;
 		ReadAlignment aln = new ReadAlignment(sequenceName, first, last, query.length(), 0);
 		aln.setReadCharacters(query);
-		if(cigar!=null)aln.setCigarString(cigar);
-		aln.setAlignmentQuality((short) Math.round(alnQual));
+		if(alignmentCodes!=null)aln.setAlignment(alignmentCodes);
 		//verify last exists
 		if(!fMIndex.isValidPosition(sequenceName,aln.getLast())) return null;
 		return aln;
@@ -810,13 +893,14 @@ public class ReadsAligner {
 	}
 	private List<ReadAlignment> fewMismatchesSingleStrandSearch(String query, int maxMismatches) {
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
-		String cigar = ""+query.length();
-		cigar += ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		List<Integer> alignment = new ArrayList<Integer>(1);
+		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
 		// Whole read exact search
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
 		for(int i=0;i<readHits.size()&& i<maxAlnsPerRead;i++) {
 			UngappedSearchHit hit = readHits.get(i);
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
+			aln.setAlignmentQuality((byte) 100);
 			if(aln!=null) alns.add(aln);
 		}
 		if (alns.size()>0) return alns;
@@ -826,11 +910,17 @@ public class ReadsAligner {
 		String firstPart = query.substring(0,middle);
 		readHits=fMIndex.exactSearch(firstPart);
 		for(UngappedSearchHit hit: readHits) {
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), cigar, 100);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
 			if (aln==null) continue;
-			int mismatches = countMismatches(query, aln);
-			if(mismatches<=maxMismatches) {
-				aln.setAlignmentQuality((short) (aln.getAlignmentQuality()-mismatches));
+			int[] mismatches = countMismatches(query, aln);
+			if(mismatches==null) continue;
+			if(mismatches[0]<=maxMismatches) {
+				if (mismatches[1]+mismatches[2]>0) {
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
+				}
+				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
+				aln.setNumMismatches((short) mismatches[0]);
+				
 				alns.add(aln);
 				//Best alignments selected during the filtering step
 				if(alns.size()>=3*maxAlnsPerRead) break;
@@ -842,11 +932,17 @@ public class ReadsAligner {
 		for(UngappedSearchHit hit: readHits) {
 			int start = hit.getStart()-middle;
 			if(start<0) continue;
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), cigar, 100);
+			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), alignment);
 			if (aln==null) continue;
-			int mismatches = countMismatches(query, aln);
-			if(mismatches<=maxMismatches) {
-				aln.setAlignmentQuality((short) (aln.getAlignmentQuality()-mismatches));
+			int[] mismatches = countMismatches(query, aln);
+			if(mismatches==null) continue;
+			//System.out.println("Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+cigar);
+			if(mismatches[0]<=maxMismatches) {
+				if (mismatches[1]+mismatches[2]>0) {
+					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
+				}
+				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
+				aln.setNumMismatches((short) mismatches[0]);
 				alns.add(aln);
 				//Best alignments selected during the filtering step
 				if(alns.size()>=3*maxAlnsPerRead) break;
@@ -854,9 +950,21 @@ public class ReadsAligner {
 		}
 		return alns;
 	}
+	private List<Integer> encodeAlignment(int length, int[] mismatches) {
+		List<Integer> answer = new LinkedList<Integer>();
+		int l2 = length-mismatches[1]-mismatches[2];
+		if(mismatches[1]>0) {
+			answer.add(ReadAlignment.getAlnValue(mismatches[1], ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+		}
+		answer.add(ReadAlignment.getAlnValue(l2, ReadAlignment.ALIGNMENT_MATCH));
+		if(mismatches[2]>0) {
+			answer.add(ReadAlignment.getAlnValue(mismatches[2], ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+		}
+		return answer;
+	}
 	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
 		List<ReadAlignment> alignments;
-		if(longReads) {
+		if(platform.isLongReads()) {
 			alignments = longReadsAligner.alignQueryToReference(readSeq);
 		} else {
 			alignments = kmerBasedSingleStrandInexactSearchAlgorithm(readSeq);
@@ -886,12 +994,12 @@ public class ReadsAligner {
 		//ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
 		//if(readAln!=null) finalAlignments.add(readAln);
 		int kmersMaxCluster = 0;
-		for (int i=0;i<clusteredKmerHits.size() && i<maxAlnsPerRead;i++) {
+		for (int i=0;i<clusteredKmerHits.size() && i<2*maxAlnsPerRead;i++) {
 			KmerHitsCluster cluster = clusteredKmerHits.get(i);
 			int numKmers = cluster.getNumDifferentKmers();
 			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = numKmers;
-			else if (numKmers<3 || numKmers < 0.4*kmersMap.size() || numKmers<0.5*kmersMaxCluster) break;
+			else if (finalAlignments.size()>0 && (numKmers<2 || numKmers< 0.5*kmersMaxCluster)) break;
 			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
 			if(readAln!=null) finalAlignments.add(readAln);
 		}
@@ -956,59 +1064,112 @@ public class ReadsAligner {
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
 		int lastPerfect = first+query.length()-1;
-		//System.out.println("Reference region from k-mers: "+first+"-"+last+" all consistent: "+cluster.isAllConsistent()+" lastPerfect: "+lastPerfect+" firstaln: "+cluster.isFirstKmerPresent()+" last aln: "+cluster.isLastKmerPresent());
-		String cigar = ""+query.length()+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
-		double alnQual = 100.0;
-		ReadAlignment aln = buildAln(query, sequenceName, first, lastPerfect, cigar, alnQual);
+		List<Integer> alignment = new ArrayList<Integer>(1);
+		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
+		ReadAlignment aln = buildAln(query, sequenceName, first, lastPerfect, alignment);
 		if(aln!=null) {
-			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+cigar);
+			//System.out.println("Built alignment at "+sequenceName+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString());
 			GenomicRegion region =findTandemRepeat(sequenceName,first,last);
 			if(region!=null) {
 				ReadAlignment newaln=verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(), aln.getLast(),query,region);
 				//System.out.println("Found overlapping tandem repeat at "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" new aln: "+newaln);
-				if(newaln!=null) return newaln;
+				if(newaln!=null) {
+					return newaln;
+				}
 			}
-			if(cluster.isAllConsistent()) {
-				int mismatches = countMismatches (query, aln);
-				//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
-				if(mismatches<0.05*query.length()) return aln;
+			if(cluster.getNumDifferentKmers()>2 && cluster.isAllConsistent()) {
+				int [] mismatches = countMismatches (query, aln);
+				if(mismatches !=null && mismatches[0]<0.05*query.length() && mismatches[1]+mismatches[2] < 0.1*query.length()) {
+					int ends = mismatches[1]+mismatches[2]; 
+					//if (ends > mismatches[0]) System.err.println("Problem counting mismatches for "+sequenceName+":"+first+" read: "+query+" mismatches: "+mismatches[0]+" "+mismatches[1]+" "+mismatches[2]);
+					if (ends>0) aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], encodeAlignment(query.length(),mismatches));
+					aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
+					aln.setNumMismatches((short) mismatches[0]);
+					//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
+					return aln;
+				}
 			}
 		}
 		if(!runFullAlignment) return null;
 		//Perform smith waterman
-		completeAlns++;
-		if(!cluster.isFirstKmerPresent()) first -=10;
-		first = Math.max(1, first);
-		if(!cluster.isLastKmerPresent()) last+=10;
-		last = Math.min(fMIndex.getReferenceLength(sequenceName), last);
+		first = Math.max(1, first-3);
+		last = Math.min(fMIndex.getReferenceLength(sequenceName), last+3);
+		if(last-first+1>1.5*query.length()) return null;
 		CharSequence refSeq = fMIndex.getSequence(sequenceName, first, last);
 		if(refSeq == null) return null;
+		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
-		PairwiseAlignmentWithCigar pAln = new PairwiseAlignmentWithCigar(query, refSeq.toString(), false);
-		//TODO: Make better score
-		//System.out.println("Pairwise alignment found from relative : "+pAln.getSubjectStartIdx()+" to "+pAln.getSubjectLastIdx()+" CIGAR:" +pAln.getCigar()+" ");
-		if(pAln.getMismatches()>0.05*query.length()) return null;
-		//Last must be updated before first
-		last = first + pAln.getSubjectLastIdx();
-		first = first + pAln.getSubjectStartIdx();
-		cigar = pAln.getCigar();
-		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar);
-		alnQual = 100.0* (query.length() - pAln.getMismatches())/query.length();
-		return buildAln(query, sequenceName, first, last, cigar, alnQual);
+		completeAlns++;
+		String [] rawAln;
+		synchronized (alignerFullRead) {
+			rawAln = alignerFullRead.getAlignment(query, refSeq.toString());
+		}
+		int mismatches = countMismatches(rawAln);
+		if(mismatches>0.1*query.length()) return null;
+		LinkedList<Integer> alnCodes = ReadAlignment.encodePairwiseAlignment(rawAln);
+		aln = buildAln(query, sequenceName, first, last, alnCodes);
+		if(aln==null) return null;
+		if (!aln.clipBorders(kmerLength)) return null;
+		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
+		aln.setAlignmentQuality((byte) Math.round(100-5*mismatches));
+		aln.setNumMismatches((short)mismatches);
+		
+		return aln;
 	}
-
-	private int countMismatches(CharSequence query, ReadAlignment aln) {
-		int mismatches = 0;
-		CharSequence refS = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast());
-		if(refS==null) return query.length();
-		String refSeq = refS.toString();
-		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
-			if(query.charAt(i)!=refSeq.charAt(i)) {
-				mismatches++;
+	private int countMismatches(String[] alignedSequences) {
+		int answer = 0;
+		boolean lastIsGap = true;
+		for(int i=0;i<alignedSequences[0].length();i++) {
+			char c1 = alignedSequences[0].charAt(i);
+			char c2 = alignedSequences[1].charAt(i);
+			if(c1==LimitedSequence.GAP_CHARACTER || c2 == LimitedSequence.GAP_CHARACTER) {
+				if(!lastIsGap) answer+=2;
+				lastIsGap = true;
+			} else {
+				if(c1!=c2) answer++;
+				lastIsGap = false;
 			}
 		}
-		mismatches+=Math.abs(query.length()-refSeq.length());
-		return mismatches;
+		if(lastIsGap) answer-=2;
+		return answer;
+	}
+	private int [] countMismatches(CharSequence query, ReadAlignment aln) {
+		int [] answer = {0,0,0};
+		CharSequence refS = fMIndex.getSequence(aln.getSequenceName(), aln.getFirst(), aln.getLast());
+		if(refS==null) return null;
+		String refSeq = refS.toString();
+		int lastMismatch = -1;
+		boolean startAssigned = false;
+		for (int i=0;i<query.length() && i<refSeq.length();i++ ) {
+			if(query.charAt(i)!=refSeq.charAt(i)) {
+				answer[0]++;
+				lastMismatch=i;
+			} else if (startAssigned==false && answer[0]+3<i) {
+				answer[1]=lastMismatch+1;
+				startAssigned = true;
+			}
+		}
+		if (query.length()!=refSeq.length()) {
+			answer[0]+=Math.abs(query.length()-refSeq.length());
+			answer[2]=Math.max(0, query.length()-refSeq.length());
+		} else {
+			lastMismatch=refSeq.length();
+			int numM =0;
+			for (int i=query.length()-1;i>=0;i-- ) {
+				if (query.charAt(i)!=refSeq.charAt(i)) {
+					lastMismatch = i;
+					numM++;
+				} else {
+					int revIdx = refSeq.length()-1-i;
+					if (numM+3<revIdx) {
+						answer[2]=refSeq.length()-lastMismatch;
+						break;
+					}
+				}
+			}
+		}
+		
+		return answer;
 	}
 
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
@@ -1016,18 +1177,17 @@ public class ReadsAligner {
 		Collections.sort(alignments, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
 		short bestQual = alignments.get(0).getAlignmentQuality();
 		//TODO. Investigate alignment score
-		double threshold = 0.8*bestQual;
+		int threshold = (int) (0.9*bestQual);
 		List<ReadAlignment> filteredAlignments = new ArrayList<>();
 		int n = Math.min(alignments.size(),maxAlnsPerRead);
 		for (int i=0;i<n;i++) {
-			ReadAlignment aln = alignments.get(i);
-			if(aln.getAlignmentQuality()<threshold) break;
+			ReadAlignment aln = alignments.get(i);	
+			//System.out.println("read: "+aln.getReadCharacters()+" First: "+aln.getFirst()+" flags: "+aln.getFlags()+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
+			if(aln.getAlignmentQuality()<=threshold) break;
 			if(assignSecondary && i>0) aln.setSecondary(true);
 			filteredAlignments.add(aln);
 		}
-		if(filteredAlignments.size()>1) {
-			for(ReadAlignment aln:filteredAlignments) aln.setAlignmentQuality((short) Math.round(0.1*aln.getAlignmentQuality()));
-		}
+		//System.out.println("Initial alignments: "+alignments.size()+" final: "+filteredAlignments.size());
 		return filteredAlignments;
 	}
 	
@@ -1063,14 +1223,13 @@ public class ReadsAligner {
 	 * @return
 	 */
 	public ReadAlignment verifyShortTandemRepeats(String sequenceName, int first, int last, String read, GenomicRegion region) {
-		PairwiseAlignmentWithCigar leftPart = null;
-		PairwiseAlignmentWithCigar rightPart = null;
-		int firstLeftPart = Math.max(first-10,1);
+		int firstLeftPart = Math.max(first,1);
 		int softClipLeft = 0;
 		int softClipRight = 0;
-		String cigarLeft=null;
-		String cigarRight=null;
-		char softClipChar = ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
+		LinkedList<Integer> encodedLeftAln = null;
+		LinkedList<Integer> encodedRightAln = null;
+		int leftMismatches = 0;
+		int rightMismatches = 0;
 		if(first<region.getFirst()-5) {
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, firstLeftPart, region.getFirst()-1).toString();
 			if(refSeq!=null) {
@@ -1078,198 +1237,101 @@ public class ReadsAligner {
 				String readSegment = read.substring(0,endReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				leftPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false);
-				softClipLeft = readSegment.length()-1 - leftPart.getQueryLastIdx();
-				String softClipSubstr = "";
-				if(softClipLeft>0) softClipSubstr = ""+softClipLeft+""+softClipChar;
-				//System.out.println("Left part query start: "+leftPart.getQueryStartIdx()+" subject start: "+leftPart.getSubjectStartIdx()+" mismatches: "+leftPart.getMismatches()+" cigar: "+leftPart.getCigar()+" soft clip: "+softClipLeft);
-				if(leftPart.getMismatches()>3 || firstLeftPart+leftPart.getSubjectLastIdx()!=region.getFirst()-1 || !leftPart.getCigar().endsWith(softClipSubstr)) leftPart = null;
-				else {
-					//Remove soft clip part and update soft clip total with removed segment of the read
-					cigarLeft = leftPart.getCigar().substring(0,leftPart.getCigar().length()-softClipSubstr.length());
-					softClipLeft+=(read.length()-readSegment.length());
+				String [] alignmentLeft;
+				synchronized (alignerSTRsLeft) {
+					alignmentLeft = alignerSTRsLeft.getAlignment(readSegment, refSeq.toString());
 				}
+				leftMismatches = countMismatches(alignmentLeft);
+				encodedLeftAln = ReadAlignment.encodePairwiseAlignment(alignmentLeft);
+				int lastCode = encodedLeftAln.getLast();
+				if (leftMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(lastCode)==ReadAlignment.ALIGNMENT_INSERTION) {
+					softClipLeft = ReadAlignment.getOperationLength(lastCode);
+					encodedLeftAln.removeLast();
+				} else {
+					encodedLeftAln = null;
+				}
+				softClipLeft+=(read.length()-endReadSegment);
 			}	
 		}
 		if(last>region.getLast()+5) {
-			CharSequence refSeq = fMIndex.getSequence(sequenceName, region.getLast()+1, last+10);
+			CharSequence refSeq = fMIndex.getSequence(sequenceName, region.getLast()+1, last);
 			if(refSeq!=null) {
 				int startReadSegment= Math.max(0, read.length()-(last-region.getLast())-5);
 				String readSegment = read.substring(startReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				rightPart = new PairwiseAlignmentWithCigar(readSegment, refSeq.toString(), false);
-				softClipRight = rightPart.getQueryStartIdx();
-				String softClipSubstr = "";
-				if(softClipRight>0) softClipSubstr = ""+softClipRight+""+softClipChar;
-				//System.out.println("Right part query start: "+rightPart.getQueryStartIdx()+" subject start: "+rightPart.getSubjectStartIdx()+" mismatches: "+rightPart.getMismatches()+" cigar: "+rightPart.getCigar()+" soft clip: "+softClipRight);
-				if(rightPart.getMismatches()>3 || rightPart.getSubjectStartIdx()!=0 || !rightPart.getCigar().startsWith(softClipSubstr)) rightPart = null;
-				else {
-					cigarRight = rightPart.getCigar().substring(softClipSubstr.length());
-					softClipRight+=startReadSegment;
+				String [] alignmentRight;
+				synchronized (alignerSTRsRight) {
+					alignmentRight = alignerSTRsRight.getAlignment(readSegment, refSeq.toString());
 				}
+				rightMismatches = countMismatches(alignmentRight);
+				encodedRightAln = ReadAlignment.encodePairwiseAlignment(alignmentRight);
+				int firstCode = encodedRightAln.getFirst();
+				if (rightMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(firstCode)==ReadAlignment.ALIGNMENT_INSERTION) {
+					softClipRight = ReadAlignment.getOperationLength(firstCode);
+					encodedRightAln.removeFirst();
+				} else {
+					encodedRightAln=null;
+				}
+				softClipRight+=startReadSegment;
+				
 			}	
 		}
-		if(leftPart==null && rightPart ==null) {
+		if(encodedLeftAln==null && encodedRightAln ==null) {
 			return null;
 		}
-		if(rightPart==null) {
+		if(encodedRightAln==null) {
 			//Left alignment with right soft clip
-			first = firstLeftPart + leftPart.getSubjectStartIdx();
-			last = region.getFirst()-1;
-			String cigar = cigarLeft;
-			if(softClipLeft>0) cigar+=""+softClipLeft+""+softClipChar;
-			double alnQual = 100.0* (read.length() - leftPart.getMismatches())/read.length();
-			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			return buildAln(read, sequenceName, first, last, cigar, alnQual);
+			if(softClipLeft>0) encodedLeftAln.add(ReadAlignment.getAlnValue(softClipLeft, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+			ReadAlignment aln = buildAln(read, sequenceName, firstLeftPart, region.getFirst()-1, encodedLeftAln);
+			if(aln==null) return null;
+			//System.out.println("Left alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
+			if (!aln.clipBorders(kmerLength)) return null;
+			aln.setAlignmentQuality((byte)(90-5*leftMismatches));
+			aln.setNumMismatches((short) leftMismatches);
+			return aln;
 		}
-		if(leftPart==null) {
+		if(encodedLeftAln==null) {
 			//Right alignment with left soft clip
 			first = region.getLast()+1;
-			last = first + rightPart.getSubjectLastIdx();
-			String cigar = "";
-			if(softClipRight>0) cigar+=softClipRight+""+softClipChar;
-			cigar+=cigarRight;
-			double alnQual = 100.0* (read.length() - rightPart.getMismatches())/read.length();
-			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +cigar+" quality: "+alnQual);
-			return buildAln(read, sequenceName, first, last, cigar, alnQual);
+			if(softClipRight>0) encodedRightAln.addFirst(ReadAlignment.getAlnValue(softClipRight, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+			ReadAlignment aln = buildAln(read, sequenceName, region.getLast()+1, last, encodedRightAln);
+			if(aln==null) return null;
+			//System.out.println("Right alignment new genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
+			if (!aln.clipBorders(kmerLength)) return null;
+			aln.setAlignmentQuality((byte)(90-5*rightMismatches));
+			aln.setNumMismatches((short) rightMismatches);
+			return aln;
 		}
-		first = firstLeftPart + leftPart.getSubjectStartIdx();
-		last = region.getLast()+1 + rightPart.getSubjectLastIdx();
+		first = firstLeftPart;
 		int alignedLeft = read.length()-softClipLeft;
 		int alignedRight = read.length()-softClipRight;
 		int middleLength = read.length()-alignedLeft-alignedRight;
 		if(middleLength<0) return null;
 		int difference = region.length()-middleLength;
 		//System.out.println("Aligned left: "+alignedLeft+" aligned right: "+alignedRight+" middle length: "+middleLength+" difference: "+difference);
-		String cigar = cigarLeft;
+		LinkedList<Integer> alignmentList = new LinkedList<Integer>();
+		alignmentList.addAll(encodedLeftAln);
 		if(difference>0) {
 			// Region length > middle length. Add deletion
-			cigar+=(difference)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_DELETION);
-			if(middleLength>0) cigar+= (middleLength)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			alignmentList.add(ReadAlignment.getAlnValue(difference, ReadAlignment.ALIGNMENT_DELETION));
+			if(middleLength>0) alignmentList.add(ReadAlignment.getAlnValue(middleLength, ReadAlignment.ALIGNMENT_MATCH));
 		} else if (difference<0) {
 			// Region length < middle length. Add insertion
-			cigar+=(-difference)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_INSERTION);
-			if(middleLength>0) cigar+= (region.length())+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			alignmentList.add(ReadAlignment.getAlnValue(-difference, ReadAlignment.ALIGNMENT_INSERTION));
+			if(region.length()>0) alignmentList.add(ReadAlignment.getAlnValue(region.length(), ReadAlignment.ALIGNMENT_MATCH));
 		} else {
-			if(middleLength>0) cigar+= (middleLength)+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+			if(middleLength>0) alignmentList.add(ReadAlignment.getAlnValue(middleLength, ReadAlignment.ALIGNMENT_MATCH));
 		}
 		
-		cigar+=cigarRight;
-		double alnQual = 100.0* (read.length() - leftPart.getMismatches()-rightPart.getMismatches())/read.length();
-		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+cigar);
-		
-		return buildAln(read, sequenceName, first, last, cigar, alnQual);
+		alignmentList.addAll(encodedRightAln);
+		short mismatches = (short) (leftMismatches+rightMismatches);
+		ReadAlignment aln = buildAln(read, sequenceName, first, last, alignmentList);
+		if(aln==null) return null;
+		//System.out.println("Building alignment from first "+first+" last: "+last+" softClipLeft: "+softClipLeft+" softClip right "+softClipRight+" cigar "+aln.getCigarString());
+		if (!aln.clipBorders(kmerLength)) return null;
+		aln.setAlignmentQuality((byte)(100-5*mismatches));
+		aln.setNumMismatches(mismatches);
+		return aln;
 	}
 }
-
-class PairwiseAlignmentWithCigar {
-	private static PairwiseAlignmentAffineGap aligner = new PairwiseAlignmentAffineGap(1, 2, 1, 1);
-	private String query;
-	private String subject;
-	private int subjectStartIdx=-1;
-	private int subjectLastIdx=-1;
-	private int queryStartIdx=-1;
-	private int queryLastIdx=-1;
-	private String cigar;
-	private int mismatches=0;
-	
-	public PairwiseAlignmentWithCigar (String query, String subject, boolean includeEndSubject) {
-		//System.out.println("Query length: "+query.length()+" subject length: "+subject.length());
-		this.query = query;
-		this.subject = subject;
-		String [] alignment = aligner.getAlignment(query, subject);
-		String alnQuery = alignment[0];
-		//System.out.println(alnQuery);
-		String alnSubject = alignment[1];
-		//System.out.println(alnSubject);
-		StringBuilder cigarBuilder = new StringBuilder();
-		int subjectIdx = 0;
-		int queryIdx = 0;
-		byte nextOpCode = -1;
-		int nextOpLength = 0;
-		for(int i=0;i<alnQuery.length();i++) {
-			char q = alnQuery.charAt(i);
-			char s = alnSubject.charAt(i);
-			byte opCode = ReadAlignment.ALIGNMENT_MATCH;
-			if(q!=LimitedSequence.GAP_CHARACTER) {
-				if(s!=LimitedSequence.GAP_CHARACTER) {
-					if(subjectStartIdx==-1) subjectStartIdx = subjectIdx;
-					if(queryStartIdx==-1) queryStartIdx = queryIdx;
-					queryLastIdx = queryIdx;
-					if(q!=s) mismatches++;
-					subjectIdx++;
-				} else {
-					if(subjectIdx==0 || subjectIdx>=subject.length()) {
-						opCode = ReadAlignment.ALIGNMENT_SKIPFROMREAD;
-					} else {
-						opCode = ReadAlignment.ALIGNMENT_INSERTION;
-					}
-				}
-				queryIdx++;
-			} else if (s!=LimitedSequence.GAP_CHARACTER) {
-				opCode = ReadAlignment.ALIGNMENT_DELETION;
-				subjectIdx++;
-			}
-			if(opCode!=nextOpCode) {
-				if(nextOpCode>=0) {
-					if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx +=nextOpLength;
-					if(cigarBuilder.length()>0 || nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
-						cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-						if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-						 
-					}
-				}
-				nextOpCode = opCode;
-				nextOpLength = 0;
-			}
-			nextOpLength++;
-		}
-		if(nextOpCode>=0) {
-			if(nextOpCode!=ReadAlignment.ALIGNMENT_DELETION || includeEndSubject) {
-				cigarBuilder.append(nextOpLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(nextOpCode));
-				if(nextOpCode!=ReadAlignment.ALIGNMENT_MATCH && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) mismatches+=2;
-				if(nextOpCode!=ReadAlignment.ALIGNMENT_INSERTION && nextOpCode!=ReadAlignment.ALIGNMENT_SKIPFROMREAD) subjectLastIdx += nextOpLength;
-			}
-		}
-		cigar = cigarBuilder.toString();
-	}
-
-	public String getQuery() {
-		return query;
-	}
-
-	public String getSubject() {
-		return subject;
-	}
-
-
-	public int getSubjectStartIdx() {
-		return subjectStartIdx;
-	}
-	
-	public int getSubjectLastIdx() {
-		return subjectLastIdx;
-	}
-	
-	public int getQueryStartIdx() {
-		return queryStartIdx;
-	}
-
-	public int getQueryLastIdx() {
-		return queryLastIdx;
-	}
-
-	public String getCigar() {
-		return cigar;
-	}
-
-	public int getMismatches() {
-		return mismatches;
-	}
-}
-
-
-
-
-

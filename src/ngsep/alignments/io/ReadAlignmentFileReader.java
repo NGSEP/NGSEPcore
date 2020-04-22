@@ -38,6 +38,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import ngsep.alignments.ReadAlignment;
@@ -217,9 +218,9 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			if(!SAMRecord.NO_ALIGNMENT_CIGAR.equals(alnRecord.getCigarString())) cigar = alnRecord.getCigarString();
 			answer.setCigarString(cigar);
 		}
-		short alnQuality = (short) alnRecord.getMappingQuality();
-		if(alnQuality>255) alnQuality = 255;
-		answer.setAlignmentQuality(alnQuality);
+		int alnQuality = alnRecord.getMappingQuality();
+		if(alnQuality>127) alnQuality = 127;
+		answer.setAlignmentQuality((byte) alnQuality);
 		answer.setMateSequenceName(mateSequenceName);
 		answer.setMateFirst(alnRecord.getMateAlignmentStart());
 		answer.setInferredInsertSize(alnRecord.getInferredInsertSize());
@@ -228,6 +229,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			String id = readGroupIds.addOrLookupName(readGroup.getId()).getName();
 			answer.setReadGroup(id);
 		}
+		Integer mismatches = alnRecord.getIntegerAttribute(SAMTag.NM.toString());
+		if (mismatches!=null) answer.setNumMismatches((short) Math.min(mismatches,32000));
 		if (loadMode >= LOAD_MODE_SEQUENCE) {
 			answer.setReadCharacters(alnRecord.getReadString());
 			answer.setQualityScores(alnRecord.getBaseQualityString());
