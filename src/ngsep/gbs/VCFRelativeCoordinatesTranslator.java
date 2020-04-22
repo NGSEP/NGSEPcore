@@ -31,7 +31,7 @@ public class VCFRelativeCoordinatesTranslator {
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
 	private static ReferenceGenome refGenome;
-	private Map<Integer, ReadAlignment> alignmentsHash;
+	private Map<String, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
 	int skippedRecords = 0;
@@ -304,9 +304,9 @@ public class VCFRelativeCoordinatesTranslator {
 				} else {
 					algnName = algn.getReadName();
 				}
-				int clusterId = Integer.parseInt(algnName);
+				//int clusterId = Integer.parseInt(algnName);
 				if(!algn.isSecondary()) {
-					this.alignmentsHash.put(clusterId, algn);
+					this.alignmentsHash.put(algnName, algn);
 				}
 			}
 		}
