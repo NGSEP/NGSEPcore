@@ -805,6 +805,10 @@ K-mer length to find orthologs.
 <option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
 Minimum percentage of k-mers to call orthologs
 </option>
+<option id="s" type="BOOLEAN" attribute="skipMCL">
+Skip the MCL clustering phase and return unfiltered orthogroups.
+</option>
+</command>
 <!--
 <option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
 Maximum number of homologs per unit to be displayed in the D3 visualization

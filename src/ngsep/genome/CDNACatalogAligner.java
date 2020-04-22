@@ -20,7 +20,7 @@ import ngsep.transcriptome.Transcript;
 
 public class CDNACatalogAligner {
 	// Constants for default values
-	public static final String DEF_OUT_PREFIX = "organismsAlignment";
+	public static final String DEF_OUT_PREFIX = "catalogsAlignment";
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
@@ -152,7 +152,7 @@ public class CDNACatalogAligner {
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsOrganisms(cdnaCatalogs, homologyEdges, skipMCL);
+		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges, skipMCL);
 	}
 	
 	public void printResults() throws FileNotFoundException {
