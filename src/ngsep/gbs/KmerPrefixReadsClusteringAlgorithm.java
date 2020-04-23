@@ -402,7 +402,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			String filename1 = filenamesBySampleId1.get(sampleId);
 			String filename2 = filenamesBySampleId2.get(sampleId);
 			if(filename2 == null) {
-				ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(sampleId + "_1");
+				ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(sampleId);
 				log.info("Clustering reads from " + filename1);
 				int unmatchedReads = 0;
 				int count = 1;
@@ -446,9 +446,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 						// process forward
 						this.numTotalReads += 2;
 						RawRead read1 = it1.next();
-						String read1s = read1.getSequenceString();
-						if(DEF_START + kmerLength>read1s.length()) continue;
-						String prefix = read1s.substring(DEF_START,DEF_START + kmerLength);
+						CharSequence read1s = read1.getCharacters();
+						RawRead read2 = it2.next();
+						CharSequence read2s = read2.getCharacters();
+						if(DEF_START + kmerLength>read1s.length() || DEF_START + kmerLength>read2s.length()) continue;
+						String prefix = read1s.subSequence(DEF_START,DEF_START + kmerLength).toString();
 						if(!DNASequence.isDNA(prefix)) continue;
 						Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
 						if(clusterId==null) {
@@ -458,17 +460,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 						}
 						clusterSizes[clusterId]++;
 						if(clusterSizes[clusterId]<=maxClusterDepth) {
-							clusteredReadsCache_1.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), read1s, read1.getQualityScores()));
+							String prefixReadId = sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR;
+							clusteredReadsCache_1.addSingleRead(clusterId, new RawRead(prefixReadId+read1.getName(), read1s, read1.getQualityScores()));
+							clusteredReadsCache_2.addSingleRead(clusterId, new RawRead(prefixReadId+read2.getName(), read2s, read2.getQualityScores()));
 						}
-						//process reverse 
-						RawRead read2 = it2.next();
-						String read2s = read2.getSequenceString();
-						if(DEF_START + kmerLength>read1s.length()) continue;
-						clusterSizes[clusterId]++;
-						if(clusterSizes[clusterId]<=maxClusterDepth) {
-							clusteredReadsCache_2.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read2.getName(), read2s, read2.getQualityScores()));
-						}
-						
 						count++;
 					}
 					clusteredReadsCache_1.dump(outputPrefix);
@@ -478,7 +473,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					outfiles = clusteredReadsCache_1.getClusteredReadFiles();
 					List<String> outfiles_2 = clusteredReadsCache_2.getClusteredReadFiles();
 					outfiles.addAll(outfiles_2);
-					
 				}
 			}
 		}
@@ -488,7 +482,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException, InterruptedException {
 		int numberOfFiles = clusteredReadsFilenames.size();
-
+		//TODO: Move to second step
 		for(int size: this.clusterSizes) {
 			if(size>maxClusterDepth) {
 				this.numLargeClusters++;
@@ -499,7 +493,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				this.numReadsSmallClusters += size;
 			}
 		}
-		
+		//TODO: Make two methods and modify flag accordingly
+		boolean pairedEnd = (filesDescriptor!=null);
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
@@ -546,7 +541,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			while(numNotNull>0) {
 				
 				//gather reads next cluster
-				ReadCluster nextCluster = new ReadCluster(numCluster);
+				ReadCluster nextCluster = new ReadCluster(numCluster,pairedEnd);
 				for(int i=0; i<numberOfFiles; i++) {
 					
 					//skip small clusters
@@ -571,7 +566,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task
 				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
-				    newTask.setPairedEnd(filesDescriptor != null);
+				    newTask.setPairedEnd(pairedEnd);
 				    poolManager.queueTask(newTask);
 				}
 				if(numCluster%10000 == 0) {
@@ -635,7 +630,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			if (currentReadCluster>numCluster) break;
 			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorganized file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
 //			System.out.println("From cluster: " + sampleId + "\tFrom read: " + currentRead.getName());
-			nextCluster.addRead(currentRead, sampleId);
+			nextCluster.addSingleRead(currentRead, sampleId);
 			if(iterator.hasNext()) {
 				currentReads[i] = iterator.next();
 				currentRead = currentReads[i];
@@ -723,11 +718,11 @@ class ClusteredReadsCache {
 	private Map<Integer,List<RawRead>> clusteredReadsCache = new TreeMap<>();
 	private Map<Integer, Map<String, String>> clusterInfo = new TreeMap<>();
 	private int totalReads = 0;
-	private String fileName;
+	private String filename;
 	private List<String> outFiles = new ArrayList<>();
 
 	public ClusteredReadsCache(String filename) {
-		this.fileName = fileName;
+		this.filename = filename;
 	}
 	
 	public void addSingleRead(int k, RawRead read) {
@@ -772,7 +767,7 @@ class ClusteredReadsCache {
 	 * @param outPrefix prefix of the file to dump the cache
 	 */
 	public void dump(String outPrefix) throws IOException {
-		String singleFilename = outPrefix+"_clusteredReads_"+fileName+".fastq.gz";
+		String singleFilename = outPrefix+"_sortedByCluster_"+filename+".fastq.gz";
 		outFiles.add(singleFilename);
 		try (OutputStream os = new FileOutputStream(singleFilename);
 			 GZIPOutputStream gos = new GZIPOutputStream(os);

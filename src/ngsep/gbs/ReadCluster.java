@@ -11,51 +11,119 @@ import ngsep.sequences.RawRead;
 public class ReadCluster {
 	private int clusterNumber;
 	private int totalReads = 0;
-	private List<RawRead> reads = new ArrayList<>();
+	private List<RawRead> reads1 = new ArrayList<>();
+	private List<RawRead> reads2 = null;
+	private List<CharSequence> alignment = new ArrayList<CharSequence>();
 	private List<String> sampleIds = new ArrayList<>();
 	private String consensusSequence = null;
 	private Integer breakPosition = null;
 	
-	public ReadCluster(int clusterNumber)      
+	public ReadCluster(int clusterNumber, boolean pairedEnd)      
 	{                                                                 
 		this.clusterNumber = clusterNumber;
+		if (pairedEnd) reads2 = new ArrayList<RawRead>();
 		
 	}
-	
+	/**
+	 * Builds the alignment of either single or paired-end reads
+	 */
+	public void buildAlignment () {
+		alignment.clear();
+		//For single end
+		if(reads2==null) {
+			for(RawRead read:reads1) alignment.add(read.getCharacters());
+		} else {
+			//TODO: Paired end reads
+			//Build naive initial version using the algorithm concatenating Ns
+			//Create draft consensus
+			calculateConsensus();
+			//Check with consensus if ends could be merged
+			//if so, Merge reads and produce final alignment and consensus
+		}
+		
+	}
+	public List<RawRead> getAlignedReads() {
+		
+		return null;
+	}
+	private String calculateQualityScores(int i) {
+		return null;
+	}
+	private List<RawRead> adjustReadsLength(List<RawRead> reads) {
+		int maxLength = 0;
+		for (RawRead read : reads) {
+			int l = read.getSequenceString().length();
+			if (maxLength < l) maxLength = l;
+		}
+		
+		List<RawRead> newList = new ArrayList<RawRead>();
+		for (RawRead read: reads) {
+			String s = read.getSequenceString();
+			String q = read.getQualityScores();
+			int insertPos = s.indexOf(KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR);
+			char scoreChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_QS.charAt(0);
+			char seqChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR.charAt(0);
+			
+			String seq = "";
+			String score = "";
+			for(int k = s.length(); k < maxLength; k++) {
+				seq += seqChar;
+				score += scoreChar;
+			}
+			
+			s = String.format("%s%s%s", s.substring(0, insertPos), seq, s.substring(insertPos));
+			q = String.format("%s%s%s", q.substring(0, insertPos), score, q.substring(insertPos));
+			RawRead newRead = new RawRead(read.getName(), s, q);
+			newList.add(newRead);
+		}
+		
+		return newList;
+	}
+	//TODO: Contracts
 	public double getAverageHammingDistance() {
-		if(reads.size() == 0) {
+		if(alignment.size() == 0) {
 			return 0;
 		}
 		double totHammingDist = 0;
 		HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
-		for(RawRead read:reads) {
-			totHammingDist += measure.calculateDistanceDifferentLengths(read.getSequenceString(), getConsensusSequence());
+		for(CharSequence sequence:alignment) {
+			totHammingDist += measure.calculateDistanceDifferentLengths(sequence, consensusSequence);
 		}
-		return totHammingDist / reads.size();
+		return totHammingDist / alignment.size();
 	}
 	
-	public void addRead(RawRead read, String sampleId) {
-		reads.add(read);
+	public void addSingleRead(RawRead read, String sampleId) {
+		if(reads2!=null) throw new RuntimeException("Can not add single reads to a paired-end cluster");
+		reads1.add(read);
+		sampleIds.add(sampleId);
+		totalReads++;
+		consensusSequence = null;
+	}
+	
+	public void addPairedEndRead(RawRead read1, RawRead read2, String sampleId) {
+		if(reads2==null) throw new RuntimeException("Can not add paired-end reads to a single-end cluster");
+		reads1.add(read1);
+		reads2.add(read2);
 		sampleIds.add(sampleId);
 		totalReads++;
 		consensusSequence = null;
 	}
 	
 	private void calculateConsensus() {
+		
 		int longestRead = 0;
-		for(RawRead read:reads) {
-			String s = read.getSequenceString();
-			if(longestRead<s.length()) longestRead = s.length();
+		for(CharSequence sequence:alignment) {
+			if(longestRead<sequence.length()) longestRead = sequence.length();
 		}
 		int[][] refSeqTable = new int[longestRead][DNASequence.BASES_ARRAY.length];
 		
-		for(RawRead read:reads) {
-			String s = read.getSequenceString();
-			for(int i=0; i<s.length(); i++) {
-				if(!DNASequence.isInAlphabeth(s.charAt(i))) {
+		for(CharSequence sequence:alignment) {
+			for(int i=0; i<sequence.length(); i++) {
+				char c = sequence.charAt(i);
+				if(!DNASequence.isInAlphabeth(c)) {
 					continue;
 				}
-				int j = DNASequence.BASES_STRING.indexOf(s.charAt(i));
+				int j = DNASequence.BASES_STRING.indexOf(c);
 				refSeqTable[i][j]++;
 			}
 		}
@@ -110,16 +178,15 @@ public class ReadCluster {
 	public int getNumberOfTotalReads () {
 		return totalReads;
 	}
-	
-	public List<RawRead> getReads() {
-		return reads;
-	}
 
 	/**
 	 * @return the sampleIds
 	 */
 	public List<String> getSampleIds() {
 		return sampleIds;
+	}
+	public List<CharSequence> getAlignment() {
+		return alignment;
 	}
 	
 	
