@@ -282,7 +282,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		processInfo.addTime(System.currentTimeMillis(), "Cluster reads start");
 		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		this.clusterSizes = new int[kmersMap.size()];
-		List<String> clusteredReadsFilenames = clusterReads();
+		List<String> clusteredReadsFilenames = clusterReadsByFile();
 		kmersMap.dispose();
 		printDistribution();
 		printStatistics("initial");
@@ -395,100 +395,96 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 		log.info("Processed a total of " + readCount + " reads for file: "+filename);
 	}
-	public List<String> clusterReads() throws IOException {
-		ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(); 
+	
+	public List<String> clusterReadsByFile() throws IOException {
+		List<String> outfiles = null;
 		for(String sampleId:filenamesBySampleId1.keySet()) {
 			String filename1 = filenamesBySampleId1.get(sampleId);
 			String filename2 = filenamesBySampleId2.get(sampleId);
 			if(filename2 == null) {
+				ClusteredReadsCache clusteredReadsCache = new ClusteredReadsCache(sampleId + "_1");
 				log.info("Clustering reads from " + filename1);
-				clusterReadsSingleFile (sampleId, filename1, clusteredReadsCache);
+				int unmatchedReads = 0;
+				int count = 1;
+				try (FastqFileReader openFile = new FastqFileReader(filename1);) {
+					Iterator<RawRead> reader = openFile.iterator();
+					while(reader.hasNext()) {
+						this.numTotalReads++;
+						RawRead read = reader.next();
+						String s = read.getSequenceString();
+						if(DEF_START + kmerLength>s.length()) continue;
+						String prefix = s.substring(DEF_START,DEF_START + kmerLength);
+						if(!DNASequence.isDNA(prefix)) continue;
+						Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
+						if(clusterId==null) {
+							this.numUnclusteredReadsI++;
+							unmatchedReads++;
+							continue;
+						}
+						clusterSizes[clusterId]++;
+						if(clusterSizes[clusterId]<=maxClusterDepth) {
+							clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read.getName(), s, read.getQualityScores()));
+						}
+						count++;
+					}
+					clusteredReadsCache.dump(outputPrefix);
+					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename1);
+					log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename1);
+					outfiles = clusteredReadsCache.getClusteredReadFiles();
+				}
 			} else {
-				clusterReadsPairedEndFiles (sampleId, filename1, filename2, clusteredReadsCache);
+				int unmatchedReads = 0;
+				int count = 0;
+				ClusteredReadsCache clusteredReadsCache_1 = new ClusteredReadsCache(sampleId + "_1");
+				ClusteredReadsCache clusteredReadsCache_2 = new ClusteredReadsCache(sampleId + "_2");
+				try (FastqFileReader file1 = new FastqFileReader(filename1);
+					 FastqFileReader file2 = new FastqFileReader(filename2)) {
+					Iterator<RawRead> it1 = file1.iterator();
+					Iterator<RawRead> it2 = file2.iterator();
+					while(it1.hasNext() && it2.hasNext()) {
+						
+						// process forward
+						this.numTotalReads += 2;
+						RawRead read1 = it1.next();
+						String read1s = read1.getSequenceString();
+						if(DEF_START + kmerLength>read1s.length()) continue;
+						String prefix = read1s.substring(DEF_START,DEF_START + kmerLength);
+						if(!DNASequence.isDNA(prefix)) continue;
+						Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
+						if(clusterId==null) {
+							this.numUnclusteredReadsI++;
+							unmatchedReads++;
+							continue;
+						}
+						clusterSizes[clusterId]++;
+						if(clusterSizes[clusterId]<=maxClusterDepth) {
+							clusteredReadsCache_1.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), read1s, read1.getQualityScores()));
+						}
+						//process reverse 
+						RawRead read2 = it2.next();
+						String read2s = read2.getSequenceString();
+						if(DEF_START + kmerLength>read1s.length()) continue;
+						clusterSizes[clusterId]++;
+						if(clusterSizes[clusterId]<=maxClusterDepth) {
+							clusteredReadsCache_2.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read2.getName(), read2s, read2.getQualityScores()));
+						}
+						
+						count++;
+					}
+					clusteredReadsCache_1.dump(outputPrefix);
+					clusteredReadsCache_2.dump(outputPrefix);
+					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename1);
+					log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename1);
+					outfiles = clusteredReadsCache_1.getClusteredReadFiles();
+					List<String> outfiles_2 = clusteredReadsCache_2.getClusteredReadFiles();
+					outfiles.addAll(outfiles_2);
+					
+				}
 			}
 		}
-		clusteredReadsCache.dump(outputPrefix);
-		return clusteredReadsCache.getClusteredReadFiles();
+		return outfiles;
 	}
 
-	private void clusterReadsSingleFile(String sampleId, String filename, ClusteredReadsCache clusteredReadsCache) throws IOException {
-		int unmatchedReads = 0;
-		int count = 1;
-		try (FastqFileReader openFile = new FastqFileReader(filename);) {
-			Iterator<RawRead> reader = openFile.iterator();
-			while(reader.hasNext()) {
-				this.numTotalReads++;
-				RawRead read = reader.next();
-				String s = read.getSequenceString();
-				if(DEF_START + kmerLength>s.length()) continue;
-				String prefix = s.substring(DEF_START,DEF_START + kmerLength);
-				if(!DNASequence.isDNA(prefix)) continue;
-				Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
-				if(clusterId==null) {
-					this.numUnclusteredReadsI++;
-					unmatchedReads++;
-					continue;
-				}
-				clusterSizes[clusterId]++;
-				if(clusterSizes[clusterId]<=maxClusterDepth) {
-					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read.getName(), s, read.getQualityScores()));
-				}
-				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
-					log.info("dumping reads");
-					clusteredReadsCache.dump(outputPrefix);
-				}
-				count++;
-			}
-			log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename);
-			log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename);
-		}
-	}
-	
-
-	private void clusterReadsPairedEndFiles(String sampleId, String filename1, String filename2, ClusteredReadsCache clusteredReadsCache) throws IOException {
-		int unmatchedReads = 0;
-		int count = 0;
-		try (FastqFileReader file1 = new FastqFileReader(filename1);
-			 FastqFileReader file2 = new FastqFileReader(filename2)) {
-			Iterator<RawRead> it1 = file1.iterator();
-			Iterator<RawRead> it2 = file2.iterator();
-			while(it1.hasNext() && it2.hasNext()) {
-				this.numTotalReads += 2;
-				RawRead read1 = it1.next();
-				RawRead read2 = it2.next();
-				
-				String read1s = read1.getSequenceString();
-				if(DEF_START + kmerLength > read1s.length()) continue;
-				String prefix = read1s.substring(DEF_START,DEF_START + kmerLength);
-				if(!DNASequence.isDNA(prefix)) continue;
-				
-				Integer clusterId = kmersMap.getCluster(new DNAShortKmer(prefix));
-				if(clusterId==null) {
-					this.numUnclusteredReadsI++;
-					unmatchedReads++;
-					continue;
-				}
-				
-				clusterSizes[clusterId]++;
-				if(clusterSizes[clusterId]<=maxClusterDepth) {
-					String read2s = read2.getSequenceString();
-					String mergedRead = String.format("%s%s%s", read1s, PAIRED_END_READS_SEPARATOR, read2s);
-					String mergedScores = String.format("%s%s%s", read1.getQualityScores(), PAIRED_END_READS_QS, read2.getQualityScores());
-					clusteredReadsCache.addSingleRead(clusterId, new RawRead(sampleId+READID_SEPARATOR+clusterId+READID_SEPARATOR+read1.getName(), mergedRead, mergedScores));
-				}
-				if(clusteredReadsCache.getTotalReads()>=DEF_MAX_READS_IN_MEMORY) {
-					log.info("dumping reads");
-					clusteredReadsCache.dump(outputPrefix);
-				}
-				
-				count++;
-			}
-			
-			log.info(String.format("%d reads remained unmatched for files: %s, %s", unmatchedReads, filename1, filename2));
-			log.info(String.format("%d reads were succesfully matched for files: %s, %s",count ,filename1, filename2));
-		}
-		return;
-	}
 	
 	public void callVariants(List<String> clusteredReadsFilenames) throws IOException, InterruptedException {
 		int numberOfFiles = clusteredReadsFilenames.size();
@@ -727,7 +723,12 @@ class ClusteredReadsCache {
 	private Map<Integer,List<RawRead>> clusteredReadsCache = new TreeMap<>();
 	private Map<Integer, Map<String, String>> clusterInfo = new TreeMap<>();
 	private int totalReads = 0;
+	private String fileName;
 	private List<String> outFiles = new ArrayList<>();
+
+	public ClusteredReadsCache(String filename) {
+		this.fileName = fileName;
+	}
 	
 	public void addSingleRead(int k, RawRead read) {
 		List<RawRead> readsClusterK = clusteredReadsCache.get(k);
@@ -771,8 +772,7 @@ class ClusteredReadsCache {
 	 * @param outPrefix prefix of the file to dump the cache
 	 */
 	public void dump(String outPrefix) throws IOException {
-		int number = outFiles.size();
-		String singleFilename = outPrefix+"_clusteredReads_"+number+".fastq.gz";
+		String singleFilename = outPrefix+"_clusteredReads_"+fileName+".fastq.gz";
 		outFiles.add(singleFilename);
 		try (OutputStream os = new FileOutputStream(singleFilename);
 			 GZIPOutputStream gos = new GZIPOutputStream(os);
