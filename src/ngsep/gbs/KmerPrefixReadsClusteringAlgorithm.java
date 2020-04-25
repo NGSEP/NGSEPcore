@@ -68,6 +68,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	
 	public static final int DEF_KMER_LENGTH = 31;
 	public static final int DEF_NUM_THREADS = 1;
+	public static final int MIN_CLUSTER_DEPTH = 5;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = MultisampleVariantsDetector.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final short DEF_MIN_QUALITY = MultisampleVariantsDetector.DEF_MIN_QUALITY;
 	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
@@ -104,8 +105,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private static final String READID_SEPARATOR="$";
 	private final int MAX_TASK_COUNT = 20;
 	
-	private int minClusterDepth = 10;
-	private int maxClusterDepth = 1000;
+	private static int minClusterDepth = MIN_CLUSTER_DEPTH;
+	private int maxClusterDepth;
 	
 	//Variables for parallel VCF
 	private Map<String, String> filenamesBySampleId1=new HashMap<>();
@@ -133,6 +134,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 	public void setLog(Logger log) {
 		this.log = log;
+	}
+	public static int getMinClusterDepth() {
+		return minClusterDepth;
+	}
+	
+	public int getMaxClusterDepth() {
+		return maxClusterDepth;
 	}
 	
 	public ProgressNotifier getProgressNotifier() {
@@ -268,14 +276,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
-		System.out.println("Debugging");
+		System.out.println("Debugging test 10");
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
 		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap start");
 		buildSamples();
 		int nSamples = samples.size();
-		minClusterDepth = nSamples;
+		if(nSamples > minClusterDepth) minClusterDepth = nSamples;
 		maxClusterDepth = 100*nSamples;
 		log.info("Loaded "+samples.size()+" samples. Min depth: "+minClusterDepth+". Max cluster depth: "+maxClusterDepth);
 		buildKmersMap();
