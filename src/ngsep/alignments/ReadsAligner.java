@@ -900,8 +900,9 @@ public class ReadsAligner {
 		for(int i=0;i<readHits.size()&& i<maxAlnsPerRead;i++) {
 			UngappedSearchHit hit = readHits.get(i);
 			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
+			if(aln==null) continue;
 			aln.setAlignmentQuality((byte) 100);
-			if(aln!=null) alns.add(aln);
+			alns.add(aln);
 		}
 		if (alns.size()>0) return alns;
 		//One mismatch search
@@ -918,6 +919,7 @@ public class ReadsAligner {
 				if (mismatches[1]+mismatches[2]>0) {
 					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
+				if(aln==null) continue;
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
 				aln.setNumMismatches((short) mismatches[0]);
 				
@@ -941,6 +943,7 @@ public class ReadsAligner {
 				if (mismatches[1]+mismatches[2]>0) {
 					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
+				if(aln==null) continue;
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
 				aln.setNumMismatches((short) mismatches[0]);
 				alns.add(aln);
@@ -1083,10 +1086,12 @@ public class ReadsAligner {
 					int ends = mismatches[1]+mismatches[2]; 
 					//if (ends > mismatches[0]) System.err.println("Problem counting mismatches for "+sequenceName+":"+first+" read: "+query+" mismatches: "+mismatches[0]+" "+mismatches[1]+" "+mismatches[2]);
 					if (ends>0) aln = buildAln(query, sequenceName, first+mismatches[1], lastPerfect-mismatches[2], encodeAlignment(query.length(),mismatches));
-					aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
-					aln.setNumMismatches((short) mismatches[0]);
-					//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
-					return aln;
+					if(aln!=null) {
+						aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
+						aln.setNumMismatches((short) mismatches[0]);
+						//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
+						return aln;
+					}
 				}
 			}
 		}
