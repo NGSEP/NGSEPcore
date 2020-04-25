@@ -79,8 +79,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	
-	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNN";
-	public static final String PAIRED_END_READS_QS = "00000000000000000000";
+	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
+	public static final String PAIRED_END_READS_QS = "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 	
 	
 	// Logging and progress
@@ -268,6 +268,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
+		System.out.println("Debugging");
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
@@ -282,7 +283,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		processInfo.addTime(System.currentTimeMillis(), "Cluster reads start");
 		log.info("Built kmers map with "+kmersMap.size()+" clusters");
 		this.clusterSizes = new int[kmersMap.size()];
-		List<String> clusteredReadsFilenames = clusterReadsByFile();
+		Map<Integer, List<String>> clusteredReadsFilenames = clusterReadsByFile();
 		kmersMap.dispose();
 		printDistribution();
 		printStatistics("initial");
@@ -291,7 +292,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 //		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
-		callVariants(clusteredReadsFilenames);
+		if(clusteredReadsFilenames.get(2) == null) {
+			callVariants(clusteredReadsFilenames.get(1));
+		} else {
+			System.out.println("Running paired end");
+			callVariants(clusteredReadsFilenames.get(1), clusteredReadsFilenames.get(2));
+		}
+		
 		processInfo.addTime(System.currentTimeMillis(), "Variant calling end");
 		log.info("Called variants");
 		printStatistics("final");
@@ -396,8 +403,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Processed a total of " + readCount + " reads for file: "+filename);
 	}
 	
-	public List<String> clusterReadsByFile() throws IOException {
-		List<String> outfiles = null;
+	public Map<Integer, List<String>> clusterReadsByFile() throws IOException {
+		Map<Integer, List<String>> outfiles = new HashMap<>();
+		outfiles.put(1, null);
+		outfiles.put(2, null);
 		for(String sampleId:filenamesBySampleId1.keySet()) {
 			String filename1 = filenamesBySampleId1.get(sampleId);
 			String filename2 = filenamesBySampleId2.get(sampleId);
@@ -430,7 +439,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					clusteredReadsCache.dump(outputPrefix);
 					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename1);
 					log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename1);
-					outfiles = clusteredReadsCache.getClusteredReadFiles();
+					outfiles.put(1, clusteredReadsCache.getClusteredReadFiles());
 				}
 			} else {
 				int unmatchedReads = 0;
@@ -470,9 +479,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					clusteredReadsCache_2.dump(outputPrefix);
 					log.info(Integer.toString(unmatchedReads) + " reads remained unmatched for file: " + filename1);
 					log.info(Integer.toString(count) + " reads were succesfully matched for file: " + filename1);
-					outfiles = clusteredReadsCache_1.getClusteredReadFiles();
-					List<String> outfiles_2 = clusteredReadsCache_2.getClusteredReadFiles();
-					outfiles.addAll(outfiles_2);
+					outfiles.put(1, clusteredReadsCache_1.getClusteredReadFiles());
+					outfiles.put(2, clusteredReadsCache_2.getClusteredReadFiles());
 				}
 			}
 		}
@@ -494,7 +502,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 		}
 		//TODO: Make two methods and modify flag accordingly
-		boolean pairedEnd = (filesDescriptor!=null);
+		boolean pairedEnd = false;
 		//process files in parallel
 		FastqFileReader [] readers = new FastqFileReader[numberOfFiles];
 		RawRead [] currentReads = new RawRead[numberOfFiles];
@@ -546,18 +554,15 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 					//skip small clusters
 					if(this.clusterSizes[numCluster] < minClusterDepth) {
-//						System.out.println("Skipping cluster: " + numCluster);
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
 					//skip large clusters
 					else if(this.clusterSizes[numCluster] > maxClusterDepth) {
-//						System.out.println("Skipping cluster: " + numCluster);
 						skipCluster(numCluster, iterators.get(i), currentReads, i);
 					}
 					
 					else {
-//						System.out.println("Adding reads to cluster: " + numCluster);
 						addReadsToCluster(nextCluster, iterators.get(i), currentReads, i);
 					}
 					
@@ -586,6 +591,180 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 	
+	public void callVariants(List<String> clusteredReadsFilenames_1, List<String> clusteredReadsFilenames_2) throws IOException, InterruptedException {
+		int numberOfFiles = clusteredReadsFilenames_1.size();
+		
+		if(clusteredReadsFilenames_1.size() != clusteredReadsFilenames_2.size()) {
+			throw new RuntimeException("There must be the same number of forward files and reverse files for paired end processing");
+		}
+		
+		//TODO: Make two methods and modify flag accordingly
+		//process files in parallel
+		FastqFileReader [] readers_1 = new FastqFileReader[numberOfFiles];
+		FastqFileReader [] readers_2 = new FastqFileReader[numberOfFiles];
+		RawRead [] currentReads_1 = new RawRead[numberOfFiles];
+		RawRead [] currentReads_2 = new RawRead[numberOfFiles];
+		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
+		VCFFileWriter writer = new VCFFileWriter ();
+		
+		// add samples to header
+		for(Sample sample: this.samples) {
+			header.addSample(sample, false);
+		}
+		
+		Arrays.fill(currentReads_1, null);
+		Arrays.fill(currentReads_2, null);
+		List<Iterator<RawRead>> iterators_1 = new ArrayList<>();
+		List<Iterator<RawRead>> iterators_2 = new ArrayList<>();
+		
+		//Create pool manager and statistics
+		ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
+		
+		//Timer for mem checks
+		Timer timer = new Timer();
+		
+		try (PrintStream outVariants = new PrintStream(outputPrefix+"_variants.vcf");
+				// TODO: do I need three consensus files?
+			 PrintStream outConsensus = new PrintStream(outputPrefix+"_consensus.fa");
+			 PrintStream memUsage = new PrintStream(outputPrefix + "_memoryUsage.txt");) {
+			int numNotNull = 0;
+			int numCluster = 0;
+			
+			// save memory usage every 5 seconds
+			memUsage.println("Time(ms)\tMemoryUsage(MB)");
+			timer.schedule(new MemoryUsage(memUsage), 0, 5000);
+			
+			for(int i=0; i<numberOfFiles; i++) {
+				readers_1[i] = new FastqFileReader(clusteredReadsFilenames_1.get(i));
+				readers_2[i] = new FastqFileReader(clusteredReadsFilenames_2.get(i));
+				Iterator<RawRead> it_1 = readers_1[i].iterator();
+				Iterator<RawRead> it_2 = readers_2[i].iterator();
+				iterators_1.add(it_1);
+				iterators_2.add(it_2);
+				if(it_1.hasNext() && it_2.hasNext()) {
+					currentReads_1[i] = it_1.next();
+					currentReads_2[i] = it_2.next();
+					numNotNull++;
+				}
+			}
+			
+			// print header
+			writer.printHeader(header, outVariants);
+			log.info("Processing a total of " + numberOfFiles + " clustered files.");
+			while(numNotNull>0) {
+				
+				//gather reads next cluster
+				ReadCluster nextCluster = new ReadCluster(numCluster, true);
+				for(int i=0; i<numberOfFiles; i++) {
+					
+					//skip small clusters
+					if(this.clusterSizes[numCluster] < minClusterDepth) {
+						skipCluster(numCluster, iterators_1.get(i), iterators_2.get(i), currentReads_1, currentReads_2, i);
+					}
+					
+					//skip large clusters
+					else if(this.clusterSizes[numCluster] > maxClusterDepth) {
+						skipCluster(numCluster, iterators_1.get(i), iterators_2.get(i), currentReads_1, currentReads_2, i);
+					}
+					
+					else {
+						addReadsToCluster(nextCluster, iterators_1.get(i), iterators_2.get(i), currentReads_1, currentReads_2, i);
+					}
+					
+					if(currentReads_1[i]==null) numNotNull--;
+				}
+				if(nextCluster.getNumberOfTotalReads()>0) {
+					//Adding new task to the list and starting the new task
+				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
+				    newTask.setPairedEnd(true);
+				    poolManager.queueTask(newTask);
+				}
+				if(numCluster%10000 == 0) {
+					log.info("Processed cluster " + numCluster);
+				}
+					
+				numCluster++;
+			}
+			
+			
+		} finally {
+			for(FastqFileReader reader:readers_1) {
+				if(reader!=null) reader.close();
+			}
+			for(FastqFileReader reader:readers_2) {
+				if(reader!=null) reader.close();
+			}
+			poolManager.terminatePool();
+			timer.cancel();
+		}
+	}
+	
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2,
+			RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
+		RawRead currentRead_1 = currentReads_1[i];
+		RawRead currentRead_2 = currentReads_2[i];
+		int numCluster = nextCluster.getClusterNumber();
+		while(currentRead_1!=null && currentRead_2!=null) {
+			String readIdWithCluster_1 = currentRead_1.getName();
+			String readIdWithCluster_2 = currentRead_1.getName();
+			String [] items = readIdWithCluster_1.split("\\"+READID_SEPARATOR);
+			if(items.length < 2) {
+				System.out.print(String.join("\t", items));
+				continue;
+			}
+			String sampleId = items[0];
+			int currentReadCluster = Integer.parseInt(items[1]);
+			if (currentReadCluster>numCluster) break;
+			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorganized file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+numCluster);
+			nextCluster.addPairedEndRead(currentRead_1, currentRead_2, sampleId);
+			if(iterator_1.hasNext() && iterator_2.hasNext()) {
+				currentReads_1[i] = iterator_1.next();
+				currentReads_2[i] = iterator_2.next();
+				currentRead_1 = currentReads_1[i];
+				currentRead_2 = currentReads_2[i];
+				
+			} else {
+				log.info("Done with file " + i + ".");
+				currentReads_1[i] = null;
+				currentReads_2[i] = null;
+				currentRead_1 = null;
+				currentRead_2 = null;
+			}
+		}
+		
+	}
+	private void skipCluster(int numCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2,
+			RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
+		RawRead currentRead_1 = currentReads_1[i];
+		RawRead currentRead_2 = currentReads_2[i];
+		
+		while(currentRead_1!=null && currentRead_2!=null) {
+			String readIdWithCluster = currentRead_1.getName();
+			String [] items = readIdWithCluster.split("\\"+READID_SEPARATOR);
+			if(items.length < 2) {
+				System.out.print(String.join("\t", items));
+				continue;
+			}
+			int currentReadCluster = Integer.parseInt(items[1]);
+			// TODO rename reads without cluster info
+			if (currentReadCluster>numCluster) break;
+			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorganized file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
+			if(iterator_1.hasNext() && iterator_2.hasNext()) {
+				currentReads_1[i] = iterator_1.next();
+				currentReads_2[i] = iterator_2.next();
+				currentRead_1 = currentReads_1[i];
+				currentRead_2 = currentReads_2[i];
+				
+			} else {
+				log.info("Done with file " + i + ".");
+				currentReads_1[i] = null;
+				currentReads_2[i] = null;
+				currentRead_1 = null;
+				currentRead_2 = null;
+			}
+		}
+		
+	}
 	private void skipCluster(Integer numCluster, Iterator<RawRead> iterator, 
 			RawRead[] currentReads, int i) throws IOException {
 		RawRead currentRead = currentReads[i];
@@ -626,10 +805,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 			String sampleId = items[0];
 			int currentReadCluster = Integer.parseInt(items[1]);
-			// TODO rename reads without cluster info
 			if (currentReadCluster>numCluster) break;
 			else if (currentReadCluster<numCluster) throw new RuntimeException("Disorganized file. Current cluster: "+numCluster+" found: "+currentReadCluster+" in read. "+readIdWithCluster);
-//			System.out.println("From cluster: " + sampleId + "\tFrom read: " + currentRead.getName());
 			nextCluster.addSingleRead(currentRead, sampleId);
 			if(iterator.hasNext()) {
 				currentReads[i] = iterator.next();

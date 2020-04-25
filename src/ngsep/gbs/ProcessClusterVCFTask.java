@@ -199,8 +199,9 @@ public class ProcessClusterVCFTask extends Thread {
 			outConsensus.println(readCluster.getConsensusSequence());
 		}
 		outConsensus.println(readCluster.getBreakPosition());
-		List<CharSequence> alignment = readCluster.getAlignment();
-		for(CharSequence sequence:alignment) {
+		List<RawRead> alignment = readCluster.getAlignedReads();
+		for(RawRead seq:alignment) {
+			CharSequence sequence = seq.getCharacters();
 			outConsensus.println(sequence);	
 		}
 	}
