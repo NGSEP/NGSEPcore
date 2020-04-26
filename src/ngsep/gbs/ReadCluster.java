@@ -3,7 +3,6 @@ package ngsep.gbs;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
@@ -14,9 +13,6 @@ public class ReadCluster {
 	public static final int MIN_ALLOWED_OVERLAP = 10;
 	public static final int ALLOWED_OVERLAP_MISMATCH = 1;
 	public static final double CLUSTER_PERCENTAGE_TO_BUILD_ALIGNMENT = 0.1;
-	private int alignmentLength = -1;
-	private int alignmentPos;
-	private double alignmentConfidence=0;		//alignment confidence below 0.5 might indicate something is off with the cluster
 	private int clusterNumber;
 	private int totalReads = 0;
 	private List<RawRead> reads1 = new ArrayList<>();
@@ -25,7 +21,6 @@ public class ReadCluster {
 	private List<String> sampleIds = new ArrayList<>();
 	private String consensusSequence = null;
 	private Integer breakPosition = null;
-	private boolean oddAlignmentCluster = false;
 	
 	public ReadCluster(int clusterNumber, boolean pairedEnd)      
 	{                                                                 
@@ -34,87 +29,40 @@ public class ReadCluster {
 		
 	}
 	
-	public int getAlignmentPos() {
-		return alignmentPos;
-	}
-	
-	public double getAlignmentConfidence() {
-		return alignmentConfidence;
-	}
-	
-	public int getAlignmentLength() {
-		return alignmentLength;
-	}
-	
-	public boolean isOddCluster() {
-		return oddAlignmentCluster;
-	}
-	
 	/**
 	 * Builds the alignment of either single or paired-end reads
 	 */
 	public void buildAlignment () {
 		alignment.clear();
+		consensusSequence = null;
 		//For single end
 		if(reads2==null) {
 			for(RawRead read:reads1) alignment.add(read);
 		} else {
-			calculateAlignment();	// calculates position where alignment starts
+			calculateAlignmentPaired();	// calculates position where alignment starts
 			// if no alignment was found join with "NNNNN"
-			if(this.alignmentPos == -1) {
+			if(consensusSequence==null) {
 
-				this.alignmentLength = calculateMaxLength();
+				int alnLength = calculateMaxLength();
 				for(int i=0; i< reads1.size();i++) {
-					int numberOfN = this.alignmentLength - (reads1.get(i).getCharacters().length() + reads2.get(i).getCharacters().length());
+					CharSequence sequence1 = reads1.get(i).getCharacters();
+					CharSequence sequence2 = reads2.get(i).getCharacters();
+					int numberOfN = alnLength - (sequence1.length() + sequence2.length());
 					if (numberOfN == 0) numberOfN = 1;
-					String N = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR.substring(0, numberOfN);
-					String QS = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_QS.substring(0, numberOfN);
-					CharSequence alignedReadChars = reads1.get(i).getCharacters()+N+DNAMaskedSequence.getReverseComplement(reads2.get(i).getCharacters());
-					String alignedReadQS = reads1.get(i).getQualityScores()+QS+reverseSequence(reads2.get(i).getQualityScores());
+					char [] nStr = new char[numberOfN];
+					Arrays.fill(nStr, 'N');
+					char [] qStr = new char[numberOfN];
+					Arrays.fill(qStr, '!');
+					CharSequence alignedReadChars = sequence1+(new String(nStr))+DNAMaskedSequence.getReverseComplement(sequence2);
+					String alignedReadQS = reads1.get(i).getQualityScores()+(new String(qStr))+reverseSequence(reads2.get(i).getQualityScores());
 					String alignedReadId = reads1.get(i).getName();
 					RawRead alignedRead = new RawRead(alignedReadId, alignedReadChars, alignedReadQS);
 
 					alignment.add(alignedRead);
 				}
-			} else {
-				for(int i=0; i< reads1.size();i++) {
-					CharSequence alignedReadChars = calculateAlignedReadSeq(reads1.get(i).getSequenceString(), reads2.get(i).getSequenceString());
-					// Right now, the quality scores are not calculated. Instead, arbitrarily, the quality scores of the reverse read are used. 
-					String alignedReadQS = calculateAlignedReadQS(reads1.get(i).getQualityScores(), reads2.get(i).getQualityScores());
-					String alignedReadId = reads1.get(i).getName();
-					RawRead alignedRead = new RawRead(alignedReadId, alignedReadChars, alignedReadQS);
-					alignment.add(alignedRead);
-				}
+				calculateConsensus();
 			}
-			calculateConsensus();
-		}
-		
-	}
-	
-	private String calculateAlignedReadQS(String forwardQS, String reverseQS) {
-		String alignedReadQS;
-		if(this.alignmentLength == -1) {
-			throw new RuntimeException("Alignment position has not been calculated for this cluster. CalculateAlignment() must be run first");
-		}
-		alignedReadQS = forwardQS.substring(0, this.alignmentPos) + reverseSequence(reverseQS);
-		return alignedReadQS;
-	}
-	
-	private CharSequence calculateAlignedReadSeq(String forward, String reverse) {
-		CharSequence alignedReadSeq;
-		if(this.alignmentLength == -1) {
-			throw new RuntimeException("Alignment position has not been calculated for this cluster. CalculateAlignment() must be run first");
-		}
-		alignedReadSeq = forward.substring(0, this.alignmentPos) + DNAMaskedSequence.getReverseComplement(reverse);
-		return alignedReadSeq;
-	}
-	
-	/*
-	 * Returns true if oddities where found when internally aligning the cluster
-	 * see calculateAlignment()
-	 */
-	public boolean getClusterStatus() {
-		return oddAlignmentCluster;
+		}	
 	}
 	
 	/*
@@ -133,178 +81,119 @@ public class ReadCluster {
 		
 	}
 	
-	/*
-	 * This method calculates the consensus position where the forward and the reverse reads start overlapping.
-	 * If no consensus is found, the cluster is flagged as an odd cluster
-	 */
-	public void calculateAlignment() {
-		Random random = new Random();
-		int numberOfReadsToAlign = (int)(reads1.size() * CLUSTER_PERCENTAGE_TO_BUILD_ALIGNMENT);
-		if(numberOfReadsToAlign < KmerPrefixReadsClusteringAlgorithm.getMinClusterDepth()) numberOfReadsToAlign = KmerPrefixReadsClusteringAlgorithm.getMinClusterDepth();
-		
-		int[] alignmentsPos = new int[numberOfReadsToAlign];
-		int[] reverseLengths = new int[numberOfReadsToAlign];
-		for(int i = 0; i < numberOfReadsToAlign; i++) {
-			int chosenRead = random.nextInt(reads1.size()); 
-			int alignmentPos = calculateAlignmentPos(reads1.get(chosenRead), reads2.get(chosenRead));
-			reverseLengths[i] = reads2.get(chosenRead).getLength();
-			alignmentsPos[i] = alignmentPos;
-		}
-		
-		int consensusReverseLength = reverseLengths[0];
-		int consensusAlignPos = alignmentsPos[0];
-		int alignPosConfidence = 1;
-		int altReverseLength = 0;
-		int altAlignPosConfidence = 0;
-		int alternativeAlgnPos = -2;
-		// allows for one disagreement in alignment, otherwise flags it as an odd cluster.
-		for(int i=1; i<numberOfReadsToAlign;i++) {
-			if(alignmentsPos[i]==consensusAlignPos) {
-				alignPosConfidence++;
-			} else if (alternativeAlgnPos==-2) {
-				alternativeAlgnPos = alignmentsPos[i];
-				altReverseLength = reverseLengths[i];
-				altAlignPosConfidence = 1;
-			} else if (alternativeAlgnPos == alignmentsPos[i]) {
-				altAlignPosConfidence++;
-			} else {
-				this.alignmentPos = -1;
-				oddAlignmentCluster = true;
-				break;
-			}
-		}
-		
-		if(this.alignmentPos != -1) {
-			if(alignPosConfidence <= altAlignPosConfidence) {
-				this.alignmentPos = alternativeAlgnPos;
-				this.alignmentLength = this.alignmentPos + altReverseLength;
-				this.alignmentConfidence = (double) altAlignPosConfidence / numberOfReadsToAlign;
-			} else {
-				this.alignmentPos = consensusAlignPos;
-				this.alignmentLength = this.alignmentPos + consensusReverseLength;
-				this.alignmentConfidence = (double) alignPosConfidence / numberOfReadsToAlign;
-			}
-		} else {
-			// Even if no alignment was found, we want to calculate the alignment confidence
-			if(alignPosConfidence <= altAlignPosConfidence) {
-				this.alignmentConfidence = (double) altAlignPosConfidence / numberOfReadsToAlign;
-			} else {
-				this.alignmentConfidence = (double) alignPosConfidence / numberOfReadsToAlign;
-			}
+	private void calculateAlignmentPaired() {
+		ReadCluster rc1 = new ReadCluster(1, false);
+		for(RawRead read: reads1) rc1.addSingleRead(read, "");
+		rc1.buildAlignment();
+		String consensus1 = rc1.getConsensusSequence();
+		ReadCluster rc2 = new ReadCluster(2, false);
+		for(RawRead read: reads1) rc2.addSingleRead(read, "");
+		rc2.buildAlignment();
+		String consensus2 = rc2.getConsensusSequence();
+		String revC2 = DNAMaskedSequence.getReverseComplement(consensus2).toString();
+		int pos = calculateAlignmentPos(consensus1, revC2);
+		if (pos == -1) return;
+		consensusSequence = consensus1+revC2.substring(pos);
+		int n = reads1.size();
+		for(int i=0;i<n;i++) {
+			RawRead r1 = reads1.get(i);
+			RawRead r2 = reads2.get(i);
+			RawRead aligned = alignPairedEndReadToConsensus(r1,r2);
+			alignment.add(aligned);			
 		}
 	}
 	
+	private RawRead alignPairedEndReadToConsensus(RawRead r1, RawRead r2) {
+		DNAMaskedSequence seq = new DNAMaskedSequence();
+		StringBuilder qs = new StringBuilder();
+		int cl = consensusSequence.length();
+		int diff1 = cl-r1.getLength();
+		if(diff1<=0) {
+			seq.append(r1.getCharacters().subSequence(0, cl));
+			qs.append(r1.getQualityScores().subSequence(0, cl));
+		} else {
+			seq.append(r1.getCharacters());
+			qs.append(r1.getQualityScores());
+			if (diff1 <= r2.getLength()) {
+				CharSequence rs2 = DNAMaskedSequence.getReverseComplement(r2.getCharacters().subSequence(0, diff1));
+				seq.append(rs2);
+				CharSequence qsr = reverseSequence(r2.getQualityScores().subSequence(0, diff1));
+				qs.append(qsr);
+			} else {
+				int numberOfN = diff1- r2.getLength();
+				char [] nStr = new char[numberOfN];
+				Arrays.fill(nStr, 'N');
+				seq.append(new String (nStr));
+				seq.append(DNAMaskedSequence.getReverseComplement(r2.getCharacters()));
+				char [] qStr = new char[numberOfN];
+				Arrays.fill(qStr, '!');
+				qs.append(qStr);
+				qs.append(reverseSequence(r2.getQualityScores()));
+			}
+		}
+		RawRead answer = new RawRead(r1.getName(), seq, qs.toString());
+		return answer;
+	}
+
 	public List<RawRead> getAlignedReads() {
 		
 		return alignment;
 	}
-	private String calculateQualityScores(int i) {
-		return null;
-	}
 	
-	/*
-	 * Returns the index on the forward read where overlaps starts. If no overlap is found, or the overlap is 
+	/**
+	 * Returns the index on the second sequence where overlap ends. If no overlap is found, or the overlap is 
 	 * smaller than min allowed overlap, returns -1. 
 	 */
-	private int calculateAlignmentPos(RawRead forward, RawRead reverse) {
-		int alignment = -1;
-		int forwardLength = forward.getLength();
-		int reverseLength = reverse.getLength();
+	private int calculateAlignmentPos(String seq1, String seq2) {
+		int s1Length = seq1.length();
+		int s2Length = seq2.length();
 		int minOverlapLength;
-//		CharSequence reverseCharacters = reverseSequence(reverse.getCharacters());
-		CharSequence reverseCharacters = DNAMaskedSequence.getReverseComplement(reverse.getCharacters());
-		CharSequence reverseQualityScore = reverseSequence(reverse.getQualityScores());
-		if(forwardLength <= reverseLength) {
-			minOverlapLength = forwardLength;
+		
+		if(s1Length <= s2Length) {
+			minOverlapLength = s1Length;
 		} else {
-			minOverlapLength = reverseLength;
+			minOverlapLength = s2Length;
 		}
-		int overlapScore;
 		for(int i=minOverlapLength; i > MIN_ALLOWED_OVERLAP; i--) {
-			CharSequence suffix = forward.getCharacters().subSequence(forwardLength-i, forwardLength);
-			CharSequence prefix = reverseCharacters.subSequence(0, i);
-			if(suffix.length() != prefix.length()) {
-				throw new RuntimeException("Suffix and prefix must be same length");
-			}
-			overlapScore = calculateOverlapScore(suffix, prefix);
-			if(suffix.length() - overlapScore <= ALLOWED_OVERLAP_MISMATCH) {
+			CharSequence suffix = seq1.substring(s1Length-i);
+			CharSequence prefix = seq2.substring(0, i);
+			if(checkOverlap(suffix, prefix)) {
 				// Accept alignment
-				alignment = forwardLength-i;
-				return alignment;
+				return i;
 			}
 		}
-		return alignment;
+		return -1;
 	}
 	
 	/*
 	 * This method takes a sequence and returns the reversed sequence
 	 */
 	private CharSequence reverseSequence(CharSequence seq) {
-		char[] reverseArray = new char[seq.length()];
-		for(int i=0; i < seq.length(); i++) {
-			reverseArray[i] = seq.charAt(seq.length() - i - 1);
-		}
-		CharSequence reverseSequence = new String(reverseArray);
-		return reverseSequence;
+		StringBuilder reverse = new StringBuilder();
+		reverse.append(seq);
+		reverse.reverse();
+		return reverse.toString();
 	}
 	
 	/*
 	 * Given a suffix and a prefix of the same length, returns the overlap score, where every match
 	 * contributes +1 to the total score. 
 	 */
-	private int calculateOverlapScore(CharSequence suffix, CharSequence prefix) {
-		int overlapScore = 0;
+	private boolean checkOverlap(CharSequence suffix, CharSequence prefix) {
 		int numberMismatches = 0;
 		for(int i = 0; i < suffix.length(); i++) {
-			if(numberMismatches > 1) {
-				return overlapScore;
-			}
-			if(suffix.charAt(i) == prefix.charAt(i)) {
-				overlapScore++;
-			} else {
+			
+			if(suffix.charAt(i) != prefix.charAt(i)) {
 				numberMismatches++;
 			}
-		}
-		
-		return overlapScore;
-	}
-	
-	private List<RawRead> mergePairedEndReads() {
-		List<RawRead> mergedReads = null;
-		
-		return mergedReads;
-	}
-	
-	private List<RawRead> adjustReadsLength(List<RawRead> reads) {
-		int maxLength = 0;
-		for (RawRead read : reads) {
-			int l = read.getSequenceString().length();
-			if (maxLength < l) maxLength = l;
-		}
-		
-		List<RawRead> newList = new ArrayList<RawRead>();
-		for (RawRead read: reads) {
-			String s = read.getSequenceString();
-			String q = read.getQualityScores();
-			int insertPos = s.indexOf(KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR);
-			char scoreChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_QS.charAt(0);
-			char seqChar = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR.charAt(0);
-			
-			String seq = "";
-			String score = "";
-			for(int k = s.length(); k < maxLength; k++) {
-				seq += seqChar;
-				score += scoreChar;
+			if(numberMismatches > ALLOWED_OVERLAP_MISMATCH) {
+				return false;
 			}
-			
-			s = String.format("%s%s%s", s.substring(0, insertPos), seq, s.substring(insertPos));
-			q = String.format("%s%s%s", q.substring(0, insertPos), score, q.substring(insertPos));
-			RawRead newRead = new RawRead(read.getName(), s, q);
-			newList.add(newRead);
 		}
-		
-		return newList;
+		return true;
 	}
+	
+	
 	//TODO: Contracts
 	public double getAverageHammingDistance() {
 		if(alignment.size() == 0) {

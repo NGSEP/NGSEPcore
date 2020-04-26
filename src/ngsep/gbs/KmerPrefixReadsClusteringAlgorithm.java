@@ -80,9 +80,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	
-	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
-	public static final String PAIRED_END_READS_QS = "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-	
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(KmerPrefixReadsClusteringAlgorithm.class.getName());
@@ -105,7 +102,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private static final String READID_SEPARATOR="$";
 	private final int MAX_TASK_COUNT = 20;
 	
-	private static int minClusterDepth = MIN_CLUSTER_DEPTH;
+	private int minClusterDepth = MIN_CLUSTER_DEPTH;
 	private int maxClusterDepth;
 	
 	//Variables for parallel VCF
@@ -136,7 +133,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-	public static int getMinClusterDepth() {
+	public int getMinClusterDepth() {
 		return minClusterDepth;
 	}
 	
@@ -303,7 +300,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			callVariants(clustered1);
 		} else {
 			numClusteredFiles = clustered1.size() + clustered2.size();
-			log.info("Processing: "+numClusteredFiles+" files");
+			log.info("Processing: "+numClusteredFiles+" paired end files");
 			callVariants(clustered1, clustered2);
 		}
 		
@@ -667,7 +664,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			
 			// print header
 			writer.printHeader(header, outVariants);
-			log.info("Processing a total of " + numberOfFiles + " clustered files.");
+			log.info("Processing a total of " + numberOfFiles + " clustered paired end files. Num not null: "+numNotNull);
 			while(numNotNull>0) {
 				
 				//gather reads next cluster
@@ -688,7 +685,10 @@ public class KmerPrefixReadsClusteringAlgorithm {
 						addReadsToCluster(nextCluster, iterators_1.get(i), iterators_2.get(i), currentReads_1, currentReads_2, i);
 					}
 					
-					if(currentReads_1[i]==null) numNotNull--;
+					if(currentReads_1[i]==null) {
+						numNotNull--;
+						log.info("Finished " + i + " Num not null: "+numNotNull);
+					}
 				}
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task

@@ -132,14 +132,7 @@ public class ProcessClusterVCFTask extends Thread {
 	}
 	
 	private void writeClusterDetails() {
-		clusterDetails.println(readCluster.getClusterNumber()+"\t"
-				+readCluster.getAlignmentPos()+"\t"
-				+readCluster.getAlignmentConfidence()+"\t"
-				+readCluster.getAlignmentLength()+"\t"
-				+readCluster.getNumberOfTotalReads()+"\t"
-				+readCluster.isOddCluster());
-		
-		
+		clusterDetails.println(readCluster.getClusterNumber()+"\t"+readCluster.getNumberOfTotalReads());
 	}
 
 	private List<VCFRecord> generateRecordsForCluster() {
