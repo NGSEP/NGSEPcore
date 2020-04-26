@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.RawRead;
@@ -44,38 +45,31 @@ public class ReadCluster {
 			calculateAlignment();	// calculates position where alignment starts
 			// if no alignment was found join with "NNNNN"
 			if(this.alignmentPos == -1) {
-				System.out.println("No alignment found.");
+
 				this.alignmentLength = calculateMaxLength();
 				for(int i=0; i< reads1.size();i++) {
-					System.out.println(reads1.get(i).getCharacters() + "\t" + DNASequence.getReverseComplement(reads2.get(i).getCharacters()));
 					int numberOfN = this.alignmentLength - (reads1.get(i).getCharacters().length() + reads2.get(i).getCharacters().length());
 					if (numberOfN == 0) numberOfN = 1;
 					String N = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_SEPARATOR.substring(0, numberOfN);
 					String QS = KmerPrefixReadsClusteringAlgorithm.PAIRED_END_READS_QS.substring(0, numberOfN);
-					CharSequence alignedReadChars = reads1.get(i).getCharacters()+N+DNASequence.getReverseComplement(reads2.get(i).getCharacters());
+					CharSequence alignedReadChars = reads1.get(i).getCharacters()+N+DNAMaskedSequence.getReverseComplement(reads2.get(i).getCharacters());
 					String alignedReadQS = reads1.get(i).getQualityScores()+QS+reverseSequence(reads2.get(i).getQualityScores());
 					String alignedReadId = reads1.get(i).getName();
 					RawRead alignedRead = new RawRead(alignedReadId, alignedReadChars, alignedReadQS);
-					System.out.println(alignedReadChars);
+
 					alignment.add(alignedRead);
 				}
 			} else {
-				System.out.println("Alignnment found: " + this.alignmentPos + "\t" + this.alignmentConfidence);
 				for(int i=0; i< reads1.size();i++) {
-					System.out.println(reads1.get(i).getCharacters() + "\t" + DNASequence.getReverseComplement(reads2.get(i).getCharacters()));
 					CharSequence alignedReadChars = calculateAlignedReadSeq(reads1.get(i).getSequenceString(), reads2.get(i).getSequenceString());
 					// Right now, the quality scores are not calculated. Instead, arbitrarily, the quality scores of the reverse read are used. 
 					String alignedReadQS = calculateAlignedReadQS(reads1.get(i).getQualityScores(), reads2.get(i).getQualityScores());
 					String alignedReadId = reads1.get(i).getName();
 					RawRead alignedRead = new RawRead(alignedReadId, alignedReadChars, alignedReadQS);
-					System.out.println(alignedReadChars);
 					alignment.add(alignedRead);
 				}
 			}
 			calculateConsensus();
-			
-			
-			
 		}
 		
 	}
@@ -94,8 +88,7 @@ public class ReadCluster {
 		if(this.alignmentLength == -1) {
 			throw new RuntimeException("Alignment position has not been calculated for this cluster. CalculateAlignment() must be run first");
 		}
-		System.out.print("forward: " + forward + "\treverse: " + DNASequence.getReverseComplement(reverse));
-		alignedReadSeq = forward.substring(0, this.alignmentPos) + DNASequence.getReverseComplement(reverse);
+		alignedReadSeq = forward.substring(0, this.alignmentPos) + DNAMaskedSequence.getReverseComplement(reverse);
 		return alignedReadSeq;
 	}
 	
@@ -143,17 +136,18 @@ public class ReadCluster {
 		
 		int consensusReverseLength = reverseLengths[0];
 		int consensusAlignPos = alignmentsPos[0];
-		int alignPosConfidence = 0;
+		int alignPosConfidence = 1;
 		int altReverseLength = 0;
 		int altAlignPosConfidence = 0;
-		int alternativeAlgnPos = -1;
+		int alternativeAlgnPos = -2;
 		// allows for one disagreement in alignment, otherwise flags it as an odd cluster.
-		for(int i=1; i<=numberOfReadsToAlign;i++) {
+		for(int i=1; i<numberOfReadsToAlign;i++) {
 			if(alignmentsPos[i]==consensusAlignPos) {
 				alignPosConfidence++;
-			} else if (alternativeAlgnPos==-1) {
+			} else if (alternativeAlgnPos==-2) {
 				alternativeAlgnPos = alignmentsPos[i];
 				altReverseLength = reverseLengths[i];
+				altAlignPosConfidence = 1;
 			} else if (alternativeAlgnPos == alignmentsPos[i]) {
 				altAlignPosConfidence++;
 			} else {
@@ -163,15 +157,23 @@ public class ReadCluster {
 			}
 		}
 		
-		
-		if(alignPosConfidence <= altAlignPosConfidence) {
-			this.alignmentPos = alternativeAlgnPos;
-			this.alignmentLength = this.alignmentPos + altReverseLength;
-			this.alignmentConfidence = (double) altAlignPosConfidence / numberOfReadsToAlign;
+		if(this.alignmentPos != -1) {
+			if(alignPosConfidence <= altAlignPosConfidence) {
+				this.alignmentPos = alternativeAlgnPos;
+				this.alignmentLength = this.alignmentPos + altReverseLength;
+				this.alignmentConfidence = (double) altAlignPosConfidence / numberOfReadsToAlign;
+			} else {
+				this.alignmentPos = consensusAlignPos;
+				this.alignmentLength = this.alignmentPos + consensusReverseLength;
+				this.alignmentConfidence = (double) alignPosConfidence / numberOfReadsToAlign;
+			}
 		} else {
-			this.alignmentPos = consensusAlignPos;
-			this.alignmentLength = this.alignmentPos + consensusReverseLength;
-			this.alignmentConfidence = (double) alignPosConfidence / numberOfReadsToAlign;
+			// Even if no alignment was found, we want to calculate the alignment confidence
+			if(alignPosConfidence <= altAlignPosConfidence) {
+				this.alignmentConfidence = (double) altAlignPosConfidence / numberOfReadsToAlign;
+			} else {
+				this.alignmentConfidence = (double) alignPosConfidence / numberOfReadsToAlign;
+			}
 		}
 	}
 	
@@ -193,7 +195,7 @@ public class ReadCluster {
 		int reverseLength = reverse.getLength();
 		int minOverlapLength;
 //		CharSequence reverseCharacters = reverseSequence(reverse.getCharacters());
-		CharSequence reverseCharacters = DNASequence.getReverseComplement(reverse.getCharacters());
+		CharSequence reverseCharacters = DNAMaskedSequence.getReverseComplement(reverse.getCharacters());
 		CharSequence reverseQualityScore = reverseSequence(reverse.getQualityScores());
 		if(forwardLength <= reverseLength) {
 			minOverlapLength = forwardLength;
@@ -235,10 +237,15 @@ public class ReadCluster {
 	 */
 	private int calculateOverlapScore(CharSequence suffix, CharSequence prefix) {
 		int overlapScore = 0;
-		
+		int numberMismatches = 0;
 		for(int i = 0; i < suffix.length(); i++) {
+			if(numberMismatches > 1) {
+				return overlapScore;
+			}
 			if(suffix.charAt(i) == prefix.charAt(i)) {
 				overlapScore++;
+			} else {
+				numberMismatches++;
 			}
 		}
 		

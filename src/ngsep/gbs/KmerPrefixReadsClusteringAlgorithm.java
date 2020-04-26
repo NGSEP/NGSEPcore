@@ -276,7 +276,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
-		System.out.println("Debugging test 10");
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
@@ -297,13 +296,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		printStatistics("initial");
 		processInfo.addTime(System.currentTimeMillis(), "Cluster reads end");	
 		processInfo.addTime(System.currentTimeMillis(), "Variant calling start");		
-//		List<String> clusteredReadsFilenames = debug();
 		this.numClusteredFiles = clusteredReadsFilenames.size();
 		log.info("Clustered reads");
 		if(clusteredReadsFilenames.get(2) == null) {
 			callVariants(clusteredReadsFilenames.get(1));
 		} else {
-			System.out.println("Running paired end");
 			callVariants(clusteredReadsFilenames.get(1), clusteredReadsFilenames.get(2));
 		}
 		
