@@ -11,7 +11,7 @@ import ngsep.sequences.RawRead;
 
 public class ReadCluster {
 	public static final int MIN_ALLOWED_OVERLAP = 10;
-	public static final int ALLOWED_OVERLAP_MISMATCH = 1;
+	public static final int ALLOWED_OVERLAP_MISMATCH = 2;
 	public static final double CLUSTER_PERCENTAGE_TO_BUILD_ALIGNMENT = 0.1;
 	private int clusterNumber;
 	private int totalReads = 0;
@@ -87,13 +87,27 @@ public class ReadCluster {
 		rc1.buildAlignment();
 		String consensus1 = rc1.getConsensusSequence();
 		ReadCluster rc2 = new ReadCluster(2, false);
-		for(RawRead read: reads1) rc2.addSingleRead(read, "");
+		for(RawRead read: reads2) rc2.addSingleRead(read, "");
 		rc2.buildAlignment();
 		String consensus2 = rc2.getConsensusSequence();
 		String revC2 = DNAMaskedSequence.getReverseComplement(consensus2).toString();
+		
+		
 		int pos = calculateAlignmentPos(consensus1, revC2);
-		if (pos == -1) return;
-		consensusSequence = consensus1+revC2.substring(pos);
+		/*if (clusterNumber<30) {
+			System.out.println("Consensus Cluster: "+clusterNumber);
+			System.out.println(consensus1);
+			System.out.println(revC2);
+			System.out.println("Overlap position "+pos);
+		}*/
+		
+		if (pos == -1) {
+			pos = calculateAlignmentPos(revC2, consensus1);
+			if(pos==-1) return;
+			consensusSequence = consensus1.substring(0,pos);
+		} else {
+			consensusSequence = consensus1+revC2.substring(pos);
+		}
 		int n = reads1.size();
 		for(int i=0;i<n;i++) {
 			RawRead r1 = reads1.get(i);
@@ -147,14 +161,14 @@ public class ReadCluster {
 	private int calculateAlignmentPos(String seq1, String seq2) {
 		int s1Length = seq1.length();
 		int s2Length = seq2.length();
-		int minOverlapLength;
+		int maxOverlapLength;
 		
 		if(s1Length <= s2Length) {
-			minOverlapLength = s1Length;
+			maxOverlapLength = s1Length;
 		} else {
-			minOverlapLength = s2Length;
+			maxOverlapLength = s2Length;
 		}
-		for(int i=minOverlapLength; i > MIN_ALLOWED_OVERLAP; i--) {
+		for(int i=maxOverlapLength; i >= MIN_ALLOWED_OVERLAP; i--) {
 			CharSequence suffix = seq1.substring(s1Length-i);
 			CharSequence prefix = seq2.substring(0, i);
 			if(checkOverlap(suffix, prefix)) {
@@ -232,16 +246,15 @@ public class ReadCluster {
 			CharSequence sequence = seq.getCharacters();
 			if(longestRead<sequence.length()) longestRead = sequence.length();
 		}
-		int[][] refSeqTable = new int[longestRead][DNASequence.BASES_ARRAY.length];
+		int numNucleotides = DNASequence.BASES_STRING.length();
+		int[][] refSeqTable = new int[longestRead][numNucleotides+1];
 		
 		for(RawRead seq:alignment) {
 			CharSequence sequence = seq.getCharacters();
 			for(int i=0; i<sequence.length(); i++) {
 				char c = sequence.charAt(i);
-				if(!DNASequence.isInAlphabeth(c)) {
-					continue;
-				}
 				int j = DNASequence.BASES_STRING.indexOf(c);
+				if(j<0) j=numNucleotides;
 				refSeqTable[i][j]++;
 			}
 		}
@@ -263,14 +276,13 @@ public class ReadCluster {
 			}
 			
 			//Report break in cluster structure when depth drops by 50%
-			if(depth > 0) {
-				if((prevDepth / depth) > 2) {
-					this.breakPosition = i;
-				}
+			
+			if(prevDepth > 2*depth) {
+				this.breakPosition = i;
 			}
 			prevDepth = depth;
 			
-			if(maxIdx>=0) consensusC[i] = DNASequence.BASES_STRING.charAt(maxIdx);
+			if(maxIdx>=0 && maxIdx<numNucleotides) consensusC[i] = DNASequence.BASES_STRING.charAt(maxIdx);
 		}
 		consensusSequence = new String(consensusC);
 	}

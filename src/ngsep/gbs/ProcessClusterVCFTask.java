@@ -142,6 +142,7 @@ public class ProcessClusterVCFTask extends Thread {
 		readCluster.buildAlignment();
 		String consensus = readCluster.getConsensusSequence();
 		int consensusLength = consensus.length();
+		if(consensusLength<40) return records;
 		String referenceId = Integer.toString(clusterId);
 		QualifiedSequence refQS = new QualifiedSequence(referenceId, consensus);
 		ReferenceGenome singleSequenceGenome = new ReferenceGenome (refQS);
@@ -151,6 +152,10 @@ public class ProcessClusterVCFTask extends Thread {
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
 		List<RawRead> alignedReads = readCluster.getAlignedReads();
 		List<String> sampleIds = readCluster.getSampleIds();
+		if (alignedReads.size()!=sampleIds.size()) {
+			System.err.println("Inconsistent number of reads and samples. reads: "+alignedReads.size()+" samples: "+sampleIds);
+			return records;
+		}
 		
 		for(int i=0;i<alignedReads.size();i++) {
 			RawRead read = alignedReads.get(i);
