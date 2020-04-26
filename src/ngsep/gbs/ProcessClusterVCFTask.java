@@ -201,7 +201,7 @@ public class ProcessClusterVCFTask extends Thread {
 				records.add(record);
 			}
 		}
-		
+		records = filterRecords(records);
 		return records;
 	}
 
@@ -246,7 +246,7 @@ public class ProcessClusterVCFTask extends Thread {
 		List<String> alleles = new ArrayList<>();
 		alleles.add(DNASequence.BASES_ARRAY[refIdx]);
 		for(int i=0;i<counts.length;i++) {
-			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=parent.getMinAlleleFrequency();
+			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=parent.getMinAlleleDepthFrequency();
 			if(allelesSupported[i] && i!=refIdx) {
 				alleles.add(DNASequence.BASES_ARRAY[i]);
 			}
@@ -344,5 +344,28 @@ public class ProcessClusterVCFTask extends Thread {
 		calledVar.setSampleId(sample.getId());
 		calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
 		return calledVar;
+	}
+	private List<VCFRecord> filterRecords(List<VCFRecord> records) {
+		boolean allSNV = true;
+		int n = records.size();
+		for(VCFRecord record: records) {
+			if (!(record.getVariant() instanceof SNV)) {
+				allSNV = false;
+				break;
+			}
+		}
+		if (n<3 && allSNV) return records;
+		List<VCFRecord> filtered = new ArrayList<VCFRecord>();
+		for(int i=0;i<n;i++) {
+			VCFRecord record = records.get(i);
+			int pos = record.getFirst();
+			int numClose = 0;
+			for(int j=i+1;j<n && numClose<=1;j++) {
+				if(records.get(j).getFirst()-pos < 10) numClose++;
+			}
+			if(numClose>1) break;
+			filtered.add(record);
+		}
+		return filtered;
 	}
 }
