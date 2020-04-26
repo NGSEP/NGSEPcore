@@ -33,6 +33,23 @@ public class ReadCluster {
 		if (pairedEnd) reads2 = new ArrayList<RawRead>();
 		
 	}
+	
+	public int getAlignmentPos() {
+		return alignmentPos;
+	}
+	
+	public double getAlignmentConfidence() {
+		return alignmentConfidence;
+	}
+	
+	public int getAlignmentLength() {
+		return alignmentLength;
+	}
+	
+	public boolean isOddCluster() {
+		return oddAlignmentCluster;
+	}
+	
 	/**
 	 * Builds the alignment of either single or paired-end reads
 	 */

@@ -128,6 +128,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int numSmallClusters = 0;
 	private int numTotalReads = 0;
 	
+	
 	// Get and set methods
 	public Logger getLog() {
 		return log;
@@ -573,7 +574,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 					if(currentReads[i]==null) numNotNull--;
 				}
-				if(nextCluster.getNumberOfTotalReads()>0) {
+				if(nextCluster.getNumberOfTotalReads()>0) { 
 					//Adding new task to the list and starting the new task
 				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
 				    newTask.setPairedEnd(pairedEnd);
@@ -843,6 +844,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 
+	
 	public void countVariants(List<VCFRecord> generatedRecords) {
 		if(generatedRecords.size()>0) {
 			numClustersWithCalledVariants++;

@@ -101,7 +101,7 @@ public class ProcessClusterVCFTask extends Thread {
 		if (outConsensus != null) {
 			synchronized (outConsensus) {
 				writeConsensusFasta();
-				//writeClusterDetails();
+//				writeClusterDetails();
 			}
 		}
 		
@@ -191,20 +191,6 @@ public class ProcessClusterVCFTask extends Thread {
 		
 	}
 	
-	private void writeClusterDetails() {
-		outConsensus.println("Cluster_" + readCluster.getClusterNumber());
-		if(readCluster.getBreakPosition() != null) {
-			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition()));
-		} else {
-			outConsensus.println(readCluster.getConsensusSequence());
-		}
-		outConsensus.println(readCluster.getBreakPosition());
-		List<RawRead> alignment = readCluster.getAlignedReads();
-		for(RawRead seq:alignment) {
-			CharSequence sequence = seq.getCharacters();
-			outConsensus.println(sequence);	
-		}
-	}
 	
 	// From MultisampleVariantsDetector.java
 	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum, double h) {
