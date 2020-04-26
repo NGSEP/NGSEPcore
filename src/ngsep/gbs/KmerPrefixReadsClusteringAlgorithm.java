@@ -539,6 +539,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			memUsage.println("Time(ms)\tMemoryUsage(MB)");
 			timer.schedule(new MemoryUsage(memUsage), 0, 5000);
 			
+			
 			for(int i=0; i<numberOfFiles; i++) {
 				readers[i] = new FastqFileReader(clusteredReadsFilenames.get(i));
 				Iterator<RawRead> it = readers[i].iterator();
@@ -632,13 +633,17 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		try (PrintStream outVariants = new PrintStream(outputPrefix+"_variants.vcf");
 				// TODO: do I need three consensus files?
 			 PrintStream outConsensus = new PrintStream(outputPrefix+"_consensus.fa");
-			 PrintStream memUsage = new PrintStream(outputPrefix + "_memoryUsage.txt");) {
+			 PrintStream memUsage = new PrintStream(outputPrefix + "_memoryUsage.txt");
+			PrintStream clusterDetails = new PrintStream(outputPrefix + "_clusterDetails.tsv");) {
 			int numNotNull = 0;
 			int numCluster = 0;
 			
 			// save memory usage every 5 seconds
 			memUsage.println("Time(ms)\tMemoryUsage(MB)");
 			timer.schedule(new MemoryUsage(memUsage), 0, 5000);
+			
+			//Header for clusterDetails
+			clusterDetails.println("ClusterNumber\tAlignPos\tAlignConfidence\tAlignLength\tDepth\tFlag");
 			
 			for(int i=0; i<numberOfFiles; i++) {
 				readers_1[i] = new FastqFileReader(clusteredReadsFilenames_1.get(i));

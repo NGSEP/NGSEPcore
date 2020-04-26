@@ -63,7 +63,8 @@ public class ProcessClusterVCFTask extends Thread {
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter vcfWriter;
 	private PrintStream outVariants;
-	private PrintStream outConsensus;
+	private PrintStream outConsensus = null;
+	private PrintStream clusterDetails = null;
 	private boolean isPairedEnd;
 	
 	private KmerPrefixReadsClusteringAlgorithm parent;
@@ -75,6 +76,16 @@ public class ProcessClusterVCFTask extends Thread {
 		this.vcfWriter = writer;
 		this.outVariants = outVariants;
 		this.outConsensus = outConsensus;
+		this.parent = parent;
+	}
+	
+	public ProcessClusterVCFTask(ReadCluster readCluster, VCFFileHeader vcfFileHeader, VCFFileWriter writer, KmerPrefixReadsClusteringAlgorithm parent, PrintStream outVariants, PrintStream outConsensus, PrintStream clusterDetails) {
+		this.readCluster = readCluster;
+		this.vcfFileHeader = vcfFileHeader;
+		this.vcfWriter = writer;
+		this.outVariants = outVariants;
+		this.outConsensus = outConsensus;
+		this.clusterDetails = clusterDetails;
 		this.parent = parent;
 	}
 	
@@ -101,7 +112,9 @@ public class ProcessClusterVCFTask extends Thread {
 		if (outConsensus != null) {
 			synchronized (outConsensus) {
 				writeConsensusFasta();
-//				writeClusterDetails();
+				if(clusterDetails != null) {
+					writeClusterDetails();
+				}
 			}
 		}
 		
@@ -118,6 +131,17 @@ public class ProcessClusterVCFTask extends Thread {
 		hasFinished = true;
 	}
 	
+	private void writeClusterDetails() {
+		clusterDetails.println(readCluster.getClusterNumber()+"\t"
+				+readCluster.getAlignmentPos()+"\t"
+				+readCluster.getAlignmentConfidence()+"\t"
+				+readCluster.getAlignmentLength()+"\t"
+				+readCluster.getNumberOfTotalReads()+"\t"
+				+readCluster.isOddCluster());
+		
+		
+	}
+
 	private List<VCFRecord> generateRecordsForCluster() {
 		List<VCFRecord> records = new ArrayList<>();
 		List<ReadAlignment> readAlignments = new ArrayList<>();
