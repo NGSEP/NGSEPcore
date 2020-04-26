@@ -73,7 +73,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final short DEF_MIN_QUALITY = MultisampleVariantsDetector.DEF_MIN_QUALITY;
 	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
-	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
+	public static final double DEF_MIN_ALLELE_DEPTH_FREQUENCY = 0.01;
 	public static final int DEF_START = 8;
 	public static final int DEF_MAX_NUM_CLUSTERS = 2000000;
 	public static final int DEF_MAX_READS_IN_MEMORY = 4000000;
@@ -99,7 +99,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private short minQuality = DEF_MIN_QUALITY;
 	private byte normalPloidy = DEF_PLOIDY;
-	private double minAlleleFrequency = DEF_MIN_ALLELE_FREQUENCY;
+	private double minAlleleDepthFrequency = DEF_MIN_ALLELE_DEPTH_FREQUENCY;
 	
 	// Model attributes
 	private static final String READID_SEPARATOR="$";
@@ -250,17 +250,14 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
-	public double getMinAlleleFrequency() {
-		return minAlleleFrequency;
+	public double getMinAlleleDepthFrequency() {
+		return minAlleleDepthFrequency;
 	}
-	/**
-	 * @param minAlleleFrequency the minAlleleFrequency to set
-	 */
-	public void setMinAlleleFrequency(double minAlleleFrequency) {
-		this.minAlleleFrequency = minAlleleFrequency;
+	public void setMinAlleleDepthFrequency(double minAlleleDepthFrequency) {
+		this.minAlleleDepthFrequency = minAlleleDepthFrequency;
 	}
 	public void setMinAlleleFrequency(String value) {
-		setMinAlleleFrequency((double)OptionValuesDecoder.decode(value, Double.class));
+		setMinAlleleDepthFrequency((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 
 	/**
