@@ -8,12 +8,20 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignmentPair;
+import ngsep.alignments.ReadsAligner;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.genome.ReferenceGenomeFMIndex;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.RawRead;
+import ngsep.sequences.io.FastaFileReader;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
@@ -27,10 +35,12 @@ import ngsep.vcf.VCFRecord;
 
 public class VCFRelativeCoordinatesTranslator {
 
+	private Logger log = Logger.getLogger(VCFRelativeCoordinatesTranslator.class.getName());
 	private String outFile="output.vcf";
+	private String filenameConsensusFA;
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
-	private static ReferenceGenome refGenome;
+	private ReferenceGenome refGenome;
 	private Map<String, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
@@ -57,36 +67,27 @@ public class VCFRelativeCoordinatesTranslator {
 //	}
 	public static void main(String[] args) throws Exception {
 		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
-		instance.filenameAlignmentBAM = args[0];
-		instance.filenameRelativeVCF = args[1];
-		String refGenomeFile = args[2];
-		instance.outFile = args[3];
-		instance.run(refGenomeFile);
+		if("fa".equals(args[0])) {
+			instance.filenameConsensusFA = args[1];
+		} else {
+			instance.filenameAlignmentBAM = args[1];
+		}
+		
+		instance.filenameRelativeVCF = args[2];
+		instance.refGenome= new ReferenceGenome(args[3]);
+		instance.outFile = args[4];
+		instance.run();
 	}
 
-	
-	/**
-	 * Load reference genome based on provided file
-	 * @param genomeFileName
-	 * @return
-	 * @throws IOException
-	 */
-	private static ReferenceGenome loadReferenceGenome(String genomeFileName) throws IOException {
-		ReferenceGenome genome = new ReferenceGenome(genomeFileName);
-		System.out.println(genome.getTotalLength());
-		System.out.println(genome.getNumSequences());
-		return genome; 
-	}
-
-	public void run(String refGenomeFile) throws Exception {
-		refGenome = loadReferenceGenome(refGenomeFile);
-		getAlignmentHash();
+	public void run() throws Exception {
+		if (filenameConsensusFA!=null) alignConsensusSequences();
+		if (filenameAlignmentBAM!=null) getAlignmentsFromBAM();
 		System.out.println("Loaded a total of " + alignmentsHash.size() + " alignments.");
 		
 		translate();
 //		explore();
-		}
-	
+	}
+
 	/**
 	 *  For each record on the RelativeVCF, this method translates and rewrites. 
 	 * @throws Exception
@@ -170,7 +171,7 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		// Position of variant with respect to the de-novo alignment 1-based
 		// Relative reference base (the base at position of variant in the consensus seq)
-		int relativePos = record.getFirst();
+		int zeroBasedRelativePos = record.getFirst()-1;
 		
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
@@ -188,26 +189,28 @@ public class VCFRelativeCoordinatesTranslator {
 		// Will be something like Cluster-####
 		String seqName = algn.getSequenceName();
 		
-		if(algn.isReadUnmapped() || seqName==null) {
+		if(seqName==null) {
 			unmappedRead++;
 			return null;
 		}
 		
 		
-		//-1 if the read position does not align with the reference
-//		XXX: THIS DOESNT WORK BECAUSE THERE IS NO WAY TO GET REFBASE WITH ABSOLUTE POSITION. 
-//		truePos = algn.getReferencePosition(relativePos);
+		//-1 if the read position does not align with the reference 
+		truePos = algn.getReferencePosition(zeroBasedRelativePos);
 		
 		//This allows is to get the true position, not absolute, but relative to the genomic region.
 		// This plus the sequence index should get us the reference Allel.
-		if(algn.isNegativeStrand()) {
+		/*if(algn.isNegativeStrand()) {
 			// truePos = algn.getFirst() + (seqLength - relativePos);
 			truePos = algn.getLast() - (relativePos - 1);
 //			System.out.println(truePos + "\t" + (algn.getFirst() + (algn.getReadLength() - relativePos)));
 		} else {
 			truePos = algn.getFirst() + relativePos - 1;
+		}*/
+		if(truePos<=0) {
+			notRefSeq++;
+			return null;
 		}
-		
 		//Get index of alignment -> make it 0-based. Basically the index of the genomic region
 		int algnIndex = algn.getSequenceIndex();
 		if(algnIndex == -1) {
@@ -288,11 +291,99 @@ public class VCFRelativeCoordinatesTranslator {
 		return translatedRecord;
 	}
 	
+	private void alignConsensusSequences() throws IOException {
+		this.alignmentsHash = new HashMap<String, ReadAlignment>();
+		
+		ReadsAligner aligner = new ReadsAligner();
+		aligner.setGenome(refGenome);
+		aligner.setfMIndex(new ReferenceGenomeFMIndex(refGenome));
+		
+		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
+			reader.setLog(log);
+			Iterator<QualifiedSequence> it = reader.iterator();
+			while(it.hasNext()) {
+				QualifiedSequence consensus = it.next();
+				String algnName = consensus.getName();
+				if(algnName.startsWith("Cluster_")) {
+					algnName = algnName.substring(8);
+				}
+				String seq = consensus.getCharacters().toString();
+				int indexN = seq.indexOf('N');
+				if(indexN <=30 || indexN>=seq.length()-30) {
+					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
+					List<ReadAlignment> alns = aligner.alignRead(read, true);
+					if(alns.size()==0) {
+						unmappedRead++;
+						continue;
+					}
+					ReadAlignment first = alns.get(0);
+					alignmentsHash.put(algnName,first);
+				} else {
+					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
+					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+1));
+					
+					RawRead read1 = new RawRead(algnName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
+					RawRead read2 = new RawRead(algnName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
+					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
+					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
+					if(alns1.size()==0|| alns2.size()==0) {
+						unmappedRead++;
+						continue;
+					}
+					List<ReadAlignmentPair> pairs = aligner.findPairs(alns1, alns2, true);
+					if(pairs.size()==0) {
+						unmappedRead++;
+						continue;
+					}
+					ReadAlignmentPair first = pairs.get(0);
+					ReadAlignment aln1 = first.getAln1();
+					ReadAlignment aln2 = first.getAln2();
+					if(aln1.isPartialAlignment(1) || aln2.isPartialAlignment(1)) {
+						unmappedRead++;
+						continue;
+					}
+					int posN1 = aln1.getLast()+1; 
+					int posN2 = aln2.getLast()+1;
+					if(posN1<aln2.getFirst()) {
+						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), aln2.getLast(), seq.length(), 0);
+						combined.setSequenceName(aln1.getSequenceName());
+						String cigar = aln1.getCigarString();
+						//The N character
+						cigar+="1M";
+						if (posN1+1<aln2.getFirst()) cigar+=(aln2.getFirst()-posN1-1)+"N";
+						cigar+=aln2.getCigarString();
+						combined.setCigarString(cigar);
+						combined.setReadCharacters(consensus.getCharacters());
+						combined.setAlignmentQuality(aln1.getAlignmentQuality());
+						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
+						alignmentsHash.put(algnName,combined);
+					} else if (posN2 <aln1.getFirst()) {
+						ReadAlignment combined = new ReadAlignment(aln2.getSequenceIndex(), aln2.getFirst(), aln1.getLast(), seq.length(), 0);
+						combined.setSequenceName(aln2.getSequenceName());
+						String cigar = aln2.getCigarString();
+						//The N character
+						cigar+="1M";
+						if (posN2+1<aln1.getFirst()) cigar+=(aln1.getFirst()-posN2-1)+"N";
+						cigar+=aln1.getCigarString();
+						combined.setCigarString(cigar);
+						combined.setReadCharacters(DNAMaskedSequence.getReverseComplement(consensus.getCharacters()));
+						combined.setAlignmentQuality(aln1.getAlignmentQuality());
+						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
+						alignmentsHash.put(algnName,combined);
+					} else {
+						unmappedRead++;
+					}
+				}
+			}
+		}
+		
+	}
+	
 	/**
 	 * This method builds a hash with the provided alignments to be consulted at translation time
 	 * @throws IOException
 	 */
-	private void getAlignmentHash() throws IOException {
+	private void getAlignmentsFromBAM() throws IOException {
 		this.alignmentsHash = new HashMap<>();
 		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);) {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
@@ -305,7 +396,9 @@ public class VCFRelativeCoordinatesTranslator {
 					algnName = algn.getReadName();
 				}
 				//int clusterId = Integer.parseInt(algnName);
-				if(!algn.isSecondary()) {
+				if(algn.isReadUnmapped()) {
+					unmappedRead++;
+				} else if(!algn.isSecondary()) {
 					this.alignmentsHash.put(algnName, algn);
 				}
 			}

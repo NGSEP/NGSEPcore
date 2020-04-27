@@ -34,6 +34,7 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -153,6 +154,8 @@ public class FastaFileReader implements Iterable<QualifiedSequence>,Closeable  {
 			}
 		}
 		in = new BufferedReader(new InputStreamReader(stream));
+		//Sequence name by default
+		setSequenceType(DNAMaskedSequence.class);
 	}
 	/**
 	 * Loads a raw read from the given BufferedReader

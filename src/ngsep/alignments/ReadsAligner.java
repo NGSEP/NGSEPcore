@@ -161,14 +161,21 @@ public class ReadsAligner {
 	public void setGenome(String genomeFile) throws IOException {
 		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
-	
-	
+
+	public ReferenceGenomeFMIndex getfMIndex() {
+		return fMIndex;
+	}
+	public void setfMIndex(ReferenceGenomeFMIndex fMIndex) {
+		this.fMIndex = fMIndex;
+	}
 	public String getFmIndexFile() {
 		return fmIndexFile;
 	}
 	public void setFmIndexFile(String fmIndexFile) {
 		this.fmIndexFile = fmIndexFile;
 	}
+	
+	
 	
 	public String getOutputFile() {
 		return outputFile;
@@ -811,8 +818,10 @@ public class ReadsAligner {
 	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
+			if(longReadsAligner ==null) longReadsAligner = new LongReadsAligner();
 			alignments = longReadsAligner.alignQueryToReference(readSeq);
 		} else {
+			if(shortReadsAligner==null) shortReadsAligner=new ShortSingleReadsAligner(fMIndex, kmerLength, maxAlnsPerRead);
 			alignments = shortReadsAligner.alignRead(readSeq);
 		}
 		return alignments;
