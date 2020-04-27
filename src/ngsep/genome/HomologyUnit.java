@@ -32,6 +32,7 @@ import java.util.Map;
  */
 public class HomologyUnit implements GenomicRegion {
 	private String id;
+	//TODO: Change to entityID, more generic? GenomeID when built for a genome, OrganismID when built for organisms
 	private int genomeId;
 	private String sequenceName;
 	private int first;

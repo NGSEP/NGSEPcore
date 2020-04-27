@@ -65,6 +65,7 @@ public class GenomesAligner {
 	private List<AnnotatedReferenceGenome> genomes = new ArrayList<>();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
+	private boolean skipMCL= false;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -90,6 +91,16 @@ public class GenomesAligner {
 	}
 	public void setOutputPrefix(String outputPrefix) {
 		this.outputPrefix = outputPrefix;
+	}
+	
+	public boolean getSkipMCL() {
+		return skipMCL;
+	}
+	public void setSkipMCL(boolean skipMCL) {
+		this.skipMCL = skipMCL;
+	}
+	public void setSkipMCL(Boolean value) {
+		setSkipMCL(value.booleanValue());
 	}
 
 	public byte getKmerLength() {
@@ -178,12 +189,12 @@ public class GenomesAligner {
 			AnnotatedReferenceGenome genome1 = genomes.get(i);
 			for (int j=0;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1, genome2));
+				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog()));
 			}
 		}
 		HomologClustersCalculator calculator = new HomologClustersCalculator();
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
+		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges, skipMCL);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
