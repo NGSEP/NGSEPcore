@@ -8,50 +8,53 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.math.Distribution;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.QualifiedSequence;
 
 public class TransposonFinder {
-	
+
 	/**
 	 * Genome of interest
 	 */
 	private ReferenceGenome genome;
-	
+
 	/**
 	 * FMIndex of the genome of interest
 	 */
 	private ReferenceGenomeFMIndex fm;
-		
+
 	private Map<String, List<GenomicRegion>> STRs;
-		
+
+	private Map<String, List<GenomicRegion>> goldStandard;
+
 	private Map<String, List<Transposon>> transposons;
-	
+
+	private Map<String, List<Annotation>> hitNumbers;
+
 	private Distribution distrHits = new Distribution(0, 100, 1);
-		
+
 	private int lengthKmer;
 
 	private int minHitSize;
 
 	private boolean useSTRs;
-	
+
 	public void run() throws IOException {
-		
+
 		// Kmers per subsequence
 		int numSequences = genome.getNumSequences();
 		for (int i = 0; i < numSequences; i++) {
 			QualifiedSequence qs = genome.getSequenceByIndex(i);
 			CharSequence seq = qs.getCharacters();
-			processSequence(seq, qs.getName(), fm);			
+			processSequence(seq, qs.getName(), fm);
 		}
-				
+
 		// Save the LTR in a text file
 		saveLTRs(transposons, "output.txt");
 	}
-	
+
 	public void saveLTRs(Map<String, List<Transposon>> LTRs, String filename) throws IOException {
 		System.out.printf("Writing LTR predictions on %s \n", filename);
 		BufferedWriter writer = new BufferedWriter(new FileWriter(new File(filename)));
@@ -62,7 +65,42 @@ public class TransposonFinder {
 				writer.newLine();
 			}
 		}
+		System.out.printf("Writing gt statistics on %s \n", "gt_" + filename);
+		BufferedWriter w = new BufferedWriter(new FileWriter(new File("gt_" + filename)));
+		for(String actSeq : LTRs.keySet()) {
+			for(Annotation ann : hitNumbers.get(actSeq)) {
+				System.out.printf("%s\t%d\t%d\t%d\t%f\n", actSeq, ann.first, ann.last, ann.maxHit, ann.medianHit);
+				w.write(String.format("%s\t%d\t%d\t%d\t%f", actSeq, ann.first, ann.last, ann.maxHit, ann.medianHit));
+				w.newLine();
+			}
+		}
 		writer.close();
+		w.close();
+	}
+
+	private class Annotation {
+		public int maxHit;
+		public String name;
+		public int first;
+		public int last;
+		public double medianHit;
+
+		public Annotation(String name, int first, int last, int maxHit, int sumHits, int numKmers){
+			this.name = name;
+			this.first = first;
+			this.last = last;
+			this.maxHit = maxHit;
+			if(numKmers == 0){
+				this.medianHit = 0;
+			}
+			else{
+				this.medianHit = sumHits / (double) numKmers;
+			}
+		}
+
+		public String toString(){
+			return String.format("%s\t%d\t%d\t%d", this.name, this.first, this.last, this.maxHit);
+		}
 	}
 
 	/**
@@ -81,6 +119,12 @@ public class TransposonFinder {
 		// Take into account known STR
 		List<GenomicRegion> actSTRs = null;
 		int indexSTR = 0;
+		List<GenomicRegion> actGS = goldStandard.get(name);
+		int indexGS = 0;
+		int maxHitGS = 0;
+		int countHits = 0;
+		int numKmers = 0;
+		List<Annotation> hitsGS = new ArrayList<>();
 		if(useSTRs) {
 			actSTRs = STRs.get(name);
 		}
@@ -89,12 +133,32 @@ public class TransposonFinder {
 			String kmer = seq.subSequence(i, (i+lengthKmer)).toString().toUpperCase();
 			List<UngappedSearchHit> hits = fm.exactSearch(kmer);
 			distrHits.processDatapoint(hits.size());
+			// Save the number of hits for the GS
+			if(actGS != null && indexGS < actGS.size()) {
+				GenomicRegion gs = actGS.get(indexGS);
+				if(gs.getLast() < i){
+					Annotation newGS = new Annotation(name, gs.getFirst(), gs.getLast(), maxHitGS, countHits, numKmers);
+					hitsGS.add(newGS);
+					indexGS ++;
+					maxHitGS = 0;
+					countHits = 0;
+					numKmers = 0;
+				}
+				else if(gs.getFirst() >= i){
+					//Inside a groundtruth transposon
+					numKmers ++;
+					countHits += hits.size();
+					if(hits.size() > maxHitGS){
+						maxHitGS = hits.size();
+					}
+				}
+			}
 			// If the kmer is more than the min hit size
 			if(hits.size() > minHitSize ) {
 				if(!seen) {
 					if(useSTRs && indexSTR < actSTRs.size()) {
 						GenomicRegion STR = actSTRs.get(indexSTR);
-						if(STR.getFirst() >  i || STR.getLast()<i) { //Check overlap 
+						if(STR.getFirst() >  i || STR.getLast()<i) { //Check overlap
 							// Is not a tandem repeat
 							actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
 							seen = true;
@@ -102,7 +166,7 @@ public class TransposonFinder {
 					}
 					else {
 						actTransposon = new Transposon(name, i, (i+lengthKmer), "LTR", hits.size());
-						seen = true;						
+						seen = true;
 					}
 				}
 				else {
@@ -118,7 +182,7 @@ public class TransposonFinder {
 			if(count > maxCount) {
 				seen = false;
 				count = 0;
-				if(actTransposon.length() - (lengthKmer + 1) > 1000) { 
+				if(actTransposon.length() - (lengthKmer + 1) > 1000) {
 					repetitiveRegions.add(actTransposon);
 				}
 			}
@@ -132,6 +196,7 @@ public class TransposonFinder {
 		}
 		System.out.printf("Found %d repetitive regions \n",repetitiveRegions.size());
 		transposons.put(name, repetitiveRegions);
+		hitNumbers.put(name, hitsGS);
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -146,7 +211,10 @@ public class TransposonFinder {
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
 		instance.transposons = new LinkedHashMap<>();
+		instance.hitNumbers = new LinkedHashMap<>();
 		instance.useSTRs = false;
+		SimpleGenomicRegionFileHandler gs_loader = new SimpleGenomicRegionFileHandler();
+		instance.goldStandard = gs_loader.loadRegionsAsMap(args[2]);
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
