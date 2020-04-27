@@ -192,9 +192,9 @@ public class GenomesAligner {
 				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog()));
 			}
 		}
-		HomologClustersCalculator calculator = new HomologClustersCalculator();
+		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges, skipMCL);
+		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
 		AnnotatedReferenceGenome genome1 = genomes.get(0);

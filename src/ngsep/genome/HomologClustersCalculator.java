@@ -16,12 +16,19 @@ import ngsep.graphs.MCLJob;
 import ngsep.math.Distribution;
 
 public class HomologClustersCalculator {
-	
+	//Statistics
 	private int countLarge = 0;
 	private int countSmall = 0;
 	private int countMedium = 0;
+	
+	//Run parameters
+	private boolean skipMCL;
  
 	private Logger log;
+	
+	public HomologClustersCalculator(boolean skipMCL) {
+		this.skipMCL = skipMCL;
+	}
 	
 	public Logger getLog() {
 		return log;
@@ -31,19 +38,21 @@ public class HomologClustersCalculator {
 		this.log = log;
 	}
 
-	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges, boolean skipMCL) {
+	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
 		List<HomologyCatalog> catalogs = new ArrayList<>();
 		for(AnnotatedReferenceGenome genome : genomes) catalogs.add(genome.getHomologyCatalog()); 
-		return clusterHomologsCatalogs(catalogs, homologyEdges, skipMCL);
+		return clusterHomologsCatalogs(catalogs, homologyEdges);
 	}
 	
-	public List<List<HomologyUnit>> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges, boolean skipMCL) {
+	public List<List<HomologyUnit>> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges) {
 		log.info("Clustering orthologs and paralogs");
 		
-		//Separate homologs into smaller partitions
+		//Divide homologs into smaller partitions
 		List<HomologyUnit> units = new ArrayList<>();
 		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits()); 
+		log.info("Dividing homologs via connected components");
 		List<List<HomologyUnit>> partitions = divideUnits(units);
+		log.info("Finished dividing homolog units");
 		
 		//Skip mcl, return connected components
 		if(skipMCL) {
@@ -51,9 +60,11 @@ public class HomologClustersCalculator {
 			return partitions;
 		}
 		
-			List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
+		log.info("Starting processing partitions");
+		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
 		//Infer clusters from each resulting partition
 		for(List<HomologyUnit> partition : partitions) {
+			log.info(String.format("Processing partition of size %d", partition.size()));
 			List<List<HomologyUnit>> result = this.processPartition(partition);
 			if(result.size() > 0) clusters.addAll(result);
 		}
@@ -97,6 +108,8 @@ public class HomologClustersCalculator {
 		}
 		
 		Set<String> marked = new HashSet<>();
+		int markedCount = 0;
+		int totalCount = units.size();
 		for (int i = 0; i < filteredUnits.size(); i++) {
 			if (marked.contains(filteredUnits.get(i).getUniqueKey())) continue;
 			Queue<HomologyUnit> queue = new LinkedList<>();
@@ -104,6 +117,10 @@ public class HomologClustersCalculator {
 			
 			queue.add(filteredUnits.get(i));
 			while(!queue.isEmpty()) {
+				if(markedCount%1000 == 0) {
+					log.info(String.format("Dividing units, current progress: %d/%d. Queue size: %d", markedCount, totalCount, queue.size()));
+				}
+				
 				HomologyUnit currentUnit = queue.poll();
 				if(currentPartition.contains(currentUnit)) {
 					//Element already inside current partition.
@@ -125,6 +142,7 @@ public class HomologClustersCalculator {
 					} else {
 						//Add element to partition and add its edges to the queue
 						marked.add(currentUnit.getUniqueKey());
+						markedCount++;
 						currentPartition.add(currentUnit);
 						Collection<HomologyEdge> edges = currentUnit.getAllHomologyRelationships();
 						for(HomologyEdge edge : edges) {
@@ -152,7 +170,7 @@ public class HomologClustersCalculator {
 			//Clique (needs to be verified)
 			countSmall++;
 			clusters.add(partition);
-		} else if (partition.size() <= 1000){
+		} else if (partition.size() <= 5000){
 			//MCL
 			countMedium++;
 			
@@ -184,7 +202,6 @@ public class HomologClustersCalculator {
 			countLarge++;
 			clusters.add(partition);
 		}
-		
 		return clusters;
 	}
 }

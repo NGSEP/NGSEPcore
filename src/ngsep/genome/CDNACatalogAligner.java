@@ -33,7 +33,6 @@ public class CDNACatalogAligner {
 	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
-	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
 	
 	// Model attributes
@@ -150,9 +149,9 @@ public class CDNACatalogAligner {
 				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
 			}
 		}
-		HomologClustersCalculator calculator = new HomologClustersCalculator();
+		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges, skipMCL);
+		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges);
 	}
 	
 	public void printResults() throws FileNotFoundException {
