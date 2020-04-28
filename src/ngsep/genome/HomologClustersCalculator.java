@@ -196,7 +196,7 @@ public class HomologClustersCalculator {
 			//MCL
 			countMedium++;
 			
-			log.info(String.format("MCL RUN #%d", countMedium));
+			log.info(String.format("Processing partition of size %d. MCL RUN #%d", countMedium));
 			HashMap<String, Integer> indexOf = new HashMap<>();
 			for(int i = 0; i < partition.size(); i++) { 
 				indexOf.put(partition.get(i).getUniqueKey(), i);
@@ -223,10 +223,10 @@ public class HomologClustersCalculator {
 			//Clustering statistics
 			log.info(String.format("Finished MCL RUN #%d. Created %d clusters.", countMedium, clusters.size()));
 			distMCLCount.processDatapoint(clusters.size());
-			ArrayList<Double> shares = new ArrayList<Double>();
+			ArrayList<Integer> shares = new ArrayList<Integer>();
 			for(List<HomologyUnit> cluster : clusters) {
 				double val = ((double)cluster.size())/((double)results.size());
-				shares.add(val);
+				shares.add(cluster.size());
 				distMCLSpread.processDatapoint(val);
 			}
 			log.info(Arrays.toString(shares.toArray()));
