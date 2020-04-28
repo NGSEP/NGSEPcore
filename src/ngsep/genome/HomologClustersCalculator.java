@@ -3,6 +3,7 @@ package ngsep.genome;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -213,7 +214,6 @@ public class HomologClustersCalculator {
 			job.run();
 			
 			List<List<Integer>> results = job.getResults();
-			distMCLCount.processDatapoint(results.size());
 			for(List<Integer> indexList : results) {
 				List<HomologyUnit> cluster = new ArrayList<>();
 				for(Integer k : indexList) cluster.add(partition.get(k));
@@ -221,8 +221,15 @@ public class HomologClustersCalculator {
 			}
 			
 			//Clustering statistics
-			for(List<HomologyUnit> cluster : clusters)
-				distMCLSpread.processDatapoint(((double)cluster.size())/((double)results.size()));
+			log.info(String.format("Finished MCL RUN #%d. Created %d clusters.", countMedium, clusters.size()));
+			distMCLCount.processDatapoint(clusters.size());
+			ArrayList<Double> shares = new ArrayList<Double>();
+			for(List<HomologyUnit> cluster : clusters) {
+				double val = ((double)cluster.size())/((double)results.size());
+				shares.add(val);
+				distMCLSpread.processDatapoint(val);
+			}
+			log.info(Arrays.toString(shares.toArray()));
 		} else {
 			//Too large for MCL
 			countLarge++;
