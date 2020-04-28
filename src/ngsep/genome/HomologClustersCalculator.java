@@ -225,7 +225,7 @@ public class HomologClustersCalculator {
 			distMCLCount.processDatapoint(clusters.size());
 			ArrayList<Integer> shares = new ArrayList<Integer>();
 			for(List<HomologyUnit> cluster : clusters) {
-				double val = ((double)cluster.size())/((double)results.size());
+				double val = ((double)cluster.size())/((double)clusters.size());
 				shares.add(cluster.size());
 				distMCLSpread.processDatapoint(val);
 			}
