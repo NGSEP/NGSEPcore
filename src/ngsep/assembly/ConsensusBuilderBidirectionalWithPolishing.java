@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import ngsep.alignments.LongReadsAligner;
+import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.IndelRealignerPileupListener;
@@ -48,7 +48,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	private static final String MOCK_REFERENCE_NAME = "Consensus";
 	
-	private LongReadsAligner aligner = new LongReadsAligner();
+	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 	
 	public Logger getLog() {
 		return log;
@@ -156,7 +156,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				ReadAlignment alnRead = aligner.alignRead(vertexPreviousEdge.getSequenceIndex(), rawConsensus, read, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
 					alnRead.setSequenceName(MOCK_REFERENCE_NAME);
-					alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
+					//alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 					alignments.add(alnRead);
 				}
 				else unalignedReads++;
@@ -173,7 +173,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					ReadAlignment alnEmbedded = aligner.alignRead(embedded.getSequenceId(), rawConsensus, embeddedRead, uniqueKmersSubject, 0.5);
 					if(alnEmbedded!=null) {
 						alnEmbedded.setSequenceName(MOCK_REFERENCE_NAME);
-						alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
+						//alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
 					}
 					else unalignedReads++;

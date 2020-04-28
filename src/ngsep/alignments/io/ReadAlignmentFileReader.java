@@ -233,7 +233,10 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		if (mismatches!=null) answer.setNumMismatches((short) Math.min(mismatches,32000));
 		if (loadMode >= LOAD_MODE_SEQUENCE) {
 			answer.setReadCharacters(alnRecord.getReadString());
-			answer.setQualityScores(alnRecord.getBaseQualityString());
+			String qs = alnRecord.getBaseQualityString();
+			if(qs!=null && !SAMRecord.NULL_QUALS_STRING.equals(qs)) {
+				answer.setQualityScores(qs);
+			}
 		}
 		if(loadMode == LOAD_MODE_FULL) answer.setReadName(alnRecord.getReadName());
 		return answer;

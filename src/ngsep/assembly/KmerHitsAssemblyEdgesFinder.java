@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import ngsep.alignments.LongReadsAligner;
+import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
@@ -26,7 +26,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	
 	
-	private LongReadsAligner aligner = new LongReadsAligner();
+	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 	
 	private int idxDebug = -1;
 	
