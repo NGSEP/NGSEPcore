@@ -7,8 +7,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -17,16 +19,19 @@ import ngsep.graphs.MCLJob;
 import ngsep.math.Distribution;
 
 public class HomologClustersCalculator {
+	//Possible program arguments
+	private static final int PREFERRED_ORTHOGROUP_SIZE = 50;
+	private static final int MAX_SIZE_MCL = 5000;
+	
 	//Statistics
 	private int countLarge = 0;
 	private int countSmall = 0;
 	private int countMedium = 0;
+	private int reProcessedClusters = 0;
 	
 	//Run parameters
 	private boolean skipMCL;
-	private Distribution distMCLSpread = new Distribution(0, 1, 0.01);
-	private Distribution distMCLCount = new Distribution(1, 100, 1);
-	private Distribution distClusterSizes = new Distribution(0, 1000, 1);
+	private Distribution distClusterSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
 	
 	private Logger log;
 	
@@ -68,46 +73,35 @@ public class HomologClustersCalculator {
 		}
 		
 		log.info("Starting processing partitions");
+		PriorityQueue<PartitionTask> tasks = new PriorityQueue();
+		for(List<HomologyUnit> partition : partitions) tasks.add(new PartitionTask(partition));
+		
+		//Infer clusters from each resulting partition task
 		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
-		//Infer clusters from each resulting partition
-		for(List<HomologyUnit> partition : partitions) {
-			log.info(String.format("Processing partition of size %d", partition.size()));
-			List<List<HomologyUnit>> result = this.processPartition(partition);
-			if(result.size() > 0) clusters.addAll(result);
+		while(!tasks.isEmpty()) {
+			PartitionTask task = tasks.poll();
+			task = this.processPartition(task);
+			if(task.getNewTasks() != null) tasks.addAll(task.getNewTasks());
+			if(task.getResults().size() > 0) clusters.addAll(task.getResults());
 		}
 		
 		//Cluster statistics
 		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
-		generateStatistics(clusters);
+		generateStatistics();
 		
 		return clusters;
 	}
 	
 	/**
 	 * Prints out useful statistics from the generated clusters to the logger.
-	 * @param clusters resulting clusters.
 	 */
-	private void generateStatistics(List<List<HomologyUnit>> clusters) {
+	private void generateStatistics() {
 		log.info("OrthoGroup Results");
 		log.info("Size Statistics");
-		log.info(String.format("SMALL (2-10): %d || MEDIUM (11-5000): %d || LARGE (5000+): %d", countSmall, countMedium, countLarge));
+		log.info(String.format("SMALL (2-10): %d || MEDIUM (10-MAX): %d || LARGE (MAX+): %d || MAX = %d", countSmall, countMedium, countLarge, MAX_SIZE_MCL));
 		
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		distMCLCount.printDistributionInt(out);
-		
-		log.info("MCL Sizes Statistics");
-		log.info(String.format("%s", os.toString()));
-		
-		os = new ByteArrayOutputStream();
-		out = new PrintStream(os);
-		distMCLSpread.printDistributionInt(out);
-		
-		log.info("MCL Spread Statistics");
-		log.info(String.format("%s", os.toString()));
-		
-		os = new ByteArrayOutputStream();
-		out = new PrintStream(os);
 		distClusterSizes.printDistributionInt(out);
 		
 		log.info("Clusters Sizes Statistics");
@@ -185,56 +179,120 @@ public class HomologClustersCalculator {
 	 * @param partition the partition to be used
 	 * @return a list of clusters which add up to the starting partition
 	 */
-	public List<List<HomologyUnit>> processPartition(List<HomologyUnit> partition) {
-		List<List<HomologyUnit>> clusters = new ArrayList<>();
-		
+	public PartitionTask processPartition(PartitionTask task) {
+		List<HomologyUnit> partition = task.getPartition();
 		if (partition.size() <= 10) {
-			//Clique (needs to be verified)
+			//Clique
 			countSmall++;
+			List<List<HomologyUnit>> clusters = new ArrayList<>();
 			clusters.add(partition);
-		} else if (partition.size() <= 5000){
+			task.setResults(clusters);
+		} else if (partition.size() <= MAX_SIZE_MCL){
 			//MCL
 			countMedium++;
-			
-			log.info(String.format("Processing partition of size %d. MCL RUN #%d", partition.size(), countMedium));
-			HashMap<String, Integer> indexOf = new HashMap<>();
-			for(int i = 0; i < partition.size(); i++) { 
-				indexOf.put(partition.get(i).getUniqueKey(), i);
-			}
-			
-			double[][] matrix = new double[partition.size()][partition.size()];
-			for(int i = 0; i < partition.size(); i++) {
-				HomologyUnit currentUnit = partition.get(i);
-				for(HomologyEdge edge : currentUnit.getAllHomologyRelationships()) {
-					matrix[i][indexOf.get(edge.getSubjectUnit().getUniqueKey())] = edge.getScore();
-				}
-			}
-			
-			MCLJob job = new MCLJob(matrix);
-			job.run();
-			
-			List<List<Integer>> results = job.getResults();
-			for(List<Integer> indexList : results) {
-				List<HomologyUnit> cluster = new ArrayList<>();
-				for(Integer k : indexList) cluster.add(partition.get(k));
-				if(cluster.size() > 1) clusters.add(cluster);
-			}
-			
-			//Clustering statistics
-			log.info(String.format("Finished MCL RUN #%d. Created %d clusters.", countMedium, clusters.size()));
-			distMCLCount.processDatapoint(clusters.size());
-			ArrayList<Integer> shares = new ArrayList<Integer>();
-			for(List<HomologyUnit> cluster : clusters) {
-				double val = ((double)cluster.size())/((double)clusters.size());
-				shares.add(cluster.size());
-				distMCLSpread.processDatapoint(val);
-			}
-			log.info(Arrays.toString(shares.toArray()));
+			task = dispatchMCL(task);
 		} else {
 			//Too large for MCL
 			countLarge++;
+			List<List<HomologyUnit>> clusters = new ArrayList<>();
 			clusters.add(partition);
+			task.setResults(clusters);
 		}
-		return clusters;
+		
+		return task;
+	}
+	
+	public PartitionTask dispatchMCL(PartitionTask task) {
+		List<HomologyUnit> partition = task.getPartition();
+		List<List<HomologyUnit>> clusters = new ArrayList<>();
+		
+		log.info(String.format("Processing partition of size %d. MCL RUN #%d", partition.size(), countMedium));
+		//Reference index for matrix creation
+		HashMap<String, Integer> indexOf = new HashMap<>();
+		for(int i = 0; i < partition.size(); i++) { 
+			indexOf.put(partition.get(i).getUniqueKey(), i);
+		}
+		
+		//Generating score matrix for MCL
+		double[][] matrix = new double[partition.size()][partition.size()];
+		for(int i = 0; i < partition.size(); i++) {
+			HomologyUnit currentUnit = partition.get(i);
+			for(HomologyEdge edge : currentUnit.getAllHomologyRelationships()) {
+				matrix[i][indexOf.get(edge.getSubjectUnit().getUniqueKey())] = edge.getScore();
+			}
+		}
+		
+		MCLJob job = new MCLJob(matrix);
+		job.run();
+		
+		List<List<Integer>> results = job.getResults();
+		for(List<Integer> indexList : results) {
+			List<HomologyUnit> cluster = new ArrayList<>();
+			for(Integer k : indexList) cluster.add(partition.get(k));
+			if(cluster.size() > 1) clusters.add(cluster);
+		}
+		
+		//Clustering statistics
+		log.info(String.format("Finished MCL RUN #%d. Created %d cluster(s).", countMedium, clusters.size()));
+		ArrayList<Integer> shares = new ArrayList<Integer>();
+		for(List<HomologyUnit> cluster : clusters) shares.add(cluster.size());
+		log.info(Arrays.toString(shares.toArray()));
+		
+		//Verifying cluster sizes for re-processing
+		if(clusters.size() > 1) {
+			List<PartitionTask> newTasks = new ArrayList<>();
+			Iterator<List<HomologyUnit>> it = clusters.iterator();
+			while (it.hasNext()) {
+				List<HomologyUnit> cluster = it.next();
+				if(cluster.size() > PREFERRED_ORTHOGROUP_SIZE) {
+					newTasks.add(new PartitionTask(cluster));
+					reProcessedClusters++;
+					it.remove();
+					log.info(String.format("Re-Processing cluster of size %d. Total Re-Processed: %d.", cluster.size(), reProcessedClusters));
+				}
+			}
+			
+			task.setResults(clusters);
+			task.setNewTasks(newTasks);
+		} else {
+			task.setResults(clusters);
+		}
+		
+		return task;
+	}
+	 
+	private class PartitionTask {
+		private List<HomologyUnit> partition;
+		private List<List<HomologyUnit>> results;
+		private List<PartitionTask> newTasks;
+		
+		public PartitionTask(List<HomologyUnit> partition) {
+			super();
+			this.partition = partition;
+		}
+
+		public List<HomologyUnit> getPartition() {
+			return partition;
+		}
+
+		public void setPartition(List<HomologyUnit> partition) {
+			this.partition = partition;
+		}
+
+		public List<List<HomologyUnit>> getResults() {
+			return results;
+		}
+
+		public void setResults(List<List<HomologyUnit>> results) {
+			this.results = results;
+		}
+
+		public List<PartitionTask> getNewTasks() {
+			return newTasks;
+		}
+
+		public void setNewTasks(List<PartitionTask> newTasks) {
+			this.newTasks = newTasks;
+		}
 	}
 }
