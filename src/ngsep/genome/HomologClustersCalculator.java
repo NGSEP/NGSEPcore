@@ -73,13 +73,13 @@ public class HomologClustersCalculator {
 		}
 		
 		log.info("Starting processing partitions");
-		PriorityQueue<PartitionTask> tasks = new PriorityQueue();
+		ArrayList<PartitionTask> tasks = new ArrayList<PartitionTask>();
 		for(List<HomologyUnit> partition : partitions) tasks.add(new PartitionTask(partition));
 		
 		//Infer clusters from each resulting partition task
 		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
 		while(!tasks.isEmpty()) {
-			PartitionTask task = tasks.poll();
+			PartitionTask task = tasks.remove(0);
 			task = this.processPartition(task);
 			if(task.getNewTasks() != null) tasks.addAll(task.getNewTasks());
 			if(task.getResults().size() > 0) clusters.addAll(task.getResults());
