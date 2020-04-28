@@ -268,6 +268,9 @@ public class HomologClustersCalculator {
 				HomologyEdge edge = edges.next();
 				if (!cluster.contains(edge.getSubjectUnit())) edges.remove();
 			}
+			
+			for(HomologyEdge edge : unit.getAllHomologyRelationships())
+				if(!cluster.contains(edge.getSubjectUnit())) System.err.println("Well something is clearly not working here, duh");
 		}
 		return cluster;
 	}
