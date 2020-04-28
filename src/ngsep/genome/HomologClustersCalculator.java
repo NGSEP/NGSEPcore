@@ -23,9 +23,15 @@ public class HomologClustersCalculator {
 	
 	//Run parameters
 	private boolean skipMCL;
- 
+	private Distribution distMCLSpread = new Distribution(0, 1, 0.01);
+	private Distribution distMCLCount = new Distribution(1, 100, 1);
+	private Distribution distClusterSizes = new Distribution(0, 1000, 1);
+	
 	private Logger log;
 	
+	/**
+	 * @param skipMCL skips the MCL pipeline during clusterHomologs if true
+	 */
 	public HomologClustersCalculator(boolean skipMCL) {
 		this.skipMCL = skipMCL;
 	}
@@ -68,6 +74,9 @@ public class HomologClustersCalculator {
 			List<List<HomologyUnit>> result = this.processPartition(partition);
 			if(result.size() > 0) clusters.addAll(result);
 		}
+		
+		//Cluster statistics
+		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
 		generateStatistics(clusters);
 		
 		return clusters;
@@ -78,17 +87,29 @@ public class HomologClustersCalculator {
 	 * @param clusters resulting clusters.
 	 */
 	private void generateStatistics(List<List<HomologyUnit>> clusters) {
-		Distribution distClusterSizes = new Distribution(0, 1000, 1);
-		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
+		log.info("OrthoGroup Results");
+		log.info("Size Statistics");
+		log.info(String.format("SMALL (2-10): %d || MEDIUM (11-5000): %d || LARGE (5000+): %d", countSmall, countMedium, countLarge));
 		
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
+		distMCLCount.printDistributionInt(out);
+		
+		log.info("MCL Sizes Statistics");
+		log.info(String.format("%s", os.toString()));
+		
+		os = new ByteArrayOutputStream();
+		out = new PrintStream(os);
+		distMCLSpread.printDistributionInt(out);
+		
+		log.info("MCL Spread Statistics");
+		log.info(String.format("%s", os.toString()));
+		
+		os = new ByteArrayOutputStream();
+		out = new PrintStream(os);
 		distClusterSizes.printDistributionInt(out);
 		
-		log.info("OrthoGroup Results");
-		log.info("Size Statistics");
-		log.info(String.format("SMALL (2-10): %d || MEDIUM (11-1000): %d || LARGE (1000+): %d", countSmall, countMedium, countLarge));
-		log.info("Clustering Statistics");
+		log.info("Clusters Sizes Statistics");
 		log.info(String.format("%s", os.toString()));
 	}
 
@@ -192,13 +213,18 @@ public class HomologClustersCalculator {
 			job.run();
 			
 			List<List<Integer>> results = job.getResults();
+			distMCLCount.processDatapoint(results.size());
 			for(List<Integer> indexList : results) {
 				List<HomologyUnit> cluster = new ArrayList<>();
 				for(Integer k : indexList) cluster.add(partition.get(k));
 				if(cluster.size() > 1) clusters.add(cluster);
 			}
+			
+			//Clustering statistics
+			for(List<HomologyUnit> cluster : clusters)
+				distMCLSpread.processDatapoint(((double)cluster.size())/((double)results.size()));
 		} else {
-			//Too large for MCL, to be defined later.
+			//Too large for MCL
 			countLarge++;
 			clusters.add(partition);
 		}
