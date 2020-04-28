@@ -196,7 +196,7 @@ public class HomologClustersCalculator {
 			//MCL
 			countMedium++;
 			
-			log.info(String.format("Processing partition of size %d. MCL RUN #%d", countMedium));
+			log.info(String.format("Processing partition of size %d. MCL RUN #%d", partition.size(), countMedium));
 			HashMap<String, Integer> indexOf = new HashMap<>();
 			for(int i = 0; i < partition.size(); i++) { 
 				indexOf.put(partition.get(i).getUniqueKey(), i);
