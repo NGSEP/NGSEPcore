@@ -153,7 +153,7 @@ public class HomologClustersCalculator {
 								partitions.remove(j);
 							}
 						}
-						
+							
 						if(!merged) log.warning(String.format("Did not find partition to merge, but unit was marked. ID: %s", currentUnit.getUniqueKey()));
 					} else {
 						//Add element to partition and add its edges to the queue
@@ -245,7 +245,7 @@ public class HomologClustersCalculator {
 			while (it.hasNext()) {
 				List<HomologyUnit> cluster = it.next();
 				if(cluster.size() > PREFERRED_ORTHOGROUP_SIZE) {
-					newTasks.add(new PartitionTask(cluster));
+					newTasks.add(new PartitionTask(cleanEdgesCluster(cluster)));
 					reProcessedClusters++;
 					it.remove();
 					log.info(String.format("Re-Processing cluster of size %d. Total Re-Processed: %d.", cluster.size(), reProcessedClusters));
@@ -261,6 +261,17 @@ public class HomologClustersCalculator {
 		return task;
 	}
 	 
+	private List<HomologyUnit> cleanEdgesCluster(List<HomologyUnit> cluster) {
+		for(HomologyUnit unit : cluster) {
+			Iterator<HomologyEdge> edges = unit.getAllHomologyRelationships().iterator();
+			while(edges.hasNext()) {
+				HomologyEdge edge = edges.next();
+				if (!cluster.contains(edge.getSubjectUnit())) edges.remove();
+			}
+		}
+		return cluster;
+	}
+
 	private class PartitionTask {
 		private List<HomologyUnit> partition;
 		private List<List<HomologyUnit>> results;
