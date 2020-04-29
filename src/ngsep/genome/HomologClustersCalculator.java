@@ -74,7 +74,7 @@ public class HomologClustersCalculator {
 		
 		log.info("Starting processing partitions");
 		ArrayList<PartitionTask> tasks = new ArrayList<PartitionTask>();
-		for(List<HomologyUnit> partition : partitions) tasks.add(new PartitionTask(partition));
+		for(List<HomologyUnit> partition : partitions) tasks.add(new PartitionTask(partition, false));
 		
 		//Infer clusters from each resulting partition task
 		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
@@ -206,7 +206,7 @@ public class HomologClustersCalculator {
 		List<HomologyUnit> partition = task.getPartition();
 		List<List<HomologyUnit>> clusters = new ArrayList<>();
 		
-		log.info(String.format("Processing partition of size %d. MCL RUN #%d", partition.size(), countMedium));
+		log.info(String.format("%s partition of size %d. MCL RUN #%d", task.isRequeed()? "Re-Processing" : "Processing", partition.size(), countMedium));
 		//Reference index for matrix creation
 		HashMap<String, Integer> indexOf = new HashMap<>();
 		for(int i = 0; i < partition.size(); i++) { 
@@ -245,10 +245,10 @@ public class HomologClustersCalculator {
 			while (it.hasNext()) {
 				List<HomologyUnit> cluster = it.next();
 				if(cluster.size() > PREFERRED_ORTHOGROUP_SIZE) {
-					newTasks.add(new PartitionTask(cleanEdgesCluster(cluster)));
+					newTasks.add(new PartitionTask(cleanEdgesCluster(cluster), true));
 					reProcessedClusters++;
 					it.remove();
-					log.info(String.format("Re-Processing cluster of size %d. Total Re-Processed: %d.", cluster.size(), reProcessedClusters));
+					log.info(String.format("Re-Processing scheduled cluster of size %d. Total Re-Processed: %d.", cluster.size(), reProcessedClusters));
 				}
 			}
 			
@@ -282,10 +282,12 @@ public class HomologClustersCalculator {
 		private List<HomologyUnit> partition;
 		private List<List<HomologyUnit>> results;
 		private List<PartitionTask> newTasks;
+		private boolean requeed;
 		
-		public PartitionTask(List<HomologyUnit> partition) {
+		public PartitionTask(List<HomologyUnit> partition, boolean requeed) {
 			super();
 			this.partition = partition;
+			this.requeed = requeed;
 		}
 
 		public List<HomologyUnit> getPartition() {
@@ -311,5 +313,15 @@ public class HomologClustersCalculator {
 		public void setNewTasks(List<PartitionTask> newTasks) {
 			this.newTasks = newTasks;
 		}
+
+		public boolean isRequeed() {
+			return requeed;
+		}
+
+		public void setRequeed(boolean requeed) {
+			this.requeed = requeed;
+		}
+		
+		
 	}
 }
