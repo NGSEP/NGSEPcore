@@ -147,6 +147,10 @@ public class HomologyUnit implements GenomicRegion {
 		}
 		return relationships;
 	}
+	
+	public void removeAllHomologyRelationships() {
+		homologsMap = new HashMap<Integer, Map<String,HomologyEdge>>();
+	}
 
 	/**
 	 * @return the paralogs

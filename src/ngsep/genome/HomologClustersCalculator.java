@@ -263,10 +263,13 @@ public class HomologClustersCalculator {
 	 
 	private List<HomologyUnit> cleanEdgesCluster(List<HomologyUnit> cluster) {
 		for(HomologyUnit unit : cluster) {
-			Iterator<HomologyEdge> edges = unit.getAllHomologyRelationships().iterator();
-			while(edges.hasNext()) {
-				HomologyEdge edge = edges.next();
-				if (!cluster.contains(edge.getSubjectUnit())) edges.remove();
+			Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
+			unit.removeAllHomologyRelationships();
+			
+			for(HomologyEdge edge : edges){
+				if (cluster.contains(edge.getSubjectUnit())) {
+					unit.addHomologRelationship(new HomologyEdge(edge.getQueryUnit(), edge.getSubjectUnit(), edge.getScore()));
+				}
 			}
 			
 			for(HomologyEdge edge : unit.getAllHomologyRelationships())
