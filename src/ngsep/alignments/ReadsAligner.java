@@ -26,9 +26,9 @@ import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.logging.Logger;
 
 import ngsep.alignments.io.ReadAlignmentFileWriter;
@@ -643,7 +643,7 @@ public class ReadsAligner {
 			return buildPair(aln1, candidates.get(0), onlyProper);
 		}
 		else if (candidates.size()>1){
-			return buildPair(aln1, getRandomReadAlignment(candidates), onlyProper);
+			return buildPair(aln1, pickBestPair(aln1, candidates), onlyProper);
 		}
 		return null;
 	}
@@ -748,9 +748,20 @@ public class ReadsAligner {
 		return alignment;
 	}
 
-	private static ReadAlignment getRandomReadAlignment(List<ReadAlignment> alns) {
-		Random r = new Random();
-		return alns.get(r.nextInt(alns.size())) ;
+	private ReadAlignment pickBestPair(ReadAlignment aln1, List<ReadAlignment> alns) {
+		Collections.sort(alns,new Comparator<ReadAlignment>() {
+
+			@Override
+			public int compare(ReadAlignment r1, ReadAlignment r2) { 
+				int middle = (maxInsertLength+minInsertLength)/2;
+				
+				int d1 = Math.abs(middle - (Math.abs(aln1.getFirst()-r1.getFirst())+r1.getReadLength()));
+				int d2 = Math.abs(middle - (Math.abs(aln1.getFirst()-r2.getFirst())+r2.getReadLength()));
+				//System.out.println("aln1: "+aln1.getFirst()+"r1 first: "+r1.getFirst()+" r2 first: "+r2.getFirst()+" distances: "+d1+" "+d2);
+				return d1-d2;
+			}
+		});
+		return alns.get(0);
 	}
 
 	public List<ReadAlignment> alignRead(RawRead read) {
