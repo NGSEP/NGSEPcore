@@ -509,6 +509,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
+			//System.out.println("first half. Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+aln.getCigarString()+" clip: "+mismatches[1]+" "+mismatches[2]);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
 					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
@@ -532,10 +533,10 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
-			//System.out.println("Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+cigar);
+			//System.out.println("Second half. Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+aln.getCigarString()+" clip: "+mismatches[1]+" "+mismatches[2]);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
+					aln = buildAln(query, hit.getSequenceName(), start+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
 				if(aln==null) continue;
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
