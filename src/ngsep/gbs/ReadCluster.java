@@ -94,12 +94,6 @@ public class ReadCluster {
 		
 		
 		int pos = calculateAlignmentPos(consensus1, revC2);
-		/*if (clusterNumber<30) {
-			System.out.println("Consensus Cluster: "+clusterNumber);
-			System.out.println(consensus1);
-			System.out.println(revC2);
-			System.out.println("Overlap position "+pos);
-		}*/
 		
 		if (pos == -1) {
 			pos = calculateAlignmentPos(revC2, consensus1);
