@@ -532,9 +532,12 @@ public class ReadsAligner {
 			}
 		} else {
 			numMapped = 2;
+			//System.out.println("Alignments read 1: "+alns1.size()+" read 2: "+alns2.size());
 			List<ReadAlignmentPair> pairAlns = findPairs(alns1, alns2, true);
+			//System.out.println("Pairs proper: "+pairAlns.size());
 			if(pairAlns.isEmpty()) {
 				pairAlns = findPairs(alns1, alns2,false);
+				//System.out.println("Pairs no proper: "+pairAlns.size());
 				if(pairAlns.isEmpty()) {
 					int n = alns1.size();
 					for(int i=0;i<n;i++) {
@@ -562,13 +565,13 @@ public class ReadsAligner {
 					if(alns2.size()==1) numUnique++;
 				}
 				else {
-					addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
+					addPairAlignments(alns, pairAlns, alns1.size(),alns2.size());
 					asPair=true;
 					if(pairAlns.size()==1) numUnique=2;
 				}
 
 			} else {
-				addPairAlignments(alns, pairAlns, alns1.size()+alns2.size());
+				addPairAlignments(alns, pairAlns, alns1.size(),alns2.size());
 				asPair=true;
 				proper=true;
 				if(pairAlns.size()==1) numUnique=2;
@@ -585,7 +588,7 @@ public class ReadsAligner {
 		}
 	}
 
-	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired) {
+	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired1, int numAlnsUnpaired2) {
 		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
@@ -598,8 +601,8 @@ public class ReadsAligner {
 			if (n>1) {
 				aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
 				aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
-			} else if (!aln1.isProperPair() || !aln2.isProperPair()) {
-				double div = Math.max(numAlnsUnpaired-1,1);
+			} else if (!aln1.isProperPair() || !aln2.isProperPair() || (numAlnsUnpaired1>1 && numAlnsUnpaired2>1)) {
+				double div = Math.max(numAlnsUnpaired1+numAlnsUnpaired2-1,1);
 				aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()/div));
 				aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()/div));
 			}
@@ -613,6 +616,7 @@ public class ReadsAligner {
 		int n = Math.min(alns1.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignment aln1 = alns1.get(i);
+			//System.out.println("Pairing "+aln1.getFirst()+" is paired: "+aln1.isPaired());
 			if(aln1.isPaired()) continue;
 			ReadAlignmentPair alnPair = findPairForAlignment(aln1,alns2,onlyProper);
 			if(alnPair!=null) {
@@ -628,7 +632,9 @@ public class ReadsAligner {
 		for (int i = 0; i < n; i++) {
 			ReadAlignment current =alns2.get(i);
 			if(!current.isPaired()) {
+				//System.out.println("Next candidate "+current.getFirst()+" is paired: "+current.isPaired());
 				if(isValidPair(aln1,current,onlyProper)) {
+					//System.out.println("Adding candidate");
 					candidates.add(current);
 				}
 			}
