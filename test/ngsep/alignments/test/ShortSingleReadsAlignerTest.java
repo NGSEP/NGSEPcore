@@ -12,13 +12,13 @@ import java.util.Map;
 
 import junit.framework.TestCase;
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.ShortSingleReadsAligner;
+import ngsep.alignments.FMIndexReadAlignmentAlgorithm;
 import ngsep.genome.GenomeIndexer;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.ReferenceGenomeFMIndex;
 
 public class ShortSingleReadsAlignerTest extends TestCase {
-	private ShortSingleReadsAligner readsAligner;
+	private FMIndexReadAlignmentAlgorithm readsAligner;
 	public final static String FM_INDEX_PATH= ".\\test\\Saccharomyces_cerevisiae.fmindex";
 	public final static String FASTA_PATH= ".\\training\\Saccharomyces_cerevisiae.fa";
 
@@ -30,7 +30,7 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 			genomeIndexer.createIndex(FASTA_PATH,FM_INDEX_PATH);	
 		}
 		ReferenceGenomeFMIndex fmIndex = ReferenceGenomeFMIndex.loadFromBinaries(FM_INDEX_PATH);
-		readsAligner=new ShortSingleReadsAligner(fmIndex, 15, 3);
+		readsAligner=new FMIndexReadAlignmentAlgorithm(fmIndex, 15, 3);
 	}
 
 	public void afterSetUpReadsAligner() {

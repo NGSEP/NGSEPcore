@@ -15,13 +15,15 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
+import ngsep.sequences.RawRead;
 import ngsep.sequences.UngappedSearchHit;
 
-public class ShortSingleReadsAligner {
+public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	
 	private int kmerLength;
 	private int maxAlnsPerRead;
@@ -32,15 +34,17 @@ public class ShortSingleReadsAligner {
 	private Set<String> repetitiveKmers = new HashSet<String>();
 	
 	private boolean runFullAlignment = true;
+	private boolean onlyPositiveStrand = false;
 	
 	private PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(1000);
 	private PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(500);
 	private PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(500);
 	
 	// Statistics
+	private int fewMismatchesAlns = 0;
 	private int completeAlns = 0;
 	
-	public ShortSingleReadsAligner(ReferenceGenomeFMIndex fMIndex, int kmerLength, int maxAlnsPerRead) {
+	public FMIndexReadAlignmentAlgorithm(ReferenceGenomeFMIndex fMIndex, int kmerLength, int maxAlnsPerRead) {
 		this.fMIndex = fMIndex;
 		this.kmerLength = kmerLength;
 		this.maxAlnsPerRead = maxAlnsPerRead;
@@ -65,7 +69,59 @@ public class ShortSingleReadsAligner {
 	public int getCompleteAlns() {
 		return completeAlns;
 	}
-	public List<ReadAlignment> alignRead (String query) {
+	
+	public int getFewMismatchesAlns() {
+		return fewMismatchesAlns;
+	}
+	
+	@Override
+	public List<ReadAlignment> alignRead (RawRead read) {
+		List<ReadAlignment> alignments = new ArrayList<>();
+		String readSeq = read.getSequenceString();
+		String qual = read.getQualityScores();
+		String reverseQS = null;
+		if(qual == null || qual.length()!=readSeq.length()) {
+			qual = RawRead.generateFixedQSString('5', readSeq.length());
+			reverseQS = qual;
+		} else if (!onlyPositiveStrand) {
+			reverseQS = new StringBuilder(qual).reverse().toString();
+		}
+		String reverseComplement = null;
+		if(!onlyPositiveStrand) {
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
+			
+		}
+		if(readSeq.length()<500) {
+			int maxMismatches = 2;
+			alignments.addAll(fewMismatchesSingleStrandSearch(readSeq,maxMismatches));
+			//System.out.println("Read: "+read.getName()+" Forward exact alignments: "+alignments.size());
+			if(reverseComplement!=null) {
+				List<ReadAlignment> alnsR = fewMismatchesSingleStrandSearch(reverseComplement,maxMismatches);
+				//System.out.println("Read: "+read.getName()+" Reverse exact alignments: "+alnsR.size());
+				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
+				alignments.addAll(alnsR);
+			}
+		}
+		if(alignments.size()==0) {
+			alignments.addAll(alignQueryToReference(readSeq));
+			//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
+			if(reverseComplement!=null) {
+				List<ReadAlignment> alnsR = alignQueryToReference(reverseComplement);
+				//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
+				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
+				alignments.addAll(alnsR);
+			}
+		} else fewMismatchesAlns++;
+		
+		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
+		for(ReadAlignment aln:alignments) {
+			aln.setReadName(read.getName());
+			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
+			else aln.setQualityScores(reverseQS);
+		}
+		return alignments;
+	}
+	public List<ReadAlignment> alignQueryToReference (String query) {
 		
 		return kmerBasedSingleStrandInexactSearchAlgorithm(query);
 	}

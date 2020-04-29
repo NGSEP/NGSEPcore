@@ -33,18 +33,20 @@ import java.util.logging.Logger;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.UngappedSearchHit;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.RawRead;
 
 /**
  * @author Jorge Duitama
  */
-public class LongReadsAligner {
+public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 
-	private Logger log = Logger.getLogger(LongReadsAligner.class.getName());
+	private Logger log = Logger.getLogger(MinimizersTableReadAlignmentAlgorithm.class.getName());
 	private int maxLengthFullPairwiseAlignment = 4000;
 	private int maxLengthEndsPairwiseAlignment = 500;
 	private PairwiseAlignmentAffineGap alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
@@ -53,8 +55,9 @@ public class LongReadsAligner {
 	private int maxAlnsPerRead = 3;
 	private ReferenceGenome genome;
 	private MinimizersTable minimizersTable;
+	private boolean onlyPositiveStrand = false;
 	
-	public LongReadsAligner() {
+	public MinimizersTableReadAlignmentAlgorithm() {
 		alignerStart.setForceStart2(false);
 		alignerEnd.setForceEnd2(false);
 	}
@@ -88,6 +91,41 @@ public class LongReadsAligner {
 		minimizersTable.calculateDistributionHits().printDistribution(System.out);
 		minimizersTable.clearOverrepresentedMinimizers();
 		log.info("Calculated minimizers. Total: "+minimizersTable.getTotalMinimizers());
+	}
+	
+	@Override
+	public List<ReadAlignment> alignRead (RawRead read) {
+		List<ReadAlignment> alignments = new ArrayList<>();
+		String readSeq = read.getSequenceString();
+		String qual = read.getQualityScores();
+		String reverseQS = null;
+		if(qual == null || qual.length()!=readSeq.length()) {
+			qual = RawRead.generateFixedQSString('5', readSeq.length());
+			reverseQS = qual;
+		} else if (!onlyPositiveStrand) {
+			reverseQS = new StringBuilder(qual).reverse().toString();
+		}
+		String reverseComplement = null;
+		if(!onlyPositiveStrand) {
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();	
+		}
+		
+		alignments.addAll(alignQueryToReference(readSeq));
+		//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
+		if(reverseComplement!=null) {
+			List<ReadAlignment> alnsR = alignQueryToReference(reverseComplement);
+			//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
+			for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
+			alignments.addAll(alnsR);
+		}
+		
+		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
+		for(ReadAlignment aln:alignments) {
+			aln.setReadName(read.getName());
+			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
+			else aln.setQualityScores(reverseQS);
+		}
+		return alignments;
 	}
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();

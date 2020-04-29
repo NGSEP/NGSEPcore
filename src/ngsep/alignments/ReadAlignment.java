@@ -29,6 +29,7 @@ import java.util.TreeMap;
 import ngsep.assembly.AlignmentConstantGap;
 import ngsep.genome.GenomicRegion;
 import ngsep.math.NumberArrays;
+import ngsep.sequences.RawRead;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
 /**
@@ -105,7 +106,7 @@ public class ReadAlignment implements GenomicRegion {
 	//Read information loaded on demand 
 	private char [] readName=null;
 	private CharSequence readCharacters=null;
-	private char [] qualityScores=null;
+	private byte [] qualityScores=null;
 	private int readNumber;
 	
 	//Attributes to ignore bases
@@ -539,8 +540,9 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public void setReadCharacters(CharSequence readCharacters) {
 		if(readCharacters!=null && readLength>0 &&readCharacters.length()!=readLength) throw new IllegalArgumentException("Input Read length: "+readCharacters.length()+" inconsistent with the expected length "+readLength);		 
-		this.readCharacters = readCharacters;
+		this.readCharacters = readCharacters; 
 		if(readCharacters == null) this.qualityScores = null;
+		else if (readLength==0) readLength = readCharacters.length();
 	}
 	
 	/**
@@ -557,7 +559,11 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public String getQualityScores() {
 		if(qualityScores == null) return null;
-		return new String(qualityScores);
+		char [] qs = new char[qualityScores.length];
+		for(int i=0;i<qs.length;i++) {
+			qs[i] = (char)qualityScores[i];
+		}
+		return new String(qs);
 	}
 
 	/**
@@ -565,9 +571,18 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param qualityScores new quality scores in phred+33 format according to the SAM format specification
 	 */
 	public void setQualityScores(String qualityScores) {
-		if(qualityScores==null) this.qualityScores = null;
-		this.qualityScores = qualityScores.toCharArray();
-		if(readCharacters!=null) fillQualityScores();
+		if(qualityScores==null) {
+			this.qualityScores = null;
+			return;
+		} 
+		int l = qualityScores.length();
+		this.qualityScores = new byte [readLength];
+		Arrays.fill(this.qualityScores, (byte)38);
+		for(int i=0;i<l;i++) {
+			int sig = (int) qualityScores.charAt(i);
+			if(sig>127) sig = 127;
+			this.qualityScores[i] = (byte) sig;  
+		}
 	}
 	
 	/**
@@ -875,10 +890,10 @@ public class ReadAlignment implements GenomicRegion {
 	 * @return char base quality score
 	 */
 	public char getBaseQualityScore (int referencePos) {
-		if(qualityScores == null) return 33;
 		int readPos = getReadPosition(referencePos);
 		if(readPos<0) return 33;
-		return qualityScores[readPos];
+		if(qualityScores == null) return '+';
+		return (char) qualityScores[readPos];
 	}
 	/**
 	 * Returns the base quality scores in phred+33 format of the base pairs aligning to the given coordinates
@@ -887,12 +902,12 @@ public class ReadAlignment implements GenomicRegion {
 	 * @return String base quality scores
 	 */
 	public String getBaseQualityScores (int referenceFirst, int referenceLast) {
-		if(qualityScores == null) return null;
 		int readFirst = getReadPosition(referenceFirst);
 		int readLast = getReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0  || readLast < readFirst) return null;
 		if(withinIgnoreRegions(readFirst, readLast)) return null;
-		return (new String (qualityScores)).substring(readFirst,readLast+1);
+		if(qualityScores == null) return RawRead.generateFixedQSString('+', readLast-readFirst+1);
+		return getQualityScores().substring(readFirst,readLast+1);
 	}
 	private boolean withinIgnoreRegions (int readFirst, int readLast) {
 		return readFirst<basesToIgnoreStart || readLength - readLast <= basesToIgnoreEnd;
@@ -1122,18 +1137,6 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		if(totalLength>0) answer.add(getAlnValue(totalLength, lastOperator));
 		return answer;
-	}
-
-	private void fillQualityScores() {
-		int l = readCharacters.length(); 
-		if(l>qualityScores.length) {
-			char [] fakeLowScores = new char[l];
-			for(int i=0;i<l;i++) {
-				if(i<qualityScores.length) fakeLowScores[i] = qualityScores[i];
-				else fakeLowScores[i] = '$';
-			}
-			qualityScores = fakeLowScores;
-		}
 	}
 	
 	public int getSoftClipStart() {

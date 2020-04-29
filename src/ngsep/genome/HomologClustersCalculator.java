@@ -31,15 +31,27 @@ public class HomologClustersCalculator {
 		this.log = log;
 	}
 
-	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
+	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges, boolean skipMCL) {
+		List<HomologyCatalog> catalogs = new ArrayList<>();
+		for(AnnotatedReferenceGenome genome : genomes) catalogs.add(genome.getHomologyCatalog()); 
+		return clusterHomologsCatalogs(catalogs, homologyEdges, skipMCL);
+	}
+	
+	public List<List<HomologyUnit>> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges, boolean skipMCL) {
 		log.info("Clustering orthologs and paralogs");
 		
 		//Separate homologs into smaller partitions
 		List<HomologyUnit> units = new ArrayList<>();
-		for(AnnotatedReferenceGenome genome : genomes) units.addAll(genome.getHomologyUnits()); 
+		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits()); 
 		List<List<HomologyUnit>> partitions = divideUnits(units);
 		
-		List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
+		//Skip mcl, return connected components
+		if(skipMCL) {
+			log.info("Skipped MCL, returning connected components instead.");
+			return partitions;
+		}
+		
+			List<List<HomologyUnit>> clusters = new ArrayList<List<HomologyUnit>>();
 		//Infer clusters from each resulting partition
 		for(List<HomologyUnit> partition : partitions) {
 			List<List<HomologyUnit>> result = this.processPartition(partition);

@@ -93,20 +93,10 @@ public class ReadsAligner {
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
-	
-
-	
-	
-	
-	
 	private ReferenceGenome genome;
 	private ReferenceGenomeFMIndex fMIndex=null;
-	
-	
-	
-	
-	private ShortSingleReadsAligner shortReadsAligner;
-	private LongReadsAligner longReadsAligner;
+	private FMIndexReadAlignmentAlgorithm shortReadsAligner;
+	private MinimizersTableReadAlignmentAlgorithm longReadsAligner;
 	
 	private ThreadPoolManager pool;
 	
@@ -117,12 +107,6 @@ public class ReadsAligner {
 	private int numNonProperPairs = 0;
 	private int numAlignedSingle = 0;
 	private int uniqueAlignments=0;
-	
-	private int fewMismatchesAlns = 0;
-	
-	private boolean onlyPositiveStrand = false;
-	
-	
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -294,10 +278,10 @@ public class ReadsAligner {
 				log.info("Loading reference index from file: "+fmIndexFile);
 				
 				fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fmIndexFile);
-				shortReadsAligner = new ShortSingleReadsAligner(fMIndex,kmerLength,maxAlnsPerRead);
+				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 			} else if (fMIndex!=null) {
 				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
-				shortReadsAligner = new ShortSingleReadsAligner(fMIndex,kmerLength,maxAlnsPerRead);
+				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 			} else {
 				throw new IOException("The genome index file is a required parameter");
 			}
@@ -305,14 +289,14 @@ public class ReadsAligner {
 		} else {
 			sequences = genome.getSequencesMetadata();
 			if (platform.isLongReads()) {
-				longReadsAligner = new LongReadsAligner();
+				longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
 				longReadsAligner.setLog(log);
 				longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
 				longReadsAligner.loadGenome (genome, kmerLength, windowLength);
 			} else {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
 				fMIndex = new ReferenceGenomeFMIndex(genome);
-				shortReadsAligner = new ShortSingleReadsAligner(fMIndex,kmerLength,maxAlnsPerRead);
+				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 			}
 		}
 		
@@ -388,7 +372,6 @@ public class ReadsAligner {
 		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) shortReadsAligner.loadSTRsFile(knownSTRsFile);
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
-				//Load as DNAMaskedSequence to allow reverse complement
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
@@ -404,9 +387,7 @@ public class ReadsAligner {
 				Iterator<QualifiedSequence> it = reader.iterator();
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
-					//System.out.println("Aligning read "+seq.getName()+" of length: "+seq.getLength());
-				
-					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
+					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
 					if (pool == null) processSingleRead(read, writer);
 					else pool.queueTask( () -> processSingleRead(read, writer));
 					if (!checkProgress()) break;
@@ -418,8 +399,11 @@ public class ReadsAligner {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
-		out.println("Reads with less than 2 mismatches: "+fewMismatchesAlns);
-		out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
+		if(shortReadsAligner!=null) {
+			out.println("Reads with less than 2 mismatches: "+shortReadsAligner.getFewMismatchesAlns());
+			out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
+		}
+		
 		out.println("Total reads: "+totalReads);
 		out.println("Reads aligned: "+readsAligned);
 		if(paired) {
@@ -434,7 +418,6 @@ public class ReadsAligner {
 	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(in)) {
-				//Load as DNAMaskedSequence to allow reverse complement
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
 				while(it.hasNext()) {
@@ -450,7 +433,7 @@ public class ReadsAligner {
 				Iterator<QualifiedSequence> it = reader.iterator();
 				while(it.hasNext()) {
 					QualifiedSequence seq = it.next();
-					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),RawRead.generateFixedQSString('5', seq.getLength()));
+					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
 					if (pool == null) processSingleRead(read, writer);
 					else pool.queueTask( () -> processSingleRead(read, writer));
 					if (!checkProgress()) break;
@@ -764,67 +747,19 @@ public class ReadsAligner {
 		return alns.get(r.nextInt(alns.size())) ;
 	}
 
-	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus) {
-		List<ReadAlignment> alignments = new ArrayList<>();
-		String readSeq = read.getSequenceString();
-		String qual = read.getQualityScores();
-		String reverseQS = null;
-		if(qual == null || qual.length()!=readSeq.length()) {
-			qual = RawRead.generateFixedQSString('5', readSeq.length());
-			reverseQS = qual;
-		} else if (!onlyPositiveStrand) {
-			reverseQS = new StringBuilder(qual).reverse().toString();
-		}
-		String reverseComplement = null;
-		if(!onlyPositiveStrand) {
-			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
-			
-		}
-		if(shortReadsAligner!=null && readSeq.length()<500) {
-			int maxMismatches = 2;
-			alignments.addAll(shortReadsAligner.fewMismatchesSingleStrandSearch(readSeq,maxMismatches));
-			//System.out.println("Read: "+read.getName()+" Forward exact alignments: "+alignments.size());
-			if(reverseComplement!=null) {
-				List<ReadAlignment> alnsR = shortReadsAligner.fewMismatchesSingleStrandSearch(reverseComplement,maxMismatches);
-				//System.out.println("Read: "+read.getName()+" Reverse exact alignments: "+alnsR.size());
-				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
-				alignments.addAll(alnsR);
-			}
-		}
-		if(alignments.size()==0) {
-			alignments.addAll(inexactSearchAlgorithm(readSeq));
-			//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
-			if(reverseComplement!=null) {
-				List<ReadAlignment> alnsR = inexactSearchAlgorithm(reverseComplement);
-				//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
-				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
-				alignments.addAll(alnsR);
-			}
-		} else fewMismatchesAlns++;
-		
-		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
-		for(ReadAlignment aln:alignments) {
-			aln.setReadName(read.getName());
-			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
-			else aln.setQualityScores(reverseQS);
-		}
-		
-		return filterAlignments(alignments, assignSecondaryStatus);
+	public List<ReadAlignment> alignRead(RawRead read) {
+		return alignRead(read, true);
 	}
-
-	
-	
-	
-	private List<ReadAlignment> inexactSearchAlgorithm(String readSeq) {
+	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus) {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
-			if(longReadsAligner ==null) longReadsAligner = new LongReadsAligner();
-			alignments = longReadsAligner.alignQueryToReference(readSeq);
+			if(longReadsAligner ==null) longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
+			alignments = longReadsAligner.alignRead(read);
 		} else {
-			if(shortReadsAligner==null) shortReadsAligner=new ShortSingleReadsAligner(fMIndex, kmerLength, maxAlnsPerRead);
-			alignments = shortReadsAligner.alignRead(readSeq);
+			if(shortReadsAligner==null) shortReadsAligner=new FMIndexReadAlignmentAlgorithm(fMIndex, kmerLength, maxAlnsPerRead);
+			alignments = shortReadsAligner.alignRead(read);
 		}
-		return alignments;
+		return filterAlignments(alignments, assignSecondaryStatus);
 	}
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
 		if (alignments.size()==0) return alignments;

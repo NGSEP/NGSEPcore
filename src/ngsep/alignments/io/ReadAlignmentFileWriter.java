@@ -91,7 +91,9 @@ public class ReadAlignmentFileWriter implements Closeable {
 		samRecord.setReadString(readAlignment.getReadCharacters().toString());
 		
 		//QUAL
-		samRecord.setBaseQualityString(readAlignment.getQualityScores());
+		String qs = readAlignment.getQualityScores();
+		if(qs!=null) samRecord.setBaseQualityString(qs);
+		else samRecord.setBaseQualityString(SAMRecord.NULL_QUALS_STRING);
 		
 		//Read group
 		samRecord.setAttribute(SAMTag.RG.toString(), sampleId);
