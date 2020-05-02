@@ -4,7 +4,6 @@ p=$1;
 f1=../reads/${p}_1.fastq.gz;
 f2=../reads/${p}_2.fastq.gz;
 REFERENCE=/path/to/reference/reference.fa;
-INDEX=/path/to/reference/reference.fmIndex;
 
  # software variables. Write paths only if you can not install the programs or can not use installed versions
 SAMTOOLS=/path/to/samtools
@@ -15,7 +14,7 @@ PICARD=/path/to/picard.jar;
 NGSEP=/path/to/NGSEPcore.jar;
 
  # map the reads
-${JAVA} -jar ${NGSEP} ReadsAligner -r ${INDEX} -i ${f1} -i2 ${f2} -o ${p}.bam >& ${p}_aln.log
+${JAVA} -jar ${NGSEP} ReadsAligner -r ${REFERENCE} -i ${f1} -i2 ${f2} -o ${p}.bam >& ${p}_aln.log
  
  # sort the alignment
 
