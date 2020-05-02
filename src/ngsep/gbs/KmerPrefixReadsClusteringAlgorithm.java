@@ -80,9 +80,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final String DEF_REGEXP_SINGLE="<S>.fastq.gz";
 	public static final String DEF_REGEXP_PAIRED="<S>_<N>.fastq.gz";
 	
-	public static final String PAIRED_END_READS_SEPARATOR = "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
-	public static final String PAIRED_END_READS_QS = "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-	
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(KmerPrefixReadsClusteringAlgorithm.class.getName());
@@ -105,7 +102,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private static final String READID_SEPARATOR="$";
 	private final int MAX_TASK_COUNT = 20;
 	
-	private static int minClusterDepth = MIN_CLUSTER_DEPTH;
+	private int minClusterDepth = MIN_CLUSTER_DEPTH;
 	private int maxClusterDepth;
 	
 	//Variables for parallel VCF
@@ -136,7 +133,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-	public static int getMinClusterDepth() {
+	public int getMinClusterDepth() {
 		return minClusterDepth;
 	}
 	
@@ -303,7 +300,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			callVariants(clustered1);
 		} else {
 			numClusteredFiles = clustered1.size() + clustered2.size();
-			log.info("Processing: "+numClusteredFiles+" files");
+			log.info("Processing: "+numClusteredFiles+" paired end files");
 			callVariants(clustered1, clustered2);
 		}
 		
@@ -374,8 +371,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				String sampleId = payload[0];
 				String f1 = payload[1];
 				String f2 = payload[2];
-				filenamesBySampleId1.put(sampleId, inputDirectory + f1);
-				filenamesBySampleId2.put(sampleId, inputDirectory + f2);
+				filenamesBySampleId1.put(sampleId, inputDirectory + File.separator + f1);
+				filenamesBySampleId2.put(sampleId, inputDirectory + File.separator + f2);
 				line = descriptor.readLine();
 			}
 		}
@@ -458,14 +455,11 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				String filename2 = filenamesBySampleId2.get(sampleId);
 				int unmatchedReads = 0;
 				int count = 0;
-				FastqFileReader[] openReader = new FastqFileReader[2];
 				ClusteredReadsCache clusteredReadsCache_1 = new ClusteredReadsCache(sampleId + "_1");
 				ClusteredReadsCache clusteredReadsCache_2 = new ClusteredReadsCache(sampleId + "_2");
 				log.info("Clustering reads from " + filename1+" and "+filename2);
 				try (FastqFileReader file1 = new FastqFileReader(filename1);
 					 FastqFileReader file2 = new FastqFileReader(filename2)) {
-					openReader[0] = file1;
-					openReader[1] = file2;
 					Iterator<RawRead> it1 = file1.iterator();
 					Iterator<RawRead> it2 = file2.iterator();
 					while(it1.hasNext() && it2.hasNext()) {
@@ -492,10 +486,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 							clusteredReadsCache_2.addSingleRead(clusterId, new RawRead(prefixReadId+read2.getName(), read2s, read2.getQualityScores()));
 						}
 						count++;
-					}
-				} finally {
-					for(FastqFileReader reader:openReader) {
-						if(reader!=null) reader.close();
 					}
 				}
 				clusteredReadsCache_1.dump(outputPrefix);
@@ -699,7 +689,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				}
 				if(nextCluster.getNumberOfTotalReads()>0) {
 					//Adding new task to the list and starting the new task
-				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus, clusterDetails);
+				    ProcessClusterVCFTask newTask = new ProcessClusterVCFTask(nextCluster, header, writer, this, outVariants, outConsensus);
 				    newTask.setPairedEnd(true);
 				    poolManager.queueTask(newTask);
 				}
