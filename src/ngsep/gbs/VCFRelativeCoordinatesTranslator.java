@@ -341,7 +341,7 @@ public class VCFRelativeCoordinatesTranslator {
 				if(indexN <=30 || indexN>=seq.length()-30) {
 					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
-					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" "+consensus+" alignemnts: "+alns.size()+". Total unmapped "+unmappedRead);
+					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedRead++;
 						continue;
