@@ -30,13 +30,13 @@ public class CDNACatalogAligner {
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters
-	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private boolean skipMCL= false;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
+	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
 	
@@ -119,22 +119,14 @@ public class CDNACatalogAligner {
 		logParameters();
 		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		alignCatalogs();
+		generateOrthologs();
+		printPartialResults();
+		generateClusters();
 		printResults();
 		log.info("Process finished");
 	}
 	
-	public void logParameters() {
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
-		PrintStream out = new PrintStream(os);
-		out.println("Loaded: "+ cdnaCatalogs.size()+" annotated genomes");
-		out.println("Output prefix:"+ outputPrefix);
-		out.println("K-mer length: "+ getKmerLength());
-		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
-		log.info(os.toString());
-	}
-	
-	public void alignCatalogs() {
+	private void generateOrthologs() {
 		for(int i=0;i<cdnaCatalogs.size();i++) {
 			HomologyCatalog catalog = cdnaCatalogs.get(i);
 			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogsOrganism(catalog));
@@ -149,9 +141,32 @@ public class CDNACatalogAligner {
 				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
 			}
 		}
+	}
+	
+	public void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Loaded: "+ cdnaCatalogs.size()+" annotated genomes");
+		out.println("Output prefix:"+ outputPrefix);
+		out.println("K-mer length: "+ getKmerLength());
+		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		log.info(os.toString());
+	}
+	
+	private void generateClusters() {
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
 		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges);
+	}
+	
+	private void printPartialResults() throws FileNotFoundException {
+		//Print orthology relationships
+		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
+			for(HomologyEdge edge : homologyEdges) {
+				outOrthologs.print(String.format("%s/t%s/t%d", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
+				outOrthologs.println();
+			}
+		}
 	}
 	
 	public void printResults() throws FileNotFoundException {

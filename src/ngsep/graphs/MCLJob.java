@@ -5,10 +5,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MCLJob extends Thread {
-	private static final double INFERED_EDGE_VALUE = 5;
+	private static final double INFERED_EDGE_VALUE = 1;
 	private static final double ZERO_THRESHOLD = 0.001;
-	private static final int E_POWER = 2;
-	private static final double INFLATION_COEFFICIENT = 2;
+	private static final int E_POWER = 4;
+	private static final double INFLATION_COEFFICIENT = 8;
 	private static final double DEVIATION_THRESHOLD = 0.000001;
 	
 	private double[][] similarityMatrix;
