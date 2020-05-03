@@ -23,7 +23,7 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 1.8.0. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_4.0.0.tar.gz is located:
+NGSEPcore_4.0.1.tar.gz is located:
 
 tar -xzvf NGSEPcore_4.0.1.tar.gz
 cd NGSEPcore_4.0.1
@@ -182,7 +182,7 @@ genotype Single Nucleotide Variants (SNVs).
 
 USAGE:
 
-java -jar NGSEPcore_4.0.1.jar DeNovoGBS <OPTIONS>
+java -jar NGSEPcore.jar DeNovoGBS <OPTIONS>
 
 OPTIONS:
 
