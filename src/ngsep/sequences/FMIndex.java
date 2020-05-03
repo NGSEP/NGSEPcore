@@ -226,8 +226,12 @@ public class FMIndex implements Serializable
 			metadata.save(out);
 		}
 		out.println("#INTERNALINDEXES");
+		int i=0;
 		for(FMIndexSingleSequence index:internalIndexes) {
+			System.out.println("Saving internal index: "+i);
 			index.save(out);
+			System.out.println("Saved internal index: "+i);
+			i++;
 		}
 	}
 	public static FMIndex load (QualifiedSequenceList sequences, String indexFile) throws IOException {
@@ -255,10 +259,11 @@ public class FMIndex implements Serializable
 				line = reader.readLine();
 			}
 			if(line == null) throw new IOException("Unexpected end of file reading metadata.");
-			while(line!=null) {
+			while(true) {
 				FMIndexSingleSequence internalIndex = FMIndexSingleSequence.load(reader);
-				index.internalIndexes.add(internalIndex);
-				line = reader.readLine();
+				if(internalIndex==null) break;
+				System.out.println("Loaded internal index: "+index.internalIndexes.size());
+				index.internalIndexes.add(internalIndex);			
 			}
 			if(index.internalMetadata.size()!=index.internalIndexes.size())  throw new IOException("Inconsistent metadata and internal indexes. Metadata entries: "+index.internalMetadata.size()+" indexes: "+index.internalIndexes.size());
 		}

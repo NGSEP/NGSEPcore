@@ -399,11 +399,12 @@ public class FMIndexSingleSequence implements Serializable {
 			out.println(""+key+"\t"+value);
 		}
 		out.println("#BWT");
-		for(int i=0;i<bwt.length;i++) {
+		int i=0;
+		while(i<bwt.length) {
 			out.print((char)bwt[i]);
-			if((i+1)%10000==0) out.println();
+			i++;
+			if(i%10000==0 || i==bwt.length) out.println();
 		}
-		out.println();
 		out.println("#END");
 	}
 	public static FMIndexSingleSequence load (BufferedReader reader) throws IOException {
