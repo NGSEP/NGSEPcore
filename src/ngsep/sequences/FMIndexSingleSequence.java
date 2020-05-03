@@ -399,11 +399,15 @@ public class FMIndexSingleSequence implements Serializable {
 			out.println(""+key+"\t"+value);
 		}
 		out.println("#BWT");
+		StringBuffer buffer = new StringBuffer(10000);
 		int i=0;
 		while(i<bwt.length) {
-			out.print((char)bwt[i]);
+			buffer.append((char)bwt[i]);
 			i++;
-			if(i%10000==0 || i==bwt.length) out.println();
+			if(i%10000==0 || i==bwt.length) {
+				out.println(buffer.toString());
+				if(i<bwt.length) buffer = new StringBuffer(10000);
+			}
 		}
 		out.println("#END");
 	}
