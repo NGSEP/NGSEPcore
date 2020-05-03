@@ -101,10 +101,13 @@ public class ConsistentVCFFilesMerge {
 		SimpleSequenceListLoader listHandler = new SimpleSequenceListLoader();
 		QualifiedSequenceList sequenceNames = listHandler.loadSequences(sequenceNamesFile);
 		log.info("Loaded "+sequenceNames.size()+" sequence names from file "+sequenceNamesFile);
+		mergeFiles(sequenceNames, vcfFiles, outputFile);
+		log.info("Process finished");
+	}
+	public void mergeFiles(QualifiedSequenceList sequenceNames, List<String> vcfFiles, String outputFile) throws IOException {
 		try (PrintStream out = new PrintStream(outputFile)) {
 			mergeFiles(sequenceNames, vcfFiles, out);
 		}
-		log.info("Process finished");
 	}
 
 	public void mergeFiles(QualifiedSequenceList sequenceNames, List<String> vcfFiles, PrintStream out) throws IOException {
