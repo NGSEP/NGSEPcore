@@ -95,6 +95,22 @@ public class ReferenceGenome {
 		list.setAllowChanges(false);
 		return list;
 	}
+	/**
+	 * Returns an unmodifiable list with objects storing the complete information of the sequences
+	 * @return QualifiedSequenceList List of QualifiedSequence objects including the sequences in this genome
+	 */
+	public QualifiedSequenceList getSequencesList() {
+		QualifiedSequenceList list = new QualifiedSequenceList();
+		for(QualifiedSequence seqGenome:sequences) {
+			QualifiedSequence seq = new QualifiedSequence(seqGenome.getName());
+			seq.setComments(seqGenome.getComments());
+			seq.setLength(seqGenome.getLength());
+			seq.setCharacters(seqGenome.getCharacters());
+			list.add(seq);
+		}
+		list.setAllowChanges(false);
+		return list;
+	}
 
 	/**
 	 * Prints this reference genome in the given stream

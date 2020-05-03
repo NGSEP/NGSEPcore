@@ -15,6 +15,7 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.FMIndexReadAlignmentAlgorithm;
 import ngsep.genome.GenomeIndexer;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
 
 public class ShortSingleReadsAlignerTest extends TestCase {
@@ -24,12 +25,13 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 
 
 	public void setUpReadsAligner() throws IOException {
+		ReferenceGenome genome = new ReferenceGenome(FASTA_PATH);
 		File f = new File(FM_INDEX_PATH);
 		if(!f.exists()) {
 			GenomeIndexer genomeIndexer=new GenomeIndexer();
 			genomeIndexer.createIndex(FASTA_PATH,FM_INDEX_PATH);	
 		}
-		ReferenceGenomeFMIndex fmIndex = ReferenceGenomeFMIndex.loadFromBinaries(FM_INDEX_PATH);
+		ReferenceGenomeFMIndex fmIndex = ReferenceGenomeFMIndex.load(genome, FM_INDEX_PATH);
 		readsAligner=new FMIndexReadAlignmentAlgorithm(fmIndex, 15, 3);
 	}
 

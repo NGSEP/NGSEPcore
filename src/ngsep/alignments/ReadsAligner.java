@@ -146,10 +146,10 @@ public class ReadsAligner {
 		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 
-	public ReferenceGenomeFMIndex getfMIndex() {
+	public ReferenceGenomeFMIndex getFmIndex() {
 		return fMIndex;
 	}
-	public void setfMIndex(ReferenceGenomeFMIndex fMIndex) {
+	public void setFmIndex(ReferenceGenomeFMIndex fMIndex) {
 		this.fMIndex = fMIndex;
 	}
 	public String getFmIndexFile() {
@@ -158,9 +158,7 @@ public class ReadsAligner {
 	public void setFmIndexFile(String fmIndexFile) {
 		this.fmIndexFile = fmIndexFile;
 	}
-	
-	
-	
+
 	public String getOutputFile() {
 		return outputFile;
 	}
@@ -272,32 +270,25 @@ public class ReadsAligner {
 	public void run () throws IOException {
 		long time = System.currentTimeMillis();
 		logParameters ();
-		QualifiedSequenceList sequences;
-		if(genome==null) {
-			if (fmIndexFile!=null) {
-				log.info("Loading reference index from file: "+fmIndexFile);
-				
-				fMIndex = ReferenceGenomeFMIndex.loadFromBinaries(fmIndexFile);
-				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
-			} else if (fMIndex!=null) {
-				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
-				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
-			} else {
-				throw new IOException("The genome index file is a required parameter");
-			}
-			sequences = fMIndex.getSequencesMetadata();
+		if(genome==null) throw new IOException("The reference genome is a required parameter");
+		
+		QualifiedSequenceList sequences = genome.getSequencesMetadata();
+		if (platform.isLongReads()) {
+			longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
+			longReadsAligner.setLog(log);
+			longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
+			longReadsAligner.loadGenome (genome, kmerLength, windowLength);
 		} else {
-			sequences = genome.getSequencesMetadata();
-			if (platform.isLongReads()) {
-				longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
-				longReadsAligner.setLog(log);
-				longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-				longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+			if (fMIndex!=null) {
+				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
+			} else if (fmIndexFile!=null) {
+				log.info("Loading reference index from file: "+fmIndexFile);
+				fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
 			} else {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
 				fMIndex = new ReferenceGenomeFMIndex(genome);
-				shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 			}
+			shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 		}
 		
 		boolean longReads = platform.isLongReads();
@@ -343,7 +334,7 @@ public class ReadsAligner {
 		if (inputFile2!=null) out.println("Second file with paired-end reads  "+inputFile2);
 		out.println("Output file:"+ outputFile);
 		if (genome!=null) out.println("Reference genome loaded from file: "+genome.getFilename());
-		else if (fmIndexFile!=null) out.println("FM index file "+fmIndexFile);
+		if (fmIndexFile!=null) out.println("FM index file "+fmIndexFile);
 		out.println("Sample id: "+ sampleId);
 		out.println("Platform: "+ platform);
 		out.println("K-mer length: "+ kmerLength);

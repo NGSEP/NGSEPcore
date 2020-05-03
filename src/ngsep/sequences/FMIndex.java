@@ -19,11 +19,21 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.GZIPOutputStream;
+
+import ngsep.main.io.ConcatGZIPInputStream;
 
 /**
  * Class able to build combined FM indexes for multiple small sequences
@@ -49,6 +59,7 @@ public class FMIndex implements Serializable
 	}
 	public void setMaxHitsQuery(int maxHitsQuery) {
 		this.maxHitsQuery = maxHitsQuery;
+		for(FMIndexSingleSequence internalIndex:internalIndexes) internalIndex.setMaxHitsQuery(maxHitsQuery);
 	}
 	/**
 	 * Loads the sequences in the given list to allow searches from these sequences
@@ -203,6 +214,56 @@ public class FMIndex implements Serializable
 		return characters.subSequence(first-1, last);
 		
 	}	
+	public void save (String filename) throws IOException {
+		try(OutputStream os = new GZIPOutputStream(new FileOutputStream(filename));
+			PrintStream out = new PrintStream(os)) {
+			save(out);
+		}
+	}
+	public void save (PrintStream out) {
+		out.println("#COMPOUNDINDEX\t"+maxHitsQuery);
+		for (CombinedMultisequenceFMIndexMetadata metadata:internalMetadata) {
+			metadata.save(out);
+		}
+		out.println("#INTERNALINDEXES");
+		for(FMIndexSingleSequence index:internalIndexes) {
+			index.save(out);
+		}
+	}
+	public static FMIndex load (QualifiedSequenceList sequences, String indexFile) throws IOException {
+		FMIndex index = new FMIndex();
+		index.sequencesWithNames = sequences;
+		for(QualifiedSequence seq:sequences) index.sequenceLengths.add(seq.getLength());
+		try (FileInputStream fis = new FileInputStream(indexFile);
+			 ConcatGZIPInputStream gzis = new ConcatGZIPInputStream(fis);
+			 InputStreamReader isr = new InputStreamReader(gzis);
+			 BufferedReader reader = new BufferedReader(isr)) {
+			String line = reader.readLine();
+			if(line==null) throw new IOException("Empty index file");
+			if(!line.startsWith("#COMPOUNDINDEX")) throw new IOException("#COMPOUNDINDEX section not found. Line: "+line);
+			String [] items = line.split("\t");
+			index.maxHitsQuery = Integer.parseInt(items[1]);
+			line = reader.readLine();
+			while (line!=null && !line.equals("#INTERNALINDEXES")) {
+				items = line.split("\t");
+				if(!"#METADATA".equals(items[0])) throw new IOException("Unexpected line reading metadata. Line: "+line);
+				CombinedMultisequenceFMIndexMetadata metadata = new CombinedMultisequenceFMIndexMetadata();
+				for(int i=1;i<items.length;i+=2) {
+					metadata.addInputSequence(Integer.parseInt(items[i]), Integer.parseInt(items[i+1]));
+				}
+				index.internalMetadata.add(metadata);
+				line = reader.readLine();
+			}
+			if(line == null) throw new IOException("Unexpected end of file reading metadata.");
+			while(line!=null) {
+				FMIndexSingleSequence internalIndex = FMIndexSingleSequence.load(reader);
+				index.internalIndexes.add(internalIndex);
+				line = reader.readLine();
+			}
+			if(index.internalMetadata.size()!=index.internalIndexes.size())  throw new IOException("Inconsistent metadata and internal indexes. Metadata entries: "+index.internalMetadata.size()+" indexes: "+index.internalIndexes.size());
+		}
+		return index;
+	}
 }
 class CombinedMultisequenceFMIndexMetadata implements Serializable {
 	/**
@@ -213,12 +274,16 @@ class CombinedMultisequenceFMIndexMetadata implements Serializable {
 	
 	private int firstInputSequenceIdx=-1;
 	private int lastInputSequenceIdx=-1;
+	private List<Integer> idxs=new ArrayList<>();
+	private List<Integer> lengths=new ArrayList<>();
 	private List<Integer> sequenceStarts=new ArrayList<>();
 	private int totalLength = 0;
 	
 	public void addInputSequence(int idx, int length) {
 		if(firstInputSequenceIdx == -1) firstInputSequenceIdx = idx;
 		lastInputSequenceIdx = idx;
+		idxs.add(idx);
+		lengths.add(length);
 		sequenceStarts.add(totalLength);
 		totalLength += length;
 	}
@@ -264,6 +329,10 @@ class CombinedMultisequenceFMIndexMetadata implements Serializable {
 		return totalLength;
 	}
 	
-	
+	public void save (PrintStream out) {
+		out.print("#METADATA");
+		for(int i=0;i<idxs.size();i++) out.print("\t"+idxs.get(i)+"\t"+lengths.get(i));
+		out.println();
+	}
 	
 }

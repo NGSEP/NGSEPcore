@@ -296,7 +296,7 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(refGenome);
-		aligner.setfMIndex(new ReferenceGenomeFMIndex(refGenome));
+		aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
 		
 		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
 			reader.setLog(log);
@@ -407,7 +407,7 @@ public class VCFRelativeCoordinatesTranslator {
 	}
 	
 	
-	private void explore() throws IOException {
+	public void explore() throws IOException {
 		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);) {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
 			int maxIndex = 0;

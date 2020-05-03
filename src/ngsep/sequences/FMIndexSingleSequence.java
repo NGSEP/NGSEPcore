@@ -19,10 +19,11 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -84,8 +85,14 @@ public class FMIndexSingleSequence implements Serializable {
 	
 	private Map<Character, Integer> alphabetIndexes;
 
-	private int maxDifferencesInexactSearch = 1;
-
+	//Used for loading
+	private FMIndexSingleSequence () {
+		characterCounts = new HashMap<Character, Integer>();
+		firstRowsInMatrix = new HashMap<Character, Integer>();
+		lastRowsInMatrix = new HashMap<Character, Integer>();
+		alphabetIndexes = new HashMap<Character, Integer>();
+		
+	}
 	public FMIndexSingleSequence(CharSequence sequence) {
 		this(sequence, DEFAULT_TALLY_DISTANCE, DEFAULT_SUFFIX_FRACTION);
 	}
@@ -122,14 +129,7 @@ public class FMIndexSingleSequence implements Serializable {
 		//SuffixArrayGenerator suffixArrayGenerator = new CollectionsSortSuffixArrayGenerator(sequence);
 		int [] sa = suffixArrayGenerator.getSuffixArray();
 		//System.out.println("First pos SA: "+sa[0]+" "+sa[1]+" "+sa[2] );
-		
-		
-		alphabetIndexes = new HashMap<>();
-		for(int i=0;i<alphabet.length();i++) alphabetIndexes.put(alphabet.charAt(i), i);
-		
-		
 		buildBWT(sequence, sa);
-		
 		createPartialSuffixArray(sa);
 		buildTally();
 		//printIndexInfo();
@@ -146,6 +146,8 @@ public class FMIndexSingleSequence implements Serializable {
 		StringBuilder alphB = new StringBuilder();
 		for(char c:sortedAlphabet) alphB.append(c);
 		alphabet = alphB.toString();
+		alphabetIndexes = new HashMap<>();
+		for(int i=0;i<alphabet.length();i++) alphabetIndexes.put(alphabet.charAt(i), i);
 	}
 
 	private void buildCharacterFirstAndLastRows() {
@@ -385,119 +387,73 @@ public class FMIndexSingleSequence implements Serializable {
 		
 	}
 	
-	
-	/*
-	 * Methods for inexact matching
-	 */
-	
-
-
-	
-	
-	
-
-	public Set<Integer> inexactSearchBWAAlgorithm(String searchSequence) {
-		int[] d = calculateD(searchSequence);
-
-		List<int[]> ranges = inexactRecurrentSearch(searchSequence, searchSequence.length() - 1,
-				maxDifferencesInexactSearch, 1, bwt.length - 1, d);
-		Set<Integer> indexes = new TreeSet<>();
-		for (int[] range : ranges) {
-			indexes.addAll(getSequenceIndexes(range[0], range[1]));
+	public void save (PrintStream out) {
+		out.println("#INDEX\t"+alphabet+"\t"+suffixFraction+"\t"+tallyDistance+"\t"+rowBWTSpecialCharacter+"\t"+maxHitsQuery+"\t"+bwt.length);
+		for (int i=0;i<alphabet.length();i++) {
+			char c = alphabet.charAt(i);
+			out.println(""+c+"\t"+characterCounts.get(c)+"\t"+firstRowsInMatrix.get(c)+"\t"+lastRowsInMatrix.get(c)+"\t"+alphabetIndexes.get(c));
 		}
-		return indexes;
+		out.println("#PartialSuffixArray");
+		for(int key:partialSuffixArray.keySet()) {
+			int value = partialSuffixArray.get(key);
+			out.println(""+key+"\t"+value);
+		}
+		out.println("#BWT");
+		for(int i=0;i<bwt.length;i++) {
+			out.print((char)bwt[i]);
+			if((i+1)%10000==0) out.println();
+		}
+		out.println();
+		out.println("#END");
 	}
-	/**
-	 * Calculates the number of differences between w and x
-	 * 
-	 * @param query
-	 *            the string we are going to search
-	 * @return
-	 */
-	int[] calculateD(String query) {
-		int[] d = new int[query.length()];
-		int z = 0;
-		int j = 0;
-		for (int i = 1; i <= d.length; i++) {
-			if (j <= i) {
-				String sub = query.substring(j, i);
-				if (!sub.equals("")) {
-
-					if (exactSearch(sub).size() == 0) {
-						System.out.println("sub " + sub);
-						z++;
-						j = i + 1;
-					}
-				}
+	public static FMIndexSingleSequence load (BufferedReader reader) throws IOException {
+		String line = reader.readLine();
+		if(line == null) return null;
+		if(!line.startsWith("#INDEX")) throw new IOException("#INDEX header not found. Line: "+line);
+		String [] items = line.split("\t");
+		FMIndexSingleSequence index = new FMIndexSingleSequence();
+		index.alphabet = items[1];
+		index.suffixFraction = Integer.parseInt(items[2]);
+		index.tallyDistance = Integer.parseInt(items[3]);
+		index.rowBWTSpecialCharacter = Integer.parseInt(items[4]);
+		index.maxHitsQuery = Integer.parseInt(items[5]);
+		int bwtLength = Integer.parseInt(items[6]);
+		
+		for (int i=0;i<index.alphabet.length();i++) {
+			char c = index.alphabet.charAt(i);
+			line = reader.readLine();
+			if(line==null) throw new IOException("Unexpected end of file reading character counts.");
+			items = line.split("\t");
+			if(items[0].length()!=1 || c!=items[0].charAt(0)) throw new IOException("Inconsistency found reading line for character "+c+". Line: "+line);
+			index.characterCounts.put(c, Integer.parseInt(items[1]));
+			index.firstRowsInMatrix.put(c, Integer.parseInt(items[2]));
+			index.lastRowsInMatrix.put(c, Integer.parseInt(items[3]));
+			index.alphabetIndexes.put(c, Integer.parseInt(items[4]));
+		}
+		line = reader.readLine();
+		if(line==null) throw new IOException("Unexpected end of file reading suffix array.");
+		if(!line.startsWith("#PartialSuffixArray")) throw new IOException("#PartialSuffixArray section not found. Line: "+line);
+		line = reader.readLine();
+		while (line!=null && !line.equals("#BWT")) {
+			items = line.split("\t");
+			index.partialSuffixArray.put(Integer.parseInt(items[0]), Integer.parseInt(items[1]));
+			line = reader.readLine();
+		}
+		if(line == null) throw new IOException("Unexpected end of file reading suffix array.");
+		index.bwt = new byte[bwtLength];
+		line = reader.readLine();
+		int i=0;
+		while (line!=null && !line.equals("#END")) {
+			for(int j=0;j<line.length();j++) {
+				if(i>=bwtLength)  throw new IOException("Inconsistent bwt length: "+bwtLength);
+				index.bwt[i] = (byte) line.charAt(j);
+				i++;
 			}
-
-			d[i - 1] = z;
+			line = reader.readLine();
 		}
-		return d;
-	}
-
-	/**
-	 * Makes an inexact search over the index
-	 * 
-	 * @param query
-	 * @param lastIdx
-	 *            Last index of the query to search
-	 * @param maxDiff
-	 *            Maximum number of differences between the query and
-	 * @param firstRow
-	 *            First row of the FM index to look for
-	 * @param lastRow
-	 *            Last row of the FM index to look for
-	 * @param d
-	 * @return
-	 */
-	private List<int[]> inexactRecurrentSearch(String query, int lastIdxQuery, int maxDiff, int firstRow, int lastRow,
-			int[] d) {
-		// System.out.println("Recursion lastIdxQuery:"+lastIdxQuery+"
-		// maxDiff:"+maxDiff+" firstRow:"+firstRow+" lastRow:"+lastRow);
-		List<int[]> arr = new ArrayList<>();
-		if (maxDiff < 0) {
-			// System.out.println("sale");
-			// Base case when the number of differences is larger than the maximum allowed
-			return arr;
-		}
-		if (lastIdxQuery < 0) {
-			// Base case an empty query
-			// System.out.println("\tagrega {"+firstRow+","+lastRow+"} en
-			// maxDiff:"+maxDiff);
-			int[] range = { firstRow, lastRow };
-			arr.add(range);
-			return arr;
-		}
-		if (maxDiff < d[lastIdxQuery]) {
-			// Base case when the number of differences is larger than the maximum allowed
-			return arr;
-		}
-		// Insertion
-		arr.addAll(inexactRecurrentSearch(query, lastIdxQuery - 1, maxDiff - 1, firstRow, lastRow, d));
-		for (int j = 0; j < alphabet.length(); j++) {
-			char b = alphabet.charAt(j);
-			int temp = 0;
-			if (firstRow != 1) {
-				temp = firstRow;
-			}
-			int newFirst = lfMapping(b, temp, true);
-			int newLast = lfMapping(b, lastRow, false);
-			if (newFirst <= newLast) {
-				// Deletion
-				arr.addAll(inexactRecurrentSearch(query, lastIdxQuery, maxDiff - 1, newFirst, newLast, d));
-				if (b == query.charAt(lastIdxQuery)) {
-					// System.out.println("entra "+b);
-					// Follow indexes for the matching character
-					arr.addAll(inexactRecurrentSearch(query, lastIdxQuery - 1, maxDiff, newFirst, newLast, d));
-				} else {
-					// Follow indexes for the possible mismatch characters reducing in 1 the number
-					// of differences
-					arr.addAll(inexactRecurrentSearch(query, lastIdxQuery - 1, maxDiff - 1, newFirst, newLast, d));
-				}
-			}
-		}
-
-		return arr;
+		if(line == null) throw new IOException("Unexpected end of file reading bwt.");
+		index.buildTally();
+		return index;
+		
 	}
 }

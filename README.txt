@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.0.1 (27-04-2020)
+Version 4.0.1 (03-05-2020)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -168,6 +168,54 @@ OPTIONS:
 	-f INT	: Format of the input file. It can be 0 for fastq or 1 for
 		  fasta. Default: 0
 
+----------------------------------------
+Performing de-novo analysis of GBS reads
+----------------------------------------
+
+Performs de novo variants discovery from a genotype-by-sequencing (GBS) or
+a double digestion RAD sequencing (ddRAD) experiment. Runs a clustering
+algorithm based on quasi-exact matches to representative k-mers within the
+first base pairs of each sequence. Then, it performs variants detection and
+sample genotyping within each cluster using the same Bayesian model
+implemented for the reference-guided analysis. By now it can only discover and
+genotype Single Nucleotide Variants (SNVs).
+
+USAGE:
+
+java -jar NGSEPcore_4.0.1.jar DeNovoGBS <OPTIONS>
+
+OPTIONS:
+
+	-i FILE         : Directory with fastq files to be analyzed. Unless the
+			  -d option is used, it processes as single reads all
+			  fastq files within the given directory.
+	-o FILE         : Prefix for the output VCF file with the discovered
+			  variants and genotype calls as well as other output
+			  files describing the behavior of this process.
+	-d FILE         : Tab delimited text file listing the FASTQ files to be
+			  processed for paired-end sequencing. It should have
+			  three columns. sample id, first fastq file and second
+			  fastq file. All files should be located within the
+			  directory provided with the option -i.
+	-k INT          : K-mer length. Default: 31
+	-c INT          : Maximum number of read clusters to process. This
+			  parameter controls the amount of memory spent by the
+			  process. Default: 2000000
+	-t INT          : Number of threads to process read clusters. Default: 1
+	-maxBaseQS INT  : Maximum value allowed for a base quality score.
+			  Larger values will be equalized to this value.
+			  Default: 100
+	-minQuality INT : Minimum variant quality. In this command, this filter
+			  applies to the QUAL column of the VCF, which is
+			  calculated for each variant as the maximum of the
+			  genotype qualities of samples with non-homozygous
+			  reference genotype calls. See the command VCFFilter
+			  to apply filters of quality and read depth on
+			  individual genotype calls. Default: 40
+	-h DOUBLE       : Prior heterozygosity rate. Default: 0.001
+	-ploidy INT     : Default ploidy of the samples. Default: 2
+
+
 
 ------------------------------
 Updating genomes from variants
@@ -236,11 +284,12 @@ OPTIONS:
 			  It can be gzip compressed.
 	-o FILE		: Output file with the aligned reads in BAM format.
 	-r GENOME	: Reference genome to align reads in FASTA format.
-			  Required unless an FM-index is provided with the
-			  option -d. It can be gzip compressed.
-	-d FILE		: Index of the reference genome to align the reads. See
-			  GenomeIndexer for instructions to generate this file.
-			  Recommended only for short reads and large genomes.
+			  Required parameter. It can be gzip compressed.
+	-d FILE		: FM-index of the reference genome to align short reads.
+			  See GenomeIndexer for instructions to generate this
+			  file. For large genomes it is more efficient to index
+			  the reference once and provide the index with this
+			  option.
 	-s STRING	: Id of the sample. Default: Sample
 	-p STRING	: Sequencing platform used to produce the reads.
 			  Supported platforms include ILLUMINA, IONTORRENT,
@@ -260,6 +309,8 @@ OPTIONS:
 			  alignment proper. Default: 1000
 	-w INT		: Window length to compute minimizers. Default: 5
 	-t INT		: Number of threads used to align reads. Default: 1
+
+
 
 
 -------------------------------------------------------

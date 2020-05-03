@@ -1,4 +1,4 @@
-<NGSEP version="4.0.1" date="02-05-2020">
+<NGSEP version="4.0.1" date="03-05-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -140,16 +140,16 @@ Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>
 </command>
 
-<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" groupId="Reads" printHelp="false">
+<command id="DeNovoGBS" class="ngsep.gbs.KmerPrefixReadsClusteringAlgorithm" groupId="Reads">
 <intro>
 De novo variants discovery from a GBS experiment
 </intro>
 <title>Performing de-novo analysis of GBS reads</title>
 <description>
-Performs de novo variants discovery from a GBS experiment.
+Performs de novo variants discovery from a genotype-by-sequencing (GBS) or a double digestion RAD sequencing (ddRAD) experiment.
 Runs a clustering algorithm based on quasi-exact matches to representative k-mers within the first base pairs of each sequence.
-Then, performs variants detection and sample genotyping within each cluster using the same Bayesian model implemented for the reference-guided analysis.
-By now it only discovers and genotypes Single Nucleotide Variants (SNVs).
+Then, it performs variants detection and sample genotyping within each cluster using the same Bayesian model implemented for the reference-guided analysis.
+By now it can only discover and genotype Single Nucleotide Variants (SNVs).
 </description>
 <option id="i" type="FILE" attribute="inputDirectory">
 Directory with fastq files to be analyzed. Unless the -d option is used, it processes as single reads all fastq files within the given directory.
@@ -176,7 +176,7 @@ Maximum value allowed for a base quality score. Larger values will be equalized 
 <option id="minQuality" type="INT" attribute="minQuality" defaultConstant="DEF_MIN_QUALITY">
 Minimum variant quality. In this command, this filter applies to the QUAL column of the VCF, which is
 calculated for each variant as the maximum of the genotype qualities of samples with non-homozygous reference genotype calls.
-See the command FilterVCF to apply filters of quality and read depth on individual genotype calls.
+See the command VCFFilter to apply filters of quality and read depth on individual genotype calls.
 </option>
 <option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
 Prior heterozygosity rate.
@@ -286,11 +286,11 @@ Input file with raw reads in fastq format corresponding to the second file for p
 Output file with the aligned reads in BAM format.
 </option>
 <option id="r" type="GENOME" attribute="genome">
-Reference genome to align reads in FASTA format. Required unless an FM-index is provided with the option -d. It can be gzip compressed. 
+Reference genome to align reads in FASTA format. Required parameter. It can be gzip compressed. 
 </option>
 <option id="d" type="FILE" attribute="fmIndexFile">
 FM-index of the reference genome to align short reads. See GenomeIndexer for instructions to generate this file.
-Either this or the reference genome are required.
+For large genomes it is more efficient to index the reference once and provide the index with this option.
 </option>
 <option id="knownSTRs" type="STRING" attribute="knownSTRsFile">
 Text file with location of known short tandem repeats (STRs). It is a tab-delimited file with at least three columns:

@@ -1,4 +1,4 @@
-v4.0.1	02-05-2020
+v4.0.1	03-05-2020
 - ReadsAligner. Implemented algorithm based on minimizers to add support to
   long reads. Added sample id and platform fields (options -s and -p)
 - ReadsAligner. Added multithread support (option -t) and option -m to specify

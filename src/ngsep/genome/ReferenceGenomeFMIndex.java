@@ -19,11 +19,7 @@
  *******************************************************************************/
 package ngsep.genome;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.List;
 
@@ -45,35 +41,36 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	private QualifiedSequenceList sequencesMetadata;
 	private FMIndex internalIndex;
 	
+	//For load purposes
+	private ReferenceGenomeFMIndex () {
+		
+	}
+	
 	public ReferenceGenomeFMIndex (ReferenceGenome genome) {
 		sequencesMetadata = genome.getSequencesMetadata();
-		int n = genome.getNumSequences();
 		internalIndex = new FMIndex();
 		internalIndex.setMaxHitsQuery(50);
-		QualifiedSequenceList sequences = new QualifiedSequenceList();
-		for (int i = 0; i < n; i++) 
-		{
-			QualifiedSequence q = genome.getSequenceByIndex(i);
-			sequences.add(q);
-		}
+		QualifiedSequenceList sequences = genome.getSequencesList();
 		internalIndex.loadQualifiedSequenceList(sequences);
 	}
 	
 	/**
 	 * Loads an instance of the FMIndex from a serialized binary file
+	 * @param genome Indexed genome
 	 * @param filename Binary file with the serialization of an FMIndex
 	 * @return FMIndex serialized in the given file
 	 * @throws IOException If there were errors reading the file
 	 */
-	public static ReferenceGenomeFMIndex loadFromBinaries(String filename) throws IOException
+	public static ReferenceGenomeFMIndex load(ReferenceGenome genome, String indexFile) throws IOException
 	{
-		ReferenceGenomeFMIndex fmIndex;
-		try (FileInputStream fis = new FileInputStream(filename);
-			 ObjectInputStream ois = new ObjectInputStream(fis);) {
-			fmIndex = (ReferenceGenomeFMIndex) ois.readObject();
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("FMIndex class not found",e);
+		ReferenceGenomeFMIndex fmIndex = new ReferenceGenomeFMIndex();
+		fmIndex.sequencesMetadata = genome.getSequencesMetadata();
+		try {
+			fmIndex.internalIndex = FMIndex.load(genome.getSequencesList(), indexFile);
+		} catch(IOException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
+			throw new IOException("Error loading FM-index file. The file could have an outdated format. Try building again the index with the command GenomeIndexer",e);
 		}
+		
 		return fmIndex;
 	}
 	
@@ -84,10 +81,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 	 */
 	public void save (String filename) throws IOException 
 	{
-		try (FileOutputStream fos = new FileOutputStream( filename );
-			 ObjectOutputStream oos = new ObjectOutputStream( fos );) {
-			oos.writeObject( this );
-		}
+		internalIndex.save(filename);
 	}
 	/**
 	 * @return The list of sequences and lengths related to the reference genome
