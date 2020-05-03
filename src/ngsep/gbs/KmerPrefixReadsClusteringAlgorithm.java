@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -106,8 +107,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int maxClusterDepth;
 	
 	//Variables for parallel VCF
-	private Map<String, String> filenamesBySampleId1=new HashMap<>();
-	private Map<String, String> filenamesBySampleId2=new HashMap<>();
+	private Map<String, String> filenamesBySampleId1=new LinkedHashMap<String, String>();
+	private Map<String, String> filenamesBySampleId2=new LinkedHashMap<String, String>();
 	private DNAShortKmerClusterMap kmersMap;
 	private int[] clusterSizes;
 	private List<Sample> samples = new ArrayList<>();
@@ -275,7 +276,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
 		processInfo.addTime(System.currentTimeMillis(), "BuildKmersMap start");
-		buildSamples();
 		int nSamples = samples.size();
 		if(nSamples > minClusterDepth) minClusterDepth = nSamples;
 		maxClusterDepth = 100*nSamples;
@@ -310,16 +310,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Process finished");
 	}
 	
-	
-	private void buildSamples() {
-		for(String sampleName: filenamesBySampleId1.keySet()){
-			Sample sample = new Sample(sampleName);
-			sample.setNormalPloidy(normalPloidy);
-			sample.addReadGroup(sampleName);
-			samples.add(sample);
-		}
-	}
-	
 	private void printDistribution() throws IOException {
 		int[] dist = getClusterSizeDist();
 		log.info("Printing cluster distribution.");
@@ -350,11 +340,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			loadFilenamesAndSamplesPairedEnd();
 		} else {
 			File[] files = (new File(inputDirectory)).listFiles();
+			Arrays.sort(files,(f1,f2)->f1.getName().compareTo(f2.getName()));
 			for(File f : files) {
 				String filename = f.getName();
 				int i = filename.indexOf(".fastq");
-				if(i>=0) {
+				if(i>0) {
 					String sampleId = filename.substring(0, i);
+					addSample(sampleId);
 					filenamesBySampleId1.put(sampleId, f.getAbsolutePath());
 				}
 			}
@@ -369,6 +361,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				String[] payload = line.split("\t");
 				
 				String sampleId = payload[0];
+				addSample(sampleId);
 				String f1 = payload[1];
 				String f2 = payload[2];
 				filenamesBySampleId1.put(sampleId, inputDirectory + File.separator + f1);
@@ -376,6 +369,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 				line = descriptor.readLine();
 			}
 		}
+	}
+	private void addSample(String sampleId) {
+		Sample sample = new Sample(sampleId);
+		sample.setNormalPloidy(normalPloidy);
+		sample.addReadGroup(sampleId);
+		samples.add(sample);
 	}
 	
 	public void buildKmersMap() throws IOException {

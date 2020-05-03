@@ -140,7 +140,7 @@ public class ProcessClusterVCFTask extends Thread {
 		List<ReadAlignment> readAlignments = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		readCluster.buildAlignment();
-		String consensus = readCluster.getConsensusSequence();
+		String consensus = readCluster.getConsensusSequence().toUpperCase();
 		int consensusLength = consensus.length();
 		if(consensusLength<40) return records;
 		String referenceId = Integer.toString(clusterId);
@@ -217,13 +217,10 @@ public class ProcessClusterVCFTask extends Thread {
 	// From MultisampleVariantsDetector.java
 	private GenomicVariant findMultiallelicVariant(List<Sample> samples, PileupRecord clusterPileUp, char reference, String clusterNum, double h) {
 		
-		String referenceAllele = "" + reference;
-		referenceAllele = referenceAllele.toUpperCase();
-		
 		CountsHelper helperSNV = VariantDiscoverySNVQAlgorithm.calculateCountsSNV(clusterPileUp,parent.getMaxBaseQS(), null);
 		//posPrint used to be here
 		GenomicVariant variant;
-		variant = findMultiallelicSNV(samples, clusterPileUp, helperSNV, referenceAllele.charAt(0), h);
+		variant = findMultiallelicSNV(samples, clusterPileUp, helperSNV, reference, h);
 		return variant;
 	}
 	

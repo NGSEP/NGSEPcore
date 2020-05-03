@@ -3,6 +3,7 @@ package ngsep.gbs;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,6 +26,7 @@ import ngsep.sequences.io.FastaFileReader;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
 import ngsep.variants.Sample;
@@ -248,6 +250,7 @@ public class VCFRelativeCoordinatesTranslator {
 			biallelic++;
 		} else if (refBasedAlleles.size()>= 3) {
 			variant = new GenomicVariantImpl(seqName, truePos, refBasedAlleles );
+			variant.setVariantQS(relativeVar.getVariantQS());
 			triallelic++;
 		} else {
 			nonVariant++;
@@ -267,31 +270,57 @@ public class VCFRelativeCoordinatesTranslator {
 		//-1 for undecided, 0 for homozygous reference, 1 for heterozygous, 2 for homozygous variant
 		for(CalledGenomicVariant relativeCall: calls) {
 			String [] calledAlleles = relativeCall.getCalledAlleles();
+			int [] acgtCounts = relativeCall.getAllCounts();
 			if (algn.isNegativeStrand()) {
 				for(int i=0;i<calledAlleles.length;i++) {
 					calledAlleles[i] = DNASequence.getReverseComplement(calledAlleles[i]).toString();
 				}
+				if (acgtCounts!=null) {
+					int tmp = acgtCounts[0];
+					acgtCounts [0] = acgtCounts[3];
+					acgtCounts[3] = tmp;
+					tmp = acgtCounts[1];
+					acgtCounts [1] = acgtCounts[2];
+					acgtCounts[2] = tmp;
+				}
 			}
+			//TODO: Translate well acn for polyploids
+			byte [] acn = new byte[refBasedAlleles.size()];
+			Arrays.fill(acn, (byte)0);
 			if(variant instanceof SNV) {
 				byte genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
-				if(calledAlleles.length==2) genotype = CalledGenomicVariant.GENOTYPE_HETERO;
+				if(calledAlleles.length==2) {
+					genotype = CalledGenomicVariant.GENOTYPE_HETERO;
+					acn[0] = acn[1] = 1;
+				}
 				else if (calledAlleles.length==1) {
-					genotype = CalledGenomicVariant.GENOTYPE_HOMOREF;
 					if(calledAlleles[0].charAt(0)!=trueRef) {
 						genotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
+						acn[1]=2;
+					} else {
+						genotype = CalledGenomicVariant.GENOTYPE_HOMOREF;
+						acn[0]=2;
 					}
 				}
-				CalledGenomicVariant trueCall = new CalledSNV((SNV)variant, genotype);
+				CalledSNV trueCall = new CalledSNV((SNV)variant, genotype);
+				trueCall.setGenotypeQuality(relativeCall.getGenotypeQuality());
+				trueCall.setTotalReadDepth(relativeCall.getTotalReadDepth());
+				trueCall.setAllelesCopyNumber(acn);
+				if(acgtCounts!=null)  trueCall.setAllBaseCounts(acgtCounts);
 				trueCalls.add(trueCall);
 			}
 		}
 		if(trueCalls.size()>0) {
 			translatedRecord = new VCFRecord(variant, filedsFormat, trueCalls, header);
+			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTER", relativeVar.getSequenceName()));
+			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTERPOS", relativeVar.getFirst()));
+			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTERCONSENSUS", relativeVar.getReference()));
 		}
 		return translatedRecord;
 	}
 	
 	private void alignConsensusSequences() throws IOException {
+		System.out.println("Aligning consensus sequences");
 		this.alignmentsHash = new HashMap<String, ReadAlignment>();
 		
 		ReadsAligner aligner = new ReadsAligner();
@@ -301,7 +330,7 @@ public class VCFRelativeCoordinatesTranslator {
 		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
 			reader.setLog(log);
 			Iterator<QualifiedSequence> it = reader.iterator();
-			while(it.hasNext()) {
+			for(int i=0;it.hasNext();i++) {
 				QualifiedSequence consensus = it.next();
 				String algnName = consensus.getName();
 				if(algnName.startsWith("Cluster_")) {
@@ -312,6 +341,7 @@ public class VCFRelativeCoordinatesTranslator {
 				if(indexN <=30 || indexN>=seq.length()-30) {
 					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
+					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" "+consensus+" alignemnts: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedRead++;
 						continue;
