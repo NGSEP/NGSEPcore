@@ -984,11 +984,13 @@ public class VCFConverter {
 				String allele2 = "0";
 				if(!calledVar.isUndecided()) {
 					if(calledVar.isHeterozygous()) {
-						if(idxsPhasedAlleles!=null) {
+						if(idxsPhasedAlleles!=null && idxsPhasedAlleles.length==2) {
 							allele1 = ""+idxsPhasedAlleles[0];
 							allele2 = ""+idxsPhasedAlleles[1];
 						} else {
 							log.warning("Unphased heterozygous call at variant at "+variant.getSequenceName()+":"+variant.getFirst()+" indivudual: "+i);
+							allele1 = "0";
+							allele2 = "1";
 						}
 		
 					} else if (!calledVar.isHomozygousReference()) {
