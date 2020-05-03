@@ -200,26 +200,12 @@ public class VCFRelativeCoordinatesTranslator {
 		//-1 if the read position does not align with the reference 
 		truePos = algn.getReferencePosition(zeroBasedRelativePos);
 		
-		//This allows is to get the true position, not absolute, but relative to the genomic region.
-		// This plus the sequence index should get us the reference Allel.
-		/*if(algn.isNegativeStrand()) {
-			// truePos = algn.getFirst() + (seqLength - relativePos);
-			truePos = algn.getLast() - (relativePos - 1);
-//			System.out.println(truePos + "\t" + (algn.getFirst() + (algn.getReadLength() - relativePos)));
-		} else {
-			truePos = algn.getFirst() + relativePos - 1;
-		}*/
 		if(truePos<=0) {
 			notRefSeq++;
 			return null;
 		}
-		//Get index of alignment -> make it 0-based. Basically the index of the genomic region
-		int algnIndex = algn.getSequenceIndex();
-		if(algnIndex == -1) {
-			System.out.println("algnIndex = -1");
-		} 
 		
-		CharSequence trueRefSeq = refGenome.getReference(algnIndex, truePos, truePos);
+		CharSequence trueRefSeq = refGenome.getReference(seqName, truePos, truePos);
 		if(trueRefSeq == null) {
 			notRefSeq++;
 			return null;
@@ -250,13 +236,13 @@ public class VCFRelativeCoordinatesTranslator {
 			biallelic++;
 		} else if (refBasedAlleles.size()>= 3) {
 			variant = new GenomicVariantImpl(seqName, truePos, refBasedAlleles );
-			variant.setVariantQS(relativeVar.getVariantQS());
+			
 			triallelic++;
 		} else {
 			nonVariant++;
 			return null;
 		}
-		
+		variant.setVariantQS(relativeVar.getVariantQS());
 		if(!refInRelativeAllels) {
 			refNotInAlleles++;
 			
