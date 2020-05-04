@@ -163,7 +163,7 @@ public class CDNACatalogAligner {
 		//Print orthology relationships
 		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
 			for(HomologyEdge edge : homologyEdges) {
-				outOrthologs.print(String.format("%s/t%s/t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
+				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
 				outOrthologs.println();
 			}
 		}
