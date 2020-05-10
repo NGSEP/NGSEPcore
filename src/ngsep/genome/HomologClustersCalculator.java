@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -32,6 +31,7 @@ public class HomologClustersCalculator {
 	//Run parameters
 	private boolean skipMCL;
 	private Distribution distClusterSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
+	private int sampleSize = 0;
 	
 	private Logger log;
 	
@@ -59,6 +59,8 @@ public class HomologClustersCalculator {
 	public List<List<HomologyUnit>> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges) {
 		log.info("Clustering orthologs and paralogs");
 		
+		//Set sample size for MCL skip for short clusters
+		sampleSize = catalogs.size();
 		//Divide homologs into smaller partitions
 		List<HomologyUnit> units = new ArrayList<>();
 		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits()); 
@@ -98,7 +100,7 @@ public class HomologClustersCalculator {
 	private void generateStatistics() {
 		log.info("OrthoGroup Results");
 		log.info("Size Statistics");
-		log.info(String.format("SMALL (2-10): %d || MEDIUM (10-MAX): %d || LARGE (MAX+): %d || MAX = %d", countSmall, countMedium, countLarge, MAX_SIZE_MCL));
+		log.info(String.format("SMALL (2-%d): %d || MEDIUM (%d-MAX): %d || LARGE (%d+): %d || MAX = %d", sampleSize, countSmall, sampleSize, countMedium, MAX_SIZE_MCL, countLarge));
 		
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
@@ -181,7 +183,7 @@ public class HomologClustersCalculator {
 	 */
 	public PartitionTask processPartition(PartitionTask task) {
 		List<HomologyUnit> partition = task.getPartition();
-		if (partition.size() <= 10) {
+		if (partition.size() <= sampleSize) {
 			//Clique
 			countSmall++;
 			List<List<HomologyUnit>> clusters = new ArrayList<>();
