@@ -100,7 +100,7 @@ public class HomologClustersCalculator {
 	private void generateStatistics() {
 		log.info("OrthoGroup Results");
 		log.info("Size Statistics");
-		log.info(String.format("SMALL (2-%d): %d || MEDIUM (%d-MAX): %d || LARGE (%d+): %d || MAX = %d", sampleSize, countSmall, sampleSize, countMedium, MAX_SIZE_MCL, countLarge));
+		log.info(String.format("SMALL (2-%d): %d || MEDIUM (%d-MAX): %d || LARGE (%d+): %d", sampleSize, countSmall, sampleSize, countMedium, MAX_SIZE_MCL, countLarge));
 		
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
