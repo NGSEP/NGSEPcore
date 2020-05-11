@@ -67,6 +67,7 @@ public class HomologClustersCalculator {
 		log.info("Dividing homologs via connected components");
 		List<List<HomologyUnit>> partitions = divideUnits(units);
 		log.info("Finished dividing homolog units");
+		printPartitionsResults(partitions);
 		
 		//Skip mcl, return connected components
 		if(skipMCL) {
@@ -94,6 +95,18 @@ public class HomologClustersCalculator {
 		return clusters;
 	}
 	
+	private void printPartitionsResults(List<List<HomologyUnit>> partitions) {
+		Distribution partitionSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
+		for(List<HomologyUnit> p : partitions) partitionSizes.processDatapoint(p.size());
+		
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		partitionSizes.printDistributionInt(out);
+		
+		log.info("Partition Size Statistics");
+		log.info(String.format("%s", os.toString()));
+	}
+
 	/**
 	 * Prints out useful statistics from the generated clusters to the logger.
 	 */
