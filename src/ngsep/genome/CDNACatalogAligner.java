@@ -137,7 +137,7 @@ public class CDNACatalogAligner {
 		for(int i=0;i<cdnaCatalogs.size();i++) {
 			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
 			for (int j=0;j<cdnaCatalogs.size();j++) {
-				HomologyCatalog catalog2 = cdnaCatalogs.get(i);
+				HomologyCatalog catalog2 = cdnaCatalogs.get(j);
 				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
 			}
 		}
