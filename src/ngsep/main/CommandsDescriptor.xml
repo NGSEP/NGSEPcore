@@ -1,4 +1,4 @@
-<NGSEP version="4.0.1" date="03-05-2020">
+<NGSEP version="4.0.2" date="31-07-2020">
 <title>Next Generation Sequencing Experience Platform</title>
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
@@ -790,6 +790,14 @@ in the sequence, and last position in the sequence. Both positions are assumed t
 File with genomic regions in which transcripts should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
+</option>
+<option id="fgid" type="FILE" attribute="geneIdsToFilter">
+File with ids of genes that should be filtered out.
+The first column should have the gene ids. Other columns will be ignored
+</option>
+<option id="sgid" type="FILE" attribute="geneIdsToSelect">
+File with ids of genes that should be selected.
+The first column should have the gene ids. Other columns will be ignored
 </option>
 </command>
 

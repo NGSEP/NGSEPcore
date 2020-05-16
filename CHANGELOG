@@ -1,3 +1,6 @@
+v4.0.2
+- TranscriptomeFilter: Added filters by gene id
+- TranscriptomeFilter: Fixed error when the output was a list of regions
 v4.0.1	03-05-2020
 - ReadsAligner. Implemented algorithm based on minimizers to add support to
   long reads. Added sample id and platform fields (options -s and -p)

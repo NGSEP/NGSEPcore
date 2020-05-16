@@ -1,6 +1,8 @@
 package ngsep.transcriptome;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashSet;
@@ -42,6 +44,8 @@ public class TranscriptomeFilter {
     private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
+    private Set<String> geneIdsToFilter = null;
+    private Set<String> geneIdsToSelect = null;
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	
@@ -148,6 +152,42 @@ public class TranscriptomeFilter {
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
 	
+	public Set<String> getGeneIdsToFilter() {
+		return geneIdsToFilter;
+	}
+	public void setGeneIdsToFilter(Set<String> geneIdsToFilter) {
+		this.geneIdsToFilter = geneIdsToFilter;
+	}
+	public void setGeneIdsToFilter (String geneIdsFile) throws IOException {
+		geneIdsToFilter = new HashSet<String>();
+		try (FileReader reader = new FileReader(geneIdsFile);
+			 BufferedReader in = new BufferedReader(reader)) {
+			String line = in.readLine();
+			while(line!=null) {
+				String [] items = line.split("\t");
+				geneIdsToFilter.add(items[0]);
+				line = in.readLine();
+			}
+		}
+	}
+	public Set<String> getGeneIdsToSelect() {
+		return geneIdsToSelect;
+	}
+	public void setGeneIdsToSelect(Set<String> geneIdsToSelect) {
+		this.geneIdsToSelect = geneIdsToSelect;
+	}
+	public void setGeneIdsToSelect (String geneIdsFile) throws IOException {
+		geneIdsToSelect = new HashSet<String>();
+		try (FileReader reader = new FileReader(geneIdsFile);
+			 BufferedReader in = new BufferedReader(reader)) {
+			String line = in.readLine();
+			while(line!=null) {
+				String [] items = line.split("\t");
+				geneIdsToSelect.add(items[0]);
+				line = in.readLine();
+			}
+		}
+	}
 	public static void main(String[] args) throws Exception {
 		TranscriptomeFilter instance = new TranscriptomeFilter();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -214,7 +254,7 @@ public class TranscriptomeFilter {
 						out.println(geneId);
 						genes.add(geneId);
 					}
-				} else if(outputFormat==FORMAT_GENE_LIST ) {
+				} else if(outputFormat==FORMAT_GENE_REGIONS ) {
 					String geneId = transcript.getGeneId();
 					if(!genes.contains(geneId)) {
 						Gene gene = transcript.getGene();
@@ -241,6 +281,12 @@ public class TranscriptomeFilter {
 	}
 
 	private boolean passFilters(Transcript transcript) {
+		if (geneIdsToFilter!=null) {
+			if(geneIdsToFilter.contains(transcript.getGeneId())) return false;
+		}
+		if (geneIdsToSelect!=null) {
+			if(!geneIdsToSelect.contains(transcript.getGeneId())) return false;
+		}
 		if (regionsToFilter!=null) {
 			if(regionsToFilter.findSpanningRegions(transcript).size()>0) return false;
 		}
