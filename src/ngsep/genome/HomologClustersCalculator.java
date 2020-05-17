@@ -207,6 +207,7 @@ public class HomologClustersCalculator {
 			countMedium++;
 			task = dispatchMCL(task);
 		} else {
+			log.info(String.format("Passed cluster too large for MCL. Size: %d", partition.size()));
 			//Too large for MCL
 			countLarge++;
 			List<List<HomologyUnit>> clusters = new ArrayList<>();
