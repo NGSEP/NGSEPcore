@@ -7,6 +7,7 @@ import java.util.TreeMap;
 
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
+import sun.util.logging.resources.logging;
 
 public class HomologRelationshipsFinder {
 	public static final byte DEF_KMER_LENGTH = 10;
@@ -70,7 +71,7 @@ public class HomologRelationshipsFinder {
 		int totalKmers = 0;
 		String searchSequence = unit.getUnitSequence();
 		//Step 1: Generate k-mers to query the FM-Index looking for homologous transcripts to calculate the kmer counts
-		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=kmerLength) {
+		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=1) {
 			String kmer = searchSequence.substring(i, i+kmerLength);
 			
 			List <UngappedSearchHit> kmerHits = indexCatalog.exactSearch(kmer);

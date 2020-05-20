@@ -166,6 +166,14 @@ public class CDNACatalogAligner {
 				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
 				outOrthologs.println();
 			}
+			
+			outOrthologs.println("EDGES PER UNIT DATA");
+			for(HomologyCatalog catalog : cdnaCatalogs) {
+				for (HomologyUnit unit : catalog.getHomologyUnits()) {
+					outOrthologs.print(String.format("%d", unit.getAllHomologyRelationships().size()));
+					outOrthologs.println();
+				}
+			}
 		}
 	}
 	
