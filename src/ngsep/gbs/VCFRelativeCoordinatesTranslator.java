@@ -198,7 +198,20 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		
 		//-1 if the read position does not align with the reference 
-		truePos = algn.getReferencePosition(zeroBasedRelativePos);
+		//truePos = algn.getReferencePosition(zeroBasedRelativePos);
+		
+		if(algn.isNegativeStrand()) {
+			
+			truePos = algn.getLast() - zeroBasedRelativePos;
+			
+			} else {
+				
+			//-1 if the read position does not align with the reference 
+			truePos = algn.getReferencePosition(zeroBasedRelativePos);
+			// truePos = algn.getFirst() + zeroBasedRelativePos;
+			}
+		
+		
 		
 		if(truePos<=0) {
 			notRefSeq++;
