@@ -71,7 +71,7 @@ public class HomologRelationshipsFinder {
 		int totalKmers = 0;
 		String searchSequence = unit.getUnitSequence();
 		//Step 1: Generate k-mers to query the FM-Index looking for homologous transcripts to calculate the kmer counts
-		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=1) {
+		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=kmerLength) {
 			String kmer = searchSequence.substring(i, i+kmerLength);
 			
 			List <UngappedSearchHit> kmerHits = indexCatalog.exactSearch(kmer);
