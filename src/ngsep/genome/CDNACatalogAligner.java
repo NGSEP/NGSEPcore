@@ -129,8 +129,9 @@ public class CDNACatalogAligner {
 	private void generateOrthologs() {
 		for(int i=0;i<cdnaCatalogs.size();i++) {
 			HomologyCatalog catalog = cdnaCatalogs.get(i);
-			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogsOrganism(catalog));
-			log.info("Paralogs found for Organism: "+ homologyEdges.size());
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogsOrganism(catalog);
+			homologyEdges.addAll(edges);
+			log.info("Paralogs found for Organism: "+ edges.size());
 		}
 		
 		
@@ -138,7 +139,11 @@ public class CDNACatalogAligner {
 			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
 			for (int j=0;j<cdnaCatalogs.size();j++) {
 				HomologyCatalog catalog2 = cdnaCatalogs.get(j);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
+				if(i!=j) {
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2);
+					homologyEdges.addAll(edges);
+					log.info("Orthologs found for Organism: "+ edges.size());
+				}
 			}
 		}
 	}

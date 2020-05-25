@@ -75,6 +75,7 @@ public class HomologRelationshipsFinder {
 			String kmer = searchSequence.substring(i, i+kmerLength);
 			
 			List <UngappedSearchHit> kmerHits = indexCatalog.exactSearch(kmer);
+			System.out.println(String.format("Exact search for kmer %s. Found %d", kmer, kmerHits.size()));
 			for(UngappedSearchHit hit:kmerHits) {
 				String name = hit.getSequenceName();
 				if(kmerSupportMap.containsKey(name)) {
