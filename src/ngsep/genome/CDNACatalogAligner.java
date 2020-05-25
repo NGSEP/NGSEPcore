@@ -94,7 +94,7 @@ public class CDNACatalogAligner {
 	public static void main(String[] args) throws Exception {
 		CDNACatalogAligner instance = new CDNACatalogAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		while(i<args.length-1) {
+		while(i<args.length) {
 			String fileOrganism = args[i++];
 			instance.loadFile(fileOrganism);
 		}
