@@ -7,7 +7,6 @@ import java.util.TreeMap;
 
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
-import sun.util.logging.resources.logging;
 
 public class HomologRelationshipsFinder {
 	public static final byte DEF_KMER_LENGTH = 10;
