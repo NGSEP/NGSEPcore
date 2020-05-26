@@ -157,6 +157,7 @@ public class HomologyUnit implements GenomicRegion {
 	 */
 	public Collection<HomologyEdge> getParalogRelationships() {
 		Map<String,HomologyEdge> map = homologsMap.get(genomeId);
+		System.out.println("Genome id was: " + genomeId);
 		Collection<HomologyEdge> collection = map.values();
 		return Collections.unmodifiableCollection(collection);
 	}
