@@ -160,8 +160,9 @@ public class GenomesAligner {
 	private void inferOrthologs() {
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
-			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogs(genome));
-			log.info("Paralogs found for Genome: "+genome.getId()+" Unique homology units: "+genome.getTotalHomologyUnits());
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
+			homologyEdges.addAll(edges);
+			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
 		}
 		
 		
@@ -169,7 +170,11 @@ public class GenomesAligner {
 			AnnotatedReferenceGenome genome1 = genomes.get(i);
 			for (int j=0;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog()));
+				if(i!=j) {
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
+					homologyEdges.addAll(edges);
+					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
+				}
 			}
 		}
 	}
