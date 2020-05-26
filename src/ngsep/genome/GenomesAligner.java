@@ -158,6 +158,8 @@ public class GenomesAligner {
 	}
 	
 	private void inferOrthologs() {
+		genomesDescription();
+		
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
 			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
@@ -178,6 +180,15 @@ public class GenomesAligner {
 			}
 		}
 	}
+	
+	private void genomesDescription() {
+		log.info("Total number of genomes: " + genomes.size());
+		for(int i = 0; i < genomes.size(); i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			log.info(String.format("Genome #%d has %d genes.", i+1, genome.getHomologyUnits().size()));
+		}
+	}
+	
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);

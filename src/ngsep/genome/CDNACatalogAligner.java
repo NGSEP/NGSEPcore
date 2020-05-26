@@ -157,6 +157,7 @@ public class CDNACatalogAligner {
 			log.info(String.format("Catalog #%d has %d genes.", i+1, catalog.getHomologyUnits().size()));
 		}
 	}
+	
 	public void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
