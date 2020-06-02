@@ -41,6 +41,8 @@ public class TransposonFinder {
 
 	private boolean useSTRs;
 
+	private boolean useGS;
+
 	public void run() throws IOException {
 
 		// Kmers per subsequence
@@ -72,6 +74,12 @@ public class TransposonFinder {
 				System.out.printf("%s\t%d\t%d\t%d\t%f\n", actSeq, ann.first, ann.last, ann.maxHit, ann.medianHit);
 				w.write(String.format("%s\t%d\t%d\t%d\t%f", actSeq, ann.first, ann.last, ann.maxHit, ann.medianHit));
 				w.newLine();
+				if(ann.maxHit <= 10){
+					CharSequence act_char_seq = this.genome.getReference(actSeq, ann.first, ann.last);
+					System.out.printf("Act seq: %s\n", act_char_seq.toString());
+					w.write(String.format("%s", act_char_seq.toString()));
+					w.newLine();
+				}
 			}
 		}
 		writer.close();
@@ -119,7 +127,7 @@ public class TransposonFinder {
 		// Take into account known STR
 		List<GenomicRegion> actSTRs = null;
 		int indexSTR = 0;
-		List<GenomicRegion> actGS = goldStandard.get(name);
+		List<GenomicRegion> actGS = null;
 		int indexGS = 0;
 		int maxHitGS = 0;
 		int countHits = 0;
@@ -128,13 +136,16 @@ public class TransposonFinder {
 		if(useSTRs) {
 			actSTRs = STRs.get(name);
 		}
+		if(useGS){
+			actGS = goldStandard.get(name);
+		}
 		//Subsequence 20bp
 		for (int i = 0; i + lengthKmer < seq.length(); i+=10) {
 			String kmer = seq.subSequence(i, (i+lengthKmer)).toString().toUpperCase();
 			List<UngappedSearchHit> hits = fm.exactSearch(kmer);
 			distrHits.processDatapoint(hits.size());
 			// Save the number of hits for the GS
-			if(actGS != null && indexGS < actGS.size()) {
+			if(useGS && actGS != null && indexGS < actGS.size()) {
 				GenomicRegion gs = actGS.get(indexGS);
 				if(gs.getLast() < i){
 					Annotation newGS = new Annotation(name, gs.getFirst(), gs.getLast(), maxHitGS, countHits, numKmers);
@@ -205,16 +216,27 @@ public class TransposonFinder {
 		// Load the genome from a .fa file
 		instance.genome = new ReferenceGenome(args[0]);
 		// Load short tandem repeats from the .fa file
-		SimpleGenomicRegionFileHandler loader = new SimpleGenomicRegionFileHandler();
-		instance.STRs = loader.loadRegionsAsMap(args[1]);
+		instance.useSTRs = false;
+		if(instance.useSTRs){
+			SimpleGenomicRegionFileHandler loader = new SimpleGenomicRegionFileHandler();
+			instance.STRs = loader.loadRegionsAsMap(args[1]);
+		}
+		else{
+			instance.STRs = null;
+		}
 		// Put as "arguments" kmer length and min hit size
 		instance.lengthKmer = 20;
 		instance.minHitSize = 10;
 		instance.transposons = new LinkedHashMap<>();
 		instance.hitNumbers = new LinkedHashMap<>();
-		instance.useSTRs = false;
-		SimpleGenomicRegionFileHandler gs_loader = new SimpleGenomicRegionFileHandler();
-		instance.goldStandard = gs_loader.loadRegionsAsMap(args[2]);
+		instance.useGS = false;
+		if(instance.useGS){
+			SimpleGenomicRegionFileHandler gs_loader = new SimpleGenomicRegionFileHandler();
+			instance.goldStandard = gs_loader.loadRegionsAsMap(args[2]);
+		}
+		else{
+			instance.goldStandard = null;
+		}
 		// FM Index
 		instance.fm = new ReferenceGenomeFMIndex(instance.genome);
 		// Find transposable elements
