@@ -32,6 +32,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.QualifiedSequence;
 
 /**
  * @author Jorge Duitama
@@ -78,7 +79,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	}
 
 	@Override
-	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
+	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
@@ -86,14 +87,15 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
 		// Create FM-Index
 		FMIndex fmIndex = new FMIndex();
-		fmIndex.loadUnnamedSequences(sequences, TALLY_DISTANCE, SUFFIX_FRACTION);
+		// TODO: Set tally distance and suffix fraction
+		fmIndex.loadQualifiedSequences(sequences);
 		
 		log.info("Created FM-Index");
 		
 		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			CharSequence seq = sequences.get(seqId);
+			CharSequence seq = sequences.get(seqId).getCharacters();
 			if(numThreads==1) {
 				processSequence(edgesFinder, fmIndex, seqId, seq);
 				if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());

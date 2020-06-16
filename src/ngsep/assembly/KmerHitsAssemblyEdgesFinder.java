@@ -136,7 +136,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else if (endTarget<=targetLength) {
 			addQueryBeforeTargetEdge(graph, querySequenceId, queryRC, cluster);
 		} else {
-			ReadAlignment aln = aligner.alignRead(targetSeqIdx, graph.getSequence(targetSeqIdx), graph.getSequence(querySequenceId), 0, targetLength, 0.5);
+			ReadAlignment aln = aligner.alignRead(targetSeqIdx, graph.getSequence(targetSeqIdx).getCharacters(), graph.getSequence(querySequenceId).getCharacters(), 0, targetLength, 0.5);
 			if(aln!=null) {
 				int firstQueryMatch = 0;
 				int newStart = targetLength;
@@ -171,7 +171,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	private void addEmbedded(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerHitsCluster cluster) {
 		int startTarget = cluster.getSubjectPredictedStart();
 		int targetSeqIdx = cluster.getSequenceIdx();
-		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, targetSeqIdx, startTarget);
+		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId).getCharacters(), queryRC, targetSeqIdx, startTarget);
 		embeddedEvent.setEvidence(cluster);
 		graph.addEmbedded(embeddedEvent);
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+targetSeqIdx);

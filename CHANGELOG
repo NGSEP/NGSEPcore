@@ -1,6 +1,9 @@
 v4.0.2
 - TranscriptomeFilter: Added filters by gene id
 - TranscriptomeFilter: Fixed error when the output was a list of regions
+- SingleReadsSimulator: Added parameter to set the minimum read length to fix
+  error. Adjusted default values to the current length distribution of HiFi
+  PacBio reads.
 v4.0.1	03-05-2020
 - ReadsAligner. Implemented algorithm based on minimizers to add support to
   long reads. Added sample id and platform fields (options -s and -p)

@@ -51,7 +51,7 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		internalIndex = new FMIndex();
 		internalIndex.setMaxHitsQuery(50);
 		QualifiedSequenceList sequences = genome.getSequencesList();
-		internalIndex.loadQualifiedSequenceList(sequences);
+		internalIndex.loadQualifiedSequences(sequences);
 	}
 	
 	/**
