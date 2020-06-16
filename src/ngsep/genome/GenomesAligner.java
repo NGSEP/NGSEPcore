@@ -21,6 +21,7 @@ package ngsep.genome;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -149,12 +150,45 @@ public class GenomesAligner {
 		logParameters ();
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
+		inferOrthologs();
+		printPartialResults();
 		alignGenomes();
-		printAlignmentResults ();
+		printAlignmentResults();
 		log.info("Process finished");
 	}
 	
-
+	private void inferOrthologs() {
+		genomesDescription();
+		
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
+			homologyEdges.addAll(edges);
+			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
+		}
+		
+		
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome1 = genomes.get(i);
+			for (int j=0;j<genomes.size();j++) {
+				AnnotatedReferenceGenome genome2 = genomes.get(j);
+				if(i!=j) {
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
+					homologyEdges.addAll(edges);
+					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
+				}
+			}
+		}
+	}
+	
+	private void genomesDescription() {
+		log.info("Total number of genomes: " + genomes.size());
+		for(int i = 0; i < genomes.size(); i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			log.info(String.format("Genome #%d has %d genes.", i+1, genome.getHomologyUnits().size()));
+		}
+	}
+	
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
@@ -177,24 +211,10 @@ public class GenomesAligner {
 	}
 
 
-	public void alignGenomes() {
-		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome = genomes.get(i);
-			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogs(genome));
-			log.info("Paralogs found for Genome: "+genome.getId()+" Unique homology units: "+genome.getTotalHomologyUnits());
-		}
-		
-		
-		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome1 = genomes.get(i);
-			for (int j=0;j<genomes.size();j++) {
-				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog()));
-			}
-		}
-		HomologClustersCalculator calculator = new HomologClustersCalculator();
+	public void alignGenomes() {		
+		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges, skipMCL);
+		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
@@ -451,6 +471,16 @@ public class GenomesAligner {
 			}
 			i1=i;
 			mate1 = mateInLCS;
+		}
+	}
+	
+	private void printPartialResults() throws FileNotFoundException {
+		//Print orthology relationships
+		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
+			for(HomologyEdge edge : homologyEdges) {
+				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
+				outOrthologs.println();
+			}
 		}
 	}
 

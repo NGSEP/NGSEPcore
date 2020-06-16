@@ -30,14 +30,13 @@ public class CDNACatalogAligner {
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters
-	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
-	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
+	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
 	
@@ -95,7 +94,7 @@ public class CDNACatalogAligner {
 	public static void main(String[] args) throws Exception {
 		CDNACatalogAligner instance = new CDNACatalogAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		while(i<args.length-1) {
+		while(i<args.length) {
 			String fileOrganism = args[i++];
 			instance.loadFile(fileOrganism);
 		}
@@ -120,9 +119,43 @@ public class CDNACatalogAligner {
 		logParameters();
 		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		alignCatalogs();
+		generateOrthologs();
+		printPartialResults();
+		generateClusters();
 		printResults();
 		log.info("Process finished");
+	}
+	
+	private void generateOrthologs() {
+		catalogsDescription();
+		
+		for(int i=0;i<cdnaCatalogs.size();i++) {
+			HomologyCatalog catalog = cdnaCatalogs.get(i);
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogsOrganism(catalog);
+			homologyEdges.addAll(edges);
+			log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
+		}
+		
+		
+		for(int i=0;i<cdnaCatalogs.size();i++) {
+			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
+			for (int j=0;j<cdnaCatalogs.size();j++) {
+				HomologyCatalog catalog2 = cdnaCatalogs.get(j);
+				if(i!=j) {
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2);
+					homologyEdges.addAll(edges);
+					log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
+				}
+			}
+		}
+	}
+	
+	private void catalogsDescription() {
+		log.info("Total number of catalogs: " + cdnaCatalogs.size());
+		for(int i = 0; i < cdnaCatalogs.size(); i++) {
+			HomologyCatalog catalog = cdnaCatalogs.get(i);
+			log.info(String.format("Catalog #%d has %d genes.", i+1, catalog.getHomologyUnits().size()));
+		}
 	}
 	
 	public void logParameters() {
@@ -135,27 +168,23 @@ public class CDNACatalogAligner {
 		log.info(os.toString());
 	}
 	
-	public void alignCatalogs() {
-		for(int i=0;i<cdnaCatalogs.size();i++) {
-			HomologyCatalog catalog = cdnaCatalogs.get(i);
-			homologyEdges.addAll(homologRelationshipsFinder.calculateParalogsOrganism(catalog));
-			log.info("Paralogs found for Organism: "+ homologyEdges.size());
-		}
-		
-		
-		for(int i=0;i<cdnaCatalogs.size();i++) {
-			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
-			for (int j=0;j<cdnaCatalogs.size();j++) {
-				HomologyCatalog catalog2 = cdnaCatalogs.get(i);
-				if(i!=j) homologyEdges.addAll(homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2));
-			}
-		}
-		HomologClustersCalculator calculator = new HomologClustersCalculator();
+	private void generateClusters() {
+		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges, skipMCL);
+		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges);
 	}
 	
-	public void printResults() throws FileNotFoundException {
+	private void printPartialResults() throws FileNotFoundException {
+		//Print orthology relationships
+		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
+			for(HomologyEdge edge : homologyEdges) {
+				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
+				outOrthologs.println();
+			}
+		}
+	}
+	
+	public void printResults() throws FileNotFoundException {	
 		//Print ortholog clusters
 		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
 			for(List<HomologyUnit> cluster:orthologyUnitClusters) {

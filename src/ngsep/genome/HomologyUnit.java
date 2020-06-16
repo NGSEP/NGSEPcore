@@ -147,12 +147,19 @@ public class HomologyUnit implements GenomicRegion {
 		}
 		return relationships;
 	}
+	
+	public void removeAllHomologyRelationships() {
+		homologsMap = new HashMap<Integer, Map<String,HomologyEdge>>();
+		homologsMap.put(genomeId, new HashMap<String, HomologyEdge>());
+	}
 
 	/**
 	 * @return the paralogs
 	 */
 	public Collection<HomologyEdge> getParalogRelationships() {
-		return Collections.unmodifiableCollection(homologsMap.get(genomeId).values());
+		Map<String,HomologyEdge> map = homologsMap.get(genomeId);
+		Collection<HomologyEdge> collection = map.values();
+		return Collections.unmodifiableCollection(collection);
 	}
 
 	/**
