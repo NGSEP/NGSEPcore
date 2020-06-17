@@ -44,12 +44,10 @@ public class AssemblyGraphStatistics {
 	private boolean simulated = false;
 	
 	//Statistics
-	private Distribution distScoresTPPathEdges = new Distribution(0,100000,5000);
-	private Distribution distScoresFNPathEdges = new Distribution(0,100000,5000);
-	private Distribution distScoresFPEdges = new Distribution(0,100000,5000);
-	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,5000);
-	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,5000);
-	private Distribution distOverlapsFPEdges = new Distribution(0,100000,5000);
+	private Distribution distCostsTPPathEdges = new Distribution(0,100000,2000);
+	private Distribution distCostsFPEdges = new Distribution(0,100000,2000);
+	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,2000);
+	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,2000);
 	private int tpEmbSeqs = 0;
 	private int fpEmbSeqs = 0;
 	private int fnEmbSeqs = 0;
@@ -58,11 +56,17 @@ public class AssemblyGraphStatistics {
 	private int fnEmbRel = 0;
 	private int tpEdgesNotEmbedded = 0;
 	private int tpEdgesEmbedded = 0;
-	int fpEdges = 0;
-	int fnEdgesNotEmbedded = 0;
-	int fnEdgesEmbedded = 0;
-	int tpPathEdges = 0;
-	int totalPathEdges = 0;
+	private int fpEdges = 0;
+	private int fnEdgesNotEmbedded = 0;
+	private int fnEdgesEmbedded = 0;
+	private int tpPathEdges = 0;
+	private int totalPathEdges = 0;
+	
+	private int tpLayoutEdges = 0;
+	private int errorsTestLayoutEdges = 0;
+	private int totalTestLayoutPaths = 0;
+	private int totalTestLayoutEdges = 0;
+	private int totalGSLayoutEdges = 0;
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -190,6 +194,7 @@ public class AssemblyGraphStatistics {
 			if(alignments==null) return;
 			AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 			compareGraphs(goldStandardGraph, graph, out);
+			printStatistics(out);
 		}
 	}
 	public List<ReadAlignment> buildAlignmentsFromSimulatedReads(List<QualifiedSequence> sequences) {
@@ -227,6 +232,11 @@ public class AssemblyGraphStatistics {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
 				if(cmp>1) break;
+				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
+				int overlap = left.getLast() - right.getFirst() + 1;
+				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+				graph.addEdge(edge);
+				
 				boolean relativeNegative = left.isNegativeStrand()!=right.isNegativeStrand();
 				int relativeStart;
 				
@@ -253,11 +263,6 @@ public class AssemblyGraphStatistics {
 					}
 					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), relativeStart );
 					graph.addEmbedded(embeddedEvent);
-				} else {
-					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
-					int overlap = left.getLast() - right.getFirst() + 1;
-					AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
-					graph.addEdge(edge);
 				}
 			}
 		}
@@ -337,23 +342,6 @@ public class AssemblyGraphStatistics {
 			
 			calculateComparisonStats (goldStandardGraph, gsVertex, testGraph, testVertex, out);
 		}
-		double precision = (double)tpEmbSeqs/(tpEmbSeqs+fpEmbSeqs);
-		double recall = (double)tpEmbSeqs/(tpEmbSeqs+fnEmbSeqs);
-		out.println("EMBEDDED_SEQUENCES\t"+tpEmbSeqs+"\t"+fpEmbSeqs+"\t"+fnEmbSeqs+"\t"+recall+"\t"+precision);
-		precision = (double)tpEmbRel/(tpEmbRel+fpEmbRel);
-		recall = (double)tpEmbRel/(tpEmbRel+fnEmbRel);
-		out.println("EMBEDDED_RELATIONS\t"+tpEmbRel+"\t"+fpEmbRel+"\t"+fnEmbRel+"\t"+recall+"\t"+precision);
-		tpEdgesEmbedded/=2;
-		tpEdgesNotEmbedded/=2;
-		fpEdges/=2;
-		fnEdgesEmbedded/=2;
-		fnEdgesNotEmbedded/=2;
-		tpPathEdges/=2;
-		totalPathEdges/=2;
-		double precisionEdges = (double)tpEdgesNotEmbedded/(tpEdgesNotEmbedded+fpEdges);
-		double recallEdges = (double)tpEdgesNotEmbedded/(tpEdgesNotEmbedded+fnEdgesNotEmbedded);
-		double recallPathEdges = (double)tpPathEdges/totalPathEdges;
-		out.println("EDGES\t"+tpEdgesNotEmbedded+"\t"+fpEdges+"\t"+fnEdgesNotEmbedded+"\t"+recallEdges+"\t"+precisionEdges+"\t"+tpPathEdges+"\t"+totalPathEdges+"\t"+recallPathEdges+"\t"+tpEdgesEmbedded+"\t"+fnEdgesEmbedded);
 		compareLayouts(goldStandardGraph, testGraph, out);
 	}
 	private int calculateIntersection(List<AssemblyEmbedded> embeddedGS, List<AssemblyEmbedded> embeddedTest) {
@@ -402,7 +390,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==0; 
+		boolean debug = gsVertex.getUniqueNumber()==206; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, out);
 			printEdgeList("Test", testVertex, testEdges, out);
@@ -437,7 +425,21 @@ public class AssemblyGraphStatistics {
 			if(gsEdge.isLayoutEdge()) {
 				if(match) {
 					tpPathEdges++;
+					AssemblyEdge minTestEdge = null;
+					AssemblyEdge layoutTestEdge = null;
+					for(AssemblyEdge edge:testEdges) {
+						if (edge.getConnectingVertex(testVertex).getUniqueNumber() == number) {
+							layoutTestEdge = edge;
+							distCostsTPPathEdges.processDatapoint(edge.getCost());
+							distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
+						}
+						if(!edge.isSameSequenceEdge() && (minTestEdge==null || minTestEdge.getCost()>edge.getCost())) minTestEdge=edge;
+					}
+					if(minTestEdge!=layoutTestEdge) {
+						out.println("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logVertex(layoutTestEdge.getConnectingVertex(testVertex))+" overlap: "+layoutTestEdge.getOverlap()+" cost: "+layoutTestEdge.getCost()+" min cost edge: "+logVertex(minTestEdge.getConnectingVertex(testVertex))+" overlap: "+minTestEdge.getOverlap()+" cost: "+minTestEdge.getCost());
+					}
 				} else {
+					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
 					out.println("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" overlap: "+gsEdge.getOverlap());
 				}
 				totalPathEdges++;
@@ -449,6 +451,7 @@ public class AssemblyGraphStatistics {
 			if(!testEdgesMatched.get(number)) {
 				//False positive
 				fpEdges++;
+				distCostsFPEdges.processDatapoint(edge.getCost());
 				out.println("False positive edge between vertex: "+logVertex(testVertex)+" and "+logVertex(vertex)+" overlap: "+edge.getOverlap()+" cost: "+edge.getCost());
 			}
 		}
@@ -467,10 +470,10 @@ public class AssemblyGraphStatistics {
 	}
 
 	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, PrintStream out) {
-		out.println(text);
+		out.println(text+" vertex "+logVertex(v));
 		for(AssemblyEdge edge:edges) {
 			AssemblyVertex vOut = edge.getConnectingVertex(v);
-			out.println("Vertex "+vOut.getUniqueNumber()+" name"+vOut.getRead().getName()+" length "+vOut.getRead().getLength()+" overlap "+edge.getOverlap());
+			out.println("Vertex "+logVertex(vOut)+" overlap "+edge.getOverlap());
 		}
 		
 	}
@@ -478,20 +481,18 @@ public class AssemblyGraphStatistics {
 	private void compareLayouts(AssemblyGraph goldStandardGraph, AssemblyGraph testGraph, PrintStream out) {
 		List<List<AssemblyEdge>> gsPaths = goldStandardGraph.getPaths();
 		List<List<AssemblyEdge>> testPaths = testGraph.getPaths();
-		int errors = 0;
-		int nonTrivialPaths = 0;
-		int edgesNonTrivialPaths = 0;
-		int foundEdges = 0;
-		int totalGSEdges = 0;
+		totalGSLayoutEdges = 0;
+		totalTestLayoutPaths = 0;
+		totalTestLayoutEdges = 0;
 		for(List<AssemblyEdge> gsPath:gsPaths) {
-			totalGSEdges+=gsPath.size();
+			totalGSLayoutEdges+=gsPath.size();
 		}
 		
 		for(int i=0;i<testPaths.size();i++) {
 			List<AssemblyEdge> nextPath = testPaths.get(i);
 			if(nextPath.size()<=1) continue; 
-			nonTrivialPaths++;
-			edgesNonTrivialPaths+=nextPath.size();
+			totalTestLayoutPaths++;
+			totalTestLayoutEdges+=nextPath.size();
 			List<AssemblyEdge> nextGSPath = null;
 			int nextGSEdgeIdx = -1;
 			int direction = 0;
@@ -509,13 +510,13 @@ public class AssemblyGraphStatistics {
 					if(nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) {
 						AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
 						if(sameEdges(nextGSEdge, nextTestEdge)) {
-							foundEdges++;
+							tpLayoutEdges++;
 						} else {
-							errors++;
+							errorsTestLayoutEdges++;
 							searchGSEdge = true;
 						}
 					} else {
-						errors++;
+						errorsTestLayoutEdges++;
 						searchGSEdge = true;
 					}
 				}
@@ -523,22 +524,19 @@ public class AssemblyGraphStatistics {
 					direction = 0;
 					int [] gsEdgeLocation = findGSEdgeLocation(gsPaths, nextTestEdge );
 					if(gsEdgeLocation == null) {
-						if(countErrorIfNotFound) errors++;
+						if(countErrorIfNotFound) errorsTestLayoutEdges++;
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 						continue;
 					} else {
-						foundEdges++;
+						tpLayoutEdges++;
 						nextGSPath = gsPaths.get(gsEdgeLocation[0]);
 						nextGSEdgeIdx = gsEdgeLocation[1];
 					}
 				}
 			}
 		}
-		double recall = (double)foundEdges/totalGSEdges;
-		double precision = 0;
-		if(edgesNonTrivialPaths>0) precision = (double)foundEdges/edgesNonTrivialPaths;
-		out.println("PATHS\t"+nonTrivialPaths+"\t"+foundEdges+"\t"+errors+"\t"+edgesNonTrivialPaths+"\t"+totalGSEdges+"\t"+recall+"\t"+precision);
+		
 		
 	}
 
@@ -555,5 +553,37 @@ public class AssemblyGraphStatistics {
 			
 		}
 		return null;
+	}
+	private void printStatistics(PrintStream out) {
+		double precision = (double)tpEmbSeqs/(tpEmbSeqs+fpEmbSeqs);
+		double recall = (double)tpEmbSeqs/(tpEmbSeqs+fnEmbSeqs);
+		out.println("EMBEDDED_SEQUENCES\t"+tpEmbSeqs+"\t"+fpEmbSeqs+"\t"+fnEmbSeqs+"\t"+precision+"\t"+recall);
+		precision = (double)tpEmbRel/(tpEmbRel+fpEmbRel);
+		recall = (double)tpEmbRel/(tpEmbRel+fnEmbRel);
+		out.println("EMBEDDED_RELATIONS\t"+tpEmbRel+"\t"+fpEmbRel+"\t"+fnEmbRel+"\t"+precision+"\t"+recall);
+		tpEdgesEmbedded/=2;
+		tpEdgesNotEmbedded/=2;
+		fpEdges/=2;
+		fnEdgesEmbedded/=2;
+		fnEdgesNotEmbedded/=2;
+		tpPathEdges/=2;
+		totalPathEdges/=2;
+		double precisionEdges = (double)tpEdgesNotEmbedded/(tpEdgesNotEmbedded+fpEdges);
+		double recallEdges = (double)tpEdgesNotEmbedded/(tpEdgesNotEmbedded+fnEdgesNotEmbedded);
+		double recallPathEdges = (double)tpPathEdges/totalPathEdges;
+		out.println("EDGES\t"+tpEdgesNotEmbedded+"\t"+fpEdges+"\t"+fnEdgesNotEmbedded+"\t"+precisionEdges+"\t"+recallEdges+"\t"+tpPathEdges+"\t"+totalPathEdges+"\t"+recallPathEdges+"\t"+tpEdgesEmbedded+"\t"+fnEdgesEmbedded);
+		precision = 0;
+		if(totalTestLayoutEdges>0) precision = (double)tpLayoutEdges/totalTestLayoutEdges;
+		recall = (double)tpLayoutEdges/totalGSLayoutEdges;
+		out.println("PATHS\t"+totalTestLayoutPaths+"\t"+tpLayoutEdges+"\t"+errorsTestLayoutEdges+"\t"+totalTestLayoutEdges+"\t"+totalGSLayoutEdges+"\t"+precision+"\t"+recall);
+		double [] d1 = distOverlapsTPPathEdges.getDistribution();
+		double [] d2 = distOverlapsFNPathEdges.getDistribution();
+		double [] d3 = distCostsTPPathEdges.getDistribution();
+		double [] d4 = distCostsFPEdges.getDistribution();
+		out.println("Number\tTPOverlaps\tFPOverlaps\tTPCosts\tFPCosts");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*2000;
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
+		}
 	}
 }

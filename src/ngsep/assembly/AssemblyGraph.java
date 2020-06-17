@@ -381,7 +381,7 @@ public class AssemblyGraph implements Serializable {
 	 * @return Distribution of degrees of vertices
 	 */
 	public Distribution getVertexDegreeDistribution() {
-		Distribution answer = new Distribution(0, edgesMap.size(), 1);
+		Distribution answer = new Distribution(0, 100, 1);
 		for(List<AssemblyEdge> edges:edgesMap.values()) {
 			answer.processDatapoint(edges.size());
 		}
