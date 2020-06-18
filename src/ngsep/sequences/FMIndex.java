@@ -65,8 +65,12 @@ public class FMIndex implements Serializable
 	 * Loads the sequences in the given list to allow searches from these sequences
 	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
 	 */
-	public void loadQualifiedSequenceList (QualifiedSequenceList sequences) {
-		sequencesWithNames = sequences;
+	public void loadQualifiedSequences (List<QualifiedSequence> sequences) {
+		if(sequences instanceof QualifiedSequenceList) sequencesWithNames = (QualifiedSequenceList)sequences;
+		else {
+			sequencesWithNames = new QualifiedSequenceList();
+			sequencesWithNames.addAll(sequences);
+		}
 		StringBuffer internalSequence = new StringBuffer();
 		CombinedMultisequenceFMIndexMetadata internalIdxMetadata = new CombinedMultisequenceFMIndexMetadata();
 		int nI=0;
@@ -99,41 +103,6 @@ public class FMIndex implements Serializable
 			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
-		}
-	}
-	public void loadUnnamedSequences (List<? extends CharSequence> sequences, int tally, int suffixFraction) {
-		int n = sequences.size();
-		StringBuffer internalSequence = new StringBuffer();
-		CombinedMultisequenceFMIndexMetadata internalIdxMetadata = new CombinedMultisequenceFMIndexMetadata();
-		int nI=0;
-		for(int i=0;i<n;i++) {
-			String next = sequences.get(i).toString();
-			if(nI>0 && internalSequence.length() + next.length() > (100000000) ) {
-				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
-				long time = System.currentTimeMillis();
-				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
-				index.setMaxHitsQuery(maxHitsQuery);
-				System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
-				internalIndexes.add(index);
-				internalMetadata.add(internalIdxMetadata);
-				internalSequence = new StringBuffer();
-				internalIdxMetadata = new CombinedMultisequenceFMIndexMetadata();
-				nI=0;
-			}
-			internalSequence.append(next);
-			internalIdxMetadata.addInputSequence(i, next.length());
-			sequenceLengths.add(next.length());
-			nI++;
-		}
-		if(nI>0) {
-			System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
-			long time = System.currentTimeMillis();
-			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence,tally,suffixFraction);
-			index.setMaxHitsQuery(maxHitsQuery);
-			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
-			internalIndexes.add(index);
-			internalMetadata.add(internalIdxMetadata);
-			internalSequence = new StringBuffer();
 		}
 	}
 	/**

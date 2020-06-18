@@ -153,7 +153,7 @@ Tutorial:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 5a. Find Variants for individual samples
-    In the same directory, perform the detection of Single Nucleotide Variants (SNVs) and Structural Variants (SVs) from each sample, using the FindVariants command of NGSEP like this:
+    In the same directory, perform the detection of Single Nucleotide Variants (SNVs) and Structural Variants (SVs) from each sample, using the SingleSampleVariantsDetector command of NGSEP like this:
 
         $ java -jar ~/javaPrograms/NGSEPcore.jar SingleSampleVariantsDetector -runRep -runRD -runRP -maxBaseQS 30 -minQuality 40 -maxAlnsPerStartPos 2 -knownSTRs ../reference/Saccharomyces_cerevisiae_STRs.txt -sampleId ER7A -r ../reference/Saccharomyces_cerevisiae.fa -i ER7A_sorted.bam -o ER7A_NGSEP >& ER7A_NGSEP.log
 

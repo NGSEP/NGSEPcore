@@ -63,14 +63,14 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=100;
-	public static final int DEF_INDIVIDUALS=4;
-	public static final int DEF_NUM_FRAGMENTS_POOL=2500;
-	public static final int DEF_READ_LENGTH=100;
-	public static final double DEF_ERROR_RATE=0.00001;
-	public static final double DEF_MIN_ERROR_RATE=0.0000001;
-	public static final int PLAQUE_WIDTH=2;
-	public static final int PLAQUE_HEIGHT=2;
+	public static final int DEF_MUTATIONS=300;
+	public static final int DEF_INDIVIDUALS=800;
+	public static final int DEF_NUM_FRAGMENTS_POOL=1000;
+	public static final int DEF_READ_LENGTH=200;
+	public static final double DEF_ERROR_RATE=0.01;
+	public static final double DEF_MIN_ERROR_RATE=0.00001;
+	public static final int PLAQUE_WIDTH=8;
+	public static final int PLAQUE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
 	private int numIndividuals = DEF_INDIVIDUALS;
@@ -85,6 +85,12 @@ public class TillingPopulationSimulator {
 	
 	
 	public static void main(String[] args) throws Exception {
+		long aTime = System.currentTimeMillis();
+		Runtime runtime = Runtime.getRuntime();
+		System.gc();
+		long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
+		System.out.println("Used Memory before " +memoryBefore);
+		
 		TillingPopulationSimulator instance = new TillingPopulationSimulator();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
 		String referenceFile = args[i++];
@@ -92,6 +98,12 @@ public class TillingPopulationSimulator {
 		String outPrefix = args[i++];
 		instance.genome = new ReferenceGenome(referenceFile);
 		instance.runSimulation (sequencedRegionsFile, outPrefix);
+		
+		System.gc();
+		long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
+		System.out.println("Memory increased: " + (memoryAfter-memoryBefore));
+		long bTime = System.currentTimeMillis() - aTime;
+		System.out.println("Total time was: "+bTime);
 	}
 	
 	/**
@@ -210,7 +222,7 @@ public class TillingPopulationSimulator {
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
 		
-		long aTime = System.currentTimeMillis();
+		
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
@@ -221,16 +233,11 @@ public class TillingPopulationSimulator {
 		ArrayList<ArrayList<Double>> errors=generateErrorIntervals();
 		HashMap<Character,ArrayList<Character>> Seq_err= generateMutatedDictionary();
 		
-		long startTime = System.currentTimeMillis();
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
 			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors,Seq_err);
 			System.out.println("Simulated reads pool "+i);
 		}
-		long estimatedTime = System.currentTimeMillis() - startTime;
-		long bTime = System.currentTimeMillis() - aTime;
-		System.out.println(estimatedTime);
-		System.out.println(bTime);
 		
 		
 	}
@@ -630,4 +637,3 @@ class SimulatedDiploidIndividual {
 		return alleleSequences.get(idx);
 	}
 }
-

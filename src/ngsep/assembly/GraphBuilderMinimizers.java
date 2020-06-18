@@ -12,6 +12,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
+import ngsep.sequences.QualifiedSequence;
 
 public class GraphBuilderMinimizers implements GraphBuilder {
 
@@ -65,13 +66,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 
 	@Override
-	public AssemblyGraph buildAssemblyGraph(List<CharSequence> sequences) {
+	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
 		
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
 		//TODO: Make parameter
 		table.setMaxAbundanceMinimizer(100);
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
-			CharSequence seq = sequences.get(seqId);
+			CharSequence seq = sequences.get(seqId).getCharacters();
 			table.addSequence(seqId, seq);
 		}
 		log.info("Built minimizers.");
@@ -92,7 +93,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			CharSequence seq = sequences.get(seqId);
+			CharSequence seq = sequences.get(seqId).getCharacters();
 			if(numThreads==1) {
 				processSequence(edgesFinder, table, seqId, seq);
 				if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());

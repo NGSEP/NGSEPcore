@@ -23,9 +23,10 @@ public class SingleReadsSimulator {
 	
 	// Constants for default values
 	public static final int DEF_NUM_READS = 30000;
-	public static final int DEF_MEAN_READ_LENGTH = 10000;
-	public static final int DEF_STDEV_READ_LENGTH = 2000;
-	public static final double DEF_SUBSTITUTION_ERROR_RATE = 0.02;
+	public static final int DEF_MEAN_READ_LENGTH = 20000;
+	public static final int DEF_STDEV_READ_LENGTH = 10000;
+	public static final int DEF_MIN_READ_LENGTH = 50;
+	public static final double DEF_SUBSTITUTION_ERROR_RATE = 0.01;
 	public static final double DEF_INDEL_ERROR_RATE = 0.01;
 	public static final byte OUT_FORMAT_FASTQ = 0;
 	public static final byte OUT_FORMAT_FASTA = 1;
@@ -40,6 +41,7 @@ public class SingleReadsSimulator {
 	private int numberOfReads = DEF_NUM_READS;
 	private int meanReadLength = DEF_MEAN_READ_LENGTH;
 	private int stdevReadlength = DEF_STDEV_READ_LENGTH;
+	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private double substitutionErrorRate = DEF_SUBSTITUTION_ERROR_RATE;
 	private double indelErrorRate = DEF_INDEL_ERROR_RATE;
 	private byte outFormat = OUT_FORMAT_FASTQ;
@@ -182,6 +184,7 @@ public class SingleReadsSimulator {
 				String read = null;
 				for (int j = 0; j < 100; j++) {
 					readLength = (int) (rnd.nextGaussian() * stdevReadlength + meanReadLength);
+					if(readLength<minReadLength) continue;
 					long nextLong = rnd.nextLong();
 					nextStart = nextLong % (totalLength - readLength);
 					if (nextStart < 0) continue;

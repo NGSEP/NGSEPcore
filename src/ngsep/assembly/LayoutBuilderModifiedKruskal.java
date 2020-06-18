@@ -39,8 +39,6 @@ public class LayoutBuilderModifiedKruskal implements LayourBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		//Distribution degreeDist = graph.getVertexDegreeDistribution ();
-		//degreeDist.printDistributionInt(System.out);
 		List<List<AssemblyEdge>> edgesSTConnectedComponents = buildSpanningTree(graph.getEdges());
 		System.out.println("Number of connected components after spanning tree: "+edgesSTConnectedComponents.size());
 		for(List<AssemblyEdge> edges:edgesSTConnectedComponents) {

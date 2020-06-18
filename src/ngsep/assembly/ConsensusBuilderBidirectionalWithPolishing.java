@@ -35,7 +35,6 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
 
 /**
@@ -111,14 +110,14 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			}
 			if(j == 0) {
 				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
-				CharSequence seq = vertexPreviousEdge.getRead();
+				CharSequence seq = vertexPreviousEdge.getRead().getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				rawConsensus.append(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
 				// Augment consensus with the next path read
-				CharSequence nextPathSequence = vertexNextEdge.getRead();
+				CharSequence nextPathSequence = vertexNextEdge.getRead().getCharacters();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
@@ -148,7 +147,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			}
 			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
 				//Align to consensus next path read and its embedded sequences
-				CharSequence read = vertexPreviousEdge.getRead();
+				CharSequence read = vertexPreviousEdge.getRead().getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) read = DNAMaskedSequence.getReverseComplement(read);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());

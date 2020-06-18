@@ -59,13 +59,13 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			if(j == 0) {
 				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
-				CharSequence seq = vertexPreviousEdge.getRead();
+				CharSequence seq = vertexPreviousEdge.getRead().getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				consensus.append(seq);
 			} else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
 				// Augment consensus with the next path read
-				CharSequence nextPathSequence = vertexNextEdge.getRead();
+				CharSequence nextPathSequence = vertexNextEdge.getRead().getCharacters();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);

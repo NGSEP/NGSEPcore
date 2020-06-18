@@ -36,6 +36,7 @@ import java.util.Set;
 
 import ngsep.math.Distribution;
 import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.QualifiedSequence;
 
 /**
  * @author Jorge Duitama
@@ -51,7 +52,7 @@ public class AssemblyGraph implements Serializable {
 	/**
 	 * Sequences to build the graph. The index of each sequence is the unique identifier
 	 */
-	private List<CharSequence> sequences;
+	private List<QualifiedSequence> sequences;
 	/**
 	 * Start vertices indexed by sequence index
 	 */
@@ -82,7 +83,7 @@ public class AssemblyGraph implements Serializable {
 	 */
 	private List<String> readNames;
 
-	public AssemblyGraph(List<CharSequence> sequences) {
+	public AssemblyGraph(List<QualifiedSequence> sequences) {
 		int n = sequences.size();
 		this.sequences = Collections.unmodifiableList(sequences);
 		verticesStart = new HashMap<>(n);
@@ -90,7 +91,7 @@ public class AssemblyGraph implements Serializable {
 		verticesByUnique = new HashMap<>(n);
 		edgesMap = new HashMap<>(n);
 		for (int i=0;i<sequences.size();i++) {
-			CharSequence seq = sequences.get(i);
+			QualifiedSequence seq = sequences.get(i);
 			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
 			verticesStart.put(i,vS);
 			verticesByUnique.put(vS.getUniqueNumber(), vS);
@@ -99,7 +100,7 @@ public class AssemblyGraph implements Serializable {
 			verticesEnd.put(i,vE);
 			verticesByUnique.put(vE.getUniqueNumber(), vE);
 			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
-			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.length(), seq.length());
+			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength(), seq.getLength());
 			addEdge(edge);
 		}
 	}
@@ -107,14 +108,14 @@ public class AssemblyGraph implements Serializable {
 	/**
 	 * @return the sequences
 	 */
-	public List<CharSequence> getSequences() {
+	public List<QualifiedSequence> getSequences() {
 		return sequences;
 	}
-	public CharSequence getSequence(int sequenceIdx) {
+	public QualifiedSequence getSequence(int sequenceIdx) {
 		return sequences.get(sequenceIdx);
 	}
 	public int getSequenceLength(int sequenceIdx) {
-		return sequences.get(sequenceIdx).length();
+		return sequences.get(sequenceIdx).getLength();
 	}
 	public int getNumSequences () {
 		return sequences.size();
@@ -204,9 +205,9 @@ public class AssemblyGraph implements Serializable {
 	private boolean makeSpecialEdge(AssemblyEmbedded embedded) {
 		//TODO: Parameters instead of hard filters
 		int seqIdHost = embedded.getHostId();
-		CharSequence host = sequences.get(seqIdHost);
+		CharSequence host = sequences.get(seqIdHost).getCharacters();
 		int seqIdEmb = embedded.getSequenceId();
-		CharSequence seq = sequences.get(seqIdEmb);
+		CharSequence seq = sequences.get(seqIdEmb).getCharacters();
 		if(seq.length()<5000) return false;
 		if(seq==null || host == null) return false;
 		if (seq.length()<0.7*host.length()) return false;
@@ -380,7 +381,7 @@ public class AssemblyGraph implements Serializable {
 	 * @return Distribution of degrees of vertices
 	 */
 	public Distribution getVertexDegreeDistribution() {
-		Distribution answer = new Distribution(0, edgesMap.size(), 1);
+		Distribution answer = new Distribution(0, 100, 1);
 		for(List<AssemblyEdge> edges:edgesMap.values()) {
 			answer.processDatapoint(edges.size());
 		}
