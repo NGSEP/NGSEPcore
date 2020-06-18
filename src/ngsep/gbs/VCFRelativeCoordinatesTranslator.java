@@ -48,15 +48,29 @@ public class VCFRelativeCoordinatesTranslator {
 	int totalRecords = 0;
 	int skippedRecords = 0;
 	int nullReadName = 0;
-	int notDNA = 0;
 	int TruePosNotAlign = 0;
-	int unmappedRead = 0;
-	int notSNV = 0;
-	int notRefSeq = 0;
-	int refNotInAlleles = 0;
+
 	int biallelic = 0;
 	int triallelic = 0;
+	
+	
+	// issues with translation
+	int untranslated = 0;
+	int notSNV = 0;
 	int nonVariant = 0;
+	int refNotInAlleles = 0;
+	int notRefSeq = 0;
+	int notDNA = 0;
+	
+	// issues with mapping
+	int unmappedRead = 0;
+	int singlemap = 0;
+	int unpaired = 0;
+	int partial = 0;
+	int noAlign = 0;
+	int noMap = 0;
+	int oddAlign = 0;
+	int unmappedCluster = 0;
 	
 //	public static void main(String[] args) throws Exception {
 //		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
@@ -119,13 +133,14 @@ public class VCFRelativeCoordinatesTranslator {
 						translatedRecord = translateRecord(alignment, record, header);
 					} else {
 						notSNV++;
+						untranslated++;
 					}
 					if(translatedRecord != null) {
 						translatedRecords.add(translatedRecord);
 						numTranslatedRecords++;
 					}
 				} else {
-					skippedRecords++;
+					untranslated++;
 				}
 				totalRecords++;
 			}
@@ -133,24 +148,32 @@ public class VCFRelativeCoordinatesTranslator {
 		}
 		Collections.sort(translatedRecords,new GenomicRegionComparator(refGenome.getSequencesMetadata()));
 		VCFFileWriter writer = new VCFFileWriter ();
-		try (PrintStream mappedVCF = new PrintStream(outFile)) {
+		try (PrintStream mappedVCF = new PrintStream(outFile);
+				PrintStream info = new PrintStream(outFile + ".info")) {
 			writer.printHeader(header, mappedVCF);
 			writer.printVCFRecords(translatedRecords, mappedVCF);
+			info.println("Total number of records in relative VCF: " + totalRecords);
+			info.println("Number of translated records: " + numTranslatedRecords);
+			info.println("RefAllele not found in alleles: " + refNotInAlleles);
+			info.println("Triallelic: " + triallelic);
+			info.println("Biallelic: " + biallelic);
+			info.println("------ Issues with translation ------");
+			info.println("Not translated: " + untranslated);
+			info.println("Not DNA: " + notDNA); 
+			info.println("True pos not aligned to ref: " + TruePosNotAlign);
+			info.println("Not SNV: " + notSNV);
+			info.println("Non variant: " + nonVariant);
+			info.println("Reference seq is null: " + notRefSeq);
+			info.println("------ Issues with mapping ------");
+			info.println("Unmapped read: " + unmappedRead);
+			info.println("Partial: " + partial);
+			info.println("Unpaired: " + unpaired);
+			info.println("Single mapping: " + singlemap);
+			info.println("No alignment: " + noAlign);
+			info.println("No map: " + noMap);
+			info.println("Odd align: "+oddAlign);
+			info.println("Unmapped Cluster: " + unmappedCluster);
 		}
-		
-		
-		System.out.println("Total number of records in relative VCF: " + totalRecords);
-		System.out.println("Number of translated records: " + numTranslatedRecords);
-		System.out.println("Number of skipped records due to lack of a primary alignment: " + skippedRecords);
-		System.out.println("Not DNA: " + notDNA); 
-		System.out.println("True pos not aligned to ref: " + TruePosNotAlign);
-		System.out.println("Unmapped read: " + unmappedRead);
-		System.out.println("Not SNV: " + notSNV);
-		System.out.println("RefAllele not found in alleles: " + refNotInAlleles);
-		System.out.println("Triallelic: " + triallelic);
-		System.out.println("Biallelic: " + biallelic);
-		System.out.println("Non variant: " + nonVariant);
-		System.out.println("Reference seq is null: " + notRefSeq);
 	}
 	
 	/**
@@ -178,8 +201,6 @@ public class VCFRelativeCoordinatesTranslator {
 		// Variant as found in de-novo vcf
 		GenomicVariant relativeVar = record.getVariant();
 		
-		if(!(relativeVar instanceof SNV)) notSNV++;
-		
 		// Alternative Allele based on de-novo VCF
 		String[] relativeAlleles = relativeVar.getAlleles();
 		
@@ -192,26 +213,15 @@ public class VCFRelativeCoordinatesTranslator {
 		String seqName = algn.getSequenceName();
 		
 		if(seqName==null) {
+			unmappedCluster++;
 			unmappedRead++;
 			return null;
 		}
 		
 		
 		//-1 if the read position does not align with the reference 
-		//truePos = algn.getReferencePosition(zeroBasedRelativePos);
-		
-		if(algn.isNegativeStrand()) {
+		truePos = algn.getReferencePosition(zeroBasedRelativePos);
 			
-			truePos = algn.getLast() - zeroBasedRelativePos;
-			
-			} else {
-				
-			//-1 if the read position does not align with the reference 
-			truePos = algn.getReferencePosition(zeroBasedRelativePos);
-			// truePos = algn.getFirst() + zeroBasedRelativePos;
-			}
-		
-		
 		
 		if(truePos<=0) {
 			notRefSeq++;
@@ -342,6 +352,7 @@ public class VCFRelativeCoordinatesTranslator {
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
+						noAlign++;
 						unmappedRead++;
 						continue;
 					}
@@ -356,6 +367,9 @@ public class VCFRelativeCoordinatesTranslator {
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
 					if(alns1.size()==0|| alns2.size()==0) {
+						if(alns1.size()==0 && alns2.size()!=0) singlemap++;
+						else if(alns1.size()!=0 && alns2.size()==0) singlemap++;
+						else noMap++;
 						unmappedRead++;
 						continue;
 					}
@@ -368,6 +382,7 @@ public class VCFRelativeCoordinatesTranslator {
 					ReadAlignment aln1 = first.getAln1();
 					ReadAlignment aln2 = first.getAln2();
 					if(aln1.isPartialAlignment(1) || aln2.isPartialAlignment(1)) {
+						partial++;
 						unmappedRead++;
 						continue;
 					}
@@ -400,6 +415,7 @@ public class VCFRelativeCoordinatesTranslator {
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(algnName,combined);
 					} else {
+						oddAlign++;
 						unmappedRead++;
 					}
 				}
