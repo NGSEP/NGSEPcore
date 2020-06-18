@@ -828,20 +828,48 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public int getReferencePosition (int readPos) {
 		failIfReadUnmappedOrInconsistentAlignment();
-		int currentRefPos = first;
+		if(!isNegativeStrand()) {
+			int currentRefPos = first;
+			int currentReadPos = 0;
+			for(int i=0;i<alignment.length;i++) {
+				int length = getOperationLength(alignment[i]);
+				boolean cRef = consumesReferenceBases(alignment[i]);
+				boolean cRead = consumesReadBases(alignment[i]);
+				if(cRef && cRead) {
+					if(readPos<currentReadPos) return -1;
+					else if(currentReadPos+length>readPos) {
+						return currentRefPos + readPos-currentReadPos; 
+					}
+				}
+				if(cRef) {
+					currentRefPos += length;
+				}
+				if(cRead) {
+					currentReadPos += length;
+				}
+			}
+			return -1;
+		} else {
+			return getReferencePositionReverse(readPos);
+		}
+	}
+	
+	public int getReferencePositionReverse (int readPos) {
+		failIfReadUnmappedOrInconsistentAlignment();
+		int currentRefPos = last;
 		int currentReadPos = 0;
-		for(int i=0;i<alignment.length;i++) {
+		for(int i=alignment.length-1;i>=0;i--) {
 			int length = getOperationLength(alignment[i]);
 			boolean cRef = consumesReferenceBases(alignment[i]);
 			boolean cRead = consumesReadBases(alignment[i]);
 			if(cRef && cRead) {
 				if(readPos<currentReadPos) return -1;
-				else if(currentReadPos+length>readPos) {
-					return currentRefPos + readPos-currentReadPos; 
+				else if(currentReadPos-length<readPos) {
+					return currentRefPos - readPos-currentReadPos; 
 				}
 			}
 			if(cRef) {
-				currentRefPos += length;
+				currentRefPos -= length;
 			}
 			if(cRead) {
 				currentReadPos += length;
@@ -849,6 +877,8 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return -1;
 	}
+	
+	
 	/**
 	 * Provides the allele call (if any) at the given reference position taking into account possible
 	 * base pairs to ignore
