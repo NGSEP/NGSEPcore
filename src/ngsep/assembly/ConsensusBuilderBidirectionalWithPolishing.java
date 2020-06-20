@@ -29,7 +29,7 @@ import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.IndelRealignerPileupListener;
-import ngsep.discovery.VariantPileupListener;
+import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
@@ -214,7 +214,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		IndelRealignerPileupListener realignerListener = new IndelRealignerPileupListener();
 		realignerListener.setGenome(genome);
 		generator.addListener(realignerListener);
-		VariantPileupListener varListener = new VariantPileupListener();
+		SingleSampleVariantPileupListener varListener = new SingleSampleVariantPileupListener();
 		varListener.setMinQuality((short) 30);
 		varListener.setGenome(genome);
 		generator.addListener(varListener);

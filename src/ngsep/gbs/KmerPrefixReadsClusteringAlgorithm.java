@@ -40,7 +40,6 @@ import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.discovery.MultisampleVariantsDetector;
-import ngsep.discovery.VariantPileupListener;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -72,7 +71,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	public static final int MIN_CLUSTER_DEPTH = 5;
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = MultisampleVariantsDetector.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final short DEF_MIN_QUALITY = MultisampleVariantsDetector.DEF_MIN_QUALITY;
-	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+	public static final byte DEF_MAX_BASE_QS = MultisampleVariantsDetector.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	public static final double DEF_MIN_ALLELE_DEPTH_FREQUENCY = 0.01;
 	public static final int DEF_START = 8;

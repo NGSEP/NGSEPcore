@@ -56,17 +56,17 @@ import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
 
 
-public class VariantsDetector implements PileupListener {
+public class SingleSampleVariantsDetector implements PileupListener {
 	
 	// Constants for default values
 	public static final int DEF_MAX_ALNS_PER_START_POS = AlignmentsPileupGenerator.DEF_MAX_ALNS_PER_START_POS;
 	public static final double DEF_MIN_ALLELE_FREQUENCY = 0;
-	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
-	public static final short DEF_MIN_QUALITY = VariantPileupListener.DEF_MIN_QUALITY;
+	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = SingleSampleVariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID;
+	public static final short DEF_MIN_QUALITY = SingleSampleVariantPileupListener.DEF_MIN_QUALITY;
 	public static final short DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	public static final byte DEF_MAX_BASE_QS = VariantPileupListener.DEF_MAX_BASE_QS;
+	public static final byte DEF_MAX_BASE_QS = SingleSampleVariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
-	public static final String DEF_SAMPLE_ID = "Sample";
+	public static final String DEF_SAMPLE_ID = SingleSampleVariantPileupListener.DEF_SAMPLE_ID;
 	public static final short DEF_MIN_SV_QUALITY = 20;
 	public static final short DEF_BIN_SIZE = ReadDepthDistribution.DEFAULT_BIN_SIZE;
 	public static final String DEF_ALGORITHM_CNV = "CNVnator";
@@ -75,7 +75,7 @@ public class VariantsDetector implements PileupListener {
 	public static final int DEF_SPLIT_READ_SEED = ReadPairAnalyzer.DEF_SPLIT_READ_SEED;
 	
 	// Logging and progress
-	private Logger log = Logger.getLogger(VariantsDetector.class.getName());
+	private Logger log = Logger.getLogger(SingleSampleVariantsDetector.class.getName());
 	private ProgressNotifier progressNotifier = null;
 	private double coveredGenomeSize = 0;
 	private long referenceGenomeSize = 0;
@@ -105,7 +105,7 @@ public class VariantsDetector implements PileupListener {
 	private ReadPairAnalyzer rpAnalyzer = new ReadPairAnalyzer();
 	//Listeners
 	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
-	private VariantPileupListener varListener = new VariantPileupListener();
+	private SingleSampleVariantPileupListener varListener = new SingleSampleVariantPileupListener();
 	private boolean hetRateModified = false; 
 	
 	// Model attributes
@@ -175,7 +175,6 @@ public class VariantsDetector implements PileupListener {
 	}
 	public void setNormalPloidy(byte normalPloidy) {
 		this.normalPloidy = normalPloidy;
-		varListener.setNormalPloidy(normalPloidy);
 	}
 	public void setNormalPloidy(String value) {
 		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
@@ -566,7 +565,7 @@ public class VariantsDetector implements PileupListener {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
-		VariantsDetector instance = new VariantsDetector();
+		SingleSampleVariantsDetector instance = new SingleSampleVariantsDetector();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
@@ -574,7 +573,7 @@ public class VariantsDetector implements PileupListener {
 	public void run () throws IOException {
 		if(!runRDAnalysis || knownSVsFile!=null) findNewCNVs = false;
 		if(!hetRateModified && normalPloidy==1) {
-			setHeterozygosityRate(VariantPileupListener.DEF_HETEROZYGOSITY_RATE_HAPLOID);
+			setHeterozygosityRate(SingleSampleVariantPileupListener.DEF_HETEROZYGOSITY_RATE_HAPLOID);
 		}
 		logParameters();
 		if(inputFile==null) throw new IOException("The input file with alignments is a required parameter");
@@ -895,6 +894,7 @@ public class VariantsDetector implements PileupListener {
 		generator.addListener(indelRealigner);
 		varListener.clear();
 		varListener.setGenome(genome);
+		varListener.setSample(s);
 		generator.addListener(varListener);
 		generator.addListener(this);
 		try (PrintStream outVars = new PrintStream(outputPrefix+".vcf")) {
