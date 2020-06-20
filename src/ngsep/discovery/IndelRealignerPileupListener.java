@@ -282,7 +282,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 					//if(start >= currentPos && start <=eventEnd) {		
 						//if(aln.getFirst()==1291016) System.out.println("Trying to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" offset: "+offset);
 						boolean moved = aln.moveIndelStart(start,first+offset);
-						if(first==posPrint && moved == false) System.err.println("WARN: Failed attempt to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+first+" new indel start "+(first+offset)+" read pos: "+aln.getReadPosition(first));
+						if(first==posPrint && moved == false) System.err.println("WARN: Failed attempt to move indel start for alignment of read "+aln.getReadName()+" at "+aln.getSequenceName()+":"+aln.getFirst()+" indel reference pos "+start+" current pileup pos: "+first+" new indel start "+(first+offset)+" read pos: "+aln.getAlignedReadPosition(first));
 						break;
 					}
 				}
@@ -340,7 +340,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	}
 
 	private int checkTandemRepeat(ReadAlignment aln, int currentPos) {
-		int readFirst = aln.getReadPosition(currentPos);
+		int readFirst = aln.getAlignedReadPosition(currentPos);
 		if(readFirst < 0) return 0;
 		String seq = aln.getReadCharacters().toString();
 		seq = seq.substring(readFirst+1).toUpperCase();
@@ -389,6 +389,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	
 	
 	private void processEndsOfAlignments(List<ReadAlignment> alignments, String sequenceName, int eventFirst, int eventLast) {
+		//Calculate reference alleles before and after
 		CharSequence seqBefore = genome.getReference(sequenceName, eventFirst-DEF_REGION_BOUNDARY, eventFirst);
 		CharSequence seqAfter = genome.getReference(sequenceName, eventLast, eventLast+DEF_REGION_BOUNDARY);
 		CharSequence seqWithin = null;
@@ -399,7 +400,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		if(refAlleleBefore!=null && seqWithin!=null) refAlleleBefore+=seqWithin;
 		if(refAlleleAfter!=null && seqWithin!=null) refAlleleAfter=seqWithin+refAlleleAfter;
 		
-		
+		//Calculate alternative alleles before and after
 		String insertedConsensusSequence = calculateInsertedConsensusSequence (alignments, eventFirst);
 		if(eventFirst==posPrint) System.out.println("Inserted consensus sequence: "+insertedConsensusSequence);
 		
@@ -442,7 +443,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			
 			int bpForGoodRefAln = Math.max(offset, minBPForGoodRefAln);
 			boolean trimStart=eventFirst-alnFirst<bpForGoodRefAln && !hasIndelCallsBefore;
-			int readPosAfter = aln.getReadPosition(eventLast);
+			int readPosAfter = aln.getAlignedReadPosition(eventLast);
 			if(eventFirst==posPrint) System.out.println("IndelRealigner. realignStarts. Read name: "+aln.getReadName()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". CIGAR: "+aln.getCigarString()+". Event limits: "+eventFirst+"-"+eventLast+" readPosAfter: "+readPosAfter+" offset:"+offset );
 			if(!hasIndelCallsBefore && refAlleleBefore!=null && altAlleleBefore!=null && readPosAfter>=bpForGoodRefAln && readPosAfter-offset<=maxBPRealignmentEnd && readPosAfter<refAlleleBefore.length() && readPosAfter<altAlleleBefore.length() && aln.getIndelCall(eventFirst)==null) {
 				CharSequence readPrefix = aln.getReadCharacters().subSequence(0, readPosAfter);
@@ -457,7 +458,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				int firstMatchLength = eventFirst-newAlnFirst+1;
 				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignStarts. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance+" new aln first: "+newAlnFirst+"");
 				if(alternativeDistance<referenceDistance && alternativeDistance<3 && firstMatchLength>=minBPForGoodRefAln) {
-					aln.realignStart(newAlnFirst,firstMatchLength,readPosAfter);
+					aln.realignStart(newAlnFirst,firstMatchLength,eventLast, readPosAfter);
 					trimStart = false;
 					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned start of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new start: "+aln.getFirst()+" new CIGAR: "+aln.getCigarString());
 				}
@@ -473,7 +474,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			}
 			
 			boolean trimEnd = alnLast-eventLast<bpForGoodRefAln && !hasIndelCallsAfter;
-			int readPosBefore = aln.getReadPosition(eventFirst);
+			int readPosBefore = aln.getAlignedReadPosition(eventFirst);
 			//
 			int readSuffixLength = 0;
 			if(readPosBefore>=0) { 
@@ -497,7 +498,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 				
 				if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Reference distance: "+referenceDistance+" alt distance: "+alternativeDistance+" event coords: "+eventFirst+"-"+eventLast+" offset: "+offset+" final match length: "+finalMatchLength);
 				if(alternativeDistance<referenceDistance && alternativeDistance<3 && finalMatchLength>=minBPForGoodRefAln) {
-					aln.realignEnd(readPosBefore, newEventLast, finalMatchLength);
+					aln.realignEnd(eventFirst, readPosBefore, newEventLast, finalMatchLength);
 					trimEnd = false;
 					if(eventFirst == posPrint) System.out.println("IndelRealigner. realignEnds. Realigned end of alignment with original coordinates: "+alnFirst+"-"+alnLast+" old CIGAR: "+cigarStr+" new end: "+aln.getLast()+" new CIGAR: "+aln.getCigarString());
 				}

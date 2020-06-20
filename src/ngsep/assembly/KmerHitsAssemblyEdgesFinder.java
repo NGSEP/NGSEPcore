@@ -83,10 +83,10 @@ public class KmerHitsAssemblyEdgesFinder {
 			if(hits.size()<minCount) continue;
 			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query, hits, 0);
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size());
-			updateGraphWithKmerClusters(queryIdx, query.length(), queryRC, selfHitsCount, subjectClusters);
+			updateGraphWithKmerClusters(queryIdx, query, queryRC, selfHitsCount, subjectClusters);
 		}
 	}
-	public void updateGraphWithKmerClusters(int querySequenceId, int queryLength,  boolean queryRC, int selfHitsCount, List<KmerHitsCluster> clusteredKmerAlns) {
+	public void updateGraphWithKmerClusters(int querySequenceId, CharSequence query,  boolean queryRC, int selfHitsCount, List<KmerHitsCluster> clusteredKmerAlns) {
 		//Process clusters
 		Collections.sort(clusteredKmerAlns, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 		for (int i=0;i<clusteredKmerAlns.size() && i<10;i++) {
@@ -94,6 +94,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			int targetSeqIdx = cluster.getSequenceIdx();
 			int targetLength = graph.getSequenceLength(targetSeqIdx);
 			cluster.summarize(meanDepth,true);
+			int queryLength = query.length();
 			double overlap = estimateOverlap (cluster, queryLength, targetLength);
 			double regionSelfCount = overlap*selfHitsCount/queryLength;
 			double pct = 100.0*cluster.getNumDifferentKmers()/regionSelfCount;
@@ -104,7 +105,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			if(queryEvidenceLength < minProportionEvidence*overlap || subjectEvidenceLength < minProportionEvidence*overlap) continue;
 			if(pct<minKmerPercentage) continue;
 			synchronized (graph) {
-				processAlignment(graph, querySequenceId, queryRC, cluster);
+				processAlignment(graph, querySequenceId, query, queryRC, cluster);
 			}
 		}
 	}
@@ -121,7 +122,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		
 	}
 
-	private void processAlignment(AssemblyGraph graph, int querySequenceId, boolean queryRC, KmerHitsCluster cluster) {
+	private void processAlignment(AssemblyGraph graph, int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int targetSeqIdx = cluster.getSequenceIdx();
 		int targetLength = graph.getSequenceLength(targetSeqIdx);
@@ -136,13 +137,13 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else if (endTarget<=targetLength) {
 			addQueryBeforeTargetEdge(graph, querySequenceId, queryRC, cluster);
 		} else {
-			ReadAlignment aln = aligner.alignRead(targetSeqIdx, graph.getSequence(targetSeqIdx).getCharacters(), graph.getSequence(querySequenceId).getCharacters(), 0, targetLength, 0.5);
+			ReadAlignment aln = aligner.alignRead(targetSeqIdx, graph.getSequence(targetSeqIdx).getCharacters(), query, 0, targetLength, 0.5);
 			if(aln!=null) {
 				int firstQueryMatch = 0;
 				int newStart = targetLength;
 				int newEnd = -1;
 				for(int i=0;i<queryLength;i++) {
-					int subjectPos = aln.getReferencePosition(i);
+					int subjectPos = aln.getReferencePositionAlignedRead(i);
 					if(subjectPos>0) {
 						firstQueryMatch = i;
 						newStart = subjectPos-1-i;
@@ -150,7 +151,7 @@ public class KmerHitsAssemblyEdgesFinder {
 					}
 				}
 				for(int i=queryLength-1;i>firstQueryMatch;i--) {
-					int subjectPos = aln.getReferencePosition(i);
+					int subjectPos = aln.getReferencePositionAlignedRead(i);
 					if(subjectPos>0) {
 						newEnd= subjectPos-1+(queryLength-i);
 						break;

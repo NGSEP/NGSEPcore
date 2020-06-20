@@ -784,9 +784,10 @@ public class ReadAlignment implements GenomicRegion {
 	/**
 	 * Returns the read position that corresponds to the given reference coordinate
 	 * @param referencePos 1-based reference coordinate
-	 * @return 0-based position of the read aligning with the given position. -1 if the reference position does not align with the read
+	 * @return 0-based position of the read aligning with the given reference, starting from the start of the alignment.
+	 * -1 if the reference position does not align with the read
 	 */
-	public int getReadPosition (int referencePos) {
+	public int getAlignedReadPosition (int referencePos) {
 		failIfReadUnmappedOrInconsistentAlignment();
 		
 		int currentRefPos = first;
@@ -823,19 +824,24 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	/**
 	 * Returns the reference position that corresponds to the given read position
-	 * @param readPos 0-based position of the read
+	 * @param readPos 0-based position of the original read before alignment
 	 * @return int 1-based reference coordinate aligning with the given position. -1 if the read position does not align with the reference
 	 */
 	public int getReferencePosition (int readPos) {
 		failIfReadUnmappedOrInconsistentAlignment();
 		if(!isNegativeStrand()) {
-			return getReferencePositionForward(readPos);
+			return getReferencePositionAlignedRead(readPos);
 		} else {
 			return getReferencePositionReverse(readPos);
 		}
 	}
 
-	private int getReferencePositionForward(int readPos) {
+	/**
+	 * Returns the reference position that corresponds to the given position of the aligned read
+	 * @param alignedReadPos 0-based position of the read, as aligned to the reference (left to right)
+	 * @return int 1-based reference coordinate aligning with the given position. -1 if the read position does not align with the reference
+	 */
+	public int getReferencePositionAlignedRead(int alignedReadPos) {
 		int currentRefPos = first;
 		int currentAlnPos = 0;
 		for(int i=0;i<alignment.length;i++) {
@@ -843,9 +849,9 @@ public class ReadAlignment implements GenomicRegion {
 			boolean cRef = consumesReferenceBases(alignment[i]);
 			boolean cRead = consumesReadBases(alignment[i]);
 			if(cRef && cRead) {
-				if(readPos<currentAlnPos) return -1;
-				else if(currentAlnPos+length>readPos) {
-					return currentRefPos + readPos-currentAlnPos; 
+				if(alignedReadPos<currentAlnPos) return -1;
+				else if(currentAlnPos+length>alignedReadPos) {
+					return currentRefPos + alignedReadPos-currentAlnPos; 
 				}
 			}
 			if(cRef) {
@@ -892,7 +898,7 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public CharSequence getAlleleCall (int referencePos) {
 		if(readCharacters ==null) return null;
-		int readPos = getReadPosition(referencePos);
+		int readPos = getAlignedReadPosition(referencePos);
 		if(readPos<0) return null;
 		updateAlleleCallsInfo();
 		//if(readPos>=alleleCallLength.length) System.err.println("Invalid read position: "+readPos+" Read: "+getReadName()+" Located at "+sequenceName+":"+first+" last:"+last+". Length: "+readCharacters.length()+" CIGAR: "+getCigarString()+" expected length: "+expectedReadLength+" reference pos: "+referencePos);
@@ -912,8 +918,8 @@ public class ReadAlignment implements GenomicRegion {
 	public CharSequence getAlleleCall (int referenceFirst, int referenceLast) {
 		if(readCharacters == null) return null;
 		updateAlleleCallsInfo();
-		int readFirst = getReadPosition(referenceFirst);
-		int readLast = getReadPosition(referenceLast);
+		int readFirst = getAlignedReadPosition(referenceFirst);
+		int readLast = getAlignedReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0 || readLast < readFirst) return null;
 		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		return readCharacters.subSequence(readFirst, readLast+1);
@@ -924,7 +930,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * @return char base quality score
 	 */
 	public char getBaseQualityScore (int referencePos) {
-		int readPos = getReadPosition(referencePos);
+		int readPos = getAlignedReadPosition(referencePos);
 		if(readPos<0) return 33;
 		if(qualityScores == null) return '+';
 		return (char) qualityScores[readPos];
@@ -936,8 +942,8 @@ public class ReadAlignment implements GenomicRegion {
 	 * @return String base quality scores
 	 */
 	public String getBaseQualityScores (int referenceFirst, int referenceLast) {
-		int readFirst = getReadPosition(referenceFirst);
-		int readLast = getReadPosition(referenceLast);
+		int readFirst = getAlignedReadPosition(referenceFirst);
+		int readLast = getAlignedReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0  || readLast < readFirst) return null;
 		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		if(qualityScores == null) return RawRead.generateFixedQSString('+', readLast-readFirst+1);
@@ -1189,19 +1195,19 @@ public class ReadAlignment implements GenomicRegion {
 
 	/**
 	 * Realigns the start of this alignment
-	 * @param newAlnFirst 1-bp New reference coordinate matching the start of the read
+	 * @param newAlnFirst 1-based New reference coordinate matching the start of the read
 	 * @param firstMatchLength Length of the match that will become the new first element of the alignment
+	 * @param refPosAfter 1-based reference coordinate of the first position that should remain with the same alignment.
 	 * @param alnPosAfter 0-based first alignment position that should remain with the same alignment. It must be larger than firstMatchLength 
 	 */
-	public void realignStart(int newAlnFirst, int firstMatchLength, int alnPosAfter) {
+	public void realignStart(int newAlnFirst, int firstMatchLength, int refPosAfter, int alnReadPosAfter) {
 		int posPrint = -1;
-		assert alnPosAfter>=firstMatchLength;
-		if(first==posPrint) System.out.println("Read "+getReadName()+" at "+first+"-"+last+" CIGAR: "+getCigarString()+" New aln first: "+newAlnFirst+" first match: "+firstMatchLength+" aln pos after: "+alnPosAfter);
+		assert alnReadPosAfter>=firstMatchLength;
+		if(first==posPrint) System.out.println("Read "+getReadName()+" at "+first+"-"+last+" CIGAR: "+getCigarString()+" New aln first: "+newAlnFirst+" first match: "+firstMatchLength+" aln pos after: "+alnReadPosAfter);
 		List<Integer> alignmentList = new ArrayList<Integer>();
 		alignmentList.add(getAlnValue(firstMatchLength, ALIGNMENT_MATCH));
 		int nextRefPos = newAlnFirst+firstMatchLength;
-		int unknownBpRead = alnPosAfter-firstMatchLength;
-		int refPosAfter = getReferencePositionForward(alnPosAfter);
+		int unknownBpRead = alnReadPosAfter-firstMatchLength;
 		int unknownBpRef = refPosAfter-nextRefPos;
 		if(first==posPrint) System.out.println("Read "+getReadName()+" Next ref pos: "+nextRefPos+" unknown bp read: "+unknownBpRead+" ref pos after: "+refPosAfter+" unknown bp ref: "+unknownBpRef);
 		if(unknownBpRef<0 || unknownBpRead<0) {
@@ -1229,9 +1235,9 @@ public class ReadAlignment implements GenomicRegion {
 				alignmentList.add(alignment[i]);
 			}
 			if(cRead) {
-				if(!copy && alnPosAfter<currentReadPos+length) {
+				if(!copy && alnReadPosAfter<currentReadPos+length) {
 					copy = true;
-					int diff = currentReadPos+length-alnPosAfter;
+					int diff = currentReadPos+length-alnReadPosAfter;
 					alignmentList.add(getAlnValue(diff, operator));
 				}
 				currentReadPos += length;
@@ -1244,11 +1250,12 @@ public class ReadAlignment implements GenomicRegion {
 
 	/**
 	 * Realigns the end of this alignment
-	 * @param alnPosBefore 0-based last aln pos that should not be realigned
+	 * @param refPosBefore 1-based genomic coordinate of the last position of the reference that should not be realigned
+	 * @param alnPosBefore 0-based last aligned read position that should not be realigned
 	 * @param finalMatchRefStart 1-based position of the reference for the last match
 	 * @param finalMatchLength Number of match bp that must appear at the end. it must be smaller than length - readPosBefore 
 	 */
-	public void realignEnd(int alnPosBefore, int finalMatchRefStart, int finalMatchLength) {
+	public void realignEnd(int refPosBefore, int alnPosBefore, int finalMatchRefStart, int finalMatchLength) {
 		int bpEndRead = readLength - alnPosBefore - 1;
 		assert  bpEndRead>=finalMatchLength;
 		List<Integer> alignmentList = new ArrayList<Integer>();
@@ -1270,7 +1277,6 @@ public class ReadAlignment implements GenomicRegion {
 				alignmentList.add(alignment[i]);
 			}
 		}
-		int refPosBefore = getReferencePositionForward(alnPosBefore);
 		int unknownBpRef = finalMatchRefStart-refPosBefore-1;
 		int unknownBpRead = bpEndRead - finalMatchLength;
 		if(unknownBpRef<0 || unknownBpRead<0) {
