@@ -100,7 +100,9 @@ public class AssemblyGraph implements Serializable {
 			verticesEnd.put(i,vE);
 			verticesByUnique.put(vE.getUniqueNumber(), vE);
 			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
-			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength(), seq.getLength());
+			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength());
+			edge.setMismatches(0);
+			edge.setCost(seq.getLength());
 			addEdge(edge);
 		}
 	}
@@ -231,8 +233,8 @@ public class AssemblyGraph implements Serializable {
 		}
 		if(vHost==null || vSeq == null ) return false;
 		if(getEdge(vHost, vSeq)==null) {
-			AssemblyEdge specialEdge = new AssemblyEdge(vHost, vSeq, host.length()+10, seq.length());
-			specialEdge.setEvidence(embedded.getEvidence());
+			AssemblyEdge specialEdge = new AssemblyEdge(vHost, vSeq, seq.length());
+			specialEdge.setCost(host.length()+10);
 		}
 		System.out.println("Special edge created for embedded sequence: "+seqIdEmb+" with length "+seq.length()+" in host: "+seqIdHost+" length "+host.length()+" leftover first: "+left+" leftover right: "+ right);
 		return true;

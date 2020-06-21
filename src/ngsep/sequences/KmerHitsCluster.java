@@ -209,7 +209,7 @@ public class KmerHitsCluster implements Serializable {
 	}
 
 	
-	public void summarize(double averageHitsQuery, boolean dispose) {
+	public void summarize(double averageHitsQuery) {
 		this.averageHitsQuery = averageHitsQuery;
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
@@ -227,10 +227,7 @@ public class KmerHitsCluster implements Serializable {
 		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
 		predictSubjectStart (hits);
 		predictSubjectEnd (hits);
-		
 		predictOverlap (hits);
-		//Disposes detailed information about hits
-		if (dispose) hitsMap.clear();
 	}
 
 	private void predictOverlap(List<UngappedSearchHit> hits) {
@@ -416,6 +413,10 @@ public class KmerHitsCluster implements Serializable {
 
 	public UngappedSearchHit getKmerHit(int queryKmerIdx) {
 		return hitsMap.get(queryKmerIdx);
+	}
+	
+	public void disposeHits () {
+		hitsMap.clear();
 	}
 	
 	public static List<KmerHitsCluster> clusterRegionKmerAlns(CharSequence query, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {

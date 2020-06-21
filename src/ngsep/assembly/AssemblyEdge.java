@@ -34,13 +34,13 @@ public class AssemblyEdge implements Serializable {
 	private AssemblyVertex vertex2;
 	private int cost;
 	private int overlap;
-	private KmerHitsCluster evidence; 
+	private int mismatches; 
+	private KmerHitsCluster evidence;
 	private boolean layoutEdge = false;
 
-	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int cost, int overlap) {
+	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
 		this.vertex2 = vertex2;
-		this.cost = cost;
 		this.overlap = overlap;
 	}
 
@@ -57,6 +57,30 @@ public class AssemblyEdge implements Serializable {
 	public AssemblyVertex getVertex2() {
 		return vertex2;
 	}
+	
+	/**
+	 * @return the overlap
+	 */
+	public int getOverlap() {
+		return overlap;
+	}
+
+	/**
+	 * @param overlap the overlap to set
+	 */
+	public void setOverlap(int overlap) {
+		this.overlap = overlap;
+	}
+	
+	
+
+	public int getMismatches() {
+		return mismatches;
+	}
+
+	public void setMismatches(int mismatches) {
+		this.mismatches = mismatches;
+	}
 
 	/**
 	 * @return the cost
@@ -71,19 +95,15 @@ public class AssemblyEdge implements Serializable {
 	public void setCost(int cost) {
 		this.cost = cost;
 	}
+	
+	
 
-	/**
-	 * @return the overlap
-	 */
-	public int getOverlap() {
-		return overlap;
+	public KmerHitsCluster getEvidence() {
+		return evidence;
 	}
 
-	/**
-	 * @param overlap the overlap to set
-	 */
-	public void setOverlap(int overlap) {
-		this.overlap = overlap;
+	public void setEvidence(KmerHitsCluster evidence) {
+		this.evidence = evidence;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {
@@ -100,14 +120,6 @@ public class AssemblyEdge implements Serializable {
 	
 	public boolean isSameSequenceEdge() {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
-	}
-
-	public KmerHitsCluster getEvidence() {
-		return evidence;
-	}
-
-	public void setEvidence(KmerHitsCluster evidence) {
-		this.evidence = evidence;
 	}
 
 	public boolean isLayoutEdge() {

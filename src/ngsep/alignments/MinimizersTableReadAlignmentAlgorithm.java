@@ -34,6 +34,7 @@ import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
@@ -56,6 +57,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private ReferenceGenome genome;
 	private MinimizersTable minimizersTable;
 	private boolean onlyPositiveStrand = false;
+	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 	
 	public MinimizersTableReadAlignmentAlgorithm() {
 		alignerStart.setForceStart2(false);
@@ -157,7 +159,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 		double maxCount = 0;
 		for (KmerHitsCluster cluster:clusters) {
-			cluster.summarize(1,false);
+			cluster.summarize(1);
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
 		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
@@ -173,9 +175,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				aln.setSequenceName(refSeq.getName());
 				answer.add(aln);
 			}
-			
 		}
-		
 		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
 	}
@@ -256,9 +256,10 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 	}
 
-	private ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) { 
+	public ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) { 
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
-		int subjectNext = Math.max(0, kmerHitsCluster.getSubjectPredictedStart());
+		int subjectNext = -1;
+		short numMismatches = 0;
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int queryNext = 0;
 		int alnStart = -1;
@@ -269,16 +270,18 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {
-				if (kmerHit.getStart()<subjectNext) continue;
+				//Inconsistent kmer hit
+				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
 				alnStart = kmerHit.getStart();
 				queryStart = kmerHit.getQueryIdx();
-				if(queryStart>0 && queryStart<maxLengthEndsPairwiseAlignment) {
+				if(queryStart>0 && queryStart<maxLengthEndsPairwiseAlignment && queryStart<kmerHit.getStart()) {
 					String queryStr = query.subSequence(0,queryStart).toString();
-					queryStart = 0;
-					alnStart = Math.max(0, subjectNext-5);
+					alnStart = Math.max(0, kmerHit.getStart()-queryStart-5);
+					queryStart=0;
 					String subjectStr = subject.subSequence(alnStart,kmerHit.getStart()).toString();
 					String [] alignedFragments = alignerStart.getAlignment(queryStr, subjectStr);
 					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+					numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 				} else if (queryStart>0) alignmentEncoding.add(ReadAlignment.getAlnValue(queryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
@@ -289,6 +292,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				if(subjectNextLength==queryNextLength && (subjectNextLength<10 || subjectNextLength>maxLengthFullPairwiseAlignment)) {
 					nextMatchLength+=subjectNextLength;
+					if(subjectNextLength>0) numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), query.subSequence(queryNext, kmerHit.getQueryIdx()));
 				} else {
 					if(nextMatchLength>0 && (subjectNextLength>0 || queryNextLength>0)) {
 						//System.out.println("Found internal segment for possible alignment. Subject length "+subjectStr.length()+" query length "+queryStr.length()+" current match length: "+nextMatchLength);
@@ -302,11 +306,13 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
 						String [] alignedFragments = alignerCenter.getAlignment(queryStr,subjectStr);
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-						
+						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 					} else if (subjectNextLength>0) {
 						alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength, ReadAlignment.ALIGNMENT_DELETION));
+						numMismatches+=subjectNextLength;
 					} else if (queryNextLength>0) {
 						alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength, ReadAlignment.ALIGNMENT_INSERTION));
+						numMismatches+=queryNextLength;
 					}
 				}
 				nextMatchLength+=kmerLength;
@@ -334,34 +340,74 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int alnEnd = subjectNext;
 		if(queryNext<query.length()) {
 			int remainder = query.length()-queryNext;
-			boolean endAligned = false;
-			if(subjectNext<subject.length()) {
+			int end = Math.min(subjectNext+remainder+5, subject.length());
+			if(subject.length()-subjectNext>remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
 				String queryStr = query.subSequence(queryNext,query.length()).toString();
-				int end = Math.min(subjectNext+remainder+5, subject.length());
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
-				if(queryStr.length()<maxLengthEndsPairwiseAlignment && subjectStr.length()<=maxLengthEndsPairwiseAlignment) {
-					//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
-					String [] alignedFragments = alignerEnd.getAlignment(queryStr, subjectStr);
-					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-					alnEnd = end;
-					endAligned = true;
-				}
-				
-				
-			} 
-			if(!endAligned) {
+				//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
+				String [] alignedFragments = alignerEnd.getAlignment(queryStr, subjectStr);
+				alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+				numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+				alnEnd = end;
+			} else {
 				//Ignore last bp
 				alignmentEncoding.add(ReadAlignment.getAlnValue(remainder, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 			}
 		}
-		//TODO: Mismatches and check again for assembly
 		ReadAlignment finalAlignment = new ReadAlignment(subjectIdx, alnStart+1, alnEnd, query.length(), 0);
 		finalAlignment.setReadCharacters(query);
 		finalAlignment.setAlignment(alignmentEncoding);
+		finalAlignment.setNumMismatches(numMismatches);
 		//TODO: Define better alignment quality
 		double cov = 1.0*(queryNext-queryStart)/query.length();
 		finalAlignment.setAlignmentQuality((byte) Math.round(100*cov));
 		finalAlignment.clipBorders(10);
 		return finalAlignment;
+	}
+	public static int estimateMismatches(int subjectSeqIdx, int subjectLength, int queryLength, KmerHitsCluster kmerHitsCluster) {
+		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
+		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
+		short numMismatches = 0;
+		int subjectNext = -1;
+		int queryNext = 0;
+		for(UngappedSearchHit kmerHit:kmerHits) {
+			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
+			int kmerLength = kmerHit.getQuery().length();
+			if(subjectNext==-1) {
+				//Inconsistent kmer hit
+				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
+				int alnMinLength = Math.min(kmerHit.getQueryIdx(), kmerHit.getStart());
+				if(alnMinLength>0) numMismatches+= (1 + alnMinLength/5);
+				subjectNext = kmerHit.getStart()+kmerLength;
+				queryNext = kmerHit.getQueryIdx()+kmerLength;
+			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
+				//Kmer does not overlap with already aligned segments
+				int subjectNextLength = kmerHit.getStart()-subjectNext;
+				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
+				int minLength = Math.min(subjectNextLength, queryNextLength);
+				if(minLength>0) numMismatches+=(1 + minLength/5);
+				if(subjectNextLength>minLength) numMismatches+=1+(subjectNextLength-minLength)/2;
+				if(queryNextLength>minLength) numMismatches+=1+(queryNextLength-minLength)/2;
+				subjectNext = kmerHit.getStart()+kmerLength;
+				queryNext = kmerHit.getQueryIdx()+kmerLength;
+			} else {
+				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
+				int diffSubject = kmerSubjectNext - subjectNext;
+				int kmerQueryNext = kmerHit.getQueryIdx()-queryNext;
+				int diffQuery = kmerQueryNext - queryNext;
+				if (diffSubject>0 && diffSubject==diffQuery) {
+					//Kmer consistent with current alignment. Augment match with difference
+					subjectNext = kmerSubjectNext;
+					queryNext = kmerQueryNext;
+				}
+			}
+			
+			//System.out.println("Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
+		}
+		int remainderQuery = queryLength - queryNext;
+		int remainderSubject = subjectLength - subjectNext;
+		int minRemainder = Math.min(remainderQuery, remainderSubject);
+		if(minRemainder>0) numMismatches+=(1 + minRemainder/5);
+		return numMismatches;
 	}
 }

@@ -167,7 +167,8 @@ public class AssemblyGraphStatistics {
 		AssemblyGraph graph = AssemblyGraph.load(inputFile);
 		try (PrintStream out=new PrintStream(outputFile)) {
 			Distribution degreeDist = graph.getVertexDegreeDistribution ();
-			degreeDist.printDistributionInt(System.out);
+			out.println("Vertex degree distribution");
+			degreeDist.printDistributionInt(out);
 			if(genome==null)  return;
 			List<ReadAlignment> alignments = null;
 			List<QualifiedSequence> sequences = graph.getSequences();
@@ -234,7 +235,8 @@ public class AssemblyGraphStatistics {
 				if(cmp>1) break;
 				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 				int overlap = left.getLast() - right.getFirst() + 1;
-				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, left.getReadLength()+right.getReadLength() - overlap, overlap);
+				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
+				edge.setCost(left.getReadLength()+right.getReadLength() - overlap);
 				graph.addEdge(edge);
 				
 				boolean relativeNegative = left.isNegativeStrand()!=right.isNegativeStrand();
@@ -386,11 +388,14 @@ public class AssemblyGraphStatistics {
 	private String logVertex(AssemblyVertex vertex) {
 		return ""+vertex.getUniqueNumber()+" "+logSequence(vertex.getSequenceIndex(), vertex.getRead());
 	}
+	private String logEdge(AssemblyEdge edge) {
+		return "v1 "+logVertex(edge.getVertex1())+" v2: "+logVertex(edge.getVertex2())+" overlap: "+edge.getOverlap()+" mismatches: "+edge.getMismatches()+" cost: "+edge.getCost();
+	}
 	private void calculateComparisonStats(AssemblyGraph goldStandardGraph, AssemblyVertex gsVertex, AssemblyGraph testGraph,  AssemblyVertex testVertex, PrintStream out) {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==206; 
+		boolean debug = gsVertex.getUniqueNumber()==0; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, out);
 			printEdgeList("Test", testVertex, testEdges, out);
@@ -436,11 +441,11 @@ public class AssemblyGraphStatistics {
 						if(!edge.isSameSequenceEdge() && (minTestEdge==null || minTestEdge.getCost()>edge.getCost())) minTestEdge=edge;
 					}
 					if(minTestEdge!=layoutTestEdge) {
-						out.println("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logVertex(layoutTestEdge.getConnectingVertex(testVertex))+" overlap: "+layoutTestEdge.getOverlap()+" cost: "+layoutTestEdge.getCost()+" min cost edge: "+logVertex(minTestEdge.getConnectingVertex(testVertex))+" overlap: "+minTestEdge.getOverlap()+" cost: "+minTestEdge.getCost());
+						out.println("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logEdge(layoutTestEdge)+" min cost edge: "+logEdge(minTestEdge));
 					}
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
-					out.println("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" overlap: "+gsEdge.getOverlap());
+					out.println("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
 				}
 				totalPathEdges++;
 			}
@@ -452,7 +457,7 @@ public class AssemblyGraphStatistics {
 				//False positive
 				fpEdges++;
 				distCostsFPEdges.processDatapoint(edge.getCost());
-				out.println("False positive edge between vertex: "+logVertex(testVertex)+" and "+logVertex(vertex)+" overlap: "+edge.getOverlap()+" cost: "+edge.getCost());
+				out.println("False positive edge "+logEdge(edge));
 			}
 		}
 	}
@@ -472,8 +477,7 @@ public class AssemblyGraphStatistics {
 	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, PrintStream out) {
 		out.println(text+" vertex "+logVertex(v));
 		for(AssemblyEdge edge:edges) {
-			AssemblyVertex vOut = edge.getConnectingVertex(v);
-			out.println("Vertex "+logVertex(vOut)+" overlap "+edge.getOverlap());
+			out.println(logEdge(edge));
 		}
 		
 	}
