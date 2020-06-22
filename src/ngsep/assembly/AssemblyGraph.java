@@ -172,7 +172,7 @@ public class AssemblyGraph implements Serializable {
 	public void pruneEmbeddedSequences() {
 		for(int i:embeddedMapBySequence.keySet()) {
 			if(verticesStart.get(i)!=null) {
-				removeVertices(i);
+				removeEdges(i);
 			}
 		}
 	}
@@ -242,7 +242,7 @@ public class AssemblyGraph implements Serializable {
 		return true;
 	}
 
-	public void removeVertices(int sequenceId) {
+	public void removeEdges(int sequenceId) {
 		AssemblyVertex v1 = getVertex(sequenceId, true);
 		List<AssemblyEdge> edgesToRemove = new ArrayList<>(); 
 		edgesToRemove.addAll(edgesMap.get(v1.getUniqueNumber()));
@@ -251,6 +251,12 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge:edgesToRemove) {
 			removeEdge(edge);
 		}
+	}
+	
+	public void removeVertices(int sequenceId) {
+		removeEdges(sequenceId);
+		AssemblyVertex v1 = getVertex(sequenceId, true);
+		AssemblyVertex v2 = getVertex(sequenceId, false);
 		edgesMap.remove(v1.getUniqueNumber());
 		edgesMap.remove(v2.getUniqueNumber());
 		verticesStart.remove(sequenceId);
@@ -487,7 +493,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreS);
-			if(score < 0.5*maxScoreS) {
+			if(score < 0.7*maxScoreS) {
 				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -507,7 +513,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE);
-			if(score < 0.5*maxScoreE) {
+			if(score < 0.7*maxScoreE) {
 				if(sequenceId == debugIdx) System.out.println("Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -522,7 +528,7 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEmbedded embedded:embeddedList) {
 			double score = calculateScore(embedded);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
-			if(score > 0.5*maxScore && score > maxE) {
+			if(score > 0.7*maxScore && score > maxE) {
 				maxE = score;
 				maxEmbedded = embedded;
 			}
@@ -532,7 +538,7 @@ public class AssemblyGraph implements Serializable {
 				removeEmbedded(embedded);
 				if(sequenceId == debugIdx) System.out.println("Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
 			} else {
-				removeVertices(embedded.getSequenceId());
+				removeEdges(embedded.getSequenceId());
 				if(sequenceId == debugIdx) System.out.println("Removed vertices for sequence: "+embedded.getSequenceId());
 			}
 		}
@@ -590,6 +596,54 @@ public class AssemblyGraph implements Serializable {
 			filterEdgesAndEmbedded(seqId);
 		}
 		pruneEmbeddedSequences();	
+	}
+
+	public void filterEdgesCloseRelationships() {
+		for (int seqId = 0; seqId <sequences.size(); seqId++) {
+			AssemblyVertex v1 = getVertex(seqId, true);
+			filterEdgesCloseRelationships(v1);
+			AssemblyVertex v2 = getVertex(seqId, false);
+			filterEdgesCloseRelationships(v2);
+			
+		}
+		
+	}
+
+	private void filterEdgesCloseRelationships(AssemblyVertex vertex) {
+		//Integer debugIdx = null;
+		List<AssemblyEdge> edges = getEdges(vertex);
+		//if(debugIdx!=null && vertex.getUniqueNumber()==debugIdx) System.out.println("Filter edges close. Total edges: "+edges.size());
+		if(edges.size()<3) return;
+		AssemblyEdge maxOverlapEdge = null;
+		for(AssemblyEdge edge: edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap() < edge.getOverlap()) {
+				maxOverlapEdge = edge;
+			}
+		}
+		AssemblyEdge secondOverlapEdge = null;
+		for(AssemblyEdge edge: edges) {
+			if(edge.isSameSequenceEdge() || edge == maxOverlapEdge) continue;
+			if(secondOverlapEdge==null || secondOverlapEdge.getOverlap() < edge.getOverlap()) {
+				secondOverlapEdge = edge;
+			}
+		}
+		//if(debugIdx!=null && vertex.getUniqueNumber()==debugIdx) System.out.println("Filter edges close. Best edge: "+maxOverlapEdge.getConnectingVertex(vertex).getUniqueNumber()+" second: "+secondOverlapEdge.getConnectingVertex(vertex).getUniqueNumber());
+		int ov1 = maxOverlapEdge.getOverlap();
+		int ov2 = secondOverlapEdge.getOverlap();
+		int diff = ov1-ov2;
+		//if(debugIdx!=null && vertex.getUniqueNumber()==debugIdx) System.out.println("Filter edges close. overlap 1: "+ov1+" overlap2: "+ov2+" diff: "+diff);
+		if(diff> 0.01*ov1) return;
+		AssemblyVertex vMax = maxOverlapEdge.getConnectingVertex(vertex);
+		AssemblyEdge seqEdgeMax = getSameSequenceEdge(vMax);
+		AssemblyVertex vMax2 = seqEdgeMax.getConnectingVertex(vMax);
+		AssemblyVertex vSecond = secondOverlapEdge.getConnectingVertex(vertex);
+		AssemblyEdge seqEdgeSecond = getSameSequenceEdge(vSecond);
+		AssemblyVertex vSecond2 = seqEdgeSecond.getConnectingVertex(vSecond);
+		AssemblyEdge transitiveGood = getEdge(vMax2, vSecond);
+		AssemblyEdge transitiveBad = getEdge(vSecond2, vMax);
+		//if(vertex.getUniqueNumber()==debugIdx) System.out.println("Filter edges close. transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
+		if(transitiveBad!=null && transitiveGood==null) removeEdge(maxOverlapEdge);
 	}
 	
 }

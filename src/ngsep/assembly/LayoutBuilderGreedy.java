@@ -16,7 +16,7 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 		Set<Integer> sequencesInPaths = new HashSet<>();
 		List<AssemblyVertex> vertices = graph.getVertices();
 		for(int i=0;i<vertices.size();i++) {
-			AssemblyVertex vertex = findNextUncoveredVertex(vertices,sequencesInPaths);
+			AssemblyVertex vertex = findNextUncoveredVertex(graph, vertices,sequencesInPaths);
 			if(vertex==null) return;
 			
 			
@@ -69,9 +69,9 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 		}	
 	}
 
-	private AssemblyVertex findNextUncoveredVertex(List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {
+	private AssemblyVertex findNextUncoveredVertex(AssemblyGraph graph, List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {
 		for(AssemblyVertex vertex:vertices) {
-			if(!sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
+			if(!graph.isEmbedded(vertex.getSequenceIndex()) && !sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
 		}
 		return null;
 	}
@@ -81,12 +81,24 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 		Collections.sort(edgesVertex, edgesComparator);
 		for(AssemblyEdge edge:edgesVertex) {
 			AssemblyVertex connectingVertex = edge.getConnectingVertex(vertex);
-			if(!sequencesInPaths.contains(connectingVertex.getSequenceIndex())) {
+			if(!sequencesInPaths.contains(connectingVertex.getSequenceIndex())&& isSafe(graph, connectingVertex,edge)) {
 				return edge;
 			}
 		}
 		return null;
 	}
+	private boolean isSafe(AssemblyGraph graph, AssemblyVertex vertex, AssemblyEdge bestEdge1) {
+		List<AssemblyEdge> edges = graph.getEdges(vertex);
+		AssemblyEdge bestEdge2 = null;
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(bestEdge2==null || edgesComparator.compare(edge, bestEdge2)<0) {
+				bestEdge2 = edge;
+			}
+		}
+		return bestEdge1==bestEdge2;
+	}
+
 	public void setComparator(Comparator<AssemblyEdge> comparator) {
 		this.edgesComparator = comparator;
 	}

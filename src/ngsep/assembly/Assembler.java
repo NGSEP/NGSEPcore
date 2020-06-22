@@ -231,7 +231,9 @@ public class Assembler {
 		}
 		graph.removeVerticesChimericReads();
 		graph.filterEdgesAndEmbedded();
-		log.info("Prunned graph. Edges: "+graph.getEdges().size());
+		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		graph.filterEdgesCloseRelationships();
+		log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 		//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
