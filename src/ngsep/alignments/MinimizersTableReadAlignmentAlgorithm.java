@@ -321,7 +321,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			} else {
 				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
 				int diffSubject = kmerSubjectNext - subjectNext;
-				int kmerQueryNext = kmerHit.getQueryIdx()-queryNext;
+				int kmerQueryNext = kmerHit.getQueryIdx()+kmerLength;
 				int diffQuery = kmerQueryNext - queryNext;
 				if (diffSubject>0 && diffSubject==diffQuery) {
 					//Kmer consistent with current alignment. Augment match with difference
@@ -364,10 +364,11 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		finalAlignment.clipBorders(10);
 		return finalAlignment;
 	}
-	public static int estimateMismatches(int subjectSeqIdx, int subjectLength, int queryLength, KmerHitsCluster kmerHitsCluster) {
+	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int queryLength, KmerHitsCluster kmerHitsCluster) {
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
-		short numMismatches = 0;
+		int coverageSharedKmers = 0;
+		int numMismatches = 0;
 		int subjectNext = -1;
 		int queryNext = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
@@ -378,6 +379,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
 				int alnMinLength = Math.min(kmerHit.getQueryIdx(), kmerHit.getStart());
 				if(alnMinLength>0) numMismatches+= (1 + alnMinLength/5);
+				coverageSharedKmers+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
@@ -388,18 +390,20 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				if(minLength>0) numMismatches+=(1 + minLength/5);
 				if(subjectNextLength>minLength) numMismatches+=1+(subjectNextLength-minLength)/2;
 				if(queryNextLength>minLength) numMismatches+=1+(queryNextLength-minLength)/2;
+				coverageSharedKmers+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else {
 				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
 				int diffSubject = kmerSubjectNext - subjectNext;
-				int kmerQueryNext = kmerHit.getQueryIdx()-queryNext;
+				int kmerQueryNext = kmerHit.getQueryIdx()+kmerLength;
 				int diffQuery = kmerQueryNext - queryNext;
 				if (diffSubject>0 && diffSubject==diffQuery) {
 					//Kmer consistent with current alignment. Augment match with difference
 					subjectNext = kmerSubjectNext;
 					queryNext = kmerQueryNext;
 				}
+				coverageSharedKmers+=Math.min(diffQuery, kmerLength);
 			}
 			
 			//System.out.println("Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
@@ -408,6 +412,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int remainderSubject = subjectLength - subjectNext;
 		int minRemainder = Math.min(remainderQuery, remainderSubject);
 		if(minRemainder>0) numMismatches+=(1 + minRemainder/5);
-		return numMismatches;
+		int [] answer = {coverageSharedKmers,numMismatches};
+		return answer;
 	}
 }

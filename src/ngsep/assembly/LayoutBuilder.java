@@ -22,10 +22,10 @@ package ngsep.assembly;
 /**
  * @author Jorge Duitama
  */
-public interface LayourBuilder {
+public interface LayoutBuilder {
 	public void findPaths(AssemblyGraph graph);
 
-	public static LayourBuilder NONE = (AssemblyGraph graph) -> {
+	public static LayoutBuilder NONE = (AssemblyGraph graph) -> {
 		
 	};
 }

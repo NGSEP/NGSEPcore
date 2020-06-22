@@ -217,5 +217,16 @@ public class Distribution {
 			out.println("STDev\t"+fmt.format(Math.sqrt(variance)));
 		}
 	}
+	public void reset() {
+		sum=0;
+		sumSquare=0;
+		count=0;
+		maxIdx = -1;
+		Arrays.fill(distribution, 0);
+		minValueData = Integer.MAX_VALUE;
+		maxValueData = Integer.MIN_VALUE;
+		outliersLess.clear();
+		outliersMore.clear();	
+	}
 
 }

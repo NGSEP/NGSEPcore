@@ -1,131 +1,93 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
-public class LayoutBuilderGreedy implements LayourBuilder 
-{	
+public class LayoutBuilderGreedy implements LayoutBuilder 
+{
+	private Comparator<AssemblyEdge> edgesComparator;
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		//Hashmap of edges per vertex
-		Map<AssemblyVertex, List<AssemblyEdge>> edges = new HashMap<AssemblyVertex, List<AssemblyEdge>>(); 
-		//Adds the current edge to both vertices if they don't have it already in their list of edges
-		for (AssemblyEdge assemblyEdge : graph.getEdges()) 
-		{
-			AssemblyVertex v1 = assemblyEdge.getVertex1();
-			AssemblyVertex v2 = assemblyEdge.getVertex2();
+		Set<Integer> sequencesInPaths = new HashSet<>();
+		List<AssemblyVertex> vertices = graph.getVertices();
+		for(int i=0;i<vertices.size();i++) {
+			AssemblyVertex vertex = findNextUncoveredVertex(vertices,sequencesInPaths);
+			if(vertex==null) return;
 			
-			edges.computeIfAbsent(v1, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
-			edges.computeIfAbsent(v2, (AssemblyVertex x) -> new ArrayList<AssemblyEdge>()).add(assemblyEdge);
+			
+			LinkedList<AssemblyEdge> currentPath = new LinkedList<AssemblyEdge>();
+			AssemblyEdge nextEdgeLeft = graph.getSameSequenceEdge (vertex);
+			AssemblyEdge nextEdgeRight = nextEdgeLeft;
+			currentPath.add(nextEdgeRight);
+			sequencesInPaths.add(vertex.getSequenceIndex());
+			AssemblyVertex vertexLeft = nextEdgeRight.getVertex1();
+			nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
+			AssemblyVertex vertexRight = nextEdgeRight.getVertex2();
+			nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
+			while(nextEdgeLeft!=null || nextEdgeRight!=null) {
+				if(nextEdgeRight==null || (nextEdgeLeft!=null && edgesComparator.compare(nextEdgeLeft, nextEdgeRight)<0)) {
+					currentPath.add(0,nextEdgeLeft);
+					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
+					nextEdgeLeft = graph.getSameSequenceEdge (vertexLeft);
+					currentPath.add(0,nextEdgeLeft);
+					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
+					sequencesInPaths.add(vertexLeft.getSequenceIndex());
+				} else if(nextEdgeRight!=null) {
+					currentPath.add(nextEdgeRight);
+					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
+					nextEdgeRight = graph.getSameSequenceEdge (vertexRight);
+					currentPath.add(nextEdgeRight);
+					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
+					sequencesInPaths.add(vertexRight.getSequenceIndex());
+				}
+				nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
+				nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
+				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
+			}
+			if(currentPath.size()>1) {
+				System.out.println("Found path of size "+currentPath.size());
+				//printPath(currentPath);
+				graph.addPath(currentPath);
+			}
 		}
 		
-		//List of globally used vertices 
-		Set<Integer> usedVerticesGlobal = new HashSet<Integer>(); 
-		List<AssemblyVertex> graphVertices = graph.getVertices();
-		//Creates contigs until all the vertices are used or don't have available edges
-		while(usedVerticesGlobal.size() < graphVertices.size() && edges.values().stream().filter(e -> e.size() > 0).count() > 0)
-		{			
-			//Look for the vertices with the least linked vertices
-			List<AssemblyVertex> origins = new ArrayList<AssemblyVertex>();
-			for(int i = 1; i < Integer.MAX_VALUE && origins.size() == 0; i++)
-			{
-				for(Entry<AssemblyVertex, List<AssemblyEdge>> entry : edges.entrySet())
-				{
-					//Set of linked vertices to the vertex
-					Set<Integer> vertices = new HashSet<Integer>();
-					for(AssemblyEdge edge : entry.getValue())
-					{
-						vertices.add(edge.getVertex1().getSequenceIndex() == entry.getKey().getSequenceIndex() ? edge.getVertex2().getSequenceIndex() : edge.getVertex1().getSequenceIndex());
-					}
-					if(vertices.size() == i)
-					{
-						origins.add(entry.getKey());
-					}
-				}
-			}
-			
-			//Add path for every origin, picks the largest overlap with an unused node.
-			//List of lists of used vertices
-			List<Set<Integer>> usedVerticesList = new ArrayList<Set<Integer>>(); 
-			//List of lists of possible paths. The one with the most edges visited is chosen.
-			List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>(); 
-			//Check every origin found and look for the one with most edges visited
-			for(AssemblyVertex origin : origins) 
-			{
-				//Chosen path for origin
-				List<AssemblyEdge> ans = new LinkedList<AssemblyEdge>();
-				//List of used vertices is initialized with the already accepted used vertices
-				Set<Integer> usedVerticesLocal = new HashSet<Integer>();
-				usedVerticesLocal.addAll(usedVerticesGlobal);
-				//First used vertex is the origin
-				usedVerticesLocal.add(origin.getSequenceIndex());
-				boolean end = false;
-				AssemblyVertex pre = origin;
-				while(!end)
-				{
-					AssemblyEdge max = null;
-					//Picks the edge with the longest overlap for the current vertex
-					for(AssemblyEdge e : edges.get(pre))
-					{
-						AssemblyVertex post = e.getVertex1().getSequenceIndex() == pre.getSequenceIndex() ? e.getVertex2() : e.getVertex1();
-						if((max == null || e.getOverlap() > max.getOverlap()) && !usedVerticesLocal.contains(post.getSequenceIndex()))
-							max = e;
-					}
-					//If there's no edge found, the path ends
-					if(max == null)
-						end = true;
-					else
-					{
-						ans.add(max);
-						usedVerticesLocal.add(pre.getSequenceIndex());
-						pre = max.getVertex1().getSequenceIndex() == pre.getSequenceIndex() ? max.getVertex2() : max.getVertex1();
-					}
-				}
-				paths.add(ans);
-				usedVerticesList.add(usedVerticesLocal);
-			}
-			
-			//Picks the longest path among the possible origins
-			List<AssemblyEdge> maxPath = null;
-			Set<Integer> maxUsedVertices = null;
-			for(int i = 0; i < paths.size(); i++)
-			{
-				List<AssemblyEdge> path = paths.get(i);
-				if(maxPath == null || maxPath.size() < path.size())
-				{
-					maxPath = path;
-					maxUsedVertices = usedVerticesList.get(i);
-				}
-			}
-			//Adds the longest path to the list of paths of the graph if it has more than one edge
-			if(maxPath != null && maxPath.size() > 5)
-			{
-				graph.addPath(maxPath);
-			}
-			usedVerticesGlobal.addAll(maxUsedVertices);
-			//If the maximum path has 5 vertices, don't build more contigs
-			if (maxPath.size() <= 5)
-			{
-				break;
-			}
-			
+		
+		
+		
+	}
 
-			//Remove from map all vertices that exist in the used vertices list
-			edges.entrySet().removeIf(e -> usedVerticesGlobal.contains(e.getKey().getSequenceIndex()));
-			//Remove from map all edges that have an used vertex
-			for(Entry<AssemblyVertex, List<AssemblyEdge>> entry : edges.entrySet())
-			{
-				entry.getValue().removeIf(e -> 
-					usedVerticesGlobal.contains(e.getVertex1().getSequenceIndex()) ||
-					usedVerticesGlobal.contains(e.getVertex2().getSequenceIndex())
-				);
+	public void printPath(LinkedList<AssemblyEdge> path) {
+		for(AssemblyEdge edge:path) {
+			AssemblyVertex v1 = edge.getVertex1();
+			AssemblyVertex v2 = edge.getVertex2();
+			System.out.println("Edge between "+v1.getSequenceIndex()+"-"+v1.isStart()+" and "+v2.getSequenceIndex()+"-"+v2.isStart());
+		}	
+	}
+
+	private AssemblyVertex findNextUncoveredVertex(List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {
+		for(AssemblyVertex vertex:vertices) {
+			if(!sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
+		}
+		return null;
+	}
+	private AssemblyEdge findBestUncoveredEdge(AssemblyGraph graph, AssemblyVertex vertex, Set<Integer> sequencesInPaths) {
+		List<AssemblyEdge> edgesVertex = new ArrayList<AssemblyEdge>(); 
+		edgesVertex.addAll(graph.getEdges(vertex));
+		Collections.sort(edgesVertex, edgesComparator);
+		for(AssemblyEdge edge:edgesVertex) {
+			AssemblyVertex connectingVertex = edge.getConnectingVertex(vertex);
+			if(!sequencesInPaths.contains(connectingVertex.getSequenceIndex())) {
+				return edge;
 			}
 		}
+		return null;
+	}
+	public void setComparator(Comparator<AssemblyEdge> comparator) {
+		this.edgesComparator = comparator;
 	}
 }

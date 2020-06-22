@@ -38,6 +38,8 @@ public class AssemblyEmbedded implements Serializable {
 	private int hostId;
 	private int startPosition;
 	private KmerHitsCluster evidence;
+	private int coverageSharedKmers;
+	private int mismatches;
 	
 
 	public AssemblyEmbedded(int sequenceId, CharSequence read, boolean isReverse, int hostId, int startPosition) {
@@ -96,6 +98,28 @@ public class AssemblyEmbedded implements Serializable {
 	public void setEvidence(KmerHitsCluster evidence) {
 		this.evidence = evidence;
 	}
+	
+	
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+
+
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
+
+
+	public int getMismatches() {
+		return mismatches;
+	}
+
+
+	public void setMismatches(int mismatches) {
+		this.mismatches = mismatches;
+	}
+
+
 	public String toString () {
 		return ""+sequenceId+"_"+isReverse+"_"+hostId+"_"+startPosition;
 	}

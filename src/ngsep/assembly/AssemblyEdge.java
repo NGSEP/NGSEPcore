@@ -32,10 +32,10 @@ public class AssemblyEdge implements Serializable {
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
-	private int cost;
 	private int overlap;
-	private int mismatches; 
 	private KmerHitsCluster evidence;
+	private int coverageSharedKmers;
+	private int mismatches;
 	private boolean layoutEdge = false;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
@@ -71,8 +71,36 @@ public class AssemblyEdge implements Serializable {
 	public void setOverlap(int overlap) {
 		this.overlap = overlap;
 	}
+
+	/**
+	 * @return the cost
+	 */
+	public int getCost() {
+		int l1 = vertex1.getRead().getLength();
+		int l2 = vertex2.getRead().getLength();
+		if(isSameSequenceEdge()) return l1;
+		int cost = l1 + l2;
+		int toSubstract = Math.min(l1, l2)-1;
+		toSubstract = Math.min(toSubstract, overlap);
+		cost-= toSubstract;
+		return cost;
+	}
 	
+	public KmerHitsCluster getEvidence() {
+		return evidence;
+	}
+
+	public void setEvidence(KmerHitsCluster evidence) {
+		this.evidence = evidence;
+	}
 	
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
 
 	public int getMismatches() {
 		return mismatches;
@@ -80,30 +108,6 @@ public class AssemblyEdge implements Serializable {
 
 	public void setMismatches(int mismatches) {
 		this.mismatches = mismatches;
-	}
-
-	/**
-	 * @return the cost
-	 */
-	public int getCost() {
-		return cost;
-	}
-
-	/**
-	 * @param cost the cost to set
-	 */
-	public void setCost(int cost) {
-		this.cost = cost;
-	}
-	
-	
-
-	public KmerHitsCluster getEvidence() {
-		return evidence;
-	}
-
-	public void setEvidence(KmerHitsCluster evidence) {
-		this.evidence = evidence;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {

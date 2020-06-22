@@ -104,13 +104,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		int finishTime = 2*sequences.size();
 		waitToFinish(finishTime, poolSearch);
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Prunning embedded sequences");
-		graph.removeVerticesChimericReads();
-		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			graph.filterEdgesAndEmbedded(seqId);
-		}
-		graph.pruneEmbeddedSequences();
-		log.info("Prunned graph. Edges: "+graph.getEdges().size());
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
 		return graph;
 	}
 	private void waitToFinish(int time, ThreadPoolExecutor poolSearch) {

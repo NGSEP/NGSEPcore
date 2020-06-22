@@ -33,6 +33,7 @@ public class KmerHitsCluster implements Serializable {
 	private int subjectEvidenceEnd;
 	private int predictedOverlap;
 	private int numDifferentKmers = 0;
+	private int selfHitsCountQuery = 0;
 	private double averageHitsQuery;
 	private double weightedCount=0;
 	private boolean allConsistent = true;
@@ -387,7 +388,13 @@ public class KmerHitsCluster implements Serializable {
 	public int getNumDifferentKmers() {
 		return numDifferentKmers;
 	}
-
+	
+	public int getSelfHitsCountQuery() {
+		return selfHitsCountQuery;
+	}
+	public void setSelfHitsCountQuery(int selfHitsCountQuery) {
+		this.selfHitsCountQuery = selfHitsCountQuery;
+	}
 	/**
 	 * @return the allConsistent
 	 */

@@ -38,7 +38,7 @@ import java.util.Map.Entry;
  * @author Juan Camilo Bojaca
  *
  */
-public class LayoutBuilderMetricMSTChristofides implements LayourBuilder {
+public class LayoutBuilderMetricMSTChristofides implements LayoutBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
