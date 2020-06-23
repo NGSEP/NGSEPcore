@@ -86,7 +86,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	private String outputPrefix=null;
 	private String knownVariantsFile=null;
 	private String knownSTRsFile=null;
-	private byte normalPloidy = DEF_PLOIDY;
+	private short normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
 	private String sampleId = DEF_SAMPLE_ID;
 	private String knownSVsFile=null;
@@ -170,14 +170,14 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		this.sampleId = sampleId;
 	}
 	
-	public byte getNormalPloidy() {
+	public short getNormalPloidy() {
 		return normalPloidy;
 	}
-	public void setNormalPloidy(byte normalPloidy) {
+	public void setNormalPloidy(short normalPloidy) {
 		this.normalPloidy = normalPloidy;
 	}
 	public void setNormalPloidy(String value) {
-		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
+		setNormalPloidy((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 	
 	public boolean isPrintSamplePloidy() {
@@ -745,7 +745,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		rdAlgorithm.setLog(this.getLog());
 		if(inputGenomeSize>0) rdAlgorithm.setGenomeSize(inputGenomeSize);
 		else rdAlgorithm.setGenomeSize(rdDistribution.getGenomeSize());
-		rdAlgorithm.setNormalPloidy(normalPloidy);
+		rdAlgorithm.setNormalPloidy((byte)normalPloidy);
 		rdAlgorithm.setReadDepthDistribution(rdDistribution);
 		return rdAlgorithm.callCNVs();
 	}
@@ -802,7 +802,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 						nBins++;
 					}
 					//TODO: Update genotype quality
-					if(nBins ==0) cnv.setNumCopies(normalPloidy,true);
+					if(nBins ==0) cnv.setNumCopies((byte)normalPloidy,true);
 					else {
 						cnv.setTotalReadDepth(sumUncorrected);
 						avg/=nBins;

@@ -713,8 +713,8 @@ public class VCFFilter {
 		int numCNVs = 0;
 		for(int i=0;i<calls.size();i++) {
 			CalledGenomicVariant cv = calls.get(i);
-			byte normalPloidy = outSamples.get(i).getNormalPloidy(); 
-			byte copyNumber = cv.getCopyNumber();
+			short normalPloidy = outSamples.get(i).getNormalPloidy(); 
+			short copyNumber = cv.getCopyNumber();
 			if(copyNumber!=normalPloidy) {
 				numCNVs++;
 			}

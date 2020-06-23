@@ -143,7 +143,7 @@ public class DiversityStatistics {
 				}
 				sum+=2;
 			} else {
-				byte [] allelesCN = calledVar.getAllelesCopyNumber();
+				short [] allelesCN = calledVar.getAllelesCopyNumber();
 				for(int i=0;i<indexesCalledAlleles.length;i++) {
 					int j=indexesCalledAlleles[i];
 					if(j>=0 && j<counts.length) {

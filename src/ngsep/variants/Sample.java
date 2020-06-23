@@ -32,7 +32,7 @@ import java.util.TreeSet;
 public class Sample {
 	private String id;
 	private String group;
-	private byte normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
+	private short normalPloidy = GenomicVariant.DEFAULT_PLOIDY;
 	private Set<String> readGroups = new HashSet<>();
 	
 	
@@ -54,10 +54,10 @@ public class Sample {
 	}
 	
 	
-	public byte getNormalPloidy() {
+	public short getNormalPloidy() {
 		return normalPloidy;
 	}
-	public void setNormalPloidy(byte normalPloidy) {
+	public void setNormalPloidy(short normalPloidy) {
 		this.normalPloidy = normalPloidy;
 	}
 	

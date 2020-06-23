@@ -201,7 +201,7 @@ public class VCFDistanceMatrixCalculator {
 	    			if (idxCalledAlleles.length==1) numericGenotypes[i] = idxCalledAlleles[0];
 	    			else numericGenotypes[i] = (idxCalledAlleles[0]+idxCalledAlleles[1])/alleles.length;
 	    		} else if(distanceSource == DISTANCE_SOURCE_GENOTYPES_COPY_NUMBER) {
-	    			byte [] acn = call.getAllelesCopyNumber();
+	    			short [] acn = call.getAllelesCopyNumber();
 	    			numericGenotypes[i] = 0;
 	    			for(int j=0;j<acn.length;j++) {
 	    				numericGenotypes[i]+=j*acn[j];

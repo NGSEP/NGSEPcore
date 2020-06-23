@@ -1128,13 +1128,13 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 	}
 
 	@Override
-	public byte[] getAllelesCopyNumber() {
+	public short[] getAllelesCopyNumber() {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public byte getCopyNumber() {
+	public short getCopyNumber() {
 		// TODO Auto-generated method stub
 		return 0;
 	}
@@ -1191,13 +1191,13 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 	}
 
 	@Override
-	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber) {
+	public void updateAllelesCopyNumberFromCounts(short totalCopyNumber) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	public void setAllelesCopyNumber(byte[] allelesCN) {
+	public void setAllelesCopyNumber(short[] allelesCN) {
 		// TODO Auto-generated method stub
 		
 	}

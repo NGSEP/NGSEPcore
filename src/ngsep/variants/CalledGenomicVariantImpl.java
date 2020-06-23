@@ -33,8 +33,8 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	private byte [] indexesCalledAlleles = new byte[0];
 	private int totalReadDepth=0;
 	private short genotypeQuality=0;
-	private byte totalCopyNumber=DEFAULT_PLOIDY;
-	private byte [] allelesCopyNumber;
+	private short totalCopyNumber=DEFAULT_PLOIDY;
+	private short [] allelesCopyNumber;
 	private VariantCallReport callReport;
 	private int [] allCounts;
 	private byte [] indexesPhasedAlleles = new byte [0];
@@ -42,14 +42,14 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	
 	public CalledGenomicVariantImpl (String sequenceName, int position, List<String> alleles, byte[] indexesCalledAlleles) {
 		variant = new GenomicVariantImpl(sequenceName, position, alleles);
-		allelesCopyNumber = new byte [alleles.size()];
+		allelesCopyNumber = new short [alleles.size()];
 		setIndexesCalledAlleles(indexesCalledAlleles);
 	}
 	
 	public CalledGenomicVariantImpl (GenomicVariant variant, byte[] indexesCalledAlleles) {
 		this.variant = variant;
 		String [] alleles = variant.getAlleles();
-		allelesCopyNumber = new byte [alleles.length];
+		allelesCopyNumber = new short [alleles.length];
 		setIndexesCalledAlleles(indexesCalledAlleles);
 	}
 	
@@ -62,7 +62,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	public CalledGenomicVariantImpl (GenomicVariant variant, int genotype) {
 		this.variant = variant;
 		String [] alleles = variant.getAlleles();
-		allelesCopyNumber = new byte [alleles.length];
+		allelesCopyNumber = new short [alleles.length];
 		byte [] indexesCalledAlleles = new byte [0];
 		if(genotype==0 || genotype == 2) {
 			indexesCalledAlleles = new byte[1];
@@ -107,7 +107,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 			}
 			if(idxCalledAlleles[i]==-1) throw new RuntimeException("Error creating called genomic variant at "+variant.getSequenceName()+":"+variant.getFirst()+". Called allele: "+calledAllele+" does not appear in the list of alleles of this variant");
 		}
-		allelesCopyNumber = new byte [alleles.length];
+		allelesCopyNumber = new short [alleles.length];
 		setIndexesCalledAlleles(idxCalledAlleles);
 	}
 	
@@ -191,7 +191,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	}
 	
 	@Override
-	public byte [] getAllelesCopyNumber() {
+	public short [] getAllelesCopyNumber() {
 		return Arrays.copyOf(allelesCopyNumber,allelesCopyNumber.length);
 	}
 	
@@ -201,7 +201,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	 * @param allelesCN Array with the copy number of each allele 
 	 */
 	@Override
-	public void setAllelesCopyNumber(byte [] allelesCN) {
+	public void setAllelesCopyNumber(short [] allelesCN) {
 		String [] alleles = this.getAlleles();
 		if(alleles.length!=allelesCN.length)  throw new IllegalArgumentException("The size of the array must be compatible with the number of alleles");
 		boolean [] allelesCalled = new boolean[alleles.length];
@@ -213,10 +213,10 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 			if(allelesCN[i]>0 && !allelesCalled[i]) throw new IllegalArgumentException("Inconsistent copy number detected. Copy number of the uncalled allele "+alleles[i]+" should not be "+allelesCN[i]);
 			totalCN+=allelesCN[i];
 		}
-		if(totalCN>CalledGenomicVariant.MAX_NUM_COPIES)  throw new IllegalArgumentException("Inconsistent copy number detected. Total copy number "+totalCN+" can not be larger than maximum allowed "+CalledGenomicVariant.MAX_NUM_COPIES);
-		this.totalCopyNumber = (byte)totalCN;
+		if(totalCN>CalledGenomicVariant.MAX_PLOIDY_SAMPLE)  throw new IllegalArgumentException("Inconsistent copy number detected. Total copy number "+totalCN+" can not be larger than maximum allowed "+CalledGenomicVariant.MAX_PLOIDY_SAMPLE);
+		this.totalCopyNumber = (short)totalCN;
 		if(isUndecided()) {
-			Arrays.fill(allelesCopyNumber, (byte)0);
+			Arrays.fill(allelesCopyNumber, (short)0);
 		} else {
 			allelesCopyNumber = Arrays.copyOf(allelesCN, allelesCN.length);
 		}
@@ -225,9 +225,9 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	}
 	
 	@Override
-	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber) {
+	public void updateAllelesCopyNumberFromCounts(short totalCopyNumber) {
 		this.totalCopyNumber = totalCopyNumber;
-		Arrays.fill(allelesCopyNumber, (byte)0);
+		Arrays.fill(allelesCopyNumber, (short)0);
 		if(this.isUndecided()) return;
 		if(this.isHomozygousReference()) {
 			allelesCopyNumber[0] = totalCopyNumber;
@@ -235,14 +235,14 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 		}
 		int nCalledAlleles = indexesCalledAlleles.length;
 		if(totalCopyNumber<=nCalledAlleles) {
-			for(int i=0;i<nCalledAlleles;i++) allelesCopyNumber[indexesCalledAlleles[i]]=(byte)1;
+			for(int i=0;i<nCalledAlleles;i++) allelesCopyNumber[indexesCalledAlleles[i]]=(short)1;
 			return;
 		}
 		
 		
 		if(callReport==null || !callReport.countsPresent()) {
 			//Distribute equally
-			byte defAllelePloidy = (byte) (totalCopyNumber/nCalledAlleles);
+			short defAllelePloidy = (short) (totalCopyNumber/nCalledAlleles);
 			for(int i=0;i<nCalledAlleles;i++) allelesCopyNumber[indexesCalledAlleles[i]] = defAllelePloidy;
 			int diff = totalCopyNumber - defAllelePloidy*indexesCalledAlleles.length;
 			allelesCopyNumber[indexesCalledAlleles[0]]+= diff;
@@ -262,7 +262,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 		int totalCount=0;
 		for(int i=0;i<nCalledAlleles;i++) {
 			int j = indexesCalledAlleles[i];
-			allelesCopyNumber[j] = (byte)Math.max(1, Math.round((double)totalCopyNumber*calledAlleleReadCounts[i]/totalReadCount));
+			allelesCopyNumber[j] = (short)Math.max(1, Math.round((double)totalCopyNumber*calledAlleleReadCounts[i]/totalReadCount));
 			totalCount+=allelesCopyNumber[j];
 		}
 		//Assign leftovers to the first allele or remove excess from the last alleles 
@@ -288,12 +288,12 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	
 	public void setIndexesCalledAlleles(byte[] indexesCalledAlleles) {
 		this.indexesCalledAlleles= Arrays.copyOf(indexesCalledAlleles, indexesCalledAlleles.length);
-		byte totalCopyNumber = (byte)Math.max(indexesCalledAlleles.length, getCopyNumber());
+		short totalCopyNumber = (short)Math.max(indexesCalledAlleles.length, getCopyNumber());
 		updateAllelesCopyNumberFromCounts(totalCopyNumber);
 	}
 
 	@Override
-	public byte getCopyNumber () {
+	public short getCopyNumber () {
 		return totalCopyNumber;
 	}
 
@@ -320,7 +320,7 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	public void makeUndecided() {
 		indexesCalledAlleles = new byte[0];
 		genotypeQuality = 0;
-		byte totalCopyNumber = getCopyNumber();
+		short totalCopyNumber = getCopyNumber();
 		updateAllelesCopyNumberFromCounts(totalCopyNumber);
 	}
 

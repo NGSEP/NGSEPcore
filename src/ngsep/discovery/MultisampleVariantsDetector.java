@@ -40,14 +40,10 @@ import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
-import ngsep.math.NumberArrays;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
-import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
@@ -87,9 +83,8 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private double minAlleleDepthFrequency = DEF_MIN_ALLELE_DEPTH_FREQUENCY;
 	private short minQuality = DEF_MIN_QUALITY;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
-	private byte normalPloidy = DEF_PLOIDY;
+	private short normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
-	private boolean pools = false;
 	
 	private String knownSTRsFile = null;
 	private String knownVariantsFile=null;
@@ -154,14 +149,14 @@ public class MultisampleVariantsDetector implements PileupListener {
 		this.outFilename = outFilename;
 	}
 	
-	public byte getNormalPloidy() {
+	public short getNormalPloidy() {
 		return normalPloidy;
 	}
-	public void setNormalPloidy(byte normalPloidy) {
+	public void setNormalPloidy(short normalPloidy) {
 		this.normalPloidy = normalPloidy;
 	}
 	public void setNormalPloidy(String value) {
-		setNormalPloidy((byte)OptionValuesDecoder.decode(value, Byte.class));
+		setNormalPloidy((short)OptionValuesDecoder.decode(value, Short.class));
 	}
 	
 	public boolean isPrintSamplePloidy() {
@@ -583,51 +578,16 @@ public class MultisampleVariantsDetector implements PileupListener {
 		return variant;
 	}
 	public GenomicVariant discoverPopulationSNV(PileupRecord pileup, char reference) {
-		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,(String)null);
-		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls,maxBaseQS);
-		return discoverPopulationSNV(pileup, helperSNV, reference);
-	}
-	
-	
-	private GenomicVariant discoverPopulationSNV(PileupRecord pileup, CountsHelper helper, char reference) {
-		if(helper.getTotalCount()==0) {
-			return null;
+		List<PileupAlleleCall> alleleCalls = pileup.getAlleleCalls(1,(String)null);
+		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(alleleCalls, maxBaseQS);
+		GenomicVariant variant = SingleSampleVariantPileupListener.createSNVVariantPool(pileup, helperSNV, reference, minAlleleDepthFrequency);
+		if(variant == null) return null;
+		while(variant.getAlleles().length > 2) {	
+			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
+			GenomicVariant newVariant = makeNewVariant(variant, calls);
+			if(newVariant!=variant) variant = newVariant;
+			else break;
 		}
-		int refIdx = DNASequence.BASES_STRING.indexOf(reference);
-		if(refIdx<0) {
-			//N reference can in principle be handled but it generates  many non variant sites
-			return null;
-		}
-		//Simple method based on relative counts to gather alleles.
-		int [] counts = helper.getCounts();
-		int sum = NumberArrays.getSum(counts); 
-		if(pileup.getPosition()==posPrint) System.out.println("Refidx: "+refIdx+" sum: "+sum);
-		boolean [] allelesSupported = new boolean [ counts.length];
-		List<String> alleles = new ArrayList<>();
-		alleles.add(DNASequence.BASES_ARRAY[refIdx]);
-		for(int i=0;i<counts.length;i++) {
-			allelesSupported[i]=counts[i]>0 && (double)counts[i]/(double)sum >=minAlleleDepthFrequency;
-			if(allelesSupported[i] && i!=refIdx) {
-				alleles.add(DNASequence.BASES_ARRAY[i]);
-			}
-		}
-		if(pileup.getPosition()==posPrint) System.out.println("Alleles: "+alleles);
-		GenomicVariant variant = null;
-		if(alleles.size()==2) {
-			variant = new SNV(pileup.getSequenceName(), pileup.getPosition(), reference, alleles.get(1).charAt(0));
-			variant.setType(GenomicVariant.TYPE_BIALLELIC_SNV);
-		} else if (alleles.size()>2){
-			//Perform genotyping until two alleles remain or all alleles have enough support in at least one sample
-			variant = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
-			variant.setType(GenomicVariant.TYPE_MULTIALLELIC_SNV);
-			while(true) {	
-				List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
-				GenomicVariant newVariant = makeNewVariant(variant, calls);
-				if(newVariant!=variant) variant = newVariant;
-				else break;
-			}
-		}
-		
 		return variant;
 	}
 	
@@ -649,14 +609,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 
 	private GenomicVariant discoverPopulationIndel(PileupRecord pileup, CountsHelper helperIndel) {
-		List<String> alleles = helperIndel.getAllelesList();
-		if(alleles.size() == 1) return null;
-		if(helperIndel.getTotalCount()==0) return null;
-		GenomicVariant variant = new GenomicVariantImpl(pileup.getSequenceName(),pileup.getPosition(),alleles);
-		
+		GenomicVariant variant = SingleSampleVariantPileupListener.createIndelVariantPool(pileup, helperIndel);
+		if(variant==null) return null;
 		// Redefine indel alleles based on genotype calls
-		while(true) {
-			if(!pileup.isInputSTR() && allelesSameLength(variant.getAlleles())) return null;
+		while(variant.getAlleles().length>2) {
+			if(!pileup.isInputSTR() && SingleSampleVariantPileupListener.allelesSameLength(variant.getAlleles())) return null;
 			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
 			if(variant.getVariantQS() < minQuality) return null;
 			GenomicVariant newVariant = makeNewVariant(variant, calls);
@@ -687,32 +644,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 			calledAllelesSet.addAll(Arrays.asList(call.getCalledAlleles()));
 		}
 		if(variant.getAlleles().length !=calledAllelesSet.size()) {
-			variant = makeNewVariant(variant,calledAllelesSet);
+			variant = SingleSampleVariantPileupListener.makeNewVariant(variant,calledAllelesSet);
 		}
 		return variant;
 		
-	}
-
-	private GenomicVariant makeNewVariant(GenomicVariant variant, Set<String> newAlleles) {
-		if(variant.getFirst()==posPrint) System.out.println("Recoding alleles for "+variant.getFirst()+" alleles: "+Arrays.asList(variant.getAlleles()));
-		List<String> alleles = new ArrayList<>(newAlleles.size());
-		String reference = variant.getReference(); 
-		alleles.add(reference);
-		for(String allele:newAlleles) {
-			if(!allele.equals(reference)) alleles.add(allele);
-		}
-		if(variant.getFirst()==posPrint) System.out.println("New alleles: "+alleles);
-		if(variant.isSNV() && alleles.size()==2) {
-			return new SNV(variant.getSequenceName(), variant.getFirst(), reference.charAt(0), alleles.get(1).charAt(0));
-		}
-		return new GenomicVariantImpl(variant.getSequenceName(), variant.getFirst(), alleles);
-	}
-	private boolean allelesSameLength(String[] alleles) {
-		int l = alleles[0].length();
-		for(String allele:alleles) {
-			if(allele.length()!=l) return false;
-		}
-		return true;
 	}
 
 	/**
@@ -736,7 +671,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 		List<CalledGenomicVariant> calls = new ArrayList<>();
 		SingleSampleVariantPileupListener sampleDetector = new SingleSampleVariantPileupListener();
 		sampleDetector.setMaxBaseQS(maxBaseQS);
-		sampleDetector.setPool(pools);
 		int n = samples.size();
 		short variantQS = 0;
 		for(int i=0;i<n;i++) {
