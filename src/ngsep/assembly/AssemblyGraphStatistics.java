@@ -233,7 +233,7 @@ public class AssemblyGraphStatistics {
 			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			pathsFinder.findPaths(graph);
-			logErrors=true;
+			//logErrors=true;
 			compareGraphs(goldStandardGraph, graph, out);
 			compareLayouts(goldStandardGraph, graph, out);
 			out.println("Filtered graph statistics");
@@ -434,7 +434,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==-404 || gsVertex.getUniqueNumber()==-785 || gsVertex.getUniqueNumber()==-333; 
+		boolean debug = gsVertex.getUniqueNumber()==1837 || gsVertex.getUniqueNumber()==4620; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, out);
 			printEdgeList("Test", testVertex, testEdges, out);
@@ -493,7 +493,7 @@ public class AssemblyGraphStatistics {
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
 					distCostsFNPathEdges.processDatapoint(calculateCost(gsEdge));
-					log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
+					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
 				}
 				totalPathEdges++;
 			}
@@ -562,7 +562,8 @@ public class AssemblyGraphStatistics {
 		
 		for(int i=0;i<testPaths.size();i++) {
 			List<AssemblyEdge> nextPath = testPaths.get(i);
-			if(nextPath.size()<=1) continue; 
+			if(nextPath.size()<=1) continue;
+			log.info("Compare layouts. Limits next path. "+logEdge(nextPath.get(0))+" to "+logEdge(nextPath.get(nextPath.size()-1)));
 			totalTestLayoutPaths++;
 			totalTestLayoutEdges+=nextPath.size();
 			List<AssemblyEdge> nextGSPath = null;
@@ -598,8 +599,15 @@ public class AssemblyGraphStatistics {
 							errorsFPEdge++;
 							log.info("Compare layouts. False positive edge: "+logEdge(nextTestEdge));
 						}
-						else if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) errorsEdgeEmbeddedNoLayout++;
-						else errorsTPEdgeNoLayout++;
+						else if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) {
+							errorsEdgeEmbeddedNoLayout++;
+							log.info("Compare layouts. Embedded no GS layout "+logEdge(nextTestEdge));
+						}
+						else {
+							errorsTPEdgeNoLayout++;
+							log.info("Compare layouts. True positive no GS layout "+logEdge(nextTestEdge));
+						}
+						if(nextGSPath!=null) log.info("Last GS layout edge "+logEdge(nextGSPath.get(nextGSEdgeIdx)));
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 					} else  {
@@ -617,6 +625,8 @@ public class AssemblyGraphStatistics {
 				errorsFNLayoutEdge++;
 				AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
 				log.info("Compare layouts. Finished test path before GS path. last test edge: "+logEdge(nextPath.get(nextPath.size()-1))+" Next GS edge after end of test path: "+logEdge(nextGSEdge));	
+			} else if (nextGSEdgeIdx==-1) {
+				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+logEdge(nextPath.get(nextPath.size()-1)));
 			}
 		}
 	}
