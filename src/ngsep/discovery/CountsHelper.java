@@ -40,7 +40,10 @@ import ngsep.variants.GenomicVariant;
  */
 public class CountsHelper {
 	
+	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
+	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
 	private static final byte DEF_MIN_BASE_QS = 3;
+	public static final byte DEF_MAX_BASE_QS = 100;
 	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
 	
 	private int totalCount=0;
@@ -48,7 +51,7 @@ public class CountsHelper {
 	private int [] counts;
 	private int [][] countsStrand;
 	private double [][] logConditionalProbs;
-	private byte maxBaseQS=VariantPileupListener.DEF_MAX_BASE_QS;
+	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	
 	private List<String> alleles;
 	private static double [][][] logProbCache;
@@ -65,6 +68,37 @@ public class CountsHelper {
 		setAlleles(alleles);
 	}
 	
+	/**
+	 * Creates a CountsHelper object with counts of the given alleles according to the given calls
+	 * @param alleles Array of possible alleles to take into account
+	 * @param calls Allele calls to count
+	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
+	 * @return CountsHelper object with counts and probabilities to call variants
+	 */
+	public static CountsHelper calculateCounts(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS) {
+		CountsHelper answer = new CountsHelper(alleles);
+		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
+		for(PileupAlleleCall call: calls) {
+			answer.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
+		}
+		return answer;
+	}
+	/**
+	 * Calculates counts to call SNVs for the given pileup
+	 * @param pileup with alignments spanning a given position
+	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
+	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
+	 * @return CountsHelper object with counts and probabilities to call SNVs
+	 */
+	public static CountsHelper calculateCountsSNV (List<PileupAlleleCall> calls, byte maxBaseQS) {
+		CountsHelper answer = new CountsHelper();
+		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
+		for(PileupAlleleCall call:calls ) {
+			byte q = (byte)(Math.min(DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
+			answer.updateCounts(call.getAlleleString().substring(0,1), q, call.isNegativeStrand());
+		}
+		return answer;
+	}
 	
 	/**
 	 * @return the verbose
@@ -88,7 +122,7 @@ public class CountsHelper {
 		startCounts();
 	}
 	private void updateProbabilitiesCache(int n) {
-		int m = VariantPileupListener.DEF_MAX_BASE_QS+1;
+		int m = DEF_MAX_BASE_QS+1;
 		if(n<=GenomicVariant.MAX_NUM_ALLELES)n=GenomicVariant.MAX_NUM_ALLELES+1;
 		if(logProbCache!=null && logProbCache[0].length>=n) return;
 		logProbCache = new double [m][n][3];

@@ -2,7 +2,6 @@ package ngsep.discovery;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
@@ -18,44 +17,8 @@ public class VariantDiscoverySNVQAlgorithm {
 
 	private static int posPrint = -1;
 	
-	/**
-	 * Calculates counts to call SNVs for the given pileup
-	 * @param pileup with alignments spanning a given position
-	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
-	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
-	 * @return CountsHelper object with counts and probabilities to call SNVs
-	 */
-	public static CountsHelper calculateCountsSNV (PileupRecord pileup, byte maxBaseQS, Set<String> readGroups) {
-		CountsHelper answer = new CountsHelper();
-		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,readGroups);
-		for(PileupAlleleCall call:calls ) {
-			byte q = (byte)(Math.min(VariantPileupListener.DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
-			answer.updateCounts(call.getSequence().subSequence(0,1).toString(), q, call.isNegativeStrand());
-		}
-		return answer;
-	}
-	
-
-	//PRE: Reference base is uppercase
-	public static CalledGenomicVariant callSNV(PileupRecord pileup, CountsHelper countsHelper, GenomicVariant variant, char refBase, double heterozygosityRate, boolean calcStrandBias) {
-		CalledGenomicVariant newCall;
-		if(variant!=null) {
-			newCall = genotypeSNV(countsHelper, variant, heterozygosityRate, calcStrandBias);
-		} else {
-			if(countsHelper.getTotalCount()==0) {
-				return null;
-			}
-			if(DNASequence.BASES_STRING.indexOf(refBase)<0) {
-				//N reference can in principle be handled but it generates  many non variant sites
-				return null;
-			}
-			newCall = findNewSNV(pileup,countsHelper,refBase,heterozygosityRate, calcStrandBias);
-		}
-		return newCall;
-	}
 	//PRE: variant!=null
-	private static CalledGenomicVariant genotypeSNV(CountsHelper countsHelper, GenomicVariant variant, double heterozygosityRate, boolean calcStrandBias) {
+	public static CalledGenomicVariant genotypeSNV(GenomicVariant variant, CountsHelper countsHelper, double heterozygosityRate, boolean calcStrandBias) {
 		CalledGenomicVariant newCall;
 		if(countsHelper.getTotalCount()==0) {
 			CalledGenomicVariantImpl undecidedCall = new CalledGenomicVariantImpl(variant, new byte [0]);
@@ -133,12 +96,20 @@ public class VariantDiscoverySNVQAlgorithm {
 		return newCall;
 	}
 	//Calls the SNVQ algorithm from the counts stored in the counts helper object
-	private static CalledGenomicVariant findNewSNV(PileupRecord pileup, CountsHelper countsHelper, char refBase, double heterozygosityRate, boolean calcStrandBias) {
+	//PRE: Reference base is uppercase
+	public static CalledGenomicVariant discoverSNV(CountsHelper countsHelper, String sequenceName, int position, char refBase, double heterozygosityRate, boolean calcStrandBias) {
+		if(countsHelper.getTotalCount()==0) {
+			return null;
+		}
+		if(DNASequence.BASES_STRING.indexOf(refBase)<0) {
+			//N reference can in principle be handled but it generates  many non variant sites
+			return null;
+		}
 		String bases = DNASequence.BASES_STRING;
 		byte indexRef = (byte) bases.indexOf(refBase);
 		int [] counts = countsHelper.getCounts();
 		double [][] postProbs = countsHelper.getPosteriorProbabilities(heterozygosityRate);
-		if(pileup.getPosition()==posPrint) {
+		if(position==posPrint) {
 			System.out.println("Posteriors");
 			countsHelper.printProbs(postProbs, false);
 		}
@@ -151,7 +122,7 @@ public class VariantDiscoverySNVQAlgorithm {
 		double maxP = postProbs[indexI][indexJ];
 		if(indexI!=indexJ) maxP += postProbs[indexJ][indexI];
 		short gq = PhredScoreHelper.calculatePhredScore(1-maxP);
-		if(pileup.getPosition()==posPrint) System.out.println("Max probability: "+maxP+". IndexI: "+indexI+" indexJ: "+indexJ); 
+		if(position==posPrint) System.out.println("Max probability: "+maxP+". IndexI: "+indexI+" indexJ: "+indexJ); 
 		int indexAlt=0;
 		//Solve first non SNV case
 		if(indexRef<0 || (indexI!=indexJ && indexI!=indexRef && indexJ!=indexRef)) {
@@ -189,7 +160,7 @@ public class VariantDiscoverySNVQAlgorithm {
 				indexes[2] = indexThird;
 			}
 			int[] reportCounts = makeReportCounts(counts, indexes);
-			GenomicVariantImpl gv = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
+			GenomicVariantImpl gv = new GenomicVariantImpl(sequenceName, position, alleles);
 			gv.setType(GenomicVariant.TYPE_MULTIALLELIC_SNV);
 			gv.setVariantQS(PhredScoreHelper.calculatePhredScore(refProb));
 			CalledGenomicVariantImpl triallelicVar = new CalledGenomicVariantImpl(gv, idsCalledAlleles);
@@ -224,7 +195,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			//Homozygous reference only useful for genotypeAll mode
 			List<String> alleles = new ArrayList<String>();
 			alleles.add(DNASequence.BASES_ARRAY[indexRef]);
-			GenomicVariantImpl gvNoVar = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
+			GenomicVariantImpl gvNoVar = new GenomicVariantImpl(sequenceName, position, alleles);
 			gvNoVar.setVariantQS(PhredScoreHelper.calculatePhredScore(refProb));
 			byte [] idsCalledAlleles = {0};
 			int [] indexes = {indexRef};
@@ -237,7 +208,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			noVarCall.setCallReport(new VariantCallReport(alleles.toArray(new String [0]), reportCounts, reportLogConds));
 			return noVarCall;
 		}
-		SNV snv = new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase);
+		SNV snv = new SNV(sequenceName, position, refBase, altBase);
 		snv.setVariantQS(PhredScoreHelper.calculatePhredScore(refProb));
 		CalledSNV csnv = new CalledSNV(snv,genotype);
 		csnv.setGenotypeQuality(gq);
@@ -290,55 +261,6 @@ public class VariantDiscoverySNVQAlgorithm {
 		return answer;
 	}
 
-	//
-	/**
-	 * Calculates counts to call indels for the given pileup
-	 * @param pileup with alignments spanning a given position
-	 * @param variant with alleles to query. if variant!=null, referenceAllele=variant.getReference()
-	 * @param referenceAllele for the possible indel call. referenceAllele!=null referenceAllele.length()>1
-	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
-	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
-	 * @return CountsHelper object with counts and probabilities to call indels
-	 */
-	public static CountsHelper calculateCountsIndel(PileupRecord pileup, GenomicVariant variant, String referenceAllele, byte maxBaseQS, Set<String> readGroups) {
-		if(pileup.getPosition()==posPrint) System.out.println("Processing calls at: "+posPrint+" Reference: "+referenceAllele);
-		String [] indelAlleles;
-		List<PileupAlleleCall> allCalls = pileup.getAlleleCalls(referenceAllele.length(),readGroups);
-		List<PileupAlleleCall> callsRG = new ArrayList<>();
-		for(PileupAlleleCall call:allCalls) {
-			
-			if(pileup.getPosition()==posPrint) System.out.println("Selecting allele call: "+call.getAlleleString());
-			callsRG.add(call);	
-		}
-		
-		if(variant!=null) {
-			indelAlleles = variant.getAlleles();
-		} else {
-			AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
-			Set<String> indelAllelesSet = acBuilder.clusterAlleleCalls(pileup, callsRG, referenceAllele, maxBaseQS);
-			indelAllelesSet.add(referenceAllele);
-			if(indelAllelesSet.size()>100) System.err.println("WARN: Number of alleles for site at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is "+indelAllelesSet.size()+" ref Allele: "+referenceAllele);
-			indelAlleles = new String [indelAllelesSet.size()];
-			indelAlleles[0] = referenceAllele;
-			if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
-			int i=1;
-			for (String allele:indelAllelesSet) {
-				if(!allele.equals(referenceAllele)) {
-					indelAlleles[i] = allele;
-					if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
-					i++;
-				}
-			}
-		}
-		CountsHelper answer = new CountsHelper(indelAlleles);
-		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		if(pileup.getPosition()==posPrint) answer.setVerbose(true);
-		for(PileupAlleleCall call: callsRG) {
-			answer.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
-		}
-		
-		return answer;
-	}
 	
 	public static CalledGenomicVariant callIndel (PileupRecord pileup, CountsHelper helper, GenomicVariant variant, double heterozygosityRate, boolean calcStrandBias) {
 		int [] counts = helper.getCounts();

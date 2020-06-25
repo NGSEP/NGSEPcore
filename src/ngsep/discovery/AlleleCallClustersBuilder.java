@@ -69,8 +69,8 @@ public class AlleleCallClustersBuilder {
 		return position;
 	}
 
-	public Set<String> clusterAlleleCalls (PileupRecord pileup, List<PileupAlleleCall> calls, String reference, byte maxBaseQS) {
-		Set<String> answer = new TreeSet<>();
+	public String [] clusterAlleleCalls (PileupRecord pileup, List<PileupAlleleCall> calls, String reference, byte maxBaseQS) {
+		Set<String> allelesSet = new TreeSet<>();
 		Map<Integer, List<PileupAlleleCall>> alleleCallsByLength = new HashMap<>();
 		for(PileupAlleleCall call:calls) {
 			String allele = call.getAlleleString();
@@ -121,7 +121,20 @@ public class AlleleCallClustersBuilder {
 				}
 				
 			}
-			answer.addAll(lengthAlleles);
+			allelesSet.addAll(lengthAlleles);
+		}
+		allelesSet.add(reference);
+		if(allelesSet.size()>100) System.err.println("WARN: Number of alleles for site at "+pileup.getSequenceName()+":"+pileup.getPosition()+" is "+allelesSet.size()+" ref Allele: "+reference);
+		String [] answer = new String [allelesSet.size()];
+		answer[0] = reference;
+		//if(pileup.getPosition()==posPrint) System.out.println("Reference allele for indel: "+referenceAllele);
+		int i=1;
+		for (String allele:allelesSet) {
+			if(!allele.equals(reference)) {
+				answer[i] = allele;
+				//if(pileup.getPosition()==posPrint) System.out.println("Next alternative allele for indel: "+allele);
+				i++;
+			}
 		}
 		return answer;
 	}
@@ -235,7 +248,7 @@ public class AlleleCallClustersBuilder {
 				byte q = (byte)(Math.min(maxbaseQS, qualities.charAt(i)-33));
 				helper.updateCounts(allele.substring(i, i+1), q, false);
 			}
-			double [][] posteriors = helper.getPosteriorProbabilities(VariantPileupListener.DEF_HETEROZYGOSITY_RATE_DIPLOID);
+			double [][] posteriors = helper.getPosteriorProbabilities(CountsHelper.DEF_HETEROZYGOSITY_RATE_DIPLOID);
 			answer[i] = 0;
 			for(int k=0;k<DNASequence.BASES_ARRAY.length;k++) {
 				double hetPost = posteriors[idxC][k]+posteriors[k][idxC]; 

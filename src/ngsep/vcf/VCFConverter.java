@@ -805,7 +805,7 @@ public class VCFConverter {
 		List<CalledGenomicVariant> calls = record.getCalls();
 		for(int i=0;i<calls.size();i++) {
 			CalledGenomicVariant calledVar = calls.get(i);
-			byte [] allelesCN = calledVar.getAllelesCopyNumber();
+			short [] allelesCN = calledVar.getAllelesCopyNumber();
 			if(calledVar.isUndecided()) out.print(",NA");
 			else {
 				out.print(",");

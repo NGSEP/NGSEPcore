@@ -133,8 +133,8 @@ Tutorial:
         ER7A_sorted.bam
     
     After this step, there are two alternatives to discover and genotype variants. If only interested in the type of variants that can be discovered out of the pileup process
-    (SNVs, small indels and short tandem repeats), follow step 5 and then jump to step 7. To learn how to run the sample-by-sample analysis to discover also structural variants
-    from whole genome sequencing data, jump to the step 6a.   
+    (SNVs, small indels and short tandem repeats), follow step 4 and then jump to step 6. To learn how to run the sample-by-sample analysis to discover also structural variants
+    from whole genome sequencing data, jump to the step 5a.   
 
     Note: The last command of Picard requires that R is installed in the computer. If you do not wish to install R, an alternative command to output these statistics using 
     samtools (http://samtools.sourceforge.net/) is:

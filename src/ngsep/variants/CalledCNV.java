@@ -279,16 +279,16 @@ public class CalledCNV implements CalledGenomicVariant {
 		return alleles;
 	}
 	@Override
-	public byte[] getAllelesCopyNumber() {
-		byte [] answer = new byte[getAlleles().length];
+	public short[] getAllelesCopyNumber() {
+		short [] answer = new short[getAlleles().length];
 		Arrays.fill(answer, (byte)0);
 		if(genotype !=GENOTYPE_UNDEFINED) answer[genotype] = 1;
 		return answer;
 	}
 
 	@Override
-	public byte getCopyNumber() {
-		return (byte) Math.round(numCopies);
+	public short getCopyNumber() {
+		return (short) Math.round(numCopies);
 	}
 
 	@Override
@@ -328,12 +328,12 @@ public class CalledCNV implements CalledGenomicVariant {
 	}
 
 	@Override
-	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber) {
+	public void updateAllelesCopyNumberFromCounts(short totalCopyNumber) {
 		// TODO Auto-generated method stub
 	}
 
 	@Override
-	public void setAllelesCopyNumber(byte[] allelesCN) {
+	public void setAllelesCopyNumber(short[] allelesCN) {
 		// TODO Auto-generated method stub
 	}
 

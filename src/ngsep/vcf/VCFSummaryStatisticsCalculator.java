@@ -281,7 +281,7 @@ public class VCFSummaryStatisticsCalculator {
 			//if(call.getFirst()==181922)System.err.println("Call: "+i+" wtIdx: "+wtIdx+" AC: "+alleleCounts[0]+" - "+ alleleCounts[1]+" status: "+popStatusSample);
 			if(popStatusSample== VariantsBasicCounts.POPULATION_STATUS_GENPOP && wtIdx>=0) {
 				byte [] calledAlleles = call.getIndexesCalledAlleles();
-				byte [] allelesCN = call.getAllelesCopyNumber();
+				short [] allelesCN = call.getAllelesCopyNumber();
 				
 				for(int j=0;j<calledAlleles.length;j++) {
 					int callIdx = calledAlleles[j]; 

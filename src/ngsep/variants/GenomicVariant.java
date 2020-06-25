@@ -27,7 +27,7 @@ import ngsep.genome.GenomicRegion;
  *
  */
 public interface GenomicVariant extends GenomicRegion {
-	public static final byte DEFAULT_PLOIDY = 2;
+	public static final short DEFAULT_PLOIDY = 2;
 	
 	public static final byte TYPE_UNDETERMINED = 0;
 	public static final byte TYPE_BIALLELIC_SNV = 1;

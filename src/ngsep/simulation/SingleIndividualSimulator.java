@@ -58,7 +58,7 @@ public class SingleIndividualSimulator {
 	public static final double DEF_INDEL_RATE=0.0001;
 	public static final double DEF_MUTATED_STR_FRACTION=0.1;
 	public static final int DEF_STR_UNIT_INDEX=14;
-	public static final byte DEF_PLOIDY=2;
+	public static final short DEF_PLOIDY=2;
 	public static final String DEF_SAMPLE_ID="Simulated";
 	
 	// Logging and progress
@@ -460,7 +460,7 @@ public class SingleIndividualSimulator {
 				boolean homozygousAlt = (altAlleleCount == ploidy);
 				//Defaults for homozygous alternative
 				byte [] indexesCalledAlleles= {(byte)1};
-				byte [] allelesCopyNumber= {(byte)0,(byte)ploidy};
+				short [] allelesCopyNumber= {(short)0,(short)ploidy};
 				byte [] indexesPhasedAlleles= new byte [ploidy];
 				Arrays.fill(indexesPhasedAlleles, (byte)1);
 				if(!homozygousAlt) {
@@ -470,7 +470,7 @@ public class SingleIndividualSimulator {
 					indexesCalledAlleles[0]=0;
 					indexesCalledAlleles[1]=1;
 					//Determine alleles copy number from simulated alternative count
-					allelesCopyNumber[0] = (byte) (ploidy-altAlleleCount);
+					allelesCopyNumber[0] = (short) (ploidy-altAlleleCount);
 					allelesCopyNumber[1] = altAlleleCount;
 					
 					//Simulate random assignment of alleles in haplotypes
@@ -523,7 +523,7 @@ public class SingleIndividualSimulator {
 		return refCall;
 	}
 
-	private void randomDistribute(byte[] array, byte value, byte number, Random random) {
+	private void randomDistribute(byte[] array, byte value, int number, Random random) {
 		for(int i=0;i<number;i++) {
 			while(true) {
 				int j = random.nextInt(array.length);

@@ -32,6 +32,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.transcriptome.VariantFunctionalAnnotation;
 import ngsep.transcriptome.VariantFunctionalAnnotationType;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.DiversityStatistics;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
 
@@ -265,5 +266,20 @@ public class VCFRecord implements GenomicRegion {
 		if(type == null) return null;
 		answer = new VariantFunctionalAnnotation(variant, type);
 		return answer;
+	}
+	public static VCFRecord createDefaultPopulationVCFRecord(GenomicVariant variant, List<CalledGenomicVariant> calls, VCFFileHeader header) {
+		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
+		int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
+		VCFRecord record = new VCFRecord(variant, format, calls, header);
+		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
+		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
+		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
+		if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+		return record;
+	}
+	private static String format(int[] alleleCounts) {
+		StringBuilder answer = new StringBuilder(""+alleleCounts[0]);
+		for(int i=1;i<alleleCounts.length;i++) answer.append(","+alleleCounts[i]);
+		return answer.toString();
 	}
 }

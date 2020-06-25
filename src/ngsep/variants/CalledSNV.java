@@ -44,11 +44,11 @@ public class CalledSNV implements CalledGenomicVariant {
 	private float refAltLogCond=0;
 	private float altRefLogCond=0;
  
-	//The copy number of the reference allele. 
-	private byte totalCopyNumber = 0;
+	//The copy number of the called variant. 
+	private short totalCopyNumber = 0;
 	
-	//The copy number of the alternative allele. 
-	private byte refCopyNumber = 0;
+	//The copy number of the reference allele. 
+	private short refCopyNumber = 0;
 	
 	//Phasing as a bit array
 	private byte phasing = -1;
@@ -104,7 +104,7 @@ public class CalledSNV implements CalledGenomicVariant {
 		if(this.genotype == genotype) return;
 		if(genotype <GENOTYPE_UNDECIDED || genotype>GENOTYPE_HOMOALT) throw new IllegalArgumentException("Invalid genotype for a called SNV: "+genotype);
 		this.genotype = genotype;
-		byte totalCopyNumber = getCopyNumber();
+		short totalCopyNumber = getCopyNumber();
 		updateAllelesCopyNumberFromCounts(totalCopyNumber);
 	}
 	
@@ -112,17 +112,17 @@ public class CalledSNV implements CalledGenomicVariant {
 	 * Changes the alleles copy number
 	 * @param allelesCN Array with the copy number of each allele 
 	 */
-	public void setAllelesCopyNumber(byte [] allelesCN) {
+	public void setAllelesCopyNumber(short [] allelesCN) {
 		if(allelesCN.length!=2) throw new IllegalArgumentException("For Called SNVs the length of the array should be 2");
 		if(allelesCN[0]<0) throw new IllegalArgumentException("Inconsistent copy number detected. Copy number of the reference allele can not be the negative value "+allelesCN[0]);
 		if(allelesCN[1]<0) throw new IllegalArgumentException("Inconsistent copy number detected. Copy number of the alternative allele can not be the negative value "+allelesCN[1]);
 		int totalCN = allelesCN[0] + allelesCN[1];
-		if(totalCN>CalledGenomicVariant.MAX_NUM_COPIES)  throw new IllegalArgumentException("Inconsistent copy number detected. Total copy number "+totalCN+" can not be larger than maximum allowed "+CalledGenomicVariant.MAX_NUM_COPIES);
+		if(totalCN>CalledGenomicVariant.MAX_PLOIDY_SAMPLE)  throw new IllegalArgumentException("Inconsistent copy number detected. Total copy number "+totalCN+" can not be larger than maximum allowed "+CalledGenomicVariant.MAX_PLOIDY_SAMPLE);
 		if(this.isHomozygousReference() && allelesCN[1]!=0) throw new IllegalArgumentException("Inconsistent copy number detected. Copy number of the alternative allele can not be the non-zero value "+allelesCN[1]+" for a homozygous reference call");
 		else if(this.genotype == GENOTYPE_HOMOALT && allelesCN[0]!=0) throw new IllegalArgumentException("Inconsistent copy number detected. Copy number of the reference allele can not be the non-zero value "+allelesCN[0]+" for a homozygous non-reference call");
-		this.totalCopyNumber = (byte)(totalCN);
+		this.totalCopyNumber = (short)(totalCN);
 		if(this.isUndecided()) {
-			this.refCopyNumber = (byte)0;
+			this.refCopyNumber = (short)0;
 		} else {
 			this.refCopyNumber = allelesCN[0];
 		}
@@ -131,9 +131,9 @@ public class CalledSNV implements CalledGenomicVariant {
 	}
 	
 	@Override
-	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber) {
+	public void updateAllelesCopyNumberFromCounts(short totalCopyNumber) {
 		this.totalCopyNumber = totalCopyNumber;
-		refCopyNumber = (byte)0;
+		refCopyNumber = (short)0;
 		if (this.isUndecided() ) return;
 		if (this.isHomozygousReference()) {
 			refCopyNumber = totalCopyNumber;
@@ -141,8 +141,8 @@ public class CalledSNV implements CalledGenomicVariant {
 		} else if (this.isHomozygous()) {
 			return;
 		} else if (totalCopyNumber<=2) {
-			this.totalCopyNumber = (byte)2;
-			refCopyNumber = (byte)1;
+			this.totalCopyNumber = (short)2;
+			refCopyNumber = (short)1;
 			return;
 		}
 		double countRef = getCountReference();
@@ -150,25 +150,25 @@ public class CalledSNV implements CalledGenomicVariant {
 		double refProp = 0.5;
 		if(sumCounts > 0) refProp = countRef/sumCounts;
 		if(refProp>1) refProp = 1;
-		this.refCopyNumber = (byte) Math.round(refProp*totalCopyNumber);
+		this.refCopyNumber = (short) Math.round(refProp*totalCopyNumber);
 		if(this.refCopyNumber==0) this.refCopyNumber = 1;
-		else if (this.refCopyNumber>=totalCopyNumber) this.refCopyNumber = (byte) (totalCopyNumber-1);
+		else if (this.refCopyNumber>=totalCopyNumber) this.refCopyNumber = (short) (totalCopyNumber-1);
 		//Unphase variant because the copy number changed
 		phasing = -1;
 	}
 	
 	@Override
-	public byte [] getAllelesCopyNumber() {
-		byte [] answer = new byte [2];
-		Arrays.fill(answer, (byte)0);
+	public short [] getAllelesCopyNumber() {
+		short [] answer = new short [2];
+		Arrays.fill(answer, (short)0);
 		if(this.isUndecided()) return answer;
 		answer[0] = refCopyNumber;
-		answer[1] = (byte) (totalCopyNumber - refCopyNumber);
+		answer[1] = (short) (totalCopyNumber - refCopyNumber);
 		return answer;
 	}
 	
 	@Override
-	public byte getCopyNumber() {
+	public short getCopyNumber() {
 		return totalCopyNumber;
 	}
 	
@@ -277,7 +277,7 @@ public class CalledSNV implements CalledGenomicVariant {
 	public void makeUndecided() {
 		genotype = GENOTYPE_UNDECIDED;
 		genotypeQuality = 0;
-		refCopyNumber = (byte)0;
+		refCopyNumber = (short)0;
 		phasing = -1;
 	}
 	@Override

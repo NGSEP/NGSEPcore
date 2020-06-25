@@ -32,15 +32,15 @@ public class AssemblyEdge implements Serializable {
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
-	private int cost;
 	private int overlap;
-	private KmerHitsCluster evidence; 
+	private KmerHitsCluster evidence;
+	private int coverageSharedKmers;
+	private int mismatches;
 	private boolean layoutEdge = false;
 
-	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int cost, int overlap) {
+	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
 		this.vertex2 = vertex2;
-		this.cost = cost;
 		this.overlap = overlap;
 	}
 
@@ -57,21 +57,7 @@ public class AssemblyEdge implements Serializable {
 	public AssemblyVertex getVertex2() {
 		return vertex2;
 	}
-
-	/**
-	 * @return the cost
-	 */
-	public int getCost() {
-		return cost;
-	}
-
-	/**
-	 * @param cost the cost to set
-	 */
-	public void setCost(int cost) {
-		this.cost = cost;
-	}
-
+	
 	/**
 	 * @return the overlap
 	 */
@@ -84,6 +70,44 @@ public class AssemblyEdge implements Serializable {
 	 */
 	public void setOverlap(int overlap) {
 		this.overlap = overlap;
+	}
+
+	/**
+	 * @return the cost
+	 */
+	public int getCost() {
+		int l1 = vertex1.getRead().getLength();
+		int l2 = vertex2.getRead().getLength();
+		if(isSameSequenceEdge()) return l1;
+		int cost = l1 + l2;
+		int toSubstract = Math.min(l1, l2)-1;
+		toSubstract = Math.min(toSubstract, overlap);
+		cost-= toSubstract;
+		return cost;
+	}
+	
+	public KmerHitsCluster getEvidence() {
+		return evidence;
+	}
+
+	public void setEvidence(KmerHitsCluster evidence) {
+		this.evidence = evidence;
+	}
+	
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
+
+	public int getMismatches() {
+		return mismatches;
+	}
+
+	public void setMismatches(int mismatches) {
+		this.mismatches = mismatches;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {
@@ -100,14 +124,6 @@ public class AssemblyEdge implements Serializable {
 	
 	public boolean isSameSequenceEdge() {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
-	}
-
-	public KmerHitsCluster getEvidence() {
-		return evidence;
-	}
-
-	public void setEvidence(KmerHitsCluster evidence) {
-		this.evidence = evidence;
 	}
 
 	public boolean isLayoutEdge() {

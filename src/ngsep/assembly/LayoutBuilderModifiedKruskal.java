@@ -35,7 +35,7 @@ import ngsep.math.Distribution;
  * @author Jorge Duitama
  *
  */
-public class LayoutBuilderModifiedKruskal implements LayourBuilder {
+public class LayoutBuilderModifiedKruskal implements LayoutBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {

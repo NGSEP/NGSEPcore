@@ -328,10 +328,10 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		if(genotypeStr==null) genotypeStr = ".";
 		String [] callItems = ParseUtils.parseString(genotypeStr, '|', '/');
 		boolean phased = callItems.length>1 && genotypeStr.charAt(callItems[0].length())=='|';
-		byte [] allelesCNG = new byte[numAlleles];
+		short [] allelesCNG = new short[numAlleles];
 		byte [] phasedAlleles = new byte[callItems.length];
-		byte totalCNG = (byte)Math.min(CalledGenomicVariant.MAX_NUM_COPIES, callItems.length);
-		Arrays.fill(allelesCNG, (byte)0);
+		short totalCNG = (short)Math.min(CalledGenomicVariant.MAX_PLOIDY_SAMPLE, callItems.length);
+		Arrays.fill(allelesCNG, (short)0);
 		Set<Byte> uniqueAlleles = new TreeSet<Byte>();
 		for(int j=0;j<callItems.length;j++)  {
 			if(callItems[j].length()>0 && callItems[j].charAt(0)!='.') {
@@ -416,17 +416,17 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		if(v!=null) answer.setTotalReadDepth(v.intValue());
 		//Load alleles copy number
 		if(variant.getType() != GenomicVariant.TYPE_CNV) {
-			byte [] allelesCN = null;
+			short [] allelesCN = null;
 			int [] countsA = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_ACN],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_ACN],sampleId,variant,alleles.length);
 			int totalCopyNumber = 0;
 			if(countsA!=null) {
-				allelesCN = new byte [countsA.length];		
+				allelesCN = new short [countsA.length];		
 				for(int j=0;j<countsA.length;j++) {
-					allelesCN[j] = (byte)countsA[j];
+					allelesCN[j] = (short)countsA[j];
 					totalCopyNumber += countsA[j];
 				}
-				if(totalCopyNumber>CalledGenomicVariant.MAX_NUM_COPIES) {
-					log.severe("Can not load alleles copy number for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". Total copy number is larger than the maximum allowed value "+CalledGenomicVariant.MAX_NUM_COPIES);
+				if(totalCopyNumber>CalledGenomicVariant.MAX_PLOIDY_SAMPLE) {
+					log.severe("Can not load alleles copy number for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". Total copy number is larger than the maximum allowed value "+CalledGenomicVariant.MAX_PLOIDY_SAMPLE);
 					allelesCN = null;
 					totalCopyNumber = 0;
 				}
@@ -436,11 +436,11 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 				totalCopyNumber = totalCNG;
 			}
 			try {
-				if(answer.isUndecided()) answer.updateAllelesCopyNumberFromCounts((byte)totalCopyNumber);
+				if(answer.isUndecided()) answer.updateAllelesCopyNumberFromCounts((short)totalCopyNumber);
 				else answer.setAllelesCopyNumber(allelesCN);
 			} catch (IllegalArgumentException e) {
 				log.severe("Can not load alleles copy number for sample "+sampleId+" at genomic variant "+variant.getSequenceName()+":"+variant.getFirst()+". "+e.getMessage());
-				answer.updateAllelesCopyNumberFromCounts((byte)totalCopyNumber);
+				answer.updateAllelesCopyNumberFromCounts((short)totalCopyNumber);
 			}
 		}
 		//Load phasing

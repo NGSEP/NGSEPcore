@@ -481,7 +481,7 @@ Flag to call SNVs within STRs. By default, STRs are treated as a single locus an
 </option>
 </command>
 
-<command id="SingleSampleVariantsDetector" class="ngsep.discovery.VariantsDetector" groupId="Discovery" formerId="FindVariants">
+<command id="SingleSampleVariantsDetector" class="ngsep.discovery.SingleSampleVariantsDetector" groupId="Discovery" formerId="FindVariants">
 <intro>The classic module of NGSEP for variants detection in individual samples.</intro>
 <title>Calling variants on individual samples with the variants detector</title>
 <description>

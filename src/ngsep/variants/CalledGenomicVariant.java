@@ -22,6 +22,7 @@ package ngsep.variants;
 public interface CalledGenomicVariant extends GenomicVariant {
 
 	public static final int MAX_NUM_COPIES = 100;
+	public static final int MAX_PLOIDY_SAMPLE = Short.MAX_VALUE;
 	public static final byte GENOTYPE_UNDECIDED=-1;
 	public static final byte GENOTYPE_HOMOREF=0;
 	public static final byte GENOTYPE_HETERO=1;
@@ -56,18 +57,18 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	public byte [] getIndexesCalledAlleles();
 	
 	/**
-	 * @return byte [] copy number of each of the alleles in the variant. If the call is undecided,
-	 * returns an array of zeroes
+	 * @return short [] copy number of each of the alleles in the variant call. 
+	 * If the call is undecided, returns an array of zeroes
 	 */
-	public byte[] getAllelesCopyNumber();
+	public short[] getAllelesCopyNumber();
 	
 	/**
 	 * Returns the predicted local copy number of the region surrounding the variant.
 	 * Unless the call is undecided, it should be the sum of the elements of the array returned by
 	 * the method getAllelesCopyNumber
-	 * @return byte Copy number of the region surrounding this variant 
+	 * @return short Copy number of the region surrounding this variant 
 	 */
-	public byte getCopyNumber();
+	public short getCopyNumber();
 	
 	/**
 	 * @return int total read depth of the variant in this sample
@@ -121,7 +122,7 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	 * The phasing information should be unset because it can become inconsistent with the new total copy number
 	 * @param totalCopyNumber predicted copy number of the region surrounding the variant 
 	 */
-	public void updateAllelesCopyNumberFromCounts(byte totalCopyNumber);
+	public void updateAllelesCopyNumberFromCounts(short totalCopyNumber);
 	/**
 	 * Changes the alleles copy number
 	 * PRE: The copy number per allele should be consistent with this genotype
@@ -130,7 +131,7 @@ public interface CalledGenomicVariant extends GenomicVariant {
 	 * unset because it can become inconsistent with the new total copy number
 	 * @param allelesCN Array with the copy number of each allele 
 	 */
-	public void setAllelesCopyNumber(byte [] allelesCN);
+	public void setAllelesCopyNumber(short [] allelesCN);
 	
 	/**
 	 * @return VariantCallReport with the information gathered while calling the variant in this sample 

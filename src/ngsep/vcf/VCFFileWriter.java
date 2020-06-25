@@ -58,7 +58,7 @@ public class VCFFileWriter {
 			List<Sample> samples = null;
 			if(record.getHeader()!=null) samples = record.getHeader().getSamples();
 			for(int i=0;i<calls.size();i++) {
-				byte ploidy = GenomicVariant.DEFAULT_PLOIDY;
+				short ploidy = GenomicVariant.DEFAULT_PLOIDY;
 				if(samples!=null) ploidy = samples.get(i).getNormalPloidy();
 				printGenotypeInfo(calls.get(i), out, outFormat,ploidy);
 			}
@@ -156,7 +156,7 @@ public class VCFFileWriter {
 			out.print(formatName);
 		}
 	}
-	private void printGenotypeInfo(CalledGenomicVariant var, PrintStream out, int [] format, byte ploidy) {
+	private void printGenotypeInfo(CalledGenomicVariant var, PrintStream out, int [] format, short ploidy) {
 		out.print("\t");
 		String[] alleles = var.getAlleles();
 		VariantCallReport report = var.getCallReport();
@@ -228,12 +228,12 @@ public class VCFFileWriter {
 				out.print(var.getGenotypeQuality());
 			} else if (formatIdx == VCFRecord.FORMAT_IDX_ACN) {
 				//Local alleles copy number
-				byte totalCopyNumber = var.getCopyNumber();
+				short totalCopyNumber = var.getCopyNumber();
 				if(totalCopyNumber == 0) {
 					out.print(VCFFileReader.NO_INFO_CHAR);
 					continue;
 				}
-				byte [] varAllelesCopyNumber = var.getAllelesCopyNumber();
+				short [] varAllelesCopyNumber = var.getAllelesCopyNumber();
 				if(var.isUndecided()) varAllelesCopyNumber[0] = totalCopyNumber;
 				for(int j=0;j<varAllelesCopyNumber.length;j++) {
 					if(j>0) out.print (",");

@@ -225,17 +225,23 @@ public class Assembler {
 			
 			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 		}
-
-		LayourBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
+		if(outFileGraph!=null) {
+			graph.serialize(outFileGraph);
+			log.info("Saved graph in "+outFileGraph);
+		}
+		graph.removeVerticesChimericReads();
+		graph.filterEdgesAndEmbedded();
+		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		graph.filterEdgesCloseRelationships();
+		log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+		//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 		//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
-		if(outFileGraph!=null) {
-			graph.serialize(outFileGraph);
-			log.info("Saved graph in "+outFileGraph);
-		}
+		
 
 		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
 		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalWithPolishing();

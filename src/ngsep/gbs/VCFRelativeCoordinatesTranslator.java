@@ -305,8 +305,8 @@ public class VCFRelativeCoordinatesTranslator {
 				}
 			}
 			//TODO: Translate well acn for polyploids
-			byte [] acn = new byte[refBasedAlleles.size()];
-			Arrays.fill(acn, (byte)0);
+			short [] acn = new short[refBasedAlleles.size()];
+			Arrays.fill(acn, (short)0);
 			if(variant instanceof SNV) {
 				byte genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 				if(calledAlleles.length==2) {
