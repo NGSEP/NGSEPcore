@@ -63,14 +63,19 @@ public class VCFRelativeCoordinatesTranslator {
 	int notDNA = 0;
 	
 	// issues with mapping
+	int unmappedReadSingle = 0;
+	int unmappedReadPaired = 0;
 	int unmappedRead = 0;
-	int singlemap = 0;
+	int singlemapfor = 0;
+	int singlemaprev = 0;
 	int unpaired = 0;
 	int partial = 0;
-	int noAlign = 0;
-	int noMap = 0;
+	int noAlignSingle = 0;
+	int noAlignPaired = 0;
 	int oddAlign = 0;
 	int unmappedCluster = 0;
+	int pairedConsensus = 0;
+	int singleConsensus = 0;
 	
 //	public static void main(String[] args) throws Exception {
 //		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
@@ -152,11 +157,14 @@ public class VCFRelativeCoordinatesTranslator {
 				PrintStream info = new PrintStream(outFile + ".info")) {
 			writer.printHeader(header, mappedVCF);
 			writer.printVCFRecords(translatedRecords, mappedVCF);
+			info.println("1 softclip");
 			info.println("Total number of records in relative VCF: " + totalRecords);
 			info.println("Number of translated records: " + numTranslatedRecords);
 			info.println("RefAllele not found in alleles: " + refNotInAlleles);
 			info.println("Triallelic: " + triallelic);
 			info.println("Biallelic: " + biallelic);
+			info.println("Single Consensus: " + singleConsensus);
+			info.println("Paired Consensus: " + pairedConsensus);
 			info.println("------ Issues with translation ------");
 			info.println("Not translated: " + untranslated);
 			info.println("Not DNA: " + notDNA); 
@@ -166,11 +174,14 @@ public class VCFRelativeCoordinatesTranslator {
 			info.println("Reference seq is null: " + notRefSeq);
 			info.println("------ Issues with mapping ------");
 			info.println("Unmapped read: " + unmappedRead);
+			info.println("Unmapped single read: " + unmappedReadSingle);
+			info.println("Unmapped paired read: " + unmappedReadPaired);
 			info.println("Partial: " + partial);
 			info.println("Unpaired: " + unpaired);
-			info.println("Single mapping: " + singlemap);
-			info.println("No alignment: " + noAlign);
-			info.println("No map: " + noMap);
+			info.println("Single mapping forward: " + singlemapfor);
+			info.println("Single mapping reverse: " + singlemaprev);
+			info.println("No alignment Single: " + noAlignSingle);
+			info.println("No alignment Paired: " + noAlignPaired);
 			info.println("Odd align: "+oddAlign);
 			info.println("Unmapped Cluster: " + unmappedCluster);
 		}
@@ -336,23 +347,28 @@ public class VCFRelativeCoordinatesTranslator {
 		aligner.setGenome(refGenome);
 		aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
 		
-		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
+		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA);
+				PrintStream debug = new PrintStream(outFile + ".debug")) {
 			reader.setLog(log);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for(int i=0;it.hasNext();i++) {
 				QualifiedSequence consensus = it.next();
 				String algnName = consensus.getName();
+				debug.println(algnName);
 				if(algnName.startsWith("Cluster_")) {
 					algnName = algnName.substring(8);
 				}
 				String seq = consensus.getCharacters().toString();
+				if(seq.length() == 0) continue;
 				int indexN = seq.indexOf('N');
 				if(indexN <=30 || indexN>=seq.length()-30) {
+					singleConsensus++;
 					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
-						noAlign++;
+						noAlignSingle++;
+						unmappedReadSingle++;
 						unmappedRead++;
 						continue;
 					}
@@ -366,30 +382,37 @@ public class VCFRelativeCoordinatesTranslator {
 					RawRead read2 = new RawRead(algnName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
+					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
-						if(alns1.size()==0 && alns2.size()!=0) singlemap++;
-						else if(alns1.size()!=0 && alns2.size()==0) singlemap++;
-						else noMap++;
+						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
+						else if(alns1.size()!=0 && alns2.size()==0) singlemaprev++;
+						else noAlignPaired++;
+						unmappedReadPaired++;
 						unmappedRead++;
 						continue;
 					}
 					List<ReadAlignmentPair> pairs = aligner.findPairs(alns1, alns2, true);
 					if(pairs.size()==0) {
+						unpaired++;
+						unmappedReadPaired++;
 						unmappedRead++;
 						continue;
 					}
 					ReadAlignmentPair first = pairs.get(0);
 					ReadAlignment aln1 = first.getAln1();
 					ReadAlignment aln2 = first.getAln2();
-					if(aln1.isPartialAlignment(1) || aln2.isPartialAlignment(1)) {
+					debug.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
+					debug.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
+					if(aln1.isPartialAlignment(10) || aln2.isPartialAlignment(10)) {
 						partial++;
+						unmappedReadPaired++;
 						unmappedRead++;
 						continue;
 					}
 					int posN1 = aln1.getLast()+1; 
 					int posN2 = aln2.getLast()+1;
 					if(posN1<aln2.getFirst()) {
-						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), aln2.getLast(), seq.length(), 0);
+				 		ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), aln2.getLast(), seq.length(), 0);
 						combined.setSequenceName(aln1.getSequenceName());
 						String cigar = aln1.getCigarString();
 						//The N character
@@ -399,6 +422,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setCigarString(cigar);
 						combined.setReadCharacters(consensus.getCharacters());
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
+						debug.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(algnName,combined);
 					} else if (posN2 <aln1.getFirst()) {
@@ -412,12 +436,15 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setCigarString(cigar);
 						combined.setReadCharacters(DNAMaskedSequence.getReverseComplement(consensus.getCharacters()));
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
+						debug.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(algnName,combined);
 					} else {
 						oddAlign++;
+						unmappedReadPaired++;
 						unmappedRead++;
 					}
+					debug.println("\n");
 				}
 			}
 		}
