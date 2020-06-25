@@ -601,10 +601,9 @@ public class AssemblyGraph implements Serializable {
 	public void filterEdgesCloseRelationships() {
 		for (int seqId = 0; seqId <sequences.size(); seqId++) {
 			AssemblyVertex v1 = getVertex(seqId, true);
-			filterEdgesCloseRelationships(v1);
+			if (v1!=null) filterEdgesCloseRelationships(v1);
 			AssemblyVertex v2 = getVertex(seqId, false);
-			filterEdgesCloseRelationships(v2);
-			
+			if (v2!=null) filterEdgesCloseRelationships(v2);
 		}
 		
 	}
