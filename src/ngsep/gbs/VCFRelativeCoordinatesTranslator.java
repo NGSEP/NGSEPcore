@@ -49,7 +49,10 @@ public class VCFRelativeCoordinatesTranslator {
 	int skippedRecords = 0;
 	int nullReadName = 0;
 	int TruePosNotAlign = 0;
-
+	
+	int consensusTot = 0;
+	int pairedConsensus = 0;
+	int singleConsensus = 0;
 	int biallelic = 0;
 	int triallelic = 0;
 	
@@ -74,8 +77,7 @@ public class VCFRelativeCoordinatesTranslator {
 	int noAlignPaired = 0;
 	int oddAlign = 0;
 	int unmappedCluster = 0;
-	int pairedConsensus = 0;
-	int singleConsensus = 0;
+
 	
 //	public static void main(String[] args) throws Exception {
 //		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
@@ -160,13 +162,14 @@ public class VCFRelativeCoordinatesTranslator {
 			info.println("1 softclip");
 			info.println("Total number of records in relative VCF: " + totalRecords);
 			info.println("Number of translated records: " + numTranslatedRecords);
-			info.println("RefAllele not found in alleles: " + refNotInAlleles);
-			info.println("Triallelic: " + triallelic);
-			info.println("Biallelic: " + biallelic);
+			info.println("Total number of consensus: " + consensusTot);
 			info.println("Single Consensus: " + singleConsensus);
 			info.println("Paired Consensus: " + pairedConsensus);
 			info.println("------ Issues with translation ------");
-			info.println("Not translated: " + untranslated);
+			info.println("Not translated: " + untranslated + triallelic + notRefSeq);
+			info.println("Triallelic: " + triallelic);
+			info.println("Biallelic: " + biallelic);
+			info.println("Unmapped Cluster: " + unmappedCluster);
 			info.println("Not DNA: " + notDNA); 
 			info.println("True pos not aligned to ref: " + TruePosNotAlign);
 			info.println("Not SNV: " + notSNV);
@@ -176,14 +179,14 @@ public class VCFRelativeCoordinatesTranslator {
 			info.println("Unmapped read: " + unmappedRead);
 			info.println("Unmapped single read: " + unmappedReadSingle);
 			info.println("Unmapped paired read: " + unmappedReadPaired);
-			info.println("Partial: " + partial);
-			info.println("Unpaired: " + unpaired);
+			info.println("------ Issues with paired mapping ------");
+			info.println("Unmapped paired read: " + unmappedReadPaired);
 			info.println("Single mapping forward: " + singlemapfor);
 			info.println("Single mapping reverse: " + singlemaprev);
-			info.println("No alignment Single: " + noAlignSingle);
-			info.println("No alignment Paired: " + noAlignPaired);
+			info.println("Neither forward nor reverse map: " + noAlignPaired);
+			info.println("Unpaired: " + unpaired);
+			info.println("Partial: " + partial);
 			info.println("Odd align: "+oddAlign);
-			info.println("Unmapped Cluster: " + unmappedCluster);
 		}
 	}
 	
@@ -270,7 +273,6 @@ public class VCFRelativeCoordinatesTranslator {
 			biallelic++;
 		} else if (refBasedAlleles.size()>= 3) {
 			variant = new GenomicVariantImpl(seqName, truePos, refBasedAlleles );
-			
 			triallelic++;
 		} else {
 			nonVariant++;
@@ -352,6 +354,7 @@ public class VCFRelativeCoordinatesTranslator {
 			reader.setLog(log);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for(int i=0;it.hasNext();i++) {
+				consensusTot++;
 				QualifiedSequence consensus = it.next();
 				String algnName = consensus.getName();
 				debug.println(algnName);
@@ -367,7 +370,6 @@ public class VCFRelativeCoordinatesTranslator {
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
-						noAlignSingle++;
 						unmappedReadSingle++;
 						unmappedRead++;
 						continue;
@@ -450,6 +452,53 @@ public class VCFRelativeCoordinatesTranslator {
 		}
 		
 	}
+	
+	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
+	private String removeStartSoftClip(ReadAlignment algn, int maxAllowedSkips) {
+		byte operator = algn.getOperator(0);
+		String cigar = algn.getCigarString();
+		// if starts with skips
+		if(operator == 6) {
+			int length = algn.getOperationLength(0);
+			int newLength = length;
+			if(length < maxAllowedSkips) {
+				//if second operator is M
+				if(algn.getOperator(1) == 3) {
+					newLength = length + algn.getOperationLength(1);
+				} 
+				String partialOldCigar = length + "S"; 
+				String partialNewCigar = newLength + "S"; 
+				cigar.replace(partialOldCigar, partialNewCigar);
+			}
+			
+		}
+		
+		return cigar;
+	}
+	
+	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
+	private String removeEndSoftClip(ReadAlignment algn, int maxAllowedSkips) {
+		byte operator = algn.getOperator(algn.length());
+		String cigar = algn.getCigarString();
+		// if starts with skips
+		if(operator == 6) {
+			int length = algn.getOperationLength(algn.length());
+			int newLength = length;
+			if(length < maxAllowedSkips) {
+				//if second operator is M
+				if(algn.getOperator(1) == 3) {
+					newLength = length + algn.getOperationLength(algn.length() - 1);
+				} 
+				String partialOldCigar = length + "S"; 
+				String partialNewCigar = newLength + "S"; 
+				cigar.replace(partialOldCigar, partialNewCigar);
+			}
+			
+		}
+		
+		return cigar;
+	}
+	
 	
 	/**
 	 * This method builds a hash with the provided alignments to be consulted at translation time
