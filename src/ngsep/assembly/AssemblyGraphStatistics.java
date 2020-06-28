@@ -229,7 +229,8 @@ public class AssemblyGraphStatistics {
 			log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxCoverageSharedKmers();
-			LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+			LayoutBuilder pathsFinder = new LayoutBuilderSkeletonBestReciprocal();
 			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			pathsFinder.findPaths(graph);
@@ -434,7 +435,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==1837 || gsVertex.getUniqueNumber()==4620; 
+		boolean debug = gsVertex.getUniqueNumber()==-25800 || gsVertex.getUniqueNumber()==19204; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, out);
 			printEdgeList("Test", testVertex, testEdges, out);
@@ -607,7 +608,7 @@ public class AssemblyGraphStatistics {
 							errorsTPEdgeNoLayout++;
 							log.info("Compare layouts. True positive no GS layout "+logEdge(nextTestEdge));
 						}
-						if(nextGSPath!=null) log.info("Last GS layout edge "+logEdge(nextGSPath.get(nextGSEdgeIdx)));
+						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) log.info("Last GS layout edge "+logEdge(nextGSPath.get(nextGSEdgeIdx)));
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 					} else  {

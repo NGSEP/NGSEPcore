@@ -479,8 +479,11 @@ public class AssemblyGraph implements Serializable {
 		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		filterEdgesAbnormalOverlap(getEdges(vS));
+		filterEdgesAbnormalOverlap(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
+		double minScoreProportion = 0.5;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -493,7 +496,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreS);
-			if(score < 0.7*maxScoreS) {
+			if(score < minScoreProportion*maxScoreS) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -513,7 +516,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE);
-			if(score < 0.7*maxScoreE) {
+			if(score < minScoreProportion*maxScoreE) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -542,6 +545,18 @@ public class AssemblyGraph implements Serializable {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed edges for sequence: "+embedded.getSequenceId());
 			}
 		}
+	}
+
+	private void filterEdgesAbnormalOverlap(List<AssemblyEdge> edges) {
+		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			int overlap = edge.getOverlap();
+			if(overlap>edge.getVertex1().getRead().getLength() || overlap>edge.getVertex2().getRead().getLength()) {
+				toRemove.add(edge);
+			}
+		}
+		for(AssemblyEdge edge:toRemove) removeEdge(edge);
 	}
 
 	private double calculateScore(AssemblyEmbedded embedded) {
