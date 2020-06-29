@@ -33,7 +33,6 @@ import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
 
@@ -124,16 +123,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				
 				int overlap = edge.getOverlap();
 				int startSuffix = overlap;
-				KmerHitsCluster cluster = edge.getEvidence();
-				if(cluster!=null) {
-					if (vertexPreviousEdge.getSequenceIndex()== cluster.getSequenceIdx()) {
-						if (!vertexPreviousEdge.isStart()) startSuffix = cluster.getQueryPredictedEnd();
-						else startSuffix = nextPathSequence.length() - cluster.getQueryPredictedStart();
-					} else if (vertexNextEdge.getSequenceIndex() == cluster.getSequenceIdx()) {
-						if (vertexNextEdge.isStart()) startSuffix = cluster.getSubjectPredictedEnd();
-						else startSuffix = nextPathSequence.length() - cluster.getSubjectPredictedStart();
-					}
-				}
+				//TODO: Recalculate segment from alignment
 				
 				if(startSuffix<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
@@ -141,7 +131,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				} else {
-					log.warning("Non embedded edge btween vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " start suffix "+startSuffix+" and length: "+nextPathSequence.length());
+					log.warning("Non embedded edge between vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " start suffix "+startSuffix+" and length: "+nextPathSequence.length());
 				}
 				
 			}
@@ -165,7 +155,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
 				for(AssemblyEmbedded embedded:embeddedList) {
-					CharSequence embeddedRead = embedded.getRead();
+					CharSequence embeddedRead = embedded.getRead().getCharacters();
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNAMaskedSequence.getReverseComplement(embeddedRead);
 					totalReads++;

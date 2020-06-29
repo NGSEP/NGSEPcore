@@ -19,8 +19,6 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.Serializable;
-
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -30,11 +28,10 @@ import ngsep.sequences.QualifiedSequence;
  * @author David Guevara
  *
  */
-public class AssemblyVertex implements Serializable {
+public class AssemblyVertex {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 5185570963647916821L;
 	private QualifiedSequence read;
 	private boolean start;
 	private int sequenceIndex;

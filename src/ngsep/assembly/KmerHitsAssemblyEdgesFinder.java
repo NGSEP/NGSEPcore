@@ -172,10 +172,13 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	private void addEmbedded(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int startSubject = cluster.getSubjectPredictedStart();
+		int endSubject = cluster.getSubjectPredictedEnd();
 		int subjectSeqIdx = cluster.getSequenceIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
-		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId).getCharacters(), queryRC, subjectSeqIdx, startSubject);
-		embeddedEvent.setEvidence(cluster);
+		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, startSubject, endSubject);
+		embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
+		embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
+		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, query.length(), cluster);
 		embeddedEvent.setCoverageSharedKmers(alnData[0]);
 		embeddedEvent.setMismatches(alnData[1]);
@@ -198,7 +201,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setMismatches(alnData[1]);
-		edge.setEvidence(cluster);
+		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
+		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
@@ -218,7 +222,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setMismatches(alnData[1]);
-		edge.setEvidence(cluster);
+		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
+		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}

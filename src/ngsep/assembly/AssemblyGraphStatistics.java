@@ -30,6 +30,8 @@ public class AssemblyGraphStatistics {
 	// Constants for default values
 	public static final byte READS_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte READS_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
+	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP=Assembler.LAYOUT_ALGORITHM_MAX_OVERLAP;
+	public static final String LAYOUT_ALGORITHM_KRUSKAL_PATH=Assembler.LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(AssemblyGraphStatistics.class.getName());
@@ -42,6 +44,7 @@ public class AssemblyGraphStatistics {
 	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -164,6 +167,14 @@ public class AssemblyGraphStatistics {
 	public void setAlignmentsFile(String alignmentsFile) {
 		this.alignmentsFile = alignmentsFile;
 	}
+	
+	
+	public String getLayoutAlgorithm() {
+		return layoutAlgorithm;
+	}
+	public void setLayoutAlgorithm(String layoutAlgorithm) {
+		this.layoutAlgorithm = layoutAlgorithm;
+	}
 	public boolean isSimulated() {
 		return simulated;
 	}
@@ -184,6 +195,7 @@ public class AssemblyGraphStatistics {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input graph is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
+		if(readsFile==null && alignmentsFile==null) throw new IOException("Either the original reads or the alignments are required");
 		run (inputFile, outputFile);
 		log.info("Process finished");
 	}
@@ -194,41 +206,44 @@ public class AssemblyGraphStatistics {
 		out.println("Output file:"+ outputFile);
 		if (readsFile!=null) out.println("File with original reads: "+readsFile);
 		if(simulated) out.println("Reads were simulated using SingleReadsSimulator");
+		out.println("Layout algorithm:"+ layoutAlgorithm);
 		if (genome!=null) out.println("Target genome for benchmark loaded from file: "+genome.getFilename());
 		if (alignmentsFile!=null) out.println("Alignments file for benchmark "+alignmentsFile);
 		log.info(os.toString());
 	}
 	private void run(String inputFile, String outputFile) throws IOException {
-		AssemblyGraph graph = AssemblyGraph.load(inputFile);
+		List<ReadAlignment> alignments = null;
+		List<QualifiedSequence> sequences;
+		if (alignmentsFile!=null) {
+			alignments = new ArrayList<ReadAlignment>();
+			sequences = new ArrayList<QualifiedSequence>();
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
+				reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
+				Iterator<ReadAlignment> it = reader.iterator();
+				while (it.hasNext()) {
+					ReadAlignment aln = it.next();
+					CharSequence characters = aln.getReadCharacters();
+					if(aln.isNegativeStrand()) {
+						characters = DNAMaskedSequence.getReverseComplement(characters);
+					}
+					sequences.add(new QualifiedSequence(aln.getReadName(), characters));
+					if(!aln.isReadUnmapped()) alignments.add(aln);
+				}
+			}
+			Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		} else {
+			sequences = Assembler.load(readsFile, readsFormat);
+			if (simulated) alignments = buildAlignmentsFromSimulatedReads(sequences);
+		}
+		if(alignments==null) return;
+		
+		AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 		try (PrintStream out=new PrintStream(outputFile)) {
+			AssemblyGraph graph = AssemblyGraph.load(sequences, inputFile);
+			graph.updateVertexDegrees();
 			Distribution degreeDist = graph.getVertexDegreeDistribution ();
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
-			if(genome==null)  return;
-			List<ReadAlignment> alignments = null;
-			List<QualifiedSequence> sequences = graph.getSequences();
-			if (alignmentsFile!=null) {
-				alignments = new ArrayList<ReadAlignment>();
-				sequences = new ArrayList<QualifiedSequence>();
-				try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
-					reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
-					Iterator<ReadAlignment> it = reader.iterator();
-					while (it.hasNext()) {
-						ReadAlignment aln = it.next();
-						CharSequence characters = aln.getReadCharacters();
-						if(aln.isNegativeStrand()) {
-							characters = DNAMaskedSequence.getReverseComplement(characters);
-						}
-						sequences.add(new QualifiedSequence(aln.getReadName(), characters));
-						if(!aln.isReadUnmapped()) alignments.add(aln);
-					}
-				}
-				Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
-			} else if (simulated) {
-				alignments = buildAlignmentsFromSimulatedReads(sequences);
-			}
-			if(alignments==null) return;
-			AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 			compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
@@ -270,7 +285,6 @@ public class AssemblyGraphStatistics {
 			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
 			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
 			aln.setReadNumber(i);
-			aln.setReadCharacters(seq.getCharacters());
 			alignments.add(aln);
 		}
 		return alignments;
@@ -282,11 +296,16 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
+			leftSeq.setLength(left.getReadLength());
+			
 			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
 			for(int j=i+1;j<alignments.size();j++) {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
 				if(cmp>1) break;
+				QualifiedSequence rightSeq = new QualifiedSequence(right.getReadName());
+				rightSeq.setLength(right.getReadLength());
 				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 				int overlap = left.getLast() - right.getFirst() + 1;
 				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
@@ -297,26 +316,39 @@ public class AssemblyGraphStatistics {
 				
 				if(left.getFirst()== right.getFirst() && left.getLast()<=right.getLast()) {
 					//left is embedded in right
+					int relativeEnd;
 					if(right.isNegativeStrand()) {
-						relativeStart = right.getLast() - left.getLast();
+						relativeStart = left.getLast() - right.getFirst();
+						relativeEnd = 0;
 					} else {
 						relativeStart = 0;
+						relativeEnd = left.getLast() - right.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeNegative, right.getReadNumber(), relativeStart);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), leftSeq, relativeNegative, right.getReadNumber(), relativeStart, relativeEnd);
 					graph.addEmbedded(embeddedEvent);
 					if(right.getLast()<=left.getLast()) {
 						//right is also embedded in left
-						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), 0 );
+						if(left.isNegativeStrand()) {
+							relativeStart = right.getLast() - left.getFirst();
+							relativeEnd = 0;
+						} else {
+							relativeStart = 0;
+							relativeEnd = right.getLast() - left.getFirst();
+						}
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
 						graph.addEmbedded(embeddedEvent);
 					}
 				} else if(right.getLast()<=left.getLast()) {
 					//Right is embedded in left
+					int relativeEnd;
 					if(left.isNegativeStrand()) {
-						relativeStart = left.getLast() - right.getLast();
+						relativeStart = right.getLast() - left.getFirst();
+						relativeEnd = right.getFirst()-left.getFirst();
 					} else {
 						relativeStart = right.getFirst()-left.getFirst();
+						relativeEnd = right.getLast() - left.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), relativeStart );
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
 					graph.addEmbedded(embeddedEvent);
 				}
 			}
@@ -462,7 +494,7 @@ public class AssemblyGraphStatistics {
 				if(edgeEmbedded) tpEdgesEmbedded++;
 				else {
 					tpEdgesNotEmbedded++;
-					updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(gsConnectingVertex.getUniqueNumber()));
+					//updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(gsConnectingVertex.getUniqueNumber()));
 				}
 				testEdgesMatched.put(number, true);
 			}
@@ -489,12 +521,12 @@ public class AssemblyGraphStatistics {
 							distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
 							distCostsTPPathEdges.processDatapoint(calculateCost(edge));
 							distMismatchesTPPathEdges.processDatapoint(edge.getMismatches());
-							distSharedKmersTPPathEdges.processDatapoint(edge.getEvidence().getNumDifferentKmers());
+							distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
 							distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
 							distMismatchesProportionTPPathEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
-							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getEvidence().getNumDifferentKmers()/edge.getOverlap());
+							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 							distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-							distOverlapSDTPPathEdges.processDatapoint(edge.getEvidence().getPredictedOverlapSD());
+							distOverlapSDTPPathEdges.processDatapoint(edge.getOverlapStandardDeviation());
 						}
 						if(!edge.isSameSequenceEdge() && (minCostTestEdge==null || minCostTestEdge.getCost()>edge.getCost())) minCostTestEdge=edge;
 						if(!edge.isSameSequenceEdge() && (maxOverlapTestEdge==null || maxOverlapTestEdge.getOverlap()<edge.getOverlap())) maxOverlapTestEdge=edge;
@@ -519,17 +551,17 @@ public class AssemblyGraphStatistics {
 				distOverlapsFPEdges.processDatapoint(edge.getOverlap());
 				distCostsFPEdges.processDatapoint(calculateCost(edge));
 				distMismatchesFPEdges.processDatapoint(edge.getMismatches());
-				distSharedKmersFPEdges.processDatapoint(edge.getEvidence().getNumDifferentKmers());
+				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
 				distMismatchesProportionFPEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
-				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getEvidence().getNumDifferentKmers()/edge.getOverlap());
+				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 				distCoverageSharedKmersProportionFPEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-				distOverlapSDFPEdges.processDatapoint(edge.getEvidence().getPredictedOverlapSD());
+				distOverlapSDFPEdges.processDatapoint(edge.getOverlapStandardDeviation());
 				if (logErrors) log.info("False positive edge "+edge);
 			}
 		}
 	}
-	private void updateOverlapStats(AssemblyEdge gsEdge, AssemblyEdge testEdge) {
+	/*private void updateOverlapStats(AssemblyEdge gsEdge, AssemblyEdge testEdge) {
 		if(testEdge==null || testEdge.isSameSequenceEdge()) return;
 		double error = gsEdge.getOverlap()-testEdge.getOverlap();
 		rmsePredictedOverlap+=error*error;
@@ -549,7 +581,7 @@ public class AssemblyGraphStatistics {
 			rmseFromLimitsPredictedOverlap+=error*error;
 			countFromLimitsPredictedOverlap++;
 		}
-	}
+	}*/
 	private double calculateCost(AssemblyEdge edge) {
 		if(edge.isSameSequenceEdge()) return edge.getCost();
 		//int cost = edge.getCost();

@@ -72,16 +72,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				
 				int overlap = edge.getOverlap();
 				int startSuffix = overlap;
-				KmerHitsCluster cluster = edge.getEvidence();
-				if(cluster!=null) {
-					if (vertexPreviousEdge.getSequenceIndex()== cluster.getSequenceIdx()) {
-						if (!vertexPreviousEdge.isStart()) startSuffix = cluster.getQueryPredictedEnd();
-						else startSuffix = nextPathSequence.length() - cluster.getQueryPredictedStart();
-					} else if (vertexNextEdge.getSequenceIndex() == cluster.getSequenceIdx()) {
-						if (vertexNextEdge.isStart()) startSuffix = cluster.getSubjectPredictedEnd();
-						else startSuffix = nextPathSequence.length() - cluster.getSubjectPredictedStart();
-					}
-				}
+				//TODO: Recalculate segment from alignment
 				if(startSuffix<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
