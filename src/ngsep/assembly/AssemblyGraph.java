@@ -485,6 +485,7 @@ public class AssemblyGraph implements Serializable {
 		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		if(vS==null || vE==null) return;
 		filterEdgesAbnormalOverlap(getEdges(vS));
 		filterEdgesAbnormalOverlap(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
