@@ -9,32 +9,63 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
+import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
 
 public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		List<AssemblyEdge> safeReciprocalEdges = selectSafeEdges(graph);
-		System.out.println("Number of safe edges: "+safeReciprocalEdges.size());
-		Distribution [] edgesStats = calculateStatistics(safeReciprocalEdges);
-		System.out.println("Average overlap: "+edgesStats[0].getAverage()+" average coverage shared kmers: "+edgesStats[1].getAverage());
-		List<List<AssemblyEdge>> safePaths = buildPaths(graph, safeReciprocalEdges);
+		Distribution initialDegreesDist = new Distribution(0, 10000, 1);
+		List<AssemblyVertex> vertices = graph.getVertices();
+		List<AssemblyEdge> allEdges = graph.getEdges();
+		for(AssemblyVertex v:vertices) {
+			if(!graph.isEmbedded(v.getSequenceIndex())) initialDegreesDist.processDatapoint(v.getDegreeUnfilteredGraph());
+		}
+		NormalDistribution distDegrees = new NormalDistribution(initialDegreesDist.getAverage(), initialDegreesDist.getVariance());
+		Set<Integer> repetitiveVertices = new HashSet<Integer>();
+		for(AssemblyVertex v:vertices) {
+			if(isRepetivive(v, distDegrees)) repetitiveVertices.add(v.getUniqueNumber());
+		}
+		System.out.println("Total vertices for layout: "+initialDegreesDist.getCount()+" Number of repetitive vertices: "+repetitiveVertices.size());
+		List<AssemblyEdge> pathEdges = selectSafeEdges(graph, repetitiveVertices);
+		System.out.println("Number of safe edges: "+pathEdges.size());
+		
+		List<List<AssemblyEdge>> safePaths = buildPaths(graph, pathEdges);
+		//Map<Integer,Integer> vertexPathIds = calculateVertexPathIdsMap(safePaths);
 		System.out.println("Number of initial paths: "+safePaths.size());
-		List<List<AssemblyEdge>> mergedPaths = mergePaths(graph, safePaths, edgesStats);
-		for(List<AssemblyEdge> path:mergedPaths) {
+		Distribution [] edgesStats = calculateStatistics(pathEdges, allEdges, repetitiveVertices);
+		System.out.println("Average overlap TP: "+edgesStats[0].getAverage()+" SD: "+Math.sqrt(edgesStats[0].getVariance())+ " Total: "+edgesStats[0].getCount());
+		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
+		System.out.println("Average overlap FP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
+		System.out.println("Average coverage shared kmers FP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
+		addConnectingEdges(graph, safePaths, pathEdges, edgesStats);
+		List<List<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
+		for(List<AssemblyEdge> path:paths) {
 			graph.addPath(path);
 		}
 
 	}
-
-	private List<AssemblyEdge> selectSafeEdges(AssemblyGraph graph) {
+	private boolean isRepetivive(AssemblyVertex vertex, NormalDistribution distDegrees) {
+		int degree = vertex.getDegreeUnfilteredGraph();
+		double pValue = distDegrees.cumulative(degree);
+		if(pValue>0.5) pValue = 1-pValue;
+		boolean repetitive = degree> distDegrees.getMean() && pValue<0.05;
+		//if(repetitive) System.out.println("Repetitive vertex: "+vertex+" initial degree: "+vertex.getDegreeUnfilteredGraph()+" average: "+distDegrees.getMean()+" sd "+Math.sqrt(distDegrees.getVariance()));
+		return repetitive;
+	}
+	
+	private List<AssemblyEdge> selectSafeEdges(AssemblyGraph graph, Set<Integer> repetitiveVertices ) {
 		List<AssemblyEdge> allEdges = graph.getEdges();
 		List<AssemblyEdge> safeEdges = new ArrayList<AssemblyEdge>();
 		for(AssemblyEdge edge:allEdges) {
-			if(!edge.isSameSequenceEdge() && isRecipocalBest(graph, edge)) {
+			if(edge.isSameSequenceEdge()) continue;
+			boolean r1 = repetitiveVertices.contains(edge.getVertex1().getUniqueNumber());
+			boolean r2 = repetitiveVertices.contains(edge.getVertex2().getUniqueNumber()); 
+			int d1 = graph.getEdges(edge.getVertex1()).size();
+			int d2 = graph.getEdges(edge.getVertex2()).size();
+			if((d1==2 && d2==2) || (!r1 && !r2 && isRecipocalBest(graph, edge))) {
 				safeEdges.add(edge);
 			}
 		}
@@ -58,42 +89,62 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		}
 		return true;
 	}
-
-	private Distribution[] calculateStatistics(List<AssemblyEdge> edges) {
-		Distribution overlapDistribution = new Distribution(0, 100000, 1000);
-		Distribution kmerHitCoverageDistribution = new Distribution(0, 100000, 1000);
-		for(AssemblyEdge edge:edges) {
-			if(edge.isSameSequenceEdge()) continue;
-			overlapDistribution.processDatapoint(edge.getOverlap());
-			kmerHitCoverageDistribution.processDatapoint(edge.getCoverageSharedKmers());
+	private Map<Integer, Integer> calculateVertexPathIdsMap(List<List<AssemblyEdge>> paths) {
+		Map<Integer, Integer> answer = new HashMap<Integer, Integer>();
+		for(int i=0;i<paths.size();i++) {
+			List<AssemblyEdge> path = paths.get(i);
+			for(AssemblyEdge edge:path) {
+				answer.put(edge.getVertex1().getUniqueNumber(), i);
+				answer.put(edge.getVertex2().getUniqueNumber(), i);
+			}
 		}
-		Distribution [] answer = {overlapDistribution, kmerHitCoverageDistribution};
+		return answer;
+	}
+	private Distribution[] calculateStatistics(List<AssemblyEdge> safeEdges, List<AssemblyEdge> allEdges, Set<Integer> repetitiveVertices) {
+		Distribution overlapDistributionTP = new Distribution(0, 100000, 1);
+		Distribution kmerHitCoverageDistributionTP = new Distribution(0, 100000, 1);
+		Distribution overlapDistributionFP = new Distribution(0, 100000, 1);
+		Distribution kmerHitsCoverageDistributionFP = new Distribution(0, 100000, 1);
+		for(AssemblyEdge edge:safeEdges) {
+			overlapDistributionTP.processDatapoint(edge.getOverlap());
+			kmerHitCoverageDistributionTP.processDatapoint(edge.getCoverageSharedKmers());
+		}
+		for(AssemblyEdge edge:allEdges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(repetitiveVertices.contains(edge.getVertex1().getUniqueNumber()) && repetitiveVertices.contains(edge.getVertex2().getUniqueNumber())) {
+				//if(overlapDistributionFP.getCount()<50) System.out.println("LayoutBuilder. Possible false positive: "+edge+" p1: "+p1+" p2: "+p2);
+				overlapDistributionFP.processDatapoint(edge.getOverlap());
+				kmerHitsCoverageDistributionFP.processDatapoint(edge.getCoverageSharedKmers());
+			}
+		}
+		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, overlapDistributionFP, kmerHitsCoverageDistributionFP};
 		return answer;
 	}
 
 	private List<List<AssemblyEdge>> buildPaths(AssemblyGraph graph, List<AssemblyEdge> edges) {
-		Map<Integer,AssemblyEdge> bestEdgesByVertex = new HashMap<Integer, AssemblyEdge>();
-		Set<Integer> sequencesWithEdges = new TreeSet<Integer>(); 
+		Map<Integer,AssemblyEdge> edgesByVertex = new HashMap<Integer, AssemblyEdge>(); 
 		for(AssemblyEdge edge:edges) {
 			if(edge.isSameSequenceEdge()) continue;
 			AssemblyVertex v1 = edge.getVertex1();
+			if(edgesByVertex.containsKey(v1.getUniqueNumber())) System.err.println("WARN: two edges for vertex. E1 "+edgesByVertex.get(v1.getUniqueNumber())+" E2: "+edge);
 			AssemblyVertex v2 = edge.getVertex2();
-			bestEdgesByVertex.put(v1.getUniqueNumber(), edge);
-			bestEdgesByVertex.put(v2.getUniqueNumber(), edge);
-			sequencesWithEdges.add(v1.getSequenceIndex());
-			sequencesWithEdges.add(v2.getSequenceIndex());
+			if(edgesByVertex.containsKey(v2.getUniqueNumber())) System.err.println("WARN: two edges for vertex. E1 "+edgesByVertex.get(v2.getUniqueNumber())+" E2: "+edge);
+			edgesByVertex.put(v1.getUniqueNumber(), edge);
+			edgesByVertex.put(v2.getUniqueNumber(), edge);
 		}
+		int n = graph.getNumSequences();
 		List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 		Set<Integer> sequencesInPaths = new HashSet<>();
-		for(int i:sequencesWithEdges) {
+		for(int i=0;i<n;i++) {
 			if(graph.isEmbedded(i)) continue;
+			if(graph.getVertex(i, true)==null || graph.getVertex(i, false)==null) continue;
 			if(sequencesInPaths.contains(i)) continue;
 			AssemblyVertex nextVertex = graph.getVertex(i, true);
 			List<AssemblyEdge> nextPath = new LinkedList<AssemblyEdge>();
 			nextPath.add(graph.getSameSequenceEdge(nextVertex));
 			//Expand v1
 			while(nextVertex!=null) {
-				AssemblyEdge nextEdge = bestEdgesByVertex.get(nextVertex.getUniqueNumber());
+				AssemblyEdge nextEdge = edgesByVertex.get(nextVertex.getUniqueNumber());
 				if(nextEdge == null) nextVertex=null;
 				else {
 					nextVertex = nextEdge.getConnectingVertex(nextVertex);
@@ -111,7 +162,7 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 			//Expand v2
 			nextVertex = graph.getVertex(i, false);
 			while(nextVertex!=null) {
-				AssemblyEdge nextEdge = bestEdgesByVertex.get(nextVertex.getUniqueNumber());
+				AssemblyEdge nextEdge = edgesByVertex.get(nextVertex.getUniqueNumber());
 				if(nextEdge == null) nextVertex=null;
 				else {
 					nextVertex = nextEdge.getConnectingVertex(nextVertex);
@@ -131,19 +182,19 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		return paths;
 	}
 
-	private AssemblyEdge selectNextUncoveredEdge(List<AssemblyEdge> edges, Set<Integer> sequencesInPaths) {
-		for(AssemblyEdge edge:edges) {
-			if(!sequencesInPaths.contains(edge.getVertex1().getSequenceIndex()) && !sequencesInPaths.contains(edge.getVertex2().getSequenceIndex())) return edge;
-		}
-		return null;
-	}
-
-	private List<List<AssemblyEdge>> mergePaths(AssemblyGraph graph, List<List<AssemblyEdge>> paths, Distribution[] edgesStats) {
+	private void addConnectingEdges(AssemblyGraph graph, List<List<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges, Distribution[] edgesStats) {
 		int p = paths.size();
 		AssemblyVertex [] vertices = new AssemblyVertex[2*p];
 		int v=0;
 		for(int i=0;i<p;i++) {
 			List<AssemblyEdge> path = paths.get(i);
+			if(path.size()==1) {
+				vertices[v] = path.get(0).getVertex1();
+				v++;
+				vertices[v] = path.get(0).getVertex2();
+				v++;
+				continue;
+			}
 			AssemblyEdge edge0 = path.get(0);
 			AssemblyEdge edge1 = path.get(1);
 			AssemblyVertex v1 = edge0.getSharedVertex(edge1);
@@ -163,58 +214,11 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 				if(edge !=null && passFilters(edge,edgesStats)) candidateEdges.add(new AssemblyEdgePathEnd(edge, i, j));
 			}
 		}
-		Map<Integer,AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length);
-		List<AssemblyEdge> newPathsEdges = new ArrayList<AssemblyEdge>();
-		for(List<AssemblyEdge> path:paths) newPathsEdges.addAll(path);
-		for(AssemblyEdgePathEnd edgePathEnd:pathEdgesByVertexId.values()) newPathsEdges.add(edgePathEnd.getEdgeAssemblyGraph());
-		return buildPaths(graph, newPathsEdges);
-		/*List<List<AssemblyEdge>> finalPaths = new ArrayList<List<AssemblyEdge>>();
-		Set<Integer> mergedPaths = new HashSet<Integer>();
-		for(int i=0;i<p;i++) {
-			if(mergedPaths.contains(i)) continue;
-			List<AssemblyEdge> nextPath = new LinkedList<AssemblyEdge>();
-			nextPath.addAll(paths.get(i));
-			mergedPaths.add(i);
-			//Augment left
-			int v1 = 2*i;
-			AssemblyEdgePathEnd nextEdge = pathEdgesByVertexId.get(v1);
-			while (nextEdge!=null) {
-				int v2 = nextEdge.getVertex1();
-				if(v2==v1) v2 = nextEdge.getVertex2();
-				if (mergedPaths.contains(v2/2)) {
-					System.err.println("WARN: cycle detected merging paths");
-					break;
-				}
-				List<AssemblyEdge> pathToMerge = paths.get(v2/2);
-				if(v2%2==0) Collections.reverse(pathToMerge);
-				nextPath.addAll(0, pathToMerge);
-				mergedPaths.add(v2/2);
-				v1=v2%2==0?v2+1:v2-1;
-				nextEdge = pathEdgesByVertexId.get(v1);
-			}
-			//Augment right
-			v1 = 2*i+1;
-			nextEdge = pathEdgesByVertexId.get(v1);
-			while (nextEdge!=null) {
-				int v2 = nextEdge.getVertex1();
-				if(v2==v1) v2 = nextEdge.getVertex2();
-				if (mergedPaths.contains(v2/2)) {
-					System.err.println("WARN: cycle detected merging paths");
-					break;
-				}
-				List<AssemblyEdge> pathToMerge = paths.get(v2/2);
-				if(v2%2==1) Collections.reverse(pathToMerge);
-				nextPath.addAll(pathToMerge);
-				mergedPaths.add(v2/2);
-				v1=v2%2==0?v2+1:v2-1;
-				nextEdge = pathEdgesByVertexId.get(v1);
-			}
-			finalPaths.add(nextPath);
-		}
-		return finalPaths; */
+		List<AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length);
+		for(AssemblyEdgePathEnd edgeP:pathEdgesByVertexId) pathEdges.add(edgeP.getEdgeAssemblyGraph());
 	}
 
-	private Map<Integer,AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length) {
+	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length) {
 		Collections.sort(candidateEdges,(e1,e2)->e2.getOverlap()-e1.getOverlap());
 		int [] clusters = new int[length];
 		boolean [] used = new boolean[length];
@@ -222,7 +226,7 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		for(int i=0;i<length;i++) {
 			clusters[i] = i/2;
 		}
-		Map<Integer,AssemblyEdgePathEnd> answer = new HashMap<Integer, AssemblyEdgePathEnd>();
+		List<AssemblyEdgePathEnd> answer = new ArrayList<AssemblyEdgePathEnd>();
 		for(AssemblyEdgePathEnd nextEdge:candidateEdges) {
 			int v1 = nextEdge.getVertex1();
 			if(used[v1]) continue;
@@ -231,8 +235,7 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 			int c1 = clusters[v1];
 			int c2 = clusters[v2];
 			if(c1!=c2) {
-				answer.put(v1, nextEdge);
-				answer.put(v2, nextEdge);
+				answer.add(nextEdge);
 				used[v1] =used[v2] = true;
 				for(int i=0;i<length;i++) {
 					if(clusters[i]==c2) clusters[i] = c1;
@@ -243,8 +246,29 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 	}
 
 	private boolean passFilters(AssemblyEdge edge, Distribution[] edgesStats) {
-		// TODO Auto-generated method stub
-		return true;
+		Distribution overlapTP = edgesStats[0];
+		Distribution covTP = edgesStats[1];
+		Distribution overlapFP = edgesStats[2];
+		Distribution covFP = edgesStats[3];
+		if(overlapTP.getCount()==0 || overlapFP.getCount()==0) return true;
+		NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance());
+		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance());
+		NormalDistribution noFP = new NormalDistribution(overlapFP.getAverage(),overlapFP.getVariance());
+		NormalDistribution ncFP = new NormalDistribution(covFP.getAverage()-covTP.getAverage()/2,covFP.getVariance());
+		double pValueOTP = noTP.cumulative(edge.getOverlap());
+		if(pValueOTP>0.5) pValueOTP=1-pValueOTP;
+		double pValueCTP = ncTP.cumulative(edge.getCoverageSharedKmers());
+		if(pValueCTP>0.5) pValueCTP=1-pValueCTP;
+		double pValueOFP = noFP.cumulative(edge.getOverlap());
+		if(pValueOFP>0.5) pValueOFP=1-pValueOFP;
+		double pValueCFP = ncFP.cumulative(edge.getCoverageSharedKmers());
+		if(pValueCFP>0.5) pValueCFP=1-pValueCFP;
+		boolean passFilter = pValueOTP*pValueCTP/(pValueOFP*pValueCFP) > 2;
+		if(!passFilter) System.out.println("False positive edge "+edge+" p values: "+pValueOTP+" "+pValueCTP+" "+pValueOFP+" "+pValueCFP);
+		//return pValueTP>=0.01;
+		//double pValueFP = overlapFP.getEmpiricalPvalue(edge.getOverlap())*covFP.getEmpiricalPvalue(edge.getCoverageSharedKmers());
+		//return pValueTP/pValueFP>=2;
+		return passFilter;
 	}
 
 }

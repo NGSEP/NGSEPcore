@@ -386,6 +386,12 @@ public class AssemblyGraph implements Serializable {
 		}
 	}
 
+	public void updateVertexDegrees () {
+		for (int v:edgesMap.keySet()) {
+			AssemblyVertex vertex = verticesByUnique.get(v);
+			vertex.setDegreeUnfilteredGraph(edgesMap.get(v).size());
+		}
+	}
 	/**
 	 * Calculates the distribution of vertex degrees
 	 * @return Distribution of degrees of vertices
@@ -552,7 +558,7 @@ public class AssemblyGraph implements Serializable {
 		for(AssemblyEdge edge:edges) {
 			if(edge.isSameSequenceEdge()) continue;
 			int overlap = edge.getOverlap();
-			if(overlap>edge.getVertex1().getRead().getLength() || overlap>edge.getVertex2().getRead().getLength()) {
+			if(overlap>1.1*edge.getVertex1().getRead().getLength() || overlap>1.1*edge.getVertex2().getRead().getLength()) {
 				toRemove.add(edge);
 			}
 		}
@@ -660,7 +666,9 @@ public class AssemblyGraph implements Serializable {
 		if(transitiveBad!=null && transitiveGood==null) {
 			//System.out.println("Filter edges close. removing edge: "+maxOverlapEdge.getVertex1().getUniqueNumber()+" "+maxOverlapEdge.getVertex2().getUniqueNumber()+" transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
 			removeEdge(maxOverlapEdge);
-		}
+		} /*else if (transitiveGood!=null && transitiveBad == null) {
+			removeEdge(transitiveGood);
+		}*/
 	}
 	
 }

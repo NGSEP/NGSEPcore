@@ -134,5 +134,9 @@ public class AssemblyEdge implements Serializable {
 		this.layoutEdge = layoutEdge;
 	}
 	
+	public String toString() {
+		return "v1 "+getVertex1()+" v2: "+getVertex2()+System.lineSeparator()+" overlap: "+getOverlap()+" mismatches: "+getMismatches()+" coverage shared kmers: "+getCoverageSharedKmers()+" cost: "+getCost();
+	}
+	
 
 }

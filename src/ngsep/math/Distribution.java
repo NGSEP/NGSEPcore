@@ -39,6 +39,8 @@ public class Distribution {
 	private double count=0;
 	private int maxIdx = -1;
 	private double distribution [];
+	private double cumulative[];
+	private boolean cumulativeUpdated = false;
 	private double minValueData = Integer.MAX_VALUE;
 	private double maxValueData = Integer.MIN_VALUE;
 	private List<Double> outliersLess = new ArrayList<Double>();
@@ -77,7 +79,17 @@ public class Distribution {
 		} else if(value > maxValueDistribution) {
 			outliersMore.add(value);
 		}
-		
+		cumulativeUpdated = false;
+	}
+	public double [] getCumulative () {
+		if (cumulativeUpdated) return cumulative;
+		cumulative = new double[distribution.length];
+		for(int i=0;i<distribution.length;i++) {
+			if (i==0) cumulative[i] = outliersLess.size()+distribution[0];
+			else cumulative[i] = cumulative[i-1]+distribution[i];
+		}
+		cumulativeUpdated = true;
+		return cumulative;
 	}
 	public double getSum() {
 		return sum;
@@ -113,6 +125,7 @@ public class Distribution {
 		return binLength;
 	}
 	public double getAverage() {
+		if(count ==0) return 0;
 		return sum/count;
 	}
 	public double getVariance() {
@@ -126,10 +139,94 @@ public class Distribution {
 		if(maxIdx==-1) return minValueDistribution;
 		return minValueDistribution+maxIdx*binLength;
 	}
+	public int getBinIndex (int value) {
+		return (value-(int)minValueDistribution)/(int)binLength;
+	}
+	public int getBinIndex (double value) {
+		return (int)((value-minValueDistribution)/binLength);
+	}
+	/**
+	 * Calculates the distribution count for the bin where the given value is located
+	 * @param value to calculate. If it is an outlier returns the size of the corresponding list of outliers
+	 * @return Count of elements falling in the same distribution bin as the given value
+	 */
+	public double getDistributionCount (double value) {
+		int idx = getBinIndex(value);
+		if(idx<0) return outliersLess.size();
+		if(idx>=distribution.length) return outliersMore.size();
+		return distribution[idx];
+	}
+	/**
+	 * Calculates the cumulative count for the given value
+	 * @param value to calculate. If it is an outlier returns the size of the left outliers in one case and the complete count in the other end
+	 * @return double Count of elements with bin locations less or equal than the bin where the given value is located
+	 */
+	public double getCumulativeCount (double value) {
+		double [] cumulative = getCumulative();
+		int idx = getBinIndex(value);
+		if(idx<0) return outliersLess.size();
+		if(idx>=distribution.length) return count;
+		return cumulative[idx];
+	}
+	/**
+	 * Calculates the percentage of datapoints with values equal or more extreme than the given value
+	 * @param value to calculate. It must be between the limits of the distribution
+	 * @return double Empirical p-value of the given value based on the distribution
+	 */
+	public double getEmpiricalPvalue (double value) {
+		if(count==0) return 1;
+		double distCount = getDistributionCount(value);
+		double cumulativeCount = getCumulativeCount(value);
+		double testCount = Math.max(1, Math.min(cumulativeCount, count-cumulativeCount+distCount));
+		return testCount/count;
+	}
+	/**
+	 * Calculates the distribution count for the bin where the given value is located
+	 * @param value to calculate. If it is an outlier returns the size of the corresponding list of outliers
+	 * @return Count of elements falling in the same distribution bin as the given value
+	 */
+	public double getDistributionCount (int value) {
+		int idx = getBinIndex(value);
+		if(idx<0) return outliersLess.size();
+		if(idx>=distribution.length) return outliersMore.size();
+		return distribution[idx];
+	}
+	/**
+	 * Calculates the cumulative count for the given value
+	 * @param value to calculate. If it is an outlier returns the size of the left outliers in one case and the complete count in the other end
+	 * @return double Count of elements with bin locations less or equal than the bin where the given value is located
+	 */
+	public double getCumulativeCount (int value) {
+		double [] cumulative = getCumulative();
+		int idx = getBinIndex(value);
+		if(idx<0) return outliersLess.size();
+		if(idx>=distribution.length) return count;
+		return cumulative[idx];
+	}
+	
+	/**
+	 * Calculates the percentage of datapoints with values equal or more extreme than the given value
+	 * @param value to calculate. It must be between the limits of the distribution
+	 * @return double Empirical p-value of the given value based on the distribution
+	 */
+	public double getEmpiricalPvalue (int value) {
+		if(count==0) return 1;
+		double distCount = getDistributionCount(value);
+		double cumulativeCount = getCumulativeCount(value);
+		double testCount = Math.max(1, Math.min(cumulativeCount, count-cumulativeCount+distCount));
+		return testCount/count;
+	}
+	
+	/**
+	 * Return the most popular value within the subset of the distribution defined by the given limits
+	 * @param leftValue
+	 * @param rightValue
+	 * @return
+	 */
 	public double getLocalMode(double leftValue, double rightValue) {
-		int i = (int)((leftValue-minValueDistribution)/binLength);
+		int i = getBinIndex(leftValue);
 		if(i<0) i=0;
-		int endBin = (int)((rightValue-minValueDistribution)/binLength)+1;
+		int endBin = getBinIndex(rightValue)+1;
 		if(endBin>distribution.length) endBin = distribution.length;
 		int maxBinIdx = i;
 		double maxValue = distribution[i];

@@ -15,7 +15,9 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	private AssemblyGraph graph;
 	
-	private int minKmerPercentage=10;
+	public static final int DEF_MIN_KMER_PCT = 5;
+	
+	private int minKmerPercentage=DEF_MIN_KMER_PCT;
 	
 	private double minProportionOverlap = 0.05;
 	
