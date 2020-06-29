@@ -77,7 +77,7 @@ public class AssemblyVertex implements Serializable {
 		this.degreeUnfilteredGraph = degreeUnfilteredGraph;
 	}
 	public String toString() {
-		return ""+getUniqueNumber()+" "+getSequenceIndex()+ " "+getRead().getName();
+		return ""+getUniqueNumber()+" "+getSequenceIndex()+ " "+getRead().getName()+" "+getRead().getLength();
 	}
 	
 }

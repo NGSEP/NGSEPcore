@@ -440,10 +440,10 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==19204 || gsVertex.getUniqueNumber()==-25800; 
+		boolean debug = gsVertex.getUniqueNumber()==613 || gsVertex.getUniqueNumber()==699; 
 		if(debug) {
-			printEdgeList("Gold standard", gsVertex, gsEdges, out);
-			printEdgeList("Test", testVertex, testEdges, out);
+			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
+			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
 		}
 		Map<Integer,Boolean> testEdgesMatched = new HashMap<Integer, Boolean>();
 		Map<Integer,AssemblyEdge> testEdgesByConnectingVertex = new HashMap<Integer, AssemblyEdge>();
@@ -571,10 +571,10 @@ public class AssemblyGraphStatistics {
 		return false;
 	}
 
-	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, PrintStream out) {
+	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, AssemblyGraph graph, boolean includeEmbedded, PrintStream out) {
 		out.println(text+" vertex "+v);
 		for(AssemblyEdge edge:edges) {
-			out.println(edge);
+			if(includeEmbedded || !graph.isEmbedded(edge.getConnectingVertex(v).getSequenceIndex())) out.println(edge);
 		}
 		
 	}
