@@ -456,6 +456,27 @@ public class AssemblyGraph {
 		}
 		return graph;
 	}
+	
+	public static List<QualifiedSequence> loadSequenceNamesFromGraphFile(String graphFilename) throws IOException {
+		List<QualifiedSequence> sequenceNames = new ArrayList<QualifiedSequence>();
+		String line = null;
+		try (ConcatGZIPInputStream gzs = new ConcatGZIPInputStream(new FileInputStream(graphFilename));
+			 BufferedReader in = new BufferedReader(new InputStreamReader(gzs))) {
+			line = in.readLine();
+			if(!"#SEQUENCES".equals(line)) throw new IOException("Graph file misses sequence names. First line: "+line);
+			line=in.readLine();
+			while(line!=null && !line.startsWith("#")) {
+				String [] items = line.split("\t");
+				QualifiedSequence seq = new QualifiedSequence(items[0]);
+				seq.setLength(Integer.parseInt(items[1]));
+				sequenceNames.add(seq);
+				line=in.readLine();
+			}
+		} catch (NumberFormatException e) {
+			throw new IOException("Error loading number at line: "+line,e);
+		}
+		return sequenceNames;
+	}
 
 	public void updateVertexDegrees () {
 		for (int v:edgesMap.keySet()) {

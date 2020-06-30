@@ -195,7 +195,7 @@ public class AssemblyGraphStatistics {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input graph is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
-		if(readsFile==null && alignmentsFile==null) throw new IOException("Either the original reads or the alignments are required");
+		if(!simulated && readsFile==null && alignmentsFile==null) throw new IOException("For non simulated reads either the original reads or the alignments are required");
 		run (inputFile, outputFile);
 		log.info("Process finished");
 	}
@@ -231,9 +231,12 @@ public class AssemblyGraphStatistics {
 				}
 			}
 			Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		} else if (simulated) {
+			sequences = AssemblyGraph.loadSequenceNamesFromGraphFile(inputFile);
+			alignments = buildAlignmentsFromSimulatedReads(sequences);
 		} else {
 			sequences = Assembler.load(readsFile, readsFormat);
-			if (simulated) alignments = buildAlignmentsFromSimulatedReads(sequences);
+			//TODO: Use aligner to align sequences to reference
 		}
 		if(alignments==null) return;
 		
