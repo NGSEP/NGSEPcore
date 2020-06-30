@@ -580,7 +580,7 @@ public class AssemblyGraph {
 		filterEdgesAbnormalOverlap(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportion = 0.5;
+		double minScoreProportion = 0.7;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
