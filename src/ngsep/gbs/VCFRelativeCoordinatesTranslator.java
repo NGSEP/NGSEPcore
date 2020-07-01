@@ -166,7 +166,7 @@ public class VCFRelativeCoordinatesTranslator {
 			info.println("Single Consensus: " + singleConsensus);
 			info.println("Paired Consensus: " + pairedConsensus);
 			info.println("------ Issues with translation ------");
-			info.println("Not translated: " + untranslated + triallelic + notRefSeq);
+			info.println("Not translated: " + untranslated);
 			info.println("Triallelic: " + triallelic);
 			info.println("Biallelic: " + biallelic);
 			info.println("Unmapped Cluster: " + unmappedCluster);
