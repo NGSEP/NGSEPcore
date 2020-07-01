@@ -454,6 +454,7 @@ public class AssemblyGraph {
 		} catch (NumberFormatException e) {
 			throw new IOException("Error loading number at line: "+line,e);
 		}
+		graph.updateVertexDegrees();
 		return graph;
 	}
 	
@@ -576,8 +577,8 @@ public class AssemblyGraph {
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		if(vS==null || vE==null) return;
-		filterEdgesAbnormalOverlap(getEdges(vS));
-		filterEdgesAbnormalOverlap(getEdges(vE));
+		filterEdgesAbnormalFeatures(getEdges(vS));
+		filterEdgesAbnormalFeatures(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
 		double minScoreProportion = 0.7;
@@ -644,12 +645,16 @@ public class AssemblyGraph {
 		}
 	}
 
-	private void filterEdgesAbnormalOverlap(List<AssemblyEdge> edges) {
+	private void filterEdgesAbnormalFeatures(List<AssemblyEdge> edges) {
 		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
 		for(AssemblyEdge edge:edges) {
 			if(edge.isSameSequenceEdge()) continue;
 			int overlap = edge.getOverlap();
-			if(overlap>1.1*edge.getVertex1().getRead().getLength() || overlap>1.1*edge.getVertex2().getRead().getLength()) {
+			int v1L = edge.getVertex1().getRead().getLength();
+			int v2L = edge.getVertex2().getRead().getLength();
+			if(overlap>1.1*v1L || overlap>1.1*v2L) {
+				toRemove.add(edge);
+			} else if (edge.getCoverageSharedKmers()<0.3*v1L || edge.getCoverageSharedKmers()<0.3*v2L) {
 				toRemove.add(edge);
 			}
 		}

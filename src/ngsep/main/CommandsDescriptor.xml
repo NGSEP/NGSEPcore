@@ -1,5 +1,7 @@
-<NGSEP version="4.0.2" date="31-07-2020">
+<software name="NGSEP" version="4.0.2" date="31-07-2020" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
+<url>http://sourceforge.net/projects/ngsep/files/Library/</url>
+
 <commandgroup id="Reads"> 
 De-novo and reference guided reads processing
 </commandgroup>
@@ -1572,4 +1574,4 @@ Skip the MCL clustering phase and return unfiltered orthogroups.
 </option>
 </command>
 
-</NGSEP>
+</software>

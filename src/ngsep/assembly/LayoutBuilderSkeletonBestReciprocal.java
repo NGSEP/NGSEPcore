@@ -106,11 +106,13 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 	private Distribution[] calculateStatistics(List<AssemblyEdge> safeEdges, List<AssemblyEdge> allEdges, Set<Integer> repetitiveVertices) {
 		Distribution overlapDistributionTP = new Distribution(0, 100000, 1);
 		Distribution kmerHitCoverageDistributionTP = new Distribution(0, 100000, 1);
+		Distribution coverageProportionDistributionTP = new Distribution(0, 1.5, 0.01);
 		Distribution overlapDistributionFP = new Distribution(0, 100000, 1);
 		Distribution kmerHitsCoverageDistributionFP = new Distribution(0, 100000, 1);
 		for(AssemblyEdge edge:safeEdges) {
 			overlapDistributionTP.processDatapoint(edge.getOverlap());
 			kmerHitCoverageDistributionTP.processDatapoint(edge.getCoverageSharedKmers());
+			coverageProportionDistributionTP.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
 		}
 		for(AssemblyEdge edge:allEdges) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -225,14 +227,18 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 	private int calculateCost(AssemblyEdgePathEnd edge, Distribution[] edgesStats) {
 		Distribution overlapTP = edgesStats[0];
 		Distribution covTP = edgesStats[1];
-		NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance());
+		Distribution covPropTP = edgesStats[2];
+		double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
+		int cost = (int)Math.round(1000*(1.5-prop));
+		return cost;
+		/*NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance());
 		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance());
 		double pValueOTP = noTP.cumulative(edge.getOverlap());
 		if(pValueOTP>0.5) pValueOTP=1-pValueOTP;
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
 		double pValueCTP = ncTP.cumulative(edge.getCoverageSharedKmers());
 		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
-		return cost1+cost2;
+		return cost1+cost2;*/
 	}
 	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length, Distribution[] edgesStats) {
 		
