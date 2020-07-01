@@ -19,12 +19,11 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
 	
 	public static final int DEF_WINDOW_LENGTH = 5;
-	public static final int DEF_MIN_KMER_PCT = 10;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
 	private int windowLength=DEF_WINDOW_LENGTH;
-	private int minKmerPercentage=DEF_MIN_KMER_PCT;
+	private int minKmerPercentage=KmerHitsAssemblyEdgesFinder.DEF_MIN_KMER_PCT;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	private static final int TIMEOUT_SECONDS = 30;

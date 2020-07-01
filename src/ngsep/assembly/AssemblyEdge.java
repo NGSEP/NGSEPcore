@@ -19,21 +19,16 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.Serializable;
-
-import ngsep.sequences.KmerHitsCluster;
-
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEdge implements Serializable {
-	
-	private static final long serialVersionUID = -52781446837930525L;
+public class AssemblyEdge {
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
 	private int overlap;
-	private KmerHitsCluster evidence;
+	private int numSharedKmers;
+	private double overlapStandardDeviation;
 	private int coverageSharedKmers;
 	private int mismatches;
 	private boolean layoutEdge = false;
@@ -86,14 +81,22 @@ public class AssemblyEdge implements Serializable {
 		return cost;
 	}
 	
-	public KmerHitsCluster getEvidence() {
-		return evidence;
+	public int getNumSharedKmers() {
+		return numSharedKmers;
 	}
 
-	public void setEvidence(KmerHitsCluster evidence) {
-		this.evidence = evidence;
+	public void setNumSharedKmers(int numSharedKmers) {
+		this.numSharedKmers = numSharedKmers;
 	}
-	
+
+	public double getOverlapStandardDeviation() {
+		return overlapStandardDeviation;
+	}
+
+	public void setOverlapStandardDeviation(double overlapStandardDeviation) {
+		this.overlapStandardDeviation = overlapStandardDeviation;
+	}
+
 	public int getCoverageSharedKmers() {
 		return coverageSharedKmers;
 	}
@@ -132,6 +135,10 @@ public class AssemblyEdge implements Serializable {
 
 	public void setLayoutEdge(boolean layoutEdge) {
 		this.layoutEdge = layoutEdge;
+	}
+	
+	public String toString() {
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+System.lineSeparator()+" overlap: "+getOverlap()+" mismatches: "+getMismatches()+" coverage shared kmers: "+getCoverageSharedKmers()+" cost: "+getCost()+" layout: "+layoutEdge;
 	}
 	
 

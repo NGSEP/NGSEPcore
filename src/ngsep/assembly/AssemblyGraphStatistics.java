@@ -30,6 +30,8 @@ public class AssemblyGraphStatistics {
 	// Constants for default values
 	public static final byte READS_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte READS_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
+	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP=Assembler.LAYOUT_ALGORITHM_MAX_OVERLAP;
+	public static final String LAYOUT_ALGORITHM_KRUSKAL_PATH=Assembler.LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(AssemblyGraphStatistics.class.getName());
@@ -42,6 +44,7 @@ public class AssemblyGraphStatistics {
 	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -53,6 +56,7 @@ public class AssemblyGraphStatistics {
 	private Distribution distMismatchesProportionTPPathEdges = new Distribution(0, 1, 0.01);
 	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
+	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 500, 10);
 	
 	
 	private Distribution distOverlapsFPEdges = new Distribution(0,100000,2000);
@@ -63,6 +67,11 @@ public class AssemblyGraphStatistics {
 	private Distribution distMismatchesProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
+	private Distribution distOverlapSDFPEdges = new Distribution(0, 500, 10);
+	
+	private Distribution distOverlapsFPPathEdges = new Distribution(0,100000,2000);
+	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 50000, 1000);
+	private Distribution distCoverageSharedKmersProportionFPPathEdges = new Distribution(0, 1, 0.01);
 	
 	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCostsFNPathEdges = new Distribution(0,100000,2000);
@@ -89,6 +98,15 @@ public class AssemblyGraphStatistics {
 	private int totalTestLayoutPaths = 0;
 	private int totalTestLayoutEdges = 0;
 	private int totalGSLayoutEdges = 0;
+	
+	private double rmsePredictedOverlap=0;
+	private int countPredictedOverlap = 0;
+	private double rmseAveragePredictedOverlap=0;
+	private int countAveragePredictedOverlap = 0;
+	private double rmseMedianPredictedOverlap=0;
+	private int countMedianPredictedOverlap = 0;
+	private double rmseFromLimitsPredictedOverlap=0;
+	private int countFromLimitsPredictedOverlap = 0;
 	
 	private boolean logErrors = false;
 	
@@ -153,6 +171,14 @@ public class AssemblyGraphStatistics {
 	public void setAlignmentsFile(String alignmentsFile) {
 		this.alignmentsFile = alignmentsFile;
 	}
+	
+	
+	public String getLayoutAlgorithm() {
+		return layoutAlgorithm;
+	}
+	public void setLayoutAlgorithm(String layoutAlgorithm) {
+		this.layoutAlgorithm = layoutAlgorithm;
+	}
 	public boolean isSimulated() {
 		return simulated;
 	}
@@ -173,6 +199,7 @@ public class AssemblyGraphStatistics {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input graph is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
+		if(!simulated && readsFile==null && alignmentsFile==null) throw new IOException("For non simulated reads either the original reads or the alignments are required");
 		run (inputFile, outputFile);
 		log.info("Process finished");
 	}
@@ -183,41 +210,64 @@ public class AssemblyGraphStatistics {
 		out.println("Output file:"+ outputFile);
 		if (readsFile!=null) out.println("File with original reads: "+readsFile);
 		if(simulated) out.println("Reads were simulated using SingleReadsSimulator");
+		out.println("Layout algorithm:"+ layoutAlgorithm);
 		if (genome!=null) out.println("Target genome for benchmark loaded from file: "+genome.getFilename());
 		if (alignmentsFile!=null) out.println("Alignments file for benchmark "+alignmentsFile);
 		log.info(os.toString());
 	}
 	private void run(String inputFile, String outputFile) throws IOException {
-		AssemblyGraph graph = AssemblyGraph.load(inputFile);
+		List<ReadAlignment> alignments = null;
+		List<QualifiedSequence> sequences = AssemblyGraph.loadSequenceNamesFromGraphFile(inputFile);
+		AssemblyGraph graph = AssemblyGraph.load(sequences, inputFile);
+		Map<String,Integer> seqIds = new HashMap<String, Integer>();
+		for(int i=0;i<sequences.size();i++) {
+			QualifiedSequence seq = sequences.get(i);
+			if(seqIds.containsKey(seq.getName())) {
+				log.warning("Duplicated read name: "+seq.getName());
+			} else {
+				seqIds.put(seq.getName(), i);
+			}
+		}
+		if (alignmentsFile!=null) {
+			alignments = new ArrayList<ReadAlignment>();
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
+				reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
+				Iterator<ReadAlignment> it = reader.iterator();
+				while (it.hasNext()) {
+					ReadAlignment aln = it.next();
+					CharSequence characters = aln.getReadCharacters();
+					if(aln.isNegativeStrand()) {
+						characters = DNAMaskedSequence.getReverseComplement(characters);
+					}
+					Integer idx = seqIds.get(aln.getReadName());
+					if(idx==null) {
+						log.warning("Aligned read: "+aln.getReadName()+" not found in graph");
+						continue;
+					}
+					else aln.setReadNumber(idx);
+					
+					//sequences.add(new QualifiedSequence(aln.getReadName(), characters));
+					if(!aln.isReadUnmapped()) {
+						String newReadName = aln.getSequenceName()+"_"+aln.getFirst()+"_"+(aln.isNegativeStrand()?1:0);
+						aln.setReadName(newReadName);
+						sequences.get(idx).setName(newReadName);
+						alignments.add(aln);
+					}
+				}
+			}
+		} else if (simulated) {
+			alignments = buildAlignmentsFromSimulatedReads(sequences);
+		} else {
+			sequences = Assembler.load(readsFile, readsFormat);
+			//TODO: Use aligner to align sequences to reference
+		}
+		if(alignments==null) return;
+		
+		AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 		try (PrintStream out=new PrintStream(outputFile)) {
 			Distribution degreeDist = graph.getVertexDegreeDistribution ();
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
-			if(genome==null)  return;
-			List<ReadAlignment> alignments = null;
-			List<QualifiedSequence> sequences = graph.getSequences();
-			if (alignmentsFile!=null) {
-				alignments = new ArrayList<ReadAlignment>();
-				sequences = new ArrayList<QualifiedSequence>();
-				try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
-					reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
-					Iterator<ReadAlignment> it = reader.iterator();
-					while (it.hasNext()) {
-						ReadAlignment aln = it.next();
-						CharSequence characters = aln.getReadCharacters();
-						if(aln.isNegativeStrand()) {
-							characters = DNAMaskedSequence.getReverseComplement(characters);
-						}
-						sequences.add(new QualifiedSequence(aln.getReadName(), characters));
-						if(!aln.isReadUnmapped()) alignments.add(aln);
-					}
-				}
-				Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
-			} else if (simulated) {
-				alignments = buildAlignmentsFromSimulatedReads(sequences);
-			}
-			if(alignments==null) return;
-			AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 			compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
@@ -227,11 +277,19 @@ public class AssemblyGraphStatistics {
 			log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			graph.filterEdgesCloseRelationships();
 			log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
-			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxCoverageSharedKmers();
-			LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
-			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
-			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
+			LayoutBuilder pathsFinder;
+			if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
+				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
+				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxCoverageSharedKmers();
+				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+			} else {
+				pathsFinder = new LayoutBuilderSkeletonBestReciprocal();
+				//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
+				//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
+			}
+			
+			 
+			
 			pathsFinder.findPaths(graph);
 			//logErrors=true;
 			compareGraphs(goldStandardGraph, graph, out);
@@ -258,7 +316,6 @@ public class AssemblyGraphStatistics {
 			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
 			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
 			aln.setReadNumber(i);
-			aln.setReadCharacters(seq.getCharacters());
 			alignments.add(aln);
 		}
 		return alignments;
@@ -270,11 +327,16 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
+			leftSeq.setLength(left.getReadLength());
+			
 			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
 			for(int j=i+1;j<alignments.size();j++) {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
 				if(cmp>1) break;
+				QualifiedSequence rightSeq = new QualifiedSequence(right.getReadName());
+				rightSeq.setLength(right.getReadLength());
 				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 				int overlap = left.getLast() - right.getFirst() + 1;
 				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
@@ -285,26 +347,39 @@ public class AssemblyGraphStatistics {
 				
 				if(left.getFirst()== right.getFirst() && left.getLast()<=right.getLast()) {
 					//left is embedded in right
+					int relativeEnd;
 					if(right.isNegativeStrand()) {
-						relativeStart = right.getLast() - left.getLast();
+						relativeStart = left.getLast() - right.getFirst();
+						relativeEnd = 0;
 					} else {
 						relativeStart = 0;
+						relativeEnd = left.getLast() - right.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), left.getReadCharacters(), relativeNegative, right.getReadNumber(), relativeStart);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), leftSeq, relativeNegative, right.getReadNumber(), relativeStart, relativeEnd);
 					graph.addEmbedded(embeddedEvent);
 					if(right.getLast()<=left.getLast()) {
 						//right is also embedded in left
-						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), 0 );
+						if(left.isNegativeStrand()) {
+							relativeStart = right.getLast() - left.getFirst();
+							relativeEnd = 0;
+						} else {
+							relativeStart = 0;
+							relativeEnd = right.getLast() - left.getFirst();
+						}
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
 						graph.addEmbedded(embeddedEvent);
 					}
 				} else if(right.getLast()<=left.getLast()) {
 					//Right is embedded in left
+					int relativeEnd;
 					if(left.isNegativeStrand()) {
-						relativeStart = left.getLast() - right.getLast();
+						relativeStart = right.getLast() - left.getFirst();
+						relativeEnd = right.getFirst()-left.getFirst();
 					} else {
 						relativeStart = right.getFirst()-left.getFirst();
+						relativeEnd = right.getLast() - left.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), right.getReadCharacters(), relativeNegative, left.getReadNumber(), relativeStart );
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
 					graph.addEmbedded(embeddedEvent);
 				}
 			}
@@ -424,24 +499,20 @@ public class AssemblyGraphStatistics {
 	private String logSequence(int idx, QualifiedSequence sequence) {
 		return ""+idx+" "+sequence.getName()+" "+sequence.getLength();
 	}
-	private String logVertex(AssemblyVertex vertex) {
-		return ""+vertex.getUniqueNumber()+" "+logSequence(vertex.getSequenceIndex(), vertex.getRead());
-	}
-	private String logEdge(AssemblyEdge edge) {
-		return "v1 "+logVertex(edge.getVertex1())+" v2: "+logVertex(edge.getVertex2())+" overlap: "+edge.getOverlap()+" mismatches: "+edge.getMismatches()+" coverage shared kmers: "+edge.getCoverageSharedKmers()+" cost: "+edge.getCost();
-	}
 	private void calculateComparisonStats(AssemblyGraph goldStandardGraph, AssemblyVertex gsVertex, AssemblyGraph testGraph,  AssemblyVertex testVertex, PrintStream out) {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==1837 || gsVertex.getUniqueNumber()==4620; 
+		boolean debug = gsVertex.getUniqueNumber()==-485 || gsVertex.getUniqueNumber()==954; 
 		if(debug) {
-			printEdgeList("Gold standard", gsVertex, gsEdges, out);
-			printEdgeList("Test", testVertex, testEdges, out);
+			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
+			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
 		}
 		Map<Integer,Boolean> testEdgesMatched = new HashMap<Integer, Boolean>();
+		Map<Integer,AssemblyEdge> testEdgesByConnectingVertex = new HashMap<Integer, AssemblyEdge>();
 		for(AssemblyEdge edge:testEdges) {
 			testEdgesMatched.put(edge.getConnectingVertex(testVertex).getUniqueNumber(), false);
+			testEdgesByConnectingVertex.put(edge.getConnectingVertex(testVertex).getUniqueNumber(),edge);
 		}
 		boolean gsEmbedded = goldStandardGraph.isEmbedded(gsVertex.getSequenceIndex());
 		for(AssemblyEdge gsEdge:gsEdges) {
@@ -452,7 +523,10 @@ public class AssemblyGraphStatistics {
 			if(match) {
 				//True positive
 				if(edgeEmbedded) tpEdgesEmbedded++;
-				else tpEdgesNotEmbedded++;
+				else {
+					tpEdgesNotEmbedded++;
+					//updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(gsConnectingVertex.getUniqueNumber()));
+				}
 				testEdgesMatched.put(number, true);
 			}
 			else {
@@ -478,17 +552,18 @@ public class AssemblyGraphStatistics {
 							distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
 							distCostsTPPathEdges.processDatapoint(calculateCost(edge));
 							distMismatchesTPPathEdges.processDatapoint(edge.getMismatches());
-							distSharedKmersTPPathEdges.processDatapoint(edge.getEvidence().getNumDifferentKmers());
+							distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
 							distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
 							distMismatchesProportionTPPathEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
-							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getEvidence().getNumDifferentKmers()/edge.getOverlap());
+							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 							distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
+							distOverlapSDTPPathEdges.processDatapoint(edge.getOverlapStandardDeviation());
 						}
 						if(!edge.isSameSequenceEdge() && (minCostTestEdge==null || minCostTestEdge.getCost()>edge.getCost())) minCostTestEdge=edge;
 						if(!edge.isSameSequenceEdge() && (maxOverlapTestEdge==null || maxOverlapTestEdge.getOverlap()<edge.getOverlap())) maxOverlapTestEdge=edge;
 					}
 					//if(logErrors && minCostTestEdge!=layoutTestEdge) log.info("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logEdge(layoutTestEdge)+" min cost edge: "+logEdge(minCostTestEdge)+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
-					if(logErrors && maxOverlapTestEdge!=layoutTestEdge) log.info("Max overlap edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logEdge(layoutTestEdge)+" ax overlap edge: "+logEdge(maxOverlapTestEdge)+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
+					if(logErrors && maxOverlapTestEdge!=layoutTestEdge) log.info("Max overlap edge for vertex "+testVertex+" not in layout. Layout edge: "+layoutTestEdge+" max overlap edge: "+maxOverlapTestEdge+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
 					
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
@@ -507,16 +582,37 @@ public class AssemblyGraphStatistics {
 				distOverlapsFPEdges.processDatapoint(edge.getOverlap());
 				distCostsFPEdges.processDatapoint(calculateCost(edge));
 				distMismatchesFPEdges.processDatapoint(edge.getMismatches());
-				distSharedKmersFPEdges.processDatapoint(edge.getEvidence().getNumDifferentKmers());
+				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
 				distMismatchesProportionFPEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
-				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getEvidence().getNumDifferentKmers()/edge.getOverlap());
+				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 				distCoverageSharedKmersProportionFPEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-				
-				if (logErrors) log.info("False positive edge "+logEdge(edge));
+				distOverlapSDFPEdges.processDatapoint(edge.getOverlapStandardDeviation());
+				if (logErrors) log.info("False positive edge "+edge);
 			}
 		}
 	}
+	/*private void updateOverlapStats(AssemblyEdge gsEdge, AssemblyEdge testEdge) {
+		if(testEdge==null || testEdge.isSameSequenceEdge()) return;
+		double error = gsEdge.getOverlap()-testEdge.getOverlap();
+		rmsePredictedOverlap+=error*error;
+		countPredictedOverlap++;
+		if(testEdge.getEvidence().getAveragePredictedOverlap()>0) {
+			error = gsEdge.getOverlap()-testEdge.getEvidence().getAveragePredictedOverlap();
+			rmseAveragePredictedOverlap+=error*error;
+			countAveragePredictedOverlap++;
+		}
+		if(testEdge.getEvidence().getMedianPredictedOverlap()>0) {
+			error = gsEdge.getOverlap()-testEdge.getEvidence().getMedianPredictedOverlap();
+			rmseMedianPredictedOverlap+=error*error;
+			countMedianPredictedOverlap++;
+		}
+		if(testEdge.getEvidence().getFromLimitsPredictedOverlap()>0) {
+			error = gsEdge.getOverlap()-testEdge.getEvidence().getFromLimitsPredictedOverlap();
+			rmseFromLimitsPredictedOverlap+=error*error;
+			countFromLimitsPredictedOverlap++;
+		}
+	}*/
 	private double calculateCost(AssemblyEdge edge) {
 		if(edge.isSameSequenceEdge()) return edge.getCost();
 		//int cost = edge.getCost();
@@ -538,10 +634,10 @@ public class AssemblyGraphStatistics {
 		return false;
 	}
 
-	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, PrintStream out) {
-		out.println(text+" vertex "+logVertex(v));
+	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, AssemblyGraph graph, boolean includeEmbedded, PrintStream out) {
+		out.println(text+" vertex "+v);
 		for(AssemblyEdge edge:edges) {
-			out.println(logEdge(edge));
+			if(includeEmbedded || !graph.isEmbedded(edge.getConnectingVertex(v).getSequenceIndex())) out.println(edge);
 		}
 		
 	}
@@ -563,7 +659,7 @@ public class AssemblyGraphStatistics {
 		for(int i=0;i<testPaths.size();i++) {
 			List<AssemblyEdge> nextPath = testPaths.get(i);
 			if(nextPath.size()<=1) continue;
-			log.info("Compare layouts. Limits next path. "+logEdge(nextPath.get(0))+" to "+logEdge(nextPath.get(nextPath.size()-1)));
+			log.info("Compare layouts. Limits next path. "+nextPath.get(0)+" to "+nextPath.get(nextPath.size()-1));
 			totalTestLayoutPaths++;
 			totalTestLayoutEdges+=nextPath.size();
 			List<AssemblyEdge> nextGSPath = null;
@@ -586,7 +682,7 @@ public class AssemblyGraphStatistics {
 							searchGSEdge = true;
 						}
 					} else {
-						log.info("Compare layouts. Test path went over gs path. Edge leaving: "+logEdge(nextTestEdge));
+						log.info("Compare layouts. Test path went over gs path. Edge leaving: "+nextTestEdge);
 						searchGSEdge = true;
 					}
 				}
@@ -597,22 +693,25 @@ public class AssemblyGraphStatistics {
 						AssemblyEdge gsEdge = findEdge(goldStandardGraph, nextTestEdge);
 						if(gsEdge==null) {
 							errorsFPEdge++;
-							log.info("Compare layouts. False positive edge: "+logEdge(nextTestEdge));
+							log.info("Compare layouts. False positive edge: "+nextTestEdge);
+							distOverlapsFPPathEdges.processDatapoint(nextTestEdge.getOverlap());
+							distCoverageSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getCoverageSharedKmers());
+							distCoverageSharedKmersProportionFPPathEdges.processDatapoint((double)nextTestEdge.getCoverageSharedKmers()/nextTestEdge.getOverlap());
 						}
 						else if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) {
 							errorsEdgeEmbeddedNoLayout++;
-							log.info("Compare layouts. Embedded no GS layout "+logEdge(nextTestEdge));
+							log.info("Compare layouts. Embedded no GS layout "+nextTestEdge);
 						}
 						else {
 							errorsTPEdgeNoLayout++;
-							log.info("Compare layouts. True positive no GS layout "+logEdge(nextTestEdge));
+							log.info("Compare layouts. True positive no GS layout "+nextTestEdge);
 						}
-						if(nextGSPath!=null) log.info("Last GS layout edge "+logEdge(nextGSPath.get(nextGSEdgeIdx)));
+						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) log.info("Last GS layout edge "+nextGSPath.get(nextGSEdgeIdx));
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 					} else  {
 						if (nextGSPath!=null) {
-							log.warning("Found path edge connecting to different gold standard paths. Edge "+logEdge(nextTestEdge));
+							log.warning("Found path edge connecting to different gold standard paths. Edge "+nextTestEdge);
 						}
 						tpLayoutEdges++;
 						nextGSPath = gsPaths.get(gsEdgeLocation[0]);
@@ -624,9 +723,9 @@ public class AssemblyGraphStatistics {
 				nextGSEdgeIdx+=direction;
 				errorsFNLayoutEdge++;
 				AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
-				log.info("Compare layouts. Finished test path before GS path. last test edge: "+logEdge(nextPath.get(nextPath.size()-1))+" Next GS edge after end of test path: "+logEdge(nextGSEdge));	
+				log.info("Compare layouts. Finished test path before GS path. last test edge: "+nextPath.get(nextPath.size()-1)+" Next GS edge after end of test path: "+nextGSEdge);	
 			} else if (nextGSEdgeIdx==-1) {
-				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+logEdge(nextPath.get(nextPath.size()-1)));
+				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+nextPath.get(nextPath.size()-1));
 			}
 		}
 	}
@@ -672,16 +771,26 @@ public class AssemblyGraphStatistics {
 		if(totalTestLayoutEdges>0) precision = (double)tpLayoutEdges/totalTestLayoutEdges;
 		recall = (double)tpLayoutEdges/totalGSLayoutEdges;
 		out.println("PATHS\t"+totalTestLayoutPaths+"\t"+tpLayoutEdges+"\t"+errorsFPEdge+"\t"+errorsEdgeEmbeddedNoLayout+"\t"+errorsTPEdgeNoLayout+"\t"+errorsFNLayoutEdge+"\t"+totalTestLayoutEdges+"\t"+totalGSLayoutEdges+"\t"+precision+"\t"+recall);
+		out.println();
+		
+		out.println("Predicted overlap estimation errors");
+		out.println("Current: "+Math.sqrt(rmsePredictedOverlap/countPredictedOverlap)+" count "+countPredictedOverlap);
+		out.println("Average: "+Math.sqrt(rmseAveragePredictedOverlap/countAveragePredictedOverlap)+" count "+countAveragePredictedOverlap);
+		out.println("Median: "+Math.sqrt(rmseMedianPredictedOverlap/countMedianPredictedOverlap)+" count "+countMedianPredictedOverlap);
+		out.println("FromLimits: "+Math.sqrt(rmseFromLimitsPredictedOverlap/countFromLimitsPredictedOverlap)+" count "+countFromLimitsPredictedOverlap);
+		out.println();
+		
 		double [] d1 = distOverlapsTPPathEdges.getDistribution();
-		double [] d2 = distCostsFPEdges.getDistribution();
+		double [] d2 = distOverlapsFPPathEdges.getDistribution();
 		double [] d3 = distOverlapsFNPathEdges.getDistribution();
+		double [] d4 = distOverlapsFPEdges.getDistribution();
 		
 		
 		out.println("Overlap distributions");
-		out.println("Number\tTPpath\tFP\tFNPath");
+		out.println("Number\tTPpath\tFPpath\tFNPath\tFP");
 		for(int i=0;i<d1.length;i++) {
 			int min = i*(int)distOverlapsTPPathEdges.getBinLength();
-			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
 		}
 		d1 = distCostsTPPathEdges.getDistribution();
 		d2 = distCostsFPEdges.getDistribution();
@@ -713,27 +822,46 @@ public class AssemblyGraphStatistics {
 		}
 		
 		d1 = distCoverageSharedKmersTPPathEdges.getDistribution();
-		d2 = distCoverageSharedKmersFPEdges.getDistribution();
+		d2 = distCoverageSharedKmersFPPathEdges.getDistribution();
+		d3 = distCoverageSharedKmersFPEdges.getDistribution();
 		out.println("Coverage shared kmers distributions");
-		out.println("Number\tTPpath\tFP");
+		out.println("Number\tTPpath\tFPpath\tFP");
 		for(int i=0;i<d1.length;i++) {
 			int min = i*(int)distCoverageSharedKmersTPPathEdges.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
+		}
+		
+		d1 = distOverlapSDTPPathEdges.getDistribution();
+		d2 = distOverlapSDFPEdges.getDistribution();
+		out.println("Overlap standard deviation distributions");
+		out.println("Number\tTPpath\tFP");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distOverlapSDTPPathEdges.getBinLength();
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]);
 		}
+		out.println("More\t"+distOverlapSDTPPathEdges.getOutliers().size()+"\t"+distOverlapSDFPEdges.getOutliers().size());
 		
 		d1 = distMismatchesProportionTPPathEdges.getDistribution();
 		d2 = distMismatchesProportionFPEdges.getDistribution();
 		d3 = distSharedKmersProportionTPPathEdges.getDistribution();
-		double [] d4 = distSharedKmersProportionFPEdges.getDistribution();
+		d4 = distSharedKmersProportionFPEdges.getDistribution();
 		double [] d5 = distCoverageSharedKmersProportionTPPathEdges.getDistribution();
-		double [] d6 = distCoverageSharedKmersProportionFPEdges.getDistribution();
+		double [] d6 = distCoverageSharedKmersProportionFPPathEdges.getDistribution();
+		double [] d7 = distCoverageSharedKmersProportionFPEdges.getDistribution();
 		out.println("Proportions distributions");
-		out.println("Number\tMismatchesTPpath\tMismatchesFP\tsharedKmersTPpath\tsharedKmersFP\tCovSharedKmersTPpath\tCovSharedKmersFP");
+		out.println("Number\tMismatchesTPpath\tMismatchesFP\tsharedKmersTPpath\tsharedKmersFP\tCovSharedKmersTPpath\tCovSharedKmersFPpath\tCovSharedKmersFP");
 		for(int i=0;i<d1.length;i++) {
 			double min = distMismatchesProportionTPPathEdges.getBinLength()*i;
-			out.println(ParseUtils.ENGLISHFMT_PROBABILITIES.format(min)+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]+"\t"+d6[i]);
+			out.println(ParseUtils.ENGLISHFMT_PROBABILITIES.format(min)+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]+"\t"+d6[i]+"\t"+d7[i]);
 		}
-		//out.println("More\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]+"\t"+d6[i]);
+		out.print("More\t"+distMismatchesProportionTPPathEdges.getOutliers().size());
+		out.print("\t"+distMismatchesProportionFPEdges.getOutliers().size());
+		out.print("\t"+distSharedKmersProportionTPPathEdges.getOutliers().size());
+		out.print("\t"+distSharedKmersProportionFPEdges.getOutliers().size());
+		out.print("\t"+distCoverageSharedKmersProportionTPPathEdges.getOutliers().size());
+		out.print("\t"+distCoverageSharedKmersProportionFPPathEdges.getOutliers().size());
+		out.println("\t"+distCoverageSharedKmersProportionFPEdges.getOutliers().size());
+		
 	}
 	private void resetStatistics() {
 		
@@ -759,7 +887,19 @@ public class AssemblyGraphStatistics {
 		totalTestLayoutPaths = 0;
 		totalTestLayoutEdges = 0;
 		totalGSLayoutEdges = 0;
+		
+		rmsePredictedOverlap=0;
+		countPredictedOverlap = 0;
+		rmseAveragePredictedOverlap=0;
+		countAveragePredictedOverlap = 0;
+		rmseMedianPredictedOverlap=0;
+		countMedianPredictedOverlap = 0;
+		rmseFromLimitsPredictedOverlap=0;
+		countFromLimitsPredictedOverlap = 0;
+		
+		
 		distOverlapsTPPathEdges.reset();
+		distOverlapSDTPPathEdges.reset();
 		distCostsTPPathEdges.reset();
 		distMismatchesTPPathEdges.reset();
 		distSharedKmersTPPathEdges.reset();
@@ -770,6 +910,7 @@ public class AssemblyGraphStatistics {
 		
 		
 		distOverlapsFPEdges.reset();
+		distOverlapSDFPEdges.reset();
 		distCostsFPEdges.reset();
 		distMismatchesFPEdges.reset();
 		distSharedKmersFPEdges.reset();

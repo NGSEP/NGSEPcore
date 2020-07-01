@@ -19,35 +19,33 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.Serializable;
-
-import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.QualifiedSequence;
 
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEmbedded implements Serializable {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1120528617112863153L;
+public class AssemblyEmbedded {
 	
 	private int sequenceId;
-	private CharSequence read;
+	private QualifiedSequence read;
 	private boolean isReverse;
 	private int hostId;
-	private int startPosition;
-	private KmerHitsCluster evidence;
+	private int hostStart;
+	private int hostEnd;
+	private int hostEvidenceStart;
+	private int hostEvidenceEnd;
+	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int mismatches;
 	
 
-	public AssemblyEmbedded(int sequenceId, CharSequence read, boolean isReverse, int hostId, int startPosition) {
+	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
 		this.sequenceId = sequenceId;
 		this.read = read;
 		this.isReverse = isReverse;
 		this.hostId = hostId;
-		this.startPosition = startPosition;
+		this.hostStart = hostStart;
+		this.hostEnd = hostEnd;
 	}
 
 	
@@ -59,7 +57,7 @@ public class AssemblyEmbedded implements Serializable {
 	}
 
 
-	public CharSequence getRead() {
+	public QualifiedSequence getRead() {
 		return read;
 	}
 
@@ -81,25 +79,55 @@ public class AssemblyEmbedded implements Serializable {
 		this.hostId = hostId;
 	}
 
-
-	public int getStartPosition() {
-		return startPosition;
-	}
-
-	public void setStartPosition(int startPosition) {
-		this.startPosition = startPosition;
+	public int getHostStart() {
+		return hostStart;
 	}
 
 
-	public KmerHitsCluster getEvidence() {
-		return evidence;
+	public void setHostStart(int hostStart) {
+		this.hostStart = hostStart;
 	}
 
-	public void setEvidence(KmerHitsCluster evidence) {
-		this.evidence = evidence;
+
+	public int getHostEnd() {
+		return hostEnd;
 	}
-	
-	
+
+
+	public void setHostEnd(int hostEnd) {
+		this.hostEnd = hostEnd;
+	}
+
+
+	public int getHostEvidenceStart() {
+		return hostEvidenceStart;
+	}
+
+
+	public void setHostEvidenceStart(int hostEvidenceStart) {
+		this.hostEvidenceStart = hostEvidenceStart;
+	}
+
+
+	public int getHostEvidenceEnd() {
+		return hostEvidenceEnd;
+	}
+
+
+	public void setHostEvidenceEnd(int hostEvidenceEnd) {
+		this.hostEvidenceEnd = hostEvidenceEnd;
+	}
+
+	public int getNumSharedKmers() {
+		return numSharedKmers;
+	}
+
+
+	public void setNumSharedKmers(int numSharedKmers) {
+		this.numSharedKmers = numSharedKmers;
+	}
+
+
 	public int getCoverageSharedKmers() {
 		return coverageSharedKmers;
 	}
@@ -121,7 +149,7 @@ public class AssemblyEmbedded implements Serializable {
 
 
 	public String toString () {
-		return ""+sequenceId+"_"+isReverse+"_"+hostId+"_"+startPosition;
+		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+" "+isReverse+"_"+hostId+"_"+hostStart+"_"+hostEnd;
 	}
 	
 }

@@ -19,8 +19,6 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.Serializable;
-
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -30,14 +28,14 @@ import ngsep.sequences.QualifiedSequence;
  * @author David Guevara
  *
  */
-public class AssemblyVertex implements Serializable {
+public class AssemblyVertex {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 5185570963647916821L;
 	private QualifiedSequence read;
 	private boolean start;
 	private int sequenceIndex;
+	private int degreeUnfilteredGraph = 1;
 
 	public AssemblyVertex(QualifiedSequence read, boolean start, int sequenceIndex) {
 		this.read = read;
@@ -67,5 +65,17 @@ public class AssemblyVertex implements Serializable {
 		if(isStart()) return sequenceIndex;
 		return -sequenceIndex-1;
 	}
+
+	public int getDegreeUnfilteredGraph() {
+		return degreeUnfilteredGraph;
+	}
+
+	public void setDegreeUnfilteredGraph(int degreeUnfilteredGraph) {
+		this.degreeUnfilteredGraph = degreeUnfilteredGraph;
+	}
+	public String toString() {
+		return ""+getUniqueNumber()+" "+getSequenceIndex()+ " "+getRead().getName()+" "+getRead().getLength();
+	}
+	
 }
 

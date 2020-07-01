@@ -19,12 +19,13 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,9 +34,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.GZIPOutputStream;
 
+import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.Distribution;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -43,12 +45,8 @@ import ngsep.sequences.QualifiedSequence;
  * @author Juan Camilo Bojaca
  * @author David Guevara
  */
-public class AssemblyGraph implements Serializable {
+public class AssemblyGraph {
 	
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -4780291335510617705L;
 	/**
 	 * Sequences to build the graph. The index of each sequence is the unique identifier
 	 */
@@ -103,6 +101,8 @@ public class AssemblyGraph implements Serializable {
 			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength());
 			edge.setMismatches(0);
 			edge.setCoverageSharedKmers(seq.getLength());
+			edge.setNumSharedKmers(seq.getLength());
+			edge.setOverlapStandardDeviation(0);
 			addEdge(edge);
 		}
 	}
@@ -215,7 +215,7 @@ public class AssemblyGraph implements Serializable {
 		if (seq.length()<0.7*host.length()) return false;
 		if (seq.length()>0.95*host.length()) return false;
 		if(embeddedMapBySequence.containsKey(embedded.getHostId())) return false;
-		int left = embedded.getStartPosition();
+		int left = embedded.getHostStart();
 		int right = host.length()-(left+seq.length());
 		if(Math.abs(left-right)<100) return false;
 		AssemblyVertex vHost = null;
@@ -370,22 +370,121 @@ public class AssemblyGraph implements Serializable {
 	}
 
 
-	public void serialize(String outFileGraph) throws IOException {
-		try (FileOutputStream fos = new FileOutputStream( outFileGraph );
-			 ObjectOutputStream oos = new ObjectOutputStream( fos );) {
-			oos.writeObject( this );
+	public void save(String outFileGraph) throws IOException {
+		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileGraph));
+			 PrintStream out = new PrintStream(os)) {
+			out.println("#SEQUENCES");
+			for(QualifiedSequence seq:sequences) {
+				out.println(seq.getName()+"\t"+seq.getLength());
+			}
+			out.println("#EMBEDDED");
+			for(List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
+				for(AssemblyEmbedded embedded:embeddedList) {
+					int reverse = embedded.isReverse()?1:0;
+					out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
+					out.println("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
+				}
+			}
+			
+			out.println("#EDGES");
+			List<AssemblyEdge> edges = getEdges();
+			for(AssemblyEdge edge:edges) {
+				if(edge.isSameSequenceEdge()) continue;
+				out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
+				out.println("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers()+"\t"+edge.getMismatches());
+			}
+			
 		}
 	}
 	
-	public static AssemblyGraph load(String filename) throws IOException {
-		try (FileInputStream fis = new FileInputStream(filename);
-			 ObjectInputStream ois = new ObjectInputStream(fis);) {
-			return (AssemblyGraph) ois.readObject();
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("AssemblyGraph class not found",e);
+	public static AssemblyGraph load(List<QualifiedSequence> sequences, String graphFilename) throws IOException {
+		AssemblyGraph graph = new AssemblyGraph(sequences);
+		String line = null;
+		try (ConcatGZIPInputStream gzs = new ConcatGZIPInputStream(new FileInputStream(graphFilename));
+			 BufferedReader in = new BufferedReader(new InputStreamReader(gzs))) {
+			line = in.readLine();
+			if(!"#SEQUENCES".equals(line)) throw new IOException("Graph file misses sequence names. First line: "+line);
+			int seqId = 0;
+			line=in.readLine();
+			while(line!=null && seqId<sequences.size()) {
+				String [] items = line.split("\t");
+				QualifiedSequence seq = sequences.get(seqId);
+				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index" +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" loaded: "+items[0]);
+				if(seq.getLength()!=Integer.parseInt(items[1])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
+				seqId++;
+				line=in.readLine();
+			}
+			if(line==null) throw new IOException("Unexpected end of file reading sequences");
+			if(seqId<sequences.size()) throw new IOException("Missing sequences in graph. Expected: "+sequences.size()+". Loaded: "+seqId);
+			if (!line.equals("#EMBEDDED")) throw new IOException("Unexpected line after loading sequences. Expected: #EMBEDDED. Line: "+line);
+			line=in.readLine();
+			while(line!=null && !line.startsWith("#")) {
+				String [] items = line.split("\t");
+				int embSeqId = Integer.parseInt(items[0]);
+				int hostId = Integer.parseInt(items[1]);
+				boolean reverse = Integer.parseInt(items[4])==1;
+				QualifiedSequence embeddedSeq = sequences.get(embSeqId);
+				AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
+				embedded.setNumSharedKmers(Integer.parseInt(items[5]));
+				embedded.setCoverageSharedKmers(Integer.parseInt(items[6]));
+				embedded.setMismatches(Integer.parseInt(items[7]));
+				embedded.setHostEvidenceStart(Integer.parseInt(items[8]));
+				embedded.setHostEvidenceEnd(Integer.parseInt(items[9]));
+				graph.addEmbedded(embedded);
+				line=in.readLine();
+			}
+			if(line==null) throw new IOException("Unexpected end of file reading embedded relationships");
+			if (!line.equals("#EDGES")) throw new IOException("Unexpected line after loading embedded. Expected: #EDGES. Line: "+line);
+			line=in.readLine();
+			while(line!=null && !line.startsWith("#")) {
+				String [] items = line.split("\t");
+				int v1Idx = Integer.parseInt(items[0]);
+				int v2Idx = Integer.parseInt(items[1]);
+				int overlap = Integer.parseInt(items[2]);
+				AssemblyVertex v1 = graph.getVertexByUniqueId(v1Idx);
+				AssemblyVertex v2 = graph.getVertexByUniqueId(v2Idx);
+				AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap);
+				edge.setOverlapStandardDeviation(Double.parseDouble(items[3]));
+				edge.setNumSharedKmers(Integer.parseInt(items[4]));
+				edge.setCoverageSharedKmers(Integer.parseInt(items[5]));
+				edge.setMismatches(Integer.parseInt(items[6]));
+				graph.addEdge(edge);
+				line=in.readLine();
+			}
+		} catch (NumberFormatException e) {
+			throw new IOException("Error loading number at line: "+line,e);
 		}
+		graph.updateVertexDegrees();
+		return graph;
+	}
+	
+	public static List<QualifiedSequence> loadSequenceNamesFromGraphFile(String graphFilename) throws IOException {
+		List<QualifiedSequence> sequenceNames = new ArrayList<QualifiedSequence>();
+		String line = null;
+		try (ConcatGZIPInputStream gzs = new ConcatGZIPInputStream(new FileInputStream(graphFilename));
+			 BufferedReader in = new BufferedReader(new InputStreamReader(gzs))) {
+			line = in.readLine();
+			if(!"#SEQUENCES".equals(line)) throw new IOException("Graph file misses sequence names. First line: "+line);
+			line=in.readLine();
+			while(line!=null && !line.startsWith("#")) {
+				String [] items = line.split("\t");
+				QualifiedSequence seq = new QualifiedSequence(items[0]);
+				seq.setLength(Integer.parseInt(items[1]));
+				sequenceNames.add(seq);
+				line=in.readLine();
+			}
+		} catch (NumberFormatException e) {
+			throw new IOException("Error loading number at line: "+line,e);
+		}
+		return sequenceNames;
 	}
 
+	public void updateVertexDegrees () {
+		for (int v:edgesMap.keySet()) {
+			AssemblyVertex vertex = verticesByUnique.get(v);
+			vertex.setDegreeUnfilteredGraph(edgesMap.get(v).size());
+		}
+	}
 	/**
 	 * Calculates the distribution of vertex degrees
 	 * @return Distribution of degrees of vertices
@@ -431,17 +530,15 @@ public class AssemblyGraph implements Serializable {
 		if(emb==null) return false;
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Embedded sequences "+emb.size());
 		embeddedList.addAll(emb);
-		Collections.sort(embeddedList,(e1,e2)->e1.getEvidence().getSubjectEvidenceStart()-e2.getEvidence().getSubjectEvidenceStart());
+		Collections.sort(embeddedList,(e1,e2)->e1.getHostEvidenceStart()-e2.getHostEvidenceStart());
 		
 		for(AssemblyEmbedded embedded:embeddedList) {
-			KmerHitsCluster cluster = embedded.getEvidence();
-			if(cluster==null) continue;
 			
-			int nextLeft = cluster.getSubjectEvidenceStart();
-			int nextRight = cluster.getSubjectEvidenceEnd();
-			int unknownLeft = nextLeft - cluster.getSubjectPredictedStart();
-			int unknownRight = cluster.getSubjectPredictedEnd() - nextRight;
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" count: "+cluster.getNumDifferentKmers()+" weighted: "+cluster.getWeightedCount());
+			int nextLeft = embedded.getHostEvidenceStart();
+			int nextRight = embedded.getHostEvidenceEnd();
+			int unknownLeft = nextLeft - embedded.getHostStart();
+			int unknownRight = embedded.getHostEnd() - nextRight;
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Last evidence: "+lastEvidence+" Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextLeft+" "+nextRight+" unknown: "+unknownLeft+" "+unknownRight+" count: "+embedded.getNumSharedKmers());
 			if(firstEvidence==-1) {
 				firstEvidence = nextLeft;
 				lastEvidence = nextRight;
@@ -479,8 +576,12 @@ public class AssemblyGraph implements Serializable {
 		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		if(vS==null || vE==null) return;
+		filterEdgesAbnormalFeatures(getEdges(vS));
+		filterEdgesAbnormalFeatures(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
+		double minScoreProportion = 0.7;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -493,7 +594,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreS);
-			if(score < 0.7*maxScoreS) {
+			if(score < minScoreProportion*maxScoreS) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -513,7 +614,7 @@ public class AssemblyGraph implements Serializable {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE);
-			if(score < 0.7*maxScoreE) {
+			if(score < minScoreProportion*maxScoreE) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -542,6 +643,22 @@ public class AssemblyGraph implements Serializable {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed edges for sequence: "+embedded.getSequenceId());
 			}
 		}
+	}
+
+	private void filterEdgesAbnormalFeatures(List<AssemblyEdge> edges) {
+		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			int overlap = edge.getOverlap();
+			int v1L = edge.getVertex1().getRead().getLength();
+			int v2L = edge.getVertex2().getRead().getLength();
+			if(overlap>1.1*v1L || overlap>1.1*v2L) {
+				toRemove.add(edge);
+			} else if (edge.getCoverageSharedKmers()<0.3*v1L || edge.getCoverageSharedKmers()<0.3*v2L) {
+				toRemove.add(edge);
+			}
+		}
+		for(AssemblyEdge edge:toRemove) removeEdge(edge);
 	}
 
 	private double calculateScore(AssemblyEmbedded embedded) {
@@ -574,10 +691,12 @@ public class AssemblyGraph implements Serializable {
 				if(parentObject==null) {
 					embeddedSequencesMap.put(seqId, embedded);
 				} else {
-					int rootStartParent = parentObject.getStartPosition();
-					int rootStartSequence = rootStartParent+embedded.getStartPosition();
+					int rootStartParent = parentObject.getHostStart();
+					int rootStartSequence = rootStartParent+embedded.getHostStart();
+					int rootEndSequence = rootStartParent+embedded.getHostEnd();
+					
 					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
-					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence));
+					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence, rootEndSequence));
 				}
 				
 				agenda.add(embedded.getSequenceId());
@@ -586,7 +705,7 @@ public class AssemblyGraph implements Serializable {
 		}
 		List<AssemblyEmbedded> answer = new ArrayList<AssemblyEmbedded>();
 		answer.addAll(embeddedSequencesMap.values());
-		Collections.sort(answer, (a1,a2)-> a1.getStartPosition()-a2.getStartPosition());
+		Collections.sort(answer, (a1,a2)-> a1.getHostStart()-a2.getHostStart());
 		
 		return answer;
 	}
@@ -595,16 +714,16 @@ public class AssemblyGraph implements Serializable {
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
 			filterEdgesAndEmbedded(seqId);
 		}
-		pruneEmbeddedSequences();	
+		pruneEmbeddedSequences();
+		filterEdgesCloseRelationships();
 	}
 
 	public void filterEdgesCloseRelationships() {
 		for (int seqId = 0; seqId <sequences.size(); seqId++) {
 			AssemblyVertex v1 = getVertex(seqId, true);
-			filterEdgesCloseRelationships(v1);
+			if (v1!=null) filterEdgesCloseRelationships(v1);
 			AssemblyVertex v2 = getVertex(seqId, false);
-			filterEdgesCloseRelationships(v2);
-			
+			if (v2!=null) filterEdgesCloseRelationships(v2);
 		}
 		
 	}
@@ -628,6 +747,7 @@ public class AssemblyGraph implements Serializable {
 				secondOverlapEdge = edge;
 			}
 		}
+		if(secondOverlapEdge==null) System.err.println("Error. Vertex "+vertex+" has three edges but no second overlap. Max overlap: "+maxOverlapEdge+" edges: "+edges);
 		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Best edge: "+maxOverlapEdge.getConnectingVertex(vertex).getUniqueNumber()+" second: "+secondOverlapEdge.getConnectingVertex(vertex).getUniqueNumber());
 		int ov1 = maxOverlapEdge.getOverlap();
 		int ov2 = secondOverlapEdge.getOverlap();
@@ -646,7 +766,9 @@ public class AssemblyGraph implements Serializable {
 		if(transitiveBad!=null && transitiveGood==null) {
 			//System.out.println("Filter edges close. removing edge: "+maxOverlapEdge.getVertex1().getUniqueNumber()+" "+maxOverlapEdge.getVertex2().getUniqueNumber()+" transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
 			removeEdge(maxOverlapEdge);
-		}
+		} /*else if (transitiveGood!=null && transitiveBad == null) {
+			removeEdge(transitiveGood);
+		}*/
 	}
 	
 }

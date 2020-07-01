@@ -35,7 +35,6 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
-import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -50,11 +49,16 @@ public class Assembler {
 	// Constants for default values
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final byte INPUT_FORMAT_GRAPH=2;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_KMER_OFFSET = 15;
-	public static final int DEF_MIN_KMER_PCT = GraphBuilderMinimizers.DEF_MIN_KMER_PCT;
+	public static final int DEF_MIN_KMER_PCT = KmerHitsAssemblyEdgesFinder.DEF_MIN_KMER_PCT;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
+	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
+	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
+	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP="MaxOverlap";
+	public static final String LAYOUT_ALGORITHM_KRUSKAL_PATH="KruskalPath";
+	public static final String CONSENSUS_ALGORITHM_SIMPLE="Simple";
+	public static final String CONSENSUS_ALGORITHM_POLISHING="Polishing";
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(Assembler.class.getName());
@@ -62,14 +66,16 @@ public class Assembler {
 	
 	// Parameters
 	private String inputFile = null;
-	private String outputFile = null;
+	private String outputPrefix = null;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int kmerOffset = DEF_KMER_OFFSET;
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
-	private String outFileGraph = null;
+	private String graphFile = null;
+	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
+	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
 	private int numThreads = DEF_NUM_THREADS;
-	private ReferenceGenome targetGenome;
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -92,11 +98,11 @@ public class Assembler {
 	public void setInputFile(String inputFile) {
 		this.inputFile = inputFile;
 	}
-	public String getOutputFile() {
-		return outputFile;
+	public String getOutputPrefix() {
+		return outputPrefix;
 	}
-	public void setOutputFile(String outputFile) {
-		this.outputFile = outputFile;
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
 	}
 	
 	public int getKmerLength() {
@@ -136,7 +142,7 @@ public class Assembler {
 		return inputFormat;
 	}
 	public void setInputFormat(byte inputFormat) {
-		if (inputFormat!=INPUT_FORMAT_FASTA && inputFormat != INPUT_FORMAT_FASTQ && inputFormat!=INPUT_FORMAT_GRAPH) {
+		if (inputFormat!=INPUT_FORMAT_FASTA && inputFormat != INPUT_FORMAT_FASTQ) {
 			throw new IllegalArgumentException("Invalid input format "+inputFormat);
 		}
 		this.inputFormat = inputFormat;
@@ -145,13 +151,35 @@ public class Assembler {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
-	public String getOutFileGraph() {
-		return outFileGraph;
+	public String getGraphFile() {
+		return graphFile;
 	}
-	public void setOutFileGraph(String outFileGraph) {
-		this.outFileGraph = outFileGraph;
+	public void setGraphFile(String graphFile) {
+		this.graphFile = graphFile;
 	}
 	
+	public String getGraphConstructionAlgorithm() {
+		return graphConstructionAlgorithm;
+	}
+	public void setGraphConstructionAlgorithm(String graphConstructionAlgorithm) {
+		if(!GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX.equals(graphConstructionAlgorithm) && !GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS.equals(graphConstructionAlgorithm)) throw new IllegalArgumentException("Unrecognized graph construction algorithm "+graphConstructionAlgorithm);
+		this.graphConstructionAlgorithm = graphConstructionAlgorithm;
+	}
+	
+	public String getLayoutAlgorithm() {
+		return layoutAlgorithm;
+	}
+	public void setLayoutAlgorithm(String layoutAlgorithm) {
+		if(!LAYOUT_ALGORITHM_KRUSKAL_PATH.equals(layoutAlgorithm) && !LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) throw new IllegalArgumentException("Unrecognized layout algorithm "+layoutAlgorithm);
+		this.layoutAlgorithm = layoutAlgorithm;
+	}
+	public String getConsensusAlgorithm() {
+		return consensusAlgorithm;
+	}
+	public void setConsensusAlgorithm(String consensusAlgorithm) {
+		if(!CONSENSUS_ALGORITHM_SIMPLE.equals(consensusAlgorithm) && !CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) throw new IllegalArgumentException("Unrecognized consensus algorithm "+consensusAlgorithm);
+		this.consensusAlgorithm = consensusAlgorithm;
+	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -160,16 +188,6 @@ public class Assembler {
 	}
 	public void setNumThreads(String value) {
 		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
-	}
-	
-	public ReferenceGenome getTargetGenome() {
-		return targetGenome;
-	}
-	public void setTargetGenome(ReferenceGenome targetGenome) {
-		this.targetGenome = targetGenome;
-	}
-	public void setTargetGenome(String genomeFile) throws IOException {
-		setTargetGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public static void main(String[] args) throws Exception {
@@ -181,74 +199,80 @@ public class Assembler {
 	public void run() throws IOException {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input file with raw reads is required");
-		if(outputFile==null) throw new IOException("An output file path is required");
-		run (inputFile, outputFile);
+		if(outputPrefix==null) throw new IOException("An output prefix is required");
+		run (inputFile, outputPrefix);
 		log.info("Process finished");
 	}
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		out.println("Input file:"+ inputFile);
-		out.println("Output file:"+ outputFile);
+		out.println("Prefix for the output files:"+ outputPrefix);
+		if (graphFile!=null) out.println("Load assembly graph from: "+graphFile);
+		else out.println("Algorithm to build graph: "+graphConstructionAlgorithm);
+		out.println("Algorithm to build layout: "+layoutAlgorithm);
+		out.println("Algorithm to build consensus: "+consensusAlgorithm);
 		out.println("K-mer length: "+ kmerLength);
-		out.println("K-mer offset: "+ kmerOffset);
-		out.println("Minimum percentage of k-mers for an overlap: "+ minKmerPercentage);
+		//out.println("K-mer offset for FM-index: "+ kmerOffset);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
-		if (inputFormat == INPUT_FORMAT_GRAPH)  out.println("Input is an assembly graph");
-		if (outFileGraph!=null) out.println("Save graph to: "+outFileGraph);
-		if (targetGenome!=null) out.println("Target genome for benchmark loaded from file: "+targetGenome.getFilename());
-		else if (targetGenome!=null) out.println("Target genome for benchmark with "+targetGenome.getNumSequences()+" previously loaded from: "+targetGenome.getFilename());
 		log.info(os.toString());
 	}
 
-	public void run(String inputFile, String outputFile) throws IOException {
+	public void run(String inputFile, String outputPrefix) throws IOException {
+		List<QualifiedSequence> sequences = load(inputFile,inputFormat);
+		log.info("Loaded "+sequences.size()+" sequences");
+		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 		AssemblyGraph graph;
-		if(INPUT_FORMAT_GRAPH==inputFormat) {
-			graph = AssemblyGraph.load(inputFile);
-			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
-		} else {
-			List<QualifiedSequence> sequences = load(inputFile,inputFormat);
-			log.info("Loaded "+sequences.size()+" sequences");
-			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
-			/*GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
+		if(graphFile!=null) {
+			graph = AssemblyGraph.load(sequences, graphFile);
+		} else if (GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX.equals(graphConstructionAlgorithm)) {
+			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
 			gbIndex.setLog(log);
-			graph =  gbIndex.buildAssemblyGraph(finalSequences);
-			*/
+			graph =  gbIndex.buildAssemblyGraph(sequences);
+		} else {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
 			builder.setKmerLength(kmerLength);
-			builder.setMinKmerPercentage(minKmerPercentage);
+			//builder.setMinKmerPercentage(minKmerPercentage);
 			builder.setNumThreads(numThreads);
 			builder.setLog(log);
 			graph = builder.buildAssemblyGraph(sequences);
-			log.info("Built assembly graph");
-			
-			if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 		}
-		if(outFileGraph!=null) {
-			graph.serialize(outFileGraph);
-			log.info("Saved graph in "+outFileGraph);
+		log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
+		graph.updateVertexDegrees();
+		log.info("Built assembly graph");
+		
+		if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
+		if(graphFile==null) {
+			String outFileGraph = outputPrefix+".graph.gz";
+			graph.save(outFileGraph);
+			log.info("Saved graph to "+outFileGraph);
 		}
 		graph.removeVerticesChimericReads();
 		graph.filterEdgesAndEmbedded();
 		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		graph.filterEdgesCloseRelationships();
-		log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxOverlap();
-		//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
-		//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
-		//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
+		LayoutBuilder pathsFinder;
+		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
+			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
+		} else {
+			pathsFinder= new LayoutBuilderSkeletonBestReciprocal();
+			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
+			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
+		}
 		pathsFinder.findPaths(graph);
 		log.info("Layout complete. Paths: "+graph.getPaths().size());
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
-		
-
-		//ConsensusBuilder consensus = new ConsensusBuilderBidirectionalSimple();
-		ConsensusBuilder consensus = new ConsensusBuilderBidirectionalWithPolishing();
+		ConsensusBuilder consensus;
+		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
+			consensus = new ConsensusBuilderBidirectionalWithPolishing();
+		} else {
+			consensus = new ConsensusBuilderBidirectionalSimple();
+		}
 		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
-		saveAssembly(outputFile, "contig", assembledSequences);
+		saveAssembly(outputPrefix+".fa", "contig", assembledSequences);
 	}
 
 	/**

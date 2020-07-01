@@ -32,6 +32,10 @@ public class KmerHitsCluster implements Serializable {
 	private int subjectEvidenceStart;
 	private int subjectEvidenceEnd;
 	private int predictedOverlap;
+	private int averagePredictedOverlap;
+	private int medianPredictedOverlap;
+	private int fromLimitsPredictedOverlap;
+	private double predictedOverlapSD;
 	private int numDifferentKmers = 0;
 	private int selfHitsCountQuery = 0;
 	private double averageHitsQuery;
@@ -233,18 +237,33 @@ public class KmerHitsCluster implements Serializable {
 
 	private void predictOverlap(List<UngappedSearchHit> hits) {
 		List<Integer> estimatedOverlaps = new ArrayList<Integer>();
+		double sum=0;
+		double sum2=0;
+		int n = hits.size();
 		for(UngappedSearchHit hit:hits) {
 			int overlap = estimateOverlap (hit);
 			estimatedOverlaps.add(overlap);
+			sum+=overlap;
+			sum2+=overlap*overlap;
 		}
-		predictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
+		averagePredictedOverlap = (int)Math.round(sum/n);
+		medianPredictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
+		double predictedOverlapVariance = (sum2-sum*sum/n)/n-1;
+		predictedOverlapSD = Math.sqrt(predictedOverlapVariance);
+		predictedOverlap = medianPredictedOverlap;
+		fromLimitsPredictedOverlap = 0;
 		if (subjectPredictedStart>0 && subjectPredictedEnd>sequenceLength && queryPredictedEnd<query.length()) {
 			//Average with estimation from subject start
-			predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart)+queryPredictedEnd)/3;
+			fromLimitsPredictedOverlap = ((sequenceLength-subjectPredictedStart)+queryPredictedEnd)/2;
+			//predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart)+queryPredictedEnd)/3;
 		} else if (subjectPredictedStart<0 && subjectPredictedEnd<sequenceLength && queryPredictedStart>0) {
 			//Average with estimation from subject end
-			predictedOverlap = (predictedOverlap+subjectPredictedEnd+(query.length()-queryPredictedStart))/3;
+			fromLimitsPredictedOverlap = (subjectPredictedEnd+(query.length()-queryPredictedStart))/2;
+			//predictedOverlap = (predictedOverlap+subjectPredictedEnd+(query.length()-queryPredictedStart))/3;
 		}
+		if(fromLimitsPredictedOverlap>0) predictedOverlap=fromLimitsPredictedOverlap;
+		else predictedOverlap = averagePredictedOverlap;
+		
 	}
 
 	private void predictSubjectStart(List<UngappedSearchHit> hits) {
@@ -366,7 +385,19 @@ public class KmerHitsCluster implements Serializable {
 	public int getPredictedOverlap() {
 		return predictedOverlap;
 	}
-
+	
+	public int getAveragePredictedOverlap() {
+		return averagePredictedOverlap;
+	}
+	public int getMedianPredictedOverlap() {
+		return medianPredictedOverlap;
+	}
+	public int getFromLimitsPredictedOverlap() {
+		return fromLimitsPredictedOverlap;
+	}
+	public double getPredictedOverlapSD() {
+		return predictedOverlapSD;
+	}
 	/**
 	 * @return the query
 	 */

@@ -43,8 +43,10 @@ import org.xml.sax.InputSource;
  *
  */
 public class CommandsDescriptor {
+	public static final String ATTRIBUTE_NAME="name";
 	public static final String ATTRIBUTE_VERSION="version";
 	public static final String ATTRIBUTE_DATE="date";
+	public static final String ATTRIBUTE_JAR="jar";
 	public static final String ATTRIBUTE_ID="id";
 	public static final String ATTRIBUTE_CLASSNAME="class";
 	public static final String ATTRIBUTE_TYPE="type";
@@ -56,6 +58,7 @@ public class CommandsDescriptor {
 	public static final String ATTRIBUTE_FORMERID="formerId";
 	public static final String ATTRIBUTE_DEPRECATED="deprecated";
 	public static final String ATTRIBUTE_PRINTHELP="printHelp";
+	public static final String ELEMENT_URL="url";
 	public static final String ELEMENT_COMMAND="command";
 	public static final String ELEMENT_COMMANDGROUP="commandgroup";
 	public static final String ELEMENT_TITLE="title";
@@ -65,10 +68,12 @@ public class CommandsDescriptor {
 	public static final String ELEMENT_ARGUMENT="argument";
 	public static final String ELEMENT_OPTION="option";
 	
-	private String resource = "/ngsep/main/CommandsDescriptor.xml";
+	private String swName;
 	private String swVersion;
 	private String releaseDate;
+	private String swJarName;
 	private String swTitle;
+	private String swURL;
 	private Map<String,List<Command>> commandsByGroup = new HashMap<String,List<Command>>();
 	private Map<String,Command> commandsByClass = new HashMap<String,Command>();
 	private Map<String,Command> commandsById = new HashMap<String,Command>();
@@ -81,8 +86,20 @@ public class CommandsDescriptor {
 	private CommandsDescriptor () {
 		load();
 	}
+	/**
+	 * Returns the only instance of the command descriptor
+	 * @return CommandsDescriptor
+	 */
 	public static CommandsDescriptor getInstance() {
 		return instance;
+	}
+	
+	/**
+	 * 
+	 * @return String the resource used to load commands
+	 */
+	protected String getResource() {
+		return "/ngsep/main/CommandsDescriptor.xml";
 	}
 	/**
 	 * Loads the commands descriptor XML
@@ -90,15 +107,17 @@ public class CommandsDescriptor {
 	private void load() {
 		
 		Document doc;
-		try (InputStream is = this.getClass().getResourceAsStream(resource)) { 
+		try (InputStream is = this.getClass().getResourceAsStream(getResource())) { 
 			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			doc = documentBuilder.parse(new InputSource(is));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		Element rootElement = doc.getDocumentElement();
+		swName = rootElement.getAttribute(ATTRIBUTE_NAME);
 		swVersion = rootElement.getAttribute(ATTRIBUTE_VERSION);
 		releaseDate = rootElement.getAttribute(ATTRIBUTE_DATE);
+		swJarName = rootElement.getAttribute(ATTRIBUTE_JAR);
 		loadSoftwareDescription(rootElement);
 		
 	}
@@ -112,10 +131,14 @@ public class CommandsDescriptor {
 			Node node = offspring.item(i);
 			if (node instanceof Element){ 
 				Element elem = (Element)node;
-				if(ELEMENT_COMMANDGROUP.equals(elem.getNodeName())) {
-					loadCommandGroup(elem);
+				if(ELEMENT_TITLE.equals(elem.getNodeName())) {
+					swTitle = loadText(elem);
+				} else if (ELEMENT_URL.equals(elem.getNodeName())) {
+					swURL = loadText(elem);
 				}
-				if(ELEMENT_COMMAND.equals(elem.getNodeName())) {
+				else if(ELEMENT_COMMANDGROUP.equals(elem.getNodeName())) {
+					loadCommandGroup(elem);
+				} else if(ELEMENT_COMMAND.equals(elem.getNodeName())) {
 					Command c;
 					try {
 						c = loadCommand(elem);
@@ -128,8 +151,6 @@ public class CommandsDescriptor {
 					commandsById.put(c.getId(),c);
 					commandsList.add(c);
 					commandsByClass.put(c.getProgram().getName(), c);
-				} else if(ELEMENT_TITLE.equals(elem.getNodeName())) {
-					swTitle = loadText(elem);
 				} 
 			}
 		}
@@ -244,6 +265,15 @@ public class CommandsDescriptor {
 		}
 		return null;
 	}
+	public String getSwName() {
+		return swName;
+	}
+	public String getJarFilename() {
+		return swJarName+"_"+getSwVersion()+".jar";
+	}
+	public String getSwURL() {
+		return swURL;
+	}
 	public String getSwVersion() {
 		return swVersion;
 	}
@@ -264,7 +294,7 @@ public class CommandsDescriptor {
 		printVersionHeader();
 		System.err.println("=============================================================================");
 		System.err.println();
-		System.err.println("USAGE: java -jar NGSEPcore_"+swVersion+".jar <COMMAND> <OPTIONS> <ARGUMENTS>");
+		System.err.println("USAGE: java -jar "+getJarFilename()+" <COMMAND> <OPTIONS> <ARGUMENTS>");
 		System.err.println();
 		for(String commandGroupId:commandGroupNames.keySet()) {
 			System.err.println("Commands for "+commandGroupNames.get(commandGroupId));
@@ -281,14 +311,14 @@ public class CommandsDescriptor {
 		
 		
 		System.err.println();
-		System.err.println("See http://sourceforge.net/projects/ngsep/files/Library/ for more details.");
+		System.err.println("See "+getSwURL()+" for more details.");
 		System.err.println();		
 	}
 	/**
 	 * Prints the software version
 	 */
 	private void printVersionHeader() {
-		System.err.println(" NGSEP - "+swTitle);
+		System.err.println(" "+swName+" - "+swTitle);
 		System.err.println(" Version " + swVersion + " ("+releaseDate+")");
 	}
 	/**
@@ -316,7 +346,7 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.println("USAGE:");
 		System.err.println();
-		System.err.print("java -jar NGSEPcore_"+swVersion+".jar "+ c.getId()+" <OPTIONS>");
+		System.err.print("java -jar "+getJarFilename()+" "+ c.getId()+" <OPTIONS>");
 		for(String arg:c.getArguments()) {
 			
 			System.err.print(" <"+arg+">");
@@ -369,9 +399,9 @@ public class CommandsDescriptor {
 		System.err.println();
 		printVersionHeader();
 		System.err.println();
-		System.err.println(" For usage type     java -jar NGSEPcore_"+swVersion+".jar --help");
+		System.err.println(" For usage type     java -jar "+getJarFilename()+" --help");
 		System.err.println();
-		System.err.println(" For citing type     java -jar NGSEPcore_"+swVersion+".jar --citing");
+		System.err.println(" For citing type     java -jar "+getJarFilename()+" --citing");
 		System.err.println();
 	}
 	/**
