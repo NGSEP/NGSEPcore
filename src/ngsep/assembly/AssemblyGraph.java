@@ -497,10 +497,10 @@ public class AssemblyGraph {
 		return answer;
 	}
 
-	public void removeVerticesChimericReads () {
+	public void removeEdgesChimericReads () {
 		for(int i=0;i<sequences.size();i++) {
 			if(isChimeric(i)) {
-				removeVertices(i);
+				removeEdges(i);
 				removeEmbeddedRelations(i);
 			}
 		}
@@ -654,7 +654,7 @@ public class AssemblyGraph {
 			int v2L = edge.getVertex2().getRead().getLength();
 			if(overlap>1.1*v1L || overlap>1.1*v2L) {
 				toRemove.add(edge);
-			} else if (edge.getCoverageSharedKmers()<0.3*v1L || edge.getCoverageSharedKmers()<0.3*v2L) {
+			} else if (edge.getCoverageSharedKmers()<0.1*v1L || edge.getCoverageSharedKmers()<0.1*v2L) {
 				toRemove.add(edge);
 			}
 		}
