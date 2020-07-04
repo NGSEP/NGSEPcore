@@ -382,7 +382,8 @@ public class AssemblyGraph {
 				for(AssemblyEmbedded embedded:embeddedList) {
 					int reverse = embedded.isReverse()?1:0;
 					out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
-					out.println("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
+					out.print("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getWeightedCoverageSharedKmers());
+					out.println("\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
 				}
 			}
 			
@@ -391,7 +392,8 @@ public class AssemblyGraph {
 			for(AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) continue;
 				out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
-				out.println("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers()+"\t"+edge.getMismatches());
+				out.print("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers());
+				out.println("\t"+edge.getWeightedCoverageSharedKmers()+"\t"+edge.getMismatches());
 			}
 			
 		}
@@ -427,9 +429,10 @@ public class AssemblyGraph {
 				AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
 				embedded.setNumSharedKmers(Integer.parseInt(items[5]));
 				embedded.setCoverageSharedKmers(Integer.parseInt(items[6]));
-				embedded.setMismatches(Integer.parseInt(items[7]));
-				embedded.setHostEvidenceStart(Integer.parseInt(items[8]));
-				embedded.setHostEvidenceEnd(Integer.parseInt(items[9]));
+				embedded.setWeightedCoverageSharedKmers(Integer.parseInt(items[7]));
+				embedded.setMismatches(Integer.parseInt(items[8]));
+				embedded.setHostEvidenceStart(Integer.parseInt(items[9]));
+				embedded.setHostEvidenceEnd(Integer.parseInt(items[10]));
 				graph.addEmbedded(embedded);
 				line=in.readLine();
 			}
@@ -447,7 +450,8 @@ public class AssemblyGraph {
 				edge.setOverlapStandardDeviation(Double.parseDouble(items[3]));
 				edge.setNumSharedKmers(Integer.parseInt(items[4]));
 				edge.setCoverageSharedKmers(Integer.parseInt(items[5]));
-				edge.setMismatches(Integer.parseInt(items[6]));
+				edge.setWeightedCoverageSharedKmers(Integer.parseInt(items[6]));
+				edge.setMismatches(Integer.parseInt(items[7]));
 				graph.addEdge(edge);
 				line=in.readLine();
 			}
@@ -665,12 +669,14 @@ public class AssemblyGraph {
 		//KmerHitsCluster cluster = embedded.getEvidence();
 		//return 1.0*(cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/cluster.getQuery().length();
 		return embedded.getCoverageSharedKmers();
+		//return embedded.getWeightedCoverageSharedKmers();
 	}
 
 	private double calculateScore(AssemblyEdge edge) {
 		//KmerHitsCluster cluster = edge.getEvidence();
 		//return (cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
 		return edge.getCoverageSharedKmers();
+		//return edge.getWeightedCoverageSharedKmers();
 	}
 
 	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {

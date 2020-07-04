@@ -36,6 +36,7 @@ public class AssemblyEmbedded {
 	private int hostEvidenceEnd;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
+	private int weightedCoverageSharedKmers;
 	private int mismatches;
 	
 
@@ -135,6 +136,14 @@ public class AssemblyEmbedded {
 
 	public void setCoverageSharedKmers(int coverageSharedKmers) {
 		this.coverageSharedKmers = coverageSharedKmers;
+	}
+	
+	public int getWeightedCoverageSharedKmers() {
+		return weightedCoverageSharedKmers;
+	}
+
+	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
+		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
 	}
 
 

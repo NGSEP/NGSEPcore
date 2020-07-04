@@ -52,7 +52,8 @@ public class AssemblyGraphStatistics {
 	private Distribution distCostsTPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distMismatchesTPPathEdges = new Distribution(0,10000,200);
 	private Distribution distSharedKmersTPPathEdges = new Distribution(0,25000,500);
-	private Distribution distCoverageSharedKmersTPPathEdges = new Distribution(0, 50000, 1000);
+	private Distribution distCoverageSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
+	private Distribution distWCovSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distMismatchesProportionTPPathEdges = new Distribution(0, 1, 0.01);
 	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
@@ -63,14 +64,16 @@ public class AssemblyGraphStatistics {
 	private Distribution distCostsFPEdges = new Distribution(0,100000,2000);
 	private Distribution distMismatchesFPEdges = new Distribution(0,10000,200);
 	private Distribution distSharedKmersFPEdges = new Distribution(0,25000,500);
-	private Distribution distCoverageSharedKmersFPEdges = new Distribution(0, 50000, 1000);
+	private Distribution distCoverageSharedKmersFPEdges = new Distribution(0, 30000, 500);
+	private Distribution distWCovSharedKmersFPEdges = new Distribution(0, 30000, 500);
 	private Distribution distMismatchesProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distOverlapSDFPEdges = new Distribution(0, 500, 10);
 	
 	private Distribution distOverlapsFPPathEdges = new Distribution(0,100000,2000);
-	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 50000, 1000);
+	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
+	private Distribution distWCovSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distCoverageSharedKmersProportionFPPathEdges = new Distribution(0, 1, 0.01);
 	
 	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,2000);
@@ -504,7 +507,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==2650 || gsVertex.getUniqueNumber()==-2804; 
+		boolean debug = gsVertex.getUniqueNumber()==563 || gsVertex.getUniqueNumber()==422; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -555,6 +558,7 @@ public class AssemblyGraphStatistics {
 							distMismatchesTPPathEdges.processDatapoint(edge.getMismatches());
 							distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
 							distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
+							distWCovSharedKmersTPPathEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
 							distMismatchesProportionTPPathEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
 							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 							distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
@@ -585,6 +589,7 @@ public class AssemblyGraphStatistics {
 				distMismatchesFPEdges.processDatapoint(edge.getMismatches());
 				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
+				distWCovSharedKmersFPEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
 				distMismatchesProportionFPEdges.processDatapoint((double)edge.getMismatches()/edge.getOverlap());
 				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 				distCoverageSharedKmersProportionFPEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
@@ -698,15 +703,16 @@ public class AssemblyGraphStatistics {
 							System.err.println("Compare layouts. False positive edge: "+nextTestEdge);
 							distOverlapsFPPathEdges.processDatapoint(nextTestEdge.getOverlap());
 							distCoverageSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getCoverageSharedKmers());
+							distWCovSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getWeightedCoverageSharedKmers());
 							distCoverageSharedKmersProportionFPPathEdges.processDatapoint((double)nextTestEdge.getCoverageSharedKmers()/nextTestEdge.getOverlap());
 						} else if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) {
 							errorsEdgeEmbeddedNoLayout++;
 							System.err.println("Compare layouts. Embedded no GS layout "+nextTestEdge);
 						} else {
 							errorsTPEdgeNoLayout++;
-							if(!nextTestEdge.isSameSequenceEdge()) log.info("Compare layouts. True positive no GS layout "+nextTestEdge);
+							if(!nextTestEdge.isSameSequenceEdge()) System.err.println("Compare layouts. True positive no GS layout "+nextTestEdge);
 						}
-						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) log.info("Last GS layout edge "+nextGSPath.get(nextGSEdgeIdx));
+						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) System.err.println("Last GS layout edge "+nextGSPath.get(nextGSEdgeIdx));
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 					} else  {
@@ -832,6 +838,16 @@ public class AssemblyGraphStatistics {
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
 		}
 		
+		d1 = distWCovSharedKmersTPPathEdges.getDistribution();
+		d2 = distWCovSharedKmersFPPathEdges.getDistribution();
+		d3 = distWCovSharedKmersFPEdges.getDistribution();
+		out.println("Weighted Coverage shared kmers distributions");
+		out.println("Number\tTPpath\tFPpath\tFP");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distWCovSharedKmersTPPathEdges.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
+		}
+		
 		d1 = distOverlapSDTPPathEdges.getDistribution();
 		d2 = distOverlapSDFPEdges.getDistribution();
 		out.println("Overlap standard deviation distributions");
@@ -906,6 +922,7 @@ public class AssemblyGraphStatistics {
 		distMismatchesTPPathEdges.reset();
 		distSharedKmersTPPathEdges.reset();
 		distCoverageSharedKmersTPPathEdges.reset();
+		distWCovSharedKmersTPPathEdges.reset();
 		distMismatchesProportionTPPathEdges.reset();
 		distSharedKmersProportionTPPathEdges.reset();
 		distCoverageSharedKmersProportionTPPathEdges.reset();
@@ -917,6 +934,7 @@ public class AssemblyGraphStatistics {
 		distMismatchesFPEdges.reset();
 		distSharedKmersFPEdges.reset();
 		distCoverageSharedKmersFPEdges.reset();
+		distWCovSharedKmersFPEdges.reset();
 		distMismatchesProportionFPEdges.reset();
 		distSharedKmersProportionFPEdges.reset();
 		distCoverageSharedKmersProportionFPEdges.reset();
