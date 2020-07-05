@@ -279,8 +279,7 @@ public class AssemblyGraphStatistics {
 			graph.removeEdgesChimericReads();
 			graph.filterEdgesAndEmbedded();
 			log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-			graph.filterEdgesCloseRelationships();
-			log.info("Filtered inconsistent transitive. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+			
 			LayoutBuilder pathsFinder;
 			if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
@@ -320,6 +319,7 @@ public class AssemblyGraphStatistics {
 			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
 			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
 			aln.setReadNumber(i);
+			aln.setReadName(readName);
 			alignments.add(aln);
 		}
 		return alignments;
@@ -434,14 +434,21 @@ public class AssemblyGraphStatistics {
 			boolean gsE = goldStandardGraph.isEmbedded(i);
 			boolean testE = testGraph.isEmbedded(i);
 			if(gsE && testE) tpEmbSeqs++;
-			else if (gsE) fnEmbSeqs++;
+			else if (gsE) {
+				fnEmbSeqs++;
+				System.err.println("Embedded sequence not called: "+logSequence(i, sequence));
+				for(AssemblyEmbedded embedded:goldStandardGraph.getEmbeddedBySequenceId(i)) {
+					QualifiedSequence seqHost = goldStandardGraph.getSequence(embedded.getHostId()) ;
+					System.err.println("Next true host "+logSequence(embedded.getHostId(),seqHost));
+				}
+			}
 			else if (testE) {
 				fpEmbSeqs++;
 				List<AssemblyEmbedded> falseHosts = testGraph.getEmbeddedBySequenceId(i);
-				if (logErrors) log.info("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
+				System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
-					if (logErrors) log.info("Next false host "+logSequence(embedded.getHostId(),seqHost));
+					System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost));
 				}
 			}
 			//Check embedded relationships
@@ -507,7 +514,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==563 || gsVertex.getUniqueNumber()==422; 
+		boolean debug = gsVertex.getUniqueNumber()==-330 || gsVertex.getUniqueNumber()==807; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

@@ -85,14 +85,14 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		List<AssemblyEdge> edgesV1 = graph.getEdges(v1);
 		for(AssemblyEdge edgeV1:edgesV1) {
 			if(edgeV1.isSameSequenceEdge() || edge==edgeV1) continue;
-			if(edgeV1.getOverlap()>=edge.getOverlap() || edgeV1.getCoverageSharedKmers()>=edge.getCoverageSharedKmers()) return false;
+			if(edgeV1.getOverlap()>=edge.getOverlap() || edgeV1.getWeightedCoverageSharedKmers()>=edge.getWeightedCoverageSharedKmers()) return false;
 			//if(edgeV1.getOverlap()>=edge.getOverlap()) return false;
 		}
 		AssemblyVertex v2 = edge.getVertex2();
 		List<AssemblyEdge> edgesV2 = graph.getEdges(v2);
 		for(AssemblyEdge edgeV2:edgesV2) {
 			if(edgeV2.isSameSequenceEdge() || edge==edgeV2) continue;
-			if(edgeV2.getOverlap()>=edge.getOverlap() || edgeV2.getCoverageSharedKmers()>=edge.getCoverageSharedKmers()) return false;
+			if(edgeV2.getOverlap()>=edge.getOverlap() || edgeV2.getWeightedCoverageSharedKmers()>=edge.getWeightedCoverageSharedKmers()) return false;
 			//if(edgeV2.getOverlap()>=edge.getOverlap()) return false;
 		}
 		return true;
@@ -234,18 +234,18 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance());
 		NormalDistribution nwcTP = new NormalDistribution(wCovTP.getAverage(),wCovTP.getVariance());
 		double pValueOTP = noTP.cumulative(edge.getOverlap());
-		if(pValueOTP>0.5) pValueOTP=1-pValueOTP;
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
 		double pValueCTP = ncTP.cumulative(edge.getCoverageSharedKmers());
 		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
 		double pValueWCTP = nwcTP.cumulative(edge.getEdgeAssemblyGraph().getWeightedCoverageSharedKmers());
 		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
 		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" costs: "+cost1+" "+cost2+" "+cost3+" sum: " +(cost1+cost2+cost3)+ " Edge: "+edge.getEdgeAssemblyGraph());
-		return cost3;
+		return cost1+cost3;
+		//return cost3;
 		//return cost1+cost2;
 	}
 	private boolean logEdge(AssemblyEdge edge) {
-		int n = 563;
+		int n = -330;
 		return edge.getVertex1().getUniqueNumber()==n || edge.getVertex2().getUniqueNumber()==n;
 	}
 	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length, Distribution[] edgesStats) {
