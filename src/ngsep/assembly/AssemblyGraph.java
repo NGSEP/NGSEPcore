@@ -411,7 +411,7 @@ public class AssemblyGraph {
 			while(line!=null && seqId<sequences.size()) {
 				String [] items = line.split("\t");
 				QualifiedSequence seq = sequences.get(seqId);
-				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index" +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" loaded: "+items[0]);
+				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+items[0]+" "+items[1]);
 				if(seq.getLength()!=Integer.parseInt(items[1])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
 				seqId++;
 				line=in.readLine();
@@ -586,6 +586,7 @@ public class AssemblyGraph {
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
 		double minScoreProportion = 0.4;
+		//double minScoreProportion = 0.5;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
