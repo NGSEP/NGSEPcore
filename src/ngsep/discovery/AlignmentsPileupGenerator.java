@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
@@ -40,6 +41,8 @@ public class AlignmentsPileupGenerator {
 	
 	private Logger log = Logger.getLogger(AlignmentsPileupGenerator.class.getName());
 	private List<PileupListener> listeners = new ArrayList<PileupListener>();
+	//Required to process CRAM files
+	private ReferenceGenome genome=null;
 	private QualifiedSequenceList sequencesMetadata;
 	
 	private String querySeq=null;
@@ -179,7 +182,16 @@ public class AlignmentsPileupGenerator {
 	public void setKeepRunning(boolean keepRunning) {
 		this.keepRunning = keepRunning;
 	}
-	
+
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+		this.sequencesMetadata = genome.getSequencesMetadata();
+	}
+
 	/**
 	 * Parallel processing of several bam files
 	 * PRE: The generator has the sequences metadata information
@@ -320,7 +332,7 @@ public class AlignmentsPileupGenerator {
 	}
 	
 	private ReadAlignmentFileReader createReader(String filename) throws IOException {
-		ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename);
+		ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename, genome);
 		//reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 		reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_FULL);
 		int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;

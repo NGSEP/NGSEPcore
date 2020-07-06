@@ -490,7 +490,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
 		for(String filename:inputFiles) {
-			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename,genome)) {
 				Map<String, String> samplesHeader = reader.getSampleIdsByReadGroup();
 				for(String readGroup : samplesHeader.keySet()) {
 					String sampleId = samplesHeader.get(readGroup);
