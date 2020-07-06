@@ -181,7 +181,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, query.length(), cluster);
 		embeddedEvent.setCoverageSharedKmers(alnData[0]);
-		embeddedEvent.setMismatches(alnData[1]);
+		embeddedEvent.setWeightedCoverageSharedKmers(alnData[1]);
+		embeddedEvent.setMismatches(alnData[2]);
 		synchronized (graph) {
 			graph.addEmbedded(embeddedEvent);
 		}
@@ -200,7 +201,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		//if(aln!=null) mismatches = aln.getNumMismatches();
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
-		edge.setMismatches(alnData[1]);
+		edge.setWeightedCoverageSharedKmers(alnData[1]);
+		edge.setMismatches(alnData[2]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
 		synchronized (graph) {
@@ -221,7 +223,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		//if(aln!=null) mismatches = aln.getNumMismatches();
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
-		edge.setMismatches(alnData[1]);
+		edge.setWeightedCoverageSharedKmers(alnData[1]);
+		edge.setMismatches(alnData[2]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
 		synchronized (graph) {

@@ -382,7 +382,8 @@ public class AssemblyGraph {
 				for(AssemblyEmbedded embedded:embeddedList) {
 					int reverse = embedded.isReverse()?1:0;
 					out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
-					out.println("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
+					out.print("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getWeightedCoverageSharedKmers());
+					out.println("\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
 				}
 			}
 			
@@ -391,7 +392,8 @@ public class AssemblyGraph {
 			for(AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) continue;
 				out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
-				out.println("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers()+"\t"+edge.getMismatches());
+				out.print("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers());
+				out.println("\t"+edge.getWeightedCoverageSharedKmers()+"\t"+edge.getMismatches());
 			}
 			
 		}
@@ -409,7 +411,7 @@ public class AssemblyGraph {
 			while(line!=null && seqId<sequences.size()) {
 				String [] items = line.split("\t");
 				QualifiedSequence seq = sequences.get(seqId);
-				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index" +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" loaded: "+items[0]);
+				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+items[0]+" "+items[1]);
 				if(seq.getLength()!=Integer.parseInt(items[1])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
 				seqId++;
 				line=in.readLine();
@@ -427,9 +429,10 @@ public class AssemblyGraph {
 				AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
 				embedded.setNumSharedKmers(Integer.parseInt(items[5]));
 				embedded.setCoverageSharedKmers(Integer.parseInt(items[6]));
-				embedded.setMismatches(Integer.parseInt(items[7]));
-				embedded.setHostEvidenceStart(Integer.parseInt(items[8]));
-				embedded.setHostEvidenceEnd(Integer.parseInt(items[9]));
+				embedded.setWeightedCoverageSharedKmers(Integer.parseInt(items[7]));
+				embedded.setMismatches(Integer.parseInt(items[8]));
+				embedded.setHostEvidenceStart(Integer.parseInt(items[9]));
+				embedded.setHostEvidenceEnd(Integer.parseInt(items[10]));
 				graph.addEmbedded(embedded);
 				line=in.readLine();
 			}
@@ -447,7 +450,8 @@ public class AssemblyGraph {
 				edge.setOverlapStandardDeviation(Double.parseDouble(items[3]));
 				edge.setNumSharedKmers(Integer.parseInt(items[4]));
 				edge.setCoverageSharedKmers(Integer.parseInt(items[5]));
-				edge.setMismatches(Integer.parseInt(items[6]));
+				edge.setWeightedCoverageSharedKmers(Integer.parseInt(items[6]));
+				edge.setMismatches(Integer.parseInt(items[7]));
 				graph.addEdge(edge);
 				line=in.readLine();
 			}
@@ -497,10 +501,10 @@ public class AssemblyGraph {
 		return answer;
 	}
 
-	public void removeVerticesChimericReads () {
+	public void removeEdgesChimericReads () {
 		for(int i=0;i<sequences.size();i++) {
 			if(isChimeric(i)) {
-				removeVertices(i);
+				removeEdges(i);
 				removeEmbeddedRelations(i);
 			}
 		}
@@ -581,7 +585,8 @@ public class AssemblyGraph {
 		filterEdgesAbnormalFeatures(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportion = 0.7;
+		double minScoreProportion = 0.4;
+		//double minScoreProportion = 0.5;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -628,8 +633,8 @@ public class AssemblyGraph {
 		AssemblyEmbedded maxEmbedded = null;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			double score = calculateScore(embedded);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
-			if(score > 0.7*maxScore && score > maxE) {
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Length "+getSequenceLength(sequenceId)+" coverageKmers: "+embedded.getCoverageSharedKmers()+" Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
+			if(score > minScoreProportion*maxScore && score > maxE) {
 				maxE = score;
 				maxEmbedded = embedded;
 			}
@@ -654,7 +659,7 @@ public class AssemblyGraph {
 			int v2L = edge.getVertex2().getRead().getLength();
 			if(overlap>1.1*v1L || overlap>1.1*v2L) {
 				toRemove.add(edge);
-			} else if (edge.getCoverageSharedKmers()<0.3*v1L || edge.getCoverageSharedKmers()<0.3*v2L) {
+			} else if (edge.getWeightedCoverageSharedKmers()<0.1*v1L || edge.getWeightedCoverageSharedKmers()<0.1*v2L) {
 				toRemove.add(edge);
 			}
 		}
@@ -664,13 +669,15 @@ public class AssemblyGraph {
 	private double calculateScore(AssemblyEmbedded embedded) {
 		//KmerHitsCluster cluster = embedded.getEvidence();
 		//return 1.0*(cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/cluster.getQuery().length();
-		return embedded.getCoverageSharedKmers();
+		//return embedded.getCoverageSharedKmers();
+		return embedded.getWeightedCoverageSharedKmers();
 	}
 
 	private double calculateScore(AssemblyEdge edge) {
 		//KmerHitsCluster cluster = edge.getEvidence();
 		//return (cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
-		return edge.getCoverageSharedKmers();
+		//return edge.getCoverageSharedKmers();
+		return edge.getWeightedCoverageSharedKmers();
 	}
 
 	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
@@ -734,10 +741,14 @@ public class AssemblyGraph {
 		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Total edges: "+edges.size());
 		if(edges.size()<3) return;
 		AssemblyEdge maxOverlapEdge = null;
+		AssemblyEdge maxScoreEdge = null;
 		for(AssemblyEdge edge: edges) {
 			if(edge.isSameSequenceEdge()) continue;
 			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap() < edge.getOverlap()) {
 				maxOverlapEdge = edge;
+			}
+			if(maxScoreEdge==null || calculateScore(maxScoreEdge)<calculateScore(edge)) {
+				maxScoreEdge = edge;
 			}
 		}
 		AssemblyEdge secondOverlapEdge = null;
@@ -753,22 +764,25 @@ public class AssemblyGraph {
 		int ov2 = secondOverlapEdge.getOverlap();
 		int diff = ov1-ov2;
 		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. overlap 1: "+ov1+" overlap2: "+ov2+" diff: "+diff);
-		if(diff> 0.01*ov1) return;
-		AssemblyVertex vMax = maxOverlapEdge.getConnectingVertex(vertex);
-		AssemblyEdge seqEdgeMax = getSameSequenceEdge(vMax);
-		AssemblyVertex vMax2 = seqEdgeMax.getConnectingVertex(vMax);
-		AssemblyVertex vSecond = secondOverlapEdge.getConnectingVertex(vertex);
-		AssemblyEdge seqEdgeSecond = getSameSequenceEdge(vSecond);
-		AssemblyVertex vSecond2 = seqEdgeSecond.getConnectingVertex(vSecond);
-		AssemblyEdge transitiveGood = getEdge(vMax2, vSecond);
-		AssemblyEdge transitiveBad = getEdge(vSecond2, vMax);
-		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
-		if(transitiveBad!=null && transitiveGood==null) {
-			//System.out.println("Filter edges close. removing edge: "+maxOverlapEdge.getVertex1().getUniqueNumber()+" "+maxOverlapEdge.getVertex2().getUniqueNumber()+" transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
+		if(maxOverlapEdge==maxScoreEdge && diff > 0.1*ov1) return;
+		if(badTransitivity(vertex, maxOverlapEdge, secondOverlapEdge)) {
 			removeEdge(maxOverlapEdge);
-		} /*else if (transitiveGood!=null && transitiveBad == null) {
-			removeEdge(transitiveGood);
-		}*/
+		} else if (maxOverlapEdge!=maxScoreEdge && badTransitivity(vertex,maxScoreEdge,maxOverlapEdge)) {
+			removeEdge(maxScoreEdge);
+		}
+	}
+
+	private boolean badTransitivity(AssemblyVertex vertex, AssemblyEdge edge1, AssemblyEdge edge2) {
+		AssemblyVertex v1 = edge1.getConnectingVertex(vertex);
+		AssemblyEdge seqEdge1 = getSameSequenceEdge(v1);
+		AssemblyVertex v12 = seqEdge1.getConnectingVertex(v1);
+		AssemblyVertex v2 = edge2.getConnectingVertex(vertex);
+		AssemblyEdge seqEdge2 = getSameSequenceEdge(v2);
+		AssemblyVertex v22 = seqEdge2.getConnectingVertex(v2);
+		AssemblyEdge transitiveGood = getEdge(v12, v2);
+		AssemblyEdge transitiveBad = getEdge(v22, v1);
+		//if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
+		return transitiveBad!=null && transitiveGood==null;
 	}
 	
 }

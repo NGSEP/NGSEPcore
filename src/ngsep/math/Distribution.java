@@ -240,6 +240,29 @@ public class Distribution {
 		}
 		return minValueDistribution+(maxBinIdx*binLength);
 	}
+	/**
+	 * Return the less popular value within the subset of the distribution defined by the given limits
+	 * @param leftValue
+	 * @param rightValue
+	 * @return double
+	 */
+	public double getLocalMinimum(double leftValue, double rightValue) {
+		int i = getBinIndex(leftValue);
+		if(i<0) i=0;
+		int endBin = getBinIndex(rightValue)+1;
+		if(endBin>distribution.length) endBin = distribution.length;
+		int minBinIdx = i;
+		double minValue = distribution[i];
+		while(i<endBin) {
+			double value = distribution[i];
+			if(value < minValue) {
+				minValue = value;
+				minBinIdx = i;
+			}
+			i++;
+		}
+		return minValueDistribution+(minBinIdx*binLength);
+	}
 	public double getEstimatedStandardDeviationPeak(double peakValue) {
 		int peakBin = (int)((peakValue-minValueDistribution)/binLength);
 		if(peakBin<0) peakBin = 0;
