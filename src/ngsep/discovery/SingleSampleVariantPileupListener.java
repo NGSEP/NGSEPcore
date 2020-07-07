@@ -28,7 +28,6 @@ import java.util.Set;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.NumberArrays;
-import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
@@ -386,17 +385,32 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	private CalledGenomicVariant genotypeVariantPool(GenomicVariant variant, Sample sample, CountsHelper helper, double h) {
 		List<Byte> selectedAlleles = new ArrayList<Byte>();
 		String [] alleles = variant.getAlleles();
-		int [] counts = new int [alleles.length];
+		int [] counts = helper.getCounts();
+		double [] alleleErrorLogProbs = helper.getAlleleErrorLogProbs();
 		double total = helper.getTotalCount();
-		double countSelected = 0;
 		//Half of the expected count for an allele present in one single haplotype
-		double threshold = 0.5*total/sample.getNormalPloidy();
+		double minAlleleCount = 0.5*total/sample.getNormalPloidy();
+		double errorCount = 0.01*total;
+		// TODO: Make dynamic. log10(0.01)=-2
+		double logExpectedError = errorCount*(-2);
+		Double maxSelectedErrorLogProb = null; 
 		for(int i=0;i<alleles.length;i++) {
-			String allele = alleles[i];
-			counts[i] = helper.getCount(allele); 
-			if(counts[i]>=threshold) {
+			double count;
+			double errorLogProb;
+			if (variant instanceof SNV) {
+				int k = DNASequence.BASES_STRING.indexOf(alleles[i].charAt(0));
+				count = counts[k];
+				errorLogProb = alleleErrorLogProbs[k];
+			} else {
+				count = counts[i];
+				errorLogProb = alleleErrorLogProbs[i];
+			}
+			double lfcAllele = errorLogProb-logExpectedError; 
+			if(count>=minAlleleCount && lfcAllele<-2) {
 				selectedAlleles.add((byte) i);
-				countSelected+=counts[i];
+				if(maxSelectedErrorLogProb==null || maxSelectedErrorLogProb<errorLogProb) {
+					maxSelectedErrorLogProb = errorLogProb;
+				}
 			}
 		}
 		byte [] calledAlleles = new byte [selectedAlleles.size()];
@@ -411,7 +425,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			VariantCallReport report = new VariantCallReport(alleles, counts, helper.getLogConditionalProbs());
 			call.setCallReport(report);
 		}
-		call.setGenotypeQuality( (short)Math.min(countSelected, PhredScoreHelper.calculatePhredScore(1-countSelected/total)));
+		if(maxSelectedErrorLogProb!=null) call.setGenotypeQuality( (short)Math.min(255,-10*maxSelectedErrorLogProb));
 		return call;
 	}
 

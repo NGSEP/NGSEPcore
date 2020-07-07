@@ -50,6 +50,7 @@ public class CountsHelper {
 	private int lowBaseQualityCount = 0;
 	private int [] counts;
 	private int [][] countsStrand;
+	private double [] alleleErrorLogProbs;
 	private double [][] logConditionalProbs;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	
@@ -116,6 +117,7 @@ public class CountsHelper {
 		this.alleles = Arrays.asList(alleles);
 		int nAlleles = alleles.length;
 		counts = new int [nAlleles];
+		alleleErrorLogProbs = new double [nAlleles];
 		countsStrand = new int [nAlleles][2];
 		logConditionalProbs = new double [nAlleles][nAlleles];
 		updateProbabilitiesCache(nAlleles);
@@ -148,6 +150,7 @@ public class CountsHelper {
 		lowBaseQualityCount=0;
 		for(int i=0;i<logConditionalProbs.length;i++) {
 			counts[i] = 0;
+			alleleErrorLogProbs [i] = 0;
 			countsStrand [i][0] = countsStrand [i][1] = 0;
 			for(int j=0;j<logConditionalProbs[0].length;j++) {
 				logConditionalProbs[i][j] = 0;
@@ -172,6 +175,7 @@ public class CountsHelper {
 		if(index>=0) {
 			//Update raw count
 			counts[index]++;
+			alleleErrorLogProbs[index] += logProbCache[qualScore][0][2];
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
@@ -373,6 +377,11 @@ public class CountsHelper {
 	 */
 	public int[] getCounts() {
 		return counts;
+	}
+	
+	
+	public double[] getAlleleErrorLogProbs() {
+		return alleleErrorLogProbs;
 	}
 	/**
 	 * Gets the count for the given allele
