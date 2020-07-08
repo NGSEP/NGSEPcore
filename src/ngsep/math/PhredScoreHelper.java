@@ -47,6 +47,6 @@ public class PhredScoreHelper {
 		if(phredScore >= 255) {
 			return 0; 
 		}
-		return Math.pow(10.0, -((double)phredScore/10.0));
+		return Math.pow(10.0, -0.1*phredScore);
 	}
 }

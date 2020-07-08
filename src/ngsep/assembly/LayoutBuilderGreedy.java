@@ -71,7 +71,7 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 
 	private AssemblyVertex findNextUncoveredVertex(AssemblyGraph graph, List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {
 		for(AssemblyVertex vertex:vertices) {
-			if(!graph.isEmbedded(vertex.getSequenceIndex()) && !sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
+			if(!graph.isEmbedded(vertex.getSequenceIndex()) && graph.getEdges(vertex).size()>0 && !sequencesInPaths.contains(vertex.getSequenceIndex())) return vertex;
 		}
 		return null;
 	}

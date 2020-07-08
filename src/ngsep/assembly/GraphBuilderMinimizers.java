@@ -76,9 +76,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
-		int meanDepth = (int) Math.round(minimizerHitsDist.getAverage());
+		double firstMin = minimizerHitsDist.getLocalMinimum(1, 2*minimizerHitsDist.getAverage());
+		int modeDepth = (int) minimizerHitsDist.getLocalMode(firstMin, 99);
 		
 		minimizerHitsDist.printDistributionInt(System.out);
+		System.out.println("Local minimum: "+firstMin);
+		System.out.println("Local mode: "+modeDepth);
 		
 		table.clearOverrepresentedMinimizers();
 		log.info("Minimizers after removing overrepresented: "+table.getTotalMinimizers());
@@ -88,7 +91,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
-		edgesFinder.setMeanDepth(Math.max(5, meanDepth));
+		edgesFinder.setMeanDepth(Math.max(5, modeDepth));
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {

@@ -213,7 +213,7 @@ public class ReadPairAnalyzer {
 		int lastPos = 0;
 		coveredGenome = 0;
 		try {
-			reader = new ReadAlignmentFileReader(filename);
+			reader = new ReadAlignmentFileReader(filename, reference);
 			reader.setLoadMode (ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			filterFlags += ReadAlignment.FLAG_MATE_UNMAPPED;
@@ -345,7 +345,7 @@ public class ReadPairAnalyzer {
 		ReadAlignmentFileReader reader = null;
 		int numReads = 0;
 		try {
-			reader = new ReadAlignmentFileReader(filename);
+			reader = new ReadAlignmentFileReader(filename, reference);
 			//reader.setLoadMode (ReadAlignmentFileReader.LOAD_MODE_FULL);
 			reader.setLoadMode (ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
@@ -682,7 +682,7 @@ public class ReadPairAnalyzer {
 		int totalAlns = 0;
 		ReadAlignmentFileReader reader = null;
 		try {
-			reader = new ReadAlignmentFileReader(filename);
+			reader = new ReadAlignmentFileReader(filename, reference);
 			reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
 			reader.setRequiredFlags(ReadAlignment.FLAG_PAIRED);
 			reader.setMinMQ(minMQ);

@@ -30,6 +30,7 @@ public class AssemblyEdge {
 	private int numSharedKmers;
 	private double overlapStandardDeviation;
 	private int coverageSharedKmers;
+	private int weightedCoverageSharedKmers;
 	private int mismatches;
 	private boolean layoutEdge = false;
 
@@ -105,6 +106,14 @@ public class AssemblyEdge {
 		this.coverageSharedKmers = coverageSharedKmers;
 	}
 
+	public int getWeightedCoverageSharedKmers() {
+		return weightedCoverageSharedKmers;
+	}
+
+	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
+		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+
 	public int getMismatches() {
 		return mismatches;
 	}
@@ -138,7 +147,7 @@ public class AssemblyEdge {
 	}
 	
 	public String toString() {
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+System.lineSeparator()+" overlap: "+getOverlap()+" mismatches: "+getMismatches()+" coverage shared kmers: "+getCoverageSharedKmers()+" cost: "+getCost()+" layout: "+layoutEdge;
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" overlap: "+getOverlap()+" coverage shared kmers: "+getCoverageSharedKmers()+" weighted cov: "+getWeightedCoverageSharedKmers()+" layout: "+layoutEdge;
 	}
 	
 
