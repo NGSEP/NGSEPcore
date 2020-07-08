@@ -65,11 +65,11 @@ public class TillingPopulationSimulator {
 	
 	public static final int DEF_MUTATIONS=300;
 	public static final int DEF_INDIVIDUALS=800;
-	public static final int DEF_NUM_FRAGMENTS_POOL=1000;
+	public static final int DEF_NUM_FRAGMENTS_POOL=300;
 	public static final int DEF_READ_LENGTH=200;
 	public static final double DEF_ERROR_RATE=0.01;
-	public static final double DEF_MIN_ERROR_RATE=0.00001;
-	public static final int PLAQUE_WIDTH=8;
+	public static final double DEF_MIN_ERROR_RATE=0.001;
+	public static final int PLAQUE_WIDTH=12;
 	public static final int PLAQUE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
@@ -228,7 +228,7 @@ public class TillingPopulationSimulator {
 		simulatePopulation();
 		System.out.println("Simulated population");
 		printMutations(outPrefix+".vcf");
-		simulatePools();
+		simulatePools(outPrefix+"_poolDisposition.txt");
 		System.out.println("Simulated pools");
 		ArrayList<ArrayList<Double>> errors=generateErrorIntervals();
 		HashMap<Character,ArrayList<Character>> Seq_err= generateMutatedDictionary();
@@ -383,7 +383,9 @@ public class TillingPopulationSimulator {
 	/**
 	 * Simulate the pools to sequence the simulated individuals
 	 */
-	public void simulatePools() {
+	public void simulatePools(String pool_file) throws FileNotFoundException {
+		PrintStream out = new PrintStream(pool_file);
+		out.println("Individual;Row_Pool;Column_Pool;Plaque_Pool");
 		pools = new ArrayList<>();
 		int num_plates = 1+individuals.size()/(PLAQUE_WIDTH*PLAQUE_HEIGHT);
 		for(int i = 0; i< PLAQUE_WIDTH+PLAQUE_HEIGHT+num_plates;i++) {
@@ -392,11 +394,20 @@ public class TillingPopulationSimulator {
 		}
 		for(int i = 0; i < individuals.size();i++) {
 			int queryID = individuals.get(i).getId();
-			pools.get((queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH).add(individuals.get(i));
-			pools.get((queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT).add(individuals.get(i));
-			pools.get((queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT).add(individuals.get(i));
+			int pool_1=(queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH;
+			int pool_2=(queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT;
+			int pool_3=(queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT;
+			pools.get(pool_1).add(individuals.get(i));
+			pools.get(pool_2).add(individuals.get(i));
+			pools.get(pool_3).add(individuals.get(i));
+			
+			out.println(String.valueOf(queryID)+";"+String.valueOf(pool_1)+";"+String.valueOf(pool_2)+";"+String.valueOf(pool_3));
+			
 		}	
 		pools.removeIf(p -> p.isEmpty());
+		
+		out.flush();
+		out.close();
 	}
 
 	/**
@@ -470,7 +481,13 @@ public class TillingPopulationSimulator {
 		//For each fragment select a random individual, then select an allele sequence at random and build the reads from the two ends of the sequence
 		for(int i=0; i<DEF_NUM_FRAGMENTS_POOL;i++) {
 			SimulatedDiploidIndividual queryInd = pool.get(random.nextInt(pool.size()));
-			DNAMaskedSequence querySeq = queryInd.getRandomSequence();
+			
+			int randSeqNum = queryInd.getIntForRandomSequence();
+			DNAMaskedSequence querySeq = queryInd.getRandomSequence(randSeqNum);
+			
+			/**
+			 * Note that the reads begin at the first (forward read) and last (reverse read) position of the sequence.
+			 */
 			int initialPositionForward = 0;
 			int initialPositionReverse = querySeq.length();
 			
@@ -506,13 +523,12 @@ public class TillingPopulationSimulator {
 				}
 				qualityReverse+=Character.toString(symbol);
 			}
-			
-			out.println(String.valueOf("@Ind"+queryInd.getId()));
+			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum);
 			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
 			
-			out_rev.println(String.valueOf("@Ind"+queryInd.getId()));
+			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum);
 			out_rev.println(readReverse);
 			out_rev.println("+");
 			out_rev.println(qualityReverse);
@@ -632,8 +648,13 @@ class SimulatedDiploidIndividual {
 	public List<DNAMaskedSequence> getAlleleSequences () {
 		return Collections.unmodifiableList(alleleSequences);
 	}
-	public DNAMaskedSequence getRandomSequence() {
+	
+	public int getIntForRandomSequence() {
 		int idx = random.nextInt(alleleSequences.size());
+		return idx;
+	}
+	
+	public DNAMaskedSequence getRandomSequence(int idx) {
 		return alleleSequences.get(idx);
 	}
 }
