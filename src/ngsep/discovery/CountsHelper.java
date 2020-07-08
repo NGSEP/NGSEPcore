@@ -42,6 +42,8 @@ public class CountsHelper {
 	
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
+	private static final double DEF_HET_PROPORTION = 0.5;
+	private static final int DEF_NUM_FREQUENCIES = 501;
 	private static final byte DEF_MIN_BASE_QS = 3;
 	public static final byte DEF_MAX_BASE_QS = 100;
 	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
@@ -53,9 +55,12 @@ public class CountsHelper {
 	private double [] alleleErrorLogProbs;
 	private double [][] logConditionalProbs;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
+	private double heterozygousProportion = DEF_HET_PROPORTION;
 	
 	private List<String> alleles;
-	private static double [][][] logProbCache;
+	private static double [][] alleleFreqCache;
+	private static double [][][] logProbCacheGT;
+	private static double [][] logProbCacheError;
 	
 	private boolean verbose = false;
 	
@@ -68,22 +73,6 @@ public class CountsHelper {
 	public CountsHelper (String [] alleles) {
 		setAlleles(alleles);
 	}
-	
-	/**
-	 * Creates a CountsHelper object with counts of the given alleles according to the given calls
-	 * @param alleles Array of possible alleles to take into account
-	 * @param calls Allele calls to count
-	 * @param maxBaseQS maximum base quality score. Larger quality scores are equalized to this value
-	 * @return CountsHelper object with counts and probabilities to call variants
-	 */
-	public static CountsHelper calculateCounts(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS) {
-		CountsHelper answer = new CountsHelper(alleles);
-		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		for(PileupAlleleCall call: calls) {
-			answer.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
-		}
-		return answer;
-	}
 	/**
 	 * Calculates counts to call SNVs for the given pileup
 	 * @param pileup with alignments spanning a given position
@@ -91,14 +80,24 @@ public class CountsHelper {
 	 * @param readGroups to return alignments. If null, all alignments of this pileup are processed
 	 * @return CountsHelper object with counts and probabilities to call SNVs
 	 */
-	public static CountsHelper calculateCountsSNV (List<PileupAlleleCall> calls, byte maxBaseQS) {
+	public static CountsHelper calculateCountsSNV (List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
 		CountsHelper answer = new CountsHelper();
 		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
+		answer.heterozygousProportion = heterozygousProportion;
 		for(PileupAlleleCall call:calls ) {
 			byte q = (byte)(Math.min(DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
 			answer.updateCounts(call.getAlleleString().substring(0,1), q, call.isNegativeStrand());
 		}
 		return answer;
+	}
+	public static CountsHelper calculateCounts(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
+		CountsHelper helper = new CountsHelper(alleles);
+		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
+		helper.heterozygousProportion = heterozygousProportion;
+		for(PileupAlleleCall call: calls) {
+			helper.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
+		}
+		return helper;
 	}
 	
 	/**
@@ -123,24 +122,51 @@ public class CountsHelper {
 		updateProbabilitiesCache(nAlleles);
 		startCounts();
 	}
-	private void updateProbabilitiesCache(int n) {
+	private void updateProbabilitiesCache(int numAlleles) {
 		int m = DEF_MAX_BASE_QS+1;
-		if(n<=GenomicVariant.MAX_NUM_ALLELES)n=GenomicVariant.MAX_NUM_ALLELES+1;
-		if(logProbCache!=null && logProbCache[0].length>=n) return;
-		logProbCache = new double [m][n][3];
-		for(byte i=DEF_MIN_BASE_QS;i<m;i++) {
+		//Create the cache for at least 10 alleles
+		if(numAlleles<10) numAlleles=10;
+		//Update to 50 if needed
+		else if (numAlleles<50) numAlleles = 50;
+		//Update to the maximum if needed
+		else if(numAlleles<=GenomicVariant.MAX_NUM_ALLELES)numAlleles=GenomicVariant.MAX_NUM_ALLELES;
+		int n = numAlleles+1;
+		if(logProbCacheError!=null && logProbCacheError.length>=n) return;
+		logProbCacheError = new double [m][n];
+		
+		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
+			//Log of error probability for quality score i
+			logProbCacheError[i][0] = -0.1*i;
+			for(int j=2;j<logProbCacheError[i].length;j++) {
+				//Error probability divided by number of alleles minus 1
+				logProbCacheError[i][j]=logProbCacheError[i][0]-Math.log10(j-1);
+			}
+		}
+		alleleFreqCache = new double [DEF_NUM_FREQUENCIES][2];
+		logProbCacheGT = new double [DEF_NUM_FREQUENCIES][m][n];
+		for(int f=0;f<DEF_NUM_FREQUENCIES;f++) {
+			updateProbabilitiesCacheFrequency (f);
+		}
+	}
+	private void updateProbabilitiesCacheFrequency(int f) {
+		double alleleFrequency = (double)f/(DEF_NUM_FREQUENCIES-1);
+		alleleFreqCache[f][0] = Math.log10(alleleFrequency);
+		alleleFreqCache[f][1] = Math.log10(1-alleleFrequency);
+		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
 			double errorProb = PhredScoreHelper.calculateProbability(i);
-			double successProb = (1 - errorProb);
-			logProbCache[i][0][0] = Math.log10(successProb);
-			logProbCache[i][0][2] = Math.log10(errorProb);
-			for(int j=2;j<n;j++) {
-				double epa = errorProb/(j-1);
+			double successProb = 1-errorProb;
+			logProbCacheGT[f][i][0] = Math.log10(successProb);
+			for(int j=2;j<logProbCacheError[i].length;j++) {
+				double hetProb = alleleFrequency*successProb+(1-alleleFrequency)*errorProb/(j-1);
+				logProbCacheGT[f][i][j] = Math.log10(hetProb);
+				/*
 				logProbCache[i][j][2] = Math.log10(epa);
 				double term = 0.5*(1-j*epa);
 				logProbCache[i][j][0] = Math.log10(successProb-term);
-				logProbCache[i][j][1] = Math.log10(epa+term);
+				logProbCache[i][j][1] = Math.log10(epa+term);*/
 			}
 		}
+		
 	}
 	/**
 	 * Starts all counts to zero
@@ -165,6 +191,9 @@ public class CountsHelper {
 	 */
 	public void updateCounts (String allele, byte qualScore, boolean negativeStrand) {
 		totalCount++;
+		//TODO: Move to setter
+		int f = (int)Math.round(heterozygousProportion*(DEF_NUM_FREQUENCIES-1));
+		int g = (int)Math.round((1-heterozygousProportion)*(DEF_NUM_FREQUENCIES-1));
 		if(qualScore<=DEF_MIN_BASE_QS) {
 			lowBaseQualityCount++;
 			return;
@@ -175,7 +204,7 @@ public class CountsHelper {
 		if(index>=0) {
 			//Update raw count
 			counts[index]++;
-			alleleErrorLogProbs[index] += logProbCache[qualScore][0][2];
+			alleleErrorLogProbs[index] += logProbCacheError[qualScore][0];
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
@@ -184,53 +213,71 @@ public class CountsHelper {
 			//Update probabilities
 			for(int i=0;i<logConditionalProbs.length;i++) {
 				if(i==index) {
-					logConditionalProbs[i][i] += logProbCache[qualScore][0][0]; 
+					logConditionalProbs[i][i] += logProbCacheGT[f][qualScore][0]; 
 				} else {
-					logConditionalProbs[i][i] += logProbCache[qualScore][n][2];
+					//The error towards the observed allele depends on the number of alleles
+					logConditionalProbs[i][i] += logProbCacheError[qualScore][n];
 				}
 				for(int j=0;j<logConditionalProbs[i].length;j++) {
 					if(i!=j) {
 						if(i==index) {
-							logConditionalProbs[i][j] += logProbCache[qualScore][n][1];
+							logConditionalProbs[i][j] += logProbCacheGT[f][qualScore][n];
 						} else if (j==index) {
-							logConditionalProbs[i][j] += logProbCache[qualScore][n][0];
+							logConditionalProbs[i][j] += logProbCacheGT[g][qualScore][n];
 						} else {
-							logConditionalProbs[i][j] += logProbCache[qualScore][n][2];
+							logConditionalProbs[i][j] += logProbCacheError[qualScore][n];
 						}
-					}
+					}		
 				}
 			}
 		}
 	}
+	
 	public void updateCounts(String call, String qualityScores, boolean negativeStrand) {
 		totalCount++;
 		int index = alleles.indexOf(call);
+		int f = (int)Math.round(heterozygousProportion*DEF_NUM_FREQUENCIES);
+		int n = alleles.size();
+		//for the allele with the right length corresponds to the probability given that the allele was already chosen
+		double [] logCondAlleles = new double [n];
+		int bestIndex = -1;
+		for(int i=0;i<n;i++) {
+			String alleleI = alleles.get(i);
+			if(alleleI.length()==call.length()) {
+				logCondAlleles[i] = calculateLogCond(alleleI,call,qualityScores);
+				if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
+			} else {
+				logCondAlleles[i] = DEF_LOG_ERROR_PROB_INDEL;
+			}
+			if(verbose) System.out.println("Allele: "+alleleI+" call: "+call+ " log cond: "+logCondAlleles[i]);
+		}
+		if(index>=0 && bestIndex>=0 && bestIndex!=index) {
+			//This can happen due to low base quality scores
+			index = Math.min(index, bestIndex);
+			//System.err.println("Exact match allele for call: "+call+" quality: "+qualityScores+" does not have the best likelihood. Index: "+index+" Best index: "+bestIndex+" likelihoods: "+logCondAlleles[index]+" "+logCondAlleles[bestIndex]+" alleles: "+alleles);
+		}
+		else if (index<0 && bestIndex>=0) index = bestIndex;
 		if(index>=0) {
 			//Update raw count
 			counts[index]++;
+			alleleErrorLogProbs[index] += DEF_LOG_ERROR_PROB_INDEL;
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
 		}
-			
-		int n = alleles.size();
-		double [] conditionals = new double [n];
-		for(int i=0;i<logConditionalProbs.length;i++) {
-			String alleleI = alleles.get(i);
-			if(alleleI.length()==call.length()) {
-				conditionals[i] = calculateConditional(alleleI,call,qualityScores); 
-			} else {
-				conditionals[i] = DEF_LOG_ERROR_PROB_INDEL;
-			}
-			if(verbose) System.out.println("Allele: "+alleleI+" call: "+call+ " log cond: "+conditionals[i]);
-		}
 		//Update probabilities
 		for(int i=0;i<logConditionalProbs.length;i++) {
-			logConditionalProbs[i][i] += conditionals[i];
-			for(int j=i+1;j<logConditionalProbs[i].length;j++) {
-				double average = LogMath.logSum(conditionals[i], conditionals[j])-0.3;
-				logConditionalProbs[i][j]+=average;
-				logConditionalProbs[j][i]+=average;
+			logConditionalProbs[i][i] += logCondAlleles[i];
+			for(int j=0;j<logConditionalProbs[i].length;j++) {
+				if (i!=j) {
+					if(i==index ) {
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+DEF_LOG_ERROR_PROB_INDEL);
+					} else if ( j==index) {
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+DEF_LOG_ERROR_PROB_INDEL);
+					} else {
+						logConditionalProbs[i][j]+=DEF_LOG_ERROR_PROB_INDEL;
+					}
+				}
 			}
 		}
 		if(verbose) printProbs(logConditionalProbs, true);
@@ -242,13 +289,16 @@ public class CountsHelper {
 	 * @param qualityScores phred+33 format
 	 * @return double log conditional probability of the given call with the given scores given the allele
 	 */
-	private double calculateConditional(String allele, String call, String qualityScores) {
+	private double calculateLogCond(String allele, String call, String qualityScores) {
 		double logCond = 0;
 		for(int i=0;i<allele.length();i++) {
 			char c = call.charAt(i);
 			byte qualScore = (byte)Math.min(maxBaseQS, (qualityScores.charAt(i)-33));
-			if(allele.charAt(i)==c) logCond+=logProbCache[qualScore][0][0];
-			else logCond+=logProbCache[qualScore][4][2];
+			if(qualScore<DEF_MIN_BASE_QS) continue;
+			//AF=0 can be used because the success probability does not depend on the allele frequency
+			if(allele.charAt(i)==c) logCond+=logProbCacheGT[0][qualScore][0];
+			//Base change error. Assumes 4 bases.
+			else logCond+=logProbCacheError[qualScore][4];
 		}
 		return logCond;
 	}
@@ -329,7 +379,7 @@ public class CountsHelper {
 	 * @param eventsArray conditional times prior with logaritmich scale.
 	 * This array at the end stores the posterior probabilities
 	 */
-	private void calculatePosteriorProbabilities (double [] eventsArray) {
+	public static void calculatePosteriorProbabilities (double [] eventsArray) {
 		//Calculate max prob
 		double logMax = 1;
 		for(int i=0;i<eventsArray.length;i++) {
