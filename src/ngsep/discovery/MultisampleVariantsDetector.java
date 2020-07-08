@@ -423,6 +423,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		indelRealigner.setGenome(genome);
+		generator.setGenome(genome);
 		generator.setSequencesMetadata(sequences);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
