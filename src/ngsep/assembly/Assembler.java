@@ -73,7 +73,7 @@ public class Assembler {
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String graphFile = null;
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
-	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
 	private int numThreads = DEF_NUM_THREADS;
 	
