@@ -74,17 +74,21 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	public ReadAlignmentFileReader (String filename) throws IOException {
-		init(null,new File(filename));
+		init(null,new File(filename),null);
+	}
+	public ReadAlignmentFileReader (String filename, ReferenceGenome genome) throws IOException {
+		sequences = genome.getSequencesMetadata();
+		init(null,new File(filename),genome);
 	}
 	public ReadAlignmentFileReader (String filename, ReferenceGenome genome, boolean validateHeader) throws IOException {
 		sequences = genome.getSequencesMetadata();
 		this.validateHeader = validateHeader;
-		init(null,new File(filename));
+		init(null,new File(filename),genome);
 	}
 	public ReadAlignmentFileReader (String filename, QualifiedSequenceList sequences, boolean validateHeader) throws IOException {
 		this.sequences = sequences;
 		this.validateHeader = validateHeader;
-		init(null,new File(filename));
+		init(null,new File(filename),null);
 	}
 	//TODO: Make more constructors
 	public Logger getLog() {
@@ -149,13 +153,15 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		return currentIterator;
 	}
 	
-	private void init (InputStream stream, File file) throws IOException {
+	private void init (InputStream stream, File file, ReferenceGenome genome) throws IOException {
 		if (stream != null && file != null) throw new IllegalArgumentException("Stream and file are mutually exclusive");
 		if(file!=null) {
 			stream = new FileInputStream(file);
 		}
 		//TODO: Use stream
-		SamReader reader = SamReaderFactory.makeDefault().open(file);
+		SamReaderFactory factory = SamReaderFactory.makeDefault();
+		if(genome!=null) factory.referenceSequence(new File(genome.getFilename()));
+		SamReader reader = factory.open(file);
 		SAMFileHeader header = reader.getFileHeader();
 		if(header != null) loadHeader(header);
 		it = reader.iterator();
@@ -253,7 +259,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	}
 	
 	private boolean isMultiple(SAMRecord aln) {
-		if (aln.getNotPrimaryAlignmentFlag()) return true;
+		if (aln.isSecondaryAlignment()) return true;
 		Integer alns = aln.getIntegerAttribute(ATTRIBUTE_NUMALNS);
 		if(alns!=null && alns > 1) return true;
 		if(alns!=null && alns == 1) return false;

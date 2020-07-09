@@ -29,6 +29,7 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
+import ngsep.genome.ReferenceGenome;
 import ngsep.math.PhredScoreHelper;
 import ngsep.variants.CalledCNV;
 import ngsep.variants.GenomicVariant;
@@ -38,8 +39,18 @@ import ngsep.variants.GenomicVariantImpl;
 public class MultipleMappingRegionsCalculator {
 	
 	public static final String SOURCE_MULTIPLE_ALNS = "MultiAlns";
+	
+	private ReferenceGenome genome = null;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
+	
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
 	/**
 	 * @return the minMQ
 	 */
@@ -60,7 +71,7 @@ public class MultipleMappingRegionsCalculator {
 		int minReadLength=-1;
 		LinkedList<Integer> uniqueStarts = new LinkedList<Integer>();
 		
-		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alnsFile);) {
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alnsFile, genome);) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);

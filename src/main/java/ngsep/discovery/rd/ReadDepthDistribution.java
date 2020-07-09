@@ -48,6 +48,7 @@ public class ReadDepthDistribution {
 	private int binSize = DEFAULT_BIN_SIZE;
 	private Map<String, List<ReadDepthBin>> bins = new TreeMap<String, List<ReadDepthBin>>();
 	private QualifiedSequenceList sequences;
+	private ReferenceGenome genome;
 	private long genomeSize = 0;
 	private long totalReads = 0;
 	//Parameters of the distribution of read depth
@@ -136,6 +137,7 @@ public class ReadDepthDistribution {
 	public ReadDepthDistribution(ReferenceGenome genome, int binSize) {
 		
 		this.binSize = binSize;
+		this.genome = genome;
 		genomeSize = genome.getTotalLength();
 		sequences = genome.getSequencesMetadata();
 		System.out.println("Number of sequences: "+sequences.size());
@@ -173,9 +175,7 @@ public class ReadDepthDistribution {
 		}
 	}
 	public void processAlignments (String filename) throws IOException {
-		
-		
-		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename, genome)) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_MINIMAL);
 			reader.setLog(log);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;

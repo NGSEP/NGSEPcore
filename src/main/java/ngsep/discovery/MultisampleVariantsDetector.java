@@ -423,6 +423,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		indelRealigner.setGenome(genome);
+		generator.setGenome(genome);
 		generator.setSequencesMetadata(sequences);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
@@ -490,7 +491,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
 		for(String filename:inputFiles) {
-			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename,genome)) {
 				Map<String, String> samplesHeader = reader.getSampleIdsByReadGroup();
 				for(String readGroup : samplesHeader.keySet()) {
 					String sampleId = samplesHeader.get(readGroup);
@@ -579,7 +580,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	public GenomicVariant discoverPopulationSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> alleleCalls = pileup.getAlleleCalls(1,(String)null);
-		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(alleleCalls, maxBaseQS);
+		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(alleleCalls, maxBaseQS, 0.5);
 		GenomicVariant variant = SingleSampleVariantPileupListener.createSNVVariantPool(pileup, helperSNV, reference, minAlleleDepthFrequency);
 		if(variant == null) return null;
 		while(variant.getAlleles().length > 2) {	
@@ -595,7 +596,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
-		CountsHelper helper = CountsHelper.calculateCounts(alleles, calls,maxBaseQS); 
+		CountsHelper helper = CountsHelper.calculateCounts(alleles, calls, maxBaseQS, 0.5);
 		GenomicVariant variant = discoverPopulationIndel(pileup, helper);
 		if(!pileup.isInputSTR() && variant==null) {
 			if (pileup.isNewSTR()) {

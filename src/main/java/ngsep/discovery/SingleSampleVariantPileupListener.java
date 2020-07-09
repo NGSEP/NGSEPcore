@@ -21,12 +21,14 @@ package ngsep.discovery;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
+import ngsep.math.LogMath;
 import ngsep.math.NumberArrays;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNASequence;
@@ -226,13 +228,14 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	
 	public CalledGenomicVariant discoverSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,(String)null);
-		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS);
-		if(sample.getNormalPloidy()<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
+		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
+		short ploidy = sample.getNormalPloidy();
+		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return  VariantDiscoverySNVQAlgorithm.discoverSNV(helperSNV, pileup.getSequenceName(), pileup.getPosition(), reference, heterozygosityRate, calcStrandBias);
 		} else {
 			GenomicVariant variant = createSNVVariantPool(pileup, helperSNV, reference, 0.5/(double)sample.getNormalPloidy());
 			if(variant == null) return null;
-			CalledGenomicVariant call = genotypeVariantPool(variant, sample, helperSNV, heterozygosityRate);
+			CalledGenomicVariant call = genotypeVariantPool(variant, ploidy, calls, heterozygosityRate);
 			if(variant.isBiallelic()) return call;
 			if(call.isUndecided() || call.isHomozygousReference()) return null;
 			byte [] indexes = call.getIndexesCalledAlleles();
@@ -242,16 +245,15 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			newAlleles.add(variant.getReference());
 			newAlleles.addAll(Arrays.asList(call.getCalledAlleles()));
 			variant = makeNewVariant(variant, newAlleles);
-			return genotypeVariantPool(variant, sample, helperSNV, heterozygosityRate);
+			return genotypeVariantPool(variant, ploidy, calls, heterozygosityRate);
 		}
 	}
 	
 	private CalledGenomicVariant discoverVariantWithSpan(PileupRecord pileup, String referenceAllele) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
-		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);	
-		CountsHelper helper = CountsHelper.calculateCounts(alleles,calls, maxBaseQS); 
-		CalledGenomicVariant calledVar = discoverIndel(pileup, helper); 
+		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
+		CalledGenomicVariant calledVar = discoverIndel(pileup, alleles, calls); 
 		//Ignore call if it is not variant with enough quality
 		if(calledVar!=null && (calledVar.isUndecided() || calledVar.isHomozygousReference() || minQuality>calledVar.getGenotypeQuality())) calledVar = null;
 		if(!pileup.isInputSTR() && calledVar==null) {
@@ -264,13 +266,16 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		return calledVar;
 	}
-	private CalledGenomicVariant discoverIndel(PileupRecord pileup, CountsHelper helper) {
-		if(sample.getNormalPloidy()<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
+	
+	private CalledGenomicVariant discoverIndel(PileupRecord pileup, String [] alleles, List<PileupAlleleCall> calls) {
+		CountsHelper helper = CountsHelper.calculateCounts(alleles, calls, maxBaseQS, 0.5);
+		short ploidy = sample.getNormalPloidy();
+		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return VariantDiscoverySNVQAlgorithm.callIndel(pileup, helper, null, heterozygosityRate, calcStrandBias);
 		} else {
 			GenomicVariant indel = createIndelVariantPool(pileup, helper);
 			if(indel == null || allelesSameLength(indel.getAlleles())) return null;
-			CalledGenomicVariant call = genotypeVariantPool(indel, sample, helper, heterozygosityRate);
+			CalledGenomicVariant call = genotypeVariantPool(indel, ploidy, calls, heterozygosityRate);
 			if(indel.isBiallelic()) return call;
 			if(call.isUndecided() || call.isHomozygousReference()) return null;
 			byte [] indexes = call.getIndexesCalledAlleles();
@@ -281,7 +286,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			newAlleles.addAll(Arrays.asList(call.getCalledAlleles()));
 			indel = makeNewVariant(indel, newAlleles);
 			if(indel == null || allelesSameLength(indel.getAlleles())) return null;
-			return genotypeVariantPool(indel, sample, helper, heterozygosityRate);
+			return genotypeVariantPool(indel, ploidy, calls, heterozygosityRate);
 		}
 	}
 	public static GenomicVariant createSNVVariantPool(PileupRecord pileup, CountsHelper helper, char reference, double minAlleleDepthFrequency) {
@@ -349,56 +354,95 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	
 	public CalledGenomicVariant genotypeVariantSample(GenomicVariant variant, PileupRecord pileup,  Sample sample, double h) {
 		String referenceAllele = variant.getReference();
-		
+		short ploidy = sample.getNormalPloidy();
 		CalledGenomicVariant calledVar = null;
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),sample.getReadGroups());
 		if(variant.isSNV()) {
-			CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS);
-			if(sample.getNormalPloidy()>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
-				calledVar = genotypeVariantPool(variant, sample, helperSNV,h);
+			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
+				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
+				CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
 				calledVar = VariantDiscoverySNVQAlgorithm.genotypeSNV(variant, helperSNV, h, false);
+				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
 			}
 		} else {
-			CountsHelper helperIndel = CountsHelper.calculateCounts(variant.getAlleles(),calls,maxBaseQS);
-			if(sample.getNormalPloidy()>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
-				calledVar = genotypeVariantPool(variant, sample, helperIndel,h);
+			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
+				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
+				CountsHelper helperIndel = CountsHelper.calculateCounts(variant.getAlleles(), calls, maxBaseQS, 0.5);
 				calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
+				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
 			}
 		}
 		if(calledVar==null) calledVar = new CalledGenomicVariantImpl(variant, new byte[0]);
 		else if(minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
-		calledVar.setSampleId(sample.getId());
-		calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
+		calledVar.setSampleId(sample.getId());		
 		return calledVar;
 	}
-	
 	
 	/**
 	 * Simple algorithm based on pool thresholds to genotype a variant in a pool
 	 * @param variant to genotype
 	 * @param sample to genotype as a pool
-	 * @param helper with counts and probabilities calculated from aligned reads
+	 * @param ploidy
+	 * @param calls
 	 * @param h prior heterozygosity rate
 	 * @return CalledGenomicVariant Genotype call for the given pool at the given variant
 	 */
-	private CalledGenomicVariant genotypeVariantPool(GenomicVariant variant, Sample sample, CountsHelper helper, double h) {
+	private CalledGenomicVariant genotypeVariantPool(GenomicVariant variant, short haplotypes, List<PileupAlleleCall> calls, double h) {
+		double step = 1.0/(double)haplotypes;
 		List<Byte> selectedAlleles = new ArrayList<Byte>();
 		String [] alleles = variant.getAlleles();
-		int [] counts = new int [alleles.length];
-		double total = helper.getTotalCount();
-		double countSelected = 0;
-		//Half of the expected count for an allele present in one single haplotype
-		double threshold = 0.5*total/sample.getNormalPloidy();
-		for(int i=0;i<alleles.length;i++) {
-			String allele = alleles[i];
-			counts[i] = helper.getCount(allele); 
-			if(counts[i]>=threshold) {
-				selectedAlleles.add((byte) i);
-				countSelected+=counts[i];
+		//Calculate counts for different hypotheses of heterozygosity
+		//TODO: Make it more smart based on total read depth
+		List<Double> freqs = new ArrayList<Double>();
+		List<CountsHelper> helpers = new ArrayList<CountsHelper>();
+		for(double freq = step;freq<0.51;freq+=step) {
+			freqs.add(freq);
+			helpers.add(CountsHelper.calculateCounts(alleles, calls, maxBaseQS, freq));
+		}
+		//Select the first to obtain counts and most frequent allele
+		CountsHelper helper = helpers.get(0);
+		int [] counts = helper.getCounts();
+		int idxMaxFreq = NumberArrays.getIndexMaximum(counts);
+		if(counts[idxMaxFreq]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
+		//Save most frequent allele
+		selectedAlleles.add((byte)idxMaxFreq);
+		//Calculate priors
+		int heteroGenotypes = helpers.size();
+		double logPriorHetero = Math.log10(h/heteroGenotypes);
+		double logPriorHomo = Math.log10((1-h));
+		int numHypotheses = helpers.size()+1;
+		double [] terms = new double[numHypotheses];
+		double termHomozygous = LogMath.logProduct(helper.getLogConditionalProbs()[idxMaxFreq][idxMaxFreq],logPriorHomo);
+		double maxHetPosterior = 0;
+		double minHomoPosterior = 1;
+		int maxFreqIdx = 0;
+		double maxFreq = 0;
+		byte maxAltAllele = -1;
+		for(byte i=0;i<alleles.length;i++) {
+			if (i==idxMaxFreq) continue;
+			//Recover conditional different hypothesis
+			terms[0] = termHomozygous;
+			for(int j=0;j<freqs.size();j++) {
+				CountsHelper helperF = helpers.get(j);
+				terms[j+1] = LogMath.logProduct(helperF.getLogConditionalProbs()[i][idxMaxFreq],logPriorHetero);
+			}
+			CountsHelper.calculatePosteriorProbabilities(terms);
+			int idxMax = NumberArrays.getIndexMaximum(terms);
+			if(idxMax==0) {
+				minHomoPosterior = Math.min(minHomoPosterior, terms[0]);
+				continue;
+			}
+			if(maxAltAllele==-1 || maxHetPosterior<terms[idxMax]) {
+				maxHetPosterior = terms[idxMax];
+				maxFreqIdx = idxMax-1;
+				maxFreq = freqs.get(idxMax-1);
+				maxAltAllele = i;
 			}
 		}
+		if(maxAltAllele!=-1) selectedAlleles.add((byte)maxAltAllele);
+		Collections.sort(selectedAlleles);
 		byte [] calledAlleles = new byte [selectedAlleles.size()];
 		
 		for(int i =0;i<selectedAlleles.size();i++) {
@@ -406,12 +450,27 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(variant, calledAlleles);
 		call.setTotalReadDepth(helper.getTotalCount());
-		if(variant.isSNV()) call.setAllCounts(helper.getCounts());
-		else {
-			VariantCallReport report = new VariantCallReport(alleles, counts, helper.getLogConditionalProbs());
-			call.setCallReport(report);
+		short [] acn = new short [alleles.length];
+		Arrays.fill(acn, (short)0);
+		if(maxAltAllele==-1) {
+			//Homozygous genotype call
+			call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-minHomoPosterior));
+			acn[idxMaxFreq] = haplotypes;
+		} else {
+			//Heterozygous genotype call
+			call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-maxHetPosterior));
+			helper = helpers.get(maxFreqIdx);
+			
+			short altCN = (short) Math.round(maxFreq*haplotypes);
+			if(altCN==0) altCN++;
+			else if (altCN == haplotypes) altCN--;
+			acn[maxAltAllele] = altCN;
+			acn[idxMaxFreq] = (short) (haplotypes-altCN);
 		}
-		call.setGenotypeQuality( (short)Math.min(countSelected, PhredScoreHelper.calculatePhredScore(1-countSelected/total)));
+		call.setAllelesCopyNumber(acn);
+		VariantCallReport report = new VariantCallReport(alleles, counts, helper.getLogConditionalProbs());
+		call.setCallReport(report);
+		
 		return call;
 	}
 

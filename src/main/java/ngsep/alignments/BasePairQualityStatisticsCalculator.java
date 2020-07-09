@@ -175,7 +175,7 @@ public class BasePairQualityStatisticsCalculator {
 	 * @throws IOException If the file can not be read
 	 */
 	public void processFile(String filename) throws IOException {
-		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename)) {
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename,genome)) {
 			reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			reader.setFilterFlags(filterFlags);
