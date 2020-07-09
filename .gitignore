@@ -2,3 +2,6 @@
 .idea/
 out/
 *.iml
+
+.gradle/
+.vscode/

@@ -67,7 +67,7 @@ public class CommandsDescriptor {
 	public static final String ELEMENT_USAGE="usage";
 	public static final String ELEMENT_ARGUMENT="argument";
 	public static final String ELEMENT_OPTION="option";
-	
+
 	private String swName;
 	private String swVersion;
 	private String releaseDate;
@@ -93,9 +93,9 @@ public class CommandsDescriptor {
 	public static CommandsDescriptor getInstance() {
 		return instance;
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * @return String the resource used to load commands
 	 */
 	protected String getResource() {
@@ -105,9 +105,9 @@ public class CommandsDescriptor {
 	 * Loads the commands descriptor XML
 	 */
 	private void load() {
-		
+
 		Document doc;
-		try (InputStream is = this.getClass().getResourceAsStream(getResource())) { 
+		try (InputStream is = this.getClass().getResourceAsStream(getResource())) {
 			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			doc = documentBuilder.parse(new InputSource(is));
 		} catch (Exception e) {
@@ -119,7 +119,7 @@ public class CommandsDescriptor {
 		releaseDate = rootElement.getAttribute(ATTRIBUTE_DATE);
 		swJarName = rootElement.getAttribute(ATTRIBUTE_JAR);
 		loadSoftwareDescription(rootElement);
-		
+
 	}
 	/**
 	 * Loads the description of the software
@@ -127,9 +127,9 @@ public class CommandsDescriptor {
 	 */
 	private void loadSoftwareDescription(Element parent) {
 		NodeList offspring = parent.getChildNodes();
-		for(int i=0;i<offspring.getLength();i++){  
+		for(int i=0;i<offspring.getLength();i++){
 			Node node = offspring.item(i);
-			if (node instanceof Element){ 
+			if (node instanceof Element){
 				Element elem = (Element)node;
 				if(ELEMENT_TITLE.equals(elem.getNodeName())) {
 					swTitle = loadText(elem);
@@ -151,10 +151,10 @@ public class CommandsDescriptor {
 					commandsById.put(c.getId(),c);
 					commandsList.add(c);
 					commandsByClass.put(c.getProgram().getName(), c);
-				} 
+				}
 			}
 		}
-		
+
 	}
 	/**
 	 * Loads the basic information of a command group specified by the given element
@@ -198,10 +198,10 @@ public class CommandsDescriptor {
 		if(formerId!=null) {
 			formerCommandIds.put(formerId, cmd.getId());
 		}
-		NodeList offspring = cmdElem.getChildNodes(); 
-		for(int i=0;i<offspring.getLength();i++){  
+		NodeList offspring = cmdElem.getChildNodes();
+		for(int i=0;i<offspring.getLength();i++){
 			Node node = offspring.item(i);
-			if (node instanceof Element){ 
+			if (node instanceof Element){
 				Element elem = (Element)node;
 				if(ELEMENT_TITLE.equals(elem.getNodeName())) {
 					cmd.setTitle(loadText(elem));
@@ -232,7 +232,7 @@ public class CommandsDescriptor {
 					if(description==null || description.length()==0) throw new RuntimeException("Option "+optId+" does not have a description");
 					opt.setDescription(description);
 					cmd.addOption(opt);
-				}	
+				}
 			}
 		}
 		return cmd;
@@ -243,7 +243,7 @@ public class CommandsDescriptor {
 		} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
 			throw new RuntimeException(e);
 		}
-		
+
 	}
 	/**
 	 * Loads a text node as a String
@@ -308,11 +308,11 @@ public class CommandsDescriptor {
 			}
 			System.err.println();
 		}
-		
-		
+
+
 		System.err.println();
 		System.err.println("See "+getSwURL()+" for more details.");
-		System.err.println();		
+		System.err.println();
 	}
 	/**
 	 * Prints the software version
@@ -334,7 +334,7 @@ public class CommandsDescriptor {
 	 * @param program
 	 */
 	public void printHelp(Command c) {
-		
+
 		int titleLength = c.getTitle().length();
 		for(int i=0;i<titleLength;i++)System.err.print("-");
 		System.err.println();
@@ -348,7 +348,7 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.print("java -jar "+getJarFilename()+" "+ c.getId()+" <OPTIONS>");
 		for(String arg:c.getArguments()) {
-			
+
 			System.err.print(" <"+arg+">");
 			if(c.isMultiple(arg)) System.err.print("*");
 		}
@@ -356,7 +356,7 @@ public class CommandsDescriptor {
 		System.err.println();
 		System.err.println("OPTIONS:");
 		System.err.println();
-		List<CommandOption> options = c.getOptionsList(); 
+		List<CommandOption> options = c.getOptionsList();
 		int longestOpt = getLongestOption(options);
 		for(CommandOption option:options) {
 			if(option.isDeprecated()) continue;
@@ -372,7 +372,7 @@ public class CommandsDescriptor {
 		}
 		System.err.println();
 	}
-	
+
 	private int getLongestOption(List<CommandOption> options) {
 		int max = 0;
 		for(CommandOption opt:options) {
@@ -390,7 +390,7 @@ public class CommandsDescriptor {
 	private void printDescription(String desc, int startColumn) {
 		//TODO: Print in a command line friendly format
 		System.err.println(desc);
-		
+
 	}
 	/**
 	 * Prints the version plus general usage
@@ -421,7 +421,7 @@ public class CommandsDescriptor {
 		System.err.println("See the README.txt file for papers describing the algorithms implemented in NGSEP and supporting packages");
 		System.err.println();
 	}
-	
+
 	/**
 	 * Loads the optional fields of a program
 	 * @param programInstance Object of a program implementing one command
@@ -481,5 +481,5 @@ public class CommandsDescriptor {
 	public String getCurrentCommandId(String formerId) {
 		return formerCommandIds.get(formerId);
 	}
-	
+
 }
