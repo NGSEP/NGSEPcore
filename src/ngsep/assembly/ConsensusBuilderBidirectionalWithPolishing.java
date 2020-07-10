@@ -21,6 +21,7 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -48,7 +49,7 @@ import ngsep.variants.GenomicVariant;
 public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuilder {
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
-	private static final String MOCK_REFERENCE_NAME = "Consensus";
+	//private static final String MOCK_REFERENCE_NAME = "Consensus";
 	public static final int DEF_NUM_THREADS = 1;
 	private static final int TIMEOUT_SECONDS = 30;
 	
@@ -70,24 +71,25 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	}
 
 	@Override
-	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
+	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
 		//List of final contigs
 		ThreadPoolExecutor poolConsensus = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		List<CharSequence> consensusList = new ArrayList<CharSequence>();
+		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
+		Map<String, BuildConsensusTask> tasksMap = new LinkedHashMap<String, BuildConsensusTask>();
 		List<List<AssemblyEdge>> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
+			String sequenceName = "Contig_"+(i+1);
 			if(numThreads==1) {
-				CharSequence consensusSequence = makeConsensus (graph, path);
-				consensusList.add(consensusSequence);
+				CharSequence consensusSequence = makeConsensus (graph, path, i, sequenceName);
+				consensusList.add(new QualifiedSequence(sequenceName,consensusSequence));
 			} else {
-				BuildConsensusTask task = new BuildConsensusTask(this, graph, path);
+				BuildConsensusTask task = new BuildConsensusTask(this, graph, path, i, sequenceName);
 				poolConsensus.execute(task);
-				consensusList.add(task.getConsensusSequence());
-			}
-			
+				tasksMap.put(sequenceName, task);
+			}	
 		}
 		int finishTime = 10*graph.getNumSequences();
 		poolConsensus.shutdown();
@@ -99,10 +101,14 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
     	if(!poolConsensus.isShutdown()) {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
 		}
+    	for(String sequenceName:tasksMap.keySet()) {
+    		BuildConsensusTask task = tasksMap.get(sequenceName);
+    		consensusList.add(new QualifiedSequence(sequenceName,task.getConsensusSequence()));
+    	}
 		return consensusList;
 	}
 	
-	public CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) {
+	CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName ) {
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
@@ -156,7 +162,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				
 				//int startSuffix = edge.getOverlap();
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
-				ReadAlignment alnRead = aligner.alignRead(vertexNextEdge.getSequenceIndex(), rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
 				int startSuffix;
 				if(alnRead!=null) {
 					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
@@ -189,15 +195,15 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if(reverse) read = DNAMaskedSequence.getReverseComplement(read);
 				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = aligner.alignRead(vertexPreviousEdge.getSequenceIndex(), rawConsensus, read, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, read, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
-					alnRead.setSequenceName(MOCK_REFERENCE_NAME);
+					alnRead.setSequenceName(sequenceName);
 					alignments.add(alnRead);
 					//if(alnRead.getSoftClipEnd()>0 || containsLargeIndels(alnRead)) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
-				if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+				if (totalReads%100==0) log.info("Path "+sequenceIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
@@ -206,24 +212,24 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedRead = DNAMaskedSequence.getReverseComplement(embeddedRead);
 					totalReads++;
-					ReadAlignment alnEmbedded = aligner.alignRead(embedded.getSequenceId(), rawConsensus, embeddedRead, uniqueKmersSubject, 0.5);
+					ReadAlignment alnEmbedded = aligner.alignRead(sequenceIdx, rawConsensus, embeddedRead, uniqueKmersSubject, 0.5);
 					if(alnEmbedded!=null) {
-						alnEmbedded.setSequenceName(MOCK_REFERENCE_NAME);
+						alnEmbedded.setSequenceName(sequenceName);
 						//alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
 					}
 					else unalignedReads++;
-					if (totalReads%100==0) log.info("Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+					if (totalReads%100==0) log.info("Path "+sequenceIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				}
 			}
 			lastVertex = vertexNextEdge;
 		}
-		log.info("Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
-		log.info("Path: "+pathS);
+		log.info("Path "+sequenceIdx+". Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+		log.info("Path "+sequenceIdx+". Path: "+pathS);
 		String consensus = rawConsensus.toString();
 		//return consensus;
-		List<CalledGenomicVariant> variants = callVariants(consensus,alignments);
-		log.info("Identified "+variants.size()+" total variants from read alignments");
+		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus,alignments);
+		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
 		return applyVariants(consensus, variants);
 	}
 
@@ -248,10 +254,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		
 	}
 
-	private List<CalledGenomicVariant> callVariants(String consensus, List<ReadAlignment> alignments) {
+	private List<CalledGenomicVariant> callVariants(String sequenceName, String consensus, List<ReadAlignment> alignments) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
-		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(MOCK_REFERENCE_NAME, consensus));
+		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName, consensus));
 		generator.setSequencesMetadata(genome.getSequencesMetadata());
 		generator.setMaxAlnsPerStartPos(100);
 		generator.setMinMQ(80);
@@ -302,19 +308,23 @@ class BuildConsensusTask implements Runnable {
 	private ConsensusBuilderBidirectionalWithPolishing parent;
 	private AssemblyGraph graph;
 	private List<AssemblyEdge> path;
+	private int sequenceIdx;
+	private String sequenceName;
 	private CharSequence consensusSequence;
-	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph,List<AssemblyEdge> path) {
+	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName) {
 		super();
 		this.parent = parent;
 		this.graph = graph;
 		this.path = path;
+		this.sequenceIdx = sequenceIdx;
+		this.sequenceName = sequenceName;
 	}
 	public CharSequence getConsensusSequence() {
 		return consensusSequence;
 	}
 	@Override
 	public void run() {
-		consensusSequence = parent.makeConsensus(graph,path);
+		consensusSequence = parent.makeConsensus(graph,path, sequenceIdx, sequenceName);
 	}
 	
 	

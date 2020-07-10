@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.QualifiedSequence;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	int tolerance;
@@ -12,16 +12,17 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	boolean startConsensus = true;
 	
 	@Override
-	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
+	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
 		//List of final contigs
-		List<CharSequence> consensusList = new ArrayList<CharSequence>();
+		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		List<List<AssemblyEdge>> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
+			String sequenceName = "Contig_"+(i+1);
 			CharSequence consensusPath = makeConsensus (graph, path);
-			consensusList.add(consensusPath);
+			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
 		
 		return consensusList;

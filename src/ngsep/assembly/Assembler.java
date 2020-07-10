@@ -271,10 +271,14 @@ public class Assembler {
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
-		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
+		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
-		saveAssembly(outputPrefix+".fa", "contig", assembledSequences);
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		
+		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
+			handler.saveSequences(assembledSequences, out, 100);
+		}
 	}
 
 	/**
@@ -329,26 +333,5 @@ public class Assembler {
 			}
 		}
 		return sequences;
-	}
-	
-	/**
-	 * Saves the given sequences in fasta format
-	 * @param filename name of the output file
-	 * @param prefix of the sequence names
-	 * @param sequences List of sequences corresponding to the final assembly
-	 * @throws IOException If the file can not be generated
-	 */
-	public void saveAssembly(String filename, String prefix, List<CharSequence> sequences) throws IOException {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
-		int i = 1;
-		for (CharSequence str : sequences) {
-			list.add(new QualifiedSequence(prefix + "_" + i, str));
-			i++;
-		}
-			
-		try (PrintStream out = new PrintStream(filename)) {
-			handler.saveSequences(list, out, 100);
-		}
 	}
 }
