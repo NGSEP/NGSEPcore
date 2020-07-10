@@ -645,21 +645,18 @@ public class ReadsAligner {
 		int start2 = aln2.getFirst();
 		int end1 = aln1.getLast();
 		int end2 = aln2.getLast();
-
-		int endMax = Math.max(end1, end2);
-		int startMinimum = Math.min(start1, start2);
-		if(endMax==end1 && aln1.isNegativeStrand() && startMinimum==start2&& aln2.isPositiveStrand()
-				|| endMax==end2 && aln2.isNegativeStrand() && startMinimum==start1&& aln1.isPositiveStrand())
-		{
-			if(onlyProper) {
-				int insertLength = endMax-startMinimum+1;
-				return insertLength>=minInsertLength && insertLength<=maxInsertLength;
-			}
-			else{
-				return true;
-			}
+		boolean properDirection;
+		int insertLength;
+		if(start1 < end2) {
+			insertLength = end2-start1+1;
+			properDirection = aln1.isPositiveStrand() && aln2.isNegativeStrand();
+		} else {
+			insertLength = end1-start2+1;
+			properDirection = aln2.isPositiveStrand() && aln1.isNegativeStrand();
 		}
-		return false;
+		if (onlyProper) return properDirection && insertLength>=minInsertLength && insertLength<=maxInsertLength;
+		//TODO: Parameter
+		return insertLength<100000;
 	}
 
 	private ReadAlignmentPair buildPair(ReadAlignment aln1, ReadAlignment aln2, boolean proper) {

@@ -43,6 +43,7 @@ public class VCFRelativeCoordinatesTranslator {
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
 	private ReferenceGenome refGenome;
+	private ReferenceGenomeFMIndex refIndex = null;
 	private Map<String, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
@@ -102,7 +103,8 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		instance.filenameRelativeVCF = args[2];
 		instance.refGenome= new ReferenceGenome(args[3]);
-		instance.outFile = args[4];
+		instance.refIndex = ReferenceGenomeFMIndex.load(instance.refGenome, args[4]);
+		instance.outFile = args[5];
 		instance.run();
 	}
 
@@ -362,7 +364,8 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(refGenome);
-		aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
+		if(refIndex!=null) aligner.setFmIndex(refIndex);
+		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
 		
 		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA);
 				PrintStream debug = new PrintStream(outFile + ".debug")) {
@@ -383,6 +386,7 @@ public class VCFRelativeCoordinatesTranslator {
 					singleConsensus++;
 					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
+					System.out.println("Read: "+algnName+" Alns single "+alns.size());
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
@@ -399,6 +403,7 @@ public class VCFRelativeCoordinatesTranslator {
 					RawRead read2 = new RawRead(algnName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
+					System.out.println("Read 1: "+algnName+" Alns 1: "+alns1+" alns 2: "+alns2);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
@@ -420,7 +425,7 @@ public class VCFRelativeCoordinatesTranslator {
 					ReadAlignment aln2 = first.getAln2();
 					debug.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
 					debug.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
-					if(aln1.isPartialAlignment(1) || aln2.isPartialAlignment(1)) {
+					if(aln1.isPartialAlignment(10) || aln2.isPartialAlignment(10)) {
 						partial++;
 						unmappedReadPaired++;
 						unmappedRead++;
@@ -428,28 +433,49 @@ public class VCFRelativeCoordinatesTranslator {
 					}
 					int posN1 = aln1.getLast()+1; 
 					int posN2 = aln2.getLast()+1;
-					if(posN1<aln2.getFirst()) {
-				 		ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), aln2.getLast(), seq.length(), 0);
-						combined.setSequenceName(aln1.getSequenceName());
+					if(aln1.getFirst()<aln2.getLast()) {
+				 		
 						String cigar = aln1.getCigarString();
-						//The N character
-						cigar+="1M";
-						if (posN1+1<aln2.getFirst()) cigar+=(aln2.getFirst()-posN1-1)+"N";
-						cigar+=aln2.getCigarString();
+						int last;
+						if (posN1<aln2.getFirst()) {
+							last = aln2.getLast();
+							//The N character
+							cigar+="1M";
+							if (posN1+1<aln2.getFirst()) cigar+=(aln2.getFirst()-posN1-1)+"N";
+							cigar+=aln2.getCigarString();
+						} else {
+							//Odd alignment. skip second part
+							last=aln1.getLast();
+							cigar+=""+(seq2.length()+1)+"S";
+						}
+						System.out.println("Combined CIGAR: "+cigar);
+						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), last, seq.length(), 0);
+						combined.setSequenceName(aln1.getSequenceName());
 						combined.setCigarString(cigar);
 						combined.setReadCharacters(consensus.getCharacters());
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						debug.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(algnName,combined);
-					} else if (posN2 <aln1.getFirst()) {
-						ReadAlignment combined = new ReadAlignment(aln2.getSequenceIndex(), aln2.getFirst(), aln1.getLast(), seq.length(), 0);
-						combined.setSequenceName(aln2.getSequenceName());
-						String cigar = aln2.getCigarString();
+					} else if (aln2.getFirst() < aln1.getLast()) {
+						
+						String cigarNonOverlap = aln2.getCigarString();
 						//The N character
-						cigar+="1M";
-						if (posN2+1<aln1.getFirst()) cigar+=(aln1.getFirst()-posN2-1)+"N";
+						cigarNonOverlap+="1M";
+						if (posN2+1<aln1.getFirst()) cigarNonOverlap+=(aln1.getFirst()-posN2-1)+"N";
+						int firstPosCombined;
+						String cigar;
+						if(posN2<aln1.getFirst()) {
+							firstPosCombined = aln2.getFirst();
+							cigar = cigarNonOverlap;
+						} else {
+							firstPosCombined = aln1.getFirst();
+							cigar = ""+(seq2.length()+1)+"S";
+						}
 						cigar+=aln1.getCigarString();
+						System.out.println("Combined CIGAR: "+cigar);
+						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), firstPosCombined, aln1.getLast(), seq.length(), 16);
+						combined.setSequenceName(aln1.getSequenceName());
 						combined.setCigarString(cigar);
 						combined.setReadCharacters(DNAMaskedSequence.getReverseComplement(consensus.getCharacters()));
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
@@ -461,7 +487,8 @@ public class VCFRelativeCoordinatesTranslator {
 						unmappedReadPaired++;
 						unmappedRead++;
 					}
-					debug.println("\n");
+					debug.println();
+					debug.println();
 				}
 			}
 		}
