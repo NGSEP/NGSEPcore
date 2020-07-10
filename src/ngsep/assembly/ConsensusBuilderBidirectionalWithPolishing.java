@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
@@ -35,6 +38,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.GenomicVariant;
 
 /**
  * 
@@ -45,9 +49,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	private static final String MOCK_REFERENCE_NAME = "Consensus";
+	public static final int DEF_NUM_THREADS = 1;
+	private static final int TIMEOUT_SECONDS = 30;
 	
-	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-	
+	private int numThreads = DEF_NUM_THREADS;
 	public Logger getLog() {
 		return log;
 	}
@@ -55,26 +60,52 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
 
 	@Override
 	public List<CharSequence> makeConsensus(AssemblyGraph graph) 
 	{
 		//List of final contigs
+		ThreadPoolExecutor poolConsensus = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		List<CharSequence> consensusList = new ArrayList<CharSequence>();
 		List<List<AssemblyEdge>> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
-			CharSequence consensusPath = makeConsensus (graph, path);
-			consensusList.add(consensusPath);
+			if(numThreads==1) {
+				CharSequence consensusSequence = makeConsensus (graph, path);
+				consensusList.add(consensusSequence);
+			} else {
+				BuildConsensusTask task = new BuildConsensusTask(this, graph, path);
+				poolConsensus.execute(task);
+				consensusList.add(task.getConsensusSequence());
+			}
+			
 		}
-		
+		int finishTime = 10*graph.getNumSequences();
+		poolConsensus.shutdown();
+		try {
+			poolConsensus.awaitTermination(finishTime, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+    	if(!poolConsensus.isShutdown()) {
+			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
+		}
 		return consensusList;
 	}
 	
-	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) {
+	public CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) {
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
+		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 		List<ReadAlignment> alignments = new ArrayList<ReadAlignment>();
 		int totalReads = 0;
 		int unalignedReads = 0;
@@ -83,6 +114,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			rawConsensus.append(path.get(0).getVertex1().getRead());
 			return rawConsensus;
 		}
+		ReadAlignment lastPartialAln = null;
 		for(int j = 0; j < path.size(); j++) {
 			//Needed to find which is the origin vertex
 			AssemblyEdge edge = path.get(j);
@@ -115,25 +147,40 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				rawConsensus.append(seq);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
+				pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 				// Augment consensus with the next path read
 				CharSequence nextPathSequence = vertexNextEdge.getRead().getCharacters();
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
-				int overlap = edge.getOverlap();
-				int startSuffix = overlap;
-				//TODO: Recalculate segment from alignment
-				
+				//int startSuffix = edge.getOverlap();
+				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
+				ReadAlignment alnRead = aligner.alignRead(vertexNextEdge.getSequenceIndex(), rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				int startSuffix;
+				if(alnRead!=null) {
+					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
+					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+					//Just in case cycle but if the read aligns this should not enter
+					while(posAlnRead>0 && lastPosSubject<0) {
+						posAlnRead--;
+						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+					}
+					if(lastPosSubject>=0) {
+						startSuffix = posAlnRead + (rawConsensus.length()-lastPosSubject+1);
+					} else {
+						startSuffix = edge.getOverlap();
+					}
+					//System.out.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
+				} else {
+					startSuffix = edge.getOverlap();
+				}
 				if(startSuffix<nextPathSequence.length()) {
-					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
 					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
-				} else {
-					log.warning("Non embedded edge between vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " start suffix "+startSuffix+" and length: "+nextPathSequence.length());
 				}
-				
+				lastPartialAln = alnRead;
 			}
 			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
 				//Align to consensus next path read and its embedded sequences
@@ -145,8 +192,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				ReadAlignment alnRead = aligner.alignRead(vertexPreviousEdge.getSequenceIndex(), rawConsensus, read, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
 					alnRead.setSequenceName(MOCK_REFERENCE_NAME);
-					//alnRead.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 					alignments.add(alnRead);
+					//if(alnRead.getSoftClipEnd()>0 || containsLargeIndels(alnRead)) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
@@ -180,6 +227,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return applyVariants(consensus, variants);
 	}
 
+
+	private boolean containsLargeIndels(ReadAlignment alnRead) {
+		Map<Integer,GenomicVariant> indelCalls = alnRead.getIndelCalls();
+		if(indelCalls==null) return false;
+		for(GenomicVariant call:indelCalls.values()) if(call.length()>10) return true;
+		return false;
+	}
 
 	public void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
 		for(int j = pathPos; j < path.size(); j++) {
@@ -243,4 +297,26 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		log.info("Applied "+appliedVariants+" homozygous alternative variants");
 		return new DNAMaskedSequence(polishedConsensus.toString());
 	}
+}
+class BuildConsensusTask implements Runnable {
+	private ConsensusBuilderBidirectionalWithPolishing parent;
+	private AssemblyGraph graph;
+	private List<AssemblyEdge> path;
+	private CharSequence consensusSequence;
+	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph,List<AssemblyEdge> path) {
+		super();
+		this.parent = parent;
+		this.graph = graph;
+		this.path = path;
+	}
+	public CharSequence getConsensusSequence() {
+		return consensusSequence;
+	}
+	@Override
+	public void run() {
+		consensusSequence = parent.makeConsensus(graph,path);
+	}
+	
+	
+	
 }

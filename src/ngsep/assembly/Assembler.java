@@ -265,7 +265,9 @@ public class Assembler {
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
-			consensus = new ConsensusBuilderBidirectionalWithPolishing();
+			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
+			consensusP.setNumThreads(numThreads);
+			consensus = consensusP;
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
