@@ -19,6 +19,10 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,6 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
@@ -35,6 +40,7 @@ import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.IndelRealignerPileupListener;
 import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -49,9 +55,12 @@ import ngsep.variants.GenomicVariant;
 public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuilder {
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
-	//private static final String MOCK_REFERENCE_NAME = "Consensus";
 	public static final int DEF_NUM_THREADS = 1;
 	private static final int TIMEOUT_SECONDS = 30;
+	
+	private String correctedReadsFile = null;
+	
+	private PrintStream outCorrectedReads = null;
 	
 	private int numThreads = DEF_NUM_THREADS;
 	public Logger getLog() {
@@ -69,11 +78,31 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
+	
+	public String getCorrectedReadsFile() {
+		return correctedReadsFile;
+	}
+
+	public void setCorrectedReadsFile(String correctedReadsFile) {
+		this.correctedReadsFile = correctedReadsFile;
+	}
 
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
-		//List of final contigs
+		if(correctedReadsFile==null) return makeConsensus2(graph);
+		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(correctedReadsFile));
+			 PrintStream out = new PrintStream(os)) {
+			this.outCorrectedReads = out;
+			return makeConsensus2(graph);
+		} catch (IOException e) {
+			e.printStackTrace();
+			log.warning("Error opening file for corrected reads "+e.getMessage());
+			return null;
+		}
+	}
+	
+	private List<QualifiedSequence> makeConsensus2(AssemblyGraph graph) {
 		ThreadPoolExecutor poolConsensus = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		Map<String, BuildConsensusTask> tasksMap = new LinkedHashMap<String, BuildConsensusTask>();
@@ -107,6 +136,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
     	}
 		return consensusList;
 	}
+	
 	
 	CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName ) {
 		StringBuilder rawConsensus = new StringBuilder();
@@ -190,14 +220,16 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			}
 			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
 				//Align to consensus next path read and its embedded sequences
-				CharSequence read = vertexPreviousEdge.getRead().getCharacters();
+				QualifiedSequence read = vertexPreviousEdge.getRead(); 
+				CharSequence seq = read.getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) read = DNAMaskedSequence.getReverseComplement(read);
-				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-read.length()),rawConsensus.length());
+				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
+				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, read, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
 					alnRead.setSequenceName(sequenceName);
+					alnRead.setReadName(read.getName());
 					alignments.add(alnRead);
 					//if(alnRead.getSoftClipEnd()>0 || containsLargeIndels(alnRead)) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
 				}
@@ -208,13 +240,15 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
 				for(AssemblyEmbedded embedded:embeddedList) {
-					CharSequence embeddedRead = embedded.getRead().getCharacters();
+					QualifiedSequence embeddedRead = embedded.getRead(); 
+					CharSequence embeddedSeq = embeddedRead.getCharacters();
 					boolean reverseE = (reverse!=embedded.isReverse());
-					if(reverseE) embeddedRead = DNAMaskedSequence.getReverseComplement(embeddedRead);
+					if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
 					totalReads++;
-					ReadAlignment alnEmbedded = aligner.alignRead(sequenceIdx, rawConsensus, embeddedRead, uniqueKmersSubject, 0.5);
+					ReadAlignment alnEmbedded = aligner.alignRead(sequenceIdx, rawConsensus, embeddedSeq, uniqueKmersSubject, 0.5);
 					if(alnEmbedded!=null) {
 						alnEmbedded.setSequenceName(sequenceName);
+						alnEmbedded.setReadName(embeddedRead.getName());
 						//alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
 					}
@@ -227,12 +261,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		log.info("Path "+sequenceIdx+". Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 		log.info("Path "+sequenceIdx+". Path: "+pathS);
 		String consensus = rawConsensus.toString();
-		//return consensus;
 		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus,alignments);
 		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
+		if(outCorrectedReads!=null) {
+			for(ReadAlignment aln:alignments) correctRead(consensus, aln, variants);
+		}
 		return applyVariants(consensus, variants);
 	}
-
 
 	private boolean containsLargeIndels(ReadAlignment alnRead) {
 		Map<Integer,GenomicVariant> indelCalls = alnRead.getIndelCalls();
@@ -302,6 +337,62 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}
 		log.info("Applied "+appliedVariants+" homozygous alternative variants");
 		return new DNAMaskedSequence(polishedConsensus.toString());
+	}
+	
+	private void correctRead(String consensus, ReadAlignment alignment, List<CalledGenomicVariant> variants) {
+		StringBuilder correctedRead = new StringBuilder();
+		String readName = alignment.getReadName();
+		CharSequence sequence = alignment.getReadCharacters();
+		Map<Integer,GenomicVariant> indelCalls = alignment.getIndelCalls();
+		if(indelCalls==null || indelCalls.size()==0) {
+			printRead (readName, sequence);
+			return;
+		}
+		int nextVarIdx = 0;
+		int nextReadPos = 0;
+		for(int refpos:indelCalls.keySet()) {
+			GenomicVariant indelReadCall = indelCalls.get(refpos);
+			int indelReadPos = alignment.getAlignedReadPosition(refpos);
+			if(indelReadPos<nextReadPos) {
+				log.warning("Inconsistency correcting errors of "+readName+". Next indel pos: "+indelReadPos+" next pos: "+nextReadPos);
+				printRead (readName, sequence);
+				return;
+			}
+			correctedRead.append(sequence.subSequence(nextReadPos, indelReadPos+1));
+			nextReadPos = indelReadPos+1;
+			boolean correctIndel = true;
+			//Check if called indel
+			while(nextVarIdx<variants.size()) {
+				CalledGenomicVariant calledVariant = variants.get(nextVarIdx);
+				if(GenomicRegionSpanComparator.getInstance().span(calledVariant, indelReadCall.getFirst(), indelReadCall.getLast())) {
+					correctIndel=false;
+					break;
+				} else if (indelReadCall.getLast() < calledVariant.getFirst()) {
+					break;
+				}
+				nextVarIdx++;
+			}
+			//Process indel
+			if(!correctIndel) continue;
+			if(indelReadCall.getLast()-refpos==1) {
+				//Ignore false insertion
+				nextReadPos+=indelReadCall.length();
+			} else {
+				//add reference sequence for false deletion. 
+				//Genomic coordinates in this case correspond to string indexes because the deletion coordinates include flanking basepairs
+				correctedRead.append(consensus.subSequence(refpos, indelReadCall.getLast()-1));
+				
+			}
+		}
+		correctedRead.append(sequence.subSequence(nextReadPos,sequence.length()));
+		printRead (readName, correctedRead.toString());
+	}
+
+	private void printRead(String readName, CharSequence sequence) {
+		synchronized (outCorrectedReads) {
+			outCorrectedReads.println(">"+readName);
+			outCorrectedReads.println(sequence);
+		}
 	}
 }
 class BuildConsensusTask implements Runnable {

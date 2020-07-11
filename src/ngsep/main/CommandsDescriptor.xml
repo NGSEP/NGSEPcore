@@ -227,6 +227,10 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_SIMPLE" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
+<option id="c" type="BOOLEAN" attribute="correctReads">
+For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
+Ignored for other consensus algorithms
+</option>
 <option id="t" type="INT" attribute="numThreads">
 Number of threads
 </option>

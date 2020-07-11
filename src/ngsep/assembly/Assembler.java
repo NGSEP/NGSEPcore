@@ -75,6 +75,7 @@ public class Assembler {
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
+	private boolean correctReads = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Get and set methods
@@ -180,6 +181,16 @@ public class Assembler {
 		if(!CONSENSUS_ALGORITHM_SIMPLE.equals(consensusAlgorithm) && !CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) throw new IllegalArgumentException("Unrecognized consensus algorithm "+consensusAlgorithm);
 		this.consensusAlgorithm = consensusAlgorithm;
 	}
+	
+	public boolean isCorrectReads() {
+		return correctReads;
+	}
+	public void setCorrectReads(boolean correctReads) {
+		this.correctReads = correctReads;
+	}
+	public void setCorrectReads(Boolean correctReads) {
+		this.setCorrectReads(correctReads.booleanValue());
+	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -267,6 +278,7 @@ public class Assembler {
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
 			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
 			consensusP.setNumThreads(numThreads);
+			if(correctReads) consensusP.setCorrectedReadsFile(outputPrefix+"_correctedReads.fa.gz");
 			consensus = consensusP;
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();

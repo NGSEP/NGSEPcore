@@ -76,7 +76,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
-		double firstMin = minimizerHitsDist.getLocalMinimum(1, 2*minimizerHitsDist.getAverage());
+		double firstMin = minimizerHitsDist.getLocalMinimum(1, 3*minimizerHitsDist.getAverage());
 		int modeDepth = (int) minimizerHitsDist.getLocalMode(firstMin, 99);
 		
 		minimizerHitsDist.printDistributionInt(System.out);
