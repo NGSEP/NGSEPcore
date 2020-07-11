@@ -95,7 +95,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		
 		//Kmers map construction
 		if(kmersMap==null) {
-			log.info("Extracting kmers map: "+graph.getEdges().size());
+			log.info("Extracting kmers map");
 			KmersExtractor extractor = new KmersExtractor();
 			extractor.setKmerLength(kmerLength);
 			extractor.processQualifiedSequences(sequences);
@@ -141,22 +141,18 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		updateGraph(finder, seqId, seq, false, fmIndex);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		updateGraph(finder, seqId, complement, true, fmIndex);
-		AssemblyGraph graph = finder.getGraph();
-		synchronized (graph) {
-			graph.filterEdgesAndEmbedded (seqId);
-		}
-		if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
 
 
 	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, FMIndex fmIndex) {
+		AssemblyGraph graph = finder.getGraph();
 		Map<Integer,String> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, false, true, true);
 		//Search kmers using the FM index
 		if(sequenceKmersMap.size()==0) return;
 		Map<Integer,List<UngappedSearchHit>> kmerHitsMap = new HashMap<Integer, List<UngappedSearchHit>>();
 		int i=0;
 		while (i<query.length()) {
-			CharSequence kmer = sequenceKmersMap.get(i);
+			String kmer = sequenceKmersMap.get(i);
 			if (kmer==null) {
 				i+=kmerLength;
 				continue;
@@ -167,11 +163,13 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 				i+=kmerLength;
 				continue;
 			}
-			List<UngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer.toString());
+			List<UngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer);
+			if(idxDebug==queryIdx) System.out.println("GraphBuilderFMIndex. Query: "+queryIdx+" "+queryRC+" Kmer: "+kmer+" kmer count: "+globalCount+" kmer hits: "+kmerHits.size());
 			for(UngappedSearchHit hit:kmerHits) {
-				//if(querySequenceId==52) System.out.println("Kmer start: "+hit.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
+				if(idxDebug==queryIdx) System.out.println("Kmer start: "+i+" Next hit: "+hit.getSequenceIdx()+": "+hit.getStart());
 				hit.setQueryIdx(i);
 				hit.setTotalHitsQuery(kmerHits.size());
+				hit.setSequenceLength(graph.getSequenceLength(hit.getSequenceIdx()));
 				List<UngappedSearchHit> kmerHitsList = kmerHitsMap.computeIfAbsent(hit.getSequenceIdx(), l->new ArrayList<UngappedSearchHit>());
 				kmerHitsList.add(hit);
 			}

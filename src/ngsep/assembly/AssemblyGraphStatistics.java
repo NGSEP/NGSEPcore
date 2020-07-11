@@ -286,7 +286,7 @@ public class AssemblyGraphStatistics {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxCoverageSharedKmers();
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
-				pathsFinder = new LayoutBuilderSkeletonBestReciprocal();
+				pathsFinder = new LayoutBuilderKruskalPath();
 				//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 				//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			}

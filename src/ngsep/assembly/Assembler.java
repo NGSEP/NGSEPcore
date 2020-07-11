@@ -241,6 +241,7 @@ public class Assembler {
 			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
 			gbIndex.setLog(log);
 			gbIndex.setKmerLength(kmerLength);
+			gbIndex.setNumThreads(numThreads);
 			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
@@ -268,7 +269,7 @@ public class Assembler {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		} else {
-			pathsFinder= new LayoutBuilderSkeletonBestReciprocal();
+			pathsFinder= new LayoutBuilderKruskalPath();
 			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		}

@@ -38,6 +38,8 @@ import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.IndelRealignerPileupListener;
+import ngsep.discovery.PileupListener;
+import ngsep.discovery.PileupRecord;
 import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
@@ -231,7 +233,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alnRead.setSequenceName(sequenceName);
 					alnRead.setReadName(read.getName());
 					alignments.add(alnRead);
-					//if(alnRead.getSoftClipEnd()>0 || containsLargeIndels(alnRead)) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
+					if(alnRead.getSoftClipEnd()>0) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
@@ -269,12 +271,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return applyVariants(consensus, variants);
 	}
 
-	private boolean containsLargeIndels(ReadAlignment alnRead) {
+	/*private boolean containsLargeIndels(ReadAlignment alnRead) {
 		Map<Integer,GenomicVariant> indelCalls = alnRead.getIndelCalls();
 		if(indelCalls==null) return false;
 		for(GenomicVariant call:indelCalls.values()) if(call.length()>10) return true;
 		return false;
-	}
+	}*/
 
 	public void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
 		for(int j = pathPos; j < path.size(); j++) {
@@ -303,6 +305,25 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		varListener.setMinQuality((short) 30);
 		varListener.setGenome(genome);
 		generator.addListener(varListener);
+		generator.addListener(new PileupListener() {
+			@Override
+			public void onSequenceStart(QualifiedSequence sequence) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void onSequenceEnd(QualifiedSequence sequence) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void onPileup(PileupRecord pileup) {
+				if(pileup.getReferenceSpan()>1 ) System.out.println("Pileup position: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" alignemts: "+pileup.getNumAlignments());
+				
+			}
+		});
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
@@ -331,7 +352,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			nextPos = call.getLast()+1;
 		}
 		if(nextPos<=l) {
-			//End of a chromosome
+			//Consensus end
 			CharSequence nonVarLast = consensus.substring(nextPos-1);
 			polishedConsensus.append(nonVarLast);
 		}
