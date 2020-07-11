@@ -234,7 +234,7 @@ public class KmersExtractor {
 			}
 		}
 	}
-	private void countSequenceKmers(RawRead read) {
+	public void countSequenceKmers(RawRead read) {
     	String sequence = read.getCharacters().toString();
 		//Kmers Counter Per Sequence
 		//Forward		
@@ -245,6 +245,7 @@ public class KmersExtractor {
 			countSequenceKmers(reverseSequence);
 		}
 	}
+	
 	/**
 	 * Processes the file with the given name as fasta and updates the kmers table
 	 * @param filename Name of the file with the sequences to process.
@@ -268,7 +269,17 @@ public class KmersExtractor {
 			log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
 		}
 	}
-	
+    public void processQualifiedSequences(List<QualifiedSequence> sequences) {
+    	for(QualifiedSequence qseq:sequences) countSequenceKmers(qseq);
+    }
+	public void countSequenceKmers(QualifiedSequence qseq) {
+		CharSequence seq = qseq.getCharacters();
+		countSequenceKmers(seq);
+		if(seq instanceof DNASequence || seq instanceof DNAMaskedSequence) {
+			seq = DNAMaskedSequence.getReverseComplement(seq);
+			countSequenceKmers(seq);
+		}
+	}
 	/**
 	 * Updates the k-mers table using the information of the given sequence
 	 * @param seq CharSequence object to extract the k-mers

@@ -238,8 +238,9 @@ public class Assembler {
 		if(graphFile!=null) {
 			graph = AssemblyGraph.load(sequences, graphFile);
 		} else if (GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX.equals(graphConstructionAlgorithm)) {
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
+			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
 			gbIndex.setLog(log);
+			gbIndex.setKmerLength(kmerLength);
 			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
