@@ -20,8 +20,8 @@ import ngsep.genome.ReferenceGenomeFMIndex;
 
 public class ShortSingleReadsAlignerTest extends TestCase {
 	private FMIndexReadAlignmentAlgorithm readsAligner;
-	public final static String FM_INDEX_PATH= ".\\test\\Saccharomyces_cerevisiae.fmindex";
-	public final static String FASTA_PATH= ".\\training\\Saccharomyces_cerevisiae.fa";
+	public final static String FM_INDEX_PATH= "./test/Saccharomyces_cerevisiae.fmindex";
+	public final static String FASTA_PATH= "./training/Saccharomyces_cerevisiae.fa";
 
 
 	public void setUpReadsAligner() throws IOException {
@@ -82,7 +82,7 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 		assertNotNull(newAln);
 		assertEquals(255867, newAln.getFirst());
 		assertEquals(255956, newAln.getLast());
-		assertEquals("34M18M38M", newAln.getCigarString());
+		assertEquals("90M", newAln.getCigarString());
 
 		//Case 3c
 		//Region "chrXII 460003 460019"

@@ -62,15 +62,6 @@ private static int idxDebug = -1;
 		for(AssemblyEdge edge:edges) graph.addEdge(edge);
 		return graph;
 	}
-
-	private KmersMap generateKmersMap(List<QualifiedSequence> sequences) {
-		KmersExtractor extractor = new KmersExtractor();
-		extractor.setKmerLength(kmerLength);
-		for (QualifiedSequence qseq: sequences) {
-			extractor.countSequenceKmers(qseq.getCharacters());
-		}
-		return extractor.getKmersMap();
-	}
 	
 	private List<AssemblyEdge> calculateEdges(FMIndex fmIndexForward, FMIndex fmIndexReverse, KmersMap map) {
 		// TODO Auto-generated method stub

@@ -63,7 +63,7 @@ public class MinimizersTable {
 	public void addSequence (int sequenceId, CharSequence sequence) {
 		int n = sequence.length();
 		sequenceLengths.put(sequenceId, n);
-		int step = 50000000;
+		int step = 10000000;
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
 			List<MinimizersTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequence, start, Math.min(n, start+step));
@@ -108,7 +108,7 @@ public class MinimizersTable {
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
 	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, CharSequence sequence,int start,int end) {
-		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
+		Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
 		return computeSequenceMinimizers(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), kmers);
 	}
 	/**
@@ -119,11 +119,11 @@ public class MinimizersTable {
 	 * @param sequenceKmers Kmers considered to build minimizers
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
-	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, CharSequence> sequenceKmers) {
+	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, String> sequenceKmers) {
 		List<MinimizersTableEntry> minimizersSeq = new ArrayList<MinimizersTableEntry>();
 		Map<Integer, Integer> hashcodesForward = new HashMap<Integer, Integer>();
 		for(int i: sequenceKmers.keySet()) {
-			CharSequence kmer = sequenceKmers.get(i);
+			String kmer = sequenceKmers.get(i);
 			if(kmer == null) continue;
 			hashcodesForward.put(i, getHash(kmer));
 		}
@@ -161,9 +161,8 @@ public class MinimizersTable {
 		return minimizersSeq;
 	}
 
-	private int getHash(CharSequence kmer) {
-		//return kmer.toString().hashCode();
-		return kmer.hashCode();
+	private int getHash(String kmer) {
+		return KmersExtractor.pack(kmer).hashCode();
 	}
 	
 	/**
@@ -182,7 +181,7 @@ public class MinimizersTable {
 	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (CharSequence query) {
-		Map<Integer, CharSequence> kmers = KmersExtractor.extractKmersAsMap(query, kmerLength, 1, 0, query.length(), false, true, true);
+		Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, 0, query.length(), false, true, true);
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, query.length(), kmers);
 		//if (querySequenceId == idxDebug) log.info("Minimizers table. Counting hits for query: "+querySequenceId+" "+queryRC+" queryCount: "+queryCount+" min count: "+minCount);
 		Map<Integer,List<MinimizersTableEntry>> minimizersQuery = new HashMap<Integer, List<MinimizersTableEntry>>();

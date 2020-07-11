@@ -181,7 +181,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	}
 
 	public Map<CharSequence, Integer> extractUniqueKmers(CharSequence sequence, int start, int end) {
-		Map<Integer, CharSequence> rawKmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, start, end, true, true, true);
+		Map<Integer, String> rawKmers = KmersExtractor.extractKmersAsMap(sequence.toString(), 15, 1, start, end, true, true, true);
 		Map<CharSequence, Integer> answer = new LinkedHashMap<CharSequence, Integer>();
 		Map<CharSequence, Integer> reverseMap = new HashMap<CharSequence,Integer>();
 		Set<Integer> multiple = new HashSet<>();

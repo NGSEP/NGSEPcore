@@ -150,7 +150,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 
 	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, FMIndex fmIndex) {
-		Map<Integer,CharSequence> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, 1, false, true, true);
+		Map<Integer,String> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, false, true, true);
 		//Search kmers using the FM index
 		if(sequenceKmersMap.size()==0) return;
 		Map<Integer,List<UngappedSearchHit>> kmerHitsMap = new HashMap<Integer, List<UngappedSearchHit>>();

@@ -40,6 +40,7 @@ import ngsep.sequences.QualifiedSequenceList;
 public class FastaSequencesHandler {
 	
 	private Class<? extends CharSequence> sequenceType = null;
+	private boolean keepLowerCase = false;
 	
 	public FastaSequencesHandler () {
 		setSequenceType(DNAMaskedSequence.class);
@@ -53,6 +54,7 @@ public class FastaSequencesHandler {
 		QualifiedSequenceList answer = new QualifiedSequenceList();
 		try (FastaFileReader reader = new FastaFileReader(filename)) {
 			reader.setSequenceType(sequenceType);
+			reader.setKeepLowerCase(keepLowerCase);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
 				answer.add(it.next());
@@ -69,6 +71,7 @@ public class FastaSequencesHandler {
 		QualifiedSequenceList answer = new QualifiedSequenceList();
 		try (FastaFileReader reader = new FastaFileReader(is)) {
 			reader.setSequenceType(sequenceType);
+			reader.setKeepLowerCase(keepLowerCase);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
 				answer.add(it.next());
@@ -88,6 +91,20 @@ public class FastaSequencesHandler {
 	 */
 	public void setSequenceType(Class<? extends CharSequence> sequenceType) {
 		this.sequenceType = sequenceType;
+	}
+	
+	/**
+	 * @return boolean true if lowercase characters are kept
+	 */
+	public boolean isKeepLowerCase() {
+		return keepLowerCase;
+	}
+	/**
+	 * Changes the behavior to keep lowercase characters if they exist. By default all characters are converted to upper case
+	 * @param keepLowerCase
+	 */
+	public void setKeepLowerCase(boolean keepLowerCase) {
+		this.keepLowerCase = keepLowerCase;
 	}
 
 	/**

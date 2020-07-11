@@ -31,7 +31,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	
 	private Map<String, List<GenomicRegion>> knownSTRs;
 	
-	private Set<String> repetitiveKmers = new HashSet<String>();
+	private Set<CharSequence> repetitiveKmers = new HashSet<CharSequence>();
 	
 	private boolean runFullAlignment = true;
 	private boolean onlyPositiveStrand = false;
@@ -135,7 +135,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	 */
 	private List<ReadAlignment> kmerBasedSingleStrandInexactSearchAlgorithm (String query) 
 	{
-		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
+		Map<Integer,String> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		//System.out.println("Read: "+query+" length "+query.length()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();
@@ -168,15 +168,16 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	 * @param kmers to search
 	 * @return List of alignments of each kmer. The read number of each alignment contains the kmer number.
 	 */
-	private List<UngappedSearchHit> searchKmers(Map<Integer,CharSequence> kmersMap) {
+	private List<UngappedSearchHit> searchKmers(Map<Integer,String> kmersMap) {
 		List<UngappedSearchHit> answer = new ArrayList<>();
 		for (int start:kmersMap.keySet()) {
-			String kmer = kmersMap.get(start).toString();
-			if(repetitiveKmers.contains(kmer)) continue;
+			String kmer = kmersMap.get(start);
+			CharSequence kmerP = KmersExtractor.pack(kmer);
+			if(repetitiveKmers.contains(kmerP)) continue;
 			List<UngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
 			//System.out.println("Kmer: "+kmer+" hits: "+kmerHits.size());
 			if(kmerHits.size()>50) {
-				repetitiveKmers.add(kmer);
+				repetitiveKmers.add(kmerP);
 				continue;
 			}
 			for(UngappedSearchHit hit:kmerHits) {
