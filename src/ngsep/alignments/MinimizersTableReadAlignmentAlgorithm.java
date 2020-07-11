@@ -341,7 +341,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		if(queryNext<query.length()) {
 			int remainder = query.length()-queryNext;
 			int end = Math.min(subjectNext+remainder+5, subject.length());
-			if(subject.length()-subjectNext>remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
+			if(subject.length()-subjectNext>=remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
 				String queryStr = query.subSequence(queryNext,query.length()).toString();
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
 				//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());

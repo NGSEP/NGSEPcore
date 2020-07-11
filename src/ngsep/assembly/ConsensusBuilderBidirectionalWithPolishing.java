@@ -197,6 +197,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
 				int startSuffix;
 				if(alnRead!=null) {
+					alnRead.setSequenceName(sequenceName);
+					alnRead.setReadName(vertexNextEdge.getRead().getName());
 					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 					//Just in case cycle but if the read aligns this should not enter
@@ -233,7 +235,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alnRead.setSequenceName(sequenceName);
 					alnRead.setReadName(read.getName());
 					alignments.add(alnRead);
-					if(alnRead.getSoftClipEnd()>0) System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" Alignment to enlarged consensus: "+alnRead);
+					if(alnRead.getSoftClipEnd()>0) {
+						System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" soft clipped sequence: "+lastPartialAln.getReadCharacters().subSequence(lastPartialAln.getReadLength()-lastPartialAln.getSoftClipEnd()-5, lastPartialAln.getReadLength()) );
+						System.out.println("Alignment to enlarged consensus: "+alnRead+" consensus end: "+rawConsensus.substring(rawConsensus.length()-lastPartialAln.getSoftClipEnd()-5));
+					}
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
@@ -300,12 +305,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		generator.setMinMQ(80);
 		IndelRealignerPileupListener realignerListener = new IndelRealignerPileupListener();
 		realignerListener.setGenome(genome);
+		realignerListener.setMinProportionAlnsRealign(0.5);
 		generator.addListener(realignerListener);
 		SingleSampleVariantPileupListener varListener = new SingleSampleVariantPileupListener();
 		varListener.setMinQuality((short) 30);
 		varListener.setGenome(genome);
 		generator.addListener(varListener);
-		generator.addListener(new PileupListener() {
+		/*generator.addListener(new PileupListener() {
 			@Override
 			public void onSequenceStart(QualifiedSequence sequence) {
 				// TODO Auto-generated method stub
@@ -320,10 +326,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			
 			@Override
 			public void onPileup(PileupRecord pileup) {
-				if(pileup.getReferenceSpan()>1 ) System.out.println("Pileup position: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" alignemts: "+pileup.getNumAlignments());
+				if(pileup.getReferenceSpan()>20 ) System.out.println("Pileup position: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" alignemts: "+pileup.getNumAlignments());
 				
 			}
-		});
+		});*/
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
