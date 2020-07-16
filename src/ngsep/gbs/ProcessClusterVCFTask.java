@@ -114,7 +114,6 @@ public class ProcessClusterVCFTask extends Thread {
 
 	private List<VCFRecord> generateRecordsForCluster() {
 		List<VCFRecord> records = new ArrayList<>();
-		List<ReadAlignment> readAlignments = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		readCluster.buildAlignment();
 		String consensus = readCluster.getConsensusSequence().toUpperCase();
@@ -123,26 +122,7 @@ public class ProcessClusterVCFTask extends Thread {
 		String referenceId = Integer.toString(clusterId);
 		
 		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
-		List<RawRead> alignedReads = readCluster.getAlignedReads();
-		List<String> sampleIds = readCluster.getSampleIds();
-		if (alignedReads.size()!=sampleIds.size()) {
-			System.err.println("Inconsistent number of reads and samples. reads: "+alignedReads.size()+" samples: "+sampleIds);
-			return records;
-		}
-		
-		for(int i=0;i<alignedReads.size();i++) {
-			RawRead read = alignedReads.get(i);
-			String sampleId = sampleIds.get(i);
-			int readLength = read.getLength();
-			String CIGARString = Integer.toString(readLength) + "M"; 
-			ReadAlignment readAlignment = new ReadAlignment(referenceId, 1, readLength, readLength, 0);
-			readAlignment.setQualityScores(read.getQualityScores());
-			readAlignment.setReadCharacters(read.getCharacters());
-			readAlignment.setReadName(read.getName());
-			readAlignment.setCigarString(CIGARString);
-			readAlignment.setReadGroup(sampleId);
-			readAlignments.add(readAlignment);	
-		}
+		List<ReadAlignment> readAlignments = readCluster.getAlignedReads();
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		
@@ -175,7 +155,7 @@ public class ProcessClusterVCFTask extends Thread {
 	}
 
 	private void writeConsensusFasta() {
-		outConsensus.println(">Cluster_" + readCluster.getClusterNumber());
+		outConsensus.println(">"+ readCluster.getClusterNumber());
 		if(readCluster.getBreakPosition() != null) {
 			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition()));
 		} else {

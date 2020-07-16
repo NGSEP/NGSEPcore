@@ -386,7 +386,7 @@ public class VCFRelativeCoordinatesTranslator {
 					singleConsensus++;
 					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
-					System.out.println("Read: "+algnName+" Alns single "+alns.size());
+					//System.out.println("Read: "+algnName+" Alns single "+alns.size());
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
@@ -394,6 +394,7 @@ public class VCFRelativeCoordinatesTranslator {
 						continue;
 					}
 					ReadAlignment first = alns.get(0);
+					debug.println("First algn single: " + first.getReadCharacters() + "\t" + first.getFlags() + "\t" + first.getFirst() + "\t" + first.getCigarString());
 					alignmentsHash.put(algnName,first);
 				} else {
 					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
@@ -403,7 +404,7 @@ public class VCFRelativeCoordinatesTranslator {
 					RawRead read2 = new RawRead(algnName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
-					System.out.println("Read 1: "+algnName+" Alns 1: "+alns1+" alns 2: "+alns2);
+					//System.out.println("Read 1: "+algnName+" Alns 1: "+alns1+" alns 2: "+alns2);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
@@ -448,7 +449,7 @@ public class VCFRelativeCoordinatesTranslator {
 							last=aln1.getLast();
 							cigar+=""+(seq2.length()+1)+"S";
 						}
-						System.out.println("Combined CIGAR: "+cigar);
+						//System.out.println("Combined CIGAR: "+cigar);
 						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), last, seq.length(), 0);
 						combined.setSequenceName(aln1.getSequenceName());
 						combined.setCigarString(cigar);
@@ -473,7 +474,7 @@ public class VCFRelativeCoordinatesTranslator {
 							cigar = ""+(seq2.length()+1)+"S";
 						}
 						cigar+=aln1.getCigarString();
-						System.out.println("Combined CIGAR: "+cigar);
+						//System.out.println("Combined CIGAR: "+cigar);
 						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), firstPosCombined, aln1.getLast(), seq.length(), 16);
 						combined.setSequenceName(aln1.getSequenceName());
 						combined.setCigarString(cigar);

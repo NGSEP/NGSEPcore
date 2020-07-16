@@ -122,7 +122,7 @@ public class CountsHelper {
 		updateProbabilitiesCache(nAlleles);
 		startCounts();
 	}
-	private void updateProbabilitiesCache(int numAlleles) {
+	private synchronized void updateProbabilitiesCache(int numAlleles) {
 		int m = DEF_MAX_BASE_QS+1;
 		//Create the cache for at least 10 alleles
 		if(numAlleles<10) numAlleles=10;

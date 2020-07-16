@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -11,13 +12,14 @@ import ngsep.sequences.RawRead;
 
 public class ReadCluster {
 	public static final int MIN_ALLOWED_OVERLAP = 10;
-	public static final int ALLOWED_OVERLAP_MISMATCH = 2;
+	public static final double ALLOWED_OVERLAP_MISMATCH_PROPORTION = 0.1;
 	public static final double CLUSTER_PERCENTAGE_TO_BUILD_ALIGNMENT = 0.1;
 	private int clusterNumber;
+	private String sequenceName;
 	private int totalReads = 0;
 	private List<RawRead> reads1 = new ArrayList<>();
 	private List<RawRead> reads2 = null;
-	private List<RawRead> alignment = new ArrayList<RawRead>();
+	private List<ReadAlignment> alignment = new ArrayList<ReadAlignment>();
 	private List<String> sampleIds = new ArrayList<>();
 	private String consensusSequence = null;
 	private Integer breakPosition = null;
@@ -25,10 +27,15 @@ public class ReadCluster {
 	public ReadCluster(int clusterNumber, boolean pairedEnd)      
 	{                                                                 
 		this.clusterNumber = clusterNumber;
+		sequenceName = ""+clusterNumber;
 		if (pairedEnd) reads2 = new ArrayList<RawRead>();
 		
 	}
 	
+	public String getSequenceName() {
+		return sequenceName;
+	}
+
 	/**
 	 * Builds the alignment of either single or paired-end reads
 	 */
@@ -37,48 +44,27 @@ public class ReadCluster {
 		consensusSequence = null;
 		//For single end
 		if(reads2==null) {
-			for(RawRead read:reads1) alignment.add(read);
+			calculateConsensusSingleReads();
+			for(int i=0;i<reads1.size();i++) {
+				RawRead read = reads1.get(i);
+				String sampleId = sampleIds.get(i);
+				ReadAlignment readAlignment = buildReadAlignment(read, sampleId);
+				alignment.add(readAlignment);
+			}
 		} else {
 			calculateAlignmentPaired();	// calculates position where alignment starts
-			// if no alignment was found join with "NNNNN"
-			if(consensusSequence==null) {
-
-				int alnLength = calculateMaxLength();
-				for(int i=0; i< reads1.size();i++) {
-					CharSequence sequence1 = reads1.get(i).getCharacters();
-					CharSequence sequence2 = reads2.get(i).getCharacters();
-					int numberOfN = alnLength - (sequence1.length() + sequence2.length());
-					if (numberOfN == 0) numberOfN = 1;
-					char [] nStr = new char[numberOfN];
-					Arrays.fill(nStr, 'N');
-					char [] qStr = new char[numberOfN];
-					Arrays.fill(qStr, '!');
-					CharSequence alignedReadChars = sequence1+(new String(nStr))+DNAMaskedSequence.getReverseComplement(sequence2);
-					String alignedReadQS = reads1.get(i).getQualityScores()+(new String(qStr))+reverseSequence(reads2.get(i).getQualityScores());
-					String alignedReadId = reads1.get(i).getName();
-					RawRead alignedRead = new RawRead(alignedReadId, alignedReadChars, alignedReadQS);
-
-					alignment.add(alignedRead);
-				}
-				calculateConsensus();
-			}
 		}	
 	}
-	
-	/*
-	 * Calculates the minimum length of the joined paired-end reads if there is no alignment
-	 */
-	private int calculateMaxLength() {
-		int maxLength = 0;
-		for(int i=0;i<reads1.size();i++) {
-			int forwardLength = reads1.get(i).getLength();
-			int reverseLength = reads2.get(i).getLength();
-			if(maxLength <= forwardLength+reverseLength) {
-				maxLength = forwardLength+reverseLength;
-			}
-		}
-		return maxLength;
-		
+
+	private ReadAlignment buildReadAlignment(RawRead read, String sampleId) {
+		int readLength = read.getLength();
+		ReadAlignment readAlignment = new ReadAlignment(sequenceName, 1, readLength, readLength, 0);
+		readAlignment.setQualityScores(read.getQualityScores());
+		readAlignment.setReadCharacters(read.getCharacters());
+		readAlignment.setReadName(read.getName());
+		readAlignment.setCigarString(""+readLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH));
+		readAlignment.setReadGroup(sampleId);
+		return readAlignment;
 	}
 	
 	private void calculateAlignmentPaired() {
@@ -95,37 +81,66 @@ public class ReadCluster {
 		
 		int pos = calculateAlignmentPos(consensus1, revC2);
 		
-		if (pos == -1) {
-			pos = calculateAlignmentPos(revC2, consensus1);
-			if(pos==-1) return;
-			consensusSequence = consensus1.substring(0,pos);
-		} else {
+		if (pos > 0) {
 			consensusSequence = consensus1+revC2.substring(pos);
+		} else {
+			pos = calculateAlignmentPos(revC2, consensus1);
+			if(pos>0) consensusSequence = consensus1.substring(0,pos);
+			else {
+				char [] nStr = new char[5];
+				Arrays.fill(nStr, 'N');
+				consensusSequence = consensus1+(new String(nStr))+revC2;
+			}
 		}
 		int n = reads1.size();
 		for(int i=0;i<n;i++) {
 			RawRead r1 = reads1.get(i);
 			RawRead r2 = reads2.get(i);
-			RawRead aligned = alignPairedEndReadToConsensus(r1,r2);
-			alignment.add(aligned);			
+			String sampleId = sampleIds.get(i);
+			alignment.addAll(alignPairedEndReadToConsensus(r1,r2,sampleId));			
 		}
 	}
 	
-	private RawRead alignPairedEndReadToConsensus(RawRead r1, RawRead r2) {
-		DNAMaskedSequence seq = new DNAMaskedSequence();
-		StringBuilder qs = new StringBuilder();
+	private List<ReadAlignment> alignPairedEndReadToConsensus(RawRead r1, RawRead r2, String sampleId) {
+		List<ReadAlignment> answer = new ArrayList<ReadAlignment>(2);
 		int cl = consensusSequence.length();
 		int diff1 = cl-r1.getLength();
 		if(diff1<=0) {
-			seq.append(r1.getCharacters().subSequence(0, cl));
-			qs.append(r1.getQualityScores().subSequence(0, cl));
+			//Consensus has been merged.
+			DNAMaskedSequence seq1 = new DNAMaskedSequence(r1.getCharacters().subSequence(0, cl));
+			String q1 = r1.getQualityScores().substring(0, cl);
+			RawRead forward = new RawRead(r1.getName(), seq1, q1); 
+			answer.add(buildReadAlignment(forward, sampleId));
+			DNAMaskedSequence seq2 = new DNAMaskedSequence(r2.getCharacters());
+			String q2 = r2.getQualityScores();
+			if(seq2.length()>cl) {
+				seq2 = (DNAMaskedSequence)seq2.subSequence(0, cl);
+				q2 = q2.substring(0, cl);
+			} else if(seq2.length()<cl){
+				int numberOfN = cl-seq2.length();
+				char [] nStr = new char[numberOfN];
+				Arrays.fill(nStr, 'N');
+				seq2.append(new String (nStr));
+				char [] qStr = new char[numberOfN];
+				Arrays.fill(qStr, '!');
+				StringBuilder qb2 = new StringBuilder();
+				qb2.append(q2);
+				qb2.append(qStr);
+				q2 = qb2.toString();
+			}
+			seq2 = seq2.getReverseComplement();
+			q2 = reverseSequence(q2);
+			RawRead reverse = new RawRead(r2.getName(), seq2, q2); 
+			answer.add(buildReadAlignment(reverse, sampleId));
 		} else {
+			DNAMaskedSequence seq = new DNAMaskedSequence();
+			StringBuilder qs = new StringBuilder();
 			seq.append(r1.getCharacters());
 			qs.append(r1.getQualityScores());
 			if (diff1 <= r2.getLength()) {
 				CharSequence rs2 = DNAMaskedSequence.getReverseComplement(r2.getCharacters().subSequence(0, diff1));
 				seq.append(rs2);
-				CharSequence qsr = reverseSequence(r2.getQualityScores().subSequence(0, diff1));
+				String qsr = reverseSequence(r2.getQualityScores().substring(0, diff1));
 				qs.append(qsr);
 			} else {
 				int numberOfN = diff1- r2.getLength();
@@ -138,13 +153,13 @@ public class ReadCluster {
 				qs.append(qStr);
 				qs.append(reverseSequence(r2.getQualityScores()));
 			}
+			RawRead combined = new RawRead(r2.getName(), seq, qs.toString());
+			answer.add(buildReadAlignment(combined, sampleId));
 		}
-		RawRead answer = new RawRead(r1.getName(), seq, qs.toString());
 		return answer;
 	}
 
-	public List<RawRead> getAlignedReads() {
-		
+	public List<ReadAlignment> getAlignedReads() {
 		return alignment;
 	}
 	
@@ -176,7 +191,7 @@ public class ReadCluster {
 	/*
 	 * This method takes a sequence and returns the reversed sequence
 	 */
-	private CharSequence reverseSequence(CharSequence seq) {
+	private String reverseSequence(String seq) {
 		StringBuilder reverse = new StringBuilder();
 		reverse.append(seq);
 		reverse.reverse();
@@ -189,12 +204,13 @@ public class ReadCluster {
 	 */
 	private boolean checkOverlap(CharSequence suffix, CharSequence prefix) {
 		int numberMismatches = 0;
+		int maxAllowedMismatches = (int)Math.round(ALLOWED_OVERLAP_MISMATCH_PROPORTION*suffix.length());
 		for(int i = 0; i < suffix.length(); i++) {
 			
 			if(suffix.charAt(i) != prefix.charAt(i)) {
 				numberMismatches++;
 			}
-			if(numberMismatches > ALLOWED_OVERLAP_MISMATCH) {
+			if(numberMismatches > maxAllowedMismatches) {
 				return false;
 			}
 		}
@@ -202,15 +218,18 @@ public class ReadCluster {
 	}
 	
 	
-	//TODO: Contracts
+	/**
+	 * Calculates the average of hamming distances between each read and the consensus
+	 * @return double averge of hamming distances
+	 */
 	public double getAverageHammingDistance() {
 		if(alignment.size() == 0) {
 			return 0;
 		}
 		double totHammingDist = 0;
 		HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
-		for(RawRead seq:alignment) {
-			CharSequence sequence = seq.getCharacters();
+		for(ReadAlignment aln:alignment) {
+			CharSequence sequence = aln.getReadCharacters();
 			totHammingDist += measure.calculateDistanceDifferentLengths(sequence, consensusSequence);
 		}
 		return totHammingDist / alignment.size();
@@ -233,17 +252,17 @@ public class ReadCluster {
 		consensusSequence = null;
 	}
 	
-	private void calculateConsensus() {
+	private void calculateConsensusSingleReads() {
 		
 		int longestRead = 0;
-		for(RawRead seq:alignment) {
+		for(RawRead seq:reads1) {
 			CharSequence sequence = seq.getCharacters();
 			if(longestRead<sequence.length()) longestRead = sequence.length();
 		}
 		int numNucleotides = DNASequence.BASES_STRING.length();
 		int[][] refSeqTable = new int[longestRead][numNucleotides+1];
 		
-		for(RawRead seq:alignment) {
+		for(RawRead seq:reads1) {
 			CharSequence sequence = seq.getCharacters();
 			for(int i=0; i<sequence.length(); i++) {
 				char c = sequence.charAt(i);
@@ -289,9 +308,6 @@ public class ReadCluster {
 	}
 	
 	public String getConsensusSequence() {
-		if(consensusSequence==null) {
-			calculateConsensus();
-		}
 		return consensusSequence;
 	}
 	

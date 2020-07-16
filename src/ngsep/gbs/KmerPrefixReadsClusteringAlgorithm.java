@@ -20,6 +20,7 @@
 package ngsep.gbs;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -271,6 +272,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
+		logParameters();
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
@@ -309,6 +311,20 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Process finished");
 	}
 	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input directory:"+ inputDirectory);
+		out.println("Output prefix:"+ outputPrefix);
+		if (filesDescriptor!=null) out.println("Descriptor for paired-end samples: "+filesDescriptor);
+		out.println("Kmer length: "+ kmerLength);
+		out.println("Maximum number of clusters: "+ maxNumClusters);
+		out.println("Prior heterozygosity rate: "+ heterozygosityRate);
+		out.println("Minimum variant quality: "+ minQuality);
+		out.println("Normal ploidy: "+ normalPloidy);
+		out.println("Number of threads: "+ numThreads);
+		log.info(os.toString());
+	}
 	private void printDistribution() throws IOException {
 		int[] dist = getClusterSizeDist();
 		log.info("Printing cluster distribution.");
