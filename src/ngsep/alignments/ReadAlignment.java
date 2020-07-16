@@ -1122,11 +1122,11 @@ public class ReadAlignment implements GenomicRegion {
 		if(readCharacters!=null && expectedReadLength!=readCharacters.length())  new IllegalArgumentException("Malformed CIGAR. Expected read length: "+expectedReadLength+" different than read length: "+readCharacters.length());
 		alignment = NumberArrays.toIntArray(collapseEqualEvents (alignmentList));
 		if(expectedReadLength != this.readLength) {
-			System.out.println("WARN. New CIGAR changes read length for read at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
+			System.out.println("WARN. New CIGAR "+cigarString+" changes read length for read "+getReadName()+" at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
 			this.readLength = expectedReadLength;
 		}
 		if(expectedEnd -1 != this.last) {
-			System.out.println("WARN. New CIGAR changes last alignment position for read at "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1));
+			System.out.println("WARN. New CIGAR "+cigarString+" changes last alignment position for read "+getReadName()+" at "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1));
 			this.last = expectedEnd - 1;
 		}
 		if(first == posPrint && alignment.length >=3) System.out.println("Alignment codes: "+alignment[0]+" "+alignment[1]+" "+alignment[2]+" Expected read length: "+expectedReadLength);

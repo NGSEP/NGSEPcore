@@ -26,7 +26,6 @@ import java.util.List;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.MultisampleVariantsDetector;
 import ngsep.discovery.PileupRecord;
-import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.SNV;
