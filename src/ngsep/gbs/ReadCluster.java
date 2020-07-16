@@ -14,6 +14,7 @@ public class ReadCluster {
 	public static final int MIN_ALLOWED_OVERLAP = 10;
 	public static final double ALLOWED_OVERLAP_MISMATCH_PROPORTION = 0.1;
 	public static final double CLUSTER_PERCENTAGE_TO_BUILD_ALIGNMENT = 0.1;
+	public static final String MIDDLE_N_SEQUENCE_PAIRED_END = "NNN";
 	private int clusterNumber;
 	private String sequenceName;
 	private int totalReads = 0;
@@ -22,7 +23,8 @@ public class ReadCluster {
 	private List<ReadAlignment> alignment = new ArrayList<ReadAlignment>();
 	private List<String> sampleIds = new ArrayList<>();
 	private String consensusSequence = null;
-	private Integer breakPosition = null;
+	private Integer breakPosition1 = null;
+	private Integer breakPosition2 = null;
 	
 	public ReadCluster(int clusterNumber, boolean pairedEnd)      
 	{                                                                 
@@ -48,7 +50,7 @@ public class ReadCluster {
 			for(int i=0;i<reads1.size();i++) {
 				RawRead read = reads1.get(i);
 				String sampleId = sampleIds.get(i);
-				ReadAlignment readAlignment = buildReadAlignment(read, sampleId);
+				ReadAlignment readAlignment = buildUngappedReadAlignment(read, sampleId, false);
 				alignment.add(readAlignment);
 			}
 		} else {
@@ -56,13 +58,29 @@ public class ReadCluster {
 		}	
 	}
 
-	private ReadAlignment buildReadAlignment(RawRead read, String sampleId) {
+	private ReadAlignment buildUngappedReadAlignment(RawRead read, String sampleId, boolean reverse) {
+		String matchCode = ""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH);
+		String skipCode = ""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_SKIPFROMREAD);
 		int readLength = read.getLength();
-		ReadAlignment readAlignment = new ReadAlignment(sequenceName, 1, readLength, readLength, 0);
-		readAlignment.setQualityScores(read.getQualityScores());
-		readAlignment.setReadCharacters(read.getCharacters());
+		int flag = 0;
+		CharSequence seq = read.getCharacters();
+		String qs =read.getQualityScores();
+		int cl = consensusSequence.length();
+		int alnLength = Math.min(readLength, cl);
+		int first = 1;
+		String cigar = ""+alnLength+matchCode;
+		if(reverse) {
+			flag=16;
+			seq = DNAMaskedSequence.getReverseComplement(seq);
+			qs = reverseSequence(qs);
+			first = cl-alnLength+1;
+			if(readLength>alnLength) cigar = ""+(readLength-alnLength)+skipCode+cigar;
+		} else if (readLength>alnLength) cigar += (readLength-alnLength)+skipCode;
+		ReadAlignment readAlignment = new ReadAlignment(sequenceName, first, first+alnLength-1, readLength, flag);
+		readAlignment.setQualityScores(qs.toString());
+		readAlignment.setReadCharacters(seq);
 		readAlignment.setReadName(read.getName());
-		readAlignment.setCigarString(""+readLength+""+ReadAlignment.ALIGNMENT_CHAR_CODES.charAt(ReadAlignment.ALIGNMENT_MATCH));
+		readAlignment.setCigarString(cigar);
 		readAlignment.setReadGroup(sampleId);
 		return readAlignment;
 	}
@@ -87,9 +105,7 @@ public class ReadCluster {
 			pos = calculateAlignmentPos(revC2, consensus1);
 			if(pos>0) consensusSequence = consensus1.substring(0,pos);
 			else {
-				char [] nStr = new char[5];
-				Arrays.fill(nStr, 'N');
-				consensusSequence = consensus1+(new String(nStr))+revC2;
+				consensusSequence = consensus1+MIDDLE_N_SEQUENCE_PAIRED_END+revC2;
 			}
 		}
 		int n = reads1.size();
@@ -97,66 +113,11 @@ public class ReadCluster {
 			RawRead r1 = reads1.get(i);
 			RawRead r2 = reads2.get(i);
 			String sampleId = sampleIds.get(i);
-			alignment.addAll(alignPairedEndReadToConsensus(r1,r2,sampleId));			
+			alignment.add(buildUngappedReadAlignment(r1, sampleId, false));
+			alignment.add(buildUngappedReadAlignment(r2, sampleId, true));			
 		}
-	}
-	
-	private List<ReadAlignment> alignPairedEndReadToConsensus(RawRead r1, RawRead r2, String sampleId) {
-		List<ReadAlignment> answer = new ArrayList<ReadAlignment>(2);
-		int cl = consensusSequence.length();
-		int diff1 = cl-r1.getLength();
-		if(diff1<=0) {
-			//Consensus has been merged.
-			DNAMaskedSequence seq1 = new DNAMaskedSequence(r1.getCharacters().subSequence(0, cl));
-			String q1 = r1.getQualityScores().substring(0, cl);
-			RawRead forward = new RawRead(r1.getName(), seq1, q1); 
-			answer.add(buildReadAlignment(forward, sampleId));
-			DNAMaskedSequence seq2 = new DNAMaskedSequence(r2.getCharacters());
-			String q2 = r2.getQualityScores();
-			if(seq2.length()>cl) {
-				seq2 = (DNAMaskedSequence)seq2.subSequence(0, cl);
-				q2 = q2.substring(0, cl);
-			} else if(seq2.length()<cl){
-				int numberOfN = cl-seq2.length();
-				char [] nStr = new char[numberOfN];
-				Arrays.fill(nStr, 'N');
-				seq2.append(new String (nStr));
-				char [] qStr = new char[numberOfN];
-				Arrays.fill(qStr, '!');
-				StringBuilder qb2 = new StringBuilder();
-				qb2.append(q2);
-				qb2.append(qStr);
-				q2 = qb2.toString();
-			}
-			seq2 = seq2.getReverseComplement();
-			q2 = reverseSequence(q2);
-			RawRead reverse = new RawRead(r2.getName(), seq2, q2); 
-			answer.add(buildReadAlignment(reverse, sampleId));
-		} else {
-			DNAMaskedSequence seq = new DNAMaskedSequence();
-			StringBuilder qs = new StringBuilder();
-			seq.append(r1.getCharacters());
-			qs.append(r1.getQualityScores());
-			if (diff1 <= r2.getLength()) {
-				CharSequence rs2 = DNAMaskedSequence.getReverseComplement(r2.getCharacters().subSequence(0, diff1));
-				seq.append(rs2);
-				String qsr = reverseSequence(r2.getQualityScores().substring(0, diff1));
-				qs.append(qsr);
-			} else {
-				int numberOfN = diff1- r2.getLength();
-				char [] nStr = new char[numberOfN];
-				Arrays.fill(nStr, 'N');
-				seq.append(new String (nStr));
-				seq.append(DNAMaskedSequence.getReverseComplement(r2.getCharacters()));
-				char [] qStr = new char[numberOfN];
-				Arrays.fill(qStr, '!');
-				qs.append(qStr);
-				qs.append(reverseSequence(r2.getQualityScores()));
-			}
-			RawRead combined = new RawRead(r2.getName(), seq, qs.toString());
-			answer.add(buildReadAlignment(combined, sampleId));
-		}
-		return answer;
+		if(rc1.breakPosition1!=null && rc1.breakPosition1<consensusSequence.length()) breakPosition1 = rc1.getBreakPosition1();
+		if(rc2.getBreakPosition1()!=null && rc2.breakPosition1<consensusSequence.length()) breakPosition2 = consensusSequence.length()-rc2.getBreakPosition1()-1;
 	}
 
 	public List<ReadAlignment> getAlignedReads() {
@@ -220,7 +181,7 @@ public class ReadCluster {
 	
 	/**
 	 * Calculates the average of hamming distances between each read and the consensus
-	 * @return double averge of hamming distances
+	 * @return double average of hamming distances
 	 */
 	public double getAverageHammingDistance() {
 		if(alignment.size() == 0) {
@@ -230,7 +191,11 @@ public class ReadCluster {
 		HammingSequenceDistanceMeasure measure = new HammingSequenceDistanceMeasure();
 		for(ReadAlignment aln:alignment) {
 			CharSequence sequence = aln.getReadCharacters();
-			totHammingDist += measure.calculateDistanceDifferentLengths(sequence, consensusSequence);
+			if(aln.getFirst()==1) {
+				totHammingDist += measure.calculateDistanceDifferentLengths(sequence, consensusSequence);
+			} else {
+				//TODO: Take into account start position
+			}	
 		}
 		return totHammingDist / alignment.size();
 	}
@@ -291,7 +256,7 @@ public class ReadCluster {
 			//Report break in cluster structure when depth drops by 50%
 			
 			if(prevDepth > 2*depth) {
-				this.breakPosition = i;
+				this.breakPosition1 = i;
 			}
 			prevDepth = depth;
 			
@@ -300,11 +265,19 @@ public class ReadCluster {
 		consensusSequence = new String(consensusC);
 	}
 	
-	/*
-	 * Returns the position at which the depth of the cluster changes drastically (by more than 50%)
+	/**
+	 * Returns the position from the consensus start at which the depth of the cluster changes drastically (by more than 50%)
+	 * @return Integer
 	 */
-	public Integer getBreakPosition() {
-		return breakPosition;
+	public Integer getBreakPosition1() {
+		return breakPosition1;
+	}
+	/**
+	 * For paired end consensus, returns the position from the consensus end at which the depth of the cluster changes drastically (by more than 50%)
+	 * @return Integer
+	 */
+	public Integer getBreakPosition2() {
+		return breakPosition2;
 	}
 	
 	public String getConsensusSequence() {

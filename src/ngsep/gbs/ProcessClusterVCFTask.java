@@ -120,13 +120,14 @@ public class ProcessClusterVCFTask extends Thread {
 		if(consensusLength<40) return records;
 		String referenceId = Integer.toString(clusterId);
 		
-		// For each read within the cluster create a ReadAlignment. Set characters and quality scores
+		// Recover alignments from cluster
 		List<ReadAlignment> readAlignments = readCluster.getAlignedReads();
 
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		
-		if(readCluster.getBreakPosition() != null) {
-			consensusLength = readCluster.getBreakPosition();
+		if(readCluster.getBreakPosition1() != null) {
+			consensusLength = readCluster.getBreakPosition1();
+			//TODO: use break position 2 for paired end
 		} 
 		MultisampleVariantsDetector mvd = new MultisampleVariantsDetector();
 		double h = parent.getHeterozygosityRate();
@@ -138,6 +139,8 @@ public class ProcessClusterVCFTask extends Thread {
 		for(int i=1; i<=consensusLength; i++) {
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			for(ReadAlignment readAlgn:readAlignments) {
+				readAlgn.setBasesToIgnore5P(parent.getBasesToIgnore5P());
+				readAlgn.setBasesToIgnore3P(parent.getBasesToIgnore3P());
 				clusterPileUp.addAlignment(readAlgn);
 			}
 			
@@ -155,8 +158,8 @@ public class ProcessClusterVCFTask extends Thread {
 
 	private void writeConsensusFasta() {
 		outConsensus.println(">"+ readCluster.getClusterNumber());
-		if(readCluster.getBreakPosition() != null) {
-			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition()));
+		if(readCluster.getBreakPosition1() != null) {
+			outConsensus.println(readCluster.getConsensusSequence().substring(0, readCluster.getBreakPosition1()));
 		} else {
 			outConsensus.println(readCluster.getConsensusSequence());
 		}

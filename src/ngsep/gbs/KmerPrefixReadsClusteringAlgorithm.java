@@ -93,6 +93,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	private int numThreads = DEF_NUM_THREADS;
+	private byte basesToIgnore5P = 0;
+	private byte basesToIgnore3P = 0;
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private short minQuality = DEF_MIN_QUALITY;
@@ -203,6 +205,40 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
+	/**
+	 * @return
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
+	 */
+	public byte getBasesToIgnore5P() {
+		return basesToIgnore5P;
+	}
+	/**
+	 * @param basesToIgnore5P
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
+	 */
+	public void setBasesToIgnore5P(byte basesToIgnore5P) {
+		this.basesToIgnore5P = basesToIgnore5P;
+	}
+	public void setBasesToIgnore5P(String basesToIgnore5P) {
+		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(basesToIgnore5P, Byte.class));
+	}
+	/**
+	 * @return
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
+	 */
+	public byte getBasesToIgnore3P() {
+		return basesToIgnore3P;
+	}
+	/**
+	 * @param basesToIgnore3P
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
+	 */
+	public void setBasesToIgnore3P(byte basesToIgnore3P) {
+		this.basesToIgnore3P = basesToIgnore3P;
+	}
+	public void setBasesToIgnore3P(String basesToIgnore3P) {
+		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(basesToIgnore3P, Byte.class));
+	}
 	public double getHeterozygosityRate() {
 		return heterozygosityRate;
 	}

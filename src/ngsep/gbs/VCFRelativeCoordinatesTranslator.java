@@ -354,10 +354,8 @@ public class VCFRelativeCoordinatesTranslator {
 		if(refIndex!=null) aligner.setFmIndex(refIndex);
 		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
 		
-		int numNCharsPairedEnd = 5;
-		char [] NStringChrs = new char[numNCharsPairedEnd];
-		Arrays.fill(NStringChrs, 'N');
-		String pairedEndAnchor = new String(NStringChrs);
+		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
+		int numNCharsPairedEnd = pairedEndAnchor.length();	
 		
 		
 		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA);
@@ -380,7 +378,6 @@ public class VCFRelativeCoordinatesTranslator {
 					singleConsensus++;
 					RawRead read = new RawRead(consensusName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
-					//System.out.println("Read: "+algnName+" Alns single "+alns.size());
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
@@ -398,7 +395,7 @@ public class VCFRelativeCoordinatesTranslator {
 					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
-					//System.out.println("Read 1: "+algnName+" Alns 1: "+alns1+" alns 2: "+alns2);
+					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
@@ -527,69 +524,6 @@ public class VCFRelativeCoordinatesTranslator {
 				}
 			}
 		}
-		
-	}
-	
-	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
-	private ReadAlignment removeStartSoftClip(ReadAlignment algn, int maxAllowedSkips) {
-		int operator = algn.getCigarItemOperator(0);
-		String cigar = algn.getCigarString();
-		ReadAlignment algn_1 = algn;
-		// if starts with skips
-		if(operator == 6) {
-			int length = algn.getCigarItemLength(0);
-			int newLength = length;
-			if(length < maxAllowedSkips) {
-				//if second operator is M
-				System.out.println("Length: " + length);
-				if(algn.getCigarItemOperator(1) == 3) {
-					newLength = length + algn.getCigarItemLength(1);
-					String partialOldCigar = length + "S" + algn.getCigarItemLength(1) + "M";
-					String partialNewCigar = newLength + "M";
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				} else {
-					String partialOldCigar = length + "S"; 
-					String partialNewCigar = length + "M"; 
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				}
-				algn_1 = new ReadAlignment(algn.getSequenceName(), algn.getFirst() - length, algn.getLast(), algn.length()+length, algn.getFlags());
-				algn_1.setCigarString(cigar);
-			}
-			
-		}
-		
-		return algn_1;
-	}
-	
-	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
-	private ReadAlignment removeEndSoftClip(ReadAlignment algn, int maxAllowedSkips) {
-		int operator = algn.getCigarItemOperator(algn.getNumCigarItems()-1);
-		String cigar = algn.getCigarString();
-		ReadAlignment algn_1 = algn;
-		// if starts with skips
-		if(operator == 6) {
-			int length = algn.getCigarItemLength(algn.getNumCigarItems()-1);
-			int newLength = length;
-			if(length < maxAllowedSkips) {
-				//if second operator is M
-				System.out.println("Length: " + length);
-				if(algn.getCigarItemOperator(algn.getNumCigarItems()-2) == 3) {
-					newLength = length + algn.getCigarItemLength(algn.getNumCigarItems()-2);
-					String partialOldCigar = algn.getCigarItemLength(algn.getNumCigarItems()-2) + "M" + length + "S";
-					String partialNewCigar = newLength + "M";
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				} else {
-					String partialOldCigar = length + "S"; 
-					String partialNewCigar = length + "M"; 
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				}
-				algn_1 = new ReadAlignment(algn.getSequenceName(), algn.getFirst(), algn.getLast()+length, algn.length()+length, algn.getFlags());
-				algn_1.setCigarString(cigar);
-			}
-			
-		}
-		
-		return algn_1;
 	}
 	
 	
