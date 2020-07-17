@@ -115,8 +115,10 @@ public class ProcessClusterVCFTask extends Thread {
 		List<VCFRecord> records = new ArrayList<>();
 		int clusterId = readCluster.getClusterNumber();
 		readCluster.buildAlignment();
+		byte ignore5 = parent.getBasesToIgnore5P();
+		byte ignore3 = parent.getBasesToIgnore3P();
 		String consensus = readCluster.getConsensusSequence().toUpperCase();
-		int consensusLength = consensus.length();
+		int consensusLength = consensus.length()-ignore5;
 		if(consensusLength<40) return records;
 		String referenceId = Integer.toString(clusterId);
 		
@@ -126,7 +128,7 @@ public class ProcessClusterVCFTask extends Thread {
 		// For each position in the representative sequence create a pileup record with cluster id as sequence name and position =i
 		
 		if(readCluster.getBreakPosition1() != null) {
-			consensusLength = readCluster.getBreakPosition1();
+			consensusLength = Math.min(consensusLength, readCluster.getBreakPosition1());
 			//TODO: use break position 2 for paired end
 		} 
 		MultisampleVariantsDetector mvd = new MultisampleVariantsDetector();
@@ -136,11 +138,12 @@ public class ProcessClusterVCFTask extends Thread {
 		mvd.setMinAlleleDepthFrequency(parent.getMinAlleleDepthFrequency());
 		List<Sample> samples = parent.getSamples();
 		mvd.setSamples(samples);
-		for(int i=1; i<=consensusLength; i++) {
+		
+		for(int i=ignore5+1; i<=consensusLength; i++) {
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			for(ReadAlignment readAlgn:readAlignments) {
-				readAlgn.setBasesToIgnore5P(parent.getBasesToIgnore5P());
-				readAlgn.setBasesToIgnore3P(parent.getBasesToIgnore3P());
+				readAlgn.setBasesToIgnore5P(ignore5);
+				readAlgn.setBasesToIgnore3P(ignore3);
 				clusterPileUp.addAlignment(readAlgn);
 			}
 			
