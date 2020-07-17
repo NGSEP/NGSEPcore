@@ -10,16 +10,20 @@ import ngsep.math.Distribution;
 
 public class MinimizersTable {
 	
+	private static final DNASequence EMPTYDNASEQ = new DNASequence();
 	private Logger log = Logger.getLogger(MinimizersTable.class.getName());
 	private int kmerLength;
 	private int windowLength;
 	private int maxAbundanceMinimizer = 0;
 	private boolean saveRepeatedMinimizersWithinSequence = false;
+	private KmersMap kmersMap;
+	private boolean keepSingletons = false;
+	
 	
 	
 	private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
-	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>(); 
-	private int numSequences = 0;
+	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>();
+	private int totalEntries = 0;
 	
 	
 
@@ -48,6 +52,22 @@ public class MinimizersTable {
 	}
 	public void setSaveRepeatedMinimizersWithinSequence(boolean saveRepeatedMinimizersWithinSequence) {
 		this.saveRepeatedMinimizersWithinSequence = saveRepeatedMinimizersWithinSequence;
+	}
+	
+	public KmersMap getKmersMap() {
+		return kmersMap;
+	}
+
+	public void setKmersMap(KmersMap kmersMap) {
+		this.kmersMap = kmersMap;
+	}
+	
+	public boolean isKeepSingletons() {
+		return keepSingletons;
+	}
+
+	public void setKeepSingletons(boolean keepSingletons) {
+		this.keepSingletons = keepSingletons;
 	}
 
 	public void addSequences (QualifiedSequenceList sequences) {
@@ -82,14 +102,14 @@ public class MinimizersTable {
 				if (maxAbundanceMinimizer==0 || minList.size()<=maxAbundanceMinimizer) {
 					if(saveRepeatedMinimizersWithinSequence) {
 						for (MinimizersTableEntry entry:entries) minList.add(entry.encode());
+						totalEntries+=minList.size();
 					} else {
-						 minList.add(entries.get(0).encode());
+						minList.add(entries.get(0).encode());
+						totalEntries++;
 					}
 				}
 			}
 		}
-		numSequences++;
-		if (numSequences%100==0) System.out.println("Added "+numSequences+" sequences. Total minimizers:"+sequencesByMinimizer.size());
 	}
 
 	private boolean overlapping(List<MinimizersTableEntry> entries) {
@@ -125,6 +145,11 @@ public class MinimizersTable {
 		for(int i: sequenceKmers.keySet()) {
 			String kmer = sequenceKmers.get(i);
 			if(kmer == null) continue;
+			if(kmersMap!=null) {
+				int count = kmersMap.getCount(kmer);
+				if(!keepSingletons && count == 1) continue;
+				if(count>maxAbundanceMinimizer) continue;
+			}
 			hashcodesForward.put(i, getHash(kmer));
 		}
 		Integer previousMinimizer = null;
@@ -162,7 +187,13 @@ public class MinimizersTable {
 	}
 
 	private int getHash(String kmer) {
-		return KmersExtractor.pack(kmer).hashCode();
+		long dnaHash = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(),EMPTYDNASEQ); 
+		if(kmersMap==null) return (int) (dnaHash %100000000);
+		int count = kmersMap.getCount(kmer);
+		long hash = count << 24;
+		hash+= (dnaHash & 0xFFFFFFF);
+		if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
+		return (int)hash;
 	}
 	
 	/**
@@ -221,7 +252,7 @@ public class MinimizersTable {
 	}
 
 	public Distribution calculateDistributionHits() {
-		Distribution dist = new Distribution(1, 100, 1);
+		Distribution dist = new Distribution(1, Math.max(100, maxAbundanceMinimizer), 1);
 		for(List<Long> list:sequencesByMinimizer.values()) {
 			dist.processDatapoint(list.size());	
 		}
@@ -243,4 +274,10 @@ public class MinimizersTable {
 	public int getTotalMinimizers() {
 		return sequencesByMinimizer.size();
 	}
+
+	public int getTotalEntries() {
+		return totalEntries;
+	}
+	
+	
 }

@@ -11,6 +11,7 @@ import ngsep.math.Distribution;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 
@@ -18,7 +19,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
 	
-	public static final int DEF_WINDOW_LENGTH = 5;
+	public static final int DEF_WINDOW_LENGTH = 10;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
@@ -66,23 +67,45 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
+		log.info("Calculating kmers distribution");
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setOnlyDNA(true);
+		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
+		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 		
+		for(int seqId = 0; seqId < sequences.size(); seqId++) {
+			QualifiedSequence seq = sequences.get(seqId);
+			extractor.countSequenceKmers(seq);
+			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1)+" sequences.");
+		}
+		KmersMap map = extractor.getKmersMap();
+		Distribution kmersDist = map.calculateAbundancesDistribution();
+		double firstMin = kmersDist.getLocalMinimum(1, 3*kmersDist.getAverage());
+		int modeDepth = (int) kmersDist.getLocalMode(firstMin, kmersDist.getMaxValueDistribution());
+		double firstMinCount = kmersDist.getDistributionCount(firstMin);
+		double modeCount = kmersDist.getDistributionCount(modeDepth);
+		int maxDepthPrint = 5*modeDepth;
+		kmersDist.printDistribution(System.out,true, maxDepthPrint);
+		System.out.println("Local minimum: "+firstMin);
+		System.out.println("Local mode: "+modeDepth);
 		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
-		//TODO: Make parameter
-		table.setMaxAbundanceMinimizer(100);
+		table.setKmersMap(map);
+		int maxAbundance = modeDepth*3;
+		
+		if (firstMinCount>0.5*modeCount) {
+			log.warning("Low count: "+modeCount+" for mode depth: "+modeDepth+". First min count: "+firstMinCount+". This possibly indicates that the sample has a high error rate and then reads should be corrected");
+			maxAbundance = 50;
+		}
+		log.info("Building minimizers. Max saved abundance: "+maxAbundance);
+		table.setMaxAbundanceMinimizer(maxAbundance);
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			table.addSequence(seqId, seq);
+			if ((seqId+1)%100==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.getTotalMinimizers()+" total entries: "+table.getTotalEntries());
 		}
 		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
-		double firstMin = minimizerHitsDist.getLocalMinimum(1, 3*minimizerHitsDist.getAverage());
-		int modeDepth = (int) minimizerHitsDist.getLocalMode(firstMin, 99);
-		
 		minimizerHitsDist.printDistributionInt(System.out);
-		System.out.println("Local minimum: "+firstMin);
-		System.out.println("Local mode: "+modeDepth);
-		
 		table.clearOverrepresentedMinimizers();
 		log.info("Minimizers after removing overrepresented: "+table.getTotalMinimizers());
 		
@@ -91,7 +114,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
-		edgesFinder.setMeanDepth(Math.max(5, modeDepth));
+		edgesFinder.setMeanDepth(Math.max(10, modeDepth/2));
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {

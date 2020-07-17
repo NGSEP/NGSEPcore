@@ -286,46 +286,43 @@ public class Distribution {
 		}
 		return (estimationF+estimationB)/2;
 	}
-	public void printDistribution(PrintStream out,double maxValue) {
-		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
-		int valueBin = (int)((maxValue-minValueDistribution)/binLength);
-		for(int i=0;i<distribution.length && i<=valueBin;i++) {
-			double binMinimum = minValueDistribution+i*binLength;
-			out.println(""+fmt.format(binMinimum)+"\t"+fmt.format(distribution[i]));
-		}
-	}
 	public void printDistribution(PrintStream out) {
-		printDistribution(out,false);
+		printDistribution(out,false,maxValueDistribution);
 	}
 	public void printDistributionInt(PrintStream out) {
-		printDistribution(out,true);
+		printDistribution(out,true,maxValueDistribution);
 	}
 	
-	public void printDistribution(PrintStream out, boolean integerCounts) {
+	public void printDistribution(PrintStream out, boolean integerCounts, double maxValue) {
 		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
 		if(outliersLess.size()>0) {
 			out.print("Less\t");
 			if(integerCounts) out.println(outliersLess.size());
 			else out.println(fmt.format(outliersLess.size()));
 		}
-		for(int i=0;i<distribution.length;i++) {
+		int maxIdx = getBinIndex(maxValue);
+		for(int i=0;i<distribution.length && i<=maxIdx;i++) {
 			if(integerCounts) {
 				int binMinimum = (int)(minValueDistribution+i*binLength);
-				out.println(""+binMinimum+"\t"+(int)distribution[i]);
+				out.println(""+binMinimum+"\t"+(int)Math.round(distribution[i]));
 			} else {
 				double binMinimum = minValueDistribution+i*binLength;
 				out.println(""+fmt.format(binMinimum)+"\t"+fmt.format(distribution[i]));
 			}
 			
 		}
-		if(outliersMore.size()>0) {
-			out.print("More\t");
-			if(integerCounts) out.println(outliersMore.size());
-			else out.println(fmt.format(outliersMore.size()));
+		double moreCount = outliersMore.size();
+		for(int i=maxIdx+1;i<distribution.length;i++) {
+			moreCount+=distribution[i];
 		}
-		out.println("Count\t"+(int)count);
+		if(moreCount>0) {
+			out.print("More\t");
+			if(integerCounts) out.println((int)Math.round(moreCount));
+			else out.println(fmt.format(moreCount));
+		}
+		out.println("Count\t"+(int)Math.round(count));
 		if(integerCounts) {
-			out.println("Sum\t"+(int)sum);
+			out.println("Sum\t"+(int)Math.round(sum));
 		} else {
 			out.println("Sum\t"+fmt.format(sum));
 		}

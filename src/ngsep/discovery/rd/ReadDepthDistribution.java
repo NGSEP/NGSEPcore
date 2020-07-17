@@ -326,7 +326,7 @@ public class ReadDepthDistribution {
 		if(seqDistCalc!=null) printDistributions(seqDistCalc,System.out);
 		
 		System.out.println("Global read depth distribution");
-		distCalc.printDistribution(System.out,average*2);
+		distCalc.printDistribution(System.out,true, average*2);
 		double [] frequencies = distCalc.getDistribution();
 		double [] midPoints = new double[frequencies.length];
 		for(int i=0;i<frequencies.length;i++) {

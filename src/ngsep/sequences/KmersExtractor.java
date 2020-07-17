@@ -97,7 +97,7 @@ public class KmersExtractor {
 	}
 	public void setKmerLength(int kmerLength) {
 		this.kmerLength = kmerLength;
-		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
+		if(kmerLength<=15) kmersMap = new ShortArrayKmersMapImpl((byte) kmerLength);
 		else kmersMap = new DefaultKmersMapImpl();
 	}
 	public void setKmerLength(String value) {
@@ -220,12 +220,13 @@ public class KmersExtractor {
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
 	 */
-    public void processFastqFile(String filename) throws IOException { 
+    public void processFastqFile(String filename) throws IOException {
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
+			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
 				countSequenceKmers (read);
+				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 	 }
@@ -238,9 +239,10 @@ public class KmersExtractor {
 	public void processFastqFile(InputStream fis) throws IOException {
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
 			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
+			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
 				countSequenceKmers (read);
+				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 	}
@@ -262,7 +264,12 @@ public class KmersExtractor {
     	}
 	}
     public void processQualifiedSequences(List<QualifiedSequence> sequences) {
-    	for(QualifiedSequence qseq:sequences) countSequenceKmers(qseq);
+    	int i = 0;
+    	for(QualifiedSequence qseq:sequences) {
+    		countSequenceKmers(qseq);
+    		i++;
+    		if(i%100==0) log.info("Processed "+i+" sequences");
+    	}
     }
 	public void countSequenceKmers(QualifiedSequence qseq) {
 		//TODO: Process in chuncks if too big
@@ -292,7 +299,9 @@ public class KmersExtractor {
 		}
 		String [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, onlyDNA, ignoreLowComplexity);
 		for(String kmer:kmers) {
-			if(kmer!=null) kmersMap.addOcurrance(pack(kmer));
+			if(kmer==null) continue;
+			if(kmer.length()<=15) kmersMap.addOcurrance(kmer);
+			else kmersMap.addOcurrance(pack(kmer));
 		}	
 	}
 	
