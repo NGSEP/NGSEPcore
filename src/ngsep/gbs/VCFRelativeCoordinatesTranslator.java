@@ -389,7 +389,7 @@ public class VCFRelativeCoordinatesTranslator {
 					alignmentsHash.put(consensusName,first);
 				} else {
 					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
-					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+5));
+					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+numNCharsPairedEnd));
 					
 					RawRead read1 = new RawRead(consensusName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
 					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
