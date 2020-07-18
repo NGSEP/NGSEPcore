@@ -49,7 +49,7 @@ import ngsep.sequences.io.FastqFileReader;
 public class KmersExtractor {
 	
 	// Constants for default values
-	public static final int DEF_KMER_LENGTH = 15;
+	public static final byte DEF_KMER_LENGTH = 15;
 	public static final int DEF_MIN_KMER_COUNT = 5;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
@@ -68,7 +68,7 @@ public class KmersExtractor {
 	private boolean ignoreLowComplexity = false;
 	
 	// Model attributes
-	private KmersMap kmersMap;
+	private KmersMap kmersMap = new ShortArrayKmersMapImpl(DEF_KMER_LENGTH);
 	
 	
 	// Get and set methods
@@ -288,9 +288,6 @@ public class KmersExtractor {
 	 */
 	public void countSequenceKmers(String seq)
 	{
-		if(kmersMap==null) {
-			setKmerLength(kmerLength);
-		}
 		int seqLength = seq.length();
 		
 		if(seqLength < kmerLength) {
@@ -298,11 +295,13 @@ public class KmersExtractor {
 			return;
 		}
 		String [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, onlyDNA, ignoreLowComplexity);
-		for(String kmer:kmers) {
-			if(kmer==null) continue;
-			if(kmer.length()<=15) kmersMap.addOcurrance(kmer);
-			else kmersMap.addOcurrance(pack(kmer));
-		}	
+		synchronized (kmersMap) {
+			for(String kmer:kmers) {
+				if(kmer==null) continue;
+				if(kmer.length()<=15) kmersMap.addOcurrance(kmer);
+				else kmersMap.addOcurrance(pack(kmer));
+			}
+		}
 	}
 	
 	/**

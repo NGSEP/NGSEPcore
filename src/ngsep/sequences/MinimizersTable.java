@@ -60,6 +60,10 @@ public class MinimizersTable {
 
 	public void setKmersMap(KmersMap kmersMap) {
 		this.kmersMap = kmersMap;
+		if(sequencesByMinimizer.size()==0) {
+			//Create again the map with appropriate initial capacity
+			sequencesByMinimizer = new HashMap<Integer, List<Long>>(kmersMap.size()/8);
+		}
 	}
 	
 	public boolean isKeepSingletons() {
@@ -82,7 +86,7 @@ public class MinimizersTable {
 	 */
 	public void addSequence (int sequenceId, CharSequence sequence) {
 		int n = sequence.length();
-		sequenceLengths.put(sequenceId, n);
+		
 		int step = 10000000;
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
@@ -110,6 +114,9 @@ public class MinimizersTable {
 				}
 			}
 		}
+		synchronized (sequenceLengths) {
+			sequenceLengths.put(sequenceId, n);
+		}	
 	}
 
 	private boolean overlapping(List<MinimizersTableEntry> entries) {
