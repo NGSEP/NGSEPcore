@@ -62,7 +62,7 @@ public class MinimizersTable {
 		this.kmersMap = kmersMap;
 		if(sequencesByMinimizer.size()==0) {
 			//Create again the map with appropriate initial capacity
-			sequencesByMinimizer = new HashMap<Integer, List<Long>>(kmersMap.size()/8);
+			sequencesByMinimizer = new HashMap<Integer, List<Long>>(kmersMap.size()/5);
 		}
 	}
 	

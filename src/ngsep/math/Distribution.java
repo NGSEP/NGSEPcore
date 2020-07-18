@@ -320,9 +320,12 @@ public class Distribution {
 			if(integerCounts) out.println((int)Math.round(moreCount));
 			else out.println(fmt.format(moreCount));
 		}
-		out.println("Count\t"+(int)Math.round(count));
+		if(count>Integer.MAX_VALUE) out.println("Count\t"+(long)Math.round(count));
+		else out.println("Count\t"+(int)Math.round(count));
+		
 		if(integerCounts) {
-			out.println("Sum\t"+(int)Math.round(sum));
+			if(sum>Integer.MAX_VALUE) out.println("Sum\t"+(long)Math.round(sum));
+			else out.println("Sum\t"+(int)Math.round(sum));
 		} else {
 			out.println("Sum\t"+fmt.format(sum));
 		}
