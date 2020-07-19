@@ -146,7 +146,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			if(pileup.isInputSTR()) lastIndelEnd = pileup.getPosition()+pileup.getReferenceSpan()-1;
+			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan()+" previous last indel end "+lastIndelEnd);
+			if(pileup.isInputSTR() && pileup.getPosition() >= lastIndelEnd) lastIndelEnd = pileup.getPosition()+pileup.getReferenceSpan()-1;
 			else if(pileup.getPosition()<=lastIndelEnd) pileup.setEmbedded(true);
 			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
 			if(referenceAllele == null) return;
@@ -155,6 +156,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 				calledVariants.add(calledVar);
 				if(!calledVar.isSNV() && !calledVar.isUndecided() && !calledVar.isHomozygousReference()) {
 					lastIndelEnd = calledVar.getLast();
+					if(pileup.getPosition()==posPrint) System.out.println("Call: "+calledVar.getFirst()+" - "+calledVar.getLast()+" type "+calledVar.getType()+" last indel end "+lastIndelEnd);
 				}
 			}
 		} else if(nextSIVIndex<seqInputVariants.size()) {

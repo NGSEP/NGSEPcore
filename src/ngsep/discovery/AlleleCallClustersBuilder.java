@@ -39,7 +39,7 @@ import ngsep.sequences.HammingSequenceDistanceMeasure;
 public class AlleleCallClustersBuilder {
 
 	private static final double DEF_MIN_RELATIVE_PROPORTION = 0.2;
-	private static final double DEF_MIN_HET_POSTERIOR = 0.99;
+	private static final double DEF_MIN_HET_POSTERIOR = 0.51;
 	private String sequenceName;
 	private int position;
 
@@ -88,7 +88,8 @@ public class AlleleCallClustersBuilder {
 		if(position == posPrint) System.out.println("Filtered clusters: "+filteredClusters.size());
 		
 		for(int l:filteredClusters.keySet()) {
-			List<PileupAlleleCall> callsL = filteredClusters.get(l);	
+			List<PileupAlleleCall> callsL = filteredClusters.get(l);
+			if(position==posPrint) for(PileupAlleleCall call:callsL) System.out.println("Next call: "+call.getAlleleString());
 			Set<String> suggestedAllelesSet = new HashSet<>();
 			if(l==reference.length()) suggestedAllelesSet.add(reference);
 			Set<String> lengthAlleles;
@@ -111,7 +112,7 @@ public class AlleleCallClustersBuilder {
 				}
 				if(position == posPrint) System.out.println("Consensus: "+consensus);
 				suggestedAllelesSet.add(consensus);
-				if(l<4 || suggestedAllelesSet.size()>1 || callsL.size()<10) {
+				if(l<4 || callsL.size()<10) {
 					lengthAlleles = suggestedAllelesSet;
 					//lengthClusters = clusterAlleleCallsPivotAlleles(callsL,suggestedAllelesSet);
 				} else {
@@ -236,6 +237,7 @@ public class AlleleCallClustersBuilder {
 				String allele = calls.get(j).getAlleleString();
 				variable = allele.charAt(i)!=c;
 			}
+			if(position==posPrint) System.out.println("Position: "+i+" variable "+variable);
 			if(!variable) {
 				answer[i] =0;
 				continue;
@@ -254,6 +256,7 @@ public class AlleleCallClustersBuilder {
 				double hetPost = posteriors[idxC][k]+posteriors[k][idxC]; 
 				if(k!=idxC && hetPost>answer[i]) answer[i] = hetPost;
 			}
+			if(position==posPrint) System.out.println("Position: "+i+" posterior het "+answer[i]+" posterior homo: "+posteriors[idxC][idxC]);
 		}
 		return answer;
 	}
