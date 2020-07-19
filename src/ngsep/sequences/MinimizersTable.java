@@ -1,6 +1,7 @@
 package ngsep.sequences;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,10 +19,19 @@ public class MinimizersTable {
 	private boolean saveRepeatedMinimizersWithinSequence = false;
 	private KmersMap kmersMap;
 	private boolean keepSingletons = false;
+	private static final long [] EMPTY_LONG_ARRAY = new long[0];
 	
 	
 	
-	private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
+	//private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
+	//Structures to implement the minimizers hash table
+	//Map with minimizer as key and row of the sequencesByMinimizerTable as value
+	private Map<Integer,Integer> matrixRowMap;
+	//Table with encoded entries. Each row corresponds to a single minimizer
+	private long [][] sequencesByMinimizerTable;
+	//Actual lengths of the lists within the table
+	private short [] sequencesByMinimizerTableColumnLengths;
+	
 	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>();
 	private int totalEntries = 0;
 	
@@ -30,16 +40,96 @@ public class MinimizersTable {
 	public MinimizersTable(int kmerLength, int windowLength) {
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
-		 
+		initializeTable(100000);
+	}
+	public MinimizersTable(KmersMap kmersMap, int kmerLength, int windowLength) {
+		this.kmersMap = kmersMap;
+		this.kmerLength = kmerLength;
+		this.windowLength = windowLength;
+		//Create again the structures with appropriate initial capacity
+		int capacity = kmersMap.size()/10;
+		initializeTable(capacity);
+	}
+	public void initializeTable(int capacity) {
+		matrixRowMap = new HashMap<Integer, Integer>(capacity);
+		sequencesByMinimizerTable = new long [capacity][10];
+		for(int i=0;i<sequencesByMinimizerTable.length;i++) Arrays.fill(sequencesByMinimizerTable[i], 0);
+		sequencesByMinimizerTableColumnLengths = new short [capacity];
+		Arrays.fill(sequencesByMinimizerTableColumnLengths, (short)0);
 	}
 	
+	//Hash table management methods
+	private long[] lookupHits(int minimizer) {
+		Integer row = matrixRowMap.get(minimizer);
+		if(row==null) return EMPTY_LONG_ARRAY;
+		return Arrays.copyOf(sequencesByMinimizerTable[row], sequencesByMinimizerTableColumnLengths[row]);
+	}
+	public int size() {
+		return matrixRowMap.size();
+	}
+	
+	/**
+	 * Calculates the number of times that the minimizer has been observed
+	 * @param minimizer number to query
+	 * @return int times that the given minimizer has been observed
+	 */
+	public int getTotalHits(int minimizer) {
+		Integer row = matrixRowMap.get(minimizer);
+		if(row==null) return 0;
+		return sequencesByMinimizerTableColumnLengths[row];
+	}
+	
+	private synchronized void add (int minimizer, List<MinimizersTableEntry> entries) {
+		Integer row = matrixRowMap.get(minimizer);
+		if(row==null) {
+			row = size();
+			if(row ==Integer.MAX_VALUE) {
+				log.warning("Reached maximum number of minimizers that can be saved "+row);
+				return;
+			}
+			matrixRowMap.put(minimizer, row);
+			if(row==sequencesByMinimizerTable.length) resizeTable();
+		}
+		
+		if (maxAbundanceMinimizer>0 && sequencesByMinimizerTableColumnLengths[0]<maxAbundanceMinimizer) {
+			if(saveRepeatedMinimizersWithinSequence) {
+				for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
+				totalEntries+=entries.size();
+			} else {
+				addToTable(row, entries.get(0).encode());
+				totalEntries++;
+			}
+		}
+	}
+	private void resizeTable() {
+		log.info("Resizing minimizers table. Current number of minimizers: "+size()+" current capacity: "+sequencesByMinimizerTable.length);
+		int newCapacity =  2*sequencesByMinimizerTable.length;
+		if(newCapacity<0) newCapacity = Integer.MAX_VALUE;
+		sequencesByMinimizerTableColumnLengths = Arrays.copyOf(sequencesByMinimizerTableColumnLengths, newCapacity);
+		long [][] newTable = new long [newCapacity][0];
+		for(int i=0;i<newCapacity;i++) {
+			if(i<sequencesByMinimizerTable.length) newTable[i] = sequencesByMinimizerTable[i];
+			else newTable[i] = new long[10];
+		}
+		sequencesByMinimizerTable = newTable;
+		log.info("Resized minimizers table. New capacity: "+sequencesByMinimizerTable.length);
+	}
+	private void addToTable(int row, long value) {
+		long [] minimizerEntries = sequencesByMinimizerTable[row];
+		int column = sequencesByMinimizerTableColumnLengths[row];
+		if(column == minimizerEntries.length ) {
+			//Resize entries
+			sequencesByMinimizerTable[row] = Arrays.copyOf(minimizerEntries, 2*minimizerEntries.length);
+		}
+		sequencesByMinimizerTable[row][column] = value;
+		sequencesByMinimizerTableColumnLengths[row]++;
+	}
 	public Logger getLog() {
 		return log;
 	}
 	public void setLog(Logger log) {
 		this.log = log;
 	}
-	
 	public int getMaxAbundanceMinimizer() {
 		return maxAbundanceMinimizer;
 	}
@@ -56,14 +146,6 @@ public class MinimizersTable {
 	
 	public KmersMap getKmersMap() {
 		return kmersMap;
-	}
-
-	public void setKmersMap(KmersMap kmersMap) {
-		this.kmersMap = kmersMap;
-		if(sequencesByMinimizer.size()==0) {
-			//Create again the map with appropriate initial capacity
-			sequencesByMinimizer = new HashMap<Integer, List<Long>>(kmersMap.size()/5);
-		}
 	}
 	
 	public boolean isKeepSingletons() {
@@ -101,18 +183,7 @@ public class MinimizersTable {
 			List<MinimizersTableEntry> entries = minimizersSeq.get(minimizer);
 			if (entries.size()== 0) continue; 
 			if(!saveRepeatedMinimizersWithinSequence && !overlapping(entries)) continue;
-			synchronized (sequencesByMinimizer) {
-				List<Long> minList = sequencesByMinimizer.computeIfAbsent(minimizer, l -> new ArrayList<Long>());
-				if (maxAbundanceMinimizer==0 || minList.size()<=maxAbundanceMinimizer) {
-					if(saveRepeatedMinimizersWithinSequence) {
-						for (MinimizersTableEntry entry:entries) minList.add(entry.encode());
-						totalEntries+=minList.size();
-					} else {
-						minList.add(entries.get(0).encode());
-						totalEntries++;
-					}
-				}
-			}
+			add (minimizer, entries);
 		}
 		synchronized (sequenceLengths) {
 			sequenceLengths.put(sequenceId, n);
@@ -203,15 +274,6 @@ public class MinimizersTable {
 		return (int)hash;
 	}
 	
-	/**
-	 * Calculates the number of times that the minimizer has been observed
-	 * @param minimizer number to query
-	 * @return int times that the given minimizer has been observed
-	 */
-	public int getTotalHits(int minimizer) {
-		List<Long> hits = sequencesByMinimizer.get(minimizer);
-		return (hits!=null)?hits.size():0;
-	}
 	
 	/**
 	 * Calculates the hits of the given query
@@ -237,8 +299,7 @@ public class MinimizersTable {
 				//Neighbor kmers normally share minimizers
 				continue;
 			}
-			List<Long> codesMatching = sequencesByMinimizer.get(minimizer);
-			if (codesMatching==null) continue;
+			long [] codesMatching = lookupHits(minimizer);
 			for(long entryCode:codesMatching) {
 				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);
 				int subjectIdx = matchingEntry.getSequenceId();
@@ -249,7 +310,7 @@ public class MinimizersTable {
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(queryEntry.getStart());
 				hit.setSequenceLength(sequenceLengths.get(subjectIdx));
-				hit.setTotalHitsQuery(codesMatching.size());
+				hit.setTotalHitsQuery(codesMatching.length);
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);
 			}
@@ -260,26 +321,11 @@ public class MinimizersTable {
 
 	public Distribution calculateDistributionHits() {
 		Distribution dist = new Distribution(1, Math.max(100, maxAbundanceMinimizer), 1);
-		for(List<Long> list:sequencesByMinimizer.values()) {
-			dist.processDatapoint(list.size());	
+		int numMinimizers = size();
+		for(int i=0;i<numMinimizers;i++) {
+			dist.processDatapoint(sequencesByMinimizerTableColumnLengths[i]);	
 		}
 		return dist;
-	}
-
-	/**
-	 * Removes minimizers observed only one time 
-	 */
-	public void clearOverrepresentedMinimizers() {
-		List<Integer> minimizers = new ArrayList<Integer>();
-		minimizers.addAll(sequencesByMinimizer.keySet());
-		for(int minimizer:minimizers) {
-			int totalHits = getTotalHits(minimizer);
-			if (maxAbundanceMinimizer>0 && totalHits>maxAbundanceMinimizer) sequencesByMinimizer.remove(minimizer); 
-		}
-	}
-
-	public int getTotalMinimizers() {
-		return sequencesByMinimizer.size();
 	}
 
 	public int getTotalEntries() {

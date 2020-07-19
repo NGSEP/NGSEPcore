@@ -91,8 +91,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			minimizersTable.addSequence(i, genome.getSequenceCharacters(i));
 		}
 		minimizersTable.calculateDistributionHits().printDistribution(System.out);
-		minimizersTable.clearOverrepresentedMinimizers();
-		log.info("Calculated minimizers. Total: "+minimizersTable.getTotalMinimizers());
+		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}
 	
 	@Override
