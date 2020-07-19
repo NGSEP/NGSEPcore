@@ -49,7 +49,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public static final byte DEF_MAX_BASE_QS = CountsHelper.DEF_MAX_BASE_QS;
 	public static final short DEF_MIN_QUALITY = 0;
 	public static final String DEF_SAMPLE_ID = "Sample";
-	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 20;
+	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 3;
 	
 	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
 	
@@ -401,32 +401,39 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			freqs.add(freq);
 			helpers.add(CountsHelper.calculateCounts(alleles, calls, maxBaseQS, freq));
 		}
+		if(variant.getFirst()==posPrint) System.out.println("Frequencies: "+freqs+" helpers: "+helpers.size());
 		//Select the first to obtain counts and most frequent allele
 		CountsHelper helper = helpers.get(0);
+		if(variant.getFirst()==posPrint) {
+			System.out.println("Conditionals first helper");
+			helper.printProbs(helper.getLogConditionalProbs(), true);
+		}
 		int [] counts = helper.getCounts();
-		int idxMaxFreq = NumberArrays.getIndexMaximum(counts);
-		if(counts[idxMaxFreq]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
+		int idxMajorAllele = NumberArrays.getIndexMaximum(counts);
+		if(counts[idxMajorAllele]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
 		//Save most frequent allele
-		selectedAlleles.add((byte)idxMaxFreq);
+		selectedAlleles.add((byte)idxMajorAllele);
 		//Calculate priors
 		int heteroGenotypes = helpers.size();
 		double logPriorHetero = Math.log10(h/heteroGenotypes);
 		double logPriorHomo = Math.log10((1-h));
 		int numHypotheses = helpers.size()+1;
 		double [] terms = new double[numHypotheses];
-		double termHomozygous = LogMath.logProduct(helper.getLogConditionalProbs()[idxMaxFreq][idxMaxFreq],logPriorHomo);
+		double termHomozygous = LogMath.logProduct(helper.getLogConditionalProbs()[idxMajorAllele][idxMajorAllele],logPriorHomo);
+		if(variant.getFirst()==posPrint) System.out.println("Term homozygous: "+termHomozygous);
 		double maxHetPosterior = 0;
 		double minHomoPosterior = 1;
 		int maxFreqIdx = 0;
 		double maxFreq = 0;
 		byte maxAltAllele = -1;
 		for(byte i=0;i<alleles.length;i++) {
-			if (i==idxMaxFreq) continue;
+			if (i==idxMajorAllele) continue;
 			//Recover conditional different hypothesis
 			terms[0] = termHomozygous;
 			for(int j=0;j<freqs.size();j++) {
 				CountsHelper helperF = helpers.get(j);
-				terms[j+1] = LogMath.logProduct(helperF.getLogConditionalProbs()[i][idxMaxFreq],logPriorHetero);
+				terms[j+1] = LogMath.logProduct(helperF.getLogConditionalProbs()[idxMajorAllele][i],logPriorHetero);
+				if(variant.getFirst()==posPrint) System.out.println("Frequency: "+freqs.get(j)+" term heterozygous: "+terms[j+1]);
 			}
 			CountsHelper.calculatePosteriorProbabilities(terms);
 			int idxMax = NumberArrays.getIndexMaximum(terms);
@@ -437,7 +444,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			if(maxAltAllele==-1 || maxHetPosterior<terms[idxMax]) {
 				maxHetPosterior = terms[idxMax];
 				maxFreqIdx = idxMax-1;
-				maxFreq = freqs.get(idxMax-1);
+				maxFreq = freqs.get(maxFreqIdx);
 				maxAltAllele = i;
 			}
 		}
@@ -455,17 +462,18 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		if(maxAltAllele==-1) {
 			//Homozygous genotype call
 			call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-minHomoPosterior));
-			acn[idxMaxFreq] = haplotypes;
+			acn[idxMajorAllele] = haplotypes;
 		} else {
 			//Heterozygous genotype call
-			call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-maxHetPosterior));
 			helper = helpers.get(maxFreqIdx);
-			
+			double [] posteriors = helper.getPosteriorProbabilities(h,idxMajorAllele);
+			if(variant.getFirst()==posPrint) System.out.println("Posterior homo: "+posteriors[idxMajorAllele]+" posterior het: "+posteriors[maxAltAllele]);
+			call.setGenotypeQuality(PhredScoreHelper.calculatePhredScore(1-posteriors[maxAltAllele]));
 			short altCN = (short) Math.round(maxFreq*haplotypes);
 			if(altCN==0) altCN++;
 			else if (altCN == haplotypes) altCN--;
 			acn[maxAltAllele] = altCN;
-			acn[idxMaxFreq] = (short) (haplotypes-altCN);
+			acn[idxMajorAllele] = (short) (haplotypes-altCN);
 		}
 		call.setAllelesCopyNumber(acn);
 		VariantCallReport report = new VariantCallReport(alleles, counts, helper.getLogConditionalProbs());
