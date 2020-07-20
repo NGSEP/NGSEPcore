@@ -2,7 +2,10 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 
@@ -21,17 +24,19 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		{
 			List<AssemblyEdge> path = paths.get(i);
 			String sequenceName = "Contig_"+(i+1);
-			CharSequence consensusPath = makeConsensus (graph, path);
+			CharSequence consensusPath = makeConsensus (graph, path, i, sequenceName);
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
 		
 		return consensusList;
 	}
 	
-	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path) 
+	private CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName) 
 	{
 		StringBuilder consensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
+		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
+		
 		String pathS = "";
 		if(path.size()==1) {
 			consensus.append(path.get(0).getVertex1().getRead());
@@ -71,16 +76,34 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
-				int overlap = edge.getOverlap();
-				int startSuffix = overlap;
-				//TODO: Recalculate segment from alignment
+				//int startSuffix = edge.getOverlap();
+				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(consensus,Math.max(0, consensus.length()-nextPathSequence.length()),consensus.length());
+				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, consensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				int startSuffix;
+				if(alnRead!=null) {
+					alnRead.setSequenceName(sequenceName);
+					alnRead.setReadName(vertexNextEdge.getRead().getName());
+					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
+					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+					//Just in case cycle but if the read aligns this should not enter
+					while(posAlnRead>0 && lastPosSubject<0) {
+						posAlnRead--;
+						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+					}
+					if(lastPosSubject>=0) {
+						startSuffix = posAlnRead + (consensus.length()-lastPosSubject+1);
+					} else {
+						startSuffix = edge.getOverlap();
+					}
+					//System.out.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
+				} else {
+					startSuffix = edge.getOverlap();
+				}
 				if(startSuffix<nextPathSequence.length()) {
 					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
 					//if (consensus.length()>490000 && consensus.length()<510000) System.out.println("Consensus length: "+consensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+seq.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					consensus.append(remainingSegment.toUpperCase());
-				} else {
-					System.err.println("Non embedded edge btween vertices"+vertexPreviousEdge.getUniqueNumber()+" and "+vertexNextEdge.getUniqueNumber()+" has overlap: "+overlap+ " start suffix "+startSuffix+" and length: "+nextPathSequence.length());
 				}
 			}
 			lastVertex = vertexNextEdge;

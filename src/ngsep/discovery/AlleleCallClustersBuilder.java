@@ -169,7 +169,6 @@ public class AlleleCallClustersBuilder {
 		
 		List<Integer> variantSites = new ArrayList<>();
 		for(int i=0;i<heterozygousPosteriors.length;i++) {
-			// TODO: Use parameter
 			if(heterozygousPosteriors[i]>=DEF_MIN_HET_POSTERIOR) {
 				variantSites.add(i);
 				if(posPrint==position) System.out.println("Position: "+i+" heterozygous posterior: "+heterozygousPosteriors[i]);

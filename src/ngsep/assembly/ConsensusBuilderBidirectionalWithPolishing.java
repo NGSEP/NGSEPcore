@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +42,19 @@ import ngsep.discovery.IndelRealignerPileupListener;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
 import ngsep.discovery.SingleSampleVariantPileupListener;
+import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 
 /**
  * 
@@ -268,7 +275,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		log.info("Path "+sequenceIdx+". Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 		log.info("Path "+sequenceIdx+". Path: "+pathS);
 		String consensus = rawConsensus.toString();
-		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus,alignments);
+		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
+		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus, alignments);
 		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
 		if(outCorrectedReads!=null) {
 			for(ReadAlignment aln:alignments) correctRead(consensus, aln, variants);
@@ -297,6 +305,157 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	}
 
 	private List<CalledGenomicVariant> callVariants(String sequenceName, String consensus, List<ReadAlignment> alignments) {
+		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>();
+		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
+		log.info("Number of active segments "+activeSegments.size());
+		int firstIdxAln = 0;
+		for(GenomicRegion region:activeSegments) {
+			int first = Math.max(1, region.getFirst());
+			int last = Math.min(consensus.length(), region.getLast());
+			while(firstIdxAln<alignments.size()) {
+				ReadAlignment aln = alignments.get(firstIdxAln);
+				if(aln.getLast()>=first) break;
+				firstIdxAln++;
+			}
+			String currentConsensus = consensus.substring(first-1,last);
+			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln);
+			if(localConsensus!=null && !localConsensus.equals(currentConsensus)) {
+				CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus);
+				System.out.println("Next call: "+sequenceName+" "+call.getFirst()+" "+call.getLast()+" length: "+call.length());
+				System.out.println(currentConsensus);
+				System.out.println(localConsensus);
+				answer.add(call);
+			}
+		}
+		return answer;
+	}
+	private List<GenomicRegion> calculateActiveSegments(String sequenceName, List<ReadAlignment> alignments) {
+		List<GenomicRegion> rawRegions = new ArrayList<GenomicRegion>();
+		for(ReadAlignment aln:alignments) {
+			Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
+			if(indelCalls==null) continue;
+			for(GenomicVariant indelCall:indelCalls.values()) {
+				if(indelCall.getLast()-indelCall.getFirst()>1) rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst(), indelCall.getLast()));
+				else rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst()-1, indelCall.getLast()+1));
+			}
+			
+		}
+		if(rawRegions.size()<2) return rawRegions;
+		Collections.sort(rawRegions,GenomicRegionPositionComparator.getInstance());
+		List<GenomicRegion> mergedRegions = new ArrayList<GenomicRegion>();
+		GenomicRegionImpl nextRegion = (GenomicRegionImpl)rawRegions.get(0);
+		mergedRegions.add(nextRegion);
+		for(GenomicRegion rawRegion: rawRegions) {
+			if(GenomicRegionSpanComparator.getInstance().span(nextRegion, rawRegion) ) {
+				nextRegion.setLast(Math.max(nextRegion.getLast(), rawRegion.getLast()));
+			} else {
+				nextRegion = (GenomicRegionImpl)rawRegion;
+				mergedRegions.add(nextRegion);
+			}
+		}
+		return mergedRegions;
+	}
+
+	private String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln) {
+		Map<Integer,List<String>> alleleCallsByLength = new HashMap<Integer, List<String>>();
+		List<String> allCalls = new ArrayList<String>();
+		int count = 0;
+		for(int i=firstIdxAln;i<alignments.size();i++) {
+			ReadAlignment aln = alignments.get(i);
+			if(aln.getFirst()>last) break;
+			CharSequence call = aln.getAlleleCall(first, last);
+			if(call==null) continue;
+			count++;
+			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(call.length(), (v)->new ArrayList<String>());
+			String callStr = call.toString();
+			lengthCalls.add(callStr);
+			allCalls.add(callStr);
+		}
+		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Alignments: "+count);
+		if(count<5) return null;
+		List<String> maxLength = null;
+		for(List<String> nextList:alleleCallsByLength.values()) {
+			if(maxLength==null || maxLength.size()<nextList.size()) {
+				maxLength = nextList;
+			}
+		}
+		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength);
+		if(maxLength==null) return null;
+		//Double check that the majority length actually has at least half of the total reads
+		if(count <10 && maxLength.size()<0.8*count) return null;
+		if(2*maxLength.size()<count) {
+			if(last-first+1>=8) return makeDeBruijnConsensus(last-first+1, allCalls);
+			return null;
+		}
+		String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(maxLength);
+		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength+" consensus "+consensus);
+		return consensus;
+	}
+
+	private String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
+		Map<String,Integer> kmerCounts = new HashMap<String, Integer>();
+		int kmerLength = Math.max(4, currentLength/5);
+		kmerLength = Math.min(kmerLength, 15);
+		for(String call:allCalls) {
+			for(int i=0;i<=call.length()-kmerLength;i++) {
+				String kmer = call.substring(i,i+kmerLength);
+				kmerCounts.compute(kmer, (k,v)->(v==null)?1:v+1);
+			}
+		}
+		String bestKmerStart = null;
+		int bksCount = 0;
+		String bestKmerEnd = null;
+		int bkeCount = 0;
+		for(String call:allCalls) {
+			if(call.length()<kmerLength) continue;
+			String kmerS = call.substring(0,kmerLength);
+			int kmsCount = kmerCounts.get(kmerS);
+			if(bestKmerStart==null || bksCount<kmsCount) {
+				bestKmerStart = kmerS;
+				bksCount = kmsCount;
+			}
+			String kmerE = call.substring(call.length()-kmerLength);
+			int kmeCount = kmerCounts.get(kmerE);
+			if(bestKmerEnd==null || bkeCount<kmeCount) {
+				bestKmerEnd = kmerE;
+				bkeCount = kmeCount;
+			}
+		}
+		StringBuilder consensus = new StringBuilder();
+		consensus.append(bestKmerStart);
+		String lastKmer = bestKmerStart;
+		while(consensus.length()<2*currentLength) {
+			String maxNextBp = null;
+			String maxKmer = null;
+			int maxCount = 0;
+			for(String c : DNASequence.BASES_ARRAY) {
+				String nextKmer = lastKmer.substring(1)+c;
+				Integer count = kmerCounts.get(nextKmer);
+				if(count==null) continue;
+				if(maxCount<count) {
+					maxCount = count;
+					maxNextBp = c;
+					maxKmer = nextKmer;
+				}
+			}
+			if(maxKmer==null ) break;
+			consensus.append(maxNextBp);
+			lastKmer = maxKmer;
+			if(maxKmer.equals(bestKmerEnd)) break;
+		}
+		return consensus.toString();
+	}
+
+	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus) {
+		List<String> alleles = new ArrayList<String>(2);
+		alleles.add(currentConsensus);
+		alleles.add(localConsensus);
+		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
+		CalledGenomicVariantImpl call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOALT);
+		return call;
+	}
+
+	private List<CalledGenomicVariant> callVariantsDefault(String sequenceName, String consensus, List<ReadAlignment> alignments) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
 		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName, consensus));
@@ -330,7 +489,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				
 			}
 		});*/
-		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
+		
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
 			generator.processAlignment(aln);
