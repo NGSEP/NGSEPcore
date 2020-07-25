@@ -414,13 +414,15 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		int [] counts = helper.getCounts();
 		int idxMajorAllele = NumberArrays.getIndexMaximum(counts);
-		if(variant.getFirst()==posPrint) System.out.println("Alleles: "+Arrays.asList(alleles)+" max index: "+idxMajorAllele+" "+Arrays.asList(counts));
+		if(variant.getFirst()==posPrint) {
+			System.out.println("Alleles: "+Arrays.asList(alleles)+" max index: "+idxMajorAllele);
+			for (int i=0;i<alleles.length;i++) System.out.println("Count allele "+alleles[i]+" : "+counts[i]);
+		}
 		if(counts[idxMajorAllele]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
 		//Save most frequent allele
 		selectedAlleles.add((byte)idxMajorAllele);
 		//Calculate priors
-		int heteroGenotypes = helpers.size();
-		double logPriorHetero = Math.log10(h/heteroGenotypes);
+		double logPriorHetero = Math.log10(h);
 		double logPriorHomo = Math.log10((1-h));
 		int numHypotheses = helpers.size()+1;
 		double [] terms = new double[numHypotheses];
@@ -439,8 +441,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 				CountsHelper helperF = helpers.get(j);
 				terms[j+1] = LogMath.logProduct(helperF.getLogConditionalProbs()[idxMajorAllele][i],logPriorHetero);
 				if(variant.getFirst()==posPrint) {
-					System.out.println("Log conditionals freq: "+freqs.get(j));
-					helperF.printProbs(helperF.getLogConditionalProbs(), false);
+					//System.out.println("Log conditionals freq: "+freqs.get(j));
+					//helperF.printProbs(helperF.getLogConditionalProbs(), false);
 					System.out.println("Frequency: "+freqs.get(j)+" term heterozygous: "+terms[j+1]);
 				}
 			}

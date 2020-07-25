@@ -311,32 +311,6 @@ public class CountsHelper {
 		}
 		return logCond;
 	}
-	public void addAllelicImbalanceFactor(double alpha, double beta) {
-		double totalCount = 0;
-		for(int i=0;i<counts.length;i++) {
-			totalCount+=counts[i];
-		}
-		if(totalCount==0) return;
-		for(int i=0;i<logConditionalProbs.length;i++) {
-			for(int j=0;j<logConditionalProbs[0].length;j++) {
-				if(i!=j) {
-					double pB = 0.000001;
-					if(counts[i] > 0 || counts[j] > 0) {
-						double beta1 = SpecialMath.beta(alpha+counts[i], beta+counts[j]);
-						//System.out.println("Beta1: "+beta1);
-						double beta2 = SpecialMath.beta(alpha, beta);
-						//System.out.println("Beta2: "+beta2);
-						double combinatorial = ExtraMath.binomial((double)(counts[i]+counts[j]), (double)counts[i]);
-						pB = combinatorial*beta1/beta2;
-					}
-					if(pB <0.000001) pB = 0.000001;
-					double pLog = Math.log10(pB);
-					logConditionalProbs[i][j] += pLog;
-					logConditionalProbs[j][i] += pLog;
-				}
-			}
-		}
-	}
 	/**
 	 * 
 	 * @return double[][] Conditional probability of each possible genotype  
@@ -356,7 +330,6 @@ public class CountsHelper {
 		int heteroGenotypes = nAlleles*(nAlleles-1);
 		double logPriorHetero = Math.log10(hetRate/heteroGenotypes);
 		double logPriorHomo = Math.log10((1-hetRate)/nAlleles);
-		
 		double [] eventsArray = new double [nAlleles*nAlleles];
 		double [][] posteriorProb = new double [nAlleles][nAlleles];
 		int indCond=0;
