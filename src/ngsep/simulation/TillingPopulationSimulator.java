@@ -65,7 +65,7 @@ public class TillingPopulationSimulator {
 	
 	public static final int DEF_MUTATIONS=300;
 	public static final int DEF_INDIVIDUALS=800;
-	public static final int DEF_NUM_FRAGMENTS_POOL=100;
+	public static final int DEF_NUM_FRAGMENTS_POOL=47802;
 	public static final int DEF_READ_LENGTH=200;
 	public static final double DEF_ERROR_RATE=0.01;
 	public static final double DEF_MIN_ERROR_RATE=0.001;
@@ -235,7 +235,7 @@ public class TillingPopulationSimulator {
 		
 		for(int i=0;i<pools.size();i++) {
 			List<SimulatedDiploidIndividual> pool = pools.get(i);
-			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors,Seq_err);
+			simulatePoolReads(pool, outPrefix+"P"+i+"_1.fastq", outPrefix+"P"+i+"_2.fastq",errors,Seq_err,i);
 			System.out.println("Simulated reads pool "+i);
 		}
 		
@@ -469,7 +469,7 @@ public class TillingPopulationSimulator {
 	 * @param file1 Output file for first end of paired end reads
 	 * @param file2 Output file for second end of paired end reads
 	 */
-	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos) throws FileNotFoundException {
+	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos, int pool_id) throws FileNotFoundException {
 		
 		Random random = new Random();
 		/*String alphabet = DNASequence.BASES_STRING;*/
@@ -522,12 +522,12 @@ public class TillingPopulationSimulator {
 				}
 				qualityReverse+=Character.toString(symbol);
 			}
-			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+i);
+			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
 			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
 			
-			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+i);
+			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
 			out_rev.println(readReverse);
 			out_rev.println("+");
 			out_rev.println(qualityReverse);
