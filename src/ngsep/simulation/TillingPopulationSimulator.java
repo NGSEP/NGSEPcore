@@ -65,7 +65,7 @@ public class TillingPopulationSimulator {
 	
 	public static final int DEF_MUTATIONS=300;
 	public static final int DEF_INDIVIDUALS=800;
-	public static final int DEF_NUM_FRAGMENTS_POOL=47802;
+	public static final int DEF_NUM_FRAGMENTS_POOL=47804;
 	public static final int DEF_READ_LENGTH=200;
 	public static final double DEF_ERROR_RATE=0.01;
 	public static final double DEF_MIN_ERROR_RATE=0.001;
