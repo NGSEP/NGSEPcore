@@ -402,7 +402,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		List<CountsHelper> helpers = new ArrayList<CountsHelper>();
 		for(double freq = step;freq<0.51;freq+=step) {
 			freqs.add(freq);
-			if(variant.isSNV()) helpers.add(CountsHelper.calculateCountsGTSNV(alleles, calls, maxBaseQS, h));
+			if(variant.isSNV()) helpers.add(CountsHelper.calculateCountsGTSNV(alleles, calls, maxBaseQS, freq));
 			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq));
 		}
 		if(variant.getFirst()==posPrint) System.out.println("Frequencies: "+freqs+" helpers: "+helpers.size());
@@ -410,10 +410,11 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		CountsHelper helper = helpers.get(0);
 		if(variant.getFirst()==posPrint) {
 			System.out.println("Conditionals first helper");
-			helper.printProbs(helper.getLogConditionalProbs(), true);
+			helper.printProbs(helper.getLogConditionalProbs(), false);
 		}
 		int [] counts = helper.getCounts();
 		int idxMajorAllele = NumberArrays.getIndexMaximum(counts);
+		if(variant.getFirst()==posPrint) System.out.println("Alleles: "+Arrays.asList(alleles)+" max index: "+idxMajorAllele+" "+Arrays.asList(counts));
 		if(counts[idxMajorAllele]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
 		//Save most frequent allele
 		selectedAlleles.add((byte)idxMajorAllele);
@@ -437,15 +438,17 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			for(int j=0;j<freqs.size();j++) {
 				CountsHelper helperF = helpers.get(j);
 				terms[j+1] = LogMath.logProduct(helperF.getLogConditionalProbs()[idxMajorAllele][i],logPriorHetero);
-				if(variant.getFirst()==posPrint) System.out.println("Frequency: "+freqs.get(j)+" term heterozygous: "+terms[j+1]);
+				if(variant.getFirst()==posPrint) {
+					System.out.println("Log conditionals freq: "+freqs.get(j));
+					helperF.printProbs(helperF.getLogConditionalProbs(), false);
+					System.out.println("Frequency: "+freqs.get(j)+" term heterozygous: "+terms[j+1]);
+				}
 			}
 			CountsHelper.calculatePosteriorProbabilities(terms);
 			int idxMax = NumberArrays.getIndexMaximum(terms);
 			if(idxMax==0) {
 				minHomoPosterior = Math.min(minHomoPosterior, terms[0]);
-				continue;
-			}
-			if(maxAltAllele==-1 || maxHetPosterior<terms[idxMax]) {
+			} else if(maxAltAllele==-1 || maxHetPosterior<terms[idxMax]) {
 				maxHetPosterior = terms[idxMax];
 				maxFreqIdx = idxMax-1;
 				maxFreq = freqs.get(maxFreqIdx);
