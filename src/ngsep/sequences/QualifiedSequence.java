@@ -36,7 +36,7 @@ public class QualifiedSequence implements Serializable {
 	private int length;
 	private String comments;
 	private CharSequence characters;
-	private String qualityScores;
+	private byte [] qualityScores;
 	
 	
 	
@@ -85,9 +85,21 @@ public class QualifiedSequence implements Serializable {
 		this.length = characters.length();
 	}
 	public String getQualityScores() {
-		return qualityScores;
+		if(this.qualityScores==null) return null;
+		char [] qs = new char[this.qualityScores.length];
+		for(int i=0;i<qs.length;i++) {
+			qs[i] = (char)qualityScores[i];
+		}
+		return new String(qs);
 	}
 	public void setQualityScores(String qualityScores) {
-		this.qualityScores = qualityScores;
+		if(qualityScores==null) this.qualityScores=null;
+		int l = qualityScores.length();
+		this.qualityScores = new byte[l];
+		for(int i=0;i<l;i++) {
+			short qs = (short)qualityScores.charAt(i);
+			if(qs>127) qs = 127;
+			this.qualityScores[i] = (byte)qs;
+		}
 	}
 }

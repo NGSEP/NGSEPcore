@@ -22,11 +22,13 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
+import ngsep.sequences.QualifiedSequence;
+
 /**
  * @author Jorge Duitama
  */
 public interface ConsensusBuilder {
-	public List<CharSequence> makeConsensus(AssemblyGraph graph);
+	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph);
 
 	public static ConsensusBuilder NONE = (AssemblyGraph graph) -> {
 		return new ArrayList<>();

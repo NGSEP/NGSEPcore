@@ -43,6 +43,7 @@ public class VCFRelativeCoordinatesTranslator {
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
 	private ReferenceGenome refGenome;
+	private ReferenceGenomeFMIndex refIndex = null;
 	private Map<String, ReadAlignment> alignmentsHash;
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
@@ -102,7 +103,8 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		instance.filenameRelativeVCF = args[2];
 		instance.refGenome= new ReferenceGenome(args[3]);
-		instance.outFile = args[4];
+		instance.refIndex = ReferenceGenomeFMIndex.load(instance.refGenome, args[4]);
+		instance.outFile = args[5];
 		instance.run();
 	}
 
@@ -144,7 +146,6 @@ public class VCFRelativeCoordinatesTranslator {
 						translatedRecord = translateRecord(alignment, record, header);
 					} else {
 						notSNV++;
-						untranslated++;
 					}
 					if(translatedRecord != null) {
 						translatedRecords.add(translatedRecord);
@@ -163,7 +164,6 @@ public class VCFRelativeCoordinatesTranslator {
 				PrintStream info = new PrintStream(outFile + ".info")) {
 			writer.printHeader(header, mappedVCF);
 			writer.printVCFRecords(translatedRecords, mappedVCF);
-			info.println("10 softclip");
 			info.println("Total number of records in relative VCF: " + totalRecords);
 			info.println("Number of translated records: " + numTranslatedRecords);
 			info.println("Number of translater biallelic variants: " + biallelic);
@@ -179,7 +179,7 @@ public class VCFRelativeCoordinatesTranslator {
 			info.println("Number of records where matching reference sequence is not DNA: " + notDNA); 
 			info.println("Number of records that are not SNV: " + notSNV);
 			info.println("Number of records where no reference sequence was found: " + notRefSeq);
-			info.println("Number of records where reference sequence doesn't exist (-1): " + refSeqLess0);
+			info.println("Number of records where reference sequence does not exist (-1): " + refSeqLess0);
 			info.println("Number of records where no calls found (matches number of triallelic): " + trueCallsNull);
 			info.println("------ Issues with mapping ------");
 			info.println("Number of unmapped consensus: " + unmappedRead);
@@ -229,7 +229,6 @@ public class VCFRelativeCoordinatesTranslator {
 		// IF the reference is not in the relativeAlleles, the variant is likely triallelic
 		boolean refInRelativeAllels = false;
 		
-		// Will be something like Cluster-####
 		String seqName = algn.getSequenceName();
 		
 		if(seqName==null) {
@@ -241,19 +240,9 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		//-1 if the read position does not align with the reference 
 		truePos = algn.getReferencePosition(zeroBasedRelativePos);
-//		if(algn.isNegativeStrand()) {
-//		
-//			truePos = algn.getLast() - zeroBasedRelativePos;
-//			
-//		} else {
-//				
-//			//-1 if the read position does not align with the reference 
-//			//truePos = algn.getReferencePosition(zeroBasedRelativePos);
-//			truePos = algn.getFirst() + zeroBasedRelativePos;
-//		}
-			
 		
 		if(truePos<=0) {
+			System.out.println("Variant without ref pos: "+relativeVar.getSequenceName()+":"+relativeVar.getFirst()+" aln seq name: "+seqName+" pos: "+truePos+" aln "+algn);
 			refSeqLess0++;
 			return null;
 		}
@@ -362,7 +351,12 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(refGenome);
-		aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
+		if(refIndex!=null) aligner.setFmIndex(refIndex);
+		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
+		
+		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
+		int numNCharsPairedEnd = pairedEndAnchor.length();	
+		
 		
 		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA);
 				PrintStream debug = new PrintStream(outFile + ".debug")) {
@@ -371,17 +365,18 @@ public class VCFRelativeCoordinatesTranslator {
 			for(int i=0;it.hasNext();i++) {
 				consensusTot++;
 				QualifiedSequence consensus = it.next();
-				String algnName = consensus.getName();
-				debug.println(algnName);
-				if(algnName.startsWith("Cluster_")) {
-					algnName = algnName.substring(8);
+				String consensusName = consensus.getName();
+				debug.println(consensusName);
+				if(consensusName.startsWith("Cluster_")) {
+					consensusName = consensusName.substring(8);
 				}
 				String seq = consensus.getCharacters().toString();
 				if(seq.length() == 0) continue;
-				int indexN = seq.indexOf('N');
+				
+				int indexN = seq.indexOf(pairedEndAnchor);
 				if(indexN <=30 || indexN>=seq.length()-30) {
 					singleConsensus++;
-					RawRead read = new RawRead(algnName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
+					RawRead read = new RawRead(consensusName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
 					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
@@ -390,15 +385,17 @@ public class VCFRelativeCoordinatesTranslator {
 						continue;
 					}
 					ReadAlignment first = alns.get(0);
-					alignmentsHash.put(algnName,first);
+					debug.println("First algn single: " + first.getReadCharacters() + "\t" + first.getFlags() + "\t" + first.getFirst() + "\t" + first.getCigarString());
+					alignmentsHash.put(consensusName,first);
 				} else {
 					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
-					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+1));
+					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+numNCharsPairedEnd));
 					
-					RawRead read1 = new RawRead(algnName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
-					RawRead read2 = new RawRead(algnName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
+					RawRead read1 = new RawRead(consensusName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
+					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
+					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
@@ -420,114 +417,113 @@ public class VCFRelativeCoordinatesTranslator {
 					ReadAlignment aln2 = first.getAln2();
 					debug.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
 					debug.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
-					if(aln1.isPartialAlignment(1) || aln2.isPartialAlignment(1)) {
+					if(aln1.isPartialAlignment(10) || aln2.isPartialAlignment(10)) {
 						partial++;
 						unmappedReadPaired++;
 						unmappedRead++;
 						continue;
 					}
-					int posN1 = aln1.getLast()+1; 
-					int posN2 = aln2.getLast()+1;
-					if(posN1<aln2.getFirst()) {
-				 		ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), aln2.getLast(), seq.length(), 0);
-						combined.setSequenceName(aln1.getSequenceName());
+					int last1 = aln1.getLast(); 
+					int last2 = aln2.getLast();
+					if(aln1.getFirst()<last2) {
+				 		int internalSoftClip1 = aln1.getSoftClipEnd();
+				 		int internalSoftClip2 = aln2.getSoftClipStart();
 						String cigar = aln1.getCigarString();
-						//The N character
-						cigar+="1M";
-						if (posN1+1<aln2.getFirst()) cigar+=(aln2.getFirst()-posN1-1)+"N";
-						cigar+=aln2.getCigarString();
+						int last = last2;
+						
+						int nextRef = last1+internalSoftClip1+numNCharsPairedEnd+1;
+						int noSoftClipAln2First = aln2.getFirst()-internalSoftClip2;
+						if(nextRef<=noSoftClipAln2First) {
+							if(internalSoftClip1>0) {
+								//Transform into M
+								cigar = cigar.substring(0,cigar.length()-1);
+								cigar+="M";
+							}
+							//Add N matches
+							cigar += ""+numNCharsPairedEnd+"M";
+							//Add skip ref if needed
+							if (nextRef<noSoftClipAln2First) cigar+=(noSoftClipAln2First-nextRef)+"N";
+							//Build last part of the CIGAR
+							String cigar2 = aln2.getCigarString();
+							if(internalSoftClip2==0) cigar+= cigar2;
+							else {
+								char [] cigar2Chr = cigar2.toCharArray();
+								int skipPos = cigar2.indexOf('S');
+								cigar2Chr[skipPos] = 'M';
+								cigar+=new String(cigar2Chr);
+							}
+						} else {
+							//Skip second read
+							last = last1;
+							cigar+=""+(seq2.length()+numNCharsPairedEnd)+"S";
+						}
+						//System.out.println("Combined CIGAR: "+cigar);
+						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), aln1.getFirst(), last, seq.length(), 0);
+						combined.setReadName(consensusName);
+						combined.setSequenceName(aln1.getSequenceName());
+						combined.setReadCharacters(seq);
 						combined.setCigarString(cigar);
-						combined.setReadCharacters(consensus.getCharacters());
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
+						
 						debug.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
-						alignmentsHash.put(algnName,combined);
-					} else if (posN2 <aln1.getFirst()) {
-						ReadAlignment combined = new ReadAlignment(aln2.getSequenceIndex(), aln2.getFirst(), aln1.getLast(), seq.length(), 0);
-						combined.setSequenceName(aln2.getSequenceName());
-						String cigar = aln2.getCigarString();
-						//The N character
-						cigar+="1M";
-						if (posN2+1<aln1.getFirst()) cigar+=(aln1.getFirst()-posN2-1)+"N";
-						cigar+=aln1.getCigarString();
-						combined.setCigarString(cigar);
+						alignmentsHash.put(consensusName,combined);
+					} else if (aln2.getFirst() < aln1.getLast()) {
+				 		int internalSoftClip2 = aln2.getSoftClipEnd();
+				 		int internalSoftClip1 = aln1.getSoftClipStart();
+						String cigarNonOverlap = aln2.getCigarString();
+						if(internalSoftClip2>0) {
+							//Transform into M
+							cigarNonOverlap = cigarNonOverlap.substring(0,cigarNonOverlap.length()-1);
+							cigarNonOverlap+="M";
+						}
+						//Add N matches
+						cigarNonOverlap += ""+numNCharsPairedEnd+"M";
+						int nextRef = last2+internalSoftClip2+numNCharsPairedEnd+1;
+						int noSoftClipAln1First = aln1.getFirst()-internalSoftClip1;
+						
+						int firstPosCombined;
+						String cigar;
+						
+						//Build last part of the CIGAR
+						String cigar1 = aln1.getCigarString();
+						if(nextRef<=noSoftClipAln1First) {
+							firstPosCombined = aln2.getFirst();
+							cigar = cigarNonOverlap;
+							//Add skip ref
+							if (nextRef<noSoftClipAln1First) cigar+=(noSoftClipAln1First-nextRef)+"N";
+						} else {
+							//Skip second read
+							firstPosCombined = aln1.getFirst();
+							cigar=""+(seq2.length()+numNCharsPairedEnd)+"S";
+						}
+						if(internalSoftClip1==0 || firstPosCombined==aln1.getFirst()) cigar+= cigar1;
+						else {
+							char [] cigar1Chr = cigar1.toCharArray();
+							int skipPos = cigar1.indexOf('S');
+							cigar1Chr[skipPos] = 'M';
+							cigar+=new String(cigar1Chr);
+						}
+						//System.out.println("Combined CIGAR: "+cigar);
+						ReadAlignment combined = new ReadAlignment(aln1.getSequenceIndex(), firstPosCombined, aln1.getLast(), seq.length(), 16);
+						combined.setReadName(consensusName);
+						combined.setSequenceName(aln1.getSequenceName());
 						combined.setReadCharacters(DNAMaskedSequence.getReverseComplement(consensus.getCharacters()));
+						combined.setCigarString(cigar);
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						debug.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
-						alignmentsHash.put(algnName,combined);
+						alignmentsHash.put(consensusName,combined);
 					} else {
 						oddAlign++;
 						unmappedReadPaired++;
 						unmappedRead++;
 					}
-					debug.println("\n");
+					debug.println();
+					debug.println();
 				}
 			}
 		}
-		
-	}
-	
-	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
-	private ReadAlignment removeStartSoftClip(ReadAlignment algn, int maxAllowedSkips) {
-		int operator = algn.getCigarItemOperator(0);
-		String cigar = algn.getCigarString();
-		ReadAlignment algn_1 = algn;
-		// if starts with skips
-		if(operator == 6) {
-			int length = algn.getCigarItemLength(0);
-			int newLength = length;
-			if(length < maxAllowedSkips) {
-				//if second operator is M
-				System.out.println("Length: " + length);
-				if(algn.getCigarItemOperator(1) == 3) {
-					newLength = length + algn.getCigarItemLength(1);
-					String partialOldCigar = length + "S" + algn.getCigarItemLength(1) + "M";
-					String partialNewCigar = newLength + "M";
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				} else {
-					String partialOldCigar = length + "S"; 
-					String partialNewCigar = length + "M"; 
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				}
-				algn_1 = new ReadAlignment(algn.getSequenceName(), algn.getFirst() - length, algn.getLast(), algn.length()+length, algn.getFlags());
-				algn_1.setCigarString(cigar);
-			}
-			
-		}
-		
-		return algn_1;
-	}
-	
-	// Must be change replace method to an index-based approach to avoid replacing Skips inside the cigar.
-	private ReadAlignment removeEndSoftClip(ReadAlignment algn, int maxAllowedSkips) {
-		int operator = algn.getCigarItemOperator(algn.getNumCigarItems()-1);
-		String cigar = algn.getCigarString();
-		ReadAlignment algn_1 = algn;
-		// if starts with skips
-		if(operator == 6) {
-			int length = algn.getCigarItemLength(algn.getNumCigarItems()-1);
-			int newLength = length;
-			if(length < maxAllowedSkips) {
-				//if second operator is M
-				System.out.println("Length: " + length);
-				if(algn.getCigarItemOperator(algn.getNumCigarItems()-2) == 3) {
-					newLength = length + algn.getCigarItemLength(algn.getNumCigarItems()-2);
-					String partialOldCigar = algn.getCigarItemLength(algn.getNumCigarItems()-2) + "M" + length + "S";
-					String partialNewCigar = newLength + "M";
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				} else {
-					String partialOldCigar = length + "S"; 
-					String partialNewCigar = length + "M"; 
-					cigar = cigar.replace(partialOldCigar, partialNewCigar);
-				}
-				algn_1 = new ReadAlignment(algn.getSequenceName(), algn.getFirst(), algn.getLast()+length, algn.length()+length, algn.getFlags());
-				algn_1.setCigarString(cigar);
-			}
-			
-		}
-		
-		return algn_1;
 	}
 	
 	

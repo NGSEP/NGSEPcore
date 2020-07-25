@@ -122,7 +122,7 @@ public class CountsHelper {
 		updateProbabilitiesCache(nAlleles);
 		startCounts();
 	}
-	private void updateProbabilitiesCache(int numAlleles) {
+	private synchronized void updateProbabilitiesCache(int numAlleles) {
 		int m = DEF_MAX_BASE_QS+1;
 		//Create the cache for at least 10 alleles
 		if(numAlleles<10) numAlleles=10;
@@ -220,9 +220,9 @@ public class CountsHelper {
 				}
 				for(int j=0;j<logConditionalProbs[i].length;j++) {
 					if(i!=j) {
-						if(i==index) {
+						if(j==index) {
 							logConditionalProbs[i][j] += logProbCacheGT[f][qualScore][n];
-						} else if (j==index) {
+						} else if (i==index) {
 							logConditionalProbs[i][j] += logProbCacheGT[g][qualScore][n];
 						} else {
 							logConditionalProbs[i][j] += logProbCacheError[qualScore][n];
@@ -270,9 +270,9 @@ public class CountsHelper {
 			logConditionalProbs[i][i] += logCondAlleles[i];
 			for(int j=0;j<logConditionalProbs[i].length;j++) {
 				if (i!=j) {
-					if(i==index ) {
+					if(j==index ) {
 						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+DEF_LOG_ERROR_PROB_INDEL);
-					} else if ( j==index) {
+					} else if ( i==index) {
 						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+DEF_LOG_ERROR_PROB_INDEL);
 					} else {
 						logConditionalProbs[i][j]+=DEF_LOG_ERROR_PROB_INDEL;
@@ -374,6 +374,30 @@ public class CountsHelper {
 			}
 		}
 		return posteriorProb;
+	}
+	/**
+	 * Calculates the posterior probability of homozygous for the major allele against heterozygous genotypes
+	 * @param hetRate Prior heterozygosity rate 
+	 * @param majorAlleleIdx Index of the major allele
+	 * @return double [] Matrix of probabilities. The entry corresponding to the majorAlleleIdx contains the probability of the homozygous genotype
+	 */
+	public double [] getPosteriorProbabilities (double hetRate, int majorAlleleIdx) {
+		int nAlleles = alleles.size();
+		//Calculate prior probabilities. Takes into accont alleles order while defining events
+		int heteroGenotypes = nAlleles-1;
+		double logPriorHetero = Math.log10(hetRate/heteroGenotypes);
+		double logPriorHomo = Math.log10((1-hetRate));
+		
+		double [] eventsArray = new double [nAlleles];
+		for(int j=0;j<nAlleles;j++) {
+			if(j==majorAlleleIdx) {
+				eventsArray[j] = logConditionalProbs[majorAlleleIdx][j]+logPriorHomo;
+			} else {
+				eventsArray[j] = logConditionalProbs[majorAlleleIdx][j]+logPriorHetero;
+			}
+		}
+		calculatePosteriorProbabilities(eventsArray);
+		return eventsArray;
 	}
 	/**
 	 * @param eventsArray conditional times prior with logaritmich scale.

@@ -47,6 +47,7 @@ public class ReferenceGenome {
 		this.filename = filename;
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		handler.setSequenceType(DNAMaskedSequence.class);
+		handler.setKeepLowerCase(true);
 		sequences = handler.loadSequences(filename);
 		sequences.setAllowChanges(false);
 	}

@@ -45,6 +45,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	private ReferenceGenome genome;
 	private int minBPForGoodRefAln = 5;
 	private int maxBPRealignmentEnd = 50;
+	private double minProportionAlnsRealign = 0;
 	private HammingSequenceDistanceMeasure hammingMeasure = new HammingSequenceDistanceMeasure();
 	
 	
@@ -70,6 +71,14 @@ public class IndelRealignerPileupListener implements PileupListener {
 
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
+	}
+	
+	public double getMinProportionAlnsRealign() {
+		return minProportionAlnsRealign;
+	}
+
+	public void setMinProportionAlnsRealign(double minProportionAlnsRealign) {
+		this.minProportionAlnsRealign = minProportionAlnsRealign;
 	}
 
 	@Override
@@ -168,7 +177,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		if(currentPos==posPrint)System.out.println("ConciliateIndels. Current pos: "+currentPos+" Max length: "+maxLength+" lengths: "+ lengths.size());
 		
 		if(lengths.size()==0) return answer;
-		
+		if(minProportionAlnsRealign>0 && indelAlns.size()<minProportionAlnsRealign*alignments.size()) return answer;
 		
 		int maxI = 0;
 		if(!fixedEvent) {

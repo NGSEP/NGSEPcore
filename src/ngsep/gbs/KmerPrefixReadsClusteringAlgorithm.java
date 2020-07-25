@@ -20,6 +20,7 @@
 package ngsep.gbs;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -92,6 +93,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int maxNumClusters = DEF_MAX_NUM_CLUSTERS;
 	private int numThreads = DEF_NUM_THREADS;
+	private byte basesToIgnore5P = 0;
+	private byte basesToIgnore3P = 0;
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private short minQuality = DEF_MIN_QUALITY;
@@ -202,6 +205,40 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 
+	/**
+	 * @return
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
+	 */
+	public byte getBasesToIgnore5P() {
+		return basesToIgnore5P;
+	}
+	/**
+	 * @param basesToIgnore5P
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
+	 */
+	public void setBasesToIgnore5P(byte basesToIgnore5P) {
+		this.basesToIgnore5P = basesToIgnore5P;
+	}
+	public void setBasesToIgnore5P(String basesToIgnore5P) {
+		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(basesToIgnore5P, Byte.class));
+	}
+	/**
+	 * @return
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
+	 */
+	public byte getBasesToIgnore3P() {
+		return basesToIgnore3P;
+	}
+	/**
+	 * @param basesToIgnore3P
+	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
+	 */
+	public void setBasesToIgnore3P(byte basesToIgnore3P) {
+		this.basesToIgnore3P = basesToIgnore3P;
+	}
+	public void setBasesToIgnore3P(String basesToIgnore3P) {
+		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(basesToIgnore3P, Byte.class));
+	}
 	public double getHeterozygosityRate() {
 		return heterozygosityRate;
 	}
@@ -271,6 +308,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 
 	public void run() throws IOException, InterruptedException {
+		logParameters();
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
 		processInfo.addTime(System.currentTimeMillis(), "Load files end");
@@ -309,6 +347,20 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		log.info("Process finished");
 	}
 	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input directory:"+ inputDirectory);
+		out.println("Output prefix:"+ outputPrefix);
+		if (filesDescriptor!=null) out.println("Descriptor for paired-end samples: "+filesDescriptor);
+		out.println("Kmer length: "+ kmerLength);
+		out.println("Maximum number of clusters: "+ maxNumClusters);
+		out.println("Prior heterozygosity rate: "+ heterozygosityRate);
+		out.println("Minimum variant quality: "+ minQuality);
+		out.println("Normal ploidy: "+ normalPloidy);
+		out.println("Number of threads: "+ numThreads);
+		log.info(os.toString());
+	}
 	private void printDistribution() throws IOException {
 		int[] dist = getClusterSizeDist();
 		log.info("Printing cluster distribution.");

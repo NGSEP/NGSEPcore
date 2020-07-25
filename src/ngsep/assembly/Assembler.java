@@ -73,8 +73,9 @@ public class Assembler {
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String graphFile = null;
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
-	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
+	private boolean correctReads = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Get and set methods
@@ -180,6 +181,16 @@ public class Assembler {
 		if(!CONSENSUS_ALGORITHM_SIMPLE.equals(consensusAlgorithm) && !CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) throw new IllegalArgumentException("Unrecognized consensus algorithm "+consensusAlgorithm);
 		this.consensusAlgorithm = consensusAlgorithm;
 	}
+	
+	public boolean isCorrectReads() {
+		return correctReads;
+	}
+	public void setCorrectReads(boolean correctReads) {
+		this.correctReads = correctReads;
+	}
+	public void setCorrectReads(Boolean correctReads) {
+		this.setCorrectReads(correctReads.booleanValue());
+	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -227,8 +238,10 @@ public class Assembler {
 		if(graphFile!=null) {
 			graph = AssemblyGraph.load(sequences, graphFile);
 		} else if (GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX.equals(graphConstructionAlgorithm)) {
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex(kmerLength, kmerOffset, minKmerPercentage, numThreads);
+			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
 			gbIndex.setLog(log);
+			gbIndex.setKmerLength(kmerLength);
+			gbIndex.setNumThreads(numThreads);
 			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
@@ -256,7 +269,7 @@ public class Assembler {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		} else {
-			pathsFinder= new LayoutBuilderSkeletonBestReciprocal();
+			pathsFinder= new LayoutBuilderKruskalPath();
 			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		}
@@ -265,14 +278,21 @@ public class Assembler {
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
-			consensus = new ConsensusBuilderBidirectionalWithPolishing();
+			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
+			consensusP.setNumThreads(numThreads);
+			if(correctReads) consensusP.setCorrectedReadsFile(outputPrefix+"_correctedReads.fa.gz");
+			consensus = consensusP;
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
-		List<CharSequence> assembledSequences =  consensus.makeConsensus(graph);
+		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
-		saveAssembly(outputPrefix+".fa", "contig", assembledSequences);
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		
+		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
+			handler.saveSequences(assembledSequences, out, 100);
+		}
 	}
 
 	/**
@@ -300,12 +320,7 @@ public class Assembler {
 	private static List<QualifiedSequence> loadFasta(String filename) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
-		List<QualifiedSequence> answer = new ArrayList<>();
-		for(QualifiedSequence seq:seqsQL) {
-			QualifiedSequence upperCase = new QualifiedSequence(seq.getName(),new DNAMaskedSequence(seq.getCharacters().toString().toUpperCase()));
-			answer.add(upperCase);
-		}
-		return answer;
+		return seqsQL;
 	}
 
 	/**
@@ -327,26 +342,5 @@ public class Assembler {
 			}
 		}
 		return sequences;
-	}
-	
-	/**
-	 * Saves the given sequences in fasta format
-	 * @param filename name of the output file
-	 * @param prefix of the sequence names
-	 * @param sequences List of sequences corresponding to the final assembly
-	 * @throws IOException If the file can not be generated
-	 */
-	public void saveAssembly(String filename, String prefix, List<CharSequence> sequences) throws IOException {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		List<QualifiedSequence> list = new ArrayList<QualifiedSequence>();
-		int i = 1;
-		for (CharSequence str : sequences) {
-			list.add(new QualifiedSequence(prefix + "_" + i, str));
-			i++;
-		}
-			
-		try (PrintStream out = new PrintStream(filename)) {
-			handler.saveSequences(list, out, 100);
-		}
 	}
 }

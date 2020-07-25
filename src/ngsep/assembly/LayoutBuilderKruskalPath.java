@@ -14,7 +14,7 @@ import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
 import ngsep.math.PhredScoreHelper;
 
-public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
+public class LayoutBuilderKruskalPath implements LayoutBuilder {
 
 	@Override
 	public void findPaths(AssemblyGraph graph) {
@@ -245,8 +245,9 @@ public class LayoutBuilderSkeletonBestReciprocal implements LayoutBuilder {
 		//return cost1+cost2;
 	}
 	private boolean logEdge(AssemblyEdge edge) {
-		int n = -330;
-		return edge.getVertex1().getUniqueNumber()==n || edge.getVertex2().getUniqueNumber()==n;
+		int n = -1;
+		return edge.getVertex1().getSequenceIndex()==n || edge.getVertex2().getSequenceIndex()==n;
+		//return false;
 	}
 	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length, Distribution[] edgesStats) {
 		

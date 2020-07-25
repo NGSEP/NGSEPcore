@@ -175,13 +175,19 @@ Number of threads to process read clusters.
 <option id="maxBaseQS" type="INT" attribute="maxBaseQS" defaultConstant="DEF_MAX_BASE_QS">
 Maximum value allowed for a base quality score. Larger values will be equalized to this value.
 </option>
+<option id="ignore5" type="INT" attribute="basesToIgnore5P" default="0">
+Ignore this many base pairs from the 5' end of the reads.
+</option>
+<option id="ignore3" type="INT" attribute="basesToIgnore3P" default="0">
+Ignore this many base pairs from the 3' end of the reads.
+</option>
+<option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
+Prior heterozygosity rate.
+</option>
 <option id="minQuality" type="INT" attribute="minQuality" defaultConstant="DEF_MIN_QUALITY">
 Minimum variant quality. In this command, this filter applies to the QUAL column of the VCF, which is
 calculated for each variant as the maximum of the genotype qualities of samples with non-homozygous reference genotype calls.
 See the command VCFFilter to apply filters of quality and read depth on individual genotype calls.
-</option>
-<option id="h" type="DOUBLE" attribute="heterozygosityRate" defaultConstant="DEF_HETEROZYGOSITY_RATE_DIPLOID">
-Prior heterozygosity rate.
 </option>
 <option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
 Default ploidy of the samples.
@@ -221,11 +227,15 @@ Minimum percentage of k-mers to identify an overlap
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
-<option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_MAX_OVERLAP" >
+<option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_SIMPLE" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
+</option>
+<option id="c" type="BOOLEAN" attribute="correctReads">
+For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
+Ignored for other consensus algorithms
 </option>
 <option id="t" type="INT" attribute="numThreads">
 Number of threads

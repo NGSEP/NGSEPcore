@@ -91,8 +91,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			minimizersTable.addSequence(i, genome.getSequenceCharacters(i));
 		}
 		minimizersTable.calculateDistributionHits().printDistribution(System.out);
-		minimizersTable.clearOverrepresentedMinimizers();
-		log.info("Calculated minimizers. Total: "+minimizersTable.getTotalMinimizers());
+		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}
 	
 	@Override
@@ -181,7 +180,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	}
 
 	public Map<CharSequence, Integer> extractUniqueKmers(CharSequence sequence, int start, int end) {
-		Map<Integer, CharSequence> rawKmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, start, end, true, true, true);
+		Map<Integer, String> rawKmers = KmersExtractor.extractKmersAsMap(sequence.toString(), 15, 1, start, end, true, true, true);
 		Map<CharSequence, Integer> answer = new LinkedHashMap<CharSequence, Integer>();
 		Map<CharSequence, Integer> reverseMap = new HashMap<CharSequence,Integer>();
 		Set<Integer> multiple = new HashSet<>();
@@ -341,7 +340,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		if(queryNext<query.length()) {
 			int remainder = query.length()-queryNext;
 			int end = Math.min(subjectNext+remainder+5, subject.length());
-			if(subject.length()-subjectNext>remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
+			if(subject.length()-subjectNext>=remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
 				String queryStr = query.subSequence(queryNext,query.length()).toString();
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
 				//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());

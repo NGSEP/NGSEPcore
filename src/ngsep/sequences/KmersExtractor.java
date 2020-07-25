@@ -38,7 +38,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.Distribution;
-import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.FastqFileReader;
 
 /**
@@ -49,7 +49,7 @@ import ngsep.sequences.io.FastqFileReader;
 public class KmersExtractor {
 	
 	// Constants for default values
-	public static final int DEF_KMER_LENGTH = 15;
+	public static final byte DEF_KMER_LENGTH = 15;
 	public static final int DEF_MIN_KMER_COUNT = 5;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
@@ -64,10 +64,11 @@ public class KmersExtractor {
 	private int minKmerCount = DEF_MIN_KMER_COUNT;
 	private boolean onlyForwardStrand=false;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
+	private boolean onlyDNA = false;
 	private boolean ignoreLowComplexity = false;
 	
 	// Model attributes
-	private KmersMap kmersMap;
+	private KmersMap kmersMap = new ShortArrayKmersMapImpl(DEF_KMER_LENGTH);
 	
 	
 	// Get and set methods
@@ -96,7 +97,7 @@ public class KmersExtractor {
 	}
 	public void setKmerLength(int kmerLength) {
 		this.kmerLength = kmerLength;
-		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
+		if(kmerLength<=15) kmersMap = new ShortArrayKmersMapImpl((byte) kmerLength);
 		else kmersMap = new DefaultKmersMapImpl();
 	}
 	public void setKmerLength(String value) {
@@ -132,6 +133,15 @@ public class KmersExtractor {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
 	
+	public boolean isOnlyDNA() {
+		return onlyDNA;
+	}
+	public void setOnlyDNA(boolean onlyDNA) {
+		this.onlyDNA = onlyDNA;
+	}
+	public void setOnlyDNA(Boolean onlyDNA) {
+		this.setOnlyDNA(onlyDNA.booleanValue());
+	}
 	public boolean isIgnoreLowComplexity() {
 		return ignoreLowComplexity;
 	}
@@ -210,12 +220,13 @@ public class KmersExtractor {
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
 	 */
-    public void processFastqFile(String filename) throws IOException { 
+    public void processFastqFile(String filename) throws IOException {
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
+			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
 				countSequenceKmers (read);
+				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 	 }
@@ -228,86 +239,88 @@ public class KmersExtractor {
 	public void processFastqFile(InputStream fis) throws IOException {
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
 			Iterator<RawRead> it = reader.iterator();
-			while (it.hasNext()) {
+			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
 				countSequenceKmers (read);
+				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 	}
-	private void countSequenceKmers(RawRead read) {
-    	String sequence = read.getCharacters().toString();
-		//Kmers Counter Per Sequence
-		//Forward		
-		countSequenceKmers(sequence);
-		//Reverse complement
-		if(!onlyForwardStrand){
-			CharSequence reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-			countSequenceKmers(reverseSequence);
-		}
-	}
+	
 	/**
 	 * Processes the file with the given name as fasta and updates the kmers table
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
 	 */
     private void processFastaFile(String filename) throws IOException {
-    	FastaSequencesHandler fastaSequencesHandler = new FastaSequencesHandler();
-		QualifiedSequenceList sequences = fastaSequencesHandler.loadSequences(filename);
-		//Kmer Count Per File
-		for(QualifiedSequence seq:sequences){
-			log.info("Processing sequence "+seq.getName());
-			//TODO: Process in chuncks if too big
-			//Forward		
-			String sequence = seq.getCharacters().toString();
-			countSequenceKmers(sequence);
-			//Reverse complement
-			if(!onlyForwardStrand){
-				CharSequence reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
-				countSequenceKmers(reverseSequence);
+    	try (FastaFileReader reader = new FastaFileReader(filename)) {
+			Iterator<QualifiedSequence> it = reader.iterator();
+			while(it.hasNext()) {
+				QualifiedSequence seq = it.next();
+				log.info("Processing sequence "+seq.getName());
+				countSequenceKmers(seq);
+				log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
 			}
-			log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
+    	}
+	}
+    public void processQualifiedSequences(List<QualifiedSequence> sequences) {
+    	int i = 0;
+    	for(QualifiedSequence qseq:sequences) {
+    		countSequenceKmers(qseq);
+    		i++;
+    		if(i%100==0) log.info("Processed "+i+" sequences");
+    	}
+    }
+	public void countSequenceKmers(QualifiedSequence qseq) {
+		//TODO: Process in chuncks if too big
+		//Forward		
+		CharSequence sequence = qseq.getCharacters();
+		countSequenceKmers(sequence.toString());
+		//Reverse complement
+		if(!onlyForwardStrand){
+			CharSequence reverseSequence = DNAMaskedSequence.getReverseComplement(sequence);
+			countSequenceKmers(reverseSequence.toString());
 		}
 	}
-	
 	/**
 	 * Updates the k-mers table using the information of the given sequence
 	 * @param seq CharSequence object to extract the k-mers
 	 */
-	public void countSequenceKmers(CharSequence seq)
+	public void countSequenceKmers(String seq)
 	{
-		if(kmersMap==null) {
-			setKmerLength(kmerLength);
-		}
 		int seqLength = seq.length();
 		
 		if(seqLength < kmerLength) {
 			log.warning("Sequence "+seq+" smaller than k-mer size");
 			return;
 		}
-		//TODO: Create option to process non DNA k-mers
-		CharSequence [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, true, ignoreLowComplexity);
-		for(CharSequence kmer:kmers) {
-			if(kmer!=null) kmersMap.addOcurrance(kmer);
-		}	
+		String [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, onlyDNA, ignoreLowComplexity);
+		synchronized (kmersMap) {
+			for(String kmer:kmers) {
+				if(kmer==null) continue;
+				if(kmer.length()<=15) kmersMap.addOcurrance(kmer);
+				else kmersMap.addOcurrance(pack(kmer));
+			}
+		}
 	}
 	
 	/**
 	 * Extracts the k-mers present in the given sequence
-	 * @param source Sequence to process
+	 * @param source Sequence to process. The sequence is processed as is (no uppercase or other transformation).
 	 * @param kmerLength Length of the output sequences. It must be less or equal than the length of the sequence
 	 * @param offset Distance between kmers
 	 * @param forceLast Includes last k-mer even if it does not meet the offset requirement
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
 	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences 
-	 * @return Map<Integer,CharSequence> Map of kmers indexed and sorted by (zero based) start position in the source sequence
+	 * @return Map<Integer,String> Map of kmers indexed and sorted by (zero based) start position in the source sequence
 	 */
-	public static Map<Integer,CharSequence> extractKmersAsMap (CharSequence source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+	public static Map<Integer,String> extractKmersAsMap (String source, int kmerLength, int offset, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
 		return extractKmersAsMap(source, kmerLength, offset, 0, source.length(), forceLast, onlyDNA, ignoreLowComplexity);
 				
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence
-	 * @param source Sequence to process
+	 * @param source Sequence to process. The sequence is processed as is (no uppercase or other transformation).
 	 * @param kmerLength Length of the output sequences. It must be less or equal than the length of the sequence
 	 * @param offset Distance between kmers
 	 * @param start index to extract kmers
@@ -315,34 +328,32 @@ public class KmersExtractor {
 	 * @param forceLast Includes last k-mer even if it does not meet the offset requirement
 	 * @param onlyDNA Tells if only k-mers within the DNA alphabet should be considered
 	 * @param ignoreLowComplexity If true, ignores kmers having low complexity sequences 
-	 * @return Map<Integer,CharSequence> Map of kmers indexed and sorted by (zero based) start position in the source sequence
+	 * @return Map<Integer,String> Map of kmers indexed and sorted by (zero based) start position in the source sequence
 	 */
-	public static Map<Integer,CharSequence> extractKmersAsMap (CharSequence source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+	public static Map<Integer,String> extractKmersAsMap (String source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
 		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
 		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
 		int n = source.length();
 		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
-		Map<Integer,CharSequence> kmersMap = new LinkedHashMap<Integer, CharSequence>();
+		Map<Integer,String> kmersMap = new LinkedHashMap<Integer, String>();
 		if (n < kmerLength) return kmersMap;
 		int lastKmerStart = end - kmerLength;
 		int lastPos = 0;
 		for(int i = start; i <=lastKmerStart; i+=offset) {
-			CharSequence initialKmer = source.subSequence(i, i+kmerLength);
-			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
-			if(processed!=null) kmersMap.put(i, processed);
+			String kmer = source.substring(i, i+kmerLength);
+			if(passFilters(kmer, onlyDNA, ignoreLowComplexity)) kmersMap.put(i, kmer);
 			lastPos = i;
 		}
 		if(forceLast && lastPos < lastKmerStart) {
-			CharSequence initialKmer = source.subSequence(lastKmerStart, end );
-			CharSequence processed = processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
-			if(processed!=null) kmersMap.put(lastKmerStart, processed);
+			String kmer = source.substring(lastKmerStart, end );
+			if(passFilters(kmer, onlyDNA, ignoreLowComplexity)) kmersMap.put(lastKmerStart, kmer);
 		}
 
 		return kmersMap;
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence
-	 * @param source Sequence to process
+	 * @param source Sequence to process. The sequence is processed as is (no uppercase or other transformation).
 	 * @param kmerLength Length of the output sequences. It must be less or equal than the length of the sequence
 	 * @param offset Distance between kmers
 	 * @param forceLast Includes last k-mer even if it does not meet the offset requirement
@@ -351,39 +362,42 @@ public class KmersExtractor {
 	 * @return CharSequence [] Array of k-mers within the source sequence. The index in the array corresponds
 	 * to the index in the sequence of the start of the k-mer
 	 */
-	public static CharSequence [] extractKmers (CharSequence source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
+	public static String [] extractKmers (String source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
 		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
 		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
 		int n = source.length();
 		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
-		if(n<kmerLength) return new CharSequence[0];
+		if(n<kmerLength) return new String[0];
 		int lastKmerStart = end - kmerLength; 
-		CharSequence [] kmers = new CharSequence [lastKmerStart+1];
+		String [] kmers = new String [lastKmerStart+1];
 		Arrays.fill(kmers, null);
 		for(int i = start; i <=lastKmerStart; i+=offset) {
-			CharSequence initialKmer = source.subSequence(i, i+kmerLength);
-			kmers[i]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
+			String kmer = source.substring(i, i+kmerLength);
+			if (passFilters(kmer, onlyDNA, ignoreLowComplexity)) kmers[i]=kmer;
 		}
 		if(forceLast && kmers[lastKmerStart]==null) {
-			CharSequence initialKmer = source.subSequence(lastKmerStart, end );	
-			kmers[lastKmerStart]=processKmer(initialKmer, onlyDNA, ignoreLowComplexity);
+			String kmer = source.substring(lastKmerStart, end );
+			if (passFilters(kmer, onlyDNA, ignoreLowComplexity)) kmers[lastKmerStart]=kmer;
 		}
 		return kmers;
 	}
 	
-	private static CharSequence processKmer (CharSequence initialKmer, boolean onlyDNA, boolean ignoreLowComplexity) {
-		String kmerStr = initialKmer.toString();
-		CharSequence kmer = kmerStr.toUpperCase();
+	private static boolean passFilters(String kmer, boolean onlyDNA, boolean ignoreLowComplexity) {
+		if(onlyDNA && !DNASequence.isDNA(kmer)) return false;
+		if(ignoreLowComplexity && isLowComplexity(kmer)) return false;
+		return true;
+	}
+	
+	public static CharSequence pack (String initialKmer) {
+		CharSequence kmer = initialKmer;
 		try {
-			if(kmerStr.length()<=31) {
+			if(initialKmer.length()<=31) {
 				kmer = new DNAShortKmer(kmer);
 			} else {
 				kmer = new DNASequence(kmer);
 			}
 		} catch (IllegalArgumentException e) {
-			if(onlyDNA) return null;
 		}
-		if(ignoreLowComplexity && isLowComplexity(kmerStr)) return null;
 		return kmer;
 	}
 	public static final boolean isLowComplexity(String kmerStr) {

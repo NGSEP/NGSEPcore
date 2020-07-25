@@ -94,6 +94,9 @@ public class FastaFileReader implements Iterable<QualifiedSequence>,Closeable  {
 		this.loadMode = loadMode;
 	}
 	
+	/**
+	 * @return boolean true if lowercase characters are kept
+	 */
 	public boolean isKeepLowerCase() {
 		return keepLowerCase;
 	}
@@ -197,6 +200,7 @@ public class FastaFileReader implements Iterable<QualifiedSequence>,Closeable  {
 				break;
 			} else if (firstChr!='#') {
 				String procesedLine = removeSpaces(currentLine);
+				if(!keepLowerCase) procesedLine = procesedLine.toUpperCase();
 				buffer.append(procesedLine);
 				if(buffer.length() > 10000000) {
 					try {

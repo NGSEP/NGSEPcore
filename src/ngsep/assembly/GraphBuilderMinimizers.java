@@ -11,6 +11,7 @@ import ngsep.math.Distribution;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 
@@ -18,7 +19,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
 	
-	public static final int DEF_WINDOW_LENGTH = 5;
+	public static final int DEF_WINDOW_LENGTH = 10;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
@@ -66,59 +67,108 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
-		
-		MinimizersTable table = new MinimizersTable(kmerLength, windowLength);
-		//TODO: Make parameter
-		table.setMaxAbundanceMinimizer(100);
+		log.info("Calculating kmers distribution");
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setLog(log);
+		extractor.setOnlyDNA(true);
+		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
+		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+		int finishTime = sequences.size();
+		ThreadPoolExecutor poolKmers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		for(int seqId = 0; seqId < sequences.size(); seqId++) {
+			QualifiedSequence seq = sequences.get(seqId);
+			if(numThreads==1) {
+				extractor.countSequenceKmers(seq);
+				if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
+			} else {
+				Runnable task = new CountKmersTask(extractor, seqId,seq);
+				poolKmers.execute(task);
+			}
+		}
+		waitToFinish(finishTime, poolKmers);
+		KmersMap map = extractor.getKmersMap();
+		int modeDepth = analyzeDistribution(map.calculateAbundancesDistribution());
+		int minimizersMeanDepth = Math.max(15,modeDepth/2+1);
+		int maxAbundance = minimizersMeanDepth*3;
+		MinimizersTable table = new MinimizersTable(map, kmerLength, windowLength);
+		table.setLog(log);
+		log.info("Building minimizers. Max saved abundance: "+maxAbundance);
+		table.setMaxAbundanceMinimizer(maxAbundance);
+		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
-			table.addSequence(seqId, seq);
+			if(numThreads==1) {
+				table.addSequence(seqId, seq);
+				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
+			} else {
+				Runnable task = new CreateMinimizersTask(table, seqId, seq);
+				poolMinimizers.execute(task);
+			}
 		}
+		waitToFinish(finishTime, poolMinimizers);
 		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
-		double firstMin = minimizerHitsDist.getLocalMinimum(1, 2*minimizerHitsDist.getAverage());
-		int modeDepth = (int) minimizerHitsDist.getLocalMode(firstMin, 99);
-		
 		minimizerHitsDist.printDistributionInt(System.out);
-		System.out.println("Local minimum: "+firstMin);
-		System.out.println("Local mode: "+modeDepth);
-		
-		table.clearOverrepresentedMinimizers();
-		log.info("Minimizers after removing overrepresented: "+table.getTotalMinimizers());
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
-		edgesFinder.setMeanDepth(Math.max(5, modeDepth));
+		edgesFinder.setMeanDepth(minimizersMeanDepth);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			if(numThreads==1) {
 				processSequence(edgesFinder, table, seqId, seq);
-				if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
-				continue;
+				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
+			} else {
+				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
+				poolSearch.execute(task);
 			}
-			Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
-			poolSearch.execute(task);
 		}
-		int finishTime = 2*sequences.size();
 		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
 		return graph;
 	}
-	private void waitToFinish(int time, ThreadPoolExecutor poolSearch) {
-		poolSearch.shutdown();
+	private void waitToFinish(int time, ThreadPoolExecutor pool) {
+		pool.shutdown();
 		try {
-			poolSearch.awaitTermination(time, TimeUnit.SECONDS);
+			pool.awaitTermination(time, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
-    	if(!poolSearch.isShutdown()) {
-			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
+    	if(!pool.isShutdown()) {
+			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 		}
+	}
+	private int analyzeDistribution (Distribution distribution) {
+		double [] numbers = distribution.getDistribution();
+		//Find first minimum
+		int firstMinIdx = 0;
+		while(firstMinIdx<numbers.length-1 && numbers[firstMinIdx]>numbers[firstMinIdx+1]) firstMinIdx++;
+		if(firstMinIdx==numbers.length-1) {
+			log.warning("Strictly decreasing kmers distribution. This possibly indicates that the sample has a high error rate and then reads should be corrected");
+			return 3*(int)Math.round(distribution.getAverage());
+		}
+		int firstMinCount = (int)Math.round(numbers[firstMinIdx]);
+		int modeDepth = (int) distribution.getLocalMode(firstMinIdx+2, distribution.getMaxValueDistribution());
+		double modeCount = (int)Math.round(numbers[modeDepth-1]);
+		//Calculate average removing the first part of the distribution
+		double average = 0;
+		double count = 0;
+		for(int i=firstMinIdx+1;i<numbers.length;i++) {
+			average+=i*numbers[i];
+			count+=numbers[i];
+		}
+		average/=count;
+		int maxDepthPrint = 5*modeDepth;
+		distribution.printDistribution(System.out,true, maxDepthPrint);
+		System.out.println("First minimum: "+(firstMinIdx+1)+" value: "+firstMinCount);
+		System.out.println("Local mode: "+modeDepth+" value: "+modeCount);
+		System.out.println("Average removing segment until first local minimum: "+average);
+		return (int)(average+modeDepth)/2;
 	}
 	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
@@ -131,6 +181,43 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
 	
+}
+class CountKmersTask implements Runnable {
+	private KmersExtractor extractor;
+	private int sequenceId;
+	private QualifiedSequence sequence;
+	
+	public CountKmersTask(KmersExtractor extractor, int sequenceId, QualifiedSequence sequence) {
+		super();
+		this.extractor = extractor;
+		this.sequenceId = sequenceId;
+		this.sequence = sequence;
+	}
+
+	@Override
+	public void run() {
+		extractor.countSequenceKmers(sequence);
+		if ((sequenceId+1)%1000==0) extractor.getLog().info("Kmers extracted for "+(sequenceId+1)+" sequences.");
+		
+	}
+}
+class CreateMinimizersTask implements Runnable {
+	private MinimizersTable table;
+	private int sequenceId;
+	private CharSequence sequence;
+	
+	public CreateMinimizersTask(MinimizersTable table, int sequenceId, CharSequence sequence) {
+		super();
+		this.table = table;
+		this.sequenceId = sequenceId;
+		this.sequence = sequence;
+	}
+
+	@Override
+	public void run() {
+		table.addSequence(sequenceId, sequence);
+		if ((sequenceId+1)%1000==0) table.getLog().info("Processed "+(sequenceId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());	
+	}
 }
 class ProcessSequenceTask implements Runnable {
 	private GraphBuilderMinimizers parent;
@@ -152,7 +239,7 @@ class ProcessSequenceTask implements Runnable {
 		// TODO Auto-generated method stub
 		parent.processSequence(finder, table, sequenceId, sequence);
 		AssemblyGraph graph = finder.getGraph();
-		if ((sequenceId+1)%100==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
+		if ((sequenceId+1)%1000==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
 	}
 	
 	

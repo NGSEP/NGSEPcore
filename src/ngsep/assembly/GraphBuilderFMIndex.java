@@ -32,6 +32,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -46,23 +47,15 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 	
 	private static final int TIMEOUT_SECONDS = 30;
 
-	private int kmerLength;
-	private int kmerOffset;
-	private int minKmerPercentage;
-	private int numThreads;
+	private int kmerLength = 15;
+	private int kmerOffset = 5;
+	private int numThreads = 1;
+	
+	private KmersMap kmersMap;
 	
 
 	
 	private static int idxDebug = -1;
-	
-	
-
-	public GraphBuilderFMIndex(int kmerLength, int kmerOffset, int minKmerPercentage, int numThreads) {
-		this.kmerLength = kmerLength;
-		this.kmerOffset = kmerOffset;
-		this.minKmerPercentage = minKmerPercentage;
-		this.numThreads = numThreads;
-	}
 	
 	/**
 	 * @return the log
@@ -78,20 +71,44 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		this.log = log;
 	}
 
+	public int getKmerLength() {
+		return kmerLength;
+	}
+
+	public void setKmerLength(int kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
-		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		edgesFinder.setMinKmerPercentage(minKmerPercentage);
+		
+		//Kmers map construction
+		if(kmersMap==null) {
+			log.info("Extracting kmers map");
+			KmersExtractor extractor = new KmersExtractor();
+			extractor.setKmerLength(kmerLength);
+			extractor.processQualifiedSequences(sequences);
+			kmersMap = extractor.getKmersMap();
+			log.info("Extracting kmers map. Kmers: "+kmersMap.size());
+		}
 		// Create FM-Index
 		FMIndex fmIndex = new FMIndex();
 		// TODO: Set tally distance and suffix fraction
 		fmIndex.loadQualifiedSequences(sequences);
 		
 		log.info("Created FM-Index");
-		
+		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 	
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -124,31 +141,41 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 		updateGraph(finder, seqId, seq, false, fmIndex);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		updateGraph(finder, seqId, complement, true, fmIndex);
-		AssemblyGraph graph = finder.getGraph();
-		synchronized (graph) {
-			graph.filterEdgesAndEmbedded (seqId);
-		}
-		if(seqId == idxDebug) System.out.println("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
 
 
 	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, FMIndex fmIndex) {
-		Map<Integer,CharSequence> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerOffset, true, true, true);
+		AssemblyGraph graph = finder.getGraph();
+		Map<Integer,String> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, false, true, true);
 		//Search kmers using the FM index
-		if(kmersMap.size()==0) return;
+		if(sequenceKmersMap.size()==0) return;
 		Map<Integer,List<UngappedSearchHit>> kmerHitsMap = new HashMap<Integer, List<UngappedSearchHit>>();
-		for (int start:kmersMap.keySet()) {
-			String kmer = kmersMap.get(start).toString();
+		int i=0;
+		while (i<query.length()) {
+			String kmer = sequenceKmersMap.get(i);
+			if (kmer==null) {
+				i+=kmerLength;
+				continue;
+			}
+			int globalCount = kmersMap.getCount(kmer);
+			//TODO: Make better parameter
+			if(globalCount==1 || globalCount>100) {
+				i+=kmerLength;
+				continue;
+			}
 			List<UngappedSearchHit> kmerHits=fmIndex.exactSearch(kmer);
+			if(idxDebug==queryIdx) System.out.println("GraphBuilderFMIndex. Query: "+queryIdx+" "+queryRC+" Kmer: "+kmer+" kmer count: "+globalCount+" kmer hits: "+kmerHits.size());
 			for(UngappedSearchHit hit:kmerHits) {
-				//if(querySequenceId==52) System.out.println("Kmer start: "+hit.getStart()+" Next alignment: "+aln.getSequenceIndex()+": "+aln.getFirst()+"-"+aln.getLast()+" rc: "+aln.isNegativeStrand());
-				hit.setQueryIdx(start);
+				if(idxDebug==queryIdx) System.out.println("Kmer start: "+i+" Next hit: "+hit.getSequenceIdx()+": "+hit.getStart());
+				hit.setQueryIdx(i);
 				hit.setTotalHitsQuery(kmerHits.size());
+				hit.setSequenceLength(graph.getSequenceLength(hit.getSequenceIdx()));
 				List<UngappedSearchHit> kmerHitsList = kmerHitsMap.computeIfAbsent(hit.getSequenceIdx(), l->new ArrayList<UngappedSearchHit>());
 				kmerHitsList.add(hit);
 			}
+			i+=kmerOffset;
 		}
-		finder.updateGraphWithKmerHitsMap(queryIdx, query, queryRC, kmersMap.size(), kmerHitsMap);
+		finder.updateGraphWithKmerHitsMap(queryIdx, query, queryRC, sequenceKmersMap.size(), kmerHitsMap);
 	}
 }
 class GraphBuilderFMIndexProcessSequenceTask implements Runnable {
