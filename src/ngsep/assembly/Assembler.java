@@ -261,7 +261,7 @@ public class Assembler {
 			graph.save(outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
 		}
-		graph.removeEdgesChimericReads();
+		//graph.removeEdgesChimericReads();
 		graph.filterEdgesAndEmbedded();
 		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		LayoutBuilder pathsFinder;

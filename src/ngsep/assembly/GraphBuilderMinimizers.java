@@ -151,6 +151,11 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if(firstMinIdx==numbers.length-1) {
 			log.warning("Strictly decreasing kmers distribution. This possibly indicates that the sample has a high error rate and then reads should be corrected");
 			return 3*(int)Math.round(distribution.getAverage());
+		} else if (firstMinIdx == 0) {
+			//Low number of kmers observed once. Find alternative minimum
+			int modeDepth = (int) distribution.getLocalMode(4, distribution.getMaxValueDistribution());
+			int altMinValue = (int) distribution.getLocalMinimum(2, Math.max(20, modeDepth));
+			firstMinIdx = altMinValue-1;
 		}
 		int firstMinCount = (int)Math.round(numbers[firstMinIdx]);
 		int modeDepth = (int) distribution.getLocalMode(firstMinIdx+2, distribution.getMaxValueDistribution());

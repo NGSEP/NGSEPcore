@@ -90,8 +90,8 @@ public class MinimizersTable {
 			matrixRowMap.put(minimizer, row);
 			if(row==sequencesByMinimizerTable.length) resizeTable();
 		}
-		
-		if (maxAbundanceMinimizer>0 && sequencesByMinimizerTableColumnLengths[0]<maxAbundanceMinimizer) {
+		int currentCount = sequencesByMinimizerTableColumnLengths[row];
+		if (maxAbundanceMinimizer>0 && currentCount+entries.size()<Short.MAX_VALUE && currentCount < maxAbundanceMinimizer) {
 			if(saveRepeatedMinimizersWithinSequence) {
 				for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
 				totalEntries+=entries.size();

@@ -81,25 +81,34 @@ public class CountsHelper {
 	 * @return CountsHelper object with counts and probabilities to call SNVs
 	 */
 	public static CountsHelper calculateCountsSNV (List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
-		CountsHelper answer = new CountsHelper();
-		if(maxBaseQS>0) answer.setMaxBaseQS(maxBaseQS);
-		answer.heterozygousProportion = heterozygousProportion;
-		for(PileupAlleleCall call:calls ) {
-			byte q = (byte)(Math.min(DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
-			answer.updateCounts(call.getAlleleString().substring(0,1), q, call.isNegativeStrand());
-		}
-		return answer;
+		return calculateCountsGTSNV(DNASequence.BASES_ARRAY, calls, maxBaseQS, heterozygousProportion);
 	}
-	public static CountsHelper calculateCounts(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
+	public static CountsHelper calculateCountsGTSNV(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
 		CountsHelper helper = new CountsHelper(alleles);
 		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
-		helper.heterozygousProportion = heterozygousProportion;
+		helper.setHeterozygousProportion(heterozygousProportion);
 		for(PileupAlleleCall call: calls) {
-			helper.updateCounts(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
+			byte q = (byte)(Math.min(DEF_MAX_BASE_QS, call.getQualityScores().charAt(0)-33));
+			helper.updateCounts(call.getAlleleString().substring(0,1), q, call.isNegativeStrand());
+		}
+		return helper;
+	}
+	public static CountsHelper calculateCountsIndel(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
+		CountsHelper helper = new CountsHelper(alleles);
+		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
+		helper.setHeterozygousProportion(heterozygousProportion);
+		for(PileupAlleleCall call: calls) {
+			helper.updateCountsIndel(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
 		}
 		return helper;
 	}
 	
+	public double getHeterozygousProportion() {
+		return heterozygousProportion;
+	}
+	public void setHeterozygousProportion(double heterozygousProportion) {
+		this.heterozygousProportion = heterozygousProportion;
+	}
 	/**
 	 * @return the verbose
 	 */
@@ -233,7 +242,7 @@ public class CountsHelper {
 		}
 	}
 	
-	public void updateCounts(String call, String qualityScores, boolean negativeStrand) {
+	public void updateCountsIndel(String call, String qualityScores, boolean negativeStrand) {
 		totalCount++;
 		int index = alleles.indexOf(call);
 		int f = (int)Math.round(heterozygousProportion*DEF_NUM_FREQUENCIES);
@@ -356,6 +365,7 @@ public class CountsHelper {
 			indCond++;
 			for(int j=0;j<nAlleles;j++) {
 				if(i!=j) {
+					//double binomial = ExtraMath.binomial(counts[i]+counts[j], counts[i]);
 					eventsArray[indCond] = logConditionalProbs[i][j]+logPriorHetero;
 					indCond++;
 				}

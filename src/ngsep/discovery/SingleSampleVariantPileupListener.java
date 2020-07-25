@@ -270,7 +270,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	}
 	
 	private CalledGenomicVariant discoverIndel(PileupRecord pileup, String [] alleles, List<PileupAlleleCall> calls) {
-		CountsHelper helper = CountsHelper.calculateCounts(alleles, calls, maxBaseQS, 0.5);
+		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5);
 		short ploidy = sample.getNormalPloidy();
 		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return VariantDiscoverySNVQAlgorithm.callIndel(pileup, helper, null, heterozygosityRate, calcStrandBias);
@@ -302,6 +302,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		//Simple method based on relative counts to gather alleles.
 		int [] counts = helper.getCounts();
+		if(pileup.getPosition()==posPrint) System.out.println("Counts: "+counts[0]+" "+counts[1]+" "+counts[2]+" "+counts[3]);
 		int sum = NumberArrays.getSum(counts); 
 		double minCount = Math.max(1, minAlleleDepthFrequency*sum);
 		if(pileup.getPosition()==posPrint) System.out.println("Refidx: "+refIdx+" sum: "+sum);
@@ -371,7 +372,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
-				CountsHelper helperIndel = CountsHelper.calculateCounts(variant.getAlleles(), calls, maxBaseQS, 0.5);
+				CountsHelper helperIndel = CountsHelper.calculateCountsIndel(variant.getAlleles(), calls, maxBaseQS, 0.5);
 				calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
 				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
 			}
@@ -401,7 +402,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		List<CountsHelper> helpers = new ArrayList<CountsHelper>();
 		for(double freq = step;freq<0.51;freq+=step) {
 			freqs.add(freq);
-			helpers.add(CountsHelper.calculateCounts(alleles, calls, maxBaseQS, freq));
+			if(variant.isSNV()) helpers.add(CountsHelper.calculateCountsGTSNV(alleles, calls, maxBaseQS, h));
+			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq));
 		}
 		if(variant.getFirst()==posPrint) System.out.println("Frequencies: "+freqs+" helpers: "+helpers.size());
 		//Select the first to obtain counts and most frequent allele
