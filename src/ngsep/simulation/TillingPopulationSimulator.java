@@ -65,11 +65,11 @@ public class TillingPopulationSimulator {
 	
 	public static final int DEF_MUTATIONS=300;
 	public static final int DEF_INDIVIDUALS=800;
-	public static final int DEF_NUM_FRAGMENTS_POOL=1000;
+	public static final int DEF_NUM_FRAGMENTS_POOL=10;
 	public static final int DEF_READ_LENGTH=200;
 	public static final double DEF_ERROR_RATE=0.01;
 	public static final double DEF_MIN_ERROR_RATE=0.001;
-	public static final int PLAQUE_WIDTH=12;
+	public static final int PLAQUE_WIDTH=8;
 	public static final int PLAQUE_HEIGHT=8;
 	
 	private ReferenceGenome genome;
@@ -425,7 +425,7 @@ public class TillingPopulationSimulator {
 		ArrayList<Double> ceil_error=new ArrayList<Double>();
 		ArrayList<Double> floor_error=new ArrayList<Double>();
 		ArrayList<ArrayList<Double>> errors=new ArrayList<ArrayList<Double>>();
-				
+			
 		for(int j=0; j < DEF_READ_LENGTH; j++) {	
 			ceil_error.add(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001));
 			floor_error.add(Math.max(max_qual-(j)*interval_length,min_qual));
@@ -489,19 +489,20 @@ public class TillingPopulationSimulator {
 			 * Note that the reads begin at the first (forward read) and last (reverse read) position of the sequence.
 			 */
 			int initialPositionForward = 0;
-			int initialPositionReverse = querySeq.length();
 			
 			char[] readForward = querySeq.subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
-			char[] readReverse = querySeq.getReverseComplement().subSequence(initialPositionReverse-DEF_READ_LENGTH, initialPositionReverse).toString().toCharArray();
+			char[] readReverse = querySeq.getReverseComplement().subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
 
 			String qualityForward="";
 			String qualityReverse="";
 			
 			for(int j=0; j < DEF_READ_LENGTH; j++) {	
+
 				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
 				Double error_prob = Math.pow(10.0, phred_score/(-10.0));
 				
 				if(random.nextDouble()<error_prob) {
+					
 					Character mutated = mut_Pos.get(readForward[j]).get(random.nextInt(3));
 					readForward[j]=mutated;
 					/**
@@ -512,23 +513,21 @@ public class TillingPopulationSimulator {
 				char symbol=(char) tt_score;
 				qualityForward+=Character.toString(symbol);
 				
-				int k=DEF_READ_LENGTH-1-j;
-				
 				if(random.nextDouble()<error_prob) {
-					Character mutated = mut_Pos.get(readReverse[k]).get(random.nextInt(3));
-					readReverse[k]=mutated;
+					Character mutated = mut_Pos.get(readReverse[j]).get(random.nextInt(3));
+					readReverse[j]=mutated;
 					/**
 					String mutated = alphabet.replaceAll(Character.toString(readReverse[k]), "");
 					readReverse[k]=mutated.charAt(random.nextInt(3));**/
 				}
 				qualityReverse+=Character.toString(symbol);
 			}
-			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum);
+			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+i);
 			out.println(readForward);
 			out.println("+");
 			out.println(qualityForward);
 			
-			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum);
+			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+i);
 			out_rev.println(readReverse);
 			out_rev.println("+");
 			out_rev.println(qualityReverse);
