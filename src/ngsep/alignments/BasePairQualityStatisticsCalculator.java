@@ -183,6 +183,7 @@ public class BasePairQualityStatisticsCalculator {
 			Iterator<ReadAlignment> it = reader.iterator();
 			while (it.hasNext()) {
 				ReadAlignment aln = it.next();
+				//if(i%100==0)System.out.println("Number of alignments: "+i+ "last: "+aln);
 				CharSequence read = aln.getReadCharacters();
 				boolean reverse = aln.isNegativeStrand();
 				
@@ -228,6 +229,7 @@ public class BasePairQualityStatisticsCalculator {
 				}
 				
 				if (progressNotifier!=null && totalAlignments%10000==0) {
+					log.info("Processed "+totalAlignments+" alignments");
 					int progrees = (int) (totalAlignments/10000);
 					if (!progressNotifier.keepRunning(progrees)) break;
 				}
