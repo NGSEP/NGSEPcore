@@ -9,7 +9,6 @@ import java.util.Set;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.QualifiedSequence;
 
 public class KmerHitsAssemblyEdgesFinder {
 
@@ -135,39 +134,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		} else if (endSubject<=subjectLength) {
 			addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, cluster);
 		} else {
-			QualifiedSequence querySeq = graph.getSequence(querySequenceId);
-			QualifiedSequence subjectSeq = graph.getSequence(subjectSeqIdx);
-			System.out.println("Found sequences with unclear relationship. Query: "+querySeq.getName()+" length: "+query.length()+" rc: "+queryRC+" with "+subjectSeq.getName()+" length "+subjectLength);
-			/*ReadAlignment aln = aligner.alignRead(subjectSeqIdx, subjectSeq.getCharacters(), query, 0, subjectLength, 0.5);
-			if(aln!=null) {
-				int firstQueryMatch = 0;
-				int newStart = subjectLength;
-				int newEnd = -1;
-				for(int i=0;i<queryLength;i++) {
-					int subjectPos = aln.getReferencePositionAlignedRead(i);
-					if(subjectPos>0) {
-						firstQueryMatch = i;
-						newStart = subjectPos-1-i;
-						break;
-					}
-				}
-				for(int i=queryLength-1;i>firstQueryMatch;i--) {
-					int subjectPos = aln.getReferencePositionAlignedRead(i);
-					if(subjectPos>0) {
-						newEnd= subjectPos-1+(queryLength-i);
-						break;
-					}
-				}
-				if(newStart==subjectLength || newEnd==-1) return;
-				cluster.setSubjectPredictedLimits(newStart, newEnd);
-				if(newStart>=0 && newEnd<=subjectLength) {
-					addEmbedded(querySequenceId, query, queryRC, cluster);
-				} else if (newStart>=0) {
-					addQueryAfterSubjectEdge(querySequenceId, query, queryRC, cluster);
-				} else if (newEnd<=subjectLength) {
-					addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, cluster);
-				}
-			}*/
+			// Similar sequences. Add possible embedded
+			addEmbedded(querySequenceId, query, queryRC, cluster);
 		}
 	}
 	private void addEmbedded(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {

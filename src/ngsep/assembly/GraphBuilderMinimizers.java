@@ -73,10 +73,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		extractor.setOnlyDNA(true);
 		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+		int totalLength =  0;
 		int finishTime = sequences.size();
 		ThreadPoolExecutor poolKmers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			QualifiedSequence seq = sequences.get(seqId);
+			totalLength+=seq.getLength();
 			if(numThreads==1) {
 				extractor.countSequenceKmers(seq);
 				if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
@@ -87,13 +89,23 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		waitToFinish(finishTime, poolKmers);
 		KmersMap map = extractor.getKmersMap();
-		int modeDepth = analyzeDistribution(map.calculateAbundancesDistribution());
-		int minimizersMeanDepth = Math.max(15,modeDepth/2+1);
+		double [] stats = analyzeDistribution(map.calculateAbundancesDistribution());
+		double average = stats[0];
+		int modeDepth = (int)stats[1];
+		
+		int lengthLimit = totalLength;
+		if(modeDepth>50) {
+			//High depth sample. Use only the longest reads to build graph
+			lengthLimit = 50*lengthLimit/modeDepth;
+			System.out.println("Downsampling for minimizers table. Total length: "+totalLength+" limit length: "+lengthLimit);
+		}
+		int minimizersMeanDepth = (int)Math.max(15,(average+modeDepth)/4+1);
 		int maxAbundance = minimizersMeanDepth*3;
 		MinimizersTable table = new MinimizersTable(map, kmerLength, windowLength);
 		table.setLog(log);
 		log.info("Building minimizers. Max saved abundance: "+maxAbundance);
 		table.setMaxAbundanceMinimizer(maxAbundance);
+		int processedLength = 0;
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
@@ -104,6 +116,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				Runnable task = new CreateMinimizersTask(table, seqId, seq);
 				poolMinimizers.execute(task);
 			}
+			processedLength+=seq.length();
+			if(processedLength>lengthLimit) break;
 		}
 		waitToFinish(finishTime, poolMinimizers);
 		log.info("Built minimizers.");
@@ -143,14 +157,16 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 		}
 	}
-	private int analyzeDistribution (Distribution distribution) {
+	private double [] analyzeDistribution (Distribution distribution) {
 		double [] numbers = distribution.getDistribution();
 		//Find first minimum
 		int firstMinIdx = 0;
 		while(firstMinIdx<numbers.length-1 && numbers[firstMinIdx]>numbers[firstMinIdx+1]) firstMinIdx++;
 		if(firstMinIdx==numbers.length-1) {
 			log.warning("Strictly decreasing kmers distribution. This possibly indicates that the sample has a high error rate and then reads should be corrected");
-			return 3*(int)Math.round(distribution.getAverage());
+			double expectedMode = 3*distribution.getAverage();
+			double [] answer = {expectedMode,expectedMode}; 
+			return answer;
 		} else if (firstMinIdx == 0) {
 			//Low number of kmers observed once. Find alternative minimum
 			int modeDepth = (int) distribution.getLocalMode(4, distribution.getMaxValueDistribution());
@@ -158,8 +174,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			firstMinIdx = altMinValue-1;
 		}
 		int firstMinCount = (int)Math.round(numbers[firstMinIdx]);
-		int modeDepth = (int) distribution.getLocalMode(firstMinIdx+2, distribution.getMaxValueDistribution());
-		double modeCount = (int)Math.round(numbers[modeDepth-1]);
+		int modeDepth = (int)distribution.getLocalMode(firstMinIdx+2, distribution.getMaxValueDistribution());
+		double modeCount = Math.round(numbers[modeDepth-1]);
 		//Calculate average removing the first part of the distribution
 		double average = 0;
 		double count = 0;
@@ -173,7 +189,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		System.out.println("First minimum: "+(firstMinIdx+1)+" value: "+firstMinCount);
 		System.out.println("Local mode: "+modeDepth+" value: "+modeCount);
 		System.out.println("Average removing segment until first local minimum: "+average);
-		return (int)(average+modeDepth)/2;
+		double [] answer = {average,modeDepth};
+		return answer;
 	}
 	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
