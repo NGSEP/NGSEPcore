@@ -73,7 +73,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		extractor.setOnlyDNA(true);
 		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
-		int totalLength =  0;
+		long totalLength =  0;
 		int finishTime = sequences.size();
 		ThreadPoolExecutor poolKmers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -93,7 +93,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		double average = stats[0];
 		int modeDepth = (int)stats[1];
 		
-		int lengthLimit = totalLength;
+		long lengthLimit = totalLength;
 		if(modeDepth>50) {
 			//High depth sample. Use only the longest reads to build graph
 			lengthLimit = 50*lengthLimit/modeDepth;
@@ -105,7 +105,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		table.setLog(log);
 		log.info("Building minimizers. Max saved abundance: "+maxAbundance);
 		table.setMaxAbundanceMinimizer(maxAbundance);
-		int processedLength = 0;
+		long processedLength = 0;
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
