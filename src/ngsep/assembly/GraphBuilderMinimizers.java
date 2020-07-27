@@ -132,7 +132,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
 		edgesFinder.setMeanDepth(minimizersMeanDepth);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		
+		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			if(numThreads==1) {
@@ -142,6 +142,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
 				poolSearch.execute(task);
 			}
+			//TODO: Map remaining sequences as embedded for consensus polishing
+			processedLength+=seq.length();
+			if(processedLength>lengthLimit) break;
 		}
 		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());

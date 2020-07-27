@@ -30,9 +30,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Iterator;
-import java.util.PriorityQueue;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -72,6 +70,7 @@ public class ReadsFileErrorsCorrector {
 	
 	// Model attributes
 	private KmersMap kmersMap;
+	private DeBruijnGraphExplorationMiniAssembler assembler;
 	private int correctedErrors = 0;
 	
 	// Get and set methods
@@ -194,6 +193,7 @@ public class ReadsFileErrorsCorrector {
 		log.info("Distribution mode: "+mode);
 		kmersMap.filterKmers(minKmerCount);
 		log.info("The Map now has "+kmersMap.size()+" k-mers");
+		assembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap,minKmerCount);
 		System.out.println("Processing file: "+inFilename);
 		int numReads=0;
 		long numBp = 0;
@@ -297,55 +297,57 @@ public class ReadsFileErrorsCorrector {
 		boolean corrected = false;
 		int lastRepresented= -1;
 		for(int i=0;i<readKmers.length;i++) {
-			if(readKmerCounts[i] >= minKmerCount) {
-				if(i-1!=lastRepresented) {
-					//TODO: Try to correct sequence starts
-					int regionLength = i-lastRepresented-1;
-					//if(lastRepresented>=0) System.out.println("Trying to correct from "+lastRepresented+" to "+i+" Length: "+regionLength+" last kmer: "+readKmers[lastRepresented]+" count: "+readKmerCounts[lastRepresented]+" next kmer: "+readKmers[i]+" count: "+readKmerCounts[i]);
-					
-					String correctedSegment = null;
-					if(lastRepresented>=0) correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), i, readKmers[i].toString());
-					//System.out.println("Corrected segment "+correctedSegment);
-					if(correctedSegment!=null ) {
-						int segmentLength = correctedSegment.length();
-						//System.out.println("Corrected segment length "+segmentLength);
+			if(readKmerCounts[i] < minKmerCount) continue;
+			String nextKmer = readKmers[i].toString();
+			//TODO: Try to correct sequence starts
+			if(lastRepresented>=0 && lastRepresented+kmerLength<i) {
+				int regionLength = i-lastRepresented-kmerLength;
+				//if(lastRepresented>=0) System.out.println("Trying to correct from "+lastRepresented+" to "+i+" Length: "+regionLength+" last kmer: "+readKmers[lastRepresented]+" count: "+readKmerCounts[lastRepresented]+" next kmer: "+readKmers[i]+" count: "+readKmerCounts[i]);
+				
+				String correctedSegment = null;
+				int expectedAssemblyLength = i-lastRepresented+kmerLength;
+				if(lastRepresented>=0 && expectedAssemblyLength<=4*kmerLength) {
+					String assembly = assembler.assemble(readKmers[lastRepresented].toString(), nextKmer, 2*kmerLength+1, expectedAssemblyLength, expectedAssemblyLength+5);
+					if(assembly!=null && assembly.length()>2*kmerLength) correctedSegment = assembly.substring(kmerLength,assembly.length()-kmerLength);
+				}
+				//System.out.println("Corrected segment "+correctedSegment);
+				if(correctedSegment!=null ) {
+					int segmentLength = correctedSegment.length();
+					//System.out.println("Corrected segment length "+segmentLength);
+					if(segmentLength!=regionLength || !correctedSegment.equals(readStr.substring(lastRepresented+kmerLength, i))) {
+						correctedErrors++;
 						corrected = true;
-						correctedRead.append(correctedSegment);
-						if(segmentLength>=regionLength) {
-							correctedQualities.append(rq.substring(lastRepresented+1,i));
-							if (segmentLength>regionLength) correctedQualities.append(RawRead.generateFixedQSString('+', segmentLength-regionLength));
-						} else {
-							int endCorrected = lastRepresented+1+segmentLength;
-							correctedQualities.append(rq.substring(lastRepresented+1,endCorrected));
-						}
 					}
-					else {
-						correctedRead.append(readStr.substring(lastRepresented+1,i));
+					correctedRead.append(correctedSegment);
+					if(segmentLength==regionLength) {
 						correctedQualities.append(rq.substring(lastRepresented+1,i));
-						
+					} else {
+						// If length changes, it can not tell if the quality scores will be consistent after the adjustment
+						correctedQualities.append(RawRead.generateFixedQSString('+', segmentLength));
 					}
 				}
-				correctedRead.append(readStr.charAt(i));
-				correctedQualities.append(rq.charAt(i));
-				lastRepresented = i;
 			}
+			correctedRead.append(nextKmer);
+			correctedQualities.append(rq.substring(i, i+kmerLength));
+			lastRepresented = i;
+			i+=kmerLength-1;
 		}
-		if(lastRepresented==-1 || lastRepresented==readKmerCounts.length-1) {
-			correctedRead.append(readStr.substring(lastRepresented+1));
-			correctedQualities.append(rq.substring(lastRepresented+1));
-		}
-		else {
-			String correctedSegment = buildCorrectedSegment(lastRepresented, readKmers[lastRepresented].toString(), readStr.length(), null);
-			if(correctedSegment!=null && correctedSegment.length()>=kmerLength-1 ) {
+		if(lastRepresented==-1) {
+			correctedRead.append(readStr);
+			correctedQualities.append(rq);
+		} else if (lastRepresented+kmerLength<readStr.length()) {
+			int expectedAssemblyLength = readStr.length()-lastRepresented;
+			String assembly = assembler.assemble(readKmers[lastRepresented].toString(), null, kmerLength+1, expectedAssemblyLength, expectedAssemblyLength);
+			if(assembly!=null && assembly.length()>kmerLength ) {
 				corrected = true;
-				correctedRead.append(correctedSegment);
-				correctedQualities.append(rq.substring(lastRepresented+1,lastRepresented+kmerLength));
-				correctedQualities.append(RawRead.generateFixedQSString('+', correctedSegment.length()-(kmerLength-1)));
-				
+				correctedErrors++;
+				String correctedRegion = assembly.substring(kmerLength); 
+				correctedRead.append(correctedRegion);
+				correctedQualities.append(RawRead.generateFixedQSString('+', correctedRegion.length()));
 			}
 			else {
-				correctedRead.append(readStr.substring(lastRepresented+1));
-				correctedQualities.append(rq.substring(lastRepresented+1));
+				correctedRead.append(readStr.substring(lastRepresented+kmerLength));
+				correctedQualities.append(rq.substring(lastRepresented+kmerLength));
 			}
 		}
 		if(corrected) {
@@ -353,59 +355,6 @@ public class ReadsFileErrorsCorrector {
 			read.setQualityScores(correctedQualities.toString());
 		}
 		
-	}
-
-	private String buildCorrectedSegment(int sourceKmerIdx, String sourceKmer, int destKmerIdx, String destKmer) {
-		int kmerLength = sourceKmer.length();
-		if(destKmerIdx-sourceKmerIdx<kmerLength) return null;
-		int expectedAssemblyLength = destKmerIdx-sourceKmerIdx;
-		if(destKmer!=null) expectedAssemblyLength+=destKmer.length();
-		if(expectedAssemblyLength>4*kmerLength) return null;
-		//Stack<String> agenda = new Stack<>();
-		PriorityQueue<String> agenda = new PriorityQueue<String>(new Comparator<String>() {
-			@Override
-			public int compare(String state1, String state2) {
-				int score1 = getScore (state1, destKmer);
-				int score2 = getScore (state2, destKmer);
-				return score2-score1;
-			}	
-		});
-		
-		agenda.add(sourceKmer);
-		for (int candidates = 0;agenda.size()>0 && candidates < 5000;candidates++) {
-			String nextState = agenda.remove();
-			//if(sourceKmerIdx==2528) System.out.println("Next state: "+nextState+" length: "+nextState.length()+" score: "+getScore(nextState, destKmer)+" agenda size: "+agenda.size());
-			//Satisfability
-			if((destKmer==null && nextState.length()==expectedAssemblyLength)) {
-				correctedErrors++;
-				return nextState.substring(1);
-			}
-			if(destKmer!=null && nextState.length()>destKmer.length()+2 && nextState.endsWith(destKmer)) {
-				correctedErrors++;
-				return nextState.substring(1, nextState.length()-destKmer.length());
-			}
-			//Viability
-			if(nextState.length()>expectedAssemblyLength+5) continue;
-			//Next states
-			String kMinus1Mer = nextState.substring(nextState.length()-kmerLength+1);
-			String dna = DNASequence.BASES_STRING;
-			for(int i=0;i<dna.length();i++) {
-				char bp = dna.charAt(i);
-				String nextKmer = kMinus1Mer+bp;
-				if(kmersMap.getCount(nextKmer)>=minKmerCount) {
-					agenda.add(nextState+bp); 
-				}
-			}
-		}
-		return null;
-	}
-	
-	private static int getScore(String state, String destKmer) {
-		if(destKmer==null) return 0;
-		for(int i=destKmer.length();i>0;i--) {
-			if(state.endsWith(destKmer.substring(0,i))) return i;
-		}
-		return 0;
 	}
 
 	public void processReadBestSNPChange(RawRead read) {

@@ -45,10 +45,13 @@ import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.math.CountsRankHelper;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.DNASequence;
+import ngsep.sequences.DeBruijnGraphExplorationMiniAssembler;
+import ngsep.sequences.DefaultKmersMapImpl;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
@@ -320,9 +323,11 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln);
 			if(localConsensus!=null && !localConsensus.equals(currentConsensus)) {
 				CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus);
-				System.out.println("Next call: "+sequenceName+" "+call.getFirst()+" "+call.getLast()+" length: "+call.length());
-				System.out.println(currentConsensus);
-				System.out.println(localConsensus);
+				if(Math.abs(currentConsensus.length()-localConsensus.length())>=5) {
+					System.out.println("Next call: "+sequenceName+" "+call.getFirst()+" "+call.getLast()+" length: "+call.length());
+					System.out.println(currentConsensus);
+					System.out.println(localConsensus);
+				}
 				answer.add(call);
 			}
 		}
@@ -370,7 +375,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			lengthCalls.add(callStr);
 			allCalls.add(callStr);
 		}
-		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Alignments: "+count);
+		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Alignments: "+count);
 		if(count<5) return null;
 		List<String> maxLength = null;
 		for(List<String> nextList:alleleCallsByLength.values()) {
@@ -378,71 +383,53 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				maxLength = nextList;
 			}
 		}
-		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength);
 		if(maxLength==null) return null;
 		//Double check that the majority length actually has at least half of the total reads
 		if(count <10 && maxLength.size()<0.8*count) return null;
 		if(2*maxLength.size()<count) {
-			if(last-first+1>=8) return makeDeBruijnConsensus(last-first+1, allCalls);
+			if(last-first+1>=8) {
+				boolean debug = first ==10040 || first == 11834; 
+				if(debug) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
+				String assembly = makeDeBruijnConsensus(last-first+1, allCalls);
+				return assembly;
+			}
 			return null;
 		}
 		String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(maxLength);
-		if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength+" consensus "+consensus);
+		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength+" consensus "+consensus);
 		return consensus;
 	}
 
 	private String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
-		Map<String,Integer> kmerCounts = new HashMap<String, Integer>();
-		int kmerLength = Math.max(4, currentLength/5);
+		KmersMap kmersMap = new DefaultKmersMapImpl();
+		CountsRankHelper<String> firstKmerCounts = new CountsRankHelper<String>();
+		CountsRankHelper<String> lastKmerCounts = new CountsRankHelper<String>();
+		int kmerLength = Math.max(6, currentLength/4);
 		kmerLength = Math.min(kmerLength, 15);
+		int minCallLength = allCalls.get(0).length();
+		int maxCallLength = 0;
+		List<Integer> lengths = new ArrayList<Integer>(allCalls.size());
 		for(String call:allCalls) {
-			for(int i=0;i<=call.length()-kmerLength;i++) {
+			minCallLength = Math.min(minCallLength, call.length());
+			maxCallLength = Math.max(maxCallLength, call.length());
+			lengths.add(call.length());
+			int last = call.length()-kmerLength;
+			for(int i=0;i<=last;i++) {
 				String kmer = call.substring(i,i+kmerLength);
-				kmerCounts.compute(kmer, (k,v)->(v==null)?1:v+1);
+				kmersMap.addOcurrance(kmer);
+				if(i==0) firstKmerCounts.add(kmer);
+				else if (i==last) lastKmerCounts.add(kmer);
 			}
 		}
-		String bestKmerStart = null;
-		int bksCount = 0;
-		String bestKmerEnd = null;
-		int bkeCount = 0;
-		for(String call:allCalls) {
-			if(call.length()<kmerLength) continue;
-			String kmerS = call.substring(0,kmerLength);
-			int kmsCount = kmerCounts.get(kmerS);
-			if(bestKmerStart==null || bksCount<kmsCount) {
-				bestKmerStart = kmerS;
-				bksCount = kmsCount;
-			}
-			String kmerE = call.substring(call.length()-kmerLength);
-			int kmeCount = kmerCounts.get(kmerE);
-			if(bestKmerEnd==null || bkeCount<kmeCount) {
-				bestKmerEnd = kmerE;
-				bkeCount = kmeCount;
-			}
-		}
-		StringBuilder consensus = new StringBuilder();
-		consensus.append(bestKmerStart);
-		String lastKmer = bestKmerStart;
-		while(consensus.length()<2*currentLength) {
-			String maxNextBp = null;
-			String maxKmer = null;
-			int maxCount = 0;
-			for(String c : DNASequence.BASES_ARRAY) {
-				String nextKmer = lastKmer.substring(1)+c;
-				Integer count = kmerCounts.get(nextKmer);
-				if(count==null) continue;
-				if(maxCount<count) {
-					maxCount = count;
-					maxNextBp = c;
-					maxKmer = nextKmer;
-				}
-			}
-			if(maxKmer==null ) break;
-			consensus.append(maxNextBp);
-			lastKmer = maxKmer;
-			if(maxKmer.equals(bestKmerEnd)) break;
-		}
-		return consensus.toString();
+		Collections.sort(lengths);
+		int medianCallLength = lengths.get(allCalls.size()/2);
+		String bestKmerStart = firstKmerCounts.selectBest(1).keySet().iterator().next();
+		String bestKmerEnd = lastKmerCounts.selectBest(1).keySet().iterator().next();
+		System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
+		DeBruijnGraphExplorationMiniAssembler miniAssembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap, allCalls.size()/3);
+		String assembly = miniAssembler.assemble(bestKmerStart, bestKmerEnd, medianCallLength-1, medianCallLength, maxCallLength);
+		System.out.println("Assembly: "+assembly);
+		return assembly;
 	}
 
 	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus) {
