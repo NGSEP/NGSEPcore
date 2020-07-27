@@ -32,6 +32,7 @@ public class DNASequence extends AbstractLimitedSequence{
 	private static final long serialVersionUID = 1L;
 	public static final String [] BASES_ARRAY = {"A","C","G","T"};
 	public static final String BASES_STRING = "ACGT";
+	public static final DNASequence EMPTY_DNA_SEQUENCE = new DNASequence();
 	
 	/**
 	 * Creates a new DNA sequence with the given bases

@@ -39,8 +39,6 @@ import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.IndelRealignerPileupListener;
-import ngsep.discovery.PileupListener;
-import ngsep.discovery.PileupRecord;
 import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
@@ -50,6 +48,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
+import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
@@ -200,8 +199,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
 				//int startSuffix = edge.getOverlap();
-				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
-				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
+				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
 				int startSuffix;
 				if(alnRead!=null) {
 					alnRead.setSequenceName(sequenceName);
@@ -235,9 +234,9 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				CharSequence seq = read.getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
-				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(rawConsensus,Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {
 					alnRead.setSequenceName(sequenceName);
 					alnRead.setReadName(read.getName());
@@ -259,7 +258,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
 					totalReads++;
-					ReadAlignment alnEmbedded = aligner.alignRead(sequenceIdx, rawConsensus, embeddedSeq, uniqueKmersSubject, 0.5);
+					ReadAlignment alnEmbedded = ConsensusBuilderBidirectionalSimple.alignRead(aligner,sequenceIdx, rawConsensus, embeddedSeq, uniqueKmersSubject, 0.5);
 					if(alnEmbedded!=null) {
 						alnEmbedded.setSequenceName(sequenceName);
 						alnEmbedded.setReadName(embeddedRead.getName());

@@ -27,10 +27,13 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -308,7 +311,7 @@ public class KmersExtractor {
 			return;
 		}
 		if(onlyDNA && !ignoreLowComplexity && kmerLength<=15) {
-			//Presumably faster alternative
+			//Faster alternative
 			Map<Integer,Long> codes = extractDNAKmerCodes(seq, kmerLength, 0, seq.length());
 			for(long code:codes.values()) {
 				ShortArrayDNAKmersMapImpl skmersMap = (ShortArrayDNAKmersMapImpl) kmersMap;
@@ -371,14 +374,22 @@ public class KmersExtractor {
 
 		return kmersMap;
 	}
-	private static int validateLimits(String source, int start, int end) {
+	private static int validateLimits(CharSequence source, int start, int end) {
 		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
 		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
 		int n = source.length();
 		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
 		return n;
 	}
-	public static Map<Integer,Long> extractDNAKmerCodes (String source, int kmerLength, int start, int end) {
+	/**
+	 * Extracts the codes representing DNA kmers from the given sequence
+	 * @param source Sequence to extract kmers. Usually a String but it works with StringBuilder or other types of sequences
+	 * @param kmerLength must be at most 31 to allow unique encoding of DNA kmers
+	 * @param start of the source sequence
+	 * @param end of the source sequence
+	 * @return Map<Integer,Long> with kmer codes indexed by start position
+	 */
+	public static Map<Integer,Long> extractDNAKmerCodes (CharSequence source, int kmerLength, int start, int end) {
 		validateLimits(source, start, end);
 		if(kmerLength>31) throw new IllegalArgumentException("This method only works with kmer lengths up to 31");
 		int n = source.length();
@@ -389,7 +400,7 @@ public class KmersExtractor {
 		for(int i = start; i <=lastKmerStart; i++) {
 			long code;
 			if(lastCode==-1) {
-				String kmer = source.substring(i, i+kmerLength);
+				CharSequence kmer = source.subSequence(i, i+kmerLength);
 				if (!DNASequence.isDNA(kmer)) continue;
 				code = AbstractLimitedSequence.getHash(kmer, 0, kmerLength, EMPTYDNASEQ);
 			} else {
@@ -406,6 +417,32 @@ public class KmersExtractor {
 			lastCode = code;
 		}
 		return kmerCodesMap;
+	}
+	public static Map<Long, Integer> extractLocallyUniqueKmerCodes(CharSequence sequence, int start, int end) {
+		Map<Integer,Long> rawCodes = KmersExtractor.extractDNAKmerCodes(sequence, 15, start, end);
+		Map<Long, Integer> answer = new LinkedHashMap<Long, Integer>();
+		Map<Long, Integer> reverseMap = new HashMap<Long,Integer>();
+		Set<Integer> multiple = new HashSet<>();
+		for(int i=start;i<end;i++) {
+			Long code = rawCodes.get(i);
+			if(code == null) {
+				multiple.add(i);
+				continue;
+			}
+			Integer previousStart = reverseMap.get(code);
+			if(previousStart!=null) {
+				multiple.add(i);
+				continue;
+			}
+			reverseMap.put(code,i);
+		}
+		for(int i=start;i<end;i++) {
+			Long code = rawCodes.get(i);
+			if(code!=null && !multiple.contains(i)) {
+				answer.put(code,i);
+			}
+		}
+		return answer;
 	}
 	/**
 	 * Extracts the k-mers present in the given sequence

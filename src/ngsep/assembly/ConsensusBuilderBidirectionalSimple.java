@@ -1,13 +1,20 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
+import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.UngappedSearchHit;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	int tolerance;
@@ -36,7 +43,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		StringBuilder consensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-		
 		String pathS = "";
 		if(path.size()==1) {
 			consensus.append(path.get(0).getVertex1().getRead());
@@ -76,9 +82,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
-				//int startSuffix = edge.getOverlap();
-				Map<CharSequence, Integer> uniqueKmersSubject = aligner.extractUniqueKmers(consensus,Math.max(0, consensus.length()-nextPathSequence.length()),consensus.length());
-				ReadAlignment alnRead = aligner.alignRead(sequenceIdx, consensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = alignRead(aligner, sequenceIdx, consensus, nextPathSequence.toString(), Math.max(0, consensus.length()-nextPathSequence.length()),consensus.length(), 0.5);
 				int startSuffix;
 				if(alnRead!=null) {
 					alnRead.setSequenceName(sequenceName);
@@ -110,5 +114,46 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		}
 		System.out.println(pathS);
 		return consensus;
+	}
+
+	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end, double minQueryCoverage) {
+		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject,start,end);
+		//System.out.println("Number of unique k-mers subject: "+uniqueKmersSubject.size());
+		return alignRead(aligner, subjectIdx, subject, read, uniqueCodesSubject, minQueryCoverage);
+	}
+	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Long, Integer> uniqueCodesSubject, double minQueryCoverage) {
+		Map<Long, Integer> uniqueCodesRead = KmersExtractor.extractLocallyUniqueKmerCodes(read,0,read.length());
+		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
+		List<UngappedSearchHit> initialKmerHits = alignUniqueKmerCodes(-1,subject.length(),uniqueCodesSubject, uniqueCodesRead);
+		if(initialKmerHits.size()==0) return null;
+		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read, initialKmerHits, minQueryCoverage);
+		//printClusters(clusters);
+		if(clusters.size()>1) {
+			Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
+			KmerHitsCluster c1 = clusters.get(0);
+			KmerHitsCluster c2 = clusters.get(1);
+			int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(c1.getSubjectPredictedStart(), c1.getSubjectPredictedEnd(), c2.getSubjectPredictedStart(), c2.getSubjectPredictedEnd());
+			int c1Length = c1.getSubjectPredictedEnd()-c1.getSubjectPredictedStart();
+			int c2Length = c2.getSubjectPredictedEnd()-c2.getSubjectPredictedStart();
+			if((overlap <0.9*c1Length || overlap < 0.9*c2Length) && c1.getNumDifferentKmers()<0.9*initialKmerHits.size()) {
+				return null;
+			}	
+		} else if (clusters.size()==0) return null;
+		KmerHitsCluster bestCluster = clusters.get(0);
+		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
+		return aligner.buildCompleteAlignment(subjectIdx, subject, read, bestCluster);
+	}
+	private static List<UngappedSearchHit> alignUniqueKmerCodes(int subjectIdx, int subjectLength, Map<Long, Integer> uniqueCodesSubject, Map<Long, Integer> uniqueCodesQuery) {
+		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();
+		for(Long codeRead:uniqueCodesQuery.keySet()) {
+			Integer subjectPos = uniqueCodesSubject.get(codeRead);
+			if(subjectPos==null) continue;
+			CharSequence kmerRead = new String(AbstractLimitedSequence.getSequence(codeRead, 15, DNASequence.EMPTY_DNA_SEQUENCE));
+			UngappedSearchHit hit = new UngappedSearchHit(kmerRead, subjectIdx , subjectPos);
+			hit.setSequenceLength(subjectLength);
+			hit.setQueryIdx(uniqueCodesQuery.get(codeRead));
+			initialKmerHits.add(hit);
+		}
+		return initialKmerHits;
 	}
 }

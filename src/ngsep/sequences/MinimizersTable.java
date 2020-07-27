@@ -308,7 +308,7 @@ public class MinimizersTable {
 				//Kmers that are not a minimizers are not considered
 				continue;
 			}
-			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, new DNASequence()));
+			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
 			long [] codesMatching = lookupHits(minimizer);
 			for(long entryCode:codesMatching) {
 				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);

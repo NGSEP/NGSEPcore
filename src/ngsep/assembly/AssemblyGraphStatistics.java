@@ -276,7 +276,7 @@ public class AssemblyGraphStatistics {
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
-			graph.removeEdgesChimericReads();
+			//graph.removeEdgesChimericReads();
 			graph.filterEdgesAndEmbedded();
 			log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			
