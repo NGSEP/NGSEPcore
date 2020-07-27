@@ -348,6 +348,22 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		return answer;
 	}
 	
+	public static long getNextHash(long hash, int length, char nextCharacter, AbstractLimitedSequence targetSeq) {
+		int index = targetSeq.getAlphabetIndex(nextCharacter);
+		if(index <0) {
+			index = targetSeq.getDefaultIndex();
+		}
+		if(index <0) {
+			throw new IllegalArgumentException("Character "+nextCharacter+" not supported by sequence of type "+targetSeq.getClass().getName());
+		}
+		int alpSize = targetSeq.getAlphabetSize();
+		long powerFirstChar = (long)Math.round(Math.pow(alpSize, length-1));
+		long answer = hash%powerFirstChar;
+		answer*=alpSize;
+		answer+=index;
+		return answer;
+	}
+	
 	/**
 	 * Returns the length of the maximum overlap between a suffix of sequence 1 and a prefix of sequence 2
 	 * @param sequence1 Sequence to evaluate suffixes

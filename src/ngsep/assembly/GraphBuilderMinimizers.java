@@ -73,6 +73,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		extractor.setOnlyDNA(true);
 		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+		extractor.initializeMap();
 		long totalLength =  0;
 		int finishTime = sequences.size();
 		ThreadPoolExecutor poolKmers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());

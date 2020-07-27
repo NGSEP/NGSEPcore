@@ -168,11 +168,11 @@ public class MinimizersTable {
 	 */
 	public void addSequence (int sequenceId, CharSequence sequence) {
 		int n = sequence.length();
-		
+		String sequenceStr = sequence.toString();
 		int step = 10000000;
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
-			List<MinimizersTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequence, start, Math.min(n, start+step));
+			List<MinimizersTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequenceStr, start, Math.min(n, start+step));
 			for(MinimizersTableEntry entry:minEntriesList) {
 				List<MinimizersTableEntry> minList = minimizersSeq.computeIfAbsent(entry.getMinimizer(), l->new ArrayList<MinimizersTableEntry>());
 				minList.add(entry);
@@ -205,9 +205,10 @@ public class MinimizersTable {
 	 * @param sequence characters of the sequence to calculate
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
-	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, CharSequence sequence,int start,int end) {
-		Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
-		return computeSequenceMinimizers(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), kmers);
+	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, String sequence,int start,int end) {
+		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
+		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
+		return computeSequenceMinimizers(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), codes);
 	}
 	/**
 	 * Calculates the minimizers of the sequence represented by the given kmers
@@ -217,18 +218,17 @@ public class MinimizersTable {
 	 * @param sequenceKmers Kmers considered to build minimizers
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
-	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, String> sequenceKmers) {
+	private List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
 		List<MinimizersTableEntry> minimizersSeq = new ArrayList<MinimizersTableEntry>();
 		Map<Integer, Integer> hashcodesForward = new HashMap<Integer, Integer>();
-		for(int i: sequenceKmers.keySet()) {
-			String kmer = sequenceKmers.get(i);
-			if(kmer == null) continue;
-			if(kmersMap!=null) {
-				int count = kmersMap.getCount(kmer);
+		for(int i: kmerCodes.keySet()) {
+			long code = kmerCodes.get(i);
+			if(kmersMap!=null && kmersMap instanceof ShortArrayDNAKmersMapImpl) {
+				int count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(code);
 				if(!keepSingletons && count == 1) continue;
 				if(count>maxAbundanceMinimizer) continue;
 			}
-			hashcodesForward.put(i, getHash(kmer));
+			hashcodesForward.put(i, getHash(code));
 		}
 		Integer previousMinimizer = null;
 		int previousMinimizerPos = -1;
@@ -264,10 +264,18 @@ public class MinimizersTable {
 		return minimizersSeq;
 	}
 
-	private int getHash(String kmer) {
-		long dnaHash = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(),EMPTYDNASEQ); 
-		if(kmersMap==null) return (int) (dnaHash %100000000);
-		int count = kmersMap.getCount(kmer);
+	private int getHash(long dnaHash) { 
+		if(kmersMap==null) {
+			if(dnaHash<=Integer.MAX_VALUE) return (int)dnaHash;
+			return (int) dnaHash %100000000;
+		}
+		int count;
+		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
+			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash);
+		} else {
+			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, EMPTYDNASEQ));
+			count = kmersMap.getCount(kmer);
+		}
 		long hash = count << 24;
 		hash+= (dnaHash & 0xFFFFFFF);
 		if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
@@ -281,8 +289,9 @@ public class MinimizersTable {
 	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (CharSequence query) {
-		Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, 0, query.length(), false, true, true);
-		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, query.length(), kmers);
+		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, 0, query.length(), false, true, true);
+		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
+		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, query.length(), codes);
 		//if (querySequenceId == idxDebug) log.info("Minimizers table. Counting hits for query: "+querySequenceId+" "+queryRC+" queryCount: "+queryCount+" min count: "+minCount);
 		Map<Integer,List<MinimizersTableEntry>> minimizersQuery = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
@@ -294,11 +303,12 @@ public class MinimizersTable {
 			List<MinimizersTableEntry> queryHits = minimizersQuery.get(minimizer);
 			if (queryHits == null || queryHits.size() != 1) continue;
 			MinimizersTableEntry queryEntry = queryHits.get(0);
-			CharSequence kmer = kmers.get(queryEntry.getStart());
-			if(kmer == null) {
-				//Neighbor kmers normally share minimizers
+			Long kmerCode = codes.get(queryEntry.getStart());
+			if(kmerCode == null) {
+				//Kmers that are not a minimizers are not considered
 				continue;
 			}
+			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, new DNASequence()));
 			long [] codesMatching = lookupHits(minimizer);
 			for(long entryCode:codesMatching) {
 				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);

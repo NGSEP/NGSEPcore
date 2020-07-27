@@ -112,8 +112,6 @@ public class ReadsFileErrorsCorrector {
 	}
 	public void setKmerLength(int kmerLength) {
 		this.kmerLength = kmerLength;
-		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
-		else kmersMap = new DefaultKmersMapImpl();
 	}
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
@@ -244,7 +242,7 @@ public class ReadsFileErrorsCorrector {
 
 	private void loadKmersMap() throws IOException {
 		log.info("Loading k-mers map from : "+kmersMapFile);
-		if(kmerLength<=15) kmersMap = new ByteArrayKmersMapImpl((byte) kmerLength);
+		if(kmerLength<=15) kmersMap = new ShortArrayDNAKmersMapImpl((byte) kmerLength);
 		else kmersMap = new DefaultKmersMapImpl();
 		try (FileInputStream fis = new FileInputStream(kmersMapFile)) {
 			InputStream is=fis;

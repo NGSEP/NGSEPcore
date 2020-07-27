@@ -13,8 +13,7 @@ public class MinimizersTableTest extends TestCase {
 	private String sequence = "CTCAACTAGATCGCACAACGTCGGAATGGTTTCATCCACAGATTGAATTTTTGGTTGCTGTATCAGTCCTTGAATGATGTCCATTCTTGATAGGAGGGTTGTTATAGATATTAATCACTCGAAGTCGTGAACAAGAAATTGTCTTCTCTCCAGTATTCAGTCTCTGTGAT";
 	public void testEncodeDecode () {
 		MinimizersTable table = new MinimizersTable(15, 5);
-		Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence, 15, 1, 0, sequence.length(), false, true, true);
-		List<MinimizersTableEntry> minimizers = table.computeSequenceMinimizers(0, 0, sequence.length(), kmers);
+		List<MinimizersTableEntry> minimizers = table.computeSequenceMinimizers(0,sequence,0, sequence.length());
 		
 		for(MinimizersTableEntry entry:minimizers) {
 			long code = entry.encode();

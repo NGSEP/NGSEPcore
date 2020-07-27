@@ -68,7 +68,9 @@ public class KmersExtractor {
 	private boolean ignoreLowComplexity = false;
 	
 	// Model attributes
-	private KmersMap kmersMap = new ShortArrayKmersMapImpl(DEF_KMER_LENGTH);
+	private KmersMap kmersMap = null;
+	
+	private static final DNASequence EMPTYDNASEQ = new DNASequence();
 	
 	
 	// Get and set methods
@@ -97,8 +99,7 @@ public class KmersExtractor {
 	}
 	public void setKmerLength(int kmerLength) {
 		this.kmerLength = kmerLength;
-		if(kmerLength<=15) kmersMap = new ShortArrayKmersMapImpl((byte) kmerLength);
-		else kmersMap = new DefaultKmersMapImpl();
+		kmersMap=null;
 	}
 	public void setKmerLength(String value) {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
@@ -138,6 +139,7 @@ public class KmersExtractor {
 	}
 	public void setOnlyDNA(boolean onlyDNA) {
 		this.onlyDNA = onlyDNA;
+		kmersMap=null;
 	}
 	public void setOnlyDNA(Boolean onlyDNA) {
 		this.setOnlyDNA(onlyDNA.booleanValue());
@@ -206,7 +208,7 @@ public class KmersExtractor {
 	 * @throws IOException If the file can not be read
 	 */
 	public void processFile(String filename) throws IOException {
-		
+		initializeMap();
 		//Is fasta or fastq? and read it
 		if(inputFormat==INPUT_FORMAT_FASTA){
 			processFastaFile(filename);
@@ -215,12 +217,19 @@ public class KmersExtractor {
 		}
 	}
 	
+	public void initializeMap() {
+		if(kmersMap==null) {
+			if(isOnlyDNA() && kmerLength<=15) kmersMap = new ShortArrayDNAKmersMapImpl((byte)kmerLength);
+			else kmersMap = new DefaultKmersMapImpl();
+		}
+	}
 	/**
 	 * Processes the file with the given name as fastq and updates the kmers table
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
 	 */
     public void processFastqFile(String filename) throws IOException {
+    	initializeMap();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
@@ -237,6 +246,7 @@ public class KmersExtractor {
      * @throws IOException if there is an error reading the stream
      */
 	public void processFastqFile(InputStream fis) throws IOException {
+		initializeMap();
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
@@ -253,6 +263,7 @@ public class KmersExtractor {
 	 * @throws IOException If the file can not be read
 	 */
     private void processFastaFile(String filename) throws IOException {
+    	initializeMap();
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
@@ -264,6 +275,7 @@ public class KmersExtractor {
     	}
 	}
     public void processQualifiedSequences(List<QualifiedSequence> sequences) {
+    	initializeMap();
     	int i = 0;
     	for(QualifiedSequence qseq:sequences) {
     		countSequenceKmers(qseq);
@@ -288,10 +300,20 @@ public class KmersExtractor {
 	 */
 	public void countSequenceKmers(String seq)
 	{
+		if(kmersMap==null) initializeMap();
 		int seqLength = seq.length();
 		
 		if(seqLength < kmerLength) {
-			log.warning("Sequence "+seq+" smaller than k-mer size");
+			log.warning("Sequence "+seq+" smaller than k-mer length");
+			return;
+		}
+		if(onlyDNA && !ignoreLowComplexity && kmerLength<=15) {
+			//Presumably faster alternative
+			Map<Integer,Long> codes = extractDNAKmerCodes(seq, kmerLength, 0, seq.length());
+			for(long code:codes.values()) {
+				ShortArrayDNAKmersMapImpl skmersMap = (ShortArrayDNAKmersMapImpl) kmersMap;
+				skmersMap.addCodeOccurance(code);
+			}
 			return;
 		}
 		String [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, onlyDNA, ignoreLowComplexity);
@@ -331,10 +353,8 @@ public class KmersExtractor {
 	 * @return Map<Integer,String> Map of kmers indexed and sorted by (zero based) start position in the source sequence
 	 */
 	public static Map<Integer,String> extractKmersAsMap (String source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
-		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
-		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
+		validateLimits(source, start, end);
 		int n = source.length();
-		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
 		Map<Integer,String> kmersMap = new LinkedHashMap<Integer, String>();
 		if (n < kmerLength) return kmersMap;
 		int lastKmerStart = end - kmerLength;
@@ -351,6 +371,42 @@ public class KmersExtractor {
 
 		return kmersMap;
 	}
+	private static int validateLimits(String source, int start, int end) {
+		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
+		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
+		int n = source.length();
+		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
+		return n;
+	}
+	public static Map<Integer,Long> extractDNAKmerCodes (String source, int kmerLength, int start, int end) {
+		validateLimits(source, start, end);
+		if(kmerLength>31) throw new IllegalArgumentException("This method only works with kmer lengths up to 31");
+		int n = source.length();
+		Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
+		if (n < kmerLength) return kmerCodesMap;
+		int lastKmerStart = end - kmerLength;
+		long lastCode = -1;
+		for(int i = start; i <=lastKmerStart; i++) {
+			long code;
+			if(lastCode==-1) {
+				String kmer = source.substring(i, i+kmerLength);
+				if (!DNASequence.isDNA(kmer)) continue;
+				code = AbstractLimitedSequence.getHash(kmer, 0, kmerLength, EMPTYDNASEQ);
+			} else {
+				char lastCharNextKmer = source.charAt(i+kmerLength-1);
+				if(!DNASequence.isInAlphabeth(lastCharNextKmer)) {
+					lastCode = -1;
+					//Ignore all kmers spanning the non DNA character
+					i+=kmerLength-1;
+					continue;
+				}
+				code = AbstractLimitedSequence.getNextHash(lastCode,kmerLength,lastCharNextKmer,EMPTYDNASEQ);
+			}
+			kmerCodesMap.put(i, code);
+			lastCode = code;
+		}
+		return kmerCodesMap;
+	}
 	/**
 	 * Extracts the k-mers present in the given sequence
 	 * @param source Sequence to process. The sequence is processed as is (no uppercase or other transformation).
@@ -363,10 +419,8 @@ public class KmersExtractor {
 	 * to the index in the sequence of the start of the k-mer
 	 */
 	public static String [] extractKmers (String source, int kmerLength, int offset, int start, int end, boolean forceLast, boolean onlyDNA, boolean ignoreLowComplexity) {
-		if(start >=end) throw new IllegalArgumentException("Start index must be smaller than end index. Given start: "+start+" given end: "+end);
-		if(start < 0) throw new IllegalArgumentException("Start index must be positive. Given start: "+start);
+		validateLimits(source, start, end);
 		int n = source.length();
-		if(end > n) throw new IllegalArgumentException("End index must be at most equal to source length. Given end: "+end+" length: "+n);
 		if(n<kmerLength) return new String[0];
 		int lastKmerStart = end - kmerLength; 
 		String [] kmers = new String [lastKmerStart+1];

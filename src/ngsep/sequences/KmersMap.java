@@ -15,6 +15,7 @@ public interface KmersMap {
 	 * @return int number of times it appears
 	 */
 	public int getCount(CharSequence kmer);
+
 	/**
 	 * Add 1 to the ocurrances of the given k-mer
 	 * @param kmer to modify count

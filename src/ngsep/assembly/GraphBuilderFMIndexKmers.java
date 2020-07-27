@@ -3,7 +3,6 @@ package ngsep.assembly;
 import java.util.List;
 import java.util.logging.Logger;
 
-import ngsep.sequences.ByteArrayKmersMapImpl;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.KmersExtractor;
