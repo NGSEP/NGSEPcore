@@ -75,9 +75,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		int minCount = (int) (minProportionOverlap*minKmerPercentage*selfHitsCount/100);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
 		for(int subjectIdx:subjectIdxs) {
+			int subjectLength = graph.getSequenceLength(subjectIdx);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
 			if(hits.size()<minCount) continue;
-			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query, hits, 0);
+			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query.length(), subjectLength, hits, 0);
 			if(subjectClusters.size()==0) continue;
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size());
 			Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
@@ -96,14 +97,14 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	
 	private boolean passFilters (int querySequenceId, int queryLength, KmerHitsCluster cluster) {
-		int subjectSeqIdx = cluster.getSequenceIdx();
+		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		double overlap = cluster.getPredictedOverlap();
 		double overlapSelfCount = overlap*cluster.getSelfHitsCountQuery()/queryLength;
 		double pct = 100.0*cluster.getNumDifferentKmers()/overlapSelfCount;
 		int queryEvidenceLength = cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart();
 		int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
-		if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+subjectLength+" Subject: "+cluster.getSequenceIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct);
+		//if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+subjectLength+" Subject: "+cluster.getSequenceIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct);
 		if(overlap < minProportionOverlap*queryLength) return false;
 		if(overlap < minProportionOverlap*subjectLength) return false;
 		if(queryEvidenceLength < minProportionEvidence*overlap) return false;
@@ -121,12 +122,12 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	private void processCluster(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int queryLength = query.length();
-		int subjectSeqIdx = cluster.getSequenceIdx();
+		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		//Zero based limits
 		int startSubject = cluster.getSubjectPredictedStart();
 		int endSubject = cluster.getSubjectPredictedEnd();
-		if(querySequenceId==idxDebug) System.out.println("Processing cluster. Query: "+querySequenceId+" length: "+queryLength+ " subject: "+cluster.getSequenceIdx()+" length: "+subjectLength);
+		if(querySequenceId==idxDebug) System.out.println("Processing cluster. Query: "+querySequenceId+" length: "+queryLength+ " subject: "+cluster.getSubjectIdx()+" length: "+subjectLength);
 		if(startSubject>=0 && endSubject<=subjectLength) {
 			addEmbedded(querySequenceId, query, queryRC, cluster);
 		} else if (startSubject>=0) {
@@ -141,7 +142,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	private void addEmbedded(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int startSubject = cluster.getSubjectPredictedStart();
 		int endSubject = cluster.getSubjectPredictedEnd();
-		int subjectSeqIdx = cluster.getSequenceIdx();
+		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, startSubject, endSubject);
 		embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
@@ -158,7 +159,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
-		int subjectSeqIdx = cluster.getSequenceIdx();
+		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		AssemblyVertex vertexSubject = graph.getVertex(subjectSeqIdx, false);
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, !queryRC);
@@ -180,7 +181,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	private void addQueryBeforeSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, KmerHitsCluster cluster) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
-		int subjectSeqIdx = cluster.getSequenceIdx();
+		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		AssemblyVertex vertexSubject = graph.getVertex(subjectSeqIdx, true);
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, queryRC);

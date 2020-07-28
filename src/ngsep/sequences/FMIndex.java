@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,13 +39,8 @@ import ngsep.main.io.ConcatGZIPInputStream;
  * @author German Andrade
  * @author Jorge Duitama
  */
-public class FMIndex implements Serializable
+public class FMIndex
 {
-	
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 6155320979838428304L;
 	
 	private QualifiedSequenceList sequencesWithNames;
 	private List<Integer> sequenceLengths = new ArrayList<>();
@@ -154,7 +148,6 @@ public class FMIndex implements Serializable
 				if(hits.size()>=maxHitsQuery) break;
 			}
 		}
-		for(UngappedSearchHit hit: hits) hit.setTotalHitsQuery(hits.size());
 		return hits;
 	}
 	/**
@@ -239,13 +232,8 @@ public class FMIndex implements Serializable
 		return index;
 	}
 }
-class CombinedMultisequenceFMIndexMetadata implements Serializable {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -4208212205942777492L;
-	
-	
+class CombinedMultisequenceFMIndexMetadata {
+
 	private int firstInputSequenceIdx=-1;
 	private int lastInputSequenceIdx=-1;
 	private List<Integer> idxs=new ArrayList<>();

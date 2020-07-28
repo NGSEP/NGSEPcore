@@ -168,8 +168,6 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			for(UngappedSearchHit hit:kmerHits) {
 				if(idxDebug==queryIdx) System.out.println("Kmer start: "+i+" Next hit: "+hit.getSequenceIdx()+": "+hit.getStart());
 				hit.setQueryIdx(i);
-				hit.setTotalHitsQuery(kmerHits.size());
-				hit.setSequenceLength(graph.getSequenceLength(hit.getSequenceIdx()));
 				List<UngappedSearchHit> kmerHitsList = kmerHitsMap.computeIfAbsent(hit.getSequenceIdx(), l->new ArrayList<UngappedSearchHit>());
 				kmerHitsList.add(hit);
 			}

@@ -20,7 +20,6 @@
 package ngsep.genome;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 
 import ngsep.sequences.FMIndex;
@@ -33,11 +32,8 @@ import ngsep.sequences.QualifiedSequenceList;
  * @author German Andrade
  * @author Jorge Duitama
  */
-public class ReferenceGenomeFMIndex implements Serializable {
-	/**
-	 * Serial number
-	 */
-	private static final long serialVersionUID = 5577026857894649939L;
+public class ReferenceGenomeFMIndex {
+
 	private QualifiedSequenceList sequencesMetadata;
 	private FMIndex internalIndex;
 	
@@ -98,6 +94,15 @@ public class ReferenceGenomeFMIndex implements Serializable {
 		QualifiedSequence seq = sequencesMetadata.get(sequenceName);
 		if(seq==null) return 0;
 		return seq.getLength();
+	}
+	/**
+	 * Returns the length of the reference sequence with the given name
+	 * @param sequenceIdx Index of the reference sequence
+	 * @return int length of the sequence. Zero if there are no reference sequences with the given name 
+	 */
+	public int getReferenceLength(int sequenceIdx) {
+		if(sequenceIdx<0 || sequenceIdx>=sequencesMetadata.size()) throw new IllegalArgumentException("Invalid sequence index: "+sequenceIdx+" total reference sequences: "+sequencesMetadata.size());
+		return sequencesMetadata.get(sequenceIdx).getLength();
 	}
 	/**
 	 * Searches the given sequence in the index

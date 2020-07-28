@@ -126,7 +126,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<UngappedSearchHit> initialKmerHits = alignUniqueKmerCodes(-1,subject.length(),uniqueCodesSubject, uniqueCodesRead);
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read, initialKmerHits, minQueryCoverage);
+		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read.length(), subject.length(), initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
 		if(clusters.size()>1) {
 			Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
@@ -150,7 +150,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			if(subjectPos==null) continue;
 			CharSequence kmerRead = new String(AbstractLimitedSequence.getSequence(codeRead, 15, DNASequence.EMPTY_DNA_SEQUENCE));
 			UngappedSearchHit hit = new UngappedSearchHit(kmerRead, subjectIdx , subjectPos);
-			hit.setSequenceLength(subjectLength);
 			hit.setQueryIdx(uniqueCodesQuery.get(codeRead));
 			initialKmerHits.add(hit);
 		}

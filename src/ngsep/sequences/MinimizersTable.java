@@ -26,8 +26,8 @@ public class MinimizersTable {
 	private KmersMap kmersMap;
 	private Map<Long,Integer> explicitKmerHashCodes = new HashMap<Long, Integer>();
 	private int mode=1;
+	private int kmerDistModeLocalSD=5;
 	
-	//private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
 	//Structures to implement the minimizers hash table
 	//Map with minimizer as key and row of the sequencesByMinimizerTable as value
 	private Map<Integer,Integer> matrixRowMap;
@@ -51,8 +51,8 @@ public class MinimizersTable {
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
 		this.mode = kmersAnalyzer.getMode();
-		long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInUniqueZone();
-		System.out.println("Extracted "+codesUniqueZone.length+" raw kmer unique codes.");
+		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
+		long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInLocalSDZone();
 		for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
 			explicitKmerHashCodes.put(codesUniqueZone[i],i);
 		}
@@ -342,8 +342,7 @@ public class MinimizersTable {
 				}
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(queryEntry.getStart());
-				hit.setSequenceLength(sequenceLengths.get(subjectIdx));
-				hit.setTotalHitsQuery(codesMatching.length);
+				hit.setWeight(calculateWeight(kmer));
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);
 			}
@@ -352,6 +351,14 @@ public class MinimizersTable {
 		
 	}
 
+	private double calculateWeight(CharSequence kmer) {
+		if(kmersMap==null) return 1;
+		int count = kmersMap.getCount(kmer);
+		int diff = Math.abs(mode-count);
+		if(diff<kmerDistModeLocalSD) return 1;
+		int diff2=diff-kmerDistModeLocalSD;
+		return 1.0*mode/(mode+2*diff2);
+	}
 	public Distribution calculateDistributionHits() {
 		Distribution dist = new Distribution(1, Math.max(100, maxAbundanceMinimizer), 1);
 		int numMinimizers = size();

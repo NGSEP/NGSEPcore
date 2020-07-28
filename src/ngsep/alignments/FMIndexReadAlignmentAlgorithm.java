@@ -190,25 +190,27 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 
 	private List<KmerHitsCluster> clusterKmerHits(String query, List<UngappedSearchHit> initialKmerHits) {
 		List<KmerHitsCluster> clusters = new ArrayList<>();
-		Map<String,List<UngappedSearchHit>> hitsBySubjectName = new LinkedHashMap<String, List<UngappedSearchHit>>();
+		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = new LinkedHashMap<Integer, List<UngappedSearchHit>>();
 		for(UngappedSearchHit hit:initialKmerHits) {
-			List<UngappedSearchHit> hitsSeq = hitsBySubjectName.computeIfAbsent(hit.getSequenceName(), k -> new ArrayList<>());
+			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.computeIfAbsent(hit.getSequenceIdx(), k -> new ArrayList<>());
 			hitsSeq.add(hit);
 		}
-		for(List<UngappedSearchHit> hitsSeq:hitsBySubjectName.values()) {
+		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
+			int subjectLength = fMIndex.getReferenceLength(subjectIdx);
+			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.get(subjectIdx);
 			Collections.sort(hitsSeq, (hit0,hit1)-> hit0.getStart()-hit1.getStart());
-			clusters.addAll(clusterSequenceKmerAlns(query, hitsSeq));
+			clusters.addAll(clusterSequenceKmerAlns(query, subjectLength, hitsSeq));
 		}
 		return clusters;
 	}
 	
-	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, List<UngappedSearchHit> sequenceHits) {
+	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, int sequenceLength, List<UngappedSearchHit> sequenceHits) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
 		KmerHitsCluster cluster=null;
 		for(UngappedSearchHit kmerHit:sequenceHits) {
 			if(cluster==null || !cluster.addKmerHit(kmerHit, 0)) {
-				cluster = new KmerHitsCluster(query, kmerHit);
+				cluster = new KmerHitsCluster(query.length(), sequenceLength, kmerHit);
 				answer.add(cluster);
 			}
 		}
@@ -216,7 +218,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	}
 
 	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, String query) {
-		String sequenceName = cluster.getSequenceName();
+		String sequenceName = cluster.getSubjectName();
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
 		int lastPerfect = first+query.length()-1;

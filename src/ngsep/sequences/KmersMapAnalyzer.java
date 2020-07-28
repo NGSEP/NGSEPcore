@@ -2,7 +2,6 @@ package ngsep.sequences;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import ngsep.math.Distribution;
 
@@ -109,33 +108,19 @@ public class KmersMapAnalyzer {
 	public long getExpectedAssemblyLength() {
 		return expectedAssemblyLength;
 	}
-	public long[] extractKmerCodesInUniqueZone() {
+	public long[] extractKmerCodesInLocalSDZone() {
 		long [] answer = new long [numKmersInUniqueZone];
 		Arrays.fill(answer, -1);
-		int diff = mode-localMinimum;
+		int localSD = getModeLocalSD();
 		int idxAnswer = 0;
-		for(int i=mode;i>=localMinimum;i--) {
+		for(int i=mode;i>=mode-localSD;i--) {
 			idxAnswer = addKmerCodes(i,answer,idxAnswer);
 			if(idxAnswer==answer.length) return answer;
 			
 		}
-		for(int i=mode;i<=mode+diff;i++) {
-			if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
-				List<Integer> codes = ((ShortArrayDNAKmersMapImpl)kmersMap).getKmerCodesWithCount(i);
-				for(int code:codes) {
-					answer[idxAnswer] = code;
-					idxAnswer++;
-					if(idxAnswer==answer.length) return answer;
-				}
-			} else {
-				List<CharSequence> kmersDepth = kmersMap.getKmersWithCount(i);
-				for(CharSequence kmer:kmersDepth) {
-					long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
-					answer[idxAnswer] = code;
-					idxAnswer++;
-					if(idxAnswer==answer.length) return answer;
-				}
-			}
+		for(int i=mode;i<=mode+localSD;i++) {
+			idxAnswer = addKmerCodes(i,answer,idxAnswer);
+			if(idxAnswer==answer.length) return answer;
 		}
 		return answer;
 	}
@@ -157,6 +142,9 @@ public class KmersMapAnalyzer {
 			}
 		}
 		return idxAnswer;
+	}
+	public int getModeLocalSD() {
+		return mode-localMinimum;
 	}
 	
 }
