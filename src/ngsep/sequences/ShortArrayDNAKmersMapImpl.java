@@ -1,7 +1,9 @@
 package ngsep.sequences;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import ngsep.math.Distribution;
 
@@ -94,6 +96,28 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 			}
 		}
 		
+	}
+
+	@Override
+	public List<CharSequence> getKmersWithCount(int count) {
+		List<CharSequence> answer = new ArrayList<CharSequence>();
+		for(int i=0;i<kmerCounts.length;i++) {
+			if(kmerCounts[i]==count) {
+				char [] sequence = AbstractLimitedSequence.getSequence(i, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE);
+				answer.add(new DNAShortKmer(new String(sequence)));
+			}
+		}
+		return answer;
+	}
+	
+	public List<Integer> getKmerCodesWithCount(int count) {
+		List<Integer> answer = new ArrayList<Integer>();
+		for(int i=0;i<kmerCounts.length;i++) {
+			if(kmerCounts[i]==count) {
+				answer.add(i);
+			}
+		}
+		return answer;
 	}
 
 }

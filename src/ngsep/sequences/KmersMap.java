@@ -1,6 +1,7 @@
 package ngsep.sequences;
 
 import java.io.PrintStream;
+import java.util.List;
 
 import ngsep.math.Distribution;
 
@@ -42,4 +43,10 @@ public interface KmersMap {
 	 * @param out Stream to save the k-mers
 	 */
 	public void save(PrintStream out);
+	/**
+	 * Extracts kmers with the given count
+	 * @param count to search
+	 * @return List<CHarSequence> Kmers with the given count
+	 */
+	public List<CharSequence> getKmersWithCount(int count);
 }

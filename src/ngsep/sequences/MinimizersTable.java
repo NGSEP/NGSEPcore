@@ -11,17 +11,21 @@ import ngsep.math.Distribution;
 
 public class MinimizersTable {
 	
-	private static final DNASequence EMPTYDNASEQ = new DNASequence();
+	private static final long [] EMPTY_LONG_ARRAY = new long[0];
+	
 	private Logger log = Logger.getLogger(MinimizersTable.class.getName());
+	
 	private int kmerLength;
 	private int windowLength;
 	private int maxAbundanceMinimizer = 0;
 	private boolean saveRepeatedMinimizersWithinSequence = false;
-	private KmersMap kmersMap;
 	private boolean keepSingletons = false;
-	private static final long [] EMPTY_LONG_ARRAY = new long[0];
 	
 	
+	
+	private KmersMap kmersMap;
+	private Map<Long,Integer> explicitKmerHashCodes = new HashMap<Long, Integer>();
+	private int mode=1;
 	
 	//private Map<Integer, List<Long>> sequencesByMinimizer = new HashMap<Integer, List<Long>>();
 	//Structures to implement the minimizers hash table
@@ -42,11 +46,18 @@ public class MinimizersTable {
 		this.windowLength = windowLength;
 		initializeTable(100000);
 	}
-	public MinimizersTable(KmersMap kmersMap, int kmerLength, int windowLength) {
-		this.kmersMap = kmersMap;
+	public MinimizersTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
+		this.kmersMap = kmersAnalyzer.getKmersMap();
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
-		//Create again the structures with appropriate initial capacity
+		this.mode = kmersAnalyzer.getMode();
+		long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInUniqueZone();
+		System.out.println("Extracted "+codesUniqueZone.length+" raw kmer unique codes.");
+		for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
+			explicitKmerHashCodes.put(codesUniqueZone[i],i);
+		}
+		System.out.println("Indexed "+explicitKmerHashCodes.size()+" kmer unique codes.");
+		//Create the structures with appropriate initial capacity
 		int capacity = kmersMap.size()/10;
 		initializeTable(capacity);
 	}
@@ -91,7 +102,7 @@ public class MinimizersTable {
 			if(row==sequencesByMinimizerTable.length) resizeTable();
 		}
 		int currentCount = sequencesByMinimizerTableColumnLengths[row];
-		if (maxAbundanceMinimizer>0 && currentCount+entries.size()<Short.MAX_VALUE && currentCount < maxAbundanceMinimizer) {
+		if (currentCount+entries.size()<Short.MAX_VALUE && (maxAbundanceMinimizer==0 || currentCount < maxAbundanceMinimizer)) {
 			if(saveRepeatedMinimizersWithinSequence) {
 				for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
 				totalEntries+=entries.size();
@@ -226,7 +237,7 @@ public class MinimizersTable {
 			if(kmersMap!=null && kmersMap instanceof ShortArrayDNAKmersMapImpl) {
 				int count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(code);
 				if(!keepSingletons && count == 1) continue;
-				if(count>maxAbundanceMinimizer) continue;
+				if(maxAbundanceMinimizer >0 && count>maxAbundanceMinimizer) continue;
 			}
 			hashcodesForward.put(i, getHash(code));
 		}
@@ -264,7 +275,9 @@ public class MinimizersTable {
 		return minimizersSeq;
 	}
 
-	private int getHash(long dnaHash) { 
+	private int getHash(long dnaHash) {
+		Integer code = explicitKmerHashCodes.get(dnaHash);
+		if(code!=null) return code;
 		if(kmersMap==null) {
 			if(dnaHash<=Integer.MAX_VALUE) return (int)dnaHash;
 			return (int) dnaHash %100000000;
@@ -273,12 +286,22 @@ public class MinimizersTable {
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
 			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash);
 		} else {
-			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, EMPTYDNASEQ));
+			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
 			count = kmersMap.getCount(kmer);
 		}
-		long hash = count << 24;
-		hash+= (dnaHash & 0xFFFFFFF);
-		if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
+		int distance = count-mode;
+		long hash;
+		if(distance>0) {
+			hash = distance << 24;
+			hash = Math.max(hash, explicitKmerHashCodes.size());
+			hash+= (dnaHash & 0xFFFFFFF);
+			if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
+		} else {
+			hash = (-distance) << 25;
+			hash+= (dnaHash & 0xFFFFFFF);
+			if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
+		}
+		
 		return (int)hash;
 	}
 	

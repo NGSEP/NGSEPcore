@@ -1,8 +1,10 @@
 package ngsep.sequences;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -71,6 +73,15 @@ public class DefaultKmersMapImpl implements KmersMap {
 			out.println(entry.getKey().toString()+"\t"+entry.getValue());
 		}
 		
+	}
+
+	@Override
+	public List<CharSequence> getKmersWithCount(int count) {
+		List<CharSequence> answer = new ArrayList<CharSequence>();
+		for(CharSequence kmer:kmersMap.keySet()) {
+			if(kmersMap.get(kmer)==count) answer.add(kmer);
+		}
+		return answer;
 	}
 
 }

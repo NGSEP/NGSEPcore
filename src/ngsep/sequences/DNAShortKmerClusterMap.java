@@ -22,6 +22,7 @@ package ngsep.sequences;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -225,5 +226,12 @@ public class DNAShortKmerClusterMap implements KmersMap {
 			Entry<DNAShortKmer, Integer> entry = it.next();
 			out.println(entry.getKey().toString()+"\t"+entry.getValue());
 		}
+	}
+
+
+	@Override
+	public List<CharSequence> getKmersWithCount(int count) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
