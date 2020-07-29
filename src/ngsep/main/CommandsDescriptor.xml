@@ -209,18 +209,18 @@ Input file. See option -f for options on the file format . It can be gzip compre
 Prefix of the output files.
 </option>
 <option id="g" type="STRING" attribute="graphFile">
-File with a saved graph to perform layout and consensus
+File with a saved graph to perform layout and consensus.
 </option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
-Format of the input file. It can be 0 for fastq or 1 for fasta
+Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>
-<!-- <option id="s" type="INT" attribute="kmerOffset" defaultConstant="DEF_KMER_OFFSET">
-Offset between queried k-mers
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
+Window length to calculate minimizers.
 </option>
-<option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
+<!-- <option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
 Minimum percentage of k-mers to identify an overlap 
 </option>
  -->

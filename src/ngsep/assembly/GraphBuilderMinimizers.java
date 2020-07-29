@@ -1,5 +1,6 @@
 package ngsep.assembly;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -96,7 +97,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		long expectedAssemblyLength = kmersAnalyzer.getExpectedAssemblyLength();
 		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
 		long lengthLimit = totalLength;
-		if(modeDepth>50) {
+		if(modeDepth>100) {
 			//High depth sample. Use only the longest reads to build graph
 			lengthLimit = 50*expectedAssemblyLength;
 			log.info("Downsampling for minimizers table. Total length: "+totalLength+" limit length: "+lengthLimit);
@@ -105,10 +106,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		table.setMaxAbundanceMinimizer(100);
+		List<QualifiedSequence> selectedSequences = new ArrayList<QualifiedSequence>();
 		long processedLength = 0;
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
-			CharSequence seq = sequences.get(seqId).getCharacters();
+			QualifiedSequence qseq = sequences.get(seqId);
+			selectedSequences.add(qseq);
+			CharSequence seq = qseq.getCharacters();
 			if(numThreads==1) {
 				table.addSequence(seqId, seq);
 				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
@@ -124,7 +128,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
-		AssemblyGraph graph = new AssemblyGraph(sequences);
+		AssemblyGraph graph = new AssemblyGraph(selectedSequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		
 		int minimizersMeanDepth = (int)Math.max(15,(kmersAnalyzer.getAverage()+modeDepth)/4+1);
@@ -133,8 +137,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		edgesFinder.setMeanDepth(minimizersMeanDepth);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		processedLength=0;
-		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			CharSequence seq = sequences.get(seqId).getCharacters();
+		for (int seqId = 0; seqId < selectedSequences.size(); seqId++) {
+			CharSequence seq = selectedSequences.get(seqId).getCharacters();
 			if(numThreads==1) {
 				processSequence(edgesFinder, table, seqId, seq);
 				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());

@@ -50,7 +50,7 @@ public class Assembler {
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
-	public static final int DEF_KMER_OFFSET = 15;
+	public static final int DEF_WINDOW_LENGTH = GraphBuilderMinimizers.DEF_WINDOW_LENGTH;
 	public static final int DEF_MIN_KMER_PCT = KmerHitsAssemblyEdgesFinder.DEF_MIN_KMER_PCT;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
@@ -68,7 +68,7 @@ public class Assembler {
 	private String inputFile = null;
 	private String outputPrefix = null;
 	private int kmerLength = DEF_KMER_LENGTH;
-	private int kmerOffset = DEF_KMER_OFFSET;
+	private int windowLength = DEF_WINDOW_LENGTH;
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String graphFile = null;
@@ -117,15 +117,15 @@ public class Assembler {
 		setKmerLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public int getKmerOffset() {
-		return kmerOffset;
+	public int getWindowLength() {
+		return windowLength;
 	}
-	public void setKmerOffset(int kmerOffset) {
-		if(kmerOffset<=0) throw new IllegalArgumentException("Kmer offset should be a positive number");
-		this.kmerOffset = kmerOffset;
+	public void setWindowLength(int windowLength) {
+		if(windowLength<=0) throw new IllegalArgumentException("Window length should be a positive number");
+		this.windowLength = windowLength;
 	}
-	public void setKmerOffset(String value) {
-		setKmerOffset((int)OptionValuesDecoder.decode(value, Integer.class));
+	public void setWindowLength(String value) {
+		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	public int getMinKmerPercentage() {
 		return minKmerPercentage;
@@ -246,6 +246,7 @@ public class Assembler {
 		} else {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
 			builder.setKmerLength(kmerLength);
+			builder.setWindowLength(windowLength);
 			//builder.setMinKmerPercentage(minKmerPercentage);
 			builder.setNumThreads(numThreads);
 			builder.setLog(log);
