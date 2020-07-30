@@ -33,16 +33,21 @@ public class KmersMapAnalyzer {
 			expectedAssemblyLength = totalEntries/2;
 			average = distribution.getAverage();
 		} else {
-			for(int k=10;k<=20;k++) {
-				long maxValue = 0;
-				for(int i=k;i<=maxValueDist;i++) {
+			mode = 3*(int)distribution.getAverage();
+			for(int k=10;k<maxValueDist;k++) {
+				long maxValue = completeCounts[k];
+				int localMode = k;
+				for(int i=k+1;i<=maxValueDist;i++) {
 					long value = completeCounts[i];
 					if(value>maxValue) {
 						maxValue = value;
-						mode = i;
+						localMode = i;
 					}
 				}
-				if(mode>k) break;
+				if(localMode>k) {
+					mode = localMode;
+					break;
+				}
 			}
 			long localMinValue = completeCounts[1];
 			localMinimum = 1;
