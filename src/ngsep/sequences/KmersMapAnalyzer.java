@@ -34,10 +34,11 @@ public class KmersMapAnalyzer {
 			average = distribution.getAverage();
 		} else {
 			mode = 3*(int)distribution.getAverage();
-			for(int k=10;k<maxValueDist;k++) {
+			int limit = Math.min(10000, 100*(int)distribution.getAverage());
+			for(int k=10;k<limit;k++) {
 				long maxValue = completeCounts[k];
 				int localMode = k;
-				for(int i=k+1;i<=maxValueDist;i++) {
+				for(int i=k+1;i<=limit;i++) {
 					long value = completeCounts[i];
 					if(value>maxValue) {
 						maxValue = value;
