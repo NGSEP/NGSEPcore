@@ -28,6 +28,7 @@ import ngsep.sequences.QualifiedSequenceList;
 public class AssemblyGraphStatistics {
 
 	// Constants for default values
+	public static final int DEF_MIN_READ_LENGTH = Assembler.DEF_MIN_READ_LENGTH;
 	public static final byte READS_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte READS_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP=Assembler.LAYOUT_ALGORITHM_MAX_OVERLAP;
@@ -41,6 +42,7 @@ public class AssemblyGraphStatistics {
 	private String inputFile = null;
 	private String outputFile = null;
 	private String readsFile = null;
+	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
@@ -262,7 +264,7 @@ public class AssemblyGraphStatistics {
 		} else if (simulated) {
 			alignments = buildAlignmentsFromSimulatedReads(sequences);
 		} else {
-			sequences = Assembler.load(readsFile, readsFormat);
+			sequences = Assembler.load(readsFile, readsFormat, minReadLength);
 			//TODO: Use aligner to align sequences to reference
 		}
 		if(alignments==null) return;

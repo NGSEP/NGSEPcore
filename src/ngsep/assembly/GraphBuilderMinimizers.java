@@ -140,11 +140,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
+			boolean keepVertices = processedLength<lengthLimit;
 			if(numThreads==1) {
-				processSequence(edgesFinder, table, seqId, seq);
+				processSequence(edgesFinder, table, seqId, seq, keepVertices);
 				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
 			} else {
-				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
+				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq, keepVertices);
 				poolSearch.execute(task);
 			}
 			processedLength+=seq.length();
@@ -165,7 +166,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 	}
 	
-	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq) {
+	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, boolean keepVertices) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
@@ -173,6 +174,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, selfHitsCount, table.match(complement));
 		AssemblyGraph graph = finder.getGraph();
+		if(!keepVertices) {
+			graph.removeVertices(seqId);
+		}
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
 	
@@ -220,18 +224,20 @@ class ProcessSequenceTask implements Runnable {
 	private MinimizersTable table;
 	private int sequenceId;
 	private CharSequence sequence;
+	private boolean keepVertices;
 	
-	public ProcessSequenceTask(GraphBuilderMinimizers parent, KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int sequenceId, CharSequence sequence) {
+	public ProcessSequenceTask(GraphBuilderMinimizers parent, KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int sequenceId, CharSequence sequence, boolean keepVertices) {
 		super();
 		this.parent = parent;
 		this.finder = finder;
 		this.table = table;
 		this.sequenceId = sequenceId;
 		this.sequence = sequence;
+		this.keepVertices = keepVertices;
 	}
 	@Override
 	public void run() {
-		parent.processSequence(finder, table, sequenceId, sequence);
+		parent.processSequence(finder, table, sequenceId, sequence, keepVertices);
 		AssemblyGraph graph = finder.getGraph();
 		if ((sequenceId+1)%1000==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
 	}

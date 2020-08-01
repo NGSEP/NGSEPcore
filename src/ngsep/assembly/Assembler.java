@@ -52,6 +52,7 @@ public class Assembler {
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_WINDOW_LENGTH = GraphBuilderMinimizers.DEF_WINDOW_LENGTH;
 	public static final int DEF_MIN_KMER_PCT = KmerHitsAssemblyEdgesFinder.DEF_MIN_KMER_PCT;
+	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
@@ -70,6 +71,7 @@ public class Assembler {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
 	private int minKmerPercentage = DEF_MIN_KMER_PCT;
+	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String graphFile = null;
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
@@ -231,8 +233,10 @@ public class Assembler {
 	}
 
 	public void run(String inputFile, String outputPrefix) throws IOException {
-		List<QualifiedSequence> sequences = load(inputFile,inputFormat);
-		log.info("Loaded "+sequences.size()+" sequences");
+		List<QualifiedSequence> sequences = load(inputFile,inputFormat, minReadLength);
+		long totalBp = 0;
+		for(QualifiedSequence seq:sequences) totalBp+=seq.getLength();
+		log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 		AssemblyGraph graph;
 		if(graphFile!=null) {
@@ -303,10 +307,10 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public static List<QualifiedSequence> load(String filename, byte inputFormat) throws IOException {
+	public static List<QualifiedSequence> load(String filename, byte inputFormat, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences;
-		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename);
-		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename);
+		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
+		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
 		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
@@ -318,10 +322,14 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<QualifiedSequence> loadFasta(String filename) throws IOException {
+	private static List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
-		return seqsQL;
+		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
+		for(QualifiedSequence seq:seqsQL) {
+			if(seq.getLength()>=minReadLength) answer.add(seq);
+		}
+		return answer;
 	}
 
 	/**
@@ -331,7 +339,7 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<QualifiedSequence> loadFastq(String filename) throws IOException {
+	private static List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setSequenceType(DNAMaskedSequence.class);
@@ -341,7 +349,7 @@ public class Assembler {
 			while (it.hasNext()) {
 				RawRead read = it.next();
 				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
-				sequences.add(new QualifiedSequence(read.getName(), characters));
+				if(characters.length()>=minReadLength) sequences.add(new QualifiedSequence(read.getName(), characters));
 			}
 		}
 		return sequences;
