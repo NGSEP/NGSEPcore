@@ -111,12 +111,12 @@ public class VCFFileHeader {
 	private void loadSampleHeader(String line) {
 		String [] items = line.split("=|,");
 		String id = "";
-		byte ploidy = GenomicVariant.DEFAULT_PLOIDY;
+		short ploidy = GenomicVariant.DEFAULT_PLOIDY;
 		for(int i=0;i<items.length;i++) {
 			if("ID".equals(items[i]) && i<items.length-1) {
 				id = items[i+1];
 			} else if ("PL".equals(items[i]) && i<items.length-1) {
-				ploidy = Byte.parseByte(items[i+1]);
+				ploidy = Short.parseShort(items[i+1]);
 			}
 		}
 		if(id!=null) {

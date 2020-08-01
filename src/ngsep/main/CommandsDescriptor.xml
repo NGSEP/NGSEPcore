@@ -710,6 +710,27 @@ Output VCF file with merged variants and genotype information
 </option>
 </command>
 
+<command id="TillingPoolsIndividualGenotyper" class="ngsep.discovery.TillingPoolsIndividualGenotyper" groupId="Discovery">
+<intro>
+Discover individual variants from pool variants for a tilling experiment 
+</intro>
+<title>Tilling variants individual assignment</title>
+<description>
+For tilling experiments, this module takes variants from pools and a pools descriptor and calls individual variants.
+</description>
+<argument multiple="true">VCF_FILE</argument>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with called variants in VCF format
+</option>
+<option id="d" type="FILE" attribute="poolsDescriptor">
+File with the information of individuals assigned to each pool 
+</option>
+
+</command>
+
 <command id="RelativeAlleleCountsCalculator" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator" groupId="Discovery" formerId="RelativeAlleleCounts">
 <intro>
 Calculates the distribution of relative allele counts 
