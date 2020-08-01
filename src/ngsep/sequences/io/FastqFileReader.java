@@ -52,9 +52,13 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	 */
 	public static final int LOAD_MODE_QUALITY = 1;
 	/**
+	 * Constant to load the read sequence and name
+	 */
+	public static final int LOAD_MODE_WITH_NAME = 2;
+	/**
 	 * Constant to load only the read sequence of each read
 	 */
-	public static final int LOAD_MODE_MINIMAL = 2;
+	public static final int LOAD_MODE_MINIMAL = 3;
 	
 	private BufferedReader in;
 	
@@ -177,6 +181,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		
 		if(loadMode == LOAD_MODE_MINIMAL) return new RawRead(null, seq, null);
 		else if (loadMode == LOAD_MODE_QUALITY) return new RawRead(null, seq, qs);
+		else if (loadMode == LOAD_MODE_WITH_NAME) return new RawRead(id.substring(1), seq, null);
 		else return new RawRead(id.substring(1), seq, qs);
 	}
 	

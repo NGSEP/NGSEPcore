@@ -93,7 +93,10 @@ public class QualifiedSequence implements Serializable {
 		return new String(qs);
 	}
 	public void setQualityScores(String qualityScores) {
-		if(qualityScores==null) this.qualityScores=null;
+		if(qualityScores==null) {
+			this.qualityScores=null;
+			return;
+		}
 		int l = qualityScores.length();
 		this.qualityScores = new byte[l];
 		for(int i=0;i<l;i++) {

@@ -335,6 +335,8 @@ public class Assembler {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setSequenceType(DNAMaskedSequence.class);
+			//TODO: Option to load quality scores
+			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();

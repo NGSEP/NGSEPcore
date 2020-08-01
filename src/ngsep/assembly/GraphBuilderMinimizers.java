@@ -1,6 +1,5 @@
 package ngsep.assembly;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -105,13 +104,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
-		table.setMaxAbundanceMinimizer(100);
-		List<QualifiedSequence> selectedSequences = new ArrayList<QualifiedSequence>();
+		table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		long processedLength = 0;
+		//int firstIdNoGraph = sequences.size();
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			QualifiedSequence qseq = sequences.get(seqId);
-			selectedSequences.add(qseq);
 			CharSequence seq = qseq.getCharacters();
 			if(numThreads==1) {
 				table.addSequence(seqId, seq);
@@ -121,14 +119,17 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				poolMinimizers.execute(task);
 			}
 			processedLength+=seq.length();
-			if(processedLength>lengthLimit) break;
+			if(processedLength>lengthLimit) {
+				//firstIdNoGraph = seqId+1;
+				break;
+			}
 		}
 		waitToFinish(finishTime, poolMinimizers);
 		log.info("Built minimizers.");
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
-		AssemblyGraph graph = new AssemblyGraph(selectedSequences);
+		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		
 		int minimizersMeanDepth = (int)Math.max(15,(kmersAnalyzer.getAverage()+modeDepth)/4+1);
@@ -137,8 +138,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		edgesFinder.setMeanDepth(minimizersMeanDepth);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		processedLength=0;
-		for (int seqId = 0; seqId < selectedSequences.size(); seqId++) {
-			CharSequence seq = selectedSequences.get(seqId).getCharacters();
+		for (int seqId = 0; seqId < sequences.size(); seqId++) {
+			CharSequence seq = sequences.get(seqId).getCharacters();
 			if(numThreads==1) {
 				processSequence(edgesFinder, table, seqId, seq);
 				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
@@ -146,9 +147,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq);
 				poolSearch.execute(task);
 			}
-			//TODO: Map remaining sequences as embedded for consensus polishing
 			processedLength+=seq.length();
-			if(processedLength>lengthLimit) break;
 		}
 		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
@@ -232,7 +231,6 @@ class ProcessSequenceTask implements Runnable {
 	}
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		parent.processSequence(finder, table, sequenceId, sequence);
 		AssemblyGraph graph = finder.getGraph();
 		if ((sequenceId+1)%1000==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());

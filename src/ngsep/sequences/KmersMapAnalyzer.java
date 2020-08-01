@@ -59,7 +59,13 @@ public class KmersMapAnalyzer {
 					localMinimum = i;
 				}
 			}
-			localMinimum = Math.max(localMinimum, mode/2);
+			if(localMinimum==mode-1) {
+				//Probably almost decreasing curve. High error rate
+				localMinimum = mode/2;
+			} else {
+				localMinimum = Math.max(localMinimum, mode/2);
+			}
+			
 			long errorSum = 0;
 			for(int i=1;i<localMinimum;i++) {
 				errorSum+=completeCounts[i];

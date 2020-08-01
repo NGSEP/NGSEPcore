@@ -46,11 +46,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
 		for(LinkedList<AssemblyEdge> path:paths) {
 			if(path.size()<=5) continue;
-			//Trim ends
-			/*path.removeFirst();
-			path.removeFirst();
-			path.removeLast();
-			path.removeLast();*/
 			graph.addPath(path);
 		}
 

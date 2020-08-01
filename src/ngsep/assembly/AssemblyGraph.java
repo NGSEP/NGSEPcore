@@ -408,16 +408,16 @@ public class AssemblyGraph {
 			if(!"#SEQUENCES".equals(line)) throw new IOException("Graph file misses sequence names. First line: "+line);
 			int seqId = 0;
 			line=in.readLine();
-			while(line!=null && seqId<sequences.size()) {
+			while(line!=null && seqId<sequences.size() && !line.startsWith("#")) {
 				String [] items = line.split("\t");
 				QualifiedSequence seq = sequences.get(seqId);
-				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+items[0]+" "+items[1]);
+				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+line);
 				if(seq.getLength()!=Integer.parseInt(items[1])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
 				seqId++;
 				line=in.readLine();
 			}
 			if(line==null) throw new IOException("Unexpected end of file reading sequences");
-			if(seqId<sequences.size()) throw new IOException("Missing sequences in graph. Expected: "+sequences.size()+". Loaded: "+seqId);
+			//if(seqId<sequences.size()) log.info("Missing sequences in graph. Expected: "+sequences.size()+". Loaded: "+seqId);
 			if (!line.equals("#EMBEDDED")) throw new IOException("Unexpected line after loading sequences. Expected: #EMBEDDED. Line: "+line);
 			line=in.readLine();
 			while(line!=null && !line.startsWith("#")) {

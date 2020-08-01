@@ -63,7 +63,7 @@ public class MinimizersTable {
 	}
 	public void initializeTable(int capacity) {
 		matrixRowMap = new HashMap<Integer, Integer>(capacity);
-		sequencesByMinimizerTable = new long [capacity][2];
+		sequencesByMinimizerTable = new long [capacity][1];
 		for(int i=0;i<sequencesByMinimizerTable.length;i++) Arrays.fill(sequencesByMinimizerTable[i], 0);
 		sequencesByMinimizerTableColumnLengths = new short [capacity];
 		Arrays.fill(sequencesByMinimizerTableColumnLengths, (short)0);
@@ -120,7 +120,7 @@ public class MinimizersTable {
 		long [][] newTable = new long [newCapacity][0];
 		for(int i=0;i<newCapacity;i++) {
 			if(i<sequencesByMinimizerTable.length) newTable[i] = sequencesByMinimizerTable[i];
-			else newTable[i] = new long[2];
+			else newTable[i] = new long[1];
 		}
 		sequencesByMinimizerTable = newTable;
 		log.info("Resized minimizers table. New capacity: "+sequencesByMinimizerTable.length);
