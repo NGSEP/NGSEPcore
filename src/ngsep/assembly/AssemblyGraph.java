@@ -319,7 +319,9 @@ public class AssemblyGraph {
 		List<AssemblyEdge> edges = new ArrayList<>();
 		for(AssemblyVertex v:verticesByUnique.values()) {
 			List<AssemblyEdge> edgesVertex = edgesMap.get(v.getUniqueNumber());
+			if(edgesVertex==null) continue;
 			for(AssemblyEdge edge:edgesVertex) {
+				if(edge==null) continue;
 				//Avoid adding twice the same edge
 				if(edge.getVertex1()==v) edges.add(edge);
 			}

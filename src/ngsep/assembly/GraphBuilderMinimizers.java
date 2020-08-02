@@ -175,7 +175,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, selfHitsCount, table.match(complement));
 		AssemblyGraph graph = finder.getGraph();
 		if(!keepVertices) {
-			graph.removeVertices(seqId);
+			synchronized (graph) {
+				graph.removeVertices(seqId);
+			}
 		}
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 	}
