@@ -154,7 +154,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 		double maxCount = 0;
 		for (KmerHitsCluster cluster:clusters) {
-			cluster.summarize(1);
+			cluster.summarize();
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
 		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));

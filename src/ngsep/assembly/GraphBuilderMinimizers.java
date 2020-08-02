@@ -82,11 +82,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			QualifiedSequence seq = sequences.get(seqId);
 			totalLength+=seq.getLength();
 			if(numThreads==1) {
-				extractor.countSequenceKmers(seq);
-				if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
+				countSequenceKmers(extractor, seqId, seq);
 			} else {
-				Runnable task = new CountKmersTask(extractor, seqId,seq);
-				poolKmers.execute(task);
+				final int i = seqId;
+				poolKmers.execute(()->countSequenceKmers(extractor, i, seq));
 			}
 		}
 		waitToFinish(finishTime, poolKmers);
@@ -112,11 +111,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			QualifiedSequence qseq = sequences.get(seqId);
 			CharSequence seq = qseq.getCharacters();
 			if(numThreads==1) {
-				table.addSequence(seqId, seq);
-				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
+				addSequenceToTable(table, seqId, seq);
 			} else {
-				Runnable task = new CreateMinimizersTask(table, seqId, seq);
-				poolMinimizers.execute(task);
+				final int i = seqId;
+				poolMinimizers.execute(()->addSequenceToTable(table, i, seq));
 			}
 			processedLength+=seq.length();
 			if(processedLength>lengthLimit) {
@@ -132,10 +130,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		
-		int minimizersMeanDepth = (int)Math.max(15,(kmersAnalyzer.getAverage()+modeDepth)/4+1);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		edgesFinder.setMinKmerPercentage(minKmerPercentage);
-		edgesFinder.setMeanDepth(minimizersMeanDepth);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -143,10 +139,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			boolean keepVertices = processedLength<lengthLimit;
 			if(numThreads==1) {
 				processSequence(edgesFinder, table, seqId, seq, keepVertices);
-				if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
 			} else {
-				Runnable task = new ProcessSequenceTask(this, edgesFinder, table, seqId, seq, keepVertices);
-				poolSearch.execute(task);
+				final int i = seqId;
+				poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, keepVertices));
 			}
 			processedLength+=seq.length();
 		}
@@ -154,19 +149,16 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
 		return graph;
 	}
-	private void waitToFinish(int time, ThreadPoolExecutor pool) {
-		pool.shutdown();
-		try {
-			pool.awaitTermination(time, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-    	if(!pool.isShutdown()) {
-			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
-		}
+	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
+		extractor.countSequenceKmers(seq);
+		if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
+	}
+	public void addSequenceToTable(MinimizersTable table, int seqId, CharSequence seq) {
+		table.addSequence(seqId, seq);
+		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
 	
-	void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, boolean keepVertices) {
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, boolean keepVertices) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
@@ -179,70 +171,21 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				graph.removeVertices(seqId);
 			}
 		}
+		synchronized (graph) {
+			graph.filterEmbedded(seqId, 0, 0, false);
+		}
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
+		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getEdges().size()+ " Embedded: "+graph.getEmbeddedCount());
 	}
-	
-}
-class CountKmersTask implements Runnable {
-	private KmersExtractor extractor;
-	private int sequenceId;
-	private QualifiedSequence sequence;
-	
-	public CountKmersTask(KmersExtractor extractor, int sequenceId, QualifiedSequence sequence) {
-		super();
-		this.extractor = extractor;
-		this.sequenceId = sequenceId;
-		this.sequence = sequence;
+	private void waitToFinish(int time, ThreadPoolExecutor pool) {
+		pool.shutdown();
+		try {
+			pool.awaitTermination(time, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+    	if(!pool.isShutdown()) {
+			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
+		}
 	}
-
-	@Override
-	public void run() {
-		extractor.countSequenceKmers(sequence);
-		if ((sequenceId+1)%1000==0) extractor.getLog().info("Kmers extracted for "+(sequenceId+1)+" sequences.");
-		
-	}
-}
-class CreateMinimizersTask implements Runnable {
-	private MinimizersTable table;
-	private int sequenceId;
-	private CharSequence sequence;
-	
-	public CreateMinimizersTask(MinimizersTable table, int sequenceId, CharSequence sequence) {
-		super();
-		this.table = table;
-		this.sequenceId = sequenceId;
-		this.sequence = sequence;
-	}
-
-	@Override
-	public void run() {
-		table.addSequence(sequenceId, sequence);
-		if ((sequenceId+1)%1000==0) table.getLog().info("Processed "+(sequenceId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());	
-	}
-}
-class ProcessSequenceTask implements Runnable {
-	private GraphBuilderMinimizers parent;
-	private KmerHitsAssemblyEdgesFinder finder;
-	private MinimizersTable table;
-	private int sequenceId;
-	private CharSequence sequence;
-	private boolean keepVertices;
-	
-	public ProcessSequenceTask(GraphBuilderMinimizers parent, KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int sequenceId, CharSequence sequence, boolean keepVertices) {
-		super();
-		this.parent = parent;
-		this.finder = finder;
-		this.table = table;
-		this.sequenceId = sequenceId;
-		this.sequence = sequence;
-		this.keepVertices = keepVertices;
-	}
-	@Override
-	public void run() {
-		parent.processSequence(finder, table, sequenceId, sequence, keepVertices);
-		AssemblyGraph graph = finder.getGraph();
-		if ((sequenceId+1)%1000==0) parent.getLog().info("Processed "+(sequenceId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
-	}
-	
-	
 }

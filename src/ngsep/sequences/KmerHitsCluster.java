@@ -1,6 +1,5 @@
 package ngsep.sequences;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -212,7 +211,7 @@ public class KmerHitsCluster {
 	}
 
 	
-	public void summarize(double averageHitsQuery) {
+	public void summarize() {
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
 		

@@ -29,11 +29,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.io.ConcatGZIPInputStream;
@@ -106,6 +104,90 @@ public class AssemblyGraph {
 			addEdge(edge);
 		}
 	}
+	
+	//Modifiers
+	
+	public synchronized void addEdge(AssemblyEdge edge) {
+		edgesMap.get(edge.getVertex1().getUniqueNumber()).add(edge);
+		edgesMap.get(edge.getVertex2().getUniqueNumber()).add(edge);
+		numEdges++;
+	}
+	
+	public synchronized void removeEdge (AssemblyEdge edge) {
+		List<AssemblyEdge> edges1 = edgesMap.get(edge.getVertex1().getUniqueNumber()); 
+		if(edges1!=null) edges1.remove(edge);
+		List<AssemblyEdge> edges2 = edgesMap.get(edge.getVertex2().getUniqueNumber());
+		if(edges2!=null) edges2.remove(edge);
+		numEdges--;
+	}
+	
+	public synchronized void removeVertices(int sequenceId) {
+		removeEdges(sequenceId);
+		AssemblyVertex v1 = getVertex(sequenceId, true);
+		AssemblyVertex v2 = getVertex(sequenceId, false);
+		edgesMap.remove(v1.getUniqueNumber());
+		edgesMap.remove(v2.getUniqueNumber());
+		verticesStart.remove(sequenceId);
+		verticesEnd.remove(sequenceId);
+		verticesByUnique.remove(v1.getUniqueNumber());
+		verticesByUnique.remove(v2.getUniqueNumber());
+	}
+	
+	private synchronized void removeEdges(int sequenceId) {
+		AssemblyVertex v1 = getVertex(sequenceId, true);
+		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
+		if(v1!=null) {
+			List<AssemblyEdge> edges1 = edgesMap.get(v1.getUniqueNumber()); 
+			if(edges1!=null) toRemove.addAll(edges1);
+		}
+		AssemblyVertex v2 = getVertex(sequenceId, false);
+		if(v2!=null) {
+			List<AssemblyEdge> edges2 = edgesMap.get(v2.getUniqueNumber());
+			if(edges2!=null) {
+				for(AssemblyEdge edge:edges2) {
+					if(!edge.isSameSequenceEdge()) toRemove.add(edge);
+				}
+			}
+		}
+		for(AssemblyEdge edge:toRemove) {
+			removeEdge(edge);
+		}
+	}
+	
+	public synchronized void addEmbedded(AssemblyEmbedded embeddedObject) {
+		List<AssemblyEmbedded> list = embeddedMapByHost.computeIfAbsent(embeddedObject.getHostId(), key -> new LinkedList<>());
+		list.add(embeddedObject);
+		List<AssemblyEmbedded> list2 = embeddedMapBySequence.computeIfAbsent(embeddedObject.getSequenceId(), key -> new LinkedList<>());
+		list2.add(embeddedObject);	
+	}
+	
+	public synchronized void removeEmbedded (AssemblyEmbedded embeddedObject) {
+		int hostId = embeddedObject.getHostId();
+		embeddedMapByHost.get(hostId).remove(embeddedObject);
+		if(embeddedMapByHost.get(hostId).size()==0) embeddedMapByHost.remove(hostId);
+		int seqId = embeddedObject.getSequenceId();
+		embeddedMapBySequence.get(seqId).remove(embeddedObject);
+		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(seqId);
+	}
+	
+	private void removeEmbeddedRelations(int sequenceId) {
+		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
+		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
+		if(emb!=null) embeddedList.addAll(emb);
+		emb = embeddedMapBySequence.get(sequenceId);
+		if(emb!=null) embeddedList.addAll(emb);
+		for(AssemblyEmbedded embedded: embeddedList) {
+			removeEmbedded(embedded);
+		}
+	}
+	
+	public synchronized void pruneEmbeddedSequences() {
+		for(int i:embeddedMapBySequence.keySet()) {
+			if(verticesStart.get(i)!=null) {
+				removeVertices(i);
+			}
+		}
+	}
 
 	/**
 	 * @return the sequences
@@ -127,21 +209,7 @@ public class AssemblyGraph {
 		return readNames;
 	}
 
-	public void setReadNames(List<String> readNames) {
-		this.readNames = readNames;
-	}
-
-	public void addEdge(AssemblyEdge edge) {
-		edgesMap.get(edge.getVertex1().getUniqueNumber()).add(edge);
-		edgesMap.get(edge.getVertex2().getUniqueNumber()).add(edge);
-		numEdges++;
-	}
 	
-	public void removeEdge (AssemblyEdge edge) {
-		edgesMap.get(edge.getVertex1().getUniqueNumber()).remove(edge);
-		edgesMap.get(edge.getVertex2().getUniqueNumber()).remove(edge);
-		numEdges--;
-	}
 
 	public AssemblyVertex getVertex(int indexSequence, boolean start) {
 		if(start) return verticesStart.get(indexSequence);
@@ -151,126 +219,6 @@ public class AssemblyGraph {
 	public AssemblyVertex getVertexByUniqueId(int uniqueId) {
 		return verticesByUnique.get(uniqueId);
 	}
-
-	public void addEmbedded(AssemblyEmbedded embeddedObject) {
-		List<AssemblyEmbedded> list = embeddedMapByHost.computeIfAbsent(embeddedObject.getHostId(), key -> new LinkedList<>());
-		list.add(embeddedObject);
-		List<AssemblyEmbedded> list2 = embeddedMapBySequence.computeIfAbsent(embeddedObject.getSequenceId(), key -> new LinkedList<>());
-		list2.add(embeddedObject);
-		
-	}
-	
-	public void removeEmbedded (AssemblyEmbedded embeddedObject) {
-		int hostId = embeddedObject.getHostId();
-		embeddedMapByHost.get(hostId).remove(embeddedObject);
-		if(embeddedMapByHost.get(hostId).size()==0) embeddedMapByHost.remove(hostId);
-		int seqId = embeddedObject.getSequenceId();
-		embeddedMapBySequence.get(seqId).remove(embeddedObject);
-		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(seqId);
-	}
-	
-	public void pruneEmbeddedSequences() {
-		for(int i:embeddedMapBySequence.keySet()) {
-			if(verticesStart.get(i)!=null) {
-				removeEdges(i);
-			}
-		}
-	}
-	
-	public void selectEmbeddedSequences() {
-		List<Integer> currentEmbedded = new ArrayList<Integer>();
-		currentEmbedded.addAll(embeddedMapBySequence.keySet());
-		Collections.sort(currentEmbedded);
-		Set<Integer> freezedEmbedded = new HashSet<Integer>();
-		for(int i:currentEmbedded) {
-			List<AssemblyEmbedded> embeddedRelations = embeddedMapBySequence.get(i);
-			AssemblyEmbedded toRemove = null;
-			if(!freezedEmbedded.contains(i) && embeddedRelations.size()==1) {
-				AssemblyEmbedded embedded = embeddedRelations.get(0);
-				if (makeSpecialEdge (embedded)) {
-					toRemove = embedded;
-				}
-			}
-			if(toRemove==null) {
-				if (verticesStart.get(i)!=null) removeVertices(i);
-			} else {
-				removeEmbedded(toRemove);
-				List<AssemblyEmbedded> children = embeddedMapByHost.get(i);
-				if(children==null) return;
-				for(AssemblyEmbedded child:children) {
-					freezedEmbedded.add(child.getSequenceId());
-				}
-			}
-		}
-	}
-
-	private boolean makeSpecialEdge(AssemblyEmbedded embedded) {
-		//TODO: Parameters instead of hard filters
-		int seqIdHost = embedded.getHostId();
-		CharSequence host = sequences.get(seqIdHost).getCharacters();
-		int seqIdEmb = embedded.getSequenceId();
-		CharSequence seq = sequences.get(seqIdEmb).getCharacters();
-		if(seq.length()<5000) return false;
-		if(seq==null || host == null) return false;
-		if (seq.length()<0.7*host.length()) return false;
-		if (seq.length()>0.95*host.length()) return false;
-		if(embeddedMapBySequence.containsKey(embedded.getHostId())) return false;
-		int left = embedded.getHostStart();
-		int right = host.length()-(left+seq.length());
-		if(Math.abs(left-right)<100) return false;
-		AssemblyVertex vHost = null;
-		AssemblyVertex vSeq = null;
-		if (left < right) {
-			if (left > 100) return false;
-			vHost = verticesStart.get(seqIdHost);
-			if (embedded.isReverse()) vSeq = verticesStart.get(seqIdEmb);
-			else vSeq = verticesEnd.get(seqIdEmb);
-		} else {
-			if (right > 100) return false;
-			vHost = verticesEnd.get(seqIdHost);
-			if (embedded.isReverse()) vSeq = verticesEnd.get(seqIdEmb);
-			else vSeq = verticesStart.get(seqIdEmb);
-		}
-		if(vHost==null || vSeq == null ) return false;
-		if(getEdge(vHost, vSeq)==null) {
-			AssemblyEdge specialEdge = new AssemblyEdge(vHost, vSeq, seq.length());
-			specialEdge.setMismatches(embedded.getMismatches());
-			specialEdge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
-			addEdge(specialEdge);
-		}
-		System.out.println("Special edge created for embedded sequence: "+seqIdEmb+" with length "+seq.length()+" in host: "+seqIdHost+" length "+host.length()+" leftover first: "+left+" leftover right: "+ right);
-		return true;
-	}
-
-	public void removeEdges(int sequenceId) {
-		AssemblyVertex v1 = getVertex(sequenceId, true);
-		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
-		List<AssemblyEdge> edges1 = edgesMap.get(v1.getUniqueNumber()); 
-		if(edges1!=null) toRemove.addAll(edges1);
-		AssemblyVertex v2 = getVertex(sequenceId, false);
-		List<AssemblyEdge> edges2 = edgesMap.get(v2.getUniqueNumber());
-		if(edges2!=null) {
-			for(AssemblyEdge edge:edges2) {
-				if(!edge.isSameSequenceEdge()) toRemove.add(edge);
-			}
-		}
-		for(AssemblyEdge edge:toRemove) {
-			removeEdge(edge);
-		}
-	}
-	
-	public void removeVertices(int sequenceId) {
-		removeEdges(sequenceId);
-		AssemblyVertex v1 = getVertex(sequenceId, true);
-		AssemblyVertex v2 = getVertex(sequenceId, false);
-		edgesMap.remove(v1.getUniqueNumber());
-		edgesMap.remove(v2.getUniqueNumber());
-		verticesStart.remove(sequenceId);
-		verticesEnd.remove(sequenceId);
-		verticesByUnique.remove(v1.getUniqueNumber());
-		verticesByUnique.remove(v2.getUniqueNumber());
-	}
-	
 
 	/**
 	 * Return the list of embedded sequences for the given read
@@ -302,7 +250,7 @@ public class AssemblyGraph {
 		return embeddedMapBySequence.size();
 	}
 
-	public void addPath(List<AssemblyEdge> path) {
+	public synchronized void addPath(List<AssemblyEdge> path) {
 		paths.add(path);
 	}
 	
@@ -327,7 +275,6 @@ public class AssemblyGraph {
 			List<AssemblyEdge> edgesVertex = edgesMap.get(v.getUniqueNumber());
 			if(edgesVertex==null) continue;
 			for(AssemblyEdge edge:edgesVertex) {
-				if(edge==null) continue;
 				//Avoid adding twice the same edge
 				if(edge.getVertex1()==v) edges.add(edge);
 			}
@@ -353,7 +300,7 @@ public class AssemblyGraph {
 				return edge;
 			}
 		}
-		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex.getSequenceIndex()+"-"+vertex.isStart());
+		throw new RuntimeException("Same sequence edge not found for vertex: "+vertex);
 	}
 	/**
 	 * Searches for an edge between the given vertices
@@ -508,11 +455,48 @@ public class AssemblyGraph {
 		}
 		return answer;
 	}
+	
+	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
+		Map<Integer,AssemblyEmbedded> embeddedSequencesMap = new HashMap<Integer,AssemblyEmbedded>();
+		LinkedList<Integer> agenda = new LinkedList<Integer>();
+		agenda.add(sequenceIndex);
+		while (agenda.size()>0) {
+			
+			int nextSequenceIdx = agenda.removeFirst();
+			List<AssemblyEmbedded> embeddedList = getEmbeddedByHostId(nextSequenceIdx);
+			for(AssemblyEmbedded embedded:embeddedList) {
+				int seqId = embedded.getSequenceId();
+				if(embeddedSequencesMap.containsKey(seqId)) {
+					System.err.println("Found two embedded relationships for sequence "+seqId+" parents: "+embedded.getHostId()+" and "+embeddedSequencesMap.get(seqId).getHostId());
+					continue;
+				}
+				AssemblyEmbedded parentObject = embeddedSequencesMap.get(embedded.getHostId());
+				if(parentObject==null) {
+					embeddedSequencesMap.put(seqId, embedded);
+				} else {
+					int rootStartParent = parentObject.getHostStart();
+					int rootStartSequence = rootStartParent+embedded.getHostStart();
+					int rootEndSequence = rootStartParent+embedded.getHostEnd();
+					
+					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
+					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence, rootEndSequence));
+				}
+				
+				agenda.add(embedded.getSequenceId());
+			}
+					
+		}
+		List<AssemblyEmbedded> answer = new ArrayList<AssemblyEmbedded>();
+		answer.addAll(embeddedSequencesMap.values());
+		Collections.sort(answer, (a1,a2)-> a1.getHostStart()-a2.getHostStart());
+		
+		return answer;
+	}
 
-	public void removeEdgesChimericReads () {
+	public void removeVerticesChimericReads () {
 		for(int i=0;i<sequences.size();i++) {
 			if(isChimeric(i)) {
-				removeEdges(i);
+				removeVertices(i);
 				removeEmbeddedRelations(i);
 			}
 		}
@@ -572,17 +556,13 @@ public class AssemblyGraph {
 		return false;
 	}
 	
-	private void removeEmbeddedRelations(int sequenceId) {
-		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
-		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
-		if(emb!=null) embeddedList.addAll(emb);
-		emb = embeddedMapBySequence.get(sequenceId);
-		if(emb!=null) embeddedList.addAll(emb);
-		for(AssemblyEmbedded embedded: embeddedList) {
-			removeEmbedded(embedded);
+	public void filterEdgesAndEmbedded() {
+		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
+			filterEdgesAndEmbedded(seqId);
 		}
+		pruneEmbeddedSequences();
+		filterEdgesCloseRelationships();
 	}
-
 
 	public void filterEdgesAndEmbedded(int sequenceId) {
 		int debugIdx = -1;
@@ -635,14 +615,18 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
 		
 		double maxScore = Math.max(maxScoreS, maxScoreE);
+		filterEmbedded(sequenceId, minScoreProportion, maxScore, true);
+	}
+
+	public void filterEmbedded(int sequenceId, double minScoreProportion, double maxScoreEdges, boolean removeEdges) {
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		double maxE = 0;
 		AssemblyEmbedded maxEmbedded = null;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			double score = calculateScore(embedded);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Length "+getSequenceLength(sequenceId)+" coverageKmers: "+embedded.getCoverageSharedKmers()+" Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
-			if(score > minScoreProportion*maxScore && score > maxE) {
+			//if(sequenceId == debugIdx) System.out.println("Assembly graph. Length "+getSequenceLength(sequenceId)+" coverageKmers: "+embedded.getCoverageSharedKmers()+" Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
+			if(score > minScoreProportion*maxScoreEdges && score > maxE) {
 				maxE = score;
 				maxEmbedded = embedded;
 			}
@@ -650,10 +634,10 @@ public class AssemblyGraph {
 		for(AssemblyEmbedded embedded:embeddedList) {
 			if(embedded!=maxEmbedded) {
 				removeEmbedded(embedded);
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
-			} else {
+				//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
+			} else if (removeEdges) {
 				removeEdges(embedded.getSequenceId());
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed edges for sequence: "+embedded.getSequenceId());
+				//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed edges for sequence: "+embedded.getSequenceId());
 			}
 		}
 	}
@@ -686,51 +670,6 @@ public class AssemblyGraph {
 		//return (cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
 		//return edge.getCoverageSharedKmers();
 		return edge.getWeightedCoverageSharedKmers();
-	}
-
-	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
-		Map<Integer,AssemblyEmbedded> embeddedSequencesMap = new HashMap<Integer,AssemblyEmbedded>();
-		LinkedList<Integer> agenda = new LinkedList<Integer>();
-		agenda.add(sequenceIndex);
-		while (agenda.size()>0) {
-			
-			int nextSequenceIdx = agenda.removeFirst();
-			List<AssemblyEmbedded> embeddedList = getEmbeddedByHostId(nextSequenceIdx);
-			for(AssemblyEmbedded embedded:embeddedList) {
-				int seqId = embedded.getSequenceId();
-				if(embeddedSequencesMap.containsKey(seqId)) {
-					System.err.println("Found two embedded relationships for sequence "+seqId+" parents: "+embedded.getHostId()+" and "+embeddedSequencesMap.get(seqId).getHostId());
-					continue;
-				}
-				AssemblyEmbedded parentObject = embeddedSequencesMap.get(embedded.getHostId());
-				if(parentObject==null) {
-					embeddedSequencesMap.put(seqId, embedded);
-				} else {
-					int rootStartParent = parentObject.getHostStart();
-					int rootStartSequence = rootStartParent+embedded.getHostStart();
-					int rootEndSequence = rootStartParent+embedded.getHostEnd();
-					
-					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
-					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence, rootEndSequence));
-				}
-				
-				agenda.add(embedded.getSequenceId());
-			}
-					
-		}
-		List<AssemblyEmbedded> answer = new ArrayList<AssemblyEmbedded>();
-		answer.addAll(embeddedSequencesMap.values());
-		Collections.sort(answer, (a1,a2)-> a1.getHostStart()-a2.getHostStart());
-		
-		return answer;
-	}
-
-	public void filterEdgesAndEmbedded() {
-		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			filterEdgesAndEmbedded(seqId);
-		}
-		pruneEmbeddedSequences();
-		filterEdgesCloseRelationships();
 	}
 
 	public void filterEdgesCloseRelationships() {

@@ -22,8 +22,6 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private double minProportionEvidence = 0;
 	
-	private int meanDepth = 10;
-	
 	private int idxDebug = -1;
 	
 	
@@ -36,15 +34,6 @@ public class KmerHitsAssemblyEdgesFinder {
 		return graph;
 	}
 	
-	public int getMeanDepth() {
-		return meanDepth;
-	}
-
-	public void setMeanDepth(int meanDepth) {
-		this.meanDepth = meanDepth;
-	}
-	
-
 	public int getMinKmerPercentage() {
 		return minKmerPercentage;
 	}
@@ -89,7 +78,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	private void updateGraphWithKmerCluster(int querySequenceId, CharSequence query,  boolean queryRC, KmerHitsCluster cluster) {
 		//Process cluster
-		cluster.summarize(meanDepth);
+		cluster.summarize();
 		if(passFilters(querySequenceId, query.length(), cluster)) {
 			processCluster(querySequenceId, query, queryRC, cluster);
 		}
