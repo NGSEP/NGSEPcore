@@ -138,23 +138,19 @@ public class KmersMapAnalyzer {
 		int idxAnswer = 0;
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
 			Map<Integer,Short> codes = ((ShortArrayDNAKmersMapImpl)kmersMap).getKmerCodesWithCount(minValueKmers,maxValueKmers);
-			for(int i=mode;i>=minValueKmers;i--) {
-				idxAnswer = addKmerCodes(codes,i,answer,idxAnswer);
+			for(int i=0;mode+i<=maxValueKmers;i++) {
+				idxAnswer = addKmerCodes(codes,mode+i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
-				
-			}
-			for(int i=mode;i<=maxValueKmers;i++) {
-				idxAnswer = addKmerCodes(codes,i,answer,idxAnswer);
+				if(i==0) continue;
+				idxAnswer = addKmerCodes(codes,mode-i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
 			}
 		} else {
-			for(int i=mode;i>=minValueKmers;i--) {
-				idxAnswer = addKmerCodes(i,answer,idxAnswer);
+			for(int i=0;mode+i<=maxValueKmers;i++) {
+				idxAnswer = addKmerCodes(mode+i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
-				
-			}
-			for(int i=mode;i<=maxValueKmers;i++) {
-				idxAnswer = addKmerCodes(i,answer,idxAnswer);
+				if(i==0) continue;
+				idxAnswer = addKmerCodes(mode-i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
 			}
 		}
