@@ -3,7 +3,9 @@ package ngsep.sequences;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import ngsep.math.Distribution;
 
@@ -110,11 +112,11 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 		return answer;
 	}
 	
-	public List<Integer> getKmerCodesWithCount(int count) {
-		List<Integer> answer = new ArrayList<Integer>();
+	public Map<Integer,Short> getKmerCodesWithCount(int minCount, int maxCount) {
+		Map<Integer,Short> answer = new HashMap<Integer,Short>();
 		for(int i=0;i<kmerCounts.length;i++) {
-			if(kmerCounts[i]==count) {
-				answer.add(i);
+			if(kmerCounts[i]>=minCount && kmerCounts[i]<=maxCount) {
+				answer.put(i,kmerCounts[i]);
 			}
 		}
 		return answer;

@@ -244,11 +244,17 @@ public class AssemblyGraph {
 
 	public void removeEdges(int sequenceId) {
 		AssemblyVertex v1 = getVertex(sequenceId, true);
-		List<AssemblyEdge> edgesToRemove = new ArrayList<>(); 
-		edgesToRemove.addAll(edgesMap.get(v1.getUniqueNumber()));
+		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
+		List<AssemblyEdge> edges1 = edgesMap.get(v1.getUniqueNumber()); 
+		if(edges1!=null) toRemove.addAll(edges1);
 		AssemblyVertex v2 = getVertex(sequenceId, false);
-		edgesToRemove.addAll(edgesMap.get(v2.getUniqueNumber()));
-		for(AssemblyEdge edge:edgesToRemove) {
+		List<AssemblyEdge> edges2 = edgesMap.get(v2.getUniqueNumber());
+		if(edges2!=null) {
+			for(AssemblyEdge edge:edges2) {
+				if(!edge.isSameSequenceEdge()) toRemove.add(edge);
+			}
+		}
+		for(AssemblyEdge edge:toRemove) {
 			removeEdge(edge);
 		}
 	}

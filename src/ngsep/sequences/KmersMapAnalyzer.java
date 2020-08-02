@@ -2,17 +2,19 @@ package ngsep.sequences;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import ngsep.math.Distribution;
 
 public class KmersMapAnalyzer {
 	private KmersMap kmersMap;
+	private long [] kmerCounts;
+	private long [] completeCounts;
 	private boolean assembly;
 	private int mode;
 	private int localMinimum;
 	private double average;
 	private long expectedAssemblyLength;
-	private int numKmersInUniqueZone;
 	
 	public KmersMapAnalyzer (KmersMap map, boolean assembly) {
 		this.kmersMap = map;
@@ -22,8 +24,10 @@ public class KmersMapAnalyzer {
 	private void analyzeDistribution(Distribution distribution) {
 		long totalEntries = 0;
 		int maxValueDist = (int)Math.round(distribution.getMaxValueDistribution());
-		long [] completeCounts = new long [maxValueDist+1];
+		completeCounts = new long [maxValueDist+1];
+		kmerCounts = new long [maxValueDist+1];
 		for(int i=1;i<=maxValueDist;i++) {
+			kmerCounts[i] = Math.round(distribution.getDistributionCount(i));
 			completeCounts[i] = Math.round(i*distribution.getDistributionCount(i));
 			totalEntries+=completeCounts[i];
 		}
@@ -51,7 +55,6 @@ public class KmersMapAnalyzer {
 				}
 			}
 			long localMinValue = completeCounts[1];
-			localMinimum = 1;
 			for(int i=2;i<mode;i++) {
 				long value = completeCounts[i];
 				if(value<localMinValue) {
@@ -59,25 +62,20 @@ public class KmersMapAnalyzer {
 					localMinimum = i;
 				}
 			}
-			if(localMinimum==mode-1) {
-				//Probably almost decreasing curve. High error rate
-				localMinimum = mode/2;
-			} else {
-				localMinimum = Math.max(localMinimum, mode/2);
+			if(localMinimum==1 || localMinimum==mode-1 || localMinValue>completeCounts[1]/2 || localMinValue>completeCounts[mode]/2) {
+				//Issues calculating local minimum. Set to half of the mode
+				localMinimum = Math.max(5, mode/2);
 			}
 			
 			long errorSum = 0;
 			for(int i=1;i<localMinimum;i++) {
 				errorSum+=completeCounts[i];
 			}
-			int diff = mode-localMinimum;
 			expectedAssemblyLength = (totalEntries-errorSum) / (2*mode);
 			average = 0;
-			numKmersInUniqueZone = 0;
 			double count = 0;
 			for(int i=localMinimum;i<maxValueDist;i++) {
 				long iCount = Math.round(distribution.getDistributionCount(i));
-				if(numKmersInUniqueZone+iCount<Integer.MAX_VALUE && i<=mode+diff) numKmersInUniqueZone += iCount;
 				average+=completeCounts[i];
 				count+=iCount;
 			}
@@ -121,37 +119,66 @@ public class KmersMapAnalyzer {
 		return expectedAssemblyLength;
 	}
 	public long[] extractKmerCodesInLocalSDZone() {
+		int localSD = getModeLocalSD();
+		int minValueKmers = localMinimum;
+		int maxValueKmers = mode+localSD;
+		int numKmersInUniqueZone = (int)kmerCounts[mode];
+		for(int i=1;i<=localSD;i++) {
+			long newCount = numKmersInUniqueZone+kmerCounts[mode+i]+kmerCounts[mode-i];
+			if(newCount>500000000 || newCount>2*expectedAssemblyLength) {
+				minValueKmers=mode-i;
+				maxValueKmers=mode+i;
+				break;
+			}
+			numKmersInUniqueZone=(int)newCount;
+		}
+		
 		long [] answer = new long [numKmersInUniqueZone];
 		Arrays.fill(answer, -1);
-		int localSD = getModeLocalSD();
 		int idxAnswer = 0;
-		for(int i=mode;i>=mode-localSD;i--) {
-			idxAnswer = addKmerCodes(i,answer,idxAnswer);
-			if(idxAnswer==answer.length) return answer;
-			
-		}
-		for(int i=mode;i<=mode+localSD;i++) {
-			idxAnswer = addKmerCodes(i,answer,idxAnswer);
-			if(idxAnswer==answer.length) return answer;
-		}
-		return answer;
-	}
-	private int addKmerCodes(int depth, long[] answer, int idxAnswer) {
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
-			List<Integer> codes = ((ShortArrayDNAKmersMapImpl)kmersMap).getKmerCodesWithCount(depth);
-			for(int code:codes) {
-				answer[idxAnswer] = code;
-				idxAnswer++;
-				if(idxAnswer==answer.length) return idxAnswer;
+			Map<Integer,Short> codes = ((ShortArrayDNAKmersMapImpl)kmersMap).getKmerCodesWithCount(minValueKmers,maxValueKmers);
+			for(int i=mode;i>=minValueKmers;i--) {
+				idxAnswer = addKmerCodes(codes,i,answer,idxAnswer);
+				if(idxAnswer==answer.length) return answer;
+				
+			}
+			for(int i=mode;i<=maxValueKmers;i++) {
+				idxAnswer = addKmerCodes(codes,i,answer,idxAnswer);
+				if(idxAnswer==answer.length) return answer;
 			}
 		} else {
-			List<CharSequence> kmersDepth = kmersMap.getKmersWithCount(depth);
-			for(CharSequence kmer:kmersDepth) {
-				long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
-				answer[idxAnswer] = code;
+			for(int i=mode;i>=minValueKmers;i--) {
+				idxAnswer = addKmerCodes(i,answer,idxAnswer);
+				if(idxAnswer==answer.length) return answer;
+				
+			}
+			for(int i=mode;i<=maxValueKmers;i++) {
+				idxAnswer = addKmerCodes(i,answer,idxAnswer);
+				if(idxAnswer==answer.length) return answer;
+			}
+		}
+		
+		return answer;
+	}
+	private int addKmerCodes(Map<Integer, Short> codes, int depth, long[] answer, int idxAnswer) {
+		for(int code:codes.keySet()) {
+			int value = codes.get(code);
+			if(value == depth) {
+				answer[idxAnswer]=code;
 				idxAnswer++;
 				if(idxAnswer==answer.length) return idxAnswer;
 			}
+		}
+		return idxAnswer;
+	}
+	private int addKmerCodes(int depth, long[] answer, int idxAnswer) {
+		List<CharSequence> kmersDepth = kmersMap.getKmersWithCount(depth);
+		for(CharSequence kmer:kmersDepth) {
+			long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
+			answer[idxAnswer] = code;
+			idxAnswer++;
+			if(idxAnswer==answer.length) return idxAnswer;
 		}
 		return idxAnswer;
 	}
