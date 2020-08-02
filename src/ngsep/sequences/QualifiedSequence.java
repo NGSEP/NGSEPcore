@@ -50,6 +50,12 @@ public class QualifiedSequence implements Serializable {
 		this.setName(name);
 		this.setCharacters(characters);
 	}
+	
+	public QualifiedSequence(String name, int length) {
+		super();
+		this.setName(name);
+		this.setLength(length);
+	}
 
 	public QualifiedSequence(String name, CharSequence characters, String qualityScores) {
 		super();

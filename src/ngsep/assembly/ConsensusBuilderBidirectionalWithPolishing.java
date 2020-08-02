@@ -38,21 +38,25 @@ import java.util.zip.GZIPOutputStream;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
-import ngsep.discovery.IndelRealignerPileupListener;
-import ngsep.discovery.SingleSampleVariantPileupListener;
+import ngsep.discovery.CountsHelper;
+import ngsep.discovery.PileupAlleleCall;
+import ngsep.discovery.PileupListener;
+import ngsep.discovery.PileupRecord;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
-import ngsep.genome.ReferenceGenome;
 import ngsep.math.CountsRankHelper;
+import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.DeBruijnGraphExplorationMiniAssembler;
 import ngsep.sequences.DefaultKmersMapImpl;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
@@ -251,7 +255,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
-				if (totalReads%100==0) log.info("Path "+sequenceIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+				if (totalReads%100==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
@@ -269,15 +273,18 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 						alignments.add(alnEmbedded);
 					}
 					else unalignedReads++;
-					if (totalReads%100==0) log.info("Path "+sequenceIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+					if (totalReads%100==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				}
 			}
 			lastVertex = vertexNextEdge;
 		}
 		log.info("Path "+sequenceIdx+". Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 		log.info("Path "+sequenceIdx+". Path: "+pathS);
-		String consensus = rawConsensus.toString();
+		
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
+		//Identify and correct SNV errors first
+		correctSNVErrors(sequenceName, rawConsensus, alignments);
+		String consensus = rawConsensus.toString();
 		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus, alignments);
 		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
 		if(outCorrectedReads!=null) {
@@ -441,48 +448,22 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return call;
 	}
 
-	private List<CalledGenomicVariant> callVariantsDefault(String sequenceName, String consensus, List<ReadAlignment> alignments) {
+	private void correctSNVErrors(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
-		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName, consensus));
-		generator.setSequencesMetadata(genome.getSequencesMetadata());
-		generator.setMaxAlnsPerStartPos(100);
-		generator.setMinMQ(80);
-		IndelRealignerPileupListener realignerListener = new IndelRealignerPileupListener();
-		realignerListener.setGenome(genome);
-		realignerListener.setMinProportionAlnsRealign(0.5);
-		generator.addListener(realignerListener);
-		SingleSampleVariantPileupListener varListener = new SingleSampleVariantPileupListener();
-		varListener.setMinQuality((short) 30);
-		varListener.setGenome(genome);
-		generator.addListener(varListener);
-		/*generator.addListener(new PileupListener() {
-			@Override
-			public void onSequenceStart(QualifiedSequence sequence) {
-				// TODO Auto-generated method stub
-				
-			}
-			
-			@Override
-			public void onSequenceEnd(QualifiedSequence sequence) {
-				// TODO Auto-generated method stub
-				
-			}
-			
-			@Override
-			public void onPileup(PileupRecord pileup) {
-				if(pileup.getReferenceSpan()>20 ) System.out.println("Pileup position: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" alignemts: "+pileup.getNumAlignments());
-				
-			}
-		});*/
+		QualifiedSequenceList metadata = new QualifiedSequenceList();
+		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
+		generator.setSequencesMetadata(metadata);
+		generator.setMaxAlnsPerStartPos(0);
+		SimpleSNVErrorCorrectorPileupListener snvsCorrectorListener = new SimpleSNVErrorCorrectorPileupListener(consensus);
+		generator.addListener(snvsCorrectorListener);
 		
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
 			generator.processAlignment(aln);
 			count++;
-			if(count%100==0) log.info("Processed "+count+" alignments. Called variants: "+varListener.getCalledVariants().size()); 
+			if(count%100==0) log.info("Sequence: "+sequenceName+". Corrected SNVs from "+count+" alignments"); 
 		}
-		return varListener.getCalledVariants();
 	}
 
 	private CharSequence applyVariants(String consensus, List<CalledGenomicVariant> variants) {
@@ -589,7 +570,37 @@ class BuildConsensusTask implements Runnable {
 	public void run() {
 		consensusSequence = parent.makeConsensus(graph,path, sequenceIdx, sequenceName);
 	}
+}
+
+class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
+
+	private StringBuilder consensus;
+
+	public SimpleSNVErrorCorrectorPileupListener(StringBuilder consensus) {
+		super();
+		this.consensus = consensus;
+	}
 	
-	
+	@Override
+	public void onPileup(PileupRecord pileup) {
+		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1);
+		CountsHelper helper = CountsHelper.calculateCountsSNV(calls, (byte)30, 0.0);
+		int [] acgtCounts = helper.getCounts();
+		int maxIdx = NumberArrays.getIndexMaximum(acgtCounts);
+		int consensusPos = pileup.getPosition()-1;
+		char refBase = consensus.charAt(consensusPos);
+		int refIdx = DNASequence.BASES_STRING.indexOf(refBase);
+		if(maxIdx!=refIdx) {
+			consensus.setCharAt(consensusPos, DNASequence.BASES_STRING.charAt(maxIdx));
+		}
+	}
+
+	@Override
+	public void onSequenceStart(QualifiedSequence sequence) {
+	}
+
+	@Override
+	public void onSequenceEnd(QualifiedSequence sequence) {
+	}
 	
 }
