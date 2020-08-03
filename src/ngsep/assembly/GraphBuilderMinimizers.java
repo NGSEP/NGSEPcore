@@ -136,12 +136,11 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
-			boolean keepVertices = processedLength<lengthLimit;
 			if(numThreads==1) {
-				processSequence(edgesFinder, table, seqId, seq, keepVertices);
+				processSequence(edgesFinder, table, seqId, seq);
 			} else {
 				final int i = seqId;
-				poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, keepVertices));
+				poolSearch.execute(()->processSequence(edgesFinder, table, i, seq));
 			}
 			processedLength+=seq.length();
 		}
@@ -158,7 +157,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
 	
-	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, boolean keepVertices) {
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
@@ -166,13 +165,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, selfHitsCount, table.match(complement));
 		AssemblyGraph graph = finder.getGraph();
-		if(!keepVertices) {
-			synchronized (graph) {
-				graph.removeVertices(seqId);
-			}
-		}
 		synchronized (graph) {
-			graph.filterEmbedded(seqId, 0, 0, false);
+			graph.filterEmbedded(seqId, 0.5, 10);
 		}
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());

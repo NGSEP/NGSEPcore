@@ -46,7 +46,7 @@ public class AssemblyGraphStatistics {
 	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
-	private String layoutAlgorithm=LAYOUT_ALGORITHM_MAX_OVERLAP;
+	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -242,6 +242,7 @@ public class AssemblyGraphStatistics {
 				while (it.hasNext()) {
 					ReadAlignment aln = it.next();
 					CharSequence characters = aln.getReadCharacters();
+					if(characters.length()<Assembler.DEF_MIN_READ_LENGTH) continue;
 					if(aln.isNegativeStrand()) {
 						characters = DNAMaskedSequence.getReverseComplement(characters);
 					}
@@ -450,7 +451,7 @@ public class AssemblyGraphStatistics {
 				System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
-					System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost));
+					System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" weighted cov: "+embedded.getWeightedCoverageSharedKmers());
 				}
 			}
 			//Check embedded relationships
@@ -488,7 +489,6 @@ public class AssemblyGraphStatistics {
 
 	private boolean validateEqualVertices(int seqIndex, QualifiedSequence sequence, AssemblyVertex testVertex, AssemblyVertex gsVertex) {
 		if(testVertex==null) {
-			log.warning("Test vertex not found for start of sequence "+logSequence(seqIndex, sequence));
 			return false;
 		}
 		if(!testVertex.getRead().getName().equals(sequence.getName())) {
@@ -516,7 +516,7 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==-2 || gsVertex.getUniqueNumber()==3550; 
+		boolean debug = gsVertex.getUniqueNumber()==-6760 || gsVertex.getUniqueNumber()==-1838; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -707,16 +707,20 @@ public class AssemblyGraphStatistics {
 					int [] gsEdgeLocation = findGSEdgeLocation(gsPaths, nextTestEdge );
 					if(gsEdgeLocation == null) {
 						AssemblyEdge gsEdge = findEdge(goldStandardGraph, nextTestEdge);
-						if(gsEdge==null) {
+						AssemblyEmbedded gsEmbedded = findEmbeddedRelationship(goldStandardGraph, nextTestEdge);
+						if(gsEdge==null && gsEmbedded==null) {
 							errorsFPEdge++;
 							System.err.println("Compare layouts. False positive edge: "+nextTestEdge);
 							distOverlapsFPPathEdges.processDatapoint(nextTestEdge.getOverlap());
 							distCoverageSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getCoverageSharedKmers());
 							distWCovSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getWeightedCoverageSharedKmers());
 							distCoverageSharedKmersProportionFPPathEdges.processDatapoint((double)nextTestEdge.getCoverageSharedKmers()/nextTestEdge.getOverlap());
-						} else if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) {
+						} else if (gsEdge==null) { 
 							errorsEdgeEmbeddedNoLayout++;
-							System.err.println("Compare layouts. Embedded no GS layout "+nextTestEdge);
+							System.err.println("Compare layouts. Edge from false negative embedded relationship "+nextTestEdge);
+						} else  if (goldStandardGraph.isEmbedded(gsEdge.getVertex1().getSequenceIndex()) || goldStandardGraph.isEmbedded(gsEdge.getVertex2().getSequenceIndex())) {
+							errorsEdgeEmbeddedNoLayout++;
+							System.err.println("Compare layouts. True edge between embedded sequences "+nextTestEdge);
 						} else {
 							errorsTPEdgeNoLayout++;
 							if(!nextTestEdge.isSameSequenceEdge()) System.err.println("Compare layouts. True positive no GS layout "+nextTestEdge);
@@ -738,7 +742,7 @@ public class AssemblyGraphStatistics {
 				nextGSEdgeIdx+=direction;
 				errorsFNLayoutEdge++;
 				AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
-				log.info("Compare layouts. Finished test path before GS path. last test edge: "+nextPath.get(nextPath.size()-1)+" Next GS edge after end of test path: "+nextGSEdge);	
+				log.info("Compare layouts. Finished test path before GS path. last test edge: "+nextPath.get(nextPath.size()-1)+"\nNext GS edge after end of test path: "+nextGSEdge);	
 			} else if (nextGSEdgeIdx==-1) {
 				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+nextPath.get(nextPath.size()-1));
 			}
@@ -750,6 +754,19 @@ public class AssemblyGraphStatistics {
 		AssemblyVertex v1 = goldStandardGraph.getVertexByUniqueId(nextTestEdge.getVertex1().getUniqueNumber());
 		AssemblyVertex v2 = goldStandardGraph.getVertexByUniqueId(nextTestEdge.getVertex2().getUniqueNumber());
 		return goldStandardGraph.getEdge(v1, v2);
+	}
+	private AssemblyEmbedded findEmbeddedRelationship(AssemblyGraph goldStandardGraph, AssemblyEdge nextTestEdge) {
+		int seqId1 = nextTestEdge.getVertex1().getSequenceIndex();
+		int seqId2 = nextTestEdge.getVertex2().getSequenceIndex();
+		List<AssemblyEmbedded> embeddedList1 = goldStandardGraph.getEmbeddedBySequenceId(seqId1);
+		for(AssemblyEmbedded embedded:embeddedList1) {
+			if(embedded.getHostId()==seqId2) return embedded;
+		}
+		List<AssemblyEmbedded> embeddedList2 = goldStandardGraph.getEmbeddedBySequenceId(seqId2);
+		for(AssemblyEmbedded embedded:embeddedList2) {
+			if(embedded.getHostId()==seqId1) return embedded;
+		}
+		return null;
 	}
 	private int[] findGSEdgeLocation(List<List<AssemblyEdge>> gsPaths, AssemblyEdge nextTestEdge) {
 		for(int i=0;i<gsPaths.size();i++) {

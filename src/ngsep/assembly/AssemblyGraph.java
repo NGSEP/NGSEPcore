@@ -615,29 +615,58 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
 		
 		double maxScore = Math.max(maxScoreS, maxScoreE);
-		filterEmbedded(sequenceId, minScoreProportion, maxScore, true);
-	}
-
-	public void filterEmbedded(int sequenceId, double minScoreProportion, double maxScoreEdges, boolean removeEdges) {
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
-		double maxE = 0;
-		AssemblyEmbedded maxEmbedded = null;
+		if(embeddedList.size()==0) return;
+		double maxScoreEmbedded = -1;
 		for(AssemblyEmbedded embedded:embeddedList) {
-			double score = calculateScore(embedded);
-			//if(sequenceId == debugIdx) System.out.println("Assembly graph. Length "+getSequenceLength(sequenceId)+" coverageKmers: "+embedded.getCoverageSharedKmers()+" Max score: "+maxScore+" embedded host: "+embedded.getHostId()+" embedded score: "+score+" max embedded score: "+maxE);
-			if(score > minScoreProportion*maxScoreEdges && score > maxE) {
-				maxE = score;
-				maxEmbedded = embedded;
-			}
+			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
+		if(maxScoreEmbedded<2*minScoreProportion*maxScore) {
+			//Replace embedded relationships with edges to make the sequence not embedded
+			for(AssemblyEmbedded embedded:embeddedList) {
+				removeEmbedded(embedded);
+				addEdgeFromEmbedded(embedded);
+			}
+		} else {
+			filterEmbedded(sequenceId, 0.9, 1);
+		}
+	}
+
+	private void addEdgeFromEmbedded(AssemblyEmbedded embedded) {
+		int distanceStart = embedded.getHostStart();
+		int distanceEnd = getSequenceLength(embedded.getHostId())-embedded.getHostEnd();
+		AssemblyVertex vertexHost=null;
+		AssemblyVertex vertexEmbedded=null;
+		if(distanceStart<0.5*distanceEnd) {
+			vertexHost = getVertex(embedded.getHostId(), true);
+			vertexEmbedded = getVertex(embedded.getSequenceId(), embedded.isReverse());
+		} else if (distanceEnd<0.5*distanceStart) {
+			vertexHost = getVertex(embedded.getHostId(), false);
+			vertexEmbedded = getVertex(embedded.getSequenceId(), !embedded.isReverse());
+		}
+		if(vertexHost==null || vertexEmbedded==null) return;
+		AssemblyEdge edge = new AssemblyEdge(vertexHost, vertexEmbedded, getSequenceLength(embedded.getSequenceId()-1));
+		edge.setWeightedCoverageSharedKmers(embedded.getWeightedCoverageSharedKmers());
+		edge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
+		edge.setMismatches(embedded.getMismatches());
+		edge.setNumSharedKmers(embedded.getNumSharedKmers());
+		edge.setOverlapStandardDeviation(100);
+		addEdge(edge);
+	}
+
+	public void filterEmbedded(int sequenceId, double minProportion, int numRetain) {
+		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
+		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
+		if(embeddedList.size()==0) return;
+		Collections.sort(embeddedList,(e1,e2)->(int)Math.round(calculateScore(e2)-calculateScore(e1)));
+		double maxScore = calculateScore(embeddedList.get(0));
+		int count = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
-			if(embedded!=maxEmbedded) {
+			count++;
+			if(count>numRetain || calculateScore(embedded)<minProportion*maxScore) {
 				removeEmbedded(embedded);
 				//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
-			} else if (removeEdges) {
-				removeEdges(embedded.getSequenceId());
-				//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed edges for sequence: "+embedded.getSequenceId());
 			}
 		}
 	}
@@ -651,9 +680,9 @@ public class AssemblyGraph {
 			int v2L = edge.getVertex2().getRead().getLength();
 			if(overlap>1.1*v1L || overlap>1.1*v2L) {
 				toRemove.add(edge);
-			} else if (edge.getWeightedCoverageSharedKmers()<0.1*v1L || edge.getWeightedCoverageSharedKmers()<0.1*v2L) {
+			}/* else if (edge.getWeightedCoverageSharedKmers()<0.1*v1L || edge.getWeightedCoverageSharedKmers()<0.1*v2L) {
 				toRemove.add(edge);
-			}
+			}*/
 		}
 		for(AssemblyEdge edge:toRemove) removeEdge(edge);
 	}
