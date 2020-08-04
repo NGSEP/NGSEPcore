@@ -35,7 +35,6 @@ public class KmerHitsCluster {
 	private int fromLimitsPredictedOverlap;
 	private double predictedOverlapSD;
 	private int numDifferentKmers = 0;
-	private int selfHitsCountQuery = 0;
 	private double weightedCount=0;
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
@@ -404,12 +403,6 @@ public class KmerHitsCluster {
 		return numDifferentKmers;
 	}
 	
-	public int getSelfHitsCountQuery() {
-		return selfHitsCountQuery;
-	}
-	public void setSelfHitsCountQuery(int selfHitsCountQuery) {
-		this.selfHitsCountQuery = selfHitsCountQuery;
-	}
 	/**
 	 * @return the allConsistent
 	 */

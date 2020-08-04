@@ -14,9 +14,7 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	private AssemblyGraph graph;
 	
-	public static final int DEF_MIN_KMER_PCT = 5;
-	
-	private int minKmerPercentage=DEF_MIN_KMER_PCT;
+	public static final int DEF_MIN_HITS = 50;
 	
 	private double minProportionOverlap = 0.05;
 	
@@ -32,14 +30,6 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public AssemblyGraph getGraph() {
 		return graph;
-	}
-	
-	public int getMinKmerPercentage() {
-		return minKmerPercentage;
-	}
-
-	public void setMinKmerPercentage(int minKmerPercentage) {
-		this.minKmerPercentage = minKmerPercentage;
 	}
 
 	public double getMinProportionOverlap() {
@@ -61,19 +51,18 @@ public class KmerHitsAssemblyEdgesFinder {
 		}
 	
 		//Combined query min coverage and percentage of kmers
-		int minCount = (int) (minProportionOverlap*minKmerPercentage*selfHitsCount/100);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
 		for(int subjectIdx:subjectIdxs) {
 			int subjectLength = graph.getSequenceLength(subjectIdx);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
-			if(hits.size()<minCount) continue;
+			if(hits.size()<DEF_MIN_HITS) continue;
 			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query.length(), subjectLength, hits, 0);
 			if(subjectClusters.size()==0) continue;
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size());
 			Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster subjectCluster = subjectClusters.get(0);
-			subjectCluster.setSelfHitsCountQuery(selfHitsCount);
-			updateGraphWithKmerCluster(queryIdx, query, queryRC, subjectClusters.get(0));
+			if(subjectCluster.getNumDifferentKmers()<DEF_MIN_HITS) continue;
+			updateGraphWithKmerCluster(queryIdx, query, queryRC, subjectCluster);
 		}
 	}
 	private void updateGraphWithKmerCluster(int querySequenceId, CharSequence query,  boolean queryRC, KmerHitsCluster cluster) {
@@ -89,8 +78,6 @@ public class KmerHitsAssemblyEdgesFinder {
 		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		double overlap = cluster.getPredictedOverlap();
-		double overlapSelfCount = overlap*cluster.getSelfHitsCountQuery()/queryLength;
-		double pct = 100.0*cluster.getNumDifferentKmers()/overlapSelfCount;
 		int queryEvidenceLength = cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart();
 		int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
 		//if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+subjectLength+" Subject: "+cluster.getSequenceIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" pct: "+pct);
@@ -98,7 +85,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		if(overlap < minProportionOverlap*subjectLength) return false;
 		if(queryEvidenceLength < minProportionEvidence*overlap) return false;
 		if(subjectEvidenceLength < minProportionEvidence*overlap) return false;
-		if(pct<minKmerPercentage) return false;
+		
 		return true;
 	}
 

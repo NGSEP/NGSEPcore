@@ -107,13 +107,13 @@ public class AssemblyGraph {
 	
 	//Modifiers
 	
-	public synchronized void addEdge(AssemblyEdge edge) {
+	public void addEdge(AssemblyEdge edge) {
 		edgesMap.get(edge.getVertex1().getUniqueNumber()).add(edge);
 		edgesMap.get(edge.getVertex2().getUniqueNumber()).add(edge);
 		numEdges++;
 	}
 	
-	public synchronized void removeEdge (AssemblyEdge edge) {
+	public void removeEdge (AssemblyEdge edge) {
 		List<AssemblyEdge> edges1 = edgesMap.get(edge.getVertex1().getUniqueNumber()); 
 		if(edges1!=null) edges1.remove(edge);
 		List<AssemblyEdge> edges2 = edgesMap.get(edge.getVertex2().getUniqueNumber());
@@ -121,7 +121,7 @@ public class AssemblyGraph {
 		numEdges--;
 	}
 	
-	public synchronized void removeVertices(int sequenceId) {
+	public void removeVertices(int sequenceId) {
 		removeEdges(sequenceId);
 		AssemblyVertex v1 = getVertex(sequenceId, true);
 		AssemblyVertex v2 = getVertex(sequenceId, false);
@@ -133,7 +133,7 @@ public class AssemblyGraph {
 		verticesByUnique.remove(v2.getUniqueNumber());
 	}
 	
-	private synchronized void removeEdges(int sequenceId) {
+	private void removeEdges(int sequenceId) {
 		AssemblyVertex v1 = getVertex(sequenceId, true);
 		List<AssemblyEdge> toRemove = new ArrayList<AssemblyEdge>();
 		if(v1!=null) {
@@ -154,14 +154,14 @@ public class AssemblyGraph {
 		}
 	}
 	
-	public synchronized void addEmbedded(AssemblyEmbedded embeddedObject) {
+	public void addEmbedded(AssemblyEmbedded embeddedObject) {
 		List<AssemblyEmbedded> list = embeddedMapByHost.computeIfAbsent(embeddedObject.getHostId(), key -> new LinkedList<>());
 		list.add(embeddedObject);
 		List<AssemblyEmbedded> list2 = embeddedMapBySequence.computeIfAbsent(embeddedObject.getSequenceId(), key -> new LinkedList<>());
 		list2.add(embeddedObject);	
 	}
 	
-	public synchronized void removeEmbedded (AssemblyEmbedded embeddedObject) {
+	public void removeEmbedded (AssemblyEmbedded embeddedObject) {
 		int hostId = embeddedObject.getHostId();
 		embeddedMapByHost.get(hostId).remove(embeddedObject);
 		if(embeddedMapByHost.get(hostId).size()==0) embeddedMapByHost.remove(hostId);
@@ -181,7 +181,7 @@ public class AssemblyGraph {
 		}
 	}
 	
-	public synchronized void pruneEmbeddedSequences() {
+	public void pruneEmbeddedSequences() {
 		for(int i:embeddedMapBySequence.keySet()) {
 			if(verticesStart.get(i)!=null) {
 				removeVertices(i);

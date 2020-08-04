@@ -25,7 +25,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
 	private int windowLength=DEF_WINDOW_LENGTH;
-	private int minKmerPercentage=KmerHitsAssemblyEdgesFinder.DEF_MIN_KMER_PCT;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	private static final int TIMEOUT_SECONDS = 30;
@@ -53,12 +52,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		this.windowLength = windowLength;
 	}
 	
-	public int getMinKmerPercentage() {
-		return minKmerPercentage;
-	}
-	public void setMinKmerPercentage(int minKmerPercentage) {
-		this.minKmerPercentage = minKmerPercentage;
-	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -131,7 +124,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		edgesFinder.setMinKmerPercentage(minKmerPercentage);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -165,9 +157,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, selfHitsCount, table.match(complement));
 		AssemblyGraph graph = finder.getGraph();
-		synchronized (graph) {
+		/*synchronized (graph) {
 			graph.filterEmbedded(seqId, 0.5, 10);
-		}
+		}*/
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
 	}
