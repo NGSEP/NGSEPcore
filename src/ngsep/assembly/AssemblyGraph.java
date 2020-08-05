@@ -573,7 +573,9 @@ public class AssemblyGraph {
 		filterEdgesAbnormalFeatures(getEdges(vE));
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportion = 0.4;
+		double minScoreProportionEdges = 0.3;
+		double minScoreProportionEmbedded = 0.5;
+		//double minScoreProportion = 0.4;
 		//double minScoreProportion = 0.5;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
@@ -587,7 +589,7 @@ public class AssemblyGraph {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreS);
-			if(score < minScoreProportion*maxScoreS) {
+			if(score < minScoreProportionEdges*maxScoreS) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -607,7 +609,7 @@ public class AssemblyGraph {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = calculateScore(edge);
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE);
-			if(score < minScoreProportion*maxScoreE) {
+			if(score < minScoreProportionEdges*maxScoreE) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
@@ -620,12 +622,14 @@ public class AssemblyGraph {
 		if(embeddedList.size()==0) return;
 		double maxScoreEmbedded = -1;
 		for(AssemblyEmbedded embedded:embeddedList) {
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
-		if(maxScoreEmbedded<2*minScoreProportion*maxScore) {
+		if(maxScoreEmbedded<minScoreProportionEmbedded*maxScore) {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				removeEmbedded(embedded);
+				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+getSequenceLength(embedded.getHostId())+"score: "+calculateScore(embedded));
 				addEdgeFromEmbedded(embedded);
 			}
 		} else {
