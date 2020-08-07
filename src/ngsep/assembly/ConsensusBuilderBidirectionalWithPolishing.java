@@ -147,7 +147,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}
     	for(String sequenceName:tasksMap.keySet()) {
     		BuildConsensusTask task = tasksMap.get(sequenceName);
-    		consensusList.add(new QualifiedSequence(sequenceName,task.getConsensusSequence()));
+    		CharSequence seq = task.getConsensusSequence();
+    		if(seq==null) {
+    			log.warning("Null consensus sequence for contig: "+sequenceName);
+    			continue;
+    		}
+    		consensusList.add(new QualifiedSequence(sequenceName,seq));
     	}
 		return consensusList;
 	}
@@ -248,9 +253,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alnRead.setSequenceName(sequenceName);
 					alnRead.setReadName(read.getName());
 					alignments.add(alnRead);
+					if (lastPartialAln == null) {
+						log.warning("Consensus backbone read did not align to last consensus" );
+					}
 					if(alnRead.getSoftClipEnd()>0) {
-						System.out.println("WARN. Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" soft clipped sequence: "+lastPartialAln.getReadCharacters().subSequence(lastPartialAln.getReadLength()-lastPartialAln.getSoftClipEnd()-5, lastPartialAln.getReadLength()) );
-						System.out.println("Alignment to enlarged consensus: "+alnRead+" consensus end: "+rawConsensus.substring(rawConsensus.length()-lastPartialAln.getSoftClipEnd()-5));
+						log.warning("Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" soft clipped sequence: "+lastPartialAln.getReadCharacters().subSequence(lastPartialAln.getReadLength()-lastPartialAln.getSoftClipEnd()-5, lastPartialAln.getReadLength()) );
+						log.warning("Alignment to enlarged consensus: "+alnRead+" consensus end: "+rawConsensus.substring(rawConsensus.length()-lastPartialAln.getSoftClipEnd()-5));
 					}
 				}
 				else unalignedReads++;
@@ -269,7 +277,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					if(alnEmbedded!=null) {
 						alnEmbedded.setSequenceName(sequenceName);
 						alnEmbedded.setReadName(embeddedRead.getName());
-						//alnEmbedded.setQualityScores(RawRead.generateFixedQSString('5', read.length()));
 						alignments.add(alnEmbedded);
 					}
 					else unalignedReads++;
@@ -330,11 +337,11 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln);
 			if(localConsensus!=null && !localConsensus.equals(currentConsensus)) {
 				CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus);
-				if(Math.abs(currentConsensus.length()-localConsensus.length())>=5) {
+				/*if(Math.abs(currentConsensus.length()-localConsensus.length())>=5) {
 					System.out.println("Next call: "+sequenceName+" "+call.getFirst()+" "+call.getLast()+" length: "+call.length());
 					System.out.println(currentConsensus);
 					System.out.println(localConsensus);
-				}
+				}*/
 				answer.add(call);
 			}
 		}
@@ -395,7 +402,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		if(count <10 && maxLength.size()<0.8*count) return null;
 		if(2*maxLength.size()<count) {
 			if(last-first+1>=8) {
-				boolean debug = first ==10040 || first == 11834; 
+				boolean debug = first ==-1 || first == -2; 
 				if(debug) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
 				String assembly = makeDeBruijnConsensus(last-first+1, allCalls);
 				return assembly;
@@ -432,10 +439,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		int medianCallLength = lengths.get(allCalls.size()/2);
 		String bestKmerStart = firstKmerCounts.selectBest(1).keySet().iterator().next();
 		String bestKmerEnd = lastKmerCounts.selectBest(1).keySet().iterator().next();
-		System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
+		//System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
 		DeBruijnGraphExplorationMiniAssembler miniAssembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap, allCalls.size()/3);
 		String assembly = miniAssembler.assemble(bestKmerStart, bestKmerEnd, medianCallLength-1, medianCallLength, maxCallLength);
-		System.out.println("Assembly: "+assembly);
+		//System.out.println("Assembly: "+assembly);
 		return assembly;
 	}
 

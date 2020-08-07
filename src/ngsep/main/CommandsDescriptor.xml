@@ -269,7 +269,7 @@ Format of the reads file. It can be 0 for fastq or 1 for fasta
 <option id="a" type="FILE" attribute="alignmentsFile">
 SAM/BAM file with alignments to the genome of the reads assembled in the given graph 
 </option>
-<option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_MAX_OVERLAP" >
+<option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
 <option id="s" type="BOOLEAN" attribute="simulated">

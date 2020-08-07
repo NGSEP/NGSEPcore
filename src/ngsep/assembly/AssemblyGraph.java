@@ -561,7 +561,7 @@ public class AssemblyGraph {
 			filterEdgesAndEmbedded(seqId);
 		}
 		pruneEmbeddedSequences();
-		filterEdgesCloseRelationships();
+		//filterEdgesCloseRelationships();
 	}
 
 	public void filterEdgesAndEmbedded(int sequenceId) {
@@ -718,7 +718,7 @@ public class AssemblyGraph {
 	private void filterEdgesCloseRelationships(AssemblyVertex vertex) {
 		int debugIdx = -1;
 		List<AssemblyEdge> edges = getEdges(vertex);
-		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Total edges: "+edges.size());
+		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Vertex: "+vertex+" Total edges: "+edges.size());
 		if(edges.size()<3) return;
 		AssemblyEdge maxOverlapEdge = null;
 		AssemblyEdge maxScoreEdge = null;
@@ -746,8 +746,10 @@ public class AssemblyGraph {
 		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. overlap 1: "+ov1+" overlap2: "+ov2+" diff: "+diff);
 		if(maxOverlapEdge==maxScoreEdge && diff > 0.1*ov1) return;
 		if(badTransitivity(vertex, maxOverlapEdge, secondOverlapEdge)) {
+			if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. removing edge "+maxOverlapEdge);
 			removeEdge(maxOverlapEdge);
 		} else if (maxOverlapEdge!=maxScoreEdge && badTransitivity(vertex,maxScoreEdge,maxOverlapEdge)) {
+			if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. removing edge "+maxScoreEdge);
 			removeEdge(maxScoreEdge);
 		}
 	}
