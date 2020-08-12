@@ -52,11 +52,15 @@ public class MinimizersTable {
 		this.windowLength = windowLength;
 		this.mode = kmersAnalyzer.getMode();
 		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
-		long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInLocalSDZone();
-		for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
-			explicitKmerHashCodes.put(codesUniqueZone[i],i);
+		//TODO: Implement good indexing strategy for reference codes
+		if(!kmersAnalyzer.isAssembly()) {
+			long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInLocalSDZone();
+			for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
+				explicitKmerHashCodes.put(codesUniqueZone[i],i);
+			}
+			System.out.println("Indexed "+explicitKmerHashCodes.size()+" kmer unique codes.");
 		}
-		System.out.println("Indexed "+explicitKmerHashCodes.size()+" kmer unique codes.");
+		
 		//Create the structures with appropriate initial capacity
 		int capacity = kmersMap.size()/10;
 		initializeTable(capacity);
