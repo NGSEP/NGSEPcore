@@ -31,6 +31,8 @@ import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMapAnalyzer;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.QualifiedSequence;
@@ -76,10 +78,16 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength) {
 		this.genome = genome;
 		int n = genome.getNumSequences();
+		log.info("Calculating kmers distribution");
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setOnlyDNA(true);
+		extractor.processQualifiedSequences(genome.getSequencesList());
+		KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
-		minimizersTable = new MinimizersTable(kmerLength, windowLength);
+		minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
 		minimizersTable.setMaxAbundanceMinimizer(20);
 		minimizersTable.setSaveRepeatedMinimizersWithinSequence(true);
+		minimizersTable.setKeepSingletons(true);
 		minimizersTable.setLog(log);
 		for (int i=0;i<n;i++) {
 			minimizersTable.addSequence(i, genome.getSequenceCharacters(i));
@@ -88,6 +96,14 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}
 	
+	
+	public MinimizersTable getMinimizersTable() {
+		return minimizersTable;
+	}
+	public void setMinimizersTable(ReferenceGenome genome, MinimizersTable minimizersTable) {
+		this.genome = genome;
+		this.minimizersTable = minimizersTable;
+	}
 	@Override
 	public List<ReadAlignment> alignRead (RawRead read) {
 		List<ReadAlignment> alignments = new ArrayList<>();

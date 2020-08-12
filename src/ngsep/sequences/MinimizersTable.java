@@ -355,7 +355,7 @@ public class MinimizersTable {
 		if(kmersMap==null) return 1;
 		int count = kmersMap.getCount(kmer);
 		int diff = Math.abs(mode-count);
-		if(diff<kmerDistModeLocalSD) return 1;
+		if(diff<=kmerDistModeLocalSD) return 1;
 		int diff2=diff-kmerDistModeLocalSD;
 		return 1.0*mode/(mode+2*diff2);
 	}

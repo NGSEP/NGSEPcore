@@ -119,21 +119,40 @@ public class KmersMapAnalyzer {
 		return expectedAssemblyLength;
 	}
 	public long[] extractKmerCodesInLocalSDZone() {
-		int localSD = getModeLocalSD();
-		int minValueKmers = localMinimum;
-		int maxValueKmers = mode+localSD;
-		int numKmersInUniqueZone = (int)kmerCounts[mode];
-		for(int i=1;i<=localSD;i++) {
-			long newCount = numKmersInUniqueZone+kmerCounts[mode+i]+kmerCounts[mode-i];
-			if(newCount>500000000 || newCount>2*expectedAssemblyLength) {
-				minValueKmers=mode-i;
-				maxValueKmers=mode+i;
-				break;
+		int minValueKmers;
+		int maxValueKmers;
+		int numKmersToSort;
+		if (assembly) {
+			minValueKmers = 1;
+			maxValueKmers = 1;
+			numKmersToSort = (int)kmerCounts[1];
+			
+			for(int i=2;i<20;i++) {
+				long newCount = numKmersToSort+kmerCounts[i];
+				if(newCount>500000000) {
+					break;
+				}
+				maxValueKmers = i;
+				numKmersToSort=(int)newCount;
 			}
-			numKmersInUniqueZone=(int)newCount;
+		} else {
+			int localSD = getModeLocalSD();
+			minValueKmers = localMinimum;
+			maxValueKmers = mode+localSD;
+			numKmersToSort = (int)kmerCounts[mode];
+			for(int i=1;i<=localSD;i++) {
+				long newCount = numKmersToSort+kmerCounts[mode+i]+kmerCounts[mode-i];
+				if(newCount>500000000 || newCount>2*expectedAssemblyLength) {
+					minValueKmers=mode-i;
+					maxValueKmers=mode+i;
+					break;
+				}
+				numKmersToSort=(int)newCount;
+			}
 		}
 		
-		long [] answer = new long [numKmersInUniqueZone];
+		//System.out.println("Mode: "+mode+" limits: "+minValueKmers+" "+maxValueKmers+ " kmers to sort: "+numKmersToSort);
+		long [] answer = new long [numKmersToSort];
 		Arrays.fill(answer, -1);
 		int idxAnswer = 0;
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
@@ -141,7 +160,7 @@ public class KmersMapAnalyzer {
 			for(int i=0;mode+i<=maxValueKmers;i++) {
 				idxAnswer = addKmerCodes(codes,mode+i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
-				if(i==0) continue;
+				if(i==0 || mode-i<minValueKmers) continue;
 				idxAnswer = addKmerCodes(codes,mode-i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
 			}
@@ -149,7 +168,7 @@ public class KmersMapAnalyzer {
 			for(int i=0;mode+i<=maxValueKmers;i++) {
 				idxAnswer = addKmerCodes(mode+i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
-				if(i==0) continue;
+				if(i==0 || mode-i<minValueKmers) continue;
 				idxAnswer = addKmerCodes(mode-i,answer,idxAnswer);
 				if(idxAnswer==answer.length) return answer;
 			}
@@ -179,7 +198,7 @@ public class KmersMapAnalyzer {
 		return idxAnswer;
 	}
 	public int getModeLocalSD() {
-		return mode-localMinimum;
+		return Math.max(1, mode-localMinimum);
 	}
 	
 }

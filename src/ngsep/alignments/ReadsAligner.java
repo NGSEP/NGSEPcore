@@ -96,7 +96,8 @@ public class ReadsAligner {
 	private ReferenceGenome genome;
 	private ReferenceGenomeFMIndex fMIndex=null;
 	private FMIndexReadAlignmentAlgorithm shortReadsAligner;
-	private MinimizersTableReadAlignmentAlgorithm longReadsAligner;
+	//The process will handle as many long read aligners as number of threads
+	private List<MinimizersTableReadAlignmentAlgorithm> longReadsAligners = new ArrayList<MinimizersTableReadAlignmentAlgorithm>();
 	
 	private ThreadPoolManager pool;
 	
@@ -274,10 +275,7 @@ public class ReadsAligner {
 		
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		if (platform.isLongReads()) {
-			longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
-			longReadsAligner.setLog(log);
-			longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-			longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+			createFirstLongReadAligner();
 		} else {
 			if (fMIndex!=null) {
 				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
@@ -758,14 +756,44 @@ public class ReadsAligner {
 	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus) {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
-			if(longReadsAligner ==null) longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
-			alignments = longReadsAligner.alignRead(read);
+			MinimizersTableReadAlignmentAlgorithm longReadsAligner = requestLongReadsAligner();
+			synchronized (longReadsAligner) {
+				alignments = longReadsAligner.alignRead(read);
+			}
 		} else {
 			if(shortReadsAligner==null) shortReadsAligner=new FMIndexReadAlignmentAlgorithm(fMIndex, kmerLength, maxAlnsPerRead);
 			alignments = shortReadsAligner.alignRead(read);
 		}
 		return filterAlignments(alignments, assignSecondaryStatus);
 	}
+	private int lastReadsAlignerIndex = 0;
+	private MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner() {
+		if(longReadsAligners.size()==0) {
+			createFirstLongReadAligner();
+			return longReadsAligners.get(0);
+		} else if (longReadsAligners.size()<numThreads) {
+			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
+			MinimizersTableReadAlignmentAlgorithm first = longReadsAligners.get(0);
+			aligner.setLog(log);
+			aligner.setMaxAlnsPerRead(maxAlnsPerRead);
+			aligner.setMinimizersTable(genome, first.getMinimizersTable());
+			longReadsAligners.add(aligner);
+			lastReadsAlignerIndex=longReadsAligners.size()-1;
+			return aligner;
+		}
+		lastReadsAlignerIndex++;
+		if(lastReadsAlignerIndex==longReadsAligners.size()) lastReadsAlignerIndex=0;
+		return longReadsAligners.get(lastReadsAlignerIndex);
+	}
+	private void createFirstLongReadAligner() {
+		MinimizersTableReadAlignmentAlgorithm longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
+		longReadsAligner.setLog(log);
+		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
+		longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+		longReadsAligners.add(longReadsAligner);
+	}
+	
+	
 	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
 		if (alignments.size()==0) return alignments;
 		Collections.sort(alignments, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
