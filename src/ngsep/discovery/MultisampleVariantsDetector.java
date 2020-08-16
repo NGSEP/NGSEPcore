@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -490,11 +491,16 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	private void loadSamplesFromAlignmentHeaders() throws IOException {
 		Map<String, Sample> samplesMap = new TreeMap<>();
+		Map<String,String> readGroupIds = new HashMap<String, String>();
 		for(String filename:inputFiles) {
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename,genome)) {
 				Map<String, String> samplesHeader = reader.getSampleIdsByReadGroup();
 				for(String readGroup : samplesHeader.keySet()) {
 					String sampleId = samplesHeader.get(readGroup);
+					if(readGroupIds.containsKey(readGroup) && !readGroupIds.get(readGroup).equals(sampleId)) {
+						throw new IOException("The read group ID: "+readGroup+" is associated to two different samples: "+sampleId+" and "+readGroupIds.get(readGroup)+". Read group ids should be unique across samples");
+					}
+					readGroupIds.put(readGroup, sampleId);
 					Sample sample = samplesMap.get(sampleId);
 					if(sample==null) {
 						sample = new Sample(sampleId);

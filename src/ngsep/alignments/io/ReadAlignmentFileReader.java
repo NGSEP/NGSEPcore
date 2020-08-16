@@ -174,6 +174,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			if(!sampleIdsByReadGroup.containsKey(id)) {
 				readGroupIds.addOrLookupName(id);
 				sampleIdsByReadGroup.put(id, sampleId);
+			} else if (!sampleIdsByReadGroup.get(id).equals(sampleId)) {
+				throw new IOException("The read group ID: "+id+" is associated to two different samples: "+sampleId+" and "+sampleIdsByReadGroup.get(id)+". Read group ids should be unique across samples");
 			}
 		}
 		if(!validateHeader) return;
