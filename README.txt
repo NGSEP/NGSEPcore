@@ -898,6 +898,8 @@ OPTIONS:
 
 	-i FILE		: Input file with read alignments.
 	-o FILE		: Output file with statistics.
+	-r GENOME	: Fasta file with the reference genome. Required for
+			  CRAM files.
 	-m INT		: Minimum read depth Default: 10
 	-M INT		: Maximum read depth Default: 1000
 	-q INT		: Minimum base quality score (Phred scale) Default: 20

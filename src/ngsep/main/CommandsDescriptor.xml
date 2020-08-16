@@ -743,7 +743,7 @@ File with the information of individuals assigned to each pool
 
 </command>
 
-<command id="RelativeAlleleCountsCalculator" class="ngsep.discovery.BAMRelativeAlleleCountsCalculator" groupId="Discovery" formerId="RelativeAlleleCounts">
+<command id="RelativeAlleleCountsCalculator" class="ngsep.discovery.RelativeAlleleCountsCalculator" groupId="Discovery" formerId="RelativeAlleleCounts">
 <intro>
 Calculates the distribution of relative allele counts 
 </intro>
@@ -759,6 +759,9 @@ Input file with read alignments.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics.
+</option>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome. Required for CRAM files.
 </option>
 <option id="m" type="INT" attribute="minRD" defaultConstant="DEF_MIN_RD">
 Minimum read depth.

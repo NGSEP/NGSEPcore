@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
+import ngsep.genome.ReferenceGenome;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -21,7 +22,7 @@ import ngsep.sequences.QualifiedSequence;
 
 
 
-public class BAMRelativeAlleleCountsCalculator implements PileupListener {
+public class RelativeAlleleCountsCalculator implements PileupListener {
 
 	// Constants for default values
 	public static final int DEF_MIN_RD = 10;
@@ -30,13 +31,14 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	
 	
 	// Logging and progress
-	private Logger log = Logger.getLogger(BAMRelativeAlleleCountsCalculator.class.getName());
+	private Logger log = Logger.getLogger(RelativeAlleleCountsCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	private long coveredGenomeSize = 0;
 	
 	// Parameters
 	private String inputFile = null;
 	private String outputFile;
+	private ReferenceGenome genome = null;
 	private int minRD = DEF_MIN_RD;
 	private int maxRD = DEF_MAX_RD;
 	private int minBaseQualityScore = DEF_MIN_BASE_QUALITY_SCORE;
@@ -84,6 +86,16 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	}
 	public void setOutputFile(String outputFile) {
 		this.outputFile = outputFile;
+	}
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
 	public int getMinRD() {
@@ -161,7 +173,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		BAMRelativeAlleleCountsCalculator instance = new BAMRelativeAlleleCountsCalculator();
+		RelativeAlleleCountsCalculator instance = new RelativeAlleleCountsCalculator();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
@@ -201,6 +213,7 @@ public class BAMRelativeAlleleCountsCalculator implements PileupListener {
 		generator.setLog(log);
 		generator.setProcessSecondaryAlignments(secondaryAlns);
 		generator.setMaxAlnsPerStartPos(maxRD);
+		if(genome!=null) generator.setGenome(genome);
 		generator.processFile(filename);
 		
 	}
