@@ -358,6 +358,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		out.println("Prior heterozygosity rate: "+ heterozygosityRate);
 		out.println("Minimum variant quality: "+ minQuality);
 		out.println("Normal ploidy: "+ normalPloidy);
+		out.println("Ignore base pairs. 5': "+ basesToIgnore5P+" 3':"+basesToIgnore3P);
 		out.println("Number of threads: "+ numThreads);
 		log.info(os.toString());
 	}
