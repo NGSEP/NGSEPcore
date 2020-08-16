@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.0.1 (03-05-2020)
+Version 4.0.2 (17-08-2020)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -205,6 +205,11 @@ OPTIONS:
 	-maxBaseQS INT  : Maximum value allowed for a base quality score.
 			  Larger values will be equalized to this value.
 			  Default: 100
+	-ignore5 INT	: Ignore this many base pairs from the 5' end of the
+			  reads. Default: 0
+	-ignore3 INT	: Ignore this many base pairs from the 3' end of the
+			  reads. Default: 0
+	-h DOUBLE       : Prior heterozygosity rate. Default: 0.001
 	-minQuality INT : Minimum variant quality. In this command, this filter
 			  applies to the QUAL column of the VCF, which is
 			  calculated for each variant as the maximum of the
@@ -212,7 +217,6 @@ OPTIONS:
 			  reference genotype calls. See the command VCFFilter
 			  to apply filters of quality and read depth on
 			  individual genotype calls. Default: 40
-	-h DOUBLE       : Prior heterozygosity rate. Default: 0.001
 	-ploidy INT     : Default ploidy of the samples. Default: 2
 
 
@@ -326,9 +330,9 @@ Calculating base pair quality statistics
 Takes one or more sets of alignments and a reference genome and counts the
 number of mismatches with the reference for each read position from 5' to 3'
 end. This report is useful to detect sequencing error biases. Requires one or
-more alignment files in SAM or BAM format, and the reference genome that was
-used to produce the alignments. Writes to standard output unless the -o option
-is used to specify an output file.
+more alignment files in SAM, BAM or CRAM format, and the reference genome that
+was used to produce the alignments. Writes to standard output unless the -o
+option is used to specify an output file.
 
 USAGE:
 
@@ -341,7 +345,7 @@ OPTIONS:
 	-minMQ INT	: Minimum mapping quality to call an alignment unique.
 			  Default: 20
 						  
-The file(s) with alignments must be given in SAM or BAM format and the
+The file(s) with alignments must be given in SAM, BAM or CRAM format and the
 reference file in fasta format. The output is a text file with five columns:
 - Position: 1- based from 5' to 3'
 - Number of reads with a base call different than the reference (Considering
@@ -359,9 +363,10 @@ reference file in fasta format. The output is a text file with five columns:
 Calculating coverage statistics
 -------------------------------
 
-Calculates the number of base pairs that are covered by reads at each read depth
-level from 1 to a maximum. Alignments must be in SAM or BAM format. Writes to
-standard output unless the -o option is used to specify an output file.
+Calculates the number of base pairs that are covered by reads at each read
+depth level from 1 to a maximum. Alignments must be in SAM, BAM or CRAM
+format. Writes to standard output unless the -o option is used to specify an
+output file.
 
 USAGE:
 
@@ -371,6 +376,8 @@ OPTIONS:
 
 	-i FILE		: Input file with alignments to analyze.
 	-o FILE		: Output file with the coverage distribution.
+	-r GENOME	: Fasta file with the reference genome. Required for
+			  CRAM files.
 	-minMQ INT	: Minimum mapping quality to call an alignment unique.
 			  Default: 20
 
@@ -390,14 +397,15 @@ or read group tags. This is now the recommended method to perform variants
 detection on genotype-by-sequencing (GBS), RAD sequencing, whole exome
 sequencing (WES), RNA-seq and low coverage (less than 10x) whole genome
 sequencing (WGS) data. Although it can also be used on high coverage WGS data,
-the classic sample-by-sample analysis (commands FindVariants, MergeVariants and
-MergeVCF) is still recommended to identify structural variants. This module
-requires one or more read alignment files in SAM or BAM format and the
-reference genome that was used to produce the alignments.
+the classic sample-by-sample analysis (commands SingleSampleVariantsDetector,
+MergeVariants and VCFMerge) is still recommended to identify structural
+variants. This module requires one or more read alignment files in SAM, BAM or
+CRAM format and the reference genome that was used to produce the alignments.
+Alignments must be sorted by reference coordinates.
 
 USAGE:
 
-java -jar NGSEPcore.jar MultisampleVariantsDetector <OPTIONS> <BAM_FILE>*
+java -jar NGSEPcore.jar MultisampleVariantsDetector <OPTIONS> <ALIGNMENTS_FILE>*
 
 OPTIONS:
 
@@ -455,27 +463,28 @@ OPTIONS:
 				  VCF, which is calculated for each variant as
 				  the maximum of the genotype qualities of
 				  samples with non-homozygous reference
-				  genotype calls. See the command FilterVCF to
+				  genotype calls. See the command VCFFilter to
 				  apply filters of quality and read depth on
 				  individual genotype calls. Default: 40
 	-embeddedSNVs           : Flag to call SNVs within STRs. By default,
 				  STRs are treated as a single locus and hence
 				  no SNV will be called within an STR.
 
-Alignments should be provided in BAM v1 format
-(see http://samtools.github.io/hts-specs/SAMv1.pdf for details).
+Alignments should be provided in SAM, BAM or CRAM format
+(see http://samtools.github.io/hts-specs for details).
 The reference genome should be provided in fasta format. It is assumed that
 the sequence names in the alignments file correspond with the sequence names in
-this reference assembly. For this module, BAM files must include RG headers
+this reference assembly. For this module, alignment files must include RG headers
 including the ID of each read group and the corresponding sample. A typical read
 group header looks as follows
 
 @RG	ID:<ReadGroupId>	SM:<SampleId>	PL:<Platform>
 
-Each alignment must include an RG tag indicating the id of the read group of
-the aligned read. See the BAM format specification for details.
-Check the documentation of your read aligner to make sure that BAM files contain
-read group headers. This module uses read group headers to distribute the reads
+According to the specification, read groups must be unique across different
+samples. Each alignment must include an RG tag indicating the id of the read
+group of the aligned read. See the SAM format specification for details.
+Check the documentation of your read aligner to make sure that alignment files
+contain read group headers. This module uses read group headers to distribute the reads
 that belong to the different samples.
 
 DETAILS OF OUTPUT FILES: The output of this module is a VCF file
@@ -499,8 +508,8 @@ CNV (INT)	: Number of samples with CNVs covering this variant. This will
 		  sample analysis, and only if the read depth analysis is
 		  executed
 NS (INT)	: Number of samples genotyped.
-MAF (DOUBLE)	: Minor allele frequency. Calculated by the MergeVCF and the
-		  FilterVCF commands
+MAF (DOUBLE)	: Minor allele frequency. Calculated by the VCFMerge and the
+		  VCFFilter commands
 AN (INT)	: Number of different alleles observed in called genotypes.
 AFS (INT*)	: Allele counts over the population for all alleles, including
 		  the reference. One number per allele.
@@ -542,7 +551,7 @@ genotype qualities of samples with non-homozygous reference genotype calls. The
 rationale for this calculation is that one variant should be real if it is
 confidently called in at least one sample. Individual genotype calls are not
 filtered by default and hence they could include some false positives. Please see
-the FilterVCF command to perform custom filtering of genotype calls, either by
+the VCFFilter command to perform custom filtering of genotype calls, either by
 genotype quality (GQ format field) or by read depth (BSDP and ADP format fields).
 Default values of other parameters are also set to maximize sensitivity. For
 conservative variant detection including control for errors in base quality
@@ -555,7 +564,7 @@ use the option -ignore3 to ignore errors at those read positions. If the
 reference genome has lowercase characters for repetitive regions (usually
 called softmasked), these regions can be directly filtered using the option
 -ignoreLowerCaseRef. These regions can also be filtered at later stages of
-the analysis using the FilterVCF command.
+the analysis using the VCFFilter command.
 
 -----------------------------------------------------------------
 Calling variants on individual samples with the variants detector
@@ -563,8 +572,9 @@ Calling variants on individual samples with the variants detector
 
 This is the classic module of NGSEP to call SNVs, small indels and structural
 variants from sequencing data of single individuals. Basic usage requires an
-alignments file in BAM format, the reference genome that was used to produce the
-alignments, and a prefix for the output files.
+alignments file in SAM, BAM or CRAM format, the reference genome that
+was used to produce the alignments, and a prefix for the output files.
+Alignments must be sorted by reference coordinates.
 
 USAGE: 
 
@@ -572,7 +582,7 @@ java -jar NGSEPcore.jar SingleSampleVariantsDetector <OPTIONS>
 
 OPTIONS:
 
-	-i FILE			: Input file with read alignments in BAM format.
+	-i FILE			: Input file with read alignments.
 	-r FILE			: Fasta file with the reference genome.
 	-o FILE			: Prefix for the output files.
 	-sampleId STRING	: Id of the sample for the VCF file. If not set
@@ -675,8 +685,8 @@ OPTIONS:
 	-noSNVS			: Turns off SNV detection. In this mode, only
 				  structural variation will be called
 
-Alignments should be provided in BAM v1 format
-(see http://samtools.github.io/hts-specs/SAMv1.pdf for details).
+Alignments should be provided in SAM, BAM or CRAM format
+(see http://samtools.github.io/hts-specs for details).
 The reference genome should be provided in fasta format. The output for SNVs,
 small indels and STRs is a VCF file. These standard formats are used to
 facilitate integration with other tools. See more details above in the
@@ -730,10 +740,10 @@ NUF (INT)	: For repeats identified from reads aligning to multiple
 		  locations, this is the number of fragments with unique
 		  alignments within the repeat. 
 
-WARNING 1: The default minimum genotype quality of the variants detector (0) 
-will maximize the number of called variants at the cost of generating some
-false positives in samples with small coverage or high sequencing error rates.
-For conservative variant calling from whole genome sequencing reads use:
+The default minimum genotype quality of the variants detector (0) will maximize
+the number of called variants at the cost of generating some false positives in
+samples with small coverage or high sequencing error rates. For conservative
+variant calling from whole genome sequencing reads use:
 
 java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
@@ -748,13 +758,13 @@ use the option -ignore3 to ignore errors at those read positions. If the
 reference genome has lowercase characters for repetitive regions (usually
 called softmasked), these regions can be directly filtered using the option
 -ignoreLowerCaseRef. These regions can also be filtered at later stages of
-the analysis using the FilterVCF command.
+the analysis using the VCFFilter command.
 
-WARNING 2: Since v 3.2.0, for RAD Sequencing or genotype-by-sequencing (GBS)
-we now recommend the MultisampleVariantsDetector command described above.
-However, the classic per-sample analysis pipeline using this command is still
-functional with good quality. For both commands it is important to keep in mind
-that using the default value of the parameter to control for PCR duplicates
+Since v 3.2.0, for RAD Sequencing or genotype-by-sequencing (GBS) we now
+recommend the MultisampleVariantsDetector command described above. However,
+the classic per-sample analysis pipeline using this command is still functional
+with good quality. For both commands it is important to keep in mind that using
+the default value of the parameter to control for PCR duplicates
 (maxAlnsPerStartPos) will yield very low sensitivity. We recommend to increase
 the value of the parameter to about 100 to retain high sensitivity while
 avoiding a severe penalty in memory usage. Also, structural variants should not
@@ -762,6 +772,19 @@ be called using these data. The usage for conservative variant calling in
 RAD-Seq or GBS samples becomes:
 
 java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+
+This module cal also be used to discover variants at different allele frequencies
+in pooled samples. For this use case, the ploidy parameter should be adjusted to
+the number of haplotypes present within the pool. The prior heterozygosity rate
+should also be increased according to the expected proportion of heterozygous
+variants across the entire population. For targeted sequencing, the 
+maxAlnsPerStartPos parameter should also be adjusted to make it larger than the
+expected maximum read depth per site. For example, if 50 diploid individuals
+were included in a pool and sequenced at 20x per individual, then this parameter
+should be larger than 1000. This is a usage example to identify low frequency
+variants from a pool of 48 individuals in a Tilling experiment:
+
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 5000 -maxBaseQS 30 -h 0.1 -ploidy 96 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 ----------------------------------------
 Merging variants from individual samples
@@ -825,21 +848,55 @@ OPTIONS:
 This command will write the final vcf file with the genotype calls for each
 variant on each sample.
 
+--------------------------------------
+Tilling variants individual assignment
+--------------------------------------
+
+For tilling experiments, this module takes variants from pools and a pools
+descriptor and calls individual variants. It receives a list of VCF files
+generated by the SingleSampleVariantsDetector command and a pools configuration
+file and generates a VCF file with individual genotyping based on the variants
+identified within the pools. 
+
+USAGE:
+
+java -jar NGSEPcore.jar TillingPoolsIndividualGenotyper <OPTIONS> <VCF_FILE>*
+
+OPTIONS:
+
+	-r GENOME	: Fasta file with the reference genome.
+	-o FILE		: Output file with called variants in VCF format
+	-d FILE		: File with the information of individuals assigned to
+			  each pool
+
+A pools configuration file must be provided with the option -d. It should be a
+text file separated by semicolon and having one row for each individual. The
+first entry on each row should be the individual id. The remaining entries
+should be the ids of the different pools where the individual was included.
+For example, if individual 20 was included in pools with ids 2, 10 and 14, the
+line should look like this:
+
+20;2;10;14
+
+The sample id within each input pool VCF file must coincide with the pool
+ids present in the pools configuration file. 
+
 ----------------------------------------------------------
 Obtaining relative allele counts from read alignment files
 ----------------------------------------------------------
 
 Calculates a distribution of relative allele counts for sites showing base calls
-for more than one nucleotide from read alignment files in BAM format. This
-analysis is useful to predict the ploidy of a sequenced sample.
+for more than one nucleotide from read alignment files in SAM, BAM or CRAM
+format. This analysis is useful to predict the ploidy of a sequenced sample.
+Alignments must be sorted by reference coordinates.
 
 USAGE:
 
-java -jar NGSEPcore.jar RelativeAlleleCounts <OPTIONS>
+java -jar NGSEPcore.jar RelativeAlleleCountsCalculator <OPTIONS>
 
 OPTIONS:
 
-	-i FILE		: Input file with read alignments in BAM format.
+	-i FILE		: Input file with read alignments.
 	-o FILE		: Output file with statistics.
 	-m INT		: Minimum read depth Default: 10
 	-M INT		: Maximum read depth Default: 1000
@@ -869,6 +926,8 @@ two alignment files and a reference genome, splits the genome into windows, and
 for each window compares the read depth between the two samples. It outputs a
 text file containing the list of windows of the genome in which the normalized
 read depth ratio between the two samples is significantly different from 1.
+Alignments can be provided in SAM, BAM or CRAM format and must be sorted by
+reference coordinates.
 
 USAGE:
 
@@ -876,8 +935,9 @@ java -jar NGSEPcore.jar CompareRD <OPTIONS>
 
 OPTIONS:
 
-	-i FILE		: Input sorted BAM file with alignments to a reference genome.
-	-c FILE		: Sorted BAM file corresponding to the control (wild type) sample.
+	-i FILE		: Input file with alignments to a reference genome.
+	-c FILE		: Input alignments file corresponding to the control
+			  (wild type) sample.
 	-o FILE		: File with genomic regions in which the two samples
 			  have different read depth.
 	-r FILE		: Fasta file with the reference genome.
@@ -965,6 +1025,13 @@ OPTIONS:
 			  three columns: Sequence name (chromosome), first
 			  position in the sequence, and last position in the
 			  sequence. Both positions are assumed to be 1-based.
+	-fgid FILE	: File with ids of genes that should be filtered out.
+			  The first column should have the gene ids. Other
+			  columns are ignored.
+	-sgid FILE	: File with ids of genes that should be selected. The
+			  first column should have the gene ids. Other columns
+			  are ignored.
+
 
 -----------------
 Comparing genomes
@@ -1020,6 +1087,38 @@ Finally, the files:
 
 can be loaded in a web browser and provide an interactive view of the alignment
 based on the d3 web development technology (https://d3js.org/).
+
+---------------------------------------
+Clustering orthologs from CDNA catalogs
+---------------------------------------
+
+This module takes cDNA transcriptomes in fasta format, infers orthology
+relationships and cluster orthologs. This command is an alternative to the
+genomes aligner to infer homologs nad build clusters without the synteny
+analysis. Input cDNA files can be generated from annotated genome assemblies
+using the command TranscriptomeAnalyzer.
+
+USAGE:
+
+java -jar NGSEPcore.jar CDNACatalogAligner <OPTIONS> <TRANSCRIPTOME>*
+
+OPTIONS:
+
+        -o STRING : Prefix of output files. Default: catalogsAlignment
+        -k INT    : K-mer length to find orthologs. Default: 10
+        -p INT    : Minimum percentage of k-mers to call orthologs Default: 50
+        -s        : Skip the MCL clustering phase and returns unfiltered orthogroups.
+
+This module produces two files as outputs. The first is a text file with
+homology relationships. It has three columns separated by tab:
+
+1. Id of the first gene
+2. Id of the second gene
+3. Homology score
+
+The second file is also a tab delimited file with one line for each identified
+cluster. Gene ids within each cluster are separated by tab.
+
 
 --------------------------------------------------------
 --------------------------------------------------------
@@ -1148,15 +1247,20 @@ OPTIONS:
 			  Default: No filter
 	-gene STRING	: Id of the gene or the transcript related with the
 			  variant.
-	-a STRING	: Types of functional annotations (Missense, Nonsense,
-			  Synonymous, etc) related with the variant. More than
-			  one annotation can be set as a comma-separated list
+	-a STRING	: Types of functional annotations related to the
+			  variants. 
 	-saf FILE	: File with the ids of the samples to be selected (or
 			  filtered, see -fs option). The file should have one
 			  line per sample, being the first column the sample
 			  id. Other columns in the file are ignored.
 	-fs		: Flag to filter the samples provided with the -saf
 			  option instead of selecting them. 
+
+Names of functional annotations to use with the option -a should correspond to
+standard sequence ontology terms (http://www.sequenceontology.org). More than
+one annotation can be set as a comma-separated list. Common terms include
+missense_variant,synonymous_variant,frameshift_variant,start_lost,stop_gained
+among others.
 
 ----------------------------------
 Convert VCF files to other formats
@@ -1674,9 +1778,10 @@ OPTIONS:
 	-o FILE		: Output file with simulated reads. See option -f for
 			  options on the file format.
 	-n INT		: Number of reads. Default: 30000
-	-u INT		: Average read length. Default: 10000
-	-s INT		: Standard deviation read length. Default: 2000
-	-e DOUBLE	: Substitution error rate. Default: 0.02
+	-u INT		: Average read length. Default: 20000
+	-s INT		: Standard deviation read length. Default: 10000
+        -m INT		: Minimum read length. Default: 50
+	-e DOUBLE	: Substitution error rate. Default: 0.01
 	-d DOUBLE	: Indel error rate. Default: 0.01
 	-f INT		: Output format. 0 for fastq, 1 for fasta Default: 0
 

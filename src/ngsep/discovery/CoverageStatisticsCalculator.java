@@ -26,7 +26,9 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequence;
 
@@ -45,6 +47,7 @@ public class CoverageStatisticsCalculator implements PileupListener {
 	// Parameters
 	private String inputFile = null;
 	private String outputFile = null;
+	private ReferenceGenome genome = null;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	// Model attributes
@@ -95,6 +98,16 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		this.setMinMQ(minMQ.intValue());
 	}
 	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
 	public static void main(String[] args) throws Exception {
 		CoverageStatisticsCalculator instance = new CoverageStatisticsCalculator();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -119,6 +132,7 @@ public class CoverageStatisticsCalculator implements PileupListener {
 		generator.setProcessSecondaryAlignments(true);
 		generator.setMaxAlnsPerStartPos(100);
 		generator.setMinMQ(minMQ);
+		if(genome!=null) generator.setGenome(genome);
 		generator.addListener(this);
 		generator.processFile(inputFile);
 		if(outputFile!=null) {

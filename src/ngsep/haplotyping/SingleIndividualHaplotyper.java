@@ -11,6 +11,7 @@ import java.util.Iterator;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -37,6 +38,7 @@ public class SingleIndividualHaplotyper {
 	private String inputFile = null;
 	private String alignmentsFile = null;
 	private String outputFile = null;
+	private ReferenceGenome genome = null;
 	private String algorithmName = DEF_ALGORITHM_NAME;
 	private SIHAlgorithm algorithm;
 	private int minMQ = DEF_MIN_MQ;
@@ -93,6 +95,15 @@ public class SingleIndividualHaplotyper {
 	public void setMinMQ(String value) {
 		this.setMinMQ((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
 	
 	
 	
@@ -127,7 +138,7 @@ public class SingleIndividualHaplotyper {
 		
 		VCFFileWriter vcfWriter = new VCFFileWriter();
 		try (VCFFileReader inputVCF = new VCFFileReader(vcfFilename);
-			 ReadAlignmentFileReader alnReader = new ReadAlignmentFileReader(bamFilename)) {
+			 ReadAlignmentFileReader alnReader = new ReadAlignmentFileReader(bamFilename,genome)) {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);

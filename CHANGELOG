@@ -1,4 +1,15 @@
 v4.0.2 17-08-2020
+- Support to CRAM files
+- New command TillingPoolsIndividualGenotyper for individual assignment of
+  variants discovered in tilling experiments
+- New command CDNACatalogAligner to identifiy ortholog relationships and
+  build ortholog groups from cDNA transcriptome catalogs.
+- GenomesAligner and CDNACatalogAligner. Implemented Markov clustering to
+  cluster genes from homology relationships.
+- DeNovoGBS: Improved analysis for paired-end reads. Added options -ignore5
+  and -ignore3 to avoid false positive variants at alignment ends
+- SingleSampleVariantsDetector: Improved variants detection for polyploids
+  and pools
 - TranscriptomeFilter: Added filters by gene id
 - TranscriptomeFilter: Fixed error when the output was a list of regions
 - SingleReadsSimulator: Added parameter to set the minimum read length to fix
@@ -6,6 +17,8 @@ v4.0.2 17-08-2020
   PacBio reads.
   
 v4.0.1	03-05-2020
+- New command DeNovoGBS for de-novo analysis of Genotype-by-Sequencing (GBS)
+  data
 - ReadsAligner. Implemented algorithm based on minimizers to add support to
   long reads. Added sample id and platform fields (options -s and -p)
 - ReadsAligner. Added multithread support (option -t) and option -m to specify

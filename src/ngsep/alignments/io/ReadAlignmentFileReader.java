@@ -77,11 +77,11 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		init(null,new File(filename),null);
 	}
 	public ReadAlignmentFileReader (String filename, ReferenceGenome genome) throws IOException {
-		sequences = genome.getSequencesMetadata();
+		if(genome!=null) sequences = genome.getSequencesMetadata();
 		init(null,new File(filename),genome);
 	}
 	public ReadAlignmentFileReader (String filename, ReferenceGenome genome, boolean validateHeader) throws IOException {
-		sequences = genome.getSequencesMetadata();
+		if(genome!=null) sequences = genome.getSequencesMetadata();
 		this.validateHeader = validateHeader;
 		init(null,new File(filename),genome);
 	}
