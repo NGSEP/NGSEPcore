@@ -516,7 +516,8 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getUniqueNumber()==-2313 || gsVertex.getUniqueNumber()==-2566; 
+		boolean debug = gsVertex.getSequenceIndex()==-1;
+		//boolean debug = gsVertex.getSequenceIndex()==116 || gsVertex.getSequenceIndex()==51 || gsVertex.getSequenceIndex()==372; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

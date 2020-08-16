@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.0.2" date="31-07-2020" jar="NGSEPcore">
+<software name="NGSEP" version="4.0.2" date="17-08-2020" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -1041,7 +1041,8 @@ Maximum number of samples with copy number variation in the region where the var
 Id of the gene or the transcript related with the variant.
 </option>
 <option id="a" type="STRING" attribute="annotations">
-Types of functional annotations (Missense, Nonsense, Synonymous, etc) related with the variant.
+Types of functional annotations related with the variant.
+The types must coincide with sequence ontology terms (See README.txt for details).
 More than one annotation can be set as a comma-separated list.
 </option>
 <option id="saf" type="FILE" attribute="sampleIds">
