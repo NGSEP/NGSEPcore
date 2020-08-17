@@ -520,15 +520,13 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private List<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		GenomicVariant variant = null;
-		GenomicVariant inputVariant = null;
 		if(inputVariants.size()==0) {
 			if(pileup.isInputSTR()) lastIndelEnd = pileup.getPosition()+pileup.getReferenceSpan()-1;
 			else if(pileup.getPosition()<=lastIndelEnd) pileup.setEmbedded(true);
 			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
 			if(referenceAllele==null) return;
 			
-			variant = discoverPopulationVariant(pileup,referenceAllele);
+			GenomicVariant variant = discoverPopulationVariant(pileup,referenceAllele);
 			if(pileup.getPosition()==posPrint) System.out.println("Variant: "+variant);
 			if(variant == null) return;
 			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup);
@@ -539,11 +537,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 				lastIndelEnd = variant.getLast();
 			}
 		} else if(nextSIVIndex<seqInputVariants.size()) {
-			inputVariant = seqInputVariants.get(nextSIVIndex);
+			GenomicVariant inputVariant = seqInputVariants.get(nextSIVIndex);
 			while(inputVariant.getFirst() <= pileup.getPosition() ) {
 				if(inputVariant.getFirst()==pileup.getPosition()) {
-					List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup);
-					VCFRecord record = VCFRecord.createDefaultPopulationVCFRecord(variant, calls, vcfFileHeader);
+					List<CalledGenomicVariant> calls = genotypeVariant(inputVariant, pileup);
+					VCFRecord record = VCFRecord.createDefaultPopulationVCFRecord(inputVariant, calls, vcfFileHeader);
 					writer.printVCFRecord(record, outFile);
 				}
 				nextSIVIndex++;
