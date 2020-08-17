@@ -162,8 +162,11 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		} else if(nextSIVIndex<seqInputVariants.size()) {
 			GenomicVariant inputVariant = seqInputVariants.get(nextSIVIndex);
 			while(inputVariant.getFirst() <= pileup.getPosition() ) {
+				//if(pileup.getPosition()==posPrint) System.out.println("Pileup: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" variant "+inputVariant.getSequenceName()+":"+inputVariant.getFirst()+" pos: "+nextSIVIndex);
 				if(inputVariant.getFirst()==pileup.getPosition()) {
-					CalledGenomicVariant calledVar = genotypeVariantSample(inputVariant, pileup, sample, heterozygosityRate);
+					//The default sample is not used because read groups are not properly set
+					CalledGenomicVariant calledVar = genotypeVariantSample(inputVariant, pileup, null, heterozygosityRate);
+					//if(pileup.getPosition()==posPrint) System.out.println("Called variant genotype: "+calledVar.getIndexesCalledAlleles().length+" quality: "+calledVar.getGenotypeQuality());
 					calledVariants.add(calledVar);
 				}
 				nextSIVIndex++;
@@ -357,14 +360,15 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	
 	public CalledGenomicVariant genotypeVariantSample(GenomicVariant variant, PileupRecord pileup,  Sample sample, double h) {
 		String referenceAllele = variant.getReference();
-		short ploidy = sample.getNormalPloidy();
+		short ploidy = (sample!=null?sample.getNormalPloidy():this.sample.getNormalPloidy());
 		CalledGenomicVariant calledVar = null;
-		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),sample.getReadGroups());
+		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(sample!=null?sample.getReadGroups():null));
 		if(variant.isSNV()) {
 			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
 				CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
+				if(variant.getFirst()==posPrint) helperSNV.printProbs(helperSNV.getLogConditionalProbs(), false);
 				calledVar = VariantDiscoverySNVQAlgorithm.genotypeSNV(variant, helperSNV, h, false);
 				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
 			}
@@ -379,7 +383,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		if(calledVar==null) calledVar = new CalledGenomicVariantImpl(variant, new byte[0]);
 		else if(minQuality>calledVar.getGenotypeQuality()) calledVar.makeUndecided();
-		calledVar.setSampleId(sample.getId());		
+		calledVar.setSampleId(sample!=null?sample.getId():this.sample.getId());		
 		return calledVar;
 	}
 	
