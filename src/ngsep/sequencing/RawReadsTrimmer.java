@@ -3,11 +3,14 @@ package ngsep.sequencing;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.sequences.DegenerateSequence;
 import ngsep.sequences.RawRead;
@@ -50,8 +53,10 @@ public class RawReadsTrimmer {
 
 	private void trimAdapters(FastqFileReader reader1, String file1, FastqFileReader reader2, String file2) throws IOException {
 		Pattern pattern = Pattern.compile(DegenerateSequence.makeRegularExpression(adapter));
-		try(PrintStream out1 = new PrintStream(outDirectory + File.separator+file1);
-			PrintStream out2 = new PrintStream(outDirectory + File.separator+file2)) {
+		try(OutputStream os1 = new GZIPOutputStream(new FileOutputStream(outDirectory + File.separator+file1));
+			PrintStream out1 = new PrintStream(os1);
+			OutputStream os2 = new GZIPOutputStream(new FileOutputStream(outDirectory + File.separator+file2));
+			PrintStream out2 = new PrintStream(os2)) {
 			Iterator<RawRead> it1 = reader1.iterator();
 			Iterator<RawRead> it2 = reader2.iterator();
 			while(it1.hasNext() && it2.hasNext()) {
