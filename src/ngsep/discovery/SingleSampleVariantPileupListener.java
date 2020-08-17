@@ -364,10 +364,12 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		CalledGenomicVariant calledVar = null;
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(sample!=null?sample.getReadGroups():null));
 		if(variant.isSNV()) {
+			CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
 			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
-				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
+				CalledGenomicVariantImpl calledVarI = genotypeVariantPool(variant, ploidy, calls, h);
+				calledVarI.setAllCounts(helperSNV.getCounts());
+				calledVar = calledVarI;
 			} else {
-				CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
 				if(variant.getFirst()==posPrint) helperSNV.printProbs(helperSNV.getLogConditionalProbs(), false);
 				calledVar = VariantDiscoverySNVQAlgorithm.genotypeSNV(variant, helperSNV, h, false);
 				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
@@ -394,9 +396,9 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	 * @param ploidy
 	 * @param calls
 	 * @param h prior heterozygosity rate
-	 * @return CalledGenomicVariant Genotype call for the given pool at the given variant
+	 * @return CalledGenomicVariantImpl Genotype call for the given pool at the given variant
 	 */
-	private CalledGenomicVariant genotypeVariantPool(GenomicVariant variant, short haplotypes, List<PileupAlleleCall> calls, double h) {
+	private CalledGenomicVariantImpl genotypeVariantPool(GenomicVariant variant, short haplotypes, List<PileupAlleleCall> calls, double h) {
 		double step = 1.0/(double)haplotypes;
 		List<Byte> selectedAlleles = new ArrayList<Byte>();
 		String [] alleles = variant.getAlleles();
@@ -422,7 +424,11 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			System.out.println("Alleles: "+Arrays.asList(alleles)+" max index: "+idxMajorAllele);
 			for (int i=0;i<alleles.length;i++) System.out.println("Count allele "+alleles[i]+" : "+counts[i]);
 		}
-		if(counts[idxMajorAllele]<haplotypes) return new CalledGenomicVariantImpl(variant, new byte[0]);
+		if(counts[idxMajorAllele]<haplotypes) {
+			CalledGenomicVariantImpl undecided = new CalledGenomicVariantImpl(variant, new byte[0]);
+			undecided.updateAllelesCopyNumberFromCounts(haplotypes);
+			return undecided;
+		}
 		//Save most frequent allele
 		selectedAlleles.add((byte)idxMajorAllele);
 		//Calculate priors

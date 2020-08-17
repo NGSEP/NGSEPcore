@@ -128,7 +128,10 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF)) {
 			samples = vcfOpenFile.getHeader().getSamples();
-			header.addSamples(samples);
+			for(Sample s:samples) {
+				header.addSample(s,header.getSamplesWithHeaderLine().containsKey(s.getId()));
+			}
+			
 			Iterator<VCFRecord> vcfReader = vcfOpenFile.iterator();
 			// Iterate over vcfRecords
 			while(vcfReader.hasNext()) {

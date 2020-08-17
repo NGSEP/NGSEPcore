@@ -571,7 +571,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		// add samples to header
 		for(Sample sample: this.samples) {
-			header.addSample(sample, false);
+			header.addSample(sample, sample.getNormalPloidy()!=GenomicVariant.DEFAULT_PLOIDY);
 		}
 		
 		Arrays.fill(currentReads, null);
@@ -670,7 +670,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		// add samples to header
 		for(Sample sample: this.samples) {
-			header.addSample(sample, false);
+			header.addSample(sample, sample.getNormalPloidy()!=GenomicVariant.DEFAULT_PLOIDY);
 		}
 		
 		Arrays.fill(currentReads_1, null);
@@ -764,8 +764,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 	}
 	
-	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2,
-			RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2, RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
 		RawRead currentRead_1 = currentReads_1[i];
 		RawRead currentRead_2 = currentReads_2[i];
 		int numCluster = nextCluster.getClusterNumber();
@@ -797,8 +796,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 		
 	}
-	private void skipCluster(int numCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2,
-			RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
+	private void skipCluster(int numCluster, Iterator<RawRead> iterator_1, Iterator<RawRead> iterator_2, RawRead[] currentReads_1, RawRead[] currentReads_2, int i) {
 		RawRead currentRead_1 = currentReads_1[i];
 		RawRead currentRead_2 = currentReads_2[i];
 		
@@ -829,8 +827,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		}
 		
 	}
-	private void skipCluster(Integer numCluster, Iterator<RawRead> iterator, 
-			RawRead[] currentReads, int i) throws IOException {
+	private void skipCluster(Integer numCluster, Iterator<RawRead> iterator, RawRead[] currentReads, int i) throws IOException {
 		RawRead currentRead = currentReads[i];
 		
 		while(currentRead!=null) {
@@ -856,8 +853,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 		
 	
-	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, 
-			RawRead[] currentReads, int i) throws IOException {
+	private void addReadsToCluster(ReadCluster nextCluster, Iterator<RawRead> iterator, RawRead[] currentReads, int i) throws IOException {
 		
 		RawRead currentRead = currentReads[i];
 		int numCluster = nextCluster.getClusterNumber();
