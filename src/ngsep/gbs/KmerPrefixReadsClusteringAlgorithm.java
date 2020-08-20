@@ -307,7 +307,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		instance.run();
 	}
 
-	public void run() throws IOException, InterruptedException {
+	public void run() throws Exception {
 		logParameters();
 		processInfo.addTime(System.currentTimeMillis(), "Load files start");
 		loadFilenamesAndSamples();
@@ -387,9 +387,9 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		return dist;
 	}
 
-	private void loadFilenamesAndSamples() throws IOException {
+	private void loadFilenamesAndSamples() throws Exception {
 		if (filesDescriptor != null) {
-			loadFilenamesAndSamplesPairedEnd();
+			loadFilenamesAndSamplesDescriptor();
 		} else {
 			File[] files = (new File(inputDirectory)).listFiles();
 			Arrays.sort(files,(f1,f2)->f1.getName().compareTo(f2.getName()));
@@ -422,6 +422,40 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			}
 		}
 	}
+	
+	private void loadFilenamesAndSamplesDescriptor() throws Exception {
+		try (BufferedReader descriptor = new BufferedReader(new FileReader(filesDescriptor))) {
+			//descriptor.readLine();
+			Boolean singleEnd = true;
+			Boolean pairedEnd = true;
+			String line = descriptor.readLine();
+			while(line != null) {
+				String[] payload = line.split("\t");
+				if(payload.length == 3) {
+					singleEnd = false;
+					if(!pairedEnd) throw new Exception("Inconsistent descriptor files");
+					String sampleId = payload[0];
+					addSample(sampleId);
+					String f1 = payload[1];
+					String f2 = payload[2];
+					filenamesBySampleId1.put(sampleId, inputDirectory + File.separator + f1);
+					filenamesBySampleId2.put(sampleId, inputDirectory + File.separator + f2);
+					line = descriptor.readLine();
+				} else if(payload.length == 2) {
+					pairedEnd = false;
+					if(!singleEnd) throw new Exception("Inconsistent descriptor files");
+					String sampleId = payload[0];
+					addSample(sampleId);
+					String f1 = payload[1];
+					filenamesBySampleId1.put(sampleId, inputDirectory + File.separator + f1);
+					line = descriptor.readLine();
+				}
+				
+				
+			}
+		}
+	}
+	
 	private void addSample(String sampleId) {
 		Sample sample = new Sample(sampleId);
 		sample.setNormalPloidy(normalPloidy);
