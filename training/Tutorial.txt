@@ -2,7 +2,7 @@
                           ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Requirements:
-    - Java 1.8
+    - Java 11.0
     - File picard.jar. Download from http://github.com/broadinstitute/picard/releases/latest)
     - Samtools. Follow instructions at http://samtools.sourceforge.net/  
 

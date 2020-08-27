@@ -21,7 +21,7 @@ Building NGSEP
 --------------------
 
 NGSEP has been compiled and run successfully on the standard jdk version
-1.8.0. To build the distribution library NGSEPcore.jar on a unix based
+11.0.8. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
 NGSEPcore_4.0.2.tar.gz is located:
 

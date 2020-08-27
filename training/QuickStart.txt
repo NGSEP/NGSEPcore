@@ -16,7 +16,7 @@ D. Production pipeline
                           ~~~~~ Requirements ~~~~~
 
 - For basic usage:
-    - Java 1.8
+    - Java 11.0
     - Reference genome: in FASTA format
     - Sample files, this can be:
         - FASTQ files: one for single-end reads or two for paired-end reads;
@@ -344,7 +344,7 @@ This file will be used during the merging steps.
 _____
 4. Download the jar file NGSEPcore_<VERSION>.jar from the NGSEP site:
 http://sourceforge.net/projects/ngsep/files/Library/ 
-and picard.jar from the Picard site, you will need java 1.8 to run picard:
+and picard.jar from the Picard site:
 https://github.com/broadinstitute/picard/releases/latest 
 and place them in a convenient directory. Again this can be any directory but it needs 
 to be indicated to the scripts changing the variables "PICARD" and "NGSEP". 
