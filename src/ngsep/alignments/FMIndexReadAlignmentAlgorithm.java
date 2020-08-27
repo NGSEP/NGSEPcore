@@ -135,7 +135,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	 */
 	private List<ReadAlignment> kmerBasedSingleStrandInexactSearchAlgorithm (String query) 
 	{
-		Map<Integer,String> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, true, true);
+		Map<Integer,String> kmersMap = KmersExtractor.extractKmersAsMap(query, kmerLength, kmerLength, true, false, true);
 		List<ReadAlignment> finalAlignments =  new ArrayList<>();
 		//System.out.println("Read: "+query+" length "+query.length()+" kmers: "+kmersMap.size());
 		int kmersCount=kmersMap.size();

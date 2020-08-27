@@ -286,7 +286,7 @@ public class ReadsFileErrorsCorrector {
 		String rq = read.getQualityScores();
 		StringBuilder correctedRead = new StringBuilder();
 		StringBuilder correctedQualities = new StringBuilder();
-		CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, 0, readStr.length(), false, true, false);
+		CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, 0, readStr.length(), false, false, false);
 		int [] readKmerCounts = new int [readKmers.length];
 		Arrays.fill(readKmerCounts, 0);
 		
@@ -361,7 +361,7 @@ public class ReadsFileErrorsCorrector {
 		for(int h=0;h<3;h++) {
 			String readStr = read.getCharacters().toString();
 			char [] readChars = readStr.toCharArray();
-			CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, 0, readStr.length(), false, true, false);
+			CharSequence [] readKmers = KmersExtractor.extractKmers(readStr, kmerLength , 1, 0, readStr.length(), false, false, false);
 			int [] readKmerCounts = new int [readKmers.length];
 			Arrays.fill(readKmerCounts, 0);
 			
@@ -422,7 +422,7 @@ public class ReadsFileErrorsCorrector {
 
 	private double getScore(char[] readChars, int first, int last) {
 		String segment = (new String(readChars)).substring(first,last+1);
-		CharSequence [] segmentKmers = KmersExtractor.extractKmers(segment, kmerLength , 1, 0, segment.length(), false, true, false);
+		CharSequence [] segmentKmers = KmersExtractor.extractKmers(segment, kmerLength , 1, 0, segment.length(), false, false, false);
 		double score = 0;
 		for(int i=0;i<segmentKmers.length;i++) {
 			CharSequence kmer = segmentKmers[i];

@@ -80,7 +80,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int n = genome.getNumSequences();
 		log.info("Calculating kmers distribution");
 		KmersExtractor extractor = new KmersExtractor();
-		extractor.setOnlyDNA(true);
 		extractor.processQualifiedSequences(genome.getSequencesList());
 		KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());

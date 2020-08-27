@@ -42,8 +42,6 @@ import ngsep.sequences.QualifiedSequence;
  */
 public class GraphBuilderFMIndex implements GraphBuilder {
 	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
-	private final static int TALLY_DISTANCE = 100;
-	private final static int SUFFIX_FRACTION = 20;
 	
 	private static final int TIMEOUT_SECONDS = 30;
 
@@ -145,8 +143,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 
 
 	private void updateGraph(KmerHitsAssemblyEdgesFinder finder, int queryIdx, CharSequence query, boolean queryRC, FMIndex fmIndex) {
-		AssemblyGraph graph = finder.getGraph();
-		Map<Integer,String> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, false, true, true);
+		Map<Integer,String> sequenceKmersMap = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, false, false, true);
 		//Search kmers using the FM index
 		if(sequenceKmersMap.size()==0) return;
 		Map<Integer,List<UngappedSearchHit>> kmerHitsMap = new HashMap<Integer, List<UngappedSearchHit>>();

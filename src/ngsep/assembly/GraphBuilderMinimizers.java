@@ -64,7 +64,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		log.info("Calculating kmers distribution");
 		KmersExtractor extractor = new KmersExtractor();
 		extractor.setLog(log);
-		extractor.setOnlyDNA(true);
 		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 		extractor.initializeMap();
