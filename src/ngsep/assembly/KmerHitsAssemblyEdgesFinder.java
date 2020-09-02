@@ -124,7 +124,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 		embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
-		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, query.length(), cluster);
+		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, query.length(), cluster);
 		embeddedEvent.setCoverageSharedKmers(alnData[0]);
 		embeddedEvent.setWeightedCoverageSharedKmers(alnData[1]);
 		embeddedEvent.setMismatches(alnData[2]);
@@ -144,7 +144,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		//ReadAlignment aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters(), query, cluster);
 		//int mismatches = overlap;
 		//if(aln!=null) mismatches = aln.getNumMismatches();
-		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
+		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
 		edge.setMismatches(alnData[2]);
@@ -166,7 +166,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		//ReadAlignment aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters(), query, cluster);
 		//int mismatches = overlap;
 		//if(aln!=null) mismatches = aln.getNumMismatches();
-		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, queryLength, cluster);
+		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
 		edge.setMismatches(alnData[2]);
