@@ -590,7 +590,7 @@ public class AssemblyGraph {
 		//double minScoreProportionEmbedded = 0.5;
 		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
 		double minScoreProportionEmbedded = Math.min(0.9, 0.4*getSequenceLength(sequenceId)/(double)medianLength);
-		if(minScoreProportionEmbedded<0.4) minScoreProportionEmbedded = 0.4;
+		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
