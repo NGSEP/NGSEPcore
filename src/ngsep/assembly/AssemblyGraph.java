@@ -208,6 +208,14 @@ public class AssemblyGraph {
 	public List<String> getReadNames() {
 		return readNames;
 	}
+	
+	public int getMedianLength() {
+		int n = getNumSequences();
+		List<Integer> lengths = new ArrayList<Integer>(n);
+		for(QualifiedSequence seq:sequences) lengths.add(seq.getLength());
+		Collections.sort(lengths);
+		return lengths.get(n/2);
+	}
 
 	
 
@@ -557,26 +565,32 @@ public class AssemblyGraph {
 	}
 	
 	public void filterEdgesAndEmbedded() {
+		int medianLength = getMedianLength();
+		System.out.println("Median read length: "+medianLength);
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			filterEdgesAndEmbedded(seqId);
+			filterEdgesAndEmbedded(seqId,medianLength);
 		}
+		System.out.println("Filtered edges. Prunning embedded");
 		pruneEmbeddedSequences();
+		System.out.println("Prunned embedded sequences");
 		//filterEdgesCloseRelationships();
 	}
 
-	public void filterEdgesAndEmbedded(int sequenceId) {
+	public void filterEdgesAndEmbedded(int sequenceId,int medianLength) {
 		int debugIdx = -1;
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		if(vS==null || vE==null) return;
 		filterEdgesAbnormalFeatures(getEdges(vS));
 		filterEdgesAbnormalFeatures(getEdges(vE));
+		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
 		double minScoreProportionEdges = 0.3;
-		double minScoreProportionEmbedded = 0.5;
-		//double minScoreProportion = 0.4;
-		//double minScoreProportion = 0.5;
+		//double minScoreProportionEmbedded = 0.5;
+		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
+		double minScoreProportionEmbedded = Math.min(0.9, 0.4*getSequenceLength(sequenceId)/(double)medianLength);
+		if(minScoreProportionEmbedded<0.4) minScoreProportionEmbedded = 0.4;
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -594,7 +608,7 @@ public class AssemblyGraph {
 				removeEdge(edge);
 			}
 		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max score end: "+maxScoreS+" remaining edges: "+edgesMap.get(vS.getUniqueNumber()).size());
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max score start: "+maxScoreS+" remaining edges: "+edgesMap.get(vS.getUniqueNumber()).size());
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
 		if(vE!=null) edgesE.addAll(getEdges(vE));
 		double maxScoreE = 0;			
@@ -633,6 +647,7 @@ public class AssemblyGraph {
 				addEdgeFromEmbedded(embedded);
 			}
 		} else {
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Sequence is embedded. Max score edges "+ maxScore +" max score embedded "+maxScoreEmbedded+" minprop "+minScoreProportionEmbedded);
 			filterEmbedded(sequenceId, 0.9, 1);
 		}
 	}
