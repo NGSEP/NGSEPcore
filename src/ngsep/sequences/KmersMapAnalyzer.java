@@ -39,7 +39,7 @@ public class KmersMapAnalyzer {
 			expectedAssemblyLength = totalEntries/2;
 			average = distribution.getAverage();
 		} else {
-			mode = 3*(int)distribution.getAverage();
+			mode = Math.max(10, 3*(int)distribution.getAverage());
 			int limit = Math.min(10000, 100*(int)distribution.getAverage());
 			for(int k=10;k<limit;k++) {
 				long maxValue = completeCounts[k];
@@ -64,11 +64,17 @@ public class KmersMapAnalyzer {
 				countRankings[idx]=sum;
 				sum+=count;
 				idx = mode-k;
-				if(idx>0) {
+				if(idx>=5) {
 					count = kmerCounts[idx];
 					countRankings[idx]=sum;
 					sum+=count;
 				}
+			}
+			//Worst rankings for low abundance kmers
+			for(int i=4;i>=1;i--) {
+				long count = kmerCounts[i];
+				countRankings[i]=sum;
+				sum+=count;
 			}
 			long localMinValue = completeCounts[1];
 			for(int i=2;i<mode;i++) {
