@@ -216,31 +216,37 @@ Prefix of the output files.
 <option id="g" type="STRING" attribute="graphFile">
 File with a saved graph to perform layout and consensus.
 </option>
+<!-- 
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
+-->
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Window length to calculate minimizers.
 </option>
+<option id="h" type="BOOLEAN" attribute="runHomopolymerCompression">
+Perform homopolymer compression on the raw reads to build the graph 
+</option>
 <!-- <option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
 Minimum percentage of k-mers to identify an overlap 
 </option>
- -->
+
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
+<option id="c" type="BOOLEAN" attribute="correctReads">
+For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
+Ignored for other consensus algorithms
+</option>
+ -->
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_SIMPLE" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
-</option>
-<option id="c" type="BOOLEAN" attribute="correctReads">
-For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
-Ignored for other consensus algorithms
 </option>
 <option id="t" type="INT" attribute="numThreads">
 Number of threads

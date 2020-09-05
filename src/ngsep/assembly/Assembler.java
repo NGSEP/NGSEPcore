@@ -76,6 +76,7 @@ public class Assembler {
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
 	private boolean correctReads = false;
+	private boolean runHomopolymerCompression = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Get and set methods
@@ -171,6 +172,18 @@ public class Assembler {
 		this.consensusAlgorithm = consensusAlgorithm;
 	}
 	
+	
+	
+	public boolean isRunHomopolymerCompression() {
+		return runHomopolymerCompression;
+	}
+	public void setRunHomopolymerCompression(boolean runHomopolymerCompression) {
+		this.runHomopolymerCompression = runHomopolymerCompression;
+	}
+	
+	public void setRunHomopolymerCompression(Boolean runHomopolymerCompression) {
+		this.setRunHomopolymerCompression(runHomopolymerCompression.booleanValue());
+	}
 	public boolean isCorrectReads() {
 		return correctReads;
 	}
@@ -212,7 +225,8 @@ public class Assembler {
 		else out.println("Algorithm to build graph: "+graphConstructionAlgorithm);
 		out.println("Algorithm to build layout: "+layoutAlgorithm);
 		out.println("Algorithm to build consensus: "+consensusAlgorithm);
-		out.println("K-mer length: "+ kmerLength);
+		if(runHomopolymerCompression) out.println("Run homopolymer compression on raw reads to build the graph");
+		//out.println("K-mer length: "+ kmerLength);
 		//out.println("K-mer offset for FM-index: "+ kmerOffset);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
@@ -235,6 +249,11 @@ public class Assembler {
 			gbIndex.setNumThreads(numThreads);
 			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
+			if (runHomopolymerCompression) {
+				runHomopolymerCompression (sequences);
+				log.info("Performed homopolymer compression");
+			}
+			
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
 			builder.setKmerLength(kmerLength);
 			builder.setWindowLength(windowLength);
@@ -242,6 +261,15 @@ public class Assembler {
 			builder.setNumThreads(numThreads);
 			builder.setLog(log);
 			graph = builder.buildAssemblyGraph(sequences);
+			if(runHomopolymerCompression) {
+				List<QualifiedSequence> originalSeqs = load(inputFile,inputFormat, minReadLength);
+				log.info("Loaded original sequences to restore. Compressed sequences: "+sequences.size()+". Loaded: "+originalSeqs.size());
+				for(int i=0;i<sequences.size();i++) {
+					QualifiedSequence seq = sequences.get(i);
+					CharSequence original = originalSeqs.get(i).getCharacters();
+					seq.setCharacters(original);
+				}
+			}
 		}
 		log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		graph.updateVertexDegrees();
@@ -287,6 +315,29 @@ public class Assembler {
 		}
 	}
 
+	private void runHomopolymerCompression(List<QualifiedSequence> sequences) {
+		for(int i=0;i<sequences.size();i++) {
+			QualifiedSequence seq = sequences.get(i);
+			compressHomopolymers(seq);
+		}
+		
+	}
+	private void compressHomopolymers(QualifiedSequence seq) {
+		String seqStr = seq.getCharacters().toString();
+		int n = seqStr.length();
+		StringBuilder compressed = new StringBuilder(n);
+		for (int i=0;i<n;i++) {
+			char c = seqStr.charAt(i);
+			compressed.append(c);
+			int lengthH = 1;
+			for(int j=i+1;j<n;j++) {
+				if(seqStr.charAt(j)==c)lengthH++;
+				else break;
+			}
+			if(lengthH>3) i+=lengthH-1;
+		}
+		seq.setCharacters(new DNAMaskedSequence(compressed));
+	}
 	/**
 	 * Load the sequences of the file
 	 * 
