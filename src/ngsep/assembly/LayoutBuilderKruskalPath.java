@@ -42,6 +42,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		System.out.println("Average overlap TP: "+edgesStats[0].getAverage()+" SD: "+Math.sqrt(edgesStats[0].getVariance())+ " Total: "+edgesStats[0].getCount());
 		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
 		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
+		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
 		addConnectingEdges(graph, safePaths, pathEdges, edgesStats);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
 		for(LinkedList<AssemblyEdge> path:paths) {
@@ -112,7 +113,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			overlapDistributionTP.processDatapoint(edge.getOverlap());
 			kmerHitCoverageDistributionTP.processDatapoint(edge.getCoverageSharedKmers());
 			kmerHitWCovDistributionTP.processDatapoint(edge.getWeightedCoverageSharedKmers());
-			coverageProportionDistributionTP.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
+			coverageProportionDistributionTP.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/edge.getOverlap());
 		}
 		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, kmerHitWCovDistributionTP, coverageProportionDistributionTP};
 		return answer;
@@ -221,6 +222,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Distribution overlapTP = edgesStats[0];
 		Distribution covTP = edgesStats[1];
 		Distribution wCovTP = edgesStats[2];
+		Distribution wCovPropTP = edgesStats[3];
 		//Distribution covPropTP = edgesStats[2];
 		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
 		//int cost = (int)Math.round(1000*(1.5-prop));
@@ -228,13 +230,17 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance());
 		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance());
 		NormalDistribution nwcTP = new NormalDistribution(wCovTP.getAverage(),wCovTP.getVariance());
+		NormalDistribution nwcpTP = new NormalDistribution(wCovPropTP.getAverage(),wCovPropTP.getVariance());
 		double pValueOTP = noTP.cumulative(edge.getOverlap());
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
 		double pValueCTP = ncTP.cumulative(edge.getCoverageSharedKmers());
 		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
 		double pValueWCTP = nwcTP.cumulative(edge.getEdgeAssemblyGraph().getWeightedCoverageSharedKmers());
 		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
-		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" costs: "+cost1+" "+cost2+" "+cost3+" sum: " +(cost1+cost2+cost3)+ " Edge: "+edge.getEdgeAssemblyGraph());
+		double pValueWCPTP = nwcpTP.cumulative((double)edge.getEdgeAssemblyGraph().getWeightedCoverageSharedKmers()/edge.getOverlap());
+		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
+		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" sum: " +(cost1+cost2+cost3)+ " Edge: "+edge.getEdgeAssemblyGraph());
+		//return cost1+cost3+cost4;
 		return cost1+cost3;
 		//return cost3;
 		//return cost1+cost2;

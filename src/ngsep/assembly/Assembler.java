@@ -249,8 +249,9 @@ public class Assembler {
 			gbIndex.setNumThreads(numThreads);
 			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
+			double [] compressionFactors =null;
 			if (runHomopolymerCompression) {
-				runHomopolymerCompression (sequences);
+				compressionFactors = runHomopolymerCompression (sequences);
 				log.info("Performed homopolymer compression");
 			}
 			
@@ -260,7 +261,7 @@ public class Assembler {
 			//builder.setMinKmerPercentage(minKmerPercentage);
 			builder.setNumThreads(numThreads);
 			builder.setLog(log);
-			graph = builder.buildAssemblyGraph(sequences);
+			graph = builder.buildAssemblyGraph(sequences,compressionFactors);
 			if(runHomopolymerCompression) {
 				List<QualifiedSequence> originalSeqs = load(inputFile,inputFormat, minReadLength);
 				log.info("Loaded original sequences to restore. Compressed sequences: "+sequences.size()+". Loaded: "+originalSeqs.size());
@@ -315,28 +316,28 @@ public class Assembler {
 		}
 	}
 
-	private void runHomopolymerCompression(List<QualifiedSequence> sequences) {
+	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
+		double [] compressionFactors = new double[sequences.size()];
 		for(int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
-			compressHomopolymers(seq);
+			compressionFactors[i] = compressHomopolymers(seq);
 		}
-		
+		return compressionFactors;
 	}
-	private void compressHomopolymers(QualifiedSequence seq) {
+	private double compressHomopolymers(QualifiedSequence seq) {
 		String seqStr = seq.getCharacters().toString();
 		int n = seqStr.length();
 		StringBuilder compressed = new StringBuilder(n);
+		char c2 = 0;
 		for (int i=0;i<n;i++) {
 			char c = seqStr.charAt(i);
-			compressed.append(c);
-			int lengthH = 1;
-			for(int j=i+1;j<n;j++) {
-				if(seqStr.charAt(j)==c)lengthH++;
-				else break;
-			}
-			if(lengthH>3) i+=lengthH-1;
+			if (c!=c2) compressed.append(c);
+			c2=c;
 		}
+		double answer = compressed.length();
+		if(n>0) answer /=n;
 		seq.setCharacters(new DNAMaskedSequence(compressed));
+		return answer;
 	}
 	/**
 	 * Load the sequences of the file
