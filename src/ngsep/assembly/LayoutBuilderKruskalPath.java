@@ -43,9 +43,14 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
 		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
 		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
-		//Algorithm to resolve conflicts between almost safe close edges
+		//Algorithms to resolve conflicts between almost safe close edges
 		addEdges2(graph, safePaths, pathEdges);
 		System.out.println("Number of edges after second algorithm: "+pathEdges.size());
+		safePaths = buildPaths(graph, pathEdges);
+		System.out.println("Updated number of paths: "+safePaths.size());
+		
+		addEdges3(graph, safePaths, pathEdges);
+		System.out.println("Number of edges after third algorithm: "+pathEdges.size());
 		safePaths = buildPaths(graph, pathEdges);
 		System.out.println("Updated number of paths: "+safePaths.size());
 		
@@ -186,6 +191,127 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		return paths;
 	}
 	
+	private void addEdges3(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
+		AssemblyVertex [] vertices = extractEndVertices(paths);
+		int n = vertices.length;
+		int [] clusters = new int[n];
+		boolean [] used = new boolean[n];
+		Arrays.fill(used, false);
+		for(int i=0;i<n;i++) {
+			clusters[i] = i/2;
+		}
+		Map<Integer,Integer> verticesMap = new HashMap<Integer, Integer>(n);
+		for(int i=0;i<n;i++) verticesMap.put(vertices[i].getUniqueNumber(), i);
+		Map<Integer,Set<Integer>> vertexSequences = new HashMap<Integer, Set<Integer>>();
+		// Try to expand from vertex i
+		for(int i=0;i<vertices.length;i++) {
+			//if(vertices[i].getUniqueNumber()==0) System.out.println("Vertex "+vertices[i]+" used: "+used[i]+" psth size: "+paths.get(i/2).size());
+			if(used[i]) continue;
+			if(paths.get(i/2).size()==1) continue;
+			AssemblyVertex vertex = vertices[i];
+			List<AssemblyEdge> edges = new ArrayList<AssemblyEdge>();
+			for(AssemblyEdge edge:graph.getEdges(vertex)) if(!edge.isSameSequenceEdge()) edges.add(edge);
+			//if(vertices[i].getUniqueNumber()==0) System.out.println("Vertex "+vertices[i]+" edges: "+edges.size()+" psth size: "+paths.get(i/2).size());
+			if(edges.size()<2) continue;
+			Collections.sort(edges,(e1,e2)-> e2.getWeightedCoverageSharedKmers()-e1.getWeightedCoverageSharedKmers());
+			int maxWCSK= edges.get(0).getWeightedCoverageSharedKmers();
+			Collections.sort(edges,(e1,e2)-> e2.getOverlap()-e1.getOverlap());
+			
+			int maxOverlap = edges.get(0).getOverlap();
+			//if(vertices[i].getUniqueNumber()==0) System.out.println("Vertex "+vertices[i]+" max overlap: "+maxOverlap+" max WCSK: "+maxWCSK);
+			for(AssemblyEdge edge:edges) {
+				if(edge.isSameSequenceEdge()) continue;
+				if(edge.getWeightedCoverageSharedKmers()<0.9*maxWCSK) continue;
+				if(edge.getOverlap()<0.9*maxOverlap) break;
+				AssemblyVertex v = edge.getConnectingVertex(vertex);
+				Integer j = verticesMap.get(v.getUniqueNumber());
+				if(j==null || used[j]) continue;
+				if(paths.get(j/2).size()>1) continue;
+				Set<Integer> selectedSequences = vertexSequences.computeIfAbsent(i, (k)->new HashSet<Integer>());
+				selectedSequences.add(v.getSequenceIndex());
+			}
+			//if(vertices[i].getUniqueNumber()==0) System.out.println("Vertex "+vertices[i]+" sequences: "+vertexSequences.get(0));
+		}
+		for(int i:vertexSequences.keySet()) {
+			Set<Integer> sequencesI = vertexSequences.get(i);
+			if(vertices[i].getUniqueNumber()==0 || vertices[i].getUniqueNumber()==4992) System.out.println("Vertex "+vertices[i]+" sequences: "+sequencesI+" used: "+used[i]);
+			if(used[i]) continue;
+			if(sequencesI.size()>5) continue;
+			for(int j:vertexSequences.keySet()) {
+				if(i>=j) continue;
+				if(used[j]) continue;
+				if(clusters[i]==clusters[j]) continue;
+				Set<Integer> sequencesJ = vertexSequences.get(j);
+				if(!sequencesI.equals(sequencesJ)) continue;
+				List<Integer> groupIndexes = new ArrayList<Integer>();
+				Set<Integer> groupClusters = new HashSet<Integer>();
+				groupClusters.add(clusters[j]);
+				boolean groupFree=true;
+				for(int k:sequencesI) {
+					int iv1 = verticesMap.get(graph.getVertex(k, true).getUniqueNumber());
+					groupFree = groupFree && !used[iv1] && clusters[iv1]!=clusters[i];
+					groupIndexes.add(iv1);
+					groupClusters.add(clusters[iv1]);
+					int iv2 = verticesMap.get(graph.getVertex(k, false).getUniqueNumber());
+					groupFree = groupFree && !used[iv2] && clusters[iv2]!=clusters[i];
+					groupIndexes.add(iv2);
+					groupClusters.add(clusters[iv2]);
+				}
+				if(!groupFree) continue;
+				List<AssemblyEdge> path = findPathExtensiveSearch(graph,vertices[i],vertices[j],sequencesI);
+				if(path.size()==0) continue;
+				for(AssemblyEdge edge:path) {
+					if(edge.isSameSequenceEdge()) continue;
+					pathEdges.add(edge);
+				}
+				used[i] = used[j] = true;
+				for(int k:groupIndexes) used[k] = true;
+				int ci = clusters[i];
+				int cj = clusters[j];
+				for(int c=0;c<n;c++) {
+					if(clusters[c]==cj || groupClusters.contains(clusters[c])) clusters[c] = ci;
+				}
+				System.out.println("Added semisafe edges connecting "+vertices[i]+" and "+vertices[j]+" sequences in the middle: "+sequencesI);
+				break;
+			}
+		}
+	}
+	
+	private List<AssemblyEdge> findPathExtensiveSearch(AssemblyGraph graph, AssemblyVertex v1 ,AssemblyVertex v2, Set<Integer> sequencesPath) {
+		LinkedList<List<Integer>> agenda = new LinkedList<List<Integer>>();
+		List<Integer> origin = new ArrayList<Integer>();
+		origin.add(v1.getUniqueNumber());
+		agenda.add(origin);
+		while(agenda.size()>0) {
+			List<Integer> path = agenda.removeFirst();
+			int n =path.size();
+			int last = path.get(n-1);
+			AssemblyVertex lastV = graph.getVertexByUniqueId(last);
+			if(n==2*(sequencesPath.size()+1)) {
+				if(last!=v2.getUniqueNumber()) continue;
+				//Build list of edges and return
+				List<AssemblyEdge> answer = new ArrayList<AssemblyEdge>();
+				for(int i=0;i<n-1;i++) {
+					answer.add(graph.getEdge(graph.getVertexByUniqueId(path.get(i)),graph.getVertexByUniqueId(path.get(i+1))));
+				}
+				return answer;
+			} else if (last==v2.getUniqueNumber()) continue;
+			
+			List<AssemblyEdge> edges = graph.getEdges(lastV);
+			for(AssemblyEdge edge:edges) {
+				AssemblyVertex v = edge.getConnectingVertex(lastV);
+				if(path.contains(v.getUniqueNumber())) continue;
+				if(v!=v2 && !sequencesPath.contains(v.getSequenceIndex())) continue;
+				List<Integer> newPath = new ArrayList<Integer>(n+2);
+				newPath.addAll(path);
+				newPath.add(v.getUniqueNumber());
+				if(v!=v2) newPath.add(graph.getSameSequenceEdge(v).getConnectingVertex(v).getUniqueNumber());
+				agenda.add(newPath);
+			}
+			
+		}
+		return new ArrayList<AssemblyEdge>();
+	}
 	private void addEdges2(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
 		AssemblyVertex [] vertices = extractEndVertices(paths);
 		int n = vertices.length;
@@ -350,11 +476,13 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
 		double pValueWCPTP = nwcpTP.cumulative((double)edge.getEdgeAssemblyGraph().getWeightedCoverageSharedKmers()/edge.getOverlap());
 		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
-		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" sum: " +(cost1+cost2+cost3)+ " Edge: "+edge.getEdgeAssemblyGraph());
-		//return cost1+cost3+cost4;
-		return cost1+cost3;
-		//return cost3;
-		//return cost1+cost2;
+		
+		int cost = 0;
+		cost += (cost1+cost3);
+		cost*=1000000;
+		cost+= (int) (1000000*(1-pValueOTP)*(1-pValueWCTP));
+		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" cost: " +cost+ " Edge: "+edge.getEdgeAssemblyGraph());
+		return cost;
 	}
 	private boolean logEdge(AssemblyEdge edge) {
 		int n = -1;
