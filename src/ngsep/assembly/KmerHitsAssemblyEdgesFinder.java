@@ -1,10 +1,10 @@
 package ngsep.assembly;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.sequences.UngappedSearchHit;
@@ -16,7 +16,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public static final int DEF_MIN_HITS = 50;
 	
-	private double minProportionOverlap = 0.2;
+	private double minProportionOverlap = 0.05;
 	
 	private double minProportionEvidence = 0;
 	
@@ -41,7 +41,8 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 
 	public void updateGraphWithKmerHitsMap(int queryIdx, CharSequence query, boolean queryRC, double compressionFactor, int selfHitsCount, Map<Integer, List<UngappedSearchHit>> hitsBySubjectIdx) {
-		Set<Integer> subjectIdxs = new HashSet<Integer>();
+		Map<Integer,Integer> subjectCounts = new HashMap<Integer,Integer>();
+		List<Integer> subjectIdxs = new ArrayList<Integer>();
 		//TODO: Make parameter
 		int kmerLength = 15;
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
@@ -51,13 +52,15 @@ public class KmerHitsAssemblyEdgesFinder {
 			int minHits = (int) Math.max(query.length()*minProportionOverlap/kmerLength,DEF_MIN_HITS);
 			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
+			subjectCounts.put(subjectIdx,subjectCount);
 			subjectIdxs.add(subjectIdx);
 		}
+		Collections.sort(subjectIdxs,(i1,i2)-> subjectCounts.get(i2)-subjectCounts.get(i1));
 	
 		//Combined query min coverage and percentage of kmers
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		for(int subjectIdx:subjectIdxs) {
-			
+		for(int i=0;i<subjectIdxs.size() && i<100;i++) {
+			int subjectIdx = subjectIdxs.get(i);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
 			int subjectLength = graph.getSequenceLength(subjectIdx);
 			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query.length(), subjectLength, hits, 0);

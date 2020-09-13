@@ -43,6 +43,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
 		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
 		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
+		//Algorithm to resolve conflicts between almost safe close edges
+		addEdges2(graph, safePaths, pathEdges);
+		System.out.println("Number of edges after second algorithm: "+pathEdges.size());
+		safePaths = buildPaths(graph, pathEdges);
+		System.out.println("Updated number of paths: "+safePaths.size());
+		
 		addConnectingEdges(graph, safePaths, pathEdges, edgesStats);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
 		for(LinkedList<AssemblyEdge> path:paths) {
@@ -78,18 +84,17 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 
 	private boolean isRecipocalBest(AssemblyGraph graph, AssemblyEdge edge) {
 		AssemblyVertex v1 = edge.getVertex1();
-		List<AssemblyEdge> edgesV1 = graph.getEdges(v1);
-		for(AssemblyEdge edgeV1:edgesV1) {
-			if(edgeV1.isSameSequenceEdge() || edge==edgeV1) continue;
-			if(edgeV1.getOverlap()>=edge.getOverlap() || edgeV1.getWeightedCoverageSharedKmers()>=edge.getWeightedCoverageSharedKmers()) return false;
-			//if(edgeV1.getOverlap()>=edge.getOverlap()) return false;
-		}
+		if(!isBestEdge(graph, v1, edge)) return false;
 		AssemblyVertex v2 = edge.getVertex2();
-		List<AssemblyEdge> edgesV2 = graph.getEdges(v2);
-		for(AssemblyEdge edgeV2:edgesV2) {
-			if(edgeV2.isSameSequenceEdge() || edge==edgeV2) continue;
-			if(edgeV2.getOverlap()>=edge.getOverlap() || edgeV2.getWeightedCoverageSharedKmers()>=edge.getWeightedCoverageSharedKmers()) return false;
-			//if(edgeV2.getOverlap()>=edge.getOverlap()) return false;
+		if(!isBestEdge(graph, v2, edge)) return false;
+		return true;
+	}
+	private boolean isBestEdge (AssemblyGraph graph, AssemblyVertex v, AssemblyEdge edgeT) {
+		List<AssemblyEdge> edges = graph.getEdges(v);
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge() || edge==edgeT) continue;
+			if(edge.getOverlap()>=edgeT.getOverlap() || edge.getWeightedCoverageSharedKmers()>=edgeT.getWeightedCoverageSharedKmers()) return false;
+			//if(edgeV1.getOverlap()>=edge.getOverlap()) return false;
 		}
 		return true;
 	}
@@ -180,8 +185,110 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		} 
 		return paths;
 	}
-
-	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges, Distribution[] edgesStats) {
+	
+	private void addEdges2(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
+		AssemblyVertex [] vertices = extractEndVertices(paths);
+		int n = vertices.length;
+		int [] clusters = new int[n];
+		boolean [] used = new boolean[n];
+		Arrays.fill(used, false);
+		for(int i=0;i<n;i++) {
+			clusters[i] = i/2;
+		}
+		Map<Integer,Integer> verticesMap = new HashMap<Integer, Integer>(n);
+		for(int i=0;i<n;i++) verticesMap.put(vertices[i].getUniqueNumber(), i);
+		// Try to expand from vertex i
+		for(int i=0;i<vertices.length;i++) {
+			if(used[i]) continue;
+			AssemblyVertex vertex = vertices[i];
+			List<AssemblyEdge> edges = graph.getEdges(vertex);
+			AssemblyEdge bestOverlap=null;
+			AssemblyEdge bestWC=null;
+			for(AssemblyEdge edge:edges) {
+				if(edge.isSameSequenceEdge()) continue;
+				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
+				if(j==null || used[j]) continue;
+				if(bestOverlap==null || bestOverlap.getOverlap()<edge.getOverlap()) bestOverlap = edge;
+				if(bestWC==null || bestWC.getWeightedCoverageSharedKmers()<edge.getWeightedCoverageSharedKmers()) bestWC = edge;
+			}
+			if(bestOverlap == bestWC) continue;
+			int diffOverlap = Math.abs(bestOverlap.getOverlap()-bestWC.getOverlap());
+			int diffWC = Math.abs(bestOverlap.getWeightedCoverageSharedKmers()-bestWC.getWeightedCoverageSharedKmers());
+			if(diffOverlap>0.05*bestOverlap.getOverlap()) continue;
+			if(diffWC>0.05*bestWC.getWeightedCoverageSharedKmers()) continue;
+			
+			AssemblyEdge thirdOverlap=null;
+			AssemblyEdge thirdWC=null;
+			for(AssemblyEdge edge:edges) {
+				if(edge.isSameSequenceEdge()) continue;
+				if(edge == bestOverlap) continue;
+				if(edge == bestWC) continue;
+				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
+				if(j==null || used[j]) continue;
+				if(thirdOverlap==null || thirdOverlap.getOverlap()<edge.getOverlap()) thirdOverlap = edge;
+				if(thirdWC==null || thirdWC.getWeightedCoverageSharedKmers()<edge.getWeightedCoverageSharedKmers()) thirdWC = edge;
+			}
+			if(thirdOverlap!=null && thirdOverlap.getOverlap()>0.9*bestWC.getOverlap()) continue;
+			if(thirdWC!=null && thirdWC.getWeightedCoverageSharedKmers()>0.9*bestOverlap.getWeightedCoverageSharedKmers()) continue;
+			
+			AssemblyVertex vBestOv = bestOverlap.getConnectingVertex(vertex);
+			//if(!isBestEdge(graph, vBestOv, bestOverlap)) continue;
+			AssemblyVertex vBestWC = bestWC.getConnectingVertex(vertex);
+			//if(!isBestEdge(graph, vBestWC, bestWC)) continue;
+			
+			int j = verticesMap.get(vBestOv.getUniqueNumber());
+			int k = verticesMap.get(vBestWC.getUniqueNumber());
+			if(paths.get(j/2).size()>1) continue;
+			if(paths.get(k/2).size()>1) continue;
+			
+			AssemblyVertex vBestOv2 = graph.getSameSequenceEdge(vBestOv).getConnectingVertex(vBestOv);
+			AssemblyVertex vBestWC2 = graph.getSameSequenceEdge(vBestWC).getConnectingVertex(vBestWC);
+			AssemblyEdge edgeOv2 = graph.getEdge(vBestOv2, vBestWC);
+			AssemblyEdge edgeWC2 = graph.getEdge(vBestWC2, vBestOv);
+			
+			if(isBestEdge(graph, vBestOv, bestOverlap) && edgeOv2!=null && edgeWC2==null && edgeOv2.getOverlap()>0.8*bestWC.getOverlap()) {
+				//Best overlap follows transitivity
+				int c1 = clusters[i];
+				int c2 = clusters[j];
+				int c3 = clusters[k];
+				
+				if(c1!=c2 && c1!=c3 && c2!=c3) {
+					pathEdges.add(bestOverlap);
+					pathEdges.add(edgeOv2);
+					used[i] = used[j] = used[k] = true;
+					int j2 = verticesMap.get(vBestOv2.getUniqueNumber());
+					used[j2] = true;
+					for(int c=0;c<n;c++) {
+						if(clusters[c]==c2 || clusters[c]==c3) clusters[c] = c1;
+					}
+					System.out.println("Added semisafe edges with best overlap "+bestOverlap+" "+edgeOv2);
+					System.out.println("Competing edge: "+bestWC);
+				}
+			} else if (isBestEdge(graph, vBestWC, bestWC) && edgeOv2==null && edgeWC2!=null && edgeWC2.getOverlap()>0.8*bestWC.getOverlap()) {
+				//Best overlap follows transitivity
+				int c1 = clusters[i];
+				int c2 = clusters[j];
+				int c3 = clusters[k];
+				
+				if(c1!=c2 && c1!=c3 && c2!=c3) {
+					pathEdges.add(bestWC);
+					pathEdges.add(edgeWC2);
+					used[i] = used[j] = used[k] = true;
+					int k2 = verticesMap.get(vBestWC2.getUniqueNumber());
+					used[k2] = true;
+					for(int c=0;c<n;c++) {
+						if(clusters[c]==c2 || clusters[c]==c3) clusters[c] = c1;
+					}
+					System.out.println("Added semisafe edges with best weighted coverage: "+bestWC+" "+edgeWC2);
+					System.out.println("Competing edge: "+bestOverlap);
+				}
+			}
+			
+			
+		}
+	}
+ 
+	private AssemblyVertex [] extractEndVertices (List<LinkedList<AssemblyEdge>> paths) {
 		int p = paths.size();
 		AssemblyVertex [] vertices = new AssemblyVertex[2*p];
 		int v=0;
@@ -205,6 +312,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			vertices[v] = edgef.getConnectingVertex(v2);
 			v++;
 		}
+		return vertices;
+	}
+	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges, Distribution[] edgesStats) {
+		AssemblyVertex [] vertices = extractEndVertices(paths);
 		List<AssemblyEdgePathEnd> candidateEdges = new ArrayList<AssemblyEdgePathEnd>();
 		for(int i=0;i<vertices.length;i++) {
 			for(int j=i+1;j<vertices.length;j++) {
