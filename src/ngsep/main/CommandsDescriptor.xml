@@ -227,8 +227,9 @@ Format of the input file. It can be 0 for fastq or 1 for fasta.
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Window length to calculate minimizers.
 </option>
-<option id="h" type="BOOLEAN" attribute="runHomopolymerCompression">
-Perform homopolymer compression on the raw reads to build the graph 
+<option id="bh" type="INT" attribute="bpHomopolymerCompression" defaultConstant="DEF_BP_HOMOPOLYMER_COMPRESSION">
+Perform homopolymer compression keeping homopolymers up to the given number of pase pairs.
+A value less or equal to zero disables homopolymer compression. 
 </option>
 <!-- <option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
 Minimum percentage of k-mers to identify an overlap 
