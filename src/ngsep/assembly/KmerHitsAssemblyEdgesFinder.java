@@ -50,7 +50,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
 			//Calculated over the query to avoid missing embedded sequences
 			int minHits = (int) Math.max(query.length()*minProportionOverlap/kmerLength,DEF_MIN_HITS);
-			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
 			subjectCounts.put(subjectIdx,subjectCount);
 			subjectIdxs.add(subjectIdx);

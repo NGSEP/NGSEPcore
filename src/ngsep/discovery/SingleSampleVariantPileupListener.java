@@ -273,7 +273,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	}
 	
 	private CalledGenomicVariant discoverIndel(PileupRecord pileup, String [] alleles, List<PileupAlleleCall> calls) {
-		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5);
+		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);
 		short ploidy = sample.getNormalPloidy();
 		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return VariantDiscoverySNVQAlgorithm.callIndel(pileup, helper, null, heterozygosityRate, calcStrandBias);
@@ -378,7 +378,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
-				CountsHelper helperIndel = CountsHelper.calculateCountsIndel(variant.getAlleles(), calls, maxBaseQS, 0.5);
+				CountsHelper helperIndel = CountsHelper.calculateCountsIndel(variant.getAlleles(), calls, maxBaseQS, 0.5, variant.getFirst()==posPrint);
+				if(variant.getFirst()==posPrint) helperIndel.printProbs(helperIndel.getLogConditionalProbs(), false);
 				calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
 				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
 			}
@@ -409,7 +410,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		for(double freq = step;freq<0.51;freq+=step) {
 			freqs.add(freq);
 			if(variant.isSNV()) helpers.add(CountsHelper.calculateCountsGTSNV(alleles, calls, maxBaseQS, freq));
-			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq));
+			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq,variant.getFirst()==posPrint));
 		}
 		if(variant.getFirst()==posPrint) System.out.println("Frequencies: "+freqs+" helpers: "+helpers.size());
 		//Select the first to obtain counts and most frequent allele

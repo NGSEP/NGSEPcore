@@ -600,7 +600,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
-		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5);
+		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);
 		GenomicVariant variant = discoverPopulationIndel(pileup, helper);
 		if(!pileup.isInputSTR() && variant==null) {
 			if (pileup.isNewSTR()) {
