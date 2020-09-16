@@ -9,6 +9,7 @@ import java.util.Map;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
+import ngsep.sequences.KmersExtractor;
 
 public class KmerHitsAssemblyEdgesFinder {
 
@@ -44,7 +45,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		Map<Integer,Integer> subjectCounts = new HashMap<Integer,Integer>();
 		List<Integer> subjectIdxs = new ArrayList<Integer>();
 		//TODO: Make parameter
-		int kmerLength = 15;
+		int kmerLength = KmersExtractor.DEF_KMER_LENGTH;
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			if(subjectIdx>= queryIdx) continue;
 			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
@@ -59,7 +60,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 		//Combined query min coverage and percentage of kmers
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		for(int i=0;i<subjectIdxs.size() && i<100;i++) {
+		for(int i=0;i<subjectIdxs.size() && i<500;i++) {
 			int subjectIdx = subjectIdxs.get(i);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
 			int subjectLength = graph.getSequenceLength(subjectIdx);

@@ -68,6 +68,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 		
 	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences, final double [] compressionFactors) {
+		Runtime runtime = Runtime.getRuntime();
 		log.info("Calculating kmers distribution");
 		KmersExtractor extractor = new KmersExtractor();
 		extractor.setLog(log);
@@ -97,7 +98,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			double averageCompression = NumberArrays.getAverage(compressionFactors);
 			expectedAssemblyLength/= averageCompression;
 		}
-		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength+" Memory: "+usedMemory);
 		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
@@ -116,7 +118,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			}
 		}
 		waitToFinish(finishTime, poolMinimizers);
-		log.info("Built minimizers.");
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		log.info("Built minimizers. Memory: "+usedMemory);
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
@@ -138,7 +141,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			}
 		}
 		waitToFinish(finishTime, poolSearch);
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory);
 		return graph;
 	}
 	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
