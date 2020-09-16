@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.math.Distribution;
+import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
@@ -91,20 +92,17 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(map, false);
 		int modeDepth = kmersAnalyzer.getMode();
 		long expectedAssemblyLength = kmersAnalyzer.getExpectedAssemblyLength();
-		if(compressionFactors!=null) expectedAssemblyLength/= compressionFactors[0];
-		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" First compression factor: "+compressionFactors[0]+" Expected assembly length: "+expectedAssemblyLength);
-		long lengthLimit = totalLength;
-		if(modeDepth>200) {
-			//High depth sample. Use only the longest reads to build graph
-			lengthLimit = 100*expectedAssemblyLength;
-			log.info("Downsampling for minimizers table. Total length: "+totalLength+" limit length: "+lengthLimit);
+		
+		if(compressionFactors!=null) {
+			double averageCompression = NumberArrays.getAverage(compressionFactors);
+			expectedAssemblyLength/= averageCompression;
 		}
+		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
 		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		table.setSaveRepeatedMinimizersWithinSequence(true);
-		long processedLength = 0;
 		//int firstIdNoGraph = sequences.size();
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -115,11 +113,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			} else {
 				final int i = seqId;
 				poolMinimizers.execute(()->addSequenceToTable(table, i, seq));
-			}
-			processedLength+=seq.length();
-			if(processedLength>lengthLimit) {
-				//firstIdNoGraph = seqId+1;
-				break;
 			}
 		}
 		waitToFinish(finishTime, poolMinimizers);
@@ -134,7 +127,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		processedLength=0;
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
@@ -144,7 +136,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				final int i = seqId;
 				poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor));
 			}
-			processedLength+=seq.length();
 		}
 		waitToFinish(finishTime, poolSearch);
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount());
