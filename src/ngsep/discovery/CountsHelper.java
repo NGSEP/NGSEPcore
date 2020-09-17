@@ -93,8 +93,9 @@ public class CountsHelper {
 		}
 		return helper;
 	}
-	public static CountsHelper calculateCountsIndel(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion) {
+	public static CountsHelper calculateCountsIndel(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion, boolean verbose) {
 		CountsHelper helper = new CountsHelper(alleles);
+		helper.setVerbose(verbose);
 		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
 		helper.setHeterozygousProportion(heterozygousProportion);
 		for(PileupAlleleCall call: calls) {
@@ -253,8 +254,11 @@ public class CountsHelper {
 		for(int i=0;i<n;i++) {
 			String alleleI = alleles.get(i);
 			if(alleleI.length()==call.length()) {
-				logCondAlleles[i] = calculateLogCond(alleleI,call,qualityScores);
-				if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
+				//Substitution log prob should not be larger than error log prob
+				logCondAlleles[i] = Math.max(DEF_LOG_ERROR_PROB_INDEL, calculateLogCond(alleleI,call,qualityScores));
+				if(logCondAlleles[i]>DEF_LOG_ERROR_PROB_INDEL) {
+					if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
+				}
 			} else {
 				logCondAlleles[i] = DEF_LOG_ERROR_PROB_INDEL;
 			}

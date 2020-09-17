@@ -51,6 +51,8 @@ public class KmerHitsCluster {
 		subjectName = firstHit.getSequenceName();
 		this.subjectLength = subjectLength;
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Subject idx: "+subjectIdx);
+		
+		//Index hits by query kmer start
 		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
 		
 		for(UngappedSearchHit hit:inputHits) {
@@ -100,10 +102,15 @@ public class KmerHitsCluster {
 		}
 		
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n+" median: "+median+" variance: "+variance+" stdev: "+stdev+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
-		int maxDistance = (int) Math.min(dist.getAverage(), stdev);
-		if(maxDistance < 100) maxDistance=100;
-		//if(maxDistance<0.01*query.length()) maxDistance*=2;
-		else if (maxDistance>0.05*queryLength) maxDistance/=2;
+		int maxDistance = 5*queryLength; 
+		if(subjectLength>maxDistance) {
+			// This is only useful for mapping to a long reference subject
+			maxDistance = (int) Math.min(dist.getAverage(), stdev);
+			if(maxDistance < 100) maxDistance=100;
+			//if(maxDistance<0.01*query.length()) maxDistance*=2;
+			else if (maxDistance>0.05*queryLength) maxDistance/=2;
+		}
+		
 		
 		subjectPredictedStart = -1;
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {

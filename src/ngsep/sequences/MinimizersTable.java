@@ -22,7 +22,7 @@ public class MinimizersTable {
 	private boolean keepSingletons = false;
 	
 	
-	
+	private KmersMapAnalyzer kmersAnalyzer;
 	private KmersMap kmersMap;
 	private Map<Long,Integer> explicitKmerHashCodes = new HashMap<Long, Integer>();
 	private int mode=1;
@@ -47,6 +47,7 @@ public class MinimizersTable {
 		initializeTable(100000);
 	}
 	public MinimizersTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
+		this.kmersAnalyzer = kmersAnalyzer;
 		this.kmersMap = kmersAnalyzer.getKmersMap();
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
@@ -293,7 +294,10 @@ public class MinimizersTable {
 			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
 			count = kmersMap.getCount(kmer);
 		}
-		int distance = count-mode;
+		long rankingStart=kmersAnalyzer.getRanking(count);
+		long hash = rankingStart+(dnaHash%count);
+		if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
+		/*int distance = count-mode;
 		long hash;
 		if(distance>0) {
 			hash = distance << 24;
@@ -304,7 +308,7 @@ public class MinimizersTable {
 			hash = (-distance) << 25;
 			hash+= (dnaHash & 0xFFFFFFF);
 			if(hash>Integer.MAX_VALUE) hash = Integer.MAX_VALUE;
-		}
+		}*/
 		
 		return (int)hash;
 	}

@@ -10,6 +10,7 @@ public class KmersMapAnalyzer {
 	private KmersMap kmersMap;
 	private long [] kmerCounts;
 	private long [] completeCounts;
+	private long [] countRankings;
 	private boolean assembly;
 	private int mode;
 	private int localMinimum;
@@ -26,6 +27,7 @@ public class KmersMapAnalyzer {
 		int maxValueDist = (int)Math.round(distribution.getMaxValueDistribution());
 		completeCounts = new long [maxValueDist+1];
 		kmerCounts = new long [maxValueDist+1];
+		countRankings = new long [maxValueDist+1];
 		for(int i=1;i<=maxValueDist;i++) {
 			kmerCounts[i] = Math.round(distribution.getDistributionCount(i));
 			completeCounts[i] = Math.round(i*distribution.getDistributionCount(i));
@@ -37,7 +39,7 @@ public class KmersMapAnalyzer {
 			expectedAssemblyLength = totalEntries/2;
 			average = distribution.getAverage();
 		} else {
-			mode = 3*(int)distribution.getAverage();
+			mode = Math.max(10, 3*(int)distribution.getAverage());
 			int limit = Math.min(10000, 100*(int)distribution.getAverage());
 			for(int k=10;k<limit;k++) {
 				long maxValue = completeCounts[k];
@@ -53,6 +55,26 @@ public class KmersMapAnalyzer {
 					mode = localMode;
 					break;
 				}
+			}	
+			countRankings[mode]=0;
+			long sum=kmerCounts[mode];
+			for(int k=1;k<=maxValueDist-mode;k++) {
+				int idx = mode+k;
+				long count = kmerCounts[idx];
+				countRankings[idx]=sum;
+				sum+=count;
+				idx = mode-k;
+				if(idx>=5) {
+					count = kmerCounts[idx];
+					countRankings[idx]=sum;
+					sum+=count;
+				}
+			}
+			//Worst rankings for low abundance kmers
+			for(int i=4;i>=1;i--) {
+				long count = kmerCounts[i];
+				countRankings[i]=sum;
+				sum+=count;
 			}
 			long localMinValue = completeCounts[1];
 			for(int i=2;i<mode;i++) {
@@ -75,9 +97,8 @@ public class KmersMapAnalyzer {
 			average = 0;
 			double count = 0;
 			for(int i=localMinimum;i<maxValueDist;i++) {
-				long iCount = Math.round(distribution.getDistributionCount(i));
 				average+=completeCounts[i];
-				count+=iCount;
+				count+=kmerCounts[i];
 			}
 			average/=count;
 		}
@@ -88,7 +109,7 @@ public class KmersMapAnalyzer {
 			distribution.printDistribution(System.out,true, maxDepthPrint);
 		} else {
 			for(int i=1;i<=maxDepthPrint;i++) {
-				System.out.println(""+i+"\t"+distribution.getDistributionCount(i)+"\t"+completeCounts[i]);
+				System.out.println(""+i+"\t"+kmerCounts[i]+"\t"+completeCounts[i]+"\t"+countRankings[i]);
 			}
 			long remainderCounts = 0;
 			long remainderComplete = 0;
@@ -129,7 +150,7 @@ public class KmersMapAnalyzer {
 			
 			for(int i=2;i<20;i++) {
 				long newCount = numKmersToSort+kmerCounts[i];
-				if(newCount>500000000) {
+				if(newCount>200000000) {
 					break;
 				}
 				maxValueKmers = i;
@@ -142,7 +163,7 @@ public class KmersMapAnalyzer {
 			numKmersToSort = (int)kmerCounts[mode];
 			for(int i=1;i<=localSD;i++) {
 				long newCount = numKmersToSort+kmerCounts[mode+i]+kmerCounts[mode-i];
-				if(newCount>500000000 || newCount>2*expectedAssemblyLength) {
+				if(newCount>200000000 || newCount>2*expectedAssemblyLength) {
 					minValueKmers=mode-i;
 					maxValueKmers=mode+i;
 					break;
@@ -199,6 +220,9 @@ public class KmersMapAnalyzer {
 	}
 	public int getModeLocalSD() {
 		return Math.max(1, mode-localMinimum);
+	}
+	public long getRanking(int count) {
+		return countRankings[count];
 	}
 	
 }

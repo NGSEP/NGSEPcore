@@ -170,7 +170,7 @@ public class GraphBuilderFMIndex implements GraphBuilder {
 			}
 			i+=kmerOffset;
 		}
-		finder.updateGraphWithKmerHitsMap(queryIdx, query, queryRC, sequenceKmersMap.size(), kmerHitsMap);
+		finder.updateGraphWithKmerHitsMap(queryIdx, query, queryRC, 1, sequenceKmersMap.size(), kmerHitsMap);
 	}
 }
 class GraphBuilderFMIndexProcessSequenceTask implements Runnable {
