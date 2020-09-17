@@ -19,12 +19,16 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import ngsep.math.Distribution;
 
@@ -35,21 +39,25 @@ import ngsep.math.Distribution;
 public class DNAShortKmerClusterMap implements KmersMap {
 	private int kmerLength;
 	private int maxNumClusters;
-	private int[][] table;
+	private short[][] table;
 	private Map<DNAShortKmer, Integer> index = new HashMap<>();
 	private int newIndex = 0;
 	private int numClusters = 0;
+	private ArrayList<Integer> empty = new ArrayList<Integer>();
+	private ArrayList<Integer> newClusters = new ArrayList<Integer>();
+	private short SHORT = 32767;
 	
 	public DNAShortKmerClusterMap (int kmerLength, int maxNumClusters) {
 		this.kmerLength = kmerLength;
 		this.maxNumClusters = maxNumClusters;
-		table=new int [kmerLength*maxNumClusters][DNASequence.BASES_ARRAY.length];
+		table=new short [kmerLength*maxNumClusters][DNASequence.BASES_ARRAY.length];
 	}
 	 
 	
 	public int getNumClusters() {
 		return this.numClusters;
 	}
+	
 	
 	/**
 	 * Adds the given k-mer to the cluster
@@ -94,6 +102,26 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		}
 		return null;
 	}
+
+	public void eliminateShallowClusters() {
+		System.out.println("Removing shallow clusters");
+		System.out.println("\tnew clusters: " + newClusters.size());
+		ArrayList<Integer> toRemove = new ArrayList<Integer>();
+		for(Integer k: newClusters) {
+			int depth = getCount(k);
+			if(depth <= 3) {
+				empty.add(k);
+			}
+			else {
+				toRemove.add(k);
+			}
+		}
+		for(Integer k: toRemove) {
+			newClusters.remove(k);
+		}
+		System.out.println("\tremoved: " + toRemove.size() + " clusters.");
+		System.out.println("\tempty clusters: " + empty.size());
+	}
 	
 	/**
 	 * Creates a new cluster with index newIndex++, associates it with the given
@@ -101,16 +129,44 @@ public class DNAShortKmerClusterMap implements KmersMap {
 	 * @param kmer
 	 */
 	private void createCluster(DNAShortKmer kmer) {
+		int clusterIndex;
+		// Checks if there are any empty cluster positions to occupy
+		if(empty.isEmpty()) {
+			clusterIndex = newIndex;
+			numClusters++;
+			newIndex++;
+		} else {
+			clusterIndex = empty.get(0);
+			empty.remove(0);
+		}
 		for(int i = 0; i < kmer.length(); i++) {
 			char bp = Character.toUpperCase(kmer.charAt(i));
 			if (!DNASequence.isInAlphabeth(bp)) {
 				throw new RuntimeException("Non DNA kmer found " + kmer);
 			}
 			int ibp = DNASequence.BASES_STRING.indexOf(bp);
-			table[newIndex*kmerLength + i][ibp]++;
+			table[clusterIndex*kmerLength + i][ibp]++;
 		}
-		index.put(kmer, newIndex++);
-		numClusters++;
+		
+		newClusters.add(clusterIndex);
+		index.put(kmer, clusterIndex);
+		
+	}
+	
+	private void checkClusterMem(int i, int k) {
+		short count = 0;
+		for(int j=0;j < DNASequence.BASES_STRING.length(); j++) {
+			if(table[k*kmerLength + i][j] == SHORT) {
+				count++;
+			}
+		}
+		if(count >= 2){
+			System.out.println("WARNING: counts for cluster "+i+" in K-mer table has surpassed the length of " +
+					SHORT+". The counts of the other possible nucleotides are as follows:");
+			for(int m = 0; m < DNASequence.BASES_STRING.length(); m++) {
+				System.out.println("\t"+DNASequence.BASES_STRING.charAt(m)+": "+ table[k*kmerLength + i][m]);
+			}
+		}
 	}
 	
 	/**
@@ -133,7 +189,11 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		boolean alternative = !oldKmerStr.equals(kmerStr);
 		for(int i = 0; i < kmer.length(); i++) {
 			int j = DNASequence.BASES_STRING.indexOf(kmerStr.charAt(i));
-			table[k*kmerLength + i][j]++;
+			if(table[k*kmerLength + i][j] == SHORT) {
+				checkClusterMem(i,k);
+			} else {
+				table[k*kmerLength + i][j]++;
+			}
 		}
 		if(!alternative) return;
 		DNAShortKmer newKmer = getRepresentativeKmer(k);
@@ -155,7 +215,7 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		for(int i = 0; i < consensus.length; i++) {
 			int max = 0;
 			for(int j = 0; j < DNASequence.BASES_STRING.length(); j++) {
-				int next = table[k*kmerLength + i][j];
+				short next = table[k*kmerLength + i][j];
 				if(max <= next) {
 					consensus[i] = DNASequence.BASES_STRING.charAt(j);
 					max = next;
