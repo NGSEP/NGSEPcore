@@ -46,11 +46,13 @@ public class KmerHitsAssemblyEdgesFinder {
 		List<Integer> subjectIdxs = new ArrayList<Integer>();
 		//TODO: Make parameter
 		int kmerLength = KmersExtractor.DEF_KMER_LENGTH;
+		int minHits = (int) Math.max(compressionFactor*query.length()*minProportionOverlap/kmerLength,DEF_MIN_HITS);
+		//int minHits = DEF_MIN_HITS;
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			if(subjectIdx>= queryIdx) continue;
 			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
 			//Calculated over the query to avoid missing embedded sequences
-			int minHits = (int) Math.max(query.length()*minProportionOverlap/kmerLength,DEF_MIN_HITS);
+			
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
 			subjectCounts.put(subjectIdx,subjectCount);
@@ -60,7 +62,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 		//Combined query min coverage and percentage of kmers
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		for(int i=0;i<subjectIdxs.size() && i<500;i++) {
+		for(int i=0;i<subjectIdxs.size();i++) {
 			int subjectIdx = subjectIdxs.get(i);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
 			int subjectLength = graph.getSequenceLength(subjectIdx);
@@ -69,7 +71,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" compression factor "+compressionFactor);
 			Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster subjectCluster = subjectClusters.get(0);
-			if(subjectCluster.getNumDifferentKmers()<DEF_MIN_HITS) continue;
+			if(subjectCluster.getNumDifferentKmers()<minHits) continue;
 			updateGraphWithKmerCluster(queryIdx, query, queryRC, compressionFactor, subjectCluster);
 		}
 	}
