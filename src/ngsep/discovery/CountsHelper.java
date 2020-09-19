@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import JSci.maths.ExtraMath;
-import JSci.maths.SpecialMath;
 import ngsep.math.FisherExactTest;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;

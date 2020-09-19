@@ -172,7 +172,14 @@ All files should be located within the directory provided with the option -i.
 K-mer length.
 </option>
 <option id="c" type="INT"  attribute="maxNumClusters" defaultConstant="DEF_MAX_NUM_CLUSTERS">
-Maximum number of read clusters to process. This parameter controls the amount of memory spent by the process.
+Maximum number of read clusters to process.
+This parameter controls the amount of memory spent by the clustering step of the process.
+Larger values can increase sensitivity for large diverse populations at the cost of RAM usage.
+</option>
+<option id="a" type="INT"  attribute="maxReadsInRAM" defaultConstant="DEF_MAX_READS_IN_RAM">
+Maximum number of reads in memory.
+This parameter controls the amount of memory spent by the reads sorting process.
+Larger values can decrease runtime at the cost of RAM usage. 
 </option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads to process read clusters.
