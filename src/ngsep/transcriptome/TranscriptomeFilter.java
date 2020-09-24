@@ -44,8 +44,10 @@ public class TranscriptomeFilter {
     private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
+    private boolean intersectOnlyExons = false;
     private Set<String> geneIdsToFilter = null;
     private Set<String> geneIdsToSelect = null;
+    
 	
 	private ProteinTranslator translator=  new ProteinTranslator();
 	
@@ -151,6 +153,17 @@ public class TranscriptomeFilter {
 		List<GenomicRegion> regions = regionFileHandler.loadRegions(regionsFile);
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
+	
+	public boolean isIntersectOnlyExons() {
+		return intersectOnlyExons;
+	}
+	public void setIntersectOnlyExons(boolean intersectOnlyExons) {
+		this.intersectOnlyExons = intersectOnlyExons;
+	}
+	public void setIntersectOnlyExons(Boolean intersectOnlyExons) {
+		this.setIntersectOnlyExons(intersectOnlyExons.booleanValue());
+	}
+	
 	
 	public Set<String> getGeneIdsToFilter() {
 		return geneIdsToFilter;
@@ -288,10 +301,10 @@ public class TranscriptomeFilter {
 			if(!geneIdsToSelect.contains(transcript.getGeneId())) return false;
 		}
 		if (regionsToFilter!=null) {
-			if(regionsToFilter.findSpanningRegions(transcript).size()>0) return false;
+			if(intersectWithRegions(transcript, regionsToFilter)) return false;
 		}
 		if (regionsToSelect!=null) {
-			if(regionsToSelect.findSpanningRegions(transcript).size()==0) return false;
+			if(!intersectWithRegions(transcript, regionsToSelect)) return false;
 		}
 		if(selectCompleteProteins || minProteinLength>0) {
 			if(!transcript.isCoding()) return false;
@@ -309,5 +322,13 @@ public class TranscriptomeFilter {
 		}
 		return true;
 	}
-
+	private boolean intersectWithRegions(Transcript transcript, GenomicRegionSortedCollection<GenomicRegion> regions) {
+		if(!intersectOnlyExons) return regions.findSpanningRegions(transcript).size()>0;
+		List<TranscriptSegment> segments = transcript.getTranscriptSegments();
+		for(TranscriptSegment segment:segments) {
+			if(regions.findSpanningRegions(segment).size()>0) return true;
+		}
+		return false;
+	}
+	
 }

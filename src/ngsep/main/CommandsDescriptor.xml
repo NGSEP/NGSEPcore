@@ -903,6 +903,10 @@ File with genomic regions in which transcripts should be selected.
 The format of this file should contain three columns: Sequence name (chromosome), first position
 in the sequence, and last position in the sequence. Both positions are assumed to be 1-based.
 </option>
+<option id="ioe" type="BOOLEAN" attribute="intersectOnlyExons">
+Take only the exons into account to decide if a transcript intersects with a given region.
+This is useful to keep (or remove) transcripts having intersection with regions only in intron segments.  
+</option>
 <option id="fgid" type="FILE" attribute="geneIdsToFilter">
 File with ids of genes that should be filtered out.
 The first column should have the gene ids. Other columns are ignored.

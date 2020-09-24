@@ -1,6 +1,8 @@
 v4.1.0
-- KmersExtractior. Now the input sequences are assumed to be DNA sequences.
+- KmersExtractor. Now the input sequences are assumed to be DNA sequences.
   Added option -t to allow processing of free text (non-DNA). 
+- TranscriptomeFilter. New option -ioe to consider only exons to intersect
+  input regions with transcripts
 v4.0.2 17-08-2020
 - Support to CRAM files
 - New command TillingPoolsIndividualGenotyper for individual assignment of
