@@ -17,9 +17,8 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.UngappedSearchHit;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
-	int tolerance;
 	
-	boolean startConsensus = true;
+	private static int kmerLength = KmersExtractor.DEF_KMER_LENGTH;
 	
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
@@ -117,12 +116,12 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	}
 
 	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end, double minQueryCoverage) {
-		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject,start,end);
+		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject,kmerLength, start,end);
 		//System.out.println("Number of unique k-mers subject: "+uniqueKmersSubject.size());
 		return alignRead(aligner, subjectIdx, subject, read, uniqueCodesSubject, minQueryCoverage);
 	}
 	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Long, Integer> uniqueCodesSubject, double minQueryCoverage) {
-		Map<Long, Integer> uniqueCodesRead = KmersExtractor.extractLocallyUniqueKmerCodes(read,0,read.length());
+		Map<Long, Integer> uniqueCodesRead = KmersExtractor.extractLocallyUniqueKmerCodes(read,kmerLength,0,read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<UngappedSearchHit> initialKmerHits = alignUniqueKmerCodes(-1,subject.length(),uniqueCodesSubject, uniqueCodesRead);
 		if(initialKmerHits.size()==0) return null;

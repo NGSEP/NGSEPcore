@@ -447,9 +447,9 @@ public class KmersExtractor {
 		}
 		return kmerCodesMap;
 	}
-	public static Map<Long, Integer> extractLocallyUniqueKmerCodes(CharSequence sequence, int start, int end) {
-		Map<Integer,Long> rawCodes = KmersExtractor.extractDNAKmerCodes(sequence, 15, start, end);
-		Map<Long, Integer> answer = new LinkedHashMap<Long, Integer>();
+	public static Map<Long, Integer> extractLocallyUniqueKmerCodes(CharSequence sequence, int kmerLength, int start, int end) {
+		Map<Integer,Long> rawCodes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, end);
+		Map<Long, Integer> answer = new HashMap<Long, Integer>();
 		Map<Long, Integer> reverseMap = new HashMap<Long,Integer>();
 		Set<Integer> multiple = new HashSet<>();
 		for(int i=start;i<end;i++) {

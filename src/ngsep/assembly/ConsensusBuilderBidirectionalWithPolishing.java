@@ -74,6 +74,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	private static final int TIMEOUT_SECONDS = 30;
 	
 	private String correctedReadsFile = null;
+	private int kmerLength = KmersExtractor.DEF_KMER_LENGTH;
 	
 	private PrintStream outCorrectedReads = null;
 	
@@ -211,7 +212,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				
 				//int startSuffix = edge.getOverlap();
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,kmerLength, Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
 				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
 				int startSuffix;
 				if(alnRead!=null) {
@@ -246,7 +247,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				CharSequence seq = read.getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus,kmerLength,Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
 				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
 				if (alnRead!=null) {

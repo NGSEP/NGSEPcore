@@ -2,6 +2,7 @@ package ngsep.sequences;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,6 +17,7 @@ import ngsep.math.Distribution;
 public class KmerHitsCluster {
 
 	private int queryLength;
+	private int kmerLength;
 	//Map indexed by query start
 	private Map<Integer,UngappedSearchHit> hitsMap=new TreeMap<Integer, UngappedSearchHit>();
 	private int subjectIdx;
@@ -49,6 +51,7 @@ public class KmerHitsCluster {
 		UngappedSearchHit firstHit = inputHits.get(0);
 		subjectIdx = firstHit.getSequenceIdx();
 		subjectName = firstHit.getSequenceName();
+		kmerLength = firstHit.getQuery().length();
 		this.subjectLength = subjectLength;
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Subject idx: "+subjectIdx);
 		
@@ -457,6 +460,41 @@ public class KmerHitsCluster {
 		KmerHitsCluster cluster2 = new KmerHitsCluster(queryLength, subjectLength, remainingHits);
 		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*queryLength) answer.add(cluster2);
 		return answer;
+	}
+	public void completeMissingHits(String subjectSequence, Map<Integer, Long> queryCodes) {
+		Map<Long,Integer> subjectUniqueCodes = KmersExtractor.extractLocallyUniqueKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
+		//KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, 0, subjectSequence.length());
+		//Map<Long,Integer> subjectUniqueCodes = new HashMap<Long, Integer>();
+		int lastQueryStart = -1;
+		int lastSubjectStart = -1;
+		UngappedSearchHit lastHit = null;
+		ArrayList<Integer> queryStarts = new ArrayList<Integer>(hitsMap.size());
+		queryStarts.addAll(hitsMap.keySet());
+		for(int queryStart:queryStarts) {
+			UngappedSearchHit hit = hitsMap.get(queryStart);
+			int subjectStart = hit.getStart();
+			int diffQ = queryStart-lastQueryStart;
+			int diffS = subjectStart - lastSubjectStart;
+			int diffC = Math.abs(diffQ-diffS);
+			if(lastHit!=null && diffC<10 && diffQ<100 && diffS>0) {
+				for(int i=lastQueryStart+1;i<queryStart;i++) {
+					Long code = queryCodes.get(i);
+					if(code == null) continue;
+					Integer pos = subjectUniqueCodes.get(code);
+					if(pos==null) continue;
+					if(pos<=lastSubjectStart || pos>=subjectStart) continue;
+					CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
+					UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, pos);
+					rescuedHit.setQueryIdx(i);
+					double weight = (lastHit.getWeight()+hit.getWeight())/2;
+					rescuedHit.setWeight(weight);
+					addHit(rescuedHit);
+				}
+			}
+			lastQueryStart = queryStart;
+			lastSubjectStart = subjectStart;
+			lastHit = hit;
+		}
 	}
 	
 }

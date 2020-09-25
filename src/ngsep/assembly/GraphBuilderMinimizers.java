@@ -162,13 +162,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
-		finder.updateGraphWithKmerHitsMap(seqId, seq, false, compressionFactor, selfHitsCount, hitsBySubjectIdx);
+		finder.updateGraphWithKmerHitsMap(seqId, seq, false, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		hitsBySubjectIdx = table.match(complement);
 		synchronized (candidateOverlapsDist) {
 			candidateOverlapsDist.processDatapoint(hitsBySubjectIdx.size());
 		}
-		finder.updateGraphWithKmerHitsMap(seqId, complement, true, compressionFactor, selfHitsCount, hitsBySubjectIdx);
+		finder.updateGraphWithKmerHitsMap(seqId, complement, true, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		AssemblyGraph graph = finder.getGraph();
 		/*synchronized (graph) {
 			graph.filterEmbedded(seqId, 0.5, 10);
