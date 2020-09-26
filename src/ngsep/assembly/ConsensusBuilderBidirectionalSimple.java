@@ -18,7 +18,7 @@ import ngsep.sequences.UngappedSearchHit;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	
-	private static int kmerLength = KmersExtractor.DEF_KMER_LENGTH;
+	public static final int KMER_LENGTH_LOCAL_ALN = KmersExtractor.DEF_KMER_LENGTH;
 	
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
@@ -116,14 +116,14 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	}
 
 	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end, double minQueryCoverage) {
-		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject,kmerLength, start,end);
+		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject, KMER_LENGTH_LOCAL_ALN, start,end);
 		//System.out.println("Number of unique k-mers subject: "+uniqueKmersSubject.size());
 		return alignRead(aligner, subjectIdx, subject, read, uniqueCodesSubject, minQueryCoverage);
 	}
 	public static ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Long, Integer> uniqueCodesSubject, double minQueryCoverage) {
-		Map<Long, Integer> uniqueCodesRead = KmersExtractor.extractLocallyUniqueKmerCodes(read,kmerLength,0,read.length());
+		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(read, KMER_LENGTH_LOCAL_ALN, 0, read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
-		List<UngappedSearchHit> initialKmerHits = alignUniqueKmerCodes(-1,subject.length(),uniqueCodesSubject, uniqueCodesRead);
+		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(-1,subject.length(), uniqueCodesSubject, codesQuery);
 		if(initialKmerHits.size()==0) return null;
 		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read.length(), subject.length(), initialKmerHits, minQueryCoverage);
 		//printClusters(clusters);
@@ -142,14 +142,15 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
 		return aligner.buildCompleteAlignment(subjectIdx, subject, read, bestCluster);
 	}
-	private static List<UngappedSearchHit> alignUniqueKmerCodes(int subjectIdx, int subjectLength, Map<Long, Integer> uniqueCodesSubject, Map<Long, Integer> uniqueCodesQuery) {
+	private static List<UngappedSearchHit> alignKmerCodes(int subjectIdx, int subjectLength, Map<Long, Integer> uniqueCodesSubject, Map<Integer, Long> codesQuery) {
 		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();
-		for(Long codeRead:uniqueCodesQuery.keySet()) {
+		for(int i:codesQuery.keySet()) {
+			Long codeRead = codesQuery.get(i);
 			Integer subjectPos = uniqueCodesSubject.get(codeRead);
 			if(subjectPos==null) continue;
-			CharSequence kmerRead = new String(AbstractLimitedSequence.getSequence(codeRead, 15, DNASequence.EMPTY_DNA_SEQUENCE));
+			CharSequence kmerRead = new String(AbstractLimitedSequence.getSequence(codeRead, KMER_LENGTH_LOCAL_ALN, DNASequence.EMPTY_DNA_SEQUENCE));
 			UngappedSearchHit hit = new UngappedSearchHit(kmerRead, subjectIdx , subjectPos);
-			hit.setQueryIdx(uniqueCodesQuery.get(codeRead));
+			hit.setQueryIdx(i);
 			initialKmerHits.add(hit);
 		}
 		return initialKmerHits;
