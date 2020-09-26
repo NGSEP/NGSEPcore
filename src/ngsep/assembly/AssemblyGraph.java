@@ -260,6 +260,7 @@ public class AssemblyGraph {
 
 	public synchronized void addPath(List<AssemblyEdge> path) {
 		paths.add(path);
+		for(AssemblyEdge edge:path) edge.setLayoutEdge(true);
 	}
 	
 	public List<AssemblyVertex> getVertices() {
@@ -713,7 +714,7 @@ public class AssemblyGraph {
 		return embedded.getWeightedCoverageSharedKmers();
 	}
 
-	private double calculateScore(AssemblyEdge edge) {
+	public static int calculateScore(AssemblyEdge edge) {
 		//KmerHitsCluster cluster = edge.getEvidence();
 		//return (cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
 		//return edge.getCoverageSharedKmers();

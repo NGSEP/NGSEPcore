@@ -22,7 +22,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private double minProportionEvidence = 0;
 	
-	private int idxDebug = 200000;
+	private int idxDebug = -1;
 	
 	
 	
