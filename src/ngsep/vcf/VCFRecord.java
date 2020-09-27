@@ -110,6 +110,7 @@ public class VCFRecord implements GenomicRegion {
 	public static final int [] DEF_FORMAT_ARRAY_NONE = {};
 	public static final int [] DEF_FORMAT_ARRAY_MINIMAL = {FORMAT_IDX_GT};
 	public static final int [] DEF_FORMAT_ARRAY_QUALITY = {FORMAT_IDX_GT,FORMAT_IDX_GQ};
+	public static final int [] DEF_FORMAT_ARRAY_QUAL_CN = {FORMAT_IDX_GT,FORMAT_IDX_GQ,FORMAT_IDX_ACN};
 	public static final int [] DEF_FORMAT_ARRAY_NGSEP_SNV = {FORMAT_IDX_GT,FORMAT_IDX_PL,FORMAT_IDX_GQ,FORMAT_IDX_DP,FORMAT_IDX_BSDP,FORMAT_IDX_ACN};
 	public static final int [] DEF_FORMAT_ARRAY_NGSEP_NOSNV = {FORMAT_IDX_GT,FORMAT_IDX_PL,FORMAT_IDX_GQ,FORMAT_IDX_DP,FORMAT_IDX_ADP,FORMAT_IDX_ACN};
 	public static final Map<String, Integer> KNOWN_FORMAT_FIELDS_MAP = loadMap();

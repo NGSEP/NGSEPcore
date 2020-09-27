@@ -34,7 +34,7 @@ public class TillingPoolsIndividualGenotyper {
 	private Logger log = Logger.getLogger(TillingPoolsIndividualGenotyper.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	private HashMap<String,ArrayList<Integer>> poolConfiguration;
+	private Map<String,List<Integer>> poolConfiguration;
 	private Map<Integer,List<CalledGenomicVariant>> poolVariants;
 	private HashMap<String,List<CalledGenomicVariant>> individualVariants;
 	
@@ -106,8 +106,11 @@ public class TillingPoolsIndividualGenotyper {
 	 */
 
 	public void loadPools() throws IOException {
-		poolConfiguration= new HashMap<String,ArrayList<Integer>>(); 
-		try (BufferedReader reader = new BufferedReader(new FileReader(poolsDescriptor))) {
+		poolConfiguration = loadPoolsFile(poolsDescriptor);	
+	}
+	public static Map<String,List<Integer>> loadPoolsFile (String filename) throws IOException {
+		Map<String,List<Integer>> answer = new HashMap<String, List<Integer>>(); 
+		try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
 			String line = reader.readLine();
 			if(line.startsWith("Individual")) line = reader.readLine();
 			while (line != null) {
@@ -116,10 +119,11 @@ public class TillingPoolsIndividualGenotyper {
 				for(int i=1;i<indInfo.length;i++) {
 					poolNumbers.add(Integer.parseInt(indInfo[i]));
 				}
-				poolConfiguration.put(indInfo[0], poolNumbers);
+				answer.put(indInfo[0], poolNumbers);
 				line = reader.readLine();
 			}
-		}	
+		}
+		return answer;
 	}
 	
 	/**
