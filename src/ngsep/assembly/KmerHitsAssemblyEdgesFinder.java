@@ -65,7 +65,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		int maxNormalizedCount = 0;
 		//Combined query min coverage and percentage of kmers
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		Map<Integer, Long> queryCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
+		//Map<Integer, Long> queryCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
 		for(int i=0;i<subjectIdxs.size();i++) {
 			int subjectIdx = subjectIdxs.get(i);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
@@ -78,12 +78,11 @@ public class KmerHitsAssemblyEdgesFinder {
 			int numKmers = subjectCluster.getNumDifferentKmers();
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" hits best cluster: "+numKmers);
 			if(numKmers<minHits) continue;
-			subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
+			//subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
 			int normalizedCount = query.length()*kmerLength/subjectLength;
 			numKmers = subjectCluster.getNumDifferentKmers();
-			//if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Query length: "+query.length()+" subject length: "+subjectLength+" kmer length: "+kmerLength+" numkmers: "+numKmers+" normalized count "+normalizedCount);
 			normalizedCount*=numKmers;
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" new hits subject cluster: "+numKmers+" normalized count "+normalizedCount+" max: "+maxNormalizedCount);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Query length: "+query.length()+" subject length: "+subjectLength+" kmer length: "+kmerLength+" numkmers: "+numKmers+" normalized count "+normalizedCount);
 			//if(normalizedCount<0.3*maxNormalizedCount) return;
 			maxNormalizedCount = Math.max(maxNormalizedCount, normalizedCount);
 			updateGraphWithKmerCluster(queryIdx, query, queryRC, compressionFactor, subjectCluster);

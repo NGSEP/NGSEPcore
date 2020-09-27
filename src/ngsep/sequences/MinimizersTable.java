@@ -34,6 +34,8 @@ public class MinimizersTable {
 	private long [][] sequencesByMinimizerTable;
 	//Actual lengths of the lists within the table
 	private short [] sequencesByMinimizerTableColumnLengths;
+	//Count of different sequences reporting each minimizer
+	private short [] minimizerCountDifferentSequences;
 	
 	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>();
 	private long totalEntries = 0;
@@ -71,6 +73,8 @@ public class MinimizersTable {
 		for(int i=0;i<sequencesByMinimizerTable.length;i++) Arrays.fill(sequencesByMinimizerTable[i], 0);
 		sequencesByMinimizerTableColumnLengths = new short [capacity];
 		Arrays.fill(sequencesByMinimizerTableColumnLengths, (short)0);
+		minimizerCountDifferentSequences = new short [capacity];
+		Arrays.fill(minimizerCountDifferentSequences, (short)0);
 	}
 	
 	//Hash table management methods
@@ -94,7 +98,18 @@ public class MinimizersTable {
 		return sequencesByMinimizerTableColumnLengths[row];
 	}
 	
-	private synchronized void add (int minimizer, List<MinimizersTableEntry> entries) {
+	/**
+	 * Calculates the number of sequences where the minimizer has been observed
+	 * @param minimizer number to query
+	 * @return int number of different sequences where the minimizer has been observed
+	 */
+	public int getCountDifferentSequences(int minimizer) {
+		Integer row = matrixRowMap.get(minimizer);
+		if(row==null) return 0;
+		return minimizerCountDifferentSequences[row];
+	}
+	
+	private synchronized void addMinimizerSequence (int minimizer, List<MinimizersTableEntry> entries) {
 		Integer row = matrixRowMap.get(minimizer);
 		if(row==null) {
 			row = size();
@@ -109,6 +124,7 @@ public class MinimizersTable {
 		if (currentCount+entries.size()<Short.MAX_VALUE && (maxAbundanceMinimizer==0 || currentCount < maxAbundanceMinimizer)) {
 			for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
 			totalEntries+=entries.size();
+			minimizerCountDifferentSequences[row]++;
 		}
 	}
 	private void resizeTable() {
@@ -116,6 +132,7 @@ public class MinimizersTable {
 		int newCapacity =  2*sequencesByMinimizerTable.length;
 		if(newCapacity<0) newCapacity = Integer.MAX_VALUE;
 		sequencesByMinimizerTableColumnLengths = Arrays.copyOf(sequencesByMinimizerTableColumnLengths, newCapacity);
+		minimizerCountDifferentSequences = Arrays.copyOf(minimizerCountDifferentSequences, newCapacity);
 		long [][] newTable = new long [newCapacity][0];
 		for(int i=0;i<newCapacity;i++) {
 			if(i<sequencesByMinimizerTable.length) newTable[i] = sequencesByMinimizerTable[i];
@@ -185,7 +202,7 @@ public class MinimizersTable {
 		for(int minimizer:minimizersSeq.keySet()) {
 			List<MinimizersTableEntry> entries = minimizersSeq.get(minimizer);
 			if (entries.size()== 0) continue;
-			add (minimizer, entries);
+			addMinimizerSequence (minimizer, entries);
 		}
 		synchronized (sequenceLengths) {
 			sequenceLengths.put(sequenceId, n);
@@ -311,7 +328,7 @@ public class MinimizersTable {
 			int minimizer = entry.getMinimizer();
 			int count = minimizersLocalCounts.getOrDefault(minimizer, 0);
 			//if (query.length() == 25300 && count>1) System.out.println("Minimizers table. For minimizer: "+minimizer+" query entries: "+count);
-			if (count> 10) continue;
+			if (count> 50) continue;
 			Long kmerCode = codes.get(entry.getStart());
 			if(kmerCode == null) {
 				//Kmers that are not a minimizers are not considered
@@ -329,7 +346,7 @@ public class MinimizersTable {
 				}
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(entry.getStart());
-				hit.setWeight(calculateWeight(kmer));
+				hit.setWeight(calculateWeight(minimizer, count));
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);
 			}
@@ -339,13 +356,19 @@ public class MinimizersTable {
 		
 	}
 
-	private double calculateWeight(CharSequence kmer) {
-		if(kmersMap==null) return 1;
-		int count = kmersMap.getCount(kmer);
-		int diff = Math.abs(mode-count);
-		if(diff<=kmerDistModeLocalSD) return 1;
-		int diff2=diff-kmerDistModeLocalSD;
-		return 1.0*mode/(mode+2*diff2);
+	private double calculateWeight(int minimizer, int countQuery) {
+		//if(kmersMap==null) return 1;
+		int countDifferent = getCountDifferentSequences(minimizer);
+		/*int totalCount = getTotalHits(minimizer);
+		int diff1 = countDifferent-mode;
+		int diff2 = totalCount/countQuery-mode;
+		if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
+		int diff3=diff1+diff2-2*kmerDistModeLocalSD;
+		if(diff3<1) diff3=1;*/
+		int diff1 = countDifferent-mode;
+		if(diff1<=kmerDistModeLocalSD) return 1;
+		int diff3=diff1-kmerDistModeLocalSD;
+		return 1.0*mode/(mode+diff3);
 	}
 	public Distribution calculateDistributionHits() {
 		Distribution dist = new Distribution(1, Math.max(100, maxAbundanceMinimizer), 1);
