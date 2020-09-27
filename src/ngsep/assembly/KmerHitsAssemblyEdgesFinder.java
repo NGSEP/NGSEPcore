@@ -16,9 +16,9 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	private AssemblyGraph graph;
 	
-	public static final int DEF_MIN_HITS = 50;
+	public static final int DEF_MIN_HITS = 25;
 	
-	private double minProportionOverlap = 0.05;
+	private double minProportionOverlap = 0.1;
 	
 	private double minProportionEvidence = 0;
 	
@@ -46,7 +46,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		Map<Integer,Integer> subjectNormalizedCounts = new HashMap<Integer,Integer>();
 		List<Integer> subjectIdxs = new ArrayList<Integer>();
 		//TODO: Make parameter
-		int minHits = (int) Math.max(compressionFactor*query.length()*minProportionOverlap/kmerLength,DEF_MIN_HITS);
+		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
 		//int minHits = DEF_MIN_HITS;
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			if(subjectIdx>= queryIdx) continue;
@@ -73,12 +73,11 @@ public class KmerHitsAssemblyEdgesFinder {
 			int subjectLength = subjectSequence.getLength();
 			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query.length(), subjectLength, hits, 0);
 			if(subjectClusters.size()==0) continue;
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" compression factor "+compressionFactor);
 			Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster subjectCluster = subjectClusters.get(0);
 			int numKmers = subjectCluster.getNumDifferentKmers();
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" hits best cluster: "+numKmers);
 			if(numKmers<minHits) continue;
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits best cluster: "+numKmers);
 			subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
 			int normalizedCount = query.length()*kmerLength/subjectLength;
 			numKmers = subjectCluster.getNumDifferentKmers();

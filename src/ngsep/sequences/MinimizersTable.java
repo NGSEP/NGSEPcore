@@ -18,7 +18,6 @@ public class MinimizersTable {
 	private int kmerLength;
 	private int windowLength;
 	private int maxAbundanceMinimizer = 0;
-	private boolean saveRepeatedMinimizersWithinSequence = false;
 	private boolean keepSingletons = false;
 	
 	
@@ -108,13 +107,8 @@ public class MinimizersTable {
 		}
 		int currentCount = sequencesByMinimizerTableColumnLengths[row];
 		if (currentCount+entries.size()<Short.MAX_VALUE && (maxAbundanceMinimizer==0 || currentCount < maxAbundanceMinimizer)) {
-			if(saveRepeatedMinimizersWithinSequence) {
-				for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
-				totalEntries+=entries.size();
-			} else {
-				addToTable(row, entries.get(0).encode());
-				totalEntries++;
-			}
+			for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
+			totalEntries+=entries.size();
 		}
 	}
 	private void resizeTable() {
@@ -151,13 +145,6 @@ public class MinimizersTable {
 	}
 	public void setMaxAbundanceMinimizer(int maxAbundanceMinimizer) {
 		this.maxAbundanceMinimizer = maxAbundanceMinimizer;
-	}
-	
-	public boolean isSaveRepeatedMinimizersWithinSequence() {
-		return saveRepeatedMinimizersWithinSequence;
-	}
-	public void setSaveRepeatedMinimizersWithinSequence(boolean saveRepeatedMinimizersWithinSequence) {
-		this.saveRepeatedMinimizersWithinSequence = saveRepeatedMinimizersWithinSequence;
 	}
 	
 	public KmersMap getKmersMap() {
@@ -197,22 +184,12 @@ public class MinimizersTable {
 		
 		for(int minimizer:minimizersSeq.keySet()) {
 			List<MinimizersTableEntry> entries = minimizersSeq.get(minimizer);
-			if (entries.size()== 0) continue; 
-			if(!saveRepeatedMinimizersWithinSequence && !overlapping(entries)) continue;
+			if (entries.size()== 0) continue;
 			add (minimizer, entries);
 		}
 		synchronized (sequenceLengths) {
 			sequenceLengths.put(sequenceId, n);
 		}	
-	}
-
-	private boolean overlapping(List<MinimizersTableEntry> entries) {
-		if(entries.size()<2) return true;
-		int firstStart = entries.get(0).getStart();
-		for(MinimizersTableEntry entry:entries) {
-			if(Math.abs(firstStart-entry.getStart())>2*windowLength) return false;
-		}
-		return true;
 	}
 
 	/**
@@ -323,38 +300,41 @@ public class MinimizersTable {
 		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, 0, query.length(), false, true, true);
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, query.length(), codes);
-		//if (querySequenceId == idxDebug) log.info("Minimizers table. Counting hits for query: "+querySequenceId+" "+queryRC+" queryCount: "+queryCount+" min count: "+minCount);
-		Map<Integer,List<MinimizersTableEntry>> minimizersQuery = new HashMap<Integer, List<MinimizersTableEntry>>();
+		//if (query.length() == 25300) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" minimizers: "+minimizersQueryList.size());
+		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
-			List<MinimizersTableEntry> minList = minimizersQuery.computeIfAbsent(entry.getMinimizer(), l->new ArrayList<MinimizersTableEntry>());
-			minList.add(entry);
+			minimizersLocalCounts.compute(entry.getMinimizer(), (k,v)->(v==null?1:v+1));
 		}
+		//int numUsedMinimizers = 0;
 		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<Integer, List<UngappedSearchHit>>();
-		for(int minimizer:minimizersQuery.keySet()) {
-			List<MinimizersTableEntry> queryHits = minimizersQuery.get(minimizer);
-			if (queryHits == null || queryHits.size() != 1) continue;
-			MinimizersTableEntry queryEntry = queryHits.get(0);
-			Long kmerCode = codes.get(queryEntry.getStart());
+		for(MinimizersTableEntry entry:minimizersQueryList) {
+			int minimizer = entry.getMinimizer();
+			int count = minimizersLocalCounts.getOrDefault(minimizer, 0);
+			//if (query.length() == 25300 && count>1) System.out.println("Minimizers table. For minimizer: "+minimizer+" query entries: "+count);
+			if (count> 10) continue;
+			Long kmerCode = codes.get(entry.getStart());
 			if(kmerCode == null) {
 				//Kmers that are not a minimizers are not considered
 				continue;
 			}
 			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
 			long [] codesMatching = lookupHits(minimizer);
+			//if(codesMatching.length>0) numUsedMinimizers++;
 			for(long entryCode:codesMatching) {
 				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);
 				int subjectIdx = matchingEntry.getSequenceId();
-				if (subjectIdx <0) {
+				if (subjectIdx < 0) {
 					System.err.println("Invalid subject "+subjectIdx+" minimizer: "+minimizer+" matching code: "+entryCode+" start: "+matchingEntry.getStart());
 					continue;
 				}
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
-				hit.setQueryIdx(queryEntry.getStart());
+				hit.setQueryIdx(entry.getStart());
 				hit.setWeight(calculateWeight(kmer));
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);
 			}
 		}
+		//if (query.length() == 25300) System.out.println("Minimizers table. Total minimizers used: "+numUsedMinimizers);
 		return answer;
 		
 	}

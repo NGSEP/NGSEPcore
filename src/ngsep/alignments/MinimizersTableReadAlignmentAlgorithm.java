@@ -85,7 +85,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
 		minimizersTable.setMaxAbundanceMinimizer(20);
-		minimizersTable.setSaveRepeatedMinimizersWithinSequence(true);
 		minimizersTable.setKeepSingletons(true);
 		minimizersTable.setLog(log);
 		for (int i=0;i<n;i++) {

@@ -462,9 +462,15 @@ public class KmerHitsCluster {
 		return answer;
 	}
 	public void completeMissingHits(String subjectSequence, Map<Integer, Long> queryCodes) {
-		Map<Long,Integer> subjectUniqueCodes = KmersExtractor.extractLocallyUniqueKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
-		//KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, 0, subjectSequence.length());
-		//Map<Long,Integer> subjectUniqueCodes = new HashMap<Long, Integer>();
+		//Map<Long,Integer> subjectUniqueCodes = KmersExtractor.extractLocallyUniqueKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
+		Map<Integer,Long> subjectCodes = KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
+		
+		Map<Long,List<Integer>> subjectCodesPos = new HashMap<Long, List<Integer>>();
+		for(int i:subjectCodes.keySet()) {
+			long code = subjectCodes.get(i);
+			List<Integer> posList = subjectCodesPos.computeIfAbsent(code, v->new ArrayList<Integer>());
+			posList.add(i);
+		}
 		int lastQueryStart = -1;
 		int lastSubjectStart = -1;
 		UngappedSearchHit lastHit = null;
@@ -480,11 +486,17 @@ public class KmerHitsCluster {
 				for(int i=lastQueryStart+1;i<queryStart;i++) {
 					Long code = queryCodes.get(i);
 					if(code == null) continue;
-					Integer pos = subjectUniqueCodes.get(code);
-					if(pos==null) continue;
-					if(pos<=lastSubjectStart || pos>=subjectStart) continue;
+					List<Integer> posList = subjectCodesPos.get(code);
+					if(posList==null) continue;
+					Integer selectedPos = null;
+					for(int subjectPos:posList) {
+						if(lastSubjectStart<subjectPos && subjectPos<subjectStart) {
+							selectedPos = subjectPos;
+						}
+					}
+					if(selectedPos==null) continue;
 					CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
-					UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, pos);
+					UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
 					rescuedHit.setQueryIdx(i);
 					double weight = (lastHit.getWeight()+hit.getWeight())/2;
 					rescuedHit.setWeight(weight);

@@ -28,8 +28,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	private int windowLength=DEF_WINDOW_LENGTH;
 	private int numThreads = DEF_NUM_THREADS;
 	
-	private Distribution candidateOverlapsDist; 
-	
 	private static final int TIMEOUT_SECONDS = 30;
 	
 	private static int idxDebug = -1;
@@ -104,7 +102,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
-		table.setSaveRepeatedMinimizersWithinSequence(true);
 		//int firstIdNoGraph = sequences.size();
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -125,8 +122,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
-		
-		candidateOverlapsDist = new Distribution(0, 10000, 1);
 		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
@@ -156,18 +151,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor) {
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
-		synchronized (candidateOverlapsDist) {
-			candidateOverlapsDist.processDatapoint(hitsBySubjectIdx.size());
-		}
 		
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
 		finder.updateGraphWithKmerHitsMap(seqId, seq, false, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
 		hitsBySubjectIdx = table.match(complement);
-		synchronized (candidateOverlapsDist) {
-			candidateOverlapsDist.processDatapoint(hitsBySubjectIdx.size());
-		}
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		AssemblyGraph graph = finder.getGraph();
 		/*synchronized (graph) {

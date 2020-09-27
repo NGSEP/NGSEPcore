@@ -201,7 +201,7 @@ public class SingleReadsSimulator {
 					relStart = (int) (nextStart - cumulativeStarts[sequenceIdx]);
 					int relEnd = relStart + readLength;
 					if (relEnd <= seq.getLength()) {
-						read = seq.getCharacters().subSequence(relStart, relEnd).toString();
+						read = seq.getCharacters().subSequence(relStart, relEnd).toString().toUpperCase();
 						break;
 					}
 				}
