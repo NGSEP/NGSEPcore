@@ -30,17 +30,21 @@ public class TillingIndividualVCF2PoolVCF {
 	}
 
 	public void processIndividualsVCF(String individualVCF, Map<String, List<Integer>> poolsData, PrintStream out) throws IOException {
+		System.err.println("Loaded "+poolsData.size()+" samples");
 		Map<Integer, Sample> poolSamples = createPoolSamples(poolsData);
+		System.err.println("Loaded "+poolSamples.size()+" pools");
 		List<Sample> poolSamplesList = new ArrayList<Sample>(poolSamples.size());
 		poolSamplesList.addAll(poolSamples.values());
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		VCFFileWriter writer = new VCFFileWriter();
 		header.addSamples(poolSamplesList);
+		writer.printHeader(header, out);
 		try (VCFFileReader reader = new VCFFileReader(individualVCF)) {
 			Iterator<VCFRecord> it = reader.iterator();
 			while(it.hasNext()) {
 				VCFRecord indvRecord = it.next();
 				GenomicVariant variant = indvRecord.getVariant();
+				if(!variant.isBiallelic()) continue;
 				List<CalledGenomicVariant> indvCalls = indvRecord.getCalls();
 				Map<Integer,Integer> poolAltCounts = calculateAlternativeCounts(poolsData, indvCalls);
 				List<CalledGenomicVariant> poolCalls = new ArrayList<CalledGenomicVariant>(poolSamplesList.size());
@@ -79,6 +83,7 @@ public class TillingIndividualVCF2PoolVCF {
 				Sample s = poolSamples.get(i);
 				if(s==null) {
 					s = new Sample(""+i);
+					poolSamples.put(i, s);
 				} else {
 					s.setNormalPloidy((short) (s.getNormalPloidy()+2));
 				}
