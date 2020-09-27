@@ -34,10 +34,10 @@ public class AssemblyEmbedded {
 	private int hostEnd;
 	private int hostEvidenceStart;
 	private int hostEvidenceEnd;
+	private int hostStartStandardDeviation;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
-	private int mismatches;
 	
 
 	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
@@ -98,22 +98,26 @@ public class AssemblyEmbedded {
 	public void setHostEnd(int hostEnd) {
 		this.hostEnd = hostEnd;
 	}
+	
+	public int getHostStartStandardDeviation() {
+		return hostStartStandardDeviation;
+	}
 
+	public void setHostStartStandardDeviation(int hostStartStandardDeviation) {
+		this.hostStartStandardDeviation = hostStartStandardDeviation;
+	}
 
 	public int getHostEvidenceStart() {
 		return hostEvidenceStart;
 	}
 
-
 	public void setHostEvidenceStart(int hostEvidenceStart) {
 		this.hostEvidenceStart = hostEvidenceStart;
 	}
 
-
 	public int getHostEvidenceEnd() {
 		return hostEvidenceEnd;
 	}
-
 
 	public void setHostEvidenceEnd(int hostEvidenceEnd) {
 		this.hostEvidenceEnd = hostEvidenceEnd;
@@ -128,11 +132,9 @@ public class AssemblyEmbedded {
 		this.numSharedKmers = numSharedKmers;
 	}
 
-
 	public int getCoverageSharedKmers() {
 		return coverageSharedKmers;
 	}
-
 
 	public void setCoverageSharedKmers(int coverageSharedKmers) {
 		this.coverageSharedKmers = coverageSharedKmers;
@@ -145,17 +147,6 @@ public class AssemblyEmbedded {
 	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
 		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
 	}
-
-
-	public int getMismatches() {
-		return mismatches;
-	}
-
-
-	public void setMismatches(int mismatches) {
-		this.mismatches = mismatches;
-	}
-
 
 	public String toString () {
 		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+" "+isReverse+"_"+hostId+"_"+hostStart+"_"+hostEnd;

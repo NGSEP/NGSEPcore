@@ -27,11 +27,10 @@ public class AssemblyEdge {
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
 	private int overlap;
+	private int overlapStandardDeviation;
 	private int numSharedKmers;
-	private double overlapStandardDeviation;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
-	private int mismatches;
 	private boolean layoutEdge = false;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
@@ -90,12 +89,12 @@ public class AssemblyEdge {
 		this.numSharedKmers = numSharedKmers;
 	}
 
-	public double getOverlapStandardDeviation() {
+	public int getOverlapStandardDeviation() {
 		return overlapStandardDeviation;
 	}
 
-	public void setOverlapStandardDeviation(double overlapStandardDeviation) {
-		this.overlapStandardDeviation = overlapStandardDeviation;
+	public void setOverlapStandardDeviation(int overlapStandardDeviation) {
+		this.overlapStandardDeviation = Math.round(overlapStandardDeviation);
 	}
 
 	public int getCoverageSharedKmers() {
@@ -112,14 +111,6 @@ public class AssemblyEdge {
 
 	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
 		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
-	}
-
-	public int getMismatches() {
-		return mismatches;
-	}
-
-	public void setMismatches(int mismatches) {
-		this.mismatches = mismatches;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {

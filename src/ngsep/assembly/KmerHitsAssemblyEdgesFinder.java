@@ -54,7 +54,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			//Calculated over the query to avoid missing embedded sequences
 			int subjectLength = graph.getSequenceLength(subjectIdx);
 			int subjectNormalizedCount = subjectCount*query.length()*kmerLength/subjectLength;
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" normalized: "+subjectNormalizedCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
+			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" normalized: "+subjectNormalizedCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
 			
 			subjectNormalizedCounts.put(subjectIdx,subjectNormalizedCount);
@@ -148,10 +148,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 		embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
+		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, query.length(), cluster);
 		embeddedEvent.setCoverageSharedKmers(alnData[0]);
 		embeddedEvent.setWeightedCoverageSharedKmers(alnData[1]);
-		embeddedEvent.setMismatches(alnData[2]);
 		synchronized (graph) {
 			graph.addEmbedded(embeddedEvent);
 		}
@@ -171,13 +171,12 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
-		edge.setMismatches(alnData[2]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
-		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
+		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
-		if(querySequenceId==idxDebug) System.out.println("Edge between subject: "+vertexSubject.getUniqueNumber()+" and query "+vertexQuery.getUniqueNumber()+" overlap: "+overlap+" mismatches: "+edge.getMismatches()+" cost: "+edge.getCost());
+		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
 	}
 	private void addQueryBeforeSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, KmerHitsCluster cluster) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
@@ -193,12 +192,11 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		edge.setCoverageSharedKmers(alnData[0]);
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
-		edge.setMismatches(alnData[2]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
-		edge.setOverlapStandardDeviation(cluster.getPredictedOverlapSD());
+		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
-		if(querySequenceId==idxDebug) System.out.println("Edge between query: "+vertexQuery.getUniqueNumber()+" and subject "+vertexSubject.getUniqueNumber()+" overlap: "+overlap+" mismatches: "+edge.getMismatches()+" cost: "+edge.getCost());
+		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
 	}
 }

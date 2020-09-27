@@ -97,8 +97,8 @@ public class AssemblyGraph {
 			verticesByUnique.put(vE.getUniqueNumber(), vE);
 			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
 			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength());
-			edge.setMismatches(0);
 			edge.setCoverageSharedKmers(seq.getLength());
+			edge.setWeightedCoverageSharedKmers(seq.getLength());
 			edge.setNumSharedKmers(seq.getLength());
 			edge.setOverlapStandardDeviation(0);
 			addEdge(edge);
@@ -346,8 +346,8 @@ public class AssemblyGraph {
 				for(AssemblyEmbedded embedded:embeddedList) {
 					int reverse = embedded.isReverse()?1:0;
 					out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
-					out.print("\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers()+"\t"+embedded.getWeightedCoverageSharedKmers());
-					out.println("\t"+embedded.getMismatches()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
+					out.print("\t"+embedded.getHostStartStandardDeviation()+"\t"+embedded.getNumSharedKmers()+"\t"+embedded.getCoverageSharedKmers());
+					out.println("\t"+embedded.getWeightedCoverageSharedKmers()+"\t"+embedded.getHostEvidenceStart()+"\t"+embedded.getHostEvidenceEnd());
 				}
 			}
 			
@@ -357,7 +357,7 @@ public class AssemblyGraph {
 				if(edge.isSameSequenceEdge()) continue;
 				out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
 				out.print("\t"+edge.getOverlapStandardDeviation()+"\t"+edge.getNumSharedKmers()+"\t"+edge.getCoverageSharedKmers());
-				out.println("\t"+edge.getWeightedCoverageSharedKmers()+"\t"+edge.getMismatches());
+				out.println("\t"+edge.getWeightedCoverageSharedKmers());
 			}
 			
 		}
@@ -391,10 +391,10 @@ public class AssemblyGraph {
 				boolean reverse = Integer.parseInt(items[4])==1;
 				QualifiedSequence embeddedSeq = sequences.get(embSeqId);
 				AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
-				embedded.setNumSharedKmers(Integer.parseInt(items[5]));
-				embedded.setCoverageSharedKmers(Integer.parseInt(items[6]));
-				embedded.setWeightedCoverageSharedKmers(Integer.parseInt(items[7]));
-				embedded.setMismatches(Integer.parseInt(items[8]));
+				embedded.setHostStartStandardDeviation(Integer.parseInt(items[5]));
+				embedded.setNumSharedKmers(Integer.parseInt(items[6]));
+				embedded.setCoverageSharedKmers(Integer.parseInt(items[7]));
+				embedded.setWeightedCoverageSharedKmers(Integer.parseInt(items[8]));
 				embedded.setHostEvidenceStart(Integer.parseInt(items[9]));
 				embedded.setHostEvidenceEnd(Integer.parseInt(items[10]));
 				graph.addEmbedded(embedded);
@@ -411,11 +411,10 @@ public class AssemblyGraph {
 				AssemblyVertex v1 = graph.getVertexByUniqueId(v1Idx);
 				AssemblyVertex v2 = graph.getVertexByUniqueId(v2Idx);
 				AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap);
-				edge.setOverlapStandardDeviation(Double.parseDouble(items[3]));
+				edge.setOverlapStandardDeviation(Integer.parseInt(items[3]));
 				edge.setNumSharedKmers(Integer.parseInt(items[4]));
 				edge.setCoverageSharedKmers(Integer.parseInt(items[5]));
 				edge.setWeightedCoverageSharedKmers(Integer.parseInt(items[6]));
-				edge.setMismatches(Integer.parseInt(items[7]));
 				graph.addEdge(edge);
 				line=in.readLine();
 			}
@@ -667,9 +666,9 @@ public class AssemblyGraph {
 		}
 		if(vertexHost==null || vertexEmbedded==null) return;
 		AssemblyEdge edge = new AssemblyEdge(vertexHost, vertexEmbedded, getSequenceLength(embedded.getSequenceId()-1));
+		edge.setOverlapStandardDeviation(embedded.getHostStartStandardDeviation());
 		edge.setWeightedCoverageSharedKmers(embedded.getWeightedCoverageSharedKmers());
 		edge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
-		edge.setMismatches(embedded.getMismatches());
 		edge.setNumSharedKmers(embedded.getNumSharedKmers());
 		edge.setOverlapStandardDeviation(100);
 		addEdge(edge);

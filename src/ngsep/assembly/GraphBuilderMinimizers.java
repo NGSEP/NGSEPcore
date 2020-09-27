@@ -101,7 +101,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
-		table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
+		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		//int firstIdNoGraph = sequences.size();
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
@@ -150,13 +150,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 	
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor) {
-		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seq);
+		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seqId, seq);
 		
 		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
 		finder.updateGraphWithKmerHitsMap(seqId, seq, false, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
-		hitsBySubjectIdx = table.match(complement);
+		hitsBySubjectIdx = table.match(seqId, complement);
 		finder.updateGraphWithKmerHitsMap(seqId, complement, true, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
 		AssemblyGraph graph = finder.getGraph();
 		/*synchronized (graph) {

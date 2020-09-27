@@ -35,14 +35,15 @@ public class KmerHitsCluster {
 	private int averagePredictedOverlap;
 	private int medianPredictedOverlap;
 	private int fromLimitsPredictedOverlap;
-	private double predictedOverlapSD;
+	private double subjectStartSD=0;
+	private double predictedOverlapSD=0;
 	private int numDifferentKmers = 0;
 	private double weightedCount=0;
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
-	private static int idxSubjectDebug = -2;
-	private static int queryLengthDebug = -1;
+	private static int idxSubjectDebug = 371;
+	private static int queryLengthDebug = 25300;
 	
 	public KmerHitsCluster(int queryLength, int subjectLength, List<UngappedSearchHit> inputHits) {
 		this.queryLength = queryLength;
@@ -223,7 +224,6 @@ public class KmerHitsCluster {
 	public void summarize() {
 		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
-		
 		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
 		hits.addAll(hitsMap.values());
 		for(UngappedSearchHit hit: hits) {
@@ -236,8 +236,22 @@ public class KmerHitsCluster {
 		predictSubjectStart (hits);
 		predictSubjectEnd (hits);
 		predictOverlap (hits);
+		calculateSubjectStartSD(hits);
 	}
 
+	private void calculateSubjectStartSD(List<UngappedSearchHit> hits) {
+		double sum=0;
+		double sum2=0;
+		int n = hits.size();
+		for(UngappedSearchHit hit:hits) {
+			int start = estimateSubjectStart(hit);
+			sum+=start;
+			sum2+=(start*start);
+		}
+		double startVariance = (sum2-sum*sum/n)/n-1;
+		subjectStartSD = Math.sqrt(startVariance);
+		
+	}
 	private void predictOverlap(List<UngappedSearchHit> hits) {
 		List<Integer> estimatedOverlaps = new ArrayList<Integer>();
 		double sum=0;
@@ -402,6 +416,9 @@ public class KmerHitsCluster {
 		return predictedOverlapSD;
 	}
 	
+	public double getSubjectStartSD() {
+		return subjectStartSD;
+	}
 	public double getWeightedCount() {
 		return weightedCount;
 	}
@@ -446,7 +463,6 @@ public class KmerHitsCluster {
 	
 	public static List<KmerHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
-		Collections.sort(sequenceHits,(h1,h2) -> h1.getStart()-h2.getStart());
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(queryLength, subjectLength, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
 		if (uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*queryLength) return answer;

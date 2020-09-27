@@ -84,7 +84,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
-		minimizersTable.setMaxAbundanceMinimizer(20);
 		minimizersTable.setKeepSingletons(true);
 		minimizersTable.setLog(log);
 		for (int i=0;i<n;i++) {
@@ -139,7 +138,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
 		int queryLength = query.length();
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
-		Map<Integer,List<UngappedSearchHit>> hitsByReference = minimizersTable.match(query);
+		Map<Integer,List<UngappedSearchHit>> hitsByReference = minimizersTable.match(-1,query);
 		List<KmerHitsCluster> clusters = new ArrayList<KmerHitsCluster>();
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
@@ -313,7 +312,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" Subject length: "+subjectLength+". Query length: "+queryLength+" kmer hits: "+kmerHits.size()+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int coverageSharedKmers = 0;
 		double weightedCoverageSharedKmers = 0;
-		int numMismatches = 0;
 		int subjectNext = -1;
 		int queryNext = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
@@ -323,7 +321,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Inconsistent kmer hit
 				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
 				int alnMinLength = Math.min(kmerHit.getQueryIdx(), kmerHit.getStart());
-				if(alnMinLength>0) numMismatches+= (1 + alnMinLength/5);
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
@@ -335,9 +332,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				int minLength = Math.min(subjectNextLength, queryNextLength);
-				if(minLength>0) numMismatches+=(1 + minLength/5);
-				if(subjectNextLength>minLength) numMismatches+=1+(subjectNextLength-minLength)/2;
-				if(queryNextLength>minLength) numMismatches+=1+(queryNextLength-minLength)/2;
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
@@ -365,12 +359,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			
 			if(querySeqIdx==debugIdx)  System.out.println("subject id "+subjectSeqIdx+" Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
 		}
-		int remainderQuery = queryLength - queryNext;
-		int remainderSubject = subjectLength - subjectNext;
-		int minRemainder = Math.min(remainderQuery, remainderSubject);
-		if(minRemainder>0) numMismatches+=(1 + minRemainder/5);
 		//if(subjectSeqIdx==0) System.out.println("query length: "+queryLength+" cov: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers);
-		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers),numMismatches};
+		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers)};
 		return answer;
 	}
 }
