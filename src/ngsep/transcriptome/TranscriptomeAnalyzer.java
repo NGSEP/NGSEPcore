@@ -22,6 +22,7 @@ package ngsep.transcriptome;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -159,6 +160,7 @@ public class TranscriptomeAnalyzer {
 					transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
 					Gene g = t.getGene();
 					geneLengthDist.processDatapoint(g.length());
+					checkNonOverlapping(geneTranscripts);
 					visitedGenes.put(geneId,g);
 				}
 				String comments = t.getGeneId();
@@ -262,6 +264,18 @@ public class TranscriptomeAnalyzer {
 		if(allRawExons.size()>0) {
 			try (PrintStream out = new PrintStream(outPrefix+"_exonDensity.txt")) {
 				densityCalculator.calculateDensity(allRawExons, out);	
+			}
+		}
+		
+	}
+	private void checkNonOverlapping(List<Transcript> geneTranscripts) {
+		List<Transcript> copy = new ArrayList<Transcript>(geneTranscripts);
+		Collections.sort(copy, (t1,t2)-> t1.getFirst()-t2.getFirst());
+		for (int i=0;i<copy.size();i++) {
+			Transcript t1 = copy.get(i);
+			for(int j=i+1;j<copy.size();j++) {
+				Transcript t2 = copy.get(j);
+				if(t1.getLast()<t2.getFirst()) System.out.println("Non overlapping transcripts "+t1.getId()+" "+t2.getId()+" for gene "+t1.getGeneId());
 			}
 		}
 		

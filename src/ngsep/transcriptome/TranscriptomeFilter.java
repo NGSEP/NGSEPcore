@@ -322,7 +322,7 @@ public class TranscriptomeFilter {
 		}
 		return true;
 	}
-	private boolean intersectWithRegions(Transcript transcript, GenomicRegionSortedCollection<GenomicRegion> regions) {
+	public boolean intersectWithRegions(Transcript transcript, GenomicRegionSortedCollection<GenomicRegion> regions) {
 		if(!intersectOnlyExons) return regions.findSpanningRegions(transcript).size()>0;
 		List<TranscriptSegment> segments = transcript.getTranscriptSegments();
 		for(TranscriptSegment segment:segments) {

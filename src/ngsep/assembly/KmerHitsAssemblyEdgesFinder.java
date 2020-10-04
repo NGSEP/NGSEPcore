@@ -43,29 +43,25 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 
 	public void updateGraphWithKmerHitsMap(int queryIdx, CharSequence query, boolean queryRC, double compressionFactor, int selfHitsCount, int kmerLength, Map<Integer, List<UngappedSearchHit>> hitsBySubjectIdx) {
-		Map<Integer,Integer> subjectNormalizedCounts = new HashMap<Integer,Integer>();
+		//Map<Integer,Integer> subjectCounts = new HashMap<Integer,Integer>();
 		List<Integer> subjectIdxs = new ArrayList<Integer>();
-		//TODO: Make parameter
 		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
 		//int minHits = DEF_MIN_HITS;
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			if(subjectIdx>= queryIdx) continue;
 			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
 			//Calculated over the query to avoid missing embedded sequences
-			int subjectLength = graph.getSequenceLength(subjectIdx);
-			int subjectNormalizedCount = subjectCount*query.length()*kmerLength/subjectLength;
-			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" normalized: "+subjectNormalizedCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
+			//int subjectLength = graph.getSequenceLength(subjectIdx);
+			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
-			
-			subjectNormalizedCounts.put(subjectIdx,subjectNormalizedCount);
 			subjectIdxs.add(subjectIdx);
 		}
-		if(subjectNormalizedCounts.size()==0) return;
-		Collections.sort(subjectIdxs,(i1,i2)-> subjectNormalizedCounts.get(i2)-subjectNormalizedCounts.get(i1));
+		if(subjectIdxs.size()==0) return;
+		//Collections.sort(subjectIdxs,(i1,i2)-> subjectNormalizedCounts.get(i2)-subjectNormalizedCounts.get(i1));
 		int maxNormalizedCount = 0;
 		//Combined query min coverage and percentage of kmers
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		//Map<Integer, Long> queryCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
+		Map<Integer, Long> queryCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
 		for(int i=0;i<subjectIdxs.size();i++) {
 			int subjectIdx = subjectIdxs.get(i);
 			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
@@ -77,13 +73,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			KmerHitsCluster subjectCluster = subjectClusters.get(0);
 			int numKmers = subjectCluster.getNumDifferentKmers();
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" hits best cluster: "+numKmers);
-			if(numKmers<minHits) continue;
-			//subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
+			//if(numKmers<minHits) continue;
+			subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
 			int normalizedCount = query.length()*kmerLength/subjectLength;
 			numKmers = subjectCluster.getNumDifferentKmers();
 			normalizedCount*=numKmers;
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Query length: "+query.length()+" subject length: "+subjectLength+" kmer length: "+kmerLength+" numkmers: "+numKmers+" normalized count "+normalizedCount);
-			//if(normalizedCount<0.3*maxNormalizedCount) return;
 			maxNormalizedCount = Math.max(maxNormalizedCount, normalizedCount);
 			updateGraphWithKmerCluster(queryIdx, query, queryRC, compressionFactor, subjectCluster);
 		}

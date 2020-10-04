@@ -42,8 +42,8 @@ public class KmerHitsCluster {
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
-	private static int idxSubjectDebug = 371;
-	private static int queryLengthDebug = 25300;
+	private static int idxSubjectDebug = -1;
+	private static int queryLengthDebug = -1;
 	
 	public KmerHitsCluster(int queryLength, int subjectLength, List<UngappedSearchHit> inputHits) {
 		this.queryLength = queryLength;
@@ -118,7 +118,7 @@ public class KmerHitsCluster {
 		
 		subjectPredictedStart = -1;
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
-			UngappedSearchHit hit = selectHit(hits,median, Math.min(queryLength/20, maxDistance));
+			UngappedSearchHit hit = selectHit(hits, queryLength, median, Math.min(queryLength/20, maxDistance));
 			if(hit!=null) {
 				if(subjectPredictedStart==-1) {
 					subjectPredictedStart = estimateSubjectStart(hit);
@@ -136,13 +136,13 @@ public class KmerHitsCluster {
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Final hits: "+hitsMap.size()+" start: "+subjectPredictedStart+" end: "+subjectPredictedEnd);
 	}
-	private UngappedSearchHit selectHit(List<UngappedSearchHit> hits, int median, int maxDistance) {
+	private UngappedSearchHit selectHit(List<UngappedSearchHit> hits, int queryLength, int median, int maxDistance) {
 		UngappedSearchHit answer = null;
 		int minDistance = 0;
 		for(UngappedSearchHit hit:hits) {
 			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
-			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
+			if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
 			if(distance <= maxDistance) {
 				if(answer == null || minDistance>distance) {
 					answer = hit;
