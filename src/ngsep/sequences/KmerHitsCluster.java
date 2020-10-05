@@ -37,7 +37,6 @@ public class KmerHitsCluster {
 	private int fromLimitsPredictedOverlap;
 	private double subjectStartSD=0;
 	private double predictedOverlapSD=0;
-	private int numDifferentKmers = 0;
 	private double weightedCount=0;
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
@@ -170,7 +169,6 @@ public class KmerHitsCluster {
 		queryEvidenceStart = kmerHit.getQueryIdx();
 		queryEvidenceEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
 		hitsMap.put(kmerQueryStart, kmerHit);
-		numDifferentKmers = 1;
 		firstKmerPresent = queryEvidenceStart == 0;
 		lastKmerPresent = queryEvidenceEnd==queryLength;
 	}
@@ -190,7 +188,6 @@ public class KmerHitsCluster {
 		queryEvidenceEnd = Math.max(queryEvidenceEnd, hit.getQueryIdx() + hit.getQuery().length());
 		if(queryEvidenceStart==0) firstKmerPresent = true;
 		if (queryEvidenceEnd==queryLength) lastKmerPresent = true;
-		numDifferentKmers++;
 	}
 	
 	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
@@ -222,7 +219,6 @@ public class KmerHitsCluster {
 
 	
 	public void summarize() {
-		numDifferentKmers = hitsMap.size();
 		weightedCount = 0;
 		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
 		hits.addAll(hitsMap.values());
@@ -427,7 +423,7 @@ public class KmerHitsCluster {
 	 * @return the kmerNumbers
 	 */
 	public int getNumDifferentKmers() {
-		return numDifferentKmers;
+		return hitsMap.size();
 	}
 	
 	/**

@@ -242,12 +242,6 @@ public class Assembler {
 		AssemblyGraph graph;
 		if(graphFile!=null) {
 			graph = AssemblyGraph.load(sequences, graphFile);
-		} else if (GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX.equals(graphConstructionAlgorithm)) {
-			GraphBuilderFMIndex gbIndex = new GraphBuilderFMIndex();
-			gbIndex.setLog(log);
-			gbIndex.setKmerLength(kmerLength);
-			gbIndex.setNumThreads(numThreads);
-			graph =  gbIndex.buildAssemblyGraph(sequences);
 		} else {
 			double [] compressionFactors =null;
 			if (bpHomopolymerCompression>0) {

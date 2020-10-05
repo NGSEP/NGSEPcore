@@ -19,7 +19,7 @@ import ngsep.sequences.QualifiedSequence;
 
 public class GraphBuilderMinimizers implements GraphBuilder {
 
-	private Logger log = Logger.getLogger(GraphBuilderFMIndex.class.getName());
+	private Logger log = Logger.getLogger(GraphBuilderMinimizers.class.getName());
 	
 	public static final int DEF_WINDOW_LENGTH = 10;
 	public static final int DEF_NUM_THREADS = 1;
@@ -137,7 +137,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		waitToFinish(finishTime, poolSearch);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory);
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}
 	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
@@ -150,14 +150,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 	
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor) {
-		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = table.match(seqId, seq);
-		
-		List<UngappedSearchHit> selfHits = hitsBySubjectIdx.get(seqId);
-		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
-		finder.updateGraphWithKmerHitsMap(seqId, seq, false, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
+		Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
 		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
-		hitsBySubjectIdx = table.match(seqId, complement);
-		finder.updateGraphWithKmerHitsMap(seqId, complement, true, compressionFactor, selfHitsCount, kmerLength, hitsBySubjectIdx);
+		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
+		finder.updateGraphWithKmerHitsMap(seqId, seq, hitsForward, complement, hitsReverse, compressionFactor, kmerLength);
 		AssemblyGraph graph = finder.getGraph();
 		/*synchronized (graph) {
 			graph.filterEmbedded(seqId, 0.5, 10);

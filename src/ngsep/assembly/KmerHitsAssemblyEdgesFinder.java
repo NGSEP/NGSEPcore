@@ -2,7 +2,6 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,9 +17,12 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public static final int DEF_MIN_HITS = 25;
 	
-	private double minProportionOverlap = 0.1;
+	private double minProportionOverlap = 0.05;
 	
 	private double minProportionEvidence = 0;
+	
+	private int countRawHits = 0;
+	private int countCompletedHits = 0;
 	
 	private int idxDebug = -1;
 	
@@ -42,45 +44,101 @@ public class KmerHitsAssemblyEdgesFinder {
 		this.minProportionOverlap = minProportionOverlap;
 	}
 
-	public void updateGraphWithKmerHitsMap(int queryIdx, CharSequence query, boolean queryRC, double compressionFactor, int selfHitsCount, int kmerLength, Map<Integer, List<UngappedSearchHit>> hitsBySubjectIdx) {
-		//Map<Integer,Integer> subjectCounts = new HashMap<Integer,Integer>();
-		List<Integer> subjectIdxs = new ArrayList<Integer>();
+	public int getCountRawHits() {
+		return countRawHits;
+	}
+
+	public int getCountCompletedHits() {
+		return countCompletedHits;
+	}
+
+	public void updateGraphWithKmerHitsMap(int queryIdx, CharSequence queryForward, Map<Integer, List<UngappedSearchHit>> hitsForward, CharSequence queryReverse, Map<Integer, List<UngappedSearchHit>> hitsReverse, double compressionFactor, int kmerLength) {
+		List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
+		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
 		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
-		//int minHits = DEF_MIN_HITS;
-		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self hits: "+selfHitsCount+" min hits: "+minHits);
+		//Initial selection based on raw hit counts
+		List<Integer> subjectIdxsF = filterSubjectIds(queryIdx, hitsForward, minHits);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Filtered subject idxs forward: "+subjectIdxsF.size());
+		List<Integer> subjectIdxsR = filterSubjectIds(queryIdx, hitsReverse, minHits);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Filtered subject idxs reverse: "+subjectIdxsR.size());
+		
+		if(subjectIdxsF.size()==0 && subjectIdxsR.size()==0) {
+			System.out.println("Query "+queryIdx+" had zero subject ids after initial filtering. self hits: "+selfHitsCount+" min hits: "+minHits);
+			return;
+		}
+		//Build initial clusters
+		List<KmerHitsCluster> clustersForward = createClusters(queryIdx, queryForward.length(), hitsForward, subjectIdxsF);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Clusters forward: "+clustersForward.size());
+		List<KmerHitsCluster> clustersReverse = createClusters(queryIdx, queryReverse.length(), hitsReverse, subjectIdxsR);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Clusters reverse: "+clustersReverse.size());
+		//Combined query min coverage and percentage of kmers
+		boolean completeHits = evaluateClusters (queryIdx, clustersForward, clustersReverse, minHits);
+		Map<Integer, Long> queryCodesF = completeHits?KmersExtractor.extractDNAKmerCodes(queryForward.toString(), kmerLength, 0, queryForward.length()):null;
+		Map<Integer, Long> queryCodesR = completeHits?KmersExtractor.extractDNAKmerCodes(queryReverse.toString(), kmerLength, 0, queryReverse.length()):null;
+		processClusters(queryIdx, queryForward, false, queryCodesF, clustersForward, compressionFactor, kmerLength);
+		processClusters(queryIdx, queryReverse, true, queryCodesR, clustersReverse, compressionFactor, kmerLength);
+		synchronized (this) {
+			if(completeHits) countCompletedHits++;
+			else countRawHits++;
+		}
+	}
+
+	private List<Integer> filterSubjectIds(int queryIdx, Map<Integer, List<UngappedSearchHit>> hits, int minHits) {
+		List<Integer> subjectIdxs = new ArrayList<Integer>();
+		for(int subjectIdx:hits.keySet()) {
 			if(subjectIdx>= queryIdx) continue;
-			int subjectCount = hitsBySubjectIdx.get(subjectIdx).size();
-			//Calculated over the query to avoid missing embedded sequences
-			//int subjectLength = graph.getSequenceLength(subjectIdx);
-			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" self hits: "+selfHitsCount+" min hits: "+minHits);
+			int subjectCount = hits.get(subjectIdx).size();
+			if (queryIdx == idxDebug && subjectCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" Subject sequence: "+subjectIdx+" hits: "+subjectCount+" min hits: "+minHits);
 			if(subjectCount<minHits) continue;
 			subjectIdxs.add(subjectIdx);
 		}
-		if(subjectIdxs.size()==0) return;
-		//Collections.sort(subjectIdxs,(i1,i2)-> subjectNormalizedCounts.get(i2)-subjectNormalizedCounts.get(i1));
-		int maxNormalizedCount = 0;
-		//Combined query min coverage and percentage of kmers
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject sequences: "+subjectIdxs.size());
-		Map<Integer, Long> queryCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		for(int i=0;i<subjectIdxs.size();i++) {
-			int subjectIdx = subjectIdxs.get(i);
-			List<UngappedSearchHit> hits = hitsBySubjectIdx.get(subjectIdx);
+		return subjectIdxs;
+	}
+	
+	private List<KmerHitsCluster> createClusters(int queryIdx, int queryLength, Map<Integer, List<UngappedSearchHit>> hitsMap, List<Integer> subjectIdxs) {
+		List<KmerHitsCluster> clusters = new ArrayList<KmerHitsCluster>(subjectIdxs.size());
+		for(int subjectIdx:subjectIdxs) {
+			List<UngappedSearchHit> hits = hitsMap.get(subjectIdx);
 			QualifiedSequence subjectSequence = graph.getSequence(subjectIdx);
 			int subjectLength = subjectSequence.getLength();
-			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(query.length(), subjectLength, hits, 0);
+			List<KmerHitsCluster> subjectClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, subjectLength, hits, 0);
 			if(subjectClusters.size()==0) continue;
 			Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster subjectCluster = subjectClusters.get(0);
 			int numKmers = subjectCluster.getNumDifferentKmers();
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" hits best cluster: "+numKmers);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Subject idx: "+subjectIdx+" hits: "+hits.size()+" clusters: "+subjectClusters.size()+" hits best cluster: "+numKmers);
+			clusters.add(subjectCluster);
+		}
+		return clusters;
+	}
+	private boolean evaluateClusters(int queryIdx, List<KmerHitsCluster> clustersForward, List<KmerHitsCluster> clustersReverse, int minHits) {
+		/*List<KmerHitsCluster> allClusters = new ArrayList<KmerHitsCluster>(clustersForward.size()+clustersReverse.size());
+		allClusters.addAll(clustersForward);
+		allClusters.addAll(clustersReverse);
+		int passCount = 0;
+		int maxCount = 0;
+		for(KmerHitsCluster cluster:allClusters) {
+			int count = cluster.getNumDifferentKmers();
+			maxCount = Math.max(maxCount, count);
+			if(count>=minHits) passCount++;
+		}
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Min hits: "+minHits+" number of passing clusters: "+passCount+" max count: "+maxCount);
+		return passCount>3 && maxCount>=2*minHits;
+		*/
+		return true;
+	}
+	private void processClusters(int queryIdx, CharSequence query, boolean queryRC, Map<Integer, Long> queryCodes, List<KmerHitsCluster> clusters, double compressionFactor, int kmerLength) {
+		int queryLength = query.length();
+		for(KmerHitsCluster cluster:clusters) {
 			//if(numKmers<minHits) continue;
-			subjectCluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
-			int normalizedCount = query.length()*kmerLength/subjectLength;
-			numKmers = subjectCluster.getNumDifferentKmers();
+			QualifiedSequence subjectSequence = graph.getSequence(cluster.getSubjectIdx());
+			if(queryCodes!=null) cluster.completeMissingHits(subjectSequence.getCharacters().toString(),queryCodes);
+			long normalizedCount = queryLength*kmerLength/subjectSequence.getLength();
+			int numKmers = cluster.getNumDifferentKmers();
 			normalizedCount*=numKmers;
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+queryRC+" Query length: "+query.length()+" subject length: "+subjectLength+" kmer length: "+kmerLength+" numkmers: "+numKmers+" normalized count "+normalizedCount);
-			maxNormalizedCount = Math.max(maxNormalizedCount, normalizedCount);
-			updateGraphWithKmerCluster(queryIdx, query, queryRC, compressionFactor, subjectCluster);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Query length: "+queryLength+" subject idx: "+cluster.getSubjectIdx()+" subject length: "+subjectSequence.getLength()+" kmer length: "+kmerLength+" numkmers: "+numKmers+" normalized count "+normalizedCount);
+			updateGraphWithKmerCluster(queryIdx, query, queryRC, compressionFactor, cluster);
 		}
 	}
 	private void updateGraphWithKmerCluster(int querySequenceId, CharSequence query,  boolean queryRC, double compressionFactor, KmerHitsCluster cluster) {
