@@ -133,7 +133,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		this.genome = genome;	
 	}
 	public void setGenome(String genomeFile) throws IOException {
-		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+		setGenome(OptionValuesDecoder.loadGenomeWithLowerCase(genomeFile,log));
 	}
 
 	/**

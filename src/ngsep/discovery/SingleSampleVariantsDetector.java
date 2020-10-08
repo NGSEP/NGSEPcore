@@ -155,7 +155,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		mmRegsCalc.setGenome(genome);
 	}
 	public void setGenome(String genomeFile) throws IOException {
-		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+		setGenome(OptionValuesDecoder.loadGenomeWithLowerCase(genomeFile,log));
 	}
 
 	public String getOutputPrefix() {

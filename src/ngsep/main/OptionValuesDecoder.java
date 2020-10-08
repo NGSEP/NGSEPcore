@@ -56,4 +56,10 @@ public class OptionValuesDecoder {
 		log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength()+" from file: "+genomeFile);
 		return genome;
 	}
+	public static ReferenceGenome loadGenomeWithLowerCase(String genomeFile, Logger log) throws IOException {
+		log.info("Loading genome from: "+genomeFile);
+		ReferenceGenome genome = new ReferenceGenome(genomeFile,true);
+		log.info("Loaded genome with: "+genome.getNumSequences()+" sequences. Total length: "+genome.getTotalLength()+" from file: "+genomeFile);
+		return genome;
+	}
 }

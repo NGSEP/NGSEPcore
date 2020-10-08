@@ -44,7 +44,7 @@ public class TranscriptomeFilter {
     private int minProteinLength=DEF_MIN_PROTEIN_LENGTH;
 	private GenomicRegionSortedCollection<GenomicRegion> regionsToFilter = null;
     private GenomicRegionSortedCollection<GenomicRegion> regionsToSelect = null;
-    private boolean intersectOnlyExons = false;
+    private boolean intersectOnlyCoding = false;
     private Set<String> geneIdsToFilter = null;
     private Set<String> geneIdsToSelect = null;
     
@@ -154,14 +154,14 @@ public class TranscriptomeFilter {
 		this.regionsToSelect = new GenomicRegionSortedCollection<GenomicRegion>(regions);
 	}
 	
-	public boolean isIntersectOnlyExons() {
-		return intersectOnlyExons;
+	public boolean isIntersectOnlyCoding() {
+		return intersectOnlyCoding;
 	}
-	public void setIntersectOnlyExons(boolean intersectOnlyExons) {
-		this.intersectOnlyExons = intersectOnlyExons;
+	public void setIntersectOnlyCoding(boolean intersectOnlyCoding) {
+		this.intersectOnlyCoding = intersectOnlyCoding;
 	}
-	public void setIntersectOnlyExons(Boolean intersectOnlyExons) {
-		this.setIntersectOnlyExons(intersectOnlyExons.booleanValue());
+	public void setIntersectOnlyCoding(Boolean intersectOnlyCoding) {
+		this.setIntersectOnlyCoding(intersectOnlyCoding.booleanValue());
 	}
 	
 	
@@ -323,10 +323,10 @@ public class TranscriptomeFilter {
 		return true;
 	}
 	public boolean intersectWithRegions(Transcript transcript, GenomicRegionSortedCollection<GenomicRegion> regions) {
-		if(!intersectOnlyExons) return regions.findSpanningRegions(transcript).size()>0;
+		if(!intersectOnlyCoding) return regions.findSpanningRegions(transcript).size()>0;
 		List<TranscriptSegment> segments = transcript.getTranscriptSegments();
 		for(TranscriptSegment segment:segments) {
-			if(regions.findSpanningRegions(segment).size()>0) return true;
+			if(segment.isCoding() && regions.findSpanningRegions(segment).size()>0) return true;
 		}
 		return false;
 	}

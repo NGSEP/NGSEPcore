@@ -149,7 +149,8 @@ public class TranscriptomeAnalyzer {
 				List<GenomicRegion> exons=t.getRawExons();
 				numberOfExonsDist.processDatapoint(exons.size());
 				allRawExons.addAll(exons);
-				
+				validateCoordinates(t.getId(), t, exons);
+				validateCoordinates(t.getId(), t, t.getTranscriptSegments());
 				if(!visitedGenes.containsKey(geneId)) {
 					//Collect gene statistics
 					List<Transcript> geneTranscripts = transcriptome.getTranscriptsByGene(geneId);
@@ -159,7 +160,9 @@ public class TranscriptomeAnalyzer {
 					}
 					transcriptsPerGeneDist.processDatapoint(geneTranscripts.size());
 					Gene g = t.getGene();
+					if(geneTranscripts.size()>10) log.info("Gene "+geneId+" at "+g.getSequenceName()+": "+g.getFirst()+"-"+g.getLast()+" has more than 10 transcripts: "+geneTranscripts.size());
 					geneLengthDist.processDatapoint(g.length());
+					validateCoordinates(g.getId(), g, geneTranscripts);
 					checkNonOverlapping(geneTranscripts);
 					visitedGenes.put(geneId,g);
 				}
@@ -268,6 +271,25 @@ public class TranscriptomeAnalyzer {
 		}
 		
 	}
+	private void validateCoordinates(String id, GenomicRegion enclosing, List<? extends GenomicRegion> components) {
+		int first = -1;
+		int last = -1;
+		for(GenomicRegion r:components) {
+			//if("Pl01G0000137100.v1".equals(id)) System.err.println("Next component: "+r.getSequenceName()+":"+r.getFirst()+"-"+r.getLast());
+			if(!r.getSequenceName().equals(enclosing.getSequenceName())) {
+				log.info("Inconsistent sequence name for feature"+id+" at "+r.getSequenceName()+":"+r.getFirst()+"-"+r.getLast()+" expected: "+enclosing.getSequenceName());
+				continue;
+			}
+			if(first==-1) {
+				first = r.getFirst();
+				last = r.getLast();
+			} else {
+				first = Math.min(first, r.getFirst());
+				last = Math.max(last, r.getLast());
+			}
+		}
+		if(first != enclosing.getFirst()) log.info("Inconsistent coordinates for enclosing feature "+id+" at "+enclosing.getSequenceName()+":"+enclosing.getFirst()+"-"+enclosing.getLast()+" calculated limits: "+first+"-"+last);		
+	}
 	private void checkNonOverlapping(List<Transcript> geneTranscripts) {
 		List<Transcript> copy = new ArrayList<Transcript>(geneTranscripts);
 		Collections.sort(copy, (t1,t2)-> t1.getFirst()-t2.getFirst());
@@ -275,7 +297,7 @@ public class TranscriptomeAnalyzer {
 			Transcript t1 = copy.get(i);
 			for(int j=i+1;j<copy.size();j++) {
 				Transcript t2 = copy.get(j);
-				if(t1.getLast()<t2.getFirst()) System.out.println("Non overlapping transcripts "+t1.getId()+" "+t2.getId()+" for gene "+t1.getGeneId());
+				if(t1.getLast()<t2.getFirst()) log.info("Non overlapping transcripts "+t1.getId()+" "+t2.getId()+" for gene "+t1.getGeneId());
 			}
 		}
 		

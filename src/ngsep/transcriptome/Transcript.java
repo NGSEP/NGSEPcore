@@ -49,6 +49,7 @@ public class Transcript implements GenomicRegion {
 	private List<TranscriptSegment> segmentsSortedTranscript=new ArrayList<TranscriptSegment>();
 	private int codingRelativeStart = -1;
 	private int codingRelativeEnd = -1;
+	private int codingLength = -1;
 	//Genomic start and end of the coding sequence. start > end if the transcript is in the negative strand
 	private int codingAbsoluteStart = -1;
 	private int codingAbsoluteEnd = -1;
@@ -105,7 +106,7 @@ public class Transcript implements GenomicRegion {
 		length = 0;
 		codingRelativeStart = -1;
 		codingRelativeEnd = -1;
-		int codingLength=0;
+		codingLength=0;
 		for(TranscriptSegment segment: segmentsSortedTranscript) {
 			if(segment.isCoding()) {
 				byte fOff = segment.getFirstCodonPositionOffset(); 
@@ -324,6 +325,13 @@ public class Transcript implements GenomicRegion {
 	}
 	public int getCodingRelativeEnd() {
 		return codingRelativeEnd;
+	}
+	/**
+	 * 
+	 * @return int Length of the coding sequence
+	 */
+	public int getCodingLength() {
+		return codingLength;
 	}
 	/**
 	 * @return the codingAbsoluteStart

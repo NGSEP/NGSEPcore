@@ -38,16 +38,26 @@ import ngsep.sequences.io.FastaSequencesHandler;
 public class ReferenceGenome { 
 	private QualifiedSequenceList sequences;
 	private String filename;
+	
 	/**
 	 * Creates a new ReferenceGenome with the given data
 	 * @param filename Name of the fasta file with the reference genome 
 	 * @throws IOException If the file can not be read
 	 */
 	public ReferenceGenome (String filename) throws IOException {
+		this(filename,false);
+	}
+	/**
+	 * Creates a new ReferenceGenome with the given data
+	 * @param filename Name of the fasta file with the reference genome
+	 * @param keepLowerCase indicates if lower case information should be kept 
+	 * @throws IOException If the file can not be read
+	 */
+	public ReferenceGenome (String filename, boolean keepLowerCase) throws IOException {
 		this.filename = filename;
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		handler.setSequenceType(DNAMaskedSequence.class);
-		handler.setKeepLowerCase(true);
+		handler.setKeepLowerCase(keepLowerCase);
 		sequences = handler.loadSequences(filename);
 		sequences.setAllowChanges(false);
 	}
