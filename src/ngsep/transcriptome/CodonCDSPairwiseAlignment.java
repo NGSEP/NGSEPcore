@@ -1,7 +1,11 @@
 package ngsep.transcriptome;
 
 public class CodonCDSPairwiseAlignment {
-	public String[] pairwiseAlignment(String cds1, String cds2) {
+	private String alignment1;
+	private String alignment2;
+	private int score;
+	private double pctIdentity;
+	public void pairwiseAlignment(String cds1, String cds2) {
 		int proteinLengthCDS1=cds1.length()/3;
 		int proteinLengthCDS2=cds2.length()/3;
 		int[][] scores = new int[proteinLengthCDS1+1][proteinLengthCDS2+1];
@@ -59,16 +63,19 @@ public class CodonCDSPairwiseAlignment {
 				score = scores[maxI][maxJ];
 			}
 		}
-		
+		this.score = score;
 		String gapCodon = "---";
-		
+		int countIdentical = 0;
 		int i= maxI;
 		int j= maxJ;
 		while(i>0 || j>0) {
 			byte d = direction[i][j];
 			if(d==0) {
-				addCodon(cds1.substring(3*(i-1), 3*i),aln1);
-				addCodon(cds2.substring(3*(j-1), 3*j),aln2);
+				String codon1 = cds1.substring(3*(i-1), 3*i);
+				String codon2 = cds2.substring(3*(j-1), 3*j);
+				if(codon1.equals(codon2)) countIdentical+=3;
+				addCodon(codon1,aln1);
+				addCodon(codon2,aln2);
 				i--;
 				j--;
 			} else if (d==1) {
@@ -82,10 +89,13 @@ public class CodonCDSPairwiseAlignment {
 			}
 		}
 		
-		String [] answer = new String[2];
-		answer[0] = aln1.reverse().toString();
-		answer[1] = aln2.reverse().toString();
-		return answer;
+		alignment1 = aln1.reverse().toString();
+		alignment2 = aln2.reverse().toString();
+		if(alignment1.length()>0) {
+			pctIdentity = 100.0*countIdentical;
+			pctIdentity /= alignment1.length();
+		} else pctIdentity = 0;
+		
 	}
 
 	private void addCodon(String codon, StringBuilder aln) {
@@ -93,6 +103,23 @@ public class CodonCDSPairwiseAlignment {
 		aln.append(codon.charAt(1));
 		aln.append(codon.charAt(0));
 	}
+
+	public String getAlignment1() {
+		return alignment1;
+	}
+
+	public String getAlignment2() {
+		return alignment2;
+	}
+
+	public int getScore() {
+		return score;
+	}
+
+	public double getPctIdentity() {
+		return pctIdentity;
+	}
+	
 	
 	
 }
