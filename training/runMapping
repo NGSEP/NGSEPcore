@@ -14,7 +14,7 @@ PICARD=/path/to/picard.jar;
 NGSEP=/path/to/NGSEPcore.jar;
 
  # map the reads
-${JAVA} -jar ${NGSEP} ReadsAligner -r ${REFERENCE} -i ${f1} -i2 ${f2} -o ${p}.bam >& ${p}_aln.log
+${JAVA} -jar ${NGSEP} ReadsAligner -r ${REFERENCE} -s ${p} -i ${f1} -i2 ${f2} -o ${p}.bam >& ${p}_aln.log
  
  # sort the alignment
 
