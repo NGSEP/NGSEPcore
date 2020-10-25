@@ -219,7 +219,7 @@ public class SingleReadsSimulator {
 					out.println("@" + readId);
 					out.println(finalRead);
 					out.println("+");
-					out.println(RawRead.generateFixedQSString('5', finalRead.length()));
+					out.println(RawRead.generateFixedQSString('J', finalRead.length()));
 				}
 				
 			}

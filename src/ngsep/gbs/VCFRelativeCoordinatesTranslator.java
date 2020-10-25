@@ -15,6 +15,7 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignmentPair;
 import ngsep.alignments.ReadsAligner;
 import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
@@ -38,7 +39,7 @@ import ngsep.vcf.VCFRecord;
 public class VCFRelativeCoordinatesTranslator {
 
 	private Logger log = Logger.getLogger(VCFRelativeCoordinatesTranslator.class.getName());
-	private String outFile="output.vcf";
+	private String outPrefix="output";
 	private String filenameConsensusFA;
 	private String filenameAlignmentBAM;
 	private String filenameRelativeVCF;
@@ -95,21 +96,23 @@ public class VCFRelativeCoordinatesTranslator {
 //	}
 	public static void main(String[] args) throws Exception {
 		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
-		if("fa".equals(args[0])) {
-			instance.filenameConsensusFA = args[1];
+		instance.filenameRelativeVCF = args[0];
+		instance.refGenome= new ReferenceGenome(args[1]);
+		instance.outPrefix = args[2];
+		if("fa".equals(args[3])) {
+			instance.filenameConsensusFA = args[4];
+			if(args.length>5) instance.refIndex = ReferenceGenomeFMIndex.load(instance.refGenome, args[5]);
 		} else {
-			instance.filenameAlignmentBAM = args[1];
+			instance.filenameAlignmentBAM = args[4];
 		}
-		
-		instance.filenameRelativeVCF = args[2];
-		instance.refGenome= new ReferenceGenome(args[3]);
-		instance.refIndex = ReferenceGenomeFMIndex.load(instance.refGenome, args[4]);
-		instance.outFile = args[5];
 		instance.run();
 	}
 
 	public void run() throws Exception {
-		if (filenameConsensusFA!=null) alignConsensusSequences();
+		if (filenameConsensusFA!=null) {
+			alignConsensusSequences();
+			saveAlignments();
+		}
 		if (filenameAlignmentBAM!=null) getAlignmentsFromBAM();
 		System.out.println("Loaded a total of " + alignmentsHash.size() + " alignments.");
 		
@@ -163,8 +166,8 @@ public class VCFRelativeCoordinatesTranslator {
 		}
 		Collections.sort(translatedRecords,new GenomicRegionComparator(refGenome.getSequencesMetadata()));
 		VCFFileWriter writer = new VCFFileWriter ();
-		try (PrintStream mappedVCF = new PrintStream(outFile);
-				PrintStream info = new PrintStream(outFile + ".info")) {
+		try (PrintStream mappedVCF = new PrintStream(outPrefix+".vcf");
+				PrintStream info = new PrintStream(outPrefix + ".info")) {
 			writer.printHeader(header, mappedVCF);
 			writer.printVCFRecords(translatedRecords, mappedVCF);
 			info.println("Total number of records in relative VCF: " + totalRecords);
@@ -227,6 +230,10 @@ public class VCFRelativeCoordinatesTranslator {
 		// Alternative Allele based on de-novo VCF
 		String[] relativeAlleles = relativeVar.getAlleles();
 		
+		//For each relative allele, position in the translated list of alleles
+		Map<String,Integer> relAllelesRelPos = new HashMap<String, Integer>(relativeAlleles.length);
+		Map<String,Integer> relAllelesTranslationPos = new HashMap<String, Integer>(relativeAlleles.length);
+		
 		int[] filedsFormat = record.getFieldsFormat();
 		
 		// IF the reference is not in the relativeAlleles, the variant is likely triallelic
@@ -265,13 +272,18 @@ public class VCFRelativeCoordinatesTranslator {
 		//TODO: Translate indels
 		List<String> refBasedAlleles = new ArrayList<>();
 		refBasedAlleles.add(""+trueRef);
-		for(String allele:relativeAlleles) {
+		for(int i=0;i<relativeAlleles.length;i++) {
+			String allele = relativeAlleles[i];
 			if(!DNASequence.isDNA(allele)) continue;
 			if(algn.isNegativeStrand()) {
 				allele = DNASequence.getReverseComplement(allele).toString();
 			}
-			if(allele.charAt(0)==trueRef) refInRelativeAllels = true;
-			if(!refBasedAlleles.contains(allele)) {
+			relAllelesRelPos.put(allele, i);
+			if(allele.charAt(0)==trueRef) {
+				refInRelativeAllels = true;
+				relAllelesTranslationPos.put(allele, 0);
+			} else if(!refBasedAlleles.contains(allele)) {
+				relAllelesTranslationPos.put(allele, refBasedAlleles.size());
 				refBasedAlleles.add(allele);
 			}
 		}
@@ -289,7 +301,6 @@ public class VCFRelativeCoordinatesTranslator {
 		variant.setVariantQS(relativeVar.getVariantQS());
 		if(!refInRelativeAllels) {
 			refNotInAlleles++;
-			
 		}
 		// get the calls for this record.
 		List<CalledGenomicVariant> calls = record.getCalls();		
@@ -299,6 +310,8 @@ public class VCFRelativeCoordinatesTranslator {
 		for(CalledGenomicVariant relativeCall: calls) {
 			String [] calledAlleles = relativeCall.getCalledAlleles();
 			int [] acgtCounts = relativeCall.getAllCounts();
+			short [] relACN = relativeCall.getAllelesCopyNumber();
+			short totalCN = relativeCall.getCopyNumber();
 			if (algn.isNegativeStrand()) {
 				for(int i=0;i<calledAlleles.length;i++) {
 					calledAlleles[i] = DNASequence.getReverseComplement(calledAlleles[i]).toString();
@@ -312,22 +325,30 @@ public class VCFRelativeCoordinatesTranslator {
 					acgtCounts[2] = tmp;
 				}
 			}
-			//TODO: Translate well acn for polyploids
 			short [] acn = new short[refBasedAlleles.size()];
 			Arrays.fill(acn, (short)0);
+			for(int i=0;i<calledAlleles.length;i++) {
+				Integer pos = relAllelesTranslationPos.get(calledAlleles[i]);
+				Integer relIdx = relAllelesRelPos.get(calledAlleles[i]);
+				//if("0".equals(relativeVar.getSequenceName())) System.out.println("Pos: "+relativeVar.getFirst()+" Indv: "+relativeCall.getSampleId()+" Called allele "+calledAlleles[i]+" relAllPos: "+relIdx+" absPos: "+pos);
+				if(pos!=null && relIdx!=null && pos<acn.length) acn[pos] = relACN[relIdx];
+			}
 			if(variant instanceof SNV) {
 				byte genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 				if(calledAlleles.length==2) {
 					genotype = CalledGenomicVariant.GENOTYPE_HETERO;
-					acn[0] = acn[1] = 1;
+					if(acn[0]==0 || acn[1]==0 || acn[0]+acn[1]!=totalCN) log.warning("Weird number of called alleles for variant "+relativeCall.getSequenceName()+":"+relativeCall.getFirst()+" heterozygous genotype for: "+relativeCall.getSampleId()+" acnCounts: "+acn[0]+" "+acn[1]+" relative counts: "+relACN[0]+" "+relACN[1]);
 				}
 				else if (calledAlleles.length==1) {
 					if(calledAlleles[0].charAt(0)!=trueRef) {
 						genotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
-						acn[1]=2;
+						if(acn[0]!=0 || acn[1]==0 || acn[1]!=totalCN) log.warning("Weird number of called alleles for variant "+relativeCall.getSequenceName()+":"+relativeCall.getFirst()+" homozygous alternative genotype for: "+relativeCall.getSampleId()+" acnCounts: "+acn[0]+" "+acn[1]+" relative counts: "+relACN[0]+" "+relACN[1]);
+						acn[1]=totalCN;
+						
 					} else {
 						genotype = CalledGenomicVariant.GENOTYPE_HOMOREF;
-						acn[0]=2;
+						if(acn[0]==0 || acn[1]!=0 || acn[0]!=totalCN) log.warning("Weird number of called alleles for variant "+relativeCall.getSequenceName()+":"+relativeCall.getFirst()+" homozygous reference genotype for: "+relativeCall.getSampleId()+" acnCounts: "+acn[0]+" "+acn[1]+" relative counts: "+relACN[0]+" "+relACN[1]);
+						acn[0]=totalCN;
 					}
 				}
 				CalledSNV trueCall = new CalledSNV((SNV)variant, genotype);
@@ -349,7 +370,8 @@ public class VCFRelativeCoordinatesTranslator {
 	}
 	
 	private void alignConsensusSequences() throws IOException {
-		System.out.println("Aligning consensus sequences");
+		log.info("Aligning consensus sequences");
+		String debugConsensusName = null;
 		this.alignmentsHash = new HashMap<String, ReadAlignment>();
 		
 		ReadsAligner aligner = new ReadsAligner();
@@ -361,15 +383,14 @@ public class VCFRelativeCoordinatesTranslator {
 		int numNCharsPairedEnd = pairedEndAnchor.length();	
 		
 		
-		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA);
-				PrintStream debug = new PrintStream(outFile + ".debug")) {
+		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
 			reader.setLog(log);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for(int i=0;it.hasNext();i++) {
 				consensusTot++;
 				QualifiedSequence consensus = it.next();
 				String consensusName = consensus.getName();
-				debug.println(consensusName);
+				if(consensusName.equals(debugConsensusName)) System.err.println(consensusName);
 				if(consensusName.startsWith("Cluster_")) {
 					consensusName = consensusName.substring(8);
 				}
@@ -381,14 +402,14 @@ public class VCFRelativeCoordinatesTranslator {
 					singleConsensus++;
 					RawRead read = new RawRead(consensusName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
 					List<ReadAlignment> alns = aligner.alignRead(read, true);
-					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
+					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
 						unmappedRead++;
 						continue;
 					}
 					ReadAlignment first = alns.get(0);
-					debug.println("First algn single: " + first.getReadCharacters() + "\t" + first.getFlags() + "\t" + first.getFirst() + "\t" + first.getCigarString());
+					if(consensusName.equals(debugConsensusName)) System.err.println("First algn single: " + first.getReadCharacters() + "\t" + first.getFlags() + "\t" + first.getFirst() + "\t" + first.getCigarString());
 					alignmentsHash.put(consensusName,first);
 				} else {
 					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
@@ -398,7 +419,7 @@ public class VCFRelativeCoordinatesTranslator {
 					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
 					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
 					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
-					if((i+1)%10000==0) System.out.println("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
+					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
@@ -418,8 +439,8 @@ public class VCFRelativeCoordinatesTranslator {
 					ReadAlignmentPair first = pairs.get(0);
 					ReadAlignment aln1 = first.getAln1();
 					ReadAlignment aln2 = first.getAln2();
-					debug.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
-					debug.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
+					if(consensusName.equals(debugConsensusName)) System.err.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
+					if(consensusName.equals(debugConsensusName)) System.err.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
 					if(aln1.isPartialAlignment(10) || aln2.isPartialAlignment(10)) {
 						partial++;
 						unmappedReadPaired++;
@@ -468,7 +489,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setCigarString(cigar);
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						
-						debug.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
+						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(consensusName,combined);
 					} else if (aln2.getFirst() < aln1.getLast()) {
@@ -514,7 +535,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setReadCharacters(DNAMaskedSequence.getReverseComplement(consensus.getCharacters()));
 						combined.setCigarString(cigar);
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
-						debug.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
+						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
 						alignmentsHash.put(consensusName,combined);
 					} else {
@@ -522,13 +543,20 @@ public class VCFRelativeCoordinatesTranslator {
 						unmappedReadPaired++;
 						unmappedRead++;
 					}
-					debug.println();
-					debug.println();
+					if(consensusName.equals(debugConsensusName)) System.err.println();
 				}
 			}
 		}
 	}
 	
+	private void saveAlignments() throws IOException {	
+		try (PrintStream outAlns = new PrintStream(outPrefix+"_alns.bam");
+			 ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(refGenome.getSequencesMetadata(), outAlns)) {
+			for(ReadAlignment aln:alignmentsHash.values()) {
+				writer.write(aln);
+			}
+		}
+	}
 	
 	/**
 	 * This method builds a hash with the provided alignments to be consulted at translation time
