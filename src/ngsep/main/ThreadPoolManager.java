@@ -35,6 +35,7 @@ public class ThreadPoolManager {
 	private int secondsPerTask=1;
 	private final int numThreads;
 	private ThreadPoolExecutor pool;
+	private boolean cancelled = false;
 	
 	public ThreadPoolManager(int numberOfThreads, int maxTaskCount) {
 		this.pool = new ThreadPoolExecutor(numberOfThreads, numberOfThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
@@ -42,6 +43,15 @@ public class ThreadPoolManager {
 		this.numThreads = numberOfThreads;
 	}
 	
+	public boolean isCancelled() {
+		return cancelled;
+	}
+	public void setCancelled(boolean cancelled) {
+		this.cancelled = cancelled;
+	}
+
+
+
 	/**
 	 * Adds task to the threadPoolExecutor for this instance. If the task queue limit is exceeded,
 	 * the pool will be relaunched afterwards, after waiting for all queued tasks to finish.
@@ -49,6 +59,7 @@ public class ThreadPoolManager {
 	 * @throws InterruptedException if the relauch process is interrupted
 	 */
 	public void queueTask(Runnable task) throws InterruptedException {
+		if(cancelled) throw new InterruptedException("Process cancelled by user");
 		int taskCount = pool.getQueue().size();
 		if(taskCount == maxTaskCount) {
 			relaunchPool();

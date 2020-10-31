@@ -36,10 +36,6 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	private boolean runFullAlignment = true;
 	private boolean onlyPositiveStrand = false;
 	
-	private PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(1000);
-	private PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(500);
-	private PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(500);
-	
 	// Statistics
 	private int fewMismatchesAlns = 0;
 	private int completeAlns = 0;
@@ -48,10 +44,6 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		this.fMIndex = fMIndex;
 		this.kmerLength = kmerLength;
 		this.maxAlnsPerRead = maxAlnsPerRead;
-		alignerSTRsLeft.setForceEnd1(false);
-		alignerSTRsRight.setForceStart1(false);
-		alignerFullRead.setForceStart2(false);
-		alignerFullRead.setForceEnd2(false);
 	}
 	public ReferenceGenomeFMIndex getFMIndex() {
 		return fMIndex;
@@ -260,10 +252,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
 		completeAlns++;
-		String [] rawAln;
-		synchronized (alignerFullRead) {
-			rawAln = alignerFullRead.getAlignment(query, refSeq.toString());
-		}
+		PairwiseAlignmentAffineGap alignerFullRead = createAlignerFullRead(Math.max(query.length(), refSeq.length()));
+		String [] rawAln = alignerFullRead.getAlignment(query, refSeq.toString());
 		int mismatches = countMismatches(rawAln);
 		if(mismatches>0.1*query.length()) return null;
 		LinkedList<Integer> alnCodes = ReadAlignment.encodePairwiseAlignment(rawAln);
@@ -275,6 +265,12 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		aln.setNumMismatches((short)mismatches);
 		
 		return aln;
+	}
+	private PairwiseAlignmentAffineGap createAlignerFullRead(int capacity) {
+		PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(capacity);
+		alignerFullRead.setForceStart2(false);
+		alignerFullRead.setForceEnd2(false);
+		return alignerFullRead;
 	}
 	private List<Integer> encodeAlignment(int length, int[] mismatches) {
 		List<Integer> answer = new LinkedList<Integer>();
@@ -383,6 +379,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		LinkedList<Integer> encodedRightAln = null;
 		int leftMismatches = 0;
 		int rightMismatches = 0;
+		
 		if(first<region.getFirst()-5) {
 			CharSequence refSeq = fMIndex.getSequence(sequenceName, firstLeftPart, region.getFirst()-1).toString();
 			if(refSeq!=null) {
@@ -390,10 +387,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				String readSegment = read.substring(0,endReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				String [] alignmentLeft;
-				synchronized (alignerSTRsLeft) {
-					alignmentLeft = alignerSTRsLeft.getAlignment(readSegment, refSeq.toString());
-				}
+				PairwiseAlignmentAffineGap alignerSTRsLeft = createAlignerLeftTR(Math.max(readSegment.length(), refSeq.length()));
+				String [] alignmentLeft = alignerSTRsLeft.getAlignment(readSegment, refSeq.toString());
 				leftMismatches = countMismatches(alignmentLeft);
 				encodedLeftAln = ReadAlignment.encodePairwiseAlignment(alignmentLeft);
 				int lastCode = encodedLeftAln.getLast();
@@ -413,10 +408,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				String readSegment = read.substring(startReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				String [] alignmentRight;
-				synchronized (alignerSTRsRight) {
-					alignmentRight = alignerSTRsRight.getAlignment(readSegment, refSeq.toString());
-				}
+				PairwiseAlignmentAffineGap alignerSTRsRight = createAlignerRightTR(Math.max(readSegment.length(), refSeq.length()));
+				String [] alignmentRight = alignerSTRsRight.getAlignment(readSegment, refSeq.toString());
 				rightMismatches = countMismatches(alignmentRight);
 				encodedRightAln = ReadAlignment.encodePairwiseAlignment(alignmentRight);
 				int firstCode = encodedRightAln.getFirst();
@@ -486,6 +479,17 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		aln.setAlignmentQuality((byte)(100-5*mismatches));
 		aln.setNumMismatches(mismatches);
 		return aln;
+	}
+	public PairwiseAlignmentAffineGap createAlignerLeftTR (int capacity) {
+		PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(capacity);
+		alignerSTRsLeft.setForceEnd1(false);
+		return alignerSTRsLeft;
+	}
+	
+	public PairwiseAlignmentAffineGap createAlignerRightTR (int capacity) {
+		PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(capacity);
+		alignerSTRsRight.setForceStart1(false);
+		return alignerSTRsRight;
 	}
 	
 	public List<ReadAlignment> fewMismatchesSingleStrandSearch(String query, int maxMismatches) {

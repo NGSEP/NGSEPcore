@@ -287,20 +287,20 @@ public class ReadsAligner {
 				fMIndex = new ReferenceGenomeFMIndex(genome, log);
 			}
 			shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
+			if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) shortReadsAligner.loadSTRsFile(knownSTRsFile);
 		}
 		
 		boolean longReads = platform.isLongReads();
+		pool = new ThreadPoolManager(numThreads, longReads?100:10000);
 		boolean paired = false;
 		PrintStream out = System.out;
 		if(outputFile!=null) out = new PrintStream(outputFile); 
 		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			// TODO: Enable threads for long reads
-			if(numThreads>1 && !longReads) pool = new ThreadPoolManager(numThreads, platform.isLongReads()?1000:100000);
 			writer.setSampleInfo(sampleId, platform);
 			if(!longReads && inputFile!=null && inputFile2!=null) {
 				log.info("Aligning paired end reads from files: "+inputFile + " and "+inputFile2);
-				alignReads(inputFile,inputFile2, writer);
 				paired = true;
+				alignReads(inputFile,inputFile2, writer);
 			} else if (inputFile!=null) {
 				if(longReads && inputFile2!=null) log.warning("Paired end alignment not supported for long reads. Ignoring file "+ inputFile2);
 				log.info("Aligning single reads from file: "+inputFile);
@@ -311,10 +311,7 @@ public class ReadsAligner {
 				log.info("Aligning single reads from standard input");
 				alignReads(System.in, writer);
 			}
-			if(pool!=null) {
-				pool.terminatePool();
-			}
-			
+			pool.terminatePool();
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
@@ -358,112 +355,55 @@ public class ReadsAligner {
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
-		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) shortReadsAligner.loadSTRsFile(knownSTRsFile);
+		
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
-				while(it.hasNext()) {
+				for(int i=1;it.hasNext();i++) {
 					RawRead read = it.next();
-					if (pool == null) processSingleRead(read, writer);
-					else pool.queueTask( () -> processSingleRead(read, writer));
-					if (!checkProgress()) break;
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
 		} else if(inputFormat== INPUT_FORMAT_FASTA) {
 			try (FastaFileReader reader = new FastaFileReader(readsFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<QualifiedSequence> it = reader.iterator();
-				while(it.hasNext()) {
+				for(int i=1;it.hasNext();i++) {
 					QualifiedSequence seq = it.next();
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
-					if (pool == null) processSingleRead(read, writer);
-					else pool.queueTask( () -> processSingleRead(read, writer));
-					if (!checkProgress()) break;
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
 		}
-	}
-	private void printStatistics(boolean paired) {
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
-		PrintStream out = new PrintStream(os);
-		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
-		if(shortReadsAligner!=null) {
-			out.println("Reads with less than 2 mismatches: "+shortReadsAligner.getFewMismatchesAlns());
-			out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
-		}
-		
-		out.println("Total reads: "+totalReads);
-		out.println("Reads aligned: "+readsAligned);
-		if(paired) {
-			out.println("    Reads aligned as proper pairs: "+numProperPairs+ " Percentage: "+fmt.format(100.0*numProperPairs/(double)totalReads)+"%");
-			out.println("    Reads aligned as non proper pairs: "+numNonProperPairs+ " Percentage: "+fmt.format(100.0*numNonProperPairs/(double)totalReads)+"%");
-			out.println("    Reads aligned single: "+numAlignedSingle+ " Percentage: "+fmt.format(100.0*numAlignedSingle/(double)totalReads)+"%");
-		}
-		out.println("Unique alignments: "+uniqueAlignments+ " Percentage: "+fmt.format(100.0*uniqueAlignments/(double)totalReads)+"%");
-		out.println("Overall alignment rate: "+fmt.format(100.0*readsAligned/(double)totalReads)+"%");
-		log.info(os.toString());
 	}
 	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(in)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
-				while(it.hasNext()) {
+				for(int i=1;it.hasNext();i++) {
 					RawRead read = it.next();
-					if (pool == null) processSingleRead(read, writer);
-					else pool.queueTask( () -> processSingleRead(read, writer));
-					if (!checkProgress()) break;
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
 		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
 			try (FastaFileReader reader = new FastaFileReader(in)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<QualifiedSequence> it = reader.iterator();
-				while(it.hasNext()) {
+				for(int i=1;it.hasNext();i++) {
 					QualifiedSequence seq = it.next();
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
-					if (pool == null) processSingleRead(read, writer);
-					else pool.queueTask( () -> processSingleRead(read, writer));
-					if (!checkProgress()) break;
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
 		}
 	}
-	private void processSingleRead(RawRead read, ReadAlignmentFileWriter writer) {
-		List<ReadAlignment> alns = alignRead(read, true);
-		//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
-		if(alns.size()>1) {
-			for(ReadAlignment aln:alns) aln.setAlignmentQuality((byte) Math.round(0.2*aln.getAlignmentQuality()/(double)alns.size()));
-		}
-		synchronized (writer) {
-			for(ReadAlignment aln:alns) writer.write(aln);
-			if(alns.size()==0) {
-				ReadAlignment alnNoMap = createUnmappedAlignment(read, false, false);
-				writer.write(alnNoMap);
-			}
-			totalReads++;
-			int numAlns = alns.size();
-			if(numAlns>0) readsAligned++;
-			if(numAlns==1) uniqueAlignments++;
-		}
-	}
 	
-	private int lastProgress = 0;
-	private boolean checkProgress () {
-		int totalReadsFixed = totalReads;
-		int progress = totalReadsFixed/100;
-		if (!platform.isLongReads()) progress = progress/100;
-		if(lastProgress==progress) return true;
-		
-		log.info("Processed "+totalReadsFixed+" reads. Aligned: "+readsAligned);
-		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
-			log.info("Process cancelled by user");
-			return false;
-		}
-		lastProgress = progress;
-		return true;
-	}
 
 	/**
 	 * Aligns readsFile with the fMIndexFile for pairend
@@ -475,24 +415,40 @@ public class ReadsAligner {
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
-		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())shortReadsAligner.loadSTRsFile(knownSTRsFile);
 		try (FastqFileReader reader1 = new FastqFileReader(readsFile1);
 			 FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
 			reader1.setSequenceType(DNAMaskedSequence.class);
 			reader2.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it1 = reader1.iterator();
 			Iterator<RawRead> it2 = reader2.iterator();
-			while(it1.hasNext() && it2.hasNext()) {
+			for(int i=1;it1.hasNext() && it2.hasNext();i++) {
 				RawRead read1 = it1.next();
 				RawRead read2 = it2.next();
-				if (pool==null) processPairedEndRead(read1, read2, writer);
-				else pool.queueTask(()->processPairedEndRead(read1, read2, writer));
-				if(!checkProgress()) break;
+				final int readNumber = i;
+				pool.queueTask(()->processPairedEndRead(readNumber, read1, read2, writer));
 			}
 		}
 	}
 	
-	private void processPairedEndRead (RawRead read1, RawRead read2, ReadAlignmentFileWriter writer) {
+	private void processSingleRead(int readNumber, RawRead read, ReadAlignmentFileWriter writer) {
+		List<ReadAlignment> alns = alignRead(read, true);
+		//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
+		int numAlns = alns.size();
+		if(alns.size()>1) {
+			for(ReadAlignment aln:alns) aln.setAlignmentQuality((byte) Math.round(0.2*aln.getAlignmentQuality()/(double)alns.size()));
+		} else if (alns.size()==0) {
+			alns.add(createUnmappedAlignment(read, false, false));
+		}
+		synchronized (writer) {
+			for(ReadAlignment aln:alns) writer.write(aln);
+			totalReads++;
+			if(numAlns>0) readsAligned++;
+			if(numAlns==1) uniqueAlignments++;
+		}
+		checkProgress(readNumber);
+	}
+	
+	private void processPairedEndRead (int readNumber, RawRead read1, RawRead read2, ReadAlignmentFileWriter writer) {
 		List<ReadAlignment> alns1 = alignRead(read1,false);
 		for(ReadAlignment aln:alns1) aln.setFirstOfPair(true);
 		List<ReadAlignment> alns2 = alignRead(read2,false);
@@ -574,6 +530,23 @@ public class ReadsAligner {
 			else if (asPair) numNonProperPairs+=2;
 			else numAlignedSingle+=numMapped;
 			uniqueAlignments+=numUnique;
+		}
+		checkProgress(readNumber);
+	}
+	
+	private void checkProgress (int readNumber) {
+		if(readNumber%100>0) return;
+		if(!platform.isLongReads() && readNumber%10000>0) return;
+		
+		int progress = readNumber/10000;
+		if(platform.isLongReads() ) {
+			progress = readNumber/100;
+		}
+		
+		log.info("Processed "+readNumber+" reads. Aligned: "+readsAligned);
+		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
+			log.info("Process cancelled by user");
+			pool.setCancelled(true);
 		}
 	}
 
@@ -761,7 +734,6 @@ public class ReadsAligner {
 				alignments = longReadsAligner.alignRead(read);
 			}
 		} else {
-			if(shortReadsAligner==null) shortReadsAligner=new FMIndexReadAlignmentAlgorithm(fMIndex, kmerLength, maxAlnsPerRead);
 			alignments = shortReadsAligner.alignRead(read);
 		}
 		return filterAlignments(alignments, assignSecondaryStatus);
@@ -811,6 +783,27 @@ public class ReadsAligner {
 		}
 		//System.out.println("Initial alignments: "+alignments.size()+" final: "+filteredAlignments.size());
 		return filteredAlignments;
+	}
+	
+	private void printStatistics(boolean paired) {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
+		if(shortReadsAligner!=null) {
+			out.println("Reads with less than 2 mismatches: "+shortReadsAligner.getFewMismatchesAlns());
+			out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
+		}
+		
+		out.println("Total reads: "+totalReads);
+		out.println("Reads aligned: "+readsAligned);
+		if(paired) {
+			out.println("    Reads aligned as proper pairs: "+numProperPairs+ " Percentage: "+fmt.format(100.0*numProperPairs/(double)totalReads)+"%");
+			out.println("    Reads aligned as non proper pairs: "+numNonProperPairs+ " Percentage: "+fmt.format(100.0*numNonProperPairs/(double)totalReads)+"%");
+			out.println("    Reads aligned single: "+numAlignedSingle+ " Percentage: "+fmt.format(100.0*numAlignedSingle/(double)totalReads)+"%");
+		}
+		out.println("Unique alignments: "+uniqueAlignments+ " Percentage: "+fmt.format(100.0*uniqueAlignments/(double)totalReads)+"%");
+		out.println("Overall alignment rate: "+fmt.format(100.0*readsAligned/(double)totalReads)+"%");
+		log.info(os.toString());
 	}
 	
 }
