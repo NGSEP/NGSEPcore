@@ -473,9 +473,7 @@ public class KmerHitsCluster {
 		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*queryLength) answer.add(cluster2);
 		return answer;
 	}
-	public void completeMissingHits(String subjectSequence, Map<Integer, Long> queryCodes) {
-		//Map<Long,Integer> subjectUniqueCodes = KmersExtractor.extractLocallyUniqueKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
-		Map<Integer,Long> subjectCodes = KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, subjectEvidenceStart, subjectEvidenceEnd);
+	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes) {
 		
 		Map<Long,List<Integer>> subjectCodesPos = new HashMap<Long, List<Integer>>();
 		for(int i:subjectCodes.keySet()) {
@@ -495,24 +493,42 @@ public class KmerHitsCluster {
 			int diffS = subjectStart - lastSubjectStart;
 			int diffC = Math.abs(diffQ-diffS);
 			if(lastHit!=null && diffC<10 && diffQ<100 && diffS>0) {
+				int j=lastSubjectStart+1;
 				for(int i=lastQueryStart+1;i<queryStart;i++) {
 					Long code = queryCodes.get(i);
 					if(code == null) continue;
 					List<Integer> posList = subjectCodesPos.get(code);
 					if(posList==null) continue;
 					Integer selectedPos = null;
-					for(int subjectPos:posList) {
-						if(lastSubjectStart<subjectPos && subjectPos<subjectStart) {
-							selectedPos = subjectPos;
+					if(posList.size()<10) {
+						for(int k:posList) {
+							if(k>=j && k<j+10) {
+								selectedPos = k;
+								break;
+							}
+						}
+					} else {
+						for(int k=j;k<j+10;k++) {
+							Long codeS = subjectCodes.get(k);
+							if(codeS!=null && codeS.longValue() == code.longValue()) {
+								selectedPos = k;
+								break;
+							}
 						}
 					}
-					if(selectedPos==null) continue;
+					if(selectedPos==null) {
+						j++;
+						continue;
+					} else {
+						j = selectedPos+1;
+					}
 					CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
 					UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
 					rescuedHit.setQueryIdx(i);
 					double weight = (lastHit.getWeight()+hit.getWeight())/2;
 					rescuedHit.setWeight(weight);
 					addHit(rescuedHit);
+				
 				}
 			}
 			lastQueryStart = queryStart;

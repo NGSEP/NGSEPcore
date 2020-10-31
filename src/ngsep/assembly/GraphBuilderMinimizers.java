@@ -67,6 +67,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences, final double [] compressionFactors) {
 		Runtime runtime = Runtime.getRuntime();
+		long startTime = System.currentTimeMillis();
 		log.info("Calculating kmers distribution");
 		KmersExtractor extractor = new KmersExtractor();
 		extractor.setLog(log);
@@ -97,7 +98,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			expectedAssemblyLength/= averageCompression;
 		}
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength+" Memory: "+usedMemory);
+		usedMemory/=1000000000;
+		long time1 = System.currentTimeMillis();
+		long diff1 = (time1-startTime)/1000;
+		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength+" Memory (Gbp): "+usedMemory+" Time(s): "+diff1);
 		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
@@ -116,14 +120,18 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		waitToFinish(finishTime, poolMinimizers);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		log.info("Built minimizers. Memory: "+usedMemory);
+		usedMemory/=1000000000;
+		long time2 = System.currentTimeMillis();
+		diff1 = (time2-time1)/1000;
+		long diff2 = (time2-startTime)/1000;
+		log.info("Built minimizers. Memory(Gbp): "+usedMemory+" Time minimizers (s): "+diff1+" total time (s): "+diff2);
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
-		
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
+		edgesFinder.setExpectedAssemblyLength(expectedAssemblyLength);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
@@ -137,7 +145,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		waitToFinish(finishTime, poolSearch);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
+		usedMemory/=1000000000;
+		long time3 = System.currentTimeMillis();
+		diff1 = (time3-time2)/1000;
+		diff2 = (time3-startTime)/1000;
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff1+" total time (s): "+diff2);
+		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}
 	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
@@ -150,14 +163,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 	
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor) {
-		Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
-		CharSequence complement = DNAMaskedSequence.getReverseComplement(seq);
-		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
-		finder.updateGraphWithKmerHitsMap(seqId, seq, hitsForward, complement, hitsReverse, compressionFactor, kmerLength);
+		Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
+		Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
+		String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
+		Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
+		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
+		finder.updateGraphWithKmerHitsMap(seqId, seq.length(), codesForward, codesReverse, hitsForward, hitsReverse, compressionFactor, kmerLength);
 		AssemblyGraph graph = finder.getGraph();
-		/*synchronized (graph) {
-			graph.filterEmbedded(seqId, 0.5, 10);
-		}*/
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
 	}

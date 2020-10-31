@@ -306,10 +306,18 @@ public class MinimizersTable {
 	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, CharSequence query) {
-		int idxDebug = -1;
-		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(query.toString(), kmerLength, 1, 0, query.length(), false, true, true);
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, query.length(), codes);
+		return match(queryIdx, query.length(), codes);
+	}
+	/**
+	 * Calculates the hits of the given query
+	 * @param query sequence
+	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
+	 */
+	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
+		int idxDebug = -1;
+		
+		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
 		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" minimizers: "+minimizersQueryList.size());
 		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
