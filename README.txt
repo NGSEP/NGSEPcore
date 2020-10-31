@@ -1787,6 +1787,44 @@ OPTIONS:
 	-d DOUBLE	: Indel error rate. Default: 0.01
 	-f INT		: Output format. 0 for fastq, 1 for fasta Default: 0
 
+------------------------------
+Simulating TILLING experiments
+------------------------------
+
+Simulates a mutagenized population from selected regions on the given reference
+genome. Distributes samples in pools and simulates reads from amplicons
+assigned to each pool.
+
+USAGE:
+
+java -jar NGSEPcore.jar TillingPopulationSimulator <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: File with the description of the regions that will be
+			  used as amplicons for the simulation.
+	-g GENOME	: Fasta file with the genome to simulate reads.
+	-o FILE		: Prefix of the output files
+	-n INT		: Number of fragments to sequence for each pool.
+			  Default: 50000
+	-m INT		: Number of mutations to generate. Default: 300
+	-u INT		: Read length. Default: 200
+	-e1 DOUBLE	: Minimum substitution error rate (at the 5' end).
+			  Default: 0.001
+	-e2 DOUBLE	: Maximum substitution error rate (at the 3' end).
+			  Default: 0.01
+	-d1 INT		: First dimension of the pool design. Default: 6
+	-d2 INT		: Second dimension of the pool design. Default: 8
+	-d3 INT		: Third dimension of the pool design. Default: 6
+
+The following files are generated with the given prefix:
+
+- A VCF file with the simulated mutations for each individual.
+- A text file separated by semicolon with the pools assignment to each individual.
+  This file can be loaded in the TilligPoolsIndividualGenotyper.
+- Two fastq files for each pool with the simulated reads.
+
+
 --------------------------
 Benchmarking variant calls
 --------------------------

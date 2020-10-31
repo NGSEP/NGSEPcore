@@ -19,7 +19,6 @@
  *******************************************************************************/
 package ngsep.simulation;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -63,166 +62,187 @@ public class TillingPopulationSimulator {
 	private Logger log = Logger.getLogger(TillingPopulationSimulator.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	public static final int DEF_MUTATIONS=300;
-	public static final int DEF_INDIVIDUALS=800;
-	public static final int DEF_NUM_FRAGMENTS_POOL=47802;
+	public static final int DEF_NUM_MUTATIONS=300;
+	public static final int DEF_INDIVIDUALS=288;
+	public static final int DEF_NUM_FRAGMENTS_POOL=50000;
 	public static final int DEF_READ_LENGTH=200;
-	public static final double DEF_ERROR_RATE=0.01;
 	public static final double DEF_MIN_ERROR_RATE=0.001;
-	public static final int PLAQUE_WIDTH=8;
-	public static final int PLAQUE_HEIGHT=8;
+	public static final double DEF_MAX_ERROR_RATE=0.01;
+	public static final int DEF_DESIGN_D1 = 6;
+	public static final int DEF_DESIGN_D2 = 8;
+	public static final int DEF_DESIGN_D3 = 6;
 	
+	private String sequencedRegionsFile;
 	private ReferenceGenome genome;
+	private String outputPrefix;
 	private int numIndividuals = DEF_INDIVIDUALS;
-	private int numFragments = DEF_NUM_FRAGMENTS_POOL;
+	private int numMutations = DEF_NUM_MUTATIONS;
+	private int numFragmentsPool = DEF_NUM_FRAGMENTS_POOL;
 	private int readLength = DEF_READ_LENGTH;
-	private double errorRate = DEF_ERROR_RATE;
-	private List<GenomicRegion> sequencedRegions;
+	private double minErrorRate = DEF_MIN_ERROR_RATE;
+	private double maxErrorRate = DEF_MAX_ERROR_RATE;
+	private int poolDesignD1 = DEF_DESIGN_D1;
+	private int poolDesignD2 = DEF_DESIGN_D2;
+	private int poolDesignD3 = DEF_DESIGN_D3;
 	
+	private List<GenomicRegion> sequencedRegions;
 	//Variants indexed by individual
 	private List<SimulatedDiploidIndividual> individuals;
 	private List<List<SimulatedDiploidIndividual>> pools;
 	
 	
 	public static void main(String[] args) throws Exception {
+		
+		
+		TillingPopulationSimulator instance = new TillingPopulationSimulator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) {
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getSequencedRegionsFile() {
+		return sequencedRegionsFile;
+	}
+	public void setSequencedRegionsFile(String sequencedRegionsFile) {
+		this.sequencedRegionsFile = sequencedRegionsFile;
+	}
+
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+
+	public int getNumIndividuals() {
+		return numIndividuals;
+	}
+	public void setNumIndividuals(int numIndividuals) {
+		this.numIndividuals = numIndividuals;
+	}
+	public void setNumIndividuals(String value) {
+		this.setNumIndividuals((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public int getNumMutations() {
+		return numMutations;
+	}
+	public void setNumMutations(int numMutations) {
+		this.numMutations = numMutations;
+	}
+	public void setNumMutations(String value) {
+		this.setNumMutations((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public int getNumFragmentsPool() {
+		return numFragmentsPool;
+	}
+	public void setNumFragmentsPool(int numFragmentsPool) {
+		this.numFragmentsPool = numFragmentsPool;
+	}
+	public void setNumFragmentsPool(String value) {
+		this.setNumFragmentsPool((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public int getReadLength() {
+		return readLength;
+	}
+	public void setReadLength(int readLength) {
+		this.readLength = readLength;
+	}
+	public void setReadLength(String value) {
+		this.setReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public double getMinErrorRate() {
+		return minErrorRate;
+	}
+	public void setMinErrorRate(double minErrorRate) {
+		this.minErrorRate = minErrorRate;
+	}
+	public void setMinErrorRate(String value) {
+		this.setMinErrorRate((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+
+	public double getMaxErrorRate() {
+		return maxErrorRate;
+	}
+	public void setMaxErrorRate(double maxErrorRate) {
+		this.maxErrorRate = maxErrorRate;
+	}
+	public void setMaxErrorRate(String value) {
+		this.setMaxErrorRate((double)OptionValuesDecoder.decode(value, Double.class));
+	}
+	
+	public int getPoolDesignD1() {
+		return poolDesignD1;
+	}
+	public void setPoolDesignD1(int poolDesignD1) {
+		this.poolDesignD1 = poolDesignD1;
+	}
+	public void setPoolDesignD1(String value) {
+		this.setPoolDesignD1((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public int getPoolDesignD2() {
+		return poolDesignD2;
+	}
+	public void setPoolDesignD2(int poolDesignD2) {
+		this.poolDesignD2 = poolDesignD2;
+	}
+	public void setPoolDesignD2(String value) {
+		this.setPoolDesignD2((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public int getPoolDesignD3() {
+		return poolDesignD3;
+	}
+	public void setPoolDesignD3(int poolDesignD3) {
+		this.poolDesignD3 = poolDesignD3;
+	}
+	public void setPoolDesignD3(String value) {
+		this.setPoolDesignD3((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+
+	public void run() throws IOException {
 		long aTime = System.currentTimeMillis();
 		Runtime runtime = Runtime.getRuntime();
 		System.gc();
 		long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
 		System.out.println("Used Memory before " +memoryBefore);
-		
-		TillingPopulationSimulator instance = new TillingPopulationSimulator();
-		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-		String referenceFile = args[i++];
-		String sequencedRegionsFile = args[i++];
-		String outPrefix = args[i++];
-		instance.genome = new ReferenceGenome(referenceFile);
-		instance.runSimulation (sequencedRegionsFile, outPrefix);
-		
+		runSimulation(sequencedRegionsFile, outputPrefix);
 		System.gc();
 		long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
 		System.out.println("Memory increased: " + (memoryAfter-memoryBefore));
 		long bTime = System.currentTimeMillis() - aTime;
 		System.out.println("Total time was: "+bTime);
 	}
-	
-	/**
-	 * @return the log
-	 */
-	public Logger getLog() {
-		return log;
-	}
-
-	/**
-	 * @param log the log to set
-	 */
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-
-	/**
-	 * @return the progressNotifier
-	 */
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-
-	/**
-	 * @return the genome
-	 */
-	public ReferenceGenome getGenome() {
-		return genome;
-	}
-
-	/**
-	 * @param genome the genome to set
-	 */
-	public void setGenome(ReferenceGenome genome) {
-		this.genome = genome;
-	}
-
-	/**
-	 * @return the numIndividuals
-	 */
-	public int getNumIndividuals() {
-		return numIndividuals;
-	}
-	
-	/**
-	 * @param numIndividuals the numIndividuals to set
-	 */
-	public void setNumIndividuals(int numIndividuals) {
-		this.numIndividuals = numIndividuals;
-	}
-
-	public void setNumIndividuals(String value) {
-		this.setNumIndividuals((int) OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	/**
-	 * @return the numFragments
-	 */
-	public int getNumFragments() {
-		return numFragments;
-	}
-
-	/**
-	 * @param numFragments the numFragments to set
-	 */
-	public void setNumFragments(int numFragments) {
-		this.numFragments = numFragments;
-	}
-	
-	public void setNumFragments(String value) {
-		this.setNumFragments((int) OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	/**
-	 * @return the readLength
-	 */
-	public int getReadLength() {
-		return readLength;
-	}
-
-	/**
-	 * @param readLength the readLength to set
-	 */
-	public void setReadLength(int readLength) {
-		this.readLength = readLength;
-	}
-
-	public void setReadLength(String value) {
-		this.setReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
-	}
-
-	/**
-	 * @return the errorRate
-	 */
-	public double getErrorRate() {
-		return errorRate;
-	}
-
-	/**
-	 * @param errorRate the errorRate to set
-	 */
-	public void setErrorRate(double errorRate) {
-		this.errorRate = errorRate;
-	}
-	
-	public void setErrorRate(String value) {
-		this.setErrorRate((double)OptionValuesDecoder.decode(value, Double.class));
-	}
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {
-		
-		
 		loadSequencedRegions(sequencedRegionsFile);
 		System.out.println("Loaded regions");
 		simulatePopulation();
@@ -262,9 +282,9 @@ public class TillingPopulationSimulator {
 		for(int i=0;i<numIndividuals;i++) {
 			individuals.add(new SimulatedDiploidIndividual(i));
 		}
-		//TODO: Step 2: create random mutations within the given regions and assign each mutation to a random individual
+		//Step 2: create random mutations within the given regions and assign each mutation to a random individual
 		//Use the reference genome to derive reference alleles. Create objects of the class SNV as random mutations
-		for(int j=0; j < DEF_MUTATIONS; j++) {
+		for(int j=0; j < numMutations; j++) {
 			
 			SimulatedDiploidIndividual targetInd = individuals.get(random.nextInt(individuals.size()));
 			GenomicRegion targetGR = sequencedRegions.get(random.nextInt(sequencedRegions.size()));
@@ -293,7 +313,6 @@ public class TillingPopulationSimulator {
 	 * @return List<DNAMaskedSequence> Reference allele of each sequenced region
 	 */
 	private List<DNAMaskedSequence> getReferenceSequencesRegions() {
-		// TODO Auto-generated method stub
 		List<DNAMaskedSequence> targetSequences = new ArrayList<>();
 		for(int i=0;i<sequencedRegions.size();i++) {
 			DNAMaskedSequence queryRegion = new DNAMaskedSequence();
@@ -383,31 +402,30 @@ public class TillingPopulationSimulator {
 	/**
 	 * Simulate the pools to sequence the simulated individuals
 	 */
-	public void simulatePools(String pool_file) throws FileNotFoundException {
-		PrintStream out = new PrintStream(pool_file);
-		out.println("Individual;Row_Pool;Column_Pool;Plaque_Pool");
-		pools = new ArrayList<>();
-		int num_plates = 1+individuals.size()/(PLAQUE_WIDTH*PLAQUE_HEIGHT);
-		for(int i = 0; i< PLAQUE_WIDTH+PLAQUE_HEIGHT+num_plates;i++) {
-			List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
-			pools.add(thisPool);
+	public void simulatePools(String poolFile) throws IOException {
+		try (PrintStream out = new PrintStream(poolFile)) {
+			out.println("Individual;Row_Pool;Column_Pool;Plaque_Pool");
+			pools = new ArrayList<>();
+			int totalPools = poolDesignD1+poolDesignD2+poolDesignD3;
+			for(int i = 0; i< totalPools;i++) {
+				List<SimulatedDiploidIndividual> thisPool = new ArrayList<>();
+				pools.add(thisPool);
+			}
+			for(int i = 0; i < individuals.size();i++) {
+				int queryID = individuals.get(i).getId();
+				int pool1=(queryID%(poolDesignD2*poolDesignD3))/poolDesignD2;
+				int pool2=(queryID%poolDesignD2)+poolDesignD3;
+				int pool3=(queryID/(poolDesignD2*poolDesignD3))+poolDesignD2+poolDesignD3;
+				pools.get(pool1).add(individuals.get(i));
+				pools.get(pool2).add(individuals.get(i));
+				pools.get(pool3).add(individuals.get(i));
+				
+				out.println(String.valueOf(queryID)+";"+String.valueOf(pool1)+";"+String.valueOf(pool2)+";"+String.valueOf(pool3));
+				
+			}
 		}
-		for(int i = 0; i < individuals.size();i++) {
-			int queryID = individuals.get(i).getId();
-			int pool_1=(queryID%(PLAQUE_WIDTH*PLAQUE_HEIGHT))/PLAQUE_WIDTH;
-			int pool_2=(queryID%PLAQUE_WIDTH)+PLAQUE_HEIGHT;
-			int pool_3=(queryID/(PLAQUE_WIDTH*PLAQUE_HEIGHT))+PLAQUE_WIDTH+PLAQUE_HEIGHT;
-			pools.get(pool_1).add(individuals.get(i));
-			pools.get(pool_2).add(individuals.get(i));
-			pools.get(pool_3).add(individuals.get(i));
 			
-			out.println(String.valueOf(queryID)+";"+String.valueOf(pool_1)+";"+String.valueOf(pool_2)+";"+String.valueOf(pool_3));
-			
-		}	
 		pools.removeIf(p -> p.isEmpty());
-		
-		out.flush();
-		out.close();
 	}
 
 	/**
@@ -416,19 +434,20 @@ public class TillingPopulationSimulator {
 	 * @throws IOException 
 	 */
 	public ArrayList<ArrayList<Double>> generateErrorIntervals() throws IOException {
-		int min_quality = (int) Math.round(-10*Math.log10(DEF_ERROR_RATE));
-		int max_quality = (int) Math.round(-10*Math.log10(DEF_MIN_ERROR_RATE));
+		int min_quality = (int) Math.round(-10*Math.log10(minErrorRate));
+		int max_quality = (int) Math.round(-10*Math.log10(maxErrorRate));
 		double min_qual= min_quality;
 		double max_qual= max_quality;
-		double interval_length = (max_qual-min_qual)/DEF_READ_LENGTH;
+		double interval_length = (max_qual-min_qual)/readLength;
 		
 		ArrayList<Double> ceil_error=new ArrayList<Double>();
 		ArrayList<Double> floor_error=new ArrayList<Double>();
 		ArrayList<ArrayList<Double>> errors=new ArrayList<ArrayList<Double>>();
 			
-		for(int j=0; j < DEF_READ_LENGTH; j++) {	
-			ceil_error.add(Math.max(max_qual-(j+1)*interval_length, min_qual+0.0000000001));
-			floor_error.add(Math.max(max_qual-(j)*interval_length,min_qual));
+		for(int j=0; j < readLength; j++) {
+			floor_error.add(min_qual+(j)*interval_length);
+			ceil_error.add(min_qual+(j+1)*interval_length);
+			
 		}
 		
 		errors.add(floor_error);
@@ -469,77 +488,70 @@ public class TillingPopulationSimulator {
 	 * @param file1 Output file for first end of paired end reads
 	 * @param file2 Output file for second end of paired end reads
 	 */
-	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos, int pool_id) throws FileNotFoundException {
+	public void simulatePoolReads(List<SimulatedDiploidIndividual> pool, String file1, String file2, ArrayList<ArrayList<Double>> errors, HashMap<Character,ArrayList<Character>> mut_Pos, int pool_id) throws IOException {
 		
 		Random random = new Random();
 		/*String alphabet = DNASequence.BASES_STRING;*/
 		
 		
-		PrintStream out = new PrintStream(file1);
-		PrintStream out_rev = new PrintStream(file2);
-
-		//For each fragment select a random individual, then select an allele sequence at random and build the reads from the two ends of the sequence
-		for(int i=0; i<DEF_NUM_FRAGMENTS_POOL;i++) {
-			SimulatedDiploidIndividual queryInd = pool.get(random.nextInt(pool.size()));
-			
-			int randSeqNum = queryInd.getIntForRandomSequence();
-			DNAMaskedSequence querySeq = queryInd.getRandomSequence(randSeqNum);
-			
-			/**
-			 * Note that the reads begin at the first (forward read) and last (reverse read) position of the sequence.
-			 */
-			int initialPositionForward = 0;
-			
-			char[] readForward = querySeq.subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
-			char[] readReverse = querySeq.getReverseComplement().subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
-
-			String qualityForward="";
-			String qualityReverse="";
-			
-			for(int j=0; j < DEF_READ_LENGTH; j++) {	
-
-				int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
-				Double error_prob = Math.pow(10.0, phred_score/(-10.0));
+		try (PrintStream out = new PrintStream(file1);
+			 PrintStream out_rev = new PrintStream(file2)) {
+			//For each fragment select a random individual, then select an allele sequence at random and build the reads from the two ends of the sequence
+			for(int i=0; i<numFragmentsPool;i++) {
+				SimulatedDiploidIndividual queryInd = pool.get(random.nextInt(pool.size()));
 				
-				if(random.nextDouble()<error_prob) {
+				int randSeqNum = queryInd.getIntForRandomSequence();
+				DNAMaskedSequence querySeq = queryInd.getRandomSequence(randSeqNum);
+				
+				/**
+				 * Note that the reads begin at the first (forward read) and last (reverse read) position of the sequence.
+				 */
+				int initialPositionForward = 0;
+				
+				char[] readForward = querySeq.subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
+				char[] readReverse = querySeq.getReverseComplement().subSequence(initialPositionForward, initialPositionForward+DEF_READ_LENGTH).toString().toCharArray();
+
+				String qualityForward="";
+				String qualityReverse="";
+				
+				for(int j=0; j < readLength; j++) {	
+
+					int phred_score=(int) Math.round(ThreadLocalRandom.current().nextDouble(errors.get(1).get(j),errors.get(0).get(j)));
+					Double error_prob = Math.pow(10.0, phred_score/(-10.0));
 					
-					Character mutated = mut_Pos.get(readForward[j]).get(random.nextInt(3));
-					readForward[j]=mutated;
-					/**
-					String mutated = alphabet.replaceAll(Character.toString(readForward[j]), "");
-					readForward[j]=mutated.charAt(random.nextInt(3));**/
+					if(random.nextDouble()<error_prob) {
+						
+						Character mutated = mut_Pos.get(readForward[j]).get(random.nextInt(3));
+						readForward[j]=mutated;
+						/**
+						String mutated = alphabet.replaceAll(Character.toString(readForward[j]), "");
+						readForward[j]=mutated.charAt(random.nextInt(3));**/
+					}
+					int tt_score=phred_score+33;
+					char symbol=(char) tt_score;
+					qualityForward+=Character.toString(symbol);
+					
+					if(random.nextDouble()<error_prob) {
+						Character mutated = mut_Pos.get(readReverse[j]).get(random.nextInt(3));
+						readReverse[j]=mutated;
+						/**
+						String mutated = alphabet.replaceAll(Character.toString(readReverse[k]), "");
+						readReverse[k]=mutated.charAt(random.nextInt(3));**/
+					}
+					qualityReverse+=Character.toString(symbol);
 				}
-				int tt_score=phred_score+33;
-				char symbol=(char) tt_score;
-				qualityForward+=Character.toString(symbol);
+				out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
+				out.println(readForward);
+				out.println("+");
+				out.println(qualityForward);
 				
-				if(random.nextDouble()<error_prob) {
-					Character mutated = mut_Pos.get(readReverse[j]).get(random.nextInt(3));
-					readReverse[j]=mutated;
-					/**
-					String mutated = alphabet.replaceAll(Character.toString(readReverse[k]), "");
-					readReverse[k]=mutated.charAt(random.nextInt(3));**/
-				}
-				qualityReverse+=Character.toString(symbol);
+				out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
+				out_rev.println(readReverse);
+				out_rev.println("+");
+				out_rev.println(qualityReverse);
 			}
-			out.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
-			out.println(readForward);
-			out.println("+");
-			out.println(qualityForward);
-			
-			out_rev.println(String.valueOf("@Ind"+queryInd.getId())+"_"+randSeqNum+"_"+pool_id+"_"+i);
-			out_rev.println(readReverse);
-			out_rev.println("+");
-			out_rev.println(qualityReverse);
 		}
-		
-		out.flush();
-		out.close();
-		
-		out_rev.flush();
-		out_rev.close();
-	}
-			
+	}		
 }
 
 class SimulatedDiploidIndividual {

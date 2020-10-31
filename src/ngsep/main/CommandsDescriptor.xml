@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.1.0" date="10-10-2020" jar="NGSEPcore">
+<software name="NGSEP" version="4.1.0" date="31-10-2020" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -1601,6 +1601,51 @@ Indel error rate.
 </option>
 <option id="f" type="INT" attribute="outFormat" defaultConstant="OUT_FORMAT_FASTQ">
 Output format. 0 for fastq, 1 for fasta.
+</option>
+</command>
+
+<command id="TillingPopulationSimulator" class="ngsep.simulation.TillingPopulationSimulator" groupId="Benchmark">
+<intro>
+Simulates a TILLING experiment
+</intro>
+<title>Simulating TILLING experiments</title>
+<description>
+Simulates a mutagenized population from selected regions on the given reference genome.
+Distributes samples in pools and simulates reads from amplicons assigned to each pool.
+See the README.txt file for further details of the output files.
+</description>
+<option id="i" type="FILE" attribute="sequencedRegionsFile">
+File with the description of the regions that will be used as amplicons for the simulation. 
+</option>
+<option id="g" type="GENOME" attribute="genome">
+Fasta file with the genome to simulate reads.
+</option>
+<option id="o" type="FILE" attribute="outputPrefix">
+Prefix of the output files
+</option>
+<option id="n" type="INT" attribute="numFragmentsPool" defaultConstant="DEF_NUM_FRAGMENTS_POOL">
+Number of fragments to sequence for each pool.
+</option>
+<option id="m" type="INT" attribute="numMutations" defaultConstant="DEF_NUM_MUTATIONS">
+Number of mutations to generate.
+</option>
+<option id="u" type="INT" attribute="readLength" defaultConstant="DEF_READ_LENGTH">
+Read length.
+</option>
+<option id="e1" type="DOUBLE" attribute="minErrorRate" defaultConstant="DEF_MIN_ERROR_RATE">
+Minimum substitution error rate (at the 5' end).
+</option>
+<option id="e2" type="DOUBLE" attribute="maxErrorRate" defaultConstant="DEF_MAX_ERROR_RATE">
+Maximum substitution error rate (at the 3' end).
+</option>
+<option id="d1" type="INT" attribute="poolDesignD1" defaultConstant="DEF_DESIGN_D1">
+First dimension of the pool design.
+</option>
+<option id="d2" type="INT" attribute="poolDesignD2" defaultConstant="DEF_DESIGN_D2">
+Second dimension of the pool design.
+</option>
+<option id="d3" type="INT" attribute="poolDesignD3" defaultConstant="DEF_DESIGN_D3">
+Third dimension of the pool design.
 </option>
 </command>
 
