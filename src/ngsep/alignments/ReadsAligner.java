@@ -286,8 +286,7 @@ public class ReadsAligner {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
 				fMIndex = new ReferenceGenomeFMIndex(genome, log);
 			}
-			shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
-			if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) shortReadsAligner.loadSTRsFile(knownSTRsFile);
+			createFMIndexReadsAligner();
 		}
 		
 		boolean longReads = platform.isLongReads();
@@ -320,6 +319,16 @@ public class ReadsAligner {
 		log.info("Time: "+seconds+" seconds");
 		printStatistics(paired);
 		
+	}
+	private void createFMIndexReadsAligner() {
+		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
+		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())
+			try {
+				shortReadsAligner.loadSTRsFile(knownSTRsFile);
+			} catch (IOException e) {
+				log.info("Could not load file with known STRs. Error message: "+e.getMessage());
+				e.printStackTrace();
+			}
 	}
 	
 	private void logParameters() {
@@ -734,6 +743,7 @@ public class ReadsAligner {
 				alignments = longReadsAligner.alignRead(read);
 			}
 		} else {
+			if(shortReadsAligner==null) createFMIndexReadsAligner();
 			alignments = shortReadsAligner.alignRead(read);
 		}
 		return filterAlignments(alignments, assignSecondaryStatus);

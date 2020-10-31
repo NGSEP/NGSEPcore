@@ -1,5 +1,6 @@
 package ngsep.gbs;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -19,6 +20,9 @@ import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
@@ -38,14 +42,20 @@ import ngsep.vcf.VCFRecord;
 
 public class VCFRelativeCoordinatesTranslator {
 
+	// Logging and progress
 	private Logger log = Logger.getLogger(VCFRelativeCoordinatesTranslator.class.getName());
-	private String outPrefix="output";
+	private ProgressNotifier progressNotifier = null;
+	
+	// Parameters
+	private String inputFile;
+	private String outputPrefix;
+	private ReferenceGenome genome;
+	private String fmIndexFile;
 	private String filenameConsensusFA;
 	private String filenameAlignmentBAM;
-	private String filenameRelativeVCF;
-	private ReferenceGenome refGenome;
-	private ReferenceGenomeFMIndex refIndex = null;
-	private Map<String, ReadAlignment> alignmentsHash;
+	
+	
+	//Statistics
 	int numTranslatedRecords = 0;
 	int totalRecords = 0;
 	int skippedRecords = 0;
@@ -85,51 +95,118 @@ public class VCFRelativeCoordinatesTranslator {
 	int unmappedCluster = 0;
 
 	
-//	public static void main(String[] args) throws Exception {
-//		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
-//		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
-//		instance.filenameAlignmentBAM = args[i++];
-//		instance.filenameRelativeVCF = args[i++];
-//		String refGenomeFile = args[i++];
-//		instance.outFile = args[i++];
-//		instance.run(refGenomeFile);
-//	}
+	// Get and set methods
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		this.genome = OptionValuesDecoder.loadGenome(genomeFile, log);
+	}
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
+	}
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
+	}
+	
+	public String getFmIndexFile() {
+		return fmIndexFile;
+	}
+	public void setFmIndexFile(String fmIndexFile) {
+		this.fmIndexFile = fmIndexFile;
+	}
+	
+	public String getFilenameConsensusFA() {
+		return filenameConsensusFA;
+	}
+	public void setFilenameConsensusFA(String filenameConsensusFA) {
+		this.filenameConsensusFA = filenameConsensusFA;
+	}
+	
+	public String getFilenameAlignmentBAM() {
+		return filenameAlignmentBAM;
+	}
+	public void setFilenameAlignmentBAM(String filenameAlignmentBAM) {
+		this.filenameAlignmentBAM = filenameAlignmentBAM;
+	}
+	
 	public static void main(String[] args) throws Exception {
 		VCFRelativeCoordinatesTranslator instance = new VCFRelativeCoordinatesTranslator();
-		instance.filenameRelativeVCF = args[0];
-		instance.refGenome= new ReferenceGenome(args[1]);
-		instance.outPrefix = args[2];
-		if("fa".equals(args[3])) {
-			instance.filenameConsensusFA = args[4];
-			if(args.length>5) instance.refIndex = ReferenceGenomeFMIndex.load(instance.refGenome, args[5]);
-		} else {
-			instance.filenameAlignmentBAM = args[4];
-		}
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
 
-	public void run() throws Exception {
-		if (filenameConsensusFA!=null) {
-			alignConsensusSequences();
-			saveAlignments();
-		}
-		if (filenameAlignmentBAM!=null) getAlignmentsFromBAM();
-		System.out.println("Loaded a total of " + alignmentsHash.size() + " alignments.");
+	public void run() throws IOException {
+		if(inputFile==null) throw new IOException("The VCF file with the variants to translate is a required parameter");
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		if(outputPrefix==null) throw new IOException("The prefix of the output files is a required parameter");
 		
-		translate();
-//		explore();
+		logParameters();
+		Map<String, ReadAlignment> alignments;
+		if (filenameAlignmentBAM!=null) alignments = loadAlignmentsFromBAM(filenameAlignmentBAM);
+		else if (filenameConsensusFA!=null) {
+			log.info("Aligning input consensus sequences from "+filenameConsensusFA);
+			alignments = alignConsensusSequences(filenameConsensusFA);
+			saveAlignments(alignments,outputPrefix+"_alns.bam");
+		} else {
+			throw new IOException("Either a fasta file with the consensus sequences or a BAM fie with alignments is required");
+		}
+		log.info("Loaded a total of " + alignments.size() + " alignments.");
+		
+		translate(inputFile, alignments, outputPrefix+".vcf");
+		printStatistics(outputPrefix + ".info");
+		log.info("Process finished");
 	}
+	
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input VCF file:"+ inputFile);
+		out.println("Loaded reference genome from: "+genome.getFilename());
+		out.println("Output prefix:"+ outputPrefix);
+		if(filenameAlignmentBAM!=null) out.println("Aligned consensus sequenced will be loaded from:"+ filenameAlignmentBAM);
+		else if (filenameConsensusFA!=null)  out.println("Fasta fie with consensus sequences:"+ filenameConsensusFA);
+		if(fmIndexFile!=null) out.println("FM-index file:"+ fmIndexFile);
+		log.info(os.toString());
+	}
+	
+	
 
 	/**
 	 *  For each record on the RelativeVCF, this method translates and rewrites. 
 	 * @throws Exception
 	 */
-	private void translate() throws Exception {
+	public void translate(String inputFile, Map<String, ReadAlignment> alignments, String outputFile) throws IOException {
 		List<VCFRecord> translatedRecords = new ArrayList<>();
 		List<Sample> samples;
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		
-		try (VCFFileReader vcfOpenFile = new VCFFileReader(filenameRelativeVCF)) {
+		try (VCFFileReader vcfOpenFile = new VCFFileReader(inputFile)) {
 			samples = vcfOpenFile.getHeader().getSamples();
 			for(Sample s:samples) {
 				header.addSample(s,header.getSamplesWithHeaderLine().containsKey(s.getId()));
@@ -145,7 +222,7 @@ public class VCFRelativeCoordinatesTranslator {
 					
 				
 				String clusterID = record.getSequenceName();
-				ReadAlignment alignment =  alignmentsHash.get(clusterID);
+				ReadAlignment alignment =  alignments.get(clusterID);
 				if(alignment != null ) {
 					// If variant is SNP
 					if(record.getVariant().isSNV()) {
@@ -164,12 +241,16 @@ public class VCFRelativeCoordinatesTranslator {
 			}
 			
 		}
-		Collections.sort(translatedRecords,new GenomicRegionComparator(refGenome.getSequencesMetadata()));
+		Collections.sort(translatedRecords,new GenomicRegionComparator(genome.getSequencesMetadata()));
 		VCFFileWriter writer = new VCFFileWriter ();
-		try (PrintStream mappedVCF = new PrintStream(outPrefix+".vcf");
-				PrintStream info = new PrintStream(outPrefix + ".info")) {
+		try (PrintStream mappedVCF = new PrintStream(outputFile)) {
 			writer.printHeader(header, mappedVCF);
 			writer.printVCFRecords(translatedRecords, mappedVCF);
+		}
+	}
+	
+	public void printStatistics (String outputFile) throws IOException {
+		try (PrintStream info = new PrintStream(outputFile)) {
 			info.println("Total number of records in relative VCF: " + totalRecords);
 			info.println("Number of translated records: " + numTranslatedRecords);
 			info.println("Number of translater biallelic variants: " + biallelic);
@@ -257,7 +338,7 @@ public class VCFRelativeCoordinatesTranslator {
 			return null;
 		}
 		
-		CharSequence trueRefSeq = refGenome.getReference(seqName, truePos, truePos);
+		CharSequence trueRefSeq = genome.getReference(seqName, truePos, truePos);
 		if(trueRefSeq == null) {
 			notRefSeq++;
 			return null;
@@ -369,21 +450,22 @@ public class VCFRelativeCoordinatesTranslator {
 		return translatedRecord;
 	}
 	
-	private void alignConsensusSequences() throws IOException {
-		log.info("Aligning consensus sequences");
+	public Map<String, ReadAlignment> alignConsensusSequences(String consensusSequencesFile) throws IOException {
 		String debugConsensusName = null;
-		this.alignmentsHash = new HashMap<String, ReadAlignment>();
+		Map<String, ReadAlignment> alignments = new HashMap<String, ReadAlignment>();
 		
 		ReadsAligner aligner = new ReadsAligner();
-		aligner.setGenome(refGenome);
-		if(refIndex!=null) aligner.setFmIndex(refIndex);
-		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome, log));
+		aligner.setGenome(genome);
+		if(fmIndexFile!=null) {
+			aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
+		}
+		else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
 		
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
 		int numNCharsPairedEnd = pairedEndAnchor.length();	
 		
 		
-		try (FastaFileReader reader = new FastaFileReader(filenameConsensusFA)) {
+		try (FastaFileReader reader = new FastaFileReader(consensusSequencesFile)) {
 			reader.setLog(log);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for(int i=0;it.hasNext();i++) {
@@ -410,7 +492,7 @@ public class VCFRelativeCoordinatesTranslator {
 					}
 					ReadAlignment first = alns.get(0);
 					if(consensusName.equals(debugConsensusName)) System.err.println("First algn single: " + first.getReadCharacters() + "\t" + first.getFlags() + "\t" + first.getFirst() + "\t" + first.getCigarString());
-					alignmentsHash.put(consensusName,first);
+					alignments.put(consensusName,first);
 				} else {
 					DNAMaskedSequence seq1 = new DNAMaskedSequence(seq.substring(0,indexN));
 					DNAMaskedSequence seq2 = new DNAMaskedSequence(seq.substring(indexN+numNCharsPairedEnd));
@@ -491,7 +573,7 @@ public class VCFRelativeCoordinatesTranslator {
 						
 						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
-						alignmentsHash.put(consensusName,combined);
+						alignments.put(consensusName,combined);
 					} else if (aln2.getFirst() < aln1.getLast()) {
 				 		int internalSoftClip2 = aln2.getSoftClipEnd();
 				 		int internalSoftClip1 = aln1.getSoftClipStart();
@@ -537,7 +619,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
 						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
-						alignmentsHash.put(consensusName,combined);
+						alignments.put(consensusName,combined);
 					} else {
 						oddAlign++;
 						unmappedReadPaired++;
@@ -547,12 +629,13 @@ public class VCFRelativeCoordinatesTranslator {
 				}
 			}
 		}
+		return alignments;
 	}
 	
-	private void saveAlignments() throws IOException {	
-		try (PrintStream outAlns = new PrintStream(outPrefix+"_alns.bam");
-			 ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(refGenome.getSequencesMetadata(), outAlns)) {
-			for(ReadAlignment aln:alignmentsHash.values()) {
+	public void saveAlignments(Map<String, ReadAlignment> alignments, String outputFile) throws IOException {	
+		try (PrintStream outAlns = new PrintStream(outputFile);
+			 ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(genome.getSequencesMetadata(), outAlns)) {
+			for(ReadAlignment aln:alignments.values()) {
 				writer.write(aln);
 			}
 		}
@@ -562,9 +645,9 @@ public class VCFRelativeCoordinatesTranslator {
 	 * This method builds a hash with the provided alignments to be consulted at translation time
 	 * @throws IOException
 	 */
-	private void getAlignmentsFromBAM() throws IOException {
-		this.alignmentsHash = new HashMap<>();
-		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);) {
+	public Map<String, ReadAlignment> loadAlignmentsFromBAM(String bamFilename) throws IOException {
+		Map<String, ReadAlignment> alignments = new HashMap<>();
+		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(bamFilename)) {
 			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
 			while(bamReader.hasNext()) {
 				ReadAlignment algn = bamReader.next();
@@ -578,33 +661,11 @@ public class VCFRelativeCoordinatesTranslator {
 				if(algn.isReadUnmapped()) {
 					unmappedRead++;
 				} else if(!algn.isSecondary()) {
-					this.alignmentsHash.put(algnName, algn);
+					alignments.put(algnName, algn);
 				}
 			}
 		}
-		
-	}
-	
-	
-	public void explore() throws IOException {
-		try (ReadAlignmentFileReader bamOpenFile = new ReadAlignmentFileReader(filenameAlignmentBAM);) {
-			Iterator<ReadAlignment> bamReader = bamOpenFile.iterator();
-			int maxIndex = 0;
-			int minIndex = 100;
-			while(bamReader.hasNext()) {
-				ReadAlignment algn = bamReader.next();
-//				System.out.println("Read Name: " + algn.getReadName());
-				if(algn.getSequenceIndex() >= maxIndex) {
-					maxIndex = algn.getSequenceIndex();
-				}
-				if(algn.getSequenceIndex() <= minIndex) {
-					minIndex = algn.getSequenceIndex();
-				}
-//				System.out.println("Sequence index: " + algn.getSequenceIndex());
-			}
-			System.out.println("Max index: " + maxIndex);
-			System.out.println("Min index: " + minIndex);
-		}
+		return alignments;
 	}
 	
 }

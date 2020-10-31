@@ -1713,6 +1713,40 @@ By default, this function outputs three files:
    each population, and the number of regions non genotyped, unassigned and
    assigned to more than one population.
 
+----------------------------------------
+Mapping de-novo GBS variants to a genome
+----------------------------------------
+
+Given a VCF file with coordinates relative to a set of consensus sequences, and
+a reference genome, aligns the consensus sequences and provides a new VCF file
+with coordinates relative to the reference genome. This command is useful to
+quickly translate variants identified with the DeNovoGBS command to an
+assembled genome.
+
+USAGE:
+
+java -jar NGSEPcore.jar VCFRelativeCoordinatesTranslator <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input VCF file having variants with coordinates
+			  relative to a given set of consensus sequences.
+	-r GENOME	: Fasta file with the reference genome.
+	-o FILE		: Prefix of the output files.
+	-b FILE		: BAM file with alignments of the consensus sequences
+			  to the given reference genome.
+	-c FILE		: Fasta file with consensus sequences. Only used if the
+			  -b option is not used.
+	-d FILE		: FM-index file of the reference genome calculated with
+			  the command GenomeIndexer. Only used if the consensus
+			  sequences are provided in FASTA format (See option -c).
+
+This command produces as main output the file <OUT_PREFIX>.vcf with the
+translated variants. It also produces a file called <OUT_PREFIX>.info providing
+statistics on number and percentage of aligned consensus sequences and
+translated variants. Finally, if consensus sequences are provided in FASTA
+format, it produces the file <OUT_PREFIX>_alns.bam with the alignments of the
+given consensus sequences.
 
 ---------------------------------
 ---------------------------------

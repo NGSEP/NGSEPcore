@@ -1,6 +1,8 @@
 v4.0.3 01-11-2020
 - New command TillingPopulationSimulator to perform simulations of 
   TILLING experiments.
+  New command VCFRelativeCoordinatesTranslator to translate coordinates
+  for variants generated with the command DeNovoGBS.
 - Improved model of variants discovery and genotyping for polyploids and
   pooled samples.
 - KmersExtractor: Now the input sequences are assumed to be DNA sequences.

@@ -1528,6 +1528,38 @@ the options -a -t and -s.
 </option>
 </command>
 
+<command id="VCFRelativeCoordinatesTranslator" class="ngsep.gbs.VCFRelativeCoordinatesTranslator" groupId="VariantsDownstream">
+<intro>
+Maps VCF files build with the DeNovoGBS command to a reference genome
+</intro>
+<title>Mapping de-novo GBS variants to a genome</title>
+<description>
+Given a VCF file with coordinates relative to a set of consensus sequences, and a reference genome, aligns the consensus sequences
+and provides a new VCF file with coordinates relative to the reference genome. This command is useful to quickly translate variants
+identified with the DeNovoGBS command to an assembled genome.
+See the README.txt file for details on the output files.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input VCF file having variants with coordinates relative to a given set of consensus sequences. 
+</option>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome.
+</option>
+<option id="o" type="FILE" attribute="outputPrefix">
+Prefix of the output files.
+</option>
+<option id="b" type="FILE" attribute="filenameAlignmentBAM">
+BAM file with alignments of the consensus sequences to the given reference genome.
+</option>
+<option id="c" type="FILE" attribute="filenameConsensusFA">
+Fasta file with consensus sequences. Only used if the -b option is not used.
+</option>
+<option id="d" type="FILE" attribute="fmIndexFile">
+FM-index file of the reference genome calculated with the command GenomeIndexer.
+Only used if the consensus sequences are provided in FASTA format (See option -c). 
+</option>
+</command>
+
 <command id="SingleIndividualSimulator" class="ngsep.simulation.SingleIndividualSimulator" groupId="Benchmark">
 <intro>
 Simulates a single individual with homozygous and heterozygous mutations from a reference genome
