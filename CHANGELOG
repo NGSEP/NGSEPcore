@@ -1,8 +1,16 @@
-v4.1.0
-- KmersExtractor. Now the input sequences are assumed to be DNA sequences.
+v4.0.3 01-11-2020
+- New command TillingPopulationSimulator to perform simulations of 
+  TILLING experiments.
+- Improved model of variants discovery and genotyping for polyploids and
+  pooled samples.
+- KmersExtractor: Now the input sequences are assumed to be DNA sequences.
   Added option -t to allow processing of free text (non-DNA). 
-- TranscriptomeFilter. New option -ioe to consider only exons to intersect
-  input regions with transcripts
+- TranscriptomeFilter: New option -ioe to consider only exons to intersect
+  input regions with transcripts.
+- DeNovoGBS: New parameter to control the maximum numnber of reads to keep
+  in RAM during the sorting step. This greatly improved the amount of RAM
+  needed by this process.
+  
 v4.0.2 17-08-2020
 - Support to CRAM files
 - New command TillingPoolsIndividualGenotyper for individual assignment of
