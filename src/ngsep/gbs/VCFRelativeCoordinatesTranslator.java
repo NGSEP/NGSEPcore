@@ -377,7 +377,7 @@ public class VCFRelativeCoordinatesTranslator {
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(refGenome);
 		if(refIndex!=null) aligner.setFmIndex(refIndex);
-		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome));
+		else aligner.setFmIndex(new ReferenceGenomeFMIndex(refGenome, log));
 		
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
 		int numNCharsPairedEnd = pairedEndAnchor.length();	

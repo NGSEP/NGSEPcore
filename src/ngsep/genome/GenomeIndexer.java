@@ -90,7 +90,7 @@ public class GenomeIndexer {
 		ReferenceGenome genome = new ReferenceGenome(genomeFile);
 		log.info("Building index for genome in file "+genomeFile);
 		long time = System.currentTimeMillis();
-		ReferenceGenomeFMIndex fMIndex= new ReferenceGenomeFMIndex(genome);
+		ReferenceGenomeFMIndex fMIndex= new ReferenceGenomeFMIndex(genome, log);
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
 		log.info("Built index in "+seconds+" seconds. Saving in "+outputFile);

@@ -284,7 +284,7 @@ public class ReadsAligner {
 				fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
 			} else {
 				log.info("Calculating FM-index from genome file: "+genome.getFilename());
-				fMIndex = new ReferenceGenomeFMIndex(genome);
+				fMIndex = new ReferenceGenomeFMIndex(genome, log);
 			}
 			shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 		}

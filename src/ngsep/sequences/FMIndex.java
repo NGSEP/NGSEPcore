@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import ngsep.main.io.ConcatGZIPInputStream;
@@ -41,13 +42,12 @@ import ngsep.main.io.ConcatGZIPInputStream;
  */
 public class FMIndex
 {
-	
 	private QualifiedSequenceList sequencesWithNames;
 	private List<Integer> sequenceLengths = new ArrayList<>();
 	private List<FMIndexSingleSequence> internalIndexes = new ArrayList<>();
 	private List<CombinedMultisequenceFMIndexMetadata> internalMetadata = new ArrayList<>();
 	private int maxHitsQuery = 100000;
-		
+
 	public int getMaxHitsQuery() {
 		return maxHitsQuery;
 	}
@@ -59,7 +59,8 @@ public class FMIndex
 	 * Loads the sequences in the given list to allow searches from these sequences
 	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
 	 */
-	public void loadQualifiedSequences (List<QualifiedSequence> sequences) {
+	public void loadQualifiedSequences (List<QualifiedSequence> sequences, Logger log) {
+		Runtime runtime = Runtime.getRuntime();
 		if(sequences instanceof QualifiedSequenceList) sequencesWithNames = (QualifiedSequenceList)sequences;
 		else {
 			sequencesWithNames = new QualifiedSequenceList();
@@ -72,11 +73,13 @@ public class FMIndex
 		for(QualifiedSequence seq:sequences) {
 			String next = seq.getCharacters().toString();
 			if(nI>0 && internalSequence.length() + next.length() > 100000000) {
-				System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+				if(log!=null) log.info("Building index for "+nI+" sequences. Internal sequence length: "+internalSequence.length());
 				long time = System.currentTimeMillis();
 				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
 				index.setMaxHitsQuery(maxHitsQuery);
-				System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+				double usedMemory = runtime.totalMemory()-runtime.freeMemory();
+				usedMemory/=1000000000;
+				if(log!=null) log.info("Built index in "+((double)(System.currentTimeMillis()-time)/1000.0)+" seconds. RAM (Gb): "+usedMemory);
 				internalIndexes.add(index);
 				internalMetadata.add(internalIdxMetadata);
 				internalSequence = new StringBuffer();
@@ -90,11 +93,13 @@ public class FMIndex
 			i++;
 		}
 		if(nI>0) {
-			System.err.println("Building index for "+nI+" sequences. Total sequence length: "+internalSequence.length());
+			if(log!=null) log.info("Building index for "+nI+" sequences. Internal sequence length: "+internalSequence.length());
 			long time = System.currentTimeMillis();
 			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
 			index.setMaxHitsQuery(maxHitsQuery);
-			System.err.println("Built index in "+(System.currentTimeMillis()-time)+" milliseconds");
+			double usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			if(log!=null) log.info("Built index in "+((double)(System.currentTimeMillis()-time)/1000.0)+" seconds. RAM (Gb): "+usedMemory);
 			internalIndexes.add(index);
 			internalMetadata.add(internalIdxMetadata);
 		}
@@ -188,12 +193,12 @@ public class FMIndex
 			metadata.save(out);
 		}
 		out.println("#INTERNALINDEXES");
-		int i=0;
+		//int i=0;
 		for(FMIndexSingleSequence index:internalIndexes) {
-			System.out.println("Saving internal index: "+i);
+			//System.out.println("Saving internal index: "+i);
 			index.save(out);
-			System.out.println("Saved internal index: "+i);
-			i++;
+			//System.out.println("Saved internal index: "+i);
+			//i++;
 		}
 	}
 	public static FMIndex load (QualifiedSequenceList sequences, String indexFile) throws IOException {

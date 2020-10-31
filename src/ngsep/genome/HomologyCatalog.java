@@ -28,7 +28,7 @@ public class HomologyCatalog {
 			QualifiedSequence qualifiedSequence = new QualifiedSequence(unitId, unitSequence);
 			unitSequences.add(qualifiedSequence);
 		}
-		indexHomologyUnits.loadQualifiedSequences(unitSequences);
+		indexHomologyUnits.loadQualifiedSequences(unitSequences, null);
 	}
 	
 	/**

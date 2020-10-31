@@ -59,15 +59,14 @@ public class DC3SuffixArrayGenerator implements SuffixArrayGenerator {
 	 * @param charSequence the sequence to which the suffix array is calculated
 	 */
 	public DC3SuffixArrayGenerator(CharSequence sequence) {
-		long ini = System.nanoTime();
 		byte[] data = transform(sequence);
-		System.err.println("Creating int arrays of length: "+data.length);
+		//System.err.println("Creating int arrays of length: "+data.length);
 		index = new LinkedList<>();
 		indexAux = new LinkedList<>();
 
 		suffixArray = new int[data.length];
 		suffixArray2 = new int[data.length];
-		System.err.println("Created int arrays");
+		//System.err.println("Created int arrays");
 		auxSort = new byte[data.length];
 		ranks = new byte[data.length * numerOfBytesOf((data.length << 1) / 3)];
 
@@ -77,8 +76,7 @@ public class DC3SuffixArrayGenerator implements SuffixArrayGenerator {
 		auxSort = null;
 		ranks = null;
 
-		System.err.println(
-				"			Time to create the suffix array: " + (System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000) + " s");
+		//System.err.println("			Time to create the suffix array: " + (System.nanoTime() - ini) / ((double) 1000 * 1000 * 1000) + " s");
 	}
 
 	/**

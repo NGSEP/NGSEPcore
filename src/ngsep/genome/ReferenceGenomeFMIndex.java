@@ -21,6 +21,7 @@ package ngsep.genome;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Logger;
 
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
@@ -42,14 +43,14 @@ public class ReferenceGenomeFMIndex {
 		
 	}
 	
-	public ReferenceGenomeFMIndex (ReferenceGenome genome) {
+	public ReferenceGenomeFMIndex (ReferenceGenome genome, Logger log) {
 		sequencesMetadata = genome.getSequencesMetadata();
 		internalIndex = new FMIndex();
 		internalIndex.setMaxHitsQuery(50);
 		QualifiedSequenceList sequences = genome.getSequencesList();
-		internalIndex.loadQualifiedSequences(sequences);
+		internalIndex.loadQualifiedSequences(sequences, log);
 	}
-	
+
 	/**
 	 * Loads an instance of the FMIndex from a serialized binary file
 	 * @param genome Indexed genome
