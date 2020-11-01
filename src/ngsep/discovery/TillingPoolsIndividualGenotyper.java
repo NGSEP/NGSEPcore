@@ -56,7 +56,14 @@ public class TillingPoolsIndividualGenotyper {
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
+	
+	public String[] getInputFiles() {
+		return inputFiles;
+	}
+	public void setInputFiles(String[] inputFiles) {
+		this.inputFiles = inputFiles;
+	}
+	
 	public String getPoolsDescriptor() {
 		return poolsDescriptor;
 	}
