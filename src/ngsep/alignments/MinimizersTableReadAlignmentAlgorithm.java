@@ -83,7 +83,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		extractor.processQualifiedSequences(genome.getSequencesList());
 		KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
-		minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
+		//minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
+		minimizersTable = new MinimizersTable(kmerLength, windowLength);
 		minimizersTable.setKeepSingletons(true);
 		minimizersTable.setLog(log);
 		for (int i=0;i<n;i++) {

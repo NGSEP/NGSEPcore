@@ -544,15 +544,15 @@ public class ReadsAligner {
 	}
 	
 	private void checkProgress (int readNumber) {
-		if(readNumber%100>0) return;
-		if(!platform.isLongReads() && readNumber%10000>0) return;
+		if(readNumber%1000>0) return;
+		if(!platform.isLongReads() && readNumber%100000>0) return;
 		
-		int progress = readNumber/10000;
+		int progress = readNumber/100000;
 		if(platform.isLongReads() ) {
-			progress = readNumber/100;
+			progress = readNumber/1000;
 		}
 		
-		log.info("Processed "+readNumber+" reads. Aligned: "+readsAligned);
+		log.info("Processed "+readNumber+" fragments. Aligned "+readsAligned+" reads");
 		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
 			log.info("Process cancelled by user");
 			pool.setCancelled(true);
