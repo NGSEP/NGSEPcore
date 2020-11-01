@@ -229,17 +229,16 @@ public class TillingPopulationSimulator {
 	}
 
 	public void run() throws IOException {
+		if(numIndividuals>poolDesignD1*poolDesignD2*poolDesignD3) throw new IOException("The number of individuals should be smaller than the product of the pool dimensions");
 		long aTime = System.currentTimeMillis();
 		Runtime runtime = Runtime.getRuntime();
 		System.gc();
-		long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
-		System.out.println("Used Memory before " +memoryBefore);
 		runSimulation(sequencedRegionsFile, outputPrefix);
 		System.gc();
 		long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
-		System.out.println("Memory increased: " + (memoryAfter-memoryBefore));
+		log.info("Memory spent: " + memoryAfter);
 		long bTime = System.currentTimeMillis() - aTime;
-		System.out.println("Total time was: "+bTime);
+		log.info("Total time: "+bTime);
 	}
 
 	public void runSimulation(String sequencedRegionsFile, String outPrefix) throws IOException {

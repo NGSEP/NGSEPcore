@@ -1839,6 +1839,10 @@ OPTIONS:
 			  used as amplicons for the simulation.
 	-g GENOME	: Fasta file with the genome to simulate reads.
 	-o FILE		: Prefix of the output files
+	-d INT		: Number of individuals to simulate. It should be less
+			  or equal than the product of the three dimensions of
+			  the pool design (parameters d1, d2 and d3).
+			  Default: 288
 	-n INT		: Number of fragments to sequence for each pool.
 			  Default: 50000
 	-m INT		: Number of mutations to generate. Default: 300
@@ -1857,7 +1861,6 @@ The following files are generated with the given prefix:
 - A text file separated by semicolon with the pools assignment to each individual.
   This file can be loaded in the TilligPoolsIndividualGenotyper.
 - Two fastq files for each pool with the simulated reads.
-
 
 --------------------------
 Benchmarking variant calls

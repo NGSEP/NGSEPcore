@@ -1655,6 +1655,10 @@ Fasta file with the genome to simulate reads.
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files
 </option>
+<option id="d" type="INT" attribute="numIndividuals" defaultConstant="DEF_INDIVIDUALS">
+Number of individuals to simulate. 
+It should be less or equal than the product of the three dimensions of the pool design (parameters d1, d2 and d3).
+</option>
 <option id="n" type="INT" attribute="numFragmentsPool" defaultConstant="DEF_NUM_FRAGMENTS_POOL">
 Number of fragments to sequence for each pool.
 </option>
