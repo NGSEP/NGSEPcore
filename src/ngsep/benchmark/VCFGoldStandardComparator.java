@@ -560,12 +560,13 @@ public class VCFGoldStandardComparator {
 		return GenomicVariant.TYPE_STR;
 	}
 
-	private static int getGenotypeNumber(CalledGenomicVariant call) {
+	public static int getGenotypeNumber(CalledGenomicVariant call) {
+		if(call.isUndecided()) return CalledGenomicVariant.GENOTYPE_UNDECIDED;
 		if(call.isHeterozygous()) return CalledGenomicVariant.GENOTYPE_HETERO;
 		else if (!call.isHomozygousReference()) return CalledGenomicVariant.GENOTYPE_HOMOALT;
 		return CalledGenomicVariant.GENOTYPE_HOMOREF;
 	}
-	private short loadGenotypeQuality(CalledGenomicVariant call) {
+	public static short loadGenotypeQuality(CalledGenomicVariant call) {
 		short q = call.getGenotypeQuality();
 		if(q>0) return q;
 		String [] alleles = call.getAlleles();
