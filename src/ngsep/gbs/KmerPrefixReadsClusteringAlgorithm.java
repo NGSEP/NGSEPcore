@@ -363,6 +363,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		out.println("Maximum number of clusters: "+ maxNumClusters);
 		out.println("Maximum number of reads in RAM: "+ maxReadsInRAM);
 		out.println("Prior heterozygosity rate: "+ heterozygosityRate);
+		out.println("Maximum base quality score: "+ maxBaseQS);
 		out.println("Minimum variant quality: "+ minQuality);
 		out.println("Normal ploidy: "+ normalPloidy);
 		out.println("Ignore base pairs. 5': "+ basesToIgnore5P+" 3':"+basesToIgnore3P);

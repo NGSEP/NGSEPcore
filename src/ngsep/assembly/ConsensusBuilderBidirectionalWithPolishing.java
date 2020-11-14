@@ -256,8 +256,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alignments.add(alnRead);
 					if (lastPartialAln == null) {
 						log.warning("Consensus backbone read did not align to last consensus" );
-					}
-					if(alnRead.getSoftClipEnd()>0) {
+					} else if(alnRead.getSoftClipEnd()>0) {
 						log.warning("Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" soft clipped sequence: "+lastPartialAln.getReadCharacters().subSequence(lastPartialAln.getReadLength()-lastPartialAln.getSoftClipEnd()-5, lastPartialAln.getReadLength()) );
 						log.warning("Alignment to enlarged consensus: "+alnRead+" consensus end: "+rawConsensus.substring(rawConsensus.length()-lastPartialAln.getSoftClipEnd()-5));
 					}
