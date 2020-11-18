@@ -320,7 +320,8 @@ public class MinimizersTable {
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
 		int idxDebug = -2;
-		int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
+		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
+		int limitSequences = 4*mode;
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
 		
 		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
