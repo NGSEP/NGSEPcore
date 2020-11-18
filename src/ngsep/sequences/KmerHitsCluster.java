@@ -518,17 +518,15 @@ public class KmerHitsCluster {
 					}
 					if(selectedPos==null) {
 						j++;
-						continue;
 					} else {
+						CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
+						UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
+						rescuedHit.setQueryIdx(i);
+						double weight = (lastHit.getWeight()+hit.getWeight())/2;
+						rescuedHit.setWeight(weight);
+						addHit(rescuedHit);
 						j = selectedPos+1;
 					}
-					CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
-					UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
-					rescuedHit.setQueryIdx(i);
-					double weight = (lastHit.getWeight()+hit.getWeight())/2;
-					rescuedHit.setWeight(weight);
-					addHit(rescuedHit);
-				
 				}
 			}
 			lastQueryStart = queryStart;

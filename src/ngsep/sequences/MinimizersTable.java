@@ -320,14 +320,17 @@ public class MinimizersTable {
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
 		int idxDebug = -2;
-		
+		int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
-		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" minimizers: "+minimizersQueryList.size());
+		
 		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
 			minimizersLocalCounts.compute(entry.getMinimizer(), (k,v)->(v==null?1:v+1));
 		}
+		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" minimizer counts. total: "+minimizersQueryList.size()+" unique: "+minimizersLocalCounts.size());
 		int numUsedMinimizers = 0;
+		int multihitMinimizers = 0;
+		int withoutkmerMinimizers = 0;
 		int selfSequenceCount = 0;
 		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<Integer, List<UngappedSearchHit>>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
@@ -335,10 +338,14 @@ public class MinimizersTable {
 			int count = minimizersLocalCounts.getOrDefault(minimizer, 0);
 			int countSeqs = getCountDifferentSequences(minimizer);
 			//if (queryIdx == idxDebug && count>1) System.out.println("Minimizers table. For minimizer: "+minimizer+" query entries: "+count+" count sequences: "+countSeqs+" mode "+mode);
-			if (countSeqs>2*mode) continue;
+			if (countSeqs>limitSequences) {
+				multihitMinimizers++;
+				continue;
+			}
 			Long kmerCode = codes.get(entry.getStart());
 			if(kmerCode == null) {
 				//Kmers that are not a minimizers are not considered
+				withoutkmerMinimizers++;
 				continue;
 			}
 			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
@@ -359,7 +366,7 @@ public class MinimizersTable {
 				if(subjectIdx==queryIdx) selfSequenceCount++;
 			}
 		}
-		if (queryIdx == idxDebug) System.out.println("Minimizers table. Total minimizers used: "+numUsedMinimizers+" self sequence count: "+selfSequenceCount);
+		if (queryIdx == idxDebug) System.out.println("Minimizers table. Total minimizers used: "+numUsedMinimizers+" self sequence count: "+selfSequenceCount+" minimizers with multiple hits: "+multihitMinimizers+" kmer not found: "+withoutkmerMinimizers);
 		return answer;
 		
 	}
