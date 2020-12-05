@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
@@ -219,8 +220,8 @@ public class AssemblyGraphStatistics {
 	}
 	private void run(String inputFile, String outputFile) throws IOException {
 		List<ReadAlignment> alignments = null;
-		List<QualifiedSequence> sequences = AssemblyGraph.loadSequenceNamesFromGraphFile(inputFile);
-		AssemblyGraph graph = AssemblyGraph.load(sequences, inputFile);
+		List<QualifiedSequence> sequences = AssemblyGraphFileHandler.loadSequenceNamesFromGraphFile(inputFile);
+		AssemblyGraph graph = AssemblyGraphFileHandler.load(sequences, inputFile);
 		Map<String,Integer> seqIds = new HashMap<String, Integer>();
 		for(int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
@@ -513,7 +514,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==698 || gsVertex.getSequenceIndex()==185 || gsVertex.getSequenceIndex()==164; 
+		//boolean debug = gsVertex.getSequenceIndex()==185 || gsVertex.getSequenceIndex()==481 || gsVertex.getSequenceIndex()==370; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

@@ -38,6 +38,8 @@ public class KmerHitsCluster {
 	private double subjectStartSD=0;
 	private double predictedOverlapSD=0;
 	private double weightedCount=0;
+	private int rawKmerHits=0;
+	private double rawKmerHitsSubjectStartSD = 0;
 	private boolean allConsistent = true;
 	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
@@ -57,7 +59,7 @@ public class KmerHitsCluster {
 		
 		//Index hits by query kmer start
 		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
-		
+		rawKmerHits = inputHits.size();
 		for(UngappedSearchHit hit:inputHits) {
 			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 			List<UngappedSearchHit> list = hitsMultiMap.computeIfAbsent(hit.getQueryIdx(), l -> new ArrayList<UngappedSearchHit>());
@@ -69,6 +71,7 @@ public class KmerHitsCluster {
 		double sum = 0;
 		double sum2 = 0;
 		double n = 0;
+		/*
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			if(hits.size()>1) continue;
 			UngappedSearchHit hit = hits.get(0);
@@ -79,6 +82,7 @@ public class KmerHitsCluster {
 			n++;
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
+		*/
 		if(n<5) {
 			//System.out.println("WARN. Few unique kmers for hits to "+sequenceIdx+" initial: "+hitsMultiMap.size()+" final: "+n);
 			subjectStarts.clear();
@@ -97,18 +101,18 @@ public class KmerHitsCluster {
 		Collections.sort(subjectStarts);
 		int median = subjectStarts.get(subjectStarts.size()/2);
 		double variance = (sum2-sum*sum/n)/(n-1);
-		double stdev = (variance>0)?Math.sqrt(variance):0;
+		rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):0;
 		Distribution dist = new Distribution(0, 100, 1);
 		for(int start:subjectStarts) {
 			int distance = Math.abs(start-median);
-			if (distance < stdev) dist.processDatapoint(distance);
+			if (distance < rawKmerHitsSubjectStartSD) dist.processDatapoint(distance);
 		}
 		
-		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n+" median: "+median+" variance: "+variance+" stdev: "+stdev+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
 		int maxDistance = 5*queryLength; 
 		if(subjectLength>maxDistance) {
 			// This is only useful for mapping to a long reference subject
-			maxDistance = (int) Math.min(dist.getAverage(), stdev);
+			maxDistance = (int) Math.min(dist.getAverage(), rawKmerHitsSubjectStartSD);
 			if(maxDistance < 100) maxDistance=100;
 			//if(maxDistance<0.01*query.length()) maxDistance*=2;
 			else if (maxDistance>0.05*queryLength) maxDistance/=2;
@@ -417,6 +421,13 @@ public class KmerHitsCluster {
 	}
 	public double getWeightedCount() {
 		return weightedCount;
+	}
+	
+	public int getRawKmerHits() {
+		return rawKmerHits;
+	}
+	public double getRawKmerHitsSubjectStartSD() {
+		return rawKmerHitsSubjectStartSD;
 	}
 	/**
 	 * 

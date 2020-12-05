@@ -31,6 +31,8 @@ public class AssemblyEdge {
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
+	private int rawKmerHits = 0;
+	private int rawKmerHitsSubjectStartSD = 0;
 	private boolean layoutEdge = false;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
@@ -111,6 +113,22 @@ public class AssemblyEdge {
 
 	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
 		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+	
+	public int getRawKmerHits() {
+		return rawKmerHits;
+	}
+
+	public void setRawKmerHits(int rawKmerHits) {
+		this.rawKmerHits = rawKmerHits;
+	}
+
+	public int getRawKmerHitsSubjectStartSD() {
+		return rawKmerHitsSubjectStartSD;
+	}
+
+	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
+		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {

@@ -35,6 +35,7 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
@@ -241,7 +242,7 @@ public class Assembler {
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 		AssemblyGraph graph;
 		if(graphFile!=null) {
-			graph = AssemblyGraph.load(sequences, graphFile);
+			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
 		} else {
 			double [] compressionFactors =null;
 			if (bpHomopolymerCompression>0) {
@@ -273,7 +274,7 @@ public class Assembler {
 		if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 		if(graphFile==null) {
 			String outFileGraph = outputPrefix+".graph.gz";
-			graph.save(outFileGraph);
+			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
 		}
 		//graph.removeEdgesChimericReads();

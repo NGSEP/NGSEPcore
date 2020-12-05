@@ -38,6 +38,8 @@ public class AssemblyEmbedded {
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
+	private int rawKmerHits = 0;
+	private int rawKmerHitsSubjectStartSD = 0;
 	
 
 	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
@@ -146,6 +148,22 @@ public class AssemblyEmbedded {
 
 	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
 		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+	
+	public int getRawKmerHits() {
+		return rawKmerHits;
+	}
+
+	public void setRawKmerHits(int rawKmerHits) {
+		this.rawKmerHits = rawKmerHits;
+	}
+
+	public int getRawKmerHitsSubjectStartSD() {
+		return rawKmerHitsSubjectStartSD;
+	}
+
+	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
+		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
 	}
 
 	public String toString () {

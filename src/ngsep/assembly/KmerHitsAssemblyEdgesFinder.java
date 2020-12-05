@@ -242,6 +242,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		embeddedEvent.setCoverageSharedKmers(alnData[0]);
 		embeddedEvent.setWeightedCoverageSharedKmers(alnData[1]);
+		embeddedEvent.setRawKmerHits(cluster.getRawKmerHits());
+		embeddedEvent.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 		synchronized (graph) {
 			graph.addEmbedded(embeddedEvent);
 		}
@@ -263,6 +265,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
+		edge.setRawKmerHits(cluster.getRawKmerHits());
+		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
@@ -284,6 +288,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setWeightedCoverageSharedKmers(alnData[1]);
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
+		edge.setRawKmerHits(cluster.getRawKmerHits());
+		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
