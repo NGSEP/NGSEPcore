@@ -72,6 +72,12 @@ public class GenomesAligner {
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
+	
+	// Synteny
+	private List<SyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
+	private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
+	private int minBlockLength = 1000000;
+	private int maxDistance = 1000000;
 
 	public Logger getLog() {
 		return log;
@@ -233,6 +239,46 @@ public class GenomesAligner {
 			} else {
 				log.info("Mate sequence not found for "+chrG1.getName()+" Sequence orthology units: "+unitsChrG1.size());
 			}
+		}
+		identifySyntenyBlocks(genome1, genome2, homologyEdges);
+	}
+	
+	private void identifySyntenyBlocks(AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<HomologyEdge> homologyEdges) {
+		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance, g1, g2, homologyEdges);
+		orthologsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.ORTHOLOGS);
+		paralogsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.PARALOGS);
+		String orthologsOutFilename = outputPrefix + "_synteny_blocks_orthologs.txt";
+		String paralogsOutFilename = outputPrefix + "_synteny_blocks_paralogs.txt";
+		printSyntenyBlocks(orthologsSyntenyBlocks, orthologsOutFilename);
+		printSyntenyBlocks(paralogsSyntenyBlocks, paralogsOutFilename);
+	}
+	
+	/**
+	 * Print synteny blocks
+	 */
+	private void printSyntenyBlocks(List<SyntenyBlock> syntenyBlocks, String outFilename) {
+		try (PrintStream outSynteny = new PrintStream(outFilename)){
+//			String headers = "Sequence Name\tStart\tEnd\tLength";
+//			outSynteny.println(headers);
+			for (SyntenyBlock sb : syntenyBlocks) {
+				HomologyEdge firstHomolog = sb.getHomologies().get(0).getSource();
+				HomologyUnit firstUnit = firstHomolog.getQueryUnit();
+				//String strand = firstUnit.isPositiveStrand() ? "+" : "-";
+				String chr = firstUnit.getSequenceName();
+				String line = chr + "\t" + sb.getFirst() +  "\t" + sb.getLast() + "\t" + sb.length();
+				
+//				Printing of homology units that form the synteny block. 
+				
+//				for (SyntenyEdge se : sb.getHomologies()) {
+//					HomologyEdge vi = se.getVi();
+//					HomologyEdge vj = se.getVj();
+//					line += vi.getQueryUnit().getId() + "/" + vi.getSubjectUnit().getId() + "\t";
+//					line +=  vj.getQueryUnit().getId() + "/" + vj.getSubjectUnit().getId() + "\t";
+//				}
+				outSynteny.println(line);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
