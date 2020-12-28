@@ -258,8 +258,8 @@ public class GenomesAligner {
 	 */
 	private void printSyntenyBlocks(List<SyntenyBlock> syntenyBlocks, String outFilename) {
 		try (PrintStream outSynteny = new PrintStream(outFilename)){
-//			String headers = "Sequence Name\tStart\tEnd\tLength";
-//			outSynteny.println(headers);
+			String headers = "SequenceName\tStart\tEnd\tLength";
+			outSynteny.println(headers);
 			for (SyntenyBlock sb : syntenyBlocks) {
 				HomologyEdge firstHomolog = sb.getHomologies().get(0).getSource();
 				HomologyUnit firstUnit = firstHomolog.getQueryUnit();
@@ -270,10 +270,10 @@ public class GenomesAligner {
 //				Printing of homology units that form the synteny block. 
 				
 //				for (SyntenyEdge se : sb.getHomologies()) {
-//					HomologyEdge vi = se.getVi();
-//					HomologyEdge vj = se.getVj();
-//					line += vi.getQueryUnit().getId() + "/" + vi.getSubjectUnit().getId() + "\t";
-//					line +=  vj.getQueryUnit().getId() + "/" + vj.getSubjectUnit().getId() + "\t";
+//					HomologyEdge s = se.getSource();
+//					HomologyEdge t = se.getTarget();
+//					line += "\t" + s.getQueryUnit().getId() + "/" + s.getSubjectUnit().getId() + "\t";
+//					line += "\t" + t.getQueryUnit().getId() + "/" + t.getSubjectUnit().getId() + "\t";
 //				}
 				outSynteny.println(line);
 			}
