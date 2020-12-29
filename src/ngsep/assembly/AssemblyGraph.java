@@ -286,6 +286,15 @@ public class AssemblyGraph {
 		return edgesMap.get(vertex.getUniqueNumber());
 	}
 	/**
+	 * Returns the edge connecting the vertices of the given sequence id
+	 * @param sequenceId
+	 * @return AssemblyEdge
+	 */
+	public AssemblyEdge getSameSequenceEdge(int sequenceId) {
+		AssemblyVertex vertex = verticesStart.get(sequenceId);
+		return getSameSequenceEdge(vertex);
+	}
+	/**
 	 * Returns the edge connecting the given vertex with the corresponding vertex in the same sequence
 	 * @param vertex
 	 * @return AssemblyEdge
@@ -465,10 +474,7 @@ public class AssemblyGraph {
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
 		double minScoreProportionEdges = 0.3;
-		//double minScoreProportionEmbedded = 0.5;
-		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
-		double minScoreProportionEmbedded = Math.min(0.9, 0.4*getSequenceLength(sequenceId)/(double)medianLength);
-		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		
 		double maxScoreS = 0;			
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -517,6 +523,10 @@ public class AssemblyGraph {
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
+		//double minScoreProportionEmbedded = 0.8;
+		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
+		double minScoreProportionEmbedded = Math.min(0.9, 0.4*getSequenceLength(sequenceId)/(double)medianLength);
+		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		if(maxScoreEmbedded<minScoreProportionEmbedded*maxScore) {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
@@ -585,17 +595,17 @@ public class AssemblyGraph {
 	}
 
 	private double calculateScore(AssemblyEmbedded embedded) {
-		//KmerHitsCluster cluster = embedded.getEvidence();
-		//return 1.0*(cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/cluster.getQuery().length();
-		//return embedded.getCoverageSharedKmers();
-		return embedded.getWeightedCoverageSharedKmers();
+		return embedded.getCoverageSharedKmers();
+		//return embedded.getRawKmerHits();
+		//return embedded.getWeightedCoverageSharedKmers();
+		//return embedded.getWeightedCoverageSharedKmers()*embedded.getRawKmerHits();
 	}
 
-	public static int calculateScore(AssemblyEdge edge) {
-		//KmerHitsCluster cluster = edge.getEvidence();
-		//return (cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart())*cluster.getWeightedCount()/(edge.getOverlap()+1);
-		//return edge.getCoverageSharedKmers();
-		return edge.getWeightedCoverageSharedKmers();
+	private double calculateScore(AssemblyEdge edge) {
+		return edge.getCoverageSharedKmers();
+		//return edge.getRawKmerHits();
+		//return edge.getWeightedCoverageSharedKmers();
+		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
 
 	public void filterEdgesCloseRelationships() {

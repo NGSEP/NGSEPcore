@@ -10,7 +10,6 @@ import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.math.Distribution;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 
 public class KmerHitsAssemblyEdgesFinder {
@@ -68,12 +67,31 @@ public class KmerHitsAssemblyEdgesFinder {
 		List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():1;
 		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self hits: "+selfHitsCount+" min hits: "+minHits);
+		List<KmerHitsCluster> queryClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0);
+		int kmersSelfCluster = 0;
+		if(queryClusters.size()==0) {
+			System.err.println("WARN: Self hits for sequence: "+queryIdx+" dd not make clusters");
+		} else {
+			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
+			KmerHitsCluster cluster = queryClusters.get(0);
+			AssemblyEdge edge = graph.getSameSequenceEdge(queryIdx);
+			int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(queryIdx, queryLength, queryIdx, queryLength, cluster);
+			edge.setCoverageSharedKmers(alnData[0]);
+			edge.setWeightedCoverageSharedKmers(alnData[1]);
+			edge.setNumSharedKmers(cluster.getNumDifferentKmers());
+			kmersSelfCluster = cluster.getNumDifferentKmers();
+			edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
+			edge.setRawKmerHits(cluster.getRawKmerHits());
+			edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
+			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
+			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
+		}
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterSubjectIds(queryIdx, hitsForward, minHits);
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Filtered subject idxs forward: "+subjectIdxsF.size());
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Selected subject idxs forward: "+subjectIdxsF.size());
 		List<Integer> subjectIdxsR = filterSubjectIds(queryIdx, hitsReverse, minHits);
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Filtered subject idxs reverse: "+subjectIdxsR.size());
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Selected subject idxs reverse: "+subjectIdxsR.size());
 		
 		if(subjectIdxsF.size()==0 && subjectIdxsR.size()==0) {
 			//System.out.println("Query "+queryIdx+" had zero subject ids after initial filtering. self hits: "+selfHitsCount+" min hits: "+minHits);
@@ -181,7 +199,6 @@ public class KmerHitsAssemblyEdgesFinder {
 	}
 	private void updateGraphWithKmerCluster(int querySequenceId, int queryLength,  boolean queryRC, double compressionFactor, KmerHitsCluster cluster) {
 		//Process cluster
-		cluster.summarize();
 		if(passFilters(querySequenceId, queryLength, cluster)) {
 			processCluster(querySequenceId, queryLength, queryRC, compressionFactor, cluster);
 		}

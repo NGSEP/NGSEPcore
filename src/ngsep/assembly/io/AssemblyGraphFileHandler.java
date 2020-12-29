@@ -24,8 +24,10 @@ public class AssemblyGraphFileHandler {
 			 PrintStream out = new PrintStream(os)) {
 			List<QualifiedSequence> sequences = graph.getSequences();
 			out.println("#SEQUENCES");
+			int id=0;
 			for(QualifiedSequence seq:sequences) {
-				out.println(seq.getName()+"\t"+seq.getLength());
+				out.println(""+id+"\t"+seq.getName()+"\t"+seq.getLength());
+				id++;
 			}
 			
 			out.println("#EMBEDDED");
@@ -39,7 +41,6 @@ public class AssemblyGraphFileHandler {
 			out.println("#EDGES");
 			List<AssemblyEdge> edges = graph.getEdges();
 			for(AssemblyEdge edge:edges) {
-				if(edge.isSameSequenceEdge()) continue;
 				saveEdge(edge, out);
 			}
 			
@@ -58,8 +59,8 @@ public class AssemblyGraphFileHandler {
 			while(line!=null && seqId<sequences.size() && !line.startsWith("#")) {
 				String [] items = line.split("\t");
 				QualifiedSequence seq = sequences.get(seqId);
-				if(!seq.getName().equals(items[0]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+line);
-				if(seq.getLength()!=Integer.parseInt(items[1])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
+				if(!seq.getName().equals(items[1]))  throw new IOException("Unexpected sequence name at index " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+line);
+				if(seq.getLength()!=Integer.parseInt(items[2])) throw new IOException("Unexpected sequence length at index" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[1]);
 				seqId++;
 				line=in.readLine();
 			}
@@ -135,7 +136,12 @@ public class AssemblyGraphFileHandler {
 		int overlap = Integer.parseInt(items[2]);
 		AssemblyVertex v1 = graph.getVertexByUniqueId(v1Idx);
 		AssemblyVertex v2 = graph.getVertexByUniqueId(v2Idx);
-		AssemblyEdge edge = new AssemblyEdge(v1, v2, overlap);
+		AssemblyEdge edge;
+		if(v1.getSequenceIndex()==v2.getSequenceIndex()) {
+			edge = graph.getSameSequenceEdge(v1);
+		} else {
+			edge = new AssemblyEdge(v1, v2, overlap);
+		}
 		String [] items2 = items[3].split(";");
 		for(String feature:items2) {
 			int idxF = feature.indexOf("=");
@@ -161,8 +167,8 @@ public class AssemblyGraphFileHandler {
 			line=in.readLine();
 			while(line!=null && !line.startsWith("#")) {
 				String [] items = line.split("\t");
-				QualifiedSequence seq = new QualifiedSequence(items[0]);
-				seq.setLength(Integer.parseInt(items[1]));
+				QualifiedSequence seq = new QualifiedSequence(items[1]);
+				seq.setLength(Integer.parseInt(items[2]));
 				sequenceNames.add(seq);
 				line=in.readLine();
 			}
