@@ -80,7 +80,7 @@ public class AssemblyGraphFileHandler {
 			while(line!=null && !line.startsWith("#")) {
 				String [] items = line.split("\t");
 				AssemblyEdge edge = loadEdge(items, graph);
-				graph.addEdge(edge);
+				if(!edge.isSameSequenceEdge()) graph.addEdge(edge);
 				line=in.readLine();
 			}
 		} catch (NumberFormatException e) {
@@ -137,10 +137,13 @@ public class AssemblyGraphFileHandler {
 		AssemblyVertex v1 = graph.getVertexByUniqueId(v1Idx);
 		AssemblyVertex v2 = graph.getVertexByUniqueId(v2Idx);
 		AssemblyEdge edge;
+		//if(v1Idx==49 || v2Idx == 49) System.out.println("Loading edge between: "+v1+" and "+v2+". SeqIdx1: "+v1.getSequenceIndex()+" SeqIdxV2: "+v2.getSequenceIndex());
 		if(v1.getSequenceIndex()==v2.getSequenceIndex()) {
 			edge = graph.getSameSequenceEdge(v1);
+			//if(v1Idx==49 || v2Idx == 49) System.out.println("retrieved edge: "+edge+" total edges vertex 1: "+graph.getEdges(v1).size()+" total edges vertex 2: "+graph.getEdges(v2).size());
 		} else {
 			edge = new AssemblyEdge(v1, v2, overlap);
+			//if(v1Idx==49 || v2Idx == 49) System.out.println("Created edge: "+edge);
 		}
 		String [] items2 = items[3].split(";");
 		for(String feature:items2) {

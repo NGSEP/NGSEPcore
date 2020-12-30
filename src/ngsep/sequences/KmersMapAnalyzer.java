@@ -224,5 +224,8 @@ public class KmersMapAnalyzer {
 	public long getRanking(int count) {
 		return countRankings[count];
 	}
+	public long getNumKmers(int count) {
+		return kmerCounts[count];
+	}
 	
 }

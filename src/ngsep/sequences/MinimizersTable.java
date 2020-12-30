@@ -3,8 +3,10 @@ package ngsep.sequences;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.math.Distribution;
@@ -256,6 +258,7 @@ public class MinimizersTable {
 						minPos = i+j;
 					}
 				}
+				//if(sequenceId==0 && i<1000) log.info("Minimizer calculated with cycle. New pos: "+minPos+" new minimizer: "+minimizerI+" kmer code: "+kmerCodes.get(minPos));
 			}
 			if (minimizerI==previousMinimizer) continue;
 			if(minimizerI != null) {
@@ -285,7 +288,8 @@ public class MinimizersTable {
 		}
 		if(count == 0) return Integer.MAX_VALUE;
 		long rankingStart=kmersAnalyzer.getRanking(count);
-		long hash = rankingStart+(dnaHash%count);
+		long kmersWithCount = kmersAnalyzer.getNumKmers(count);
+		long hash = rankingStart+(dnaHash%kmersWithCount);
 		if(hash>=Integer.MAX_VALUE) hash = Integer.MAX_VALUE-1;
 		/*int distance = count-mode;
 		long hash;
@@ -320,15 +324,18 @@ public class MinimizersTable {
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
 		int idxDebug = -2;
+		//int idxDebug = 1;
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = 4*mode;
+		Set<Long> uniqueCodes = new HashSet<Long>();
+		uniqueCodes.addAll(codes.values());
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
 		
 		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
 		for(MinimizersTableEntry entry:minimizersQueryList) {
 			minimizersLocalCounts.compute(entry.getMinimizer(), (k,v)->(v==null?1:v+1));
 		}
-		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" minimizer counts. total: "+minimizersQueryList.size()+" unique: "+minimizersLocalCounts.size());
+		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" unique: "+uniqueCodes.size()+" minimizer counts. total: "+minimizersQueryList.size()+" unique: "+minimizersLocalCounts.size());
 		int numUsedMinimizers = 0;
 		int multihitMinimizers = 0;
 		int withoutkmerMinimizers = 0;

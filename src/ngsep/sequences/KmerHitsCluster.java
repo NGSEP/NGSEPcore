@@ -146,7 +146,7 @@ public class KmerHitsCluster {
 		for(UngappedSearchHit hit:hits) {
 			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
-			if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug && hit.getQueryIdx()<1000) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
+			if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
 			if(distance <= maxDistance) {
 				if(answer == null || minDistance>distance) {
 					answer = hit;
@@ -470,8 +470,20 @@ public class KmerHitsCluster {
 	}
 	
 	public static List<KmerHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
-		double estimatedClusters = 0.5*sequenceHits.size()/queryLength;
-		if(estimatedClusters>1) return clusterRegionKmerAlnsMultiple(queryLength, subjectLength, sequenceHits, minQueryCoverage);
+		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
+		for(UngappedSearchHit hit:sequenceHits) {
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
+			countsByQueryIdx.compute(hit.getQueryIdx(), (k,v)->v==null?1:v+1);
+		}
+		//double estimatedClusters = 0.5*sequenceHits.size()/queryLength;
+		double avg = 0;
+		for(int count:countsByQueryIdx.values()) avg+=count;
+		if(avg>0) avg/=countsByQueryIdx.size();
+		double estimatedClusters = avg;
+		UngappedSearchHit firstHit = sequenceHits.get(0);
+		int subjectIdx = firstHit.getSequenceIdx();
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering hits: "+sequenceHits.size()+" estimatedCLusters: "+estimatedClusters);
+		if(estimatedClusters>1.5) return clusterRegionKmerAlnsMultiple(queryLength, subjectLength, sequenceHits, minQueryCoverage);
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(queryLength, subjectLength, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
@@ -502,10 +514,7 @@ public class KmerHitsCluster {
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Number of bins: "+hitsByBin.size());
 		for(List<UngappedSearchHit> hits:hitsByBin.values()) {
 			KmerHitsCluster cluster = new KmerHitsCluster(queryLength, subjectLength, hits);
-			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) {
-				cluster.summarize();
-				System.out.println("Next cluster start: "+cluster.getSubjectPredictedStart()+" unique kmers: "+cluster.getNumDifferentKmers());
-			}
+			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next cluster start: "+cluster.getSubjectPredictedStart()+" unique kmers: "+cluster.getNumDifferentKmers());
 			answer.add(cluster);
 		}
 		return answer;
