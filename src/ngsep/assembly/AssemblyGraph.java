@@ -88,6 +88,9 @@ public class AssemblyGraph {
 			verticesByUnique.put(vE.getUniqueNumber(), vE);
 			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
 			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength());
+			edge.setAverageOverlap(seq.getLength());
+			edge.setMedianOverlap(seq.getLength());
+			edge.setFromLimitsOverlap(seq.getLength());
 			edge.setCoverageSharedKmers(seq.getLength());
 			edge.setWeightedCoverageSharedKmers(seq.getLength());
 			edge.setNumSharedKmers(seq.getLength());

@@ -279,9 +279,10 @@ public class KmerHitsCluster {
 			fromLimitsPredictedOverlap = (subjectPredictedEnd+(queryLength-queryPredictedStart))/2;
 			//predictedOverlap = (predictedOverlap+subjectPredictedEnd+(query.length()-queryPredictedStart))/3;
 		}
-		if(fromLimitsPredictedOverlap>0) predictedOverlap=fromLimitsPredictedOverlap;
-		else predictedOverlap = averagePredictedOverlap;
-		
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Predicting overlap. Avg: "+averagePredictedOverlap+" median: "+medianPredictedOverlap+" from limits: "+fromLimitsPredictedOverlap);
+		//if(fromLimitsPredictedOverlap>0) predictedOverlap=fromLimitsPredictedOverlap;
+		//else predictedOverlap = averagePredictedOverlap;
+		predictedOverlap = (averagePredictedOverlap+medianPredictedOverlap)/2;
 	}
 
 	private void predictSubjectStart(List<UngappedSearchHit> hits) {
@@ -483,7 +484,7 @@ public class KmerHitsCluster {
 		UngappedSearchHit firstHit = sequenceHits.get(0);
 		int subjectIdx = firstHit.getSequenceIdx();
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering hits: "+sequenceHits.size()+" estimatedCLusters: "+estimatedClusters);
-		if(estimatedClusters>1.5) return clusterRegionKmerAlnsMultiple(queryLength, subjectLength, sequenceHits, minQueryCoverage);
+		if(estimatedClusters>1.5) return clusterRegionKmerAlnsMultiple(queryLength, subjectLength, sequenceHits, estimatedClusters);
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(queryLength, subjectLength, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
@@ -499,10 +500,11 @@ public class KmerHitsCluster {
 		if(cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*queryLength) answer.add(cluster2);
 		return answer;
 	}
-	private static List<KmerHitsCluster> clusterRegionKmerAlnsMultiple(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
+	private static List<KmerHitsCluster> clusterRegionKmerAlnsMultiple(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double estimatedClusters) {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		UngappedSearchHit firstHit = sequenceHits.get(0);
 		int subjectIdx = firstHit.getSequenceIdx();
+		//Initial clustering
 		Map<Integer,List<UngappedSearchHit>> hitsByBin = new HashMap<Integer, List<UngappedSearchHit>>();
 		for(UngappedSearchHit hit:sequenceHits) {
 			int estStart = estimateSubjectStart(hit);
@@ -511,6 +513,27 @@ public class KmerHitsCluster {
 			List<UngappedSearchHit> hitsBin = hitsByBin.computeIfAbsent(bin, (v)-> new ArrayList<UngappedSearchHit>());
 			hitsBin.add(hit);
 		}
+		//Second cluster centered in best averages
+		List<List<UngappedSearchHit>> sortedClusters = new ArrayList<List<UngappedSearchHit>>(hitsByBin.size());
+		sortedClusters.addAll(hitsByBin.values());
+		Collections.sort(sortedClusters,(c1,c2)->c2.size()-c1.size());
+		hitsByBin.clear();
+		for(int i=0;i<sortedClusters.size() && i<2*estimatedClusters;i++) {
+			hitsByBin.put(getAverageEstimatedSubjectStart(sortedClusters.get(i)), new ArrayList<UngappedSearchHit>());
+		}
+		for(UngappedSearchHit hit:sequenceHits) {
+			int estStart = estimateSubjectStart(hit);
+			int minS = -1;
+			int minD = -1;
+			for(int start:hitsByBin.keySet()) {
+				int d = Math.abs(estStart-start);
+				if(minS==-1 || d<minD) {
+					minS = start;
+					minD = d;
+				}
+			}
+			hitsByBin.get(minS).add(hit);
+		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Number of bins: "+hitsByBin.size());
 		for(List<UngappedSearchHit> hits:hitsByBin.values()) {
 			KmerHitsCluster cluster = new KmerHitsCluster(queryLength, subjectLength, hits);
@@ -518,6 +541,14 @@ public class KmerHitsCluster {
 			answer.add(cluster);
 		}
 		return answer;
+	}
+	private static int getAverageEstimatedSubjectStart(List<UngappedSearchHit> clusterHits) {
+		int average = 0;
+		for(UngappedSearchHit hit:clusterHits) {
+			average+= estimateSubjectStart(hit);
+			
+		}
+		return average/clusterHits.size();
 	}
 	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes) {
 		

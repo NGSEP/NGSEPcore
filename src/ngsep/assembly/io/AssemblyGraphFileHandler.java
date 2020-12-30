@@ -127,7 +127,8 @@ public class AssemblyGraphFileHandler {
 	private static void saveEdge(AssemblyEdge edge, PrintStream out) {
 		out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
 		out.print("\tOSD="+edge.getOverlapStandardDeviation()+";NSK="+edge.getNumSharedKmers()+";CSK="+edge.getCoverageSharedKmers());
-		out.println(";WCSK="+edge.getWeightedCoverageSharedKmers()+";RNSK="+edge.getRawKmerHits()+";RSSD="+edge.getRawKmerHitsSubjectStartSD());
+		out.print(";WCSK="+edge.getWeightedCoverageSharedKmers()+";RNSK="+edge.getRawKmerHits()+";RSSD="+edge.getRawKmerHitsSubjectStartSD());
+		out.println(";AO="+edge.getAverageOverlap()+";MO="+edge.getMedianOverlap()+";FLO="+edge.getFromLimitsOverlap());
 	}
 	
 	private static AssemblyEdge loadEdge(String[] items, AssemblyGraph graph) {
@@ -156,6 +157,9 @@ public class AssemblyGraphFileHandler {
 			else if("WCSK".equals(featureName)) edge.setWeightedCoverageSharedKmers(featureValue);
 			else if("RNSK".equals(featureName)) edge.setRawKmerHits(featureValue);
 			else if("RSSD".equals(featureName)) edge.setRawKmerHitsSubjectStartSD(featureValue);
+			else if("AO".equals(featureName)) edge.setAverageOverlap(featureValue);
+			else if("MO".equals(featureName)) edge.setMedianOverlap(featureValue);
+			else if("FLO".equals(featureName)) edge.setFromLimitsOverlap(featureValue);
 		}
 		return edge;
 	}

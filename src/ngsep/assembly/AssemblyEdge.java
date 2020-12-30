@@ -27,6 +27,9 @@ public class AssemblyEdge {
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
 	private int overlap;
+	private int averageOverlap;
+	private int medianOverlap;
+	private int fromLimitsOverlap;
 	private int overlapStandardDeviation;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
@@ -60,6 +63,8 @@ public class AssemblyEdge {
 	 */
 	public int getOverlap() {
 		return overlap;
+		//return fromLimitsOverlap;
+		//return averageOverlap;
 	}
 
 	/**
@@ -67,6 +72,32 @@ public class AssemblyEdge {
 	 */
 	public void setOverlap(int overlap) {
 		this.overlap = overlap;
+	}
+	
+	
+
+	public int getAverageOverlap() {
+		return averageOverlap;
+	}
+
+	public void setAverageOverlap(int averageOverlap) {
+		this.averageOverlap = averageOverlap;
+	}
+
+	public int getMedianOverlap() {
+		return medianOverlap;
+	}
+
+	public void setMedianOverlap(int medianOverlap) {
+		this.medianOverlap = medianOverlap;
+	}
+
+	public int getFromLimitsOverlap() {
+		return fromLimitsOverlap;
+	}
+
+	public void setFromLimitsOverlap(int fromLimitsOverlap) {
+		this.fromLimitsOverlap = fromLimitsOverlap;
 	}
 
 	/**

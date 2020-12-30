@@ -115,6 +115,12 @@ public class Distribution {
 		outliers.addAll(outliersMore);
 		return outliers;
 	}
+	public int countOutliersLess() {
+		return outliersLess.size();
+	}
+	public int countOutliersMore() {
+		return outliersMore.size();
+	}
 	public double getMinValueDistribution() {
 		return minValueDistribution;
 	}

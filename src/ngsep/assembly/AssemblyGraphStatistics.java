@@ -58,7 +58,7 @@ public class AssemblyGraphStatistics {
 	private Distribution distWCovSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
-	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 500, 10);
+	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 2000, 100);
 	
 	
 	private Distribution distOverlapsFPEdges = new Distribution(0,100000,2000);
@@ -68,7 +68,7 @@ public class AssemblyGraphStatistics {
 	private Distribution distWCovSharedKmersFPEdges = new Distribution(0, 30000, 500);
 	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
 	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
-	private Distribution distOverlapSDFPEdges = new Distribution(0, 500, 10);
+	private Distribution distOverlapSDFPEdges = new Distribution(0, 2000, 100);
 	
 	private Distribution distOverlapsFPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
@@ -101,15 +101,18 @@ public class AssemblyGraphStatistics {
 	private int totalTestLayoutEdges = 0;
 	private int totalGSLayoutEdges = 0;
 	
-	/*private double rmsePredictedOverlap=0;
+	private double rmsePredictedOverlap=0;
 	private int countPredictedOverlap = 0;
+	private Distribution distOverlapError = new Distribution(-500,500,50);
 	private double rmseAveragePredictedOverlap=0;
 	private int countAveragePredictedOverlap = 0;
+	private Distribution distAverageOverlapError = new Distribution(-500,500,50);
 	private double rmseMedianPredictedOverlap=0;
 	private int countMedianPredictedOverlap = 0;
+	private Distribution distMedianOverlapError = new Distribution(-500,500,50);
 	private double rmseFromLimitsPredictedOverlap=0;
 	private int countFromLimitsPredictedOverlap = 0;
-	*/
+	private Distribution distFromLimitsOverlapError = new Distribution(-500,500,50);
 	
 	private boolean logErrors = false;
 	
@@ -344,6 +347,9 @@ public class AssemblyGraphStatistics {
 				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 				int overlap = left.getLast() - right.getFirst() + 1;
 				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
+				edge.setAverageOverlap(overlap);
+				edge.setMedianOverlap(overlap);
+				edge.setFromLimitsOverlap(overlap);
 				graph.addEdge(edge);
 				
 				boolean relativeNegative = left.isNegativeStrand()!=right.isNegativeStrand();
@@ -514,7 +520,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==185 || gsVertex.getSequenceIndex()==481 || gsVertex.getSequenceIndex()==370; 
+		//boolean debug = gsVertex.getSequenceIndex()==2676 || gsVertex.getSequenceIndex()==4826 || gsVertex.getSequenceIndex()==5532; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -536,7 +542,7 @@ public class AssemblyGraphStatistics {
 				if(edgeEmbedded) tpEdgesEmbedded++;
 				else {
 					tpEdgesNotEmbedded++;
-					//updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(gsConnectingVertex.getUniqueNumber()));
+					if(!gsEdge.isSameSequenceEdge()) updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(number));
 				}
 				testEdgesMatched.put(number, true);
 			}
@@ -567,7 +573,7 @@ public class AssemblyGraphStatistics {
 							distWCovSharedKmersTPPathEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
 							distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 							distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-							distOverlapSDTPPathEdges.processDatapoint(edge.getOverlapStandardDeviation());
+							distOverlapSDTPPathEdges.processDatapoint(edge.getRawKmerHitsSubjectStartSD());
 						}
 						if(!edge.isSameSequenceEdge() && (minCostTestEdge==null || minCostTestEdge.getCost()>edge.getCost())) minCostTestEdge=edge;
 						if(!edge.isSameSequenceEdge() && (maxOverlapTestEdge==null || maxOverlapTestEdge.getOverlap()<edge.getOverlap())) maxOverlapTestEdge=edge;
@@ -596,32 +602,31 @@ public class AssemblyGraphStatistics {
 				distWCovSharedKmersFPEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
 				distSharedKmersProportionFPEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
 				distCoverageSharedKmersProportionFPEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-				distOverlapSDFPEdges.processDatapoint(edge.getOverlapStandardDeviation());
+				distOverlapSDFPEdges.processDatapoint(edge.getRawKmerHitsSubjectStartSD());
 				if (logErrors) System.err.println("False positive edge "+edge);
 			}
 		}
 	}
-	/*private void updateOverlapStats(AssemblyEdge gsEdge, AssemblyEdge testEdge) {
+	private void updateOverlapStats(AssemblyEdge gsEdge, AssemblyEdge testEdge) {
 		if(testEdge==null || testEdge.isSameSequenceEdge()) return;
 		double error = gsEdge.getOverlap()-testEdge.getOverlap();
 		rmsePredictedOverlap+=error*error;
 		countPredictedOverlap++;
-		if(testEdge.getEvidence().getAveragePredictedOverlap()>0) {
-			error = gsEdge.getOverlap()-testEdge.getEvidence().getAveragePredictedOverlap();
-			rmseAveragePredictedOverlap+=error*error;
-			countAveragePredictedOverlap++;
-		}
-		if(testEdge.getEvidence().getMedianPredictedOverlap()>0) {
-			error = gsEdge.getOverlap()-testEdge.getEvidence().getMedianPredictedOverlap();
-			rmseMedianPredictedOverlap+=error*error;
-			countMedianPredictedOverlap++;
-		}
-		if(testEdge.getEvidence().getFromLimitsPredictedOverlap()>0) {
-			error = gsEdge.getOverlap()-testEdge.getEvidence().getFromLimitsPredictedOverlap();
-			rmseFromLimitsPredictedOverlap+=error*error;
-			countFromLimitsPredictedOverlap++;
-		}
-	}*/
+		distOverlapError.processDatapoint(error);
+		if(error < -200) System.out.println("Large overlap error in edge. GS edge: "+gsEdge+"\ntest edge: "+testEdge );
+		error = gsEdge.getOverlap()-testEdge.getAverageOverlap();
+		rmseAveragePredictedOverlap+=error*error;
+		countAveragePredictedOverlap++;
+		distAverageOverlapError.processDatapoint(error);
+		error = gsEdge.getOverlap()-testEdge.getMedianOverlap();
+		rmseMedianPredictedOverlap+=error*error;
+		countMedianPredictedOverlap++;
+		distMedianOverlapError.processDatapoint(error);
+		error = gsEdge.getOverlap()-testEdge.getFromLimitsOverlap();
+		rmseFromLimitsPredictedOverlap+=error*error;
+		countFromLimitsPredictedOverlap++;
+		distFromLimitsOverlapError.processDatapoint(error);
+	}
 	private double calculateCost(AssemblyEdge edge) {
 		if(edge.isSameSequenceEdge()) return edge.getCost();
 		//int cost = edge.getCost();
@@ -803,19 +808,28 @@ public class AssemblyGraphStatistics {
 		out.println("PATHS\t"+totalTestLayoutPaths+"\t"+tpLayoutEdges+"\t"+errorsFPEdge+"\t"+errorsEdgeEmbeddedNoLayout+"\t"+errorsTPEdgeNoLayout+"\t"+errorsFNLayoutEdge+"\t"+totalTestLayoutEdges+"\t"+totalGSLayoutEdges+"\t"+precision+"\t"+recall);
 		out.println();
 		
-		/*out.println("Predicted overlap estimation errors");
+		out.println("Predicted overlap estimation errors");
 		out.println("Current: "+Math.sqrt(rmsePredictedOverlap/countPredictedOverlap)+" count "+countPredictedOverlap);
 		out.println("Average: "+Math.sqrt(rmseAveragePredictedOverlap/countAveragePredictedOverlap)+" count "+countAveragePredictedOverlap);
 		out.println("Median: "+Math.sqrt(rmseMedianPredictedOverlap/countMedianPredictedOverlap)+" count "+countMedianPredictedOverlap);
 		out.println("FromLimits: "+Math.sqrt(rmseFromLimitsPredictedOverlap/countFromLimitsPredictedOverlap)+" count "+countFromLimitsPredictedOverlap);
 		out.println();
-		*/
-		double [] d1 = distOverlapsTPPathEdges.getDistribution();
-		double [] d2 = distOverlapsFPPathEdges.getDistribution();
-		double [] d3 = distOverlapsFNPathEdges.getDistribution();
-		double [] d4 = distOverlapsFPEdges.getDistribution();
+		double [] d1 = distOverlapError.getDistribution();
+		double [] d2 = distAverageOverlapError.getDistribution();
+		double [] d3 = distMedianOverlapError.getDistribution();
+		double [] d4 = distFromLimitsOverlapError.getDistribution();
+		out.println("Number\tCurrent\tAverage\tMedian\tFromLimits");
+		out.println("Less+\t"+distOverlapError.countOutliersLess()+"\t"+distAverageOverlapError.countOutliersLess()+"\t"+distMedianOverlapError.countOutliersLess()+"\t"+distFromLimitsOverlapError.countOutliersLess());
+		for(int i=0;i<d1.length;i++) {
+			int min = -500+i*(int)distOverlapError.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
+		}
+		out.println("More+\t"+distOverlapError.countOutliersMore()+"\t"+distAverageOverlapError.countOutliersMore()+"\t"+distMedianOverlapError.countOutliersMore()+"\t"+distFromLimitsOverlapError.countOutliersMore());
 		
-		
+		d1 = distOverlapsTPPathEdges.getDistribution();
+		d2 = distOverlapsFPPathEdges.getDistribution();
+		d3 = distOverlapsFNPathEdges.getDistribution();
+		d4 = distOverlapsFPEdges.getDistribution();
 		out.println("Overlap distributions");
 		out.println("Number\tTPpath\tFPpath\tFNPath\tFP");
 		for(int i=0;i<d1.length;i++) {
@@ -916,16 +930,19 @@ public class AssemblyGraphStatistics {
 		totalTestLayoutEdges = 0;
 		totalGSLayoutEdges = 0;
 		
-		/*
+		
 		rmsePredictedOverlap=0;
 		countPredictedOverlap = 0;
+		distOverlapError.reset();
 		rmseAveragePredictedOverlap=0;
 		countAveragePredictedOverlap = 0;
+		distAverageOverlapError.reset();
 		rmseMedianPredictedOverlap=0;
 		countMedianPredictedOverlap = 0;
+		distMedianOverlapError.reset();
 		rmseFromLimitsPredictedOverlap=0;
 		countFromLimitsPredictedOverlap = 0;
-		*/
+		distFromLimitsOverlapError.reset();
 		
 		distOverlapsTPPathEdges.reset();
 		distOverlapSDTPPathEdges.reset();
