@@ -755,10 +755,16 @@ See the README.txt file for further details of input and output files.
 Fasta file with the reference genome.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
-Output file with called variants in VCF format
+Output file with called variants in VCF format.
 </option>
 <option id="d" type="FILE" attribute="poolsDescriptor">
-File with the information of individuals assigned to each pool 
+File with the information of individuals assigned to each pool. 
+</option>
+<option id="m" type="INT" attribute="maxPools">
+Maximum number of pools in which a variant can appear. Default 0 (no filter).
+</option>
+<option id="b" type="BOOLEAN" attribute="onlyBiallelic">
+Report only biallelic variants.
 </option>
 
 </command>

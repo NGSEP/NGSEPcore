@@ -25,13 +25,16 @@ public class TillingIndividualVCF2PoolVCF {
 		TillingIndividualVCF2PoolVCF instance = new TillingIndividualVCF2PoolVCF();
 		String individualVCF = args[0];
 		String poolsFile = args[1];
-		Map<String,List<Integer>> poolsData = TillingPoolsIndividualGenotyper.loadPoolsFile(poolsFile);
+		TillingPoolsIndividualGenotyper genotyper = new TillingPoolsIndividualGenotyper();
+		genotyper.setPoolsDescriptor(poolsFile);
+		genotyper.loadPools();
+		Map<String,List<String>> poolsData = genotyper.getPoolConfiguration();
 		instance.processIndividualsVCF (individualVCF,poolsData,System.out);
 	}
 
-	public void processIndividualsVCF(String individualVCF, Map<String, List<Integer>> poolsData, PrintStream out) throws IOException {
+	public void processIndividualsVCF(String individualVCF, Map<String, List<String>> poolsData, PrintStream out) throws IOException {
 		System.err.println("Loaded "+poolsData.size()+" samples");
-		Map<Integer, Sample> poolSamples = createPoolSamples(poolsData);
+		Map<String, Sample> poolSamples = createPoolSamples(poolsData);
 		System.err.println("Loaded "+poolSamples.size()+" pools");
 		List<Sample> poolSamplesList = new ArrayList<Sample>(poolSamples.size());
 		poolSamplesList.addAll(poolSamples.values());
@@ -46,10 +49,10 @@ public class TillingIndividualVCF2PoolVCF {
 				GenomicVariant variant = indvRecord.getVariant();
 				if(!variant.isBiallelic()) continue;
 				List<CalledGenomicVariant> indvCalls = indvRecord.getCalls();
-				Map<Integer,Integer> poolAltCounts = calculateAlternativeCounts(poolsData, indvCalls);
+				Map<String,Integer> poolAltCounts = calculateAlternativeCounts(poolsData, indvCalls);
 				List<CalledGenomicVariant> poolCalls = new ArrayList<CalledGenomicVariant>(poolSamplesList.size());
 				int i=0;
-				for(int poolId:poolSamples.keySet()) {
+				for(String poolId:poolSamples.keySet()) {
 					Sample sample = poolSamplesList.get(i);
 					Integer count = poolAltCounts.get(poolId);
 					CalledGenomicVariantImpl call;
@@ -75,15 +78,15 @@ public class TillingIndividualVCF2PoolVCF {
 		}	
 	}
 
-	private Map<Integer, Sample> createPoolSamples(Map<String, List<Integer>> poolsData) {
-		Map<Integer,Sample> poolSamples = new TreeMap<Integer,Sample>();
+	private Map<String, Sample> createPoolSamples(Map<String, List<String>> poolsData) {
+		Map<String,Sample> poolSamples = new TreeMap<String,Sample>();
 		for(String indvSampleId:poolsData.keySet()) {
-			List<Integer> poolsSample = poolsData.get(indvSampleId);
-			for(int i:poolsSample) {
-				Sample s = poolSamples.get(i);
+			List<String> poolsSample = poolsData.get(indvSampleId);
+			for(String id:poolsSample) {
+				Sample s = poolSamples.get(id);
 				if(s==null) {
-					s = new Sample(""+i);
-					poolSamples.put(i, s);
+					s = new Sample(id);
+					poolSamples.put(id, s);
 				} else {
 					s.setNormalPloidy((short) (s.getNormalPloidy()+2));
 				}
@@ -92,14 +95,14 @@ public class TillingIndividualVCF2PoolVCF {
 		return poolSamples;
 	}
 
-	private Map<Integer, Integer> calculateAlternativeCounts(Map<String, List<Integer>> poolsData, List<CalledGenomicVariant> indvCalls) {
-		Map<Integer, Integer> poolCounts = new HashMap<Integer, Integer>();
+	private Map<String, Integer> calculateAlternativeCounts(Map<String, List<String>> poolsData, List<CalledGenomicVariant> indvCalls) {
+		Map<String, Integer> poolCounts = new HashMap<String, Integer>();
 		for(CalledGenomicVariant call:indvCalls) {
 			if(call.isUndecided() || call.isHomozygousReference()) continue;
 			int altAlleles = call.isHeterozygous()?1:2;
 			String sampleId = call.getSampleId();
-			List<Integer> pools = poolsData.get(sampleId);
-			for(int poolId:pools) {
+			List<String> pools = poolsData.get(sampleId);
+			for(String poolId:pools) {
 				poolCounts.compute(poolId, (k,v)->v!=null?v+altAlleles:altAlleles);
 			}
 		}
