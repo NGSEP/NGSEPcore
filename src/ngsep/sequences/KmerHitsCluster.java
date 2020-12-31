@@ -536,6 +536,7 @@ public class KmerHitsCluster {
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Number of bins: "+hitsByBin.size());
 		for(List<UngappedSearchHit> hits:hitsByBin.values()) {
+			if(hits.size()<5) continue;
 			KmerHitsCluster cluster = new KmerHitsCluster(queryLength, subjectLength, hits);
 			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next cluster start: "+cluster.getSubjectPredictedStart()+" unique kmers: "+cluster.getNumDifferentKmers());
 			answer.add(cluster);
