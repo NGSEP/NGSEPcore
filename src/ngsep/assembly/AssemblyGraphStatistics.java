@@ -289,7 +289,6 @@ public class AssemblyGraphStatistics {
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
-			//graph.removeEdgesChimericReads();
 			graph.filterEdgesAndEmbedded();
 			log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			
@@ -309,6 +308,7 @@ public class AssemblyGraphStatistics {
 			pathsFinder.findPaths(graph);
 			logErrors=true;
 			compareGraphs(goldStandardGraph, graph, out);
+			//logErrors = true;
 			compareLayouts(goldStandardGraph, graph, out);
 			out.println("Filtered graph statistics");
 			printStatistics(out);
@@ -344,6 +344,7 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			//if(left.getSoftClipStart()>1000 || left.getSoftClipEnd() > 1000) System.err.println("Large softclip in alignemt of read: "+left.getReadNumber()+" "+left.getReadName()+" CIGAR: "+left.getCigarString());
 			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
 			leftSeq.setLength(left.getReadLength());
 			
@@ -552,7 +553,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==7571 || gsVertex.getSequenceIndex()==53771 || gsVertex.getSequenceIndex()==88635; 
+		//boolean debug = gsVertex.getSequenceIndex()==445 || gsVertex.getSequenceIndex()==2074 || gsVertex.getSequenceIndex()==3057; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
