@@ -295,6 +295,7 @@ public class AssemblyGraph {
 	 */
 	public AssemblyEdge getSameSequenceEdge(int sequenceId) {
 		AssemblyVertex vertex = verticesStart.get(sequenceId);
+		if(vertex == null) return null;
 		return getSameSequenceEdge(vertex);
 	}
 	/**
@@ -468,6 +469,7 @@ public class AssemblyGraph {
 
 	public void filterEdgesAndEmbedded(int sequenceId,int medianLength) {
 		int debugIdx = -1;
+		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
 		if(vS==null || vE==null) return;
@@ -476,48 +478,51 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportionEdges = 0.3;
+		double minScoreProportionEdges = 0.5;
 		
-		double maxScoreS = 0;			
+		double maxScoreSE = 0;
+		double maxScoreSF = 0;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScore(edge);
-			if(score > maxScoreS) {
-				maxScoreS = score;
-			}
+			maxScoreSE = Math.max(maxScoreSE, calculateScoreForEmbedded(edge));
+			maxScoreSF = Math.max(maxScoreSF, calculateScoreForEdgeFiltering(edge));
 		}
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScore(edge);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreS);
-			if(score < minScoreProportionEdges*maxScoreS) {
+			double score = calculateScoreForEdgeFiltering(edge);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreSF);
+			if(score < minScoreProportionEdges*maxScoreSF) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
 		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max score start: "+maxScoreS+" remaining edges: "+edgesMap.get(vS.getUniqueNumber()).size());
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max scores start: "+maxScoreSF+" "+maxScoreSE+" remaining edges: "+edgesMap.get(vS.getUniqueNumber()).size());
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
 		if(vE!=null) edgesE.addAll(getEdges(vE));
-		double maxScoreE = 0;			
+		double maxScoreEE = 0;
+		double maxScoreEF = 0;			
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScore(edge);
-			if(score > maxScoreE) {
-				maxScoreE = score;
-			}
+			maxScoreEE = Math.max(maxScoreEE, calculateScoreForEmbedded(edge));
+			maxScoreEF = Math.max(maxScoreEF, calculateScoreForEdgeFiltering(edge));
 		}
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScore(edge);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE);
-			if(score < minScoreProportionEdges*maxScoreE) {
+			double score = calculateScoreForEdgeFiltering(edge);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreEF);
+			if(score < minScoreProportionEdges*maxScoreEF) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				removeEdge(edge);
 			}
 		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max scores end: "+maxScoreEF+" "+maxScoreEE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
 		
-		double maxScore = Math.max(maxScoreS, maxScoreE);
+		//double minScoreProportionEmbedded = 0.8;
+		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
+		double minScoreProportionEmbedded = Math.min(0.9, 0.4*sequenceLength/(double)medianLength);
+		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		
+		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return;
@@ -526,11 +531,11 @@ public class AssemblyGraph {
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
-		//double minScoreProportionEmbedded = 0.8;
-		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
-		double minScoreProportionEmbedded = Math.min(0.9, 0.4*getSequenceLength(sequenceId)/(double)medianLength);
-		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
-		if(maxScoreEmbedded<minScoreProportionEmbedded*maxScore) {
+		
+		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
+		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
+		//if(maxScoreEmbedded<maxScoreFilterEmbedded || maxScoreEmbedded < 0.2*calculateScore(sameSequenceEdge)) {
+		//if(maxScoreEmbedded < 0.2*calculateScore(sameSequenceEdge)) {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				removeEmbedded(embedded);
@@ -538,7 +543,7 @@ public class AssemblyGraph {
 				addEdgeFromEmbedded(embedded);
 			}
 		} else {
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Sequence is embedded. Max score edges "+ maxScore +" max score embedded "+maxScoreEmbedded+" minprop "+minScoreProportionEmbedded);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Sequence is embedded. Max score to filter "+ maxScoreFilterEmbedded +" max score embedded "+maxScoreEmbedded+" minprop "+minScoreProportionEmbedded);
 			filterEmbedded(sequenceId, 0.9, 1);
 		}
 	}
@@ -561,7 +566,8 @@ public class AssemblyGraph {
 		edge.setWeightedCoverageSharedKmers(embedded.getWeightedCoverageSharedKmers());
 		edge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
 		edge.setNumSharedKmers(embedded.getNumSharedKmers());
-		edge.setOverlapStandardDeviation(100);
+		edge.setRawKmerHits(embedded.getRawKmerHits());
+		edge.setRawKmerHitsSubjectStartSD(embedded.getRawKmerHitsSubjectStartSD());
 		addEdge(edge);
 	}
 
@@ -604,10 +610,17 @@ public class AssemblyGraph {
 		//return embedded.getWeightedCoverageSharedKmers()*embedded.getRawKmerHits();
 	}
 
-	private double calculateScore(AssemblyEdge edge) {
+	private double calculateScoreForEmbedded(AssemblyEdge edge) {
 		return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		//return edge.getWeightedCoverageSharedKmers();
+		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
+	}
+	
+	private double calculateScoreForEdgeFiltering(AssemblyEdge edge) {
+		//return edge.getCoverageSharedKmers();
+		//return edge.getRawKmerHits();
+		return edge.getWeightedCoverageSharedKmers();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
 
@@ -633,7 +646,7 @@ public class AssemblyGraph {
 			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap() < edge.getOverlap()) {
 				maxOverlapEdge = edge;
 			}
-			if(maxScoreEdge==null || calculateScore(maxScoreEdge)<calculateScore(edge)) {
+			if(maxScoreEdge==null || calculateScoreForEdgeFiltering(maxScoreEdge)<calculateScoreForEdgeFiltering(edge)) {
 				maxScoreEdge = edge;
 			}
 		}

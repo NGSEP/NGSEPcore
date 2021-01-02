@@ -51,6 +51,16 @@ public class AssemblyGraphStatistics {
 	private boolean simulated = false;
 	
 	//Statistics
+	private Distribution distCSKTPEmbedded = new Distribution(0, 30000, 500);
+	private Distribution distWCSKTPEmbedded = new Distribution(0, 30000, 500);
+	private Distribution distCSKPropLengthTPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distCSKPropSelfCSKTPEmbedded = new Distribution(0, 1, 0.01);
+	
+	private Distribution distCSKFPEmbedded = new Distribution(0, 30000, 500);
+	private Distribution distWCSKFPEmbedded = new Distribution(0, 30000, 500);
+	private Distribution distCSKPropLengthFPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distCSKPropSelfCSKFPEmbedded = new Distribution(0, 1, 0.01);
+	
 	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCostsTPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distSharedKmersTPPathEdges = new Distribution(0,25000,500);
@@ -297,7 +307,7 @@ public class AssemblyGraphStatistics {
 			 
 			
 			pathsFinder.findPaths(graph);
-			//logErrors=true;
+			logErrors=true;
 			compareGraphs(goldStandardGraph, graph, out);
 			compareLayouts(goldStandardGraph, graph, out);
 			out.println("Filtered graph statistics");
@@ -436,26 +446,48 @@ public class AssemblyGraphStatistics {
 		int n = goldStandardGraph.getNumSequences();
 		for(int i=0;i<n;i++) {
 			QualifiedSequence sequence = goldStandardGraph.getSequence(i);
+			AssemblyEdge selfEdge = testGraph.getSameSequenceEdge(i);
 			//Check embedded status
 			boolean gsE = goldStandardGraph.isEmbedded(i);
 			boolean testE = testGraph.isEmbedded(i);
-			if(gsE && testE) tpEmbSeqs++;
+			if(gsE && testE) {
+				tpEmbSeqs++;
+				List<AssemblyEmbedded> hosts = testGraph.getEmbeddedBySequenceId(i);
+				double maxCSK = 0;
+				double maxWCSK = 0;
+				for(AssemblyEmbedded embedded: hosts) {
+					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
+					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
+				}
+				distCSKTPEmbedded.processDatapoint(maxCSK);
+				distWCSKTPEmbedded.processDatapoint(maxWCSK);
+				distCSKPropLengthTPEmbedded.processDatapoint(maxCSK/sequence.getLength());
+				if(selfEdge!=null) distCSKPropSelfCSKTPEmbedded.processDatapoint(maxCSK/selfEdge.getCoverageSharedKmers());
+			}
 			else if (gsE) {
 				fnEmbSeqs++;
-				System.err.println("Embedded sequence not called: "+logSequence(i, sequence));
+				if (logErrors) System.err.println("Embedded sequence not called: "+logSequence(i, sequence));
 				for(AssemblyEmbedded embedded:goldStandardGraph.getEmbeddedBySequenceId(i)) {
 					QualifiedSequence seqHost = goldStandardGraph.getSequence(embedded.getHostId()) ;
-					System.err.println("Next true host "+logSequence(embedded.getHostId(),seqHost));
+					if (logErrors) System.err.println("Next true host "+logSequence(embedded.getHostId(),seqHost));
 				}
 			}
 			else if (testE) {
 				fpEmbSeqs++;
 				List<AssemblyEmbedded> falseHosts = testGraph.getEmbeddedBySequenceId(i);
-				System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
+				double maxCSK = 0;
+				double maxWCSK = 0;
+				if (logErrors) System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
-					System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" weighted cov: "+embedded.getWeightedCoverageSharedKmers());
+					if (logErrors) System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" predicted: "+embedded.getHostStart()+"-"+embedded.getHostEnd()+" evidence: "+embedded.getHostEvidenceStart()+"-"+embedded.getHostEvidenceEnd()+" CSK: "+embedded.getCoverageSharedKmers()+" WCSK: "+embedded.getWeightedCoverageSharedKmers()+" RK: "+embedded.getRawKmerHits()+" RSD: "+embedded.getRawKmerHitsSubjectStartSD()+" prop: "+(1.0*embedded.getCoverageSharedKmers()/goldStandardGraph.getSequenceLength(embedded.getSequenceId())));
+					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
+					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
+				distCSKFPEmbedded.processDatapoint(maxCSK);
+				distWCSKFPEmbedded.processDatapoint(maxWCSK);
+				distCSKPropLengthFPEmbedded.processDatapoint(maxCSK/sequence.getLength());
+				if(selfEdge!=null) distCSKPropSelfCSKFPEmbedded.processDatapoint(maxCSK/selfEdge.getCoverageSharedKmers());
 			}
 			//Check embedded relationships
 			List<AssemblyEmbedded> embeddedGS = goldStandardGraph.getEmbeddedByHostId(i);
@@ -520,7 +552,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==2676 || gsVertex.getSequenceIndex()==4826 || gsVertex.getSequenceIndex()==5532; 
+		//boolean debug = gsVertex.getSequenceIndex()==7571 || gsVertex.getSequenceIndex()==53771 || gsVertex.getSequenceIndex()==88635; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -579,7 +611,7 @@ public class AssemblyGraphStatistics {
 						if(!edge.isSameSequenceEdge() && (maxOverlapTestEdge==null || maxOverlapTestEdge.getOverlap()<edge.getOverlap())) maxOverlapTestEdge=edge;
 					}
 					//if(logErrors && minCostTestEdge!=layoutTestEdge) log.info("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logEdge(layoutTestEdge)+" min cost edge: "+logEdge(minCostTestEdge)+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
-					if(logErrors && maxOverlapTestEdge!=layoutTestEdge) System.err.println("Max overlap edge for vertex "+testVertex+" not in layout. Layout edge: "+layoutTestEdge+" max overlap edge: "+maxOverlapTestEdge+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
+					//if(logErrors && maxOverlapTestEdge!=layoutTestEdge) System.err.println("Max overlap edge for vertex "+testVertex+" not in layout. Layout edge: "+layoutTestEdge+" max overlap edge: "+maxOverlapTestEdge+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
 					
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
@@ -826,6 +858,28 @@ public class AssemblyGraphStatistics {
 		}
 		out.println("More+\t"+distOverlapError.countOutliersMore()+"\t"+distAverageOverlapError.countOutliersMore()+"\t"+distMedianOverlapError.countOutliersMore()+"\t"+distFromLimitsOverlapError.countOutliersMore());
 		
+		d1 = distCSKTPEmbedded.getDistribution();
+		d2 = distCSKFPEmbedded.getDistribution();
+		d3 = distWCSKTPEmbedded.getDistribution();
+		d4 = distWCSKFPEmbedded.getDistribution();
+		out.println("CSK embedded");
+		out.println("Number\tCSK_TP\tCSK_FP\tWCSK_TP\tWCSK_FP");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distCSKTPEmbedded.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
+		}
+		
+		d1 = distCSKPropLengthTPEmbedded.getDistribution();
+		d2 = distCSKPropLengthFPEmbedded.getDistribution();
+		d3 = distCSKPropSelfCSKTPEmbedded.getDistribution();
+		d4 = distCSKPropSelfCSKFPEmbedded.getDistribution();
+		out.println("CSK proportion embedded");
+		out.println("Number\tPropLengthTP\tPropLength_FP\tPropSelf_TP\tPropSelf_FP");
+		for(int i=0;i<d1.length;i++) {
+			double min = distCSKPropLengthTPEmbedded.getBinLength()*i;
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
+		}
+		
 		d1 = distOverlapsTPPathEdges.getDistribution();
 		d2 = distOverlapsFPPathEdges.getDistribution();
 		d3 = distOverlapsFNPathEdges.getDistribution();
@@ -836,11 +890,10 @@ public class AssemblyGraphStatistics {
 			int min = i*(int)distOverlapsTPPathEdges.getBinLength();
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
 		}
+		
 		d1 = distCostsTPPathEdges.getDistribution();
 		d2 = distCostsFPEdges.getDistribution();
 		d3 = distCostsFNPathEdges.getDistribution();
-		
-		
 		out.println("Cost distributions");
 		out.println("Number\tTPpath\tFP\tFNPath");
 		for(int i=0;i<d1.length;i++) {
@@ -943,6 +996,15 @@ public class AssemblyGraphStatistics {
 		rmseFromLimitsPredictedOverlap=0;
 		countFromLimitsPredictedOverlap = 0;
 		distFromLimitsOverlapError.reset();
+		
+		distCSKTPEmbedded.reset();
+		distCSKFPEmbedded.reset();
+		distWCSKTPEmbedded.reset();
+		distWCSKFPEmbedded.reset();
+		distCSKPropLengthTPEmbedded.reset();
+		distCSKPropLengthFPEmbedded.reset();
+		distCSKPropSelfCSKTPEmbedded.reset();
+		distCSKPropSelfCSKFPEmbedded.reset();
 		
 		distOverlapsTPPathEdges.reset();
 		distOverlapSDTPPathEdges.reset();
