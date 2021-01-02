@@ -53,12 +53,12 @@ public class AssemblyGraphStatistics {
 	//Statistics
 	private Distribution distCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKTPEmbedded = new Distribution(0, 30000, 500);
-	private Distribution distCSKPropLengthTPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distEvidencePropLengthTPEmbedded = new Distribution(0, 1, 0.01);
 	private Distribution distCSKPropSelfCSKTPEmbedded = new Distribution(0, 1, 0.01);
 	
 	private Distribution distCSKFPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKFPEmbedded = new Distribution(0, 30000, 500);
-	private Distribution distCSKPropLengthFPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distEvidencePropLengthFPEmbedded = new Distribution(0, 1, 0.01);
 	private Distribution distCSKPropSelfCSKFPEmbedded = new Distribution(0, 1, 0.01);
 	
 	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,2000);
@@ -454,15 +454,17 @@ public class AssemblyGraphStatistics {
 			if(gsE && testE) {
 				tpEmbSeqs++;
 				List<AssemblyEmbedded> hosts = testGraph.getEmbeddedBySequenceId(i);
+				double maxEvidenceHost = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				for(AssemblyEmbedded embedded: hosts) {
+					maxEvidenceHost = Math.max(maxEvidenceHost, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
 				distCSKTPEmbedded.processDatapoint(maxCSK);
 				distWCSKTPEmbedded.processDatapoint(maxWCSK);
-				distCSKPropLengthTPEmbedded.processDatapoint(maxCSK/sequence.getLength());
+				distEvidencePropLengthTPEmbedded.processDatapoint(maxEvidenceHost/sequence.getLength());
 				if(selfEdge!=null) distCSKPropSelfCSKTPEmbedded.processDatapoint(maxCSK/selfEdge.getCoverageSharedKmers());
 			}
 			else if (gsE) {
@@ -476,18 +478,20 @@ public class AssemblyGraphStatistics {
 			else if (testE) {
 				fpEmbSeqs++;
 				List<AssemblyEmbedded> falseHosts = testGraph.getEmbeddedBySequenceId(i);
+				double maxEvidenceHost = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				if (logErrors) System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" predicted: "+embedded.getHostStart()+"-"+embedded.getHostEnd()+" evidence: "+embedded.getHostEvidenceStart()+"-"+embedded.getHostEvidenceEnd()+" CSK: "+embedded.getCoverageSharedKmers()+" WCSK: "+embedded.getWeightedCoverageSharedKmers()+" RK: "+embedded.getRawKmerHits()+" RSD: "+embedded.getRawKmerHitsSubjectStartSD()+" prop: "+(1.0*embedded.getCoverageSharedKmers()/goldStandardGraph.getSequenceLength(embedded.getSequenceId())));
+					maxEvidenceHost = Math.max(maxEvidenceHost, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
 				distCSKFPEmbedded.processDatapoint(maxCSK);
 				distWCSKFPEmbedded.processDatapoint(maxWCSK);
-				distCSKPropLengthFPEmbedded.processDatapoint(maxCSK/sequence.getLength());
+				distEvidencePropLengthFPEmbedded.processDatapoint(maxEvidenceHost/sequence.getLength());
 				if(selfEdge!=null) distCSKPropSelfCSKFPEmbedded.processDatapoint(maxCSK/selfEdge.getCoverageSharedKmers());
 			}
 			//Check embedded relationships
@@ -553,7 +557,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==445 || gsVertex.getSequenceIndex()==2074 || gsVertex.getSequenceIndex()==3057; 
+		//boolean debug = gsVertex.getSequenceIndex()==1495 || gsVertex.getSequenceIndex()==8806 || gsVertex.getSequenceIndex()==3752; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -646,7 +650,7 @@ public class AssemblyGraphStatistics {
 		rmsePredictedOverlap+=error*error;
 		countPredictedOverlap++;
 		distOverlapError.processDatapoint(error);
-		if(error < -200) System.out.println("Large overlap error in edge. GS edge: "+gsEdge+"\ntest edge: "+testEdge );
+		if(logErrors && error < -200) System.out.println("Large overlap error in edge. GS edge: "+gsEdge+"\ntest edge: "+testEdge );
 		error = gsEdge.getOverlap()-testEdge.getAverageOverlap();
 		rmseAveragePredictedOverlap+=error*error;
 		countAveragePredictedOverlap++;
@@ -870,14 +874,14 @@ public class AssemblyGraphStatistics {
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
 		}
 		
-		d1 = distCSKPropLengthTPEmbedded.getDistribution();
-		d2 = distCSKPropLengthFPEmbedded.getDistribution();
+		d1 = distEvidencePropLengthTPEmbedded.getDistribution();
+		d2 = distEvidencePropLengthFPEmbedded.getDistribution();
 		d3 = distCSKPropSelfCSKTPEmbedded.getDistribution();
 		d4 = distCSKPropSelfCSKFPEmbedded.getDistribution();
 		out.println("CSK proportion embedded");
 		out.println("Number\tPropLengthTP\tPropLength_FP\tPropSelf_TP\tPropSelf_FP");
 		for(int i=0;i<d1.length;i++) {
-			double min = distCSKPropLengthTPEmbedded.getBinLength()*i;
+			double min = distEvidencePropLengthTPEmbedded.getBinLength()*i;
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
 		}
 		
@@ -1002,8 +1006,8 @@ public class AssemblyGraphStatistics {
 		distCSKFPEmbedded.reset();
 		distWCSKTPEmbedded.reset();
 		distWCSKFPEmbedded.reset();
-		distCSKPropLengthTPEmbedded.reset();
-		distCSKPropLengthFPEmbedded.reset();
+		distEvidencePropLengthTPEmbedded.reset();
+		distEvidencePropLengthFPEmbedded.reset();
 		distCSKPropSelfCSKTPEmbedded.reset();
 		distCSKPropSelfCSKFPEmbedded.reset();
 		

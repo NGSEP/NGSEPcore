@@ -531,35 +531,46 @@ public class AssemblyGraph {
 		}
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max scores end: "+maxScoreEF+" "+maxScoreEE+" remaining edges: "+edgesMap.get(vE.getUniqueNumber()).size());
 		
-		//double minScoreProportionEmbedded = 0.8;
-		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
+		
+		/*double minScoreProportionEmbedded = 0.8;
+		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
+		
 		double minScoreProportionEmbedded = Math.min(0.9, 0.5*medianRelationship);
 		if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
+		*/
+		
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return;
+		double maxEvidencePropEmbedded = 0;
 		double maxScoreEmbedded = -1;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
+			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
-		
+		maxEvidencePropEmbedded /= sequenceLength;
 		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
-		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
+		double maxScorePropEmbedded = maxScoreEmbedded/calculateScoreForEmbedded(sameSequenceEdge);
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max socre prop self: "+maxScorePropEmbedded);
+		double minProportionEmbedded = Math.min(0.9, 0.5*medianRelationship*medianRelationship);
+		//if(maxScoreEmbedded<maxScoreFilterEmbedded) {
+		if(maxEvidencePropEmbedded<minProportionEmbedded) {
+		//if(maxEvidencePropEmbedded<minProportionEmbedded || maxScorePropEmbedded<0.5*minProportionEmbedded) {
 		//if(maxScoreEmbedded<maxScoreFilterEmbedded || maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {
 		//if(maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				removeEmbedded(embedded);
 				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+getSequenceLength(embedded.getHostId())+"score: "+calculateScore(embedded));
-				//addEdgeFromEmbedded(embedded);
+				addEdgeFromEmbedded(embedded);
 			}
 		} else {
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Sequence is embedded. Max score to filter "+ maxScoreFilterEmbedded +" max score embedded "+maxScoreEmbedded+" minprop "+minScoreProportionEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge));
+			if(sequenceId == debugIdx) System.out.println("Sequence is embedded ");
 			filterEmbedded(sequenceId, 0.9, 1);
 		}
 	}
@@ -577,7 +588,8 @@ public class AssemblyGraph {
 			vertexEmbedded = getVertex(embedded.getSequenceId(), !embedded.isReverse());
 		}
 		if(vertexHost==null || vertexEmbedded==null) return;
-		AssemblyEdge edge = new AssemblyEdge(vertexHost, vertexEmbedded, getSequenceLength(embedded.getSequenceId()-1));
+		int overlap = Math.max(embedded.getCoverageSharedKmers(), embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
+		AssemblyEdge edge = new AssemblyEdge(vertexHost, vertexEmbedded, overlap);
 		edge.setOverlapStandardDeviation(embedded.getHostStartStandardDeviation());
 		edge.setWeightedCoverageSharedKmers(embedded.getWeightedCoverageSharedKmers());
 		edge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
