@@ -519,22 +519,27 @@ public class AssemblyGraph {
 		for(QualifiedSequence seq:sequences) lengthsDistribution.processDatapoint(seq.getLength());
 		Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
 		Distribution cskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
+		Distribution wcskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
 		for(int seqId:embeddedMapBySequence.keySet()) {
 			int length = getSequenceLength(seqId);
 			AssemblyEdge edge = getSameSequenceEdge(seqId);
 			if(edge == null) continue;
 			int selfCSK = edge.getCoverageSharedKmers();
+			int selfWCSK = edge.getWeightedCoverageSharedKmers();
 			List<AssemblyEmbedded> relations = embeddedMapBySequence.get(seqId);
 			for(AssemblyEmbedded embedded:relations) {
 				double evidenceLength = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
 				evidenceProportionEmbedded.processDatapoint(evidenceLength/length);
 				cskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfCSK);
+				wcskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfWCSK);
 			}
 		}
 		System.out.println("Proportion of evidence vs read length for embedded relationships");
 		evidenceProportionEmbedded.printDistribution(System.out);
-		System.out.println("Proportion of coverage of shared kmers vs self CSK for embedded relationships");
+		System.out.println("Proportion of CSK vs self CSK for embedded relationships");
 		cskProportionSelfEmbedded.printDistribution(System.out);
+		System.out.println("Proportion of WCSK vs self WCSK for embedded relationships");
+		wcskProportionSelfEmbedded.printDistribution(System.out);
 		int medianLength = getMedianLength();
 		System.out.println("Median read length: "+medianLength);
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
@@ -547,7 +552,7 @@ public class AssemblyGraph {
 	}
 
 	public void filterEdgesAndEmbedded(int sequenceId,int medianLength) {
-		int debugIdx = -1;
+		int debugIdx = 3712;
 		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
@@ -611,27 +616,31 @@ public class AssemblyGraph {
 	
 		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
 		double sameSeqCSK = sameSequenceEdge.getCoverageSharedKmers();
+		double sameSeqWCSK = sameSequenceEdge.getCoverageSharedKmers();
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return;
 		double maxEvidencePropEmbedded = 0;
 		double maxScoreEmbedded = -1;
-		int countProductPass = 0;
+		int countPass = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
+			
 			double evidenceProp = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
 			evidenceProp/=sequenceLength;
 			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, evidenceProp);
 			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
+			double WCSKprop = (double)embedded.getWeightedCoverageSharedKmers()/sameSeqWCSK;
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded)+" evidence prop: "+evidenceProp+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
-			if(evidenceProp*CSKprop >=0.25) countProductPass++;
+			//if(evidenceProp*CSKprop >=0.25) countPass++;
+			if(evidenceProp >=0.9) countPass++;
 		}
 			
 		//Score proportion filter calculation
 		double maxScorePropEmbedded = maxScoreEmbedded/calculateScoreForEmbedded(sameSequenceEdge);
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max socre prop self: "+maxScorePropEmbedded+" count pass product: "+countProductPass);
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max score prop self: "+maxScorePropEmbedded+" count pass: "+countPass);
 		
-		//if(countProductPass==0) {
+		//if(countPass==0) {
 		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
 		//if(maxEvidencePropEmbedded<evidenceProportionThreshold) {
 		//if(maxEvidencePropEmbedded<minProportionEmbedded || maxScorePropEmbedded<0.5*minProportionEmbedded) {
@@ -711,16 +720,16 @@ public class AssemblyGraph {
 	}
 
 	private double calculateScore(AssemblyEmbedded embedded) {
-		return embedded.getCoverageSharedKmers();
+		//return embedded.getCoverageSharedKmers();
 		//return embedded.getRawKmerHits();
-		//return embedded.getWeightedCoverageSharedKmers();
+		return embedded.getWeightedCoverageSharedKmers();
 		//return embedded.getWeightedCoverageSharedKmers()*embedded.getRawKmerHits();
 	}
 
 	private double calculateScoreForEmbedded(AssemblyEdge edge) {
-		return edge.getCoverageSharedKmers();
+		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
-		//return edge.getWeightedCoverageSharedKmers();
+		return edge.getWeightedCoverageSharedKmers();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
 	
