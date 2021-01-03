@@ -215,7 +215,7 @@ public class AssemblyGraphStatistics {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input graph is required");
 		if(outputFile==null) throw new IOException("An output file path is required");
-		if(!simulated && readsFile==null && alignmentsFile==null) throw new IOException("For non simulated reads either the original reads or the alignments are required");
+		//if(!simulated && readsFile==null && alignmentsFile==null) throw new IOException("For non simulated reads either the original reads or the alignments are required");
 		run (inputFile, outputFile);
 		log.info("Process finished");
 	}
@@ -274,18 +274,18 @@ public class AssemblyGraphStatistics {
 			}
 		} else if (simulated) {
 			alignments = buildAlignmentsFromSimulatedReads(sequences);
-		} else {
+		} else if (readsFile!=null) {
 			sequences = Assembler.load(readsFile, readsFormat, minReadLength);
 			//TODO: Use aligner to align sequences to reference
 		}
-		if(alignments==null) return;
 		
-		AssemblyGraph goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
+		AssemblyGraph goldStandardGraph = null;
+		if(alignments!=null) goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 		try (PrintStream out=new PrintStream(outputFile)) {
 			Distribution degreeDist = graph.getVertexDegreeDistribution ();
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
-			compareGraphs(goldStandardGraph, graph, out);
+			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
@@ -303,13 +303,13 @@ public class AssemblyGraphStatistics {
 				//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			}
 			
-			 
-			
 			pathsFinder.findPaths(graph);
-			logErrors=true;
-			compareGraphs(goldStandardGraph, graph, out);
-			//logErrors = true;
-			compareLayouts(goldStandardGraph, graph, out);
+			if(goldStandardGraph!=null) {
+				logErrors=true;
+				compareGraphs(goldStandardGraph, graph, out);
+				//logErrors = true;
+				compareLayouts(goldStandardGraph, graph, out);
+			}
 			out.println("Filtered graph statistics");
 			printStatistics(out);
 		}
@@ -557,7 +557,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==1495 || gsVertex.getSequenceIndex()==8806 || gsVertex.getSequenceIndex()==3752; 
+		//boolean debug = gsVertex.getSequenceIndex()==1042 || gsVertex.getSequenceIndex()==2004 || gsVertex.getSequenceIndex()==8254; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

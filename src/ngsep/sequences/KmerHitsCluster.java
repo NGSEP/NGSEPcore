@@ -268,7 +268,7 @@ public class KmerHitsCluster {
 		medianPredictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
 		double predictedOverlapVariance = (sum2-sum*sum/n)/n-1;
 		predictedOverlapSD = Math.sqrt(predictedOverlapVariance);
-		predictedOverlap = medianPredictedOverlap;
+		predictedOverlap = averagePredictedOverlap;
 		fromLimitsPredictedOverlap = 0;
 		if (subjectPredictedStart>0 && subjectPredictedEnd>subjectLength && queryPredictedEnd<queryLength) {
 			//Average with estimation from subject start
@@ -282,7 +282,7 @@ public class KmerHitsCluster {
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Predicting overlap. Avg: "+averagePredictedOverlap+" median: "+medianPredictedOverlap+" from limits: "+fromLimitsPredictedOverlap);
 		//if(fromLimitsPredictedOverlap>0) predictedOverlap=fromLimitsPredictedOverlap;
 		//else predictedOverlap = averagePredictedOverlap;
-		predictedOverlap = (averagePredictedOverlap+medianPredictedOverlap)/2;
+		//predictedOverlap = (averagePredictedOverlap+medianPredictedOverlap)/2;
 	}
 
 	private void predictSubjectStart(List<UngappedSearchHit> hits) {

@@ -274,9 +274,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, !queryRC);
 		int overlap = (int) ((double)cluster.getPredictedOverlap()/compressionFactor);
 		AssemblyEdge edge = new AssemblyEdge(vertexSubject, vertexQuery, overlap);
-		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
-		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
-		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
+		edge.setAverageOverlap((int) ((double)cluster.getAveragePredictedOverlap()/compressionFactor));
+		edge.setMedianOverlap((int) ((double)cluster.getMedianPredictedOverlap()/compressionFactor));
+		edge.setFromLimitsOverlap((int) ((double)cluster.getFromLimitsPredictedOverlap()/compressionFactor));
 		//ReadAlignment aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters(), query, cluster);
 		//int mismatches = overlap;
 		//if(aln!=null) mismatches = aln.getNumMismatches();
@@ -300,9 +300,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, queryRC);
 		int overlap = (int) ((double)cluster.getPredictedOverlap()/compressionFactor);
 		AssemblyEdge edge = new AssemblyEdge(vertexQuery, vertexSubject, overlap);
-		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
-		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
-		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
+		edge.setAverageOverlap((int) ((double)cluster.getAveragePredictedOverlap()/compressionFactor));
+		edge.setMedianOverlap((int) ((double)cluster.getMedianPredictedOverlap()/compressionFactor));
+		edge.setFromLimitsOverlap((int) ((double)cluster.getFromLimitsPredictedOverlap()/compressionFactor));
 		//ReadAlignment aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters(), query, cluster);
 		//int mismatches = overlap;
 		//if(aln!=null) mismatches = aln.getNumMismatches();

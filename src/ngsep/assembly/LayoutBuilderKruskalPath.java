@@ -60,6 +60,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			if(path.size()<=5) continue;
 			graph.addPath(path);
 		}
+		System.out.println("Final number of paths: "+graph.getPaths().size());
 
 	}
 	private boolean isRepetivive(AssemblyVertex vertex, NormalDistribution distDegrees) {
