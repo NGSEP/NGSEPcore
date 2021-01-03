@@ -533,7 +533,7 @@ public class AssemblyGraph {
 		
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
 		
-		/*double minScoreProportionEmbedded = 0.8;
+		//double minScoreProportionEmbedded = 0.8;
 		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
 		
 		double minScoreProportionEmbedded = Math.min(0.9, 0.5*medianRelationship);
@@ -541,7 +541,7 @@ public class AssemblyGraph {
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
-		*/
+	
 		
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
@@ -553,13 +553,17 @@ public class AssemblyGraph {
 			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 		}
+		//Evidence filter calculation
 		maxEvidencePropEmbedded /= sequenceLength;
 		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
+		double evidenceProportionThreshold = Math.min(0.9, 0.5*medianRelationship*medianRelationship);
+		
+		//Score proportion filter calculation
 		double maxScorePropEmbedded = maxScoreEmbedded/calculateScoreForEmbedded(sameSequenceEdge);
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max socre prop self: "+maxScorePropEmbedded);
-		double minProportionEmbedded = Math.min(0.9, 0.5*medianRelationship*medianRelationship);
-		//if(maxScoreEmbedded<maxScoreFilterEmbedded) {
-		if(maxEvidencePropEmbedded<minProportionEmbedded) {
+		
+		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
+		//if(maxEvidencePropEmbedded<evidenceProportionThreshold) {
 		//if(maxEvidencePropEmbedded<minProportionEmbedded || maxScorePropEmbedded<0.5*minProportionEmbedded) {
 		//if(maxScoreEmbedded<maxScoreFilterEmbedded || maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {
 		//if(maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {

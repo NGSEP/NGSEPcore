@@ -51,6 +51,9 @@ public class AssemblyGraphStatistics {
 	private boolean simulated = false;
 	
 	//Statistics
+	private Distribution distLengthsLayoutReads = new Distribution(0,100000,2000);
+	private Distribution distLengthsEmbeddedReads = new Distribution(0,100000,2000);
+	
 	private Distribution distCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distEvidencePropLengthTPEmbedded = new Distribution(0, 1, 0.01);
@@ -450,6 +453,7 @@ public class AssemblyGraphStatistics {
 			AssemblyEdge selfEdge = testGraph.getSameSequenceEdge(i);
 			//Check embedded status
 			boolean gsE = goldStandardGraph.isEmbedded(i);
+			if(gsE) distLengthsEmbeddedReads.processDatapoint(goldStandardGraph.getSequenceLength(i));
 			boolean testE = testGraph.isEmbedded(i);
 			if(gsE && testE) {
 				tpEmbSeqs++;
@@ -624,6 +628,7 @@ public class AssemblyGraphStatistics {
 					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
 				}
 				totalPathEdges++;
+				distLengthsLayoutReads.processDatapoint(goldStandardGraph.getSequenceLength(gsVertex.getSequenceIndex()));
 			}
 		}
 		for(AssemblyEdge edge:testEdges) {
@@ -863,6 +868,16 @@ public class AssemblyGraphStatistics {
 		}
 		out.println("More+\t"+distOverlapError.countOutliersMore()+"\t"+distAverageOverlapError.countOutliersMore()+"\t"+distMedianOverlapError.countOutliersMore()+"\t"+distFromLimitsOverlapError.countOutliersMore());
 		
+		d1 = distLengthsLayoutReads.getDistribution();
+		d2 = distLengthsEmbeddedReads.getDistribution();
+		out.println("Lengths reads");
+		out.println("Number\tLayout\tEmbedded");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distLengthsLayoutReads.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]);
+		}
+		
+		
 		d1 = distCSKTPEmbedded.getDistribution();
 		d2 = distCSKFPEmbedded.getDistribution();
 		d3 = distWCSKTPEmbedded.getDistribution();
@@ -988,6 +1003,8 @@ public class AssemblyGraphStatistics {
 		totalTestLayoutEdges = 0;
 		totalGSLayoutEdges = 0;
 		
+		distLengthsLayoutReads.reset();
+		distLengthsEmbeddedReads.reset();
 		
 		rmsePredictedOverlap=0;
 		countPredictedOverlap = 0;
