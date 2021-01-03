@@ -420,19 +420,7 @@ public class AssemblyGraph {
 	private boolean isChimeric(int sequenceId) {
 		int idxDebug = -1;
 		int seqLength = getSequenceLength(sequenceId);
-		/*AssemblyVertex vS = verticesStart.get(sequenceId);
-		AssemblyVertex vE = verticesEnd.get(sequenceId);
-		for(AssemblyEdge edge:edgesMap.get(vS.getUniqueNumber())) {
-			KmerHitsCluster cluster = edge.getEvidence();
-			if(edge.isSameSequenceEdge() || cluster==null) continue;
-			if(firstEvidence==-1) {
-				firstEvidence = 1;
-			}
-			int unknown = cluster.getLast()-cluster.getSubjectEvidenceEnd();
-			
-			lastEvidence = Math.max(lastEvidence, cluster.getSubjectEvidenceEnd());
-		}*/
-		//if(sequenceId==idxDebug) System.out.println("Finding chimeras. Left edges evidence limits: "+firstEvidence+" "+lastEvidence);
+		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
 		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
 		if(emb==null) return false;
@@ -487,7 +475,7 @@ public class AssemblyGraph {
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
 			if(unknownLeft>1000 && unknownRight<1000) {
 				numUnknownStartRight++;
 				hostEvidenceStartRight = Math.min(hostEvidenceStartRight, nextEvidenceStart);
@@ -502,6 +490,20 @@ public class AssemblyGraph {
 			int unknownLeft = embedded.getHostEvidenceStart() - embedded.getHostStart();
 			int unknownRight = embedded.getHostEnd() - embedded.getHostEvidenceEnd();
 			if(unknownLeft<500 && unknownRight<500 && embedded.getHostEvidenceStart()<hostEvidenceEndLeft && embedded.getHostEvidenceEnd()>hostEvidenceStartRight) numCrossing++;
+		}
+		for(AssemblyEdge edge: edgesS) {
+			if(edge.isSameSequenceEdge()) continue;
+			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
+			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
+			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
+			if(unknownLeft<500 && unknownRight<500 && nextEvidenceEnd>hostEvidenceStartRight) numCrossing++;
+		}
+		for(AssemblyEdge edge: edgesE) {
+			if(edge.isSameSequenceEdge()) continue;
+			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
+			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
+			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
+			if(unknownLeft<500 && unknownRight<500 && nextEvidenceStart<hostEvidenceEndLeft) numCrossing++;
 		}
 		if( numCrossing<2 && hostEvidenceEndLeft < hostEvidenceStartRight && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+numUnknownEndLeft+" "+numUnknownStartRight+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
