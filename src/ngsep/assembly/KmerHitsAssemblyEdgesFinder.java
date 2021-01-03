@@ -285,6 +285,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		edge.setRawKmerHits(cluster.getRawKmerHits());
 		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
+		edge.setVertex1EvidenceStart(cluster.getSubjectEvidenceStart());
+		edge.setVertex1EvidenceEnd(cluster.getSubjectEvidenceEnd());
+		edge.setVertex2EvidenceStart(cluster.getQueryEvidenceStart());
+		edge.setVertex2EvidenceEnd(cluster.getQueryEvidenceEnd());
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}
@@ -311,6 +315,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		edge.setRawKmerHits(cluster.getRawKmerHits());
 		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
+		edge.setVertex1EvidenceStart(cluster.getQueryEvidenceStart());
+		edge.setVertex1EvidenceEnd(cluster.getQueryEvidenceEnd());
+		edge.setVertex2EvidenceStart(cluster.getSubjectEvidenceStart());
+		edge.setVertex2EvidenceEnd(cluster.getSubjectEvidenceEnd());
 		synchronized (graph) {
 			graph.addEdge(edge);
 		}

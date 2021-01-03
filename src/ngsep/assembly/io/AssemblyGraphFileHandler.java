@@ -97,7 +97,8 @@ public class AssemblyGraphFileHandler {
 		out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
 		out.print("\tHSD="+embedded.getHostStartStandardDeviation()+";NSK="+embedded.getNumSharedKmers()+";CSK="+embedded.getCoverageSharedKmers());
 		out.print(";WCSK="+embedded.getWeightedCoverageSharedKmers()+";RNSK="+embedded.getRawKmerHits()+";RHSD="+embedded.getRawKmerHitsSubjectStartSD());
-		out.println(";HES="+embedded.getHostEvidenceStart()+";HEE="+embedded.getHostEvidenceEnd());
+		out.print(";HES="+embedded.getHostEvidenceStart()+";HEE="+embedded.getHostEvidenceEnd());
+		out.println();
 	}
 	
 	private static AssemblyEmbedded loadEmbedded(String[] items, List<QualifiedSequence> sequences) {
@@ -128,7 +129,10 @@ public class AssemblyGraphFileHandler {
 		out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
 		out.print("\tOSD="+edge.getOverlapStandardDeviation()+";NSK="+edge.getNumSharedKmers()+";CSK="+edge.getCoverageSharedKmers());
 		out.print(";WCSK="+edge.getWeightedCoverageSharedKmers()+";RNSK="+edge.getRawKmerHits()+";RSSD="+edge.getRawKmerHitsSubjectStartSD());
-		out.println(";AO="+edge.getAverageOverlap()+";MO="+edge.getMedianOverlap()+";FLO="+edge.getFromLimitsOverlap());
+		out.print(";AO="+edge.getAverageOverlap()+";MO="+edge.getMedianOverlap()+";FLO="+edge.getFromLimitsOverlap());
+		out.print(";V1ES="+edge.getVertex1EvidenceStart()+";V1EE="+edge.getVertex1EvidenceEnd());
+		out.print(";V2ES="+edge.getVertex2EvidenceStart()+";V2EE="+edge.getVertex2EvidenceEnd());
+		out.println();
 	}
 	
 	private static AssemblyEdge loadEdge(String[] items, AssemblyGraph graph) {
@@ -160,6 +164,10 @@ public class AssemblyGraphFileHandler {
 			else if("AO".equals(featureName)) edge.setAverageOverlap(featureValue);
 			else if("MO".equals(featureName)) edge.setMedianOverlap(featureValue);
 			else if("FLO".equals(featureName)) edge.setFromLimitsOverlap(featureValue);
+			else if("V1ES".equals(featureName)) edge.setVertex1EvidenceStart(featureValue);
+			else if("V1EE".equals(featureName)) edge.setVertex1EvidenceEnd(featureValue);
+			else if("V2ES".equals(featureName)) edge.setVertex2EvidenceStart(featureValue);
+			else if("V2EE".equals(featureName)) edge.setVertex2EvidenceEnd(featureValue);
 		}
 		return edge;
 	}

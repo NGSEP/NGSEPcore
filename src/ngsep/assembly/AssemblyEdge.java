@@ -37,6 +37,10 @@ public class AssemblyEdge {
 	private int rawKmerHits = 0;
 	private int rawKmerHitsSubjectStartSD = 0;
 	private boolean layoutEdge = false;
+	private int vertex1EvidenceStart;
+	private int vertex1EvidenceEnd;
+	private int vertex2EvidenceStart;
+	private int vertex2EvidenceEnd;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
@@ -160,6 +164,38 @@ public class AssemblyEdge {
 
 	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
 		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
+	}
+	
+	public int getVertex1EvidenceStart() {
+		return vertex1EvidenceStart;
+	}
+
+	public void setVertex1EvidenceStart(int vertex1EvidenceStart) {
+		this.vertex1EvidenceStart = vertex1EvidenceStart;
+	}
+
+	public int getVertex1EvidenceEnd() {
+		return vertex1EvidenceEnd;
+	}
+
+	public void setVertex1EvidenceEnd(int vertex1EvidenceEnd) {
+		this.vertex1EvidenceEnd = vertex1EvidenceEnd;
+	}
+
+	public int getVertex2EvidenceStart() {
+		return vertex2EvidenceStart;
+	}
+
+	public void setVertex2EvidenceStart(int vertex2EvidenceStart) {
+		this.vertex2EvidenceStart = vertex2EvidenceStart;
+	}
+
+	public int getVertex2EvidenceEnd() {
+		return vertex2EvidenceEnd;
+	}
+
+	public void setVertex2EvidenceEnd(int vertex2EvidenceEnd) {
+		this.vertex2EvidenceEnd = vertex2EvidenceEnd;
 	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {

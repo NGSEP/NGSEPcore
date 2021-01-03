@@ -85,7 +85,8 @@ public class AssemblyGraph {
 		cumulativeReadLength = new long [n];
 		for (int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
-			cumulativeReadLength[i]=seq.getLength();
+			int length = seq.getLength();
+			cumulativeReadLength[i]=length;
 			if(i>0) cumulativeReadLength[i]+=cumulativeReadLength[i-1];
 			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
 			verticesStart.put(i,vS);
@@ -95,14 +96,18 @@ public class AssemblyGraph {
 			verticesEnd.put(i,vE);
 			verticesByUnique.put(vE.getUniqueNumber(), vE);
 			edgesMap.put(vE.getUniqueNumber(), new ArrayList<>());
-			AssemblyEdge edge = new AssemblyEdge(vS, vE, seq.getLength());
-			edge.setAverageOverlap(seq.getLength());
-			edge.setMedianOverlap(seq.getLength());
-			edge.setFromLimitsOverlap(seq.getLength());
-			edge.setCoverageSharedKmers(seq.getLength());
-			edge.setWeightedCoverageSharedKmers(seq.getLength());
-			edge.setNumSharedKmers(seq.getLength());
+			AssemblyEdge edge = new AssemblyEdge(vS, vE, length);
+			edge.setAverageOverlap(length);
+			edge.setMedianOverlap(length);
+			edge.setFromLimitsOverlap(length);
+			edge.setCoverageSharedKmers(length);
+			edge.setWeightedCoverageSharedKmers(length);
+			edge.setNumSharedKmers(length);
 			edge.setOverlapStandardDeviation(0);
+			edge.setVertex1EvidenceStart(0);
+			edge.setVertex1EvidenceEnd(length-1);
+			edge.setVertex2EvidenceStart(0);
+			edge.setVertex2EvidenceEnd(length-1);
 			addEdge(edge);
 		}
 	}
@@ -461,6 +466,35 @@ public class AssemblyGraph {
 				hostPredictedStartRight = Math.min(hostPredictedStartRight, embedded.getHostStart());
 			}
 		}
+		AssemblyVertex vS = verticesStart.get(sequenceId);
+		List<AssemblyEdge> edgesS = getEdges(vS);
+		for(AssemblyEdge edge: edgesS) {
+			if(edge.isSameSequenceEdge()) continue;
+			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
+			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
+			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+			if(unknownRight>1000 && unknownLeft<1000) {
+				numUnknownEndLeft++;
+				hostEvidenceEndLeft = Math.max(hostEvidenceEndLeft, nextEvidenceEnd);
+				hostPredictedEndLeft = Math.max(hostPredictedEndLeft, edge.getOverlap());
+			}
+		}
+		AssemblyVertex vE = verticesEnd.get(sequenceId);
+		List<AssemblyEdge> edgesE = getEdges(vE);
+		for(AssemblyEdge edge: edgesE) {
+			if(edge.isSameSequenceEdge()) continue;
+			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
+			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
+			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+			if(unknownLeft>1000 && unknownRight<1000) {
+				numUnknownStartRight++;
+				hostEvidenceStartRight = Math.min(hostEvidenceStartRight, nextEvidenceStart);
+				hostPredictedStartRight = Math.min(hostPredictedStartRight, seqLength-edge.getOverlap());
+			}
+		}
+		
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+numUnknownEndLeft+" "+numUnknownStartRight+" evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
 		if(numUnknownStartRight<2 || numUnknownEndLeft<2) return false;
 		int numCrossing = 0;
@@ -634,6 +668,11 @@ public class AssemblyGraph {
 		edge.setNumSharedKmers(embedded.getNumSharedKmers());
 		edge.setRawKmerHits(embedded.getRawKmerHits());
 		edge.setRawKmerHitsSubjectStartSD(embedded.getRawKmerHitsSubjectStartSD());
+		edge.setVertex1EvidenceStart(embedded.getHostEvidenceStart());
+		edge.setVertex1EvidenceEnd(embedded.getHostEvidenceEnd());
+		//TODO: calculate properly these numbers
+		edge.setVertex2EvidenceStart(0);
+		edge.setVertex2EvidenceEnd(embedded.getCoverageSharedKmers());
 		addEdge(edge);
 	}
 
