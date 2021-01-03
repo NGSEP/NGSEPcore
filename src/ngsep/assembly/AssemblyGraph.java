@@ -40,6 +40,11 @@ public class AssemblyGraph {
 	 * Sequences to build the graph. The index of each sequence is the unique identifier
 	 */
 	private List<QualifiedSequence> sequences;
+	
+	/**
+	 * Sum of lengths from sequence 0 to i
+	 */
+	private long [] cumulativeReadLength;
 	/**
 	 * Start vertices indexed by sequence index
 	 */
@@ -77,8 +82,11 @@ public class AssemblyGraph {
 		verticesEnd = new HashMap<>(n);
 		verticesByUnique = new HashMap<>(n);
 		edgesMap = new HashMap<>(n);
+		cumulativeReadLength = new long [n];
 		for (int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
+			cumulativeReadLength[i]=seq.getLength();
+			if(i>0) cumulativeReadLength[i]+=cumulativeReadLength[i-1];
 			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
 			verticesStart.put(i,vS);
 			verticesByUnique.put(vS.getUniqueNumber(), vS);
@@ -194,6 +202,9 @@ public class AssemblyGraph {
 	}
 	public int getSequenceLength(int sequenceIdx) {
 		return sequences.get(sequenceIdx).getLength();
+	}
+	public long getCumulativeLength(int sequenceIdx) {
+		return cumulativeReadLength[sequenceIdx];
 	}
 	public int getNumSequences () {
 		return sequences.size();
@@ -468,6 +479,26 @@ public class AssemblyGraph {
 	
 	public void filterEdgesAndEmbedded() {
 		removeVerticesChimericReads();
+		Distribution lengthsDistribution = new Distribution(0, getSequenceLength(0), 1);
+		for(QualifiedSequence seq:sequences) lengthsDistribution.processDatapoint(seq.getLength());
+		Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
+		Distribution cskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
+		for(int seqId:embeddedMapBySequence.keySet()) {
+			int length = getSequenceLength(seqId);
+			AssemblyEdge edge = getSameSequenceEdge(seqId);
+			if(edge == null) continue;
+			int selfCSK = edge.getCoverageSharedKmers();
+			List<AssemblyEmbedded> relations = embeddedMapBySequence.get(seqId);
+			for(AssemblyEmbedded embedded:relations) {
+				double evidenceLength = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
+				evidenceProportionEmbedded.processDatapoint(evidenceLength/length);
+				cskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfCSK);
+			}
+		}
+		System.out.println("Proportion of evidence vs read length for embedded relationships");
+		evidenceProportionEmbedded.printDistribution(System.out);
+		System.out.println("Proportion of coverage of shared kmers vs self CSK for embedded relationships");
+		cskProportionSelfEmbedded.printDistribution(System.out);
 		int medianLength = getMedianLength();
 		System.out.println("Median read length: "+medianLength);
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
@@ -542,26 +573,29 @@ public class AssemblyGraph {
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
 	
-		
+		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
+		double sameSeqCSK = sameSequenceEdge.getCoverageSharedKmers();
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return;
 		double maxEvidencePropEmbedded = 0;
 		double maxScoreEmbedded = -1;
+		int countProductPass = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded));
-			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
+			double evidenceProp = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
+			evidenceProp/=sequenceLength;
+			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, evidenceProp);
+			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
+			if(evidenceProp*CSKprop >=0.25) countProductPass++;
 		}
-		//Evidence filter calculation
-		maxEvidencePropEmbedded /= sequenceLength;
-		AssemblyEdge sameSequenceEdge = getSameSequenceEdge(sequenceId);
-		double evidenceProportionThreshold = Math.min(0.9, 0.5*medianRelationship*medianRelationship);
-		
+			
 		//Score proportion filter calculation
 		double maxScorePropEmbedded = maxScoreEmbedded/calculateScoreForEmbedded(sameSequenceEdge);
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max socre prop self: "+maxScorePropEmbedded);
+		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max socre prop self: "+maxScorePropEmbedded+" count pass product: "+countProductPass);
 		
+		//if(countProductPass==0) {
 		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
 		//if(maxEvidencePropEmbedded<evidenceProportionThreshold) {
 		//if(maxEvidencePropEmbedded<minProportionEmbedded || maxScorePropEmbedded<0.5*minProportionEmbedded) {

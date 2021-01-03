@@ -39,6 +39,7 @@ import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.math.Distribution;
 
 /**
  * @author Jorge Duitama
@@ -226,6 +227,7 @@ public class Assembler {
 		else out.println("Algorithm to build graph: "+graphConstructionAlgorithm);
 		out.println("Algorithm to build layout: "+layoutAlgorithm);
 		out.println("Algorithm to build consensus: "+consensusAlgorithm);
+		out.println("Window length for minimizers: "+windowLength);
 		if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
 		//out.println("K-mer length: "+ kmerLength);
 		//out.println("K-mer offset for FM-index: "+ kmerOffset);
@@ -237,8 +239,13 @@ public class Assembler {
 	public void run(String inputFile, String outputPrefix) throws IOException {
 		List<QualifiedSequence> sequences = load(inputFile,inputFormat, minReadLength);
 		long totalBp = 0;
-		for(QualifiedSequence seq:sequences) totalBp+=seq.getLength();
+		Distribution distReadLength = new Distribution(0, 100000, 1000);
+		for(QualifiedSequence seq:sequences) {
+			distReadLength.processDatapoint(seq.getLength());
+			totalBp+=seq.getLength();
+		}
 		log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
+		distReadLength.printDistributionInt(System.out);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 		AssemblyGraph graph;
 		if(graphFile!=null) {

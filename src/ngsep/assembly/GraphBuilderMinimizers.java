@@ -106,7 +106,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
-		//int firstIdNoGraph = sequences.size();
+		
 		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for(int seqId = 0; seqId < sequences.size(); seqId++) {
 			QualifiedSequence qseq = sequences.get(seqId);
@@ -168,7 +168,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 		Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
 		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
-		finder.updateGraphWithKmerHitsMap(seqId, seq.length(), codesForward, codesReverse, hitsForward, hitsReverse, compressionFactor, kmerLength);
+		finder.updateGraphWithKmerHitsMap(seqId, seq.length(), codesForward, codesReverse, hitsForward, hitsReverse, compressionFactor);
 		AssemblyGraph graph = finder.getGraph();
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
