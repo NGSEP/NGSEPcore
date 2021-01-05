@@ -75,7 +75,7 @@ public class GenomesAligner {
 	
 	// Synteny
 	private List<SyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
-	private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
+	//private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
 	private int minBlockLength = 1000000;
 	private int maxDistance = 1000000;
 
@@ -244,13 +244,13 @@ public class GenomesAligner {
 	}
 	
 	private void identifySyntenyBlocks(AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<HomologyEdge> homologyEdges) {
-		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance, g1, g2, homologyEdges);
+		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance, homologyEdges);
 		orthologsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.ORTHOLOGS);
-		paralogsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.PARALOGS);
+		//paralogsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.PARALOGS);
 		String orthologsOutFilename = outputPrefix + "_synteny_blocks_orthologs.txt";
-		String paralogsOutFilename = outputPrefix + "_synteny_blocks_paralogs.txt";
+		//String paralogsOutFilename = outputPrefix + "_synteny_blocks_paralogs.txt";
 		printSyntenyBlocks(orthologsSyntenyBlocks, orthologsOutFilename);
-		printSyntenyBlocks(paralogsSyntenyBlocks, paralogsOutFilename);
+		//printSyntenyBlocks(paralogsSyntenyBlocks, paralogsOutFilename);
 	}
 	
 	/**
@@ -258,15 +258,14 @@ public class GenomesAligner {
 	 */
 	private void printSyntenyBlocks(List<SyntenyBlock> syntenyBlocks, String outFilename) {
 		try (PrintStream outSynteny = new PrintStream(outFilename)){
-			String headers = "SequenceName\tStart\tEnd\tLength";
+			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
 			outSynteny.println(headers);
 			for (SyntenyBlock sb : syntenyBlocks) {
-				HomologyEdge firstHomolog = sb.getHomologies().get(0).getSource();
-				HomologyUnit firstUnit = firstHomolog.getQueryUnit();
-				//String strand = firstUnit.isPositiveStrand() ? "+" : "-";
-				String chr = firstUnit.getSequenceName();
-				String line = chr + "\t" + sb.getFirst() +  "\t" + sb.getLast() + "\t" + sb.length();
-				
+				GenomicRegion r1 = sb.getRegionGenome1();
+				GenomicRegion r2 = sb.getRegionGenome2();
+				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();
+				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast();
+				outSynteny.println(line);
 //				Printing of homology units that form the synteny block. 
 				
 //				for (SyntenyEdge se : sb.getHomologies()) {
@@ -275,7 +274,7 @@ public class GenomesAligner {
 //					line += "\t" + s.getQueryUnit().getId() + "/" + s.getSubjectUnit().getId() + "\t";
 //					line += "\t" + t.getQueryUnit().getId() + "/" + t.getSubjectUnit().getId() + "\t";
 //				}
-				outSynteny.println(line);
+				
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

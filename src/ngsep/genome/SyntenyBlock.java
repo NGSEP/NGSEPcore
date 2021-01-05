@@ -4,54 +4,46 @@ import java.util.List;
 
 public class SyntenyBlock {
 
+	private GenomicRegion regionGenome1;
+	private GenomicRegion regionGenome2;
 	private List<SyntenyEdge> homologies;
 	
-	private AnnotatedReferenceGenome genome1;
 	
-	private AnnotatedReferenceGenome genome2;
 	
-	private int first;
-	
-	private int last;
-	
-	private String sequenceName;
-	
-	public SyntenyBlock(String sequenceName, int first, int last, AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<SyntenyEdge> homologies) {
-		this.sequenceName = sequenceName;
-		this.first = first;
-		this.last = last;
+	public SyntenyBlock(List<SyntenyEdge> homologies) {
+		SyntenyEdge firstEdge = homologies.get(0);
+		int first1 = Integer.MAX_VALUE;
+		int last1 = 0;
+		int first2 = Integer.MAX_VALUE;
+		int last2 = 0;
+		for (SyntenyEdge se : homologies) {
+			HomologyUnit source1 = se.getSource().getQueryUnit();
+			HomologyUnit source2 = se.getSource().getSubjectUnit();
+			HomologyUnit target1 = se.getTarget().getQueryUnit();
+			HomologyUnit target2 = se.getTarget().getSubjectUnit();
+			first1 = Math.min(first1, source1.getFirst());
+			first1 = Math.min(first1, target1.getFirst());
+			first2 = Math.min(first2, source2.getFirst());
+			first2 = Math.min(first2, target2.getFirst());
+			last1 = Math.max(last1, source1.getLast());
+			last1 = Math.max(last1, target1.getLast());
+			last2 = Math.max(last2, source2.getLast());
+			last2 = Math.max(last2, target2.getLast());	
+		}
+		regionGenome1 = new GenomicRegionImpl(firstEdge.getSource().getQueryUnit().getSequenceName(), first1, last1);
+		regionGenome2 = new GenomicRegionImpl(firstEdge.getSource().getSubjectUnit().getSequenceName(), first2, last2);
 		this.homologies = homologies;
-		this.genome1 = g1;
-		this.genome2 = g2;
 	}
 
 	public List<SyntenyEdge> getHomologies() {
 		return homologies;
 	}
 
-	public AnnotatedReferenceGenome getGenome1() {
-		return genome1;
+	public GenomicRegion getRegionGenome1() {
+		return regionGenome1;
 	}
 
-	public AnnotatedReferenceGenome getGenome2() {
-		return genome2;
+	public GenomicRegion getRegionGenome2() {
+		return regionGenome2;
 	}
-
-	public int getFirst() {
-		return first;
-	}
-
-	public int getLast() {
-		return last;
-	}
-
-	public String getSequenceName() {
-		return sequenceName;
-	}
-	
-	public int length() {
-		return last - first + 1;
-	}
-	
-	
 }
