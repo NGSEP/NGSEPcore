@@ -305,16 +305,19 @@ Builds a genome in fasta format from homozygous variants in a VCF file
 <title>Updating genomes from variants</title>
 <description>
 Takes a VCF file with genotype information from one sample and the reference genome used to build
-the VCF and generates a new genome in fasta format modified using the alternative alleles from
-variants called as homozygous alternative within the individual. This can be useful to perform
-polishing of new genome assemblies using Illumina data, or in general to construct a haploid version
-of an individual genome 
+the VCF and generates a new genome in fasta format with a ploidy consistent with the ploidy of the individual.
+For diploid or polyploid assemblies, the VCF file must be properly phased.
+For non haploid individuals, if the ploidy parameter is set to 1, this function performs polishing of 
+a haploid genome assembly. 
 </description>
 <option id="i" type="GENOME" attribute="genome">
 Fasta file with the original genome.
 </option>
 <option id="v" type="FILE" attribute="variantsFile">
 File in VCF format with the variants that will be applied to the input genome.
+</option>
+<option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
+Ploidy of the sample. To make polishing of a haploid assembly for a non haploid individual, set this parameter to 1.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file in fasta format with the modified genome.

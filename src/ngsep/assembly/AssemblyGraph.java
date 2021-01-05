@@ -552,7 +552,7 @@ public class AssemblyGraph {
 	}
 
 	public void filterEdgesAndEmbedded(int sequenceId,int medianLength) {
-		int debugIdx = 3712;
+		int debugIdx = -1;
 		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);

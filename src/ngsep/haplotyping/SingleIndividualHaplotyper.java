@@ -1,5 +1,6 @@
 package ngsep.haplotyping;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
@@ -110,10 +111,11 @@ public class SingleIndividualHaplotyper {
 	public static void main(String[] args) throws Exception {
 		SingleIndividualHaplotyper instance = new SingleIndividualHaplotyper();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
-		
+		instance.run();
 	}
 	
 	public void run () throws IOException {
+		logParameters();
 		if (inputFile == null) throw new IOException("The input VCF file is a required parameter");
 		if (alignmentsFile == null) throw new IOException("The file with read alignments is a required parameter");
 		if(outputFile==null) process (inputFile, alignmentsFile, System.out);
@@ -122,6 +124,17 @@ public class SingleIndividualHaplotyper {
 				process (inputFile, alignmentsFile, out);
 			}
 		}
+	}
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		out.println("Input VCF file: "+inputFile);
+		out.println("Alignments file: "+alignmentsFile);
+		if(outputFile != null) out.println("Output VCF file: "+outputFile);
+		else out.println("VCF file written to standard output");
+		out.println("Minimum mapping quality: "+minMQ);
+		out.println("Algorithm: "+algorithmName);
+		log.info(""+os.toString());
 	}
 	
 	/**
@@ -156,6 +169,7 @@ public class SingleIndividualHaplotyper {
 				VCFRecord record = iter.next();
 				if(!record.getSequenceName().equals(lastSeqName)) {
 					if(records.size()>0) {
+						log.info("Phasing "+records.size()+" variants from VCF file for sequence "+lastSeqName+ " heterozygous calls: "+hetCalls.size());
 						nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
 						vcfWriter.printVCFRecords(records, out);
 					}
@@ -173,6 +187,7 @@ public class SingleIndividualHaplotyper {
 				
 			}
 			if(records.size()>0) {
+				log.info("Phasing "+records.size()+" variants from VCF file for sequence "+lastSeqName);
 				phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
 				vcfWriter.printVCFRecords(records, out);
 			}

@@ -263,7 +263,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				}
 				else unalignedReads++;
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
-				if (totalReads%100==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+				if (totalReads%1000==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
@@ -281,13 +281,12 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 						alignments.add(alnEmbedded);
 					}
 					else unalignedReads++;
-					if (totalReads%100==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
+					if (totalReads%1000==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 				}
 			}
 			lastVertex = vertexNextEdge;
 		}
-		log.info("Path "+sequenceIdx+". Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
-		log.info("Path "+sequenceIdx+". Path: "+pathS);
+		log.info("Processed path "+sequenceIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
 		
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		String consensus = rawConsensus.toString();
@@ -478,7 +477,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		for(ReadAlignment aln:alignments) {
 			generator.processAlignment(aln);
 			count++;
-			if(count%100==0) log.info("Sequence: "+sequenceName+". Corrected SNVs from "+count+" alignments"); 
+			if(count%1000==0) log.info("Sequence: "+sequenceName+". Corrected SNVs from "+count+" alignments"); 
 		}
 	}
 

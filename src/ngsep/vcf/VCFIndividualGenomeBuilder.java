@@ -48,10 +48,14 @@ public class VCFIndividualGenomeBuilder {
 	private Logger log = Logger.getLogger(VCFIndividualGenomeBuilder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	//Constants
+	public static final short DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY; 
+	
 	// Parameters
 	private ReferenceGenome genome;
 	private String variantsFile = null;
 	private String outputFile = null;
+	private short ploidy = DEF_PLOIDY;
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -92,7 +96,17 @@ public class VCFIndividualGenomeBuilder {
 		this.outputFile = outputFile;
 	}
 	
-
+	public short getPloidy() {
+		return ploidy;
+	}
+	public void setPloidy(short ploidy) {
+		this.ploidy = ploidy;
+	}
+	
+	public void setPloidy(String value) {
+		this.setPloidy((short) OptionValuesDecoder.decode(value, Short.class));
+	}
+	
 	public static void main(String[] args) throws Exception {
 		VCFIndividualGenomeBuilder instance = new VCFIndividualGenomeBuilder();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -122,7 +136,7 @@ public class VCFIndividualGenomeBuilder {
 		QualifiedSequenceList seqMetadata = genome.getSequencesMetadata();
 		QualifiedSequenceList individualGenome = new QualifiedSequenceList();
 		
-		GenomicRegionSortedCollection<GenomicVariant> allVariants = loadVariants(vcfFile,seqMetadata);
+		GenomicRegionSortedCollection<CalledGenomicVariant> allVariants = loadCalls(vcfFile,seqMetadata);
 		if(allVariants.size()==0) {
 			throw new IOException("No variants were loaded from "+vcfFile);
 		}
@@ -131,57 +145,98 @@ public class VCFIndividualGenomeBuilder {
 			log.info("Building assembly for sequence "+seqName);
 			int l = sequence.getLength();
 			int nextPos = 1;
-			StringBuilder outSequence = new StringBuilder();
-			List<GenomicVariant> sequenceVarsList = allVariants.getSequenceRegions(seqName).asList();
-			for(GenomicVariant var:sequenceVarsList) {
-				String [] alleles = var.getAlleles();
-				if(nextPos<var.getFirst()) {
+			StringBuilder [] outSequences = new StringBuilder[ploidy];
+			for(int i=0;i<ploidy;i++) outSequences[i]=new StringBuilder(l);
+			List<CalledGenomicVariant> sequenceCallsList = allVariants.getSequenceRegions(seqName).asList();
+			for(CalledGenomicVariant call:sequenceCallsList) {
+				String[] phasedAlleles = calculatePhasedAlleles(call);
+				
+				if(nextPos<call.getFirst()) {
 					//Fill haplotypes with non variant segment
-					CharSequence segment = genome.getReference(seqName, nextPos, var.getFirst()-1);
+					CharSequence segment = genome.getReference(seqName, nextPos, call.getFirst()-1);
 					if(segment!=null) {
 						String nonVariantSegment = segment.toString().toUpperCase();
-						outSequence.append(nonVariantSegment);
+						for(int i=0;i<ploidy;i++) outSequences[i].append(nonVariantSegment);
 					} else {
-						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(var.getFirst()-1));
+						log.warning("Error loading segment "+seqName+":"+nextPos+"-"+(call.getFirst()-1));
 					}
 				}
-				outSequence.append(alleles[1]);
-				nextPos = var.getLast()+1;
+				for(int i=0;i<ploidy;i++) outSequences[i].append(phasedAlleles[i]);
+				nextPos = call.getLast()+1;
 			}
 			if(nextPos<l) {
 				//End of a chromosome
 				CharSequence nonVarLast = genome.getReference(seqName, nextPos, l);
 				if(nonVarLast!=null) {
 					String nonVariantSegment = nonVarLast.toString().toUpperCase();
-					outSequence.append(nonVariantSegment);
+					for(int i=0;i<ploidy;i++) outSequences[i].append(nonVariantSegment);
 				} else {
 					log.warning("Error loading segment "+seqName+":"+nextPos+"-"+l);
 				}
 			}
-			individualGenome.add(new QualifiedSequence(seqName, outSequence));
+			for(int i=0;i<ploidy;i++) {
+				String outSeqName = seqName;
+				if(ploidy>1) outSeqName+="_H"+(i+1);
+				individualGenome.add(new QualifiedSequence(outSeqName, outSequences[i]));
+			}
 		}
 		FastaSequencesHandler outHandler = new FastaSequencesHandler();
 		outHandler.saveSequences(individualGenome, out, 100);
 	}
+	private String[] calculatePhasedAlleles(CalledGenomicVariant call) {
+		String [] answer = new String [ploidy] ;
+		if(ploidy==1) {
+			//Polishing mode. Ensure that the reference allele is copied unless the call is homozygous alternative
+			if(call.isHomozygous()) answer[0] = call.getCalledAlleles()[0];
+			else answer[0] = call.getAlleles()[0];
+			return answer;
+		}
+		if(call.isPhased()) {
+			String [] phasedAlleles = call.getPhasedAlleles();
+			if(phasedAlleles.length==ploidy) {
+				for(int i=0;i<ploidy;i++) answer[i] = phasedAlleles[i];
+				return answer;
+			}
+		}
+		if(call.isHomozygous()) {
+			String calledAllele = call.getCalledAlleles()[0];
+			for(int i=0;i<ploidy;i++) answer[i] = calledAllele;
+		} else {
+			//TODO: Improve managenent of acn for calls with different copy number than ploidy
+			String [] alleles = call.getAlleles();
+			short [] acn = call.getAllelesCopyNumber();
+			if (call.getCopyNumber()!=ploidy) {
+				log.warning("Heterozygous call at "+call.getSequenceName()+": "+call.getFirst()+" has a copy number different than the ploidy.");	
+			}
+			if(acn.length!=alleles.length) {
+				log.warning("Heterozygous call at "+call.getSequenceName()+": "+call.getFirst()+" has an alleles dosage array size "+acn.length+" different than the alleles array "+alleles.length);
+			}
+			
+			int i = 0;
+			for(int a=0;i<ploidy && a<alleles.length;a++) {
+				for(int j=0;i<ploidy && j<acn[a];j++) {
+					answer[i] = alleles[a];
+					i++;
+				}
+			}
+			for(;i<ploidy;i++) answer[i] = alleles[0];
+		}
+		return answer;
+	}
 	
-	private GenomicRegionSortedCollection<GenomicVariant> loadVariants(String filename, QualifiedSequenceList seqMetadata) throws IOException {
-		GenomicRegionSortedCollection<GenomicVariant> variants = new GenomicRegionSortedCollection<>(seqMetadata);
+	private GenomicRegionSortedCollection<CalledGenomicVariant> loadCalls(String filename, QualifiedSequenceList seqMetadata) throws IOException {
+		GenomicRegionSortedCollection<CalledGenomicVariant> calls = new GenomicRegionSortedCollection<>(seqMetadata);
 		try (VCFFileReader reader = new VCFFileReader(filename)){		
 			Iterator<VCFRecord> it = reader.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
-				GenomicVariant variant = record.getVariant();
-				
 				List<CalledGenomicVariant> genotypeCalls = record.getCalls();
 				if(genotypeCalls.size()<1) continue;
 				CalledGenomicVariant call = genotypeCalls.get(0);
-				if(!call.isBiallelic()) continue;
-				if(call.isHeterozygous()) continue;
 				if(call.isHomozygousReference()) continue;
-				if(call.getGenotypeQuality()<20) continue;
-				variants.add(variant);
+				calls.add(call);
 			}
 		}
-		return variants;
+		return calls;
 	}
 }
