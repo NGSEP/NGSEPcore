@@ -407,6 +407,31 @@ public class AssemblyGraph {
 		
 		return answer;
 	}
+	
+	public int [] estimateNStatisticsFromPaths () {
+		List<Integer> lengths = new ArrayList<Integer>(paths.size());
+		for(List<AssemblyEdge> path:paths) {
+			int n = path.size();
+			if(n==0) continue;
+			
+			//Ignore small segment at the end
+			int lastLength = path.get(0).getOverlap();
+			int total = lastLength;
+			for (int i=1;i<n;i++) {
+				AssemblyEdge edge = path.get(i);
+				if(edge.isSameSequenceEdge()) {
+					lastLength = edge.getVertex1().getRead().getLength();
+					continue;
+				}
+				int l1 = edge.getVertex1().getRead().getLength();
+				int l2 = edge.getVertex2().getRead().getLength();
+				if(l1 == lastLength) total += l2 - edge.getOverlap();
+				else total += l1 - edge.getOverlap();
+			}
+			lengths.add(total);
+		}
+		return NStatisticsCalculator.calculateNStatistics (lengths); 
+	}
 
 	public void removeVerticesChimericReads () {
 		for(int i=0;i<sequences.size();i++) {
@@ -517,7 +542,7 @@ public class AssemblyGraph {
 		removeVerticesChimericReads();
 		Distribution lengthsDistribution = new Distribution(0, getSequenceLength(0), 1);
 		for(QualifiedSequence seq:sequences) lengthsDistribution.processDatapoint(seq.getLength());
-		Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
+		/*Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
 		Distribution cskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
 		Distribution wcskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
 		for(int seqId:embeddedMapBySequence.keySet()) {
@@ -539,11 +564,11 @@ public class AssemblyGraph {
 		System.out.println("Proportion of CSK vs self CSK for embedded relationships");
 		cskProportionSelfEmbedded.printDistribution(System.out);
 		System.out.println("Proportion of WCSK vs self WCSK for embedded relationships");
-		wcskProportionSelfEmbedded.printDistribution(System.out);
+		wcskProportionSelfEmbedded.printDistribution(System.out);*/
 		int medianLength = getMedianLength();
 		System.out.println("Median read length: "+medianLength);
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			filterEdgesAndEmbedded(seqId,medianLength);
+			filterEdgesAndEmbedded(seqId,medianLength, lengthsDistribution);
 		}
 		System.out.println("Filtered edges. Prunning embedded");
 		pruneEmbeddedSequences();
@@ -551,7 +576,7 @@ public class AssemblyGraph {
 		//filterEdgesCloseRelationships();
 	}
 
-	public void filterEdgesAndEmbedded(int sequenceId,int medianLength) {
+	public void filterEdgesAndEmbedded(int sequenceId,int medianLength, Distribution lengthsDistribution) {
 		int debugIdx = -1;
 		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
@@ -606,10 +631,9 @@ public class AssemblyGraph {
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
 		
 		//double minScoreProportionEmbedded = 0.8;
-		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
-		
+		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
 		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
-		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
+		//double minScoreProportionEmbedded = 0.8*cumulative;
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);

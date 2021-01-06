@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
@@ -18,7 +19,16 @@ import ngsep.sequences.UngappedSearchHit;
 
 public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	
+	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	public static final int KMER_LENGTH_LOCAL_ALN = KmersExtractor.DEF_KMER_LENGTH;
+	
+	public Logger getLog() {
+		return log;
+	}
+
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
@@ -42,7 +52,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		StringBuilder consensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-		String pathS = "";
 		if(path.size()==1) {
 			consensus.append(path.get(0).getVertex1().getRead());
 			return consensus;
@@ -69,7 +78,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 				throw new RuntimeException("Inconsistency found in path");
 			}
 			if(j == 0) {
-				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
 				CharSequence seq = vertexPreviousEdge.getRead().getCharacters();
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
@@ -103,7 +111,6 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 					startSuffix = edge.getOverlap();
 				}
 				if(startSuffix<nextPathSequence.length()) {
-					pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
 					//if (consensus.length()>490000 && consensus.length()<510000) System.out.println("Consensus length: "+consensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+seq.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
 					consensus.append(remainingSegment.toUpperCase());
@@ -111,7 +118,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			}
 			lastVertex = vertexNextEdge;
 		}
-		System.out.println(pathS);
+		log.info("Processed path "+sequenceIdx+". Length: "+path.size());
 		return consensus;
 	}
 

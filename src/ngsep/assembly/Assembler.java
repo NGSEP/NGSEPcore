@@ -311,8 +311,13 @@ public class Assembler {
 		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
 		log.info("Built consensus");
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
-		FastaSequencesHandler handler = new FastaSequencesHandler();
+		List<Integer> lengths = new ArrayList<Integer>();
+		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
+		int [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
+		System.out.println("Length N statistics");
+		NStatisticsCalculator.printNStatistics(nStats, System.out);
 		
+		FastaSequencesHandler handler = new FastaSequencesHandler();
 		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}

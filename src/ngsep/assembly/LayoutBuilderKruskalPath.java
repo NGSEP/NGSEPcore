@@ -63,6 +63,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			graph.addPath(path);
 		}
 		System.out.println("Final number of paths: "+graph.getPaths().size());
+		System.out.println("Estimated N statistics");
+		int [] stats = graph.estimateNStatisticsFromPaths();
+		if(stats!=null) NStatisticsCalculator.printNStatistics(stats, System.out);
 
 	}
 	private boolean isRepetivive(AssemblyVertex vertex, NormalDistribution distDegrees) {

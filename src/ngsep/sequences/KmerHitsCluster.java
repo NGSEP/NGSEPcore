@@ -119,11 +119,11 @@ public class KmerHitsCluster {
 		}
 		
 		
-		subjectPredictedStart = -1;
+		boolean initialized = false;
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits, queryLength, median, Math.min(queryLength/20, maxDistance));
 			if(hit!=null) {
-				if(subjectPredictedStart==-1) {
+				if(!initialized) {
 					subjectPredictedStart = estimateSubjectStart(hit);
 					subjectPredictedEnd = estimateSubjectEnd(hit);
 					subjectEvidenceStart = hit.getStart();
@@ -132,7 +132,7 @@ public class KmerHitsCluster {
 					queryPredictedEnd = estimateQueryEnd(hit);
 					queryEvidenceStart = hit.getQueryIdx();
 					queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
-					
+					initialized = true;
 				}
 				addHit(hit);
 			}
@@ -538,7 +538,7 @@ public class KmerHitsCluster {
 		for(List<UngappedSearchHit> hits:hitsByBin.values()) {
 			if(hits.size()<5) continue;
 			KmerHitsCluster cluster = new KmerHitsCluster(queryLength, subjectLength, hits);
-			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next cluster start: "+cluster.getSubjectPredictedStart()+" unique kmers: "+cluster.getNumDifferentKmers());
+			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" unique kmers: "+cluster.getNumDifferentKmers());
 			answer.add(cluster);
 		}
 		return answer;
