@@ -35,6 +35,8 @@ public class AssemblyEmbedded {
 	private int hostEvidenceStart;
 	private int hostEvidenceEnd;
 	private int hostStartStandardDeviation;
+	private int sequenceEvidenceStart;
+	private int sequenceEvidenceEnd;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
@@ -124,6 +126,26 @@ public class AssemblyEmbedded {
 	public void setHostEvidenceEnd(int hostEvidenceEnd) {
 		this.hostEvidenceEnd = hostEvidenceEnd;
 	}
+	
+	public int getSequenceEvidenceStart() {
+		return sequenceEvidenceStart;
+	}
+
+
+	public void setSequenceEvidenceStart(int sequenceEvidenceStart) {
+		this.sequenceEvidenceStart = sequenceEvidenceStart;
+	}
+
+
+	public int getSequenceEvidenceEnd() {
+		return sequenceEvidenceEnd;
+	}
+
+
+	public void setSequenceEvidenceEnd(int sequenceEvidenceEnd) {
+		this.sequenceEvidenceEnd = sequenceEvidenceEnd;
+	}
+
 
 	public int getNumSharedKmers() {
 		return numSharedKmers;
@@ -164,6 +186,13 @@ public class AssemblyEmbedded {
 
 	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
 		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
+	}
+	
+	public double calculateEvidenceProportion () {
+		double evidenceProp = hostEvidenceEnd-hostEvidenceStart;
+		evidenceProp += (sequenceEvidenceEnd-sequenceEvidenceStart);
+		evidenceProp/=(2*read.getLength());
+		return evidenceProp;
 	}
 
 	public String toString () {

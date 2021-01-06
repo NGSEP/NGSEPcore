@@ -624,16 +624,13 @@ public class AssemblyGraph {
 		double maxScoreEmbedded = -1;
 		int countPass = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
-			
-			double evidenceProp = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
-			evidenceProp/=sequenceLength;
-			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, evidenceProp);
+			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, embedded.calculateEvidenceProportion());
 			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
 			double WCSKprop = (double)embedded.getWeightedCoverageSharedKmers()/sameSeqWCSK;
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded)+" evidence prop: "+evidenceProp+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded)+" evidence prop: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 			//if(evidenceProp*CSKprop >=0.25) countPass++;
-			if(evidenceProp >=0.9) countPass++;
+			if(embedded.calculateEvidenceProportion() >=0.9) countPass++;
 		}
 			
 		//Score proportion filter calculation
@@ -681,9 +678,8 @@ public class AssemblyGraph {
 		edge.setRawKmerHitsSubjectStartSD(embedded.getRawKmerHitsSubjectStartSD());
 		edge.setVertex1EvidenceStart(embedded.getHostEvidenceStart());
 		edge.setVertex1EvidenceEnd(embedded.getHostEvidenceEnd());
-		//TODO: calculate properly these numbers
-		edge.setVertex2EvidenceStart(0);
-		edge.setVertex2EvidenceEnd(embedded.getCoverageSharedKmers());
+		edge.setVertex2EvidenceStart(embedded.getSequenceEvidenceStart());
+		edge.setVertex2EvidenceEnd(embedded.getSequenceEvidenceEnd());
 		addEdge(edge);
 	}
 
@@ -722,14 +718,14 @@ public class AssemblyGraph {
 	private double calculateScore(AssemblyEmbedded embedded) {
 		//return embedded.getCoverageSharedKmers();
 		//return embedded.getRawKmerHits();
-		return embedded.getWeightedCoverageSharedKmers();
+		return embedded.getWeightedCoverageSharedKmers()*embedded.calculateEvidenceProportion();
 		//return embedded.getWeightedCoverageSharedKmers()*embedded.getRawKmerHits();
 	}
 
 	private double calculateScoreForEmbedded(AssemblyEdge edge) {
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
-		return edge.getWeightedCoverageSharedKmers();
+		return edge.getWeightedCoverageSharedKmers()*edge.calculateEvidenceProportion();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
 	

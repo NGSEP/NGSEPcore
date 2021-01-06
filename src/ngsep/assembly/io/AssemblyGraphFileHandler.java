@@ -98,6 +98,7 @@ public class AssemblyGraphFileHandler {
 		out.print("\tHSD="+embedded.getHostStartStandardDeviation()+";NSK="+embedded.getNumSharedKmers()+";CSK="+embedded.getCoverageSharedKmers());
 		out.print(";WCSK="+embedded.getWeightedCoverageSharedKmers()+";RNSK="+embedded.getRawKmerHits()+";RHSD="+embedded.getRawKmerHitsSubjectStartSD());
 		out.print(";HES="+embedded.getHostEvidenceStart()+";HEE="+embedded.getHostEvidenceEnd());
+		out.print(";SES="+embedded.getSequenceEvidenceStart()+";SEE="+embedded.getSequenceEvidenceEnd());
 		out.println();
 	}
 	
@@ -120,7 +121,8 @@ public class AssemblyGraphFileHandler {
 			else if("RHSD".equals(featureName)) embedded.setRawKmerHitsSubjectStartSD(featureValue);
 			else if("HES".equals(featureName)) embedded.setHostEvidenceStart(featureValue);
 			else if("HEE".equals(featureName)) embedded.setHostEvidenceEnd(featureValue);
-
+			else if("SES".equals(featureName)) embedded.setSequenceEvidenceStart(featureValue);
+			else if("SEE".equals(featureName)) embedded.setSequenceEvidenceEnd(featureValue);
 		}
 		return embedded;
 	}

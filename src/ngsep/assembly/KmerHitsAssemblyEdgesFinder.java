@@ -249,6 +249,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, startSubject, endSubject);
 		embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 		embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
+		embeddedEvent.setSequenceEvidenceStart(cluster.getQueryEvidenceStart());
+		embeddedEvent.setSequenceEvidenceEnd(cluster.getQueryEvidenceEnd());
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
 		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
