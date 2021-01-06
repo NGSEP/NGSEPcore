@@ -213,6 +213,13 @@ public class AssemblyEdge {
 	public boolean isSameSequenceEdge() {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
 	}
+	
+	public double calculateEvidenceProportion() {
+		double evProp = vertex1EvidenceEnd-vertex1EvidenceStart;
+		evProp += vertex2EvidenceEnd-vertex2EvidenceStart;
+		evProp/=(2*overlap);
+		return evProp;
+	}
 
 	public boolean isLayoutEdge() {
 		return layoutEdge;

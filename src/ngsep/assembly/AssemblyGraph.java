@@ -608,8 +608,8 @@ public class AssemblyGraph {
 		//double minScoreProportionEmbedded = 0.8;
 		//double minScoreProportionEmbedded = Math.min(0.9, (double)getSequenceLength(sequenceId)/50000.0);
 		
-		double minScoreProportionEmbedded = Math.min(0.9, 0.5*medianRelationship);
-		if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
+		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
+		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
