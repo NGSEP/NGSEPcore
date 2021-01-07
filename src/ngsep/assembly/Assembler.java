@@ -237,6 +237,8 @@ public class Assembler {
 	}
 
 	public void run(String inputFile, String outputPrefix) throws IOException {
+		Runtime runtime = Runtime.getRuntime();
+		long startTime = System.currentTimeMillis();
 		List<QualifiedSequence> sequences = load(inputFile,inputFormat, minReadLength);
 		long totalBp = 0;
 		Distribution distReadLength = new Distribution(0, 100000, 1000);
@@ -284,6 +286,8 @@ public class Assembler {
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
 		}
+		
+		long time2 = System.currentTimeMillis();
 		//graph.removeEdgesChimericReads();
 		graph.filterEdgesAndEmbedded();
 		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
@@ -297,7 +301,13 @@ public class Assembler {
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		}
 		pathsFinder.findPaths(graph);
-		log.info("Layout complete. Paths: "+graph.getPaths().size());
+		
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time3 = System.currentTimeMillis();
+		long diff1 = (time3-time2)/1000;
+		long diff2 = (time3-startTime)/1000;
+		log.info("Layout complete. Paths: "+graph.getPaths().size()+" . Memory: "+usedMemory+" Time layout(s): "+diff1+" total time (s): "+diff2);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
@@ -321,6 +331,13 @@ public class Assembler {
 		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
+		
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time4 = System.currentTimeMillis();
+		diff1 = (time4-time3)/1000;
+		diff2 = (time4-startTime)/1000;
+		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
 	}
 
 	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
