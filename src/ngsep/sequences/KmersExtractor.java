@@ -321,13 +321,13 @@ public class KmersExtractor {
 			return;
 		}
 		String [] kmers = extractKmers(seq, kmerLength, 1, 0, seq.length(), false, freeText, ignoreLowComplexity);
-		synchronized (kmersMap) {
+		//synchronized (kmersMap) {
 			for(String kmer:kmers) {
 				if(kmer==null) continue;
 				if(kmer.length()<=15) kmersMap.addOcurrance(kmer);
 				else kmersMap.addOcurrance(pack(kmer));
 			}
-		}
+		//}
 	}
 	
 	/**

@@ -60,10 +60,10 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 	public void addCodeOccurance(long code) {
 		// TODO Auto-generated method stub
 		int hash = (int)code;
-		synchronized (kmerCounts) {
+		//synchronized (kmerCounts) {
 			if(kmerCounts[hash]==0) size++;
 			if(kmerCounts[hash]<Short.MAX_VALUE) (kmerCounts[hash])++;
-		}
+		//}
 		
 	}
 
