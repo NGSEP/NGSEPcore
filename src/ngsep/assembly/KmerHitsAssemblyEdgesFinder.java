@@ -26,7 +26,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	private int countRawHits = 0;
 	private int countCompletedHits = 0;
 	
-	private int idxDebug = -1;
+	private int idxDebug = 15000;
 	
 	
 	
@@ -100,7 +100,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			return;
 		}
 		long cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
-		if(cumulativeReadDepth<20) {
+		if(cumulativeReadDepth<30) {
 			//Build initial clusters
 			List<KmerHitsCluster> clustersForward = createClusters(queryIdx, queryLength, hitsForward, subjectIdxsF);
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Clusters forward: "+clustersForward.size());

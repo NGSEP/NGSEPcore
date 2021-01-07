@@ -567,21 +567,22 @@ public class AssemblyGraph {
 		wcskProportionSelfEmbedded.printDistribution(System.out);*/
 		int medianLength = getMedianLength();
 		System.out.println("Median read length: "+medianLength);
+		int numEmbedded = 0;
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			filterEdgesAndEmbedded(seqId,medianLength, lengthsDistribution);
+			if(filterEdgesAndEmbedded(seqId,medianLength, lengthsDistribution)) numEmbedded++;
 		}
-		System.out.println("Filtered edges. Prunning embedded");
+		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		pruneEmbeddedSequences();
 		System.out.println("Prunned embedded sequences");
 		//filterEdgesCloseRelationships();
 	}
 
-	public void filterEdgesAndEmbedded(int sequenceId,int medianLength, Distribution lengthsDistribution) {
+	public boolean filterEdgesAndEmbedded(int sequenceId,int medianLength, Distribution lengthsDistribution) {
 		int debugIdx = -1;
 		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
 		AssemblyVertex vE = verticesEnd.get(sequenceId);
-		if(vS==null || vE==null) return;
+		if(vS==null || vE==null) return false;
 		filterEdgesAbnormalFeatures(getEdges(vS));
 		filterEdgesAbnormalFeatures(getEdges(vE));
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
@@ -635,6 +636,7 @@ public class AssemblyGraph {
 		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
 		//double minScoreProportionEmbedded = 0.8*cumulative;
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		
 		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
 	
@@ -643,7 +645,7 @@ public class AssemblyGraph {
 		double sameSeqWCSK = sameSequenceEdge.getCoverageSharedKmers();
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
-		if(embeddedList.size()==0) return;
+		if(embeddedList.size()==0) return false;
 		double maxEvidencePropEmbedded = 0;
 		double maxScoreEmbedded = -1;
 		int countPass = 0;
@@ -673,9 +675,11 @@ public class AssemblyGraph {
 				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+getSequenceLength(embedded.getHostId())+"score: "+calculateScore(embedded));
 				addEdgeFromEmbedded(embedded);
 			}
+			return false;
 		} else {
 			if(sequenceId == debugIdx) System.out.println("Sequence is embedded ");
 			filterEmbedded(sequenceId, 0.9, 1);
+			return true;
 		}
 	}
 
@@ -741,6 +745,7 @@ public class AssemblyGraph {
 
 	private double calculateScore(AssemblyEmbedded embedded) {
 		//return embedded.getCoverageSharedKmers();
+		//return embedded.getWeightedCoverageSharedKmers();
 		//return embedded.getRawKmerHits();
 		return embedded.getWeightedCoverageSharedKmers()*embedded.calculateEvidenceProportion();
 		//return embedded.getWeightedCoverageSharedKmers()*embedded.getRawKmerHits();
@@ -748,6 +753,7 @@ public class AssemblyGraph {
 
 	private double calculateScoreForEmbedded(AssemblyEdge edge) {
 		//return edge.getCoverageSharedKmers();
+		//return edge.getWeightedCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		return edge.getWeightedCoverageSharedKmers()*edge.calculateEvidenceProportion();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
@@ -755,8 +761,8 @@ public class AssemblyGraph {
 	
 	private double calculateScoreForEdgeFiltering(AssemblyEdge edge) {
 		//return edge.getCoverageSharedKmers();
-		//return edge.getRawKmerHits();
 		return edge.getWeightedCoverageSharedKmers();
+		//return edge.getRawKmerHits();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
 
