@@ -192,6 +192,7 @@ public class AssemblyEmbedded {
 		double evidenceProp = hostEvidenceEnd-hostEvidenceStart;
 		evidenceProp += (sequenceEvidenceEnd-sequenceEvidenceStart);
 		evidenceProp/=(2*read.getLength());
+		if(evidenceProp>1) evidenceProp = 2 - evidenceProp;
 		return evidenceProp;
 	}
 

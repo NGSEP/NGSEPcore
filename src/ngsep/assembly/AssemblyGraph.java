@@ -596,7 +596,7 @@ public class AssemblyGraph {
 			if(edge.isSameSequenceEdge()) continue;
 			maxScoreSF = Math.max(maxScoreSF, calculateScoreForEdgeFiltering(edge));
 			int connectingLength = getSequenceLength(edge.getConnectingVertex(vS).getSequenceIndex());
-			if(connectingLength<1.2*sequenceLength && edge.getOverlap() >0.8*sequenceLength) maxScoreSE = Math.max(maxScoreSE, calculateScoreForEmbedded(edge));
+			/*if(connectingLength<1.2*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreSE = Math.max(maxScoreSE, calculateScoreForEmbedded(edge));
 		}
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -616,7 +616,7 @@ public class AssemblyGraph {
 			if(edge.isSameSequenceEdge()) continue;
 			maxScoreEF = Math.max(maxScoreEF, calculateScoreForEdgeFiltering(edge));
 			int connectingLength = getSequenceLength(edge.getConnectingVertex(vE).getSequenceIndex());
-			if(connectingLength<1.2*sequenceLength && edge.getOverlap() >0.8*sequenceLength) maxScoreEE = Math.max(maxScoreEE, calculateScoreForEmbedded(edge));
+			/*if(connectingLength<1.5*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreEE = Math.max(maxScoreEE, calculateScoreForEmbedded(edge));
 		}
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -656,7 +656,7 @@ public class AssemblyGraph {
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded)+" evidence prop: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
 			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
 			//if(evidenceProp*CSKprop >=0.25) countPass++;
-			if(embedded.calculateEvidenceProportion() >=0.9) countPass++;
+			if(embedded.calculateEvidenceProportion() >=0.95) countPass++;
 		}
 			
 		//Score proportion filter calculation
@@ -761,71 +761,8 @@ public class AssemblyGraph {
 	
 	private double calculateScoreForEdgeFiltering(AssemblyEdge edge) {
 		//return edge.getCoverageSharedKmers();
-		return edge.getWeightedCoverageSharedKmers();
+		return edge.getWeightedCoverageSharedKmers()*edge.calculateEvidenceProportion();
 		//return edge.getRawKmerHits();
 		//return edge.getWeightedCoverageSharedKmers()*edge.getRawKmerHits();
 	}
-
-	public void filterEdgesCloseRelationships() {
-		for (int seqId = 0; seqId <sequences.size(); seqId++) {
-			AssemblyVertex v1 = getVertex(seqId, true);
-			if (v1!=null) filterEdgesCloseRelationships(v1);
-			AssemblyVertex v2 = getVertex(seqId, false);
-			if (v2!=null) filterEdgesCloseRelationships(v2);
-		}
-		
-	}
-
-	private void filterEdgesCloseRelationships(AssemblyVertex vertex) {
-		int debugIdx = -1;
-		List<AssemblyEdge> edges = getEdges(vertex);
-		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Vertex: "+vertex+" Total edges: "+edges.size());
-		if(edges.size()<3) return;
-		AssemblyEdge maxOverlapEdge = null;
-		AssemblyEdge maxScoreEdge = null;
-		for(AssemblyEdge edge: edges) {
-			if(edge.isSameSequenceEdge()) continue;
-			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap() < edge.getOverlap()) {
-				maxOverlapEdge = edge;
-			}
-			if(maxScoreEdge==null || calculateScoreForEdgeFiltering(maxScoreEdge)<calculateScoreForEdgeFiltering(edge)) {
-				maxScoreEdge = edge;
-			}
-		}
-		AssemblyEdge secondOverlapEdge = null;
-		for(AssemblyEdge edge: edges) {
-			if(edge.isSameSequenceEdge() || edge == maxOverlapEdge) continue;
-			if(secondOverlapEdge==null || secondOverlapEdge.getOverlap() < edge.getOverlap()) {
-				secondOverlapEdge = edge;
-			}
-		}
-		if(secondOverlapEdge==null) System.err.println("Error. Vertex "+vertex+" has three edges but no second overlap. Max overlap: "+maxOverlapEdge+" edges: "+edges);
-		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. Best edge: "+maxOverlapEdge.getConnectingVertex(vertex).getUniqueNumber()+" second: "+secondOverlapEdge.getConnectingVertex(vertex).getUniqueNumber());
-		int ov1 = maxOverlapEdge.getOverlap();
-		int ov2 = secondOverlapEdge.getOverlap();
-		int diff = ov1-ov2;
-		if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. overlap 1: "+ov1+" overlap2: "+ov2+" diff: "+diff);
-		if(maxOverlapEdge==maxScoreEdge && diff > 0.1*ov1) return;
-		if(badTransitivity(vertex, maxOverlapEdge, secondOverlapEdge)) {
-			if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. removing edge "+maxOverlapEdge);
-			removeEdge(maxOverlapEdge);
-		} else if (maxOverlapEdge!=maxScoreEdge && badTransitivity(vertex,maxScoreEdge,maxOverlapEdge)) {
-			if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. removing edge "+maxScoreEdge);
-			removeEdge(maxScoreEdge);
-		}
-	}
-
-	private boolean badTransitivity(AssemblyVertex vertex, AssemblyEdge edge1, AssemblyEdge edge2) {
-		AssemblyVertex v1 = edge1.getConnectingVertex(vertex);
-		AssemblyEdge seqEdge1 = getSameSequenceEdge(v1);
-		AssemblyVertex v12 = seqEdge1.getConnectingVertex(v1);
-		AssemblyVertex v2 = edge2.getConnectingVertex(vertex);
-		AssemblyEdge seqEdge2 = getSameSequenceEdge(v2);
-		AssemblyVertex v22 = seqEdge2.getConnectingVertex(v2);
-		AssemblyEdge transitiveGood = getEdge(v12, v2);
-		AssemblyEdge transitiveBad = getEdge(v22, v1);
-		//if(vertex.getSequenceIndex()==debugIdx) System.out.println("Filter edges close. transitive good: "+transitiveGood+" transitive bad: "+transitiveBad);
-		return transitiveBad!=null && transitiveGood==null;
-	}
-	
 }

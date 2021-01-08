@@ -215,10 +215,11 @@ public class AssemblyEdge {
 	}
 	
 	public double calculateEvidenceProportion() {
-		double evProp = vertex1EvidenceEnd-vertex1EvidenceStart;
-		evProp += vertex2EvidenceEnd-vertex2EvidenceStart;
-		evProp/=(2*overlap);
-		return evProp;
+		double evidenceProp = vertex1EvidenceEnd-vertex1EvidenceStart;
+		evidenceProp += vertex2EvidenceEnd-vertex2EvidenceStart;
+		evidenceProp/=(2*overlap);
+		if(evidenceProp>1) evidenceProp = 2 - evidenceProp;
+		return evidenceProp;
 	}
 
 	public boolean isLayoutEdge() {
