@@ -56,23 +56,23 @@ public class AssemblyGraphStatistics {
 	
 	private Distribution distCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKTPEmbedded = new Distribution(0, 30000, 500);
-	private Distribution distEvidencePropLengthTPEmbedded = new Distribution(0, 1, 0.01);
-	private Distribution distCSKPropSelfCSKTPEmbedded = new Distribution(0, 1, 0.01);
-	private Distribution distProductTPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distEvidencePropLengthTPEmbedded = new Distribution(0, 1.1, 0.01);
+	private Distribution distWCSKPropSelfTPEmbedded = new Distribution(0, 1.1, 0.01);
 	
 	private Distribution distCSKFPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKFPEmbedded = new Distribution(0, 30000, 500);
-	private Distribution distEvidencePropLengthFPEmbedded = new Distribution(0, 1, 0.01);
-	private Distribution distCSKPropSelfCSKFPEmbedded = new Distribution(0, 1, 0.01);
-	private Distribution distProductFPEmbedded = new Distribution(0, 1, 0.01);
+	private Distribution distEvidencePropLengthFPEmbedded = new Distribution(0, 1.1, 0.01);
+	private Distribution distWCSKPropSelfFPEmbedded = new Distribution(0, 1.1, 0.01);
+	
+	private Distribution distEvidencePropLengthFNEmbedded = new Distribution(0, 1.1, 0.01);
 	
 	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCostsTPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distSharedKmersTPPathEdges = new Distribution(0,25000,500);
 	private Distribution distCoverageSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
-	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
-	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1, 0.01);
+	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1.1, 0.01);
+	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1.1, 0.01);
 	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 2000, 100);
 	
 	
@@ -81,14 +81,14 @@ public class AssemblyGraphStatistics {
 	private Distribution distSharedKmersFPEdges = new Distribution(0,25000,500);
 	private Distribution distCoverageSharedKmersFPEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersFPEdges = new Distribution(0, 30000, 500);
-	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
-	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1, 0.01);
+	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1.1, 0.01);
+	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1.1, 0.01);
 	private Distribution distOverlapSDFPEdges = new Distribution(0, 2000, 100);
 	
 	private Distribution distOverlapsFPPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
-	private Distribution distCoverageSharedKmersProportionFPPathEdges = new Distribution(0, 1, 0.01);
+	private Distribution distCoverageSharedKmersProportionFPPathEdges = new Distribution(0, 1.1, 0.01);
 	
 	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,2000);
 	private Distribution distCostsFNPathEdges = new Distribution(0,100000,2000);
@@ -460,55 +460,54 @@ public class AssemblyGraphStatistics {
 			if(gsE && testE) {
 				tpEmbSeqs++;
 				List<AssemblyEmbedded> hosts = testGraph.getEmbeddedBySequenceId(i);
-				double maxEvidenceHost = 0;
+				double maxEvidenceProp = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				for(AssemblyEmbedded embedded: hosts) {
-					maxEvidenceHost = Math.max(maxEvidenceHost, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
 				distCSKTPEmbedded.processDatapoint(maxCSK);
 				distWCSKTPEmbedded.processDatapoint(maxWCSK);
+				distEvidencePropLengthTPEmbedded.processDatapoint(maxEvidenceProp);
 				if(selfEdge!=null) {
-					double p1 = maxEvidenceHost/sequence.getLength();
-					distEvidencePropLengthTPEmbedded.processDatapoint(p1);
-					double p2 = maxCSK/selfEdge.getCoverageSharedKmers();
-					distCSKPropSelfCSKTPEmbedded.processDatapoint(p2);
-					distProductTPEmbedded.processDatapoint(p1*p2);
+					
+					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
+					distWCSKPropSelfTPEmbedded.processDatapoint(p2);
 				}
 			}
 			else if (gsE) {
 				fnEmbSeqs++;
 				if (logErrors) System.err.println("Embedded sequence not called: "+logSequence(i, sequence));
+				double maxEvidenceProp = 0;
 				for(AssemblyEmbedded embedded:goldStandardGraph.getEmbeddedBySequenceId(i)) {
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
 					QualifiedSequence seqHost = goldStandardGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next true host "+logSequence(embedded.getHostId(),seqHost));
 				}
+				distEvidencePropLengthFNEmbedded.processDatapoint(maxEvidenceProp);
 			}
 			else if (testE) {
 				fpEmbSeqs++;
 				List<AssemblyEmbedded> falseHosts = testGraph.getEmbeddedBySequenceId(i);
-				double maxEvidenceHost = 0;
+				double maxEvidenceProp = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				if (logErrors) System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" predicted: "+embedded.getHostStart()+"-"+embedded.getHostEnd()+" evidence: "+embedded.getHostEvidenceStart()+"-"+embedded.getHostEvidenceEnd()+" CSK: "+embedded.getCoverageSharedKmers()+" WCSK: "+embedded.getWeightedCoverageSharedKmers()+" RK: "+embedded.getRawKmerHits()+" RSD: "+embedded.getRawKmerHitsSubjectStartSD()+" prop: "+(1.0*embedded.getCoverageSharedKmers()/goldStandardGraph.getSequenceLength(embedded.getSequenceId())));
-					maxEvidenceHost = Math.max(maxEvidenceHost, embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart());
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
 				distCSKFPEmbedded.processDatapoint(maxCSK);
 				distWCSKFPEmbedded.processDatapoint(maxWCSK);
-				
+				distEvidencePropLengthFPEmbedded.processDatapoint(maxEvidenceProp);
 				if(selfEdge!=null) {
-					double p1 = maxEvidenceHost/sequence.getLength();
-					distEvidencePropLengthFPEmbedded.processDatapoint(p1);
 					double p2 = maxCSK/selfEdge.getCoverageSharedKmers();
-					distCSKPropSelfCSKFPEmbedded.processDatapoint(p2);
-					distProductFPEmbedded.processDatapoint(p1*p2);
+					distWCSKPropSelfFPEmbedded.processDatapoint(p2);
 				}
 			}
 			//Check embedded relationships
@@ -574,7 +573,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==8842 || gsVertex.getSequenceIndex()==14591 || gsVertex.getSequenceIndex()==3752; 
+		//boolean debug = gsVertex.getSequenceIndex()==2533 || gsVertex.getSequenceIndex()==5372 || gsVertex.getSequenceIndex()==4136; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -728,7 +727,7 @@ public class AssemblyGraphStatistics {
 		for(List<AssemblyEdge> gsPath:gsPaths) {
 			totalGSLayoutEdges+=gsPath.size();
 		}
-		
+		System.out.println();
 		for(int i=0;i<testPaths.size();i++) {
 			List<AssemblyEdge> nextPath = testPaths.get(i);
 			if(nextPath.size()<=1) continue;
@@ -904,15 +903,14 @@ public class AssemblyGraphStatistics {
 		
 		d1 = distEvidencePropLengthTPEmbedded.getDistribution();
 		d2 = distEvidencePropLengthFPEmbedded.getDistribution();
-		d3 = distCSKPropSelfCSKTPEmbedded.getDistribution();
-		d4 = distCSKPropSelfCSKFPEmbedded.getDistribution();
-		double [] d5 = distProductTPEmbedded.getDistribution();
-		double [] d6 = distProductFPEmbedded.getDistribution();
+		d3 = distEvidencePropLengthFNEmbedded.getDistribution();
+		d4 = distWCSKPropSelfTPEmbedded.getDistribution();
+		double [] d5 = distWCSKPropSelfFPEmbedded.getDistribution();
 		out.println("Proportions embedded");
-		out.println("Number\tPropEvidenceTP\tPropEvidenceFP\tPropCSKSelfTP\tPropCSKSelfFP\tPropProductTP\tPropProductFP");
+		out.println("Number\tPropEvidenceTP\tPropEvidenceFP\tPropEvidenceFN\tPropWCSKSelfTP\tPropWCSKSelfFP");
 		for(int i=0;i<d1.length;i++) {
 			double min = distEvidencePropLengthTPEmbedded.getBinLength()*i;
-			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]+"\t"+d6[i]);
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]);
 		}
 		
 		d1 = distOverlapsTPPathEdges.getDistribution();
@@ -1040,10 +1038,9 @@ public class AssemblyGraphStatistics {
 		distWCSKFPEmbedded.reset();
 		distEvidencePropLengthTPEmbedded.reset();
 		distEvidencePropLengthFPEmbedded.reset();
-		distCSKPropSelfCSKTPEmbedded.reset();
-		distCSKPropSelfCSKFPEmbedded.reset();
-		distProductTPEmbedded.reset();
-		distProductFPEmbedded.reset();
+		distEvidencePropLengthFNEmbedded.reset();
+		distWCSKPropSelfTPEmbedded.reset();
+		distWCSKPropSelfFPEmbedded.reset();
 		
 		
 		distOverlapsTPPathEdges.reset();

@@ -150,7 +150,7 @@ public class KmersMapAnalyzer {
 			
 			for(int i=2;i<20;i++) {
 				long newCount = numKmersToSort+kmerCounts[i];
-				if(newCount>200000000) {
+				if(newCount>20000000) {
 					break;
 				}
 				maxValueKmers = i;
@@ -163,7 +163,7 @@ public class KmersMapAnalyzer {
 			numKmersToSort = (int)kmerCounts[mode];
 			for(int i=1;i<=localSD;i++) {
 				long newCount = numKmersToSort+kmerCounts[mode+i]+kmerCounts[mode-i];
-				if(newCount>200000000 || newCount>2*expectedAssemblyLength) {
+				if(newCount>20000000 || newCount>2*expectedAssemblyLength) {
 					minValueKmers=mode-i;
 					maxValueKmers=mode+i;
 					break;

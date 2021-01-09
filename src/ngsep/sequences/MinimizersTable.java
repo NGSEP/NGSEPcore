@@ -56,13 +56,13 @@ public class MinimizersTable {
 		this.mode = kmersAnalyzer.getMode();
 		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
 		//TODO: Implement good indexing strategy for reference codes
-		if(!kmersAnalyzer.isAssembly()) {
+		/*if(!kmersAnalyzer.isAssembly()) {
 			long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInLocalSDZone();
 			for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
 				explicitKmerHashCodes.put(codesUniqueZone[i],i);
 			}
 			System.out.println("Indexed "+explicitKmerHashCodes.size()+" kmer unique codes.");
-		}
+		}*/
 		
 		//Create the structures with appropriate initial capacity
 		int capacity = kmersMap.size()/10;
@@ -289,6 +289,7 @@ public class MinimizersTable {
 		if(count == 0) return Integer.MAX_VALUE;
 		long rankingStart=kmersAnalyzer.getRanking(count);
 		long kmersWithCount = kmersAnalyzer.getNumKmers(count);
+		if (kmersWithCount%2 == 0) kmersWithCount++;
 		long hash = rankingStart+(dnaHash%kmersWithCount);
 		if(hash>=Integer.MAX_VALUE) hash = Integer.MAX_VALUE-1;
 		/*int distance = count-mode;
