@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.math.Distribution;
+import ngsep.math.PrimeNumbers;
 
 public class MinimizersTable {
 	
@@ -40,12 +41,14 @@ public class MinimizersTable {
 	
 	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>();
 	private long totalEntries = 0;
+	private PrimeNumbers primeNumbersHelper;
 	
 	
 
 	public MinimizersTable(int kmerLength, int windowLength) {
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
+		this.primeNumbersHelper = new PrimeNumbers();
 		initializeTable(100000);
 	}
 	public MinimizersTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
@@ -55,7 +58,10 @@ public class MinimizersTable {
 		this.windowLength = windowLength;
 		this.mode = kmersAnalyzer.getMode();
 		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
-		//TODO: Implement good indexing strategy for reference codes
+		//TODO: This is ok for assemblies but it is not ok for reference genomes
+		int capacityPrimes = (int) Math.min(100000000, kmersAnalyzer.getNumKmers(this.mode));
+		this.primeNumbersHelper = new PrimeNumbers(capacityPrimes);
+		
 		/*if(!kmersAnalyzer.isAssembly()) {
 			long [] codesUniqueZone = kmersAnalyzer.extractKmerCodesInLocalSDZone();
 			for(int i=0;i<codesUniqueZone.length && codesUniqueZone[i]>=0;i++) {
@@ -275,8 +281,9 @@ public class MinimizersTable {
 	private int getHash(long dnaHash) {
 		Integer code = explicitKmerHashCodes.get(dnaHash);
 		if(code!=null) return code;
+		int prime = 1073676287;
 		if(kmersMap==null) {
-			long answer = (dnaHash+1)%1073676287;
+			long answer = (dnaHash+1)%prime;
 			return (int) answer;
 		}
 		int count;
@@ -289,8 +296,8 @@ public class MinimizersTable {
 		if(count == 0) return Integer.MAX_VALUE;
 		long rankingStart=kmersAnalyzer.getRanking(count);
 		long kmersWithCount = kmersAnalyzer.getNumKmers(count);
-		if (kmersWithCount%2 == 0) kmersWithCount++;
-		long hash = rankingStart+(dnaHash%kmersWithCount);
+		if(kmersWithCount<primeNumbersHelper.getCapacity()) prime = primeNumbersHelper.getNextPrime((int) kmersWithCount);
+		long hash = rankingStart+(dnaHash%prime);
 		if(hash>=Integer.MAX_VALUE) hash = Integer.MAX_VALUE-1;
 		/*int distance = count-mode;
 		long hash;
