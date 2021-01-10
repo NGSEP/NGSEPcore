@@ -24,12 +24,12 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private long expectedAssemblyLength = 0;
 	
-	private double proportionFullAlignment = 0.05;
+	private double proportionFullAlignment = 0;
 	
 	private int countRawHits = 0;
 	private int countCompletedHits = 0;
 	
-	private int idxDebug = 5372;
+	private int idxDebug = -1;
 	
 	
 	
