@@ -42,6 +42,7 @@ public class AssemblyEmbedded {
 	private int weightedCoverageSharedKmers;
 	private int rawKmerHits = 0;
 	private int rawKmerHitsSubjectStartSD = 0;
+	private int numMismatches = -1;
 	
 
 	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
@@ -187,7 +188,16 @@ public class AssemblyEmbedded {
 	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
 		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
 	}
-	
+
+	public int getNumMismatches() {
+		return numMismatches;
+	}
+
+	public void setNumMismatches(int numMismatches) {
+		this.numMismatches = numMismatches;
+	}
+
+
 	public double calculateEvidenceProportion () {
 		double evidenceProp = hostEvidenceEnd-hostEvidenceStart;
 		evidenceProp += (sequenceEvidenceEnd-sequenceEvidenceStart);

@@ -573,7 +573,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==2533 || gsVertex.getSequenceIndex()==5372 || gsVertex.getSequenceIndex()==4136; 
+		//boolean debug = gsVertex.getSequenceIndex()==2533 || gsVertex.getSequenceIndex()==3096 || gsVertex.getSequenceIndex()==5372; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -910,7 +910,7 @@ public class AssemblyGraphStatistics {
 		out.println("Number\tPropEvidenceTP\tPropEvidenceFP\tPropEvidenceFN\tPropWCSKSelfTP\tPropWCSKSelfFP");
 		for(int i=0;i<d1.length;i++) {
 			double min = distEvidencePropLengthTPEmbedded.getBinLength()*i;
-			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]);
+			out.println(ParseUtils.ENGLISHFMT_PROBABILITIES.format(min)+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]);
 		}
 		
 		d1 = distOverlapsTPPathEdges.getDistribution();

@@ -41,6 +41,7 @@ public class AssemblyEdge {
 	private int vertex1EvidenceEnd;
 	private int vertex2EvidenceStart;
 	private int vertex2EvidenceEnd;
+	private int numMismatches = -1;
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
@@ -197,6 +198,14 @@ public class AssemblyEdge {
 	public void setVertex2EvidenceEnd(int vertex2EvidenceEnd) {
 		this.vertex2EvidenceEnd = vertex2EvidenceEnd;
 	}
+	
+	public int getNumMismatches() {
+		return numMismatches;
+	}
+
+	public void setNumMismatches(int numMismatches) {
+		this.numMismatches = numMismatches;
+	}
 
 	public AssemblyVertex getConnectingVertex(AssemblyVertex vertex) {
 		if(vertex1==vertex) return vertex2;
@@ -231,7 +240,7 @@ public class AssemblyEdge {
 	}
 	
 	public String toString() {
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" overlap: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" layout: "+layoutEdge;
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" overlap: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Mismatches: "+numMismatches+" layout: "+layoutEdge;
 	}
 	
 

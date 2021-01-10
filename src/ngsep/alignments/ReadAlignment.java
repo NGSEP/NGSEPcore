@@ -116,6 +116,8 @@ public class ReadAlignment implements GenomicRegion {
 	
 	//Optional information stored
 	private String readGroup = DEF_READ_GROUP;
+	private int coverageSharedKmers;
+	private int weightedCoverageSharedKmers;
 	
 	/**
 	 * Creates a read alignment with the given information
@@ -676,6 +678,22 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public void setNumMismatches(short numMismatches) {
 		this.numMismatches = numMismatches;
+	}
+	
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
+
+	public int getWeightedCoverageSharedKmers() {
+		return weightedCoverageSharedKmers;
+	}
+
+	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
+		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
 	}
 
 	/**

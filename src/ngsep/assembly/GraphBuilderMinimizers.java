@@ -168,7 +168,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 		Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
 		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
-		finder.updateGraphWithKmerHitsMap(seqId, seq.length(), codesForward, codesReverse, hitsForward, hitsReverse, compressionFactor);
+		finder.updateGraphWithKmerHitsMap(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
 		AssemblyGraph graph = finder.getGraph();
 		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());

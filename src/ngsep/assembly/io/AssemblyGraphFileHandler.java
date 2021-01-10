@@ -99,6 +99,7 @@ public class AssemblyGraphFileHandler {
 		out.print(";WCSK="+embedded.getWeightedCoverageSharedKmers()+";RNSK="+embedded.getRawKmerHits()+";RHSD="+embedded.getRawKmerHitsSubjectStartSD());
 		out.print(";HES="+embedded.getHostEvidenceStart()+";HEE="+embedded.getHostEvidenceEnd());
 		out.print(";SES="+embedded.getSequenceEvidenceStart()+";SEE="+embedded.getSequenceEvidenceEnd());
+		if(embedded.getNumMismatches()>=0) out.print(";NM="+embedded.getNumMismatches());
 		out.println();
 	}
 	
@@ -123,6 +124,7 @@ public class AssemblyGraphFileHandler {
 			else if("HEE".equals(featureName)) embedded.setHostEvidenceEnd(featureValue);
 			else if("SES".equals(featureName)) embedded.setSequenceEvidenceStart(featureValue);
 			else if("SEE".equals(featureName)) embedded.setSequenceEvidenceEnd(featureValue);
+			else if("NM".equals(featureName)) embedded.setNumMismatches(featureValue);
 		}
 		return embedded;
 	}
@@ -134,6 +136,7 @@ public class AssemblyGraphFileHandler {
 		out.print(";AO="+edge.getAverageOverlap()+";MO="+edge.getMedianOverlap()+";FLO="+edge.getFromLimitsOverlap());
 		out.print(";V1ES="+edge.getVertex1EvidenceStart()+";V1EE="+edge.getVertex1EvidenceEnd());
 		out.print(";V2ES="+edge.getVertex2EvidenceStart()+";V2EE="+edge.getVertex2EvidenceEnd());
+		if(edge.getNumMismatches()>=0) out.print(";NM="+edge.getNumMismatches());
 		out.println();
 	}
 	
@@ -170,6 +173,7 @@ public class AssemblyGraphFileHandler {
 			else if("V1EE".equals(featureName)) edge.setVertex1EvidenceEnd(featureValue);
 			else if("V2ES".equals(featureName)) edge.setVertex2EvidenceStart(featureValue);
 			else if("V2EE".equals(featureName)) edge.setVertex2EvidenceEnd(featureValue);
+			else if("NM".equals(featureName)) edge.setNumMismatches(featureValue);
 		}
 		return edge;
 	}

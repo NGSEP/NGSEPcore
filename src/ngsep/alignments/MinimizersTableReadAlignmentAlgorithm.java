@@ -203,6 +203,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = -1;
 		short numMismatches = 0;
+		int coverageSharedKmers = 0;
+		double weightedCoverageSharedKmers = 0;
 		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int queryNext = 0;
 		int alnStart = -1;
@@ -227,6 +229,9 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 				} else if (queryStart>0) alignmentEncoding.add(ReadAlignment.getAlnValue(queryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 				nextMatchLength+=kmerLength;
+				coverageSharedKmers+=kmerLength;
+				double weight = kmerHit.getWeight();
+				weightedCoverageSharedKmers+=((double)kmerLength*weight);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
@@ -259,6 +264,9 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					}
 				}
 				nextMatchLength+=kmerLength;
+				coverageSharedKmers+=kmerLength;
+				double weight = kmerHit.getWeight();
+				weightedCoverageSharedKmers+=((double)kmerLength*weight);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else {
@@ -271,6 +279,9 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					nextMatchLength+=diffSubject;
 					subjectNext = kmerSubjectNext;
 					queryNext = kmerQueryNext;
+					coverageSharedKmers+=Math.min(diffQuery, kmerLength);
+					double weight = kmerHit.getWeight();
+					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
 				}
 			}
 			
@@ -301,6 +312,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		finalAlignment.setReadCharacters(query);
 		finalAlignment.setAlignment(alignmentEncoding);
 		finalAlignment.setNumMismatches(numMismatches);
+		finalAlignment.setCoverageSharedKmers(coverageSharedKmers);
+		finalAlignment.setWeightedCoverageSharedKmers((int)Math.round(weightedCoverageSharedKmers));
 		//TODO: Define better alignment quality
 		double cov = 1.0*(queryNext-queryStart)/query.length();
 		finalAlignment.setAlignmentQuality((byte) Math.round(100*cov));
