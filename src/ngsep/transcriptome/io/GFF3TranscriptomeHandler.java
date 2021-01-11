@@ -130,8 +130,6 @@ public class GFF3TranscriptomeHandler {
 		List<GFF3GenomicFeatureLine> featureLinesWithParentAndNoId = new ArrayList<>();
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
-			if(!line.startsWith("##gff")) throw new IOException("File does not have GFF format");
-			line=in.readLine();
 			for(int i=1;line!=null;i++) {
 				if("##FASTA".equals(line.trim())) break;
 				if(line.length()>0 && line.charAt(0)!='#') {

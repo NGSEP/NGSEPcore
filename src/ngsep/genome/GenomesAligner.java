@@ -223,12 +223,14 @@ public class GenomesAligner {
 		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
+		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
 		AnnotatedReferenceGenome genome2 = genomes.get(1);
 		QualifiedSequenceList sequencesG1 = genome1.getSequencesMetadata();
 		for(QualifiedSequence chrG1:sequencesG1) {
 			List<HomologyUnit> unitsChrG1 = genome1.getUniqueHomologyUnits(chrG1.getName());
 			log.info("Unique units G1 for "+chrG1.getName()+": "+unitsChrG1.size());
+			//Whole chromosome synteny LCS algorithm
 			String chrNameG2 = findBestChromosome(unitsChrG1, genome2.getId());
 			if(chrNameG2!=null) {
 				List<HomologyUnit> selectedUnits = alignOrthologyUnits(genome1.getId(),unitsChrG1,genome2.getId(),chrNameG2);
@@ -239,18 +241,11 @@ public class GenomesAligner {
 			} else {
 				log.info("Mate sequence not found for "+chrG1.getName()+" Sequence orthology units: "+unitsChrG1.size());
 			}
+			List<HomologyEdge> homologyRelationships = new ArrayList<HomologyEdge>();
+			for(HomologyUnit unit:unitsChrG1) homologyRelationships.addAll(unit.getOrthologRelationships(genome2.getId()));
+			orthologsSyntenyBlocks.addAll(syntenyBlocksFinder.findSyntenyBlocks(homologyRelationships));
+			
 		}
-		identifySyntenyBlocks(genome1, genome2, homologyEdges);
-	}
-	
-	private void identifySyntenyBlocks(AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<HomologyEdge> homologyEdges) {
-		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance, homologyEdges);
-		orthologsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.ORTHOLOGS);
-		//paralogsSyntenyBlocks = syntenyBlocksFinder.findSyntenyBlocks(SyntenyBlocksFinder.PARALOGS);
-		String orthologsOutFilename = outputPrefix + "_synteny_blocks_orthologs.txt";
-		//String paralogsOutFilename = outputPrefix + "_synteny_blocks_paralogs.txt";
-		printSyntenyBlocks(orthologsSyntenyBlocks, orthologsOutFilename);
-		//printSyntenyBlocks(paralogsSyntenyBlocks, paralogsOutFilename);
 	}
 	
 	/**

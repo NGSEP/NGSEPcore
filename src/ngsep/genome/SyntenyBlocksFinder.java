@@ -11,266 +11,119 @@ public class SyntenyBlocksFinder {
 	
 	private int maxDistance;
 	
-	private List<HomologyEdge> homologyEdges;
-	
-	private List<SyntenyEdge> orthologsEdges = new ArrayList<>();
-	
-	private HashMap<HomologyEdge, List<SyntenyEdge>> orthologsConnected = new HashMap<>();
-	
-	private HashMap<HomologyEdge, Integer> orthologsWeightVertices = new HashMap<>();
-	
-	private HashMap<HomologyEdge, List<SyntenyEdge>> orthologsTraceback = new HashMap<>();
-	
-	private List<SyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
-	
-	private List<SyntenyEdge> paralogsEdges = new ArrayList<>();
-	
-	private HashMap<HomologyEdge, List<SyntenyEdge>> paralogsConnected = new HashMap<>();
-	
-	private HashMap<HomologyEdge, Integer> paralogsWeightVertices = new HashMap<>();
-	
-	private HashMap<HomologyEdge, List<SyntenyEdge>> paralogsTraceback = new HashMap<>();
-	
-	private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
-	
-	public static final int PARALOGS = 1;
-	
-	public static final int ORTHOLOGS = 2;
-	
-	public SyntenyBlocksFinder(int minBlockLength, int maxDistance, List<HomologyEdge> homologyEdges) {
+	public SyntenyBlocksFinder(int minBlockLength, int maxDistance) {
 		this.minBlockLength = minBlockLength;
 		this.maxDistance = maxDistance;
-		this.homologyEdges = homologyEdges;
 	}
 	
-	public void resetData() {
-		orthologsEdges = new ArrayList<>();
-		
-		orthologsConnected = new HashMap<>();
-		
-		orthologsWeightVertices = new HashMap<>();
-		
-		orthologsTraceback = new HashMap<>();
-		
-		
-		paralogsEdges = new ArrayList<>();
-		
-		paralogsConnected = new HashMap<>();
-		
-		paralogsWeightVertices = new HashMap<>();
-		
-		paralogsTraceback = new HashMap<>();
-		
-	}
-	
-	public List<SyntenyBlock> findSyntenyBlocks(int homologyType) {
-		
-		List<String> visitedNames = new ArrayList<>();
-		List<HomologyEdge> vertices = selectVertices(homologyType);
-		for (HomologyEdge he : vertices) {
-			String seqName = he.getQueryUnit().getSequenceName();
-			if (!visitedNames.contains(seqName)) {
-				List<HomologyEdge> chrvertices = new ArrayList<>();
-				for (HomologyEdge vert : vertices) {
-					String vertName = vert.getQueryUnit().getSequenceName();
-					if (seqName.equals(vertName)) chrvertices.add(vert);
-				}
-				visitedNames.add(seqName);
-				
-				buildGraph(chrvertices, homologyType);
-				initializeWeights(homologyType);
-				traverseVertices(homologyType);
-
-				List<SyntenyEdge> path = findMaximalWeight(homologyType);
-				while (verifySyntenyBlock(path, homologyType)) {
-					path = findMaximalWeight(homologyType);			
-				}
-				
-				resetData();
-			}
+	/**
+	 * PRE: the query unit of all homology edges belong to the same sequence within the same genome
+	 * and the subject units belong to the same genome but can belong to different sequences
+	 * @param homologyEdges
+	 * @return List<SyntenyBlock> Blocks of synteny between the query genome and the subject genome
+	 */
+	public List<SyntenyBlock> findSyntenyBlocks(List<HomologyEdge> homologyEdges) {
+		List<SyntenyBlock> syntenyBlocks = new ArrayList<>();
+		List<SyntenyVertex> vertices = buildGraph(homologyEdges);
+		HashMap<SyntenyVertex, List<SyntenyEdge>> orthologsTraceback = traverseVertices(vertices);
+		SyntenyVertex maxVertex = findMaximalWeight(vertices);
+		while (maxVertex!=null) {
+			List<SyntenyEdge> path = orthologsTraceback.getOrDefault(maxVertex, new ArrayList<SyntenyEdge>());
+			SyntenyBlock block = buildSyntenyBlock(path);
+			if(block == null) break;
+			//TODO: Check how length is validated
+			int length = 0;
+			for (SyntenyEdge se : path) length += se.getSource().getHomologyRelationship().getQueryUnit().length() + se.getTarget().getHomologyRelationship().getQueryUnit().length();
+			if (length >= minBlockLength) syntenyBlocks.add(block);
+			maxVertex = findMaximalWeight(vertices);
 		}
-		if (homologyType == ORTHOLOGS) {
-			//TODO: Check right overlapping
-			//orthologsSyntenyBlocks = collapseOverlapped(orthologsSyntenyBlocks);
-			return orthologsSyntenyBlocks;
-		} else {
-			//paralogsSyntenyBlocks = collapseOverlapped(paralogsSyntenyBlocks);
-			return paralogsSyntenyBlocks;
-		}
+		return syntenyBlocks;
 	}
 	
-	private List<HomologyEdge> selectVertices(int homologyType) {
-		List<HomologyEdge> vertices = new ArrayList<>();
-		for (HomologyEdge he : homologyEdges) {
-			HomologyUnit query = he.getQueryUnit();
-			HomologyUnit subject = he.getSubjectUnit();
-			boolean filter = false;
-			if (homologyType == ORTHOLOGS) 
-				filter = query.getGenomeId() != subject.getGenomeId();
-			else
-				filter = query.getGenomeId() == subject.getGenomeId();
-			
-			if(filter) {
-//				HomologyUnit q = he.getQueryUnit();
-//				HomologyUnit s = he.getSubjectUnit();
-//				if (q.getGenomeId() == 2) {
-//					vertices.add(new HomologyEdge(s, q, 0));
-//				} else vertices.add(he);
-				vertices.add(he);
-			}
-		}
-		return vertices;
-		
-	}
 	
-	private void buildGraph(List<HomologyEdge> vertices, int homologyType) {
-		vertices.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
-		for (int i=0;i<vertices.size();i++) {
-			HomologyEdge ve1 = vertices.get(i);
-			HomologyUnit q1 = ve1.getQueryUnit();
+	
+	private List<SyntenyVertex> buildGraph(List<HomologyEdge> homologyRelationships) {
+		int n = homologyRelationships.size();
+		List<SyntenyVertex>  vertices = new ArrayList<SyntenyVertex>(n);
+		homologyRelationships.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
+		for (int i=0;i<n;i++) {
+			HomologyEdge rel = homologyRelationships.get(i);
+			SyntenyVertex sv = new SyntenyVertex(rel, rel.getSubjectUnit().length());
+			vertices.add(sv);
+		}
+		for (int i=0;i<n;i++) {
+			SyntenyVertex v1 = vertices.get(i);
+			HomologyEdge rel1 = v1.getHomologyRelationship();
+			HomologyUnit q1 = rel1.getQueryUnit();
 			int centerQ1 = (q1.getFirst()+q1.getLast())/2;
-			HomologyUnit s1 = ve1.getSubjectUnit();
+			HomologyUnit s1 = rel1.getSubjectUnit();
 			int centerS1 = (s1.getFirst()+s1.getLast())/2;
-			for (int j=i+1;j<vertices.size();j++) {
-				HomologyEdge ve2 = vertices.get(j);
-				HomologyUnit q2 = ve2.getQueryUnit();
+			for (int j=i+1;j<n;j++) {
+				SyntenyVertex v2 = vertices.get(i);
+				HomologyEdge rel2 = v2.getHomologyRelationship();
+				HomologyUnit q2 = rel2.getQueryUnit();
 				int centerQ2 = (q2.getFirst()+q2.getLast())/2;
-				HomologyUnit s2 = ve2.getSubjectUnit();
+				HomologyUnit s2 = rel2.getSubjectUnit();
 				int centerS2 = (q2.getFirst()+q2.getLast())/2;
 				int dq = centerQ2-centerQ1;
 				if(dq>maxDistance) break;
 				int ds = Math.abs(centerS1-centerS2);
 				if(!s1.getSequenceName().equals(s2.getSequenceName()) || ds>maxDistance) continue; 
 				//TODO: Check weight
-				SyntenyEdge se = new SyntenyEdge(ve1, ve2, s2.length());
-				if (homologyType == ORTHOLOGS) {
-					orthologsEdges.add(se);
-					List<SyntenyEdge> con = orthologsConnected.getOrDefault(ve1, new ArrayList<>());
-					con.add(se);
-					orthologsConnected.put(ve1, con);							
-				} else {
-					paralogsEdges.add(se);
-					List<SyntenyEdge> con = paralogsConnected.getOrDefault(ve1, new ArrayList<>());
-					con.add(se);
-					paralogsConnected.put(ve1, con);
-				}
+				SyntenyEdge se = new SyntenyEdge(v1, v2, s2.length());
+				v1.addEdge(se);
 			}
 		}
+		return vertices;
 	}
 	
-	
-	private void initializeWeights(int homologyType) {
-		if (homologyType == ORTHOLOGS) {
-			for (SyntenyEdge se : orthologsEdges) {
-				HomologyEdge vi = se.getSource();
-				HomologyEdge vj = se.getTarget();
-				orthologsWeightVertices.put(vi, Math.abs(vi.getSubjectUnit().length()));
-				orthologsWeightVertices.put(vj, Math.abs(vj.getSubjectUnit().length()));
-			}	
-		} else {
-			for (SyntenyEdge se : paralogsEdges) {
-				HomologyEdge vi = se.getSource();
-				HomologyEdge vj = se.getTarget();
-				paralogsWeightVertices.put(vi, Math.abs(vi.getSubjectUnit().length()));
-				paralogsWeightVertices.put(vj, Math.abs(vj.getSubjectUnit().length()));
+	private HashMap<SyntenyVertex, List<SyntenyEdge>> traverseVertices(List<SyntenyVertex> vertices) {
+		HashMap<SyntenyVertex, List<SyntenyEdge>> orthologsTraceback = new HashMap<SyntenyVertex, List<SyntenyEdge>>();
+		for (SyntenyVertex vertex:vertices) {
+			List<SyntenyEdge> edges = vertex.getEdges();
+			for (SyntenyEdge se : edges) {
+				SyntenyVertex target = se.getTarget();
+				int newWeight = se.getWeight() + vertex.getWeight();
+				int currentWeight = target.getWeight();
+				if (newWeight > currentWeight) {
+					target.setWeight(newWeight);
+					List<SyntenyEdge> parentsSource = orthologsTraceback.getOrDefault(vertex, new ArrayList<SyntenyEdge>());
+					List<SyntenyEdge> parentsTarget = new ArrayList<SyntenyEdge>();
+					parentsTarget.addAll(parentsSource);
+					parentsTarget.add(se);
+					orthologsTraceback.put(target, parentsTarget);
+				}				
 			}
 		}
+		return orthologsTraceback;
 	}
 	
-	private void traverseVertices(int homologyType) {
-		if (homologyType == ORTHOLOGS) {
-			List<HomologyEdge> hedges = new ArrayList<>(orthologsConnected.keySet());
-			hedges.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
-			for (HomologyEdge he : hedges) {
-				List<SyntenyEdge> cons = orthologsConnected.get(he);
-				for (SyntenyEdge se : cons) {
-					HomologyEdge target = se.getTarget();
-					int newWeight = se.getWeight() + orthologsWeightVertices.get(he);
-					int currentWeight = orthologsWeightVertices.get(target);
-					if (newWeight > currentWeight) {
-						orthologsWeightVertices.put(target, newWeight);
-						List<SyntenyEdge> parents = orthologsTraceback.getOrDefault(he, new ArrayList<SyntenyEdge>());
-						parents.add(se);
-						orthologsTraceback.put(target, parents);
-					}				
-				}
-			}			
-		} else {
-			List<HomologyEdge> hedges = new ArrayList<>(paralogsConnected.keySet());
-			hedges.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
-			for (HomologyEdge he : hedges) {
-				List<SyntenyEdge> cons = paralogsConnected.get(he);
-				for (SyntenyEdge se : cons) {
-					//HomologyEdge vi = se.getVi();
-					HomologyEdge target = se.getTarget();
-					int newWeight = se.getWeight() + paralogsWeightVertices.get(he);
-					int currentWeight = paralogsWeightVertices.get(target);
-					if (newWeight > currentWeight) {
-						paralogsWeightVertices.put(target, newWeight);
-						List<SyntenyEdge> parents = paralogsTraceback.getOrDefault(he, new ArrayList<SyntenyEdge>());
-						parents.add(se);
-						paralogsTraceback.put(target, parents);
-					}				
-				}
-			}
-		}
-		
-	}
-	
-	private List<SyntenyEdge> findMaximalWeight(int homologyType) {
-		HomologyEdge maxVertex = null;
+	private SyntenyVertex findMaximalWeight(List<SyntenyVertex> vertices) {
+		SyntenyVertex maxVertex = null;
 		int maxWeight = 0;
-		HashMap<HomologyEdge, Integer> weightV;
-		HashMap<HomologyEdge, List<SyntenyEdge>> traceback;
-		if (homologyType == ORTHOLOGS) {
-			weightV = orthologsWeightVertices;
-			traceback = orthologsTraceback;
-		}
-		else {
-			weightV = paralogsWeightVertices;
-			traceback = paralogsTraceback;
-		}
-		for (HomologyEdge v : weightV.keySet()) {
-			int weight = weightV.get(v);
+		for (SyntenyVertex vertex:vertices) {
+			int weight = vertex.getWeight();
 			if (weight > maxWeight) {
-				maxVertex = v;
+				maxVertex = vertex;
 				maxWeight = weight;
 			}
 		}
-		return traceback.getOrDefault(maxVertex, new ArrayList<SyntenyEdge>());
+		return maxVertex;
 	}
 	
-	private boolean verifySyntenyBlock(List<SyntenyEdge> path, int homologyType) {
-
-		HashMap<HomologyEdge, Integer> weightV;
-		List<SyntenyBlock> syntenyBlocks;
-		if (homologyType == ORTHOLOGS) {
-			weightV = orthologsWeightVertices;
-			syntenyBlocks = orthologsSyntenyBlocks;
-		} else {
-			weightV = paralogsWeightVertices;
-			syntenyBlocks = paralogsSyntenyBlocks;
-		}
-		if (path.isEmpty()) return false;
-		int length = 0;
-		for (SyntenyEdge se : path) {
-			length += se.getSource().getQueryUnit().length() + se.getTarget().getQueryUnit().length();
-		}
+	private SyntenyBlock buildSyntenyBlock(List<SyntenyEdge> path) {
+		if (path.isEmpty()) return null;
 		
-		//check length and add synteny block
-		if (length >= minBlockLength) {
-			
-			SyntenyBlock sb = new SyntenyBlock(path);
-			syntenyBlocks.add(sb);
-		} 
 		// remove vertices
 		for (SyntenyEdge se : path) {
-			HomologyEdge s = se.getSource();
-			HomologyEdge t = se.getTarget();
-			weightV.remove(s);
-			weightV.remove(t);
+			SyntenyVertex s = se.getSource();
+			SyntenyVertex t = se.getTarget();
+			s.setWeight(-1);
+			t.setWeight(-1);
 		}
-		return true;
+		SyntenyBlock sb = new SyntenyBlock(path); 
+		
+		return sb;
 
 	}
 	

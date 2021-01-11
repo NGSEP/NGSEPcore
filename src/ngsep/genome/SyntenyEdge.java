@@ -2,24 +2,24 @@ package ngsep.genome;
 
 public class SyntenyEdge {
 	
-	private HomologyEdge source;
+	private SyntenyVertex source;
 	
-	private HomologyEdge target;
+	private SyntenyVertex target;
 	
 	private int weight;
 
-	public SyntenyEdge(HomologyEdge source, HomologyEdge target, int weight) {
+	public SyntenyEdge(SyntenyVertex source, SyntenyVertex target, int weight) {
 		super();
 		this.source = source;
 		this.target = target;
 		this.weight = weight;
 	}
 
-	public HomologyEdge getSource() {
+	public SyntenyVertex getSource() {
 		return source;
 	}
 
-	public HomologyEdge getTarget() {
+	public SyntenyVertex getTarget() {
 		return target;
 	}
 

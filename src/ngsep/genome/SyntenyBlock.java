@@ -17,10 +17,10 @@ public class SyntenyBlock {
 		int first2 = Integer.MAX_VALUE;
 		int last2 = 0;
 		for (SyntenyEdge se : homologies) {
-			HomologyUnit source1 = se.getSource().getQueryUnit();
-			HomologyUnit source2 = se.getSource().getSubjectUnit();
-			HomologyUnit target1 = se.getTarget().getQueryUnit();
-			HomologyUnit target2 = se.getTarget().getSubjectUnit();
+			HomologyUnit source1 = se.getSource().getHomologyRelationship().getQueryUnit();
+			HomologyUnit source2 = se.getSource().getHomologyRelationship().getSubjectUnit();
+			HomologyUnit target1 = se.getTarget().getHomologyRelationship().getQueryUnit();
+			HomologyUnit target2 = se.getTarget().getHomologyRelationship().getSubjectUnit();
 			first1 = Math.min(first1, source1.getFirst());
 			first1 = Math.min(first1, target1.getFirst());
 			first2 = Math.min(first2, source2.getFirst());
@@ -30,8 +30,8 @@ public class SyntenyBlock {
 			last2 = Math.max(last2, source2.getLast());
 			last2 = Math.max(last2, target2.getLast());	
 		}
-		regionGenome1 = new GenomicRegionImpl(firstEdge.getSource().getQueryUnit().getSequenceName(), first1, last1);
-		regionGenome2 = new GenomicRegionImpl(firstEdge.getSource().getSubjectUnit().getSequenceName(), first2, last2);
+		regionGenome1 = new GenomicRegionImpl(firstEdge.getSource().getHomologyRelationship().getQueryUnit().getSequenceName(), first1, last1);
+		regionGenome2 = new GenomicRegionImpl(firstEdge.getSource().getHomologyRelationship().getSubjectUnit().getSequenceName(), first2, last2);
 		this.homologies = homologies;
 	}
 
