@@ -31,17 +31,19 @@ public class AssemblyEdge {
 	private int medianOverlap;
 	private int fromLimitsOverlap;
 	private int overlapStandardDeviation;
+	private int rawKmerHits = 0;
+	private int rawKmerHitsSubjectStartSD = 0;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
-	private int rawKmerHits = 0;
-	private int rawKmerHitsSubjectStartSD = 0;
-	private boolean layoutEdge = false;
+	private int numIndels = 0;
 	private int vertex1EvidenceStart;
 	private int vertex1EvidenceEnd;
 	private int vertex2EvidenceStart;
 	private int vertex2EvidenceEnd;
 	private int numMismatches = -1;
+	private boolean layoutEdge = false;
+	
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
@@ -118,14 +120,6 @@ public class AssemblyEdge {
 		cost-= toSubstract;
 		return cost;
 	}
-	
-	public int getNumSharedKmers() {
-		return numSharedKmers;
-	}
-
-	public void setNumSharedKmers(int numSharedKmers) {
-		this.numSharedKmers = numSharedKmers;
-	}
 
 	public int getOverlapStandardDeviation() {
 		return overlapStandardDeviation;
@@ -133,22 +127,6 @@ public class AssemblyEdge {
 
 	public void setOverlapStandardDeviation(int overlapStandardDeviation) {
 		this.overlapStandardDeviation = Math.round(overlapStandardDeviation);
-	}
-
-	public int getCoverageSharedKmers() {
-		return coverageSharedKmers;
-	}
-
-	public void setCoverageSharedKmers(int coverageSharedKmers) {
-		this.coverageSharedKmers = coverageSharedKmers;
-	}
-
-	public int getWeightedCoverageSharedKmers() {
-		return weightedCoverageSharedKmers;
-	}
-
-	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
-		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
 	}
 	
 	public int getRawKmerHits() {
@@ -167,6 +145,42 @@ public class AssemblyEdge {
 		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
 	}
 	
+	public int getNumSharedKmers() {
+		return numSharedKmers;
+	}
+
+	public void setNumSharedKmers(int numSharedKmers) {
+		this.numSharedKmers = numSharedKmers;
+	}
+
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
+
+	public int getWeightedCoverageSharedKmers() {
+		return weightedCoverageSharedKmers;
+	}
+
+	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
+		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+	
+	public int getNumIndels() {
+		return numIndels;
+	}
+
+	public void setNumIndels(int numIndels) {
+		this.numIndels = numIndels;
+	}
+	
+	public double getIndelsPerKbp () {
+		return 1000.0*numIndels / (double)overlap;
+	}
+
 	public int getVertex1EvidenceStart() {
 		return vertex1EvidenceStart;
 	}
@@ -240,7 +254,7 @@ public class AssemblyEdge {
 	}
 	
 	public String toString() {
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" overlap: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Mismatches: "+numMismatches+" layout: "+layoutEdge;
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" overlap: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Indels: "+numIndels+" Mismatches: "+numMismatches+" layout: "+layoutEdge;
 	}
 	
 

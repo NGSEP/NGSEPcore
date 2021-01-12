@@ -512,7 +512,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		//cost += cost2;
 		costD += cost3;
 		costD += cost5;
-		costD += cost6;
+		//costD += cost6;
 		
 		costD*=1000;
 		int cost = (int)Math.min(1000000000, costD);

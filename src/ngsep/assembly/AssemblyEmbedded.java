@@ -32,16 +32,17 @@ public class AssemblyEmbedded {
 	private int hostId;
 	private int hostStart;
 	private int hostEnd;
-	private int hostEvidenceStart;
-	private int hostEvidenceEnd;
 	private int hostStartStandardDeviation;
-	private int sequenceEvidenceStart;
-	private int sequenceEvidenceEnd;
+	private int rawKmerHits = 0;
+	private int rawKmerHitsSubjectStartSD = 0;
 	private int numSharedKmers;
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
-	private int rawKmerHits = 0;
-	private int rawKmerHitsSubjectStartSD = 0;
+	private int numIndels = 0;
+	private int hostEvidenceStart;
+	private int hostEvidenceEnd;
+	private int sequenceEvidenceStart;
+	private int sequenceEvidenceEnd;
 	private int numMismatches = -1;
 	
 
@@ -62,7 +63,6 @@ public class AssemblyEmbedded {
 		return sequenceId;
 	}
 
-
 	public QualifiedSequence getRead() {
 		return read;
 	}
@@ -70,16 +70,13 @@ public class AssemblyEmbedded {
 	public boolean isReverse() {
 		return isReverse;
 	}
-
 	public void setReverse(boolean isReverse) {
 		this.isReverse = isReverse;
 	}
 	
-	
 	public int getHostId() {
 		return hostId;
 	}
-
 
 	public void setHostId(int hostId) {
 		this.hostId = hostId;
@@ -88,18 +85,13 @@ public class AssemblyEmbedded {
 	public int getHostStart() {
 		return hostStart;
 	}
-
-
 	public void setHostStart(int hostStart) {
 		this.hostStart = hostStart;
 	}
 
-
 	public int getHostEnd() {
 		return hostEnd;
 	}
-
-
 	public void setHostEnd(int hostEnd) {
 		this.hostEnd = hostEnd;
 	}
@@ -107,72 +99,9 @@ public class AssemblyEmbedded {
 	public int getHostStartStandardDeviation() {
 		return hostStartStandardDeviation;
 	}
-
 	public void setHostStartStandardDeviation(int hostStartStandardDeviation) {
 		this.hostStartStandardDeviation = hostStartStandardDeviation;
 	}
-
-	public int getHostEvidenceStart() {
-		return hostEvidenceStart;
-	}
-
-	public void setHostEvidenceStart(int hostEvidenceStart) {
-		this.hostEvidenceStart = hostEvidenceStart;
-	}
-
-	public int getHostEvidenceEnd() {
-		return hostEvidenceEnd;
-	}
-
-	public void setHostEvidenceEnd(int hostEvidenceEnd) {
-		this.hostEvidenceEnd = hostEvidenceEnd;
-	}
-	
-	public int getSequenceEvidenceStart() {
-		return sequenceEvidenceStart;
-	}
-
-
-	public void setSequenceEvidenceStart(int sequenceEvidenceStart) {
-		this.sequenceEvidenceStart = sequenceEvidenceStart;
-	}
-
-
-	public int getSequenceEvidenceEnd() {
-		return sequenceEvidenceEnd;
-	}
-
-
-	public void setSequenceEvidenceEnd(int sequenceEvidenceEnd) {
-		this.sequenceEvidenceEnd = sequenceEvidenceEnd;
-	}
-
-
-	public int getNumSharedKmers() {
-		return numSharedKmers;
-	}
-
-
-	public void setNumSharedKmers(int numSharedKmers) {
-		this.numSharedKmers = numSharedKmers;
-	}
-
-	public int getCoverageSharedKmers() {
-		return coverageSharedKmers;
-	}
-
-	public void setCoverageSharedKmers(int coverageSharedKmers) {
-		this.coverageSharedKmers = coverageSharedKmers;
-	}
-	
-	public int getWeightedCoverageSharedKmers() {
-		return weightedCoverageSharedKmers;
-	}
-
-	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
-		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
-	}
-	
 	public int getRawKmerHits() {
 		return rawKmerHits;
 	}
@@ -184,11 +113,66 @@ public class AssemblyEmbedded {
 	public int getRawKmerHitsSubjectStartSD() {
 		return rawKmerHitsSubjectStartSD;
 	}
-
 	public void setRawKmerHitsSubjectStartSD(int rawKmerHitsSubjectStartSD) {
 		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
 	}
+	
+	public int getNumSharedKmers() {
+		return numSharedKmers;
+	}
+	public void setNumSharedKmers(int numSharedKmers) {
+		this.numSharedKmers = numSharedKmers;
+	}
 
+	public int getCoverageSharedKmers() {
+		return coverageSharedKmers;
+	}
+	public void setCoverageSharedKmers(int coverageSharedKmers) {
+		this.coverageSharedKmers = coverageSharedKmers;
+	}
+	
+	public int getWeightedCoverageSharedKmers() {
+		return weightedCoverageSharedKmers;
+	}
+	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
+		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+	
+	public int getNumIndels() {
+		return numIndels;
+	}
+	public void setNumIndels(int numIndels) {
+		this.numIndels = numIndels;
+	}
+
+	public int getHostEvidenceStart() {
+		return hostEvidenceStart;
+	}
+	public void setHostEvidenceStart(int hostEvidenceStart) {
+		this.hostEvidenceStart = hostEvidenceStart;
+	}
+
+	public int getHostEvidenceEnd() {
+		return hostEvidenceEnd;
+	}
+	public void setHostEvidenceEnd(int hostEvidenceEnd) {
+		this.hostEvidenceEnd = hostEvidenceEnd;
+	}
+	
+	public int getSequenceEvidenceStart() {
+		return sequenceEvidenceStart;
+	}
+	public void setSequenceEvidenceStart(int sequenceEvidenceStart) {
+		this.sequenceEvidenceStart = sequenceEvidenceStart;
+	}
+
+	public int getSequenceEvidenceEnd() {
+		return sequenceEvidenceEnd;
+	}
+	public void setSequenceEvidenceEnd(int sequenceEvidenceEnd) {
+		this.sequenceEvidenceEnd = sequenceEvidenceEnd;
+	}
+	
 	public int getNumMismatches() {
 		return numMismatches;
 	}

@@ -95,8 +95,9 @@ public class AssemblyGraphFileHandler {
 	private static void saveEmbedded(AssemblyEmbedded embedded, PrintStream out) {
 		int reverse = embedded.isReverse()?1:0;
 		out.print(""+embedded.getSequenceId()+"\t"+embedded.getHostId()+"\t"+embedded.getHostStart()+"\t"+embedded.getHostEnd()+"\t"+reverse);
-		out.print("\tHSD="+embedded.getHostStartStandardDeviation()+";NSK="+embedded.getNumSharedKmers()+";CSK="+embedded.getCoverageSharedKmers());
-		out.print(";WCSK="+embedded.getWeightedCoverageSharedKmers()+";RNSK="+embedded.getRawKmerHits()+";RHSD="+embedded.getRawKmerHitsSubjectStartSD());
+		out.print("\tHSD="+embedded.getHostStartStandardDeviation()+";RNSK="+embedded.getRawKmerHits()+";RHSD="+embedded.getRawKmerHitsSubjectStartSD());
+		out.print(";NSK="+embedded.getNumSharedKmers()+";CSK="+embedded.getCoverageSharedKmers()+";WCSK="+embedded.getWeightedCoverageSharedKmers());
+		out.print(";NI="+embedded.getNumIndels());
 		out.print(";HES="+embedded.getHostEvidenceStart()+";HEE="+embedded.getHostEvidenceEnd());
 		out.print(";SES="+embedded.getSequenceEvidenceStart()+";SEE="+embedded.getSequenceEvidenceEnd());
 		if(embedded.getNumMismatches()>=0) out.print(";NM="+embedded.getNumMismatches());
@@ -115,11 +116,12 @@ public class AssemblyGraphFileHandler {
 			String featureName = feature.substring(0,idxF);
 			int featureValue = Integer.parseInt(feature.substring(idxF+1));
 			if("HSD".equals(featureName)) embedded.setHostStartStandardDeviation(featureValue);
+			else if("RNSK".equals(featureName)) embedded.setRawKmerHits(featureValue);
+			else if("RHSD".equals(featureName)) embedded.setRawKmerHitsSubjectStartSD(featureValue);
 			else if("NSK".equals(featureName)) embedded.setNumSharedKmers(featureValue);	
 			else if("CSK".equals(featureName)) embedded.setCoverageSharedKmers(featureValue);
 			else if("WCSK".equals(featureName)) embedded.setWeightedCoverageSharedKmers(featureValue);
-			else if("RNSK".equals(featureName)) embedded.setRawKmerHits(featureValue);
-			else if("RHSD".equals(featureName)) embedded.setRawKmerHitsSubjectStartSD(featureValue);
+			else if("NI".equals(featureName)) embedded.setNumIndels(featureValue);
 			else if("HES".equals(featureName)) embedded.setHostEvidenceStart(featureValue);
 			else if("HEE".equals(featureName)) embedded.setHostEvidenceEnd(featureValue);
 			else if("SES".equals(featureName)) embedded.setSequenceEvidenceStart(featureValue);
@@ -131,9 +133,11 @@ public class AssemblyGraphFileHandler {
 
 	private static void saveEdge(AssemblyEdge edge, PrintStream out) {
 		out.print(""+edge.getVertex1().getUniqueNumber()+"\t"+edge.getVertex2().getUniqueNumber()+"\t"+edge.getOverlap());
-		out.print("\tOSD="+edge.getOverlapStandardDeviation()+";NSK="+edge.getNumSharedKmers()+";CSK="+edge.getCoverageSharedKmers());
-		out.print(";WCSK="+edge.getWeightedCoverageSharedKmers()+";RNSK="+edge.getRawKmerHits()+";RSSD="+edge.getRawKmerHitsSubjectStartSD());
+		out.print("\tOSD="+edge.getOverlapStandardDeviation());
 		out.print(";AO="+edge.getAverageOverlap()+";MO="+edge.getMedianOverlap()+";FLO="+edge.getFromLimitsOverlap());
+		out.print(";RNSK="+edge.getRawKmerHits()+";RSSD="+edge.getRawKmerHitsSubjectStartSD());
+		out.print(";NSK="+edge.getNumSharedKmers()+";CSK="+edge.getCoverageSharedKmers()+";WCSK="+edge.getWeightedCoverageSharedKmers());
+		out.print(";NI="+edge.getNumIndels());
 		out.print(";V1ES="+edge.getVertex1EvidenceStart()+";V1EE="+edge.getVertex1EvidenceEnd());
 		out.print(";V2ES="+edge.getVertex2EvidenceStart()+";V2EE="+edge.getVertex2EvidenceEnd());
 		if(edge.getNumMismatches()>=0) out.print(";NM="+edge.getNumMismatches());
@@ -161,14 +165,15 @@ public class AssemblyGraphFileHandler {
 			String featureName = feature.substring(0,idxF);
 			int featureValue = Integer.parseInt(feature.substring(idxF+1));
 			if("OSD".equals(featureName)) edge.setOverlapStandardDeviation(featureValue);
-			else if("NSK".equals(featureName)) edge.setNumSharedKmers(featureValue);	
-			else if("CSK".equals(featureName)) edge.setCoverageSharedKmers(featureValue);
-			else if("WCSK".equals(featureName)) edge.setWeightedCoverageSharedKmers(featureValue);
-			else if("RNSK".equals(featureName)) edge.setRawKmerHits(featureValue);
-			else if("RSSD".equals(featureName)) edge.setRawKmerHitsSubjectStartSD(featureValue);
 			else if("AO".equals(featureName)) edge.setAverageOverlap(featureValue);
 			else if("MO".equals(featureName)) edge.setMedianOverlap(featureValue);
 			else if("FLO".equals(featureName)) edge.setFromLimitsOverlap(featureValue);
+			else if("RNSK".equals(featureName)) edge.setRawKmerHits(featureValue);
+			else if("RSSD".equals(featureName)) edge.setRawKmerHitsSubjectStartSD(featureValue);
+			else if("NSK".equals(featureName)) edge.setNumSharedKmers(featureValue);	
+			else if("CSK".equals(featureName)) edge.setCoverageSharedKmers(featureValue);
+			else if("WCSK".equals(featureName)) edge.setWeightedCoverageSharedKmers(featureValue);
+			else if("NI".equals(featureName)) edge.setNumIndels(featureValue);
 			else if("V1ES".equals(featureName)) edge.setVertex1EvidenceStart(featureValue);
 			else if("V1EE".equals(featureName)) edge.setVertex1EvidenceEnd(featureValue);
 			else if("V2ES".equals(featureName)) edge.setVertex2EvidenceStart(featureValue);

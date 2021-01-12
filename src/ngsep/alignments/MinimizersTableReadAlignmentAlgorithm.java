@@ -326,6 +326,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" Subject length: "+subjectLength+". Query length: "+queryLength+" kmer hits: "+kmerHits.size()+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int coverageSharedKmers = 0;
 		double weightedCoverageSharedKmers = 0;
+		int numIndels = 0;
 		int subjectNext = -1;
 		int queryNext = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
@@ -334,7 +335,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			if(subjectNext==-1) {
 				//Inconsistent kmer hit
 				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
-				int alnMinLength = Math.min(kmerHit.getQueryIdx(), kmerHit.getStart());
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
@@ -345,7 +345,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
-				int minLength = Math.min(subjectNextLength, queryNextLength);
+				if(subjectNextLength!=queryNextLength) numIndels++;
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
@@ -366,6 +366,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
 					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers);
 				} else {
+					numIndels++;
 					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers);
 				}
 				
@@ -374,7 +375,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			if(querySeqIdx==debugIdx)  System.out.println("subject id "+subjectSeqIdx+" Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
 		}
 		//if(subjectSeqIdx==0) System.out.println("query length: "+queryLength+" cov: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers);
-		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers)};
+		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers),numIndels};
 		return answer;
 	}
 }

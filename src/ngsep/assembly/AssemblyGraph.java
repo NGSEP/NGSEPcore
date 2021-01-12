@@ -452,12 +452,10 @@ public class AssemblyGraph {
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Embedded sequences "+emb.size());
 		embeddedList.addAll(emb);
 		Collections.sort(embeddedList,(e1,e2)->e1.getHostEvidenceStart()-e2.getHostEvidenceStart());
-		int hostEvidenceEndLeft = 0;
+		List<Integer> hostEvidenceEndsLeft = new ArrayList<Integer>();
 		int hostPredictedEndLeft = 0;
-		int numUnknownEndLeft = 0;
 		int hostPredictedStartRight = seqLength;
-		int hostEvidenceStartRight = seqLength;
-		int numUnknownStartRight = 0;
+		List<Integer> hostEvidenceStartsRight = new ArrayList<Integer>();
 		
 		for(AssemblyEmbedded embedded:embeddedList) {
 			
@@ -469,13 +467,11 @@ public class AssemblyGraph {
 			
 			
 			if(unknownRight>1000 && unknownLeft<1000) {
-				numUnknownEndLeft++;
-				hostEvidenceEndLeft = Math.max(hostEvidenceEndLeft, nextEvidenceEnd);
+				hostEvidenceEndsLeft.add(nextEvidenceEnd);
 				hostPredictedEndLeft = Math.max(hostPredictedEndLeft, embedded.getHostEnd());
 			}
 			if(unknownLeft>1000 && unknownRight<1000) {
-				numUnknownStartRight++;
-				hostEvidenceStartRight = Math.min(hostEvidenceStartRight, nextEvidenceStart);
+				hostEvidenceStartsRight.add(nextEvidenceStart);
 				hostPredictedStartRight = Math.min(hostPredictedStartRight, embedded.getHostStart());
 			}
 		}
@@ -486,10 +482,9 @@ public class AssemblyGraph {
 			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
 			if(unknownRight>1000 && unknownLeft<1000) {
-				numUnknownEndLeft++;
-				hostEvidenceEndLeft = Math.max(hostEvidenceEndLeft, nextEvidenceEnd);
+				hostEvidenceEndsLeft.add(nextEvidenceEnd);
 				hostPredictedEndLeft = Math.max(hostPredictedEndLeft, edge.getOverlap());
 			}
 		}
@@ -500,38 +495,53 @@ public class AssemblyGraph {
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
-			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
 			if(unknownLeft>1000 && unknownRight<1000) {
-				numUnknownStartRight++;
-				hostEvidenceStartRight = Math.min(hostEvidenceStartRight, nextEvidenceStart);
+				hostEvidenceStartsRight.add(nextEvidenceStart);
 				hostPredictedStartRight = Math.min(hostPredictedStartRight, seqLength-edge.getOverlap());
 			}
 		}
 		
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+numUnknownEndLeft+" "+numUnknownStartRight+" evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
-		if(numUnknownStartRight<2 || numUnknownEndLeft<2) return false;
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size());
+		if(hostEvidenceStartsRight.size()<2 || hostEvidenceEndsLeft.size()<2) return false;
+		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
+		int hostEvidenceEndLeft = hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2);
+		Collections.sort(hostEvidenceStartsRight,(n1,n2)->n1-n2);
+		int hostEvidenceStartRight = hostEvidenceStartsRight.get(hostEvidenceStartsRight.size()/2);
+		
 		int numCrossing = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			int unknownLeft = embedded.getHostEvidenceStart() - embedded.getHostStart();
 			int unknownRight = embedded.getHostEnd() - embedded.getHostEvidenceEnd();
-			if(unknownLeft<500 && unknownRight<500 && embedded.getHostEvidenceStart()<hostEvidenceEndLeft && embedded.getHostEvidenceEnd()>hostEvidenceStartRight) numCrossing++;
+			if(unknownLeft<200 && unknownRight<200 && hostEvidenceEndLeft-embedded.getHostEvidenceStart()>100 && embedded.getHostEvidenceEnd()-hostEvidenceStartRight>100) {
+				if(sequenceId==idxDebug) System.out.println("Embedded crossing. Sequence: "+embedded.getSequenceId());
+				numCrossing++;
+			}
 		}
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
-			if(unknownLeft<500 && unknownRight<500 && nextEvidenceEnd>hostEvidenceStartRight) numCrossing++;
+			if(unknownLeft<200 && unknownRight<200 && nextEvidenceEnd-hostEvidenceStartRight>100) {
+				if(sequenceId==idxDebug) System.out.println("Edge start crossing. Edge: "+edge);
+				numCrossing++;
+			}
 		}
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
-			if(unknownLeft<500 && unknownRight<500 && nextEvidenceStart<hostEvidenceEndLeft) numCrossing++;
+			if(unknownLeft<200 && unknownRight<200 && hostEvidenceEndLeft - nextEvidenceStart > 100) {
+				if(sequenceId==idxDebug) System.out.println("Edge end crossing. Edge: "+edge);
+				numCrossing++;
+			}
 		}
-		if( numCrossing<2 && hostEvidenceEndLeft < hostEvidenceStartRight && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
-			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+numUnknownEndLeft+" "+numUnknownStartRight+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing);
+		
+		if( numCrossing<2 && hostEvidenceEndLeft - hostEvidenceStartRight < 50 && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
+			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
 			return true;
 		}
 		
@@ -588,7 +598,8 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportionEdges = 0.5;
+		//double minScoreProportionEdges = 0.5;
+		double minScoreProportionEdges = 0;
 		
 		double maxScoreSE = 0;
 		double maxScoreSF = 0;
@@ -647,6 +658,7 @@ public class AssemblyGraph {
 		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return false;
 		double maxEvidencePropEmbedded = 0;
+		AssemblyEmbedded embeddedMax = null;
 		double maxScoreEmbedded = -1;
 		int countPass = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
@@ -654,7 +666,12 @@ public class AssemblyGraph {
 			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
 			double WCSKprop = (double)embedded.getWeightedCoverageSharedKmers()/sameSeqWCSK;
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+calculateScore(embedded)+" evidence prop: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
-			maxScoreEmbedded = Math.max(maxScoreEmbedded, calculateScore(embedded));
+			double score = calculateScore(embedded);
+			if(embeddedMax==null || maxScoreEmbedded<score) {
+				maxScoreEmbedded = score;
+				embeddedMax = embedded;
+			}
+			
 			//if(evidenceProp*CSKprop >=0.25) countPass++;
 			if(embedded.calculateEvidenceProportion() >=0.95) countPass++;
 		}
@@ -678,7 +695,12 @@ public class AssemblyGraph {
 			return false;
 		} else {
 			if(sequenceId == debugIdx) System.out.println("Sequence is embedded ");
-			filterEmbedded(sequenceId, 0.9, 1);
+			for(AssemblyEmbedded embedded:embeddedList) {
+				if(embedded!=embeddedMax) {
+					removeEmbedded(embedded);
+					//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
+				}
+			}
 			return true;
 		}
 	}
@@ -709,22 +731,6 @@ public class AssemblyGraph {
 		edge.setVertex2EvidenceStart(embedded.getSequenceEvidenceStart());
 		edge.setVertex2EvidenceEnd(embedded.getSequenceEvidenceEnd());
 		addEdge(edge);
-	}
-
-	public void filterEmbedded(int sequenceId, double minProportion, int numRetain) {
-		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
-		embeddedList.addAll(getEmbeddedBySequenceId(sequenceId));
-		if(embeddedList.size()==0) return;
-		Collections.sort(embeddedList,(e1,e2)->(int)Math.round(calculateScore(e2)-calculateScore(e1)));
-		double maxScore = calculateScore(embeddedList.get(0));
-		int count = 0;
-		for(AssemblyEmbedded embedded:embeddedList) {
-			count++;
-			if(count>numRetain || calculateScore(embedded)<minProportion*maxScore) {
-				removeEmbedded(embedded);
-				//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
-			}
-		}
 	}
 
 	private void filterEdgesAbnormalFeatures(List<AssemblyEdge> edges) {

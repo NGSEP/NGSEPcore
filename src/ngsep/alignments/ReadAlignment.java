@@ -973,11 +973,22 @@ public class ReadAlignment implements GenomicRegion {
 	/**
 	 * Returns start sites in this alignment for indel events
 	 * @return Map<Integer,GenomicVariant> Map with reference positions as keys and indel events as values
+	 * null if the alignment does not have indel calls
 	 */
 	public Map<Integer,GenomicVariant> getIndelCalls () {
 		failIfReadUnmappedOrInconsistentAlignment();
 		updateAlleleCallsInfo();
 		return indelCalls;
+	}
+	/**
+	 * 
+	 * @return Number of indels in this alignment
+	 */
+	public int getCountIndelCalls () {
+		failIfReadUnmappedOrInconsistentAlignment();
+		updateAlleleCallsInfo();
+		if (indelCalls==null) return 0;
+		return indelCalls.size();
 	}
 	/**
 	 * Provides the indel call (if any) at the given reference position

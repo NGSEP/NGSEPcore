@@ -310,7 +310,7 @@ public class AssemblyGraphStatistics {
 			
 			pathsFinder.findPaths(graph);
 			if(goldStandardGraph!=null) {
-				logErrors=true;
+				//logErrors=true;
 				compareGraphs(goldStandardGraph, graph, out);
 				//logErrors = true;
 				compareLayouts(goldStandardGraph, graph, out);
@@ -573,7 +573,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==2533 || gsVertex.getSequenceIndex()==3096 || gsVertex.getSequenceIndex()==5372; 
+		//boolean debug = gsVertex.getSequenceIndex()==1090 || gsVertex.getSequenceIndex()==4313 || gsVertex.getSequenceIndex()==5372; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
