@@ -598,8 +598,8 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		//double minScoreProportionEdges = 0.5;
-		double minScoreProportionEdges = 0;
+		double minScoreProportionEdges = 0.5;
+		//double minScoreProportionEdges = 0;
 		
 		double maxScoreSE = 0;
 		double maxScoreSF = 0;
