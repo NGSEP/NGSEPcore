@@ -511,7 +511,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		costD+=cost1;
 		//cost += cost2;
 		costD += cost3;
-		costD += cost5;
+		//costD += cost5;
 		//costD += cost6;
 		
 		costD*=1000;

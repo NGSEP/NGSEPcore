@@ -443,7 +443,7 @@ public class AssemblyGraph {
 	}
 	
 	private boolean isChimeric(int sequenceId) {
-		int idxDebug = -1;
+		int idxDebug = 95;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
@@ -540,7 +540,7 @@ public class AssemblyGraph {
 		}
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing);
 		
-		if( numCrossing<2 && hostEvidenceEndLeft - hostEvidenceStartRight < 50 && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
+		if( numCrossing<2 && hostEvidenceEndLeft - hostEvidenceStartRight < 50 && hostEvidenceStartRight - hostEvidenceEndLeft < 200 && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
 			return true;
 		}
@@ -598,7 +598,7 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportionEdges = 0.5;
+		double minScoreProportionEdges = 0.3;
 		//double minScoreProportionEdges = 0;
 		
 		double maxScoreSE = 0;
