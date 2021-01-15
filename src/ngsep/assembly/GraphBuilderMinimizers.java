@@ -1,5 +1,6 @@
 package ngsep.assembly;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -132,17 +133,17 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		edgesFinder.setExpectedAssemblyLength(expectedAssemblyLength);
+		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
+		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
-			if(numThreads==1) {
-				processSequence(edgesFinder, table, seqId, seq, compressionFactor);
-			} else {
-				final int i = seqId;
-				poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor));
-			}
+			final int i = seqId;
+			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, relationshipsPerSequence));
+			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
 		}
+		addRelationshipsToGraph(graph, relationshipsPerSequence, runtime);
 		waitToFinish(finishTime, poolSearch);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
@@ -153,6 +154,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}
+	
 	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
 		extractor.countSequenceKmers(seq);
 		if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
@@ -162,17 +164,57 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
 	
-	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor) {
-		Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
-		Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
-		String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-		Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
-		Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
-		finder.updateGraphWithKmerHitsMap(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-		AssemblyGraph graph = finder.getGraph();
-		if(seqId == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(seqId, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(seqId, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(seqId));
-		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
-		//if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+		List<AssemblySequencesRelationship> answer;
+		try {
+			Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
+			Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
+			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
+			Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
+			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
+			answer = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
+			relationshipsPerSequence.set(seqId, answer);
+			if ((seqId)%1000==0) {
+				int edges = 0;
+				int embedded = 0;
+				for(AssemblySequencesRelationship next:answer) {
+					if(next instanceof AssemblyEmbedded) embedded++;
+					if(next instanceof AssemblyEdge) edges++;
+				}
+				log.info("Identified relationships for sequence "+(seqId) +" Candidate edges: "+edges+"  candidate embedded hosts "+embedded);
+			}
+		} catch (RuntimeException e) {
+			relationshipsPerSequence.set(seqId, new ArrayList<AssemblySequencesRelationship>());
+			throw e;
+		}
+	}
+	private void addRelationshipsToGraph(AssemblyGraph graph, List<List<AssemblySequencesRelationship>> relationshipsPerSequence, Runtime runtime) {
+		int n = relationshipsPerSequence.size();
+		int i=0;
+		log.info("Adding relationships to graph");
+		while(i<n) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Add relationships thread interrupted", e);
+			}
+			for(;i<n;i++) {
+				List<AssemblySequencesRelationship> nextList = relationshipsPerSequence.get(i);
+				if(nextList == null) break;
+				//if ((i+1)%1000==0) log.info("Adding relationships for sequence "+(i+1) +" Relationships sequence: "+nextList.size());
+				for(AssemblySequencesRelationship next:nextList) {
+					if(next instanceof AssemblyEmbedded) graph.addEmbedded((AssemblyEmbedded)next);
+					if(next instanceof AssemblyEdge) graph.addEdge((AssemblyEdge)next);
+				}
+				if(i == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(i, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(i, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(i));
+				if ((i+1)%10000==0) {
+					long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+					usedMemory/=1000000000;
+					log.info("Processed "+(i+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory);
+				}
+				//if ((seqId+1)%100==0) log.info("Processed "+(seqId+1) +" sequences. Number of edges: "+graph.getNumEdges()+ " Embedded: "+graph.getEmbeddedCount());
+			}	
+		}
 	}
 	private void waitToFinish(int time, ThreadPoolExecutor pool) {
 		pool.shutdown();

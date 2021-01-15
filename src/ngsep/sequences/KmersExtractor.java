@@ -314,9 +314,11 @@ public class KmersExtractor {
 		if(!freeText && !ignoreLowComplexity && kmerLength<=15) {
 			//Faster alternative
 			Map<Integer,Long> codes = extractDNAKmerCodes(seq, kmerLength, 0, seq.length());
-			for(long code:codes.values()) {
+			synchronized (kmersMap) {
 				ShortArrayDNAKmersMapImpl skmersMap = (ShortArrayDNAKmersMapImpl) kmersMap;
-				skmersMap.addCodeOccurance(code);
+				for(long code:codes.values()) {	
+					skmersMap.addCodeOccurance(code);
+				}
 			}
 			return;
 		}

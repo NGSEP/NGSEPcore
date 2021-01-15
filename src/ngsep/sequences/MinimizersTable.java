@@ -116,7 +116,7 @@ public class MinimizersTable {
 		return minimizerCountDifferentSequences[row];
 	}
 	
-	private synchronized void addMinimizerSequence (int minimizer, List<MinimizersTableEntry> entries) {
+	private void addMinimizerSequence (int minimizer, List<MinimizersTableEntry> entries) {
 		Integer row = matrixRowMap.get(minimizer);
 		if(row==null) {
 			row = size();
@@ -200,12 +200,12 @@ public class MinimizersTable {
 			}
 		}
 		//log.info("Sequence "+sequenceId+" number of minimizers: "+minimizersSeq.size());
-		for(int minimizer:minimizersSeq.keySet()) {
-			List<MinimizersTableEntry> entries = minimizersSeq.get(minimizer);
-			if (entries.size()== 0) continue;
-			addMinimizerSequence (minimizer, entries);
-		}
+		
 		synchronized (sequenceLengths) {
+			for(Map.Entry<Integer, List<MinimizersTableEntry>> minEntry:minimizersSeq.entrySet()) {
+				if (minEntry.getValue().size()== 0) continue;
+				addMinimizerSequence (minEntry.getKey(), minEntry.getValue());
+			}
 			sequenceLengths.put(sequenceId, n);
 		}	
 	}

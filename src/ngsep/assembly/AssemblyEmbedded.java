@@ -24,7 +24,7 @@ import ngsep.sequences.QualifiedSequence;
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEmbedded {
+public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	
 	private int sequenceId;
 	private QualifiedSequence read;

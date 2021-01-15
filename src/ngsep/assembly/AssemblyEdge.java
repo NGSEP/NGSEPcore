@@ -22,7 +22,7 @@ package ngsep.assembly;
 /**
  * @author Jorge Duitama
  */
-public class AssemblyEdge {
+public class AssemblyEdge implements AssemblySequencesRelationship {
 	
 	private AssemblyVertex vertex1;
 	private AssemblyVertex vertex2;
