@@ -1811,8 +1811,8 @@ java -jar NGSEPcore.jar SingleReadsSimulator <OPTIONS>
 OPTIONS:
 
 	-i FILE		: Fasta file with the genome to simulate reads.
-	-o FILE		: Output file with simulated reads. See option -f for
-			  options on the file format.
+	-o FILE		: Gzip compressed output file with simulated reads.
+			  See option -f for options on the file format.
 	-n INT		: Number of reads. Default: 30000
 	-u INT		: Average read length. Default: 20000
 	-s INT		: Standard deviation read length. Default: 10000

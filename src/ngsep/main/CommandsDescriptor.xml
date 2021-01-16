@@ -1620,7 +1620,7 @@ Generates single reads randomly distributed from a given reference genome.
 Fasta file with the genome to simulate reads.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
-Output file with simulated reads. See option -f for options on the file format.
+Gzip compressed output file with simulated reads. See option -f for options on the file format.
 </option>
 <option id="n" type="INT" attribute="numberOfReads" defaultConstant="DEF_NUM_READS">
 Number of reads.

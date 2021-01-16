@@ -160,12 +160,16 @@ public class SingleReadsSimulator {
 		if (genome!=null) out.println("Genome for simulation loaded from file: "+genome.getFilename());
 		out.println("Output file path: " + outputFile);
 		out.println("Reference total length:" + genome.getTotalLength());
-		out.println("Reads:" + numberOfReads + "   ~N(mean: " + meanReadLength + ", sdev: " + stdevReadlength + ")");
+		out.println("Number of reads:" + numberOfReads);
+		out.println("Read length ~N(mean: " + meanReadLength + ", sdev: " + stdevReadlength + "). Minimum: "+minReadLength);
 		out.println("Substitution error rate: " + substitutionErrorRate);
 		out.println("Indel error rate: " + indelErrorRate);
+		if(OUT_FORMAT_FASTA==outFormat) out.println("Reads will be generated in FASTA format");
+		if(OUT_FORMAT_FASTQ==outFormat) out.println("Reads will be generated in FASTQ format");
+		log.info(os.toString());
 	}
 	
-	public void simulate(String outPath) throws IOException {
+	public void simulate(String outputFile) throws IOException {
 		long totalLength = genome.getTotalLength();
 		int nSeqs = genome.getNumSequences();
 		long[] cumulativeStarts = new long[nSeqs];
@@ -173,7 +177,8 @@ public class SingleReadsSimulator {
 		for (int i = 1; i < nSeqs; i++) {
 			cumulativeStarts[i] = cumulativeStarts[i - 1] + genome.getSequenceByIndex(i - 1).getLength();
 		}
-		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outPath));
+		if(!outputFile.toLowerCase().endsWith(".gz")) outputFile=outputFile+".gz";
+		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outputFile));
 			 PrintStream out = new PrintStream(os)) {
 			for (int i = 0; i < numberOfReads; i++) {
 				int readLength;
