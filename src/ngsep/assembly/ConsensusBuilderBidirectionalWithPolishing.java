@@ -214,28 +214,45 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, ConsensusBuilderBidirectionalSimple.KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
 				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
 				int startSuffix;
+				int startRemove = -1;
 				if(alnRead!=null) {
 					alnRead.setSequenceName(sequenceName);
 					alnRead.setReadName(vertexNextEdge.getRead().getName());
 					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+					int tailSubject = rawConsensus.length()-lastPosSubject-1;
+					//System.out.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject);
+					if(alnRead.getSoftClipEnd()>0 && lastPosSubject>=0 && tailSubject>50) log.warning("Large subject tail not aligned. Tail length "+tailSubject+" new sequence suffix: "+(lastPosSubject+1)+" Next path alignment: "+alnRead+" Tail of subject: "+rawConsensus.substring(lastPosSubject+1)+" end read: "+nextPathSequence.subSequence(posAlnRead+1, nextPathSequence.length()));
 					//Just in case cycle but if the read aligns this should not enter
 					while(posAlnRead>0 && lastPosSubject<0) {
+						//System.out.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
 						posAlnRead--;
 						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
+						tailSubject = rawConsensus.length()-lastPosSubject-1;
 					}
 					if(lastPosSubject>=0) {
-						startSuffix = posAlnRead + (rawConsensus.length()-lastPosSubject+1);
+						startSuffix = posAlnRead + 1;
+						int suffixLength = nextPathSequence.length()-startSuffix;
+						if(tailSubject>0 && 2*tailSubject<suffixLength) {
+							//Replace tail with new read end
+							startRemove = lastPosSubject+1;
+						} else if (tailSubject<suffixLength) {
+							startSuffix+=tailSubject;
+						} else {
+							startSuffix = nextPathSequence.length();
+						}
 					} else {
 						startSuffix = edge.getOverlap();
 					}
 					//System.out.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
 				} else {
+					log.warning("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
 					startSuffix = edge.getOverlap();
 				}
 				if(startSuffix<nextPathSequence.length()) {
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
-					//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" read length: "+nextPathSequence.length()+" overlap: "+edge.getOverlap()+" remaining: "+remainingSegment.length());
+					//log.info("Enlarging consensus with alignment: "+alnRead+" Start new sequence: "+startSuffix+" segment length: "+remainingSegment.length());
+					if(startRemove>0) rawConsensus.delete(startRemove, rawConsensus.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				}
 				lastPartialAln = alnRead;
@@ -254,11 +271,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 					alnRead.setReadName(read.getName());
 					alnRead.setNegativeStrand(reverse);
 					alignments.add(alnRead);
-					if (lastPartialAln == null) {
-						log.warning("Consensus backbone read did not align to last consensus" );
-					} else if(alnRead.getSoftClipEnd()>0) {
-						log.warning("Weird alignment of consensus backbone read. Partial alignment: "+lastPartialAln+" soft clipped sequence: "+lastPartialAln.getReadCharacters().subSequence(lastPartialAln.getReadLength()-lastPartialAln.getSoftClipEnd()-5, lastPartialAln.getReadLength()) );
-						log.warning("Alignment to enlarged consensus: "+alnRead+" consensus end: "+rawConsensus.substring(rawConsensus.length()-lastPartialAln.getSoftClipEnd()-5));
+					if(alnRead.getSoftClipEnd()>10) {
+						log.warning("Weird alignment of consensus backbone read. Alignment: "+alnRead+" soft clip: "+alnRead.getSoftClipEnd()+" consensus end: "+rawConsensus.substring(rawConsensus.length()-alnRead.getSoftClipEnd()-10)+" soft clipped sequence: "+alnRead.getReadCharacters().subSequence(alnRead.getReadLength()-alnRead.getSoftClipEnd()-10, alnRead.getReadLength()) );
 					}
 				}
 				else unalignedReads++;

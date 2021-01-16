@@ -449,6 +449,7 @@ public class AlignmentsPileupGenerator {
 			currentReferencePos++;
 			return false;
 		}
+		if(currentReferencePos%100000==0) log.info("Processing position: "+currentReferencePos+" pending alignments: "+pendingAlignments.size());
 		if(currentReferencePos==posPrint) System.out.println("Number of pending alignments: "+pendingAlignments.size());
 		
 		PileupRecord pileup = new PileupRecord(currentReferenceSequence.getName(), currentReferencePos);
