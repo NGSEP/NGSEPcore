@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 
@@ -334,6 +335,18 @@ public class HaplotypeBlock
 		{
 			CalledGenomicVariant call = calls.get(i);
 			if(call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(haplotype[i]==CalledGenomicVariant.ALLELE_ALTERNATIVE);
+			else if (call instanceof CalledGenomicVariantImpl) {
+				//TODO: management of multiallelic variants
+				byte [] phasedAlleles = new byte [2];
+				if(haplotype[i]==CalledGenomicVariant.ALLELE_REFERENCE) {
+					phasedAlleles[0] = CalledGenomicVariant.ALLELE_REFERENCE;
+					phasedAlleles[1] = CalledGenomicVariant.ALLELE_ALTERNATIVE;
+				} else {
+					phasedAlleles[0] = CalledGenomicVariant.ALLELE_ALTERNATIVE;
+					phasedAlleles[1] = CalledGenomicVariant.ALLELE_REFERENCE;
+				}
+				((CalledGenomicVariantImpl)call).setIndexesPhasedAlleles(phasedAlleles);
+			}
 		}
 	}
 	

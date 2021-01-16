@@ -388,6 +388,13 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 		if(phasedAlleles.length!=totalCopyNumber) return;
 		this.indexesPhasedAlleles = Arrays.copyOf(phasedAlleles, phasedAlleles.length);
 	}
+	
+	public void setPhasedHomozygous() {
+		if(indexesCalledAlleles.length!=1) return;
+		this.indexesPhasedAlleles = new byte[totalCopyNumber];
+		byte calledAllele = indexesCalledAlleles[0];
+		Arrays.fill(indexesPhasedAlleles, calledAllele);
+	}
 
 	@Override
 	public boolean isCompatible(GenomicVariant variant) {

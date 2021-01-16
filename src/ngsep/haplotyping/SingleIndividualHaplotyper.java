@@ -18,6 +18,7 @@ import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
 import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 import ngsep.vcf.VCFFileHeader;
@@ -28,7 +29,7 @@ import ngsep.vcf.VCFRecord;
 public class SingleIndividualHaplotyper {
 
 	// Constants for default values
-	public static final String DEF_ALGORITHM_NAME="Refhap";
+	public static final String DEF_ALGORITHM_NAME="DGS";
 	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	// Logging and progress
@@ -179,10 +180,11 @@ public class SingleIndividualHaplotyper {
 				}
 				records.add(record);
 				CalledGenomicVariant call = record.getCalls().get(0);
+				//TODO: Multiallelic and polyploid
 				if(call.isBiallelic() && call.getCopyNumber()==2 && !call.isUndecided()) {
 					if(call.isHeterozygous()) hetCalls.add(call);
 					else if (call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(!call.isHomozygousReference());
-					//else if (call instanceof CalledGenomicVariantImpl) ((CalledGenomicVariantImpl)call).setPhasedAlleles(phasedAlleles);
+					else if (call instanceof CalledGenomicVariantImpl) ((CalledGenomicVariantImpl)call).setPhasedHomozygous();
 				}
 				
 			}
