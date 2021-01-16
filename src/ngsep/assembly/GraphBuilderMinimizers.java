@@ -206,6 +206,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 					if(next instanceof AssemblyEmbedded) graph.addEmbedded((AssemblyEmbedded)next);
 					if(next instanceof AssemblyEdge) graph.addEdge((AssemblyEdge)next);
 				}
+				nextList.clear();
 				if(i == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(i, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(i, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(i));
 				if ((i+1)%10000==0) {
 					long usedMemory = runtime.totalMemory()-runtime.freeMemory();
