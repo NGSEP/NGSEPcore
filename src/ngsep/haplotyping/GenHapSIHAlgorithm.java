@@ -24,11 +24,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 import ngsep.variants.CalledGenomicVariant;
 
 public class GenHapSIHAlgorithm implements SIHAlgorithm 
 {	
+	private Logger log = Logger.getAnonymousLogger();
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	private boolean [] cut;
 	private byte [] haplotype;
 	private byte [] haplotype0;

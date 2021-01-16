@@ -6,9 +6,18 @@
 
 package ngsep.haplotyping;
 
+import java.util.logging.Logger;
 
 public class Refhap3SIHAlgorithm  implements SIHAlgorithm 
 {
+	private Logger log = Logger.getAnonymousLogger();
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	private boolean [] cut;
 	private byte [] haplotype;
 	

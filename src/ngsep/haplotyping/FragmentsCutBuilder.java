@@ -22,10 +22,20 @@ package ngsep.haplotyping;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class FragmentsCutBuilder {
+	
+	private Logger log = Logger.getAnonymousLogger();
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
 	private List<Vertex> graph;
 	private List<Edge> allEdges;
 	private boolean [] cut;
@@ -63,7 +73,7 @@ public class FragmentsCutBuilder {
 				}
 			}
 		}
-		Collections.sort(allEdges, new EdgesComparator());
+		Collections.sort(allEdges, (e1,e2)->(int)e2.weight-(int)e1.weight);
 	}
 	public double [] calcAgreementScoreNodes() {
 		double [] answer = new double [graph.size()];
@@ -105,7 +115,9 @@ public class FragmentsCutBuilder {
 		boolean [] bestCut = new boolean [cut.length];
 		double maxScore = 0;
 		//double iters = allEdges.size()+1;
-		double iters = Math.sqrt(allEdges.size())+1;
+		int iters = (int) (Math.sqrt(allEdges.size())+1);
+		log.info("Running "+iters+" iterations");
+		boolean scoreChange = false;
 		for(int i=0;i<allEdges.size() && i<iters;i++) {
 			Edge e=allEdges.get(i);
 			if(e.getWeight()>0) {
@@ -113,18 +125,28 @@ public class FragmentsCutBuilder {
 				initCut(e);
 				boolean improvement = true;
 				while(improvement) {
+					//if(i%10==0) log.info("Iteration "+i+". Running heuristic 1");
 					heuristic1();
+					//if(i%10==0) log.info("Iteration "+i+". Running heuristic 2");
 					improvement = heuristic2();
+					//if(i%10==0) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
 				}
 
 				double score = calculateScore (cut);
-				//System.out.println("Cut score: "+score);
+				//if(i%10==0) log.info("Iteration "+i+" cut score: "+score+" max score: "+maxScore);
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
+					scoreChange = true;
 				}
 			}
-
+			if((i+1)%10==0) {
+				log.info("Completed: "+(i+1)+" iterations. Max score: "+maxScore);
+				if(!scoreChange) {
+					log.info("No score change in the last 10 iterations. Finishing block");
+					break;
+				} else scoreChange = false;
+			}
 		}
 		copy(cut,bestCut);
 	}
@@ -228,7 +250,8 @@ public class FragmentsCutBuilder {
 		return answer;
 	}
 
-	private void heuristic1() {
+	private boolean heuristic1() {
+		boolean totalImp = false;
 		Vertex maxVertex ;
 		do {
 			maxVertex = null;
@@ -242,8 +265,10 @@ public class FragmentsCutBuilder {
 			}
 			if(maxVertex!=null) {
 				flipVertex(maxVertex.getPos());
+				totalImp=true;
 			}
 		} while (maxVertex !=null);
+		return totalImp;
 	}
 	private boolean heuristic2() {
 		boolean totalImp = false;
@@ -513,12 +538,5 @@ class Edge {
 		return pos2;
 	}
 
-}
-class EdgesComparator implements Comparator<Edge> {
-
-	@Override
-	public int compare(Edge e1, Edge e2) {
-		return (int)(e2.getWeight() -e1.getWeight());
-	}
 }
 }

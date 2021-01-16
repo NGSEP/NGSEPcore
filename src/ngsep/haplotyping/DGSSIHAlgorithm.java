@@ -20,33 +20,38 @@
 package ngsep.haplotyping;
 
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 import ngsep.variants.CalledGenomicVariant;
 
 
 public class DGSSIHAlgorithm implements SIHAlgorithm {
-	private boolean [] cut;
+	private Logger log = Logger.getAnonymousLogger();
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	
 	@Override
 	public void buildHaplotype(HaplotypeBlock block) {
-		byte [] haplotype = new byte[0]; 
-		cut = new boolean [block.getNumFragments()];
-		System.err.println("Running DGS for: "+cut.length+" fragments");
-		initCut(block);
+		byte [] haplotype = new byte[0];
+		boolean [] cut = initCut(block);
+		log.info("Running DGS for: "+cut.length+" fragments");
 		for (int i=0;i<1000;i++) {
 			System.err.println("DGS iteration: "+i);
 			byte [] newhap=CutHaplotypeTranslator.getHaplotype(block, cut, CutHaplotypeTranslator.CONSENSUS_COMBINED);
-			//TODO: check if this works
-			if(newhap.equals(haplotype)) {
-				break;
-			}
+			if(Arrays.equals(newhap, haplotype)) break;
 			haplotype = newhap;
-			updateCut( block, haplotype);
+			updateCut( block, haplotype, cut);
 		}
 		block.setHaplotype(haplotype);
 
 	}
-	private void initCut(HaplotypeBlock b) {
+	private boolean [] initCut(HaplotypeBlock b) {
+		boolean [] cut = new boolean[b.getNumFragments()];
 		byte [] hap = new byte [b.getNumVariants()];
 		 
 		for(int i=0;i<hap.length;i++) {
@@ -88,6 +93,7 @@ public class DGSSIHAlgorithm implements SIHAlgorithm {
 			cut[maxI] = (maxScore==maxAbsScore);
 			updateHaplotype(hap, b, maxI, cut[maxI]);
 		}
+		return cut;
 	}
 	private void updateHaplotype(byte [] hap, HaplotypeBlock b, int row, boolean reverse) {
 		int firstJ = b.getFirstColumn(row);
@@ -108,7 +114,7 @@ public class DGSSIHAlgorithm implements SIHAlgorithm {
 		}
 		
 	}
-	private void updateCut(HaplotypeBlock b, byte [] haplotype) {
+	private void updateCut(HaplotypeBlock b, byte [] haplotype, boolean [] cut) {
 		int n = b.getNumFragments();
 		for(int i=0;i<n;i++) {
 			int score = b.getHamming2(haplotype,i);

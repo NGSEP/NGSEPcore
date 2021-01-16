@@ -22,11 +22,20 @@ package ngsep.haplotyping;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 import ngsep.variants.CalledGenomicVariant;
 
 public class HapChatSIHAlgorithm  implements SIHAlgorithm
 {
+	private Logger log = Logger.getAnonymousLogger();
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	//The real PACBIO error rate is less than the constant, but this implementation 
 	//has the same assumptions that the original paper.
 	public static final Double ERROR_RATE_PACBIO=0.15;

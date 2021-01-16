@@ -199,14 +199,15 @@ public class SingleIndividualHaplotyper {
 			Class<?> algClass = Class.forName(algorithmClassName);
 			Constructor<?> constructor = algClass.getDeclaredConstructors()[0];
 			algorithm = (SIHAlgorithm) constructor.newInstance();
+			algorithm.setLog(log);
 		} catch (Exception e) {
 			throw new IOException("Can not load algorithm: "+algorithmName,e);
 		}
 		
 	}
 	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) {
-		System.err.println("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
-		if(nextAln!=null) System.err.println("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
+		log.info("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
+		if(nextAln!=null) log.info("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
 		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		int i=0;
 		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
@@ -264,13 +265,13 @@ public class SingleIndividualHaplotyper {
 			
 			if(realCalls>1) {
 				block.addFragment (first,NumberArrays.toByteArray(calls));
-				if(block.getNumFragments()%1000==0) System.err.println("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
+				if(block.getNumFragments()%1000==0) log.info("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
 			}
 			//Try to go to next alignment
 			if(alnIt.hasNext()) nextAln = alnIt.next();
 			else nextAln = null;
 		}
-		System.err.println("Phasing sequence "+seqName+" with "+block.getNumFragments()+" fragments");
+		log.info("Phasing sequence "+seqName+" with "+block.getNumFragments()+" fragments");
 		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
 		if(block.getNumFragments()>0) {
 			phaseBlockVariants (seqName, block,hetCalls);
@@ -280,7 +281,7 @@ public class SingleIndividualHaplotyper {
 	}
 	private void phaseBlockVariants(String seqName, HaplotypeBlock block, List<CalledGenomicVariant> hetCalls) {
 		algorithm.buildHaplotype(block);
-		System.err.println("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
+		log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
 		block.phaseCallsWithHaplotype();
 	}
 }
