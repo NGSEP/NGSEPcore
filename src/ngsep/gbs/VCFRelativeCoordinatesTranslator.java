@@ -446,6 +446,7 @@ public class VCFRelativeCoordinatesTranslator {
 			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTER", relativeVar.getSequenceName()));
 			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTERPOS", relativeVar.getFirst()));
 			translatedRecord.addAnnotation(new GenomicVariantAnnotation(variant, "DENOVOCLUSTERCONSENSUS", relativeVar.getReference()));
+			translatedRecord.updateDiversityStatistics();
 		} else trueCallsNull++;
 		return translatedRecord;
 	}

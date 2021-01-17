@@ -151,11 +151,12 @@ public class DNAShortKmerClusterMap implements KmersMap {
 			}
 		}
 		if(count >= 2){
-			System.out.println("WARNING: counts for cluster "+i+" in K-mer table has surpassed the length of " +
-					Short.MAX_VALUE+". The counts of the other possible nucleotides are as follows:");
+			System.err.print("WARNING: counts for cluster "+k+" position "+i+" in K-mer table has surpassed the length of " +
+					Short.MAX_VALUE+". The counts of the other possible nucleotides are");
 			for(int m = 0; m < DNASequence.BASES_STRING.length(); m++) {
-				System.out.println("\t"+DNASequence.BASES_STRING.charAt(m)+": "+ table[row][m]);
+				System.err.print(" "+DNASequence.BASES_STRING.charAt(m)+": "+ table[row][m]);
 			}
+			System.err.println();
 		}
 	}
 	
