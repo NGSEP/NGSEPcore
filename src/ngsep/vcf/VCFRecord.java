@@ -269,18 +269,28 @@ public class VCFRecord implements GenomicRegion {
 		return answer;
 	}
 	public static VCFRecord createDefaultPopulationVCFRecord(GenomicVariant variant, List<CalledGenomicVariant> calls, VCFFileHeader header) {
-		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
 		int [] format = variant.isSNV()?VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV:VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
 		VCFRecord record = new VCFRecord(variant, format, calls, header);
-		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
-		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
-		record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(divStats.getAlleleCounts())));
-		if(variant.isBiallelic()) record.addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
+		record.updateDiversityStatistics();
 		return record;
 	}
 	private static String format(int[] alleleCounts) {
 		StringBuilder answer = new StringBuilder(""+alleleCounts[0]);
 		for(int i=1;i<alleleCounts.length;i++) answer.append(","+alleleCounts[i]);
 		return answer.toString();
+	}
+	public void updateDiversityStatistics() {
+    	if(calls.size()==0) return;
+    	DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
+        int numCalledAlleles = divStats.getNumCalledAlleles();
+    	int [] counts = divStats.getAlleleCounts();
+    	double maf = divStats.getMaf();
+    	double oh = divStats.getObservedHeterozygosity();
+    	int genotyped = divStats.getNumSamplesGenotyped();
+    	addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, genotyped));
+		addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, numCalledAlleles));
+		addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(counts)));
+		addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_OBSERVED_HETEROZYGOSITY, oh));
+		if(variant.isBiallelic()) addAnnotation(new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_MAF, maf));
 	}
 }

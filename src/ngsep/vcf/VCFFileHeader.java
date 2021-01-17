@@ -23,8 +23,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import ngsep.main.io.ParseUtils;
@@ -39,40 +41,61 @@ public class VCFFileHeader {
 	private List<VCFHeaderLine> idHeaderLines = new ArrayList<VCFHeaderLine>();
 	private List<String> unstructuredHeaderLines = new ArrayList<String>();
 	private String version;
+	private static List<VCFHeaderLine> DEFAULT_HEADER_LINES_NGSEP;
+	
+	static {
+		DEFAULT_HEADER_LINES_NGSEP = new ArrayList<VCFHeaderLine>(20);
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, "\"Number of samples with CNVs around this variant\"", "1", "Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION, "\"Variant annotation based on a gene model\"", "1", "String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ID, "\"Id of the transcript related to the variant annotation\"","1","String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_GENE_NAME,"\"Name of the gene related to the variant annotation\"","1","String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_CODON, "\"One based codon position of the start of the variant. The decimal is the codon position\"","1","Float"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE, "\"Description of the aminoacid change produced by a non-synonymous mutation. String encoded as reference aminoacid, position and mutated aminoacid\"","1","String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, "\"Number of samples genotyped\"","1","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_MAF,"\"Minor allele frequency\"","1","Float"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_OBSERVED_HETEROZYGOSITY,"\"Observed heterozygosity\"","1","Float"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES,"\"Number of alleles in called genotypes\"","1","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM,"\"Allele counts over the population for all alleles, including the reference\"","R","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TYPE,"\"Type of variant\"", "1", "String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS,"\"Phred-scaled p-value using Fisher's exact test to detect strand bias\"","1","Float"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE,"\"Genotype\"","1","String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_PHRED_LIKELIHOOD,"\"Phred-scaled genotype likelihoods rounded to the closest integer\"","G","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_QUALITY,"\"Genotype quality\"","1","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_DEPTH,"\"Read depth\"","1","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALLELE_DEPTH,"\"Counts for observed alleles, including the reference allele\"","R","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALL_BASES_SNP_DEPTH,"\"Number of base calls (depth) for the 4 nucleotides in called SNVs sorted as A,C,G,T\"","4","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALLELE_COPY_NUMBER,"\"Predicted copy number of each allele taking into account the prediction of number of copies of the region surrounding the variant\"","R","Integer"));
+	}
 	
 	public VCFFileHeader () {
 		
 	}
+	/**
+	 * Clones a header without the samples information and adds missing NGSEP entries
+	 * @return VCFFileHeader New header with the same lines as the original header but without samples. 
+	 */
 	public VCFFileHeader cloneEmpty () {
 		VCFFileHeader answer = new VCFFileHeader();
 		answer.idHeaderLines = idHeaderLines;
 		answer.unstructuredHeaderLines = unstructuredHeaderLines;
 		answer.version = version;
+		answer.addMissingEntries();
 		return answer;
 	}
 	public static VCFFileHeader makeDefaultEmptyHeader () {
 		VCFFileHeader header = new VCFFileHeader();
 		header.version = "VCFv4.2";
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, "\"Number of samples with CNVs around this variant\"", "1", "Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION, "\"Variant annotation based on a gene model\"", "1", "String"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ID, "\"Id of the transcript related to the variant annotation\"","1","String"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_GENE_NAME,"\"Name of the gene related to the variant annotation\"","1","String"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_CODON, "\"One based codon position of the start of the variant. The decimal is the codon position\"","1","Float"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_AMINOACID_CHANGE, "\"Description of the aminoacid change produced by a non-synonymous mutation. String encoded as reference aminoacid, position and mutated aminoacid\"","1","String"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, "\"Number of samples genotyped\"","1","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_MAF,"\"Minor allele frequency\"","1","Float"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES,"\"Number of alleles in called genotypes\"","1","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM,"\"Allele counts over the population for all alleles, including the reference\"","R","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TYPE,"\"Type of variant\"", "1", "String"));
-		header.idHeaderLines.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS,"\"Phred-scaled p-value using Fisher's exact test to detect strand bias\"","1","Float"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE,"\"Genotype\"","1","String"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_PHRED_LIKELIHOOD,"\"Phred-scaled genotype likelihoods rounded to the closest integer\"","G","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_QUALITY,"\"Genotype quality\"","1","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_DEPTH,"\"Read depth\"","1","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALLELE_DEPTH,"\"Counts for observed alleles, including the reference allele\"","R","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALL_BASES_SNP_DEPTH,"\"Number of base calls (depth) for the 4 nucleotides in called SNVs sorted as A,C,G,T\"","4","Integer"));
-		header.idHeaderLines.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALLELE_COPY_NUMBER,"\"Predicted copy number of each allele taking into account the prediction of number of copies of the region surrounding the variant\"","R","Integer"));
+		for(VCFHeaderLine line: DEFAULT_HEADER_LINES_NGSEP) {
+			header.idHeaderLines.add(line);
+		}
 		return header;
+	}
+	public void addMissingEntries() {
+		Set <String> currentIds = new HashSet<String>();
+		for(VCFHeaderLine line:idHeaderLines) currentIds.add(line.getId());
+		for(VCFHeaderLine line:DEFAULT_HEADER_LINES_NGSEP) {
+			if(!currentIds.contains(line.getId())) idHeaderLines.add(line);
+		}
 	}
 	public void loadHeaderLine(String line) throws IOException {
 		if(line.startsWith("##SAMPLE=")) {
@@ -214,4 +237,5 @@ public class VCFFileHeader {
 		}
 		out.println();
 	}
+	
 }

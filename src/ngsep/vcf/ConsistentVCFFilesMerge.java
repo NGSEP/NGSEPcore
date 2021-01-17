@@ -219,12 +219,7 @@ public class ConsistentVCFFilesMerge {
 		nextVariant.setVariantQS(maxQS);
 		nextVariant.setType(type);
 		VCFRecord answer = new VCFRecord(nextVariant, new ArrayList<String>(), new ArrayList<GenomicVariantAnnotation>(), nextFormat, calls,outHeader);
-		DiversityStatistics divStats = DiversityStatistics.calculateDiversityStatistics(calls, false);
-		if(divStats!=null) {
-			answer.addAnnotation(new GenomicVariantAnnotation(nextVariant, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, divStats.getNumSamplesGenotyped()));
-			answer.addAnnotation(new GenomicVariantAnnotation(nextVariant, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, divStats.getNumCalledAlleles()));
-			if(divStats.getNumCalledAlleles()==2) answer.addAnnotation(new GenomicVariantAnnotation(nextVariant, GenomicVariantAnnotation.ATTRIBUTE_MAF, divStats.getMaf()));
-		}
+		answer.updateDiversityStatistics();
 		if(countCNVs>0) answer.addAnnotation(new GenomicVariantAnnotation(nextVariant, GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, countCNVs));
 		return answer;
 		

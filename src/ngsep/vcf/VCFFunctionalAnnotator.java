@@ -283,7 +283,9 @@ public class VCFFunctionalAnnotator {
 	public void annotate(VCFFileReader in,PrintStream out) throws IOException {
 		VCFFileWriter writer = new VCFFileWriter(); 
 		in.setLog(log);
-		writer.printHeader(in.getHeader(),out);
+		VCFFileHeader header = in.getHeader();
+		header.addMissingEntries();
+		writer.printHeader(header,out);
 		Iterator<VCFRecord> it = in.iterator();
 		int n=0;
 		while (it.hasNext()) {

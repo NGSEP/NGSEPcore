@@ -252,6 +252,7 @@ public class AssemblyGraphStatistics {
 		if (alignmentsFile!=null) {
 			alignments = new ArrayList<ReadAlignment>();
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
+				reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT);
 				reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
 				Iterator<ReadAlignment> it = reader.iterator();
 				while (it.hasNext()) {

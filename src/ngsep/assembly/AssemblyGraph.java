@@ -443,7 +443,7 @@ public class AssemblyGraph {
 	}
 	
 	private boolean isChimeric(int sequenceId) {
-		int idxDebug = 95;
+		int idxDebug = -1;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();

@@ -65,6 +65,10 @@ public class GenomicVariantAnnotation {
 	 */
 	public static final String ATTRIBUTE_MAF = "MAF";
 	/**
+	 * Tells the observed heterozygosity
+	 */
+	public static final String ATTRIBUTE_OBSERVED_HETEROZYGOSITY = "OH";
+	/**
 	 * Type of variant. See ngsep.variants.GenomicVariant interface for possible types
 	 */
 	public static final String ATTRIBUTE_TYPE = "TYPE";

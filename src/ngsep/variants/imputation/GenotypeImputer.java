@@ -242,6 +242,7 @@ public class GenotypeImputer {
 		if(log!=null) reader.setLog(log);
 		//Ids of the samples
 		VCFFileHeader header = reader.getHeader();
+		header.addMissingEntries();
 		writer.printHeader(header,outGenotypes);
 		List<Sample> samples = header.getSamples();
 		String lastSeqName = null;
@@ -283,6 +284,7 @@ public class GenotypeImputer {
 		//Print records
 		for(int i = printStart;i<printEnd;i++) {
 			VCFRecord r = recordsImpute.get(i);
+			r.updateDiversityStatistics();
 			writer.printVCFRecord(r, outGenotypes);
 		}
 		//Update last records
