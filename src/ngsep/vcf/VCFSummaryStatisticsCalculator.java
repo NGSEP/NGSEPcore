@@ -320,13 +320,13 @@ public class VCFSummaryStatisticsCalculator {
 		return VariantsBasicCounts.GENOTYPE_STATUS_HOMOALT;
 	}
 	
-	private void printStatistics(PrintStream out) {
+	public void printStatistics(PrintStream out) {
 		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
 		String [] annPrintOrder = new String [VariantFunctionalAnnotationType.getNumberSupportedTypes()];
 		boolean [] printInSNVSummary = new boolean [VariantFunctionalAnnotationType.getNumberSupportedTypes()];
 		boolean [] printInIndelSummary = new boolean [VariantFunctionalAnnotationType.getNumberSupportedTypes()];
 		initPrintArraysdata(annPrintOrder,printInSNVSummary,printInIndelSummary);
-		printGeneralSummary(out);
+		printGeneralSummary(out,fmt);
 		printSummaryPerVariantType(out, fmt, annPrintOrder, printInSNVSummary, printInIndelSummary);
 		printMAFDistributions(out, fmt, annPrintOrder);
 		printSamplesGenotypedDistribution(out);
@@ -340,7 +340,7 @@ public class VCFSummaryStatisticsCalculator {
 		genericPrintCountsPerSample(out,"OTHER MULTIALLELIC VARIANTS COUNTS PER SAMPLE",7);
 		
 	}
-	public void printGeneralSummary(PrintStream out) {
+	private void printGeneralSummary(PrintStream out, DecimalFormat fmt) {
 		int l = VARIANT_CATEGORIES.length;
 		out.println("GENERAL SUMMARY");
 		out.print("Count");
@@ -352,6 +352,13 @@ public class VCFSummaryStatisticsCalculator {
 		out.print("Genotype calls");
 		for(int i=0;i<l;i++) out.print("\t"+totalGenotypeCalls[i]);
 		out.println();
+		out.print("Percentage of missing data: ");
+		for(int i=0;i<l;i++) {
+			double denominator = summaryCounts[i].getGenotyped()*countsPerSample[0].length;
+			double missingDataRate = (denominator>0)?1 - (double)totalGenotypeCalls[i]/denominator:0;
+			out.print("\t"+fmt.format(100.0*missingDataRate)+"%");
+		}
+		out.println();
 		out.print("Coding variants");
 		for(int i=0;i<l;i++) out.print("\t"+summaryCounts[i].getCodingTotalCount());
 		out.println();
@@ -360,7 +367,7 @@ public class VCFSummaryStatisticsCalculator {
 		out.println();
 		out.println();
 	}
-	public void printSummaryPerVariantType(PrintStream out, DecimalFormat fmt, String[] annPrintOrder, boolean[] printInSNVSummary, boolean[] printInIndelSummary) {
+	private void printSummaryPerVariantType(PrintStream out, DecimalFormat fmt, String[] annPrintOrder, boolean[] printInSNVSummary, boolean[] printInIndelSummary) {
 		boolean [] printAll = new boolean[printInSNVSummary.length];
 		Arrays.fill(printAll, true);
 		printSummaryAnnotations("SUMMARY "+VARIANT_CATEGORIES[0], 0, out, annPrintOrder, printInSNVSummary);

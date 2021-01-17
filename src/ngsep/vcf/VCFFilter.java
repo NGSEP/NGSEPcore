@@ -612,20 +612,9 @@ public class VCFFilter {
     	if (filterGCContent(var)) return false;
     	//System.out.println("Passed GCContent");
     	//Update annotations if passes filters
-    	if(divStats!=null) {
-    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_SAMPLES_GENOTYPED, genotyped));
-    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_NUMBER_ALLELES, numCalledAlleles));
-    		record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM, format(counts)));
-    		if(divStats.getNumCalledAlleles()==2) record.addAnnotation(new GenomicVariantAnnotation(var, GenomicVariantAnnotation.ATTRIBUTE_MAF, maf));
-    	}
+    	record.updateDiversityStatistics();
     	return true;
     }
-
-	private String format(int[] alleleCounts) {
-		StringBuilder answer = new StringBuilder(""+alleleCounts[0]);
-		for(int i=1;i<alleleCounts.length;i++) answer.append(","+alleleCounts[i]);
-		return answer.toString();
-	}
 
 	private boolean hasAnnotation(VCFRecord record) {
 		GenomicVariantAnnotation ann = record.getInfoField(GenomicVariantAnnotation.ATTRIBUTE_TRANSCRIPT_ANNOTATION);
