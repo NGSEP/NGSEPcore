@@ -50,8 +50,9 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	
 	public static final int LOAD_MODE_MINIMAL = 1;
 	public static final int LOAD_MODE_ALIGNMENT = 2;
-	public static final int LOAD_MODE_SEQUENCE = 3;
-	public static final int LOAD_MODE_FULL = 4;
+	public static final int LOAD_MODE_ALIGNMENT_NAME = 3;
+	public static final int LOAD_MODE_ALIGNMENT_SEQUENCE = 4;
+	public static final int LOAD_MODE_FULL = 5;
 	
 	
 	private static final String ATTRIBUTE_NUMALNS="NH";
@@ -239,14 +240,14 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		}
 		Integer mismatches = alnRecord.getIntegerAttribute(SAMTag.NM.toString());
 		if (mismatches!=null) answer.setNumMismatches((short) Math.min(mismatches,32000));
-		if (loadMode >= LOAD_MODE_SEQUENCE) {
+		if (loadMode >= LOAD_MODE_ALIGNMENT_SEQUENCE) {
 			answer.setReadCharacters(alnRecord.getReadString());
 			String qs = alnRecord.getBaseQualityString();
 			if(qs!=null && !SAMRecord.NULL_QUALS_STRING.equals(qs)) {
 				answer.setQualityScores(qs);
 			}
 		}
-		if(loadMode == LOAD_MODE_FULL) answer.setReadName(alnRecord.getReadName());
+		if(loadMode == LOAD_MODE_ALIGNMENT_NAME || loadMode == LOAD_MODE_FULL) answer.setReadName(alnRecord.getReadName());
 		return answer;
 	}
 	private QualifiedSequenceList mateSeqNamesList = new QualifiedSequenceList();

@@ -156,7 +156,7 @@ public class SingleIndividualHaplotyper {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);
-			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
+			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_SEQUENCE);
 			alnReader.setMinMQ(minMQ);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;

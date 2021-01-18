@@ -252,16 +252,12 @@ public class AssemblyGraphStatistics {
 		if (alignmentsFile!=null) {
 			alignments = new ArrayList<ReadAlignment>();
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
-				reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT);
+				reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_NAME);
 				reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
 				Iterator<ReadAlignment> it = reader.iterator();
 				while (it.hasNext()) {
 					ReadAlignment aln = it.next();
-					CharSequence characters = aln.getReadCharacters();
-					if(characters.length()<Assembler.DEF_MIN_READ_LENGTH) continue;
-					if(aln.isNegativeStrand()) {
-						characters = DNAMaskedSequence.getReverseComplement(characters);
-					}
+					if(aln.getReadLength()<Assembler.DEF_MIN_READ_LENGTH) continue;
 					Integer idx = seqIds.get(aln.getReadName());
 					if(idx==null) {
 						log.warning("Aligned read: "+aln.getReadName()+" not found in graph");
