@@ -144,6 +144,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
+			//for(UngappedSearchHit hit: totalHitsSubject) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight());
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getStart()-h2.getStart());
 			KmerHitsCluster cluster = null;
 			for(UngappedSearchHit hit:totalHitsSubject) {
@@ -153,7 +154,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (cluster.getNumDifferentKmers()>=0.01*query.length()) {
 						List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0.3);
-						//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSequenceIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+						//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					}
 					cluster = new KmerHitsCluster(queryLength, sequenceLength, hit);
@@ -161,7 +162,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			}
 			if(cluster!=null && cluster.getNumDifferentKmers()>=0.01*query.length()) {
 				List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0.3);
-				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSequenceIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
 		}
@@ -169,6 +170,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		double maxCount = 0;
 		for (KmerHitsCluster cluster:clusters) {
 			cluster.summarize();
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers());
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
 		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
@@ -179,7 +181,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
 			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSequenceIdx()+": "+subjectStart+" "+subjectEnd+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
 			if(aln!=null) {
 				aln.setSequenceName(refSeq.getName());
 				answer.add(aln);

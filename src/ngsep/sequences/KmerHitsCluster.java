@@ -91,8 +91,8 @@ public class KmerHitsCluster {
 				for(UngappedSearchHit hit:hits) {
 					int estStart = estimateSubjectStart(hit);
 					subjectStarts.add(estStart);
-					sum+=estStart;
-					sum2+=(estStart*estStart);
+					sum+=1.0*estStart;
+					sum2+=(1.0*estStart*estStart);
 					n++;
 				}
 				
@@ -100,6 +100,7 @@ public class KmerHitsCluster {
 		}
 		Collections.sort(subjectStarts);
 		int median = subjectStarts.get(subjectStarts.size()/2);
+		//System.out.println("Sum: "+sum+" sum2: "+sum2);
 		double variance = (sum2-sum*sum/n)/(n-1);
 		rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):0;
 		Distribution dist = new Distribution(0, 100, 1);
@@ -107,12 +108,13 @@ public class KmerHitsCluster {
 			int distance = Math.abs(start-median);
 			if (distance < rawKmerHitsSubjectStartSD) dist.processDatapoint(distance);
 		}
-		
+		//System.out.println(subjectStarts);
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
 		int maxDistance = 5*queryLength; 
 		if(subjectLength>maxDistance) {
 			// This is only useful for mapping to a long reference subject
-			maxDistance = (int) Math.min(dist.getAverage(), rawKmerHitsSubjectStartSD);
+			maxDistance = (int) Math.max(dist.getAverage(), rawKmerHitsSubjectStartSD);
+			maxDistance *=3;
 			if(maxDistance < 100) maxDistance=100;
 			//if(maxDistance<0.01*query.length()) maxDistance*=2;
 			else if (maxDistance>0.05*queryLength) maxDistance/=2;

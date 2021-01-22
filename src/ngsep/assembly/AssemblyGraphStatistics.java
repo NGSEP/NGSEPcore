@@ -271,6 +271,11 @@ public class AssemblyGraphStatistics {
 					}
 					else aln.setReadNumber(idx);
 					
+					if(aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
+						log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
+						continue;
+					}
+					
 					//sequences.add(new QualifiedSequence(aln.getReadName(), characters));
 					if(!aln.isReadUnmapped()) {
 						String newReadName = aln.getSequenceName()+"_"+aln.getFirst()+"_"+(aln.isNegativeStrand()?1:0);

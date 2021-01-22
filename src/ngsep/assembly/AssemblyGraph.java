@@ -503,17 +503,19 @@ public class AssemblyGraph {
 		}
 		
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size());
-		if(hostEvidenceStartsRight.size()<2 || hostEvidenceEndsLeft.size()<2) return false;
+		if(hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3) return false;
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
 		int hostEvidenceEndLeft = hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2);
 		Collections.sort(hostEvidenceStartsRight,(n1,n2)->n1-n2);
 		int hostEvidenceStartRight = hostEvidenceStartsRight.get(hostEvidenceStartsRight.size()/2);
+		int minEvidenceStart = Math.min(hostEvidenceStartRight, hostEvidenceEndLeft);
+		int maxEvidenceEnd = Math.max(hostEvidenceStartRight, hostEvidenceEndLeft);
 		
 		int numCrossing = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			int unknownLeft = embedded.getHostEvidenceStart() - embedded.getHostStart();
 			int unknownRight = embedded.getHostEnd() - embedded.getHostEvidenceEnd();
-			if(unknownLeft<200 && unknownRight<200 && hostEvidenceEndLeft-embedded.getHostEvidenceStart()>100 && embedded.getHostEvidenceEnd()-hostEvidenceStartRight>100) {
+			if(unknownLeft<200 && unknownRight<200 && minEvidenceStart-embedded.getHostEvidenceStart()>100 && embedded.getHostEvidenceEnd()-maxEvidenceEnd>100) {
 				if(sequenceId==idxDebug) System.out.println("Embedded crossing. Sequence: "+embedded.getSequenceId());
 				numCrossing++;
 			}
@@ -523,7 +525,8 @@ public class AssemblyGraph {
 			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
-			if(unknownLeft<200 && unknownRight<200 && nextEvidenceEnd-hostEvidenceStartRight>100) {
+			
+			if(unknownLeft<200 && unknownRight<200 && nextEvidenceEnd-maxEvidenceEnd>100) {
 				if(sequenceId==idxDebug) System.out.println("Edge start crossing. Edge: "+edge);
 				numCrossing++;
 			}
@@ -533,14 +536,15 @@ public class AssemblyGraph {
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
-			if(unknownLeft<200 && unknownRight<200 && hostEvidenceEndLeft - nextEvidenceStart > 100) {
+			
+			if(unknownLeft<200 && unknownRight<200 && minEvidenceStart - nextEvidenceStart > 100) {
 				if(sequenceId==idxDebug) System.out.println("Edge end crossing. Edge: "+edge);
 				numCrossing++;
 			}
 		}
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing);
 		
-		if( numCrossing<2 && hostEvidenceEndLeft - hostEvidenceStartRight < 50 && hostEvidenceStartRight - hostEvidenceEndLeft < 200 && hostEvidenceEndLeft-hostPredictedStartRight>100 && hostPredictedEndLeft-hostEvidenceStartRight>100) {
+		if( numCrossing<2  && hostEvidenceEndLeft-hostPredictedStartRight>1000 && hostPredictedEndLeft-hostEvidenceStartRight>1000/*&& hostEvidenceEndLeft - hostEvidenceStartRight < 50 && hostEvidenceStartRight - hostEvidenceEndLeft < 200*/) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
 			return true;
 		}
