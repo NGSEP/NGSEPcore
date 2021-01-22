@@ -338,7 +338,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers);
+				if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" indels: "+numIndels);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
@@ -349,7 +349,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers);
+				if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" indels: "+numIndels);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else {
@@ -364,10 +364,10 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					coverageSharedKmers+=Math.min(diffQuery, kmerLength);
 					double weight = kmerHit.getWeight();
 					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
-					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers);
+					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" indels: "+numIndels);
 				} else {
-					numIndels++;
-					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers);
+					//numIndels++;
+					if(querySeqIdx==debugIdx) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers+" indels: "+numIndels);
 				}
 				
 			}

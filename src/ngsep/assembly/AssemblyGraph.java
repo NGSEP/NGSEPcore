@@ -448,7 +448,7 @@ public class AssemblyGraph {
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
 		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
-		if(emb==null) return false;
+		if(emb==null) emb = new ArrayList<AssemblyEmbedded>();
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Embedded sequences "+emb.size());
 		embeddedList.addAll(emb);
 		Collections.sort(embeddedList,(e1,e2)->e1.getHostEvidenceStart()-e2.getHostEvidenceStart());
@@ -668,7 +668,7 @@ public class AssemblyGraph {
 			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
 			double WCSKprop = (double)embedded.getWeightedCoverageSharedKmers()/sameSeqWCSK;
 			double score = calculateScore(embedded);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" score: "+score+" evidence prop: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded+" score: "+score+" evProp: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop+" Indels: "+embedded.getNumIndels());
 			
 			if(embeddedMax==null || maxScoreEmbedded<score) {
 				maxScoreEmbedded = score;

@@ -92,7 +92,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			//System.out.println("Query "+queryIdx+" had zero subject ids after initial filtering. self hits: "+selfHitsCount+" min hits: "+minHits);
 			return relationships;
 		}
-		long cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
+		long cumulativeReadDepth = 0;
+		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
 		if(cumulativeReadDepth<30) {
 			//Build initial clusters
 			List<KmerHitsCluster> clustersForward = createClusters(queryIdx, queryLength, hitsForward, subjectIdxsF);

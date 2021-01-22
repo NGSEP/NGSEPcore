@@ -191,7 +191,7 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	}
 
 	public String toString () {
-		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+" "+isReverse+"_"+hostId+"_"+hostStart+"_"+hostEnd;
+		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+"_"+isReverse+"_"+hostId+"_"+hostStart+"_"+hostEnd;
 	}
 	
 }

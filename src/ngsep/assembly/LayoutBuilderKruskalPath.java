@@ -44,7 +44,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
 		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
 		System.out.println("Average Evidence proportion TP: "+edgesStats[4].getAverage()+" SD: "+Math.sqrt(edgesStats[4].getVariance())+ " Total: "+edgesStats[4].getCount());
-		System.out.println("Average Num mismatches TP: "+edgesStats[5].getAverage()+" SD: "+Math.sqrt(edgesStats[5].getVariance())+ " Total: "+edgesStats[5].getCount());
+		System.out.println("Average Num indels TP: "+edgesStats[5].getAverage()+" SD: "+Math.sqrt(edgesStats[5].getVariance())+ " Total: "+edgesStats[5].getCount());
 		
 		//Algorithms to resolve conflicts between almost safe close edges
 		addEdges2(graph, safePaths, pathEdges);
@@ -127,7 +127,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Distribution kmerHitWCovDistributionTP = new Distribution(0, 100000, 1);
 		Distribution coverageProportionDistributionTP = new Distribution(0, 1.5, 0.01);
 		Distribution evidenceProportionDistributionTP = new Distribution(0, 1.1, 0.01);
-		Distribution numMismatchesDistributionTP = new Distribution(0, 100000, 1);
+		Distribution numIndelsDistributionTP = new Distribution(0, 10000, 1);
 		
 		for(AssemblyEdge edge:safeEdges) {
 			if (edge.isSameSequenceEdge()) continue;
@@ -137,9 +137,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			kmerHitWCovDistributionTP.processDatapoint(edge.getWeightedCoverageSharedKmers());
 			coverageProportionDistributionTP.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/overlap);
 			evidenceProportionDistributionTP.processDatapoint(edge.calculateEvidenceProportion());
-			if(edge.getNumMismatches()>=0) numMismatchesDistributionTP.processDatapoint(edge.getNumMismatches());
+			numIndelsDistributionTP.processDatapoint(edge.getNumIndels());
 		}
-		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, kmerHitWCovDistributionTP, coverageProportionDistributionTP,evidenceProportionDistributionTP,numMismatchesDistributionTP};
+		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, kmerHitWCovDistributionTP, coverageProportionDistributionTP,evidenceProportionDistributionTP,numIndelsDistributionTP};
 		return answer;
 	}
 
@@ -481,7 +481,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Distribution wCovTP = edgesStats[2];
 		Distribution wCovPropTP = edgesStats[3];
 		Distribution evPropTP = edgesStats[4];
-		Distribution numMisTP = edgesStats[5];
+		Distribution numIndelsTP = edgesStats[5];
 		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
 		//int cost = (int)Math.round(1000*(1.5-prop));
 		//return cost;
@@ -490,8 +490,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		NormalDistribution nwcTP = new NormalDistribution(wCovTP.getAverage(),wCovTP.getVariance());
 		NormalDistribution nwcpTP = new NormalDistribution(wCovPropTP.getAverage(),wCovPropTP.getVariance());
 		NormalDistribution evpTP = new NormalDistribution(evPropTP.getAverage(),Math.max(0.0001, evPropTP.getVariance()));
-		NormalDistribution nmTP = null; 
-		if(numMisTP.getCount()>20) nmTP = new NormalDistribution(numMisTP.getAverage(),numMisTP.getVariance());
+		NormalDistribution niTP = new NormalDistribution(numIndelsTP.getAverage(),numIndelsTP.getVariance());
 		double pValueOTP = noTP.cumulative(edge.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
@@ -503,10 +502,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
 		double pValueEvProp = evpTP.cumulative(edge.getEdgeAssemblyGraph().calculateEvidenceProportion());
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
-		double pValueNM = 0.5;
-		int nm = edge.getEdgeAssemblyGraph().getNumMismatches();
-		if(nmTP!=null && nm>=0) pValueNM = nmTP.cumulative(nm);
-		int cost6 = PhredScoreHelper.calculatePhredScore(1-pValueNM);
+		double pValueNI = niTP.cumulative(edge.getEdgeAssemblyGraph().getNumIndels());
+		if(pValueNI>0.5) pValueNI = 1-pValueNI;
+		int cost6 = PhredScoreHelper.calculatePhredScore(pValueNI);
 		double costD = 0;
 		costD+=cost1;
 		//cost += cost2;
@@ -520,7 +518,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		//cost+= (int) (1000000*(1-pValueOTP)*(1-pValueCTP));
 		cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueNM+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Edge: "+edge.getEdgeAssemblyGraph());
+		if( logEdge(edge.getEdgeAssemblyGraph())) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueNI+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Edge: "+edge.getEdgeAssemblyGraph());
 		return cost;
 	}
 	private boolean logEdge(AssemblyEdge edge) {
