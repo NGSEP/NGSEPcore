@@ -264,25 +264,31 @@ public class AssemblyGraphStatistics {
 				while (it.hasNext()) {
 					ReadAlignment aln = it.next();
 					if(aln.getReadLength()<Assembler.DEF_MIN_READ_LENGTH) continue;
+					if(aln.isReadUnmapped()) continue;
 					Integer idx = seqIds.get(aln.getReadName());
 					if(idx==null) {
 						log.warning("Aligned read: "+aln.getReadName()+" not found in graph");
 						continue;
 					}
 					else aln.setReadNumber(idx);
+					QualifiedSequence refSeq = genome.getSequenceByName(aln.getSequenceName());
+					if(refSeq == null) {
+						log.warning("Reference sequence not found for alignment: "+aln);
+						continue;
+					}
+					int refSeqLength = refSeq.getLength();
 					
-					if(aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
+					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
 						log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
 						continue;
 					}
 					
 					//sequences.add(new QualifiedSequence(aln.getReadName(), characters));
-					if(!aln.isReadUnmapped()) {
-						String newReadName = aln.getSequenceName()+"_"+aln.getFirst()+"_"+(aln.isNegativeStrand()?1:0);
-						aln.setReadName(newReadName);
-						sequences.get(idx).setName(newReadName);
-						alignments.add(aln);
-					}
+					
+					String newReadName = aln.getSequenceName()+"_"+aln.getFirst()+"_"+(aln.isNegativeStrand()?1:0);
+					aln.setReadName(newReadName);
+					sequences.get(idx).setName(newReadName);
+					alignments.add(aln);
 				}
 			}
 		} else if (simulated) {
