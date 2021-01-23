@@ -21,7 +21,6 @@ import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ParseUtils;
 import ngsep.math.Distribution;
-import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -34,6 +33,7 @@ public class AssemblyGraphStatistics {
 	public static final byte READS_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP=Assembler.LAYOUT_ALGORITHM_MAX_OVERLAP;
 	public static final String LAYOUT_ALGORITHM_KRUSKAL_PATH=Assembler.LAYOUT_ALGORITHM_KRUSKAL_PATH;
+	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = Assembler.DEF_MIN_SCORE_PROPORTION_EDGES;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(AssemblyGraphStatistics.class.getName());
@@ -48,6 +48,7 @@ public class AssemblyGraphStatistics {
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
+	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -206,6 +207,17 @@ public class AssemblyGraphStatistics {
 	public void setLayoutAlgorithm(String layoutAlgorithm) {
 		this.layoutAlgorithm = layoutAlgorithm;
 	}
+	
+	public double getMinScoreProportionEdges() {
+		return minScoreProportionEdges;
+	}
+	public void setMinScoreProportionEdges(double minScoreProportionEdges) {
+		this.minScoreProportionEdges = minScoreProportionEdges;
+	}
+	public void setMinScoreProportionEdges(String value) {
+		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
+	}
+	
 	public boolean isSimulated() {
 		return simulated;
 	}
@@ -240,6 +252,7 @@ public class AssemblyGraphStatistics {
 		out.println("Layout algorithm:"+ layoutAlgorithm);
 		if (genome!=null) out.println("Target genome for benchmark loaded from file: "+genome.getFilename());
 		if (alignmentsFile!=null) out.println("Alignments file for benchmark "+alignmentsFile);
+		out.println("Minimum score proportion (from the maximum score) to keep edges of a sequence: "+ minScoreProportionEdges);
 		log.info(os.toString());
 	}
 	private void run(String inputFile, String outputFile) throws IOException {
@@ -308,7 +321,7 @@ public class AssemblyGraphStatistics {
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
-			graph.filterEdgesAndEmbedded();
+			graph.filterEdgesAndEmbedded(minScoreProportionEdges);
 			log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			
 			LayoutBuilder pathsFinder;
@@ -629,10 +642,10 @@ public class AssemblyGraphStatistics {
 					tpPathEdges++;
 					AssemblyEdge minCostTestEdge = null;
 					AssemblyEdge maxOverlapTestEdge = null;
-					AssemblyEdge layoutTestEdge = null;
+					//AssemblyEdge layoutTestEdge = null;
 					for(AssemblyEdge edge:testEdges) {
 						if (edge.getConnectingVertex(testVertex).getUniqueNumber() == number) {
-							layoutTestEdge = edge;
+							//layoutTestEdge = edge;
 							if (!gsEdge.isSameSequenceEdge()) {
 								distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
 								distCostsTPPathEdges.processDatapoint(calculateCost(edge));

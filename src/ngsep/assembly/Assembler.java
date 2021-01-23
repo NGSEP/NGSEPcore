@@ -52,9 +52,10 @@ public class Assembler {
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
-	public static final int DEF_WINDOW_LENGTH = GraphBuilderMinimizers.DEF_WINDOW_LENGTH;
+	public static final int DEF_WINDOW_LENGTH = 30;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
+	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.3;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
@@ -80,6 +81,7 @@ public class Assembler {
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
 	private boolean correctReads = false;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
+	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Get and set methods
@@ -186,6 +188,16 @@ public class Assembler {
 		this.setBpHomopolymerCompression((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public double getMinScoreProportionEdges() {
+		return minScoreProportionEdges;
+	}
+	public void setMinScoreProportionEdges(double minScoreProportionEdges) {
+		this.minScoreProportionEdges = minScoreProportionEdges;
+	}
+	public void setMinScoreProportionEdges(String value) {
+		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
+	}
+	
 	public boolean isCorrectReads() {
 		return correctReads;
 	}
@@ -229,10 +241,11 @@ public class Assembler {
 		out.println("Algorithm to build consensus: "+consensusAlgorithm);
 		out.println("Window length for minimizers: "+windowLength);
 		if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
-		//out.println("K-mer length: "+ kmerLength);
+		out.println("Minimum score proportion (from the maximum score) to keep edges of a sequence: "+ minScoreProportionEdges);
 		//out.println("K-mer offset for FM-index: "+ kmerOffset);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		out.println("Number of threads "+numThreads);
 		log.info(os.toString());
 	}
 
@@ -288,8 +301,7 @@ public class Assembler {
 		}
 		
 		long time2 = System.currentTimeMillis();
-		//graph.removeEdgesChimericReads();
-		graph.filterEdgesAndEmbedded();
+		graph.filterEdgesAndEmbedded(minScoreProportionEdges);
 		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		LayoutBuilder pathsFinder;
 		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
@@ -319,11 +331,13 @@ public class Assembler {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
 		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
-		log.info("Built consensus");
+		log.info("Built initial consensus. Merging contig ends");
+		ContigEndsMerger merger = new ContigEndsMerger();
+		assembledSequences = merger.mergeContigs(assembledSequences);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
 		List<Integer> lengths = new ArrayList<Integer>();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
-		int [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
+		long [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
 		System.out.println("Length N statistics");
 		NStatisticsCalculator.printNStatistics(nStats, System.out);
 		

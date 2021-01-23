@@ -74,7 +74,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		System.out.println("Final number of paths: "+graph.getPaths().size());
 		System.out.println("Estimated N statistics");
-		int [] stats = graph.estimateNStatisticsFromPaths();
+		long [] stats = graph.estimateNStatisticsFromPaths();
 		if(stats!=null) NStatisticsCalculator.printNStatistics(stats, System.out);
 
 	}
@@ -518,7 +518,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		costD+=cost1;
 		//cost += cost2;
 		costD += cost3;
-		//costD += cost5;
+		costD += cost5;
 		//costD += cost6;
 		
 		costD*=1000;

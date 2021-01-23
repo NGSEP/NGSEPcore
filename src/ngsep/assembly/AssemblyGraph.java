@@ -408,7 +408,7 @@ public class AssemblyGraph {
 		return answer;
 	}
 	
-	public int [] estimateNStatisticsFromPaths () {
+	public long [] estimateNStatisticsFromPaths () {
 		List<Integer> lengths = new ArrayList<Integer>(paths.size());
 		for(List<AssemblyEdge> path:paths) {
 			int n = path.size();
@@ -557,7 +557,7 @@ public class AssemblyGraph {
 				numCrossing++;
 			}
 		}
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing);
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
 		
 		if( numCrossing<2  && hostEvidenceEndLeft-hostPredictedStartRight>1000 && hostPredictedEndLeft-hostEvidenceStartRight>1000) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
@@ -573,7 +573,7 @@ public class AssemblyGraph {
 		return false;
 	}
 	
-	public void filterEdgesAndEmbedded() {
+	public void filterEdgesAndEmbedded(double minScoreProportionEdges) {
 		removeVerticesChimericReads();
 		Distribution lengthsDistribution = new Distribution(0, getSequenceLength(0), 1);
 		for(QualifiedSequence seq:sequences) lengthsDistribution.processDatapoint(seq.getLength());
@@ -604,7 +604,7 @@ public class AssemblyGraph {
 		System.out.println("Median read length: "+medianLength);
 		int numEmbedded = 0;
 		for (int seqId = sequences.size()-1; seqId >=0; seqId--) {
-			if(filterEdgesAndEmbedded(seqId,medianLength, lengthsDistribution)) numEmbedded++;
+			if(filterEdgesAndEmbedded(seqId,medianLength, minScoreProportionEdges)) numEmbedded++;
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		pruneEmbeddedSequences();
@@ -612,7 +612,7 @@ public class AssemblyGraph {
 		//filterEdgesCloseRelationships();
 	}
 
-	public boolean filterEdgesAndEmbedded(int sequenceId,int medianLength, Distribution lengthsDistribution) {
+	public boolean filterEdgesAndEmbedded(int sequenceId,int medianLength, double minScoreProportionEdges) {
 		int debugIdx = -1;
 		int sequenceLength = getSequenceLength(sequenceId);
 		AssemblyVertex vS = verticesStart.get(sequenceId);
@@ -623,15 +623,13 @@ public class AssemblyGraph {
 		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
 		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
 		if(vS!=null) edgesS.addAll(getEdges(vS));
-		double minScoreProportionEdges = 0.3;
-		//double minScoreProportionEdges = 0;
 		
 		double maxScoreSE = 0;
 		double maxScoreSF = 0;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			maxScoreSF = Math.max(maxScoreSF, calculateScoreForEdgeFiltering(edge));
-			int connectingLength = getSequenceLength(edge.getConnectingVertex(vS).getSequenceIndex());
+			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vS).getSequenceIndex());
 			/*if(connectingLength<1.2*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreSE = Math.max(maxScoreSE, calculateScoreForEmbedded(edge));
 		}
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
@@ -641,7 +639,7 @@ public class AssemblyGraph {
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			maxScoreEF = Math.max(maxScoreEF, calculateScoreForEdgeFiltering(edge));
-			int connectingLength = getSequenceLength(edge.getConnectingVertex(vE).getSequenceIndex());
+			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vE).getSequenceIndex());
 			/*if(connectingLength<1.5*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreEE = Math.max(maxScoreEE, calculateScoreForEmbedded(edge));
 		}
 		double minScoreEdges = minScoreProportionEdges*Math.max(maxScoreSF, maxScoreEF);

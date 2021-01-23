@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.0.3" date="01-11-2020" jar="NGSEPcore">
+<software name="NGSEP" version="4.1.0" date="31-01-2021" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -238,10 +238,10 @@ Window length to calculate minimizers.
 Perform homopolymer compression keeping homopolymers up to the given number of pase pairs.
 A value less or equal to zero disables homopolymer compression. 
 </option>
-<!-- <option id="p" type="INT" attribute="minKmerPercentage" defaultConstant="DEF_MIN_KMER_PCT">
-Minimum percentage of k-mers to identify an overlap 
+<option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
+Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
 </option>
-
+<!-- 
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
@@ -295,7 +295,9 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 <option id="s" type="BOOLEAN" attribute="simulated">
 Indicates if the reads were simulated using the NGSEP SingleReadsSimulator
 </option>
-
+<option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
+Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
+</option>
 </command>
 
 <command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" groupId="Reads" formerId="VCFIndividualGenomeBuilder">
