@@ -21,6 +21,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	public static final int KMER_LENGTH_LOCAL_ALN = KmersExtractor.DEF_KMER_LENGTH;
+	private String sequenceNamePrefix = "Contig";
 	
 	public Logger getLog() {
 		return log;
@@ -30,6 +31,14 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		this.log = log;
 	}
 	
+	public String getSequenceNamePrefix() {
+		return sequenceNamePrefix;
+	}
+
+	public void setSequenceNamePrefix(String sequenceNamePrefix) {
+		this.sequenceNamePrefix = sequenceNamePrefix;
+	}
+
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
@@ -39,7 +48,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
-			String sequenceName = "Contig_"+(i+1);
+			String sequenceName = sequenceNamePrefix+"_"+(i+1);
 			CharSequence consensusPath = makeConsensus (graph, path, i, sequenceName);
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}

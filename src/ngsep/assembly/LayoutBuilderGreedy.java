@@ -50,7 +50,7 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
 			}
 			if(currentPath.size()>1) {
-				System.out.println("Found path of size "+currentPath.size());
+				System.err.println("Found path of size "+currentPath.size());
 				//printPath(currentPath);
 				graph.addPath(currentPath);
 			}
@@ -65,7 +65,7 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 		for(AssemblyEdge edge:path) {
 			AssemblyVertex v1 = edge.getVertex1();
 			AssemblyVertex v2 = edge.getVertex2();
-			System.out.println("Edge between "+v1.getSequenceIndex()+"-"+v1.isStart()+" and "+v2.getSequenceIndex()+"-"+v2.isStart());
+			System.err.println("Edge between "+v1.getSequenceIndex()+"-"+v1.isStart()+" and "+v2.getSequenceIndex()+"-"+v2.isStart());
 		}	
 	}
 

@@ -16,6 +16,15 @@ import ngsep.math.PhredScoreHelper;
 
 public class LayoutBuilderKruskalPath implements LayoutBuilder {
 
+	private int minPathLength = 6;
+	
+	
+	public int getMinPathLength() {
+		return minPathLength;
+	}
+	public void setMinPathLength(int minPathLength) {
+		this.minPathLength = minPathLength;
+	}
 	@Override
 	public void findPaths(AssemblyGraph graph) {
 		Distribution initialDegreesDist = new Distribution(0, 10000, 1);
@@ -60,7 +69,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		addConnectingEdges(graph, safePaths, pathEdges, edgesStats);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
 		for(LinkedList<AssemblyEdge> path:paths) {
-			if(path.size()<=5) continue;
+			if(path.size()<minPathLength) continue;
 			graph.addPath(path);
 		}
 		System.out.println("Final number of paths: "+graph.getPaths().size());
