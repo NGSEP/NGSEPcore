@@ -531,6 +531,7 @@ public class KmerHitsCluster {
 			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Average predicted start next cluster: "+average+" size: "+cluster.size());
 			clusterAverages.add(average);
 		}
+		if (clusterAverages.size()==0) return answer;
 		Collections.sort(clusterAverages, (c1,c2)->c1-c2);
 		int next = clusterAverages.get(0);
 		for(int average:clusterAverages) {
