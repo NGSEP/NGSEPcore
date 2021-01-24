@@ -296,7 +296,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			embeddedEvent.setNumMismatches(aln.getNumMismatches());
 			embeddedEvent.setCoverageSharedKmers(aln.getCoverageSharedKmers());
 			embeddedEvent.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
-			embeddedEvent.setNumIndels(aln.getCountIndelCalls());
+			embeddedEvent.setNumIndels(aln.getTotalLengthIndelCalls());
 		} else {
 			embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 			embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
@@ -368,7 +368,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setNumMismatches(aln.getNumMismatches());
 			edge.setCoverageSharedKmers(aln.getCoverageSharedKmers());
 			edge.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
-			edge.setNumIndels(aln.getCountIndelCalls());
+			edge.setNumIndels(aln.getTotalLengthIndelCalls());
 		} else {
 			edge.setVertex1EvidenceStart(cluster.getSubjectEvidenceStart());
 			edge.setVertex1EvidenceEnd(cluster.getSubjectEvidenceEnd());
@@ -437,7 +437,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setNumMismatches(aln.getNumMismatches());
 			edge.setCoverageSharedKmers(aln.getCoverageSharedKmers());
 			edge.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
-			edge.setNumIndels(aln.getCountIndelCalls());
+			edge.setNumIndels(aln.getTotalLengthIndelCalls());
 		} else {
 			edge.setVertex1EvidenceStart(cluster.getQueryEvidenceStart());
 			edge.setVertex1EvidenceEnd(cluster.getQueryEvidenceEnd());

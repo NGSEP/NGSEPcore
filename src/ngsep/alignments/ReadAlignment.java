@@ -991,6 +991,20 @@ public class ReadAlignment implements GenomicRegion {
 		return indelCalls.size();
 	}
 	/**
+	 * Calculates the total number of base pairs in indel events
+	 * @return Sum of length of indels in this alignment
+	 */
+	public int getTotalLengthIndelCalls () {
+		failIfReadUnmappedOrInconsistentAlignment();
+		updateAlleleCallsInfo();
+		if (indelCalls==null) return 0;
+		int total = 0;
+		for(GenomicVariant indel:indelCalls.values()) {
+			total+=indel.length();
+		}
+		return total;
+	}
+	/**
 	 * Provides the indel call (if any) at the given reference position
 	 * @param referencePos Position to consider in the reference sequence to which this read aligned
 	 * @return GenomicVariant object with the indel call

@@ -500,6 +500,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		NormalDistribution nwcpTP = new NormalDistribution(wCovPropTP.getAverage(),wCovPropTP.getVariance());
 		NormalDistribution evpTP = new NormalDistribution(evPropTP.getAverage(),Math.max(0.0001, evPropTP.getVariance()));
 		NormalDistribution niTP = new NormalDistribution(numIndelsTP.getAverage(),numIndelsTP.getVariance());
+		//NormalDistribution niTP = new NormalDistribution(200,40000);
 		double pValueOTP = noTP.cumulative(edge.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
@@ -511,8 +512,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
 		double pValueEvProp = evpTP.cumulative(edge.getEdgeAssemblyGraph().calculateEvidenceProportion());
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
-		double pValueNI = niTP.cumulative(edge.getEdgeAssemblyGraph().getNumIndels());
-		if(pValueNI>0.5) pValueNI = 1-pValueNI;
+		double pValueNI = 1-niTP.cumulative(edge.getEdgeAssemblyGraph().getNumIndels());
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueNI);
 		double costD = 0;
 		costD+=cost1;

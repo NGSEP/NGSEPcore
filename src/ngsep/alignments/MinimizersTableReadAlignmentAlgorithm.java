@@ -347,7 +347,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
-				if(subjectNextLength!=queryNextLength) numIndels++;
+				if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);

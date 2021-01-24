@@ -1,8 +1,10 @@
 package ngsep.sequences;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -67,37 +69,19 @@ public class KmerHitsCluster {
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num different kmers: "+hitsMultiMap.size());
 		List<Integer> subjectStarts = new ArrayList<Integer>();
-		//Try first with local unique hits
 		double sum = 0;
 		double sum2 = 0;
 		double n = 0;
-		/*
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
-			if(hits.size()>1) continue;
-			UngappedSearchHit hit = hits.get(0);
-			int estStart = estimateSubjectStart(hit);
-			subjectStarts.add(estStart);
-			sum+=estStart;
-			sum2+=estStart*estStart;
-			n++;
-		}
-		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num unique: "+n);
-		*/
-		if(n<5) {
-			//System.out.println("WARN. Few unique kmers for hits to "+sequenceIdx+" initial: "+hitsMultiMap.size()+" final: "+n);
-			subjectStarts.clear();
-			sum=sum2=n=0;
-			for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
-				for(UngappedSearchHit hit:hits) {
-					int estStart = estimateSubjectStart(hit);
-					subjectStarts.add(estStart);
-					sum+=1.0*estStart;
-					sum2+=(1.0*estStart*estStart);
-					n++;
-				}
-				
+			for(UngappedSearchHit hit:hits) {
+				int estStart = estimateSubjectStart(hit);
+				subjectStarts.add(estStart);
+				sum+=1.0*estStart;
+				sum2+=(1.0*estStart*estStart);
+				n++;
 			}
 		}
+		
 		Collections.sort(subjectStarts);
 		int median = subjectStarts.get(subjectStarts.size()/2);
 		//System.out.println("Sum: "+sum+" sum2: "+sum2);
@@ -120,28 +104,44 @@ public class KmerHitsCluster {
 			else if (maxDistance>0.05*queryLength) maxDistance/=2;
 		}
 		
-		
-		boolean initialized = false;
+		List<UngappedSearchHit> selectedHits = new ArrayList<UngappedSearchHit>(hitsMultiMap.size());
+		int minSubjectStart = firstHit.getStart();
+		int maxSubjectStart = firstHit.getStart();
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits, queryLength, median, Math.min(queryLength/20, maxDistance));
 			if(hit!=null) {
-				if(!initialized) {
-					subjectPredictedStart = estimateSubjectStart(hit);
-					subjectPredictedEnd = estimateSubjectEnd(hit);
-					subjectEvidenceStart = hit.getStart();
-					subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
-					queryPredictedStart = estimateQueryStart(hit);
-					queryPredictedEnd = estimateQueryEnd(hit);
-					queryEvidenceStart = hit.getQueryIdx();
-					queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
-					initialized = true;
-				}
-				addHit(hit);
+				selectedHits.add(hit);
+				minSubjectStart = Math.min(minSubjectStart, hit.getStart());
+				maxSubjectStart = Math.max(maxSubjectStart, hit.getStart());
 			}
 		}
-		summarize();
+		if(selectedHits.size()<1) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx+" "+subjectName);
+		List<UngappedSearchHit> filteredHits = removeDisorganized (selectedHits);
+		if(filteredHits.size()<1) {
+			System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" "+subjectName);
+		} else {
+			selectedHits = filteredHits;
+		}
+		//Create cluster with selected hits
+		boolean initialized = false;
+		for(UngappedSearchHit hit:selectedHits) {
+			if(!initialized) {
+				subjectPredictedStart = estimateSubjectStart(hit);
+				subjectPredictedEnd = estimateSubjectEnd(hit);
+				subjectEvidenceStart = hit.getStart();
+				subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
+				queryPredictedStart = estimateQueryStart(hit);
+				queryPredictedEnd = estimateQueryEnd(hit);
+				queryEvidenceStart = hit.getQueryIdx();
+				queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
+				initialized = true;
+			}
+			addHit(hit);
+		}
+		if(selectedHits.size()>0) summarize();
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Final hits: "+hitsMap.size()+" start: "+subjectPredictedStart+" end: "+subjectPredictedEnd);
 	}
+	
 	private UngappedSearchHit selectHit(List<UngappedSearchHit> hits, int queryLength, int median, int maxDistance) {
 		UngappedSearchHit answer = null;
 		int minDistance = 0;
@@ -159,7 +159,91 @@ public class KmerHitsCluster {
 		return answer;
 	}
 
+	private List<UngappedSearchHit> removeDisorganized(List<UngappedSearchHit> selectedHits) {
+		int n = selectedHits.size();
+		if(n==0) return selectedHits;
+		boolean [] vicinityConsistent = new boolean [n];
+		Arrays.fill(vicinityConsistent, false);
+		for(int i=10;i<n-10;i++) {
+			UngappedSearchHit hit = selectedHits.get(i);
+			int start = hit.getStart();
+			boolean consistent = true;
+			for(int j=i-1;j>=i-10 && consistent;j--) {
+				UngappedSearchHit hit2 = selectedHits.get(j);
+				if(hit2.getStart()>=start) consistent = false; 
+			}
+			for(int j=i+1;j<=i+10 && consistent;j++) {
+				UngappedSearchHit hit2 = selectedHits.get(j);
+				if(hit2.getStart()<=start) consistent = false; 
+			}
+			vicinityConsistent[i] = consistent;
+		}
+		List<UngappedSearchHit> answer = new LinkedList<UngappedSearchHit>();
+		int i=0;
+		while(i<n) {
+			UngappedSearchHit hit = selectedHits.get(i);
+			if(vicinityConsistent[i]) {
+				answer.add(hit);
+				i++;
+			} else {
+				int j;
+				for(j=i+1;j<n && !vicinityConsistent[j];j++);
+				answer.addAll(selectSorted(selectedHits,i,j-1));
+				i=j;
+			}
+		}
+		
+		
+		return answer;
+	}
 
+
+	private List<UngappedSearchHit> selectSorted(List<UngappedSearchHit> selectedHits, int first, int last) {
+		//Check sorted first
+		List<UngappedSearchHit> regionHits = new ArrayList<UngappedSearchHit>(last-first+1);
+		int lastStart = -1;
+		boolean sorted = true;
+		for(int i=first;i<=last;i++) {
+			UngappedSearchHit hit = selectedHits.get(i);
+			regionHits.add(hit);
+			int start = hit.getStart();
+			if(lastStart>=start) sorted = false;
+			lastStart = start;
+		}
+		if (sorted) return regionHits;
+		List<UngappedSearchHit> regionHitsBySubject = new ArrayList<UngappedSearchHit>();
+		regionHitsBySubject.addAll(regionHits);
+		Collections.sort(regionHitsBySubject,(h1,h2)->h1.getStart()-h2.getStart());
+		int n = regionHits.size();
+		//Dynamic programming to select the best organized subset
+		int [][] scores = new int [n+1][n+1];
+		for(int i=0;i<=n;i++) {
+			for(int j=0;j<=n;j++) {
+				if(i==0 || j==0) scores[i][j] = 0;
+				else {
+					UngappedSearchHit hit1 = selectedHits.get(i-1);
+					UngappedSearchHit hit2 = selectedHits.get(j-1);
+					if(hit1==hit2) scores[i][j] = 1 + scores[i-1][j-1];
+					else scores[i][j] = Math.max(scores[i-1][j], scores[i][j-1]);
+				}
+			}
+			 
+		}
+		List<UngappedSearchHit> answer = new LinkedList<UngappedSearchHit>();
+		int i= n;
+		int j = n;
+		while(i>0 && j>0) {
+			UngappedSearchHit hit1 = selectedHits.get(i-1);
+			UngappedSearchHit hit2 = selectedHits.get(j-1);
+			if(hit1==hit2) {
+				answer.add(0,hit1);
+				i--;
+				j--;
+			} else if (scores[i][j] == scores[i-1][j]) i--;
+			else j--;
+		}
+		return answer;
+	}
 
 	public KmerHitsCluster(int queryLength, int subjectLength, UngappedSearchHit kmerHit) {
 		this.queryLength = queryLength;

@@ -128,6 +128,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			lastVertex = vertexNextEdge;
 		}
 		log.info("Processed path "+sequenceIdx+". Length: "+path.size());
+		//log.info(""+path);
 		return consensus;
 	}
 
