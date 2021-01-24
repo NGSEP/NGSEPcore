@@ -178,7 +178,7 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	}
 	
 	public double getIndelsPerKbp () {
-		return 1000.0*numIndels / (double)overlap;
+		return 1000.0*numIndels / (double)(overlap+1);
 	}
 
 	public int getVertex1EvidenceStart() {

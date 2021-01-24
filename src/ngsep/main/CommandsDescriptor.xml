@@ -292,11 +292,14 @@ File with alignments to the genome of the reads assembled in the given graph
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
+<option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
+Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
+</option>
 <option id="s" type="BOOLEAN" attribute="simulated">
 Indicates if the reads were simulated using the NGSEP SingleReadsSimulator
 </option>
-<option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
-Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
+<option id="uid" type="BOOLEAN" attribute="useIndels">
+Use indels in the layout algorithm.
 </option>
 </command>
 

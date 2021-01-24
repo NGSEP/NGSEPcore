@@ -49,6 +49,7 @@ public class AssemblyGraphStatistics {
 	private String alignmentsFile = null;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
+	private boolean useIndels = false;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -218,6 +219,17 @@ public class AssemblyGraphStatistics {
 		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
 	}
 	
+	
+	public boolean isUseIndels() {
+		return useIndels;
+	}
+	public void setUseIndels(boolean useIndels) {
+		this.useIndels = useIndels;
+	}
+	public void setUseIndels(Boolean useIndels) {
+		setUseIndels(useIndels.booleanValue());
+	}
+	
 	public boolean isSimulated() {
 		return simulated;
 	}
@@ -331,6 +343,7 @@ public class AssemblyGraphStatistics {
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
 				pathsFinder = new LayoutBuilderKruskalPath();
+				((LayoutBuilderKruskalPath)pathsFinder).setUseIndels(useIndels);
 				//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 				//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			}
@@ -600,7 +613,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==993 || gsVertex.getSequenceIndex()==2078 || gsVertex.getSequenceIndex()==5201; 
+		//boolean debug = gsVertex.getSequenceIndex()==2364 || gsVertex.getSequenceIndex()==3169 || gsVertex.getSequenceIndex()==3316; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -657,6 +670,7 @@ public class AssemblyGraphStatistics {
 								distOverlapSDTPPathEdges.processDatapoint(edge.getRawKmerHitsSubjectStartSD());
 								distNumIndelsTPPathEdges.processDatapoint(edge.getNumIndels());
 								distIndelsKbpTPPathEdges.processDatapoint(edge.getIndelsPerKbp());
+								if(edge.getIndelsPerKbp()>20) log.info("Large indels per kbp for path edge: "+edge);
 							}
 						}
 						if(!edge.isSameSequenceEdge() && (minCostTestEdge==null || minCostTestEdge.getCost()>edge.getCost())) minCostTestEdge=edge;
