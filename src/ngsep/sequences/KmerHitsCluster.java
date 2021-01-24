@@ -110,7 +110,7 @@ public class KmerHitsCluster {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits, queryLength, median, Math.min(queryLength/20, maxDistance));
 			if(hit!=null) {
-				//if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
+				if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 				selectedHits.add(hit);
 				minSubjectStart = Math.min(minSubjectStart, hit.getStart());
 				maxSubjectStart = Math.max(maxSubjectStart, hit.getStart());
@@ -162,24 +162,24 @@ public class KmerHitsCluster {
 
 	private List<UngappedSearchHit> removeDisorganized(List<UngappedSearchHit> selectedHits) {
 		int n = selectedHits.size();
-		if(n==0) return selectedHits;
+		if(n<=30) return selectedHits;
 		boolean [] vicinityConsistent = new boolean [n];
 		Arrays.fill(vicinityConsistent, false);
-		for(int i=10;i<n-10;i++) {
+		for(int i=15;i<n-15;i++) {
 			UngappedSearchHit hit = selectedHits.get(i);
 			int start = hit.getStart();
 			boolean consistent = true;
-			for(int j=i-1;j>=i-10 && consistent;j--) {
+			for(int j=i-1;j>=i-15 && consistent;j--) {
 				UngappedSearchHit hit2 = selectedHits.get(j);
 				if(hit2.getStart()>=start) consistent = false; 
 			}
-			for(int j=i+1;j<=i+10 && consistent;j++) {
+			for(int j=i+1;j<=i+15 && consistent;j++) {
 				UngappedSearchHit hit2 = selectedHits.get(j);
 				if(hit2.getStart()<=start) consistent = false; 
 			}
 			vicinityConsistent[i] = consistent;
 		}
-		LinkedList<UngappedSearchHit> answer = new LinkedList<UngappedSearchHit>();
+		List<UngappedSearchHit> dpSortedHits = new ArrayList<UngappedSearchHit>();
 		double sum = 0;
 		double sum2 = 0;
 		double nS = 0;
@@ -187,7 +187,7 @@ public class KmerHitsCluster {
 		while(i<n) {
 			UngappedSearchHit hit = selectedHits.get(i);
 			if(vicinityConsistent[i]) {
-				answer.add(hit);
+				dpSortedHits.add(hit);
 				double s = estimateSubjectStart(hit);
 				sum+=s;
 				sum2+=s*s;
@@ -196,29 +196,42 @@ public class KmerHitsCluster {
 			} else {
 				int j;
 				for(j=i+1;j<n && !vicinityConsistent[j];j++);
-				answer.addAll(selectSorted(selectedHits,i,j-1));
+				dpSortedHits.addAll(selectSorted(selectedHits,i,j-1));
 				i=j;
 			}
 		}
-		//Remove weird sides
-		if(nS<20) return answer;
-		double averageStart = sum/nS;
-		double variance = (sum2-sum*sum/n)/(n-1);
+		//Remove final outliers
+		int n2= dpSortedHits.size();
+		if(n2<30 || nS < 20) return dpSortedHits;
+		int averageStart = (int) (sum/nS);
+		double variance = (sum2-sum*sum/nS)/(nS-1);
 		double stdev = Math.sqrt(variance);
 		double maxDistance = Math.max(30, 3*stdev);
-		for (int k=0;k<10 && answer.size()>=20;k++) {
-			UngappedSearchHit hit = answer.getFirst();
+		int countOutliers =0;
+		for(UngappedSearchHit hit:dpSortedHits) {
 			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
-			if(distance > maxDistance) answer.removeFirst();
-			else break;
-		}
-		for (int k=0;k<10 && answer.size()>=20;k++) {
-			UngappedSearchHit hit = answer.getLast();
-			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
-			if(distance > maxDistance) answer.removeLast();
-			else break;
+			if(distance > maxDistance) countOutliers++;
 		}
 		
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Average start: "+averageStart+" stdev: "+stdev+" max distance: "+maxDistance+" outliers: "+countOutliers+" n "+n2+" nconsistent: "+nS);
+		List<UngappedSearchHit> answer = new ArrayList<UngappedSearchHit>(n2);
+		if(countOutliers<0.02*n2) {
+			for(UngappedSearchHit hit:dpSortedHits) {
+				double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
+				if(distance <= maxDistance) answer.add(hit);
+				else if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Removing outlier: "+hit.getQueryIdx());
+			}
+			return answer;
+		}
+		Collections.sort(dpSortedHits,(h1,h2)->Math.abs(estimateSubjectStart(h2)-averageStart)-Math.abs(estimateSubjectStart(h1)-averageStart));
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Sorted by diestance");
+		for (int k=0;k<dpSortedHits.size();k++) {
+			UngappedSearchHit hit = dpSortedHits.get(k);
+			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
+			if(distance <= maxDistance || k>=0.02*n2) answer.add(hit);
+			else if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Removing outlier after sorting: "+hit.getQueryIdx());
+		}
+		Collections.sort(answer,(h1,h2)->h1.getQueryIdx()-h2.getQueryIdx());
 		return answer;
 	}
 
