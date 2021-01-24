@@ -331,20 +331,29 @@ public class Assembler {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
 		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
-		log.info("Built initial consensus. Merging contig ends");
-		ContigEndsMerger merger = new ContigEndsMerger();
-		assembledSequences = merger.mergeContigs(assembledSequences);
-		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
+			handler.saveSequences(assembledSequences, out, 100);
+		}
 		List<Integer> lengths = new ArrayList<Integer>();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
 		long [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
-		System.out.println("Length N statistics");
+		System.out.println("Initial consensus N statistics");
 		NStatisticsCalculator.printNStatistics(nStats, System.out);
-		
-		FastaSequencesHandler handler = new FastaSequencesHandler();
+		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
+		log.info("Built initial consensus. Merging contig ends");
+		ContigEndsMerger merger = new ContigEndsMerger();
+		assembledSequences = merger.mergeContigs(assembledSequences);
 		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
+		
+		lengths.clear();
+		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
+		nStats = NStatisticsCalculator.calculateNStatistics(lengths);
+		System.out.println("Final assembly N statistics");
+		NStatisticsCalculator.printNStatistics(nStats, System.out);
+		
 		
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;

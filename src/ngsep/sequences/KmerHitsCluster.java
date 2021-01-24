@@ -119,7 +119,7 @@ public class KmerHitsCluster {
 		if(selectedHits.size()<1) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx+" "+subjectName);
 		List<UngappedSearchHit> filteredHits = removeDisorganized (selectedHits);
 		if(filteredHits.size()<1) {
-			System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" "+subjectName);
+			System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" "+subjectName+" selected hits: "+selectedHits.size()+" query length: "+queryLength);
 			return;
 		}
 		//Create cluster with selected hits
@@ -202,9 +202,10 @@ public class KmerHitsCluster {
 		}
 		//Remove final outliers
 		int n2= dpSortedHits.size();
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Initial hits: "+n+" consistent: "+nS+" dpSorted: "+n2);
 		if(n2<30 || nS < 20) return dpSortedHits;
 		int averageStart = (int) (sum/nS);
-		double variance = (sum2-sum*sum/nS)/(nS-1);
+		double variance = Math.max(1, (sum2-sum*sum/nS)/(nS-1));
 		double stdev = Math.sqrt(variance);
 		double maxDistance = Math.max(30, 3*stdev);
 		int countOutliers =0;
