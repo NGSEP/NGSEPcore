@@ -449,8 +449,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				else if (i==last) lastKmerCounts.add(kmer);
 			}
 		}
+		if(firstKmerCounts.getNumDifferent()==0 || lastKmerCounts.getNumDifferent()==0) return null;
 		Collections.sort(lengths);
 		int medianCallLength = lengths.get(allCalls.size()/2);
+		
 		String bestKmerStart = firstKmerCounts.selectBest(1).keySet().iterator().next();
 		String bestKmerEnd = lastKmerCounts.selectBest(1).keySet().iterator().next();
 		//System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
