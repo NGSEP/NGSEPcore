@@ -178,7 +178,7 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	}
 	
 	public double getIndelsPerKbp () {
-		return 1000.0*numIndels / (double)(overlap+1);
+		return 1000.0*(numIndels+1) / (double)(overlap+1);
 	}
 
 	public int getVertex1EvidenceStart() {
@@ -254,7 +254,7 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	}
 	
 	public String toString() {
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Indels: "+numIndels+" layout: "+layoutEdge;
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Indels: "+numIndels+" IKBP: "+getIndelsPerKbp()+ "layout: "+layoutEdge;
 	}
 	
 

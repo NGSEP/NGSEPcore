@@ -301,8 +301,8 @@ public class Assembler {
 		}
 		
 		long time2 = System.currentTimeMillis();
-		graph.filterEdgesAndEmbedded(minScoreProportionEdges);
-		log.info("Filtered graph. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		graph.removeVerticesChimericReads();
+		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		LayoutBuilder pathsFinder;
 		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();

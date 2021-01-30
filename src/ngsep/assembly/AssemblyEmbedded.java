@@ -144,6 +144,10 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	public void setNumIndels(int numIndels) {
 		this.numIndels = numIndels;
 	}
+	
+	public double getIndelsPerKbp () {
+		return 1000.0*(numIndels+1) / (double)(hostEnd-hostStart+1);
+	}
 
 	public int getHostEvidenceStart() {
 		return hostEvidenceStart;
