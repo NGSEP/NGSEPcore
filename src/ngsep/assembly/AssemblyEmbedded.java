@@ -45,6 +45,9 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	private int sequenceEvidenceEnd;
 	private int numMismatches = -1;
 	
+	private int score;
+	private int cost;
+	
 
 	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
 		this.sequenceId = sequenceId;
@@ -94,6 +97,10 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	}
 	public void setHostEnd(int hostEnd) {
 		this.hostEnd = hostEnd;
+	}
+	
+	public int getOverlap() {
+		return hostEnd-hostStart;
 	}
 	
 	public int getHostStartStandardDeviation() {
@@ -186,12 +193,28 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	}
 
 
-	public double calculateEvidenceProportion () {
+	public double getEvidenceProportion () {
 		double evidenceProp = hostEvidenceEnd-hostEvidenceStart;
 		evidenceProp += (sequenceEvidenceEnd-sequenceEvidenceStart);
 		evidenceProp/=(2*read.getLength());
 		if(evidenceProp>1) evidenceProp = 2 - evidenceProp;
 		return evidenceProp;
+	}
+	
+	public int getScore() {
+		return score;
+	}
+
+	public void setScore(int score) {
+		this.score = score;
+	}
+
+	public int getCost() {
+		return cost;
+	}
+
+	public void setCost(int cost) {
+		this.cost = cost;
 	}
 
 	public String toString () {

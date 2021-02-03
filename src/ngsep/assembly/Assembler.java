@@ -303,6 +303,9 @@ public class Assembler {
 		long time2 = System.currentTimeMillis();
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		graph.updateScores(false);
+		(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+		graph.updateScores(false);
 		LayoutBuilder pathsFinder;
 		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();

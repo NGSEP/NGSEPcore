@@ -44,6 +44,9 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	private int numMismatches = -1;
 	private boolean layoutEdge = false;
 	
+	private int score;
+	private int cost;
+	
 
 	public AssemblyEdge(AssemblyVertex vertex1, AssemblyVertex vertex2, int overlap) {
 		this.vertex1 = vertex1;
@@ -105,20 +108,6 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 
 	public void setFromLimitsOverlap(int fromLimitsOverlap) {
 		this.fromLimitsOverlap = fromLimitsOverlap;
-	}
-
-	/**
-	 * @return the cost
-	 */
-	public int getCost() {
-		int l1 = vertex1.getRead().getLength();
-		int l2 = vertex2.getRead().getLength();
-		if(isSameSequenceEdge()) return l1;
-		int cost = l1 + l2;
-		int toSubstract = Math.min(l1, l2)-1;
-		toSubstract = Math.min(toSubstract, overlap);
-		cost-= toSubstract;
-		return cost;
 	}
 
 	public int getOverlapStandardDeviation() {
@@ -237,7 +226,7 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 		return vertex1.getSequenceIndex() == vertex2.getSequenceIndex();
 	}
 	
-	public double calculateEvidenceProportion() {
+	public double getEvidenceProportion() {
 		double evidenceProp = vertex1EvidenceEnd-vertex1EvidenceStart;
 		evidenceProp += vertex2EvidenceEnd-vertex2EvidenceStart;
 		evidenceProp/=(2*overlap);
@@ -253,6 +242,22 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 		this.layoutEdge = layoutEdge;
 	}
 	
+	public int getScore() {
+		return score;
+	}
+
+	public void setScore(int score) {
+		this.score = score;
+	}
+
+	public int getCost() {
+		return cost;
+	}
+
+	public void setCost(int cost) {
+		this.cost = cost;
+	}
+
 	public String toString() {
 		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Indels: "+numIndels+" IKBP: "+getIndelsPerKbp()+ "layout: "+layoutEdge;
 	}

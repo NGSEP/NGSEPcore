@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
 import java.io.ByteArrayOutputStream;
@@ -9,6 +28,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -25,6 +45,11 @@ import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class AssemblyGraphStatistics {
 
 	// Constants for default values
@@ -329,13 +354,17 @@ public class AssemblyGraphStatistics {
 			Distribution degreeDist = graph.getVertexDegreeDistribution ();
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
+			//Infer distributions to calculate costs
+			graph.updateScores(useIndels);
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
 			graph.removeVerticesChimericReads();
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-			
+			graph.updateScores(useIndels);
+			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+			graph.updateScores(useIndels);
 			LayoutBuilder pathsFinder;
 			if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
@@ -350,7 +379,7 @@ public class AssemblyGraphStatistics {
 			
 			pathsFinder.findPaths(graph);
 			if(goldStandardGraph!=null) {
-				//logErrors=true;
+				logErrors=true;
 				compareGraphs(goldStandardGraph, graph, out);
 				//logErrors = true;
 				compareLayouts(goldStandardGraph, graph, out);
@@ -504,7 +533,7 @@ public class AssemblyGraphStatistics {
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				for(AssemblyEmbedded embedded: hosts) {
-					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
@@ -522,7 +551,7 @@ public class AssemblyGraphStatistics {
 				if (logErrors) System.err.println("Embedded sequence not called: "+logSequence(i, sequence));
 				double maxEvidenceProp = 0;
 				for(AssemblyEmbedded embedded:goldStandardGraph.getEmbeddedBySequenceId(i)) {
-					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					QualifiedSequence seqHost = goldStandardGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next true host "+logSequence(embedded.getHostId(),seqHost));
 				}
@@ -538,7 +567,7 @@ public class AssemblyGraphStatistics {
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" predicted: "+embedded.getHostStart()+"-"+embedded.getHostEnd()+" evidence: "+embedded.getHostEvidenceStart()+"-"+embedded.getHostEvidenceEnd()+" CSK: "+embedded.getCoverageSharedKmers()+" WCSK: "+embedded.getWeightedCoverageSharedKmers()+" RK: "+embedded.getRawKmerHits()+" RSD: "+embedded.getRawKmerHitsSubjectStartSD()+" prop: "+(1.0*embedded.getCoverageSharedKmers()/goldStandardGraph.getSequenceLength(embedded.getSequenceId())));
-					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.calculateEvidenceProportion());
+					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
 				}
@@ -612,8 +641,8 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		//boolean debug = gsVertex.getSequenceIndex()==-1;
-		boolean debug = gsVertex.getSequenceIndex()==1187 || gsVertex.getSequenceIndex()==4306 || gsVertex.getSequenceIndex()==5046; 
+		boolean debug = gsVertex.getSequenceIndex()==-1;
+		//boolean debug = gsVertex.getSequenceIndex()==9957 || gsVertex.getSequenceIndex()==9997 || gsVertex.getSequenceIndex()==9089; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -661,7 +690,7 @@ public class AssemblyGraphStatistics {
 							//layoutTestEdge = edge;
 							if (!gsEdge.isSameSequenceEdge()) {
 								distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
-								distCostsTPPathEdges.processDatapoint(calculateCost(edge));
+								distCostsTPPathEdges.processDatapoint(edge.getCost());
 								distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
 								distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
 								distWCovSharedKmersTPPathEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
@@ -681,7 +710,7 @@ public class AssemblyGraphStatistics {
 					
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
-					distCostsFNPathEdges.processDatapoint(calculateCost(gsEdge));
+					distCostsFNPathEdges.processDatapoint(gsEdge.getCost());
 					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
 				}
 				totalPathEdges++;
@@ -695,7 +724,7 @@ public class AssemblyGraphStatistics {
 				//False positive
 				fpEdges++;
 				distOverlapsFPEdges.processDatapoint(edge.getOverlap());
-				distCostsFPEdges.processDatapoint(calculateCost(edge));
+				distCostsFPEdges.processDatapoint(edge.getCost());
 				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
 				distWCovSharedKmersFPEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
@@ -727,14 +756,6 @@ public class AssemblyGraphStatistics {
 		rmseFromLimitsPredictedOverlap+=error*error;
 		countFromLimitsPredictedOverlap++;
 		distFromLimitsOverlapError.processDatapoint(error);
-	}
-	private double calculateCost(AssemblyEdge edge) {
-		if(edge.isSameSequenceEdge()) return edge.getCost();
-		//int cost = edge.getCost();
-		int cost = edge.getVertex1().getRead().getLength();
-		cost+= edge.getVertex2().getRead().getLength();
-		cost-= edge.getCoverageSharedKmers();
-		return cost;
 	}
 	private boolean sameEdges(AssemblyEdge nextGSEdge, AssemblyEdge nextTestEdge) {
 		AssemblyVertex testV1 = nextTestEdge.getVertex1();

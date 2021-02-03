@@ -22,10 +22,13 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
 import ngsep.sequences.QualifiedSequence;
 
@@ -572,4 +575,117 @@ public class AssemblyGraph {
 		
 		return false;
 	}
+	
+	public List<AssemblyEdge> selectSafeEdges(  ) {
+		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
+		return selectSafeEdges(repetitiveVertices);
+	}
+	
+	private List<AssemblyEdge> selectSafeEdges( Set<Integer> repetitiveVertices ) {
+		List<AssemblyEdge> allEdges = getEdges();
+		List<AssemblyEdge> safeEdges = new ArrayList<AssemblyEdge>();
+		for(AssemblyEdge edge:allEdges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if (edge.getEvidenceProportion()<0.9) continue;
+			if (edge.getIndelsPerKbp()>20) continue;
+			boolean r1 = repetitiveVertices.contains(edge.getVertex1().getUniqueNumber());
+			boolean r2 = repetitiveVertices.contains(edge.getVertex2().getUniqueNumber()); 
+			int d1 = getEdges(edge.getVertex1()).size();
+			int d2 = getEdges(edge.getVertex2()).size();
+			//if(logEdge(edge)) System.out.println("Select safe edges. repetitive: "+r1+" "+r2+" initial degrees "+edge.getVertex1().getDegreeUnfilteredGraph()+" "+edge.getVertex2().getDegreeUnfilteredGraph()+" current degrees "+d1+" "+d2+" reciprocal best: "+isRecipocalBest(graph, edge)+" edge: "+edge);
+			if((d1==2 && d2==2) || (!r1 && !r2 && isRecipocalBest(edge))) {
+				safeEdges.add(edge);
+			}
+		}
+		return safeEdges;
+	}
+	public Set<Integer> predictRepetitiveVertices() {
+		Distribution initialDegreesDist = new Distribution(0, 10000, 1);
+		for(AssemblyVertex v:verticesByUnique.values()) {
+			if(!isEmbedded(v.getSequenceIndex())) initialDegreesDist.processDatapoint(v.getDegreeUnfilteredGraph());
+		}
+		System.out.println("Degree average: "+initialDegreesDist.getAverage()+" variance "+initialDegreesDist.getVariance());
+		NormalDistribution distDegrees = new NormalDistribution(initialDegreesDist.getAverage(), initialDegreesDist.getVariance());
+		
+		Set<Integer> repetitiveVertices = new HashSet<Integer>();
+		for(AssemblyVertex v:verticesByUnique.values()) {
+			if(isRepetivive(v, distDegrees)) repetitiveVertices.add(v.getUniqueNumber());
+		}
+		System.out.println("Total vertices for layout: "+initialDegreesDist.getCount()+" Number of repetitive vertices: "+repetitiveVertices.size());
+		return repetitiveVertices;
+	}
+	private boolean isRepetivive(AssemblyVertex vertex, NormalDistribution distDegrees) {
+		int degree = vertex.getDegreeUnfilteredGraph();
+		double pValue = distDegrees.cumulative(degree);
+		boolean repetitive = pValue>0.999;
+		//if(repetitive) System.out.println("Repetitive vertex: "+vertex+" initial degree: "+vertex.getDegreeUnfilteredGraph()+" average: "+distDegrees.getMean()+" sd "+Math.sqrt(distDegrees.getVariance()));
+		return repetitive;
+	}
+	public boolean isRecipocalBest(AssemblyEdge edge) {
+		AssemblyVertex v1 = edge.getVertex1();
+		if(!isBestEdge(v1, edge)) return false;
+		AssemblyVertex v2 = edge.getVertex2();
+		if(!isBestEdge(v2, edge)) return false;
+		return true;
+	}
+	public boolean isBestEdge (AssemblyVertex v, AssemblyEdge edgeT) {
+		List<AssemblyEdge> edges = getEdges(v);
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge() || edge==edgeT) continue;
+			if(edge.getOverlap()>=edgeT.getOverlap()) return false;
+			if(edge.getWeightedCoverageSharedKmers()>=edgeT.getWeightedCoverageSharedKmers()) return false;
+		}
+		return true;
+	}
+	
+	private Distribution[] calculateStatistics(List<AssemblyEdge> safeEdges, Set<Integer> repetitiveVertices) {
+		Distribution overlapDistributionTP = new Distribution(0, 100000, 1);
+		Distribution kmerHitCoverageDistributionTP = new Distribution(0, 100000, 1);
+		Distribution kmerHitWCovDistributionTP = new Distribution(0, 100000, 1);
+		Distribution coverageProportionDistributionTP = new Distribution(0, 1.5, 0.01);
+		Distribution evidenceProportionDistributionTP = new Distribution(0, 1.1, 0.01);
+		Distribution indelsKbpDistributionTP = new Distribution(0, 300, 1);
+		
+		for(AssemblyEdge edge:safeEdges) {
+			if (edge.isSameSequenceEdge()) continue;
+			double overlap = edge.getOverlap();
+			overlapDistributionTP.processDatapoint(overlap);
+			kmerHitCoverageDistributionTP.processDatapoint(edge.getCoverageSharedKmers());
+			kmerHitWCovDistributionTP.processDatapoint(edge.getWeightedCoverageSharedKmers());
+			coverageProportionDistributionTP.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/overlap);
+			evidenceProportionDistributionTP.processDatapoint(edge.getEvidenceProportion());
+			indelsKbpDistributionTP.processDatapoint(edge.getIndelsPerKbp());
+		}
+		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, kmerHitWCovDistributionTP, coverageProportionDistributionTP,evidenceProportionDistributionTP,indelsKbpDistributionTP};
+		return answer;
+	}
+	
+	public void updateScores (boolean useIndels) {
+		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
+		List<AssemblyEdge> safeEdges = selectSafeEdges(repetitiveVertices);
+		System.out.println("Number of safe edges: "+safeEdges.size());
+		Distribution [] edgesStats = calculateStatistics(safeEdges, repetitiveVertices);
+		System.out.println("Average overlap TP: "+edgesStats[0].getAverage()+" SD: "+Math.sqrt(edgesStats[0].getVariance())+ " Total: "+edgesStats[0].getCount());
+		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
+		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
+		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
+		System.out.println("Average Evidence proportion TP: "+edgesStats[4].getAverage()+" SD: "+Math.sqrt(edgesStats[4].getVariance())+ " Total: "+edgesStats[4].getCount());
+		System.out.println("Average indels kbp TP: "+edgesStats[5].getAverage()+" SD: "+Math.sqrt(edgesStats[5].getVariance())+ " Total: "+edgesStats[5].getCount());
+		System.out.println("Distribution indels kbp");
+		edgesStats[5].printDistribution(System.out);
+		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
+		calculator.setUseIndels(useIndels);
+		List<AssemblyEdge> allEdges = getEdges();
+		for(AssemblyEdge edge: allEdges) {
+			edge.setScore(calculator.calculateScore(edge,edgesStats));
+			edge.setCost(calculator.calculateCost(edge,edgesStats));
+		}
+		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
+			for(AssemblyEmbedded embedded:embeddedList) {
+				embedded.setScore(calculator.calculateScore(embedded, edgesStats));
+				embedded.setCost(calculator.calculateCost(embedded, edgesStats));
+			}
+		}
+	}
+	
 }

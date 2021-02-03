@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
 import java.util.ArrayList;
@@ -9,16 +28,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
-import JSci.maths.statistics.NormalDistribution;
-import ngsep.math.Distribution;
-import ngsep.math.PhredScoreHelper;
-
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class LayoutBuilderKruskalPath implements LayoutBuilder {
+	
+	private Logger log = Logger.getLogger(LayoutBuilderKruskalPath.class.getName());
 
 	private int minPathLength = 6;
 	private boolean useIndels = false;
 	
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	public int getMinPathLength() {
 		return minPathLength;
 	}
@@ -35,355 +65,34 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	}
 	@Override
 	public void findPaths(AssemblyGraph graph) {
-		filterEdgesAndEmbedded(graph, 0.3);
-		Distribution initialDegreesDist = new Distribution(0, 10000, 1);
-		List<AssemblyVertex> vertices = graph.getVertices();
-		List<AssemblyEdge> allEdges = graph.getEdges();
-		for(AssemblyVertex v:vertices) {
-			if(!graph.isEmbedded(v.getSequenceIndex())) initialDegreesDist.processDatapoint(v.getDegreeUnfilteredGraph());
-		}
-		System.out.println("Degree average: "+initialDegreesDist.getAverage()+" variance "+initialDegreesDist.getVariance());
-		NormalDistribution distDegrees = new NormalDistribution(initialDegreesDist.getAverage(), initialDegreesDist.getVariance());
-		
-		Set<Integer> repetitiveVertices = new HashSet<Integer>();
-		for(AssemblyVertex v:vertices) {
-			if(isRepetivive(v, distDegrees)) repetitiveVertices.add(v.getUniqueNumber());
-		}
-		System.out.println("Total vertices for layout: "+initialDegreesDist.getCount()+" Number of repetitive vertices: "+repetitiveVertices.size());
-		List<AssemblyEdge> pathEdges = selectSafeEdges(graph, repetitiveVertices);
-		System.out.println("Number of safe edges: "+pathEdges.size());
+		List<AssemblyEdge> pathEdges = graph.selectSafeEdges();
+		log.info("Number of safe edges: "+pathEdges.size());
 		
 		List<LinkedList<AssemblyEdge>> safePaths = buildPaths(graph, pathEdges);
 		//Map<Integer,Integer> vertexPathIds = calculateVertexPathIdsMap(safePaths);
-		System.out.println("Number of initial paths: "+safePaths.size());
-		Distribution [] edgesStats = calculateStatistics(pathEdges, allEdges, repetitiveVertices);
-		System.out.println("Average overlap TP: "+edgesStats[0].getAverage()+" SD: "+Math.sqrt(edgesStats[0].getVariance())+ " Total: "+edgesStats[0].getCount());
-		System.out.println("Average coverage shared kmers TP: "+edgesStats[1].getAverage()+" SD: "+Math.sqrt(edgesStats[1].getVariance())+ " Total: "+edgesStats[1].getCount());
-		System.out.println("Average weighted coverage shared kmers TP: "+edgesStats[2].getAverage()+" SD: "+Math.sqrt(edgesStats[2].getVariance())+ " Total: "+edgesStats[2].getCount());
-		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
-		System.out.println("Average Evidence proportion TP: "+edgesStats[4].getAverage()+" SD: "+Math.sqrt(edgesStats[4].getVariance())+ " Total: "+edgesStats[4].getCount());
-		System.out.println("Average indels kbp TP: "+edgesStats[5].getAverage()+" SD: "+Math.sqrt(edgesStats[5].getVariance())+ " Total: "+edgesStats[5].getCount());
-		System.out.println("Distribution indels kbp");
-		edgesStats[5].printDistribution(System.out);
-		//Debug
-		for(AssemblyEdge edge: graph.getEdges()) calculateCost(edge, edgesStats);
+		log.info("Number of paths safe edges: "+safePaths.size());
+		
 		//Algorithms to resolve conflicts between almost safe close edges
 		addEdges2(graph, safePaths, pathEdges);
-		System.out.println("Number of edges after second algorithm: "+pathEdges.size());
+		log.info("Number of edges after second algorithm: "+pathEdges.size());
 		safePaths = buildPaths(graph, pathEdges);
-		System.out.println("Updated number of paths: "+safePaths.size());
+		log.info("Updated number of paths: "+safePaths.size());
 		
 		addEdges3(graph, safePaths, pathEdges);
-		System.out.println("Number of edges after third algorithm: "+pathEdges.size());
+		log.info("Number of edges after third algorithm: "+pathEdges.size());
 		safePaths = buildPaths(graph, pathEdges);
-		System.out.println("Updated number of paths: "+safePaths.size());
+		log.info("Updated number of paths: "+safePaths.size());
 		
-		addConnectingEdges(graph, safePaths, pathEdges, edgesStats);
+		addConnectingEdges(graph, safePaths, pathEdges);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
 		for(LinkedList<AssemblyEdge> path:paths) {
 			if(path.size()<minPathLength) continue;
 			graph.addPath(path);
 		}
-		System.out.println("Final number of paths: "+graph.getPaths().size());
+		log.info("Final number of paths: "+graph.getPaths().size());
 		System.out.println("Estimated N statistics");
 		long [] stats = graph.estimateNStatisticsFromPaths();
 		if(stats!=null) NStatisticsCalculator.printNStatistics(stats, System.out);
-
-	}
-	
-	//Initial edge filtering
-	public void filterEdgesAndEmbedded(AssemblyGraph graph, double minScoreProportionEdges) {
-		Distribution lengthsDistribution = new Distribution(0, graph.getSequenceLength(0), 1);
-		int n = graph.getNumSequences();
-		for(int i=0;i<n;i++) lengthsDistribution.processDatapoint(graph.getSequenceLength(i));
-		/*Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
-		Distribution cskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
-		Distribution wcskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
-		for(int seqId:embeddedMapBySequence.keySet()) {
-			int length = getSequenceLength(seqId);
-			AssemblyEdge edge = getSameSequenceEdge(seqId);
-			if(edge == null) continue;
-			int selfCSK = edge.getCoverageSharedKmers();
-			int selfWCSK = edge.getWeightedCoverageSharedKmers();
-			List<AssemblyEmbedded> relations = embeddedMapBySequence.get(seqId);
-			for(AssemblyEmbedded embedded:relations) {
-				double evidenceLength = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
-				evidenceProportionEmbedded.processDatapoint(evidenceLength/length);
-				cskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfCSK);
-				wcskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfWCSK);
-			}
-		}
-		System.out.println("Proportion of evidence vs read length for embedded relationships");
-		evidenceProportionEmbedded.printDistribution(System.out);
-		System.out.println("Proportion of CSK vs self CSK for embedded relationships");
-		cskProportionSelfEmbedded.printDistribution(System.out);
-		System.out.println("Proportion of WCSK vs self WCSK for embedded relationships");
-		wcskProportionSelfEmbedded.printDistribution(System.out);*/
-		int medianLength = graph.getMedianLength();
-		System.out.println("Median read length: "+medianLength);
-		int numEmbedded = 0;
-		for (int seqId = n-1; seqId >=0; seqId--) {
-			if(filterEdgesAndEmbedded(graph, seqId,medianLength, minScoreProportionEdges)) numEmbedded++;
-		}
-		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
-		graph.pruneEmbeddedSequences();
-		System.out.println("Prunned embedded sequences");
-		//filterEdgesCloseRelationships();
-	}
-
-	private boolean filterEdgesAndEmbedded(AssemblyGraph graph, int sequenceId,int medianLength, double minScoreProportionEdges) {
-		int debugIdx = -1;
-		int sequenceLength = graph.getSequenceLength(sequenceId);
-		AssemblyVertex vS = graph.getVertex(sequenceId, true);
-		AssemblyVertex vE = graph.getVertex(sequenceId, false);
-		if(vS==null || vE==null) return false;
-		if(sequenceId == debugIdx) System.out.println("Filtered edges with abnormal features");
-		List<AssemblyEdge> edgesS = new ArrayList<AssemblyEdge>();
-		if(vS!=null) edgesS.addAll(graph.getEdges(vS));
-		
-		double maxScoreSE = 0;
-		double maxScoreSF = 0;
-		for(AssemblyEdge edge: edgesS) {
-			if(edge.isSameSequenceEdge()) continue;
-			maxScoreSF = Math.max(maxScoreSF, calculateScoreForEdgeFiltering(edge));
-			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vS).getSequenceIndex());
-			/*if(connectingLength<1.2*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreSE = Math.max(maxScoreSE, calculateScoreForEmbedded(edge));
-		}
-		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
-		if(vE!=null) edgesE.addAll(graph.getEdges(vE));
-		double maxScoreEE = 0;
-		double maxScoreEF = 0;			
-		for(AssemblyEdge edge: edgesE) {
-			if(edge.isSameSequenceEdge()) continue;
-			maxScoreEF = Math.max(maxScoreEF, calculateScoreForEdgeFiltering(edge));
-			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vE).getSequenceIndex());
-			/*if(connectingLength<1.5*sequenceLength && edge.getOverlap() >0.8*sequenceLength)*/ maxScoreEE = Math.max(maxScoreEE, calculateScoreForEmbedded(edge));
-		}
-		double minScoreEdges = minScoreProportionEdges*Math.max(maxScoreSF, maxScoreEF);
-		for(AssemblyEdge edge: edgesS) {
-			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScoreForEdgeFiltering(edge);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score start: "+maxScoreSF+" limit: "+minScoreEdges);
-			if(score <500 || (score < maxScoreSF && score < minScoreEdges)) {
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
-				graph.removeEdge(edge);
-			}
-		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max scores start: "+maxScoreSF+" "+maxScoreSE);
-		
-		for(AssemblyEdge edge: edgesE) {
-			if(edge.isSameSequenceEdge()) continue;
-			double score = calculateScoreForEdgeFiltering(edge);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreEF+" limit: "+minScoreEdges);
-			if(score < 500 || (score < maxScoreEF && score < minScoreEdges)) {
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
-				graph.removeEdge(edge);
-			}
-		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max scores end: "+maxScoreEF+" "+maxScoreEE);
-		
-		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
-		
-		//double minScoreProportionEmbedded = 0.8;
-		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
-		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
-		//double minScoreProportionEmbedded = 0.8*cumulative;
-		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
-		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
-		
-		double maxScoreFilterEmbedded = minScoreProportionEmbedded*Math.max(maxScoreSE, maxScoreEE);
-	
-		AssemblyEdge sameSequenceEdge = graph.getSameSequenceEdge(sequenceId);
-		double sameSeqCSK = sameSequenceEdge.getCoverageSharedKmers();
-		double sameSeqWCSK = sameSequenceEdge.getCoverageSharedKmers();
-		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
-		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
-		if(embeddedList.size()==0) return false;
-		double maxEvidencePropEmbedded = 0;
-		AssemblyEmbedded embeddedMax = null;
-		double maxScoreEmbedded = -1;
-		int countPass = 0;
-		for(AssemblyEmbedded embedded:embeddedList) {
-			maxEvidencePropEmbedded = Math.max(maxEvidencePropEmbedded, embedded.calculateEvidenceProportion());
-			double CSKprop = (double)embedded.getCoverageSharedKmers()/sameSeqCSK;
-			double WCSKprop = (double)embedded.getWeightedCoverageSharedKmers()/sameSeqWCSK;
-			double score = calculateScore(embedded);
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded+" score: "+score+" evProp: "+embedded.calculateEvidenceProportion()+" CSK prop "+CSKprop+" WCSK prop: "+WCSKprop+" Indels: "+embedded.getNumIndels()+" IKBP: "+embedded.getIndelsPerKbp());
-			
-			if(embeddedMax==null || maxScoreEmbedded<score) {
-				maxScoreEmbedded = score;
-				embeddedMax = embedded;
-			}
-			
-			//if(evidenceProp*CSKprop >=0.25) countPass++;
-			if(embedded.calculateEvidenceProportion() >=0.95) countPass++;
-		}
-			
-		//Score proportion filter calculation
-		double maxScorePropEmbedded = maxScoreEmbedded/calculateScoreForEmbedded(sameSequenceEdge);
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Median relationship: "+medianRelationship+" evidence proportion "+ maxEvidencePropEmbedded +" max score embedded "+maxScoreEmbedded+" same seq score: "+calculateScoreForEmbedded(sameSequenceEdge)+ " max score prop self: "+maxScorePropEmbedded+" count pass: "+countPass);
-		
-		//if(countPass==0) {
-		if(maxScoreEmbedded<maxScoreFilterEmbedded) {
-		//if(maxEvidencePropEmbedded<evidenceProportionThreshold) {
-		//if(maxEvidencePropEmbedded<minProportionEmbedded || maxScorePropEmbedded<0.5*minProportionEmbedded) {
-		//if(maxScoreEmbedded<maxScoreFilterEmbedded || maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {
-		//if(maxScoreEmbedded < 0.2*calculateScoreForEmbedded(sameSequenceEdge)) {
-			//Replace embedded relationships with edges to make the sequence not embedded
-			for(AssemblyEmbedded embedded:embeddedList) {
-				graph.removeEmbedded(embedded);
-				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+graph.getSequenceLength(embedded.getHostId())+"score: "+calculateScore(embedded));
-				addEdgeFromEmbedded(graph, embedded);
-			}
-			return false;
-		} else {
-			if(sequenceId == debugIdx) System.out.println("Sequence is embedded ");
-			for(AssemblyEmbedded embedded:embeddedList) {
-				if(embedded!=embeddedMax) {
-					graph.removeEmbedded(embedded);
-					//if(sequenceId == debugIdx) System.out.println("Assembly graph. Removed embedded host: "+embedded.getHostId()+" Embedded relations: "+embeddedMapBySequence.get(sequenceId)+" is embedded: "+isEmbedded(sequenceId));
-				}
-			}
-			return true;
-		}
-	}
-
-	private void addEdgeFromEmbedded(AssemblyGraph graph, AssemblyEmbedded embedded) {
-		int distanceStart = embedded.getHostStart();
-		int distanceEnd = graph.getSequenceLength(embedded.getHostId())-embedded.getHostEnd();
-		AssemblyVertex vertexHost=null;
-		AssemblyVertex vertexEmbedded=null;
-		if(distanceStart<0.5*distanceEnd) {
-			vertexHost = graph.getVertex(embedded.getHostId(), true);
-			vertexEmbedded = graph.getVertex(embedded.getSequenceId(), embedded.isReverse());
-		} else if (distanceEnd<0.5*distanceStart) {
-			vertexHost = graph.getVertex(embedded.getHostId(), false);
-			vertexEmbedded = graph.getVertex(embedded.getSequenceId(), !embedded.isReverse());
-		}
-		if(vertexHost==null || vertexEmbedded==null) return;
-		int overlap = Math.max(embedded.getCoverageSharedKmers(), embedded.getSequenceEvidenceEnd()-embedded.getSequenceEvidenceStart());
-		AssemblyEdge edge = new AssemblyEdge(vertexHost, vertexEmbedded, overlap);
-		edge.setOverlapStandardDeviation(embedded.getHostStartStandardDeviation());
-		edge.setWeightedCoverageSharedKmers(embedded.getWeightedCoverageSharedKmers());
-		edge.setCoverageSharedKmers(embedded.getCoverageSharedKmers());
-		edge.setNumSharedKmers(embedded.getNumSharedKmers());
-		edge.setRawKmerHits(embedded.getRawKmerHits());
-		edge.setRawKmerHitsSubjectStartSD(embedded.getRawKmerHitsSubjectStartSD());
-		edge.setVertex1EvidenceStart(embedded.getHostEvidenceStart());
-		edge.setVertex1EvidenceEnd(embedded.getHostEvidenceEnd());
-		edge.setVertex2EvidenceStart(embedded.getSequenceEvidenceStart());
-		edge.setVertex2EvidenceEnd(embedded.getSequenceEvidenceEnd());
-		edge.setNumIndels(embedded.getNumIndels());
-		edge.setNumMismatches(embedded.getNumMismatches());
-		graph.addEdge(edge);
-	}
-
-	private double calculateScore(AssemblyEmbedded embedded) {
-		double evProp = embedded.calculateEvidenceProportion();
-		double indelsScore = Math.max(1,embedded.getIndelsPerKbp()-15);
-		//return embedded.getCoverageSharedKmers();
-		//return embedded.getWeightedCoverageSharedKmers();
-		//return embedded.getRawKmerHits();
-		return embedded.getWeightedCoverageSharedKmers()*evProp*evProp;
-		//return embedded.getWeightedCoverageSharedKmers()*evProp*evProp/indelsScore;
-	}
-
-	private double calculateScoreForEmbedded(AssemblyEdge edge) {
-		double evProp = edge.calculateEvidenceProportion();
-		double indelsScore = Math.max(1,edge.getIndelsPerKbp()-15);
-		//return edge.getCoverageSharedKmers();
-		//return edge.getWeightedCoverageSharedKmers();
-		//return edge.getRawKmerHits();
-		return edge.getWeightedCoverageSharedKmers()*evProp*evProp;
-		//return edge.getWeightedCoverageSharedKmers()*evProp*evProp/indelsScore;
-	}
-	
-	private double calculateScoreForEdgeFiltering(AssemblyEdge edge) {
-		double evProp = edge.calculateEvidenceProportion();
-		//return edge.getCoverageSharedKmers();
-		//return edge.getRawKmerHits();
-		return edge.getWeightedCoverageSharedKmers()*evProp*evProp;
-	}
-	
-	private boolean isRepetivive(AssemblyVertex vertex, NormalDistribution distDegrees) {
-		int degree = vertex.getDegreeUnfilteredGraph();
-		double pValue = distDegrees.cumulative(degree);
-		boolean repetitive = pValue>0.999;
-		//if(repetitive) System.out.println("Repetitive vertex: "+vertex+" initial degree: "+vertex.getDegreeUnfilteredGraph()+" average: "+distDegrees.getMean()+" sd "+Math.sqrt(distDegrees.getVariance()));
-		return repetitive;
-	}
-	private int calculateScoreForEdgeLabeling(AssemblyEdge edge) {
-		double evProp = edge.calculateEvidenceProportion();
-		double indelsScore = Math.max(1,edge.getIndelsPerKbp()-5);
-		double score = edge.getWeightedCoverageSharedKmers()*evProp*evProp;
-		//double score = edge.getWeightedCoverageSharedKmers()*evProp*evProp/indelsScore;
-		return (int)Math.round(score);
-	}
-	
-	private List<AssemblyEdge> selectSafeEdges(AssemblyGraph graph, Set<Integer> repetitiveVertices ) {
-		List<AssemblyEdge> allEdges = graph.getEdges();
-		List<AssemblyEdge> safeEdges = new ArrayList<AssemblyEdge>();
-		for(AssemblyEdge edge:allEdges) {
-			if(edge.isSameSequenceEdge()) continue;
-			boolean r1 = repetitiveVertices.contains(edge.getVertex1().getUniqueNumber());
-			boolean r2 = repetitiveVertices.contains(edge.getVertex2().getUniqueNumber()); 
-			int d1 = graph.getEdges(edge.getVertex1()).size();
-			int d2 = graph.getEdges(edge.getVertex2()).size();
-			if(logEdge(edge)) System.out.println("Select safe edges. repetitive: "+r1+" "+r2+" initial degrees "+edge.getVertex1().getDegreeUnfilteredGraph()+" "+edge.getVertex2().getDegreeUnfilteredGraph()+" current degrees "+d1+" "+d2+" reciprocal best: "+isRecipocalBest(graph, edge)+" edge: "+edge);
-			if((d1==2 && d2==2) || (!r1 && !r2 && isRecipocalBest(graph, edge))) {
-				safeEdges.add(edge);
-			}
-		}
-		return safeEdges;
-	}
-
-	private boolean isRecipocalBest(AssemblyGraph graph, AssemblyEdge edge) {
-		AssemblyVertex v1 = edge.getVertex1();
-		if(!isBestEdge(graph, v1, edge)) return false;
-		AssemblyVertex v2 = edge.getVertex2();
-		if(!isBestEdge(graph, v2, edge)) return false;
-		return true;
-	}
-	private boolean isBestEdge (AssemblyGraph graph, AssemblyVertex v, AssemblyEdge edgeT) {
-		List<AssemblyEdge> edges = graph.getEdges(v);
-		for(AssemblyEdge edge:edges) {
-			if(edge.isSameSequenceEdge() || edge==edgeT) continue;
-			if(edge.getOverlap()>=edgeT.getOverlap()) return false;
-			if(calculateScoreForEdgeLabeling(edge)>=calculateScoreForEdgeLabeling(edgeT)) return false;
-		}
-		return true;
-	}
-	/*private Map<Integer, Integer> calculateVertexPathIdsMap(List<List<AssemblyEdge>> paths) {
-		Map<Integer, Integer> answer = new HashMap<Integer, Integer>();
-		for(int i=0;i<paths.size();i++) {
-			List<AssemblyEdge> path = paths.get(i);
-			for(AssemblyEdge edge:path) {
-				answer.put(edge.getVertex1().getUniqueNumber(), i);
-				answer.put(edge.getVertex2().getUniqueNumber(), i);
-			}
-		}
-		return answer;
-	}*/
-	private Distribution[] calculateStatistics(List<AssemblyEdge> safeEdges, List<AssemblyEdge> allEdges, Set<Integer> repetitiveVertices) {
-		Distribution overlapDistributionTP = new Distribution(0, 100000, 1);
-		Distribution kmerHitCoverageDistributionTP = new Distribution(0, 100000, 1);
-		Distribution kmerHitWCovDistributionTP = new Distribution(0, 100000, 1);
-		Distribution coverageProportionDistributionTP = new Distribution(0, 1.5, 0.01);
-		Distribution evidenceProportionDistributionTP = new Distribution(0, 1.1, 0.01);
-		Distribution indelsKbpDistributionTP = new Distribution(0, 300, 1);
-		
-		for(AssemblyEdge edge:safeEdges) {
-			if (edge.isSameSequenceEdge()) continue;
-			double overlap = edge.getOverlap();
-			overlapDistributionTP.processDatapoint(overlap);
-			kmerHitCoverageDistributionTP.processDatapoint(edge.getCoverageSharedKmers());
-			kmerHitWCovDistributionTP.processDatapoint(edge.getWeightedCoverageSharedKmers());
-			coverageProportionDistributionTP.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/overlap);
-			evidenceProportionDistributionTP.processDatapoint(edge.calculateEvidenceProportion());
-			indelsKbpDistributionTP.processDatapoint(edge.getIndelsPerKbp());
-		}
-		Distribution [] answer = {overlapDistributionTP, kmerHitCoverageDistributionTP, kmerHitWCovDistributionTP, coverageProportionDistributionTP,evidenceProportionDistributionTP,indelsKbpDistributionTP};
-		return answer;
 	}
 
 	private List<LinkedList<AssemblyEdge>> buildPaths(AssemblyGraph graph, List<AssemblyEdge> edges) {
@@ -471,8 +180,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			for(AssemblyEdge edge:graph.getEdges(vertex)) if(!edge.isSameSequenceEdge()) edges.add(edge);
 			if(vertices[i].getSequenceIndex()==debugSeq) System.out.println("AddEdges3. Vertex "+vertices[i]+" edges: "+edges.size());
 			if(edges.size()<2) continue;
-			Collections.sort(edges,(e1,e2)-> calculateScoreForEdgeLabeling(e2)-calculateScoreForEdgeLabeling(e1));
-			int maxScore= calculateScoreForEdgeLabeling(edges.get(0));
+			Collections.sort(edges,(e1,e2)-> e2.getScore()-e1.getScore());
+			int maxScore= edges.get(0).getScore();
 			Collections.sort(edges,(e1,e2)-> e2.getOverlap()-e1.getOverlap());
 			
 			int maxOverlap = edges.get(0).getOverlap();
@@ -480,7 +189,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			for(AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) continue;
 				if(vertices[i].getSequenceIndex()==debugSeq) System.out.println("AddEdges3. Vertex "+vertices[i]+" next edge: "+edge);
-				if(calculateScoreForEdgeLabeling(edge)<0.9*maxScore) continue;
+				if(edge.getScore()<0.9*maxScore) continue;
 				if(edge.getOverlap()<0.9*maxOverlap) break;
 				AssemblyVertex v = edge.getConnectingVertex(vertex);
 				Integer j = verticesMap.get(v.getUniqueNumber());
@@ -596,15 +305,15 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
 				if(j==null || used[j]) continue;
 				if(bestOverlap==null || bestOverlap.getOverlap()<edge.getOverlap()) bestOverlap = edge;
-				if(bestScore==null || calculateScoreForEdgeLabeling(bestScore)<calculateScoreForEdgeLabeling(edge)) bestScore = edge;
+				if(bestScore==null || bestScore.getScore()<edge.getScore()) bestScore = edge;
 			}
 			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" edges: "+edges.size()+" max overlap: "+bestOverlap+" max score: "+bestScore);
 			if(bestOverlap == bestScore) continue;
 			int diffOverlap = Math.abs(bestOverlap.getOverlap()-bestScore.getOverlap());
-			int diffScore = Math.abs(calculateScoreForEdgeLabeling(bestOverlap)-calculateScoreForEdgeLabeling(bestScore));
+			int diffScore = Math.abs(bestOverlap.getScore()-bestScore.getScore());
 			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" diff overlap: "+diffOverlap+" diff score: "+diffScore);
 			if(diffOverlap>0.05*bestOverlap.getOverlap()) continue;
-			if(diffScore>0.05*calculateScoreForEdgeLabeling(bestScore)) continue;
+			if(diffScore>0.05*bestScore.getScore()) continue;
 			
 			AssemblyEdge thirdOverlap=null;
 			AssemblyEdge thirdScore=null;
@@ -615,11 +324,11 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
 				if(j==null || used[j]) continue;
 				if(thirdOverlap==null || thirdOverlap.getOverlap()<edge.getOverlap()) thirdOverlap = edge;
-				if(thirdScore==null || calculateScoreForEdgeLabeling(thirdScore)<calculateScoreForEdgeLabeling(edge)) thirdScore = edge;
+				if(thirdScore==null || thirdScore.getScore()<edge.getScore()) thirdScore = edge;
 			}
 			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" third overlap: "+thirdOverlap+" third score: "+thirdScore);
 			if(thirdOverlap!=null && thirdOverlap.getOverlap()>0.9*bestScore.getOverlap()) continue;
-			if(thirdScore!=null && calculateScoreForEdgeLabeling(thirdScore)>0.9*calculateScoreForEdgeLabeling(bestOverlap)) continue;
+			if(thirdScore!=null && thirdScore.getScore()>0.9*bestOverlap.getScore()) continue;
 			
 			AssemblyVertex vBestOv = bestOverlap.getConnectingVertex(vertex);
 			AssemblyVertex vBestScore = bestScore.getConnectingVertex(vertex);
@@ -634,7 +343,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			AssemblyEdge edgeOv2 = graph.getEdge(vBestOv2, vBestScore);
 			AssemblyEdge edgeScore2 = graph.getEdge(vBestScore2, vBestOv);
 			
-			if(isBestEdge(graph, vBestOv, bestOverlap) && edgeOv2!=null && edgeScore2==null && edgeOv2.getOverlap()>0.8*bestScore.getOverlap()) {
+			if(graph.isBestEdge(vBestOv, bestOverlap) && edgeOv2!=null && edgeScore2==null && edgeOv2.getOverlap()>0.8*bestScore.getOverlap()) {
 				//Best overlap follows transitivity
 				int c1 = clusters[i];
 				int c2 = clusters[j];
@@ -652,7 +361,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 					System.out.println("Added transitivity edges with best overlap "+bestOverlap+" "+edgeOv2);
 					System.out.println("Competing edge: "+bestScore);
 				}
-			} else if (isBestEdge(graph, vBestScore, bestScore) && edgeOv2==null && edgeScore2!=null && edgeScore2.getOverlap()>0.8*bestScore.getOverlap()) {
+			} else if (graph.isBestEdge(vBestScore, bestScore) && edgeOv2==null && edgeScore2!=null && edgeScore2.getOverlap()>0.8*bestScore.getOverlap()) {
 				//Best score follows transitivity
 				int c1 = clusters[i];
 				int c2 = clusters[j];
@@ -701,7 +410,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		return vertices;
 	}
-	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges, Distribution[] edgesStats) {
+	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
 		AssemblyVertex [] vertices = extractEndVertices(paths);
 		List<AssemblyEdgePathEnd> candidateEdges = new ArrayList<AssemblyEdgePathEnd>();
 		for(int i=0;i<vertices.length;i++) {
@@ -711,64 +420,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				if(edge !=null) candidateEdges.add(new AssemblyEdgePathEnd(edge, i, j));
 			}
 		}
-		Collections.sort(candidateEdges,(e1,e2)->calculateCost(e1.getEdgeAssemblyGraph(),edgesStats)-calculateCost(e2.getEdgeAssemblyGraph(),edgesStats));
-		List<AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length, edgesStats);
+		//Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
+		Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
+		List<AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length);
 		for(AssemblyEdgePathEnd edgeP:pathEdgesByVertexId) pathEdges.add(edgeP.getEdgeAssemblyGraph());
 	}
-
-	private int calculateCost(AssemblyEdge edge, Distribution[] edgesStats) {
-		Distribution overlapTP = edgesStats[0];
-		Distribution covTP = edgesStats[1];
-		Distribution wCovTP = edgesStats[2];
-		Distribution wCovPropTP = edgesStats[3];
-		Distribution evPropTP = edgesStats[4];
-		Distribution indelsKbpTP = edgesStats[5];
-		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
-		//int cost = (int)Math.round(1000*(1.5-prop));
-		//return cost;
-		NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance()+1);
-		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance()+1);
-		NormalDistribution nwcTP = new NormalDistribution(wCovTP.getAverage(),wCovTP.getVariance()+1);
-		NormalDistribution nwcpTP = new NormalDistribution(wCovPropTP.getAverage(),wCovPropTP.getVariance()+0.0001);
-		NormalDistribution evpTP = new NormalDistribution(evPropTP.getAverage(),evPropTP.getVariance()+0.0001);
-		NormalDistribution ikbpTP = new NormalDistribution(indelsKbpTP.getAverage(),indelsKbpTP.getVariance()+1);
-		//NormalDistribution niTP = new NormalDistribution(200,40000);
-		double pValueOTP = noTP.cumulative(edge.getOverlap());
-		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
-		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
-		double pValueCTP = ncTP.cumulative(edge.getCoverageSharedKmers());
-		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
-		double pValueWCTP = nwcTP.cumulative(edge.getWeightedCoverageSharedKmers());
-		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
-		double pValueWCPTP = nwcpTP.cumulative((double)edge.getWeightedCoverageSharedKmers()/edge.getOverlap());
-		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
-		double pValueEvProp = evpTP.cumulative(edge.calculateEvidenceProportion());
-		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
-		double pValueIKBP = 1-ikbpTP.cumulative(edge.getIndelsPerKbp());
-		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
-		double costD = 0;
-		costD+=cost1;
-		//cost += cost2;
-		costD += cost3;
-		costD += cost5;
-		if(useIndels) costD += cost6;
-		
-		costD*=1000;
-		int cost = (int)Math.min(1000000000, costD);
-		
-		//cost+= (int) (1000000*(1-pValueOTP)*(1-pValueCTP));
-		cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
-
-		if( logEdge(edge)) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Edge: "+edge);
-		return cost;
-	}
-	private boolean logEdge(AssemblyEdge edge) {
-		int n = -1;
-		return edge.getVertex1().getSequenceIndex()==n || edge.getVertex2().getSequenceIndex()==n;
-		//return false;
-	}
-	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length, Distribution[] edgesStats) {
-		
+	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length) {
 		int [] clusters = new int[length];
 		boolean [] used = new boolean[length];
 		Arrays.fill(used, false);
@@ -823,6 +480,13 @@ class AssemblyEdgePathEnd  {
 	public int getCoverageSharedKmers() {
 		return edgeAssemblyGraph.getCoverageSharedKmers();
 	}
+	public int getScore() {
+		return edgeAssemblyGraph.getScore();
+	}
+	public int getCost() {
+		return edgeAssemblyGraph.getCost();
+	}
+	
 	
 	
 
