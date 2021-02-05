@@ -71,6 +71,8 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	public static final int DEF_NUM_THREADS = 1;
 	private static final int TIMEOUT_SECONDS = 30;
 	
+	private String sequenceNamePrefix = "Contig";
+	
 	private String correctedReadsFile = null;
 	
 	private short normalPloidy = 1;
@@ -84,6 +86,14 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 
 	public void setLog(Logger log) {
 		this.log = log;
+	}
+	
+	public String getSequenceNamePrefix() {
+		return sequenceNamePrefix;
+	}
+
+	public void setSequenceNamePrefix(String sequenceNamePrefix) {
+		this.sequenceNamePrefix = sequenceNamePrefix;
 	}
 	
 	public int getNumThreads() {
@@ -125,7 +135,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
-			String sequenceName = "Contig_"+(i+1);
+			String sequenceName = ""+sequenceNamePrefix+"_"+(i+1);
 			if(numThreads==1) {
 				CharSequence consensusSequence = makeConsensus (graph, path, i, sequenceName);
 				consensusList.add(new QualifiedSequence(sequenceName,consensusSequence));
@@ -159,159 +169,23 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 	
 	CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName ) {
-		StringBuilder rawConsensus = new StringBuilder();
-		AssemblyVertex lastVertex = null;
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-		List<ReadAlignment> alignments = new ArrayList<ReadAlignment>();
-		int totalReads = 0;
-		int unalignedReads = 0;
-		String pathS = "";
-		if(path.size()==1) {
-			rawConsensus.append(path.get(0).getVertex1().getRead());
-			return rawConsensus;
-		}
-		ReadAlignment lastPartialAln = null;
-		for(int j = 0; j < path.size(); j++) {
-			//Needed to find which is the origin vertex
-			AssemblyEdge edge = path.get(j);
-			AssemblyVertex vertexPreviousEdge;
-			AssemblyVertex vertexNextEdge;
-			//If the first edge is being checked, compare to the second edge to find the origin vertex
-			if(j == 0) {
-				AssemblyEdge nextEdge = path.get(j + 1);
-				vertexNextEdge = edge.getSharedVertex(nextEdge);
-				if(vertexNextEdge== null) throw new RuntimeException("Inconsistency found in first edge of path");
-				vertexPreviousEdge = edge.getVertex1();
-				if(vertexPreviousEdge == vertexNextEdge) vertexPreviousEdge = edge.getVertex2();
-			}
-			else if (lastVertex == edge.getVertex1()) {
-				vertexPreviousEdge = edge.getVertex1();
-				vertexNextEdge = edge.getVertex2();
-			}
-			else if (lastVertex == edge.getVertex2()) {
-				vertexPreviousEdge = edge.getVertex2();
-				vertexNextEdge = edge.getVertex1();
-			}
-			else {
-				throw new RuntimeException("Inconsistency found in path");
-			}
-			if(j == 0) {
-				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
-				CharSequence seq = vertexPreviousEdge.getRead().getCharacters();
-				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
-				rawConsensus.append(seq);
-			} 
-			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
-				pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
-				// Augment consensus with the next path read
-				CharSequence nextPathSequence = vertexNextEdge.getRead().getCharacters();
-				boolean reverse = !vertexNextEdge.isStart();
-				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
-				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
-				
-				//int startSuffix = edge.getOverlap();
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, ConsensusBuilderBidirectionalSimple.KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
-				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
-				int startSuffix;
-				int startRemove = -1;
-				if(alnRead!=null) {
-					alnRead.setSequenceName(sequenceName);
-					alnRead.setReadName(vertexNextEdge.getRead().getName());
-					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
-					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
-					int tailSubject = rawConsensus.length()-lastPosSubject-1;
-					//System.out.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject);
-					if(alnRead.getSoftClipEnd()>0 && lastPosSubject>=0 && tailSubject>50) log.warning("Large subject tail not aligned. Tail length "+tailSubject+" new sequence suffix: "+(lastPosSubject+1)+" Next path alignment: "+alnRead+" Tail of subject: "+rawConsensus.substring(lastPosSubject+1)+" end read: "+nextPathSequence.subSequence(posAlnRead+1, nextPathSequence.length()));
-					//Just in case cycle but if the read aligns this should not enter
-					while(posAlnRead>0 && lastPosSubject<0) {
-						//System.out.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
-						posAlnRead--;
-						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
-						tailSubject = rawConsensus.length()-lastPosSubject-1;
-					}
-					if(lastPosSubject>=0) {
-						startSuffix = posAlnRead + 1;
-						int suffixLength = nextPathSequence.length()-startSuffix;
-						if(tailSubject>0 && 2*tailSubject<suffixLength) {
-							//Replace tail with new read end
-							startRemove = lastPosSubject+1;
-						} else if (tailSubject<suffixLength) {
-							startSuffix+=tailSubject;
-						} else {
-							startSuffix = nextPathSequence.length();
-						}
-					} else {
-						startSuffix = edge.getOverlap();
-					}
-					//System.out.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
-				} else {
-					log.warning("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
-					startSuffix = edge.getOverlap();
-				}
-				if(startSuffix<nextPathSequence.length()) {
-					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
-					//log.info("Enlarging consensus with alignment: "+alnRead+" Start new sequence: "+startSuffix+" segment length: "+remainingSegment.length());
-					if(startRemove>0) rawConsensus.delete(startRemove, rawConsensus.length());
-					rawConsensus.append(remainingSegment.toUpperCase());
-				}
-				lastPartialAln = alnRead;
-			}
-			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
-				//Align to consensus next path read and its embedded sequences
-				QualifiedSequence read = vertexPreviousEdge.getRead(); 
-				CharSequence seq = read.getCharacters();
-				boolean reverse = !vertexPreviousEdge.isStart();
-				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, ConsensusBuilderBidirectionalSimple.KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
-				totalReads++;
-				ReadAlignment alnRead = ConsensusBuilderBidirectionalSimple.alignRead(aligner, sequenceIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
-				if (alnRead!=null) {
-					alnRead.setSequenceName(sequenceName);
-					alnRead.setReadName(read.getName());
-					alnRead.setNegativeStrand(reverse);
-					alignments.add(alnRead);
-					if(alnRead.getSoftClipEnd()>10) {
-						log.warning("Weird alignment of consensus backbone read. Alignment: "+alnRead+" soft clip: "+alnRead.getSoftClipEnd()+" consensus end: "+rawConsensus.substring(rawConsensus.length()-alnRead.getSoftClipEnd()-10)+" soft clipped sequence: "+alnRead.getReadCharacters().subSequence(alnRead.getReadLength()-alnRead.getSoftClipEnd()-10, alnRead.getReadLength()) );
-					}
-				}
-				else unalignedReads++;
-				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
-				if (totalReads%1000==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
-				
-				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
-				//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
-				for(AssemblyEmbedded embedded:embeddedList) {
-					QualifiedSequence embeddedRead = embedded.getRead(); 
-					CharSequence embeddedSeq = embeddedRead.getCharacters();
-					boolean reverseE = (reverse!=embedded.isReverse());
-					if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
-					totalReads++;
-					ReadAlignment alnEmbedded = ConsensusBuilderBidirectionalSimple.alignRead(aligner,sequenceIdx, rawConsensus, embeddedSeq, uniqueKmersSubject, 0.5);
-					if(alnEmbedded!=null) {
-						alnEmbedded.setSequenceName(sequenceName);
-						alnEmbedded.setReadName(embeddedRead.getName());
-						alnEmbedded.setNegativeStrand(reverseE);
-						alignments.add(alnEmbedded);
-					}
-					else unalignedReads++;
-					if (totalReads%1000==0) log.info("Sequence "+sequenceName+". Aligning. Processed reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
-				}
-			}
-			lastVertex = vertexNextEdge;
-		}
-		log.info("Processed path "+sequenceIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignments.size()+" unaligned: "+unalignedReads);
-		
+		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		aligner.setLog(log);
+		aligner.setAlignEmbedded(true);
+		aligner.alignPathReads(graph, path, sequenceIdx);
+		StringBuilder rawConsensus = aligner.getConsensus();
+		List<ReadAlignment> alignments = aligner.getAlignedReads();
+		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-		String consensus = rawConsensus.toString();
-		List<CalledGenomicVariant> variants = callVariants(sequenceName, consensus, alignments);
+		
+		List<CalledGenomicVariant> variants = callVariants(sequenceName, rawConsensus, alignments);
 		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
 		if(outCorrectedReads!=null) {
-			for(ReadAlignment aln:alignments) correctRead(consensus, aln, variants);
+			for(ReadAlignment aln:alignments) correctRead(rawConsensus, aln, variants);
 		}
-		return applyVariants(consensus, variants);
+		return applyVariants(rawConsensus, variants);
 	}
 
 	/*private boolean containsLargeIndels(ReadAlignment alnRead) {
@@ -333,7 +207,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}		
 	}
 
-	private List<CalledGenomicVariant> callVariants(String sequenceName, String consensus, List<ReadAlignment> alignments) {
+	private List<CalledGenomicVariant> callVariants(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments) {
 		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
 		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
 		log.info("Number of active segments "+activeSegments.size());
@@ -355,7 +229,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}
 		return answer;
 	}
-	private List<GenomicRegion> calculateActiveSegments(String sequenceName, List<ReadAlignment> alignments) {
+	public static List<GenomicRegion> calculateActiveSegments(String sequenceName, List<ReadAlignment> alignments) {
 		//Extract indel calls adding one bp on the sides for insertions
 		List<GenomicRegion> rawRegions = new ArrayList<GenomicRegion>();
 		for(ReadAlignment aln:alignments) {
@@ -497,7 +371,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}
 	}
 
-	private CharSequence applyVariants(String consensus, List<CalledGenomicVariant> variants) {
+	private CharSequence applyVariants(StringBuilder consensus, List<CalledGenomicVariant> variants) {
 		StringBuilder polishedConsensus = new StringBuilder(consensus.length());
 		int l = consensus.length();
 		int nextPos = 1;
@@ -526,7 +400,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return new DNAMaskedSequence(polishedConsensus.toString());
 	}
 	
-	private void correctRead(String consensus, ReadAlignment alignment, List<CalledGenomicVariant> variants) {
+	private void correctRead(StringBuilder consensus, ReadAlignment alignment, List<CalledGenomicVariant> variants) {
 		String readName = alignment.getReadName();
 		String readNameDebug=null;
 		CharSequence sequence = alignment.getReadCharacters();

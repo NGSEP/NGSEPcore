@@ -19,7 +19,6 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import ngsep.sequences.QualifiedSequence;
@@ -29,8 +28,5 @@ import ngsep.sequences.QualifiedSequence;
  */
 public interface ConsensusBuilder {
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph);
-
-	public static ConsensusBuilder NONE = (AssemblyGraph graph) -> {
-		return new ArrayList<>();
-	};
+	public void setSequenceNamePrefix(String sequenceNamePrefix);
 }

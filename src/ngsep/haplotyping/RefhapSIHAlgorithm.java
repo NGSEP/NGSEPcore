@@ -26,5 +26,6 @@ public class RefhapSIHAlgorithm implements SIHAlgorithm {
 		byte [] haplotype=CutHaplotypeTranslator.getHaplotype(block, cut, CutHaplotypeTranslator.CONSENSUS_COMBINED);
 		log.info("Calculated haplotypes");
 		block.setHaplotype(haplotype);
+		block.setFragmentsClusters(SIHAlgorithm.buildClusters(block, cut));
 	}	
 }

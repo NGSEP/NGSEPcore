@@ -72,20 +72,19 @@ public class AssemblyGraph {
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 	
 	private int numEdges = 0;
-	
-	/**
-	 * Optional attribute to store the sequence names. Useful for the gold standard graph
-	 */
-	private List<String> readNames;
 
+	/**
+	 * Private constructor for subgraphs
+	 */
+	private AssemblyGraph () {
+		
+	}
 	public AssemblyGraph(List<QualifiedSequence> sequences) {
 		int n = sequences.size();
 		this.sequences = Collections.unmodifiableList(sequences);
-		verticesStart = new HashMap<>(n);
-		verticesEnd = new HashMap<>(n);
-		verticesByUnique = new HashMap<>(n);
-		edgesMap = new HashMap<>(n);
 		cumulativeReadLength = new long [n];
+		initStructures(n);
+		
 		for (int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
 			int length = seq.getLength();
@@ -113,6 +112,45 @@ public class AssemblyGraph {
 			edge.setVertex2EvidenceEnd(length-1);
 			addEdge(edge);
 		}
+	}
+	private void initStructures (int n) {
+		verticesStart = new HashMap<>(n);
+		verticesEnd = new HashMap<>(n);
+		verticesByUnique = new HashMap<>(n);
+		edgesMap = new HashMap<>(n);
+	}
+	public AssemblyGraph buildSubgraph(Set<Integer> readIdsCluster) {
+		AssemblyGraph subgraph = new AssemblyGraph();
+		int n = sequences.size();
+		subgraph.sequences = sequences;
+		subgraph.cumulativeReadLength = cumulativeReadLength;
+		subgraph.initStructures(n);
+		//Add vertices
+		for(AssemblyVertex vertex:verticesByUnique.values()) {
+			if(readIdsCluster==null || readIdsCluster.contains(vertex.getSequenceIndex())) {
+				subgraph.verticesByUnique.put(vertex.getUniqueNumber(), vertex);
+				subgraph.edgesMap.put(vertex.getUniqueNumber(), new ArrayList<>());
+				if(vertex.isStart()) subgraph.verticesStart.put(vertex.getSequenceIndex(),vertex);
+				else subgraph.verticesEnd.put(vertex.getSequenceIndex(),vertex);
+			}
+		}
+		//Add edges within the subgraph
+		List<AssemblyEdge> edges = getEdges();
+		for(AssemblyEdge edge:edges) {
+			if(readIdsCluster == null || (readIdsCluster.contains(edge.getVertex1().getSequenceIndex()) && readIdsCluster.contains(edge.getVertex2().getSequenceIndex()))) {
+				subgraph.addEdge(edge);
+			}
+		}
+		//Add embedded relationships
+		for(List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
+			for(AssemblyEmbedded embedded:embeddedList) {
+				if(readIdsCluster == null || (readIdsCluster.contains(embedded.getSequenceId()) && readIdsCluster.contains(embedded.getHostId()))) {
+					subgraph.addEmbedded(embedded);
+				}
+			}
+			
+		}
+		return subgraph;
 	}
 	
 	//Modifiers
@@ -216,10 +254,6 @@ public class AssemblyGraph {
 	}
 	public int getNumSequences () {
 		return sequences.size();
-	}
-	
-	public List<String> getReadNames() {
-		return readNames;
 	}
 	
 	public int getMedianLength() {
@@ -661,6 +695,7 @@ public class AssemblyGraph {
 	}
 	
 	public void updateScores (boolean useIndels) {
+		updateVertexDegrees();
 		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
 		List<AssemblyEdge> safeEdges = selectSafeEdges(repetitiveVertices);
 		System.out.println("Number of safe edges: "+safeEdges.size());
@@ -671,8 +706,8 @@ public class AssemblyGraph {
 		System.out.println("Average weighted coverage proportion TP: "+edgesStats[3].getAverage()+" SD: "+Math.sqrt(edgesStats[3].getVariance())+ " Total: "+edgesStats[3].getCount());
 		System.out.println("Average Evidence proportion TP: "+edgesStats[4].getAverage()+" SD: "+Math.sqrt(edgesStats[4].getVariance())+ " Total: "+edgesStats[4].getCount());
 		System.out.println("Average indels kbp TP: "+edgesStats[5].getAverage()+" SD: "+Math.sqrt(edgesStats[5].getVariance())+ " Total: "+edgesStats[5].getCount());
-		System.out.println("Distribution indels kbp");
-		edgesStats[5].printDistribution(System.out);
+		//System.out.println("Distribution indels kbp");
+		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
 		calculator.setUseIndels(useIndels);
 		List<AssemblyEdge> allEdges = getEdges();

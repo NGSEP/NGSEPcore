@@ -22,7 +22,10 @@ package ngsep.haplotyping;
 import ngsep.variants.CalledGenomicVariant;
 
 public class HaplotypeFragment {
-	
+	/**
+	 * Numeric id to identify the fragment
+	 */
+	private int id;
 	/**
 	 * Represents the first column of a fragment.
 	 */
@@ -38,11 +41,22 @@ public class HaplotypeFragment {
 	 * @param firstColumn.
 	 * @param calls.
 	 */
-	public HaplotypeFragment(int firstColumn, byte[] calls) {
-		
+	public HaplotypeFragment(int id, int firstColumn, byte[] calls) {
+		this.id = id;
 		this.firstColumn = firstColumn;
 		this.calls = calls;
 	}
+	
+	
+	/**
+	 * Returns the id of this fragment
+	 * @return int id of the fragment
+	 */
+	public int getId() {
+		return id;
+	}
+
+
 
 	/**
 	 * Returns the first column of a fragment.

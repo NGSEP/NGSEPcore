@@ -48,7 +48,7 @@ public class DGSSIHAlgorithm implements SIHAlgorithm {
 			updateCut( block, haplotype, cut);
 		}
 		block.setHaplotype(haplotype);
-
+		block.setFragmentsClusters(SIHAlgorithm.buildClusters(block, cut));
 	}
 	private boolean [] initCut(HaplotypeBlock b) {
 		boolean [] cut = new boolean[b.getNumFragments()];
@@ -124,5 +124,4 @@ public class DGSSIHAlgorithm implements SIHAlgorithm {
 			
 		}
 	}
-
 }

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.sequences.DNAMaskedSequence;
@@ -54,6 +55,7 @@ public class Assembler {
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_WINDOW_LENGTH = 30;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
+	public static final int DEF_PLOIDY = 1;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.3;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
@@ -80,9 +82,11 @@ public class Assembler {
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
 	private boolean correctReads = false;
+	private int ploidy = DEF_PLOIDY;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private int numThreads = DEF_NUM_THREADS;
+	
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -177,6 +181,15 @@ public class Assembler {
 		this.consensusAlgorithm = consensusAlgorithm;
 	}
 	
+	public int getPloidy() {
+		return ploidy;
+	}
+	public void setPloidy(int ploidy) {
+		this.ploidy = ploidy;
+	}
+	public void setPloidy(String value) {
+		this.setPloidy((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
 	
 	public int getBpHomopolymerCompression() {
 		return bpHomopolymerCompression;
@@ -265,6 +278,7 @@ public class Assembler {
 		AssemblyGraph graph;
 		if(graphFile!=null) {
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
+			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
 			double [] compressionFactors =null;
 			if (bpHomopolymerCompression>0) {
@@ -288,10 +302,8 @@ public class Assembler {
 					seq.setCharacters(original);
 				}
 			}
+			log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		}
-		log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
-		graph.updateVertexDegrees();
-		log.info("Built assembly graph");
 		
 		if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
 		if(graphFile==null) {
@@ -300,12 +312,6 @@ public class Assembler {
 			log.info("Saved graph to "+outFileGraph);
 		}
 		
-		long time2 = System.currentTimeMillis();
-		graph.removeVerticesChimericReads();
-		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		graph.updateScores(false);
-		(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-		graph.updateScores(false);
 		LayoutBuilder pathsFinder;
 		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
@@ -315,15 +321,6 @@ public class Assembler {
 			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
 			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		}
-		pathsFinder.findPaths(graph);
-		
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		long time3 = System.currentTimeMillis();
-		long diff1 = (time3-time2)/1000;
-		long diff2 = (time3-startTime)/1000;
-		log.info("Layout complete. Paths: "+graph.getPaths().size()+" . Memory: "+usedMemory+" Time layout(s): "+diff1+" total time (s): "+diff2);
-		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
 			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
@@ -333,11 +330,58 @@ public class Assembler {
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
-		List<QualifiedSequence> assembledSequences =  consensus.makeConsensus(graph);
+		
+		graph.removeVerticesChimericReads();
+		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		graph.updateScores(false);
+		long time2 = System.currentTimeMillis();
+		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
+		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
+		if(ploidy > 1) {
+			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
+			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
+			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
+			diploidGraph.updateScores(false);
+			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
+			pathsFinder.findPaths(diploidGraph);
+			log.info("Building haplotype subgraphs");
+			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
+			List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
+			log.info("Separated reads in "+readIdsClusters.size()+" clusters");
+			int haplotypeNumber= 0;
+			for(Set<Integer> readIdsCluster: readIdsClusters) {
+				AssemblyGraph haplotypeGraph = graph.buildSubgraph(readIdsCluster);
+				log.info("Built haplotype subgraph with "+haplotypeGraph.getVertices().size()+" vertices and "+haplotypeGraph.getNumEdges()+ " edges from "+readIdsCluster.size()+" reads");
+				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
+				haplotypeGraph.updateScores(false);
+				pathsFinder.findPaths(haplotypeGraph);
+				log.info("Built "+haplotypeGraph.getPaths().size()+" paths for next haplotype cluster with "+readIdsCluster.size()+" reads");
+				consensus.setSequenceNamePrefix("ContigHap"+haplotypeNumber);
+				List<QualifiedSequence> sequencesCluster = consensus.makeConsensus(haplotypeGraph);
+				log.info("Assembled "+sequencesCluster.size()+" sequences for next haplotype cluster");
+				assembledSequences.addAll(sequencesCluster);
+				haplotypeNumber++;
+			}
+		} else {
+			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+			graph.updateScores(false);
+			
+			pathsFinder.findPaths(graph);
+			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
+			assembledSequences.addAll(consensus.makeConsensus(graph));
+			
+		}
+		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time3 = System.currentTimeMillis();
+		long diff1 = (time3-time2)/1000;
+		long diff2 = (time3-startTime)/1000;
+		log.info("Layout and initial consensus complete. Memory: "+usedMemory+" Time process (s): "+diff1+" total time (s): "+diff2);
 		List<Integer> lengths = new ArrayList<Integer>();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
 		long [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);

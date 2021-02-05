@@ -246,6 +246,9 @@ Minimum proportion from the maximum score of the edges of a sequence to keep an 
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
  -->
+<option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
+Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
+</option>
 <option id="c" type="BOOLEAN" attribute="correctReads">
 For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
 Ignored for other consensus algorithms

@@ -48,6 +48,11 @@ public class HaplotypeBlock
 	private byte haplotype[];
 	
 	/**
+	 * Clusters consistent with the haplotypes
+	 */
+	private List<List<HaplotypeFragment>> fragmentsClusters;
+	
+	/**
 	 * Indicates if the matrix is already sorted
 	 */
 	private boolean sorted = true;
@@ -62,7 +67,7 @@ public class HaplotypeBlock
 		this.calls = calls;
 		matrix = new ArrayList <HaplotypeFragment>();
 		haplotype = null;
-
+		fragmentsClusters = null;
 	}
 	
 	/**
@@ -70,8 +75,8 @@ public class HaplotypeBlock
 	 * @param firstColumn where valid allele calls are found
 	 * @param alleleCalls Calls starting from the given column
 	 */
-	public void addFragment(int firstColumn, byte[] alleleCalls) {
-		HaplotypeFragment fragment = new HaplotypeFragment(firstColumn, alleleCalls);
+	public void addFragment(int id, int firstColumn, byte[] alleleCalls) {
+		HaplotypeFragment fragment = new HaplotypeFragment(id, firstColumn, alleleCalls);
 		matrix.add(fragment);
 		sorted = false;
 	}
@@ -100,6 +105,31 @@ public class HaplotypeBlock
 	}
 	
 	/**
+	 * Changes the haplotype corresponding to the given block. 
+	 * @param haplotype new haplotype
+	 */
+	public void setHaplotype(byte [] haplotype)
+	{
+		this.haplotype = haplotype;
+	}
+	
+	/**
+	 * Returns the clusters of fragments consistent with the haplotype
+	 * @return List<List<HaplotypeFragment>> cluster fragments
+	 */
+	public List<List<HaplotypeFragment>> getFragmentsClusters() {
+		return fragmentsClusters;
+	}
+	
+	/**
+	 * Changes the fragments cluster corresponding to the given block. 
+	 * @param fragmentsClusters new clusters
+	 */
+	public void setFragmentsClusters(List<List<HaplotypeFragment>> fragmentsClusters) {
+		this.fragmentsClusters = fragmentsClusters;
+	}
+
+	/**
 	 * Returns the variant in the given position in the list of variants.
 	 * <b> pre: </b> The list of variants has been initialized.
 	 * @param column of the matrix
@@ -110,6 +140,14 @@ public class HaplotypeBlock
 		return calls.get(column);
 	}
 	
+	public List<HaplotypeFragment> getFragments () {
+		return Collections.unmodifiableList(matrix);
+	}
+	
+	
+
+	
+
 	/**
 	 * Returns Hamming distance between two fragments
 	 * <b> pre: </b> The matrix of fragments has been initialized.
@@ -296,15 +334,6 @@ public class HaplotypeBlock
 			}
 		}
 		return count;
-	}
-	
-	/**
-	 * Changes the haplotype corresponding to the given block. 
-	 * @param haplotype new haplotype
-	 */
-	public void setHaplotype(byte [] haplotype)
-	{
-		this.haplotype = haplotype;
 	}
 	
 	/**

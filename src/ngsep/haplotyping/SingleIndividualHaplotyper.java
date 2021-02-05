@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.Iterator;
 
@@ -207,29 +209,35 @@ public class SingleIndividualHaplotyper {
 		}
 		
 	}
-	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) {
+	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) throws IOException {
 		log.info("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
 		if(nextAln!=null) log.info("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
+		List<ReadAlignment> sequenceAlignments = new ArrayList<ReadAlignment>();
+		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
+			sequenceAlignments.add(nextAln);
+			if(alnIt.hasNext()) nextAln = alnIt.next();
+			else nextAln = null;
+		}
+		phaseSequenceVariants(seqName, hetCalls, sequenceAlignments);
+		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
+		return nextAln;
+	}
+	
+	public List<List<ReadAlignment>> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) throws IOException {
 		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		int i=0;
-		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
+		for(ReadAlignment aln:alignments) {
 			//Advance i
-			GenomicVariant firstHetVar = null;
 			while(i<hetCalls.size()) {
-				firstHetVar = hetCalls.get(i);
-				if(GenomicRegionPositionComparator.getInstance().compare(firstHetVar, nextAln)>=0) {
+				GenomicVariant firstHetVar = hetCalls.get(i);
+				if(GenomicRegionPositionComparator.getInstance().compare(firstHetVar, aln)>=0) {
 					break;
 				}
 				i++;
 			}
-			if(i==hetCalls.size()) {
-				//Try to go to next alignment
-				if(alnIt.hasNext()) nextAln = alnIt.next();
-				else nextAln = null;
-				continue;
-			}
+			if(i==hetCalls.size()) continue;
 			//Extract relevant calls from alignment
-			int lastAln = nextAln.getLast();
+			int lastAln = aln.getLast();
 			List<Byte> calls = new ArrayList<>(50);
 			int realCalls = 0;
 			int first = i;
@@ -239,7 +247,7 @@ public class SingleIndividualHaplotyper {
 					break;
 				}
 				String [] alleles = var.getAlleles();
-				CharSequence callS = nextAln.getAlleleCall(var.getFirst(), var.getLast());
+				CharSequence callS = aln.getAlleleCall(var.getFirst(), var.getLast());
 				String call = null;
 				if(callS!=null) {
 					call = callS.toString();
@@ -266,24 +274,33 @@ public class SingleIndividualHaplotyper {
 			}
 			
 			if(realCalls>1) {
-				block.addFragment (first,NumberArrays.toByteArray(calls));
+				block.addFragment (aln.getReadNumber(), first,NumberArrays.toByteArray(calls));
 				if(block.getNumFragments()%1000==0) log.info("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
 			}
-			//Try to go to next alignment
-			if(alnIt.hasNext()) nextAln = alnIt.next();
-			else nextAln = null;
 		}
 		log.info("Phasing sequence "+seqName+" with "+block.getNumFragments()+" fragments");
-		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
-		if(block.getNumFragments()>0) {
-			phaseBlockVariants (seqName, block,hetCalls);
-		}
 		
-		return nextAln;
+		if(block.getNumFragments()>0) {
+			if(algorithm==null) loadAlgorithm();
+			algorithm.buildHaplotype(block);
+			log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
+			block.phaseCallsWithHaplotype();
+			return buildAlignmentClusters(alignments, block.getFragmentsClusters());
+		}
+		return null;
 	}
-	private void phaseBlockVariants(String seqName, HaplotypeBlock block, List<CalledGenomicVariant> hetCalls) {
-		algorithm.buildHaplotype(block);
-		log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
-		block.phaseCallsWithHaplotype();
+	private List<List<ReadAlignment>> buildAlignmentClusters(List<ReadAlignment> alignments, List<List<HaplotypeFragment>> fragmentsClusters) {
+		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<Integer, ReadAlignment>();
+		for(ReadAlignment aln:alignments) alnsByReadId.put(aln.getReadNumber(),aln);
+		List<List<ReadAlignment>> answer = new ArrayList<List<ReadAlignment>>(fragmentsClusters.size());
+		for(List<HaplotypeFragment> cluster:fragmentsClusters) {
+			List<ReadAlignment> alnsCluster = new ArrayList<ReadAlignment>(cluster.size());
+			for(HaplotypeFragment fragment:cluster) {
+				ReadAlignment aln = alnsByReadId.get(fragment.getId());
+				if(aln!=null) alnsCluster.add(aln);
+			}
+			answer.add(alnsCluster);
+		}
+		return answer;
 	}
 }
