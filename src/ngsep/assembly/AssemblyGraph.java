@@ -521,6 +521,7 @@ public class AssemblyGraph {
 			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 			int unknownLeft = nextEvidenceStart;
 			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
+			if(unknownRight<0) continue;
 			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
 			if(unknownRight>1000 && unknownLeft<1000) {
 				hostEvidenceEndsLeft.add(nextEvidenceEnd);
@@ -540,6 +541,7 @@ public class AssemblyGraph {
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int nextEvidenceEnd = (edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
+			if(unknownLeft<0) continue;
 			int unknownRight = seqLength - nextEvidenceEnd;
 			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
 			if(unknownRight>1000 && unknownLeft<1000) {
@@ -595,9 +597,13 @@ public class AssemblyGraph {
 			}
 		}
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
-		
-		if( numCrossing<2  && hostEvidenceEndLeft-hostPredictedStartRight>1000 && hostPredictedEndLeft-hostEvidenceStartRight>1000) {
-			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight);
+		int d1 = hostEvidenceEndLeft-hostPredictedStartRight;
+		int d2 = hostPredictedEndLeft-hostEvidenceStartRight;
+		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
+		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
+		int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
+		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<10000) {
+			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
 		}/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
 			System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
