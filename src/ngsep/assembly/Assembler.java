@@ -346,6 +346,8 @@ public class Assembler {
 			pathsFinder.findPaths(diploidGraph);
 			log.info("Building haplotype subgraphs");
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
+			hapsCalculator.setLog(log);
+			hapsCalculator.setNumThreads(numThreads);
 			List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
 			log.info("Separated reads in "+readIdsClusters.size()+" clusters");
 			int haplotypeNumber= 0;

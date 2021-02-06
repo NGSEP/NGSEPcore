@@ -58,11 +58,30 @@ public class HaplotypeReadsClusterCalculator {
 	public static final int DEF_NUM_THREADS = 1;
 	private static final int TIMEOUT_SECONDS = 30;
 	
-	private int numThreads = 1;
+	private int numThreads = DEF_NUM_THREADS;
+	
+	
+	
+	public Logger getLog() {
+		return log;
+	}
+
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+
 	public List<Set<Integer>> clusterReads(AssemblyGraph graph, int ploidy) {
 		ThreadPoolExecutor poolClustering = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		List<ClusterReadsTask> tasksList = new ArrayList<ClusterReadsTask>();
-		List<List<AssemblyEdge>> paths = graph.getPaths(); 
+		List<List<AssemblyEdge>> paths = graph.getPaths();
 		for(int i = 0; i < paths.size(); i++)
 		{
 			List<AssemblyEdge> path = paths.get(i);
@@ -80,20 +99,183 @@ public class HaplotypeReadsClusterCalculator {
     	if(!poolClustering.isShutdown()) {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
 		}
-    	List<Set<Integer>> pathClusters = new ArrayList<Set<Integer>>(ploidy);
-    	//TODO: Algorithm for good merging of haplotype clusters
-    	Set<Integer> hap0 = new HashSet<Integer>();
-    	pathClusters.add(hap0);
-    	Set<Integer> hap1 = new HashSet<Integer>();
-    	pathClusters.add(hap1);
-    	for(ClusterReadsTask task:tasksList) {
+    	
+    	
+    	return mergePathClusters(graph,tasksList,ploidy);
+	}
+	
+	private List<Set<Integer>> mergePathClusters(AssemblyGraph graph, List<ClusterReadsTask> tasksList, int ploidy) {
+		List<List<AssemblyEdge>> paths = graph.getPaths();
+		log.info("Merging reads from "+paths.size()+" diploid paths");
+		List<Set<Integer>> inputClusters = new ArrayList<Set<Integer>>();
+    	//Reads of each cluster
+		Map<Integer,Integer> readsClusters = new HashMap<Integer, Integer>();
+    	Map<Integer,AssemblyVertex> verticesEnds = new HashMap<Integer, AssemblyVertex>();
+    	//Clusters that can not go in the same supercluster
+    	Map<Integer,List<Integer>> clusterRestrictions = new HashMap<Integer, List<Integer>>();
+    	int inputClusterId = 0;
+    	for(int i=0;i<paths.size();i++) {
+    		int firstIdCluster = inputClusterId;
+    		List<AssemblyEdge> path = paths.get(i);
+    		Map<Integer,AssemblyVertex> verticesEndsPath = extractVerticesEndsPath(path, ploidy);
+    		System.out.println("Extracted "+verticesEndsPath.size()+" vertices for path: "+i);
+    		verticesEnds.putAll(verticesEndsPath);
+    		ClusterReadsTask task = tasksList.get(i);
     		List<Set<Integer>> hapClusters = task.getClusters();
-    		if(hapClusters.size()>=1) hap0.addAll(hapClusters.get(0));
-    		if(hapClusters.size()>=2) hap1.addAll(hapClusters.get(1));
+    		System.out.println("Calculated "+hapClusters.size()+" input clusters for path: "+i);
+    		for(Set<Integer> inputCluster:hapClusters) {
+    			for(int readId:inputCluster) { 
+    				if (verticesEndsPath.containsKey(readId)) readsClusters.put(readId, inputClusterId);
+    			}
+    			inputClusters.add(inputCluster);
+    			inputClusterId++;
+    		}
+    		
+    		int lastIdCluster = inputClusterId-1;
+    		System.out.println("Path: "+i+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
+    		for(int j=firstIdCluster;j<=lastIdCluster;j++) {
+    			for(int k=firstIdCluster;k<=lastIdCluster;k++) {
+    				if(j!=k) {
+    					List<Integer> restrictionsCluster = clusterRestrictions.computeIfAbsent(j, v->new ArrayList<Integer>());
+    					restrictionsCluster.add(k);
+    				}
+    			}
+    		}
+    	}
+    	//Build connections graph
+    	Map<String,ReadsClusterEdge> clusterEdgesMap = new HashMap<String, ReadsClusterEdge>();
+    	for (Map.Entry<Integer, AssemblyVertex> entry:verticesEnds.entrySet()) {
+    		int readId = entry.getKey();
+    		AssemblyVertex endVertex = entry.getValue();
+    		Integer clusterId = readsClusters.get(readId);
+    		if(clusterId ==null) continue;
+    		List<AssemblyEdge> edges = graph.getEdges(endVertex);
+    		for(AssemblyEdge edge:edges) {
+    			if(edge.isSameSequenceEdge()) continue;
+    			AssemblyVertex v2 = edge.getConnectingVertex(endVertex);
+    			Integer id2 = readsClusters.get(v2.getSequenceIndex());
+    			if(id2!=null && id2>clusterId) {
+    				String key = ReadsClusterEdge.getKey(clusterId, id2);
+    				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(clusterId, id2));
+    				clusterEdge.addAssemblyEdge(edge);
+    			}
+    		}
     	}
     	
-    	return pathClusters;
+    	//Sort edges by total score
+    	int n = clusterEdgesMap.size();
+    	log.info("Created "+n+" edges");
+    	List<ReadsClusterEdge> clusterEdgesList = new ArrayList<ReadsClusterEdge>(n);
+    	clusterEdgesList.addAll(clusterEdgesMap.values());
+    	Collections.sort(clusterEdgesList,(c1,c2)-> c2.getTotalScore()-c1.getTotalScore());
+    	
+    	//Perform clustering taking into account restrictions
+    	Map<Integer,Integer> inputClustersAssignment = new HashMap<Integer,Integer>();
+    	for(int i=0;i<n;i++) {
+    		//Find next unused cluster
+    		boolean change = false;
+    		for(int j=i;j<n;j++) {
+    			ReadsClusterEdge edge = clusterEdgesList.get(j);
+    			int c1 = edge.getClusterId1();
+        		int c2 = edge.getClusterId2();
+        		Integer assignment1 = inputClustersAssignment.get(c1);
+        		Integer assignment2 = inputClustersAssignment.get(c2);
+        		if(assignment1==null && assignment2==null) {
+        			assignCluster(inputClustersAssignment, c1, 0, clusterRestrictions.get(c1), ploidy);
+        			assignCluster(inputClustersAssignment, c2, 0, clusterRestrictions.get(c2), ploidy);
+        			change = true;
+        		}
+    		}
+    		if(!change) break;
+    		//Add clusters connected with already assigned clusters
+    		while(change) {
+    			change = false;
+    			for(int j=i;j<n;j++) {
+    				ReadsClusterEdge edge = clusterEdgesList.get(j);
+        			int c1 = edge.getClusterId1();
+            		int c2 = edge.getClusterId2();
+            		Integer assignment1 = inputClustersAssignment.get(c1);
+            		Integer assignment2 = inputClustersAssignment.get(c2);
+            		if(assignment1!=null && assignment2!=null) continue;
+            		else if(assignment1==null && assignment2==null) continue;
+            		else if (assignment1==null) {
+            			assignCluster(inputClustersAssignment, c1, assignment2, clusterRestrictions.get(c1), ploidy);
+            			change = true;
+            		} else {
+            			assignCluster(inputClustersAssignment, c2, assignment1, clusterRestrictions.get(c2), ploidy);
+            			change = true;
+            		}
+    			}
+    		}
+    	}
+    	log.info("Finished superclustering. Assigned "+inputClustersAssignment.size()+" input clusters");
+    	//Build answer from clusters
+    	List<Set<Integer>> answer = new ArrayList<Set<Integer>>(ploidy);
+    	for(int i=0;i<ploidy;i++) {
+    		Set<Integer> hapSuperCluster = new HashSet<Integer>();
+        	answer.add(hapSuperCluster);
+    	}
+    	for(Map.Entry<Integer, Integer> entry:inputClustersAssignment.entrySet()) {
+    		Set<Integer> inputCluster = inputClusters.get(entry.getKey());
+    		Set<Integer> outputCluster = answer.get(entry.getValue());
+    		outputCluster.addAll(inputCluster); 
+    	}
+    	return answer;
 	}
+	
+	private Map<Integer, AssemblyVertex> extractVerticesEndsPath(List<AssemblyEdge> path, int ploidy) {
+		int n = Math.min(path.size()/4,5*ploidy);
+		int m = path.size();
+		AssemblyEdge edge0 = path.get(0);
+		AssemblyEdge edge1 = path.get(1);
+		AssemblyVertex vInternal = edge0.getSharedVertex(edge1);
+		AssemblyVertex v0External = edge0.getConnectingVertex(vInternal);
+		
+		Map<Integer, AssemblyVertex> answer = new HashMap<Integer, AssemblyVertex>();
+		answer.put(v0External.getSequenceIndex(), v0External);
+		int i=1;
+		while(answer.size()<n && i<path.size()-1) {
+			AssemblyEdge edge = path.get(i);
+			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
+			answer.put(vExt.getSequenceIndex(), vExt);
+			i++;
+			edge = path.get(i);
+			vInternal = edge.getConnectingVertex(vExt);
+			i++;
+		}
+		edge0 = path.get(m-1);
+		edge1 = path.get(m-2);
+		vInternal = edge0.getSharedVertex(edge1);
+		v0External = edge0.getConnectingVertex(vInternal);
+		answer.put(v0External.getSequenceIndex(), v0External);
+		i=m-2;
+		while(answer.size()<2*n && i>1) {
+			AssemblyEdge edge = path.get(i);
+			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
+			answer.put(vExt.getSequenceIndex(), vExt);
+			i--;
+			edge = path.get(i);
+			vInternal = edge.getConnectingVertex(vExt);
+			i--;
+		}
+		return answer;
+	}
+
+	private void assignCluster (Map<Integer,Integer> inputClustersAssignment, int clusterId, int assignment, List<Integer> restrictions, int ploidy) {
+		//This should work fine with diploids 
+		inputClustersAssignment.put(clusterId,assignment);
+		
+		if(restrictions==null) return;
+		int i=0;
+		for(int j=0;i<restrictions.size() && j<ploidy;j++) {
+			if(j!=assignment) {
+				int c3 = restrictions.get(i);
+				inputClustersAssignment.put(c3,j);
+				i++;
+			}
+		}
+	}
+	
 	
 	List<Set<Integer>> clusterReadsPath(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
@@ -243,6 +425,37 @@ class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 
 	@Override
 	public void onSequenceEnd(QualifiedSequence sequence) {
+	}
+	
+}
+class ReadsClusterEdge {
+	private int clusterId1;
+	private int clusterId2;
+	private int numEdges=0;
+	private int totalScore=0;
+	public ReadsClusterEdge(int clusterId1, int clusterId2) {
+		super();
+		this.clusterId1 = clusterId1;
+		this.clusterId2 = clusterId2;
+	}
+	public void addAssemblyEdge(AssemblyEdge edge) {
+		numEdges++;
+		totalScore+=edge.getScore();
+	}
+	public int getClusterId1() {
+		return clusterId1;
+	}
+	public int getClusterId2() {
+		return clusterId2;
+	}
+	public int getNumEdges() {
+		return numEdges;
+	}
+	public int getTotalScore() {
+		return totalScore;
+	}
+	public static String getKey(int id1, int id2) {
+		return ""+id1+" "+id2;
 	}
 	
 }
