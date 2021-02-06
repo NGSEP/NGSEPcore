@@ -556,7 +556,7 @@ public class AssemblyGraph {
 		}
 		
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size());
-		if(hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3) return false;
+		if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0 || hostEvidenceStartsRight.size()+numIncompleteEdgesRight<5 || hostEvidenceEndsLeft.size()+numIncompleteEdgesLeft<5 ) return false;
 		//if(numIncompleteEdgesLeft<3 && numIncompleteEdgesRight<3 && (hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3)) return false;
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
 		int hostEvidenceEndLeft = hostEvidenceEndsLeft.size()>0?hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2):0;
@@ -602,7 +602,7 @@ public class AssemblyGraph {
 		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
 		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
 		int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
-		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<10000) {
+		if( numCrossing==0  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<10000) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
 		}/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {

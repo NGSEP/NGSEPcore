@@ -43,7 +43,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double evProp = relationship.getEvidenceProportion();
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
-		double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
+		double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp;
+		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		if(useIndels) {
 			Distribution indelsKbp = edgesStats[5];
 			NormalDistribution ikbp = new NormalDistribution(indelsKbp.getAverage(),2*indelsKbp.getVariance());

@@ -58,6 +58,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		int queryLength = queryF.length();
 		List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
 		int selfHitsCount = (selfHits!=null)?selfHits.size():0;
+		long cumulativeReadDepth = 0;
 		
 		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
 		List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
@@ -81,6 +82,9 @@ public class KmerHitsAssemblyEdgesFinder {
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
 		}
+		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
+		boolean extensiveSearch = cumulativeReadDepth<30;
+		if(!extensiveSearch) minHits*=4;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);
@@ -92,9 +96,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			//System.out.println("Query "+queryIdx+" had zero subject ids after initial filtering. self hits: "+selfHitsCount+" min hits: "+minHits);
 			return relationships;
 		}
-		long cumulativeReadDepth = 0;
-		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
-		if(cumulativeReadDepth<30) {
+		
+		if(extensiveSearch) {
 			//Build initial clusters
 			List<KmerHitsCluster> clustersForward = createClusters(queryIdx, queryLength, hitsForward, subjectIdxsF);
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Clusters forward: "+clustersForward.size());
@@ -320,7 +323,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		relationships.add(embeddedEvent);
 		
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
-		return proportionEvidence>0.95;
+		return proportionEvidence>0.98;
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, KmerHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);

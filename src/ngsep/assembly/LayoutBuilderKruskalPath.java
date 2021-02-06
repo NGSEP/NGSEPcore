@@ -78,10 +78,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		safePaths = buildPaths(graph, pathEdges);
 		log.info("Updated number of paths: "+safePaths.size());
 		
-		addEdges3(graph, safePaths, pathEdges);
-		log.info("Number of edges after third algorithm: "+pathEdges.size());
-		safePaths = buildPaths(graph, pathEdges);
-		log.info("Updated number of paths: "+safePaths.size());
+		//addEdges3(graph, safePaths, pathEdges);
+		//log.info("Number of edges after third algorithm: "+pathEdges.size());
+		//safePaths = buildPaths(graph, pathEdges);
+		//log.info("Updated number of paths: "+safePaths.size());
 		
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
@@ -299,51 +299,51 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			AssemblyVertex vertex = vertices[i];
 			List<AssemblyEdge> edges = graph.getEdges(vertex);
 			AssemblyEdge bestOverlap=null;
-			AssemblyEdge bestScore=null;
+			AssemblyEdge bestWCSK=null;
 			for(AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) continue;
 				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
 				if(j==null || used[j]) continue;
 				if(bestOverlap==null || bestOverlap.getOverlap()<edge.getOverlap()) bestOverlap = edge;
-				if(bestScore==null || bestScore.getScore()<edge.getScore()) bestScore = edge;
+				if(bestWCSK==null || bestWCSK.getWeightedCoverageSharedKmers()<edge.getWeightedCoverageSharedKmers()) bestWCSK = edge;
 			}
-			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" edges: "+edges.size()+" max overlap: "+bestOverlap+" max score: "+bestScore);
-			if(bestOverlap == bestScore) continue;
-			int diffOverlap = Math.abs(bestOverlap.getOverlap()-bestScore.getOverlap());
-			int diffScore = Math.abs(bestOverlap.getScore()-bestScore.getScore());
-			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" diff overlap: "+diffOverlap+" diff score: "+diffScore);
+			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" edges: "+edges.size()+" max overlap: "+bestOverlap+" max WCSK: "+bestWCSK);
+			if(bestOverlap == bestWCSK) continue;
+			int diffOverlap = Math.abs(bestOverlap.getOverlap()-bestWCSK.getOverlap());
+			int diffWCSK = Math.abs(bestOverlap.getWeightedCoverageSharedKmers()-bestWCSK.getWeightedCoverageSharedKmers());
+			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" diff overlap: "+diffOverlap+" diff wcsk: "+diffWCSK);
 			if(diffOverlap>0.05*bestOverlap.getOverlap()) continue;
-			if(diffScore>0.05*bestScore.getScore()) continue;
+			if(diffWCSK>0.05*bestWCSK.getWeightedCoverageSharedKmers()) continue;
 			
 			AssemblyEdge thirdOverlap=null;
-			AssemblyEdge thirdScore=null;
+			AssemblyEdge thirdWCSK=null;
 			for(AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) continue;
 				if(edge == bestOverlap) continue;
-				if(edge == bestScore) continue;
+				if(edge == bestWCSK) continue;
 				Integer j = verticesMap.get(edge.getConnectingVertex(vertex).getUniqueNumber());
 				if(j==null || used[j]) continue;
 				if(thirdOverlap==null || thirdOverlap.getOverlap()<edge.getOverlap()) thirdOverlap = edge;
-				if(thirdScore==null || thirdScore.getScore()<edge.getScore()) thirdScore = edge;
+				if(thirdWCSK==null || thirdWCSK.getWeightedCoverageSharedKmers()<edge.getWeightedCoverageSharedKmers()) thirdWCSK = edge;
 			}
-			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" third overlap: "+thirdOverlap+" third score: "+thirdScore);
-			if(thirdOverlap!=null && thirdOverlap.getOverlap()>0.9*bestScore.getOverlap()) continue;
-			if(thirdScore!=null && thirdScore.getScore()>0.9*bestOverlap.getScore()) continue;
+			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" third overlap: "+thirdOverlap+" third WCSK: "+thirdWCSK);
+			if(thirdOverlap!=null && (thirdOverlap.getOverlap()>=bestWCSK.getOverlap() || thirdOverlap.getWeightedCoverageSharedKmers()>=bestOverlap.getWeightedCoverageSharedKmers())) continue;
+			if(thirdWCSK!=null && (thirdWCSK.getWeightedCoverageSharedKmers()>=bestOverlap.getWeightedCoverageSharedKmers()|| thirdWCSK.getOverlap()>=bestWCSK.getOverlap())) continue;
 			
 			AssemblyVertex vBestOv = bestOverlap.getConnectingVertex(vertex);
-			AssemblyVertex vBestScore = bestScore.getConnectingVertex(vertex);
+			AssemblyVertex vBestWCSK = bestWCSK.getConnectingVertex(vertex);
 			
 			int j = verticesMap.get(vBestOv.getUniqueNumber());
-			int k = verticesMap.get(vBestScore.getUniqueNumber());
+			int k = verticesMap.get(vBestWCSK.getUniqueNumber());
 			if(paths.get(j/2).size()>1) continue;
 			if(paths.get(k/2).size()>1) continue;
 			
 			AssemblyVertex vBestOv2 = graph.getSameSequenceEdge(vBestOv).getConnectingVertex(vBestOv);
-			AssemblyVertex vBestScore2 = graph.getSameSequenceEdge(vBestScore).getConnectingVertex(vBestScore);
-			AssemblyEdge edgeOv2 = graph.getEdge(vBestOv2, vBestScore);
-			AssemblyEdge edgeScore2 = graph.getEdge(vBestScore2, vBestOv);
+			AssemblyVertex vBestWCSK2 = graph.getSameSequenceEdge(vBestWCSK).getConnectingVertex(vBestWCSK);
+			AssemblyEdge edgeOv2 = graph.getEdge(vBestOv2, vBestWCSK);
+			AssemblyEdge edgeWCSK2 = graph.getEdge(vBestWCSK2, vBestOv);
 			
-			if(graph.isBestEdge(vBestOv, bestOverlap) && edgeOv2!=null && edgeScore2==null && edgeOv2.getOverlap()>0.8*bestScore.getOverlap()) {
+			if(graph.isBestEdge(vBestOv, bestOverlap) && edgeOv2!=null && edgeWCSK2==null && edgeOv2.getOverlap()>0.8*bestWCSK.getOverlap()) {
 				//Best overlap follows transitivity
 				int c1 = clusters[i];
 				int c2 = clusters[j];
@@ -359,24 +359,24 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 						if(clusters[c]==c2 || clusters[c]==c3) clusters[c] = c1;
 					}
 					System.out.println("Added transitivity edges with best overlap "+bestOverlap+" "+edgeOv2);
-					System.out.println("Competing edge: "+bestScore);
+					System.out.println("Competing edge: "+bestWCSK);
 				}
-			} else if (graph.isBestEdge(vBestScore, bestScore) && edgeOv2==null && edgeScore2!=null && edgeScore2.getOverlap()>0.8*bestScore.getOverlap()) {
-				//Best score follows transitivity
+			} else if (graph.isBestEdge(vBestWCSK, bestWCSK) && edgeOv2==null && edgeWCSK2!=null && edgeWCSK2.getOverlap()>0.8*bestOverlap.getOverlap()) {
+				//Best WCSK follows transitivity
 				int c1 = clusters[i];
 				int c2 = clusters[j];
 				int c3 = clusters[k];
 				
 				if(c1!=c2 && c1!=c3 && c2!=c3) {
-					pathEdges.add(bestScore);
-					pathEdges.add(edgeScore2);
+					pathEdges.add(bestWCSK);
+					pathEdges.add(edgeWCSK2);
 					used[i] = used[j] = used[k] = true;
-					int k2 = verticesMap.get(vBestScore2.getUniqueNumber());
+					int k2 = verticesMap.get(vBestWCSK2.getUniqueNumber());
 					used[k2] = true;
 					for(int c=0;c<n;c++) {
 						if(clusters[c]==c2 || clusters[c]==c3) clusters[c] = c1;
 					}
-					System.out.println("Added transitivity edges with best score: "+bestScore+" "+edgeScore2);
+					System.out.println("Added transitivity edges with best WCSK: "+bestWCSK+" "+edgeWCSK2);
 					System.out.println("Competing edge: "+bestOverlap);
 				}
 			}

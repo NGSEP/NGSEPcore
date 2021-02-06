@@ -418,7 +418,6 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
-			//if(left.getSoftClipStart()>1000 || left.getSoftClipEnd() > 1000) System.err.println("Large softclip in alignemt of read: "+left.getReadNumber()+" "+left.getReadName()+" CIGAR: "+left.getCigarString());
 			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
 			leftSeq.setLength(left.getReadLength());
 			
@@ -429,6 +428,7 @@ public class AssemblyGraphStatistics {
 				if(cmp>1) break;
 				QualifiedSequence rightSeq = new QualifiedSequence(right.getReadName());
 				rightSeq.setLength(right.getReadLength());
+				//if(right.getReadNumber()==5387)System.out.println("Comparing with alignment: "+left+" right: "+right);
 				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
 				int overlap = left.getLast() - right.getFirst() + 1;
 				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
@@ -566,7 +566,7 @@ public class AssemblyGraphStatistics {
 				if (logErrors) System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
-					if (logErrors) System.err.println("Next false host "+logSequence(embedded.getHostId(),seqHost)+" predicted: "+embedded.getHostStart()+"-"+embedded.getHostEnd()+" evidence: "+embedded.getHostEvidenceStart()+"-"+embedded.getHostEvidenceEnd()+" CSK: "+embedded.getCoverageSharedKmers()+" WCSK: "+embedded.getWeightedCoverageSharedKmers()+" RK: "+embedded.getRawKmerHits()+" RSD: "+embedded.getRawKmerHitsSubjectStartSD()+" prop: "+(1.0*embedded.getCoverageSharedKmers()/goldStandardGraph.getSequenceLength(embedded.getSequenceId())));
+					if (logErrors) System.err.println("Next false relation with host: "+seqHost.getName()+" length: "+seqHost.getLength()+" "+embedded);
 					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
@@ -642,7 +642,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==9957 || gsVertex.getSequenceIndex()==9997 || gsVertex.getSequenceIndex()==9089; 
+		//boolean debug = gsVertex.getSequenceIndex()==2078 || gsVertex.getSequenceIndex()==5201 || gsVertex.getSequenceIndex()==993; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

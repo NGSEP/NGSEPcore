@@ -19,6 +19,8 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import ngsep.main.io.ParseUtils;
+
 /**
  * @author Jorge Duitama
  */
@@ -259,7 +261,9 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	}
 
 	public String toString() {
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1))+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1))+" Indels: "+numIndels+" IKBP: "+getIndelsPerKbp()+ "layout: "+layoutEdge;
+		double evProp1 = ((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1));
+		double evProp2 = ((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1));
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+evProp1+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+ParseUtils.ENGLISHFMT.format(evProp2)+" Score: "+score+" cost: "+cost+" Indels: "+numIndels+" IKBP: "+ParseUtils.ENGLISHFMT.format(getIndelsPerKbp())+ "layout: "+layoutEdge;
 	}
 	
 
