@@ -41,9 +41,19 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	}
 	public int calculateScore(AssemblySequencesRelationship relationship, Distribution[] edgesStats) {
 		double evProp = relationship.getEvidenceProportion();
+		double overlapProportion=relationship.getOverlap();
+		if(relationship instanceof AssemblyEmbedded) {
+			overlapProportion = 1;
+		} else {
+			AssemblyEdge edge = (AssemblyEdge) relationship;
+			int l1 = edge.getVertex1().getRead().getLength();
+			int l2 = edge.getVertex1().getRead().getLength();
+			overlapProportion/=Math.max(l1, l2);
+		}
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp;
+		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		if(useIndels) {
 			Distribution indelsKbp = edgesStats[5];

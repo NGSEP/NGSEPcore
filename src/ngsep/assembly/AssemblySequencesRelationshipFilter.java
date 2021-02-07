@@ -112,7 +112,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" limit: "+minScoreFilterEdges);
-			if(score <500 || (score < maxScoreS && score < minScoreFilterEdges)) {
+			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < minScoreFilterEdges)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
@@ -123,7 +123,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE+" limit: "+minScoreFilterEdges);
-			if(score < 500 || (score < maxScoreE && score < minScoreFilterEdges)) {
+			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < minScoreFilterEdges)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}

@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -81,20 +80,27 @@ public class AssemblyGraphStatistics {
 	private Distribution distLengthsLayoutReads = new Distribution(0,100000,2000);
 	private Distribution distLengthsEmbeddedReads = new Distribution(0,100000,2000);
 	
+	private Distribution distScoresTPEmbedded = new Distribution(0,200000,2000);
+	private Distribution distCostsTPEmbedded = new Distribution(0,200000,2000);
 	private Distribution distCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKTPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distEvidencePropLengthTPEmbedded = new Distribution(0, 1.1, 0.01);
 	private Distribution distWCSKPropSelfTPEmbedded = new Distribution(0, 1.1, 0.01);
+	private Distribution distIndelsKbpTPEmbedded = new Distribution(0, 50, 1);
 	
+	private Distribution distScoresFPEmbedded = new Distribution(0,200000,2000);
+	private Distribution distCostsFPEmbedded = new Distribution(0,200000,2000);
 	private Distribution distCSKFPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distWCSKFPEmbedded = new Distribution(0, 30000, 500);
 	private Distribution distEvidencePropLengthFPEmbedded = new Distribution(0, 1.1, 0.01);
 	private Distribution distWCSKPropSelfFPEmbedded = new Distribution(0, 1.1, 0.01);
+	private Distribution distIndelsKbpFPEmbedded = new Distribution(0, 50, 1);
 	
 	private Distribution distEvidencePropLengthFNEmbedded = new Distribution(0, 1.1, 0.01);
 	
 	private Distribution distOverlapsTPPathEdges = new Distribution(0,100000,2000);
-	private Distribution distCostsTPPathEdges = new Distribution(0,100000,2000);
+	private Distribution distScoresTPPathEdges = new Distribution(0,200000,2000);
+	private Distribution distCostsTPPathEdges = new Distribution(0,200000,2000);
 	private Distribution distSharedKmersTPPathEdges = new Distribution(0,25000,500);
 	private Distribution distCoverageSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
@@ -106,7 +112,8 @@ public class AssemblyGraphStatistics {
 	
 	
 	private Distribution distOverlapsFPEdges = new Distribution(0,100000,2000);
-	private Distribution distCostsFPEdges = new Distribution(0,100000,2000);
+	private Distribution distScoresFPEdges = new Distribution(0,200000,2000);
+	private Distribution distCostsFPEdges = new Distribution(0,200000,2000);
 	private Distribution distSharedKmersFPEdges = new Distribution(0,25000,500);
 	private Distribution distCoverageSharedKmersFPEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersFPEdges = new Distribution(0, 30000, 500);
@@ -117,6 +124,8 @@ public class AssemblyGraphStatistics {
 	private Distribution distIndelsKbpFPEdges = new Distribution(0,50,1);
 	
 	private Distribution distOverlapsFPPathEdges = new Distribution(0,100000,2000);
+	private Distribution distScoresFPPathEdges = new Distribution(0,200000,2000);
+	private Distribution distCostsFPPathEdges = new Distribution(0,200000,2000);
 	private Distribution distCoverageSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distWCovSharedKmersFPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distCoverageSharedKmersProportionFPPathEdges = new Distribution(0, 1.1, 0.01);
@@ -124,7 +133,6 @@ public class AssemblyGraphStatistics {
 	private Distribution distIndelsKbpFPPathEdges = new Distribution(0,50,1);
 	
 	private Distribution distOverlapsFNPathEdges = new Distribution(0,100000,2000);
-	private Distribution distCostsFNPathEdges = new Distribution(0,100000,2000);
 	
 	private int tpEmbSeqs = 0;
 	private int fpEmbSeqs = 0;
@@ -529,17 +537,26 @@ public class AssemblyGraphStatistics {
 			if(gsE && testE) {
 				tpEmbSeqs++;
 				List<AssemblyEmbedded> hosts = testGraph.getEmbeddedBySequenceId(i);
+				int maxScore = 0;
+				int minCost = 10000000;
 				double maxEvidenceProp = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
+				double minIndelsKbp = 1000000;
 				for(AssemblyEmbedded embedded: hosts) {
+					maxScore = Math.max(maxScore, embedded.getScore());
+					minCost = Math.min(minCost, embedded.getCost());
 					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
+					minIndelsKbp = Math.min(minIndelsKbp, embedded.getIndelsPerKbp());
 				}
+				distScoresTPEmbedded.processDatapoint(maxScore);
+				distCostsTPEmbedded.processDatapoint(minCost);
 				distCSKTPEmbedded.processDatapoint(maxCSK);
 				distWCSKTPEmbedded.processDatapoint(maxWCSK);
 				distEvidencePropLengthTPEmbedded.processDatapoint(maxEvidenceProp);
+				distIndelsKbpTPEmbedded.processDatapoint(minIndelsKbp);
 				if(selfEdge!=null) {
 					
 					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
@@ -560,20 +577,29 @@ public class AssemblyGraphStatistics {
 			else if (testE) {
 				fpEmbSeqs++;
 				List<AssemblyEmbedded> falseHosts = testGraph.getEmbeddedBySequenceId(i);
+				int maxScore = 0;
+				int minCost = 10000000;
 				double maxEvidenceProp = 0;
 				double maxCSK = 0;
 				double maxWCSK = 0;
+				double minIndelsKbp = 1000000;
 				if (logErrors) System.err.println("False embedded sequence "+logSequence(i, sequence)+" false hosts: "+falseHosts.size());
 				for(AssemblyEmbedded embedded:falseHosts) {
 					QualifiedSequence seqHost = testGraph.getSequence(embedded.getHostId()) ;
 					if (logErrors) System.err.println("Next false relation with host: "+seqHost.getName()+" length: "+seqHost.getLength()+" "+embedded);
+					maxScore = Math.max(maxScore, embedded.getScore());
+					minCost = Math.min(minCost, embedded.getCost());
 					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
+					minIndelsKbp = Math.min(minIndelsKbp, embedded.getIndelsPerKbp());
 				}
+				distScoresFPEmbedded.processDatapoint(maxScore);
+				distCostsFPEmbedded.processDatapoint(minCost);
 				distCSKFPEmbedded.processDatapoint(maxCSK);
 				distWCSKFPEmbedded.processDatapoint(maxWCSK);
 				distEvidencePropLengthFPEmbedded.processDatapoint(maxEvidenceProp);
+				distIndelsKbpFPEmbedded.processDatapoint(minIndelsKbp);
 				if(selfEdge!=null) {
 					double p2 = maxCSK/selfEdge.getCoverageSharedKmers();
 					distWCSKPropSelfFPEmbedded.processDatapoint(p2);
@@ -641,8 +667,8 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==2078 || gsVertex.getSequenceIndex()==5201 || gsVertex.getSequenceIndex()==993; 
+		//boolean debug = gsVertex.getSequenceIndex()==-1;
+		boolean debug = gsVertex.getSequenceIndex()==200157 || gsVertex.getSequenceIndex()==1 || gsVertex.getSequenceIndex()==420127; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -690,6 +716,7 @@ public class AssemblyGraphStatistics {
 							//layoutTestEdge = edge;
 							if (!gsEdge.isSameSequenceEdge()) {
 								distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
+								distScoresTPPathEdges.processDatapoint(edge.getScore());
 								distCostsTPPathEdges.processDatapoint(edge.getCost());
 								distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
 								distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
@@ -710,7 +737,6 @@ public class AssemblyGraphStatistics {
 					
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
-					distCostsFNPathEdges.processDatapoint(gsEdge.getCost());
 					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
 				}
 				totalPathEdges++;
@@ -724,6 +750,7 @@ public class AssemblyGraphStatistics {
 				//False positive
 				fpEdges++;
 				distOverlapsFPEdges.processDatapoint(edge.getOverlap());
+				distScoresFPEdges.processDatapoint(edge.getCost());
 				distCostsFPEdges.processDatapoint(edge.getCost());
 				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
@@ -836,6 +863,8 @@ public class AssemblyGraphStatistics {
 							errorsFPEdge++;
 							System.err.println("Compare layouts. False positive edge: "+nextTestEdge);
 							distOverlapsFPPathEdges.processDatapoint(nextTestEdge.getOverlap());
+							distScoresFPPathEdges.processDatapoint(nextTestEdge.getScore());
+							distCostsFPPathEdges.processDatapoint(nextTestEdge.getCost());
 							distCoverageSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getCoverageSharedKmers());
 							distWCovSharedKmersFPPathEdges.processDatapoint(nextTestEdge.getWeightedCoverageSharedKmers());
 							distCoverageSharedKmersProportionFPPathEdges.processDatapoint((double)nextTestEdge.getCoverageSharedKmers()/nextTestEdge.getOverlap());
@@ -959,6 +988,18 @@ public class AssemblyGraphStatistics {
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]);
 		}
 		
+		d1 = distScoresTPEmbedded.getDistribution();
+		d2 = distScoresFPEmbedded.getDistribution();
+		d3 = distCostsTPEmbedded.getDistribution();
+		d4 = distCostsFPEmbedded.getDistribution();
+		out.println("Score/Cost distributions embedded");
+		out.println("Number\tScoreTP\tScoreFP\tCostTP\tCostFP");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distCostsTPEmbedded.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
+		}
+		out.println("More+\t"+distScoresTPEmbedded.countOutliersMore()+"\t"+distScoresFPEmbedded.countOutliersMore()+"\t"+distCostsTPEmbedded.countOutliersMore()+"\t"+distCostsFPEmbedded.countOutliersMore());
+		
 		
 		d1 = distCSKTPEmbedded.getDistribution();
 		d2 = distCSKFPEmbedded.getDistribution();
@@ -983,6 +1024,16 @@ public class AssemblyGraphStatistics {
 			out.println(ParseUtils.ENGLISHFMT_PROBABILITIES.format(min)+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]);
 		}
 		
+		d1 = distIndelsKbpTPEmbedded.getDistribution();
+		d2 = distIndelsKbpFPEmbedded.getDistribution();
+		out.println("Indels per kbp distributions");
+		out.println("Number\tTP\tFP");
+		for(int i=0;i<d1.length;i++) {
+			int min = i*(int)distIndelsKbpTPEmbedded.getBinLength();
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]);
+		}
+		out.println("More\t"+distIndelsKbpTPEmbedded.countOutliersMore()+"\t"+distIndelsKbpFPEmbedded.countOutliersMore());
+		
 		d1 = distOverlapsTPPathEdges.getDistribution();
 		d2 = distOverlapsFPPathEdges.getDistribution();
 		d3 = distOverlapsFNPathEdges.getDistribution();
@@ -994,15 +1045,19 @@ public class AssemblyGraphStatistics {
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]);
 		}
 		
-		d1 = distCostsTPPathEdges.getDistribution();
-		d2 = distCostsFPEdges.getDistribution();
-		d3 = distCostsFNPathEdges.getDistribution();
-		out.println("Cost distributions");
-		out.println("Number\tTPpath\tFP\tFNPath");
+		d1 = distScoresTPPathEdges.getDistribution();
+		d2 = distScoresFPPathEdges.getDistribution();
+		d3 = distScoresFPEdges.getDistribution();
+		d4 = distCostsTPPathEdges.getDistribution();
+		d5 = distCostsFPPathEdges.getDistribution();
+		double [] d6 = distCostsFPEdges.getDistribution();
+		out.println("Score/Cost distributions");
+		out.println("Number\tScoreTPpath\tScoreFPPath\tScoreFP\tCostTPPath\tCostFPPath\tCostFP");
 		for(int i=0;i<d1.length;i++) {
 			int min = i*(int)distCostsTPPathEdges.getBinLength();
-			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]+"\t"+d4[i]+"\t"+d5[i]+"\t"+d6[i]);
 		}
+		out.println("More\t"+distScoresTPPathEdges.countOutliersMore()+"\t"+distScoresFPPathEdges.countOutliersMore()+"\t"+distScoresFPEdges.countOutliersMore()+"\t"+distCostsTPPathEdges.countOutliersMore()+"\t"+distCostsFPPathEdges.countOutliersMore()+"\t"+distCostsFPEdges.countOutliersMore());
 		
 		d1 = distSharedKmersTPPathEdges.getDistribution();
 		d2 = distSharedKmersFPEdges.getDistribution();
@@ -1052,6 +1107,7 @@ public class AssemblyGraphStatistics {
 			int min = i*(int)distIndelsKbpTPPathEdges.getBinLength();
 			out.println(min+"\t"+d1[i]+"\t"+d2[i]+"\t"+d3[i]);
 		}
+		out.println("More\t"+distIndelsKbpTPPathEdges.countOutliersMore()+"\t"+distIndelsKbpFPPathEdges.countOutliersMore()+"\t"+distIndelsKbpFPEdges.countOutliersMore());
 		
 		d1 = distOverlapSDTPPathEdges.getDistribution();
 		d2 = distOverlapSDFPEdges.getDistribution();
@@ -1122,6 +1178,8 @@ public class AssemblyGraphStatistics {
 		countFromLimitsPredictedOverlap = 0;
 		distFromLimitsOverlapError.reset();
 		
+		distScoresTPEmbedded.reset();
+		distCostsTPEmbedded.reset();
 		distCSKTPEmbedded.reset();
 		distCSKFPEmbedded.reset();
 		distWCSKTPEmbedded.reset();
@@ -1131,10 +1189,13 @@ public class AssemblyGraphStatistics {
 		distEvidencePropLengthFNEmbedded.reset();
 		distWCSKPropSelfTPEmbedded.reset();
 		distWCSKPropSelfFPEmbedded.reset();
+		distIndelsKbpTPEmbedded.reset();
+		distIndelsKbpFPEmbedded.reset();
 		
 		
 		distOverlapsTPPathEdges.reset();
 		distOverlapSDTPPathEdges.reset();
+		distScoresTPPathEdges.reset();
 		distCostsTPPathEdges.reset();
 		distSharedKmersTPPathEdges.reset();
 		distCoverageSharedKmersTPPathEdges.reset();
@@ -1147,6 +1208,7 @@ public class AssemblyGraphStatistics {
 		
 		distOverlapsFPEdges.reset();
 		distOverlapSDFPEdges.reset();
+		distScoresFPEdges.reset();
 		distCostsFPEdges.reset();
 		distSharedKmersFPEdges.reset();
 		distCoverageSharedKmersFPEdges.reset();
@@ -1157,7 +1219,8 @@ public class AssemblyGraphStatistics {
 		distIndelsKbpFPEdges.reset();
 		
 		distOverlapsFNPathEdges.reset();
-		distCostsFNPathEdges.reset();
+		
+		//FP path edges do not need to be reset
 		
 		
 		
