@@ -307,8 +307,12 @@ public class HaplotypeReadsClusterCalculator {
 			return answer;
 		}
 		for(List<ReadAlignment> cluster:clusters) {
+			//System.out.println("First cluster");
 			Set<Integer> sequenceIds = new HashSet<Integer>();
-			for(ReadAlignment aln:cluster) sequenceIds.add(aln.getReadNumber());
+			for(ReadAlignment aln:cluster) {
+				//System.out.println(aln.getReadNumber()+" "+ aln.getReadName());
+				sequenceIds.add(aln.getReadNumber());
+			}
 			answer.add(sequenceIds);
 		}
 		return answer;

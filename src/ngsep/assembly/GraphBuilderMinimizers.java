@@ -27,6 +27,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
 	private int windowLength=DEF_WINDOW_LENGTH;
+	private int ploidy = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	private static final int TIMEOUT_SECONDS = 30;
@@ -54,6 +55,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		this.windowLength = windowLength;
 	}
 	
+	public int getPloidy() {
+		return ploidy;
+	}
+	public void setPloidy(int ploidy) {
+		this.ploidy = ploidy;
+	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -132,7 +139,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		edgesFinder.setExpectedAssemblyLength(expectedAssemblyLength);
+		graph.setExpectedAssemblyLength(expectedAssemblyLength);
+		graph.setPloidy(ploidy);
+		
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());

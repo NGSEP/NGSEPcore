@@ -405,10 +405,19 @@ public class AssemblyGraphStatistics {
 			QualifiedSequence seq = sequences.get(i);
 			String readName = seq.getName();
 			readNames.add(readName);
-			String [] items = readName.split("_");
-			QualifiedSequence seqName = seqNames.get(items[0]);
-			int first = Integer.parseInt(items[1]);
-			boolean reverse = items[2].charAt(0)=='1';
+			int i1 = -1;
+			int i2 = -1;
+			for(int j=readName.length()-1;j>=0;j--) {
+				if(readName.charAt(j)!='_') continue;
+				if(i2==-1) i2 = j;
+				else if (i1==-1) {
+					i1 = j;
+					break;
+				}
+			}
+			QualifiedSequence seqName = seqNames.get(readName.substring(0,i1));
+			int first = Integer.parseInt(readName.substring(i1+1, i2));
+			boolean reverse = readName.charAt(i2+1)=='1';
 			int flags = 0;
 			if (reverse) flags = ReadAlignment.FLAG_READ_REVERSE_STRAND;
 			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
@@ -667,8 +676,8 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		//boolean debug = gsVertex.getSequenceIndex()==-1;
-		boolean debug = gsVertex.getSequenceIndex()==200157 || gsVertex.getSequenceIndex()==1 || gsVertex.getSequenceIndex()==420127; 
+		boolean debug = gsVertex.getSequenceIndex()==-1;
+		//boolean debug = gsVertex.getSequenceIndex()==198 || gsVertex.getSequenceIndex()==1545 || gsVertex.getSequenceIndex()==1223; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

@@ -55,7 +55,7 @@ public class Assembler {
 	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
 	public static final int DEF_WINDOW_LENGTH = 30;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
-	public static final int DEF_PLOIDY = 1;
+	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.3;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
@@ -289,7 +289,7 @@ public class Assembler {
 			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
 			builder.setKmerLength(kmerLength);
 			builder.setWindowLength(windowLength);
-			//builder.setMinKmerPercentage(minKmerPercentage);
+			builder.setPloidy(ploidy);
 			builder.setNumThreads(numThreads);
 			builder.setLog(log);
 			graph = builder.buildAssemblyGraph(sequences,compressionFactors);
@@ -354,6 +354,9 @@ public class Assembler {
 			for(Set<Integer> readIdsCluster: readIdsClusters) {
 				AssemblyGraph haplotypeGraph = graph.buildSubgraph(readIdsCluster);
 				log.info("Built haplotype subgraph with "+haplotypeGraph.getVertices().size()+" vertices and "+haplotypeGraph.getNumEdges()+ " edges from "+readIdsCluster.size()+" reads");
+				String outFileGraph = outputPrefix+"_hap"+haplotypeNumber+".graph.gz";
+				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
+				log.info("Saved graph to "+outFileGraph);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
 				haplotypeGraph.updateScores(false);
 				pathsFinder.findPaths(haplotypeGraph);

@@ -38,7 +38,7 @@ import ngsep.sequences.QualifiedSequence;
  * @author David Guevara
  */
 public class AssemblyGraph {
-	
+	public static final int DEF_PLOIDY_ASSEMBLY = 1;
 	/**
 	 * Sequences to build the graph. The index of each sequence is the unique identifier
 	 */
@@ -72,6 +72,10 @@ public class AssemblyGraph {
 	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
 	
 	private int numEdges = 0;
+	
+	private int ploidy = DEF_PLOIDY_ASSEMBLY;
+	
+	private long expectedAssemblyLength = 0;
 
 	/**
 	 * Private constructor for subgraphs
@@ -389,7 +393,19 @@ public class AssemblyGraph {
 	public List<List<AssemblyEdge>> getPaths() {
 		return paths;
 	}
-
+	
+	public int getPloidy() {
+		return ploidy;
+	}
+	public void setPloidy(int ploidy) {
+		this.ploidy = ploidy;
+	}
+	public long getExpectedAssemblyLength() {
+		return expectedAssemblyLength;
+	}
+	public void setExpectedAssemblyLength(long expectedAssemblyLength) {
+		this.expectedAssemblyLength = expectedAssemblyLength;
+	}
 	public void updateVertexDegrees () {
 		for (int v:edgesMap.keySet()) {
 			AssemblyVertex vertex = verticesByUnique.get(v);
