@@ -621,7 +621,7 @@ public class AssemblyGraph {
 		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
 		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
 		int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
-		if( numCrossing==0  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<10000) {
+		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 /*&& d5<10000*/) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
 		}/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
