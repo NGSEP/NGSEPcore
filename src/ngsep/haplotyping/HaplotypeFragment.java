@@ -102,6 +102,22 @@ public class HaplotypeFragment {
 		int lastColumn = getFirstColumn() + calls.length -1;
 		return lastColumn;
 	}
+	public int getTotalCalls() {
+		int total = 0;
+		for(int i=0;i<calls.length;i++) {
+			if(calls[i]!=CalledGenomicVariant.ALLELE_UNDECIDED) total++;
+		}
+		return total;
+	}
+
+
+	public int getCountCalls(byte allele) {
+		int total = 0;
+		for(int i=0;i<calls.length;i++) {
+			if(calls[i]==allele) total++;
+		}
+		return total;
+	}
 	
 	
 

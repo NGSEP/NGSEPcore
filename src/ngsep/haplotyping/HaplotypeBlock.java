@@ -153,7 +153,6 @@ public class HaplotypeBlock
 	 * <b> pre: </b> The matrix of fragments has been initialized.
 	 * @param row1. Row1 < Row2
 	 * @param row2.
-	 * tener en cuenta los maximos
 	 * @return Hamming distance between two fragments.
 	 */
 	public int getHammingDistance(int row1, int row2) 
@@ -166,6 +165,26 @@ public class HaplotypeBlock
 			byte allele2 = getAllele(row2, i);
 			score+=getHammingScore(allele1, allele2, false);
 		}	
+		return score;
+	}
+	
+	/**
+	 * Calculates the hamming distance of a haplotype against a fragment
+	 * <b> pre: </b> The matrix of fragments has been initialized.
+ 	 * @param haplotype with length equal to the number of variants 
+ 	 * @param row of the matrix to calculate the score
+ 	 * @return int Hamming distance between the two fragments
+ 	 */
+	public int getHammingDistance(byte [] haplotype, int row)
+	{
+		sort();
+		int score = 0;
+		int lastColRow = getLastColumn(row);
+		for(int j = getFirstColumn(row) ; j <=lastColRow ; j++) {
+			byte allele1 = haplotype[j];
+			byte allele2 = getAllele(row, j);
+			score+=getHammingScore(allele1, allele2, false);
+		}
 		return score;
 	}
 	
@@ -397,6 +416,30 @@ public class HaplotypeBlock
 	public int getCallsLenght()
 	{
 		return calls.size();
+	}
+	
+	public int calculateMECCurrentHaplotypes() {
+		int total = 0;
+		for(int i=0;i<matrix.size();i++) {
+			HaplotypeFragment fragment = matrix.get(i); 
+			int hamming = getHammingDistance(haplotype, i);
+			int totalCalls = fragment.getTotalCalls();
+			hamming = Math.min(hamming, totalCalls-hamming);
+			total+=hamming;
+		}
+		return total;
+	}
+
+	public double calculateRelativeCallsProportion() {
+		double total0 = 0;
+		double total1 = 0;
+		for(int i=0;i<matrix.size();i++) {
+			HaplotypeFragment fragment = matrix.get(i);
+			total0+=fragment.getCountCalls(CalledGenomicVariant.ALLELE_REFERENCE);
+			total1+=fragment.getCountCalls(CalledGenomicVariant.ALLELE_ALTERNATIVE);
+		}
+		double total = total0+total1;
+		return total>0?total0/total:0;
 	}
 }
 

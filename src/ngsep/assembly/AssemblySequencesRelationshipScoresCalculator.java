@@ -60,6 +60,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 			NormalDistribution ikbp = new NormalDistribution(indelsKbp.getAverage(),2*indelsKbp.getVariance());
 			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
 			if(pValueIKBP>0.5) pValueIKBP = 0.5;
+			pValueIKBP+=0.5;
 			score*=pValueIKBP;
 		}
 		return (int)Math.round(score);

@@ -333,7 +333,7 @@ public class Assembler {
 		
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		graph.updateScores(false);
+		graph.updateScores(ploidy>1);
 		long time2 = System.currentTimeMillis();
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
@@ -341,7 +341,7 @@ public class Assembler {
 			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
-			diploidGraph.updateScores(false);
+			diploidGraph.updateScores(ploidy>1);
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			pathsFinder.findPaths(diploidGraph);
 			log.info("Building haplotype subgraphs");

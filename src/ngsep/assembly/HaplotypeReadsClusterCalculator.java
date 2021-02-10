@@ -110,29 +110,37 @@ public class HaplotypeReadsClusterCalculator {
 		List<Set<Integer>> inputClusters = new ArrayList<Set<Integer>>();
     	//Reads of each cluster
 		Map<Integer,Integer> readsClusters = new HashMap<Integer, Integer>();
-    	Map<Integer,AssemblyVertex> verticesEnds = new HashMap<Integer, AssemblyVertex>();
+		List<AssemblyVertex> verticesPaths = new ArrayList<AssemblyVertex>();
+		Set<Integer> readIdsVertices = new HashSet<Integer>();
     	//Clusters that can not go in the same supercluster
     	Map<Integer,List<Integer>> clusterRestrictions = new HashMap<Integer, List<Integer>>();
     	int inputClusterId = 0;
     	for(int i=0;i<paths.size();i++) {
+    		
     		int firstIdCluster = inputClusterId;
     		List<AssemblyEdge> path = paths.get(i);
-    		Map<Integer,AssemblyVertex> verticesEndsPath = extractVerticesEndsPath(path, ploidy);
-    		System.out.println("Extracted "+verticesEndsPath.size()+" vertices for path: "+i);
-    		verticesEnds.putAll(verticesEndsPath);
     		ClusterReadsTask task = tasksList.get(i);
+    		int pathId = task.getPathIdx();
+    		List<AssemblyVertex> verticesPath = extractVerticesPath(path, ploidy);
+    		System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
+    		verticesPaths.addAll(verticesPath);
+    		for(AssemblyVertex vertex:verticesPath) readIdsVertices.add(vertex.getSequenceIndex());
+    		
     		List<Set<Integer>> hapClusters = task.getClusters();
-    		System.out.println("Calculated "+hapClusters.size()+" input clusters for path: "+i);
+    		System.out.println("Calculated "+hapClusters.size()+" input clusters for path: "+pathId);
     		for(Set<Integer> inputCluster:hapClusters) {
+    			System.out.println("Path: "+pathId+ " next cluster: "+inputClusterId+" reads: "+inputCluster.size());
     			for(int readId:inputCluster) { 
-    				if (verticesEndsPath.containsKey(readId)) readsClusters.put(readId, inputClusterId);
+    				if (readIdsVertices.contains(readId)) readsClusters.put(readId, inputClusterId);
+    				if(inputCluster.size()<20 || readId%5==0) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
     			}
     			inputClusters.add(inputCluster);
+    			clusterRestrictions.put(inputClusterId, new ArrayList<Integer>());
     			inputClusterId++;
     		}
     		
     		int lastIdCluster = inputClusterId-1;
-    		System.out.println("Path: "+i+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
+    		System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
     		for(int j=firstIdCluster;j<=lastIdCluster;j++) {
     			for(int k=firstIdCluster;k<=lastIdCluster;k++) {
     				if(j!=k) {
@@ -144,17 +152,17 @@ public class HaplotypeReadsClusterCalculator {
     	}
     	//Build connections graph
     	Map<String,ReadsClusterEdge> clusterEdgesMap = new HashMap<String, ReadsClusterEdge>();
-    	for (Map.Entry<Integer, AssemblyVertex> entry:verticesEnds.entrySet()) {
-    		int readId = entry.getKey();
-    		AssemblyVertex endVertex = entry.getValue();
+    	for (AssemblyVertex vertex:verticesPaths) {
+    		int readId = vertex.getSequenceIndex();
     		Integer clusterId = readsClusters.get(readId);
     		if(clusterId ==null) continue;
-    		List<AssemblyEdge> edges = graph.getEdges(endVertex);
+    		//System.out.println("MergeHaplotypeClusters. Vertex: "+vertex+" cluster id: "+clusterId);
+    		List<AssemblyEdge> edges = graph.getEdges(vertex);
     		for(AssemblyEdge edge:edges) {
     			if(edge.isSameSequenceEdge()) continue;
-    			AssemblyVertex v2 = edge.getConnectingVertex(endVertex);
+    			AssemblyVertex v2 = edge.getConnectingVertex(vertex);
     			Integer id2 = readsClusters.get(v2.getSequenceIndex());
-    			if(id2!=null && id2>clusterId) {
+    			if(id2!=null && id2>clusterId && !clusterRestrictions.get(clusterId).contains(id2) && ! clusterRestrictions.get(id2).contains(clusterId)) {
     				String key = ReadsClusterEdge.getKey(clusterId, id2);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(clusterId, id2));
     				clusterEdge.addAssemblyEdge(edge);
@@ -164,10 +172,10 @@ public class HaplotypeReadsClusterCalculator {
     	
     	//Sort edges by total score
     	int n = clusterEdgesMap.size();
-    	log.info("Created "+n+" edges");
+    	log.info("Created "+n+" edges between clusters");
     	List<ReadsClusterEdge> clusterEdgesList = new ArrayList<ReadsClusterEdge>(n);
     	clusterEdgesList.addAll(clusterEdgesMap.values());
-    	Collections.sort(clusterEdgesList,(c1,c2)-> c2.getTotalScore()-c1.getTotalScore());
+    	Collections.sort(clusterEdgesList,(c1,c2)-> (int)(c2.getTotalScore()-c1.getTotalScore()));
     	
     	//Perform clustering taking into account restrictions
     	Map<Integer,Integer> inputClustersAssignment = new HashMap<Integer,Integer>();
@@ -181,6 +189,7 @@ public class HaplotypeReadsClusterCalculator {
         		Integer assignment1 = inputClustersAssignment.get(c1);
         		Integer assignment2 = inputClustersAssignment.get(c2);
         		if(assignment1==null && assignment2==null) {
+        			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getTotalScore());
         			assignCluster(inputClustersAssignment, c1, 0, clusterRestrictions.get(c1), ploidy);
         			assignCluster(inputClustersAssignment, c2, 0, clusterRestrictions.get(c2), ploidy);
         			change = true;
@@ -199,9 +208,11 @@ public class HaplotypeReadsClusterCalculator {
             		if(assignment1!=null && assignment2!=null) continue;
             		else if(assignment1==null && assignment2==null) continue;
             		else if (assignment1==null) {
+            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getTotalScore());
             			assignCluster(inputClustersAssignment, c1, assignment2, clusterRestrictions.get(c1), ploidy);
             			change = true;
             		} else {
+            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getTotalScore());
             			assignCluster(inputClustersAssignment, c2, assignment1, clusterRestrictions.get(c2), ploidy);
             			change = true;
             		}
@@ -218,20 +229,28 @@ public class HaplotypeReadsClusterCalculator {
     	for(Map.Entry<Integer, Integer> entry:inputClustersAssignment.entrySet()) {
     		Set<Integer> inputCluster = inputClusters.get(entry.getKey());
     		Set<Integer> outputCluster = answer.get(entry.getValue());
+    		System.out.println("MergeHaplotypeClusters. Input cluster "+entry.getKey()+" assigned to output cluster "+entry.getValue());
     		outputCluster.addAll(inputCluster); 
     	}
     	return answer;
 	}
 	
-	private Map<Integer, AssemblyVertex> extractVerticesEndsPath(List<AssemblyEdge> path, int ploidy) {
-		int n = Math.min(path.size()/4,5*ploidy);
+	private List<AssemblyVertex> extractVerticesPath(List<AssemblyEdge> path, int ploidy) {
+		List<AssemblyVertex> answer = new ArrayList<AssemblyVertex>(path.size()+1);
+		for(AssemblyEdge edge:path) {
+			if(edge.isSameSequenceEdge()) {
+				answer.add(edge.getVertex1());
+				answer.add(edge.getVertex2());
+			}
+		}
+		/*int n = Math.min(path.size()/4,5*ploidy);
 		int m = path.size();
 		AssemblyEdge edge0 = path.get(0);
 		AssemblyEdge edge1 = path.get(1);
 		AssemblyVertex vInternal = edge0.getSharedVertex(edge1);
 		AssemblyVertex v0External = edge0.getConnectingVertex(vInternal);
 		
-		Map<Integer, AssemblyVertex> answer = new HashMap<Integer, AssemblyVertex>();
+		
 		answer.put(v0External.getSequenceIndex(), v0External);
 		int i=1;
 		while(answer.size()<n && i<path.size()-1) {
@@ -257,7 +276,7 @@ public class HaplotypeReadsClusterCalculator {
 			edge = path.get(i);
 			vInternal = edge.getConnectingVertex(vExt);
 			i--;
-		}
+		}*/
 		return answer;
 	}
 
@@ -294,6 +313,7 @@ public class HaplotypeReadsClusterCalculator {
 		List<List<ReadAlignment>> clusters = null;
 		if(hetSNVs.size()>5) {
 			SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
+			sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
 			try {
 				clusters = sih.phaseSequenceVariants(sequenceName, hetSNVs, alignments);
 			} catch (IOException e) {
@@ -301,11 +321,13 @@ public class HaplotypeReadsClusterCalculator {
 			}
 		}
 		if(clusters == null) {
+			System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+hetSNVs.size()+" alignments: "+alignments.size());
 			Set<Integer> sequenceIds = new HashSet<Integer>();
 			for(ReadAlignment aln:alignments) sequenceIds.add(aln.getReadNumber());
 			answer.add(sequenceIds);
 			return answer;
 		}
+		System.out.println("Path: "+pathIdx+". hetSNVs: "+hetSNVs.size()+" alignments: "+alignments.size()+" clusters: "+clusters.size());
 		for(List<ReadAlignment> cluster:clusters) {
 			//System.out.println("First cluster");
 			Set<Integer> sequenceIds = new HashSet<Integer>();
@@ -335,7 +357,7 @@ public class HaplotypeReadsClusterCalculator {
 			count++;
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
 		}
-		log.info("Sequence: "+sequenceName+". identified "+hetSNVsListener.getHeterozygousSNVs().size()+" heterozygous SNVs from "+count+" alignments");
+		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous SNVs: "+hetSNVsListener.getHeterozygousSNVs().size()+" alignments: "+count);
 		return hetSNVsListener.getHeterozygousSNVs();
 	}
 
@@ -362,6 +384,10 @@ class ClusterReadsTask implements Runnable {
 	public List<Set<Integer>> getClusters() {
 		return clusters;
 	}
+	public int getPathIdx() {
+		return pathIdx;
+	}
+	
 }
 class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 
@@ -436,7 +462,7 @@ class ReadsClusterEdge {
 	private int clusterId1;
 	private int clusterId2;
 	private int numEdges=0;
-	private int totalScore=0;
+	private long totalScore=0;
 	public ReadsClusterEdge(int clusterId1, int clusterId2) {
 		super();
 		this.clusterId1 = clusterId1;
@@ -455,7 +481,7 @@ class ReadsClusterEdge {
 	public int getNumEdges() {
 		return numEdges;
 	}
-	public int getTotalScore() {
+	public long getTotalScore() {
 		return totalScore;
 	}
 	public static String getKey(int id1, int id2) {

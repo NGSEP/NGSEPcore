@@ -31,7 +31,10 @@ import ngsep.vcf.VCFRecord;
 public class SingleIndividualHaplotyper {
 
 	// Constants for default values
-	public static final String DEF_ALGORITHM_NAME="DGS";
+	public static final String ALGORITHM_NAME_DGS="DGS";
+	public static final String ALGORITHM_NAME_REFHAP="Refhap";
+	public static final String DEF_ALGORITHM_NAME=ALGORITHM_NAME_DGS;
+	
 	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	// Logging and progress
@@ -283,8 +286,8 @@ public class SingleIndividualHaplotyper {
 		if(block.getNumFragments()>0) {
 			if(algorithm==null) loadAlgorithm();
 			algorithm.buildHaplotype(block);
-			log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments");
 			block.phaseCallsWithHaplotype();
+			log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments and "+hetCalls.size()+" heterozygous SNVs. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
 			return buildAlignmentClusters(alignments, block.getFragmentsClusters());
 		}
 		return null;
