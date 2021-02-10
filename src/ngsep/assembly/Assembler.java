@@ -343,6 +343,7 @@ public class Assembler {
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
 			diploidGraph.updateScores(ploidy>1);
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
+			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(diploidGraph);
 			log.info("Building haplotype subgraphs");
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
@@ -350,6 +351,7 @@ public class Assembler {
 			hapsCalculator.setNumThreads(numThreads);
 			List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
 			log.info("Separated reads in "+readIdsClusters.size()+" clusters");
+			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(5);
 			int haplotypeNumber= 0;
 			for(Set<Integer> readIdsCluster: readIdsClusters) {
 				AssemblyGraph haplotypeGraph = graph.buildSubgraph(readIdsCluster);
