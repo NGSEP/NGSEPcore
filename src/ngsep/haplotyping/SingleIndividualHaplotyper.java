@@ -228,7 +228,10 @@ public class SingleIndividualHaplotyper {
 	
 	public List<List<ReadAlignment>> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) throws IOException {
 		HaplotypeBlock block = new HaplotypeBlock(hetCalls);
+		List<List<ReadAlignment>> answer = new ArrayList<List<ReadAlignment>>();
 		int i=0;
+		int firstNextBlock = 0;
+		int lastNextBlock = -1;
 		for(ReadAlignment aln:alignments) {
 			//Advance i
 			while(i<hetCalls.size()) {
@@ -238,7 +241,7 @@ public class SingleIndividualHaplotyper {
 				}
 				i++;
 			}
-			if(i==hetCalls.size()) continue;
+			if(i==hetCalls.size()) break;
 			//Extract relevant calls from alignment
 			int lastAln = aln.getLast();
 			List<Byte> calls = new ArrayList<>(50);
@@ -276,21 +279,35 @@ public class SingleIndividualHaplotyper {
 				calls.remove(j);
 			}
 			
-			if(realCalls>1) {
-				block.addFragment (aln.getReadNumber(), first,NumberArrays.toByteArray(calls));
-				if(block.getNumFragments()%1000==0) log.info("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
+			if(realCalls==0) continue;
+			if(lastNextBlock>=0 && first>lastNextBlock) {
+				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock+" next SNP: "+first+" next alignment: "+aln);
+				if(block.getNumFragments()>0) {	
+					if(algorithm==null) loadAlgorithm();
+					algorithm.buildHaplotype(block);
+					block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
+					log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+block.getNumFragments()+" fragments and "+hetCalls.size()+" heterozygous SNVs. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
+					answer.addAll(buildAlignmentClusters(alignments, block.getFragmentsClusters()));
+				}
+				block = new HaplotypeBlock(hetCalls);
+				firstNextBlock = first;
+				lastNextBlock = first;
 			}
+			block.addFragment (aln.getReadNumber(), first,NumberArrays.toByteArray(calls));
+			if(block.getNumFragments()%1000==0) log.info("Added "+block.getNumFragments()+" fragments"+" calls last fragment: "+realCalls);
+			lastNextBlock=Math.max(lastNextBlock, first+calls.size()-1);
+			
 		}
 		log.info("Phasing sequence "+seqName+" with "+block.getNumFragments()+" fragments");
 		
-		if(block.getNumFragments()>0) {
+		if(block.getNumFragments()>0) {	
 			if(algorithm==null) loadAlgorithm();
 			algorithm.buildHaplotype(block);
-			block.phaseCallsWithHaplotype();
-			log.info("Phased sequence "+seqName+" with "+block.getNumFragments()+" fragments and "+hetCalls.size()+" heterozygous SNVs. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
-			return buildAlignmentClusters(alignments, block.getFragmentsClusters());
+			block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
+			log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+block.getNumFragments()+" fragments and "+hetCalls.size()+" heterozygous SNVs. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
+			answer.addAll(buildAlignmentClusters(alignments, block.getFragmentsClusters()));
 		}
-		return null;
+		return answer;
 	}
 	private List<List<ReadAlignment>> buildAlignmentClusters(List<ReadAlignment> alignments, List<List<HaplotypeFragment>> fragmentsClusters) {
 		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<Integer, ReadAlignment>();

@@ -133,6 +133,7 @@ public class HaplotypeReadsClusterCalculator {
     			for(int readId:inputCluster) { 
     				if (readIdsVertices.contains(readId)) readsClusters.put(readId, inputClusterId);
     				if(inputCluster.size()<20 || readId%5==0) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
+    				//if(pathId==1) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
     			}
     			inputClusters.add(inputCluster);
     			clusterRestrictions.put(inputClusterId, new ArrayList<Integer>());
@@ -141,13 +142,17 @@ public class HaplotypeReadsClusterCalculator {
     		
     		int lastIdCluster = inputClusterId-1;
     		System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
-    		for(int j=firstIdCluster;j<=lastIdCluster;j++) {
-    			for(int k=firstIdCluster;k<=lastIdCluster;k++) {
+    		for(int j=firstIdCluster;j<lastIdCluster;j+=2) {
+    			List<Integer> restrictionsCluster = clusterRestrictions.computeIfAbsent(j, v->new ArrayList<Integer>());
+				restrictionsCluster.add(j+1);
+				restrictionsCluster = clusterRestrictions.computeIfAbsent(j+1, v->new ArrayList<Integer>());
+				restrictionsCluster.add(j);
+    			/*for(int k=firstIdCluster;k<=lastIdCluster;k++) {
     				if(j!=k) {
     					List<Integer> restrictionsCluster = clusterRestrictions.computeIfAbsent(j, v->new ArrayList<Integer>());
     					restrictionsCluster.add(k);
     				}
-    			}
+    			}*/
     		}
     	}
     	//Build connections graph
@@ -251,12 +256,12 @@ public class HaplotypeReadsClusterCalculator {
 		AssemblyVertex v0External = edge0.getConnectingVertex(vInternal);
 		
 		
-		answer.put(v0External.getSequenceIndex(), v0External);
+		answer.add(v0External);
 		int i=1;
 		while(answer.size()<n && i<path.size()-1) {
 			AssemblyEdge edge = path.get(i);
 			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
-			answer.put(vExt.getSequenceIndex(), vExt);
+			answer.add(vExt);
 			i++;
 			edge = path.get(i);
 			vInternal = edge.getConnectingVertex(vExt);
@@ -266,12 +271,12 @@ public class HaplotypeReadsClusterCalculator {
 		edge1 = path.get(m-2);
 		vInternal = edge0.getSharedVertex(edge1);
 		v0External = edge0.getConnectingVertex(vInternal);
-		answer.put(v0External.getSequenceIndex(), v0External);
+		answer.add(v0External);
 		i=m-2;
 		while(answer.size()<2*n && i>1) {
 			AssemblyEdge edge = path.get(i);
 			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
-			answer.put(vExt.getSequenceIndex(), vExt);
+			answer.add(vExt);
 			i--;
 			edge = path.get(i);
 			vInternal = edge.getConnectingVertex(vExt);
@@ -330,7 +335,7 @@ public class HaplotypeReadsClusterCalculator {
 		System.out.println("Path: "+pathIdx+". hetSNVs: "+hetSNVs.size()+" alignments: "+alignments.size()+" clusters: "+clusters.size());
 		for(List<ReadAlignment> cluster:clusters) {
 			//System.out.println("First cluster");
-			Set<Integer> sequenceIds = new HashSet<Integer>();
+			Set<Integer> sequenceIds = new HashSet<Integer>(cluster.size());
 			for(ReadAlignment aln:cluster) {
 				//System.out.println(aln.getReadNumber()+" "+ aln.getReadName());
 				sequenceIds.add(aln.getReadNumber());

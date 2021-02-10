@@ -377,9 +377,9 @@ public class HaplotypeBlock
 	/**
 	 * Phase the calls within the block using the given haplotype
 	 */
-	public void phaseCallsWithHaplotype() 
+	public void phaseCallsWithHaplotype(int firstVariant, int lastVariant) 
 	{
-		for(int i=0;i<haplotype.length;i++)
+		for(int i=firstVariant;i<haplotype.length && i<lastVariant;i++)
 		{
 			CalledGenomicVariant call = calls.get(i);
 			if(call instanceof CalledSNV) ((CalledSNV)call).setPhasingCN2(haplotype[i]==CalledGenomicVariant.ALLELE_ALTERNATIVE);
