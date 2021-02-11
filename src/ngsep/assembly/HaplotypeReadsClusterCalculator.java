@@ -167,8 +167,8 @@ public class HaplotypeReadsClusterCalculator {
     			if(edge.isSameSequenceEdge()) continue;
     			AssemblyVertex v2 = edge.getConnectingVertex(vertex);
     			Integer id2 = readsClusters.get(v2.getSequenceIndex());
-    			if(id2!=null && !clusterRestrictions.get(clusterId).contains(id2) && ! clusterRestrictions.get(id2).contains(clusterId)) {
-    				String key = ReadsClusterEdge.getKey(clusterId, id2);
+    			if(id2!=null && clusterId!=id2 && !clusterRestrictions.get(clusterId).contains(id2) && ! clusterRestrictions.get(id2).contains(clusterId)) {
+    				String key = ReadsClusterEdge.getKey(Math.min(clusterId, id2),Math.max(clusterId, id2));
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(clusterId, id2));
     				clusterEdge.addAssemblyEdge(edge);
     				if(clusterId==17 || clusterId == 18) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
@@ -390,6 +390,7 @@ public class HaplotypeReadsClusterCalculator {
 		Map<Integer,Integer> clustersByReadId = new HashMap<Integer, Integer>();
 		for(int i=0;i<clusters.size();i++) {
 			List<ReadAlignment> cluster = clusters.get(i);
+			if(cluster.size()<10) continue;
 			for(ReadAlignment aln:cluster) {
 				clustersByReadId.put(aln.getReadNumber(), i);
 				
