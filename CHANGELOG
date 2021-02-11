@@ -1,3 +1,14 @@
+v4.1.0 15-02-2021
+- New command Assembler to perform de-novo assembly of long reads.
+- New command SIH to perform single individual haplotyping of
+  diploid samples.
+- IndividualGenomeBuilder: Added option ploidy to set the ploidy of the
+  reconstructed genome.
+- TillingPoolsIndividualGenotyper: Added option -m to determine the minimum
+  number of pools needed to call an individual variant
+- TillingPoolsIndividualGenotyper: Added option -b to report inly biallelic
+  variants
+  
 v4.0.3 01-11-2020
 - New command TillingPopulationSimulator to perform simulations of 
   TILLING experiments.

@@ -124,13 +124,13 @@ public class HaplotypeReadsClusterCalculator {
     		
     		
     		List<Set<Integer>> hapClusters = task.getClusters();
-    		System.out.println("Calculated "+hapClusters.size()+" input clusters for path: "+pathId);
+    		log.info("Calculated "+hapClusters.size()+" clusters from haplotyping for path: "+pathId);
     		for(Set<Integer> inputCluster:hapClusters) {
     			System.out.println("Path: "+pathId+ " next cluster: "+inputClusterId+" reads: "+inputCluster.size());
     			for(int readId:inputCluster) { 
     				readsClusters.put(readId, inputClusterId);
     				//if(inputCluster.size()<20 || readId%5==0) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
-    				if(pathId==5) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
+    				//if(pathId==5) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
     			}
     			inputClusters.add(inputCluster);
     			clusterRestrictions.put(inputClusterId, new ArrayList<Integer>());
@@ -138,7 +138,7 @@ public class HaplotypeReadsClusterCalculator {
     		}
     		
     		int lastIdCluster = inputClusterId-1;
-    		System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
+    		//System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
     		for(int j=firstIdCluster;j<lastIdCluster;j+=2) {
     			List<Integer> restrictionsCluster = clusterRestrictions.computeIfAbsent(j, v->new ArrayList<Integer>());
 				restrictionsCluster.add(j+1);
@@ -152,7 +152,7 @@ public class HaplotypeReadsClusterCalculator {
     			}*/
     		}
     		List<AssemblyVertex> verticesPath = extractVerticesPath(path, hapClusters);
-    		System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
+    		//System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
     		verticesPaths.addAll(verticesPath);
     	}
     	//Build connections graph
@@ -171,7 +171,7 @@ public class HaplotypeReadsClusterCalculator {
     				String key = ReadsClusterEdge.getKey(Math.min(clusterId, id2),Math.max(clusterId, id2));
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(clusterId, id2));
     				clusterEdge.addAssemblyEdge(edge);
-    				if(clusterId==17 || clusterId == 18) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if(clusterId==17 || clusterId == 18) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
@@ -195,7 +195,7 @@ public class HaplotypeReadsClusterCalculator {
         		Integer assignment1 = inputClustersAssignment.get(c1);
         		Integer assignment2 = inputClustersAssignment.get(c2);
         		if(assignment1==null && assignment2==null) {
-        			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+        			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
         			assignCluster(inputClustersAssignment, c1, 0, clusterRestrictions.get(c1), ploidy);
         			assignCluster(inputClustersAssignment, c2, 0, clusterRestrictions.get(c2), ploidy);
         			change = true;
@@ -214,18 +214,18 @@ public class HaplotypeReadsClusterCalculator {
             		if(assignment1!=null && assignment2!=null) continue;
             		else if(assignment1==null && assignment2==null) continue;
             		else if (assignment1==null) {
-            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+            			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
             			assignCluster(inputClustersAssignment, c1, assignment2, clusterRestrictions.get(c1), ploidy);
             			change = true;
             		} else {
-            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+            			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
             			assignCluster(inputClustersAssignment, c2, assignment1, clusterRestrictions.get(c2), ploidy);
             			change = true;
             		}
     			}
     		}
     	}
-    	log.info("Finished superclustering. Assigned "+inputClustersAssignment.size()+" input clusters");
+    	log.info("Finished haplotype reads clustering. Assigned "+inputClustersAssignment.size()+" input clusters");
     	//Build answer from clusters
     	List<Set<Integer>> answer = new ArrayList<Set<Integer>>(ploidy);
     	for(int i=0;i<ploidy;i++) {
@@ -235,7 +235,7 @@ public class HaplotypeReadsClusterCalculator {
     	for(Map.Entry<Integer, Integer> entry:inputClustersAssignment.entrySet()) {
     		Set<Integer> inputCluster = inputClusters.get(entry.getKey());
     		Set<Integer> outputCluster = answer.get(entry.getValue());
-    		System.out.println("MergeHaplotypeClusters. Input cluster "+entry.getKey()+" assigned to output cluster "+entry.getValue());
+    		//System.out.println("MergeHaplotypeClusters. Input cluster "+entry.getKey()+" assigned to output cluster "+entry.getValue());
     		outputCluster.addAll(inputCluster); 
     	}
     	return answer;
@@ -358,7 +358,7 @@ public class HaplotypeReadsClusterCalculator {
 		}
 		
 		if(clusters == null) {
-			System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
+			//System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
 			Set<Integer> sequenceIds = new HashSet<Integer>();
 			for(ReadAlignment aln:alignments) sequenceIds.add(aln.getReadNumber());
 			//Add not aligned reads within the path
@@ -371,7 +371,7 @@ public class HaplotypeReadsClusterCalculator {
 			answer.add(sequenceIds);
 			return answer;
 		}
-		System.out.println("Path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
+		log.info("Path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
 		if (clusters.size()>2) return mergeClustersWithPath(graph,pathIdx, path,alignments, clusters);
 		for(List<ReadAlignment> cluster:clusters) {
 			//System.out.println("First cluster");
@@ -409,7 +409,7 @@ public class HaplotypeReadsClusterCalculator {
 			Integer assignment;
 			if(inputClusterAssignments.size()==0) {
 				//First edge
-				if(pathId==5) System.out.println("Adding read "+graph.getSequence(readId).getName()+" to cluster 0");
+				//if(pathId==5) System.out.println("Adding read "+graph.getSequence(readId).getName()+" to cluster 0");
 				cluster0.add(readId);
 				if(clusterId>=0) inputClusterAssignments.put(clusterId, 0);
 				if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, 1);
@@ -426,7 +426,7 @@ public class HaplotypeReadsClusterCalculator {
 				}
 				if (assignment==0) cluster0.add(readId);
 				else cluster1.add(readId);
-				if(pathId==5) System.out.println("Adding path read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
+				//if(pathId==5) System.out.println("Adding path read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
 			}
 			pathReadsAssignments.put(readId, assignment);
 			lastAssignment = assignment;
@@ -448,7 +448,7 @@ public class HaplotypeReadsClusterCalculator {
 					if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, opposite);
 					else if(clusterId>=0) inputClusterAssignments.put(clusterId-1, opposite);
 				}
-				if(pathId==5) System.out.println("Adding embedded read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
+				//if(pathId==5) System.out.println("Adding embedded read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
 				if (assignment==0) cluster0.add(readId);
 				else cluster1.add(readId);
 			}
@@ -608,7 +608,7 @@ class ReadsClusterEdge {
 		return ""+id1+" "+id2;
 	}
 	public String toString() {
-		return ""+clusterId1+" "+clusterId2+" edges: "+numEdges+" score: "+totalScore;
+		return ""+clusterId1+" "+clusterId2+" edges: "+numEdges+" score: "+getScore();
 	}
 	
 }

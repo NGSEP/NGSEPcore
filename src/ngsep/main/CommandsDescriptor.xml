@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.1.0" date="31-01-2021" jar="NGSEPcore">
+<software name="NGSEP" version="4.1.0" date="15-02-2021" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -206,13 +206,18 @@ Default ploidy of the samples.
 </option>
 </command>
 
-<command id="Assembler" class="ngsep.assembly.Assembler" groupId="Reads" printHelp="false">
+<command id="Assembler" class="ngsep.assembly.Assembler" groupId="Reads">
 <intro>
-Performs de-novo assembly from long reads
+Performs de-novo assembly from long reads (In progress) 
 </intro>
-<title>Assembling genomes from long reads</title>
+<title>Assembling genomes from long reads (In progress)</title>
 <description>
-Builds a de-novo assembly from a set of long reads
+Builds a de-novo assembly from a set of long reads following an overlap-layout-consensus (OLC) approach.
+It receives a fasta or fastq file with raw PacBio HiFi or Nanopore reads and generates an assembly for the sample in fasta format.
+It also generates a grap.gz file with the information of the overlap graph.
+This graph can be provided as input in a second run skip the graph construction step.
+Note: Although this functionality is already producing competitive assemblies compared to other tools, 
+the following versions will probably have improvements on contiguity and phasing of diploid assemblies.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file. See option -f for options on the file format . It can be gzip compressed.
@@ -220,7 +225,7 @@ Input file. See option -f for options on the file format . It can be gzip compre
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files.
 </option>
-<option id="g" type="STRING" attribute="graphFile">
+<option id="g" type="FILE" attribute="graphFile">
 File with a saved graph to perform layout and consensus.
 </option>
 <!-- 
@@ -234,33 +239,37 @@ Format of the input file. It can be 0 for fastq or 1 for fasta.
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Window length to calculate minimizers.
 </option>
+<!--
 <option id="bh" type="INT" attribute="bpHomopolymerCompression" defaultConstant="DEF_BP_HOMOPOLYMER_COMPRESSION">
 Perform homopolymer compression keeping homopolymers up to the given number of pase pairs.
 A value less or equal to zero disables homopolymer compression. 
 </option>
+-->
 <option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
 Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
+</option>
+ 
+<option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
+Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
+This option is still in progress and it has been tested only in haploid and diploid samples.
 </option>
 <!-- 
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
- -->
-<option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
-Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
-</option>
+ 
 <option id="c" type="BOOLEAN" attribute="correctReads">
 For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
 Ignored for other consensus algorithms
 </option>
-
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
-<option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_SIMPLE" >
+<option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_POLISHING" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
-<option id="t" type="INT" attribute="numThreads">
+-->
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads
 </option>
 </command>
@@ -679,32 +688,31 @@ Turns off detection of SNVs and small indels. In this mode, only structural vari
 </option>
 </command>
 
-<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" groupId="Discovery" printHelp="false">
+<command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" groupId="Discovery">
 <intro>
-Performs single individual molecular haplotyping
+Performs molecular haplotyping of single diploid individuals 
 </intro>
 <title>Molecular haplotyping of single individuals</title>
 <description>
-Performs molecular haplotyping on a single individual given a VCF and
-a set of alignments in SAM, BAM or CRAM format. Although theoretically it can work with
-Illumina reads, it is designed to work fine with long (PacBio) reads.
+Performs molecular haplotyping on a single individual given a VCF and a set of alignments in SAM, BAM or CRAM format.
+Although theoretically it can work with Illumina reads, it is designed to work fine with long (PacBio) reads.
 Alignments must be sorted by reference coordinates.
 Writes to standard output unless the -o option is used to specify an output file.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Input VCF file with variants to phase
+Input VCF file with variants to phase.
 </option>
 <option id="b" type="FILE" attribute="alignmentsFile">
-Input file with read alignments
+Input file with read alignments.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
-Output VCF file with phased variants
+Output VCF file with phased variants.
 </option>
 <option id="a" type="STRING" attribute="algorithmName" defaultConstant="DEF_ALGORITHM_NAME" >
-Algorithm for single individual haplotyping. It can be Refhap or DGS
+Algorithm for single individual haplotyping. It can be Refhap or DGS.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ">
-Minimum mapping quality to call an alignment unique
+Minimum mapping quality to call an alignment unique.
 </option>
 <option id="r" type="GENOME" attribute="genome">
 Fasta file with the reference genome. Required for CRAM files.
@@ -757,7 +765,7 @@ Discover individual variants from pool variants for a tilling experiment
 <title>Tilling variants individual assignment</title>
 <description>
 For tilling experiments, this module takes variants from pools and a pools descriptor and calls individual variants.
-It receives a list of VCF files generated by the SingleSampleVariantsDetector command and a pools configuration file
+It receives a list of VCF files generated either by the SingleSampleVariantsDetector or the MultisampleVariantsDetector commands and a pools configuration file
 and generates a VCF file with individual genotyping based on the variants identified within the pools.
 See the README.txt file for further details of input and output files.
 </description>

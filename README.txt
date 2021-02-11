@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.0.3 (01-11-2020)
+Version 4.1.0 (15-02-2021)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -23,20 +23,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 11.0.8. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_4.0.3.tar.gz is located:
+NGSEPcore_4.1.0.tar.gz is located:
 
-tar -xzvf NGSEPcore_4.0.3.tar.gz
-cd NGSEPcore_4.0.3
+tar -xzvf NGSEPcore_4.1.0.tar.gz
+cd NGSEPcore_4.1.0
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_4.0.3.jar NGSEPcore.jar
+cp NGSEPcore_4.1.0.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_4.0.3.jar NGSEPcore.jar
+ln -s NGSEPcore_4.1.0.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -219,6 +219,40 @@ OPTIONS:
 			  individual genotype calls. Default: 40
 	-ploidy INT     : Default ploidy of the samples. Default: 2
 
+------------------------------------------------
+Assembling genomes from long reads (In progress)
+------------------------------------------------
+
+Builds a de-novo assembly from a set of long reads following an
+overlap-layout-consensus (OLC) approach. It receives a fasta or fastq file with
+raw PacBio HiFi or Nanopore reads and generates an assembly for the sample in
+fasta format. It also generates a grap.gz file with the information of the
+overlap graph. This graph can be provided as input in a second run skip the
+graph construction step. Note: Although this functionality is already producing
+competitive assemblies compared to other tools,  the following versions will
+probably have improvements on contiguity and phasing of diploid assemblies.
+
+USAGE:
+
+java -jar NGSEPcore.jar Assembler <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input file. See option -f for options on the file
+			  format. It can be gzip compressed.
+	-o FILE		: Prefix of the output files.
+	-g FILE		: File with a saved graph to perform layout and
+			  consensus.
+	-f INT		: Format of the input file. It can be 0 for fastq or
+			  1 for fasta. Default: 0
+	-w INT		: Window length to calculate minimizers. Default: 30
+	-mspe DOUBLE	: Minimum proportion from the maximum score of the
+			  edges of a sequence to keep an edge. Default: 0.3
+	-ploidy INT	: Ploidy of the sample. Keep ploidy of 1 if the sample
+			  is inbred, even if it is diploid or polyploid. This
+			  option is still in progress and it has been tested
+			  only in haploid and diploid samples. Default: 1
+	-t INT		: Number of threads. Default: 1
 
 
 ------------------------------
@@ -226,11 +260,11 @@ Updating genomes from variants
 ------------------------------
 
 Takes a VCF file with genotype information from one sample and the reference
-genome used to build the VCF and generates a new genome in fasta format
-modified using the alternative alleles from variants called as homozygous
-alternative within the individual. This can be useful to perform polishing of
-new genome assemblies using Illumina data, or in general to construct a haploid
-version of an individual genome
+genome used to build the VCF and generates a new genome in fasta format with
+a ploidy consistent with the ploidy of the individual. For diploid or
+polyploid assemblies, the VCF file must be properly phased. For non haploid
+individuals, if the ploidy parameter is set to 1, this function performs
+polishing of a haploid genome assembly.
 
 USAGE:
 
@@ -238,10 +272,13 @@ java -jar NGSEPcore.jar IndividualGenomeBuilder <OPTIONS>
 
 OPTIONS:
 
-	-i FILE	: Fasta file with the original genome.
-	-v FILE	: File in VCF format with the variants that will be applied to
-		  the input genome.
-	-o FILE	: Output file in fasta format with the modified genome.
+	-i FILE		: Fasta file with the original genome.
+	-v FILE		: File in VCF format with the variants that will be
+			  applied to the input genome.
+	-ploidy INT	: Ploidy of the sample. To make polishing of a haploid
+			  assembly for a non haploid individual, set this
+			  parameter to 1. Default: 2
+	-o FILE		: Output file in fasta format with the modified genome.
 
 -------------------------------
 Indexing genome reference files
@@ -786,6 +823,32 @@ variants from a pool of 48 individuals in a Tilling experiment:
 
 java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 5000 -maxBaseQS 30 -h 0.1 -ploidy 96 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
+-------------------------------------------
+Molecular haplotyping of single individuals
+-------------------------------------------
+
+Performs molecular haplotyping on a single individual given a VCF and a set of
+alignments in SAM, BAM or CRAM format. Although theoretically it can work with
+Illumina reads, it is designed to work fine with long (PacBio) reads.
+Alignments must be sorted by reference coordinates. Writes to standard output
+unless the -o option is used to specify an output file.
+
+USAGE:
+
+java -jar NGSEPcore.jar SIH <OPTIONS>
+
+OPTIONS:
+
+	-i FILE		: Input VCF file with variants to phase.
+	-b FILE		: Input file with read alignments.
+	-o FILE		: Output VCF file with phased variants.
+	-a STRING	: Algorithm for single individual haplotyping. It can
+			  be Refhap or DGS. Default: DGS
+	-minMQ INT	: Minimum mapping quality to call an alignment unique.
+			  Default: 20
+	-r GENOME	: Fasta file with the reference genome. Required for
+			  CRAM files.
+
 ----------------------------------------
 Merging variants from individual samples
 ----------------------------------------
@@ -854,8 +917,9 @@ Tilling variants individual assignment
 
 For tilling experiments, this module takes variants from pools and a pools
 descriptor and calls individual variants. It receives a list of VCF files
-generated by the SingleSampleVariantsDetector command and a pools configuration
-file and generates a VCF file with individual genotyping based on the variants
+generated either by the SingleSampleVariantsDetector or the
+MultisampleVariantsDetector commands and a pools configuration file and
+generates a VCF file with individual genotyping based on the variants
 identified within the pools. 
 
 USAGE:
@@ -868,6 +932,9 @@ OPTIONS:
 	-o FILE		: Output file with called variants in VCF format
 	-d FILE		: File with the information of individuals assigned to
 			  each pool
+	-m INT		: Maximum number of pools in which a variant can
+			  appear. Default 0 (no filter).
+	-b		: Report only biallelic variants.
 
 A pools configuration file must be provided with the option -d. It should be a
 text file separated by semicolon and having one row for each individual. The
@@ -878,8 +945,9 @@ line should look like this:
 
 20;2;10;14
 
-The sample id within each input pool VCF file must coincide with the pool
-ids present in the pools configuration file. 
+The sample ids within input pool VCF files must coincide with the pool
+ids present in the pools configuration file. The VCF files can include
+information for one or more poools.
 
 ----------------------------------------------------------
 Obtaining relative allele counts from read alignment files
