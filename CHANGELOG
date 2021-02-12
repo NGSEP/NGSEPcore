@@ -1,4 +1,4 @@
-v4.1.0 15-02-2021
+v4.1.0 12-02-2021
 - New command Assembler to perform de-novo assembly of long reads.
 - New command SIH to perform single individual haplotyping of
   diploid samples.
