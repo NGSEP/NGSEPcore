@@ -333,7 +333,7 @@ Fasta file with the original genome.
 <option id="v" type="FILE" attribute="variantsFile">
 File in VCF format with the variants that will be applied to the input genome.
 </option>
-<option id="ploidy" type="INT" attribute="normalPloidy" defaultConstant="DEF_PLOIDY">
+<option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
 Ploidy of the sample. To make polishing of a haploid assembly for a non haploid individual, set this parameter to 1.
 </option>
 <option id="o" type="FILE" attribute="outputFile">

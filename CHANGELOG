@@ -4,9 +4,9 @@ v4.1.0 15-02-2021
   diploid samples.
 - IndividualGenomeBuilder: Added option ploidy to set the ploidy of the
   reconstructed genome.
-- TillingPoolsIndividualGenotyper: Added option -m to determine the minimum
-  number of pools needed to call an individual variant
-- TillingPoolsIndividualGenotyper: Added option -b to report inly biallelic
+- TillingPoolsIndividualGenotyper: Added option -m to determine the maximum
+  number of pools allowed to call an individual variant
+- TillingPoolsIndividualGenotyper: Added option -b to report only biallelic
   variants
   
 v4.0.3 01-11-2020

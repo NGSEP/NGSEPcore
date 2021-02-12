@@ -33,7 +33,7 @@ public class SingleIndividualHaplotyper {
 	// Constants for default values
 	public static final String ALGORITHM_NAME_DGS="DGS";
 	public static final String ALGORITHM_NAME_REFHAP="Refhap";
-	public static final String DEF_ALGORITHM_NAME=ALGORITHM_NAME_DGS;
+	public static final String DEF_ALGORITHM_NAME=ALGORITHM_NAME_REFHAP;
 	
 	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
