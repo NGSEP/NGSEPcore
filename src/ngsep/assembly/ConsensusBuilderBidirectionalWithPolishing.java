@@ -369,6 +369,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			count++;
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". Corrected SNVs from "+count+" alignments"); 
 		}
+		generator.notifyEndOfAlignments();
 	}
 
 	private CharSequence applyVariants(StringBuilder consensus, List<CalledGenomicVariant> variants) {

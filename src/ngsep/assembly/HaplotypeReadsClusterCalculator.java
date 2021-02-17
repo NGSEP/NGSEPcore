@@ -19,7 +19,9 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
@@ -44,9 +47,13 @@ import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledSNV;
 import ngsep.variants.SNV;
+import ngsep.vcf.VCFFileHeader;
+import ngsep.vcf.VCFFileWriter;
+import ngsep.vcf.VCFRecord;
 
 /**
  * 
@@ -138,7 +145,7 @@ public class HaplotypeReadsClusterCalculator {
     		}
     		
     		int lastIdCluster = inputClusterId-1;
-    		//System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
+    		System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
     		for(int j=firstIdCluster;j<lastIdCluster;j+=2) {
     			List<Integer> restrictionsCluster = clusterRestrictions.computeIfAbsent(j, v->new ArrayList<Integer>());
 				restrictionsCluster.add(j+1);
@@ -152,7 +159,7 @@ public class HaplotypeReadsClusterCalculator {
     			}*/
     		}
     		List<AssemblyVertex> verticesPath = extractVerticesPath(path, hapClusters);
-    		//System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
+    		System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
     		verticesPaths.addAll(verticesPath);
     	}
     	//Build connections graph
@@ -168,10 +175,12 @@ public class HaplotypeReadsClusterCalculator {
     			AssemblyVertex v2 = edge.getConnectingVertex(vertex);
     			Integer id2 = readsClusters.get(v2.getSequenceIndex());
     			if(id2!=null && clusterId!=id2 && !clusterRestrictions.get(clusterId).contains(id2) && ! clusterRestrictions.get(id2).contains(clusterId)) {
-    				String key = ReadsClusterEdge.getKey(Math.min(clusterId, id2),Math.max(clusterId, id2));
-    				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(clusterId, id2));
+    				int idMin = Math.min(clusterId, id2);
+    				int idMax = Math.max(clusterId, id2);
+    				String key = ReadsClusterEdge.getKey(idMin,idMax);
+    				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				//if(clusterId==17 || clusterId == 18) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if(clusterId==0 || clusterId == 1 || clusterId==28 || clusterId == 29) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
@@ -195,7 +204,7 @@ public class HaplotypeReadsClusterCalculator {
         		Integer assignment1 = inputClustersAssignment.get(c1);
         		Integer assignment2 = inputClustersAssignment.get(c2);
         		if(assignment1==null && assignment2==null) {
-        			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+        			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
         			assignCluster(inputClustersAssignment, c1, 0, clusterRestrictions.get(c1), ploidy);
         			assignCluster(inputClustersAssignment, c2, 0, clusterRestrictions.get(c2), ploidy);
         			change = true;
@@ -214,11 +223,11 @@ public class HaplotypeReadsClusterCalculator {
             		if(assignment1!=null && assignment2!=null) continue;
             		else if(assignment1==null && assignment2==null) continue;
             		else if (assignment1==null) {
-            			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
             			assignCluster(inputClustersAssignment, c1, assignment2, clusterRestrictions.get(c1), ploidy);
             			change = true;
             		} else {
-            			//System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
+            			System.out.println("Joining clusters "+c1+" "+c2+ " score: "+edge.getScore());
             			assignCluster(inputClustersAssignment, c2, assignment1, clusterRestrictions.get(c2), ploidy);
             			change = true;
             		}
@@ -332,6 +341,7 @@ public class HaplotypeReadsClusterCalculator {
 	
 	List<Set<Integer>> clusterReadsPath(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		int debugIdx = -1;
 		aligner.setLog(log);
 		aligner.setAlignEmbedded(true);
 		aligner.alignPathReads(graph, path, pathIdx);
@@ -346,7 +356,8 @@ public class HaplotypeReadsClusterCalculator {
 			Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 			List<CalledGenomicVariant> hetSNVs = findHeterozygousSNVs(rawConsensus, alignments, sequenceName);
 			countHetSNVs = hetSNVs.size();
-			if(hetSNVs.size()>5) {
+			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetSNVs);
+			if(hetSNVs.size()>2) {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
 				try {
@@ -385,12 +396,44 @@ public class HaplotypeReadsClusterCalculator {
 		return answer;
 	}
 
+	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		QualifiedSequenceList sequences = new QualifiedSequenceList();
+		sequences.add(new QualifiedSequence(sequenceName,consensus));
+		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
+			handler.saveSequences(sequences, out, 100);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+		try (PrintStream out=new PrintStream(outPrefix+".bam");
+			 ReadAlignmentFileWriter readAlnsWriter = new ReadAlignmentFileWriter(sequences, out);) {
+			for(ReadAlignment aln:alignments) readAlnsWriter.write(aln);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+		VCFFileWriter vcfWriter = new VCFFileWriter();
+		VCFFileHeader header =VCFFileHeader.makeDefaultEmptyHeader();
+		header.addDefaultSample("sample");
+		try (PrintStream out=new PrintStream(outPrefix+".vcf");
+			 ) {
+			vcfWriter.printHeader(header, out);
+			for(CalledGenomicVariant call:hetSNVs) {
+				vcfWriter.printVCFRecord(new VCFRecord(call, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header), out);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+
 	private List<Set<Integer>> mergeClustersWithPath(AssemblyGraph graph, int pathId, List<AssemblyEdge> path, List<ReadAlignment> allAlignments, List<List<ReadAlignment>> clusters) {
 		//Index read assignments
+		int debugIdx = -1;
 		Map<Integer,Integer> clustersByReadId = new HashMap<Integer, Integer>();
 		for(int i=0;i<clusters.size();i++) {
 			List<ReadAlignment> cluster = clusters.get(i);
-			if(cluster.size()<10) continue;
 			for(ReadAlignment aln:cluster) {
 				clustersByReadId.put(aln.getReadNumber(), i);
 				
@@ -409,7 +452,7 @@ public class HaplotypeReadsClusterCalculator {
 			Integer assignment;
 			if(inputClusterAssignments.size()==0) {
 				//First edge
-				//if(pathId==5) System.out.println("Adding read "+graph.getSequence(readId).getName()+" to cluster 0");
+				if(pathId==debugIdx) System.out.println("Adding read "+graph.getSequence(readId).getName()+" to cluster 0");
 				cluster0.add(readId);
 				if(clusterId>=0) inputClusterAssignments.put(clusterId, 0);
 				if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, 1);
@@ -426,7 +469,7 @@ public class HaplotypeReadsClusterCalculator {
 				}
 				if (assignment==0) cluster0.add(readId);
 				else cluster1.add(readId);
-				//if(pathId==5) System.out.println("Adding path read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
+				if(pathId==debugIdx) System.out.println("Adding path read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
 			}
 			pathReadsAssignments.put(readId, assignment);
 			lastAssignment = assignment;
@@ -448,7 +491,7 @@ public class HaplotypeReadsClusterCalculator {
 					if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, opposite);
 					else if(clusterId>=0) inputClusterAssignments.put(clusterId-1, opposite);
 				}
-				//if(pathId==5) System.out.println("Adding embedded read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
+				if(pathId==debugIdx) System.out.println("Adding embedded read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
 				if (assignment==0) cluster0.add(readId);
 				else cluster1.add(readId);
 			}
@@ -461,7 +504,8 @@ public class HaplotypeReadsClusterCalculator {
 	}
 
 	private List<CalledGenomicVariant> findHeterozygousSNVs(StringBuilder consensus, List<ReadAlignment> alignments, String sequenceName) {
-		List<GenomicRegion> activeSegments = ConsensusBuilderBidirectionalWithPolishing.calculateActiveSegments(sequenceName, alignments);
+		//List<GenomicRegion> activeSegments = ConsensusBuilderBidirectionalWithPolishing.calculateActiveSegments(sequenceName, alignments);
+		List<GenomicRegion> activeSegments = new ArrayList<>();
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
@@ -477,6 +521,7 @@ public class HaplotypeReadsClusterCalculator {
 			count++;
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
 		}
+		generator.notifyEndOfAlignments();
 		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous SNVs: "+hetSNVsListener.getHeterozygousSNVs().size()+" alignments: "+count);
 		return hetSNVsListener.getHeterozygousSNVs();
 	}
@@ -527,6 +572,7 @@ class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 	}
 	@Override
 	public void onPileup(PileupRecord pileup) {
+		int idxDebug = -1;
 		int pos = pileup.getPosition();
 		//Check if pileup is located within an indel region
 		while(nextIndelPos<indelRegions.size()) {
@@ -536,6 +582,7 @@ class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 			nextIndelPos++;
 		}
 		List<ReadAlignment> alns = pileup.getAlignments();
+		if(pos==idxDebug) System.out.println("SimpleHetSNVs. Alignments: "+alns.size());
 		//Index alignments per nucleotide call
 		int n = DNASequence.BASES_STRING.length();
 		Map<Character,List<ReadAlignment>> alnsPerNucleotide = new HashMap<Character, List<ReadAlignment>>(n);
@@ -555,6 +602,7 @@ class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 		for(int i=0;i<n;i++) {
 			char c = DNASequence.BASES_STRING.charAt(i);
 			acgtCounts[i] = alnsPerNucleotide.get(c).size();
+			if(pos==idxDebug) System.out.println("SimpleHetSNVs. Alignments nucleotide "+c+": "+acgtCounts[i]);
 		}
 		int maxIdx = NumberArrays.getIndexMaximum(acgtCounts);
 		int secondMaxIdx = NumberArrays.getIndexMaximum(acgtCounts, maxIdx);
@@ -564,6 +612,7 @@ class SimpleHeterozygousSNVsDetectorPileupListener implements PileupListener {
 		char secondBp = DNASequence.BASES_STRING.charAt(secondMaxIdx);
 		char refBase = consensus.charAt(pileup.getPosition()-1);
 		char altBase = (maxBp==refBase)?secondBp:maxBp;
+		if(pos==idxDebug) System.out.println("SimpleHetSNVs. Max count: "+maxCount+" secondCount: "+secondCount+" total alns: "+alns.size()+" ref: "+refBase+" maxBp: "+maxBp+" secondBp: "+secondBp);
 		if(maxCount+secondCount>=alns.size()-1 && secondCount>=5 && (refBase==maxBp || refBase == secondBp)) {
 			heterozygousSNVs.add(new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO));
 		}
@@ -583,6 +632,7 @@ class ReadsClusterEdge {
 	private int clusterId2;
 	private int numEdges=0;
 	private long totalScore=0;
+	private int maxScore = 0;
 	public ReadsClusterEdge(int clusterId1, int clusterId2) {
 		super();
 		this.clusterId1 = clusterId1;
@@ -590,7 +640,9 @@ class ReadsClusterEdge {
 	}
 	public void addAssemblyEdge(AssemblyEdge edge) {
 		numEdges++;
-		totalScore+=edge.getScore();
+		int score = edge.getScore();
+		totalScore+=score;
+		maxScore = Math.max(maxScore, score);
 	}
 	public int getClusterId1() {
 		return clusterId1;
@@ -603,6 +655,7 @@ class ReadsClusterEdge {
 	}
 	public int getScore() {
 		return (int) (totalScore/numEdges);
+		//return maxScore;
 	}
 	public static String getKey(int id1, int id2) {
 		return ""+id1+" "+id2;
