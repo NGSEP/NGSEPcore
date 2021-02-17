@@ -8,8 +8,8 @@ De-novo and reference guided reads processing
 <commandgroup id="Discovery">
 Variants discovery and genotyping
 </commandgroup>
-<commandgroup id="Transcriptome">
-Analysis of annotated gene models and transcripts
+<commandgroup id="Genomes">
+Analysis of genome assemblies and annotations, including gene models and transcripts
 </commandgroup>
 <commandgroup id="VariantsDownstream">
 Variants (VCF) downstream analysis
@@ -343,7 +343,7 @@ Output file in fasta format with the modified genome.
 
 <command id="GenomeIndexer" class="ngsep.genome.GenomeIndexer" groupId="Reads">
 <intro>
-Creates an FM index for indexing the genome
+Creates an FM index to perform short reads alignment
 </intro>
 <title>Indexing genome reference files</title>
 <description>
@@ -872,7 +872,7 @@ Perform the Bonferroni correction for multiple testing.
 </option>
 </command>
 
-<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" groupId="Transcriptome">
+<command id="TranscriptomeAnalyzer" class="ngsep.transcriptome.TranscriptomeAnalyzer" groupId="Genomes">
 <intro>
 Provides statistics on a transcriptome file in GFF3 format
 </intro>
@@ -892,7 +892,7 @@ Fasta file with the reference genome. It can be gzip compressed.
 </option>
 </command>
 
-<command id="TranscriptomeFilter" class="ngsep.transcriptome.TranscriptomeFilter" groupId="Transcriptome">
+<command id="TranscriptomeFilter" class="ngsep.transcriptome.TranscriptomeFilter" groupId="Genomes">
 <intro>
 Executes filter criteria on a transcriptome file in GFF3 format
 </intro>
@@ -943,7 +943,7 @@ The first column should have the gene ids. Other columns are ignored.
 </option>
 </command>
 
-<command id="GenomesAligner" class="ngsep.genome.GenomesAligner" groupId="Transcriptome">
+<command id="GenomesAligner" class="ngsep.genome.GenomesAligner" groupId="Genomes">
 <intro>
 Compares two partially or completely assembled genomes based on their gene annotations
 </intro>
@@ -977,7 +977,7 @@ Maximum number of homologs per unit to be displayed in the D3 visualization
 -->
 </command>
 
-<command id="CDNACatalogAligner" class="ngsep.genome.CDNACatalogAligner" groupId="Transcriptome">
+<command id="CDNACatalogAligner" class="ngsep.genome.CDNACatalogAligner" groupId="Genomes">
 <intro>Infers ortholog groups from a set of transcriptomes</intro>
 <title>Clustering orthologs from CDNA catalogs</title>
 <description>
@@ -996,6 +996,25 @@ Minimum percentage of k-mers to call orthologs
 </option>
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and returns unfiltered orthogroups.
+</option>
+</command>
+
+<command id="TransposonsFinder" class="ngsep.genome.TransposableElementsFinder" groupId="Genomes" printHelp="false">
+<intro>
+Annotates transposable elements in a genome assembly
+</intro>
+<title>Identifying transposable elements</title>
+<description>
+Receives a genome assembly in fasta format and annotates regions with transposable elements.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input genome to annotate in fasta format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with annotations of transposable elements
+</option>
+<option id="d" type="FILE" attribute="transposonsDatabaseFile">
+Database of transposable elements to annotate the genome
 </option>
 </command>
 
