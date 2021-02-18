@@ -24,9 +24,9 @@ public class SingleReadsSimulator {
 	// Constants for default values
 	public static final int DEF_NUM_READS = 30000;
 	public static final int DEF_MEAN_READ_LENGTH = 20000;
-	public static final int DEF_STDEV_READ_LENGTH = 10000;
+	public static final int DEF_STDEV_READ_LENGTH = 5000;
 	public static final int DEF_MIN_READ_LENGTH = 50;
-	public static final double DEF_SUBSTITUTION_ERROR_RATE = 0.01;
+	public static final double DEF_SUBSTITUTION_ERROR_RATE = 0.005;
 	public static final double DEF_INDEL_ERROR_RATE = 0.01;
 	public static final byte OUT_FORMAT_FASTQ = 0;
 	public static final byte OUT_FORMAT_FASTA = 1;
@@ -232,20 +232,43 @@ public class SingleReadsSimulator {
 	}
 
 	private String generateErrors(String read) {
+		String read2 = generateSubstitutionErrors(read);
+		//return generateIndelErrorsRandom(read2);
+		return generateIndelErrorsMononucleotides(read2);
+	}
+	private String generateSubstitutionErrors (String read) {
 		String alphabet = DNASequence.BASES_STRING;
 		int len = read.length();
 		StringBuilder answer = new StringBuilder(len);
 
 		for(int i=0;i<len;i++) {
-			
+			char c = read.charAt(i);
+			if(rnd.nextDouble()<substitutionErrorRate) {
+				// Generate random substitution
+				char c2 = c;
+				for (int j=0; j<100 && c == c2;j++) {
+					c2 = alphabet.charAt(rnd.nextInt(alphabet.length()));
+				}
+				c = c2;
+			}
+			answer.append(c);
+		}
+		return answer.toString();
+	}
+	private String generateIndelErrorsRandom (String read) {
+		String alphabet = DNASequence.BASES_STRING;
+		int len = read.length();
+		StringBuilder answer = new StringBuilder(len);
+
+		for(int i=0;i<len;i++) {
 			if(rnd.nextDouble()<indelErrorRate) {
 				//Generate random indels
 				int length = 0;
 				for (int j=0; j<100 && length == 0;j++) {
 					length = (int) Math.round(rnd.nextGaussian()*2.0);
 				}
-				length = Math.min(length, 10);
-				length = Math.max(length, -10);
+				length = Math.min(length, 5);
+				length = Math.max(length, -5);
 				if(length < 0) {
 					//Deletion
 					i-=(length+1);
@@ -254,18 +277,31 @@ public class SingleReadsSimulator {
 					answer.append(read.charAt(i));
 					for (int j=0; j<length;j++) answer.append(alphabet.charAt(0));
 				}
-			} else {
-				char c = read.charAt(i);
-				if(rnd.nextDouble()<substitutionErrorRate) {
-					// Generate random substitution
-					char c2 = c;
-					for (int j=0; j<100 && c == c2;j++) {
-						c2 = alphabet.charAt(rnd.nextInt(alphabet.length()));
-					}
-					c = c2;
-				}
-				answer.append(c);
 			}
+		}
+		return answer.toString();
+	}
+	private String generateIndelErrorsMononucleotides (String read) {
+		int len = read.length();
+		StringBuilder answer = new StringBuilder(len);
+		int mononucleotideCount = 0;
+		char lastChar = 0;
+		for(int i=0;i<len;i++) {
+			char c = read.charAt(i);
+			if(c==lastChar) mononucleotideCount++;
+			else mononucleotideCount = 1;
+			lastChar = c;
+			if(mononucleotideCount>1 && rnd.nextDouble()<indelErrorRate) {
+				if(rnd.nextInt(2)==1) {
+					//Insertion
+					answer.append(c);
+				} else {
+					//Deletion
+					continue;
+				}
+			}
+			answer.append(c);
+			
 		}
 		return answer.toString();
 	}
