@@ -73,10 +73,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		log.info("Number of paths safe edges: "+safePaths.size());
 		
 		//Algorithms to resolve conflicts between almost safe close edges
-		addEdges2(graph, safePaths, pathEdges);
-		log.info("Number of edges after second algorithm: "+pathEdges.size());
-		safePaths = buildPaths(graph, pathEdges);
-		log.info("Updated number of paths: "+safePaths.size());
+		//addEdges2(graph, safePaths, pathEdges);
+		//log.info("Number of edges after second algorithm: "+pathEdges.size());
+		//safePaths = buildPaths(graph, pathEdges);
+		//log.info("Updated number of paths: "+safePaths.size());
 		
 		//addEdges3(graph, safePaths, pathEdges);
 		//log.info("Number of edges after third algorithm: "+pathEdges.size());
@@ -420,8 +420,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				if(edge !=null) candidateEdges.add(new AssemblyEdgePathEnd(edge, i, j));
 			}
 		}
-		//Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
-		Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
+		Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
+		//Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
 		List<AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length);
 		for(AssemblyEdgePathEnd edgeP:pathEdgesByVertexId) pathEdges.add(edgeP.getEdgeAssemblyGraph());
 	}

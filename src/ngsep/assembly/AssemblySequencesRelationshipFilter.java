@@ -36,29 +36,6 @@ public class AssemblySequencesRelationshipFilter {
 		Distribution lengthsDistribution = new Distribution(0, graph.getSequenceLength(0), 1);
 		int n = graph.getNumSequences();
 		for(int i=0;i<n;i++) lengthsDistribution.processDatapoint(graph.getSequenceLength(i));
-		/*Distribution evidenceProportionEmbedded = new Distribution(0, 1, 0.01);
-		Distribution cskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
-		Distribution wcskProportionSelfEmbedded = new Distribution(0, 1, 0.01);
-		for(int seqId:embeddedMapBySequence.keySet()) {
-			int length = getSequenceLength(seqId);
-			AssemblyEdge edge = getSameSequenceEdge(seqId);
-			if(edge == null) continue;
-			int selfCSK = edge.getCoverageSharedKmers();
-			int selfWCSK = edge.getWeightedCoverageSharedKmers();
-			List<AssemblyEmbedded> relations = embeddedMapBySequence.get(seqId);
-			for(AssemblyEmbedded embedded:relations) {
-				double evidenceLength = embedded.getHostEvidenceEnd()-embedded.getHostEvidenceStart();
-				evidenceProportionEmbedded.processDatapoint(evidenceLength/length);
-				cskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfCSK);
-				wcskProportionSelfEmbedded.processDatapoint((double)embedded.getCoverageSharedKmers()/selfWCSK);
-			}
-		}
-		System.out.println("Proportion of evidence vs read length for embedded relationships");
-		evidenceProportionEmbedded.printDistribution(System.out);
-		System.out.println("Proportion of CSK vs self CSK for embedded relationships");
-		cskProportionSelfEmbedded.printDistribution(System.out);
-		System.out.println("Proportion of WCSK vs self WCSK for embedded relationships");
-		wcskProportionSelfEmbedded.printDistribution(System.out);*/
 		int medianLength = graph.getMedianLength();
 		System.out.println("Median read length: "+medianLength);
 		int numEmbedded = 0;
@@ -112,6 +89,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" limit: "+minScoreFilterEdges);
+			//TODO: Make this parameter dynamic based on the distribution
 			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < minScoreFilterEdges)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
@@ -123,6 +101,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE+" limit: "+minScoreFilterEdges);
+			//TODO: Make this parameter dynamic based on the distribution
 			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < minScoreFilterEdges)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);

@@ -552,9 +552,12 @@ public class AssemblyGraphStatistics {
 				double maxCSK = 0;
 				double maxWCSK = 0;
 				double minIndelsKbp = 1000000;
+				AssemblyEmbedded minCostE = null;
 				for(AssemblyEmbedded embedded: hosts) {
 					maxScore = Math.max(maxScore, embedded.getScore());
+					if(minCostE==null || minCostE.getCost()>embedded.getCost()) minCostE = embedded;
 					minCost = Math.min(minCost, embedded.getCost());
+					
 					maxEvidenceProp = Math.max(maxEvidenceProp, embedded.getEvidenceProportion());
 					maxCSK = Math.max(maxCSK, embedded.getCoverageSharedKmers());
 					maxWCSK = Math.max(maxWCSK, embedded.getWeightedCoverageSharedKmers());
@@ -567,10 +570,10 @@ public class AssemblyGraphStatistics {
 				distEvidencePropLengthTPEmbedded.processDatapoint(maxEvidenceProp);
 				distIndelsKbpTPEmbedded.processDatapoint(minIndelsKbp);
 				if(selfEdge!=null) {
-					
 					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
 					distWCSKPropSelfTPEmbedded.processDatapoint(p2);
 				}
+				if(minCostE!=null && minCost>200000) System.out.println("TPEmbedded with high cost: "+minCostE+" score: "+minCostE.getScore()+" cost: "+minCostE.getCost()+" host: "+logSequence(minCostE.getHostId(), goldStandardGraph.getSequence(minCostE.getHostId())));
 			}
 			else if (gsE) {
 				fnEmbSeqs++;
@@ -677,7 +680,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==4832 || gsVertex.getSequenceIndex()==7657 || gsVertex.getSequenceIndex()==2312; 
+		//boolean debug = gsVertex.getSequenceIndex()==1315 || gsVertex.getSequenceIndex()==5522 || gsVertex.getSequenceIndex()==22070; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -759,7 +762,7 @@ public class AssemblyGraphStatistics {
 				//False positive
 				fpEdges++;
 				distOverlapsFPEdges.processDatapoint(edge.getOverlap());
-				distScoresFPEdges.processDatapoint(edge.getCost());
+				distScoresFPEdges.processDatapoint(edge.getScore());
 				distCostsFPEdges.processDatapoint(edge.getCost());
 				distSharedKmersFPEdges.processDatapoint(edge.getNumSharedKmers());
 				distCoverageSharedKmersFPEdges.processDatapoint(edge.getCoverageSharedKmers());
@@ -1188,7 +1191,9 @@ public class AssemblyGraphStatistics {
 		distFromLimitsOverlapError.reset();
 		
 		distScoresTPEmbedded.reset();
+		distScoresFPEmbedded.reset();
 		distCostsTPEmbedded.reset();
+		distCostsFPEmbedded.reset();
 		distCSKTPEmbedded.reset();
 		distCSKFPEmbedded.reset();
 		distWCSKTPEmbedded.reset();

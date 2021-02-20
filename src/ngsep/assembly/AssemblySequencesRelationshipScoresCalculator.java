@@ -20,7 +20,6 @@
 package ngsep.assembly;
 
 import JSci.maths.statistics.NormalDistribution;
-import ngsep.math.Distribution;
 import ngsep.math.PhredScoreHelper;
 
 /**
@@ -39,25 +38,26 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	public void setUseIndels(boolean useIndels) {
 		this.useIndels = useIndels;
 	}
-	public int calculateScore(AssemblySequencesRelationship relationship, Distribution[] edgesStats) {
+	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		double evProp = relationship.getEvidenceProportion();
 		double overlapProportion=relationship.getOverlap();
+		double w1 = 1;
+		double w2 = 1;
 		if(relationship instanceof AssemblyEmbedded) {
 			overlapProportion = 1;
 		} else {
 			AssemblyEdge edge = (AssemblyEdge) relationship;
 			int l1 = edge.getVertex1().getRead().getLength();
-			int l2 = edge.getVertex1().getRead().getLength();
+			int l2 = edge.getVertex2().getRead().getLength();
 			overlapProportion/=Math.max(l1, l2);
 		}
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
-		double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp;
+		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		if(useIndels) {
-			Distribution indelsKbp = edgesStats[5];
-			NormalDistribution ikbp = new NormalDistribution(indelsKbp.getAverage(),2*indelsKbp.getVariance());
+			NormalDistribution ikbp = edgesDists[5];
 			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
 			if(pValueIKBP>0.5) pValueIKBP = 0.5;
 			pValueIKBP+=0.5;
@@ -65,38 +65,30 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		}
 		return (int)Math.round(score);
 	}
-	public int calculateCost(AssemblySequencesRelationship relationship, Distribution[] edgesStats) {
-		Distribution overlapTP = edgesStats[0];
-		Distribution covTP = edgesStats[1];
-		Distribution wCovTP = edgesStats[2];
-		Distribution wCovPropTP = edgesStats[3];
-		Distribution evPropTP = edgesStats[4];
-		Distribution indelsKbpTP = edgesStats[5];
+	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
+		NormalDistribution overlapD = edgesDists[0];
+		NormalDistribution cskD = edgesDists[1];
+		NormalDistribution wcskD = edgesDists[2];
+		NormalDistribution wcskpD = edgesDists[3];
+		NormalDistribution evPropD = edgesDists[4];
+		NormalDistribution indelsKbpD = edgesDists[5];
 		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
 		//int cost = (int)Math.round(1000*(1.5-prop));
 		//return cost;
-		NormalDistribution noTP = new NormalDistribution(overlapTP.getAverage(),overlapTP.getVariance()+1);
-		NormalDistribution ncTP = new NormalDistribution(covTP.getAverage(),covTP.getVariance()+1);
-		NormalDistribution nwcTP = new NormalDistribution(wCovTP.getAverage(),wCovTP.getVariance()+1);
-		NormalDistribution nwcpTP = new NormalDistribution(wCovPropTP.getAverage(),wCovPropTP.getVariance()+0.0001);
-		NormalDistribution evpTP = new NormalDistribution(evPropTP.getAverage(),evPropTP.getVariance()+0.0001);
-		NormalDistribution ikbpTP = new NormalDistribution(indelsKbpTP.getAverage(),indelsKbpTP.getVariance()+1);
 		//NormalDistribution niTP = new NormalDistribution(200,40000);
-		int overlap;
-		if(relationship instanceof AssemblyEdge) overlap = ((AssemblyEdge)relationship).getOverlap();
-		else overlap = ((AssemblyEmbedded)relationship).getSequenceEvidenceEnd() - ((AssemblyEmbedded)relationship).getSequenceEvidenceStart();
-		double pValueOTP = noTP.cumulative(overlap);
+		int overlap = relationship.getOverlap();
+		double pValueOTP = overlapD.cumulative(overlap);
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
 		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
-		double pValueCTP = ncTP.cumulative(relationship.getCoverageSharedKmers());
+		double pValueCTP = cskD.cumulative(relationship.getCoverageSharedKmers());
 		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
-		double pValueWCTP = nwcTP.cumulative(relationship.getWeightedCoverageSharedKmers());
+		double pValueWCTP = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
 		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
-		double pValueWCPTP = nwcpTP.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
+		double pValueWCPTP = wcskpD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
 		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
-		double pValueEvProp = evpTP.cumulative(relationship.getEvidenceProportion());
+		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
-		double pValueIKBP = 1-ikbpTP.cumulative(relationship.getIndelsPerKbp());
+		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
 		double costD = 0;
 		costD+=cost1;
