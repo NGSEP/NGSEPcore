@@ -78,7 +78,11 @@ public class AssemblyGraphStatistics {
 	
 	//Statistics
 	private Distribution distLengthsLayoutReads = new Distribution(0,100000,2000);
+	private Distribution distSumLengthsIKbpLayout = new Distribution(0,100000,2000);
+	private Distribution distSumLengthsLayout = new Distribution(0,100000,2000);
 	private Distribution distLengthsEmbeddedReads = new Distribution(0,100000,2000);
+	private Distribution distSumLengthsIKbpEmbedded = new Distribution(0,100000,2000);
+	private Distribution distSumLengthsEmbedded = new Distribution(0,100000,2000);
 	
 	private Distribution distScoresTPEmbedded = new Distribution(0,200000,2000);
 	private Distribution distCostsTPEmbedded = new Distribution(0,200000,2000);
@@ -569,6 +573,11 @@ public class AssemblyGraphStatistics {
 				distWCSKTPEmbedded.processDatapoint(maxWCSK);
 				distEvidencePropLengthTPEmbedded.processDatapoint(maxEvidenceProp);
 				distIndelsKbpTPEmbedded.processDatapoint(minIndelsKbp);
+				if(minIndelsKbp>0) {
+					int totalLength = testGraph.getSequenceLength(minCostE.getSequenceId())+testGraph.getSequenceLength(minCostE.getHostId());
+					distSumLengthsEmbedded.processDatapoint(totalLength);
+					distSumLengthsIKbpEmbedded.processDatapoint(minIndelsKbp,totalLength);
+				}
 				if(selfEdge!=null) {
 					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
 					distWCSKPropSelfTPEmbedded.processDatapoint(p2);
@@ -680,7 +689,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==1315 || gsVertex.getSequenceIndex()==5522 || gsVertex.getSequenceIndex()==22070; 
+		//boolean debug = gsVertex.getSequenceIndex()==11249 || gsVertex.getSequenceIndex()==11173 || gsVertex.getSequenceIndex()==798; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -696,13 +705,14 @@ public class AssemblyGraphStatistics {
 			AssemblyVertex gsConnectingVertex = gsEdge.getConnectingVertex(gsVertex);
 			boolean edgeEmbedded = gsEmbedded || goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex());
 			int number = gsConnectingVertex.getUniqueNumber();
+			AssemblyEdge matchedTestEdge = testEdgesByConnectingVertex.get(number);
 			boolean match = testEdgesMatched.containsKey(number);
 			if(match) {
 				//True positive
 				if(edgeEmbedded) tpEdgesEmbedded++;
 				else {
 					tpEdgesNotEmbedded++;
-					if(!gsEdge.isSameSequenceEdge()) updateOverlapStats(gsEdge, testEdgesByConnectingVertex.get(number));
+					if(!gsEdge.isSameSequenceEdge()) updateOverlapStats(gsEdge, matchedTestEdge);
 				}
 				testEdgesMatched.put(number, true);
 			}
@@ -720,33 +730,24 @@ public class AssemblyGraphStatistics {
 			if(gsEdge.isLayoutEdge()) {
 				if(match) {
 					tpPathEdges++;
-					AssemblyEdge minCostTestEdge = null;
-					AssemblyEdge maxOverlapTestEdge = null;
-					//AssemblyEdge layoutTestEdge = null;
-					for(AssemblyEdge edge:testEdges) {
-						if (edge.getConnectingVertex(testVertex).getUniqueNumber() == number) {
-							//layoutTestEdge = edge;
-							if (!gsEdge.isSameSequenceEdge()) {
-								distOverlapsTPPathEdges.processDatapoint(edge.getOverlap());
-								distScoresTPPathEdges.processDatapoint(edge.getScore());
-								distCostsTPPathEdges.processDatapoint(edge.getCost());
-								distSharedKmersTPPathEdges.processDatapoint(edge.getNumSharedKmers());
-								distCoverageSharedKmersTPPathEdges.processDatapoint(edge.getCoverageSharedKmers());
-								distWCovSharedKmersTPPathEdges.processDatapoint(edge.getWeightedCoverageSharedKmers());
-								distSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getNumSharedKmers()/edge.getOverlap());
-								distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)edge.getCoverageSharedKmers()/edge.getOverlap());
-								distOverlapSDTPPathEdges.processDatapoint(edge.getRawKmerHitsSubjectStartSD());
-								distNumIndelsTPPathEdges.processDatapoint(edge.getNumIndels());
-								distIndelsKbpTPPathEdges.processDatapoint(edge.getIndelsPerKbp());
-								if(edge.getIndelsPerKbp()>20) log.info("Large indels per kbp for path edge: "+edge);
-							}
-						}
-						if(!edge.isSameSequenceEdge() && (minCostTestEdge==null || minCostTestEdge.getCost()>edge.getCost())) minCostTestEdge=edge;
-						if(!edge.isSameSequenceEdge() && (maxOverlapTestEdge==null || maxOverlapTestEdge.getOverlap()<edge.getOverlap())) maxOverlapTestEdge=edge;
+							//distSumLengthsIKbpLayout
+					if (!gsEdge.isSameSequenceEdge()) {
+						distOverlapsTPPathEdges.processDatapoint(matchedTestEdge.getOverlap());
+						distScoresTPPathEdges.processDatapoint(matchedTestEdge.getScore());
+						distCostsTPPathEdges.processDatapoint(matchedTestEdge.getCost());
+						distSharedKmersTPPathEdges.processDatapoint(matchedTestEdge.getNumSharedKmers());
+						distCoverageSharedKmersTPPathEdges.processDatapoint(matchedTestEdge.getCoverageSharedKmers());
+						distWCovSharedKmersTPPathEdges.processDatapoint(matchedTestEdge.getWeightedCoverageSharedKmers());
+						distSharedKmersProportionTPPathEdges.processDatapoint((double)matchedTestEdge.getNumSharedKmers()/(matchedTestEdge.getOverlap()+1));
+						distCoverageSharedKmersProportionTPPathEdges.processDatapoint((double)matchedTestEdge.getCoverageSharedKmers()/(matchedTestEdge.getOverlap()+1));
+						distOverlapSDTPPathEdges.processDatapoint(matchedTestEdge.getRawKmerHitsSubjectStartSD());
+						distNumIndelsTPPathEdges.processDatapoint(matchedTestEdge.getNumIndels());
+						distIndelsKbpTPPathEdges.processDatapoint(matchedTestEdge.getIndelsPerKbp());
+						if(matchedTestEdge.getIndelsPerKbp()>20) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						int lengthSum = testGraph.getSequenceLength(matchedTestEdge.getVertex1().getSequenceIndex())+testGraph.getSequenceLength(matchedTestEdge.getVertex2().getSequenceIndex());
+						distSumLengthsIKbpLayout.processDatapoint(matchedTestEdge.getIndelsPerKbp(), lengthSum);
+						distSumLengthsLayout.processDatapoint(lengthSum);
 					}
-					//if(logErrors && minCostTestEdge!=layoutTestEdge) log.info("Min cost edge for vertex "+logVertex(testVertex)+" not in layout. Layout edge: "+logEdge(layoutTestEdge)+" min cost edge: "+logEdge(minCostTestEdge)+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(minCostTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
-					//if(logErrors && maxOverlapTestEdge!=layoutTestEdge) System.err.println("Max overlap edge for vertex "+testVertex+" not in layout. Layout edge: "+layoutTestEdge+" max overlap edge: "+maxOverlapTestEdge+" layout embedded: "+goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" "+testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex())+" min embedded "+goldStandardGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex())+" "+testGraph.isEmbedded(maxOverlapTestEdge.getConnectingVertex(testVertex).getSequenceIndex()));
-					
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
 					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
@@ -992,12 +993,16 @@ public class AssemblyGraphStatistics {
 		out.println("More+\t"+distOverlapError.countOutliersMore()+"\t"+distAverageOverlapError.countOutliersMore()+"\t"+distMedianOverlapError.countOutliersMore()+"\t"+distFromLimitsOverlapError.countOutliersMore());
 		
 		d1 = distLengthsLayoutReads.getDistribution();
-		d2 = distLengthsEmbeddedReads.getDistribution();
+		d2 = distSumLengthsIKbpLayout.getDistribution();
+		d3 = distSumLengthsLayout.getDistribution();
+		d4 = distLengthsEmbeddedReads.getDistribution();
+		double [] d5 = distSumLengthsIKbpEmbedded.getDistribution();
+		double [] d6 = distSumLengthsEmbedded.getDistribution();
 		out.println("Lengths reads");
-		out.println("Number\tLayout\tEmbedded");
+		out.println("Number\tLayout\tLayoutIKbp\tEmbedded\tEmbeddedIKbp");
 		for(int i=0;i<d1.length;i++) {
 			int min = i*(int)distLengthsLayoutReads.getBinLength();
-			out.println(min+"\t"+d1[i]+"\t"+d2[i]);
+			out.println(min+"\t"+d1[i]+"\t"+d2[i]/(d3[i]+0.01)+"\t"+d4[i]+"\t"+d5[i]/(d6[i]+0.01));
 		}
 		
 		d1 = distScoresTPEmbedded.getDistribution();
@@ -1028,7 +1033,7 @@ public class AssemblyGraphStatistics {
 		d2 = distEvidencePropLengthFPEmbedded.getDistribution();
 		d3 = distEvidencePropLengthFNEmbedded.getDistribution();
 		d4 = distWCSKPropSelfTPEmbedded.getDistribution();
-		double [] d5 = distWCSKPropSelfFPEmbedded.getDistribution();
+		d5 = distWCSKPropSelfFPEmbedded.getDistribution();
 		out.println("Proportions embedded");
 		out.println("Number\tPropEvidenceTP\tPropEvidenceFP\tPropEvidenceFN\tPropWCSKSelfTP\tPropWCSKSelfFP");
 		for(int i=0;i<d1.length;i++) {
@@ -1062,7 +1067,7 @@ public class AssemblyGraphStatistics {
 		d3 = distScoresFPEdges.getDistribution();
 		d4 = distCostsTPPathEdges.getDistribution();
 		d5 = distCostsFPPathEdges.getDistribution();
-		double [] d6 = distCostsFPEdges.getDistribution();
+		d6 = distCostsFPEdges.getDistribution();
 		out.println("Score/Cost distributions");
 		out.println("Number\tScoreTPpath\tScoreFPPath\tScoreFP\tCostTPPath\tCostFPPath\tCostFP");
 		for(int i=0;i<d1.length;i++) {

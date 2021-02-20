@@ -77,18 +77,21 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//return cost;
 		//NormalDistribution niTP = new NormalDistribution(200,40000);
 		int overlap = relationship.getOverlap();
-		double pValueOTP = overlapD.cumulative(overlap);
+		double cumulativeOverlap = overlapD.cumulative(overlap);
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
-		int cost1 = PhredScoreHelper.calculatePhredScore(pValueOTP);
-		double pValueCTP = cskD.cumulative(relationship.getCoverageSharedKmers());
-		int cost2 = PhredScoreHelper.calculatePhredScore(pValueCTP);
-		double pValueWCTP = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
-		int cost3 = PhredScoreHelper.calculatePhredScore(pValueWCTP);
+		//int cost1 = PhredScoreHelper.calculatePhredScore(cumulativeOverlap);
+		double cost1 = 100.0*(1-cumulativeOverlap);
+		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
+		double cost2 = 100.0*(1-cumulativeCSK);
+		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
+		double cost3 = 100.0*(1-cumulativeWCSK);
 		double pValueWCPTP = wcskpD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
 		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
 		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
+		if(pValueEvProp>0.5) pValueEvProp = 0.5;
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
 		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
+		if(pValueIKBP>0.5) pValueIKBP = 0.5;
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
 		double costD = 0;
 		costD+=cost1;
@@ -97,13 +100,13 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		costD += cost5;
 		if(useIndels) costD += cost6;
 		
-		costD*=1000;
-		int cost = (int)Math.min(1000000000, costD);
+		
+		int cost = (int)(100.0*costD);
 		
 		//cost+= (int) (1000000*(1-pValueOTP)*(1-pValueCTP));
-		cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
+		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Pvalues "+pValueOTP+" "+pValueCTP+" "+pValueWCTP+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ "Rel: "+relationship);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeCSK+" "+cumulativeWCSK+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Rel: "+relationship);
 		
 		return cost;
 	}

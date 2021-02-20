@@ -746,9 +746,9 @@ public class AssemblyGraph {
 			} else {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
+			if(i==5 && mean < 10) mean = 10;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
-			if(i==5 && stdev < 5) stdev = 5;
 			double variance = stdev*stdev;
 			if(variance<=0.01) variance = 0.01;
 			if(i<3 && variance <mean) variance = mean; 
