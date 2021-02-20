@@ -333,7 +333,7 @@ public class Assembler {
 		
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		graph.updateScores(ploidy>1);
+		graph.updateScores(true);
 		long time2 = System.currentTimeMillis();
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
@@ -341,7 +341,7 @@ public class Assembler {
 			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
-			diploidGraph.updateScores(ploidy>1);
+			diploidGraph.updateScores(true);
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(diploidGraph);
@@ -360,7 +360,7 @@ public class Assembler {
 				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
 				log.info("Saved graph to "+outFileGraph);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
-				haplotypeGraph.updateScores(false);
+				haplotypeGraph.updateScores(true);
 				pathsFinder.findPaths(haplotypeGraph);
 				log.info("Built "+haplotypeGraph.getPaths().size()+" paths for next haplotype cluster with "+readIdsCluster.size()+" reads");
 				consensus.setSequenceNamePrefix("ContigHap"+haplotypeNumber);
@@ -371,7 +371,7 @@ public class Assembler {
 			}
 		} else {
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-			graph.updateScores(false);
+			graph.updateScores(true);
 			
 			pathsFinder.findPaths(graph);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
