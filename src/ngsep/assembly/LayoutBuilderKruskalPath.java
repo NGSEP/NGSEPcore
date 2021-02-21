@@ -312,8 +312,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			int diffOverlap = Math.abs(bestOverlap.getOverlap()-bestWCSK.getOverlap());
 			int diffWCSK = Math.abs(bestOverlap.getWeightedCoverageSharedKmers()-bestWCSK.getWeightedCoverageSharedKmers());
 			if(vertex.getSequenceIndex()==debugSeq) System.out.println("AddEdges2. Trying to connect vertex "+vertex+" diff overlap: "+diffOverlap+" diff wcsk: "+diffWCSK);
-			if(diffOverlap>0.05*bestOverlap.getOverlap()) continue;
-			if(diffWCSK>0.05*bestWCSK.getWeightedCoverageSharedKmers()) continue;
+			if(diffOverlap>0.02*bestOverlap.getOverlap()) continue;
+			if(diffWCSK>0.02*bestWCSK.getWeightedCoverageSharedKmers()) continue;
 			
 			AssemblyEdge thirdOverlap=null;
 			AssemblyEdge thirdWCSK=null;

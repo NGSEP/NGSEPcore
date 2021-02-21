@@ -19,7 +19,10 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.util.Map;
+
 import JSci.maths.statistics.NormalDistribution;
+import ngsep.math.Distribution;
 import ngsep.math.PhredScoreHelper;
 
 /**
@@ -56,16 +59,16 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
-		if(useIndels) {
+		/*if(useIndels) {
 			NormalDistribution ikbp = edgesDists[5];
 			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
 			if(pValueIKBP>0.5) pValueIKBP = 0.5;
 			pValueIKBP+=0.5;
 			score*=pValueIKBP;
-		}
+		}*/
 		return (int)Math.round(score);
 	}
-	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
+	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists, Map<Integer,Distribution> byLengthSumIKBPDists) {
 		NormalDistribution overlapD = edgesDists[0];
 		NormalDistribution cskD = edgesDists[1];
 		NormalDistribution wcskD = edgesDists[2];
@@ -93,12 +96,23 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
 		if(pValueIKBP>0.5) pValueIKBP = 0.5;
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
+		Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/2000);
+		int cost7 = cost6;
+		double pValueIKBP2 = pValueIKBP;
+		if(byLength!=null && byLength.getCount()>20) {
+			NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),4*Math.max(byLength.getAverage(), byLength.getVariance()));
+			pValueIKBP2 = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
+			if(pValueIKBP2>0.5) pValueIKBP2 = 0.5;
+			cost7 = PhredScoreHelper.calculatePhredScore(pValueIKBP2);
+		}
+		
 		double costD = 0;
 		costD+=cost1;
 		//cost += cost2;
 		costD += cost3;
 		costD += cost5;
-		if(useIndels) costD += cost6;
+		//if(useIndels) costD += cost6;
+		if(useIndels) costD += cost7;
 		
 		
 		int cost = (int)(100.0*costD);
@@ -106,7 +120,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//cost+= (int) (1000000*(1-pValueOTP)*(1-pValueCTP));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeCSK+" "+cumulativeWCSK+" "+pValueWCPTP+" "+pValueEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost2+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Rel: "+relationship);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+pValueEvProp+" "+pValueIKBP+" "+pValueIKBP2+" costs: "+cost1+" "+cost3+" "+cost5+" "+cost6+" "+cost7+" cost: " +cost+ " Rel: "+relationship);
 		
 		return cost;
 	}

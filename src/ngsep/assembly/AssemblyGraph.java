@@ -27,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
@@ -426,6 +427,7 @@ public class AssemblyGraph {
 	
 	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
 		Map<Integer,AssemblyEmbedded> embeddedSequencesMap = new HashMap<Integer,AssemblyEmbedded>();
+		QualifiedSequence rootSequence = getSequence(sequenceIndex);
 		LinkedList<Integer> agenda = new LinkedList<Integer>();
 		agenda.add(sequenceIndex);
 		while (agenda.size()>0) {
@@ -447,7 +449,7 @@ public class AssemblyGraph {
 					int rootEndSequence = rootStartParent+embedded.getHostEnd();
 					
 					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
-					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootStartSequence, rootEndSequence));
+					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootSequence, rootStartSequence, rootEndSequence));
 				}
 				
 				agenda.add(embedded.getSequenceId());
@@ -746,11 +748,11 @@ public class AssemblyGraph {
 			} else {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
-			if(i==5 && mean < 10) mean = 10;
+			if(i==5 && mean < 8) mean = 8;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
+			if(i==4 && stdev < 0.05) stdev = 0.05;
 			double variance = stdev*stdev;
-			if(variance<=0.01) variance = 0.01;
 			if(i<3 && variance <mean) variance = mean; 
 			answer[i] = new NormalDistribution(mean,variance);
 		}
@@ -767,6 +769,11 @@ public class AssemblyGraph {
 		System.out.println("Average weighted coverage proportion: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));
+		Map<Integer,Distribution> byLengthSumIKBPDists = calculateLengthSumDists();
+		for(Map.Entry<Integer, Distribution> entry:byLengthSumIKBPDists.entrySet()) {
+			Distribution d = entry.getValue();
+			System.out.println("Next sum length: "+entry.getKey()+" Average: "+d.getAverage()+" mode: "+d.getLocalMode(0, 2*d.getAverage())+" stdev: "+Math.sqrt(d.getVariance())+" count: "+d.getCount());
+		}
 		//System.out.println("Distribution indels kbp");
 		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
@@ -774,14 +781,35 @@ public class AssemblyGraph {
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
 			edge.setScore(calculator.calculateScore(edge,edgesDists));
-			edge.setCost(calculator.calculateCost(edge,edgesDists));
+			edge.setCost(calculator.calculateCost(edge,edgesDists,byLengthSumIKBPDists));
 		}
 		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
 			for(AssemblyEmbedded embedded:embeddedList) {
 				embedded.setScore(calculator.calculateScore(embedded, edgesDists));
-				embedded.setCost(calculator.calculateCost(embedded, edgesDists));
+				embedded.setCost(calculator.calculateCost(embedded, edgesDists,byLengthSumIKBPDists));
 			}
 		}
+	}
+	private Map<Integer, Distribution> calculateLengthSumDists() {
+		Map<Integer, Distribution> byLengthDistributions = new TreeMap<Integer, Distribution>();
+		List<AssemblyEdge> edges = getEdges();
+		for(AssemblyEdge edge:edges) {
+			if (edge.isSameSequenceEdge()) continue;
+			int key = edge.getLengthSum();
+			key/=2000;
+			Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
+			dist.processDatapoint(edge.getIndelsPerKbp());
+		}
+		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
+			for(AssemblyEmbedded embedded:embeddedList) {
+				int key = embedded.getLengthSum();
+				key/=2000;
+				Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
+				dist.processDatapoint(embedded.getIndelsPerKbp());
+				
+			}
+		}
+		return byLengthDistributions;
 	}
 	
 }

@@ -235,6 +235,10 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 		if(evidenceProp>1) evidenceProp = 2 - evidenceProp;
 		return evidenceProp;
 	}
+	
+	public int getLengthSum() {
+		return vertex1.getRead().getLength()+vertex2.getRead().getLength();
+	}
 
 	public boolean isLayoutEdge() {
 		return layoutEdge;

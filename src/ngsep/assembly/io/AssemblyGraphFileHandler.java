@@ -109,7 +109,8 @@ public class AssemblyGraphFileHandler {
 		int hostId = Integer.parseInt(items[1]);
 		boolean reverse = Integer.parseInt(items[4])==1;
 		QualifiedSequence embeddedSeq = sequences.get(embSeqId);
-		AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
+		QualifiedSequence embeddedHost = sequences.get(hostId);
+		AssemblyEmbedded embedded = new AssemblyEmbedded(embSeqId, embeddedSeq, reverse, hostId, embeddedHost, Integer.parseInt(items[2]), Integer.parseInt(items[3]));
 		String [] items2 = items[5].split(";");
 		for(String feature:items2) {
 			int idxF = feature.indexOf("=");

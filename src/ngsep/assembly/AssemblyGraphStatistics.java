@@ -471,7 +471,7 @@ public class AssemblyGraphStatistics {
 						relativeStart = 0;
 						relativeEnd = left.getLast() - right.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), leftSeq, relativeNegative, right.getReadNumber(), relativeStart, relativeEnd);
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), leftSeq, relativeNegative, right.getReadNumber(), rightSeq, relativeStart, relativeEnd);
 					graph.addEmbedded(embeddedEvent);
 					if(right.getLast()<=left.getLast()) {
 						//right is also embedded in left
@@ -482,7 +482,7 @@ public class AssemblyGraphStatistics {
 							relativeStart = 0;
 							relativeEnd = right.getLast() - left.getFirst();
 						}
-						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
+						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), leftSeq, relativeStart, relativeEnd );
 						graph.addEmbedded(embeddedEvent);
 					}
 				} else if(right.getLast()<=left.getLast()) {
@@ -495,7 +495,7 @@ public class AssemblyGraphStatistics {
 						relativeStart = right.getFirst()-left.getFirst();
 						relativeEnd = right.getLast() - left.getFirst();
 					}
-					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), relativeStart, relativeEnd );
+					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), leftSeq, relativeStart, relativeEnd );
 					graph.addEmbedded(embeddedEvent);
 				}
 			}
@@ -689,7 +689,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==11249 || gsVertex.getSequenceIndex()==11173 || gsVertex.getSequenceIndex()==798; 
+		//boolean debug = gsVertex.getSequenceIndex()==4208 || gsVertex.getSequenceIndex()==2890 || gsVertex.getSequenceIndex()==6086; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

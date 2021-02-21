@@ -31,6 +31,7 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	private QualifiedSequence read;
 	private boolean isReverse;
 	private int hostId;
+	private QualifiedSequence host;
 	private int hostStart;
 	private int hostEnd;
 	private int hostStartStandardDeviation;
@@ -50,11 +51,12 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	private int cost;
 	
 
-	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, int hostStart, int hostEnd) {
+	public AssemblyEmbedded(int sequenceId, QualifiedSequence read, boolean isReverse, int hostId, QualifiedSequence host, int hostStart, int hostEnd) {
 		this.sequenceId = sequenceId;
 		this.read = read;
 		this.isReverse = isReverse;
 		this.hostId = hostId;
+		this.host = host;
 		this.hostStart = hostStart;
 		this.hostEnd = hostEnd;
 	}
@@ -82,8 +84,8 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 		return hostId;
 	}
 
-	public void setHostId(int hostId) {
-		this.hostId = hostId;
+	public QualifiedSequence getHost() {
+		return host;
 	}
 
 	public int getHostStart() {
@@ -200,6 +202,10 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 		evidenceProp/=(2*read.getLength());
 		if(evidenceProp>1) evidenceProp = 2 - evidenceProp;
 		return evidenceProp;
+	}
+	
+	public int getLengthSum() {
+		return host.getLength()+read.getLength();
 	}
 	
 	public int getScore() {

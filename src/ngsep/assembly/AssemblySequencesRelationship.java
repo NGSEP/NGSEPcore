@@ -33,5 +33,6 @@ public interface AssemblySequencesRelationship {
 	public double getEvidenceProportion();
 	public int getScore();
 	public int getCost();
+	public int getLengthSum();
 	
 }

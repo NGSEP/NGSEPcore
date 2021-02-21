@@ -277,7 +277,7 @@ public class KmerHitsAssemblyEdgesFinder {
 				return false;
 			}
 		}
-		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, startSubject, endSubject);
+		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, graph.getSequence(subjectSeqIdx), startSubject, endSubject);
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
 		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		embeddedEvent.setRawKmerHits(cluster.getRawKmerHits());
