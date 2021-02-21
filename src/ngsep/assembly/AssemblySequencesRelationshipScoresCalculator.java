@@ -99,6 +99,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
 		if(pValueEvProp>0.5) pValueEvProp = 0.5;
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
+		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
 		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
 		if(pValueIKBP>0.5) pValueIKBP = 0.5;
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
@@ -116,9 +117,11 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		costD+=cost1;
 		//cost += cost2;
 		costD += cost3;
-		costD += cost5;
-		//if(useIndels) costD += cost6;
 		if(useIndels) costD += cost7;
+		//if(useIndels) costD/=(pValueIKBP2+0.5);
+		costD += cost5;
+		//costD/=relationship.getEvidenceProportion();
+		
 		
 		
 		int cost = (int)(100.0*costD);

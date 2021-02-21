@@ -751,7 +751,7 @@ public class AssemblyGraph {
 			if(i==5 && mean < 8) mean = 8;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
-			if(i==4 && stdev < 0.05) stdev = 0.05;
+			if(i==4 && stdev < 0.03) stdev = 0.03;
 			double variance = stdev*stdev;
 			if(i<3 && variance <mean) variance = mean; 
 			answer[i] = new NormalDistribution(mean,variance);
