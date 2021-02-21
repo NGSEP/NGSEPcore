@@ -780,12 +780,12 @@ public class AssemblyGraph {
 		calculator.setUseIndels(useIndels);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
-			edge.setScore(calculator.calculateScore(edge,edgesDists));
+			edge.setScore(calculator.calculateScore(edge,edgesDists, byLengthSumIKBPDists));
 			edge.setCost(calculator.calculateCost(edge,edgesDists,byLengthSumIKBPDists));
 		}
 		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
 			for(AssemblyEmbedded embedded:embeddedList) {
-				embedded.setScore(calculator.calculateScore(embedded, edgesDists));
+				embedded.setScore(calculator.calculateScore(embedded, edgesDists, byLengthSumIKBPDists));
 				embedded.setCost(calculator.calculateCost(embedded, edgesDists,byLengthSumIKBPDists));
 			}
 		}

@@ -41,7 +41,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	public void setUseIndels(boolean useIndels) {
 		this.useIndels = useIndels;
 	}
-	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
+	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists, Map<Integer,Distribution> byLengthSumIKBPDists) {
 		double evProp = relationship.getEvidenceProportion();
 		double overlapProportion=relationship.getOverlap();
 		double w1 = 1;
@@ -59,13 +59,19 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
-		/*if(useIndels) {
+		if(useIndels) {
 			NormalDistribution ikbp = edgesDists[5];
 			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
+			
+			Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/2000);
+			if(byLength!=null && byLength.getCount()>20) {
+				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),4*Math.max(byLength.getAverage(), byLength.getVariance()));
+				pValueIKBP = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
+			}
 			if(pValueIKBP>0.5) pValueIKBP = 0.5;
 			pValueIKBP+=0.5;
 			score*=pValueIKBP;
-		}*/
+		}
 		return (int)Math.round(score);
 	}
 	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists, Map<Integer,Distribution> byLengthSumIKBPDists) {
