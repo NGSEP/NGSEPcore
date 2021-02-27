@@ -803,7 +803,7 @@ public class AssemblyGraph {
 		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
 			for(AssemblyEmbedded embedded:embeddedList) {
 				int key = embedded.getLengthSum();
-				key/=2000;
+				key/=1000;
 				Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
 				dist.processDatapoint(embedded.getIndelsPerKbp());
 				

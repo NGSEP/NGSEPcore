@@ -157,7 +157,7 @@ public class AssemblySequencesRelationshipFilter {
 		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		
 		double scoreLimit = minScoreProportionEmbedded*maxScoreEdges;
-	
+		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" medianRel: "+medianRelationship+" minscoreprop: "+minScoreProportionEmbedded+" scorel limit: "+scoreLimit);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return false;
@@ -165,7 +165,7 @@ public class AssemblySequencesRelationshipFilter {
 		double maxScoreEmbedded = -1;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			int score = embedded.getScore();
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded+" score "+score+" evProp: "+embedded.getEvidenceProportion()+" Indels: "+embedded.getNumIndels()+" IKBP: "+embedded.getIndelsPerKbp());
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next embedded "+embedded);
 			
 			if(embeddedMax==null || maxScoreEmbedded<score) {
 				maxScoreEmbedded = score;
@@ -177,7 +177,7 @@ public class AssemblySequencesRelationshipFilter {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				graph.removeEmbedded(embedded);
-				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+graph.getSequenceLength(embedded.getHostId())+"score: "+embedded.getScore());
+				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded);
 				addEdgeFromEmbedded(graph, embedded);
 			}
 			return false;

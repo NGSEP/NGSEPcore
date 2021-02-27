@@ -227,7 +227,7 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	public String toString () {
 		double evProp1 = ((double)(sequenceEvidenceEnd-sequenceEvidenceStart)/(read.getLength()+1));
 		double evProp2 = ((double)(hostEvidenceEnd-hostEvidenceStart)/(read.getLength()+1));
-		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+"_"+isReverse+"_"+hostId+"_"+hostStart+"_"+hostEnd+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" EvSeq: "+sequenceEvidenceStart+" "+sequenceEvidenceEnd+" "+evProp1+" Ev2: "+hostEvidenceStart+" "+hostEvidenceEnd+" "+ParseUtils.ENGLISHFMT.format(evProp2)+" Score: "+score+" cost: "+cost+" Indels: "+numIndels+" IKBP: "+ParseUtils.ENGLISHFMT.format(getIndelsPerKbp());
+		return ""+sequenceId+"_"+read.getName()+"_"+read.getLength()+"_"+isReverse+"_"+hostId+"_"+host.getName()+"_"+host.getLength()+"_"+hostStart+"_"+hostEnd+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" EvSeq: "+sequenceEvidenceStart+" "+sequenceEvidenceEnd+" "+evProp1+" Ev2: "+hostEvidenceStart+" "+hostEvidenceEnd+" "+ParseUtils.ENGLISHFMT.format(evProp2)+" Score: "+score+" cost: "+cost+" Indels: "+numIndels+" IKBP: "+ParseUtils.ENGLISHFMT.format(getIndelsPerKbp());
 	}
 	
 }

@@ -57,19 +57,23 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
+		if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		if(useIndels) {
 			NormalDistribution ikbp = edgesDists[5];
 			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
-			
-			Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/2000);
+			int key = relationship.getLengthSum()/1000;
+			Distribution byLength = byLengthSumIKBPDists.get(key);
+			double alpha = 0.05;
 			if(byLength!=null && byLength.getCount()>20) {
-				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),4*Math.max(byLength.getAverage(), byLength.getVariance()));
+				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),Math.max(byLength.getAverage(), byLength.getVariance()));
 				pValueIKBP = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
-			}
-			if(pValueIKBP>0.5) pValueIKBP = 0.5;
-			pValueIKBP+=0.5;
+				alpha/=byLength.getCount();
+				if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" IKBP avg: "+byLength.getAverage()+" variance: "+normalDist.getVariance()+" pvalIkbp: "+pValueIKBP+" alpha: "+alpha);
+			} else if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" pvalIkbp: "+pValueIKBP+" alpha: "+alpha);
+			if(pValueIKBP>alpha) pValueIKBP = 0.5;
+			//pValueIKBP*=2;
 			score*=pValueIKBP;
 		}
 		return (int)Math.round(score);
@@ -101,15 +105,15 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
 		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
 		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
-		if(pValueIKBP>0.5) pValueIKBP = 0.5;
+		if(pValueIKBP>0.05) pValueIKBP = 0.5;
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
-		Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/2000);
+		Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/1000);
 		int cost7 = cost6;
 		double pValueIKBP2 = pValueIKBP;
 		if(byLength!=null && byLength.getCount()>20) {
-			NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),4*Math.max(byLength.getAverage(), byLength.getVariance()));
+			NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),Math.max(byLength.getAverage(), byLength.getVariance()));
 			pValueIKBP2 = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
-			if(pValueIKBP2>0.5) pValueIKBP2 = 0.5;
+			if(pValueIKBP2*byLength.getCount()>0.05) pValueIKBP2 = 0.5;
 			cost7 = PhredScoreHelper.calculatePhredScore(pValueIKBP2);
 		}
 		

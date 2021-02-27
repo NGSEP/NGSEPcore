@@ -1165,7 +1165,7 @@ public class ReadAlignment implements GenomicRegion {
 		if(readCharacters!=null && expectedReadLength!=readCharacters.length())  new IllegalArgumentException("Malformed CIGAR. Expected read length: "+expectedReadLength+" different than read length: "+readCharacters.length());
 		alignment = NumberArrays.toIntArray(collapseEqualEvents (alignmentList));
 		if(expectedReadLength != this.readLength) {
-			System.out.println("WARN. New CIGAR "+cigarString+" changes read length for read "+getReadName()+" at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
+			if(this.readLength>0) System.out.println("WARN. New CIGAR "+cigarString+" changes read length for read "+getReadName()+" at "+sequenceName+":"+first+" current length: "+this.readLength+" expected length: "+expectedReadLength);
 			this.readLength = expectedReadLength;
 		}
 		if(expectedEnd -1 != this.last) {
