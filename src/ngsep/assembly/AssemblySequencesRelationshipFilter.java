@@ -45,8 +45,16 @@ public class AssemblySequencesRelationshipFilter {
 			if(vS==null || vE==null) continue;
 			
 			int [] bestValues = filterEdges(graph, seqId, medianLength, minScoreProportionEdges);
+			int maxScore = Math.max(bestValues[0], bestValues[1]);
+			if(bestValues[0]==0 || bestValues[1]==0) {
+				//System.out.println("Zero score for sequence: "+graph.getSequence(seqId).getName());
+				graph.removeVertices(seqId);
+				//graph.removeEmbeddedRelations(seqId);
+				//continue;
+				maxScore = 0;
+			}
 			//if(filterEmbeddedByCost(graph, seqId, medianLength, 2*Math.max(bestValues[2], bestValues[3]))) numEmbedded++;
-			if(filterEmbeddedByScore(graph, seqId, medianLength, Math.max(bestValues[0], bestValues[1]))) numEmbedded++;
+			if(filterEmbeddedByScore(graph, seqId, medianLength, maxScore)) numEmbedded++;
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		graph.pruneEmbeddedSequences();

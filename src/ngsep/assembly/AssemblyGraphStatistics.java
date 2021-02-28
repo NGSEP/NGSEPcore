@@ -25,9 +25,11 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -340,8 +342,8 @@ public class AssemblyGraphStatistics {
 					}
 					int refSeqLength = refSeq.getLength();
 					
-					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
-						log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
+					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>5000 || aln.getSoftClipEnd()>5000) {
+						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
 						continue;
 					}
 					
@@ -689,7 +691,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==4208 || gsVertex.getSequenceIndex()==2890 || gsVertex.getSequenceIndex()==6086; 
+		//boolean debug = gsVertex.getSequenceIndex()==671824 || gsVertex.getSequenceIndex()==106836 || gsVertex.getSequenceIndex()==381642; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -839,6 +841,9 @@ public class AssemblyGraphStatistics {
 		for(int i=0;i<testPaths.size();i++) {
 			List<AssemblyEdge> nextPath = testPaths.get(i);
 			if(nextPath.size()<=1) continue;
+			Map<String,Integer> sequencesPathCounts = new HashMap<String,Integer>();
+			long estimatedLength=0;
+			int lastOverlap = 0;
 			log.info("Compare layouts. Next path: "+(i+1)+" Limits "+nextPath.get(0)+" to "+nextPath.get(nextPath.size()-1));
 			totalTestLayoutPaths++;
 			totalTestLayoutEdges+=nextPath.size();
@@ -847,6 +852,14 @@ public class AssemblyGraphStatistics {
 			int direction = 0;
 			for(int j=0;j<nextPath.size();j++) {
 				AssemblyEdge nextTestEdge = nextPath.get(j);
+				if(nextTestEdge.isSameSequenceEdge()) {
+					String readId = nextTestEdge.getVertex1().getRead().getName();
+					int idx = readId.indexOf("_");
+					if(idx>0) {
+						sequencesPathCounts.compute(readId.substring(0,idx),(k,v)->v==null?1:v+1);
+					}
+					estimatedLength+= nextTestEdge.getVertex1().getRead().getLength()-lastOverlap;
+				} else lastOverlap = nextTestEdge.getOverlap();
 				boolean searchGSEdge = false;
 				if(nextGSPath==null) {
 					searchGSEdge = true;
@@ -914,6 +927,7 @@ public class AssemblyGraphStatistics {
 			} else if (nextGSEdgeIdx==-1) {
 				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+nextPath.get(nextPath.size()-1));
 			}
+			log.info("Compare layouts. Finished path: "+(i+1)+" edges: "+nextPath.size()+" estimated length: "+estimatedLength+" Sequences "+sequencesPathCounts);
 			System.out.println();
 		}
 	}

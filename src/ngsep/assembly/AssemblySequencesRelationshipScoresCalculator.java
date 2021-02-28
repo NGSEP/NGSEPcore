@@ -67,7 +67,9 @@ public class AssemblySequencesRelationshipScoresCalculator {
 			Distribution byLength = byLengthSumIKBPDists.get(key);
 			double alpha = 0.05;
 			if(byLength!=null && byLength.getCount()>20) {
-				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),Math.max(byLength.getAverage(), byLength.getVariance()));
+				double normalVariance = Math.max(byLength.getAverage(), byLength.getVariance());
+				normalVariance = Math.min(normalVariance, byLength.getAverage()*byLength.getAverage());
+				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),normalVariance);
 				pValueIKBP = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
 				alpha/=byLength.getCount();
 				if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" IKBP avg: "+byLength.getAverage()+" variance: "+normalDist.getVariance()+" pvalIkbp: "+pValueIKBP+" alpha: "+alpha);

@@ -223,7 +223,7 @@ public class AssemblyGraph {
 		if(embeddedMapBySequence.get(seqId).size()==0) embeddedMapBySequence.remove(seqId);
 	}
 	
-	private void removeEmbeddedRelations(int sequenceId) {
+	public void removeEmbeddedRelations(int sequenceId) {
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
 		List<AssemblyEmbedded> emb = embeddedMapByHost.get(sequenceId);
 		if(emb!=null) embeddedList.addAll(emb);
@@ -796,7 +796,7 @@ public class AssemblyGraph {
 		for(AssemblyEdge edge:edges) {
 			if (edge.isSameSequenceEdge()) continue;
 			int key = edge.getLengthSum();
-			key/=2000;
+			key/=1000;
 			Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
 			dist.processDatapoint(edge.getIndelsPerKbp());
 		}
