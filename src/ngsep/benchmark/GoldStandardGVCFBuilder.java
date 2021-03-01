@@ -147,7 +147,13 @@ public class GoldStandardGVCFBuilder {
 		
 
 	}
-
+	/**
+	 * Builds a reference record
+	 * @param genome
+	 * @param header
+	 * @param refRegion
+	 * @return
+	 */
 	private static VCFRecord makeReferenceRecord(ReferenceGenome genome, VCFFileHeader header, GenomicRegion refRegion) {
 		CharSequence reference = genome.getReference(refRegion);
 		List<String> alleles = new ArrayList<>();
