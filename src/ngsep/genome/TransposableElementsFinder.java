@@ -13,7 +13,7 @@ import ngsep.main.ProgressNotifier;
 public class TransposableElementsFinder {
 
 	// Logging and progress
-	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
+	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters

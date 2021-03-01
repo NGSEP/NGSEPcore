@@ -6,7 +6,12 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	private int last;
 	private String taxonomy;
 	
-	
+	/**
+	 * Build New Transposable Element 
+	 * @param sequenceName
+	 * @param first
+	 * @param last
+	 */
 	public TransposableElementAnnotation(String sequenceName, int first, int last) {
 		super();
 		this.sequenceName = sequenceName;
