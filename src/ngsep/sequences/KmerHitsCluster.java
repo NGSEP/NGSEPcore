@@ -606,7 +606,8 @@ public class KmerHitsCluster {
 	
 	public static List<KmerHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
-		if(sequenceHits.size()<20) return new ArrayList<KmerHitsCluster>();
+		double minHits = Math.min(20,0.01*queryLength);
+		if(sequenceHits.size()<minHits) return new ArrayList<KmerHitsCluster>();
 		for(UngappedSearchHit hit:sequenceHits) {
 			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 			countsByQueryIdx.compute(hit.getQueryIdx(), (k,v)->v==null?1:v+1);
@@ -625,7 +626,7 @@ public class KmerHitsCluster {
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		KmerHitsCluster uniqueCluster = new KmerHitsCluster(queryLength, subjectLength, sequenceHits);
 		//if(querySequenceId==idxDebug) System.out.println("Hits to cluster: "+sequenceKmerHits.size()+" target: "+uniqueCluster.getSequenceIdx()+" first: "+uniqueCluster.getFirst()+" last: "+uniqueCluster.getLast()+" kmers: "+uniqueCluster.getNumDifferentKmers());
-		if (uniqueCluster.getNumDifferentKmers()<20 || uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*queryLength) return answer;
+		if (uniqueCluster.getNumDifferentKmers()<minHits || uniqueCluster.getQueryEvidenceEnd()-uniqueCluster.getQueryEvidenceStart()<minQueryCoverage*queryLength) return answer;
 		answer.add(uniqueCluster);
 		if(uniqueCluster.getNumDifferentKmers()>0.8*sequenceHits.size()) return answer;
 		//Cluster remaining hits
@@ -634,7 +635,7 @@ public class KmerHitsCluster {
 			if (hit!=uniqueCluster.getKmerHit(hit.getQueryIdx())) remainingHits.add(hit);
 		}
 		KmerHitsCluster cluster2 = new KmerHitsCluster(queryLength, subjectLength, remainingHits);
-		if(cluster2.getNumDifferentKmers()>=20 && cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*queryLength) answer.add(cluster2);
+		if(cluster2.getNumDifferentKmers()>=minHits && cluster2.getQueryEvidenceEnd()-cluster2.getQueryEvidenceStart()>=minQueryCoverage*queryLength) answer.add(cluster2);
 		return answer;
 	}
 	private static List<KmerHitsCluster> clusterRegionKmerAlnsMultiple(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double estimatedClusters) {
