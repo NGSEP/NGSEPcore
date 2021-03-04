@@ -62,7 +62,7 @@ public class ReadsAligner {
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_MAX_ALNS_PER_READ=3;
 	public static final int DEF_KMER_LENGTH = 15;
-	public static final int DEF_WINDOW_LENGTH = 5;
+	public static final int DEF_WINDOW_LENGTH = 20;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
 	public static final int DEF_NUM_THREADS=1;
@@ -750,7 +750,7 @@ public class ReadsAligner {
 		return filterAlignments(alignments, assignSecondaryStatus);
 	}
 	private int lastReadsAlignerIndex = 0;
-	private synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner() {
+	private synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner()  {
 		if(longReadsAligners.size()==0) {
 			createFirstLongReadAligner();
 			return longReadsAligners.get(0);
@@ -778,7 +778,11 @@ public class ReadsAligner {
 		MinimizersTableReadAlignmentAlgorithm longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
 		longReadsAligner.setLog(log);
 		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		longReadsAligner.loadGenome (genome, kmerLength, windowLength);
+		try {
+			longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();

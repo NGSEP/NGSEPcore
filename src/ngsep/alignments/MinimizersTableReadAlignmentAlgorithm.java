@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -75,21 +76,29 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 
-	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength) {
+	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) throws InterruptedException {
 		this.genome = genome;
 		int n = genome.getNumSequences();
 		//log.info("Calculating kmers distribution");
-		//KmersExtractor extractor = new KmersExtractor();
-		//extractor.processQualifiedSequences(genome.getSequencesList());
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setNumThreads(numThreads);
+		log.info("Extracting kmers from reference sequence");
+		extractor.processQualifiedSequences(genome.getSequencesList());
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		//minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
 		minimizersTable = new MinimizersTable(kmerLength, windowLength);
+		minimizersTable.setKmersMap(extractor.getKmersMap());
+		minimizersTable.setMaxCountPerMinimizer(20);
 		minimizersTable.setKeepSingletons(true);
 		minimizersTable.setLog(log);
+		ThreadPoolManager poolMinimizers = new ThreadPoolManager(numThreads, n);
+		poolMinimizers.setSecondsPerTask(60);
 		for (int i=0;i<n;i++) {
-			minimizersTable.addSequence(i, genome.getSequenceCharacters(i));
+			final int seqId = i;
+			poolMinimizers.queueTask(()->minimizersTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
 		}
+		poolMinimizers.terminatePool();
 		minimizersTable.calculateDistributionHits().printDistribution(System.err);
 		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}
@@ -153,7 +162,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					cluster = new KmerHitsCluster(queryLength, sequenceLength, hit);
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (cluster.getNumDifferentKmers()>=0.01*query.length()) {
-						List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0.3);
+						List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0);
 						//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					}
@@ -161,7 +170,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				}
 			}
 			if(cluster!=null && cluster.getNumDifferentKmers()>=0.01*query.length()) {
-				List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0.3);
+				List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, cluster.getHitsByQueryIdx(), 0);
 				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}

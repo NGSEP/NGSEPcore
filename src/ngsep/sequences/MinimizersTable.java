@@ -21,6 +21,7 @@ public class MinimizersTable {
 	private int kmerLength;
 	private int windowLength;
 	private boolean keepSingletons = false;
+	private int maxCountPerMinimizer = 0;
 	
 	
 	private KmersMapAnalyzer kmersAnalyzer;
@@ -176,11 +177,15 @@ public class MinimizersTable {
 	public void setKeepSingletons(boolean keepSingletons) {
 		this.keepSingletons = keepSingletons;
 	}
-
-	public void addSequences (QualifiedSequenceList sequences) {
-		for(int i=0;i<sequences.size();i++) {
-			addSequence(i, sequences.get(i).getCharacters());
-		}
+	
+	public int getMaxCountPerMinimizer() {
+		return maxCountPerMinimizer;
+	}
+	public void setMaxCountPerMinimizer(int maxCountPerMinimizer) {
+		this.maxCountPerMinimizer = maxCountPerMinimizer;
+	}
+	public void setKmersMap(KmersMap kmersMap) {
+		this.kmersMap = kmersMap;
 	}
 	/**
 	 * Adds the minimizers of the given sequence to the table
@@ -190,7 +195,7 @@ public class MinimizersTable {
 	public void addSequence (int sequenceId, CharSequence sequence) {
 		int n = sequence.length();
 		String sequenceStr = sequence.toString();
-		int step = 10000000;
+		int step = 500000;
 		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
 			List<MinimizersTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequenceStr, start, Math.min(n, start+step));
@@ -239,6 +244,10 @@ public class MinimizersTable {
 				int count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(code);
 				if(count == 1) continue;
 			}
+			if(maxCountPerMinimizer>0 && kmersMap!=null && kmersMap instanceof ShortArrayDNAKmersMapImpl) {
+				int count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(code);
+				if(count > maxCountPerMinimizer) continue;
+			}
 			hashcodesForward.put(i, getHash(code));
 		}
 		//log.info("Filtered codes for sequence "+sequenceId+" from "+start+" to "+end+" Filtered codes: "+hashcodesForward.size());
@@ -282,7 +291,7 @@ public class MinimizersTable {
 		Integer code = explicitKmerHashCodes.get(dnaHash);
 		if(code!=null) return code;
 		int prime = 1073676287;
-		if(kmersMap==null) {
+		if(kmersAnalyzer==null) {
 			long answer = (dnaHash+1)%prime;
 			return (int) answer;
 		}

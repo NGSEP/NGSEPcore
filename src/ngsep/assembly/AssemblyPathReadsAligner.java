@@ -103,7 +103,7 @@ public class AssemblyPathReadsAligner {
 				
 				//int startSuffix = edge.getOverlap();
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
-				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, nextPathSequence, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, nextPathSequence, uniqueKmersSubject);
 				int startSuffix;
 				int startRemove = -1;
 				if(alnRead!=null) {
@@ -154,7 +154,7 @@ public class AssemblyPathReadsAligner {
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, seq, uniqueKmersSubject, 0.5);
+				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, seq, uniqueKmersSubject);
 				if (alnRead!=null) {
 					alnRead.setReadName(read.getName());
 					alnRead.setReadNumber(vertexPreviousEdge.getSequenceIndex());
@@ -176,7 +176,7 @@ public class AssemblyPathReadsAligner {
 						boolean reverseE = (reverse!=embedded.isReverse());
 						if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
 						totalReads++;
-						ReadAlignment alnEmbedded = alignRead(aligner,pathIdx, rawConsensus, embeddedSeq, uniqueKmersSubject, 0.5);
+						ReadAlignment alnEmbedded = alignRead(aligner,pathIdx, rawConsensus, embeddedSeq, uniqueKmersSubject);
 						if(alnEmbedded!=null) {
 							alnEmbedded.setReadName(embeddedRead.getName());
 							alnEmbedded.setReadNumber(embedded.getSequenceId());
@@ -193,17 +193,17 @@ public class AssemblyPathReadsAligner {
 		consensus = rawConsensus;
 		log.info("Processed path "+pathIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReads);
 	}
-	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end, double minQueryCoverage) {
+	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end) {
 		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject, KMER_LENGTH_LOCAL_ALN, start,end);
 		//System.out.println("Number of unique k-mers subject: "+uniqueKmersSubject.size());
-		return alignRead(aligner, subjectIdx, subject, read, uniqueCodesSubject, minQueryCoverage);
+		return alignRead(aligner, subjectIdx, subject, read, uniqueCodesSubject);
 	}
-	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Long, Integer> uniqueCodesSubject, double minQueryCoverage) {
+	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Long, Integer> uniqueCodesSubject) {
 		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(read, KMER_LENGTH_LOCAL_ALN, 0, read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(-1,subject.length(), uniqueCodesSubject, codesQuery);
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read.length(), subject.length(), initialKmerHits, minQueryCoverage);
+		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(read.length(), subject.length(), initialKmerHits, 0);
 		//printClusters(clusters);
 		if(clusters.size()>1) {
 			Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());

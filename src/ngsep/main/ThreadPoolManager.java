@@ -52,6 +52,14 @@ public class ThreadPoolManager {
 
 
 
+	public int getSecondsPerTask() {
+		return secondsPerTask;
+	}
+
+	public void setSecondsPerTask(int secondsPerTask) {
+		this.secondsPerTask = secondsPerTask;
+	}
+
 	/**
 	 * Adds task to the threadPoolExecutor for this instance. If the task queue limit is exceeded,
 	 * the pool will be relaunched afterwards, after waiting for all queued tasks to finish.

@@ -642,6 +642,7 @@ public class KmerHitsCluster {
 		return answer;
 	}
 	private static List<KmerHitsCluster> clusterRegionKmerAlnsMultiple(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double estimatedClusters) {
+		double minHits = Math.min(20,0.01*queryLength);
 		List<KmerHitsCluster> answer = new ArrayList<>();
 		UngappedSearchHit firstHit = sequenceHits.get(0);
 		int subjectIdx = firstHit.getSequenceIdx();
@@ -663,7 +664,7 @@ public class KmerHitsCluster {
 		List<Integer> clusterAverages = new ArrayList<Integer>((int) (2*estimatedClusters+1));
 		for(int i=0;i<sortedClusters.size() && i<=2*(estimatedClusters);i++) {
 			List<UngappedSearchHit> cluster = sortedClusters.get(i);
-			if(cluster.size()<20) break;
+			if(cluster.size()<minHits) break;
 			int average = getAverageEstimatedSubjectStart(cluster);
 			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Average predicted start next cluster: "+average+" size: "+cluster.size());
 			clusterAverages.add(average);
@@ -696,10 +697,10 @@ public class KmerHitsCluster {
 		for(List<UngappedSearchHit> hits:hitsByBin.values()) {
 			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
-				if(subcluster.size()<20) continue;
+				if(subcluster.size()<minHits) continue;
 				KmerHitsCluster cluster = new KmerHitsCluster(queryLength, subjectLength, subcluster);
 				if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" unique kmers: "+cluster.getNumDifferentKmers());
-				if(cluster.getNumDifferentKmers()>=20) answer.add(cluster);
+				if(cluster.getNumDifferentKmers()>=minHits) answer.add(cluster);
 			}
 		}
 		return answer;

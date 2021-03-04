@@ -155,7 +155,7 @@ public class ReadsFileErrorsCorrector {
 
 	}
 
-	public void run() throws IOException {
+	public void run() throws IOException, InterruptedException {
 		logParameters();
 		if(inputFile==null) {
 			log.severe("The input file is mandatory");
@@ -183,7 +183,7 @@ public class ReadsFileErrorsCorrector {
 		log.info(os.toString());
 		
 	}
-	public void process(String inFilename, String outFilename) throws IOException {
+	public void process(String inFilename, String outFilename) throws IOException, InterruptedException {
 		correctedErrors = 0;
 		if (kmersMapFile!=null) loadKmersMap();
 		else buildKmersMap(inFilename);
@@ -263,7 +263,7 @@ public class ReadsFileErrorsCorrector {
 		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + kmersMapFile);
 		
 	}
-	private void buildKmersMap(String inFilename) throws IOException {
+	private void buildKmersMap(String inFilename) throws IOException, InterruptedException {
 		log.info("Calculating k-mers map from reads in : "+inFilename);
 		KmersExtractor counter = new KmersExtractor();
 		counter.setLog(log);

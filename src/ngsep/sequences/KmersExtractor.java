@@ -40,6 +40,7 @@ import java.util.zip.GZIPOutputStream;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.FastqFileReader;
@@ -54,8 +55,11 @@ public class KmersExtractor {
 	// Constants for default values
 	public static final byte DEF_KMER_LENGTH = 15;
 	public static final int DEF_MIN_KMER_COUNT = 5;
+	public static final int DEF_NUM_THREADS = 1;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
+	
+	private static final int MAX_LENGTH_SINGLE_TASK = 100000;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(KmersExtractor.class.getName());
@@ -69,6 +73,7 @@ public class KmersExtractor {
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private boolean freeText = false;
 	private boolean ignoreLowComplexity = false;
+	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
 	private KmersMap kmersMap = null;
@@ -157,6 +162,16 @@ public class KmersExtractor {
 	public void setIgnoreLowComplexity(Boolean ignoreLowComplexity) {
 		this.setIgnoreLowComplexity(ignoreLowComplexity.booleanValue());
 	}
+	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
 	/**
 	 * @return the hashKmers
 	 */
@@ -185,8 +200,9 @@ public class KmersExtractor {
 	 * Processes a list of input files as fasta or fastq and updates the kmers table
 	 * @param files List of names of the files to process.
 	 * @throws IOException If a file can not be read
+	 * @throws InterruptedException 
 	 */
-	public void processFiles(List<String> files) throws IOException {
+	public void processFiles(List<String> files) throws IOException, InterruptedException {
 		logParameters ();
 		if(files.size()==1 && "-".equals(files.get(0))) processFastqFile(System.in);
 		for(String filename:files) processFile(filename);
@@ -210,8 +226,9 @@ public class KmersExtractor {
 	 * Processes the file with the given name as fasta or fastq and updates the kmers table
 	 * @param sequenceFileName Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
+	 * @throws InterruptedException 
 	 */
-	public void processFile(String filename) throws IOException {
+	public void processFile(String filename) throws IOException, InterruptedException {
 		initializeMap();
 		//Is fasta or fastq? and read it
 		if(inputFormat==INPUT_FORMAT_FASTA){
@@ -231,60 +248,90 @@ public class KmersExtractor {
 	 * Processes the file with the given name as fastq and updates the kmers table
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
+	 * @throws InterruptedException 
 	 */
-    public void processFastqFile(String filename) throws IOException {
+    public void processFastqFile(String filename) throws IOException, InterruptedException {
     	initializeMap();
+    	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 100);
+    	long totalLength = 0;
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
-				countSequenceKmers (read);
+				countSequenceKmers (read, poolKmers);
+				totalLength+=read.getLength();
 				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
+		poolKmers.terminatePool();
 	 }
     
 	/**
      * Process the given input stream to get kmers count sequence by sequence
      * @param fis Input stream in fastq format
      * @throws IOException if there is an error reading the stream
+	 * @throws InterruptedException 
      */
-	public void processFastqFile(InputStream fis) throws IOException {
+	public void processFastqFile(InputStream fis) throws IOException, InterruptedException {
 		initializeMap();
+		ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
-				countSequenceKmers (read);
+				countSequenceKmers (read, poolKmers);
 				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
+		poolKmers.terminatePool();
 	}
 	
 	/**
 	 * Processes the file with the given name as fasta and updates the kmers table
 	 * @param filename Name of the file with the sequences to process.
 	 * @throws IOException If the file can not be read
+	 * @throws InterruptedException 
 	 */
-    private void processFastaFile(String filename) throws IOException {
+    public void processFastaFile(String filename) throws IOException, InterruptedException {
     	initializeMap();
+    	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
 				QualifiedSequence seq = it.next();
-				log.info("Processing sequence "+seq.getName());
-				countSequenceKmers(seq);
-				log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
+				if(seq.getLength()>1000000) log.info("Processing sequence "+seq.getName());
+				countSequenceKmers (seq, poolKmers);
+				if(seq.getLength()>1000000) log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
 			}
     	}
+    	poolKmers.terminatePool();
 	}
-    public void processQualifiedSequences(List<QualifiedSequence> sequences) {
+    public void processQualifiedSequences(List<QualifiedSequence> sequences) throws InterruptedException {
     	initializeMap();
+    	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	int i = 0;
     	for(QualifiedSequence qseq:sequences) {
-    		countSequenceKmers(qseq);
+    		if(qseq.getLength()>1000000) log.info("Processing sequence "+qseq.getName());
+    		countSequenceKmers (qseq, poolKmers);
+    		if(qseq.getLength()>1000000) log.info("Processed sequence "+qseq.getName()+" total k-mers: "+kmersMap.size());
     		i++;
     		if(i%100==0) log.info("Processed "+i+" sequences");
+    	}
+    	poolKmers.terminatePool();
+    }
+   
+    public void countSequenceKmers(QualifiedSequence qseq, ThreadPoolManager manager) throws InterruptedException {
+    	if(qseq.getLength() <= MAX_LENGTH_SINGLE_TASK) {
+    		manager.queueTask(()->countSequenceKmers(qseq));
+    		return;
+    	}
+    	CharSequence seq = qseq.getCharacters();
+    	int n = seq.length();
+    	for(int i=0;i<n;i+=MAX_LENGTH_SINGLE_TASK) {
+    		int end = i+MAX_LENGTH_SINGLE_TASK+kmerLength-1;
+    		end = Math.min(end, n);
+    		String subsequence = seq.subSequence(i, end).toString();
+    		manager.queueTask(()->countSequenceKmers(new QualifiedSequence("",subsequence)));
     	}
     }
 	public void countSequenceKmers(QualifiedSequence qseq) {
