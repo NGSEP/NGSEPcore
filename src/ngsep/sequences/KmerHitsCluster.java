@@ -93,7 +93,7 @@ public class KmerHitsCluster {
 			if (distance < rawKmerHitsSubjectStartSD) dist.processDatapoint(distance);
 		}
 		//System.out.println(subjectStarts);
-		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance()));
+		
 		int maxDistance = 5*queryLength; 
 		if(subjectLength>maxDistance) {
 			// This is only useful for mapping to a long reference subject
@@ -102,13 +102,16 @@ public class KmerHitsCluster {
 			if(maxDistance < 100) maxDistance=100;
 			//if(maxDistance<0.01*query.length()) maxDistance*=2;
 			else if (maxDistance>0.05*queryLength) maxDistance/=2;
+		} else if (queryLength>2000) {
+			maxDistance = Math.min(queryLength/20, maxDistance);
 		}
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance())+" max distance: "+maxDistance);
 		
 		List<UngappedSearchHit> selectedHits = new ArrayList<UngappedSearchHit>(hitsMultiMap.size());
 		int minSubjectStart = firstHit.getStart();
 		int maxSubjectStart = firstHit.getStart();
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
-			UngappedSearchHit hit = selectHit(hits, queryLength, median, Math.min(queryLength/20, maxDistance));
+			UngappedSearchHit hit = selectHit(hits, queryLength, median, maxDistance);
 			if(hit!=null) {
 				if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 				selectedHits.add(hit);
