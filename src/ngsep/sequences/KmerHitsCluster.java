@@ -210,7 +210,7 @@ public class KmerHitsCluster {
 		int averageStart = (int) (sum/nS);
 		double variance = Math.max(1, (sum2-sum*sum/nS)/(nS-1));
 		double stdev = Math.sqrt(variance);
-		double maxDistance = Math.max(30, 3*stdev);
+		double maxDistance = Math.max(100, 3*stdev);
 		int countOutliers =0;
 		for(UngappedSearchHit hit:dpSortedHits) {
 			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
@@ -228,7 +228,7 @@ public class KmerHitsCluster {
 			return answer;
 		}
 		Collections.sort(dpSortedHits,(h1,h2)->Math.abs(estimateSubjectStart(h2)-averageStart)-Math.abs(estimateSubjectStart(h1)-averageStart));
-		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Sorted by diestance");
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Sorted by distance");
 		for (int k=0;k<dpSortedHits.size();k++) {
 			UngappedSearchHit hit = dpSortedHits.get(k);
 			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
@@ -666,7 +666,7 @@ public class KmerHitsCluster {
 			List<UngappedSearchHit> cluster = sortedClusters.get(i);
 			if(cluster.size()<minHits) break;
 			int average = getAverageEstimatedSubjectStart(cluster);
-			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Average predicted start next cluster: "+average+" size: "+cluster.size());
+			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Estimated start First hit: "+estimateSubjectStart(cluster.get(0))+" Average predicted start next cluster: "+average+" size: "+cluster.size());
 			clusterAverages.add(average);
 		}
 		if (clusterAverages.size()==0) return answer;
@@ -676,6 +676,7 @@ public class KmerHitsCluster {
 			if(average-next<500) next = (next+average)/2;
 			else {
 				hitsByBin.put(next, new ArrayList<UngappedSearchHit>());
+				if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Next average start: "+next);
 				next = average;
 			}
 		}
@@ -691,6 +692,7 @@ public class KmerHitsCluster {
 					minD = d;
 				}
 			}
+			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Next hit: "+hit.getQueryIdx()+" estimated start "+estStart+" min s: "+minS+" minD: "+minD);
 			if(minD<500) hitsByBin.get(minS).add(hit);
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Final bin starts: "+hitsByBin.keySet());
@@ -723,12 +725,12 @@ public class KmerHitsCluster {
 		return answer;
 	}
 	private static int getAverageEstimatedSubjectStart(List<UngappedSearchHit> clusterHits) {
-		int average = 0;
+		long average = 0;
 		for(UngappedSearchHit hit:clusterHits) {
 			average+= estimateSubjectStart(hit);
 			
 		}
-		return average/clusterHits.size();
+		return (int) (average/clusterHits.size());
 	}
 	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes) {
 		
