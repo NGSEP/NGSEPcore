@@ -358,7 +358,7 @@ public class AssemblyGraphStatistics {
 		} else if (simulated) {
 			alignments = buildAlignmentsFromSimulatedReads(sequences);
 		} else if (readsFile!=null) {
-			sequences = Assembler.load(readsFile, readsFormat, minReadLength);
+			//sequences = Assembler.load(readsFile, readsFormat, minReadLength);
 			//TODO: Use aligner to align sequences to reference
 		}
 		
@@ -691,7 +691,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==8898 || gsVertex.getSequenceIndex()==72913 || gsVertex.getSequenceIndex()==44013; 
+		//boolean debug = gsVertex.getSequenceIndex()==15513 || gsVertex.getSequenceIndex()==196 || gsVertex.getSequenceIndex()==7466; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

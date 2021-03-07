@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
@@ -236,7 +237,7 @@ public class Assembler {
 		instance.run();
 	}
 
-	public void run() throws IOException {
+	public void run() throws IOException, InterruptedException {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input file with raw reads is required");
 		if(outputPrefix==null) throw new IOException("An output prefix is required");
@@ -262,10 +263,23 @@ public class Assembler {
 		log.info(os.toString());
 	}
 
-	public void run(String inputFile, String outputPrefix) throws IOException {
+	public void run(String inputFile, String outputPrefix) throws IOException, InterruptedException {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
-		List<QualifiedSequence> sequences = load(inputFile,inputFormat, minReadLength);
+		log.info("Calculating kmers distribution");
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setLog(log);
+		extractor.setNumThreads(numThreads);
+		extractor.setLoadSequences(true);
+		extractor.setInputFormat(inputFormat);
+		extractor.setMinReadLength(minReadLength);
+		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
+		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+		extractor.processFile(inputFile);
+		
+		List<QualifiedSequence> sequences = extractor.getLoadedSequences();
+		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		KmersMap map = extractor.getKmersMap();
 		long totalBp = 0;
 		Distribution distReadLength = new Distribution(0, 100000, 1000);
 		for(QualifiedSequence seq:sequences) {
@@ -274,6 +288,11 @@ public class Assembler {
 		}
 		log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
 		distReadLength.printDistributionInt(System.out);
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time1 = System.currentTimeMillis();
+		long diff1 = (time1-startTime)/1000;
+		log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 		AssemblyGraph graph;
 		if(graphFile!=null) {
@@ -291,6 +310,7 @@ public class Assembler {
 			builder.setWindowLength(windowLength);
 			builder.setPloidy(ploidy);
 			builder.setNumThreads(numThreads);
+			builder.setKmersMap(map);
 			builder.setLog(log);
 			graph = builder.buildAssemblyGraph(sequences,compressionFactors);
 			if(bpHomopolymerCompression>0) {
@@ -302,7 +322,11 @@ public class Assembler {
 					seq.setCharacters(original);
 				}
 			}
-			log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			long time2 = System.currentTimeMillis();
+			long diff = (time2-startTime)/1000;
+			log.info("Built assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Total Time: "+diff+" Memory: "+usedMemory);
 		}
 		
 		if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
@@ -383,10 +407,10 @@ public class Assembler {
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
-		long diff1 = (time3-time2)/1000;
+		diff1 = (time3-time2)/1000;
 		long diff2 = (time3-startTime)/1000;
 		log.info("Layout and initial consensus complete. Memory: "+usedMemory+" Time process (s): "+diff1+" total time (s): "+diff2);
 		List<Integer> lengths = new ArrayList<Integer>();
@@ -450,7 +474,7 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	public static List<QualifiedSequence> load(String filename, byte inputFormat, int minReadLength) throws IOException {
+	private List<QualifiedSequence> load(String filename, byte inputFormat, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences;
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
@@ -465,7 +489,7 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
+	private List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
@@ -482,7 +506,7 @@ public class Assembler {
 	 * @return The sequences
 	 * @throws IOException The file cannot opened
 	 */
-	private static List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
+	private List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setSequenceType(DNAMaskedSequence.class);

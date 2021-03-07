@@ -74,9 +74,13 @@ public class KmersExtractor {
 	private boolean freeText = false;
 	private boolean ignoreLowComplexity = false;
 	private int numThreads = DEF_NUM_THREADS;
+	private int minReadLength = 0;
 	
 	// Model attributes
 	private KmersMap kmersMap = null;
+	private boolean loadSequences = false;
+	private List<QualifiedSequence> loadedSequences = null;
+	
 	
 	private static final DNASequence EMPTYDNASEQ = new DNASequence();
 	
@@ -172,11 +176,29 @@ public class KmersExtractor {
 	public void setNumThreads(String value) {
 		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
+	
+	
+	public int getMinReadLength() {
+		return minReadLength;
+	}
+	public void setMinReadLength(int minReadLength) {
+		this.minReadLength = minReadLength;
+	}
 	/**
 	 * @return the hashKmers
 	 */
 	public KmersMap getKmersMap() {
 		return kmersMap;
+	}
+	
+	public boolean isLoadSequences() {
+		return loadSequences;
+	}
+	public void setLoadSequences(boolean loadSequences) {
+		this.loadSequences = loadSequences;
+	}
+	public List<QualifiedSequence> getLoadedSequences() {
+		return loadedSequences;
 	}
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
@@ -229,7 +251,7 @@ public class KmersExtractor {
 	 * @throws InterruptedException 
 	 */
 	public void processFile(String filename) throws IOException, InterruptedException {
-		initializeMap();
+		initialize();
 		//Is fasta or fastq? and read it
 		if(inputFormat==INPUT_FORMAT_FASTA){
 			processFastaFile(filename);
@@ -238,10 +260,11 @@ public class KmersExtractor {
 		}
 	}
 	
-	public void initializeMap() {
+	private void initialize() {
 		if(kmersMap==null) {
 			if(!isFreeText() && kmerLength<=15) kmersMap = new ShortArrayDNAKmersMapImpl((byte)kmerLength);
 			else kmersMap = new DefaultKmersMapImpl();
+			if(loadSequences) loadedSequences=new ArrayList<QualifiedSequence>();
 		}
 	}
 	/**
@@ -251,14 +274,18 @@ public class KmersExtractor {
 	 * @throws InterruptedException 
 	 */
     public void processFastqFile(String filename) throws IOException, InterruptedException {
-    	initializeMap();
+    	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 100);
     	long totalLength = 0;
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
+			reader.setSequenceType(DNAMaskedSequence.class);
+			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
+				if(read.getLength()<minReadLength) continue;
 				countSequenceKmers (read, poolKmers);
+				if(loadSequences) loadedSequences.add(read);
 				totalLength+=read.getLength();
 				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
@@ -273,13 +300,15 @@ public class KmersExtractor {
 	 * @throws InterruptedException 
      */
 	public void processFastqFile(InputStream fis) throws IOException, InterruptedException {
-		initializeMap();
+		initialize();
 		ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
+				if(read.getLength()<minReadLength) continue;
 				countSequenceKmers (read, poolKmers);
+				if(loadSequences) loadedSequences.add(read);
 				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
@@ -293,24 +322,27 @@ public class KmersExtractor {
 	 * @throws InterruptedException 
 	 */
     public void processFastaFile(String filename) throws IOException, InterruptedException {
-    	initializeMap();
+    	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
 				QualifiedSequence seq = it.next();
+				if(seq.getLength()<minReadLength) continue;
 				if(seq.getLength()>1000000) log.info("Processing sequence "+seq.getName());
 				countSequenceKmers (seq, poolKmers);
+				if(loadSequences) loadedSequences.add(seq);
 				if(seq.getLength()>1000000) log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
 			}
     	}
     	poolKmers.terminatePool();
 	}
     public void processQualifiedSequences(List<QualifiedSequence> sequences) throws InterruptedException {
-    	initializeMap();
+    	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	int i = 0;
     	for(QualifiedSequence qseq:sequences) {
+    		if(qseq.getLength()<minReadLength) continue;
     		if(qseq.getLength()>1000000) log.info("Processing sequence "+qseq.getName());
     		countSequenceKmers (qseq, poolKmers);
     		if(qseq.getLength()>1000000) log.info("Processed sequence "+qseq.getName()+" total k-mers: "+kmersMap.size());
@@ -335,7 +367,6 @@ public class KmersExtractor {
     	}
     }
 	public void countSequenceKmers(QualifiedSequence qseq) {
-		//TODO: Process in chuncks if too big
 		//Forward		
 		CharSequence sequence = qseq.getCharacters();
 		countSequenceKmers(sequence.toString());
@@ -351,7 +382,7 @@ public class KmersExtractor {
 	 */
 	public void countSequenceKmers(String seq)
 	{
-		if(kmersMap==null) initializeMap();
+		initialize();
 		int seqLength = seq.length();
 		
 		if(seqLength < kmerLength) {

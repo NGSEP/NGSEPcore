@@ -29,6 +29,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	private int windowLength=DEF_WINDOW_LENGTH;
 	private int ploidy = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	private int numThreads = DEF_NUM_THREADS;
+	private KmersMap kmersMap;
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
@@ -67,7 +68,13 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
-
+	
+	public KmersMap getKmersMap() {
+		return kmersMap;
+	}
+	public void setKmersMap(KmersMap kmersMap) {
+		this.kmersMap = kmersMap;
+	}
 	@Override
 	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
 		return buildAssemblyGraph(sequences,null);
@@ -75,29 +82,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences, final double [] compressionFactors) {
 		Runtime runtime = Runtime.getRuntime();
-		long startTime = System.currentTimeMillis();
-		log.info("Calculating kmers distribution");
-		KmersExtractor extractor = new KmersExtractor();
-		extractor.setLog(log);
-		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
-		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
-		extractor.initializeMap();
-		long totalLength =  0;
-		int finishTime = sequences.size();
-		ThreadPoolExecutor poolKmers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		for(int seqId = 0; seqId < sequences.size(); seqId++) {
-			QualifiedSequence seq = sequences.get(seqId);
-			totalLength+=seq.getLength();
-			if(numThreads==1) {
-				countSequenceKmers(extractor, seqId, seq);
-			} else {
-				final int i = seqId;
-				poolKmers.execute(()->countSequenceKmers(extractor, i, seq));
-			}
-		}
-		waitToFinish(finishTime, poolKmers);
-		KmersMap map = extractor.getKmersMap();
-		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(map, false);
+		
+		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(kmersMap, false);
 		int modeDepth = kmersAnalyzer.getMode();
 		long expectedAssemblyLength = kmersAnalyzer.getExpectedAssemblyLength();
 		
@@ -105,12 +91,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			double averageCompression = NumberArrays.getAverage(compressionFactors);
 			expectedAssemblyLength/= averageCompression;
 		}
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
+		log.info("Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
 		long time1 = System.currentTimeMillis();
-		long diff1 = (time1-startTime)/1000;
-		log.info("Total reads length: "+totalLength+" Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength+" Memory (Gbp): "+usedMemory+" Time(s): "+diff1);
-		
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
@@ -126,13 +108,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				poolMinimizers.execute(()->addSequenceToTable(table, i, seq));
 			}
 		}
-		waitToFinish(finishTime, poolMinimizers);
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		waitToFinish(sequences.size(), poolMinimizers);
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
-		diff1 = (time2-time1)/1000;
-		long diff2 = (time2-startTime)/1000;
-		log.info("Built minimizers. Memory(Gbp): "+usedMemory+" Time minimizers (s): "+diff1+" total time (s): "+diff2);
+		long diff = (time2-time1)/1000;
+		log.info("Built minimizers. Memory(Gbp): "+usedMemory+" Time minimizers (s): "+diff+" Memory: "+usedMemory);
 		Distribution minimizerHitsDist = table.calculateDistributionHits();
 		minimizerHitsDist.printDistributionInt(System.out);
 		
@@ -153,13 +134,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
 		}
 		addRelationshipsToGraph(graph, relationshipsPerSequence, runtime);
-		waitToFinish(finishTime, poolSearch);
+		waitToFinish(sequences.size(), poolSearch);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
-		diff1 = (time3-time2)/1000;
-		diff2 = (time3-startTime)/1000;
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff1+" total time (s): "+diff2);
+		diff = (time3-time2)/1000;
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
 		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}

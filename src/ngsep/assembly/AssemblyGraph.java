@@ -498,6 +498,7 @@ public class AssemblyGraph {
 	}
 	
 	private boolean isChimeric(int sequenceId) {
+		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
 		int idxDebug = -1;
 		int seqLength = getSequenceLength(sequenceId);
 		
@@ -775,6 +776,12 @@ public class AssemblyGraph {
 			System.out.println("Next sum length: "+entry.getKey()+" Average: "+d.getAverage()+" mode: "+d.getLocalMode(0, 2*d.getAverage())+" stdev: "+Math.sqrt(d.getVariance())+" count: "+d.getCount());
 		}
 		Map<Integer,Double> averageIKBPs = calculateAverageIKBPs();
+		for (Map.Entry<Integer, Double> entry:averageIKBPs.entrySet()) {
+			if(entry.getValue()>2*edgesDists[5].getMean()) {
+				System.out.println("Large median IKBP "+entry.getValue()+" for sequence: "+entry.getKey()+" "+getSequence(entry.getKey()).getName()+" Global average: "+edgesDists[5].getMean());
+				removeVertices(entry.getKey());
+			}
+		}
 		//System.out.println("Distribution indels kbp");
 		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
@@ -831,11 +838,10 @@ public class AssemblyGraph {
 			Collections.sort(numbers);
 			double median = numbers.get(numbers.size()/2);
 			double averageF = 0;
-			int n2 = Math.min(numbers.size(), 30);
+			int n2 = Math.min(numbers.size(), 15);
 			for(int j=0;j<n2;j++) averageF+=numbers.get(j);
 			averageF/=n2;
-			answer.put(i, Math.min(median, averageF));
-			if(median >15) System.out.println("Large average IKBP "+average+" for sequence: "+i+" "+getSequence(i).getName()+" Median: "+median+" average smallest 30: "+averageF+" datapoints: "+nr); 
+			answer.put(i, Math.min(median, averageF)); 
 		}
 		return answer;
 	}
