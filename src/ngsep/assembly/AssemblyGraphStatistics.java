@@ -342,7 +342,7 @@ public class AssemblyGraphStatistics {
 					}
 					int refSeqLength = refSeq.getLength();
 					
-					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>5000 || aln.getSoftClipEnd()>5000) {
+					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
 						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
 						continue;
 					}
@@ -376,7 +376,7 @@ public class AssemblyGraphStatistics {
 			resetStatistics();
 			graph.removeVerticesChimericReads();
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-			graph.updateScores(useIndels);
+			//graph.updateScores(useIndels);
 			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			graph.updateScores(useIndels);
 			LayoutBuilder pathsFinder;
@@ -691,7 +691,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==671824 || gsVertex.getSequenceIndex()==106836 || gsVertex.getSequenceIndex()==381642; 
+		//boolean debug = gsVertex.getSequenceIndex()==8898 || gsVertex.getSequenceIndex()==72913 || gsVertex.getSequenceIndex()==44013; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -745,7 +745,7 @@ public class AssemblyGraphStatistics {
 						distOverlapSDTPPathEdges.processDatapoint(matchedTestEdge.getRawKmerHitsSubjectStartSD());
 						distNumIndelsTPPathEdges.processDatapoint(matchedTestEdge.getNumIndels());
 						distIndelsKbpTPPathEdges.processDatapoint(matchedTestEdge.getIndelsPerKbp());
-						if(matchedTestEdge.getIndelsPerKbp()>20) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						//if(matchedTestEdge.getIndelsPerKbp()>50) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
 						int lengthSum = testGraph.getSequenceLength(matchedTestEdge.getVertex1().getSequenceIndex())+testGraph.getSequenceLength(matchedTestEdge.getVertex2().getSequenceIndex());
 						distSumLengthsIKbpLayout.processDatapoint(matchedTestEdge.getIndelsPerKbp(), lengthSum);
 						distSumLengthsLayout.processDatapoint(lengthSum);

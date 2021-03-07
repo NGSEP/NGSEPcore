@@ -33,6 +33,8 @@ import ngsep.math.PhredScoreHelper;
 public class AssemblySequencesRelationshipScoresCalculator {
 	private boolean useIndels = false;
 	private int debugIdx = -1;
+	private Map<Integer,Double> averageIKBPs;
+	
 	
 	
 	public boolean isUseIndels() {
@@ -41,11 +43,20 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	public void setUseIndels(boolean useIndels) {
 		this.useIndels = useIndels;
 	}
+	
+	
+	public Map<Integer, Double> getAverageIKBPs() {
+		return averageIKBPs;
+	}
+	public void setAverageIKBPs(Map<Integer, Double> averageIKBPs) {
+		this.averageIKBPs = averageIKBPs;
+	}
 	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists, Map<Integer,Distribution> byLengthSumIKBPDists) {
 		double evProp = relationship.getEvidenceProportion();
 		double overlapProportion=relationship.getOverlap();
 		double w1 = 1;
 		double w2 = 1;
+		
 		if(relationship instanceof AssemblyEmbedded) {
 			overlapProportion = 1;
 		} else {
@@ -54,6 +65,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 			int l2 = edge.getVertex2().getRead().getLength();
 			overlapProportion/=Math.max(l1, l2);
 		}
+		double maxIKBP = getMaxAverageIKBP (relationship);
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
@@ -61,24 +73,44 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		if(useIndels) {
-			NormalDistribution ikbp = edgesDists[5];
-			double pValueIKBP = 1-ikbp.cumulative(relationship.getIndelsPerKbp());
+			NormalDistribution globalIKBP = edgesDists[5];
+			double avg = Math.max(globalIKBP.getMean(), maxIKBP);
+			NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,globalIKBP.getVariance()));
+			double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
 			int key = relationship.getLengthSum()/1000;
 			Distribution byLength = byLengthSumIKBPDists.get(key);
 			double alpha = 0.05;
+			double count = 100000;
 			if(byLength!=null && byLength.getCount()>20) {
-				double normalVariance = Math.max(byLength.getAverage(), byLength.getVariance());
-				normalVariance = Math.min(normalVariance, byLength.getAverage()*byLength.getAverage());
-				NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),normalVariance);
+				avg = Math.max(byLength.getAverage(), maxIKBP);
+				double normalVariance = Math.max(avg, byLength.getVariance());
+				normalVariance = Math.min(normalVariance, avg*avg);
+				NormalDistribution normalDist = new NormalDistribution(avg,normalVariance);
 				pValueIKBP = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
-				alpha/=byLength.getCount();
-				if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" IKBP avg: "+byLength.getAverage()+" variance: "+normalDist.getVariance()+" pvalIkbp: "+pValueIKBP+" alpha: "+alpha);
-			} else if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" pvalIkbp: "+pValueIKBP+" alpha: "+alpha);
-			if(pValueIKBP>alpha) pValueIKBP = 0.5;
+				//count = Math.min(count, byLength.getCount());
+				count = byLength.getCount();
+				if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" IKBP avg: "+byLength.getAverage()+" variance: "+normalDist.getVariance()+" pvalIkbp: "+pValueIKBP+" alpha: "+(alpha/count));
+			} else if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" key: "+key+" pvalIkbp: "+pValueIKBP+" alpha: "+(alpha/count));
+			alpha/=count;
+			if(pValueIKBP>alpha /*|| relationship instanceof AssemblyEdge*/) pValueIKBP = 0.5;
 			//pValueIKBP*=2;
 			score*=pValueIKBP;
 		}
 		return (int)Math.round(score);
+	}
+	private double getMaxAverageIKBP(AssemblySequencesRelationship relationship) {
+		double avgIKBP1;
+		double avgIKBP2;
+		if(relationship instanceof AssemblyEmbedded) {
+			AssemblyEmbedded embedded = (AssemblyEmbedded)relationship;
+			avgIKBP1 = embedded.getHostId();
+			avgIKBP2 = embedded.getSequenceId();
+		} else {
+			AssemblyEdge edge = (AssemblyEdge) relationship;
+			avgIKBP1 = edge.getVertex1().getSequenceIndex();
+			avgIKBP2 = edge.getVertex2().getSequenceIndex();
+		}
+		return Math.max(avgIKBP1, avgIKBP2);
 	}
 	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists, Map<Integer,Distribution> byLengthSumIKBPDists) {
 		NormalDistribution overlapD = edgesDists[0];
@@ -87,6 +119,9 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		NormalDistribution wcskpD = edgesDists[3];
 		NormalDistribution evPropD = edgesDists[4];
 		NormalDistribution indelsKbpD = edgesDists[5];
+		double maxIKBP = getMaxAverageIKBP(relationship);
+		double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
+		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
 		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
 		//int cost = (int)Math.round(1000*(1.5-prop));
 		//return cost;
@@ -100,29 +135,35 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double cost2 = 100.0*(1-cumulativeCSK);
 		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
 		double cost3 = 100.0*(1-cumulativeWCSK);
-		double pValueWCPTP = wcskpD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
-		int cost4 = PhredScoreHelper.calculatePhredScore(pValueWCPTP);
+		//double pValueWCPTP = wcskpD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
+		int cost4 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, cumulativeWCSK));
 		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
 		if(pValueEvProp>0.5) pValueEvProp = 0.5;
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
 		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
-		double pValueIKBP = 1-indelsKbpD.cumulative(relationship.getIndelsPerKbp());
-		if(pValueIKBP>0.05) pValueIKBP = 0.5;
+		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
+		double count = 100000;
+		if(pValueIKBP*count>0.05) pValueIKBP = 0.5;
 		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
 		Distribution byLength = byLengthSumIKBPDists.get(relationship.getLengthSum()/1000);
 		int cost7 = cost6;
 		double pValueIKBP2 = pValueIKBP;
 		if(byLength!=null && byLength.getCount()>20) {
-			NormalDistribution normalDist = new NormalDistribution(byLength.getAverage(),Math.max(byLength.getAverage(), byLength.getVariance()));
+			avg = Math.max(byLength.getAverage(), maxIKBP);
+			double normalVariance = Math.max(avg, byLength.getVariance());
+			normalVariance = Math.min(normalVariance, avg*avg);
+			NormalDistribution normalDist = new NormalDistribution(avg,normalVariance);
 			pValueIKBP2 = 1-normalDist.cumulative(relationship.getIndelsPerKbp());
-			if(pValueIKBP2*byLength.getCount()>0.05) pValueIKBP2 = 0.5;
+			count = Math.min(count, byLength.getCount());
+			if(pValueIKBP2*count>0.05) pValueIKBP2 = 0.5;
 			cost7 = PhredScoreHelper.calculatePhredScore(pValueIKBP2);
 		}
 		
 		double costD = 0;
 		costD+=cost1;
 		//cost += cost2;
-		costD += cost3;
+		//costD += cost3;
+		costD += cost4;
 		if(useIndels) costD += cost7;
 		//if(useIndels) costD/=(pValueIKBP2+0.5);
 		costD += cost5;

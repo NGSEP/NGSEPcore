@@ -18,7 +18,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public static final int DEF_MIN_HITS = 50;
 	
-	private double minProportionOverlap = 0.05;
+	private double minProportionOverlap = 0.1;
 	
 	private double minProportionEvidence = 0;
 	
@@ -74,9 +74,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		long cumulativeReadDepth = 0;
 		long expectedAssemblyLength = graph.getExpectedAssemblyLength();
 		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
-		boolean extensiveSearch = cumulativeReadDepth<30*graph.getPloidy();
+		boolean extensiveSearch = cumulativeReadDepth<50*graph.getPloidy();
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" cumulative length: "+graph.getCumulativeLength(queryIdx)+" cumulative rd: "+cumulativeReadDepth+" expected assembly length: "+expectedAssemblyLength+" ploidy: "+graph.getPloidy()+" extensive search: "+extensiveSearch);
-		if(!extensiveSearch) minHits*=4;
+		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);

@@ -774,10 +774,12 @@ public class AssemblyGraph {
 			Distribution d = entry.getValue();
 			System.out.println("Next sum length: "+entry.getKey()+" Average: "+d.getAverage()+" mode: "+d.getLocalMode(0, 2*d.getAverage())+" stdev: "+Math.sqrt(d.getVariance())+" count: "+d.getCount());
 		}
+		Map<Integer,Double> averageIKBPs = calculateAverageIKBPs();
 		//System.out.println("Distribution indels kbp");
 		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
 		calculator.setUseIndels(useIndels);
+		calculator.setAverageIKBPs(averageIKBPs);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
 			edge.setScore(calculator.calculateScore(edge,edgesDists, byLengthSumIKBPDists));
@@ -789,6 +791,53 @@ public class AssemblyGraph {
 				embedded.setCost(calculator.calculateCost(embedded, edgesDists,byLengthSumIKBPDists));
 			}
 		}
+	}
+	private Map<Integer, Double> calculateAverageIKBPs() {
+		int n = sequences.size();
+		Map<Integer, Double> answer = new HashMap<Integer, Double>(n);
+		for(int i=0;i<n;i++) {
+			double average = 0;
+			double nr =0;
+			List<Double> numbers = new ArrayList<Double>();
+			if(verticesStart.get(i)==null || verticesEnd.get(i)==null) continue;
+			List<AssemblyEmbedded> embeddedH = getEmbeddedByHostId(i);
+			for(AssemblyEmbedded embedded:embeddedH) {
+				average+=embedded.getIndelsPerKbp();
+				numbers.add(embedded.getIndelsPerKbp());
+				nr++;
+			}
+			List<AssemblyEmbedded> embeddedS = getEmbeddedBySequenceId(i);
+			for(AssemblyEmbedded embedded:embeddedS) {
+				average+=embedded.getIndelsPerKbp();
+				numbers.add(embedded.getIndelsPerKbp());
+				nr++;
+			}
+			List<AssemblyEdge> edges1 = getEdges(getVertex(i, true));
+			for(AssemblyEdge edge:edges1) {
+				if(edge.isSameSequenceEdge()) continue;
+				average+=edge.getIndelsPerKbp();
+				numbers.add(edge.getIndelsPerKbp());
+				nr++;
+			}
+			List<AssemblyEdge> edges2 = getEdges(getVertex(i, false));
+			for(AssemblyEdge edge:edges2) {
+				if(edge.isSameSequenceEdge()) continue;
+				average+=edge.getIndelsPerKbp();
+				numbers.add(edge.getIndelsPerKbp());
+				nr++;
+			}
+			if(nr==0) continue; 
+			average/=nr;
+			Collections.sort(numbers);
+			double median = numbers.get(numbers.size()/2);
+			double averageF = 0;
+			int n2 = Math.min(numbers.size(), 30);
+			for(int j=0;j<n2;j++) averageF+=numbers.get(j);
+			averageF/=n2;
+			answer.put(i, Math.min(median, averageF));
+			if(median >15) System.out.println("Large average IKBP "+average+" for sequence: "+i+" "+getSequence(i).getName()+" Median: "+median+" average smallest 30: "+averageF+" datapoints: "+nr); 
+		}
+		return answer;
 	}
 	private Map<Integer, Distribution> calculateLengthSumDists() {
 		Map<Integer, Distribution> byLengthDistributions = new TreeMap<Integer, Distribution>();
