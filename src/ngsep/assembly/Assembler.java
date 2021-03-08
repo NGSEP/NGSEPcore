@@ -35,12 +35,14 @@ import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.ReadsFileErrorsCorrector;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 
 /**
@@ -294,6 +296,7 @@ public class Assembler {
 		long diff1 = (time1-startTime)/1000;
 		log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
+		correctReads(sequences,map);
 		AssemblyGraph graph;
 		if(graphFile!=null) {
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
@@ -441,6 +444,19 @@ public class Assembler {
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
 	}
 
+	private void correctReads(List<QualifiedSequence> sequences, KmersMap map) throws InterruptedException {
+		ReadsFileErrorsCorrector corrector = new ReadsFileErrorsCorrector();
+		corrector.setKmersMap(map);
+		corrector.setLog(log);
+		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 100);
+		int i=0;
+		for(QualifiedSequence seq:sequences) {
+			poolCorrection.queueTask(()->corrector.processRead(seq));
+			i++;
+			if(i%1000==0) log.info("Corrected "+i+" reads"); 
+		}
+		poolCorrection.terminatePool();
+	}
 	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
 		double [] compressionFactors = new double[sequences.size()];
 		for(int i=0;i<sequences.size();i++) {

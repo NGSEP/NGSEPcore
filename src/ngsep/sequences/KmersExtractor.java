@@ -287,7 +287,7 @@ public class KmersExtractor {
 				countSequenceKmers (read, poolKmers);
 				if(loadSequences) loadedSequences.add(read);
 				totalLength+=read.getLength();
-				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
+				if((i+1)%1000==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 		poolKmers.terminatePool();
@@ -309,7 +309,7 @@ public class KmersExtractor {
 				if(read.getLength()<minReadLength) continue;
 				countSequenceKmers (read, poolKmers);
 				if(loadSequences) loadedSequences.add(read);
-				if((i+1)%100==0) log.info("Processed "+(i+1)+" sequences");
+				if((i+1)%1000==0) log.info("Processed "+(i+1)+" sequences");
 			}
 		}
 		poolKmers.terminatePool();
@@ -326,13 +326,14 @@ public class KmersExtractor {
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
 			Iterator<QualifiedSequence> it = reader.iterator();
-			while(it.hasNext()) {
+			for (int i=0;it.hasNext();i++) {
 				QualifiedSequence seq = it.next();
 				if(seq.getLength()<minReadLength) continue;
 				if(seq.getLength()>1000000) log.info("Processing sequence "+seq.getName());
 				countSequenceKmers (seq, poolKmers);
 				if(loadSequences) loadedSequences.add(seq);
 				if(seq.getLength()>1000000) log.info("Processed sequence "+seq.getName()+" total k-mers: "+kmersMap.size());
+				if((i+1)%1000==0) log.info("Processed "+(i+1)+" sequences");
 			}
     	}
     	poolKmers.terminatePool();

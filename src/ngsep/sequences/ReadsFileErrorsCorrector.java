@@ -146,7 +146,16 @@ public class ReadsFileErrorsCorrector {
 	public void setInputFormat(String value) {
 		this.setInputFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
 	}
+	
+	
 
+	public KmersMap getKmersMap() {
+		return kmersMap;
+	}
+	public void setKmersMap(KmersMap kmersMap) {
+		this.kmersMap = kmersMap;
+		initAssembler();
+	}
 	public static void main(String[] args) throws Exception {
 		ReadsFileErrorsCorrector instance = new ReadsFileErrorsCorrector();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -193,7 +202,7 @@ public class ReadsFileErrorsCorrector {
 		log.info("Distribution mode: "+mode);
 		kmersMap.filterKmers(minKmerCount);
 		log.info("The Map now has "+kmersMap.size()+" k-mers");
-		assembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap,minKmerCount);
+		initAssembler();
 		System.out.println("Processing file: "+inFilename);
 		int numReads=0;
 		long numBp = 0;
@@ -205,7 +214,7 @@ public class ReadsFileErrorsCorrector {
 				Iterator<RawRead> it = reader.iterator();
 				while (it.hasNext()) {
 					RawRead read = it.next();
-					processRead (read);
+					correctedErrors+=processRead (read);
 					read.save(out);
 					numReads++;
 					numBp+=read.getLength();
@@ -225,7 +234,7 @@ public class ReadsFileErrorsCorrector {
 					String readName = line.substring(1);
 					String readSeq = in.readLine();
 					RawRead read = new RawRead(readName, readSeq, RawRead.generateFixedQSString('5', readSeq.length()));
-					processRead (read);
+					correctedErrors+=processRead (read);
 					read.save(out);
 					numReads++;
 					numBp+=read.getLength();
@@ -238,6 +247,9 @@ public class ReadsFileErrorsCorrector {
 			}
 		}
 		log.info("Processed "+numReads+" reads and "+mbp+" Mbp. Corrected "+correctedErrors+" potential errors. Output written to "+outFilename);
+	}
+	private void initAssembler() {
+		assembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap,minKmerCount);
 	}
 
 	private void loadKmersMap() throws IOException {
@@ -276,12 +288,13 @@ public class ReadsFileErrorsCorrector {
 		
 	}
 
-	public void processRead(RawRead read) {
+	public int processRead(QualifiedSequence read) {
 		// TODO: Option to choose algorithm
 		//processReadBestSNPChange(read);
-		processReadDeBruijnExploration (read);
+		return processReadDeBruijnExploration (read);
 	}
-	public void processReadDeBruijnExploration(RawRead read) {
+	public int processReadDeBruijnExploration(QualifiedSequence read) {
+		int corrections = 0;
 		String readStr = read.getCharacters().toString();
 		String rq = read.getQualityScores();
 		StringBuilder correctedRead = new StringBuilder();
@@ -315,46 +328,55 @@ public class ReadsFileErrorsCorrector {
 					int segmentLength = correctedSegment.length();
 					//System.out.println("Corrected segment length "+segmentLength);
 					if(segmentLength!=regionLength || !correctedSegment.equals(readStr.substring(lastRepresented+kmerLength, i))) {
-						correctedErrors++;
+						corrections++;
 						corrected = true;
 					}
 					correctedRead.append(correctedSegment);
-					if(segmentLength==regionLength) {
-						correctedQualities.append(rq.substring(lastRepresented+1,i));
-					} else {
-						// If length changes, it can not tell if the quality scores will be consistent after the adjustment
-						correctedQualities.append(RawRead.generateFixedQSString('+', segmentLength));
+					if(rq!=null) {
+						if(segmentLength==regionLength) {
+							correctedQualities.append(rq.substring(lastRepresented+1,i));
+						} else {
+							// If length changes, it can not tell if the quality scores will be consistent after the adjustment
+							correctedQualities.append(RawRead.generateFixedQSString('+', segmentLength));
+						}
 					}
 				}
 			}
 			correctedRead.append(nextKmer);
-			correctedQualities.append(rq.substring(i, i+kmerLength));
+			if(rq!=null) correctedQualities.append(rq.substring(i, i+kmerLength));
 			lastRepresented = i;
 			i+=kmerLength-1;
 		}
 		if(lastRepresented==-1) {
 			correctedRead.append(readStr);
-			correctedQualities.append(rq);
+			if(rq!=null) correctedQualities.append(rq);
 		} else if (lastRepresented+kmerLength<readStr.length()) {
 			int expectedAssemblyLength = readStr.length()-lastRepresented;
 			String assembly = assembler.assemble(readKmers[lastRepresented].toString(), null, kmerLength+1, expectedAssemblyLength, expectedAssemblyLength);
 			if(assembly!=null && assembly.length()>kmerLength ) {
 				corrected = true;
-				correctedErrors++;
+				corrections++;
 				String correctedRegion = assembly.substring(kmerLength); 
 				correctedRead.append(correctedRegion);
-				correctedQualities.append(RawRead.generateFixedQSString('+', correctedRegion.length()));
+				if(rq!=null) correctedQualities.append(RawRead.generateFixedQSString('+', correctedRegion.length()));
 			}
 			else {
 				correctedRead.append(readStr.substring(lastRepresented+kmerLength));
-				correctedQualities.append(rq.substring(lastRepresented+kmerLength));
+				if(rq!=null) correctedQualities.append(rq.substring(lastRepresented+kmerLength));
 			}
 		}
 		if(corrected) {
-			read.setCharacters(correctedRead);
-			read.setQualityScores(correctedQualities.toString());
+			if(read.getCharacters() instanceof DNASequence) {
+				read.setCharacters(new DNASequence(correctedRead));
+			} else if(read.getCharacters() instanceof DNAMaskedSequence) {
+				read.setCharacters(new DNAMaskedSequence(correctedRead));
+			} else {
+				read.setCharacters(correctedRead.toString());
+			}
+			
+			if(rq!=null) read.setQualityScores(correctedQualities.toString());
 		}
-		
+		return corrections;
 	}
 
 	public void processReadBestSNPChange(RawRead read) {
