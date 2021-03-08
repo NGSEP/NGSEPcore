@@ -9,6 +9,8 @@ import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 
 public class TransposableElementsFinder {
 
@@ -16,7 +18,7 @@ public class TransposableElementsFinder {
 	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	// Parameters
+	// Parameters 
 	private String inputFile = null;
 	private String outputFile = null;
 	private String transposonsDatabaseFile = null;
@@ -88,10 +90,26 @@ public class TransposableElementsFinder {
 		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
 		return removeRedundantAnnotations(annotations);
 	}
-	
+
+	public String fileName (ReferenceGenome genome) {
+		String filename= genome.getFilename();
+		System.out.println(filename);
+		return filename;
+		
+	}
 	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		// TODO implement
+		int numSeq= genome.getNumSequences();
+		System.out.println("respuesta1:" + numSeq);
+		
+		
+		//String fileName = genome.getFilename();
+		//System.out.println("respuesta1:" + fileName);
+		//long totalLength = genome.getTotalLength();
+		//System.out.println("respuesta1:" + totalLength);
+		//QualifiedSequenceList news = genome.getSequencesList();
+		//System.out.println("respuesta1:" + news);
 		return answer;
 	}
 	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome) {
