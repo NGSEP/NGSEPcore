@@ -296,7 +296,7 @@ public class Assembler {
 		long diff1 = (time1-startTime)/1000;
 		log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
-		correctReads(sequences,map);
+		//correctReads(sequences,map);
 		AssemblyGraph graph;
 		if(graphFile!=null) {
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
