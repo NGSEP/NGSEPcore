@@ -24,7 +24,7 @@ import java.io.FileReader;
 import ngsep.sequences.DNASequence;
 
 /**
- * Simple script to add the AD field to a NGSEP VCF file. Needed for comparyson with SynDip
+ * Simple script to add the AD field to a NGSEP VCF file. Needed for comparison with SynDip
  * @author Jorge Duitama
  *
  */
