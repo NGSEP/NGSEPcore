@@ -23,6 +23,7 @@ public class AssemblyPathReadsAligner {
 	public static final int KMER_LENGTH_LOCAL_ALN = KmersExtractor.DEF_KMER_LENGTH;
 	
 	//Parameters
+	private boolean onlyGenerateConsensus = false;
 	private boolean alignEmbedded = false;
 	
 	//Output
@@ -37,6 +38,13 @@ public class AssemblyPathReadsAligner {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public boolean isOnlyGenerateConsensus() {
+		return onlyGenerateConsensus;
+	}
+	public void setOnlyGenerateConsensus(boolean onlyGenerateConsensus) {
+		this.onlyGenerateConsensus = onlyGenerateConsensus;
+	}
 	public boolean isAlignEmbedded() {
 		return alignEmbedded;
 	}
@@ -50,6 +58,8 @@ public class AssemblyPathReadsAligner {
 		return alignedReads;
 	}
 	public void alignPathReads(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx) {
+		int debugIdx = 1;
+		if(pathIdx == debugIdx) System.err.println("Processing path with length: "+path);
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
@@ -92,6 +102,7 @@ public class AssemblyPathReadsAligner {
 				boolean reverse = !vertexPreviousEdge.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				rawConsensus.append(seq);
+				if(pathIdx == debugIdx) System.err.println("Added sequence: "+vertexPreviousEdge.getRead().getName()+" reverse: "+reverse);
 			} 
 			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
 				pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
@@ -100,22 +111,23 @@ public class AssemblyPathReadsAligner {
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
-				
-				//int startSuffix = edge.getOverlap();
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-nextPathSequence.length()),rawConsensus.length());
-				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, nextPathSequence, uniqueKmersSubject);
-				int startSuffix;
+				if(pathIdx == debugIdx) System.err.println("Aligning next path read "+vertexNextEdge.getRead().getName()+". Reverse "+reverse);
+				int startSuffix = Math.max(0, rawConsensus.length()-nextPathSequence.length());
+				startSuffix = Math.min(startSuffix, edge.getOverlap()+500);
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffix,rawConsensus.length());
+				String prefixQuery = nextPathSequence.subSequence(0, Math.min(nextPathSequence.length(), edge.getOverlap()+500)).toString();
+				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, prefixQuery, uniqueKmersSubject);
 				int startRemove = -1;
 				if(alnRead!=null) {
 					alnRead.setReadName(vertexNextEdge.getRead().getName());
 					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 					int tailSubject = rawConsensus.length()-lastPosSubject-1;
-					//System.out.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject);
+					if(pathIdx == debugIdx) System.err.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject);
 					//if(alnRead.getSoftClipEnd()>0 && lastPosSubject>=0 && tailSubject>50) System.err.println("Large subject tail not aligned. Tail length "+tailSubject+" new sequence suffix: "+(lastPosSubject+1)+" Next path alignment: "+alnRead+" Tail of subject: "+rawConsensus.substring(lastPosSubject+1)+" end read: "+nextPathSequence.subSequence(posAlnRead+1, nextPathSequence.length()));
 					//Just in case cycle but if the read aligns this should not enter
 					while(posAlnRead>0 && lastPosSubject<0) {
-						//System.out.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
+						if(pathIdx == debugIdx) System.err.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
 						posAlnRead--;
 						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 						tailSubject = rawConsensus.length()-lastPosSubject-1;
@@ -134,19 +146,20 @@ public class AssemblyPathReadsAligner {
 					} else {
 						startSuffix = edge.getOverlap();
 					}
-					//System.out.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
+					if(pathIdx == debugIdx) System.err.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
 				} else {
-					//System.err.println("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					if(pathIdx == debugIdx) System.err.println("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
 					startSuffix = edge.getOverlap();
 				}
+				if(pathIdx == debugIdx) System.err.println("Start suffix: "+startSuffix+" next seq len: "+nextPathSequence.length()+" start remove previous: "+startRemove+" aln: "+alnRead);
 				if(startSuffix<nextPathSequence.length()) {
 					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
-					//log.info("Enlarging consensus with alignment: "+alnRead+" Start new sequence: "+startSuffix+" segment length: "+remainingSegment.length());
+					if(pathIdx == debugIdx) System.err.println("Enlarging consensus with alignment: "+alnRead+" Start new sequence: "+startSuffix+" segment length: "+remainingSegment.length());
 					if(startRemove>0) rawConsensus.delete(startRemove, rawConsensus.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				}
 			}
-			if(vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
+			if(!onlyGenerateConsensus && vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
 				//Align to consensus next path read and its embedded sequences
 				QualifiedSequence read = vertexPreviousEdge.getRead(); 
 				CharSequence seq = read.getCharacters();

@@ -20,6 +20,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 
 public class ContigEndsMerger {
 
+	private static final int END_LENGTH = 50000;
 	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
@@ -43,10 +44,10 @@ public class ContigEndsMerger {
 				continue;
 			}
 			contigsForGraph.add(contig);
-			String startSeq = seq.subSequence(0, 100000).toString();
+			String startSeq = seq.subSequence(0, END_LENGTH).toString();
 			contigEndsMap.put(2*i, startSeq);
 			table.addSequence(2*i, startSeq);
-			String endSeq = seq.subSequence(seq.length()-100000,seq.length()).toString();
+			String endSeq = seq.subSequence(seq.length()-END_LENGTH,seq.length()).toString();
 			contigEndsMap.put(2*i+1, endSeq);
 			table.addSequence(2*i+1, endSeq);
 			i++;
@@ -65,7 +66,7 @@ public class ContigEndsMerger {
 			seq = DNAMaskedSequence.getReverseComplement(seq).toString();
 			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(j, seq);
 			buildEdges(graph,j,seq,contigEndsMap, hitsReverse,true);
-			System.err.println("Processed contig end: "+j);
+			System.err.println("Processed end: "+j+" of contig "+contigsForGraph.get(j/2).getName());
 		}
 		LayoutBuilderGreedyMaxOverlap builder = new LayoutBuilderGreedyMaxOverlap();
 		builder.findPaths(graph);
@@ -91,7 +92,7 @@ public class ContigEndsMerger {
 	}
 
 	private void buildEdges(AssemblyGraph graph, int queryEndIdx,String queryEnd, Map<Integer,String> contigEndsMap, Map<Integer, List<UngappedSearchHit>> hits, boolean revQuery) {
-		int debugLength = -1;
+		int debugIdx = -1;
 		int querySeqId = queryEndIdx/2;
 		int queryLength = graph.getSequenceLength(querySeqId);
 		boolean queryStartSeq = (queryEndIdx%2==0);
@@ -102,21 +103,21 @@ public class ContigEndsMerger {
 			if(subjectSeqId>=querySeqId) continue;
 			String subjectEnd = contigEndsMap.get(subjectEndIdx);
 			List<UngappedSearchHit> hitsSubject = entry.getValue();
-			if(queryLength == debugLength) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
+			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
 			if (hitsSubject.size() < 20) continue;
-			List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(100000, 100000, hitsSubject, 0);
+			List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(END_LENGTH, END_LENGTH, hitsSubject, 0);
 			Collections.sort(clusters, (c1,c2)->c2.getNumDifferentKmers()-c1.getNumDifferentKmers());
 			int maxNumDifKmer = -1;
-			if(queryLength == debugLength) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" clusters: "+clusters.size());
+			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" clusters: "+clusters.size());
 			for(KmerHitsCluster cluster:clusters) {
-				if(queryLength == debugLength) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
+				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
 				int numKmers = cluster.getNumDifferentKmers(); 
 				if(numKmers<20) break;
 				if(maxNumDifKmer==-1) maxNumDifKmer = numKmers;
 				else if(numKmers<0.5*maxNumDifKmer) break;
 				ReadAlignment aln = aligner.buildCompleteAlignment(subjectEndIdx, subjectEnd, queryEnd, cluster);
 				if(aln==null) continue;
-				if(queryLength == debugLength) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" mismatches: "+aln.getNumMismatches()+" CSK "+aln.getCoverageSharedKmers()+" overlap: "+cluster.getPredictedOverlap()+" alignment: "+aln);
+				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" mismatches: "+aln.getNumMismatches()+" indel length: "+aln.getTotalLengthIndelCalls()+" CSK "+aln.getCoverageSharedKmers()+" overlap: "+cluster.getPredictedOverlap()+" alignment: "+aln);
 				int overlap1 = cluster.getPredictedOverlap();
 				if(aln.getTotalLengthIndelCalls()>0.01*overlap1) continue;
 				if(aln.getCoverageSharedKmers()<0.3*overlap1) continue;	

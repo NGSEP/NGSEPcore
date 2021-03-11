@@ -61,7 +61,9 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		{
 			List<AssemblyEdge> path = paths.get(i);
 			String sequenceName = sequenceNamePrefix+"_"+(i+1);
+			log.info("processing path: "+sequenceName+" size: "+path.size());
 			CharSequence consensusPath = makeConsensus (graph, path, i, sequenceName);
+			log.info("processed path: "+sequenceName+" consensus length: "+consensusPath.length());
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
 		
@@ -72,6 +74,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	{
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
+		aligner.setOnlyGenerateConsensus(true);
 		aligner.alignPathReads(graph, path, sequenceIdx);
 		return aligner.getConsensus().toString();
 	}
