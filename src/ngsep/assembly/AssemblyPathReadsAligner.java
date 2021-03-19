@@ -58,8 +58,8 @@ public class AssemblyPathReadsAligner {
 		return alignedReads;
 	}
 	public void alignPathReads(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx) {
-		int debugIdx = 1;
-		if(pathIdx == debugIdx) System.err.println("Processing path with length: "+path);
+		int debugIdx = -1;
+		log.info("Aligning reads for path "+pathIdx+" with length: "+path.size());
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
@@ -111,50 +111,50 @@ public class AssemblyPathReadsAligner {
 				boolean reverse = !vertexNextEdge.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
-				if(pathIdx == debugIdx) System.err.println("Aligning next path read "+vertexNextEdge.getRead().getName()+". Reverse "+reverse);
-				int startSuffix = Math.max(0, rawConsensus.length()-nextPathSequence.length());
-				startSuffix = Math.min(startSuffix, edge.getOverlap()+500);
-				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffix,rawConsensus.length());
-				String prefixQuery = nextPathSequence.subSequence(0, Math.min(nextPathSequence.length(), edge.getOverlap()+500)).toString();
+				if(pathIdx == debugIdx && j<10) System.err.println("Aligning next path read "+vertexNextEdge.getRead().getName()+". Reverse "+reverse+ " edge: "+edge);
+				int startSuffixConsensus = Math.max(0, rawConsensus.length()-edge.getOverlap()-30);
+				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
+				String prefixQuery = nextPathSequence.subSequence(0, Math.min(nextPathSequence.length(), edge.getOverlap()+30)).toString();
 				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, prefixQuery, uniqueKmersSubject);
 				int startRemove = -1;
+				int startSuffixQuery;
 				if(alnRead!=null) {
 					alnRead.setReadName(vertexNextEdge.getRead().getName());
-					int posAlnRead = nextPathSequence.length()-1-alnRead.getSoftClipEnd();
+					int posAlnRead = prefixQuery.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 					int tailSubject = rawConsensus.length()-lastPosSubject-1;
-					if(pathIdx == debugIdx) System.err.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject);
+					if(pathIdx == debugIdx && j<10) System.err.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject+" aln: "+alnRead);
 					//if(alnRead.getSoftClipEnd()>0 && lastPosSubject>=0 && tailSubject>50) System.err.println("Large subject tail not aligned. Tail length "+tailSubject+" new sequence suffix: "+(lastPosSubject+1)+" Next path alignment: "+alnRead+" Tail of subject: "+rawConsensus.substring(lastPosSubject+1)+" end read: "+nextPathSequence.subSequence(posAlnRead+1, nextPathSequence.length()));
 					//Just in case cycle but if the read aligns this should not enter
 					while(posAlnRead>0 && lastPosSubject<0) {
-						if(pathIdx == debugIdx) System.err.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
+						if(pathIdx == debugIdx && j<10) System.err.println("Negative pos subject: "+lastPosSubject+" for read position: "+posAlnRead+" read length: "+nextPathSequence.length());
 						posAlnRead--;
 						lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 						tailSubject = rawConsensus.length()-lastPosSubject-1;
 					}
 					if(lastPosSubject>=0) {
-						startSuffix = posAlnRead + 1;
-						int suffixLength = nextPathSequence.length()-startSuffix;
+						startSuffixQuery = posAlnRead + 1;
+						int suffixLength = nextPathSequence.length()-startSuffixQuery;
 						if(tailSubject>0 && 2*tailSubject<suffixLength) {
 							//Replace tail with new read end
 							startRemove = lastPosSubject+1;
 						} else if (tailSubject<suffixLength) {
-							startSuffix+=tailSubject;
+							startSuffixQuery+=tailSubject;
 						} else {
-							startSuffix = nextPathSequence.length();
+							startSuffixQuery = nextPathSequence.length();
 						}
 					} else {
-						startSuffix = edge.getOverlap();
+						startSuffixQuery = edge.getOverlap();
 					}
-					if(pathIdx == debugIdx) System.err.println("Calculated overlap from alignment: "+startSuffix+" alignment: "+alnRead+" edge: "+edge );
+					if(pathIdx == debugIdx && j<10) System.err.println("Calculated start new suffix from alignment: "+startSuffixQuery );
 				} else {
-					if(pathIdx == debugIdx) System.err.println("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
-					startSuffix = edge.getOverlap();
+					if(pathIdx == debugIdx && j<10) System.err.println("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					startSuffixQuery = edge.getOverlap();
 				}
-				if(pathIdx == debugIdx) System.err.println("Start suffix: "+startSuffix+" next seq len: "+nextPathSequence.length()+" start remove previous: "+startRemove+" aln: "+alnRead);
-				if(startSuffix<nextPathSequence.length()) {
-					String remainingSegment = nextPathSequence.subSequence(startSuffix, nextPathSequence.length()).toString();
-					if(pathIdx == debugIdx) System.err.println("Enlarging consensus with alignment: "+alnRead+" Start new sequence: "+startSuffix+" segment length: "+remainingSegment.length());
+				if(pathIdx == debugIdx && j<10) System.err.println("Start suffix: "+startSuffixQuery+" next seq len: "+nextPathSequence.length()+" start remove previous: "+startRemove);
+				if(startSuffixQuery<nextPathSequence.length()) {
+					String remainingSegment = nextPathSequence.subSequence(startSuffixQuery, nextPathSequence.length()).toString();
+					if(pathIdx == debugIdx && j<10) System.err.println("Enlarging consensus. Start new sequence: "+startSuffixQuery+" segment length: "+remainingSegment.length());
 					if(startRemove>0) rawConsensus.delete(startRemove, rawConsensus.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				}

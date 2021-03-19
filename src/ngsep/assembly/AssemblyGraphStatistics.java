@@ -25,11 +25,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -69,13 +67,11 @@ public class AssemblyGraphStatistics {
 	private String inputFile = null;
 	private String outputFile = null;
 	private String readsFile = null;
-	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
-	private boolean useIndels = false;
 	private boolean simulated = false;
 	
 	//Statistics
@@ -258,17 +254,6 @@ public class AssemblyGraphStatistics {
 		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
 	}
 	
-	
-	public boolean isUseIndels() {
-		return useIndels;
-	}
-	public void setUseIndels(boolean useIndels) {
-		this.useIndels = useIndels;
-	}
-	public void setUseIndels(Boolean useIndels) {
-		setUseIndels(useIndels.booleanValue());
-	}
-	
 	public boolean isSimulated() {
 		return simulated;
 	}
@@ -369,7 +354,7 @@ public class AssemblyGraphStatistics {
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
-			graph.updateScores(useIndels);
+			graph.updateScores();
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
@@ -378,7 +363,7 @@ public class AssemblyGraphStatistics {
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			//graph.updateScores(useIndels);
 			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-			graph.updateScores(useIndels);
+			graph.updateScores();
 			LayoutBuilder pathsFinder;
 			if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
@@ -386,9 +371,6 @@ public class AssemblyGraphStatistics {
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
 				pathsFinder = new LayoutBuilderKruskalPath();
-				((LayoutBuilderKruskalPath)pathsFinder).setUseIndels(useIndels);
-				//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
-				//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 			}
 			
 			pathsFinder.findPaths(graph);
@@ -522,7 +504,7 @@ public class AssemblyGraphStatistics {
 			if(lastVertex!=null) {
 				AssemblyEdge connectingEdge = graph.getEdge(lastVertex, leftSequenceVertex);
 				if(connectingEdge==null) {
-					log.info("Discontiguity in gold standard layout");
+					log.info("Discontiguity in gold standard layout. Last vertex: "+lastVertex+" next vertex: "+leftSequenceVertex);
 					if(nextPath.size()>0) graph.addPath(nextPath);
 					nextPath = new ArrayList<>();
 					lastVertex = null;
@@ -691,7 +673,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==15513 || gsVertex.getSequenceIndex()==196 || gsVertex.getSequenceIndex()==7466; 
+		//boolean debug = gsVertex.getSequenceIndex()==6086 || gsVertex.getSequenceIndex()==4208 || gsVertex.getSequenceIndex()==4605;
+		//boolean debug = gsVertex.getSequenceIndex()==794601 || gsVertex.getSequenceIndex()==86838 || gsVertex.getSequenceIndex()==196659; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);

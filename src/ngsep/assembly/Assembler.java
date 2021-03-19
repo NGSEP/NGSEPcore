@@ -268,40 +268,42 @@ public class Assembler {
 	public void run(String inputFile, String outputPrefix) throws IOException, InterruptedException {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
-		log.info("Calculating kmers distribution");
-		KmersExtractor extractor = new KmersExtractor();
-		extractor.setLog(log);
-		extractor.setNumThreads(numThreads);
-		extractor.setLoadSequences(true);
-		extractor.setInputFormat(inputFormat);
-		extractor.setMinReadLength(minReadLength);
-		//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
-		if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
-		extractor.processFile(inputFile);
-		
-		List<QualifiedSequence> sequences = extractor.getLoadedSequences();
-		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
-		KmersMap map = extractor.getKmersMap();
-		long totalBp = 0;
-		Distribution distReadLength = new Distribution(0, 100000, 1000);
-		for(QualifiedSequence seq:sequences) {
-			distReadLength.processDatapoint(seq.getLength());
-			totalBp+=seq.getLength();
-		}
-		log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
-		distReadLength.printDistributionInt(System.out);
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		long time1 = System.currentTimeMillis();
-		long diff1 = (time1-startTime)/1000;
-		log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
-		if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
+		List<QualifiedSequence> sequences;
 		//correctReads(sequences,map);
 		AssemblyGraph graph;
 		if(graphFile!=null) {
+			sequences = load(inputFile, inputFormat, minReadLength);
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
 			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
+			log.info("Calculating kmers distribution");
+			KmersExtractor extractor = new KmersExtractor();
+			extractor.setLog(log);
+			extractor.setNumThreads(numThreads);
+			extractor.setLoadSequences(true);
+			extractor.setInputFormat(inputFormat);
+			extractor.setMinReadLength(minReadLength);
+			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
+			if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+			extractor.processFile(inputFile);
+			
+			sequences = extractor.getLoadedSequences();
+			Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+			KmersMap map = extractor.getKmersMap();
+			long totalBp = 0;
+			Distribution distReadLength = new Distribution(0, 100000, 1000);
+			for(QualifiedSequence seq:sequences) {
+				distReadLength.processDatapoint(seq.getLength());
+				totalBp+=seq.getLength();
+			}
+			log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
+			distReadLength.printDistributionInt(System.out);
+			long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			long time1 = System.currentTimeMillis();
+			long diff1 = (time1-startTime)/1000;
+			log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
+			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
 			double [] compressionFactors =null;
 			if (bpHomopolymerCompression>0) {
 				compressionFactors = runHomopolymerCompression (sequences);
@@ -357,10 +359,9 @@ public class Assembler {
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
-		
+		graph.updateScores();
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		graph.updateScores(true);
 		long time2 = System.currentTimeMillis();
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
@@ -368,7 +369,7 @@ public class Assembler {
 			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
-			diploidGraph.updateScores(true);
+			diploidGraph.updateScores();
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(diploidGraph);
@@ -387,7 +388,7 @@ public class Assembler {
 				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
 				log.info("Saved graph to "+outFileGraph);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
-				haplotypeGraph.updateScores(true);
+				haplotypeGraph.updateScores();
 				pathsFinder.findPaths(haplotypeGraph);
 				log.info("Built "+haplotypeGraph.getPaths().size()+" paths for next haplotype cluster with "+readIdsCluster.size()+" reads");
 				consensus.setSequenceNamePrefix("ContigHap"+haplotypeNumber);
@@ -398,22 +399,21 @@ public class Assembler {
 			}
 		} else {
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-			graph.updateScores(true);
+			graph.updateScores();
 			
 			pathsFinder.findPaths(graph);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 			assembledSequences.addAll(consensus.makeConsensus(graph));
-			
 		}
 		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
-		diff1 = (time3-time2)/1000;
+		long diff1 = (time3-time2)/1000;
 		long diff2 = (time3-startTime)/1000;
 		log.info("Layout and initial consensus complete. Memory: "+usedMemory+" Time process (s): "+diff1+" total time (s): "+diff2);
 		List<Integer> lengths = new ArrayList<Integer>();

@@ -310,9 +310,6 @@ Minimum proportion from the maximum score of the edges of a sequence to keep an 
 <option id="s" type="BOOLEAN" attribute="simulated">
 Indicates if the reads were simulated using the NGSEP SingleReadsSimulator
 </option>
-<option id="uid" type="BOOLEAN" attribute="useIndels">
-Use indels in the layout algorithm.
-</option>
 </command>
 
 <command id="IndividualGenomeBuilder" class="ngsep.vcf.VCFIndividualGenomeBuilder" groupId="Reads" formerId="VCFIndividualGenomeBuilder">

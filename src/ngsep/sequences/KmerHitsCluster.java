@@ -86,7 +86,7 @@ public class KmerHitsCluster {
 		int median = subjectStarts.get(subjectStarts.size()/2);
 		//System.out.println("Sum: "+sum+" sum2: "+sum2);
 		double variance = (sum2-sum*sum/n)/(n-1);
-		rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):0;
+		rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):1;
 		Distribution dist = new Distribution(0, 100, 1);
 		for(int start:subjectStarts) {
 			int distance = Math.abs(start-median);
@@ -96,15 +96,16 @@ public class KmerHitsCluster {
 		
 		int maxDistance = 5*queryLength; 
 		if(subjectLength>maxDistance) {
-			// This is only useful for mapping to a long reference subject
+			// For mapping to a long reference subject
 			maxDistance = (int) Math.max(dist.getAverage(), rawKmerHitsSubjectStartSD);
-			maxDistance *=3;
-			if(maxDistance < 100) maxDistance=100;
-			//if(maxDistance<0.01*query.length()) maxDistance*=2;
-			else if (maxDistance>0.05*queryLength) maxDistance/=2;
 		} else if (queryLength>2000) {
-			maxDistance = Math.min(queryLength/20, maxDistance);
+			// For graph construction
+			maxDistance = (int) Math.max(dist.getAverage(), Math.sqrt(dist.getVariance()));
 		}
+		maxDistance *=3;
+		if(maxDistance < 100) maxDistance=100;
+		//if(maxDistance<0.01*query.length()) maxDistance*=2;
+		else maxDistance=Math.min(queryLength/20,maxDistance);
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance())+" max distance: "+maxDistance);
 		
 		List<UngappedSearchHit> selectedHits = new ArrayList<UngappedSearchHit>(hitsMultiMap.size());
@@ -113,7 +114,7 @@ public class KmerHitsCluster {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits, queryLength, median, maxDistance);
 			if(hit!=null) {
-				if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
+				if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug && hit.getQueryIdx()>18000) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 				selectedHits.add(hit);
 				minSubjectStart = Math.min(minSubjectStart, hit.getStart());
 				maxSubjectStart = Math.max(maxSubjectStart, hit.getStart());
@@ -129,7 +130,7 @@ public class KmerHitsCluster {
 		boolean initialized = false;
 		for(UngappedSearchHit hit:filteredHits) {
 			int distance = Math.abs(estimateSubjectStart(hit)-median);
-			if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug /*&& hit.getQueryIdx()<1000*/) System.out.println("Filtered hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
+			if (hit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug && hit.getQueryIdx()>18000) System.out.println("Filtered hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit)+" distance: "+distance+ " max: "+maxDistance);
 			if(!initialized) {
 				subjectPredictedStart = estimateSubjectStart(hit);
 				subjectPredictedEnd = estimateSubjectEnd(hit);
@@ -692,7 +693,7 @@ public class KmerHitsCluster {
 					minD = d;
 				}
 			}
-			if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Next hit: "+hit.getQueryIdx()+" estimated start "+estStart+" min s: "+minS+" minD: "+minD);
+			//if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Next hit: "+hit.getQueryIdx()+" estimated start "+estStart+" min s: "+minS+" minD: "+minD);
 			if(minD<500) hitsByBin.get(minS).add(hit);
 		}
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Clustering kmer hits. Final bin starts: "+hitsByBin.keySet());

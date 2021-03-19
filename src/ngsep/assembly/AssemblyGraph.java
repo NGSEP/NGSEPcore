@@ -424,7 +424,13 @@ public class AssemblyGraph {
 		}
 		return answer;
 	}
-	
+	public List<AssemblyEmbedded> getAllEmbedded() {
+		List<AssemblyEmbedded> answer = new ArrayList<AssemblyEmbedded>();
+		for(List<AssemblyEmbedded> rels:embeddedMapByHost.values()) {
+			answer.addAll(rels);
+		}
+		return answer;
+	}
 	public List<AssemblyEmbedded> getAllEmbedded(int sequenceIndex) {
 		Map<Integer,AssemblyEmbedded> embeddedSequencesMap = new HashMap<Integer,AssemblyEmbedded>();
 		QualifiedSequence rootSequence = getSequence(sequenceIndex);
@@ -500,6 +506,7 @@ public class AssemblyGraph {
 	private boolean isChimeric(int sequenceId) {
 		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
 		int idxDebug = -1;
+		//int idxDebug = 4206;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
@@ -538,15 +545,14 @@ public class AssemblyGraph {
 		List<AssemblyEdge> edgesE = getEdges(vE);
 		int numIncompleteEdgesRight = 0;
 		if(hostEvidenceEndsLeft.size()<5 || hostEvidenceStartsRight.size()<5) {
-			
 			for(AssemblyEdge edge: edgesS) {
 				if(edge.isSameSequenceEdge()) continue;
 				int nextEvidenceStart = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 				int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 				int unknownLeft = nextEvidenceStart;
 				int unknownRight = edge.getOverlap() - nextEvidenceEnd;
-				if(unknownRight<0) continue;
 				if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+				if(unknownRight<0) continue;
 				if(unknownRight>1000 && unknownLeft<1000) {
 					hostEvidenceEndsLeft.add(nextEvidenceEnd);
 					hostPredictedEndLeft = Math.max(hostPredictedEndLeft, edge.getOverlap());
@@ -562,9 +568,9 @@ public class AssemblyGraph {
 				int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 				int nextEvidenceEnd = (edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 				int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
-				if(unknownLeft<0) continue;
 				int unknownRight = seqLength - nextEvidenceEnd;
 				if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+				if(unknownLeft<0) continue;
 				if(unknownRight>1000 && unknownLeft<1000) {
 					hostEvidenceEndsLeft.add(nextEvidenceEnd);
 					numIncompleteEdgesRight++;
@@ -577,8 +583,8 @@ public class AssemblyGraph {
 			}
 		}
 		
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" starts right: "+hostEvidenceStartsRight);
-		if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0 || hostEvidenceStartsRight.size()+numIncompleteEdgesRight<5 || hostEvidenceEndsLeft.size()+numIncompleteEdgesLeft<5 ) return false;
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" ends left: "+hostEvidenceEndsLeft+" starts right: "+hostEvidenceStartsRight);
+		//if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0 || hostEvidenceStartsRight.size()+numIncompleteEdgesRight<5 || hostEvidenceEndsLeft.size()+numIncompleteEdgesLeft<5 ) return false;
 		//if(numIncompleteEdgesLeft<3 && numIncompleteEdgesRight<3 && (hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3)) return false;
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
 		int hostEvidenceEndLeft = hostEvidenceEndsLeft.size()>0?hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2):0;
@@ -596,6 +602,12 @@ public class AssemblyGraph {
 				numCrossing++;
 			}
 		}
+		double limitEvProp = 0.9;
+		double limitIKBP = 50;
+		
+		double maxEvPropS = 0;
+		int countPassS = 0;
+		int countGoodOverlapS = 0;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
@@ -606,7 +618,15 @@ public class AssemblyGraph {
 				if(sequenceId==idxDebug) System.out.println("Edge start crossing. Edge: "+edge);
 				numCrossing++;
 			}
+			if(edge.getOverlap()>0.5*seqLength) {
+				countGoodOverlapS++;
+				maxEvPropS = Math.max(maxEvPropS, edge.getEvidenceProportion());
+				if(edge.getEvidenceProportion()>=limitEvProp && edge.getIndelsPerKbp()<=limitIKBP) countPassS++;
+			}
 		}
+		double maxEvPropE = 0;
+		int countPassE = 0;
+		int countGoodOverlapE = 0;
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
@@ -617,8 +637,13 @@ public class AssemblyGraph {
 				if(sequenceId==idxDebug) System.out.println("Edge end crossing. Edge: "+edge);
 				numCrossing++;
 			}
+			if(edge.getOverlap()>0.5*seqLength) {
+				countGoodOverlapE++;
+				maxEvPropE = Math.max(maxEvPropE, edge.getEvidenceProportion());
+				if(edge.getEvidenceProportion()>=limitEvProp && edge.getIndelsPerKbp()<=limitIKBP) countPassE++;
+			}
 		}
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
 		int d1 = hostEvidenceEndLeft-hostPredictedStartRight;
 		int d2 = hostPredictedEndLeft-hostEvidenceStartRight;
 		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
@@ -627,7 +652,12 @@ public class AssemblyGraph {
 		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 /*&& d5<10000*/) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
-		}/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
+		} else if ((countGoodOverlapS > 5 && countPassS <= 0.05*countGoodOverlapS+1) || (countGoodOverlapE>5 && countPassE <= 0.05*countGoodOverlapE+1)) {
+			System.out.println("Possible dangling end identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+			return true;
+		}
+		
+		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
 			System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
 			return true;
 		} else if (numCrossing==0 && hostEvidenceEndLeft<seqLength-1000 && hostEvidenceStartRight==seqLength && numIncompleteEdgesRight>5) {
@@ -749,7 +779,7 @@ public class AssemblyGraph {
 			} else {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
-			if(i==5 && mean < 8) mean = 8;
+			if(i==5 && mean < distsAll[i].getAverage()) mean = distsAll[i].getAverage();
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
 			if(i==4 && stdev < 0.03) stdev = 0.03;
@@ -760,7 +790,7 @@ public class AssemblyGraph {
 		return answer;
 	}
 	
-	public void updateScores (boolean useIndels) {
+	public void updateScores () {
 		updateVertexDegrees();
 		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
 		NormalDistribution [] edgesDists = estimateDistributions(repetitiveVertices);
@@ -775,18 +805,35 @@ public class AssemblyGraph {
 			Distribution d = entry.getValue();
 			System.out.println("Next sum length: "+entry.getKey()+" Average: "+d.getAverage()+" mode: "+d.getLocalMode(0, 2*d.getAverage())+" stdev: "+Math.sqrt(d.getVariance())+" count: "+d.getCount());
 		}
-		Map<Integer,Double> averageIKBPs = calculateAverageIKBPs();
-		for (Map.Entry<Integer, Double> entry:averageIKBPs.entrySet()) {
-			if(entry.getValue()>2*edgesDists[5].getMean()) {
-				System.out.println("Large median IKBP "+entry.getValue()+" for sequence: "+entry.getKey()+" "+getSequence(entry.getKey()).getName()+" Global average: "+edgesDists[5].getMean());
-				removeVertices(entry.getKey());
+		Map<Integer,Double> averageIKBPVertices = new HashMap<Integer, Double>();
+		Map<Integer,Double> averageIKBPEmbedded = new HashMap<Integer, Double>();
+		double limit = edgesDists[5].getMean()+2*Math.sqrt(edgesDists[5].getVariance());
+		int n = sequences.size();
+		for(int i=0;i<n;i++) {
+			AssemblyVertex v1 = getVertex(i, true);
+			if(v1==null) continue;
+			List<AssemblyEdge> edges1 = getEdges(v1);
+			double avgV1 = calculateAverageIKBP(i,edges1);
+			AssemblyVertex v2 = getVertex(i, false);
+			List<AssemblyEdge> edges2 = getEdges(v2);
+			double avgV2 = calculateAverageIKBP(i,edges2);
+			List<AssemblyEmbedded> embedded = new ArrayList<AssemblyEmbedded>(getEmbeddedByHostId(i));
+			embedded.addAll(getEmbeddedBySequenceId(i));
+			double avgEmbedded = calculateAverageIKBP(i,embedded);
+			
+			if(avgV1>limit || avgV2>limit) {
+				System.out.println("Large IKBP "+avgV1+" "+avgV2+" "+avgEmbedded+" for sequence: "+i+" "+getSequence(i).getName()+" Global average: "+edgesDists[5].getMean());
+				removeVertices(i);
 			}
+			averageIKBPVertices.put(v1.getUniqueNumber(), avgV1);
+			averageIKBPVertices.put(v2.getUniqueNumber(), avgV2);
+			averageIKBPEmbedded.put(i, avgEmbedded);
 		}
 		//System.out.println("Distribution indels kbp");
 		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
-		calculator.setUseIndels(useIndels);
-		calculator.setAverageIKBPs(averageIKBPs);
+		calculator.setAverageIKBPVertices(averageIKBPVertices);
+		calculator.setAverageIKBPEmbedded(averageIKBPEmbedded);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
 			edge.setScore(calculator.calculateScore(edge,edgesDists, byLengthSumIKBPDists));
@@ -799,51 +846,23 @@ public class AssemblyGraph {
 			}
 		}
 	}
-	private Map<Integer, Double> calculateAverageIKBPs() {
-		int n = sequences.size();
-		Map<Integer, Double> answer = new HashMap<Integer, Double>(n);
-		for(int i=0;i<n;i++) {
-			double average = 0;
-			double nr =0;
-			List<Double> numbers = new ArrayList<Double>();
-			if(verticesStart.get(i)==null || verticesEnd.get(i)==null) continue;
-			List<AssemblyEmbedded> embeddedH = getEmbeddedByHostId(i);
-			for(AssemblyEmbedded embedded:embeddedH) {
-				average+=embedded.getIndelsPerKbp();
-				numbers.add(embedded.getIndelsPerKbp());
-				nr++;
-			}
-			List<AssemblyEmbedded> embeddedS = getEmbeddedBySequenceId(i);
-			for(AssemblyEmbedded embedded:embeddedS) {
-				average+=embedded.getIndelsPerKbp();
-				numbers.add(embedded.getIndelsPerKbp());
-				nr++;
-			}
-			List<AssemblyEdge> edges1 = getEdges(getVertex(i, true));
-			for(AssemblyEdge edge:edges1) {
-				if(edge.isSameSequenceEdge()) continue;
-				average+=edge.getIndelsPerKbp();
-				numbers.add(edge.getIndelsPerKbp());
-				nr++;
-			}
-			List<AssemblyEdge> edges2 = getEdges(getVertex(i, false));
-			for(AssemblyEdge edge:edges2) {
-				if(edge.isSameSequenceEdge()) continue;
-				average+=edge.getIndelsPerKbp();
-				numbers.add(edge.getIndelsPerKbp());
-				nr++;
-			}
-			if(nr==0) continue; 
-			average/=nr;
-			Collections.sort(numbers);
-			double median = numbers.get(numbers.size()/2);
-			double averageF = 0;
-			int n2 = Math.min(numbers.size(), 15);
-			for(int j=0;j<n2;j++) averageF+=numbers.get(j);
-			averageF/=n2;
-			answer.put(i, Math.min(median, averageF)); 
+	private double calculateAverageIKBP(int index, List<? extends AssemblySequencesRelationship> relationships) {
+		int debugIdx = -1;
+		if(index==debugIdx) System.out.println("Calculating average IKBPs for "+index+" "+getSequence(index).getName()+" Relationships: "+relationships.size());
+		List<Double> numbers = new ArrayList<Double>();
+		for(AssemblySequencesRelationship rel:relationships) {
+			if(rel instanceof AssemblyEdge && ((AssemblyEdge)rel).isSameSequenceEdge()) continue;
+			numbers.add(rel.getIndelsPerKbp());
 		}
-		return answer;
+		if(numbers.size()==0) return 1;
+		Collections.sort(numbers);
+		if(index==debugIdx) System.out.println("Calculating average IKBPs for "+index+" "+getSequence(index).getName()+" Type: "+relationships.get(0).getClass().getName()+"Numbers: "+numbers);
+		double median = numbers.get(numbers.size()/2);
+		double averageF = 0;
+		int n2 = Math.min(numbers.size(), 5);
+		for(int j=0;j<n2;j++) averageF+=numbers.get(j);
+		averageF/=n2;
+		return Math.min(median, averageF);
 	}
 	private Map<Integer, Distribution> calculateLengthSumDists() {
 		Map<Integer, Distribution> byLengthDistributions = new TreeMap<Integer, Distribution>();
