@@ -67,7 +67,9 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double maxIKBP = getMaxAverageIKBP (relationship);
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
-		double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
+		//double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
+		double score = relationship.getOverlap()*relationship.getWeightedCoverageSharedKmers()*evProp;
+		//double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
 		//if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
@@ -132,7 +134,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double cumulativeOverlap = overlapD.cumulative(overlap);
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
 		//int cost1 = PhredScoreHelper.calculatePhredScore(cumulativeOverlap);
-		double cost1 = 100.0*(1-cumulativeOverlap);
+		double cost1 = 10.0*(1-cumulativeOverlap);
 		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
 		double cost2 = 100.0*(1-cumulativeCSK);
 		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
@@ -140,7 +142,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double pValueWCPTP = wcskpD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(overlap+1));
 		int cost4 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, cumulativeWCSK));
 		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
-		if(pValueEvProp>0.5) pValueEvProp = 0.5;
+		if(pValueEvProp>0.05) pValueEvProp = 0.5;
 		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
 		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
 		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
