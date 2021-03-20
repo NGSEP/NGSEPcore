@@ -22,6 +22,7 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 
+import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
 
 /**
@@ -30,7 +31,7 @@ import ngsep.math.Distribution;
  *
  */
 public class AssemblySequencesRelationshipFilter {
-	private int debugIdx = -1;
+	private int debugIdx = 107302;
 	//Initial edge filtering
 	public void filterEdgesAndEmbedded(AssemblyGraph graph, double minScoreProportionEdges) {
 		Distribution lengthsDistribution = new Distribution(0, graph.getSequenceLength(0), 1);
@@ -38,6 +39,7 @@ public class AssemblySequencesRelationshipFilter {
 		for(int i=0;i<n;i++) lengthsDistribution.processDatapoint(graph.getSequenceLength(i));
 		int medianLength = graph.getMedianLength();
 		System.out.println("Median read length: "+medianLength);
+		NormalDistribution distLengths = new NormalDistribution(medianLength,medianLength);
 		int numEmbedded = 0;
 		for (int seqId = n-1; seqId >=0; seqId--) {
 			AssemblyVertex vS = graph.getVertex(seqId, true);
@@ -54,7 +56,7 @@ public class AssemblySequencesRelationshipFilter {
 				maxScore = 0;
 			}
 			//if(filterEmbeddedByCost(graph, seqId, medianLength, 2*Math.max(bestValues[2], bestValues[3]))) numEmbedded++;
-			if(filterEmbeddedByScore(graph, seqId, medianLength, maxScore)) numEmbedded++;
+			if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) numEmbedded++;
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		graph.pruneEmbeddedSequences();
@@ -92,25 +94,26 @@ public class AssemblySequencesRelationshipFilter {
 			minCostE = Math.min(minCostE, edge.getCost());
 		}
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" min cost: "+minCostE);
-		double minScoreFilterEdges = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
+		//double minScoreFilterEdges = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
+		double limitS = minScoreProportionEdges*maxScoreS;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" limit: "+minScoreFilterEdges);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge+" limit: "+limitS);
 			//TODO: Make this parameter dynamic based on the distribution
-			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < minScoreFilterEdges)) {
+			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < limitS)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
 		}
 		
-		
+		double limitE = minScoreProportionEdges*maxScoreE;
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber()+" overlap: "+edge.getOverlap()+" score: "+score+" Max score end: "+maxScoreE+" limit: "+minScoreFilterEdges);
+			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge+" limit: "+limitE);
 			//TODO: Make this parameter dynamic based on the distribution
-			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < minScoreFilterEdges)) {
+			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < limitE)) {
 				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
@@ -154,18 +157,20 @@ public class AssemblySequencesRelationshipFilter {
 			return true;
 		}
 	}
-	private boolean filterEmbeddedByScore(AssemblyGraph graph, int sequenceId,int medianLength, int maxScoreEdges) {
+	private boolean filterEmbeddedByScore(AssemblyGraph graph, int sequenceId,int medianLength, NormalDistribution distLengths, int maxScoreEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
-		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
+		//double medianRelationship = 1.0*sequenceLength/(double)medianLength;
 		//double minScoreProportionEmbedded = 0.8;
 		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
-		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
+		//double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
+		double minScoreProportionEmbedded = Math.min(0.8, distLengths.cumulative(sequenceLength));
 		//double minScoreProportionEmbedded = 0.8*cumulative;
-		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		//This can be improved if the graph is completely calculated
+		if(minScoreProportionEmbedded<0.3) minScoreProportionEmbedded = 0.3;
 		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		
 		double scoreLimit = minScoreProportionEmbedded*maxScoreEdges;
-		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" medianRel: "+medianRelationship+" minscoreprop: "+minScoreProportionEmbedded+" scorel limit: "+scoreLimit);
+		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" minscoreprop: "+minScoreProportionEmbedded+" score limit: "+scoreLimit);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return false;
