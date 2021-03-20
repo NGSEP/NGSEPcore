@@ -60,7 +60,7 @@ public class Assembler {
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
-	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.3;
+	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
