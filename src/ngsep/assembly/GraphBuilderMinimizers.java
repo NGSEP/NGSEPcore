@@ -92,53 +92,98 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			expectedAssemblyLength/= averageCompression;
 		}
 		log.info("Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
+		
+		AssemblyGraph graph = new AssemblyGraph(sequences);
+		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
+		graph.setExpectedAssemblyLength(expectedAssemblyLength);
+		graph.setPloidy(ploidy);
+		
 		long time1 = System.currentTimeMillis();
 		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		
-		ThreadPoolExecutor poolMinimizers = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		for(int seqId = 0; seqId < sequences.size(); seqId++) {
-			QualifiedSequence qseq = sequences.get(seqId);
+		ThreadPoolExecutor poolMinimizers1 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		int seqIdMinimizers = 0;
+		long totalLengthMinimizers = 0;
+		while( seqIdMinimizers < sequences.size() ) {
+			QualifiedSequence qseq = sequences.get(seqIdMinimizers);
+			totalLengthMinimizers+=qseq.getLength();
+			if(totalLengthMinimizers>3*expectedAssemblyLength) break;
 			CharSequence seq = qseq.getCharacters();
 			if(numThreads==1) {
-				addSequenceToTable(table, seqId, seq);
+				addSequenceToTable(table, seqIdMinimizers, seq);
 			} else {
-				final int i = seqId;
-				poolMinimizers.execute(()->addSequenceToTable(table, i, seq));
+				final int i = seqIdMinimizers;
+				poolMinimizers1.execute(()->addSequenceToTable(table, i, seq));
 			}
+			seqIdMinimizers++;
 		}
-		waitToFinish(sequences.size(), poolMinimizers);
+		waitToFinish(sequences.size(), poolMinimizers1);
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
 		long diff = (time2-time1)/1000;
-		log.info("Built minimizers. Memory(Gbp): "+usedMemory+" Time minimizers (s): "+diff+" Memory: "+usedMemory);
-		Distribution minimizerHitsDist = table.calculateDistributionHits();
-		minimizerHitsDist.printDistributionInt(System.out);
-		
-		AssemblyGraph graph = new AssemblyGraph(sequences);
-		log.info("Created graph vertices. Edges: "+graph.getEdges().size());
+		log.info("Built minimizers for the first 3x of sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory);
+		//Distribution minimizerHitsDist = table.calculateDistributionHits();
+		//minimizerHitsDist.printDistributionInt(System.out);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		graph.setExpectedAssemblyLength(expectedAssemblyLength);
-		graph.setPloidy(ploidy);
-		
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
+		
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		for (int seqId = 0; seqId < sequences.size(); seqId++) {
+		for (int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
-			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, relationshipsPerSequence));
-			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
+			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, true, relationshipsPerSequence));
 		}
-		addRelationshipsToGraph(graph, relationshipsPerSequence, runtime);
 		waitToFinish(sequences.size(), poolSearch);
+		int countCurrentEmbedded = 0;
+		for(int i=0;i<relationshipsPerSequence.size();i++) {
+			if(relationshipsPerSequence.get(i)!=null) countCurrentEmbedded++;
+		}
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
 		diff = (time3-time2)/1000;
+		log.info("Identified embedded relationships with the first 3x of sequences. Count embedded: "+countCurrentEmbedded+" Time mapping (s): "+diff+". Memory: "+usedMemory);
+		
+		ThreadPoolExecutor poolMinimizers2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		for( ;seqIdMinimizers < sequences.size();seqIdMinimizers++ ) {
+			//if (seqIdMinimizers%1000==0) log.info("Seqid: "+seqIdMinimizers+" Current list: "+relationshipsPerSequence.get(seqIdMinimizers));
+			if(relationshipsPerSequence.get(seqIdMinimizers)!=null) continue;
+			QualifiedSequence qseq = sequences.get(seqIdMinimizers);
+			CharSequence seq = qseq.getCharacters();
+			if(numThreads==1) {
+				addSequenceToTable(table, seqIdMinimizers, seq);
+			} else {
+				final int i = seqIdMinimizers;
+				poolMinimizers2.execute(()->addSequenceToTable(table, i, seq));
+			}
+		}
+		waitToFinish(sequences.size(), poolMinimizers2);
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time4 = System.currentTimeMillis();
+		diff = (time4-time3)/1000;
+		log.info("Built minimizers for the remaining non embedded sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory);
+		
+		
+		ThreadPoolExecutor poolSearch2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		for (int seqId = 0; seqId < sequences.size(); seqId++) {
+			CharSequence seq = sequences.get(seqId).getCharacters();
+			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
+			final int i = seqId;
+			poolSearch2.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
+			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
+		}
+		addRelationshipsToGraph(graph, relationshipsPerSequence, runtime);
+		waitToFinish(sequences.size(), poolSearch2);
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time5 = System.currentTimeMillis();
+		diff = (time5-time4)/1000;
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
 		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
@@ -146,14 +191,14 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	public void countSequenceKmers(KmersExtractor extractor, int seqId, QualifiedSequence seq) {
 		extractor.countSequenceKmers(seq);
-		if ((seqId+1)%1000==0) log.info("Kmers extracted for "+(seqId+1)+" sequences.");
+		if (seqId%1000==0) log.info("Kmers extracted for "+(seqId)+" sequences.");
 	}
 	public void addSequenceToTable(MinimizersTable table, int seqId, CharSequence seq) {
 		table.addSequence(seqId, seq);
-		if ((seqId+1)%1000==0) log.info("Processed "+(seqId+1)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
+		if (seqId%1000==0) log.info("Processed "+(seqId)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
 	
-	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		List<AssemblySequencesRelationship> answer;
 		try {
 			Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
@@ -162,7 +207,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
 			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
 			answer = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-			relationshipsPerSequence.set(seqId, answer);
+			if(!onlyEmbedded || containsGoodEmbedded(answer)) relationshipsPerSequence.set(seqId, answer);
 			if ((seqId)%1000==0) {
 				int edges = 0;
 				int embedded = 0;
@@ -171,11 +216,21 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 					if(next instanceof AssemblyEdge) edges++;
 				}
 				log.info("Identified relationships for sequence "+(seqId) +" Candidate edges: "+edges+"  candidate embedded hosts "+embedded);
+				//if (onlyEmbedded) log.info("List: "+relationshipsPerSequence.get(seqId));
 			}
 		} catch (RuntimeException e) {
-			relationshipsPerSequence.set(seqId, new ArrayList<AssemblySequencesRelationship>());
+			if(!onlyEmbedded) relationshipsPerSequence.set(seqId, new ArrayList<AssemblySequencesRelationship>());
 			throw e;
 		}
+	}
+	private boolean containsGoodEmbedded(List<AssemblySequencesRelationship> rels) {
+		for(AssemblySequencesRelationship rel:rels) {
+			if(rel instanceof AssemblyEmbedded) {
+				AssemblyEmbedded embedded = (AssemblyEmbedded)rel;
+				if(embedded.getEvidenceProportion()>0.98 && embedded.getIndelsPerKbp()<10 && embedded.getWeightedCoverageSharedKmers()>0.5*embedded.getRead().getLength()) return true;
+			}
+		}
+		return false;
 	}
 	private void addRelationshipsToGraph(AssemblyGraph graph, List<List<AssemblySequencesRelationship>> relationshipsPerSequence, Runtime runtime) {
 		int n = relationshipsPerSequence.size();

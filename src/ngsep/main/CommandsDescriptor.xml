@@ -239,6 +239,9 @@ Format of the input file. It can be 0 for fastq or 1 for fasta.
 <option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
 Window length to calculate minimizers.
 </option>
+<option id="m" type="INT" attribute="minReadLength" defaultConstant="DEF_MIN_READ_LENGTH">
+Minimum read length.
+</option>
 <!--
 <option id="bh" type="INT" attribute="bpHomopolymerCompression" defaultConstant="DEF_BP_HOMOPOLYMER_COMPRESSION">
 Perform homopolymer compression keeping homopolymers up to the given number of pase pairs.

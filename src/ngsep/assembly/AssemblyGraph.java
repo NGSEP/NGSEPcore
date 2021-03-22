@@ -780,6 +780,7 @@ public class AssemblyGraph {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
 			if(i==5 && mean < distsAll[i].getAverage()) mean = distsAll[i].getAverage();
+			if(i==5 && mean < 3) mean = 3;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
 			if(i==4 && stdev < 0.03) stdev = 0.03;
@@ -800,14 +801,9 @@ public class AssemblyGraph {
 		System.out.println("Average overlap standard deviation: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));
-		Map<Integer,Distribution> byLengthSumIKBPDists = calculateLengthSumDists();
-		for(Map.Entry<Integer, Distribution> entry:byLengthSumIKBPDists.entrySet()) {
-			Distribution d = entry.getValue();
-			System.out.println("Next sum length: "+entry.getKey()+" Average: "+d.getAverage()+" mode: "+d.getLocalMode(0, 2*d.getAverage())+" stdev: "+Math.sqrt(d.getVariance())+" count: "+d.getCount());
-		}
 		Map<Integer,Double> averageIKBPVertices = new HashMap<Integer, Double>();
 		Map<Integer,Double> averageIKBPEmbedded = new HashMap<Integer, Double>();
-		double limit = edgesDists[5].getMean()+2*Math.sqrt(edgesDists[5].getVariance());
+		double limit = Math.max(15,edgesDists[5].getMean()+3*Math.sqrt(edgesDists[5].getVariance()));
 		int n = sequences.size();
 		for(int i=0;i<n;i++) {
 			AssemblyVertex v1 = getVertex(i, true);
@@ -836,13 +832,13 @@ public class AssemblyGraph {
 		calculator.setAverageIKBPEmbedded(averageIKBPEmbedded);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
-			edge.setScore(calculator.calculateScore(edge,edgesDists, byLengthSumIKBPDists));
-			edge.setCost(calculator.calculateCost(edge,edgesDists,byLengthSumIKBPDists));
+			edge.setScore(calculator.calculateScore(edge,edgesDists));
+			edge.setCost(calculator.calculateCost(edge,edgesDists));
 		}
 		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
 			for(AssemblyEmbedded embedded:embeddedList) {
-				embedded.setScore(calculator.calculateScore(embedded, edgesDists, byLengthSumIKBPDists));
-				embedded.setCost(calculator.calculateCost(embedded, edgesDists,byLengthSumIKBPDists));
+				embedded.setScore(calculator.calculateScore(embedded, edgesDists));
+				embedded.setCost(calculator.calculateCost(embedded, edgesDists));
 			}
 		}
 	}
@@ -863,27 +859,6 @@ public class AssemblyGraph {
 		for(int j=0;j<n2;j++) averageF+=numbers.get(j);
 		averageF/=n2;
 		return Math.min(median, averageF);
-	}
-	private Map<Integer, Distribution> calculateLengthSumDists() {
-		Map<Integer, Distribution> byLengthDistributions = new TreeMap<Integer, Distribution>();
-		List<AssemblyEdge> edges = getEdges();
-		for(AssemblyEdge edge:edges) {
-			if (edge.isSameSequenceEdge()) continue;
-			int key = edge.getLengthSum();
-			key/=1000;
-			Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
-			dist.processDatapoint(edge.getIndelsPerKbp());
-		}
-		for (List<AssemblyEmbedded> embeddedList:embeddedMapBySequence.values()) {
-			for(AssemblyEmbedded embedded:embeddedList) {
-				int key = embedded.getLengthSum();
-				key/=1000;
-				Distribution dist = byLengthDistributions.computeIfAbsent(key, v->new Distribution(0, 100, 1));
-				dist.processDatapoint(embedded.getIndelsPerKbp());
-				
-			}
-		}
-		return byLengthDistributions;
 	}
 	
 }

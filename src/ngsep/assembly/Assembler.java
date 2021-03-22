@@ -140,7 +140,17 @@ public class Assembler {
 	public void setWindowLength(String value) {
 		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-
+	
+	public int getMinReadLength() {
+		return minReadLength;
+	}
+	public void setMinReadLength(int minReadLength) {
+		this.minReadLength = minReadLength;
+	}
+	public void setMinReadLength(String value) {
+		setMinReadLength((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public byte getInputFormat() {
 		return inputFormat;
 	}

@@ -31,7 +31,7 @@ import ngsep.math.Distribution;
  *
  */
 public class AssemblySequencesRelationshipFilter {
-	private int debugIdx = 107302;
+	private int debugIdx = -1;
 	//Initial edge filtering
 	public void filterEdgesAndEmbedded(AssemblyGraph graph, double minScoreProportionEdges) {
 		Distribution lengthsDistribution = new Distribution(0, graph.getSequenceLength(0), 1);
