@@ -94,7 +94,7 @@ public class AssemblySequencesRelationshipFilter {
 			minCostE = Math.min(minCostE, edge.getCost());
 		}
 		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" min cost: "+minCostE);
-		//double minScoreFilterEdges = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
+		//double limitS = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
 		double limitS = minScoreProportionEdges*maxScoreS;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -106,7 +106,7 @@ public class AssemblySequencesRelationshipFilter {
 				graph.removeEdge(edge);
 			}
 		}
-		
+		//double limitE = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
 		double limitE = minScoreProportionEdges*maxScoreE;
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
@@ -159,14 +159,14 @@ public class AssemblySequencesRelationshipFilter {
 	}
 	private boolean filterEmbeddedByScore(AssemblyGraph graph, int sequenceId,int medianLength, NormalDistribution distLengths, int maxScoreEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
-		//double medianRelationship = 1.0*sequenceLength/(double)medianLength;
+		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
 		//double minScoreProportionEmbedded = 0.8;
 		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
-		//double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
-		double minScoreProportionEmbedded = Math.min(0.8, distLengths.cumulative(sequenceLength));
+		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
+		//double minScoreProportionEmbedded = Math.min(0.8, distLengths.cumulative(sequenceLength));
 		//double minScoreProportionEmbedded = 0.8*cumulative;
 		//This can be improved if the graph is completely calculated
-		if(minScoreProportionEmbedded<0.3) minScoreProportionEmbedded = 0.3;
+		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		
 		double scoreLimit = minScoreProportionEmbedded*maxScoreEdges;

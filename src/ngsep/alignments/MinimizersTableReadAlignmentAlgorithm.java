@@ -365,7 +365,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				//Penalize up to 3 bp for each inconsistency
 				//if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
-				if(subjectNextLength!=queryNextLength) numIndels+=Math.min(Math.abs(queryNextLength-subjectNextLength),3);
+				int diff = Math.abs(queryNextLength-subjectNextLength);
+				if(diff>1) numIndels+=Math.min(diff,5);
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);

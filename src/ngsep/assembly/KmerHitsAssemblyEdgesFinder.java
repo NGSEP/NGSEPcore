@@ -74,7 +74,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		long cumulativeReadDepth = 0;
 		long expectedAssemblyLength = graph.getExpectedAssemblyLength();
 		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
-		boolean extensiveSearch = cumulativeReadDepth<50*graph.getPloidy();
+		boolean extensiveSearch = cumulativeReadDepth<100*graph.getPloidy();
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" cumulative length: "+graph.getCumulativeLength(queryIdx)+" cumulative rd: "+cumulativeReadDepth+" expected assembly length: "+expectedAssemblyLength+" ploidy: "+graph.getPloidy()+" extensive search: "+extensiveSearch);
 		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);

@@ -736,17 +736,17 @@ public class AssemblyGraph {
 		Distribution overlapDistributionSafe = new Distribution(0, 100000, 1000);
 		Distribution cskDistributionSafe = new Distribution(0, 100000, 1000);
 		Distribution wcskDistributionSafe = new Distribution(0, 100000, 1000);
-		Distribution wcskpDistributionSafe = new Distribution(0, 1.5, 0.02);
+		Distribution overlapSDDistributionSafe = new Distribution(0, 500, 10);
 		Distribution evPropDistributionSafe = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionSafe = new Distribution(0, 100, 1);
-		Distribution [] distsSafe = {overlapDistributionSafe, cskDistributionSafe, wcskDistributionSafe, wcskpDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
+		Distribution [] distsSafe = {overlapDistributionSafe, cskDistributionSafe, wcskDistributionSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
 		Distribution overlapDistributionAll = new Distribution(0, 100000, 1000);
 		Distribution cskDistributionAll = new Distribution(0, 100000, 1000);
 		Distribution wcskDistributionAll = new Distribution(0, 100000, 1000);
-		Distribution wcskpDistributionAll = new Distribution(0, 1.5, 0.02);
+		Distribution overlapSDDistributionAll = new Distribution(0, 50, 10);
 		Distribution evPropDistributionAll = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionAll = new Distribution(0, 100, 1);
-		Distribution [] distsAll = {overlapDistributionAll, cskDistributionAll, wcskDistributionAll, wcskpDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
+		Distribution [] distsAll = {overlapDistributionAll, cskDistributionAll, wcskDistributionAll, overlapSDDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
 		List<AssemblyEdge> edges = getEdges();
 		for(AssemblyEdge edge:edges) {
 			if (edge.isSameSequenceEdge()) continue;
@@ -754,14 +754,14 @@ public class AssemblyGraph {
 			overlapDistributionAll.processDatapoint(overlap);
 			cskDistributionAll.processDatapoint(edge.getCoverageSharedKmers());
 			wcskDistributionAll.processDatapoint(edge.getWeightedCoverageSharedKmers());
-			wcskpDistributionAll.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(overlap+1));
+			overlapSDDistributionAll.processDatapoint((double)edge.getOverlapStandardDeviation());
 			evPropDistributionAll.processDatapoint(edge.getEvidenceProportion());
 			indelsKbpDistributionAll.processDatapoint(edge.getIndelsPerKbp());
 			if (isSafeEdge(edge, repetitiveVertices)) {
 				overlapDistributionSafe.processDatapoint(overlap);
 				cskDistributionSafe.processDatapoint(edge.getCoverageSharedKmers());
 				wcskDistributionSafe.processDatapoint(edge.getWeightedCoverageSharedKmers());
-				wcskpDistributionSafe.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(overlap+1));
+				overlapSDDistributionSafe.processDatapoint((double)edge.getOverlapStandardDeviation());
 				evPropDistributionSafe.processDatapoint(edge.getEvidenceProportion());
 				indelsKbpDistributionSafe.processDatapoint(edge.getIndelsPerKbp());
 			}
@@ -797,7 +797,7 @@ public class AssemblyGraph {
 		System.out.println("Average overlap: "+edgesDists[0].getMean()+" SD: "+Math.sqrt(edgesDists[0].getVariance()));
 		System.out.println("Average coverage shared kmers: "+edgesDists[1].getMean()+" SD: "+Math.sqrt(edgesDists[1].getVariance()));
 		System.out.println("Average weighted coverage shared kmers: "+edgesDists[2].getMean()+" SD: "+Math.sqrt(edgesDists[2].getVariance()));
-		System.out.println("Average weighted coverage proportion: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
+		System.out.println("Average overlap standard deviation: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));
 		Map<Integer,Distribution> byLengthSumIKBPDists = calculateLengthSumDists();

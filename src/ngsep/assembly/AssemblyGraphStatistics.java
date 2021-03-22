@@ -108,7 +108,7 @@ public class AssemblyGraphStatistics {
 	private Distribution distWCovSharedKmersTPPathEdges = new Distribution(0, 30000, 500);
 	private Distribution distSharedKmersProportionTPPathEdges = new Distribution(0, 1.1, 0.01);
 	private Distribution distCoverageSharedKmersProportionTPPathEdges = new Distribution(0, 1.1, 0.01);
-	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 2000, 100);
+	private Distribution distOverlapSDTPPathEdges = new Distribution(0, 500, 10);
 	private Distribution distNumIndelsTPPathEdges = new Distribution(0,500,10);
 	private Distribution distIndelsKbpTPPathEdges = new Distribution(0,50,1);
 	
@@ -121,7 +121,7 @@ public class AssemblyGraphStatistics {
 	private Distribution distWCovSharedKmersFPEdges = new Distribution(0, 30000, 500);
 	private Distribution distSharedKmersProportionFPEdges = new Distribution(0, 1.1, 0.01);
 	private Distribution distCoverageSharedKmersProportionFPEdges = new Distribution(0, 1.1, 0.01);
-	private Distribution distOverlapSDFPEdges = new Distribution(0, 2000, 100);
+	private Distribution distOverlapSDFPEdges = new Distribution(0, 500, 10);
 	private Distribution distNumIndelsFPEdges = new Distribution(0,500,10);
 	private Distribution distIndelsKbpFPEdges = new Distribution(0,50,1);
 	
@@ -354,16 +354,22 @@ public class AssemblyGraphStatistics {
 			out.println("Vertex degree distribution");
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
+			log.info("Updating scores");
 			graph.updateScores();
+			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
 			printStatistics(out);
 			resetStatistics();
+			log.info("Removing vertices chimeric reads");
 			graph.removeVerticesChimericReads();
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 			//graph.updateScores(useIndels);
+			log.info("Filtering edges and embedded");
 			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+			log.info("Updating scores after filtering");
 			graph.updateScores();
+			log.info("Building layout");
 			LayoutBuilder pathsFinder;
 			if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
@@ -376,6 +382,7 @@ public class AssemblyGraphStatistics {
 			pathsFinder.findPaths(graph);
 			if(goldStandardGraph!=null) {
 				//logErrors=true;
+				log.info("Comparing graph and layout");
 				compareGraphs(goldStandardGraph, graph, out);
 				//logErrors = true;
 				compareLayouts(goldStandardGraph, graph, out);
@@ -673,8 +680,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==6086 || gsVertex.getSequenceIndex()==4208 || gsVertex.getSequenceIndex()==4605;
-		//boolean debug = gsVertex.getSequenceIndex()==794601 || gsVertex.getSequenceIndex()==86838 || gsVertex.getSequenceIndex()==196659; 
+		//boolean debug = gsVertex.getSequenceIndex()==57046 || gsVertex.getSequenceIndex()==14839 || gsVertex.getSequenceIndex()==100;
+		//boolean debug = gsVertex.getSequenceIndex()==35192 || gsVertex.getSequenceIndex()==38102 || gsVertex.getSequenceIndex()==65352; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
