@@ -343,7 +343,7 @@ public class MinimizersTable {
 		int idxDebug = -2;
 		//int idxDebug = 1;
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
-		int limitSequences = 20*mode;
+		int limitSequences = 5*mode;
 		Set<Long> uniqueCodes = new HashSet<Long>();
 		uniqueCodes.addAll(codes.values());
 		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
