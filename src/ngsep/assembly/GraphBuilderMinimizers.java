@@ -128,6 +128,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		//Distribution minimizerHitsDist = table.calculateDistributionHits();
 		//minimizerHitsDist.printDistributionInt(System.out);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
+		//edgesFinder.setCompleteAlignment(true);
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
 		
@@ -168,10 +169,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		long time4 = System.currentTimeMillis();
 		diff = (time4-time3)/1000;
 		log.info("Built minimizers for the remaining non embedded sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory);
-		
+		edgesFinder.setCompleteAlignment(false);
+		edgesFinder.setExtensiveSearch(true);
 		
 		ThreadPoolExecutor poolSearch2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
+			if(relationshipsPerSequence.get(seqId)!=null) continue;
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
@@ -227,6 +230,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		for(AssemblySequencesRelationship rel:rels) {
 			if(rel instanceof AssemblyEmbedded) {
 				AssemblyEmbedded embedded = (AssemblyEmbedded)rel;
+				//if(embedded.getAlignment()!=null ) return true;
 				if(embedded.getEvidenceProportion()>0.98 && embedded.getIndelsPerKbp()<10 && embedded.getWeightedCoverageSharedKmers()>0.5*embedded.getRead().getLength()) return true;
 			}
 		}

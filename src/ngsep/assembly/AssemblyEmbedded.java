@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import ngsep.alignments.ReadAlignment;
 import ngsep.main.io.ParseUtils;
 import ngsep.sequences.QualifiedSequence;
 
@@ -46,6 +47,7 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	private int sequenceEvidenceStart;
 	private int sequenceEvidenceEnd;
 	private int numMismatches = -1;
+	private ReadAlignment alignment = null;
 	
 	private int score;
 	private int cost;
@@ -223,6 +225,15 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	public void setCost(int cost) {
 		this.cost = cost;
 	}
+	
+	
+	public ReadAlignment getAlignment() {
+		return alignment;
+	}
+	public void setAliginment(ReadAlignment aln) {
+		this.alignment = aln;
+	}
+
 
 	public String toString () {
 		double evProp1 = ((double)(sequenceEvidenceEnd-sequenceEvidenceStart)/(read.getLength()+1));

@@ -22,9 +22,11 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private double minProportionEvidence = 0;
 	
-	private double proportionFullAlignment = 0;
-	
 	private int idxDebug = -1;
+	
+	private boolean extensiveSearch = false;
+	
+	private boolean completeAlignment = false;
 	
 	
 	
@@ -42,6 +44,22 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	public void setMinProportionOverlap(double minProportionOverlap) {
 		this.minProportionOverlap = minProportionOverlap;
+	}
+	
+	public boolean isExtensiveSearch() {
+		return extensiveSearch;
+	}
+
+	public void setExtensiveSearch(boolean extensiveSearch) {
+		this.extensiveSearch = extensiveSearch;
+	}
+
+	public boolean isCompleteAlignment() {
+		return completeAlignment;
+	}
+
+	public void setCompleteAlignment(boolean completeAlignment) {
+		this.completeAlignment = completeAlignment;
 	}
 
 	public List<AssemblySequencesRelationship> inferRelationshipsFromKmerHits(int queryIdx, CharSequence queryF, CharSequence queryR, Map<Integer, List<UngappedSearchHit>> hitsForward, Map<Integer, List<UngappedSearchHit>> hitsReverse, double compressionFactor ) {
@@ -71,11 +89,6 @@ public class KmerHitsAssemblyEdgesFinder {
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
 		}
-		long cumulativeReadDepth = 0;
-		long expectedAssemblyLength = graph.getExpectedAssemblyLength();
-		if(expectedAssemblyLength>0) cumulativeReadDepth = graph.getCumulativeLength(queryIdx)/expectedAssemblyLength;
-		boolean extensiveSearch = cumulativeReadDepth<300*graph.getPloidy();
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" cumulative length: "+graph.getCumulativeLength(queryIdx)+" cumulative rd: "+cumulativeReadDepth+" expected assembly length: "+expectedAssemblyLength+" ploidy: "+graph.getPloidy()+" extensive search: "+extensiveSearch);
 		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
@@ -252,10 +265,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		double proportionEvidence = cluster.getSubjectEvidenceEnd()-cluster.getSubjectEvidenceStart();
 		proportionEvidence/=queryLength;
 		
-		int totalSequences = graph.getNumSequences();
 		ReadAlignment aln = null;
 		if(querySequenceId==idxDebug) System.out.println("Candidate embedded: "+subjectSeqIdx+" "+subjectSequence.getName()+" propEv "+proportionEvidence);
-		if(querySequenceId<proportionFullAlignment*totalSequences && proportionEvidence>0.9) {
+		if(completeAlignment) {
 			if(querySequenceId==idxDebug) System.out.println("Performing complete alignment for embedded candidate: "+querySequenceId+" "+graph.getSequence(querySequenceId).getName()+" subject: "+subjectSeqIdx+" "+subjectSequence.getName());
 			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
@@ -282,7 +294,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		embeddedEvent.setRawKmerHits(cluster.getRawKmerHits());
 		embeddedEvent.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
-		
+		boolean answer = false;
 		if(aln!=null) {
 			embeddedEvent.setHostEvidenceStart(aln.getFirst()-1);
 			embeddedEvent.setHostEvidenceEnd(aln.getLast());
@@ -292,6 +304,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			embeddedEvent.setCoverageSharedKmers(aln.getCoverageSharedKmers());
 			embeddedEvent.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
 			embeddedEvent.setNumIndels(aln.getTotalLengthIndelCalls());
+			embeddedEvent.setAliginment(aln);
+			answer = embeddedEvent.getEvidenceProportion()>0.98 && embeddedEvent.getIndelsPerKbp()<10 && embeddedEvent.getWeightedCoverageSharedKmers()>0.5*queryLength ;
 		} else {
 			embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 			embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
@@ -315,7 +329,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		relationships.add(embeddedEvent);
 		
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
-		return proportionEvidence>0.98;
+		return answer;
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, KmerHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
@@ -327,10 +341,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		double proportionEvidence = cluster.getSubjectEvidenceEnd()-cluster.getSubjectEvidenceStart();
 		proportionEvidence/=overlap;
 		
-		int totalSequences = graph.getNumSequences();
 		ReadAlignment aln = null;
 		if(querySequenceId==idxDebug) System.out.println("Candidate edge: "+subjectSeqIdx+" "+graph.getSequence(subjectSeqIdx).getName()+" propEv "+proportionEvidence+" overlap: "+overlap+" qlen: "+queryLength+" prop: "+overlap/queryLength);
-		if(querySequenceId<proportionFullAlignment*totalSequences && proportionEvidence>0.9 && overlap>0.8*queryLength) {
+		if(completeAlignment) {
 			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
 			if(aln==null) {
@@ -396,11 +409,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		int overlap = (int) ((double)cluster.getPredictedOverlap()/compressionFactor);
 		double proportionEvidence = cluster.getSubjectEvidenceEnd()-cluster.getSubjectEvidenceStart();
 		proportionEvidence/=overlap;
-		
-		int totalSequences = graph.getNumSequences();
+
 		ReadAlignment aln = null;
 		if(querySequenceId==idxDebug) System.out.println("Candidate edge: "+subjectSeqIdx+" "+graph.getSequence(subjectSeqIdx).getName()+" propEv "+proportionEvidence+" overlap: "+overlap+" qlen: "+queryLength+" prop: "+overlap/queryLength);
-		if(querySequenceId<proportionFullAlignment*totalSequences && proportionEvidence>0.9 && overlap>0.8*queryLength) {
+		if(completeAlignment) {
 			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
 			if(aln==null) {
