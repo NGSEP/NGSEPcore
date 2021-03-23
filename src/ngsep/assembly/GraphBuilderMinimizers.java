@@ -8,7 +8,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import ngsep.math.Distribution;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.UngappedSearchHit;
@@ -128,7 +127,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		//Distribution minimizerHitsDist = table.calculateDistributionHits();
 		//minimizerHitsDist.printDistributionInt(System.out);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		//edgesFinder.setCompleteAlignment(true);
+		edgesFinder.setExtensiveSearch(false);
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
 		
@@ -174,7 +173,6 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		ThreadPoolExecutor poolSearch2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (int seqId = 0; seqId < sequences.size(); seqId++) {
-			if(relationshipsPerSequence.get(seqId)!=null) continue;
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
@@ -202,19 +200,25 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 	
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
-		List<AssemblySequencesRelationship> answer;
 		try {
-			Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
-			Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
-			String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-			Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
-			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
-			answer = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-			if(!onlyEmbedded || containsGoodEmbedded(answer)) relationshipsPerSequence.set(seqId, answer);
+			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);  
+			if(rels==null) {
+				Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
+				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
+				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
+				Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
+				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
+				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
+				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
+				else {
+					rels = selectGoodEmbedded(rels);
+					if(rels.size()>0) relationshipsPerSequence.set(seqId, rels);
+				}
+			}
 			if ((seqId)%1000==0) {
 				int edges = 0;
 				int embedded = 0;
-				for(AssemblySequencesRelationship next:answer) {
+				for(AssemblySequencesRelationship next:rels) {
 					if(next instanceof AssemblyEmbedded) embedded++;
 					if(next instanceof AssemblyEdge) edges++;
 				}
@@ -226,15 +230,16 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			throw e;
 		}
 	}
-	private boolean containsGoodEmbedded(List<AssemblySequencesRelationship> rels) {
+	private List<AssemblySequencesRelationship> selectGoodEmbedded(List<AssemblySequencesRelationship> rels) {
+		List<AssemblySequencesRelationship> answer = new ArrayList<AssemblySequencesRelationship>();
 		for(AssemblySequencesRelationship rel:rels) {
 			if(rel instanceof AssemblyEmbedded) {
 				AssemblyEmbedded embedded = (AssemblyEmbedded)rel;
 				//if(embedded.getAlignment()!=null ) return true;
-				if(embedded.getEvidenceProportion()>0.98 && embedded.getIndelsPerKbp()<10 && embedded.getWeightedCoverageSharedKmers()>0.5*embedded.getRead().getLength()) return true;
+				if(embedded.getEvidenceProportion()>0.99 && embedded.getIndelsPerKbp()<10 && embedded.getWeightedCoverageSharedKmers()>0.5*embedded.getRead().getLength()) answer.add(embedded);
 			}
 		}
-		return false;
+		return answer;
 	}
 	private void addRelationshipsToGraph(AssemblyGraph graph, List<List<AssemblySequencesRelationship>> relationshipsPerSequence, Runtime runtime) {
 		int n = relationshipsPerSequence.size();

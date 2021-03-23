@@ -294,7 +294,6 @@ public class KmerHitsAssemblyEdgesFinder {
 		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		embeddedEvent.setRawKmerHits(cluster.getRawKmerHits());
 		embeddedEvent.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
-		boolean answer = false;
 		if(aln!=null) {
 			embeddedEvent.setHostEvidenceStart(aln.getFirst()-1);
 			embeddedEvent.setHostEvidenceEnd(aln.getLast());
@@ -305,7 +304,6 @@ public class KmerHitsAssemblyEdgesFinder {
 			embeddedEvent.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
 			embeddedEvent.setNumIndels(aln.getTotalLengthIndelCalls());
 			embeddedEvent.setAliginment(aln);
-			answer = embeddedEvent.getEvidenceProportion()>0.98 && embeddedEvent.getIndelsPerKbp()<10 && embeddedEvent.getWeightedCoverageSharedKmers()>0.5*queryLength ;
 		} else {
 			embeddedEvent.setHostEvidenceStart(cluster.getSubjectEvidenceStart());
 			embeddedEvent.setHostEvidenceEnd(cluster.getSubjectEvidenceEnd());
@@ -329,7 +327,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		relationships.add(embeddedEvent);
 		
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
-		return answer;
+		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<10 && embeddedEvent.getWeightedCoverageSharedKmers()>0.5*embeddedEvent.getRead().getLength();
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, KmerHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
