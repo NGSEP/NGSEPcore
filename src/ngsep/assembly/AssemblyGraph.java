@@ -602,7 +602,7 @@ public class AssemblyGraph {
 				numCrossing++;
 			}
 		}
-		double limitEvProp = 0.9;
+		double limitEvProp = 0.8;
 		double limitIKBP = 50;
 		
 		double maxEvPropS = 0;
@@ -654,7 +654,7 @@ public class AssemblyGraph {
 			return true;
 		} else if ((countGoodOverlapS > 5 && countPassS <= 0.05*countGoodOverlapS+1) || (countGoodOverlapE>5 && countPassE <= 0.05*countGoodOverlapE+1)) {
 			System.out.println("Possible dangling end identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
-			return true;
+			//return true;
 		}
 		
 		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
@@ -780,7 +780,7 @@ public class AssemblyGraph {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
 			if(i==5 && mean < distsAll[i].getAverage()) mean = distsAll[i].getAverage();
-			if(i==5 && mean < 3) mean = 3;
+			//if(i==5 && mean < 3) mean = 3;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
 			if(i==5 && stdev < mean) stdev = mean;
 			if(i==4 && stdev < 0.03) stdev = 0.03;
@@ -803,7 +803,7 @@ public class AssemblyGraph {
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));
 		Map<Integer,Double> averageIKBPVertices = new HashMap<Integer, Double>();
 		Map<Integer,Double> averageIKBPEmbedded = new HashMap<Integer, Double>();
-		double limit = Math.max(15,edgesDists[5].getMean()+3*Math.sqrt(edgesDists[5].getVariance()));
+		double limit = Math.max(5,edgesDists[5].getMean()+3*Math.sqrt(edgesDists[5].getVariance()));
 		int n = sequences.size();
 		for(int i=0;i<n;i++) {
 			AssemblyVertex v1 = getVertex(i, true);
@@ -819,7 +819,7 @@ public class AssemblyGraph {
 			
 			if(avgV1>limit || avgV2>limit) {
 				System.out.println("Large IKBP "+avgV1+" "+avgV2+" "+avgEmbedded+" for sequence: "+i+" "+getSequence(i).getName()+" Global average: "+edgesDists[5].getMean());
-				removeVertices(i);
+				//removeVertices(i);
 			}
 			averageIKBPVertices.put(v1.getUniqueNumber(), avgV1);
 			averageIKBPVertices.put(v2.getUniqueNumber(), avgV2);

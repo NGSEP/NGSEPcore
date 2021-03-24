@@ -169,7 +169,8 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	}
 	
 	public double getIndelsPerKbp () {
-		return 1000.0*(numIndels+1) / (double)(overlap+1);
+		//return 1000.0*(numIndels+1) / (double)(overlap+1);
+		return 1000.0*(numIndels+1) / (getEvidenceProportion()*(overlap+1));
 	}
 
 	public int getVertex1EvidenceStart() {
@@ -267,7 +268,7 @@ public class AssemblyEdge implements AssemblySequencesRelationship {
 	public String toString() {
 		double evProp1 = ((double)(vertex1EvidenceEnd-vertex1EvidenceStart)/(overlap+1));
 		double evProp2 = ((double)(vertex2EvidenceEnd-vertex2EvidenceStart)/(overlap+1));
-		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+evProp1+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+ParseUtils.ENGLISHFMT.format(evProp2)+" Score: "+score+" cost: "+cost+" Indels: "+numIndels+" IKBP: "+ParseUtils.ENGLISHFMT.format(getIndelsPerKbp())+ "layout: "+layoutEdge;
+		return System.lineSeparator()+"v1 "+getVertex1()+" v2: "+getVertex2()+" OV: "+getOverlap()+" CSK: "+getCoverageSharedKmers()+" WCSK: "+getWeightedCoverageSharedKmers()+" Ev1: "+vertex1EvidenceStart+" "+vertex1EvidenceEnd+" "+evProp1+" Ev2: "+vertex2EvidenceStart+" "+vertex2EvidenceEnd+" "+ParseUtils.ENGLISHFMT.format(evProp2)+" Score: "+score+" cost: "+cost+" Indels: "+numIndels+" IKBP: "+ParseUtils.ENGLISHFMT.format(getIndelsPerKbp())+ " layout: "+layoutEdge;
 	}
 	
 

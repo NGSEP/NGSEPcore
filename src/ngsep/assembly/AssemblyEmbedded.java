@@ -158,7 +158,8 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	}
 	
 	public double getIndelsPerKbp () {
-		return 1000.0*(numIndels+1) / (double)(hostEnd-hostStart+1);
+		//return 1000.0*(numIndels+1) / (double)(hostEnd-hostStart+1);
+		return 1000.0*(numIndels+1) / (getEvidenceProportion()*(getOverlap()+1));
 	}
 
 	public int getHostEvidenceStart() {

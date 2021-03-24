@@ -167,7 +167,6 @@ public class AssemblySequencesRelationshipFilter {
 		//double minScoreProportionEmbedded = 0.8*cumulative;
 		//This can be improved if the graph is completely calculated
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
-		//if(medianRelationship>1 && minScoreProportionEmbedded<0.7) minScoreProportionEmbedded = 0.7;
 		
 		double scoreLimit = minScoreProportionEmbedded*maxScoreEdges;
 		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" minscoreprop: "+minScoreProportionEmbedded+" score limit: "+scoreLimit);

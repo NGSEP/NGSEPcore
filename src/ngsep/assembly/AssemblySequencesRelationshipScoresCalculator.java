@@ -34,7 +34,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	private int debugIdx = -1;
 	private Map<Integer,Double> averageIKBPVertices;
 	private Map<Integer,Double> averageIKBPEmbedded;
-	private double alphaIKBP = 0.0001;
+	private double alphaIKBP = 0.01;
 	//private double alphaIKBP = 0;
 	
 	
@@ -51,40 +51,35 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		this.averageIKBPEmbedded = averageIKBPEmbedded;
 	}
 	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
+		NormalDistribution overlapD = edgesDists[0];
 		double evProp = relationship.getEvidenceProportion();
-		double overlapProportion=relationship.getOverlap();
-		double w1 = 1;
-		double w2 = 1;
-		
-		if(relationship instanceof AssemblyEmbedded) {
-			overlapProportion = 1;
-		} else {
-			AssemblyEdge edge = (AssemblyEdge) relationship;
-			int l1 = edge.getVertex1().getRead().getLength();
-			int l2 = edge.getVertex2().getRead().getLength();
-			overlapProportion/=Math.max(l1, l2);
-		}
+		double overlapRel = (double)relationship.getOverlap()/overlapD.getMean();
+		if(overlapRel>1) overlapRel = 1;
 		double maxIKBP = getMaxAverageIKBP (relationship);
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		//double score = relationship.getWeightedCoverageSharedKmers();
 		//double score = relationship.getWeightedCoverageSharedKmers()*evProp;
 		//double score = (relationship.getOverlap()*w1+relationship.getWeightedCoverageSharedKmers()*w2)*evProp;
-		double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers()*evProp;
+		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers();
+		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers();
+		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers()*evProp/Math.sqrt(1+relationship.getIndelsPerKbp());
+		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
+		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers()*evProp;
 		//if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
 		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
 		
-		NormalDistribution globalIKBP = edgesDists[5];
+		/*NormalDistribution globalIKBP = edgesDists[5];
 		double globalMean = globalIKBP.getMean();
 		double avg = Math.max(globalMean, maxIKBP);
 		//Average is not controlled in the chimera detection for embedded relationships
-		if(relationship instanceof AssemblyEmbedded) avg = Math.min(globalMean*2, avg);
+		//if(relationship instanceof AssemblyEmbedded) avg = Math.min(globalMean*2, avg);
 		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,globalIKBP.getVariance()));
 		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
-		if(pValueIKBP>alphaIKBP) pValueIKBP = 0.5;
+		if(pValueIKBP>0.0001) pValueIKBP = 0.5;
 		//pValueIKBP*=2;
-		score*=pValueIKBP;
+		score*=pValueIKBP;*/
 		
 		return (int)Math.round(score);
 	}
@@ -121,30 +116,29 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		int overlap = relationship.getOverlap();
 		double cumulativeOverlap = overlapD.cumulative(overlap);
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
-		//int cost1 = PhredScoreHelper.calculatePhredScore(cumulativeOverlap);
-		double cost1 = 20.0*(1-cumulativeOverlap);
+		int cost1 = PhredScoreHelper.calculatePhredScore(Math.min(0.5, cumulativeOverlap));
+		//double cost1 = 20.0*(1-cumulativeOverlap);
 		
 		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
 		double cost2 = 100.0*(1-cumulativeCSK);
 		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
 		//double cost3 = 100.0*(1-cumulativeWCSK);
 		
-		int cost3 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, cumulativeWCSK));
+		int cost3 = PhredScoreHelper.calculatePhredScore(Math.min(0.5, cumulativeWCSK));
 		
 		//TODO: Save overlapSD for embedded 
 		double pValueOverlapSD = 0.5;
 		if(relationship instanceof AssemblyEdge) pValueOverlapSD = 1-overlapSD.cumulative(((AssemblyEdge)relationship).getOverlapStandardDeviation());
-		if(pValueOverlapSD>0.05) pValueOverlapSD = 0.5;
-		int cost4 = PhredScoreHelper.calculatePhredScore(pValueOverlapSD);
+		int cost4 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, pValueOverlapSD));
 		
-		double pValueEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
-		if(pValueEvProp>0.05) pValueEvProp = 0.5;
-		int cost5 = PhredScoreHelper.calculatePhredScore(pValueEvProp);
+		double cumulativeEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
+		int cost5 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, cumulativeEvProp));
 		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
 		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
 		
-		if(pValueIKBP>alphaIKBP) pValueIKBP = 0.5;
-		int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
+		//if(pValueIKBP>alphaIKBP) pValueIKBP = 0.5;
+		//int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
+		double cost6 = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
 		
 		double costD = 0;
 		costD+=cost1;
@@ -155,12 +149,12 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		costD += cost6;
 		//costD/=relationship.getEvidenceProportion();
 		
-		int cost = (int)(100.0*costD);
+		int cost = (int)(1000.0*costD);
 		
-		//cost+= (int) (1000000*(1-pValueOTP)*(1-pValueCTP));
+		cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+pValueEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Rel: "+relationship);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Rel: "+relationship);
 		
 		return cost;
 	}
