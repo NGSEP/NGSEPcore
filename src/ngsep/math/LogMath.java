@@ -64,14 +64,28 @@ public class LogMath {
 	}
 	/**
 	 * Takes the 10-base logarithm of the given value
-	 * @param prob Value to take the logarithm
+	 * @param value Value to take the logarithm
 	 * @return Double log10(value). Null if value is less or equal than zero
 	 */
 	public static Double log10 (double value) {
 		if(value > 0) return Math.log10(value);
 		else return null;
 	}
-
+	
+	/**
+	 * Takes the negative of the 10-base logarithm of the given value
+	 * @param value Value to take the logarithm. It must be greater or equal than zero
+	 * @param maxValue Maximum value that the function can return
+	 * @return double Minimum between maxValue and -log10(value)
+	 */
+	public static double negativeLog10WithLimit (double value, double maxValue) {
+		if(value == 0) return maxValue;
+		else return Math.min(maxValue, -Math.log10(value));
+	}
+	/**
+	 * Divides the values whose logarithms are given by their sum to transform the array in a probability distribution
+	 * @param logProbs Logarithms of positive values
+	 */
 	public static void normalizeLogs(Double[] logProbs) {
 		Double total = null;
 		int n = logProbs.length;

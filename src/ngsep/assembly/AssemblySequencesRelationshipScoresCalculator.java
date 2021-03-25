@@ -22,8 +22,7 @@ package ngsep.assembly;
 import java.util.Map;
 
 import JSci.maths.statistics.NormalDistribution;
-import ngsep.math.Distribution;
-import ngsep.math.PhredScoreHelper;
+import ngsep.math.LogMath;
 
 /**
  * 
@@ -34,8 +33,6 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	private int debugIdx = -1;
 	private Map<Integer,Double> averageIKBPVertices;
 	private Map<Integer,Double> averageIKBPEmbedded;
-	private double alphaIKBP = 0.01;
-	//private double alphaIKBP = 0;
 	
 	
 	public Map<Integer, Double> getAverageIKBPVertices() {
@@ -109,52 +106,49 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double maxIKBP = getMaxAverageIKBP(relationship);
 		double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
-		//double prop = (double)edge.getCoverageSharedKmers()/edge.getOverlap();
-		//int cost = (int)Math.round(1000*(1.5-prop));
-		//return cost;
-		//NormalDistribution niTP = new NormalDistribution(200,40000);
-		int overlap = relationship.getOverlap();
-		double cumulativeOverlap = overlapD.cumulative(overlap);
+		int maxIndividualCost = 10;
+		double [] individualCosts = new double[6];
+		double [] limitPValues = {1,1,0.5,0.05,0.05,0.05};
+		double [] weights = {1,0,1,0,1,0};
+		
+		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
-		int cost1 = PhredScoreHelper.calculatePhredScore(Math.min(0.5, cumulativeOverlap));
-		//double cost1 = 20.0*(1-cumulativeOverlap);
+		individualCosts[0] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[0],cumulativeOverlap),maxIndividualCost);
+		//double cost1 = maxIndividualCost*(1-cumulativeOverlap);
 		
 		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
-		double cost2 = 100.0*(1-cumulativeCSK);
-		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
-		//double cost3 = 100.0*(1-cumulativeWCSK);
+		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],1-cumulativeCSK),maxIndividualCost);
 		
-		int cost3 = PhredScoreHelper.calculatePhredScore(Math.min(0.5, cumulativeWCSK));
+		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
+		//individualCosts[2] = maxIndividualCost*(1-cumulativeWCSK);
+		
+		individualCosts[2] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[2], cumulativeWCSK),maxIndividualCost);
 		
 		//TODO: Save overlapSD for embedded 
 		double pValueOverlapSD = 0.5;
 		if(relationship instanceof AssemblyEdge) pValueOverlapSD = 1-overlapSD.cumulative(((AssemblyEdge)relationship).getOverlapStandardDeviation());
-		int cost4 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, pValueOverlapSD));
+		individualCosts[3] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[3], pValueOverlapSD),maxIndividualCost);
 		
 		double cumulativeEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
-		int cost5 = PhredScoreHelper.calculatePhredScore(Math.min(0.05, cumulativeEvProp));
-		//double cost5 = 100.0*(1.0-relationship.getEvidenceProportion());
-		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
+		individualCosts[4] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[4], cumulativeEvProp),maxIndividualCost);
+		//individualCosts[4] = 100.0*(1.0-relationship.getEvidenceProportion());
 		
-		//if(pValueIKBP>alphaIKBP) pValueIKBP = 0.5;
-		//int cost6 = PhredScoreHelper.calculatePhredScore(pValueIKBP);
-		double cost6 = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
+		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
+		individualCosts[5] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[5],maxIndividualCost),maxIndividualCost);
+		//individualCosts[5] = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
+		
 		
 		double costD = 0;
-		costD+=cost1;
-		//cost += cost2;
-		costD += cost3;
-		//costD += cost4;
-		costD += cost5;
-		costD += cost6;
-		//costD/=relationship.getEvidenceProportion();
+		for(int i=0;i<weights.length;i++) {
+			costD+=individualCosts[i]*weights[i];
+		}
 		
 		int cost = (int)(1000.0*costD);
 		
-		cost+= (int) (100.0*(1-cumulativeOverlap));
+		//cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+cost1+" "+cost3+" "+cost4+" "+cost5+" "+cost6+" cost: " +cost+ " Rel: "+relationship);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[2]+" "+individualCosts[3]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost+ " Rel: "+relationship);
 		
 		return cost;
 	}
