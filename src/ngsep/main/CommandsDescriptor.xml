@@ -261,10 +261,6 @@ This option is still in progress and it has been tested only in haploid and dipl
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.
 </option>
  
-<option id="c" type="BOOLEAN" attribute="correctReads">
-For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
-Ignored for other consensus algorithms
-</option>
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
@@ -272,6 +268,10 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
 -->
+<option id="c" type="BOOLEAN" attribute="correctReads">
+For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
+Ignored for other consensus algorithms
+</option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads
 </option>

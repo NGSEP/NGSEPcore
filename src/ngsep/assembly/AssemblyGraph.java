@@ -766,6 +766,12 @@ public class AssemblyGraph {
 				indelsKbpDistributionSafe.processDatapoint(edge.getIndelsPerKbp());
 			}
 		}
+		System.out.println("Dist overlap");
+		overlapDistributionAll.printDistribution(System.out);
+		System.out.println("Dist WCSK");
+		wcskDistributionAll.printDistribution(System.out);
+		System.out.println("Dist ev prop");
+		evPropDistributionAll.printDistribution(System.out);
 		double numSafe = overlapDistributionSafe.getCount();
 		System.out.println("Number of safe edges: "+numSafe);
 		NormalDistribution [] answer = new NormalDistribution[distsAll.length];
@@ -776,14 +782,16 @@ public class AssemblyGraph {
 				mean = distsSafe[i].getLocalMode(distsSafe[i].getAverage()/2, distsSafe[i].getAverage()*2);
 			} else if (i<5) {
 				mean = distsAll[i].getLocalMode(distsAll[i].getAverage(), distsAll[i].getMaxValueDistribution());
+				if(i<3) mean*=2;
 			} else {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
 			if(i==5 && mean < distsAll[i].getAverage()) mean = distsAll[i].getAverage();
 			//if(i==5 && mean < 3) mean = 3;
 			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
-			if(i==5 && stdev < mean) stdev = mean;
+			if(i==4) stdev = Math.max(stdev, Math.sqrt(distsAll[i].getVariance()));
 			if(i==4 && stdev < 0.03) stdev = 0.03;
+			if(i==5 && stdev < mean) stdev = mean;
 			double variance = stdev*stdev;
 			if(i<3 && variance <mean) variance = mean; 
 			answer[i] = new NormalDistribution(mean,variance);

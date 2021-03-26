@@ -108,7 +108,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
 		double [] individualCosts = new double[6];
-		double [] limitPValues = {1,1,0.5,0.05,0.05,0.05};
+		double [] limitPValues = {1,1,0.5,0.05,0.05,0.01};
 		double [] weights = {1,0,1,0,1,0};
 		
 		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
@@ -143,7 +143,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 			costD+=individualCosts[i]*weights[i];
 		}
 		
-		int cost = (int)(1000.0*costD);
+		int cost = (int)(10000.0*costD);
 		
 		//cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
