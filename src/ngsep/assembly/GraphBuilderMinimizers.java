@@ -104,11 +104,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		ThreadPoolExecutor poolMinimizers1 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		int seqIdMinimizers = 0;
+		long limit = 3*ploidy*expectedAssemblyLength;
 		long totalLengthMinimizers = 0;
 		while( seqIdMinimizers < sequences.size() ) {
 			QualifiedSequence qseq = sequences.get(seqIdMinimizers);
 			totalLengthMinimizers+=qseq.getLength();
-			if(totalLengthMinimizers>3*expectedAssemblyLength) break;
+			if(totalLengthMinimizers>limit) break;
 			CharSequence seq = qseq.getCharacters();
 			if(numThreads==1) {
 				addSequenceToTable(table, seqIdMinimizers, seq);
@@ -127,7 +128,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		//Distribution minimizerHitsDist = table.calculateDistributionHits();
 		//minimizerHitsDist.printDistributionInt(System.out);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
-		edgesFinder.setExtensiveSearch(false);
+		edgesFinder.setExtensiveSearch(ploidy>1);
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
 		
@@ -212,7 +213,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
 					rels = selectGoodEmbedded(rels);
-					if(rels.size()>0) relationshipsPerSequence.set(seqId, rels);
+					if(rels.size()>=ploidy) relationshipsPerSequence.set(seqId, rels);
 				}
 			}
 			if ((seqId)%1000==0) {

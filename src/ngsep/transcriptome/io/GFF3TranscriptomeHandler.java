@@ -376,7 +376,7 @@ public class GFF3TranscriptomeHandler {
 	public void loadSequences(Transcriptome transcriptome, String filename) throws IOException {
 		FastaSequencesHandler sequencesHandler = new FastaSequencesHandler();
 		sequencesHandler.setSequenceType(DNAMaskedSequence.class);
-		QualifiedSequenceList transcriptSeqs = sequencesHandler.loadSequences(filename);
+		List<QualifiedSequence> transcriptSeqs = sequencesHandler.loadSequences(filename);
 		
 		int n = transcriptSeqs.size();
 		for(int i=0;i<n;i++ ) {

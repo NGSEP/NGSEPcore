@@ -357,7 +357,7 @@ public class HaplotypeReadsClusterCalculator {
 			List<CalledGenomicVariant> hetSNVs = findHeterozygousSNVs(rawConsensus, alignments, sequenceName);
 			countHetSNVs = hetSNVs.size();
 			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetSNVs);
-			if(hetSNVs.size()>2) {
+			if(hetSNVs.size()>0) {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
 				try {
@@ -383,7 +383,9 @@ public class HaplotypeReadsClusterCalculator {
 			return answer;
 		}
 		log.info("Path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
-		if (clusters.size()>2) return mergeClustersWithPath(graph,pathIdx, path,alignments, clusters);
+		answer = mergeClustersNaive(graph,pathIdx, path,alignments, clusters);
+		/*if (clusters.size()>2) return mergeClustersWithPath(graph,pathIdx, path,alignments, clusters);
+		
 		for(List<ReadAlignment> cluster:clusters) {
 			//System.out.println("First cluster");
 			Set<Integer> sequenceIds = new HashSet<Integer>(cluster.size());
@@ -392,7 +394,7 @@ public class HaplotypeReadsClusterCalculator {
 				sequenceIds.add(aln.getReadNumber());
 			}
 			answer.add(sequenceIds);
-		}
+		}*/
 		return answer;
 	}
 
@@ -426,6 +428,32 @@ public class HaplotypeReadsClusterCalculator {
 			e.printStackTrace();
 			return;
 		}
+	}
+	
+	private List<Set<Integer>> mergeClustersNaive(AssemblyGraph graph, int pathIdx, List<AssemblyEdge> path, List<ReadAlignment> alignments, List<List<ReadAlignment>> clusters) {
+		Set<Integer> cluster0 = new HashSet<Integer>();
+		Set<Integer> cluster1 = new HashSet<Integer>();
+		for(int i=0;i<clusters.size();i++) {
+			List<ReadAlignment> clusterAlns = clusters.get(i);
+			for(ReadAlignment aln:clusterAlns) {
+				if(i%2==0) cluster0.add(aln.getReadNumber());
+				else cluster1.add(aln.getReadNumber());
+			}
+			
+		}
+		for(ReadAlignment aln:alignments) {
+			int readId = aln.getReadNumber();
+			if(!cluster0.contains(readId) && !cluster1.contains(readId)) {
+				//Read not spanning heterozygous sites
+				cluster0.add(readId);
+				cluster1.add(readId);
+			}
+		}
+		
+		List<Set<Integer>> answer = new ArrayList<Set<Integer>>();
+		answer.add(cluster0);
+		answer.add(cluster1);
+		return answer;
 	}
 
 	private List<Set<Integer>> mergeClustersWithPath(AssemblyGraph graph, int pathId, List<AssemblyEdge> path, List<ReadAlignment> allAlignments, List<List<ReadAlignment>> clusters) {

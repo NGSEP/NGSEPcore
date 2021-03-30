@@ -36,6 +36,7 @@ import java.util.TreeSet;
  * Special collection for qualified sequences which allows to compare sequence names given an order defined
  * by the index where each sequence is located. Useful to sort and compare genomic regions from different
  * sequences taking into account that the comparison between the names usually is not lexicographical
+ * IMPORTANT: Do not use this class if you wish to allow sequences with repeated ids
  * @author Jorge Duitama
  *
  */

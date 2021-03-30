@@ -49,10 +49,8 @@ public class AssemblySequencesRelationshipFilter {
 			int [] bestValues = filterEdges(graph, seqId, medianLength, minScoreProportionEdges);
 			int maxScore = Math.max(bestValues[0], bestValues[1]);
 			if(bestValues[0]==0 || bestValues[1]==0) {
-				//System.out.println("Zero score for sequence: "+graph.getSequence(seqId).getName());
+				if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
 				graph.removeVertices(seqId);
-				//graph.removeEmbeddedRelations(seqId);
-				//continue;
 				maxScore = 0;
 			}
 			//if(filterEmbeddedByCost(graph, seqId, medianLength, 2*Math.max(bestValues[2], bestValues[3]))) numEmbedded++;
@@ -60,8 +58,9 @@ public class AssemblySequencesRelationshipFilter {
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		graph.pruneEmbeddedSequences();
-		System.out.println("Prunned embedded sequences");
+		System.out.println("Prunned embedded sequences.");
 		//filterEdgesCloseRelationships();
+		//System.out.println("Searched vertex: "+graph.getVertex(debugIdx, false));
 	}
 	
 	private int [] filterEdges (AssemblyGraph graph, int sequenceId,int medianLength, double minScoreProportionEdges) {

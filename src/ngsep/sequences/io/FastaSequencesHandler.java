@@ -22,6 +22,7 @@ package ngsep.sequences.io;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -50,14 +51,15 @@ public class FastaSequencesHandler {
 	 * @param filename Name of the fasta file where sequences must be loaded 
 	 * @throws IOException If the file can not be read
 	 */
-	public QualifiedSequenceList loadSequences(String filename) throws IOException {
-		QualifiedSequenceList answer = new QualifiedSequenceList();
+	public List<QualifiedSequence> loadSequences(String filename) throws IOException {
+		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
 		try (FastaFileReader reader = new FastaFileReader(filename)) {
 			reader.setSequenceType(sequenceType);
 			reader.setKeepLowerCase(keepLowerCase);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			while(it.hasNext()) {
-				answer.add(it.next());
+				QualifiedSequence seq = it.next();
+				answer.add(seq);
 			}
 		}
 		return answer;

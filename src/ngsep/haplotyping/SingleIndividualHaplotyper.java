@@ -234,9 +234,10 @@ public class SingleIndividualHaplotyper {
 		int lastNextBlock = -1;
 		for(ReadAlignment aln:alignments) {
 			//Advance i
+			GenomicVariant firstHetVar = null;
 			while(i<hetCalls.size()) {
-				GenomicVariant firstHetVar = hetCalls.get(i);
-				if(GenomicRegionPositionComparator.getInstance().compare(firstHetVar, aln)>=0) {
+				firstHetVar = hetCalls.get(i);
+				if(firstHetVar.getFirst()==aln.getFirst() || GenomicRegionPositionComparator.getInstance().compare(firstHetVar, aln)>=0) {
 					break;
 				}
 				i++;
@@ -281,7 +282,9 @@ public class SingleIndividualHaplotyper {
 			
 			if(realCalls==0) continue;
 			if(lastNextBlock>=0 && first>lastNextBlock) {
-				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock+" next SNP: "+first+" next alignment: "+aln);
+				CalledGenomicVariant lastCall = hetCalls.get(lastNextBlock);
+				CalledGenomicVariant nextCall = hetCalls.get(first);
+				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock +" "+lastCall.getFirst()+" next SNP: "+first+" "+nextCall.getFirst()+" next alignment: "+aln);
 				if(block.getNumFragments()>0) {	
 					if(algorithm==null) loadAlgorithm();
 					algorithm.buildHaplotype(block);

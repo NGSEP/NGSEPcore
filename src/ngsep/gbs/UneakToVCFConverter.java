@@ -30,7 +30,7 @@ public class UneakToVCFConverter {
 
 	public void process(String hapmapFile, String consensusFile, String outPrefix) throws IOException {
 		FastaSequencesHandler fastaHandler = new FastaSequencesHandler();
-		QualifiedSequenceList seqs = fastaHandler.loadSequences(consensusFile);
+		List<QualifiedSequence> seqs = fastaHandler.loadSequences(consensusFile);
 		List<VCFRecord> records = new ArrayList<VCFRecord>();
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		List<Sample> samples = new ArrayList<Sample>();

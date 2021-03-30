@@ -517,7 +517,7 @@ public class Assembler {
 	 */
 	private List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList seqsQL = handler.loadSequences(filename);
+		List<QualifiedSequence> seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
 		for(QualifiedSequence seq:seqsQL) {
 			if(seq.getLength()>=minReadLength) answer.add(seq);

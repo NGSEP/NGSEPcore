@@ -118,7 +118,7 @@ public class CCDSTranscriptomeHandler {
 	public void loadSequences(Transcriptome transcriptome, String filename) throws IOException {
 		FastaSequencesHandler sequencesHandler = new FastaSequencesHandler();
 		sequencesHandler.setSequenceType(DNAMaskedSequence.class);
-		QualifiedSequenceList sequences = sequencesHandler.loadSequences(filename);
+		List<QualifiedSequence> sequences = sequencesHandler.loadSequences(filename);
 		
 		int n = sequences.size();
 		for(int i=0;i<n;i++ ) {

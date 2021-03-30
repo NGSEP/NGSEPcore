@@ -14,7 +14,6 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.io.FastaSequencesHandler;
 
@@ -25,7 +24,7 @@ public class ContigEndsMerger {
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList contigs = handler.loadSequences(args[0]);
+		List<QualifiedSequence> contigs = handler.loadSequences(args[0]);
 		List<QualifiedSequence> answer = instance.mergeContigs(contigs);
 		handler.saveSequences(answer, System.out, 100);
 	}
