@@ -2,8 +2,10 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
@@ -29,6 +31,7 @@ public class AssemblyPathReadsAligner {
 	//Output
 	private StringBuilder consensus;
 	private List<ReadAlignment> alignedReads;
+	private Set<Integer> unalignedReadIds;
 	
 	
 	
@@ -57,6 +60,10 @@ public class AssemblyPathReadsAligner {
 	public List<ReadAlignment> getAlignedReads() {
 		return alignedReads;
 	}
+	
+	public Set<Integer> getUnalignedReadIds() {
+		return unalignedReadIds;
+	}
 	public void alignPathReads(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx) {
 		int debugIdx = -1;
 		log.info("Aligning reads for path "+pathIdx+" with length: "+path.size());
@@ -64,8 +71,8 @@ public class AssemblyPathReadsAligner {
 		AssemblyVertex lastVertex = null;
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 		alignedReads = new ArrayList<ReadAlignment>();
+		unalignedReadIds = new HashSet<>();
 		int totalReads = 0;
-		int unalignedReads = 0;
 		String pathS = "";
 		if(path.size()==1) {
 			rawConsensus.append(path.get(0).getVertex1().getRead());
@@ -177,9 +184,12 @@ public class AssemblyPathReadsAligner {
 						//log.warning("Weird alignment of consensus backbone read. Alignment: "+alnRead+" soft clip: "+alnRead.getSoftClipEnd()+" consensus end: "+rawConsensus.substring(rawConsensus.length()-alnRead.getSoftClipEnd()-10)+" soft clipped sequence: "+alnRead.getReadCharacters().subSequence(alnRead.getReadLength()-alnRead.getSoftClipEnd()-10, alnRead.getReadLength()) );
 					}
 				}
-				else unalignedReads++;
+				else {
+					if(pathIdx == debugIdx) System.err.println("Backbone read: "+read.getName()+" could not be aligned to extended consensus");
+					unalignedReadIds.add(vertexPreviousEdge.getSequenceIndex());
+				}
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
-				if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReads);
+				if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 				if(alignEmbedded) {
 					List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
 					//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
@@ -195,16 +205,18 @@ public class AssemblyPathReadsAligner {
 							alnEmbedded.setReadNumber(embedded.getSequenceId());
 							alnEmbedded.setNegativeStrand(reverseE);
 							alignedReads.add(alnEmbedded);
+						} else {
+							if(pathIdx == debugIdx) System.err.println("Embedded read: "+read.getName()+" could not be aligned to extended consensus");
+							unalignedReadIds.add(embedded.getSequenceId());
 						}
-						else unalignedReads++;
-						if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReads);
+						if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 					}
 				}
 			}
 			lastVertex = vertexNextEdge;
 		}
 		consensus = rawConsensus;
-		log.info("Processed path "+pathIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReads);
+		log.info("Processed path "+pathIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 	}
 	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end) {
 		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject, KMER_LENGTH_LOCAL_ALN, start,end);

@@ -55,10 +55,12 @@ public class AssemblySequencesRelationshipFilter {
 			}
 			//if(filterEmbeddedByCost(graph, seqId, medianLength, 2*Math.max(bestValues[2], bestValues[3]))) numEmbedded++;
 			if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) numEmbedded++;
+			if(seqId == debugIdx) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size());
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		graph.pruneEmbeddedSequences();
 		System.out.println("Prunned embedded sequences.");
+		if(debugIdx>=0) System.out.println("EdgesAndEmbeddedFiltering. Final number of edges: "+graph.getEdges(graph.getVertex(debugIdx, true)).size()+" "+graph.getEdges(graph.getVertex(debugIdx, false)).size());
 		//filterEdgesCloseRelationships();
 		//System.out.println("Searched vertex: "+graph.getVertex(debugIdx, false));
 	}
@@ -80,7 +82,7 @@ public class AssemblySequencesRelationshipFilter {
 			minCostS = Math.min(minCostS, edge.getCost());
 			 
 		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges start "+edgesS.size()+" Max score start: "+maxScoreS+" minCost: "+minCostS);
+		if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Initial edges start "+edgesS.size()+" Max score start: "+maxScoreS+" minCost: "+minCostS);
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
 		if(vE!=null) edgesE.addAll(graph.getEdges(vE));
 		int maxScoreE = 0;
@@ -92,16 +94,16 @@ public class AssemblySequencesRelationshipFilter {
 			maxScoreE = Math.max(maxScoreE, edge.getScore());
 			minCostE = Math.min(minCostE, edge.getCost());
 		}
-		if(sequenceId == debugIdx) System.out.println("Assembly graph. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" min cost: "+minCostE);
+		if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Initial edges end "+edgesE.size()+" Max score end: "+maxScoreE+" min cost: "+minCostE);
 		//double limitS = minScoreProportionEdges*Math.max(maxScoreS, maxScoreE);
 		double limitS = minScoreProportionEdges*maxScoreS;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge start "+edge+" limit: "+limitS);
+			if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Next edge start "+edge+" limit: "+limitS);
 			//TODO: Make this parameter dynamic based on the distribution
 			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < limitS)) {
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
+				if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
 		}
@@ -110,13 +112,14 @@ public class AssemblySequencesRelationshipFilter {
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
-			if(sequenceId == debugIdx) System.out.println("Assembly graph. Next edge end "+edge+" limit: "+limitE);
+			if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Next edge end "+edge+" limit: "+limitE);
 			//TODO: Make this parameter dynamic based on the distribution
 			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < limitE)) {
-				if(sequenceId == debugIdx) System.out.println("Assembly graph. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
+				if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
 		}
+		if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Final number of edges: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size());
 		int [] answer = {maxScoreS,maxScoreE,minCostS,minCostE};
 		return answer;
 	}
