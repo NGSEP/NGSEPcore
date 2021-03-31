@@ -113,6 +113,181 @@ public class HaplotypeReadsClusterCalculator {
     	return mergePathClusters(graph,tasksList,ploidy);
 	}
 	
+	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
+		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		aligner.setLog(log);
+		aligner.setAlignEmbedded(true);
+		aligner.alignPathReads(graph, path, pathIdx);
+		StringBuilder rawConsensus = aligner.getConsensus();
+		List<ReadAlignment> alignments = aligner.getAlignedReads();
+		Set<Integer> unalignedReadIds = aligner.getUnalignedReadIds();
+		List<List<ReadAlignment>> clusters = null;
+		String sequenceName = "diploidPath_"+pathIdx;
+		int countHetSNVs = 0;
+		if(alignments.size()>0) {
+			
+			for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
+			Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
+			List<CalledGenomicVariant> hetSNVs = findHeterozygousSNVs(rawConsensus, alignments, sequenceName);
+			countHetSNVs = hetSNVs.size();
+			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetSNVs);
+			if(hetSNVs.size()>0) {
+				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
+				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
+				try {
+					clusters = sih.phaseSequenceVariants(sequenceName, hetSNVs, alignments);
+				} catch (IOException e) {
+					throw new RuntimeException (e);
+				}
+			}
+		}
+		List<PhasedPathBlock> answer = new ArrayList<PhasedPathBlock>();
+		if(clusters == null) {
+			//System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
+			Set<Integer> sequenceIds = new HashSet<Integer>();
+			for(ReadAlignment aln:alignments) sequenceIds.add(aln.getReadNumber());
+			//Add not aligned reads within the path
+			sequenceIds.addAll(unalignedReadIds);
+			PhasedPathBlock block = new PhasedPathBlock();
+			block.addPhasedReadIds(sequenceIds);
+			answer.add(block);
+			return answer;
+		}
+		log.info("Path: "+sequenceName+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
+		
+		//Collect phased blocks first
+		Set<Integer> readIdsInPhasedBlocks = new HashSet<Integer>();
+		List<GenomicRegion> phasedPathBoundaries = new ArrayList<GenomicRegion>(clusters.size()/2);
+		Map<Integer,PhasedPathBlock> phasedBlocksByFirst = new HashMap<Integer, PhasedPathBlock>();
+		for(int i=0;i<clusters.size();i+=2) {
+			List<ReadAlignment> alnsHap0 = clusters.get(i);
+			List<ReadAlignment> alnsHap1 = clusters.get(i+1);
+			//Not real phasing
+			if(alnsHap0.size()==0 || alnsHap1.size()==0) continue;
+			ReadAlignment firstAln0 = alnsHap0.get(0);
+			ReadAlignment firstAln1 = alnsHap1.get(0);
+			GenomicRegionImpl region = new GenomicRegionImpl(firstAln0.getSequenceName(), Math.min(firstAln0.getFirst(), firstAln1.getFirst()), Math.max(firstAln0.getLast(), firstAln1.getLast()));
+			Set<Integer> sequenceIdsHap0 = new HashSet<Integer>();
+			for(ReadAlignment aln:alnsHap0) {
+				sequenceIdsHap0.add(aln.getReadNumber());
+				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
+				region.setLast(Math.max(region.getLast(), aln.getLast()));
+			}
+			Set<Integer> sequenceIdsHap1 = new HashSet<Integer>();
+			for(ReadAlignment aln:alnsHap1) {
+				sequenceIdsHap1.add(aln.getReadNumber());
+				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
+				region.setLast(Math.max(region.getLast(), aln.getLast()));
+			}
+			PhasedPathBlock block = new PhasedPathBlock();
+			block.addPhasedReadIds(sequenceIdsHap0);
+			block.addPhasedReadIds(sequenceIdsHap1);
+			answer.add(block);
+			readIdsInPhasedBlocks.addAll(sequenceIdsHap0);
+			readIdsInPhasedBlocks.addAll(sequenceIdsHap1);
+			phasedBlocksByFirst.put(region.getFirst(), block);
+			phasedPathBoundaries.add(region);
+		}
+		Collections.sort(phasedPathBoundaries, GenomicRegionPositionComparator.getInstance());
+		//Build unphased (haploid) blocks with reads not embedded in phased blocks
+		int i=0;
+		Set<Integer> nextUnphasedBlock = new HashSet<Integer>();
+		for(ReadAlignment aln:alignments) {
+			if(readIdsInPhasedBlocks.contains(aln.getReadNumber())) continue;
+			boolean addRead = true;
+			while(i<phasedPathBoundaries.size()) {
+				GenomicRegion region = phasedPathBoundaries.get(i);
+				if(region.getLast()>aln.getLast()) {
+					if(aln.getFirst()>=region.getFirst()) {
+						addRead = false;
+						//Alignment contained in block but not assigned
+						/*PhasedPathBlock block = phasedBlocksByFirst.get(region.getFirst());
+						if(block!=null) {
+							block.addHomozygousReadId(aln.getReadNumber());
+						}*/
+					}
+					break;
+				}
+				if(nextUnphasedBlock.size()>0) {
+					PhasedPathBlock block = new PhasedPathBlock();
+					block.addPhasedReadIds(nextUnphasedBlock);
+					answer.add(block);
+					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
+					nextUnphasedBlock = new HashSet<Integer>();
+				}
+				i++;
+			}
+			if(addRead) {
+				if(pathIdx == debugIdx) System.out.print("Next aln: "+aln);
+				if(pathIdx == debugIdx && i< phasedPathBoundaries.size()) System.out.println("Next region: "+phasedPathBoundaries.get(i).getFirst()+"-"+phasedPathBoundaries.get(i).getLast());
+				else if(pathIdx == debugIdx) System.out.println("Region end");
+				nextUnphasedBlock.add(aln.getReadNumber());
+			}
+		}
+		if(nextUnphasedBlock.size()>0) {
+			PhasedPathBlock block = new PhasedPathBlock();
+			block.addPhasedReadIds(nextUnphasedBlock);
+			answer.add(block);
+			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
+		}
+		return answer;
+	}
+	
+	private List<CalledGenomicVariant> findHeterozygousSNVs(StringBuilder consensus, List<ReadAlignment> alignments, String sequenceName) {
+		//List<GenomicRegion> activeSegments = ConsensusBuilderBidirectionalWithPolishing.calculateActiveSegments(sequenceName, alignments);
+		List<GenomicRegion> activeSegments = new ArrayList<>();
+		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+		generator.setLog(log);
+		QualifiedSequenceList metadata = new QualifiedSequenceList();
+		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
+		generator.setSequencesMetadata(metadata);
+		generator.setMaxAlnsPerStartPos(0);
+		SimpleHeterozygousSNVsDetectorPileupListener hetSNVsListener = new SimpleHeterozygousSNVsDetectorPileupListener(consensus, activeSegments);
+		generator.addListener(hetSNVsListener);
+		
+		int count = 0;
+		for(ReadAlignment aln:alignments) {
+			generator.processAlignment(aln);
+			count++;
+			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
+		}
+		generator.notifyEndOfAlignments();
+		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous SNVs: "+hetSNVsListener.getHeterozygousSNVs().size()+" alignments: "+count);
+		return hetSNVsListener.getHeterozygousSNVs();
+	}
+
+	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		QualifiedSequenceList sequences = new QualifiedSequenceList();
+		sequences.add(new QualifiedSequence(sequenceName,consensus));
+		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
+			handler.saveSequences(sequences, out, 100);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+		try (PrintStream out=new PrintStream(outPrefix+".bam");
+			 ReadAlignmentFileWriter readAlnsWriter = new ReadAlignmentFileWriter(sequences, out);) {
+			for(ReadAlignment aln:alignments) readAlnsWriter.write(aln);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+		VCFFileWriter vcfWriter = new VCFFileWriter();
+		VCFFileHeader header =VCFFileHeader.makeDefaultEmptyHeader();
+		header.addDefaultSample("sample");
+		try (PrintStream out=new PrintStream(outPrefix+".vcf");
+			 ) {
+			vcfWriter.printHeader(header, out);
+			for(CalledGenomicVariant call:hetSNVs) {
+				vcfWriter.printVCFRecord(new VCFRecord(call, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header), out);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+	
 	private List<Set<Integer>> mergePathClusters(AssemblyGraph graph, List<ClusterReadsTask> tasksList, int ploidy) {
 		List<List<AssemblyEdge>> paths = graph.getPaths();
 		log.info("Merging reads from "+paths.size()+" diploid paths");
@@ -129,7 +304,6 @@ public class HaplotypeReadsClusterCalculator {
     		List<AssemblyEdge> path = paths.get(i);
     		ClusterReadsTask task = tasksList.get(i);
     		int pathId = task.getPathIdx();
-    		
     		List<PhasedPathBlock> haplotypeBlocks = task.getPhasedBlocks();
     		log.info("Calculated "+haplotypeBlocks.size()+" blocks from haplotyping for path: "+pathId);
     		for(PhasedPathBlock block:haplotypeBlocks) {
@@ -178,14 +352,14 @@ public class HaplotypeReadsClusterCalculator {
     			if(edge.isSameSequenceEdge()) continue;
     			AssemblyVertex v2 = edge.getConnectingVertex(vertex);
     			Integer id2 = readsClusters.get(v2.getSequenceIndex());
-    			if(clusterId == 20) System.out.println("MergeHaplotypeClusters. Connecting vertex: "+v2+" cluster id: "+id2+" restrictions: "+clusterRestrictions.get(clusterId));
+    			//if(clusterId == 20) System.out.println("MergeHaplotypeClusters. Connecting vertex: "+v2+" cluster id: "+id2+" restrictions: "+clusterRestrictions.get(clusterId));
     			if(id2!=null && clusterId!=id2 && !clusterRestrictions.get(clusterId).contains(id2) && ! clusterRestrictions.get(id2).contains(clusterId)) {
     				int idMin = Math.min(clusterId, id2);
     				int idMax = Math.max(clusterId, id2);
     				String key = ReadsClusterEdge.getKey(idMin,idMax);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				if((idMin==13 || idMin == 14) && idMax == 20) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if((idMin==13 || idMin == 14) && idMax == 20) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
@@ -240,6 +414,11 @@ public class HaplotypeReadsClusterCalculator {
     		}
     	}
     	log.info("Finished haplotype reads clustering. Assigned "+inputClustersAssignment.size()+" input clusters");
+    	//add back to input clusters unassigned and unmapped reads
+    	for(int i=0;i<paths.size();i++) {
+    		recoverNotClusteredReads(graph, paths.get(i), readsClusters, inputClusters);
+    	}
+		
     	//Build answer from clusters
     	List<Set<Integer>> answer = new ArrayList<Set<Integer>>(ploidy);
     	for(int i=0;i<ploidy;i++) {
@@ -338,266 +517,47 @@ public class HaplotypeReadsClusterCalculator {
 	}
 	
 	
-	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
-		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
-		aligner.setLog(log);
-		aligner.setAlignEmbedded(true);
-		aligner.alignPathReads(graph, path, pathIdx);
-		StringBuilder rawConsensus = aligner.getConsensus();
-		List<ReadAlignment> alignments = aligner.getAlignedReads();
-		Set<Integer> unalignedReadIds = aligner.getUnalignedReadIds();
-		List<List<ReadAlignment>> clusters = null;
-		String sequenceName = "diploidPath_"+pathIdx;
-		int countHetSNVs = 0;
-		if(alignments.size()>0) {
-			
-			for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
-			Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-			List<CalledGenomicVariant> hetSNVs = findHeterozygousSNVs(rawConsensus, alignments, sequenceName);
-			countHetSNVs = hetSNVs.size();
-			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetSNVs);
-			if(hetSNVs.size()>0) {
-				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
-				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
-				try {
-					clusters = sih.phaseSequenceVariants(sequenceName, hetSNVs, alignments);
-				} catch (IOException e) {
-					throw new RuntimeException (e);
-				}
-			}
-		}
-		List<PhasedPathBlock> answer = new ArrayList<PhasedPathBlock>();
-		if(clusters == null) {
-			//System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
-			Set<Integer> sequenceIds = new HashSet<Integer>();
-			for(ReadAlignment aln:alignments) sequenceIds.add(aln.getReadNumber());
-			//Add not aligned reads within the path
-			sequenceIds.addAll(unalignedReadIds);
-			PhasedPathBlock block = new PhasedPathBlock();
-			block.addPhasedReadIds(sequenceIds);
-			answer.add(block);
-			return answer;
-		}
-		log.info("Path: "+sequenceName+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
-		Set<Integer> readIdsInPhasedBlocks = new HashSet<Integer>();
-		List<GenomicRegion> phasedPathBoundaries = new ArrayList<GenomicRegion>(clusters.size()/2);
-		Map<Integer,PhasedPathBlock> phasedBlocksByFirst = new HashMap<Integer, PhasedPathBlock>();
-		for(int i=0;i<clusters.size();i+=2) {
-			List<ReadAlignment> alnsHap0 = clusters.get(i);
-			List<ReadAlignment> alnsHap1 = clusters.get(i+1);
-			//Not real phasing
-			if(alnsHap0.size()==0 || alnsHap1.size()==0) continue;
-			ReadAlignment firstAln0 = alnsHap0.get(0);
-			ReadAlignment firstAln1 = alnsHap1.get(0);
-			GenomicRegionImpl region = new GenomicRegionImpl(firstAln0.getSequenceName(), Math.min(firstAln0.getFirst(), firstAln1.getFirst()), Math.max(firstAln0.getLast(), firstAln1.getLast()));
-			Set<Integer> sequenceIdsHap0 = new HashSet<Integer>();
-			for(ReadAlignment aln:alnsHap0) {
-				sequenceIdsHap0.add(aln.getReadNumber());
-				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
-				region.setLast(Math.max(region.getLast(), aln.getLast()));
-			}
-			Set<Integer> sequenceIdsHap1 = new HashSet<Integer>();
-			for(ReadAlignment aln:alnsHap1) {
-				sequenceIdsHap1.add(aln.getReadNumber());
-				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
-				region.setLast(Math.max(region.getLast(), aln.getLast()));
-			}
-			PhasedPathBlock block = new PhasedPathBlock();
-			block.addPhasedReadIds(sequenceIdsHap0);
-			block.addPhasedReadIds(sequenceIdsHap1);
-			answer.add(block);
-			readIdsInPhasedBlocks.addAll(sequenceIdsHap0);
-			readIdsInPhasedBlocks.addAll(sequenceIdsHap1);
-			phasedBlocksByFirst.put(region.getFirst(), block);
-			phasedPathBoundaries.add(region);
-		}
-		Collections.sort(phasedPathBoundaries, GenomicRegionPositionComparator.getInstance());
-		int i=0;
-		Set<Integer> nextUnphasedBlock = new HashSet<Integer>();
-		for(ReadAlignment aln:alignments) {
-			if(readIdsInPhasedBlocks.contains(aln.getReadNumber())) continue;
-			boolean addRead = true;
-			while(i<phasedPathBoundaries.size()) {
-				GenomicRegion region = phasedPathBoundaries.get(i);
-				if(region.getLast()>aln.getLast()) {
-					if(aln.getFirst()>=region.getFirst()) {
-						addRead = false;
-						//Alignment contained in block but not assigned
-						/*PhasedPathBlock block = phasedBlocksByFirst.get(region.getFirst());
-						if(block!=null) {
-							block.addHomozygousReadId(aln.getReadNumber());
-						}*/
-					}
-					break;
-				}
-				if(nextUnphasedBlock.size()>0) {
-					PhasedPathBlock block = new PhasedPathBlock();
-					block.addPhasedReadIds(nextUnphasedBlock);
-					answer.add(block);
-					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
-					nextUnphasedBlock = new HashSet<Integer>();
-				}
-				i++;
-			}
-			if(addRead) {
-				if(pathIdx == debugIdx) System.out.print("Next aln: "+aln);
-				if(pathIdx == debugIdx && i< phasedPathBoundaries.size()) System.out.println("Next region: "+phasedPathBoundaries.get(i).getFirst()+"-"+phasedPathBoundaries.get(i).getLast());
-				else if(pathIdx == debugIdx) System.out.println("Region end");
-				nextUnphasedBlock.add(aln.getReadNumber());
-			}
-		}
-		if(nextUnphasedBlock.size()>0) {
-			PhasedPathBlock block = new PhasedPathBlock();
-			block.addPhasedReadIds(nextUnphasedBlock);
-			answer.add(block);
-			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
-		}
-		return answer;
-	}
-
-	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		QualifiedSequenceList sequences = new QualifiedSequenceList();
-		sequences.add(new QualifiedSequence(sequenceName,consensus));
-		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
-			handler.saveSequences(sequences, out, 100);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			return;
-		}
-		try (PrintStream out=new PrintStream(outPrefix+".bam");
-			 ReadAlignmentFileWriter readAlnsWriter = new ReadAlignmentFileWriter(sequences, out);) {
-			for(ReadAlignment aln:alignments) readAlnsWriter.write(aln);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			return;
-		}
-		VCFFileWriter vcfWriter = new VCFFileWriter();
-		VCFFileHeader header =VCFFileHeader.makeDefaultEmptyHeader();
-		header.addDefaultSample("sample");
-		try (PrintStream out=new PrintStream(outPrefix+".vcf");
-			 ) {
-			vcfWriter.printHeader(header, out);
-			for(CalledGenomicVariant call:hetSNVs) {
-				vcfWriter.printVCFRecord(new VCFRecord(call, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL, call, header), out);
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			return;
-		}
-	}
 	
-	private List<Set<Integer>> mergeClustersNaive(AssemblyGraph graph, int pathIdx, List<AssemblyEdge> path, List<ReadAlignment> alignments, List<List<ReadAlignment>> clusters) {
-		Set<Integer> cluster0 = new HashSet<Integer>();
-		Set<Integer> cluster1 = new HashSet<Integer>();
-		List<Set<Integer>> answer = new ArrayList<Set<Integer>>();
-		answer.add(cluster0);
-		answer.add(cluster1);
-		for(int i=0;i<clusters.size();i++) {
-			List<ReadAlignment> clusterAlns = clusters.get(i);
-			for(ReadAlignment aln:clusterAlns) {
-				if(pathIdx == debugIdx) System.out.println("Path: "+aln.getSequenceName()+" input cluster: "+i+" Read "+aln.getReadNumber()+" "+aln.getReadName()+" added to cluster: "+(i%2));
-				answer.get(i%2).add(aln.getReadNumber());
-			}
-		}
-		return answer;
-	}
-
-	private List<Set<Integer>> mergeClustersWithPath(AssemblyGraph graph, int pathId, List<AssemblyEdge> path, List<ReadAlignment> allAlignments, List<List<ReadAlignment>> clusters) {
-		//Index read assignments
-		Map<Integer,Integer> clustersByReadId = new HashMap<Integer, Integer>();
-		for(int i=0;i<clusters.size();i++) {
-			List<ReadAlignment> cluster = clusters.get(i);
-			for(ReadAlignment aln:cluster) {
-				clustersByReadId.put(aln.getReadNumber(), i);
-				
-			}
-		}
+	
+	private void recoverNotClusteredReads(AssemblyGraph graph, List<AssemblyEdge> path, Map<Integer,Integer> readsClusters, List<Set<Integer>> inputClusters) {
 		
-		Set<Integer> cluster0 = new HashSet<Integer>();
-		Set<Integer> cluster1 = new HashSet<Integer>();
-		Map<Integer,Integer> pathReadsAssignments = new HashMap<Integer, Integer>();
-		Map<Integer,Integer> inputClusterAssignments = new HashMap<Integer, Integer>();
-		int lastAssignment = -1;
-		for(AssemblyEdge edge:path) {
+		for(int i=0;i<path.size();i++) {
+			AssemblyEdge edge = path.get(i);
 			if(!edge.isSameSequenceEdge()) continue;
-			int readId = edge.getVertex1().getSequenceIndex();
-			int clusterId = clustersByReadId.getOrDefault(readId,-1);
-			Integer assignment;
-			if(inputClusterAssignments.size()==0) {
-				//First edge
-				if(pathId==debugIdx) System.out.println("Adding read "+graph.getSequence(readId).getName()+" to cluster 0");
-				cluster0.add(readId);
-				if(clusterId>=0) inputClusterAssignments.put(clusterId, 0);
-				if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, 1);
-				else if(clusterId>=0) inputClusterAssignments.put(clusterId-1, 1);
-				assignment=0;
-			} else {
-				assignment = inputClusterAssignments.get(clusterId);
-				if(assignment==null) {
-					assignment = lastAssignment;
-					int opposite = 1-lastAssignment;
-					if(clusterId>=0) inputClusterAssignments.put(clusterId, assignment);
-					if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, opposite);
-					else if(clusterId>=0) inputClusterAssignments.put(clusterId-1, opposite);
-				}
-				if (assignment==0) cluster0.add(readId);
-				else cluster1.add(readId);
-				if(pathId==debugIdx) System.out.println("Adding path read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
-			}
-			pathReadsAssignments.put(readId, assignment);
-			lastAssignment = assignment;
-		}
-		//Look for unassigned embedded reads
-		for(AssemblyEdge edge:path) {
-			if(!edge.isSameSequenceEdge()) continue;
-			int hostAssignment = pathReadsAssignments.get(edge.getVertex1().getSequenceIndex());
+			int pathSequenceId = edge.getVertex1().getSequenceIndex();
 			List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(edge.getVertex1().getSequenceIndex());
-			//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
+			Integer clusterId = readsClusters.get(pathSequenceId);
+			Map<Integer,Integer> clusterVotes = new HashMap<Integer, Integer>();
+			if(clusterId == null) {
+				Integer clusterIdP = (i>1)?readsClusters.get(path.get(i-2).getVertex1().getSequenceIndex()):null;
+				if(clusterIdP!=null) clusterVotes.compute(clusterIdP, (k,v)->(v==null?1:v+1));
+				Integer clusterIdN = (i<path.size()-2)?readsClusters.get(path.get(i+2).getVertex1().getSequenceIndex()):null;
+				if(clusterIdN!=null) clusterVotes.compute(clusterIdN, (k,v)->(v==null?1:v+1));
+				for(AssemblyEmbedded embedded:embeddedList) {
+					int readId = embedded.getSequenceId();
+					Integer embeddedClusterId = readsClusters.get(readId);
+					if(embeddedClusterId!=null) clusterVotes.compute(embeddedClusterId, (k,v)->(v==null?1:v+1));
+				}
+				int maxVotes = -1;
+				for(Map.Entry<Integer, Integer> entry:clusterVotes.entrySet()) {
+					if(clusterId == null || maxVotes<entry.getValue()) {
+						clusterId = entry.getKey();
+						maxVotes = entry.getValue();
+					}
+				}
+				if(clusterId == null || clusterId<0 || clusterId>=inputClusters.size()) continue;
+				inputClusters.get(clusterId).add(pathSequenceId);
+				readsClusters.put(pathSequenceId, clusterId);
+			}
 			for(AssemblyEmbedded embedded:embeddedList) {
 				int readId = embedded.getSequenceId();
-				int clusterId = clustersByReadId.getOrDefault(readId,-1);
-				Integer assignment = inputClusterAssignments.get(clusterId);
-				if(assignment==null) {
-					assignment = hostAssignment;
-					int opposite = 1-lastAssignment;
-					if(clusterId>=0) inputClusterAssignments.put(clusterId, assignment);
-					if(clusterId%2==0) inputClusterAssignments.put(clusterId+1, opposite);
-					else if(clusterId>=0) inputClusterAssignments.put(clusterId-1, opposite);
+				Integer embeddedClusterId = readsClusters.get(readId);
+				if(embeddedClusterId==null) {
+					inputClusters.get(clusterId).add(readId);
+					readsClusters.put(readId, clusterId);
 				}
-				if(pathId==debugIdx) System.out.println("Adding embedded read "+graph.getSequence(readId).getName()+" to cluster "+assignment+" input cluster: "+clusterId);
-				if (assignment==0) cluster0.add(readId);
-				else cluster1.add(readId);
 			}
 		}
-		
-		List<Set<Integer>> answer = new ArrayList<Set<Integer>>();
-		answer.add(cluster0);
-		answer.add(cluster1);
-		return answer;
-	}
-
-	private List<CalledGenomicVariant> findHeterozygousSNVs(StringBuilder consensus, List<ReadAlignment> alignments, String sequenceName) {
-		//List<GenomicRegion> activeSegments = ConsensusBuilderBidirectionalWithPolishing.calculateActiveSegments(sequenceName, alignments);
-		List<GenomicRegion> activeSegments = new ArrayList<>();
-		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-		generator.setLog(log);
-		QualifiedSequenceList metadata = new QualifiedSequenceList();
-		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		generator.setSequencesMetadata(metadata);
-		generator.setMaxAlnsPerStartPos(0);
-		SimpleHeterozygousSNVsDetectorPileupListener hetSNVsListener = new SimpleHeterozygousSNVsDetectorPileupListener(consensus, activeSegments);
-		generator.addListener(hetSNVsListener);
-		
-		int count = 0;
-		for(ReadAlignment aln:alignments) {
-			generator.processAlignment(aln);
-			count++;
-			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
-		}
-		generator.notifyEndOfAlignments();
-		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous SNVs: "+hetSNVsListener.getHeterozygousSNVs().size()+" alignments: "+count);
-		return hetSNVsListener.getHeterozygousSNVs();
 	}
 
 }
