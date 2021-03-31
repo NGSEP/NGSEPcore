@@ -346,6 +346,22 @@ public class AssemblyGraph {
 	public List<AssemblyEdge> getEdges(AssemblyVertex vertex) {
 		return edgesMap.get(vertex.getUniqueNumber());
 	}
+	
+	public List<AssemblyEdge> getEdgesBySequenceId(int seqId) {
+		List<AssemblyEdge> answer = new ArrayList<AssemblyEdge>();
+		AssemblyVertex v1 = getVertex(seqId, true);
+		if(v1!=null) {
+			List<AssemblyEdge> edgesV1 = getEdges(v1); 
+			if(edgesV1!=null) answer.addAll(edgesV1);
+		}
+		AssemblyVertex v2 = getVertex(seqId, false);
+		if(v2!=null) {
+			List<AssemblyEdge> edgesV2 = getEdges(v2);
+			if(edgesV2!=null) answer.addAll(getEdges(v2));
+		}
+		return answer;
+	}
+	
 	/**
 	 * Returns the edge connecting the vertices of the given sequence id
 	 * @param sequenceId
@@ -683,6 +699,8 @@ public class AssemblyGraph {
 	}
 	private boolean isSafeEdge(AssemblyEdge edge, Set<Integer> repetitiveVertices) {
 		if(edge.isSameSequenceEdge()) return false;
+		if(isEmbedded(edge.getVertex1().getSequenceIndex())) return false;
+		if(isEmbedded(edge.getVertex2().getSequenceIndex())) return false;
 		if (edge.getEvidenceProportion()<0.9) return false;
 		if (edge.getIndelsPerKbp()>30) return false;
 		boolean r1 = repetitiveVertices.contains(edge.getVertex1().getUniqueNumber());

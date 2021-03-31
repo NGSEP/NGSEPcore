@@ -40,7 +40,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	private Logger log = Logger.getLogger(LayoutBuilderKruskalPath.class.getName());
 
 	private int minPathLength = 6;
-	private boolean useIndels = false;
 	
 	
 	public Logger getLog() {
@@ -56,13 +55,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		this.minPathLength = minPathLength;
 	}
 	
-	
-	public boolean isUseIndels() {
-		return useIndels;
-	}
-	public void setUseIndels(boolean useIndels) {
-		this.useIndels = useIndels;
-	}
 	@Override
 	public void findPaths(AssemblyGraph graph) {
 		List<AssemblyEdge> pathEdges = graph.selectSafeEdges();
@@ -110,8 +102,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		List<LinkedList<AssemblyEdge>> paths = new ArrayList<LinkedList<AssemblyEdge>>();
 		Set<Integer> sequencesInPaths = new HashSet<>();
 		for(int i=0;i<n;i++) {
-			if(graph.isEmbedded(i)) continue;
 			if(graph.getVertex(i, true)==null || graph.getVertex(i, false)==null) continue;
+			if(graph.isEmbedded(i)) continue;
+			
 			if(sequencesInPaths.contains(i)) continue;
 			AssemblyVertex nextVertex = graph.getVertex(i, true);
 			if(graph.getEdges(nextVertex).size()==0) continue;
@@ -156,7 +149,96 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		} 
 		return paths;
 	}
+ 
 	
+	private AssemblyVertex [] extractEndVertices (List<LinkedList<AssemblyEdge>> paths) {
+		int p = paths.size();
+		AssemblyVertex [] vertices = new AssemblyVertex[2*p];
+		int v=0;
+		for(int i=0;i<p;i++) {
+			List<AssemblyEdge> path = paths.get(i);
+			if(path.size()==1) {
+				vertices[v] = path.get(0).getVertex1();
+				v++;
+				vertices[v] = path.get(0).getVertex2();
+				v++;
+				continue;
+			}
+			AssemblyEdge edge0 = path.get(0);
+			AssemblyEdge edge1 = path.get(1);
+			AssemblyVertex v1 = edge0.getSharedVertex(edge1);
+			vertices[v] = edge0.getConnectingVertex(v1);
+			v++;
+			AssemblyEdge edgef = path.get(path.size()-1);
+			AssemblyEdge edgef2 = path.get(path.size()-2);
+			AssemblyVertex v2 = edgef.getSharedVertex(edgef2);
+			vertices[v] = edgef.getConnectingVertex(v2);
+			v++;
+		}
+		return vertices;
+	}
+	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
+		AssemblyVertex [] vertices = extractEndVertices(paths);
+		log.info("KruskalPathAlgorithm. Extracted "+vertices.length+" end vertices");
+		List<AssemblyEdge> candidateEdges = new ArrayList<AssemblyEdge>();
+		for(int i=0;i<vertices.length;i++) {
+			List<AssemblyEdge> edgesVI = graph.getEdges(vertices[i]);
+			for(AssemblyEdge edge:edgesVI) {
+				if(edge.isSameSequenceEdge()) continue;
+				if(graph.isEmbedded(edge.getVertex1().getSequenceIndex())) continue;
+				if(graph.isEmbedded(edge.getVertex2().getSequenceIndex())) continue;
+				//Add each candidate vertex only one time
+				candidateEdges.add(edge);
+			}
+		}
+		log.info("KruskalPathAlgorithm. selected "+candidateEdges.size()+" candidate edges");
+		Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
+		//Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
+		log.info("KruskalPathAlgorithm. Sorted "+candidateEdges.size()+" edges");
+		List<AssemblyEdge> selectedEdges = selectEdgesToMergePaths(candidateEdges,vertices);
+		log.info("KruskalPathAlgorithm. Selected "+selectedEdges.size()+" edges for paths");
+		pathEdges.addAll(selectedEdges);
+	}
+	private List<AssemblyEdge> selectEdgesToMergePaths(List<AssemblyEdge> candidateEdges, AssemblyVertex [] vertices) {
+		int n = vertices.length;
+		Map<Integer,Integer> verticesPos = new HashMap<Integer, Integer>();
+		for(int i=0;i<n;i++) {
+			verticesPos.put(vertices[i].getUniqueNumber(), i);
+		}
+		int [] clusters = new int[n];
+		boolean [] used = new boolean[n];
+		Arrays.fill(used, false);
+		for(int i=0;i<n;i++) {
+			clusters[i] = i/2;
+		}
+		List<AssemblyEdge> answer = new ArrayList<AssemblyEdge>();
+		for(AssemblyEdge nextEdge:candidateEdges) {
+			//if(nextEdge.getEdgeAssemblyGraph().getVertex1().getUniqueNumber()==2854) System.out.println("score: "+calculateCost(nextEdge, edgesStats)+" edge: "+nextEdge.getEdgeAssemblyGraph());
+			//if(answer.size()<20) System.out.println("score: "+calculateCost(nextEdge, edgesStats)+ " edge: "+nextEdge.getEdgeAssemblyGraph());
+			AssemblyVertex v1 = nextEdge.getVertex1();
+			AssemblyVertex v2 = nextEdge.getVertex2();
+			if(v1==null || v2 == null) continue;
+			Integer posV1 = verticesPos.get(v1.getUniqueNumber());
+			Integer posV2 = verticesPos.get(v2.getUniqueNumber());
+			if(posV1==null || posV2==null) continue;
+			if(v1.getUniqueNumber()==-69 || v2.getUniqueNumber()==-69) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
+			
+			if(used[posV1] || used[posV2]) continue;
+			int c1 = clusters[posV1];
+			int c2 = clusters[posV2];
+			
+			if(c1!=c2) {
+				answer.add(nextEdge);
+				used[posV1] =used[posV2] = true;
+				for(int i=0;i<n;i++) {
+					if(clusters[i]==c2) clusters[i] = c1;
+				}
+			}
+		}
+		return answer;
+	}
+	
+	//Other algotrithms not used by now
 	private void addEdges3(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
 		AssemblyVertex [] vertices = extractEndVertices(paths);
 		int debugSeq = -1;
@@ -382,121 +464,5 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			}
 		}
 	}
- 
-	
-	private AssemblyVertex [] extractEndVertices (List<LinkedList<AssemblyEdge>> paths) {
-		int p = paths.size();
-		AssemblyVertex [] vertices = new AssemblyVertex[2*p];
-		int v=0;
-		for(int i=0;i<p;i++) {
-			List<AssemblyEdge> path = paths.get(i);
-			if(path.size()==1) {
-				vertices[v] = path.get(0).getVertex1();
-				v++;
-				vertices[v] = path.get(0).getVertex2();
-				v++;
-				continue;
-			}
-			AssemblyEdge edge0 = path.get(0);
-			AssemblyEdge edge1 = path.get(1);
-			AssemblyVertex v1 = edge0.getSharedVertex(edge1);
-			vertices[v] = edge0.getConnectingVertex(v1);
-			v++;
-			AssemblyEdge edgef = path.get(path.size()-1);
-			AssemblyEdge edgef2 = path.get(path.size()-2);
-			AssemblyVertex v2 = edgef.getSharedVertex(edgef2);
-			vertices[v] = edgef.getConnectingVertex(v2);
-			v++;
-		}
-		return vertices;
-	}
-	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
-		AssemblyVertex [] vertices = extractEndVertices(paths);
-		Map<Integer,Integer> endVerticesPos = new HashMap<Integer, Integer>();
-		for(int i=0;i<vertices.length;i++) {
-			endVerticesPos.put(vertices[i].getUniqueNumber(), i);
-		}
-		log.info("KruskalPathAlgorithm. Extracted "+vertices.length+" end vertices");
-		List<AssemblyEdgePathEnd> candidateEdges = new ArrayList<AssemblyEdgePathEnd>();
-		for(int i=0;i<vertices.length;i++) {
-			List<AssemblyEdge> edgesVI = graph.getEdges(vertices[i]);
-			for(AssemblyEdge edge:edgesVI) {
-				if(edge.isSameSequenceEdge()) continue;
-				Integer j = endVerticesPos.get(edge.getConnectingVertex(vertices[i]).getUniqueNumber());
-				if(j !=null && j>i) candidateEdges.add(new AssemblyEdgePathEnd(edge, i, j));
-			}
-		}
-		log.info("KruskalPathAlgorithm. Created "+candidateEdges.size()+" edges");
-		Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
-		//Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
-		log.info("KruskalPathAlgorithm. Sorted "+candidateEdges.size()+" edges");
-		List<AssemblyEdgePathEnd> pathEdgesByVertexId = selectEdgesToMergePaths(candidateEdges,vertices.length);
-		log.info("KruskalPathAlgorithm. Selected "+pathEdgesByVertexId.size()+" edges for paths");
-		for(AssemblyEdgePathEnd edgeP:pathEdgesByVertexId) pathEdges.add(edgeP.getEdgeAssemblyGraph());
-	}
-	private List<AssemblyEdgePathEnd> selectEdgesToMergePaths(List<AssemblyEdgePathEnd> candidateEdges, int length) {
-		int [] clusters = new int[length];
-		boolean [] used = new boolean[length];
-		Arrays.fill(used, false);
-		for(int i=0;i<length;i++) {
-			clusters[i] = i/2;
-		}
-		List<AssemblyEdgePathEnd> answer = new ArrayList<AssemblyEdgePathEnd>();
-		for(AssemblyEdgePathEnd nextEdge:candidateEdges) {
-			//if(nextEdge.getEdgeAssemblyGraph().getVertex1().getUniqueNumber()==2854) System.out.println("score: "+calculateCost(nextEdge, edgesStats)+" edge: "+nextEdge.getEdgeAssemblyGraph());
-			//if(answer.size()<20) System.out.println("score: "+calculateCost(nextEdge, edgesStats)+ " edge: "+nextEdge.getEdgeAssemblyGraph());
-			int v1 = nextEdge.getVertex1();
-			if(used[v1]) continue;
-			int v2 = nextEdge.getVertex2();
-			if(used[v2]) continue;
-			int c1 = clusters[v1];
-			int c2 = clusters[v2];
-			if(c1!=c2) {
-				answer.add(nextEdge);
-				used[v1] =used[v2] = true;
-				for(int i=0;i<length;i++) {
-					if(clusters[i]==c2) clusters[i] = c1;
-				}
-			}
-		}
-		return answer;
-	}
-
-}
-class AssemblyEdgePathEnd  {
-
-	private AssemblyEdge edgeAssemblyGraph;	
-	private int vertex1 = 0;
-	private int vertex2 = 0;
-	public AssemblyEdgePathEnd(AssemblyEdge edge, int v1, int v2 ) {
-		edgeAssemblyGraph = edge;
-		//Numbers encoding path index and start / end status
-		vertex1 = v1;
-		vertex2 = v2;
-	}
-	public AssemblyEdge getEdgeAssemblyGraph() {
-		return edgeAssemblyGraph;
-	}
-	public int getVertex1() {
-		return vertex1;
-	}
-	public int getVertex2() {
-		return vertex2;
-	}
-	public int getOverlap() {
-		return edgeAssemblyGraph.getOverlap();
-	}
-	public int getCoverageSharedKmers() {
-		return edgeAssemblyGraph.getCoverageSharedKmers();
-	}
-	public int getScore() {
-		return edgeAssemblyGraph.getScore();
-	}
-	public int getCost() {
-		return edgeAssemblyGraph.getCost();
-	}
-	
-	
-	
 
 }

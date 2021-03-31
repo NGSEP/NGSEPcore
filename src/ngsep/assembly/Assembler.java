@@ -33,7 +33,6 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.ReadsFileErrorsCorrector;
 import ngsep.sequences.io.FastaSequencesHandler;
@@ -379,7 +378,7 @@ public class Assembler {
 			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
-			diploidGraph.updateScores();
+			//diploidGraph.updateScores();
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
 			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(diploidGraph);
@@ -398,7 +397,7 @@ public class Assembler {
 				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
 				log.info("Saved graph to "+outFileGraph);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
-				haplotypeGraph.updateScores();
+				//haplotypeGraph.updateScores();
 				pathsFinder.findPaths(haplotypeGraph);
 				log.info("Built "+haplotypeGraph.getPaths().size()+" paths for next haplotype cluster with "+readIdsCluster.size()+" reads");
 				consensus.setSequenceNamePrefix("ContigHap"+haplotypeNumber);
@@ -409,7 +408,7 @@ public class Assembler {
 			}
 		} else {
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-			graph.updateScores();
+			//graph.updateScores();
 			
 			pathsFinder.findPaths(graph);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
