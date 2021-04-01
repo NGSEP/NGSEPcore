@@ -23,7 +23,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -71,7 +70,7 @@ public class HaplotypeReadsClusterCalculator {
 	
 	private int numThreads = DEF_NUM_THREADS;
 	
-	private int debugIdx = 2;
+	private int debugIdx = -1;
 	
 	
 	public Logger getLog() {
@@ -125,17 +124,15 @@ public class HaplotypeReadsClusterCalculator {
 		Set<Integer> unalignedReadIds = aligner.getUnalignedReadIds();
 		List<List<ReadAlignment>> clusters = null;
 		String sequenceName = "diploidPath_"+pathIdx;
-		int countHetSNVs = 0;
+		int countHetVars = 0;
 		if(alignments.size()>0) {
 			
 			for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 			Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(rawConsensus, alignments, sequenceName);
-			countHetSNVs = hetVars.size();
+			countHetVars = hetVars.size();
 			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetVars);
-			int countSNVs = 0;
-			for(CalledGenomicVariant variant:hetVars) if(variant.isSNV()) countSNVs++;
-			if(countSNVs>0) {
+			if(countHetVars>0) {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
 				//sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_DGS);
@@ -158,7 +155,7 @@ public class HaplotypeReadsClusterCalculator {
 			answer.add(block);
 			return answer;
 		}
-		log.info("Path: "+sequenceName+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
+		log.info("Path: "+sequenceName+". het vars: "+countHetVars+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
 		
 		//Collect phased blocks first
 		Set<Integer> readIdsInPhasedBlocks = new HashSet<Integer>();
@@ -246,6 +243,7 @@ public class HaplotypeReadsClusterCalculator {
 		generator.setSequencesMetadata(metadata);
 		generator.setMaxAlnsPerStartPos(0);
 		SimpleHeterozygousVariantsDetectorPileupListener hetVarsListener = new SimpleHeterozygousVariantsDetectorPileupListener(consensus);
+		hetVarsListener.setCallIndels(true);
 		generator.addListener(hetVarsListener);
 		
 		int count = 0;
@@ -255,8 +253,22 @@ public class HaplotypeReadsClusterCalculator {
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
 		}
 		generator.notifyEndOfAlignments();
-		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVarsListener.getHeterozygousVariants().size()+" alignments: "+count);
-		return hetVarsListener.getHeterozygousVariants();
+		List<CalledGenomicVariant> hetVars = hetVarsListener.getHeterozygousVariants();
+		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
+		int countSNVs = 0;
+		int n = hetVars.size();
+		for(int i=0;i<n;i++) {
+			CalledGenomicVariant hetVar = hetVars.get(i);
+			int posBefore = (i==0)?-20:hetVars.get(i-1).getLast();
+			int posAfter = (i==n-1)?consensus.length()+20:hetVars.get(i+1).getFirst();
+			if(hetVar.getFirst()-20>posBefore && hetVar.getLast()+20<posAfter) {
+				filteredVars.add(hetVar);
+				if(hetVar instanceof CalledSNV) countSNVs++;
+			}
+		}
+		if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
+		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars.size()+" SNVs: "+countSNVs);
+		return filteredVars;
 	}
 
 	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
