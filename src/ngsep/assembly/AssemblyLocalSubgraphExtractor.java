@@ -84,7 +84,7 @@ public class AssemblyLocalSubgraphExtractor {
 		System.out.println("Unfiltered subgraph");
 		//logSubgraph(unfiltered);
 		graph.removeVerticesChimericReads();
-		graph.updateScores();
+		graph.updateScores(0.5);
 		(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, 0.3);
 		AssemblyGraph filtered = buildSubgraph(graph);
 		AssemblyGraphFileHandler.save(filtered, outPrefix+"_filtered.graph.gz");

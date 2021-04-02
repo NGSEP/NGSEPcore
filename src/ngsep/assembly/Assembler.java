@@ -368,7 +368,6 @@ public class Assembler {
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
-		graph.updateScores();
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		long time2 = System.currentTimeMillis();
@@ -377,6 +376,7 @@ public class Assembler {
 		if(ploidy > 1) {
 			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
+			diploidGraph.updateScores(0);
 			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
 			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
@@ -396,6 +396,7 @@ public class Assembler {
 				String outFileGraph = outputPrefix+"_hap"+haplotypeNumber+".graph.gz";
 				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
 				log.info("Saved graph to "+outFileGraph);
+				haplotypeGraph.updateScores(0.5);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
 				//haplotypeGraph.updateScores();
 				pathsFinder.findPaths(haplotypeGraph);
@@ -407,6 +408,7 @@ public class Assembler {
 				haplotypeNumber++;
 			}
 		} else {
+			graph.updateScores(0.5);
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			//graph.updateScores();
 			

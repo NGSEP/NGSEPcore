@@ -33,7 +33,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	private int debugIdx = -1;
 	private Map<Integer,Double> averageIKBPVertices;
 	private Map<Integer,Double> averageIKBPEmbedded;
-	
+	private double weightsSecondaryFeatures = 0.5;
 	
 	public Map<Integer, Double> getAverageIKBPVertices() {
 		return averageIKBPVertices;
@@ -46,6 +46,13 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	}
 	public void setAverageIKBPEmbedded(Map<Integer, Double> averageIKBPEmbedded) {
 		this.averageIKBPEmbedded = averageIKBPEmbedded;
+	}
+	
+	public double getWeightsSecondaryFeatures() {
+		return weightsSecondaryFeatures;
+	}
+	public void setWeightsSecondaryFeatures(double weightsSecondaryFeatures) {
+		this.weightsSecondaryFeatures = weightsSecondaryFeatures;
 	}
 	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		NormalDistribution overlapD = edgesDists[0];
@@ -107,9 +114,10 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
+		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
 		double [] limitPValues = {1,0.5,0.1,0.05,0.5,0.25};
-		double [] weights      = {1,  1,0.5,   0,0.5,0.5};
+		double [] weights      = {1,  1,w,   0,w,w};
 		
 		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;

@@ -336,7 +336,7 @@ public class AssemblyGraphStatistics {
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
 			log.info("Updating scores");
-			graph.updateScores();
+			graph.updateScores(0.5);
 			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
@@ -674,7 +674,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==20877 || gsVertex.getSequenceIndex()==10205 || gsVertex.getSequenceIndex()==6075;
+		//boolean debug = gsVertex.getSequenceIndex()==71 || gsVertex.getSequenceIndex()==2840 || gsVertex.getSequenceIndex()==79;
 		//boolean debug = gsVertex.getSequenceIndex()==90694 || gsVertex.getSequenceIndex()==38102 || gsVertex.getSequenceIndex()==65352; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);

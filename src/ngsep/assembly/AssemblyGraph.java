@@ -818,7 +818,7 @@ public class AssemblyGraph {
 		return answer;
 	}
 	
-	public void updateScores () {
+	public void updateScores (double weightsSecondaryFeatures) {
 		updateVertexDegrees();
 		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
 		NormalDistribution [] edgesDists = estimateDistributions(getEdges(),repetitiveVertices);
@@ -857,6 +857,7 @@ public class AssemblyGraph {
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
 		calculator.setAverageIKBPVertices(averageIKBPVertices);
 		calculator.setAverageIKBPEmbedded(averageIKBPEmbedded);
+		calculator.setWeightsSecondaryFeatures(weightsSecondaryFeatures);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
 			edge.setScore(calculator.calculateScore(edge,edgesDists));
