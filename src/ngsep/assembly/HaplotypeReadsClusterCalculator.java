@@ -266,7 +266,7 @@ public class HaplotypeReadsClusterCalculator {
 				if(hetVar instanceof CalledSNV) countSNVs++;
 			}
 		}
-		if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
+		//if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
 		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars.size()+" SNVs: "+countSNVs);
 		return filteredVars;
 	}
@@ -361,7 +361,6 @@ public class HaplotypeReadsClusterCalculator {
     		int readId = vertex.getSequenceIndex();
     		Integer clusterId = readsClusters.get(readId);
     		if(clusterId ==null) continue;
-    		if(clusterId == 20) System.out.println("MergeHaplotypeClusters. Vertex: "+vertex+" cluster id: "+clusterId);
     		List<AssemblyEdge> edges = graph.getEdges(vertex);
     		for(AssemblyEdge edge:edges) {
     			if(edge.isSameSequenceEdge()) continue;
@@ -374,7 +373,7 @@ public class HaplotypeReadsClusterCalculator {
     				String key = ReadsClusterEdge.getKey(idMin,idMax);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				//if((idMin==13 || idMin == 14) && idMax == 20) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				if((idMax==16 || idMax == 17) && (idMin == 4 || idMin==3)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
@@ -605,7 +604,7 @@ class ClusterReadsTask implements Runnable {
 	
 }
 class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener {
-	private static final int MIN_DEPTH_ALLELE = 5;
+	private static final int MIN_DEPTH_ALLELE = 3;
 	private StringBuilder consensus;
 	private List<CalledGenomicVariant> heterozygousVariants = new ArrayList<CalledGenomicVariant>();
 	private boolean callIndels = false;
@@ -674,8 +673,9 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			if(refBase!=indelAllele.charAt(0)) return;
 			
 			if(countNonIndelAllele+countIndelAllele<alns.size()-1) return;
-			if(countIndelAllele<2*MIN_DEPTH_ALLELE) return;
-			if(countNonIndelAllele<2*MIN_DEPTH_ALLELE) return;
+			if(countIndelAllele<MIN_DEPTH_ALLELE) return;
+			if(countNonIndelAllele<MIN_DEPTH_ALLELE) return;
+			if(countIndelAllele < 0.1*countNonIndelAllele) return;
 			List<String> alleles = new ArrayList<String>(2);
 			//Fix refrence allele for indel call
 			if(indelAllele.length()>2) {
@@ -705,9 +705,12 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 		
 		char altBase = (maxBp==refBase)?secondBp:maxBp;
 		if(pos==idxDebug) System.out.println("SimpleHetVars. Max count: "+maxCount+" secondCount: "+secondCount+" total alns: "+alns.size()+" ref: "+refBase+" maxBp: "+maxBp+" secondBp: "+secondBp);
-		if(maxCount+secondCount>=alns.size()-1 && secondCount>=MIN_DEPTH_ALLELE && (refBase==maxBp || refBase == secondBp)) {
-			heterozygousVariants.add(new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO));
-		}
+		if(maxCount+secondCount<alns.size()-1) return;
+		if(secondCount < MIN_DEPTH_ALLELE) return;
+		if(secondCount < 0.1*maxCount) return;
+		if(refBase!=maxBp && refBase != secondBp) return;
+		heterozygousVariants.add(new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO));
+		
 	}
 
 	private boolean isMononucleotide(String allele) {
@@ -738,8 +741,7 @@ class ReadsClusterEdge {
 	private int clusterId1;
 	private int clusterId2;
 	private int numEdges=0;
-	private long totalScore=0;
-	private int maxScore = 0;
+	private List<Integer> scores = new ArrayList<Integer>();
 	public ReadsClusterEdge(int clusterId1, int clusterId2) {
 		super();
 		this.clusterId1 = clusterId1;
@@ -748,8 +750,7 @@ class ReadsClusterEdge {
 	public void addAssemblyEdge(AssemblyEdge edge) {
 		numEdges++;
 		int score = (int) (edge.getScore()/(edge.getIndelsPerKbp()+1));
-		totalScore+=score;
-		maxScore = Math.max(maxScore, score);
+		scores.add(score);
 	}
 	public int getClusterId1() {
 		return clusterId1;
@@ -762,7 +763,16 @@ class ReadsClusterEdge {
 	}
 	public int getScore() {
 		//return (int) (totalScore/numEdges);
-		return maxScore;
+		Collections.sort(scores);
+		int numMax = Math.min(3, 1+scores.size()/10);
+		double score = 0;
+		int n = 0;
+		for(int j=scores.size()-1;j>=0 && n<numMax;j--) {
+			score+=scores.get(j);
+			n++;
+		}
+		score/=n;
+		return (int) score;
 	}
 	public static String getKey(int id1, int id2) {
 		return ""+id1+" "+id2;
