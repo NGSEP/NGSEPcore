@@ -66,8 +66,6 @@ public class AssemblyGraphStatistics {
 	//Parameters
 	private String inputFile = null;
 	private String outputFile = null;
-	private String readsFile = null;
-	private byte readsFormat = READS_FORMAT_FASTQ;
 	private ReferenceGenome genome = null;
 	private String alignmentsFile = null;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
@@ -204,24 +202,6 @@ public class AssemblyGraphStatistics {
 		this.outputFile = outputFile;
 	}
 	
-	public String getReadsFile() {
-		return readsFile;
-	}
-	public void setReadsFile(String readsFile) {
-		this.readsFile = readsFile;
-	}
-	
-	
-	public byte getReadsFormat() {
-		return readsFormat;
-	}
-	public void setReadsFormat(byte readsFormat) {
-		this.readsFormat = readsFormat;
-	}
-	public void setReadsFormat(String value) {
-		this.setReadsFormat((byte) OptionValuesDecoder.decode(value, Byte.class));
-	}
-	
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
@@ -285,7 +265,6 @@ public class AssemblyGraphStatistics {
 		PrintStream out = new PrintStream(os);
 		out.println("Input file:"+ inputFile);
 		out.println("Output file:"+ outputFile);
-		if (readsFile!=null) out.println("File with original reads: "+readsFile);
 		if(simulated) out.println("Reads were simulated using SingleReadsSimulator");
 		out.println("Layout algorithm:"+ layoutAlgorithm);
 		if (genome!=null) out.println("Target genome for benchmark loaded from file: "+genome.getFilename());
@@ -309,6 +288,7 @@ public class AssemblyGraphStatistics {
 		if (alignmentsFile!=null) {
 			alignments = new ArrayList<ReadAlignment>();
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(alignmentsFile)) {
+				log.info("Loading alignments from: "+alignmentsFile);
 				reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_NAME);
 				reader.setFilterFlags(ReadAlignment.FLAG_SECONDARY);
 				Iterator<ReadAlignment> it = reader.iterator();
@@ -329,7 +309,7 @@ public class AssemblyGraphStatistics {
 					}
 					int refSeqLength = refSeq.getLength();
 					
-					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
+					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>3000 || aln.getSoftClipEnd()>3000) {
 						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
 						continue;
 					}
@@ -341,14 +321,13 @@ public class AssemblyGraphStatistics {
 					sequences.get(idx).setName(newReadName);
 					alignments.add(aln);
 				}
+				
 			}
 		} else if (simulated) {
+			log.info("Building simulated alignments");
 			alignments = buildAlignmentsFromSimulatedReads(sequences);
-		} else if (readsFile!=null) {
-			//sequences = Assembler.load(readsFile, readsFormat, minReadLength);
-			//TODO: Use aligner to align sequences to reference
 		}
-		
+		log.info("Loaded "+alignments.size()+" alignments");
 		AssemblyGraph goldStandardGraph = null;
 		if(alignments!=null) goldStandardGraph = buildGoldStandardGraph(alignments, sequences);
 		try (PrintStream out=new PrintStream(outputFile)) {
@@ -380,7 +359,9 @@ public class AssemblyGraphStatistics {
 			} else {
 				pathsFinder = new LayoutBuilderKruskalPath();
 			}
-			
+			//System.out.println("Searched vertex: "+graph.getVertex(1222, true));
+			//System.out.println("Searched vertex: "+graph.getVertex(963, false));
+			//System.out.println("Searched edge. "+graph.getEdge(graph.getVertex(963, false), graph.getVertex(1222, true)));
 			pathsFinder.findPaths(graph);
 			if(goldStandardGraph!=null) {
 				//logErrors=true;
@@ -426,6 +407,7 @@ public class AssemblyGraphStatistics {
 		return alignments;
 	}
 	private AssemblyGraph buildGoldStandardGraph(List<ReadAlignment> alignments, List<QualifiedSequence> sequences) {
+		log.info("Building gold standard graph from "+alignments.size()+" alignments on "+sequences.size()+" sequences");
 		AssemblyGraph graph = new AssemblyGraph(sequences);
 		//Sort by target genome location to calculate edges efficiently
 		GenomicRegionComparator comparator = new GenomicRegionComparator(genome.getSequencesMetadata());
@@ -575,7 +557,7 @@ public class AssemblyGraphStatistics {
 					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
 					distWCSKPropSelfTPEmbedded.processDatapoint(p2);
 				}
-				if(minCostE!=null && minCost>200000) System.out.println("TPEmbedded with high cost: "+minCostE+" score: "+minCostE.getScore()+" cost: "+minCostE.getCost()+" host: "+logSequence(minCostE.getHostId(), goldStandardGraph.getSequence(minCostE.getHostId())));
+				//if(minCostE!=null && minCost>200000) System.out.println("TPEmbedded with high cost: "+minCostE+" score: "+minCostE.getScore()+" cost: "+minCostE.getCost()+" host: "+logSequence(minCostE.getHostId(), goldStandardGraph.getSequence(minCostE.getHostId())));
 			}
 			else if (gsE) {
 				fnEmbSeqs++;
@@ -692,7 +674,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==7715 || gsVertex.getSequenceIndex()==7975 || gsVertex.getSequenceIndex()==13;
+		//boolean debug = gsVertex.getSequenceIndex()==20877 || gsVertex.getSequenceIndex()==10205 || gsVertex.getSequenceIndex()==6075;
 		//boolean debug = gsVertex.getSequenceIndex()==90694 || gsVertex.getSequenceIndex()==38102 || gsVertex.getSequenceIndex()==65352; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);

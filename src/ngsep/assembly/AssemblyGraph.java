@@ -750,35 +750,34 @@ public class AssemblyGraph {
 		return true;
 	}
 	
-	private NormalDistribution[] estimateDistributions(Set<Integer> repetitiveVertices) {
+	public NormalDistribution[] estimateDistributions(List<AssemblyEdge> edges, Set<Integer> repetitiveVertices) {
 		Distribution overlapDistributionSafe = new Distribution(0, 100000, 1000);
-		Distribution cskDistributionSafe = new Distribution(0, 100000, 1000);
 		Distribution wcskDistributionSafe = new Distribution(0, 100000, 1000);
+		Distribution wcskPropOverlapSafe = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionSafe = new Distribution(0, 500, 10);
 		Distribution evPropDistributionSafe = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionSafe = new Distribution(0, 100, 1);
-		Distribution [] distsSafe = {overlapDistributionSafe, cskDistributionSafe, wcskDistributionSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
+		Distribution [] distsSafe = {overlapDistributionSafe, wcskDistributionSafe, wcskPropOverlapSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
 		Distribution overlapDistributionAll = new Distribution(0, 100000, 1000);
-		Distribution cskDistributionAll = new Distribution(0, 100000, 1000);
 		Distribution wcskDistributionAll = new Distribution(0, 100000, 1000);
+		Distribution wcskPropOverlapAll = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionAll = new Distribution(0, 50, 10);
 		Distribution evPropDistributionAll = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionAll = new Distribution(0, 100, 1);
-		Distribution [] distsAll = {overlapDistributionAll, cskDistributionAll, wcskDistributionAll, overlapSDDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
-		List<AssemblyEdge> edges = getEdges();
+		Distribution [] distsAll = {overlapDistributionAll, wcskDistributionAll, wcskPropOverlapAll, overlapSDDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
 		for(AssemblyEdge edge:edges) {
 			if (edge.isSameSequenceEdge()) continue;
 			double overlap = edge.getOverlap();
 			overlapDistributionAll.processDatapoint(overlap);
-			cskDistributionAll.processDatapoint(edge.getCoverageSharedKmers());
 			wcskDistributionAll.processDatapoint(edge.getWeightedCoverageSharedKmers());
+			wcskPropOverlapAll.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(edge.getOverlap()+1));
 			overlapSDDistributionAll.processDatapoint((double)edge.getOverlapStandardDeviation());
 			evPropDistributionAll.processDatapoint(edge.getEvidenceProportion());
 			indelsKbpDistributionAll.processDatapoint(edge.getIndelsPerKbp());
 			if (isSafeEdge(edge, repetitiveVertices)) {
 				overlapDistributionSafe.processDatapoint(overlap);
-				cskDistributionSafe.processDatapoint(edge.getCoverageSharedKmers());
 				wcskDistributionSafe.processDatapoint(edge.getWeightedCoverageSharedKmers());
+				wcskPropOverlapSafe.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(edge.getOverlap()+1));
 				overlapSDDistributionSafe.processDatapoint((double)edge.getOverlapStandardDeviation());
 				evPropDistributionSafe.processDatapoint(edge.getEvidenceProportion());
 				indelsKbpDistributionSafe.processDatapoint(edge.getIndelsPerKbp());
@@ -788,6 +787,8 @@ public class AssemblyGraph {
 		overlapDistributionAll.printDistribution(System.out);
 		System.out.println("Dist WCSK");
 		wcskDistributionAll.printDistribution(System.out);
+		System.out.println("Dist WCSK prop");
+		wcskPropOverlapAll.printDistribution(System.out);
 		System.out.println("Dist ev prop");
 		evPropDistributionAll.printDistribution(System.out);
 		double numSafe = overlapDistributionSafe.getCount();
@@ -800,18 +801,18 @@ public class AssemblyGraph {
 				mean = distsSafe[i].getLocalMode(distsSafe[i].getAverage()/2, distsSafe[i].getAverage()*2);
 			} else if (i<5) {
 				mean = distsAll[i].getLocalMode(distsAll[i].getAverage(), distsAll[i].getMaxValueDistribution());
-				if(i<3) mean*=2;
+				if(i<2) mean*=2;
 			} else {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
-			if(i==5 && mean < distsAll[i].getAverage()) mean = distsAll[i].getAverage();
-			//if(i==5 && mean < 3) mean = 3;
-			double stdev = distsAll[i].getEstimatedStandardDeviationPeak(mean);
-			if(i==4) stdev = Math.max(stdev, Math.sqrt(distsAll[i].getVariance()));
-			if(i==4 && stdev < 0.03) stdev = 0.03;
-			if(i==5 && stdev < mean) stdev = mean;
-			double variance = stdev*stdev;
-			if(i<3 && variance <mean) variance = mean; 
+			if(i==5 ) mean = Math.max(mean, 0.5);
+			double variance = Math.pow(distsAll[i].getEstimatedStandardDeviationPeak(mean),2);
+			if(numSafe>20) variance = Math.max(variance, distsSafe[i].getVariance());
+			// For overlap, WCSK and IKBP the variance should be at least the mean
+			if((i<2 || i==5) && variance < mean) variance = mean;
+			//For proportions, the stdev should be at least 0.1
+			if(i==2 || i==4) variance = Math.max(variance, 0.01);
+			 
 			answer[i] = new NormalDistribution(mean,variance);
 		}
 		return answer;
@@ -820,10 +821,10 @@ public class AssemblyGraph {
 	public void updateScores () {
 		updateVertexDegrees();
 		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
-		NormalDistribution [] edgesDists = estimateDistributions(repetitiveVertices);
+		NormalDistribution [] edgesDists = estimateDistributions(getEdges(),repetitiveVertices);
 		System.out.println("Average overlap: "+edgesDists[0].getMean()+" SD: "+Math.sqrt(edgesDists[0].getVariance()));
-		System.out.println("Average coverage shared kmers: "+edgesDists[1].getMean()+" SD: "+Math.sqrt(edgesDists[1].getVariance()));
-		System.out.println("Average weighted coverage shared kmers: "+edgesDists[2].getMean()+" SD: "+Math.sqrt(edgesDists[2].getVariance()));
+		System.out.println("Average weighted coverage shared kmers: "+edgesDists[1].getMean()+" SD: "+Math.sqrt(edgesDists[1].getVariance()));
+		System.out.println("Average WCSK proportion overlap: "+edgesDists[2].getMean()+" SD: "+Math.sqrt(edgesDists[2].getVariance()));
 		System.out.println("Average overlap standard deviation: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));

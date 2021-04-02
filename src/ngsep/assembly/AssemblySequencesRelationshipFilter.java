@@ -106,8 +106,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Next edge start "+edge+" limit: "+limitS);
-			//TODO: Make this parameter dynamic based on the distribution
-			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreS && score < limitS)) {
+			if(score < maxScoreS && score < limitS) {
 				if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}
@@ -118,8 +117,7 @@ public class AssemblySequencesRelationshipFilter {
 			if(edge.isSameSequenceEdge()) continue;
 			double score = edge.getScore();
 			if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Next edge end "+edge+" limit: "+limitE);
-			//TODO: Make this parameter dynamic based on the distribution
-			if(edge.getIndelsPerKbp()>=50 || (score < maxScoreE && score < limitE)) {
+			if(score < maxScoreE && score < limitE) {
 				if(sequenceId == debugIdx) System.out.println("EdgesFiltering. Removing edge: "+edge.getVertex1().getUniqueNumber()+" "+edge.getVertex2().getUniqueNumber());
 				graph.removeEdge(edge);
 			}

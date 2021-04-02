@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import JSci.maths.statistics.NormalDistribution;
+
 /**
  * 
  * @author Jorge Duitama
@@ -178,6 +180,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		return vertices;
 	}
 	private void addConnectingEdges(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
+		NormalDistribution distIKBP = graph.estimateDistributions(pathEdges, new HashSet<Integer>())[5];
 		AssemblyVertex [] vertices = extractEndVertices(paths);
 		log.info("KruskalPathAlgorithm. Extracted "+vertices.length+" end vertices");
 		List<AssemblyEdge> candidateEdges = new ArrayList<AssemblyEdge>();
@@ -195,11 +198,13 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Collections.sort(candidateEdges,(e1,e2)->e1.getCost()-e2.getCost());
 		//Collections.sort(candidateEdges,(e1,e2)->e2.getScore()-e1.getScore());
 		log.info("KruskalPathAlgorithm. Sorted "+candidateEdges.size()+" edges");
-		List<AssemblyEdge> selectedEdges = selectEdgesToMergePaths(candidateEdges,vertices);
+		List<AssemblyEdge> selectedEdges = selectEdgesToMergePaths(candidateEdges,vertices, distIKBP);
 		log.info("KruskalPathAlgorithm. Selected "+selectedEdges.size()+" edges for paths");
 		pathEdges.addAll(selectedEdges);
 	}
-	private List<AssemblyEdge> selectEdgesToMergePaths(List<AssemblyEdge> candidateEdges, AssemblyVertex [] vertices) {
+	private List<AssemblyEdge> selectEdgesToMergePaths(List<AssemblyEdge> candidateEdges, AssemblyVertex [] vertices, NormalDistribution distIKBP) {
+		double limitIKBP = distIKBP.getMean()+7*Math.sqrt(distIKBP.getVariance());
+		log.info("Limit for IKBP: "+limitIKBP+" Average: "+distIKBP.getMean()+" variance: "+distIKBP.getVariance());
 		int n = vertices.length;
 		Map<Integer,Integer> verticesPos = new HashMap<Integer, Integer>();
 		for(int i=0;i<n;i++) {
@@ -221,9 +226,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			Integer posV1 = verticesPos.get(v1.getUniqueNumber());
 			Integer posV2 = verticesPos.get(v2.getUniqueNumber());
 			if(posV1==null || posV2==null) continue;
-			if(v1.getUniqueNumber()==-69 || v2.getUniqueNumber()==-69) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
+			//if(v1.getUniqueNumber()==-69 || v2.getUniqueNumber()==-69) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
 			
 			if(used[posV1] || used[posV2]) continue;
+			if(nextEdge.getIndelsPerKbp()>limitIKBP) continue;
 			int c1 = clusters[posV1];
 			int c2 = clusters[posV2];
 			

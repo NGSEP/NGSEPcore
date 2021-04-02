@@ -98,8 +98,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	}
 	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		NormalDistribution overlapD = edgesDists[0];
-		NormalDistribution cskD = edgesDists[1];
-		NormalDistribution wcskD = edgesDists[2];
+		NormalDistribution wcskD = edgesDists[1];
+		NormalDistribution wcskPropD = edgesDists[2];
 		NormalDistribution overlapSD = edgesDists[3];
 		NormalDistribution evPropD = edgesDists[4];
 		NormalDistribution indelsKbpD = edgesDists[5];
@@ -108,21 +108,21 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
 		double [] individualCosts = new double[6];
-		double [] limitPValues = {1,1,0.5,0.05,0.05,0.01};
-		double [] weights = {1,0,1,0,1,0};
+		double [] limitPValues = {1,0.5,0.1,0.05,0.5,0.25};
+		double [] weights      = {0.8,1,0.5,   0,0.5,0.1};
 		
 		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
 		individualCosts[0] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[0],cumulativeOverlap),maxIndividualCost);
 		//double cost1 = maxIndividualCost*(1-cumulativeOverlap);
 		
-		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
-		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],1-cumulativeCSK),maxIndividualCost);
-		
 		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
+		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],cumulativeWCSK),maxIndividualCost);
+		
+		double cumulativeWCSKProp = wcskPropD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(relationship.getOverlap()+1));
 		//individualCosts[2] = maxIndividualCost*(1-cumulativeWCSK);
 		
-		individualCosts[2] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[2], cumulativeWCSK),maxIndividualCost);
+		individualCosts[2] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[2], cumulativeWCSKProp),maxIndividualCost);
 		
 		//TODO: Save overlapSD for embedded 
 		double pValueOverlapSD = 0.5;
@@ -134,7 +134,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//individualCosts[4] = 100.0*(1.0-relationship.getEvidenceProportion());
 		
 		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
-		individualCosts[5] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[5],maxIndividualCost),maxIndividualCost);
+		individualCosts[5] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[5],pValueIKBP),maxIndividualCost);
 		//individualCosts[5] = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
 		
 		
@@ -142,13 +142,13 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		for(int i=0;i<weights.length;i++) {
 			costD+=individualCosts[i]*weights[i];
 		}
-		
+
 		int cost = (int)(10000.0*costD);
-		
+		cost += 10*cumulativeOverlap;
 		//cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[2]+" "+individualCosts[3]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost+ " Rel: "+relationship);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Rel: "+relationship+" Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeWCSKProp+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[1]+" "+individualCosts[2]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost);
 		
 		return cost;
 	}
