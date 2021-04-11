@@ -1,5 +1,7 @@
 package ngsep.clustering;
 
+import ngsep.clustering.dendrogram.Dendrogram;
+
 public interface DistanceMatrixClustering {
 	/**
 	 * Builds a dendrogram representing the clustering given the current distance matrix

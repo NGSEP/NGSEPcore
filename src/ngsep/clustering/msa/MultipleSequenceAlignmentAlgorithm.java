@@ -1,12 +1,12 @@
-package ngsep.clustering;
+package ngsep.clustering.msa;
 
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequenceList;
 
 public interface MultipleSequenceAlignmentAlgorithm {
-	public QualifiedSequenceList calculateMultipleSequenceAlignment(QualifiedSequenceList sequences);
+	QualifiedSequenceList calculateMultipleSequenceAlignment(QualifiedSequenceList sequences);
 	
-	public static double calculateSumOfPairsScore(QualifiedSequenceList alignedSequences){
+	default double calculateSumOfPairsScore(QualifiedSequenceList alignedSequences){
         int score = 0;
         int n = alignedSequences.size();
         HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();

@@ -1,4 +1,8 @@
 package ngsep.clustering;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.SequenceDistanceMeasure;
+import ngsep.sequences.io.FastaFileReader;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -134,7 +138,34 @@ public class DistanceMatrix {
 	    	out.println(ids.get(j)+" "+row);
     	}
 	}
-	
+
+	/**
+	 * Build a distance matrix from a multiple sequence alignment
+	 * @param pathToSequences - path to a fasta file with the MSA
+	 * @param distanceFunction - A function that finds a distance between two sequences
+	 * @return a distance matrix
+	 * @throws IOException
+	 */
+	public DistanceMatrix fromSequences (
+			String pathToSequences,
+			SequenceDistanceMeasure distanceFunction
+	) throws IOException {
+		FastaFileReader seqIter = new FastaFileReader(pathToSequences);
+		List<CharSequence> seqs = new ArrayList<>();
+		List<String> names = new ArrayList<>();
+		for (QualifiedSequence s : seqIter) {
+			seqs.add(s.getCharacters());
+			names.add(s.getName());
+		}
+		int n = seqs.size();
+		double[][] D = new double[n][n];
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				D[i][j] = distanceFunction.calculateDistance(seqs.get(i), seqs.get(j));
+			}
+		}
+		return new DistanceMatrix(names, D);
+	}
 	
 
 	/**
