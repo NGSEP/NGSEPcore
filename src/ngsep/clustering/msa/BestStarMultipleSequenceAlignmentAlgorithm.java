@@ -1,4 +1,4 @@
-package ngsep.clustering;
+package ngsep.clustering.msa;
 
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.QualifiedSequence;

@@ -1,5 +1,9 @@
-package ngsep.clustering;
+package ngsep.clustering.upgma;
 
+import ngsep.clustering.DistanceMatrix;
+import ngsep.clustering.DistanceMatrixClustering;
+import ngsep.clustering.dendrogram.Dendrogram;
+import ngsep.clustering.dendrogram.DendrogramEdge;
 import ngsep.main.ProgressNotifier;
 
 import java.util.ArrayList;
@@ -10,7 +14,7 @@ import java.util.logging.Logger;
 /**
  * @author Sebastian Lemus Cadena
  */
-public class UPGMA implements DistanceMatrixClustering{
+public class UPGMA implements DistanceMatrixClustering {
 
     private Logger log = Logger.getLogger(UPGMA.class.getName());
     private ProgressNotifier progressNotifier=null;

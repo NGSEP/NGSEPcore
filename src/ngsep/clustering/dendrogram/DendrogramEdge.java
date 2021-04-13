@@ -1,12 +1,11 @@
-package ngsep.clustering;
+package ngsep.clustering.dendrogram;
 
 public class DendrogramEdge {
 
-	private double weight;
-	private Dendrogram destination;
+	private final double weight;
+	private final Dendrogram destination;
 
 	public DendrogramEdge(double weight, Dendrogram destination) {
-		super();
 		this.weight = weight;
 		this.destination = destination;
 	}
@@ -23,7 +22,4 @@ public class DendrogramEdge {
 	public Dendrogram getDestination() {
 		return destination;
 	}
-
-
-
 }

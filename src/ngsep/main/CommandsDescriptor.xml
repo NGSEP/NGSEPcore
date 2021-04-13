@@ -1386,7 +1386,36 @@ to recalculate allele dosage based on these counts.
 </option>
 </command>
 
-<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining" groupId="VariantsDownstream">
+<command id="DistanceClusteringService" class="ngsep.clustering.DistanceClusteringService" groupId="VariantsDownstream">
+<intro>
+Build a dendrogram from a distance matrix
+</intro>
+<title>
+Building phylogenetic trees from a distance based clustering algorithm
+</title>
+<description>
+Given a distance matrix file, this command builds a dendrogram for graphical display of genetic
+distances using distance based methods. The distance matrix can be provided as an upper, lower
+or full matrix. The dendrogram is written in Newick format.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input file with a distance matrix.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with the dendrogram in Newick format.
+</option>
+<option id="a" type="INT" attribute="algorithm">
+The algorithm to be used to build the dendrogram from one of the following options:
+0: Classic Neighbor Joining algorithm.
+1: FastNJ algorithm.
+Default: 0.
+</option>
+</command>
+
+
+<command id="NeighborJoining" class="ngsep.clustering.nj.NeighborJoining" groupId="VariantsDownstream">
 <intro>
 Construct a neighbor joining dendrogam given a distance matrix file
 </intro>
