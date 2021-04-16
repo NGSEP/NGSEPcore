@@ -175,6 +175,10 @@ public class QualityStatisticsInbredBiparentalFamilies {
 				} else {
 					varsPerCategory[2]++;
 					datapointsPerCategory[2]+=nC;
+					//Heterozygous genotype calls are probably errors
+					if(gP1==CalledGenomicVariant.GENOTYPE_HETERO) parentErrors[2]++;
+					if(gP2==CalledGenomicVariant.GENOTYPE_HETERO) parentErrors[2]++;
+					progenyErrors[2]+=n01;
 				}
 			}
 		}
