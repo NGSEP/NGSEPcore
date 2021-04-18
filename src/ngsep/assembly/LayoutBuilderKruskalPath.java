@@ -21,6 +21,7 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,9 +29,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import JSci.maths.statistics.NormalDistribution;
+import ngsep.math.Distribution;
 
 /**
  * 
@@ -79,7 +82,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<LinkedList<AssemblyEdge>> paths = buildPaths(graph, pathEdges);
-		for(LinkedList<AssemblyEdge> path:paths) {
+		log.info("Paths costs algorithm: "+paths.size());
+		List<List<AssemblyEdge>> finalPaths = mergeClosePaths(graph, paths, pathEdges);
+		for(List<AssemblyEdge> path:finalPaths) {
 			if(path.size()<minPathLength) continue;
 			graph.addPath(path);
 		}
@@ -226,7 +231,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			Integer posV1 = verticesPos.get(v1.getUniqueNumber());
 			Integer posV2 = verticesPos.get(v2.getUniqueNumber());
 			if(posV1==null || posV2==null) continue;
-			//if(v1.getUniqueNumber()==-69 || v2.getUniqueNumber()==-69) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
+			if(v1.getUniqueNumber()==-97856 || v2.getUniqueNumber()==69473) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
 			
 			if(used[posV1] || used[posV2]) continue;
 			if(nextEdge.getIndelsPerKbp()>limitIKBP) continue;
@@ -243,7 +248,218 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		return answer;
 	}
+	private List<List<AssemblyEdge>> mergeClosePaths (AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
+		Map<Integer,VertexPathLocation> vertexPositions = new HashMap<Integer,VertexPathLocation>();
+		Map<Integer,Integer> vertexEnds = new HashMap<Integer, Integer>();
+		Distribution costsDistribution = new Distribution(0, 1000000, 1000);
+		for(int i=0;i<paths.size();i++) {
+			List<AssemblyEdge> path = new ArrayList<AssemblyEdge>(paths.get(i));
+			int pathId = i+1;
+			int n = path.size();
+			if(n<5) continue;
+			AssemblyEdge edge0 = path.get(0);
+			AssemblyEdge edge1 = path.get(1);
+			AssemblyVertex lastVertex = edge0.getSharedVertex(edge1);
+			AssemblyVertex firstVertexOut = edge0.getConnectingVertex(lastVertex);
+			vertexEnds.put(firstVertexOut.getUniqueNumber(),pathId);
+			vertexPositions.put(firstVertexOut.getUniqueNumber(), new VertexPathLocation(firstVertexOut.getUniqueNumber(), pathId, n, 0));
+			vertexPositions.put(lastVertex.getUniqueNumber(), new VertexPathLocation(lastVertex.getUniqueNumber(), pathId, n, 1));
+			int k = 2;
+			for(int j=1;j<path.size();j++) {
+				AssemblyEdge edge = path.get(j);
+				if(!edge.isSameSequenceEdge()) costsDistribution.processDatapoint(edge.getCost());
+				AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
+				vertexPositions.put(nextVertex.getUniqueNumber(), new VertexPathLocation(nextVertex.getUniqueNumber(), pathId, n, k));
+				if(k==2 || k==n-2) vertexEnds.put(nextVertex.getUniqueNumber(),pathId);
+				k++;
+				lastVertex = nextVertex;
+			}
+			vertexEnds.put(lastVertex.getUniqueNumber(),pathId);
+		}
+		log.info("Average cost path edges: "+costsDistribution.getAverage());
+		Map<String,PathEndJunctionEdge> pathEndEdges = new HashMap<String, PathEndJunctionEdge>();
+		
+		for(int vertexId:vertexEnds.keySet()) {
+			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
+			VertexPathLocation v1Loc = vertexPositions.get(v1.getUniqueNumber());
+			AssemblyEdge edge = getEdgeBestOverlap(graph,v1);
+			if(edge == null) continue;
+			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
+			AssemblyVertex v2 = edge.getConnectingVertex(v1);
+			VertexPathLocation v2Loc = vertexPositions.get(v2.getUniqueNumber());
+			if(v2Loc == null) continue;
+			if (v1Loc.getPathId() == v2Loc.getPathId()) continue;
+			int pathEndV1 = v1Loc.getPathId();
+			if(v1Loc.getPathPosition()>v1Loc.getPathLength()-4) pathEndV1 = -pathEndV1;
+			else if (v1Loc.getPathPosition()>4) continue;
+			int pathEndV2 = v2Loc.getPathId();
+			if(v2Loc.getPathPosition()>v2Loc.getPathLength()-4) pathEndV2 = -pathEndV2;
+			else if (v2Loc.getPathPosition()>4) continue;
+			int minId = Math.min(pathEndV1, pathEndV2);
+			int maxId = Math.max(pathEndV1, pathEndV2);
+			String key = "F"+minId+"L"+maxId;
+			PathEndJunctionEdge pathEndEdge = pathEndEdges.computeIfAbsent(key, v->new PathEndJunctionEdge(minId, maxId));
+			log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" edge: "+edge);
+			pathEndEdge.addVote(edge.getCost());
+		}
+		log.info("Found "+pathEndEdges.size()+" candidate edges connecting vertices");
+		Map<Integer,List<Integer>> mergedPathIds = findPathsToMerge(pathEndEdges.values(),paths.size());
+		log.info("Merged path ids: "+mergedPathIds.values());
+		List<List<AssemblyEdge>> answer = new ArrayList<List<AssemblyEdge>>(mergedPathIds.size());
+		
+		for(List<Integer> idsPath:mergedPathIds.values()) {
+			List<AssemblyEdge> nextPath = new ArrayList<AssemblyEdge>();
+			int lastEndId = 0;
+			int lastInputPathMerged = 0;
+			for(int pathEndId:idsPath) {
+				if(pathEndId!=-lastEndId) {
+					lastEndId = pathEndId;
+					continue;
+				}
+				if(pathEndId > 0) {
+					LinkedList<AssemblyEdge> nextInputPath = paths.get(pathEndId-1);
+					Collections.reverse(nextInputPath);
+					if(!mergePaths(graph, nextPath,nextInputPath, lastInputPathMerged, lastEndId)) {
+						answer.add(nextPath);
+						nextPath = new ArrayList<AssemblyEdge>();
+						nextPath.addAll(nextInputPath);
+					}
+				} else {
+					LinkedList<AssemblyEdge> nextInputPath = paths.get(lastEndId-1);
+					if(!mergePaths(graph, nextPath,nextInputPath, lastInputPathMerged, lastEndId)) {
+						answer.add(nextPath);
+						nextPath = new ArrayList<AssemblyEdge>();
+						nextPath.addAll(nextInputPath);
+					}
+				}
+				lastInputPathMerged = pathEndId;
+				lastEndId = pathEndId;
+			}
+			//log.info("Next final path size: "+nextPath.size());
+			if(nextPath.size()>0) answer.add(nextPath);
+		}
+		
+		return answer;
+	}
 	
+	
+	
+	private boolean mergePaths(AssemblyGraph graph, List<AssemblyEdge> path1, List<AssemblyEdge> path2, int pathEndId1, int pathEndId2) {
+		int n = path1.size();
+		if(n==0) {
+			path1.addAll(path2);
+			return true;
+		}
+		if(path2.size()==0) return true;
+		AssemblyEdge lastEdge1 = path1.get(n-1);
+		AssemblyEdge secondLastEdge1 = path1.get(n-2);
+		AssemblyVertex connecting1 = lastEdge1.getSharedVertex(secondLastEdge1);
+		AssemblyVertex lastVertex1 = lastEdge1.getConnectingVertex(connecting1);
+		AssemblyVertex secondLastVertex1 = secondLastEdge1.getConnectingVertex(connecting1);
+		int lastOverlap = secondLastEdge1.getOverlap();
+		int lastCost = secondLastEdge1.getCost();
+		log.info("Last vertices path 1: "+secondLastVertex1+" "+lastVertex1+" path ends: "+pathEndId1+" "+pathEndId2);
+		
+		AssemblyEdge firstEdge2 = path2.get(0);
+		AssemblyEdge secondEdge2 = path2.get(1);
+		AssemblyVertex connecting2 = firstEdge2.getSharedVertex(secondEdge2);
+		AssemblyVertex firstVertex2 = firstEdge2.getConnectingVertex(connecting2);
+		AssemblyVertex secondVertex2 = secondEdge2.getConnectingVertex(connecting2);
+		int nextOverlap = secondEdge2.getOverlap();
+		int nextCost = secondEdge2.getCost();
+		log.info("first vertices path 2: "+firstVertex2+" "+secondVertex2+" path ends: "+pathEndId1+" "+pathEndId2);
+		
+		
+		AssemblyEdge c1 = graph.getEdge(lastVertex1, firstVertex2);
+		if(c1!=null && c1.getCost()<2*lastCost && c1.getCost()<2*nextCost && c1.getOverlap()>lastOverlap && c1.getOverlap()>nextOverlap) {
+			path1.add(c1);
+			path1.addAll(path2);
+			return true;
+		}
+		AssemblyEdge c2 = graph.getEdge(lastVertex1, secondVertex2);
+		AssemblyEdge c3 = graph.getEdge(secondLastVertex1, firstVertex2);
+		log.info("Edges to merge paths: "+c2+" "+c3+" path ends: "+pathEndId1+" "+pathEndId2 +" max overlap last: "+getEdgeBestOverlap(graph, lastVertex1));
+		if(c2!=null && c2.getOverlap()>nextOverlap && c2.getCost()<2*lastCost && c2.getCost()<2*nextCost && (c3==null || c2.getCost()<c3.getCost())) {
+			//if(c3==null) {
+				path2.remove(0);
+				path2.remove(0);
+				path1.add(c2);
+				path1.addAll(path2);
+				//return;
+			//}
+			return true;
+		}
+		if(c3!=null && c3.getOverlap()>lastOverlap && c3.getCost()<2*lastCost && c3.getCost()<2*nextCost && (c2==null || c3.getCost()<c2.getCost())) {
+			//if(c3==null) {
+				path1.remove(n-1);
+				path1.remove(n-2);
+				path1.add(c3);
+				path1.addAll(path2);
+				//return;
+			//}
+			return true;
+		}
+		return false;
+		
+	}
+	private AssemblyEdge getEdgeBestOverlap(AssemblyGraph graph, AssemblyVertex vertex) {
+		List<AssemblyEdge> edges = graph.getEdges(vertex);
+		AssemblyEdge maxOverlapEdge = null;
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap()<edge.getOverlap()) maxOverlapEdge = edge;
+		}
+		return maxOverlapEdge;
+	}
+	private Map<Integer,List<Integer>> findPathsToMerge(Collection<PathEndJunctionEdge> pathEndEdges, int n) {
+		List<PathEndJunctionEdge> pathEndEdgesList = new ArrayList<PathEndJunctionEdge>(pathEndEdges);
+		Collections.sort(pathEndEdgesList,(e1,e2)->e1.getCost()-e2.getCost());
+		Map<Integer,Integer> pathGroups = new HashMap<Integer, Integer>();
+		
+		Map<Integer,List<Integer>> answer = new TreeMap<Integer,List<Integer>>();
+		for(int i=0;i<n;i++) {
+			int pathId = i+1;
+			pathGroups.put(pathId, pathId);
+			pathGroups.put(-pathId, pathId);
+			LinkedList<Integer> nextPath = new LinkedList<Integer>();
+			nextPath.add(pathId);
+			nextPath.add(-pathId);
+			answer.put(pathId,nextPath);
+		}
+		Set<Integer> usedPathEnds = new HashSet<Integer>();
+		for(PathEndJunctionEdge pathEdge:pathEndEdgesList) {
+			int p1 = pathEdge.getPath1EndId();
+			int p2 = pathEdge.getPath2EndId();
+			if(usedPathEnds.contains(p1) || usedPathEnds.contains(p2)) continue;
+			int g1 = pathGroups.get(p1);
+			int g2 = pathGroups.get(p2);
+			if(g1==g2) continue;
+			//Merge path1 with path2
+			
+			List<Integer> path1 = answer.get(g1);
+			List<Integer> path2 = answer.get(g2);
+			if(path2.get(path2.size()-1)==p2) {
+				Collections.reverse(path2);
+			} else if (path2.get(0)!=p2) {
+				continue;
+			}
+			boolean lastP1 = false;
+			if(path1.get(path1.size()-1)==p1) {
+				lastP1 = true;
+			} else if (path1.get(0)!=p1) {
+				continue;
+			}
+			for(int i:path2) {
+				if(lastP1) path1.add(i);
+				else path1.add(0, i);
+				pathGroups.put(i, g1);
+			}
+			answer.remove(g2);
+			usedPathEnds.add(p1);
+			usedPathEnds.add(p2);
+		}
+		return answer;
+	}
 	//Other algotrithms not used by now
 	private void addEdges3(AssemblyGraph graph, List<LinkedList<AssemblyEdge>> paths, List<AssemblyEdge> pathEdges) {
 		AssemblyVertex [] vertices = extractEndVertices(paths);
@@ -471,4 +687,63 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 	}
 
+}
+class VertexPathLocation {
+	private int vertexId;
+	private int pathId;
+	private int pathLength;
+	private int pathPosition;
+	public VertexPathLocation(int vertexId, int pathId, int pathLength, int pathPosition) {
+		super();
+		this.vertexId = vertexId;
+		this.pathId = pathId;
+		this.pathLength = pathLength;
+		this.pathPosition = pathPosition;
+	}
+	public int getVertexId() {
+		return vertexId;
+	}
+	public int getPathId() {
+		return pathId;
+	}
+	public int getPathLength() {
+		return pathLength;
+	}
+	public int getPathPosition() {
+		return pathPosition;
+	}
+	
+}
+class PathEndJunctionEdge {
+	private int path1EndId;
+	private int path2EndId;
+	private int totalCost=0;
+	private int countVotes=0;
+	
+	
+	
+	public PathEndJunctionEdge(int path1EndId, int path2EndId) {
+		super();
+		this.path1EndId = path1EndId;
+		this.path2EndId = path2EndId;
+	}
+	public void addVote (int cost) {
+		totalCost+=cost;
+		countVotes++;
+	}
+	public int getPath1EndId() {
+		return path1EndId;
+	}
+	public int getPath2EndId() {
+		return path2EndId;
+	}
+	public int getCost() {
+		if(countVotes==0) return Integer.MAX_VALUE;
+		return totalCost/countVotes;
+	}
+	public String toString() {
+		return "P1: "+path1EndId+" P2: "+path2EndId+" Total cost: "+totalCost+" Votes: "+countVotes;
+	}
+	
+	
 }

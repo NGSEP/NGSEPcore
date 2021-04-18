@@ -691,23 +691,34 @@ public class AssemblyGraph {
 	
 	private List<AssemblyEdge> selectSafeEdges( Set<Integer> repetitiveVertices ) {
 		List<AssemblyEdge> allEdges = getEdges();
-		List<AssemblyEdge> safeEdges = new ArrayList<AssemblyEdge>();
+		List<AssemblyEdge> rawSafeEdges = new ArrayList<AssemblyEdge>();
+		double averageCost = 0;
+		double averageIKBP = 0;
 		for(AssemblyEdge edge:allEdges) {
-			if(isSafeEdge(edge, repetitiveVertices)) safeEdges.add(edge);
+			if(isSafeEdge(edge, repetitiveVertices)) {
+				rawSafeEdges.add(edge);
+				averageCost+=edge.getCost();
+				averageIKBP+=edge.getIndelsPerKbp();
+			}
 		}
-		return safeEdges;
+		if (rawSafeEdges.size()==0) return rawSafeEdges;
+		averageCost/=rawSafeEdges.size();
+		averageIKBP/=rawSafeEdges.size();
+		List<AssemblyEdge> filteredSafeEdges = new ArrayList<AssemblyEdge>();
+		for(AssemblyEdge edge:rawSafeEdges) {
+			if(edge.getCost()<=3*averageCost && edge.getIndelsPerKbp()<=5*averageIKBP) filteredSafeEdges.add(edge);
+		}
+		return filteredSafeEdges;
 	}
 	private boolean isSafeEdge(AssemblyEdge edge, Set<Integer> repetitiveVertices) {
 		if(edge.isSameSequenceEdge()) return false;
 		if(isEmbedded(edge.getVertex1().getSequenceIndex())) return false;
 		if(isEmbedded(edge.getVertex2().getSequenceIndex())) return false;
-		if (edge.getEvidenceProportion()<0.9) return false;
-		if (edge.getIndelsPerKbp()>30) return false;
 		boolean r1 = repetitiveVertices.contains(edge.getVertex1().getUniqueNumber());
 		boolean r2 = repetitiveVertices.contains(edge.getVertex2().getUniqueNumber()); 
 		int d1 = getEdges(edge.getVertex1()).size();
 		int d2 = getEdges(edge.getVertex2()).size();
-		//if(logEdge(edge)) System.out.println("Select safe edges. repetitive: "+r1+" "+r2+" initial degrees "+edge.getVertex1().getDegreeUnfilteredGraph()+" "+edge.getVertex2().getDegreeUnfilteredGraph()+" current degrees "+d1+" "+d2+" reciprocal best: "+isRecipocalBest(graph, edge)+" edge: "+edge);
+		//if(edge.getVertex1().getUniqueNumber()==-97856) System.out.println("Select safe edges. repetitive: "+r1+" "+r2+" initial degrees "+edge.getVertex1().getDegreeUnfilteredGraph()+" "+edge.getVertex2().getDegreeUnfilteredGraph()+" current degrees "+d1+" "+d2+" reciprocal best: "+isRecipocalBest(edge)+" edge: "+edge);
 		if((d1==2 && d2==2) || (!r1 && !r2 && isRecipocalBest(edge))) return true;
 		return false;
 	}
