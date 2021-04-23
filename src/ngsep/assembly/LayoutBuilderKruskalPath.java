@@ -283,6 +283,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
 			VertexPathLocation v1Loc = vertexPositions.get(v1.getUniqueNumber());
 			AssemblyEdge edge = getEdgeBestOverlap(graph,v1);
+			//if(vertexId==-32163) System.out.println("FInding edges to merge paths. Edge: "+edge);
 			if(edge == null) continue;
 			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
 			AssemblyVertex v2 = edge.getConnectingVertex(v1);
@@ -346,6 +347,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	
 	private boolean mergePaths(AssemblyGraph graph, List<AssemblyEdge> path1, List<AssemblyEdge> path2, int pathEndId1, int pathEndId2) {
 		int n = path1.size();
+		//if(pathEndId2==1) System.out.println("Merging paths. End ids: "+pathEndId1+" "+pathEndId2+" sizes: "+path1.size()+" "+path2.size());
 		if(n==0) {
 			path1.addAll(path2);
 			return true;
@@ -378,8 +380,14 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		AssemblyEdge c2 = graph.getEdge(lastVertex1, secondVertex2);
 		AssemblyEdge c3 = graph.getEdge(secondLastVertex1, firstVertex2);
-		log.info("Edges to merge paths: "+c2+" "+c3+" path ends: "+pathEndId1+" "+pathEndId2 +" max overlap last: "+getEdgeBestOverlap(graph, lastVertex1));
-		if(c2!=null && c2.getOverlap()>nextOverlap && c2.getCost()<2*lastCost && c2.getCost()<2*nextCost && (c3==null || c2.getCost()<c3.getCost())) {
+		if(c2!=null && c3!=null && c2.getOverlap()<c3.getOverlap()) {
+			AssemblyEdge t = c2;
+			c2 = c3;
+			c3 = t;
+		}
+		log.info("Edges to merge paths: "+c2+" "+c3+" path ends: "+pathEndId1+" "+pathEndId2 +" overlaps: "+lastOverlap+" "+nextOverlap+" costs: "+lastCost+" "+nextCost);
+		if(c2!=null && c2.getOverlap()>nextOverlap && c2.getCost()<2*lastCost && c2.getCost()<2*nextCost && (c3==null || c2.getCost()<2*c3.getCost())) {
+			log.info("Merging paths with ends: "+pathEndId1+" "+pathEndId2+" Merging edge: "+c2);
 			//if(c3==null) {
 				path2.remove(0);
 				path2.remove(0);
@@ -389,7 +397,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			//}
 			return true;
 		}
-		if(c3!=null && c3.getOverlap()>lastOverlap && c3.getCost()<2*lastCost && c3.getCost()<2*nextCost && (c2==null || c3.getCost()<c2.getCost())) {
+		if(c3!=null && c3.getOverlap()>lastOverlap && c3.getCost()<2*lastCost && c3.getCost()<2*nextCost && (c2==null || c3.getCost()<2*c2.getCost())) {
+			log.info("Merging paths with ends: "+pathEndId1+" "+pathEndId2+" Merging edge: "+c3);
 			//if(c3==null) {
 				path1.remove(n-1);
 				path1.remove(n-2);

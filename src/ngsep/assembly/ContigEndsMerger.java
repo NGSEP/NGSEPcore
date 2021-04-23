@@ -19,7 +19,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 
 public class ContigEndsMerger {
 
-	private static final int END_LENGTH = 50000;
+	private static final int END_LENGTH = 100000;
 	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
@@ -38,7 +38,7 @@ public class ContigEndsMerger {
 		int i=0;
 		for (QualifiedSequence contig:contigs) {
 			CharSequence seq = contig.getCharacters();
-			if(seq.length()<200000) {
+			if(seq.length()<3*END_LENGTH) {
 				smallContigs.add(contig);
 				continue;
 			}

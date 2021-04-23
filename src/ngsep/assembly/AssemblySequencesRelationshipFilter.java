@@ -62,7 +62,19 @@ public class AssemblySequencesRelationshipFilter {
 			if(seqId == debugIdx) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size());
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
-		
+		for (int seqId = n-1; seqId >=0; seqId--) {
+			AssemblyVertex vS = graph.getVertex(seqId, true);
+			AssemblyVertex vE = graph.getVertex(seqId, false);
+			if(vS==null || vE==null) continue;
+			int nS = graph.getEdges(vS).size()-1;
+			int nE = graph.getEdges(vE).size()-1;
+			int nM = Math.min(nS, nE); 
+			if(seqId == debugIdx) System.out.println("Final edges for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+" START "+graph.getEdges(vS)+" END "+graph.getEdges(vE));
+			if(nM==0 /*|| (nM==1 && Math.max(nS, nE)>20) */) {
+				System.out.println("Disbalanced number of edges for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Values: "+nS+" "+nE+" Removing vertices");
+				graph.removeVertices(seqId);
+			}
+		}
 		//graph.pruneEmbeddedSequences();
 		//System.out.println("Prunned embedded sequences.");
 		//if(debugIdx>=0) System.out.println("EdgesAndEmbeddedFiltering. Final number of edges: "+graph.getEdges(graph.getVertex(debugIdx, true)).size()+" "+graph.getEdges(graph.getVertex(debugIdx, false)).size());
