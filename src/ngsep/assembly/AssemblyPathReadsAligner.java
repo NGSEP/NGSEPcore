@@ -101,7 +101,7 @@ public class AssemblyPathReadsAligner {
 				vertexNextEdge = edge.getVertex1();
 			}
 			else {
-				throw new RuntimeException("Inconsistency found in path");
+				throw new RuntimeException("Inconsistency found in path. last vertex: "+lastVertex+" next edge: "+edge);
 			}
 			if(j == 0) {
 				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");

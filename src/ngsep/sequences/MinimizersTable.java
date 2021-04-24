@@ -236,6 +236,7 @@ public class MinimizersTable {
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
 	private List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
+		int debugIdx = -2;
 		List<MinimizersTableEntry> minimizersSeq = new ArrayList<MinimizersTableEntry>();
 		Map<Integer, Integer> hashcodesForward = new HashMap<Integer, Integer>();
 		for(int i: kmerCodes.keySet()) {
@@ -250,7 +251,7 @@ public class MinimizersTable {
 			}
 			hashcodesForward.put(i, getHash(code));
 		}
-		//log.info("Filtered codes for sequence "+sequenceId+" from "+start+" to "+end+" Filtered codes: "+hashcodesForward.size());
+		if(sequenceId==debugIdx) System.err.println("Filtered codes for sequence "+sequenceId+" from "+start+" to "+end+" Filtered codes: "+hashcodesForward.size());
 		Integer previousMinimizer = null;
 		int previousMinimizerPos = -1;
 		for(int i=start;i<end;i++) {
@@ -273,7 +274,7 @@ public class MinimizersTable {
 						minPos = i+j;
 					}
 				}
-				//if(sequenceId==0 && i<1000) log.info("Minimizer calculated with cycle. New pos: "+minPos+" new minimizer: "+minimizerI+" kmer code: "+kmerCodes.get(minPos));
+				//if(sequenceId==debugIdx && i>0 && i<3000) System.err.println("Minimizer calculated with cycle. Start: "+i+" New pos: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer+" kmer code: "+kmerCodes.get(minPos)+" total: "+minimizersSeq.size());
 			}
 			if (minimizerI==previousMinimizer) continue;
 			if(minimizerI != null) {
@@ -283,7 +284,7 @@ public class MinimizersTable {
 			previousMinimizer = minimizerI;
 			previousMinimizerPos = minPos;
 		}
-		//log.info("Calculated minimizers for sequence "+sequenceId+" from "+start+" to "+end+" Minimizers: "+minimizersSeq.size());
+		if(sequenceId==debugIdx) System.err.println("Calculated minimizers for sequence "+sequenceId+" from "+start+" to "+end+" Minimizers: "+minimizersSeq.size());
 		return minimizersSeq;
 	}
 
