@@ -4,16 +4,27 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
+import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.ReadAlignment;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
+import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.RawRead;
+import ngsep.sequences.UngappedSearchHit;
+import ngsep.sequences.io.FastaSequencesHandler;
 
 public class TransposableElementsFinder {
-
+	
 	// Logging and progress
 	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
 	private ProgressNotifier progressNotifier=null;
@@ -64,7 +75,7 @@ public class TransposableElementsFinder {
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
-	public void run() throws IOException {
+	public void run() throws IOException, InterruptedException {
 		long time = System.currentTimeMillis();
 		logParameters ();
 		if(inputFile==null) throw new IOException("The input genome is a required parameter");
@@ -84,37 +95,124 @@ public class TransposableElementsFinder {
 		if(transposonsDatabaseFile!=null) out.println("Database of transposable elements: "+ transposonsDatabaseFile);
 		log.info(os.toString());
 	}
-	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) {
+	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) throws InterruptedException, IOException {
 		GenomicRegionSortedCollection<TransposableElementAnnotation> annotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
 		annotations.addAll(findTransposonsDeNovo(genome));
 		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
 		return removeRedundantAnnotations(annotations);
 	}
-
-	public String fileName (ReferenceGenome genome) {
-		String filename= genome.getFilename();
-		System.out.println(filename);
-		return filename;
-		
-	}
-	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) {
+	
+	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) throws InterruptedException {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		// TODO implement
-		int numSeq= genome.getNumSequences();
-		System.out.println("respuesta1:" + numSeq);
+		
+		QualifiedSequenceList list = genome.getSequencesList();
+		KmersExtractor tableKmer = new KmersExtractor();
+		tableKmer.processQualifiedSequences(list);
+		KmersMap kmap= tableKmer.getKmersMap();
+		int totalTranspoSize= 0;
 		
 		
-		//String fileName = genome.getFilename();
-		//System.out.println("respuesta1:" + fileName);
-		//long totalLength = genome.getTotalLength();
-		//System.out.println("respuesta1:" + totalLength);
-		//QualifiedSequenceList news = genome.getSequencesList();
-		//System.out.println("respuesta1:" + news);
+	    //traverses the genome, chromosome by chromosome 
+		for(QualifiedSequence chromosome:list)
+		{
+			//gives the chromosome sequence
+			CharSequence chromosomeSequence = chromosome.getCharacters();
+			int n = chromosome.getLength();
+			int regionStart=0;
+			int regionEnd=1;
+			int regionFrequency=0;			
+			//extract kmer by kmer of the entire genome
+			for(int i=0;i<n-15;i++) 
+			{
+				int end = i+15;
+				
+				String kmer = chromosomeSequence.subSequence(i, end).toString();
+				//check if kmer is DNA
+				if(DNASequence.isDNA(kmer)) 
+				{
+					int kmerFrequency = kmap.getCount(kmer); 
+					
+					//filter kmers with given frequency
+					if (kmerFrequency >=10)
+					{ 
+						int dif= Math.abs(regionEnd-i);
+						// report regions
+						// does the kmer belongs to the region?
+						if (dif<=50)
+						{
+							regionEnd=end;
+							
+							// the frequency of the region will be the lowest frequency of the kmers
+							if(regionFrequency==0)
+							{
+								regionFrequency= kmerFrequency;
+							}
+							if (kmerFrequency<regionFrequency)
+							{
+								regionFrequency= kmerFrequency;
+							}
+							// validate if the kmer is the last int the chromosome 
+							if(regionEnd==n-1)
+							{
+								int sizeRegion= regionEnd-regionStart;
+								totalTranspoSize+= sizeRegion;
+								TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
+								answer.add(transposon);
+								//System.out.println("" + chromosomeList.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
+									
+								// update 
+								regionStart=0;
+								regionEnd= 1;
+								regionFrequency=0;	
+							}
+						}
+						// find a new region	
+						else 
+						{
+							int sizeRegion= regionEnd-regionStart;
+							totalTranspoSize+= sizeRegion;
+							TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
+							answer.add(transposon);
+							//System.out.println("" + chromosomeList.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
+								
+							// update
+							regionStart=i;
+							regionEnd= end;
+							regionFrequency=kmerFrequency;	
+						}
+					
+					}
+				}
+			
+			}
+			System.out.println(totalTranspoSize); 	
+		}
+
 		return answer;
 	}
-	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome) {
+
+	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome) throws InterruptedException, IOException {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		// TODO implement
+	
+		System.out.println("creating minimizerTable");
+		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
+		minimizerTable.loadGenome(genome, 15, 30, 1);
+		List<ReadAlignment> alignQueryToRef;
+		System.out.println("loading known transposions");
+		//load the fasta
+		FastaSequencesHandler load = new FastaSequencesHandler();
+		//loading known transposions
+		List<QualifiedSequence> knownTransposons = load.loadSequences(transposonsDatabaseFile);
+		System.out.println("searching transposions db");
+		for (QualifiedSequence transposon:knownTransposons) {
+			RawRead read = new RawRead(transposon.getName(), transposon.getCharacters(), null);
+			 List<ReadAlignment> listRead = minimizerTable.alignRead(read);
+			for (ReadAlignment ReadAlig: listRead) {
+				System.out.println(ReadAlig);
+			}
+			
+		}
+		
 		return answer;
 	}
 	private List<TransposableElementAnnotation> removeRedundantAnnotations(GenomicRegionSortedCollection<TransposableElementAnnotation> annotations) {
