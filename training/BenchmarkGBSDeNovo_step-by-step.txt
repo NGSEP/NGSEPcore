@@ -1,0 +1,390 @@
+-----------------------------------------
+               Datasets
+-----------------------------------------
+
+Rice population:
+http://www.ricediversity.org/data/
+
+Sea Bass population:
+https://www.ncbi.nlm.nih.gov/bioproject/PRJDB3890
+
+Potato population:
+https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA597429
+
+------------------------------------------
+          NGSEP distribution
+------------------------------------------
+# Path to NGSEP jar. See the README.txt for instructions on how to use the jar of the current version
+NGSEP="/path/to/NGSEP/NGSEPcore.jar"
+
+-----------------------------------------
+            Pre-processing
+-----------------------------------------
+
+---- Trimming adaptors using NGSEP ------
+
+
+
+# Input and output directories
+IN="/path/to/samples/dir/"
+OUT="/path/to/output/dir"
+
+# This file should contain the names of the samples to be cleaned for adaptors.
+# A simple text file with one sample file name per line.
+SAMPLES="/path/to/file/samples.txt"
+
+# Adaptor to be removed (e.g. "AGATCGGA")
+ADAPTOR="AGATCGGA"  # Rice population
+ADAPTOR="AGATCGGA"  # Sea Bass population
+ADAPTOR="TGCAG"     # Potato population
+
+
+java -Xmx4g -cp ${NGSEP} ngsep.sequencing.RawReadsTrimmer ${IN} ${SAMPLES} ${OUT} ${ADAPTOR}
+
+-----------------------------------------
+      data processing  (de novo)
+-----------------------------------------
+
+------------- NGSEP de-novo -------------
+
+# Input and output directories
+IN="/path/to/samples/dir/"
+OUT="/path/to/output/dir"
+
+# Tab delimited text file listing the FASTQ files to be processed.
+# It should have at least two columns:
+#    - sample id (required)
+#    - first fastq file (required)
+#    - second fastq file (only required if doing paired-end processing)
+# All files should be located within the directory provided with the option -i.
+SAMPLES="/path/to/file/samples.txt"
+
+# Number of threads
+THREADS="1"  # Rice population
+THREADS="32"  # Sea Bass population
+THREADS="32"  # Potato population
+
+# Number of clusters
+CLUST="2000000"  # Rice population (Default)
+CLUST="4000000"  # Sea Bass population
+CLUST="8000000"  # Potato population
+
+# Bases to ignore on 3' and 5' end
+IGN5="0"  # Rice population (Default)
+IGN3="0"  # Rice population (Default)
+IGN5="5"  # Sea Bass population
+IGN3="5"  # Sea Bass population
+IGN5="5"  # Potato population
+IGN3="5"  # Potato population
+
+# Ploidy
+PLOIDY="2"  # Rice population (Default)
+PLOIDY="2"  # Sea Bass population (Default)
+PLOIDY="4"  # Potato population
+
+
+java -jar ${NGSEP} DeNovoGBS -i ${IN} -o ${OUT} -d ${SAMPLES} \
+-t ${THREADS} -ignore5 ${IGN5} -ignore3 ${IGN3} -c ${CLUST} -ploidy ${PLOIDY}
+
+----------------- Stacks ----------------
+
+# Stacks is available at https://catchenlab.life.illinois.edu/stacks/
+
+# Path to input and output directories
+IN="/path/to/samples/dir/"
+OUT="/path/to/output/dir/"
+
+# Text file listing the FASTQ files to be processed. One sample per line. No file extensions.
+SAMPLES="/path/to/samples/file.txt"
+
+# Distance allowed between stacks
+M="3" # Rice population
+M="3" # Sea Bass population
+
+# Minimum stack depth / minimum depth of coverage
+m="2" # Rice population
+m="5" # Sea Bass population
+
+# Distance allowed between catalog loci
+n="2" # Rice population
+n="2" # Sea Bass population
+
+# Number of threads
+THREADS="8" # Rice population
+THREADS="32" # Sea Bass population
+
+# Population map. Tab separated text file containing population assignment for each sample. No extensions
+POPMAP="/path/to/popmap"
+
+# Loop will to run ustacks on each sample.
+id=1
+for sample in ${SAMPLES}
+do
+    ustacks -f ${IN}/${sample}.fastq.gz -o ${OUT} -i $id --name $sample -M ${M} -m ${m} -p ${THREADS}
+    let "id+=1"
+done
+
+# Build the catalog. For cstacks, option -M indicates popmap
+cstacks -n #{n} -P ${OUT} -M ${POPMAP} -p ${THREADS}
+
+
+# Run sstacks. Match all samples supplied in the population map against the catalog.
+# For sstacks, option -M indicates popmap.
+sstacks -P ${OUT} -M ${POPMAP} -p ${THREADS}
+
+
+# Run tsv2bam to transpose the data so it is stored by locus, instead of by sample.
+# This step includes paired-end reads. Paired end reads should be in the samples directory.
+# Naming convention: sample_01.1.fq.gz and sample_01.2.fq.gz.
+# For tsv2bam, option -M indicates popmap, option -t indicates threads.
+tsv2bam -P ${OUT} -M ${POPMAP} -t ${THREADS}
+
+# Run gstacks.
+gstacks -P ${OUT} -M ${POPMAP} -t ${THREADS}
+
+# Run populations to generate vcf.
+populations -P ${OUT} -M ${POPMAP} --vcf -t ${THREADS}
+
+----------------- PyRAD -----------------
+
+
+# PyRAD available at https://ipyrad.readthedocs.io/en/latest/
+
+# generate parameters file
+PARAMETERS="/desired/path/to/create/file/paramenters.txt"
+ipyrad -n ${PARAMETERS}
+
+# Parameters file for rice population
+GBSMcCouch                     ## [0] [assembly_name]: Assembly name. Used to name output directories for assembly steps
+${PARAMETERS}                  ## [1] [project_dir]: Project dir (made in curdir if not present)
+                               ## [2] [raw_fastq_path]: Location of raw non-demultiplexed fastq files
+                               ## [3] [barcodes_path]: Location of barcodes file
+                               ## [4] [sorted_fastq_path]: Location of demultiplexed/sorted fastq files
+denovo                         ## [5] [assembly_method]: Assembly method (denovo, reference, denovo+reference, denovo-reference)
+                               ## [6] [reference_sequence]: Location of reference sequence file
+gbs                            ## [7] [datatype]: Datatype (see docs): rad, gbs, ddrad, etc.
+AGATCGGA                       ## [8] [restriction_overhang]: Restriction overhang (cut1,) or (cut1, cut2)
+5                              ## [9] [max_low_qual_bases]: Max low quality base calls (Q<20) in a read
+33                             ## [10] [phred_Qscore_offset]: phred Q score offset (33 is default and very standard)
+6                              ## [11] [mindepth_statistical]: Min depth for statistical base calling
+6                              ## [12] [mindepth_majrule]: Min depth for majority-rule base calling
+10000                          ## [13] [maxdepth]: Max cluster depth within samples
+0.75, 0.85, 0.9                ## [14] [clust_threshold]: Clustering threshold for de novo assembly
+                               ## [15] [max_barcode_mismatch]: Max number of allowable mismatches in barcodes
+                               ## [16] [filter_adapters]: Filter for adapters/primers (1 or 2=stricter)
+                               ## [17] [filter_min_trim_len]: Min length of reads after adapter trim
+2                              ## [18] [max_alleles_consens]: Max alleles per site in consensus sequences
+                               ## [19] [max_Ns_consens]: Max N's (uncalled bases) in consensus
+                               ## [20] [max_Hs_consens]: Max Hs (heterozygotes) in consensus
+4                              ## [21] [min_samples_locus]: Min # samples per locus for output
+0.2                            ## [22] [max_SNPs_locus]: Max # SNPs per locus
+8                              ## [23] [max_Indels_locus]: Max # of indels per locus
+0.5                            ## [24] [max_shared_Hs_locus]: Max # heterozygous sites per locus
+                               ## [25] [trim_reads]: Trim raw read edges (R1>, <R1, R2>, <R2) (see docs)
+                               ## [26] [trim_loci]: Trim locus edges (see docs) (R1>, <R1, R2>, <R2)
+v                              ## [27] [output_formats]: Output formats (see docs)
+                               ## [28] [pop_assign_file]: Path to population assignment file
+
+# Run PyRAD
+ipyrad -p ${PARAMETERS} -s 34567
+
+---------------- RADProc ----------------
+
+# Available at https://github.com/beiko-lab/RADProc
+# For variant calling, Stacks is necessary available at https://catchenlab.life.illinois.edu/stacks/
+
+# Path to input and output directories
+IN="/path/to/samples/dir/"
+OUT="/path/to/output/dir/"
+
+FILETYPE="gzfastq"  # Rice population
+
+# Distance allowed between stacks (same as stacks)
+M="3" # Rice population
+
+# Minimum stack depth / minimum depth of coverage (same as stacks)
+m="2" # Rice population
+
+# Distance allowed between catalog loci (same as stacks)
+n="2" # Rice population
+
+# Number of threads
+THREADS=8  # Rice population
+
+RADProc -t ${FILETYPE} -f ${IN} -o ${OUT} -M ${M} -m {m} -n {n} -p ${THREADS}
+
+----------------- UNEAK -----------------
+
+# Available at 
+
+# Create directory structure
+run_pipeline.pl -fork1 -UCreatWorkingDirPlugin -w . -endPlugin -runfork1
+
+# Make barcodes file
+cd key
+awk '{i=index($4,"_"); if(i>0) print $1 "\t" $2 "\t" $3 "\tS" substr($4,i+1) "\t" $5 "\t" $6 "\t" $7 "\t" $8; else print $0 }' barcodeMapCombined.txt > barcodeMapUNEAK.txt
+cd ..
+
+# Change name of fastq files
+cd Illumina
+ln -s C08N9ACXX_1.fastq.gz C08N9ACXX_1_fastq.txt.gz
+ln -s D0DTNACXX_1.fastq.gz D0DTNACXX_1_fastq.txt.gz
+
+# Run the pipeline
+run_pipeline.pl -fork1 -UFastqToTagCountPlugin -w . -e ApeKI -endPlugin -runfork1 >& FastqToTagCount.log &
+run_pipeline.pl -fork1 -UMergeTaxaTagCountPlugin -w . -c 5 -endPlugin -runfork1 >& MergeTaxaTagCount.log &
+run_pipeline.pl -fork1 -UTagCountToTagPairPlugin -w . -e 0.03 -endPlugin -runfork1 >& TagCountToTagPair.log &
+run_pipeline.pl -fork1 -UTagPairToTBTPlugin -w . -endPlugin -runfork1 >& TagPairToTBT.log &
+run_pipeline.pl -fork1 -UTBTToMapInfoPlugin -w . -endPlugin -runfork1 >& TBTToMapInfo.log &
+run_pipeline.pl -fork1 -UMapInfoToHapMapPlugin -w . -mnMAF 0 -mnC 0 -endPlugin -runfork1 >& MapInfoToHapMap.log &
+
+#Generate a VCF file and a consensus fasta file
+
+java -Xmx4g -cp ${NGSEP} ngsep.gbs.UneakToVCFConverter hapMap/HapMap.hmp.txt hapMap/HapMap.fas.txt GBSRice_UNEAK &
+
+-----------------------------------------
+      data processing  (reference)
+-----------------------------------------
+
+ 1. Indexing with bowtie2 (available at http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+ 2. Alignment with bowtie2
+ 3. Sorting with Picard (available at https://broadinstitute.github.io/picard/)
+ 4. Variant calling with NGSEP
+
+# Indexing
+REF_GENOME="/path/to/reference/genome/ref.fa"
+OUT="/path/to/output/INDEX"
+bowtie2-build ${REF_GENOME} ${OUT}
+
+# Alignment
+INDEX="/path/to/index/INDEX"
+IN="/path/to/samples/dir/"
+OUT="/path/to/output/dir/"
+
+# Text document with sample names without file extensions
+SAMPLES="/path/to/samples/file/samples.txt"
+
+while IFS= read -r sample
+do
+    bowtie2 --rg-id ${sample} --rg PL:ILLUMINA --rg SM:${sample} -X 1000 -x ${INDEX} \
+    -1 ${IN}/${sample}_1.fastq.gz -2  ${IN}/${sample}_2.fastq.gz -S ${OUT}/${sample}.sam >& \
+    ${OUT}/${1}_bowtie2.log 
+done < "${SAMPLES}"
+
+# Sorting
+PICARD="/path/to/picard/picard.jar"
+ALIGNMENTS_DIR="/path/to/alignments/dir"
+
+# Text tile with the names of the alignment files (one per line) without file extension.
+ALIGNMENTS="/path/to/alignments/list/file/alignments.txt"
+
+while IFS= read -r sample
+do
+  echo ${sample}
+  java -Xmx8g -jar ${PICARD} SortSam I=${ALIGNMENTS_DIR}/${sample}.sam O=${ALIGNMENTS_DIR}/${sample}_sorted.bam SORT_ORDER=coordinate
+done < "${ALIGNMENTS}"
+
+# Variant calling
+# Path to NGSEP distribution
+NGSEP="/path/to/NGSEP/"
+SORTED_ALIGNMENTS_DIR="/path/to/sorted/alignments/dir"
+REF_GENOME=/path/to/reference/genome/ref.fa"
+OUT="/path/to/output/file/out.vcf"
+
+# Ploidy
+PLOIDY="2"  # Rice population
+PLOIDY="2"  # Sea Bass population
+PLOIDY="4"  # Potato population
+
+# Bases to ignore on 3' and 5' end
+IGN5="0"  # Rice population (Default)
+IGN3="0"  # Rice population (Default)
+IGN5="5"  # Sea Bass population
+IGN3="5"  # Sea Bass population
+IGN5="5"  # Potato population
+IGN3="5"  # Potato population
+
+# Max alignments per starting position.
+MAX_ALNS=100  # Rice population
+MAX_ALNS=100  # Sea Bass population
+MAX_ALNS=100  # Potato population
+
+# Max base quality score
+MAX_Q=30  # Rice population
+MAX_Q=30  # Sea Bass population
+MAX_Q=30  # Potato population
+
+# List of the sorted alignments, separated by a space.
+# e.g. "${SORTED_ALIGNMENTS_DIR}/aln_1_sorted.bam ${SORTED_ALIGNMENTS_DIR}/aln_2_sorted.bam [...] ${SORTED_ALIGNMENTS_DIR}/aln_n_sorted.bam"
+
+java -Xmx16g -jar ${NGSEP} MultisampleVariantsDetector -r ${GENOMA} -o ${OUT} \
+-ploidy ${PLOIDY} -ignore5 ${IGN5} -ignore3 ${IGN3} -maxAlnsPerStartPos ${MAX_ALNS} -maxBaseQS ${MAX_Q} ${ALIGNMENTS}
+
+-----------------------------------------
+            data analysis
+-----------------------------------------
+
+1. Relative coordinate translation to reference genome coordinates
+
+
+# Input and output directories
+VCF="/path/to/de-novo/vcf/file.vcf"
+REF_GENOME=/path/to/reference/genome/ref.fa"
+
+
+# This file can be either a fasta file with the consensus sequences of the clusters
+# (with correct cluster names) or an alignment file (.bam) of such a consensus sequence fasta
+# to the reference genome. In the case of Stacks, the catalog (output of gstacks) serves as such file.
+CONSENSUS_FA="/path/to/consensus/file/consensus.fa"
+BAM="/path/to/consensus/alignment/file/consensus.bam"
+OUT="/path/to/output/file/translated.vcf"
+
+java -Xmx4g -cp ${NGSEP} ngsep.gbs.VCFRelativeCoordinatesTranslator \
+-i ${VCF} -r ${REF_GENOME} -o ${OUT} [-b ${BAM} | -c ${CONSENSUS_FA}]
+
+2. Discrepancies and errors analysis
+
+
+# Sequences file.
+SEQUENCES="/path/to/sequences/file/sequences.fa"
+
+# VCF to be used as a gold standard. For our purposes this would be the vcf from the reference
+# based analysis.
+GS_VCF="/path/to/gold/standard/vcf/gs.vcf"
+
+# VCF to be tested. This VCF corresponds to the output from the de-novo analysis.
+# It must be translated to the reference coordinates (see previous step).
+TEST_VCF="/path/to/translated/test/vcf/translated.vcf"
+
+java -Xmx4g -cp ${NGSEP} ngsep.benchmark.GenotypeBasedPopulationSNPGoldStandardComparator \
+${SEQUENCES} ${GS_VCF} ${TEST_VCF}
+
+3. Quality statistics
+
+---- Rice population ----
+
+# VCF file to be analyzed.
+TEST_VCF="/path/to/test/vcf/test.vcf"
+
+# Name of samples corresponding to both parents.
+P1="Azucena"    # Rice population
+P2="IR64"       # Rice population
+
+# Conservative approach
+CONSERVATIVE="False"     # Rice population 
+
+java -Xmx4g -cp ${NGSEP} ngsep.benchmark.QualityStatisticsInbredBiparentalFamilies \
+${TEST_VCF} ${P1} ${P2} ${CONSERVATIVE}
+
+--- Potato population ---
+
+
+# VCF file to be analyzed.
+TEST_VCF="/path/to/test/vcf/test.vcf"
+
+# Name of samples corresponding to both parents.
+P1="Potato_K700-A-M-I"    # Potato population (male parent)
+P2="Potato_K700-A-F-I"    # Potato population (female parent)
+
+java -Xmx4g -cp ${NGSEP} ngsep.benchmark.QualityStatisticsTetraploidF1Families \
+${TEST_VCF} ${P1} ${P2}
