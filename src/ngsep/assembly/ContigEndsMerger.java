@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
@@ -19,7 +20,8 @@ import ngsep.sequences.io.FastaSequencesHandler;
 
 public class ContigEndsMerger {
 
-	private static final int END_LENGTH = 100000;
+	private Logger log = Logger.getLogger(ContigEndsMerger.class.getName());
+	private static final int END_LENGTH = 50000;
 	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
@@ -52,20 +54,24 @@ public class ContigEndsMerger {
 			i++;
 		}
 		if(contigsForGraph.size()<2) {
-			System.err.println("Not enough large contigs to join");
+			log.info("Not enough large contigs to join");
 			return contigs;
 		}
-		System.err.println("Built minimizers table");
+		log.info("Built minimizers table");
 		AssemblyGraph graph = new AssemblyGraph(contigsForGraph);
 		for(Map.Entry<Integer, String> entry:contigEndsMap.entrySet()) {
 			int j = entry.getKey();
 			String seq = entry.getValue();
 			Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(j, seq);
+			filterHits(hitsForward);
+			//for(int subjectId:hitsForward.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsForward.get(subjectId).size());
 			buildEdges(graph,j,seq,contigEndsMap, hitsForward,false);
 			seq = DNAMaskedSequence.getReverseComplement(seq).toString();
 			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(j, seq);
+			filterHits(hitsReverse);
+			//for(int subjectId:hitsReverse.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsReverse.get(subjectId).size());
 			buildEdges(graph,j,seq,contigEndsMap, hitsReverse,true);
-			System.err.println("Processed end: "+j+" of contig "+contigsForGraph.get(j/2).getName());
+			log.info("Processed end: "+j+" of contig "+contigsForGraph.get(j/2).getName()+" query length: "+seq.length()+" matches: "+hitsForward.size()+" "+hitsReverse.size());
 		}
 		LayoutBuilderGreedyMaxOverlap builder = new LayoutBuilderGreedyMaxOverlap();
 		builder.findPaths(graph);
@@ -88,6 +94,20 @@ public class ContigEndsMerger {
 		}
 		answer.addAll(smallContigs);
 		return answer;
+	}
+
+	private void filterHits(Map<Integer, List<UngappedSearchHit>> hits) {
+		int maxCount = 0;
+		List<Integer> subjectIdxs = new ArrayList<Integer>();
+		for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hits.entrySet()) {
+			subjectIdxs.add(entry.getKey());
+			maxCount = Math.max(maxCount, entry.getValue().size());
+		}
+		double limit = 0.5*maxCount;
+		for(int subjectId:subjectIdxs) {
+			int size = hits.get(subjectId).size();
+			if(size<limit) hits.remove(subjectId);
+		}
 	}
 
 	private void buildEdges(AssemblyGraph graph, int queryEndIdx,String queryEnd, Map<Integer,String> contigEndsMap, Map<Integer, List<UngappedSearchHit>> hits, boolean revQuery) {
