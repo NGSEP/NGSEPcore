@@ -62,16 +62,19 @@ public class ContigEndsMerger {
 		for(Map.Entry<Integer, String> entry:contigEndsMap.entrySet()) {
 			int j = entry.getKey();
 			String seq = entry.getValue();
+			QualifiedSequence contig = contigsForGraph.get(j/2);
+			log.info("Processing end: "+j+" of contig "+contig.getName()+" contig length: "+contig.getLength()+" query length: "+seq.length());
 			Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(j, seq);
 			filterHits(hitsForward);
 			//for(int subjectId:hitsForward.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsForward.get(subjectId).size());
-			buildEdges(graph,j,seq,contigEndsMap, hitsForward,false);
+			if(hitsForward.size()<20) buildEdges(graph,j,seq,contigEndsMap, hitsForward,false);
 			seq = DNAMaskedSequence.getReverseComplement(seq).toString();
 			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(j, seq);
 			filterHits(hitsReverse);
 			//for(int subjectId:hitsReverse.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsReverse.get(subjectId).size());
-			buildEdges(graph,j,seq,contigEndsMap, hitsReverse,true);
-			log.info("Processed end: "+j+" of contig "+contigsForGraph.get(j/2).getName()+" query length: "+seq.length()+" matches: "+hitsForward.size()+" "+hitsReverse.size());
+			if(hitsReverse.size()<20) buildEdges(graph,j,seq,contigEndsMap, hitsReverse,true);
+			
+			log.info("Processed end: "+j+" of contig "+contig.getName()+" contig length: "+contig.getLength()+" query length: "+seq.length()+" matches: "+hitsForward.size()+" "+hitsReverse.size());
 		}
 		LayoutBuilderGreedyMaxOverlap builder = new LayoutBuilderGreedyMaxOverlap();
 		builder.findPaths(graph);
