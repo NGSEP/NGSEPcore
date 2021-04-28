@@ -65,13 +65,13 @@ public class ContigEndsMerger {
 			QualifiedSequence contig = contigsForGraph.get(j/2);
 			log.info("Processing end: "+j+" of contig "+contig.getName()+" contig length: "+contig.getLength()+" query length: "+seq.length());
 			Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(j, seq);
-			filterHits(hitsForward);
-			//for(int subjectId:hitsForward.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsForward.get(subjectId).size());
+			filterHits(j, hitsForward);
+			for(int subjectId:hitsForward.keySet()) System.err.println("Next subject: "+subjectId+" hits forward: "+hitsForward.get(subjectId).size());
 			if(hitsForward.size()<20) buildEdges(graph,j,seq,contigEndsMap, hitsForward,false);
 			seq = DNAMaskedSequence.getReverseComplement(seq).toString();
 			Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(j, seq);
-			filterHits(hitsReverse);
-			//for(int subjectId:hitsReverse.keySet()) System.err.println("Next subject: "+subjectId+" hits: "+hitsReverse.get(subjectId).size());
+			filterHits(j, hitsReverse);
+			for(int subjectId:hitsReverse.keySet()) System.err.println("Next subject: "+subjectId+" hits reverse: "+hitsReverse.get(subjectId).size());
 			if(hitsReverse.size()<20) buildEdges(graph,j,seq,contigEndsMap, hitsReverse,true);
 			
 			log.info("Processed end: "+j+" of contig "+contig.getName()+" contig length: "+contig.getLength()+" query length: "+seq.length()+" matches: "+hitsForward.size()+" "+hitsReverse.size());
@@ -99,10 +99,11 @@ public class ContigEndsMerger {
 		return answer;
 	}
 
-	private void filterHits(Map<Integer, List<UngappedSearchHit>> hits) {
+	private void filterHits(int queryIdx, Map<Integer, List<UngappedSearchHit>> hits) {
 		int maxCount = 0;
 		List<Integer> subjectIdxs = new ArrayList<Integer>();
 		for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hits.entrySet()) {
+			if (entry.getKey()==queryIdx) continue;
 			subjectIdxs.add(entry.getKey());
 			maxCount = Math.max(maxCount, entry.getValue().size());
 		}
