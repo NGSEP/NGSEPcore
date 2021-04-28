@@ -522,7 +522,6 @@ public class AssemblyGraph {
 	private boolean isChimeric(int sequenceId) {
 		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
 		int idxDebug = -1;
-		//int idxDebug = 4206;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
@@ -618,8 +617,8 @@ public class AssemblyGraph {
 				numCrossing++;
 			}
 		}
+		double limitGoodOverlap = 0.6*seqLength;
 		double limitEvProp = 0.8;
-		double limitIKBP = 50;
 		
 		double maxEvPropS = 0;
 		int countPassS = 0;
@@ -634,10 +633,10 @@ public class AssemblyGraph {
 				if(sequenceId==idxDebug) System.out.println("Edge start crossing. Edge: "+edge);
 				numCrossing++;
 			}
-			if(edge.getOverlap()>0.5*seqLength) {
+			if(edge.getOverlap()>limitGoodOverlap) {
 				countGoodOverlapS++;
 				maxEvPropS = Math.max(maxEvPropS, edge.getEvidenceProportion());
-				if(edge.getEvidenceProportion()>=limitEvProp && edge.getIndelsPerKbp()<=limitIKBP) countPassS++;
+				if(edge.getEvidenceProportion()>=limitEvProp) countPassS++;
 			}
 		}
 		double maxEvPropE = 0;
@@ -653,10 +652,10 @@ public class AssemblyGraph {
 				if(sequenceId==idxDebug) System.out.println("Edge end crossing. Edge: "+edge);
 				numCrossing++;
 			}
-			if(edge.getOverlap()>0.5*seqLength) {
+			if(edge.getOverlap()>limitGoodOverlap) {
 				countGoodOverlapE++;
 				maxEvPropE = Math.max(maxEvPropE, edge.getEvidenceProportion());
-				if(edge.getEvidenceProportion()>=limitEvProp && edge.getIndelsPerKbp()<=limitIKBP) countPassE++;
+				if(edge.getEvidenceProportion()>=limitEvProp) countPassE++;
 			}
 		}
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
@@ -668,9 +667,9 @@ public class AssemblyGraph {
 		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 /*&& d5<10000*/) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
-		} else if ((countGoodOverlapS > 5 && countPassS <= 0.05*countGoodOverlapS+1) || (countGoodOverlapE>5 && countPassE <= 0.05*countGoodOverlapE+1)) {
+		} else if ((countGoodOverlapS > 5 && countPassS ==0) || (countGoodOverlapE>5 && countPassE ==0)) {
 			System.out.println("Possible dangling end identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
-			//return true;
+			return true;
 		}
 		
 		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
