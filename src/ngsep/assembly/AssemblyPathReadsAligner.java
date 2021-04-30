@@ -64,61 +64,35 @@ public class AssemblyPathReadsAligner {
 	public Set<Integer> getUnalignedReadIds() {
 		return unalignedReadIds;
 	}
-	public void alignPathReads(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx) {
+	public void alignPathReads(AssemblyGraph graph, AssemblyPath path) {
 		int debugIdx = -1;
-		log.info("Aligning reads for path "+pathIdx+" with length: "+path.size());
+		int n = path.getPathLength();
+		int pathIdx = path.getPathId();
+		log.info("Aligning reads for path "+pathIdx+" "+path.getSequenceName()+" with length: "+n);
+		List<AssemblyEdge> edges = path.getEdges();
 		StringBuilder rawConsensus = new StringBuilder();
-		AssemblyVertex lastVertex = null;
+		AssemblyVertex lastVertex = path.getVertexLeft();
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
 		alignedReads = new ArrayList<ReadAlignment>();
 		unalignedReadIds = new HashSet<>();
 		int totalReads = 0;
-		String pathS = "";
-		if(path.size()==1) {
-			rawConsensus.append(path.get(0).getVertex1().getRead());
-			consensus = rawConsensus;
-			return;
-		}
-		for(int j = 0; j < path.size(); j++) {
-			//Needed to find which is the origin vertex
-			AssemblyEdge edge = path.get(j);
-			AssemblyVertex vertexPreviousEdge;
-			AssemblyVertex vertexNextEdge;
-			//If the first edge is being checked, compare to the second edge to find the origin vertex
+		for(int j = 0; j < n; j++) {
+			AssemblyEdge edge = edges.get(j);
+			AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
+			if(nextVertex == null) throw new RuntimeException("Inconsistency found in path. Previouus vertex: "+lastVertex+" edge: "+edge);
 			if(j == 0) {
-				AssemblyEdge nextEdge = path.get(j + 1);
-				vertexNextEdge = edge.getSharedVertex(nextEdge);
-				if(vertexNextEdge== null) throw new RuntimeException("Inconsistency found in first edge of path");
-				vertexPreviousEdge = edge.getVertex1();
-				if(vertexPreviousEdge == vertexNextEdge) vertexPreviousEdge = edge.getVertex2();
-			}
-			else if (lastVertex == edge.getVertex1()) {
-				vertexPreviousEdge = edge.getVertex1();
-				vertexNextEdge = edge.getVertex2();
-			}
-			else if (lastVertex == edge.getVertex2()) {
-				vertexPreviousEdge = edge.getVertex2();
-				vertexNextEdge = edge.getVertex1();
-			}
-			else {
-				throw new RuntimeException("Inconsistency found in path. last vertex: "+lastVertex+" next edge: "+edge);
-			}
-			if(j == 0) {
-				pathS = pathS.concat(vertexPreviousEdge.getUniqueNumber() + ",");
-				CharSequence seq = vertexPreviousEdge.getRead().getCharacters();
-				boolean reverse = !vertexPreviousEdge.isStart();
+				CharSequence seq = lastVertex.getRead().getCharacters();
+				boolean reverse = !lastVertex.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				rawConsensus.append(seq);
-				if(pathIdx == debugIdx) System.err.println("Added sequence: "+vertexPreviousEdge.getRead().getName()+" reverse: "+reverse);
-			} 
-			else if(vertexPreviousEdge.getRead()!=vertexNextEdge.getRead()) {
-				pathS = pathS.concat(vertexNextEdge.getUniqueNumber() + ",");
+				if(pathIdx == debugIdx) System.err.println("Added sequence: "+lastVertex.getRead().getName()+" reverse: "+reverse);
+			} else if(!edge.isSameSequenceEdge()) {
 				// Augment consensus with the next path read
-				CharSequence nextPathSequence = vertexNextEdge.getRead().getCharacters();
-				boolean reverse = !vertexNextEdge.isStart();
+				CharSequence nextPathSequence = nextVertex.getRead().getCharacters();
+				boolean reverse = !nextVertex.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
-				if(pathIdx == debugIdx && j<10) System.err.println("Aligning next path read "+vertexNextEdge.getRead().getName()+". Reverse "+reverse+ " edge: "+edge);
+				if(pathIdx == debugIdx && j<10) System.err.println("Aligning next path read "+nextVertex.getRead().getName()+". Reverse "+reverse+ " edge: "+edge);
 				int startSuffixConsensus = Math.max(0, rawConsensus.length()-edge.getOverlap()-30);
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
 				String prefixQuery = nextPathSequence.subSequence(0, Math.min(nextPathSequence.length(), edge.getOverlap()+30)).toString();
@@ -126,7 +100,7 @@ public class AssemblyPathReadsAligner {
 				int startRemove = -1;
 				int startSuffixQuery;
 				if(alnRead!=null) {
-					alnRead.setReadName(vertexNextEdge.getRead().getName());
+					alnRead.setReadName(nextVertex.getRead().getName());
 					int posAlnRead = prefixQuery.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 					int tailSubject = rawConsensus.length()-lastPosSubject-1;
@@ -155,7 +129,7 @@ public class AssemblyPathReadsAligner {
 					}
 					if(pathIdx == debugIdx && j<10) System.err.println("Calculated start new suffix from alignment: "+startSuffixQuery );
 				} else {
-					if(pathIdx == debugIdx && j<10) System.err.println("Consensus backbone read "+vertexNextEdge.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					if(pathIdx == debugIdx && j<10) System.err.println("Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
 					startSuffixQuery = edge.getOverlap();
 				}
 				if(pathIdx == debugIdx && j<10) System.err.println("Start suffix: "+startSuffixQuery+" next seq len: "+nextPathSequence.length()+" start remove previous: "+startRemove);
@@ -166,18 +140,19 @@ public class AssemblyPathReadsAligner {
 					rawConsensus.append(remainingSegment.toUpperCase());
 				}
 			}
-			if(!onlyGenerateConsensus && vertexPreviousEdge.getRead()==vertexNextEdge.getRead()) {
+			if(!onlyGenerateConsensus && edge.isSameSequenceEdge()) {
 				//Align to consensus next path read and its embedded sequences
-				QualifiedSequence read = vertexPreviousEdge.getRead(); 
+				int readIndex = lastVertex.getSequenceIndex();
+				QualifiedSequence read = lastVertex.getRead(); 
 				CharSequence seq = read.getCharacters();
-				boolean reverse = !vertexPreviousEdge.isStart();
+				boolean reverse = !lastVertex.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
 				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, seq, uniqueKmersSubject);
 				if (alnRead!=null) {
 					alnRead.setReadName(read.getName());
-					alnRead.setReadNumber(vertexPreviousEdge.getSequenceIndex());
+					alnRead.setReadNumber(readIndex);
 					alnRead.setNegativeStrand(reverse);
 					alignedReads.add(alnRead);
 					if(alnRead.getSoftClipEnd()>10) {
@@ -186,12 +161,12 @@ public class AssemblyPathReadsAligner {
 				}
 				else {
 					if(pathIdx == debugIdx) System.err.println("Backbone read: "+read.getName()+" could not be aligned to extended consensus");
-					unalignedReadIds.add(vertexPreviousEdge.getSequenceIndex());
+					unalignedReadIds.add(readIndex);
 				}
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
 				if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 				if(alignEmbedded) {
-					List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(vertexPreviousEdge.getSequenceIndex());
+					List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
 					//List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(vertexPreviousEdge.getSequenceIndex());
 					for(AssemblyEmbedded embedded:embeddedList) {
 						QualifiedSequence embeddedRead = embedded.getRead(); 
@@ -213,10 +188,10 @@ public class AssemblyPathReadsAligner {
 					}
 				}
 			}
-			lastVertex = vertexNextEdge;
+			lastVertex = nextVertex;
 		}
 		consensus = rawConsensus;
-		log.info("Processed path "+pathIdx+". Length: "+path.size()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
+		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 	}
 	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end) {
 		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject, KMER_LENGTH_LOCAL_ALN, start,end);

@@ -56,13 +56,15 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	{
 		//List of final contigs
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
-		List<List<AssemblyEdge>> paths = graph.getPaths(); 
+		List<AssemblyPath> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
-			List<AssemblyEdge> path = paths.get(i);
+			AssemblyPath path = paths.get(i);
 			String sequenceName = sequenceNamePrefix+"_"+(i+1);
-			log.info("processing path: "+sequenceName+" size: "+path.size());
-			CharSequence consensusPath = makeConsensus (graph, path, i, sequenceName);
+			path.setPathId(i+1);
+			path.setSequenceName(sequenceName);
+			log.info("processing path: "+sequenceName+" size: "+path.getPathLength());
+			CharSequence consensusPath = makeConsensus (graph, path);
 			log.info("processed path: "+sequenceName+" consensus length: "+consensusPath.length());
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
@@ -70,12 +72,12 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		return consensusList;
 	}
 	
-	public CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName) 
+	public CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) 
 	{
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
 		aligner.setOnlyGenerateConsensus(true);
-		aligner.alignPathReads(graph, path, sequenceIdx);
+		aligner.alignPathReads(graph, path);
 		return aligner.getConsensus().toString();
 	}
 }

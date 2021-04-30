@@ -78,12 +78,13 @@ public class ContigEndsMerger {
 		}
 		LayoutBuilderGreedyMaxOverlap builder = new LayoutBuilderGreedyMaxOverlap();
 		builder.findPaths(graph);
-		List<List<AssemblyEdge>> paths = graph.getPaths();
+		List<AssemblyPath> paths = graph.getPaths();
 		Set<Integer> sequenceIdsInPaths = new HashSet<Integer>();
 		System.err.println("Built paths. Number: "+paths.size());
-		for(List<AssemblyEdge> path:paths) {
-			System.err.println("Path: "+path.size());
-			for(AssemblyEdge edge:path) {
+		for(AssemblyPath path:paths) {
+			System.err.println("Path: "+path.getPathLength());
+			List<AssemblyEdge> edges = path.getEdges();
+			for(AssemblyEdge edge:edges) {
 				if(!edge.isSameSequenceEdge()) System.err.println("Next edge: "+edge);
 				else sequenceIdsInPaths.add(edge.getVertex1().getSequenceIndex());
 			}

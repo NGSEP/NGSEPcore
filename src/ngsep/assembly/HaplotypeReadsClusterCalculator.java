@@ -93,10 +93,10 @@ public class HaplotypeReadsClusterCalculator {
 		//System.out.println("HaplotypeReadsClustering. Edges printed vertex "+graph.getEdges(graph.getVertex(181, true)).size());
 		ThreadPoolExecutor poolClustering = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		List<ClusterReadsTask> tasksList = new ArrayList<ClusterReadsTask>();
-		List<List<AssemblyEdge>> paths = graph.getPaths();
+		List<AssemblyPath> paths = graph.getPaths();
 		for(int i = 0; i < paths.size(); i++)
 		{
-			List<AssemblyEdge> path = paths.get(i);
+			AssemblyPath path = paths.get(i);
 			ClusterReadsTask task = new ClusterReadsTask(this, graph, path, i+1, ploidy);
 			poolClustering.execute(task);
 			tasksList.add(task);	
@@ -114,11 +114,11 @@ public class HaplotypeReadsClusterCalculator {
     	return mergePathClusters(graph,tasksList,ploidy);
 	}
 	
-	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
+	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, AssemblyPath path, int pathIdx, int ploidy) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
 		aligner.setAlignEmbedded(true);
-		aligner.alignPathReads(graph, path, pathIdx);
+		aligner.alignPathReads(graph, path);
 		StringBuilder rawConsensus = aligner.getConsensus();
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
 		Set<Integer> unalignedReadIds = aligner.getUnalignedReadIds();
@@ -304,7 +304,7 @@ public class HaplotypeReadsClusterCalculator {
 	}
 	
 	private List<Set<Integer>> mergePathClusters(AssemblyGraph graph, List<ClusterReadsTask> tasksList, int ploidy) {
-		List<List<AssemblyEdge>> paths = graph.getPaths();
+		List<AssemblyPath> paths = graph.getPaths();
 		log.info("Merging reads from "+paths.size()+" diploid paths");
 		List<Set<Integer>> inputClusters = new ArrayList<Set<Integer>>();
     	//Reads of each cluster
@@ -316,7 +316,7 @@ public class HaplotypeReadsClusterCalculator {
     	for(int i=0;i<paths.size();i++) {
     		
     		int firstIdCluster = inputClusterId;
-    		List<AssemblyEdge> path = paths.get(i);
+    		AssemblyPath path = paths.get(i);
     		ClusterReadsTask task = tasksList.get(i);
     		int pathId = task.getPathIdx();
     		List<PhasedPathBlock> haplotypeBlocks = task.getPhasedBlocks();
@@ -351,7 +351,7 @@ public class HaplotypeReadsClusterCalculator {
     		int lastIdCluster = inputClusterId-1;
     		System.out.println("Path: "+pathId+" first id cluster: "+firstIdCluster+" last id cluster: "+lastIdCluster);
     		
-    		List<AssemblyVertex> verticesPath = extractVerticesPath(path, readsClusters);
+    		List<AssemblyVertex> verticesPath = path.extractVertices();
     		System.out.println("Extracted "+verticesPath.size()+" vertices for path: "+pathId);
     		verticesPaths.addAll(verticesPath);
     	}
@@ -447,72 +447,6 @@ public class HaplotypeReadsClusterCalculator {
     	}
     	return answer;
 	}
-	
-	private List<AssemblyVertex> extractVerticesPath(List<AssemblyEdge> path, Map<Integer,Integer> readsClusters) {
-		List<AssemblyVertex> answer = new ArrayList<AssemblyVertex>(path.size()+1);
-		if(path.size()==0) return answer;
-		if(path.size()==1) {
-			answer.add(path.get(0).getVertex1());
-			answer.add(path.get(0).getVertex2());
-			return answer;
-		}
-		for(AssemblyEdge edge:path) {
-			if(edge.isSameSequenceEdge()) {
-				answer.add(edge.getVertex1());
-				answer.add(edge.getVertex2());
-			}
-		}
-		//Number of vertices to select per cluster
-		/*int n = 5;
-		Map<Integer,Integer> countsPerCluster = new HashMap<Integer, Integer>();
-		int m = path.size();
-		AssemblyEdge edge0 = path.get(0);
-		AssemblyEdge edge1 = path.get(1);
-		AssemblyVertex vInternal = edge0.getSharedVertex(edge1);
-		AssemblyVertex v0External = edge0.getConnectingVertex(vInternal);
-		
-		
-		answer.add(v0External);
-		int clusterId = readsClusters.getOrDefault(v0External.getSequenceIndex(),-1);
-		if(clusterId>=0) countsPerCluster.compute(clusterId, (k,v)->(v==null)?1:v+1);
-		int i=1;
-		while(i<path.size()-1) {
-			AssemblyEdge edge = path.get(i);
-			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
-			clusterId = readsClusters.getOrDefault(vExt.getSequenceIndex(),-1);
-			if(clusterId>=0 && countsPerCluster.getOrDefault(clusterId, 0) < n) {
-				answer.add(vExt);
-				countsPerCluster.compute(clusterId, (k,v)->(v==null)?1:v+1);
-			}
-			
-			i++;
-			edge = path.get(i);
-			vInternal = edge.getConnectingVertex(vExt);
-			i++;
-		}
-		edge0 = path.get(m-1);
-		edge1 = path.get(m-2);
-		vInternal = edge0.getSharedVertex(edge1);
-		v0External = edge0.getConnectingVertex(vInternal);
-		answer.add(v0External);
-		clusterId = readsClusters.getOrDefault(v0External.getSequenceIndex(),-1);
-		if(clusterId>=0) countsPerCluster.compute(clusterId, (k,v)->(v==null)?1:v+1);
-		i=m-2;
-		while(i>1) {
-			AssemblyEdge edge = path.get(i);
-			AssemblyVertex vExt = edge.getConnectingVertex(vInternal);
-			clusterId = readsClusters.getOrDefault(vExt.getSequenceIndex(),-1);
-			if(clusterId>=0 && countsPerCluster.getOrDefault(clusterId, 0) < n) {
-				answer.add(vExt);
-				countsPerCluster.compute(clusterId, (k,v)->(v==null)?1:v+1);
-			}
-			i--;
-			edge = path.get(i);
-			vInternal = edge.getConnectingVertex(vExt);
-			i--;
-		}*/
-		return answer;
-	}
 
 	private void assignCluster (Map<Integer,Integer> inputClustersAssignment, int clusterId, int assignment, List<Integer> restrictions, int ploidy) {
 		//This should work fine with diploids 
@@ -530,22 +464,19 @@ public class HaplotypeReadsClusterCalculator {
 		}
 	}
 	
-	
-	
-	
-	private void recoverNotClusteredReads(AssemblyGraph graph, List<AssemblyEdge> path, Map<Integer,Integer> readsClusters, List<Set<Integer>> inputClusters) {
-		
-		for(int i=0;i<path.size();i++) {
-			AssemblyEdge edge = path.get(i);
+	private void recoverNotClusteredReads(AssemblyGraph graph, AssemblyPath path, Map<Integer,Integer> readsClusters, List<Set<Integer>> inputClusters) {
+		List<AssemblyEdge> edges = path.getEdges();
+		for(int i=0;i<edges.size();i++) {
+			AssemblyEdge edge = edges.get(i);
 			if(!edge.isSameSequenceEdge()) continue;
 			int pathSequenceId = edge.getVertex1().getSequenceIndex();
 			List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(edge.getVertex1().getSequenceIndex());
 			Integer clusterId = readsClusters.get(pathSequenceId);
 			Map<Integer,Integer> clusterVotes = new HashMap<Integer, Integer>();
 			if(clusterId == null) {
-				Integer clusterIdP = (i>1)?readsClusters.get(path.get(i-2).getVertex1().getSequenceIndex()):null;
+				Integer clusterIdP = (i>1)?readsClusters.get(edges.get(i-2).getVertex1().getSequenceIndex()):null;
 				if(clusterIdP!=null) clusterVotes.compute(clusterIdP, (k,v)->(v==null?1:v+1));
-				Integer clusterIdN = (i<path.size()-2)?readsClusters.get(path.get(i+2).getVertex1().getSequenceIndex()):null;
+				Integer clusterIdN = (i<edges.size()-2)?readsClusters.get(edges.get(i+2).getVertex1().getSequenceIndex()):null;
 				if(clusterIdN!=null) clusterVotes.compute(clusterIdN, (k,v)->(v==null?1:v+1));
 				for(AssemblyEmbedded embedded:embeddedList) {
 					int readId = embedded.getSequenceId();
@@ -578,11 +509,11 @@ public class HaplotypeReadsClusterCalculator {
 class ClusterReadsTask implements Runnable {
 	private HaplotypeReadsClusterCalculator parent;
 	private AssemblyGraph graph;
-	private List<AssemblyEdge> path;
+	private AssemblyPath path;
 	private int pathIdx;
 	private int ploidy;
 	private List<PhasedPathBlock> phasedBlocks;
-	public ClusterReadsTask(HaplotypeReadsClusterCalculator parent, AssemblyGraph graph, List<AssemblyEdge> path, int pathIdx, int ploidy) {
+	public ClusterReadsTask(HaplotypeReadsClusterCalculator parent, AssemblyGraph graph, AssemblyPath path, int pathIdx, int ploidy) {
 		super();
 		this.parent = parent;
 		this.graph = graph;

@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
@@ -51,7 +50,6 @@ import ngsep.sequences.DNASequence;
 import ngsep.sequences.DeBruijnGraphExplorationMiniAssembler;
 import ngsep.sequences.DefaultKmersMapImpl;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
-import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -131,16 +129,18 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		ThreadPoolExecutor poolConsensus = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		Map<String, BuildConsensusTask> tasksMap = new LinkedHashMap<String, BuildConsensusTask>();
-		List<List<AssemblyEdge>> paths = graph.getPaths(); 
+		List<AssemblyPath> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
-			List<AssemblyEdge> path = paths.get(i);
+			AssemblyPath path = paths.get(i);
 			String sequenceName = ""+sequenceNamePrefix+"_"+(i+1);
+			path.setPathId(i+1);
+			path.setSequenceName(sequenceName);
 			if(numThreads==1) {
-				CharSequence consensusSequence = makeConsensus (graph, path, i, sequenceName);
+				CharSequence consensusSequence = makeConsensus (graph, path);
 				consensusList.add(new QualifiedSequence(sequenceName,consensusSequence));
 			} else {
-				BuildConsensusTask task = new BuildConsensusTask(this, graph, path, i, sequenceName);
+				BuildConsensusTask task = new BuildConsensusTask(this, graph, path);
 				poolConsensus.execute(task);
 				tasksMap.put(sequenceName, task);
 			}	
@@ -168,18 +168,20 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	}
 	
 	
-	CharSequence makeConsensus(AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName ) {
+	CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
 		aligner.setAlignEmbedded(true);
-		aligner.alignPathReads(graph, path, sequenceIdx);
+		aligner.alignPathReads(graph, path);
+		int pathIdx = path.getPathId();
+		String sequenceName = path.getSequenceName();
 		StringBuilder rawConsensus = aligner.getConsensus();
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		
 		List<CalledGenomicVariant> variants = callVariants(sequenceName, rawConsensus, alignments);
-		log.info("Path "+sequenceIdx+". Identified "+variants.size()+" total variants from read alignments");
+		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
 		if(outCorrectedReads!=null) {
@@ -530,24 +532,21 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 class BuildConsensusTask implements Runnable {
 	private ConsensusBuilderBidirectionalWithPolishing parent;
 	private AssemblyGraph graph;
-	private List<AssemblyEdge> path;
-	private int sequenceIdx;
-	private String sequenceName;
+	private AssemblyPath path;
+	
 	private CharSequence consensusSequence;
-	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph, List<AssemblyEdge> path, int sequenceIdx, String sequenceName) {
+	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph, AssemblyPath path) {
 		super();
 		this.parent = parent;
 		this.graph = graph;
 		this.path = path;
-		this.sequenceIdx = sequenceIdx;
-		this.sequenceName = sequenceName;
 	}
 	public CharSequence getConsensusSequence() {
 		return consensusSequence;
 	}
 	@Override
 	public void run() {
-		consensusSequence = parent.makeConsensus(graph,path, sequenceIdx, sequenceName);
+		consensusSequence = parent.makeConsensus(graph,path);
 	}
 }
 

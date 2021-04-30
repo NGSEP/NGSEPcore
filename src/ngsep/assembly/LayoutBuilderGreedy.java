@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -20,38 +19,27 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 			if(vertex==null) return;
 			
 			
-			LinkedList<AssemblyEdge> currentPath = new LinkedList<AssemblyEdge>();
+			
 			AssemblyEdge nextEdgeLeft = graph.getSameSequenceEdge (vertex);
 			AssemblyEdge nextEdgeRight = nextEdgeLeft;
-			currentPath.add(nextEdgeRight);
+			AssemblyPath currentPath = new AssemblyPath(nextEdgeRight);
 			sequencesInPaths.add(vertex.getSequenceIndex());
-			AssemblyVertex vertexLeft = nextEdgeRight.getVertex1();
-			nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
-			AssemblyVertex vertexRight = nextEdgeRight.getVertex2();
-			nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
+			nextEdgeLeft = findBestUncoveredEdge(graph, currentPath.getVertexLeft(), sequencesInPaths);
+			nextEdgeRight = findBestUncoveredEdge(graph, currentPath.getVertexRight(), sequencesInPaths);
 			while(nextEdgeLeft!=null || nextEdgeRight!=null) {
 				if(nextEdgeRight==null || (nextEdgeLeft!=null && edgesComparator.compare(nextEdgeLeft, nextEdgeRight)<0)) {
-					currentPath.add(0,nextEdgeLeft);
-					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
-					nextEdgeLeft = graph.getSameSequenceEdge (vertexLeft);
-					currentPath.add(0,nextEdgeLeft);
-					vertexLeft = nextEdgeLeft.getConnectingVertex(vertexLeft);
-					sequencesInPaths.add(vertexLeft.getSequenceIndex());
+					currentPath.connectEdgeLeft(graph, nextEdgeLeft);
+					sequencesInPaths.add(currentPath.getVertexLeft().getSequenceIndex());
 				} else if(nextEdgeRight!=null) {
-					currentPath.add(nextEdgeRight);
-					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
-					nextEdgeRight = graph.getSameSequenceEdge (vertexRight);
-					currentPath.add(nextEdgeRight);
-					vertexRight = nextEdgeRight.getConnectingVertex(vertexRight);
-					sequencesInPaths.add(vertexRight.getSequenceIndex());
+					currentPath.connectEdgeRight(graph, nextEdgeRight);
+					sequencesInPaths.add(currentPath.getVertexRight().getSequenceIndex());
 				}
-				nextEdgeLeft = findBestUncoveredEdge(graph, vertexLeft, sequencesInPaths);
-				nextEdgeRight = findBestUncoveredEdge(graph, vertexRight, sequencesInPaths);
+				nextEdgeLeft = findBestUncoveredEdge(graph, currentPath.getVertexLeft(), sequencesInPaths);
+				nextEdgeRight = findBestUncoveredEdge(graph, currentPath.getVertexRight(), sequencesInPaths);
 				//System.out.println("Vertex left "+vertexLeft.getIndex()+" vertex right: "+vertexRight.getIndex());
 			}
-			if(currentPath.size()>1) {
-				System.err.println("Found path of size "+currentPath.size());
-				//printPath(currentPath);
+			if(currentPath.getPathLength()>1) {
+				System.err.println("Found path of length "+currentPath.getPathLength());
 				graph.addPath(currentPath);
 			}
 		}
@@ -59,14 +47,6 @@ public class LayoutBuilderGreedy implements LayoutBuilder
 		
 		
 		
-	}
-
-	public void printPath(LinkedList<AssemblyEdge> path) {
-		for(AssemblyEdge edge:path) {
-			AssemblyVertex v1 = edge.getVertex1();
-			AssemblyVertex v2 = edge.getVertex2();
-			System.err.println("Edge between "+v1.getSequenceIndex()+"-"+v1.isStart()+" and "+v2.getSequenceIndex()+"-"+v2.isStart());
-		}	
 	}
 
 	private AssemblyVertex findNextUncoveredVertex(AssemblyGraph graph, List<AssemblyVertex> vertices, Set<Integer> sequencesInPaths) {

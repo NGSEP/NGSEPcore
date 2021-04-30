@@ -478,37 +478,37 @@ public class AssemblyGraphStatistics {
 		log.info("Created gold standard assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Embedded: "+graph.getEmbeddedCount());
 		//Build gold standard layouts it must be done after knowing which sequences are embedded
 		String lastSeqName = null;
-		List<AssemblyEdge> nextPath = new ArrayList<>();
+		AssemblyPath nextPath = null;
 		AssemblyVertex lastVertex = null;
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment aln = alignments.get(i);
 			if(graph.isEmbedded(aln.getReadNumber())) continue;
 			if(!aln.getSequenceName().equals(lastSeqName)) {
-				if(nextPath.size()>0) graph.addPath(nextPath);
+				if(nextPath!=null) graph.addPath(nextPath);
 				lastSeqName = aln.getSequenceName();
-				nextPath = new ArrayList<>();
+				nextPath = null;
 				lastVertex = null;
 			}
 			AssemblyVertex leftSequenceVertex = graph.getVertex(aln.getReadNumber(), !aln.isNegativeStrand());
 			AssemblyVertex rightSequenceVertex = graph.getVertex(aln.getReadNumber(), aln.isNegativeStrand());
-			AssemblyEdge edgeSequence = graph.getSameSequenceEdge(leftSequenceVertex);
 			if(lastVertex!=null) {
 				AssemblyEdge connectingEdge = graph.getEdge(lastVertex, leftSequenceVertex);
 				if(connectingEdge==null) {
 					log.info("Discontiguity in gold standard layout. Last vertex: "+lastVertex+" next vertex: "+leftSequenceVertex);
-					if(nextPath.size()>0) graph.addPath(nextPath);
-					nextPath = new ArrayList<>();
+					if(nextPath!=null) graph.addPath(nextPath);
+					nextPath = null;
 					lastVertex = null;
 				} else {
 					//System.out.println("Next layout edge between "+lastVertex.getSequenceIndex()+" start " +lastVertex.isStart()+" and "+leftSequenceVertex.getSequenceIndex()+" start "+leftSequenceVertex.isStart()+" read id: "+aln.getSequenceName()+" first: "+aln.getFirst());
-					nextPath.add(connectingEdge);
+					AssemblyEdge edgeSequence = graph.getSameSequenceEdge(lastVertex);
+					if(nextPath==null) nextPath = new AssemblyPath(edgeSequence);
+					nextPath.connectEdgeRight(graph, connectingEdge);
 					connectingEdge.setLayoutEdge(true);
 				}
 			}
-			nextPath.add(edgeSequence);
 			lastVertex = rightSequenceVertex;
 		}
-		if(nextPath.size()>0) graph.addPath(nextPath);
+		if(nextPath!=null) graph.addPath(nextPath);
 		return graph;
 	}
 
@@ -674,8 +674,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==71 || gsVertex.getSequenceIndex()==2840 || gsVertex.getSequenceIndex()==79;
-		//boolean debug = gsVertex.getSequenceIndex()==90694 || gsVertex.getSequenceIndex()==38102 || gsVertex.getSequenceIndex()==65352; 
+		//boolean debug = gsVertex.getSequenceIndex()==24728 || gsVertex.getSequenceIndex()==34457 || gsVertex.getSequenceIndex()==33653;
+		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==54894 || gsVertex.getSequenceIndex()==84601; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -811,8 +811,8 @@ public class AssemblyGraphStatistics {
 	}
 	
 	private void compareLayouts(AssemblyGraph goldStandardGraph, AssemblyGraph testGraph, PrintStream out) {
-		List<List<AssemblyEdge>> gsPaths = goldStandardGraph.getPaths();
-		List<List<AssemblyEdge>> testPaths = testGraph.getPaths();
+		List<AssemblyPath> gsPaths = goldStandardGraph.getPaths();
+		List<AssemblyPath> testPaths = testGraph.getPaths();
 		errorsTPEdgeNoLayout = 0;
 		errorsEdgeEmbeddedNoLayout = 0;
 		errorsFPEdge = 0;
@@ -820,24 +820,25 @@ public class AssemblyGraphStatistics {
 		totalGSLayoutEdges = 0;
 		totalTestLayoutPaths = 0;
 		totalTestLayoutEdges = 0;
-		for(List<AssemblyEdge> gsPath:gsPaths) {
-			totalGSLayoutEdges+=gsPath.size();
+		for(AssemblyPath gsPath:gsPaths) {
+			totalGSLayoutEdges+=gsPath.getPathLength();
 		}
 		System.out.println();
 		for(int i=0;i<testPaths.size();i++) {
-			List<AssemblyEdge> nextPath = testPaths.get(i);
-			if(nextPath.size()<=1) continue;
+			AssemblyPath nextPath = testPaths.get(i);
+			if(nextPath.getPathLength()<=1) continue;
 			Map<String,Integer> sequencesPathCounts = new HashMap<String,Integer>();
 			long estimatedLength=0;
 			int lastOverlap = 0;
-			log.info("Compare layouts. Next path: "+(i+1)+" Limits "+nextPath.get(0)+" to "+nextPath.get(nextPath.size()-1));
+			log.info("Compare layouts. Next path: "+(i+1)+" Limits "+nextPath.getVertexLeft()+" to "+nextPath.getVertexRight());
 			totalTestLayoutPaths++;
-			totalTestLayoutEdges+=nextPath.size();
-			List<AssemblyEdge> nextGSPath = null;
+			totalTestLayoutEdges+=nextPath.getPathLength();
+			AssemblyPath nextGSPath = null;
+			List<AssemblyEdge> nextGSPathEdges = null;
 			int nextGSEdgeIdx = -1;
 			int direction = 0;
-			for(int j=0;j<nextPath.size();j++) {
-				AssemblyEdge nextTestEdge = nextPath.get(j);
+			List<AssemblyEdge> edges = nextPath.getEdges();
+			for(AssemblyEdge nextTestEdge:edges) {
 				if(nextTestEdge.isSameSequenceEdge()) {
 					String readId = nextTestEdge.getVertex1().getRead().getName();
 					int idx = readId.indexOf("_");
@@ -850,11 +851,11 @@ public class AssemblyGraphStatistics {
 				if(nextGSPath==null) {
 					searchGSEdge = true;
 				} else {
-					if (direction == 0 && nextGSEdgeIdx<nextGSPath.size()-1 && sameEdges(nextGSPath.get(nextGSEdgeIdx+1), nextTestEdge)) direction = 1;
+					if (direction == 0 && nextGSEdgeIdx<nextGSPathEdges.size()-1 && sameEdges(nextGSPathEdges.get(nextGSEdgeIdx+1), nextTestEdge)) direction = 1;
 					else if (direction == 0) direction = -1;
 					nextGSEdgeIdx+=direction;
-					if(nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) {
-						AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
+					if(nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPathEdges.size()) {
+						AssemblyEdge nextGSEdge = nextGSPathEdges.get(nextGSEdgeIdx);
 						if(sameEdges(nextGSEdge, nextTestEdge)) {
 							tpLayoutEdges++;
 						} else {
@@ -893,7 +894,7 @@ public class AssemblyGraphStatistics {
 							errorsTPEdgeNoLayout++;
 							if(!nextTestEdge.isSameSequenceEdge()) System.err.println("Compare layouts. True positive no GS layout "+nextTestEdge);
 						}
-						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPath.size()) System.err.println("Last GS layout edge "+nextGSPath.get(nextGSEdgeIdx));
+						if(nextGSPath!=null && nextGSEdgeIdx>=0 && nextGSEdgeIdx<nextGSPathEdges.size()) System.err.println("Last GS layout edge "+nextGSPathEdges.get(nextGSEdgeIdx));
 						nextGSPath = null;
 						nextGSEdgeIdx = -1;
 					} else  {
@@ -902,19 +903,20 @@ public class AssemblyGraphStatistics {
 						}
 						tpLayoutEdges++;
 						nextGSPath = gsPaths.get(gsEdgeLocation[0]);
+						nextGSPathEdges = new ArrayList<AssemblyEdge>(nextGSPath.getEdges());
 						nextGSEdgeIdx = gsEdgeLocation[1];
 					}
 				}
 			}
-			if(nextGSEdgeIdx>0 && nextGSEdgeIdx<nextGSPath.size()-1) {
+			if(nextGSEdgeIdx>0 && nextGSEdgeIdx<nextGSPathEdges.size()-1) {
 				nextGSEdgeIdx+=direction;
 				errorsFNLayoutEdge++;
-				AssemblyEdge nextGSEdge = nextGSPath.get(nextGSEdgeIdx);
-				log.info("Compare layouts. Finished test path before GS path. last test edge: "+nextPath.get(nextPath.size()-1)+"\nNext GS edge after end of test path: "+nextGSEdge);	
+				AssemblyEdge nextGSEdge = nextGSPathEdges.get(nextGSEdgeIdx);
+				log.info("Compare layouts. Finished test path before GS path. last test edge: "+edges.get(edges.size()-1)+"\nNext GS edge after end of test path: "+nextGSEdge);	
 			} else if (nextGSEdgeIdx==-1) {
-				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+nextPath.get(nextPath.size()-1));
+				log.info("Compare layouts. Finished test path without concordance with GS path. last test edge: "+edges.get(edges.size()-1));
 			}
-			log.info("Compare layouts. Finished path: "+(i+1)+" edges: "+nextPath.size()+" estimated length: "+estimatedLength+" Sequences "+sequencesPathCounts);
+			log.info("Compare layouts. Finished path: "+(i+1)+" edges: "+nextPath.getPathLength()+" estimated length: "+estimatedLength+" Sequences "+sequencesPathCounts);
 			System.out.println();
 		}
 	}
@@ -937,11 +939,12 @@ public class AssemblyGraphStatistics {
 		}
 		return null;
 	}
-	private int[] findGSEdgeLocation(List<List<AssemblyEdge>> gsPaths, AssemblyEdge nextTestEdge) {
+	private int[] findGSEdgeLocation(List<AssemblyPath> gsPaths, AssemblyEdge nextTestEdge) {
 		for(int i=0;i<gsPaths.size();i++) {
-			List<AssemblyEdge> nextPath = gsPaths.get(i);
-			for(int j=0;j<nextPath.size();j++) {
-				AssemblyEdge nextGSEdge = nextPath.get(j);
+			AssemblyPath nextPath = gsPaths.get(i);
+			List<AssemblyEdge> nextPathEdges = new ArrayList<AssemblyEdge>(nextPath.getEdges());
+			for(int j=0;j<nextPathEdges.size();j++) {
+				AssemblyEdge nextGSEdge = nextPathEdges.get(j);
 				if(sameEdges(nextGSEdge, nextTestEdge)) {
 					int [] answer = {i,j};
 					return answer;

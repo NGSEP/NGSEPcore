@@ -27,7 +27,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.Distribution;
@@ -70,7 +69,7 @@ public class AssemblyGraph {
 	
 	private Map<Integer, List<AssemblyEmbedded>> embeddedMapBySequence = new HashMap<>();
 
-	private List<List<AssemblyEdge>> paths = new ArrayList<List<AssemblyEdge>>();
+	private List<AssemblyPath> paths = new ArrayList<AssemblyPath>();
 	
 	private int numEdges = 0;
 	
@@ -310,9 +309,9 @@ public class AssemblyGraph {
 		return embeddedMapBySequence.size();
 	}
 
-	public synchronized void addPath(List<AssemblyEdge> path) {
+	public synchronized void addPath(AssemblyPath path) {
 		paths.add(path);
-		for(AssemblyEdge edge:path) edge.setLayoutEdge(true);
+		for(AssemblyEdge edge:path.getEdges()) edge.setLayoutEdge(true);
 	}
 	
 	public List<AssemblyVertex> getVertices() {
@@ -407,7 +406,7 @@ public class AssemblyGraph {
 	/**
 	 * @return the paths
 	 */
-	public List<List<AssemblyEdge>> getPaths() {
+	public List<AssemblyPath> getPaths() {
 		return paths;
 	}
 	
@@ -485,17 +484,74 @@ public class AssemblyGraph {
 		return answer;
 	}
 	
+	public List<AssemblyPath> buildPaths(List<AssemblyEdge> edges) {
+		Map<Integer,AssemblyEdge> edgesByVertex = new HashMap<Integer, AssemblyEdge>(); 
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			AssemblyVertex v1 = edge.getVertex1();
+			if(edgesByVertex.containsKey(v1.getUniqueNumber())) System.err.println("WARN: two edges for vertex. E1 "+edgesByVertex.get(v1.getUniqueNumber())+" E2: "+edge);
+			AssemblyVertex v2 = edge.getVertex2();
+			if(edgesByVertex.containsKey(v2.getUniqueNumber())) System.err.println("WARN: two edges for vertex. E1 "+edgesByVertex.get(v2.getUniqueNumber())+" E2: "+edge);
+			edgesByVertex.put(v1.getUniqueNumber(), edge);
+			edgesByVertex.put(v2.getUniqueNumber(), edge);
+		}
+		int n = getNumSequences();
+		List<AssemblyPath> paths = new ArrayList<AssemblyPath>();
+		Set<Integer> sequencesInPaths = new HashSet<>();
+		for(int i=0;i<n;i++) {
+			if(getVertex(i, true)==null || getVertex(i, false)==null) continue;
+			if(isEmbedded(i)) continue;
+			
+			if(sequencesInPaths.contains(i)) continue;
+			AssemblyVertex nextVertex = getVertex(i, true);
+			if(getEdges(nextVertex).size()==0) continue;
+			AssemblyPath path = new AssemblyPath(getSameSequenceEdge(nextVertex));
+			nextVertex = path.getVertexLeft();
+			//Expand v1
+			while(nextVertex!=null) {
+				AssemblyEdge nextEdge = edgesByVertex.get(nextVertex.getUniqueNumber());
+				if(nextEdge == null) nextVertex=null;
+				else {
+					nextVertex = nextEdge.getConnectingVertex(nextVertex);
+					if(sequencesInPaths.contains(nextVertex.getSequenceIndex())) {
+						System.err.println("WARN: Cycle detected building paths. Next edge: "+nextEdge);
+						break;
+					}
+					path.connectEdgeLeft(this, nextEdge);
+					sequencesInPaths.add(nextVertex.getSequenceIndex());
+					nextVertex = path.getVertexLeft();
+				}
+			}
+			//Expand v2
+			nextVertex = path.getVertexRight();
+			while(nextVertex!=null) {
+				AssemblyEdge nextEdge = edgesByVertex.get(nextVertex.getUniqueNumber());
+				if(nextEdge == null) nextVertex=null;
+				else {
+					nextVertex = nextEdge.getConnectingVertex(nextVertex);
+					if(sequencesInPaths.contains(nextVertex.getSequenceIndex())) {
+						System.err.println("WARN: Cycle detected building paths. Next edge: "+nextEdge);
+						break;
+					}
+					path.connectEdgeRight(this, nextEdge);
+					sequencesInPaths.add(nextVertex.getSequenceIndex());
+					nextVertex = path.getVertexRight();
+				}
+			}
+			paths.add(path);
+		} 
+		return paths;
+	}
+	
 	public long [] estimateNStatisticsFromPaths () {
 		List<Integer> lengths = new ArrayList<Integer>(paths.size());
-		for(List<AssemblyEdge> path:paths) {
-			int n = path.size();
-			if(n==0) continue;
+		for(AssemblyPath path:paths) {
+			List<AssemblyEdge> edges = path.getEdges();
 			
 			//Ignore small segment at the end
-			int lastLength = path.get(0).getOverlap();
+			int lastLength = edges.get(0).getOverlap();
 			int total = lastLength;
-			for (int i=1;i<n;i++) {
-				AssemblyEdge edge = path.get(i);
+			for (AssemblyEdge edge:edges) {
 				if(edge.isSameSequenceEdge()) {
 					lastLength = edge.getVertex1().getRead().getLength();
 					continue;
@@ -758,6 +814,31 @@ public class AssemblyGraph {
 			if(edge.getWeightedCoverageSharedKmers()>=edgeT.getWeightedCoverageSharedKmers()) return false;
 		}
 		return true;
+	}
+	
+	public boolean isRecipocalBestByCost(AssemblyEdge edge) {
+		AssemblyVertex v1 = edge.getVertex1();
+		if(!isBestEdgeByCost(v1, edge)) return false;
+		AssemblyVertex v2 = edge.getVertex2();
+		if(!isBestEdgeByCost(v2, edge)) return false;
+		return true;
+	}
+	public boolean isBestEdgeByCost (AssemblyVertex v, AssemblyEdge edgeT) {
+		List<AssemblyEdge> edges = getEdges(v);
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge() || edge==edgeT) continue;
+			if(edge.getCost()<edgeT.getCost()) return false;
+		}
+		return true;
+	}
+	public AssemblyEdge getEdgeBestOverlap(AssemblyVertex vertex) {
+		List<AssemblyEdge> edges = getEdges(vertex);
+		AssemblyEdge maxOverlapEdge = null;
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(maxOverlapEdge==null || maxOverlapEdge.getOverlap()<edge.getOverlap()) maxOverlapEdge = edge;
+		}
+		return maxOverlapEdge;
 	}
 	
 	public NormalDistribution[] estimateDistributions(List<AssemblyEdge> edges, Set<Integer> repetitiveVertices) {

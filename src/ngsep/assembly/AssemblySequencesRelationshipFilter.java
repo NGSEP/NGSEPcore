@@ -59,7 +59,7 @@ public class AssemblySequencesRelationshipFilter {
 				//List<AssemblyEdge> edges = graph.getEdgesBySequenceId(seqId);
 				//for(AssemblyEdge edge:edges) edge.setCost(10*edge.getCost());
 			}
-			if(seqId == debugIdx) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size());
+			if(seqId == debugIdx) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size()+" self edge: "+graph.getSameSequenceEdge(seqId));
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		for (int seqId = n-1; seqId >=0; seqId--) {
