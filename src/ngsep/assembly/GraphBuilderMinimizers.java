@@ -104,7 +104,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		ThreadPoolExecutor poolMinimizers1 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		int seqIdMinimizers = 0;
-		long limit = 3*ploidy*expectedAssemblyLength;
+		long limit = 10*ploidy*expectedAssemblyLength;
 		long totalLengthMinimizers = 0;
 		while( seqIdMinimizers < sequences.size() ) {
 			QualifiedSequence qseq = sequences.get(seqIdMinimizers);

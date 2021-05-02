@@ -71,8 +71,14 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<AssemblyPath> paths = graph.buildPaths(pathEdges);
+		Distribution [] distsEdges = calculateDistributions(pathEdges);
 		log.info("Paths costs algorithm: "+paths.size());
-		List<AssemblyPath> finalPaths = mergeClosePaths(graph, paths);
+		paths = collectAlternativeSmallPaths(graph, paths);
+		log.info("Paths after collecting small embedded paths: "+paths.size());
+		paths = mergeClosePaths(graph, paths, distsEdges);
+		log.info("Paths after first round of merging: "+paths.size());
+		expandPathsWithEmbedded(graph, paths, distsEdges);
+		List<AssemblyPath> finalPaths = mergeClosePaths(graph, paths, distsEdges);
 		/*List<List<AssemblyEdge>> finalPaths = paths;
 		for(int count=1;true;count++) {
 			log.info("Starting round "+count+" of improvement");
@@ -92,7 +98,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		if(stats!=null) NStatisticsCalculator.printNStatistics(stats, System.out);
 	}
  
-	
 	private AssemblyVertex [] extractEndVertices (List<AssemblyPath> paths) {
 		int p = paths.size();
 		AssemblyVertex [] vertices = new AssemblyVertex[2*p];
@@ -170,17 +175,87 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		return answer;
 	}
-	private boolean expandPathsWithEmbedded(AssemblyGraph graph, List<AssemblyPath> paths) {
+	private Distribution[] calculateDistributions(List<AssemblyEdge> pathEdges) {
+		Distribution costsDistribution = new Distribution(0, 100000, 1000);
+		Distribution ikbpDistribution = new Distribution(0, 50, 0.25);
+		for(AssemblyEdge edge:pathEdges) {
+			if(edge.isSameSequenceEdge()) continue;
+			costsDistribution.processDatapoint(edge.getCost());
+			ikbpDistribution.processDatapoint(edge.getIndelsPerKbp());
+		}
+		//log.info("Average cost path edges: "+costsDistribution.getAverage()+" STDEV: "+Math.sqrt(costsDistribution.getVariance()));
+		//costsDistribution.printDistribution(System.out);
+		Distribution[] answer = {costsDistribution,ikbpDistribution}; 
+		return answer;
+	}
+	private List<AssemblyPath> collectAlternativeSmallPaths(AssemblyGraph graph, List<AssemblyPath> paths) {
+		Map<Integer,VertexPathLocation> vertexPositions = getPathPositionsMap(paths);
+		Set<Integer> indexesToRemove = new HashSet<>();
+		for(int i=0;i<paths.size();i++) {
+			AssemblyPath path = paths.get(i);
+			if(path.getPathLength()>10) continue;
+			AssemblyVertex leftVertex = path.getVertexLeft();
+			AssemblyVertex rightVertex = path.getVertexRight();
+			AssemblyEdge leftEdge = graph.getEdgeMinCost(leftVertex);
+			AssemblyEdge rightEdge = graph.getEdgeMinCost(rightVertex);
+			if(leftEdge==null || rightEdge == null) continue;
+			AssemblyVertex leftConnecting = leftEdge.getConnectingVertex(leftVertex);
+			AssemblyVertex rightConnecting = rightEdge.getConnectingVertex(rightVertex);
+			if(leftConnecting==null || rightConnecting == null) continue;
+			VertexPathLocation leftLocation = vertexPositions.get(leftConnecting.getUniqueNumber());
+			VertexPathLocation rightLocation = vertexPositions.get(rightConnecting.getUniqueNumber());
+			if(leftLocation==null || rightLocation == null) continue;
+			if(leftLocation.getPath()==path) continue;
+			if(leftLocation.getPath()!=rightLocation.getPath()) continue;
+			AssemblyPath hostPath = leftLocation.getPath();
+			
+			//log.info("Possible integration of path id: "+pathId+" into "+connectingPathId+" lengths: "+path1.getPathLength()+" "+path2.getPathLength()+" conecting pos: "+connectionStart.getPathPosition()+" "+connectionEnd.getPathPosition());
+			if(0.1*hostPath.getPathLength()<path.getPathLength()) continue;
+			if(Math.abs(leftLocation.getPathPosition()-rightLocation.getPathPosition())>1.5*path.getPathLength()) continue;
+			hostPath.addAlternativeSmallPath(path);
+			indexesToRemove.add(i);
+		}
+		log.info("Internal path ids: "+indexesToRemove.size());
+		List<AssemblyPath> answer = new ArrayList<AssemblyPath>();
+		for(int i=0;i<paths.size();i++) {
+			if(!indexesToRemove.contains(i)) answer.add(paths.get(i));
+		}
+		return answer;
+	}
+	private Map<Integer,VertexPathLocation> getPathPositionsMap (List<AssemblyPath> paths) {
+		Map<Integer,VertexPathLocation> vertexPositions = new HashMap<Integer,VertexPathLocation>();
+		for(int i=0;i<paths.size();i++) {
+			AssemblyPath path = paths.get(i);
+			List<AssemblyEdge> edges = path.getEdges();
+			int n = edges.size();
+			AssemblyVertex vertexLeft = path.getVertexLeft();
+			vertexPositions.put(vertexLeft.getUniqueNumber(), new VertexPathLocation(vertexLeft.getUniqueNumber(), path, n, 0));
+			AssemblyVertex lastVertex = vertexLeft;
+			int k = 1;
+			for(AssemblyEdge edge:edges) {
+				AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
+				vertexPositions.put(nextVertex.getUniqueNumber(), new VertexPathLocation(nextVertex.getUniqueNumber(), path, n, k));
+				k++;
+				lastVertex = nextVertex;
+			}
+		}
+		return vertexPositions;
+	}
+	private boolean expandPathsWithEmbedded(AssemblyGraph graph, List<AssemblyPath> paths, Distribution [] dists) {
+		double averageCost = dists[0].getAverage();
+		double averageIKBP = dists[1].getAverage();
+		log.info("Expanding paths with embedded. Average cost: "+averageCost+" average IKBP: "+averageIKBP);
 		Set<Integer> usedEmbedded = new HashSet<Integer>();
 		for(AssemblyPath path:paths) {
 			
 			//System.out.println("Expanding paths with embedded. Next start: "+endVertex);
 			while(true) {
 				AssemblyVertex endVertex = path.getVertexLeft();
-				AssemblyEdge edge = graph.getEdgeBestOverlap(endVertex);
+				AssemblyEdge edge = graph.getEdgeMinCost(endVertex);
 				if(edge==null) break;
+				if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
 				AssemblyVertex next = edge.getConnectingVertex(endVertex);
-				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex()) && graph.isRecipocalBestByCost(edge)) {
+				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex())) {
 					log.info("Expanding path starting with: "+path.getVertexLeft()+" with embedded. Edge: "+edge);
 					path.connectEdgeLeft(graph, edge);
 					endVertex = path.getVertexLeft();
@@ -190,11 +265,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			//System.out.println("Expanding paths with embedded. Next end: "+endVertex);
 			while(true) {
 				AssemblyVertex endVertex = path.getVertexRight();
-				AssemblyEdge edge = graph.getEdgeBestOverlap(endVertex);
+				AssemblyEdge edge = graph.getEdgeMinCost(endVertex);
 				//if(endVertex.getUniqueNumber()==24728) System.out.println("Expanding paths with embedded. Best overlap: "+edge);
 				if(edge==null) break;
+				if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
 				AssemblyVertex next = edge.getConnectingVertex(endVertex);
-				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex()) && graph.isRecipocalBestByCost(edge)) {
+				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex())) {
 					log.info("Expanding path ending with: "+path.getVertexRight()+" with embedded. Edge: "+edge);
 					path.connectEdgeRight(graph, edge);
 					endVertex = path.getVertexRight();
@@ -204,51 +280,26 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		return usedEmbedded.size()>0;
 	}
-	private List<AssemblyPath> mergeClosePaths (AssemblyGraph graph, List<AssemblyPath> paths) {
-		Map<Integer,VertexPathLocation> vertexPositions = new HashMap<Integer,VertexPathLocation>();
-		Map<Integer,Integer> vertexEnds = new HashMap<Integer, Integer>();
+	private List<AssemblyPath> mergeClosePaths (AssemblyGraph graph, List<AssemblyPath> paths, Distribution [] dists) {
+		Map<Integer,VertexPathLocation> vertexPositions = getPathPositionsMap(paths);
 		Map<Integer,Integer> pathVertexStarts = new HashMap<Integer, Integer>();
 		Map<Integer,Integer> pathVertexEnds = new HashMap<Integer, Integer>();
-		
-		Distribution costsDistribution = new Distribution(0, 100000, 1000);
-		for(int i=0;i<paths.size();i++) {
-			AssemblyPath path = paths.get(i);
-			List<AssemblyEdge> edges = path.getEdges();
-			int pathId = i+1;
-			int n = edges.size();
-			AssemblyEdge edge0 = edges.get(0);
-			if(n==1) {
-				vertexEnds.put(path.getVertexLeft().getUniqueNumber(),pathId);
-				vertexEnds.put(path.getVertexRight().getUniqueNumber(),pathId);
-				pathVertexStarts.put(pathId,path.getVertexLeft().getUniqueNumber());
-				pathVertexEnds.put(pathId,path.getVertexRight().getUniqueNumber());
-				vertexPositions.put(path.getVertexLeft().getUniqueNumber(), new VertexPathLocation(path.getVertexLeft().getUniqueNumber(), pathId, n, 0));
-				vertexPositions.put(path.getVertexRight().getUniqueNumber(), new VertexPathLocation(path.getVertexRight().getUniqueNumber(), pathId, n, 1));
-				continue;
-			}
-			AssemblyVertex vertexLeft = path.getVertexLeft();
-			pathVertexStarts.put(pathId,vertexLeft.getUniqueNumber());
-			vertexPositions.put(vertexLeft.getUniqueNumber(), new VertexPathLocation(vertexLeft.getUniqueNumber(), pathId, n, 0));
-			vertexEnds.put(vertexLeft.getUniqueNumber(),pathId);
-			AssemblyVertex lastVertex = vertexLeft;
-			int k = 1;
-			for(AssemblyEdge edge:edges) {
-				if(!edge.isSameSequenceEdge()) costsDistribution.processDatapoint(edge.getCost());
-				AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
-				vertexPositions.put(nextVertex.getUniqueNumber(), new VertexPathLocation(nextVertex.getUniqueNumber(), pathId, n, k));
-				if(k==2 || k==n-2) vertexEnds.put(nextVertex.getUniqueNumber(),pathId);
-				k++;
-				lastVertex = nextVertex;
-			}
-			vertexEnds.put(lastVertex.getUniqueNumber(),pathId);
-			pathVertexEnds.put(pathId,lastVertex.getUniqueNumber());
-		}
-		log.info("Average cost path edges: "+costsDistribution.getAverage()+" STDEV: "+Math.sqrt(costsDistribution.getVariance()));
-		costsDistribution.printDistribution(System.out);
 		//Find edges connecting paths
 		Map<String,PathEndJunctionEdge> pathEndEdges = new HashMap<String, PathEndJunctionEdge>();
 		Map<Integer,VertexPathLocation> vertexEndsBestOvEdgeConnectingVertex = new HashMap<Integer, VertexPathLocation>();
-		for(int vertexId:vertexEnds.keySet()) {
+		Distribution costsDistribution = dists[0];
+		for(int i=0;i<paths.size();i++) {
+			AssemblyPath path = paths.get(i);
+			int pathId = i+1;
+			path.setPathId(pathId);
+			pathVertexStarts.put(pathId,path.getVertexLeft().getUniqueNumber());
+			pathVertexEnds.put(pathId,path.getVertexRight().getUniqueNumber());
+		}
+		//Build edges
+		Set<Integer> allVertexEnds = new HashSet<Integer>();
+		allVertexEnds.addAll(pathVertexStarts.values());
+		allVertexEnds.addAll(pathVertexEnds.values());
+		for(int vertexId:allVertexEnds) {
 			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
 			VertexPathLocation v1Loc = vertexPositions.get(vertexId);
 			AssemblyEdge edge = graph.getEdgeBestOverlap(v1);
@@ -258,12 +309,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			AssemblyVertex v2 = edge.getConnectingVertex(v1);
 			VertexPathLocation v2Loc = vertexPositions.get(v2.getUniqueNumber());
 			if(v2Loc == null) continue;
-			if (v1Loc.getPathId() == v2Loc.getPathId()) continue;
+			if (v1Loc.getPath() == v2Loc.getPath()) continue;
 			vertexEndsBestOvEdgeConnectingVertex.put(vertexId, v2Loc);
-			int pathEndV1 = v1Loc.getPathId();
+			int pathEndV1 = v1Loc.getPath().getPathId();
 			if(v1Loc.getPathPosition()>v1Loc.getPathLength()-4) pathEndV1 = -pathEndV1;
 			else if (v1Loc.getPathPosition()>4) continue;
-			int pathEndV2 = v2Loc.getPathId();
+			int pathEndV2 = v2Loc.getPath().getPathId();
 			if(v2Loc.getPathPosition()>v2Loc.getPathLength()-4) pathEndV2 = -pathEndV2;
 			else if (v2Loc.getPathPosition()>4) continue;
 			int minId = Math.min(pathEndV1, pathEndV2);
@@ -274,60 +325,9 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			pathEndEdge.addVote(edge.getCost());
 		}
 		log.info("Found "+pathEndEdges.size()+" candidate edges connecting vertices");
-		// Find connections through an embedded sequence
-		Map<Integer,Integer> pathEndsByEmbedded = new HashMap<Integer, Integer>();
-		for(int vertexId:vertexEnds.keySet()) {
-			VertexPathLocation v1Loc = vertexPositions.get(vertexId);
-			if (v1Loc == null) continue;
-			int pathEndV1 = v1Loc.getPathId();
-			if(!pathVertexStarts.containsKey(pathEndV1) && !pathVertexEnds.containsKey(pathEndV1)) continue;
-			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
-			AssemblyEdge edge = graph.getEdgeBestOverlap(v1);
-			if(edge == null) continue;
-			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
-			AssemblyVertex v2 = edge.getConnectingVertex(v1);
-			if(!graph.isEmbedded(v2.getSequenceIndex())) continue;
-			Integer vertexId2 = pathEndsByEmbedded.get(v2.getSequenceIndex()); 
-			if(vertexId2!=null) {
-				//Found possible connection through an embedded sequence
-				VertexPathLocation v2Loc = vertexPositions.get(vertexId2);
-				int pathEndV2 = v2Loc.getPathId(); 
-				if(pathEndV1==pathEndV2) continue;
-				int minId = Math.min(pathEndV1, pathEndV2);
-				int maxId = Math.max(pathEndV1, pathEndV2);
-				String key = "F"+minId+"L"+maxId;
-				PathEndJunctionEdge pathEndEdge = pathEndEdges.computeIfAbsent(key, v->new PathEndJunctionEdge(minId, maxId));
-				log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" through embedded. Edge: "+edge);
-				pathEndEdge.addVote(edge.getCost());
-			} else {
-				pathEndsByEmbedded.put(v2.getSequenceIndex(), vertexId);
-			}
-		}
-		// Find small paths to integrate to longer paths
-		Set<Integer> internalPathIds = new HashSet<Integer>();
-		for(int i=0;i<paths.size();i++) {
-			int pathId = i+1;
-			Integer startVertexId = pathVertexStarts.get(pathId);
-			Integer endVertexId = pathVertexEnds.get(pathId);
-			if(startVertexId == null || endVertexId==null) continue;
-			VertexPathLocation connectionStart = vertexEndsBestOvEdgeConnectingVertex.get(startVertexId);
-			VertexPathLocation connectionEnd = vertexEndsBestOvEdgeConnectingVertex.get(endVertexId);
-			if(connectionStart==null || connectionEnd==null) continue;
-			int connectingPathId = connectionStart.getPathId();
-			if(connectingPathId==pathId) continue;
-			if(connectingPathId!=connectionEnd.getPathId()) continue;
-			AssemblyPath path1 = paths.get(connectingPathId-1);
-			AssemblyPath path2 = paths.get(pathId-1);
-			
-			log.info("Possible integration of path id: "+pathId+" into "+connectingPathId+" lengths: "+path1.getPathLength()+" "+path2.getPathLength()+" conecting pos: "+connectionStart.getPathPosition()+" "+connectionEnd.getPathPosition());
-			if(0.01*path1.getPathLength()<path2.getPathLength()) continue;
-			if(Math.abs(connectionStart.getPathPosition()-connectionEnd.getPathPosition())>1) continue;
-			//integrateInPath(graph, path1,path2,startVertexId,endVertexId);
-			internalPathIds.add(pathId);
-		}
 		
-		log.info("Internal path ids: "+internalPathIds);
-		Map<Integer,List<Integer>> mergedPathIds = findPathsToMerge(pathEndEdges.values(),paths.size(), internalPathIds);
+		
+		Map<Integer,List<Integer>> mergedPathIds = findPathsToMerge(pathEndEdges.values(),paths.size());
 		log.info("Merged path ids: "+mergedPathIds.values());
 		List<AssemblyPath> answer = new ArrayList<AssemblyPath>(mergedPathIds.size());
 		
@@ -369,7 +369,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	
 	
 	
-	private Map<Integer,List<Integer>> findPathsToMerge(Collection<PathEndJunctionEdge> pathEndEdges, int n, Set<Integer> internalPathIds) {
+	private Map<Integer,List<Integer>> findPathsToMerge(Collection<PathEndJunctionEdge> pathEndEdges, int n) {
 		List<PathEndJunctionEdge> pathEndEdgesList = new ArrayList<PathEndJunctionEdge>(pathEndEdges);
 		Collections.sort(pathEndEdgesList,(e1,e2)->e1.getCost()-e2.getCost());
 		Map<Integer,Integer> pathGroups = new HashMap<Integer, Integer>();
@@ -378,10 +378,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Set<Integer> usedPathEnds = new HashSet<Integer>();
 		for(int i=0;i<n;i++) {
 			int pathId = i+1;
-			if(internalPathIds.contains(pathId)) {
-				usedPathEnds.add(pathId);
-				usedPathEnds.add(-pathId);
-			}
 			pathGroups.put(pathId, pathId);
 			pathGroups.put(-pathId, pathId);
 			LinkedList<Integer> nextPath = new LinkedList<Integer>();
@@ -427,21 +423,21 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 }
 class VertexPathLocation {
 	private int vertexId;
-	private int pathId;
+	private AssemblyPath path;
 	private int pathLength;
 	private int pathPosition;
-	public VertexPathLocation(int vertexId, int pathId, int pathLength, int pathPosition) {
+	public VertexPathLocation(int vertexId, AssemblyPath path, int pathLength, int pathPosition) {
 		super();
 		this.vertexId = vertexId;
-		this.pathId = pathId;
+		this.path = path;
 		this.pathLength = pathLength;
 		this.pathPosition = pathPosition;
 	}
 	public int getVertexId() {
 		return vertexId;
 	}
-	public int getPathId() {
-		return pathId;
+	public AssemblyPath getPath() {
+		return path;
 	}
 	public int getPathLength() {
 		return pathLength;

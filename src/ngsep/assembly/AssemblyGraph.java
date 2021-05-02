@@ -840,6 +840,15 @@ public class AssemblyGraph {
 		}
 		return maxOverlapEdge;
 	}
+	public AssemblyEdge getEdgeMinCost(AssemblyVertex vertex) {
+		List<AssemblyEdge> edges = getEdges(vertex);
+		AssemblyEdge minCostEdge = null;
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			if(minCostEdge==null || minCostEdge.getCost()>edge.getCost()) minCostEdge = edge;
+		}
+		return minCostEdge;
+	}
 	
 	public NormalDistribution[] estimateDistributions(List<AssemblyEdge> edges, Set<Integer> repetitiveVertices) {
 		Distribution overlapDistributionSafe = new Distribution(0, 100000, 1000);

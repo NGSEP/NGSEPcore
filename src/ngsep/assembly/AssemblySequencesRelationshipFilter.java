@@ -53,13 +53,13 @@ public class AssemblySequencesRelationshipFilter {
 				graph.removeVertices(seqId);
 				maxScore = 0;
 			}
-			//if(filterEmbeddedByCost(graph, seqId, medianLength, 2*Math.max(bestValues[2], bestValues[3]))) numEmbedded++;
+			//if(filterEmbeddedByCost(graph, seqId, medianLength, Math.min(bestValues[2], bestValues[3]))) {
 			if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) {
 				numEmbedded++;
 				//List<AssemblyEdge> edges = graph.getEdgesBySequenceId(seqId);
 				//for(AssemblyEdge edge:edges) edge.setCost(10*edge.getCost());
 			}
-			if(seqId == debugIdx) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size()+" self edge: "+graph.getSameSequenceEdge(seqId));
+			if(seqId == debugIdx && graph.getVertex(seqId, true)!=null) System.out.println("EdgesAndEmbeddedFiltering. Edges after processing sequence: "+graph.getEdges(vS).size()+" "+graph.getEdges(vE).size()+" self edge: "+graph.getSameSequenceEdge(seqId));
 		}
 		System.out.println("Filtered edges and embedded. Final number of embedded sequences: "+numEmbedded);
 		for (int seqId = n-1; seqId >=0; seqId--) {
@@ -139,7 +139,14 @@ public class AssemblySequencesRelationshipFilter {
 		return answer;
 	}
 
-	private boolean filterEmbeddedByCost(AssemblyGraph graph, int sequenceId,int medianLength, int costLimit) {
+	private boolean filterEmbeddedByCost(AssemblyGraph graph, int sequenceId,int medianLength, int minCostEdges) {
+		int sequenceLength = graph.getSequenceLength(sequenceId);
+		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
+		double minScoreProportionEmbedded = Math.min(1, 0.5*medianRelationship);
+		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		double costLimit = minCostEdges/minScoreProportionEmbedded;
+		//double costLimit = minCostEdges;
+		if(sequenceId == debugIdx) System.out.println("min cost edges: "+minCostEdges+" minscoreprop: "+minScoreProportionEmbedded+" cost limit: "+costLimit);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return false;
@@ -250,6 +257,8 @@ public class AssemblySequencesRelationshipFilter {
 		edge.setVertex2EvidenceEnd(embedded.getSequenceEvidenceEnd());
 		edge.setNumIndels(embedded.getNumIndels());
 		edge.setNumMismatches(embedded.getNumMismatches());
+		edge.setScore(embedded.getScore());
+		edge.setCost(embedded.getCost());
 		graph.addEdge(edge);
 	}
 }

@@ -11,6 +11,7 @@ public class AssemblyPath {
 	private AssemblyVertex vertexRight;
 	private int pathId;
 	private String sequenceName;
+	private List<AssemblyPath> alternativeSmallPaths=new ArrayList<AssemblyPath>();
 	
 	public AssemblyPath(AssemblyEdge edge) {
 		edges.add(edge);
@@ -114,7 +115,8 @@ public class AssemblyPath {
 		
 		
 		AssemblyEdge c1 = graph.getEdge(lastVertex1, firstVertex2);
-		if(c1!=null && (n1==1 || c1.getCost()<2*lastCost) && c1.getCost()<2*nextCost && c1.getOverlap()>lastOverlap && (n2==1 || c1.getOverlap()>nextOverlap)) {
+		System.err.println("Trying to merge paths with ends: "+lastVertex1+" "+firstVertex2+" Merging direct edge: "+c1);
+		if(c1!=null && (n1==1 || c1.getCost()<2*lastCost) && c1.getCost()<2*nextCost && c1.getOverlap()>0.5*lastOverlap && (n2==1 || c1.getOverlap()>0.5*nextOverlap)) {
 			System.err.println("Merging paths with ends: "+lastVertex1+" "+firstVertex2+" Merging direct edge: "+c1);
 			connectEdgeRight(graph, c1);
 			for(AssemblyEdge edge:path2Edges) {
@@ -162,4 +164,11 @@ public class AssemblyPath {
 		vertexRight = t;
 		
 	}
+	public void addAlternativeSmallPath(AssemblyPath path) {
+		alternativeSmallPaths.add(path);
+	}
+	public List<AssemblyPath> getAlternativeSmallPaths() {
+		return alternativeSmallPaths;
+	}
+	
 }
