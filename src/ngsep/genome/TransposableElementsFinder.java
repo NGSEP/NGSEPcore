@@ -11,6 +11,8 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.io.ReadAlignmentFileWriter;
+import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
@@ -110,8 +112,6 @@ public class TransposableElementsFinder {
 		tableKmer.processQualifiedSequences(list);
 		KmersMap kmap= tableKmer.getKmersMap();
 		int totalTranspoSize= 0;
-		
-		
 	    //traverses the genome, chromosome by chromosome 
 		for(QualifiedSequence chromosome:list)
 		{
@@ -125,13 +125,11 @@ public class TransposableElementsFinder {
 			for(int i=0;i<n-15;i++) 
 			{
 				int end = i+15;
-				
 				String kmer = chromosomeSequence.subSequence(i, end).toString();
 				//check if kmer is DNA
 				if(DNASequence.isDNA(kmer)) 
 				{
 					int kmerFrequency = kmap.getCount(kmer); 
-					
 					//filter kmers with given frequency
 					if (kmerFrequency >=10)
 					{ 
@@ -158,8 +156,7 @@ public class TransposableElementsFinder {
 								totalTranspoSize+= sizeRegion;
 								TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
 								answer.add(transposon);
-								//System.out.println("" + chromosomeList.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
-									
+								//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
 								// update 
 								regionStart=0;
 								regionEnd= 1;
@@ -173,8 +170,7 @@ public class TransposableElementsFinder {
 							totalTranspoSize+= sizeRegion;
 							TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
 							answer.add(transposon);
-							//System.out.println("" + chromosomeList.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
-								
+							//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;	
 							// update
 							regionStart=i;
 							regionEnd= end;
@@ -185,9 +181,9 @@ public class TransposableElementsFinder {
 				}
 			
 			}
-			System.out.println(totalTranspoSize); 	
+ 	
 		}
-
+		System.out.println(totalTranspoSize); 	
 		return answer;
 	}
 
@@ -197,7 +193,6 @@ public class TransposableElementsFinder {
 		System.out.println("creating minimizerTable");
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
 		minimizerTable.loadGenome(genome, 15, 30, 1);
-		List<ReadAlignment> alignQueryToRef;
 		System.out.println("loading known transposions");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
@@ -208,22 +203,30 @@ public class TransposableElementsFinder {
 			RawRead read = new RawRead(transposon.getName(), transposon.getCharacters(), null);
 			 List<ReadAlignment> listRead = minimizerTable.alignRead(read);
 			for (ReadAlignment ReadAlig: listRead) {
+				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(ReadAlig.getReadName(),ReadAlig.getFirst(), ReadAlig.getLast());
+				answer.add(alignedTransposon);
 				System.out.println(ReadAlig);
 			}
-			
-		}
-		
+		}		
 		return answer;
 	}
+	
 	private List<TransposableElementAnnotation> removeRedundantAnnotations(GenomicRegionSortedCollection<TransposableElementAnnotation> annotations) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		// TODO implement
+		answer.addAll(annotations);
 		return answer;
 	}
-	public void saveTransposons(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) {
-		// TODO Auto-generated method stub
-		
-	}
 	
-
+	public void saveTransposons(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) throws IOException {
+		try (PrintStream outTransposon =  new PrintStream(outputFile)) {	
+			for(TransposableElementAnnotation t:transposonAnnotations) 
+			{
+				outTransposon.print(t.getSequenceName()+"\t");
+				outTransposon.print(t.getFirst()+"\t");
+				outTransposon.print(t.getLast());
+				outTransposon.println();
+			}
+		}
+	}
 }
