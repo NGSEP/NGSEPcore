@@ -124,7 +124,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
 		long diff = (time2-time1)/1000;
-		log.info("Built minimizers for the first 3x of sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory);
+		log.info("Built minimizers for the first 10x of sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory);
 		//Distribution minimizerHitsDist = table.calculateDistributionHits();
 		//minimizerHitsDist.printDistributionInt(System.out);
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
@@ -148,7 +148,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
 		diff = (time3-time2)/1000;
-		log.info("Identified embedded relationships with the first 3x of sequences. Count embedded: "+countCurrentEmbedded+" Time mapping (s): "+diff+". Memory: "+usedMemory);
+		log.info("Identified embedded relationships with the first 10x of sequences. Count embedded: "+countCurrentEmbedded+" Time mapping (s): "+diff+". Memory: "+usedMemory);
 		
 		ThreadPoolExecutor poolMinimizers2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for( ;seqIdMinimizers < sequences.size();seqIdMinimizers++ ) {
