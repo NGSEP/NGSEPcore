@@ -64,18 +64,24 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	public List<AssemblySequencesRelationship> inferRelationshipsFromKmerHits(int queryIdx, CharSequence queryF, CharSequence queryR, Map<Integer, List<UngappedSearchHit>> hitsForward, Map<Integer, List<UngappedSearchHit>> hitsReverse, double compressionFactor ) {
 		int queryLength = queryF.length();
-		List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
-		int selfHitsCount = (selfHits!=null)?selfHits.size():0;
+		//List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
+		//int selfHitsCount = (selfHits!=null)?selfHits.size():0;
 		
-		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
-		List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
-		int kmersSelfCluster = 0;
-		if(queryClusters==null || queryClusters.size()==0) {
+		//int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
+		//List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
+		//int kmersSelfCluster = 0;
+		int minHits = DEF_MIN_HITS;
+		//if(queryClusters==null || queryClusters.size()==0) {
+		
 			int maxHits = 0;
-			for(List<UngappedSearchHit> hits:hitsForward.values()) maxHits = Math.max(maxHits, hits.size());
-			for(List<UngappedSearchHit> hits:hitsReverse.values()) maxHits = Math.max(maxHits, hits.size());
+			for(Map.Entry<Integer, List<UngappedSearchHit>> entry: hitsForward.entrySet()) {
+				if(entry.getKey()<queryIdx) maxHits = Math.max(maxHits, entry.getValue().size());
+			}
+			for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hitsReverse.entrySet()) {
+				if(entry.getKey()<queryIdx) maxHits = Math.max(maxHits, entry.getValue().size());
+			}
 			minHits = (int) Math.max(minHits,0.1*maxHits);
-		} else {
+		/*} else {
 			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster cluster = queryClusters.get(0);
 			AssemblyEdge edge = graph.getSameSequenceEdge(queryIdx);
@@ -89,9 +95,9 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
-		}
+		}*/
 		if(!extensiveSearch) minHits*=2;
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self raw hits: "+selfHitsCount+" kmersSelfCluster: "+kmersSelfCluster+" min hits: "+minHits);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Selected subject idxs forward: "+subjectIdxsF.size());
@@ -183,12 +189,12 @@ public class KmerHitsAssemblyEdgesFinder {
 		answer.add(bestCluster);
 		int numKmers = bestCluster.getNumDifferentKmers();
 		boolean queryBefore = bestCluster.getSubjectPredictedStart()<0;
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" name "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectSequence.getName()+" hits: "+hits.size()+" subject clusters: "+subjectClusters.size()+" hits best subject cluster: "+numKmers);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits: "+hits.size()+" subject clusters: "+subjectClusters.size()+" hits best subject cluster: "+numKmers);
 		if(subjectClusters.size()==1) return answer;
 		KmerHitsCluster secondCluster = subjectClusters.get(1);
 		if(secondCluster.getNumDifferentKmers()>0.8*numKmers && queryBefore != secondCluster.getSubjectPredictedStart()<0) {
 			answer.add(secondCluster);
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding second cluster. Query: "+queryIdx+" name "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectSequence.getName()+" hits second subject cluster: "+secondCluster.getNumDifferentKmers());
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding second cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+secondCluster.getNumDifferentKmers());
 		}
 		return answer;
 	}
