@@ -70,10 +70,11 @@ public class KmerHitsAssemblyEdgesFinder {
 		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
 		List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
 		int kmersSelfCluster = 0;
-		if(queryClusters==null) {
-			//System.err.println("WARN: Self hits for sequence: "+queryIdx+" not found");
-		} else if(queryClusters.size()==0) {
-			System.err.println("WARN: Self hits for sequence: "+queryIdx+" did not make clusters");
+		if(queryClusters==null || queryClusters.size()==0) {
+			int maxHits = 0;
+			for(List<UngappedSearchHit> hits:hitsForward.values()) maxHits = Math.max(maxHits, hits.size());
+			for(List<UngappedSearchHit> hits:hitsReverse.values()) maxHits = Math.max(maxHits, hits.size());
+			minHits = (int) Math.max(minHits,0.1*maxHits);
 		} else {
 			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster cluster = queryClusters.get(0);
