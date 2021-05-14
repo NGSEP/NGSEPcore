@@ -18,7 +18,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public static final int DEF_MIN_HITS = 50;
 	
-	private double minProportionOverlap = 0.1;
+	private double minProportionOverlap = 0.2;
 	
 	private double minProportionEvidence = 0;
 	

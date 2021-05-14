@@ -430,8 +430,13 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					break;
 				}
 			}
-			calls+=Math.max(0, Math.abs(sumRange)-1);
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
+			if(i>5 && j<n-5) {
+				calls+=Math.max(0, Math.abs(sumRange)-1);
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
+			} else {
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Ignoring indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
+			}
+			
 			i=j;
 		}
 		return calls;

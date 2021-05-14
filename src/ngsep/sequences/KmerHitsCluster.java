@@ -87,26 +87,34 @@ public class KmerHitsCluster {
 		//System.out.println("Sum: "+sum+" sum2: "+sum2);
 		double variance = (sum2-sum*sum/n)/(n-1);
 		rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):1;
-		Distribution dist = new Distribution(0, 100, 1);
+		Distribution dist = new Distribution(-400, 400, 50);
+		Distribution distAbs = new Distribution(0, 500, 1);
 		for(int start:subjectStarts) {
-			int distance = Math.abs(start-median);
-			if (distance < 2*rawKmerHitsSubjectStartSD) dist.processDatapoint(distance);
+			int distance = start-median;
+			int distanceAbs = Math.abs(distance);
+			if (distanceAbs < 2*rawKmerHitsSubjectStartSD) {
+				dist.processDatapoint(distance);
+				distAbs.processDatapoint(distanceAbs);
+			}
 		}
-		//System.out.println(subjectStarts);
+		int modeDist = (int) Math.round(dist.getLocalMode(-300, 300));
+		median+=(modeDist/2);
 		
+		//System.out.println(subjectStarts);
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) dist.printDistributionInt(System.out);
 		int maxDistance = 5*queryLength; 
 		if(subjectLength>maxDistance) {
 			// For mapping to a long reference subject
-			maxDistance = (int) Math.max(dist.getAverage(), rawKmerHitsSubjectStartSD);
+			maxDistance = (int) Math.max(distAbs.getAverage(), rawKmerHitsSubjectStartSD);
 		} else if (queryLength>2000) {
 			// For graph construction
-			maxDistance = (int) Math.max(dist.getAverage(), Math.sqrt(dist.getVariance()));
+			maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()));
 		}
 		maxDistance *=5;
 		if(maxDistance < 100) maxDistance=100;
 		//if(maxDistance<0.01*query.length()) maxDistance*=2;
 		else maxDistance=Math.min(queryLength/20,maxDistance);
-		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" distance avg: "+dist.getAverage()+" stdev "+Math.sqrt(dist.getVariance())+" max distance: "+maxDistance);
+		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" average: "+(sum/n)+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" abs distance avg: "+distAbs.getAverage()+" stdev "+Math.sqrt(distAbs.getVariance())+" max distance: "+maxDistance);
 		
 		List<UngappedSearchHit> selectedHits = selectHitsByDistanceWithMedian(hitsMultiMap, median, maxDistance, queryLength);
 		if(selectedHits.size()<1) { 
@@ -173,20 +181,24 @@ public class KmerHitsCluster {
 	}
 	
 	private void replaceHitsByLocalAgreement(List<UngappedSearchHit> selectedHits, Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance, int queryLength) {
-		//Find closest to median
+		//Find trustable site
 		int minHitPos = -1;
-		int minDistance = -1;
+		int minCost = -1;
+		int midPoint = queryLength/2;
 		for(int i=0;i<selectedHits.size();i++) {
-			int estStart = estimateSubjectStart(selectedHits.get(i));
+			UngappedSearchHit hit = selectedHits.get(i);
+			int estStart = estimateSubjectStart(hit);
 			int distance = Math.abs(estStart-median);
-			if(minHitPos==-1 || distance<minDistance) {
+			int d2 = Math.abs(hit.getQueryIdx()-midPoint);
+			int cost = distance + d2/10;
+			if(minHitPos==-1 || cost<minCost) {
 				minHitPos = i;
-				minDistance = distance;
+				minCost = cost;
 			}
 		}
 		if(minHitPos==-1) return;
 		UngappedSearchHit minHit = selectedHits.get(minHitPos);
-		if (minHit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Hit closest to median. qpos "+minHit.getQueryIdx()+" hit: "+minHit.getStart()+" distance: "+minDistance+" estq: "+estimateQueryStart(minHit)+" - "+estimateQueryEnd(minHit)+" estS: "+estimateSubjectStart(minHit)+" - "+estimateSubjectEnd(minHit));
+		if (minHit.getSequenceIdx()==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Hit closest to median. qpos "+minHit.getQueryIdx()+" hit: "+minHit.getStart()+" cost: "+minCost+" estq: "+estimateQueryStart(minHit)+" - "+estimateQueryEnd(minHit)+" estS: "+estimateSubjectStart(minHit)+" - "+estimateSubjectEnd(minHit));
 		int vicinityEstStart = estimateSubjectStart(minHit);
 		
 		for(int i=minHitPos-1;i>=0;i--) {
