@@ -368,7 +368,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Penalize up to 3 bp for each inconsistency
 				//if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
 				int diff = Math.abs(queryNextLength-subjectNextLength);
-				if(diff>1) {
+				if(diff>2) {
 					indelStarts.add(kmerHit.getQueryIdx());
 					indelCalls.add(queryNextLength-subjectNextLength);
 					initialNumIndels+=diff;
@@ -416,22 +416,22 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			int absNextCall = Math.abs(nextCall);
 			if(absNextCall<=1) continue;
 			if(absNextCall<10 ) {
-				calls+= (absNextCall-1);
+				calls+= Math.max(0, absNextCall-2);
 				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels. query pos: "+nextPos+" next call: "+nextCall+" indels: "+calls);
 				continue;
 			}
 			//Try to find a balancing indel
 			int j;
 			int sumRange = 0;
-			for(j=i;j<n && j<i+10;j++) {
+			for(j=i;j<n && j<i+3;j++) {
 				int nextCall2 = indelCalls.get(j);
 				sumRange+=nextCall2;
 				if(Math.abs(sumRange)< 0.2*absNextCall) {
 					break;
 				}
 			}
-			if(i>5 && j<n-5) {
-				calls+=Math.max(0, Math.abs(sumRange)-1);
+			if(i>1 && j<n-2) {
+				calls+=Math.max(0, Math.abs(sumRange)-2);
 				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
 			} else {
 				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Ignoring indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
