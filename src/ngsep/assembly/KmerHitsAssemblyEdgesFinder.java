@@ -18,7 +18,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	public static final int DEF_MIN_HITS = 50;
 	
-	private double minProportionOverlap = 0.2;
+	private double minProportionOverlap = 0.1;
 	
 	private double minProportionEvidence = 0;
 	
@@ -64,15 +64,13 @@ public class KmerHitsAssemblyEdgesFinder {
 
 	public List<AssemblySequencesRelationship> inferRelationshipsFromKmerHits(int queryIdx, CharSequence queryF, CharSequence queryR, Map<Integer, List<UngappedSearchHit>> hitsForward, Map<Integer, List<UngappedSearchHit>> hitsReverse, double compressionFactor ) {
 		int queryLength = queryF.length();
-		//List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
-		//int selfHitsCount = (selfHits!=null)?selfHits.size():0;
+		List<UngappedSearchHit> selfHits = hitsForward.get(queryIdx);
+		int selfHitsCount = (selfHits!=null)?selfHits.size():0;
 		
-		//int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
-		//List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
-		//int kmersSelfCluster = 0;
-		int minHits = DEF_MIN_HITS;
-		//if(queryClusters==null || queryClusters.size()==0) {
-		
+		int minHits = (int) Math.max(selfHitsCount*minProportionOverlap,DEF_MIN_HITS);
+		List<KmerHitsCluster> queryClusters = (selfHits!=null)?KmerHitsCluster.clusterRegionKmerAlns(queryLength, queryLength, selfHits, 0):null;
+		//int minHits = DEF_MIN_HITS;
+		if(queryClusters==null || queryClusters.size()==0) {
 			int maxHits = 0;
 			for(Map.Entry<Integer, List<UngappedSearchHit>> entry: hitsForward.entrySet()) {
 				if(entry.getKey()<queryIdx) maxHits = Math.max(maxHits, entry.getValue().size());
@@ -80,8 +78,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hitsReverse.entrySet()) {
 				if(entry.getKey()<queryIdx) maxHits = Math.max(maxHits, entry.getValue().size());
 			}
-			minHits = (int) Math.max(minHits,0.1*maxHits);
-		/*} else {
+			minHits = (int) Math.max(minHits,0.05*maxHits);
+		} else {
 			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster cluster = queryClusters.get(0);
 			AssemblyEdge edge = graph.getSameSequenceEdge(queryIdx);
@@ -89,13 +87,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setCoverageSharedKmers(alnData[0]);
 			edge.setWeightedCoverageSharedKmers(alnData[1]);
 			edge.setNumSharedKmers(cluster.getNumDifferentKmers());
-			kmersSelfCluster = cluster.getNumDifferentKmers();
 			edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 			edge.setRawKmerHits(cluster.getRawKmerHits());
 			edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
-		}*/
+		}
 		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
