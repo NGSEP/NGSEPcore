@@ -78,7 +78,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hitsReverse.entrySet()) {
 				if(entry.getKey()<queryIdx) maxHits = Math.max(maxHits, entry.getValue().size());
 			}
-			minHits = (int) Math.max(minHits,0.05*maxHits);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. No self cluster. Query: "+queryIdx+" subject max hits: "+maxHits);
+			//minHits = (int) Math.max(minHits,0.05*maxHits);
 		} else {
 			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster cluster = queryClusters.get(0);
@@ -92,6 +93,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self cluster hits: "+selfHitsCount+" self cluster kmers: "+cluster.getNumDifferentKmers()+" min hits: "+minHits);
 		}
 		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" min hits: "+minHits);
