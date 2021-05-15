@@ -153,7 +153,7 @@ public class Dendrogram {
 
 		for (String child : children) {
 			String trimmed = child.strip();
-			if (child.startsWith("(")) {
+			if (trimmed.startsWith("(")) {
 				// it's a subtree
 				trees.add(trimmed);
 			} else {

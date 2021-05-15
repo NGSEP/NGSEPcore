@@ -71,7 +71,7 @@ public class Vector {
         return this.zipWith(Double::sum, u);
     }
 
-    public Vector substract (Vector u) throws Exception {
+    public Vector subtract(Vector u) throws Exception {
         return this.add(u.negative());
     }
 
@@ -85,7 +85,7 @@ public class Vector {
     }
 
     public static double distance (Vector v, Vector u) throws Exception {
-        return v.substract(u).norm();
+        return v.subtract(u).norm();
     }
 
     @Override

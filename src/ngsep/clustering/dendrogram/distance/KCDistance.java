@@ -3,6 +3,7 @@ package ngsep.clustering.dendrogram.distance;
 import ngsep.clustering.Pair;
 import ngsep.clustering.dendrogram.Dendrogram;
 
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -70,6 +71,8 @@ public class KCDistance implements BiFunction<Dendrogram, Dendrogram, Double> {
         LCA lcaFinder = new LCA(adj);
         Vector m = getTopologyVector(lcaFinder, leaves);
         Vector M = getDistanceVector(lcaFinder, leaves);
+        System.out.println(m);
+        System.out.println(M);
         return m.multiply(1.0 - lambda).add(M.multiply(lambda));
     }
 
@@ -101,11 +104,18 @@ public class KCDistance implements BiFunction<Dendrogram, Dendrogram, Double> {
     }
 
     public static void main(String[] args) throws Exception{
+        String t1Path = args[0];
+        String t2Path = args[1];
+        Dendrogram t1 = new Dendrogram(new FileInputStream(t1Path));
+        Dendrogram t2 = new Dendrogram(new FileInputStream(t2Path));
+        t1.printTree(System.out);
+        t2.printTree(System.out);
         KCDistance kc = new KCDistance(0.5);
-        Dendrogram t1 = Dendrogram.fromNewick("((A: 1.2,B: 0.8):0.5,(C:0.8,D:1.0):1.1);");
+        System.out.println(kc.apply(t1, t2));
+/*      Dendrogram t1 = Dendrogram.fromNewick("((A: 1.2,B: 0.8):0.5, (C:0.8,D:1.0): 1.1);");
         Dendrogram t2 = Dendrogram.fromNewick("(((A:0.8,B:1.4):0.3,C:0.7):0.9,D:1.0);");
         t1.printTree(System.out);
         t2.printTree(System.out);
-        System.out.println(kc.apply(t1, t2));
+        System.out.println(kc.apply(t1, t2));*/
     }
 }
