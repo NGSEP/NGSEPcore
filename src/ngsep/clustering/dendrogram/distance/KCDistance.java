@@ -71,8 +71,6 @@ public class KCDistance implements BiFunction<Dendrogram, Dendrogram, Double> {
         LCA lcaFinder = new LCA(adj);
         Vector m = getTopologyVector(lcaFinder, leaves);
         Vector M = getDistanceVector(lcaFinder, leaves);
-        System.out.println(m);
-        System.out.println(M);
         return m.multiply(1.0 - lambda).add(M.multiply(lambda));
     }
 
@@ -112,10 +110,7 @@ public class KCDistance implements BiFunction<Dendrogram, Dendrogram, Double> {
         t2.printTree(System.out);
         KCDistance kc = new KCDistance(0.5);
         System.out.println(kc.apply(t1, t2));
-/*      Dendrogram t1 = Dendrogram.fromNewick("((A: 1.2,B: 0.8):0.5, (C:0.8,D:1.0): 1.1);");
-        Dendrogram t2 = Dendrogram.fromNewick("(((A:0.8,B:1.4):0.3,C:0.7):0.9,D:1.0);");
-        t1.printTree(System.out);
-        t2.printTree(System.out);
-        System.out.println(kc.apply(t1, t2));*/
+
+        System.out.println(kc.apply(t1.normalize(), t2.normalize()));
     }
 }

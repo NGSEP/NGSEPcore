@@ -20,6 +20,7 @@ public class Dendrogram {
 		this.label = label;
 		children = new ArrayList<>();
 	}
+
 	public Dendrogram(String label, List<DendrogramEdge> children) {
 		this.label = label;
 		this.children = new ArrayList<>();
@@ -173,8 +174,11 @@ public class Dendrogram {
 		// Process leaves
 		for (String leaf : newickLeaves) {
 			String[] destAndWeight = leaf.split(":");
-			String label = destAndWeight[0].strip();
-			double weight = Double.parseDouble(destAndWeight[1]);
+			int len = destAndWeight.length;
+			String label = String.join(":",
+					Arrays.copyOfRange(destAndWeight, 0, len - 1)
+			).strip();
+			double weight = Double.parseDouble(destAndWeight[len - 1]);
 			edges.add(new DendrogramEdge(weight, new Dendrogram(label)));
 		}
 
@@ -237,6 +241,41 @@ public class Dendrogram {
 		}
 	}
 
+	public double getBranchLengthSum () {
+		double sum = 0.0;
+		Queue<Dendrogram> q = new LinkedList<>();
+		q.add(this);
+		while (!q.isEmpty()) {
+			Dendrogram v = q.remove();
+			for (DendrogramEdge e : v.children) {
+				Dendrogram u = e.getDestination();
+				double weight = e.getWeight();
+				sum += weight;
+				q.add(u);
+			}
+		}
+		return sum;
+	}
+
+	private Dendrogram normalize (Dendrogram original, double totalSum) {
+		Dendrogram norm = new Dendrogram(original.label);
+		List<DendrogramEdge> children = new ArrayList<>();
+		for (DendrogramEdge e : original.children) {
+			Dendrogram u = e.getDestination();
+			double weight = e.getWeight();
+			Dendrogram w = normalize(u, totalSum);
+			children.add(new DendrogramEdge(weight / totalSum, w));
+		}
+		norm.setChildren(children);
+		return norm;
+	}
+
+	public Dendrogram normalize () {
+		Dendrogram t =  this.normalize(this, this.getBranchLengthSum());
+		t.generateIds();
+		return t;
+	}
+
 	/**
 	 * Joins a pair of nodes (u, v) to a new node x. Returns the new
 	 * tree with x as the root
@@ -258,15 +297,5 @@ public class Dendrogram {
 				new DendrogramEdge(dux, unode),
 				new DendrogramEdge(dvx, vnode)
 		));
-	}
-
-	public static void main(String[] args) throws IOException{
-		String s = "(x:1,x:2,(x:3,(x:5,x:6):4):10,x:7,((y:1,y:3):5,y:2):14);";
-		Dendrogram t0 = Dendrogram.fromNewick(s);
-		System.out.println(t0.toAdjacencyList());
-		t0.printTree(System.out);
-		String file = args[0];
-		Dendrogram t1 = new Dendrogram(new FileInputStream(file));
-		t1.printTree(System.out);
 	}
 }
