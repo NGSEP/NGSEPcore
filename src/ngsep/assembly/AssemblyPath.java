@@ -128,9 +128,9 @@ public class AssemblyPath {
 		AssemblyEdge c2 = graph.getEdge(lastVertex1, secondVertex2);
 		AssemblyEdge c3 = graph.getEdge(secondLastVertex1, firstVertex2);
 		System.err.println("Edges to merge paths: "+c2+" "+c3+" overlaps: "+lastOverlap+" "+nextOverlap+" costs: "+lastCost+" "+nextCost);
-		boolean validC2 = c2!=null && c2.getOverlap()>nextOverlap && c2.getCost()<2*lastCost && c2.getCost()<2*nextCost && (c3==null || c2.getCost()<2*c3.getCost());
+		boolean validC2 = c2!=null && c2.getOverlap()>0.8*nextOverlap && c2.getCost()<1.5*lastCost && c2.getCost()<1.5*nextCost && (c3==null || c2.getCost()<2*c3.getCost());
 		if(!validC2) c2= null;
-		boolean validC3 = c3!=null && c3.getOverlap()>lastOverlap && c3.getCost()<2*lastCost && c3.getCost()<2*nextCost && (c2==null || c3.getCost()<2*c2.getCost());
+		boolean validC3 = c3!=null && c3.getOverlap()>0.8*lastOverlap && c3.getCost()<1.5*lastCost && c3.getCost()<1.5*nextCost && (c2==null || c3.getCost()<2*c2.getCost());
 		if(!validC3) c3= null;
 		
 		if(c2!=null && (c3==null || c2.getOverlap()>c3.getOverlap())) {

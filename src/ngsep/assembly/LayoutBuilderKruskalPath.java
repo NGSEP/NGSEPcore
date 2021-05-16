@@ -135,7 +135,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		pathEdges.addAll(selectedEdges);
 	}
 	private List<AssemblyEdge> selectEdgesToMergePaths(List<AssemblyEdge> candidateEdges, AssemblyVertex [] vertices, NormalDistribution distIKBP) {
-		double limitIKBP = distIKBP.getMean()+7*Math.sqrt(distIKBP.getVariance());
+		double limitIKBP = distIKBP.getMean()+15*Math.sqrt(distIKBP.getVariance());
 		log.info("Limit for IKBP: "+limitIKBP+" Average: "+distIKBP.getMean()+" variance: "+distIKBP.getVariance());
 		int n = vertices.length;
 		Map<Integer,Integer> verticesPos = new HashMap<Integer, Integer>();
@@ -158,7 +158,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			Integer posV1 = verticesPos.get(v1.getUniqueNumber());
 			Integer posV2 = verticesPos.get(v2.getUniqueNumber());
 			if(posV1==null || posV2==null) continue;
-			if(v1.getUniqueNumber()==-97856 || v2.getUniqueNumber()==69473) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
+			//if(v1.getUniqueNumber()==-97856 || v2.getUniqueNumber()==69473) System.out.println("SelectingEdges. next edge: "+nextEdge+" used: "+used[posV1]+" "+used[posV2]+" clusters: "+clusters[posV1]+" "+clusters[posV2]);
 			
 			if(used[posV1] || used[posV2]) continue;
 			if(nextEdge.getIndelsPerKbp()>limitIKBP) continue;
@@ -286,7 +286,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Map<Integer,Integer> pathVertexEnds = new HashMap<Integer, Integer>();
 		//Find edges connecting paths
 		Map<String,PathEndJunctionEdge> pathEndEdges = new HashMap<String, PathEndJunctionEdge>();
-		Map<Integer,VertexPathLocation> vertexEndsBestOvEdgeConnectingVertex = new HashMap<Integer, VertexPathLocation>();
+
 		Distribution costsDistribution = dists[0];
 		for(int i=0;i<paths.size();i++) {
 			AssemblyPath path = paths.get(i);
@@ -301,28 +301,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		allVertexEnds.addAll(pathVertexEnds.values());
 		for(int vertexId:allVertexEnds) {
 			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
-			VertexPathLocation v1Loc = vertexPositions.get(vertexId);
 			AssemblyEdge edge = graph.getEdgeBestOverlap(v1);
 			//if(vertexId==-32163) System.out.println("FInding edges to merge paths. Edge: "+edge);
-			if(edge == null) continue;
-			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
-			AssemblyVertex v2 = edge.getConnectingVertex(v1);
-			VertexPathLocation v2Loc = vertexPositions.get(v2.getUniqueNumber());
-			if(v2Loc == null) continue;
-			if (v1Loc.getPath() == v2Loc.getPath()) continue;
-			vertexEndsBestOvEdgeConnectingVertex.put(vertexId, v2Loc);
-			int pathEndV1 = v1Loc.getPath().getPathId();
-			if(v1Loc.getPathPosition()>v1Loc.getPathLength()-4) pathEndV1 = -pathEndV1;
-			else if (v1Loc.getPathPosition()>4) continue;
-			int pathEndV2 = v2Loc.getPath().getPathId();
-			if(v2Loc.getPathPosition()>v2Loc.getPathLength()-4) pathEndV2 = -pathEndV2;
-			else if (v2Loc.getPathPosition()>4) continue;
-			int minId = Math.min(pathEndV1, pathEndV2);
-			int maxId = Math.max(pathEndV1, pathEndV2);
-			String key = "F"+minId+"L"+maxId;
-			PathEndJunctionEdge pathEndEdge = pathEndEdges.computeIfAbsent(key, v->new PathEndJunctionEdge(minId, maxId));
-			log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" edge: "+edge);
-			pathEndEdge.addVote(edge.getCost());
+			addVote(v1, edge, costsDistribution, vertexPositions, pathEndEdges);
+			
+			AssemblyEdge edgeC = graph.getEdgeMinCost(v1);
+			if(edgeC!=edge) addVote(v1, edgeC, costsDistribution, vertexPositions, pathEndEdges);
 		}
 		log.info("Found "+pathEndEdges.size()+" candidate edges connecting vertices");
 		
@@ -366,7 +350,29 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		return answer;
 	}
 	
-	
+	private void addVote (AssemblyVertex vertexEnd, AssemblyEdge edge, Distribution costsDistribution, Map<Integer,VertexPathLocation> vertexPositions, Map<String,PathEndJunctionEdge> pathEndEdges) {
+		if(edge == null) return;
+		if(edge.getCost()>2*costsDistribution.getAverage()) return;
+		VertexPathLocation v1Loc = vertexPositions.get(vertexEnd.getUniqueNumber());
+		if(v1Loc == null) return;
+		AssemblyVertex v2 = edge.getConnectingVertex(vertexEnd);
+		VertexPathLocation v2Loc = vertexPositions.get(v2.getUniqueNumber());
+		if(v2Loc == null) return;
+		if (v1Loc.getPath() == v2Loc.getPath()) return;
+		//vertexEndsBestOvEdgeConnectingVertex.put(vertexId, v2Loc);
+		int pathEndV1 = v1Loc.getPath().getPathId();
+		if(v1Loc.getPathPosition()>v1Loc.getPathLength()-4) pathEndV1 = -pathEndV1;
+		else if (v1Loc.getPathPosition()>4) return;
+		int pathEndV2 = v2Loc.getPath().getPathId();
+		if(v2Loc.getPathPosition()>v2Loc.getPathLength()-4) pathEndV2 = -pathEndV2;
+		else if (v2Loc.getPathPosition()>4) return;
+		int minId = Math.min(pathEndV1, pathEndV2);
+		int maxId = Math.max(pathEndV1, pathEndV2);
+		String key = "F"+minId+"L"+maxId;
+		PathEndJunctionEdge pathEndEdge = pathEndEdges.computeIfAbsent(key, v->new PathEndJunctionEdge(minId, maxId));
+		log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" edge: "+edge);
+		pathEndEdge.addVote(edge.getCost());
+	}
 	
 	
 	private Map<Integer,List<Integer>> findPathsToMerge(Collection<PathEndJunctionEdge> pathEndEdges, int n) {

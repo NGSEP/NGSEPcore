@@ -20,6 +20,7 @@
 package ngsep.alignments;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -338,8 +339,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return finalAlignment;
 	}
 	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, KmerHitsCluster kmerHitsCluster) {
-		int debugIdxS = -1;
-		int debugIdxQ = -1;
+		int debugIdxS = 0;
+		int debugIdxQ = 1;
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Subject length: "+subjectLength+". Query length: "+queryLength+" kmer hits: "+kmerHits.size()+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int coverageSharedKmers = 0;
@@ -410,14 +411,52 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int debugIdxS = -1;
 		int debugIdxQ = -1;
 		int n = indelCalls.size();
+		if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Calculating indels. calls: "+indelCalls);
+		boolean [] processed = new boolean[n];
+		Arrays.fill(processed, false);
+		while (true) {
+			//Find maximum
+			int idxMax = 0;
+			int maxAbs = 0;
+			for(int i=0;i<n;i++) {
+				if(processed[i]) continue;
+				int next = Math.abs(indelCalls.get(i));
+				if(next<10) processed[i] = true;
+				if(next>maxAbs) {
+					idxMax = i;
+					maxAbs = next;
+				}
+			}
+			if(maxAbs<6) break;
+			//Try to find balancing indel
+			int value = indelCalls.get(idxMax);
+			int idxMinPair = idxMax;
+			int minPair = maxAbs;
+			for(int i=Math.max(0, idxMax-1);i<n && i<idxMax+2;i++) {
+				int pairValue = Math.abs(value+indelCalls.get(i));
+				if(pairValue<minPair) {
+					idxMinPair = i;
+					minPair = pairValue;
+				}
+			}
+			processed[idxMax] = true;
+			if(minPair>0.2*maxAbs) {
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Keeping high value of site "+idxMax+" "+indelStarts.get(idxMax)+" value "+value+" min difference: "+minPair);
+				continue;
+			}
+			processed[idxMinPair] = true;
+			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Replacing values of sites "+idxMax+" "+indelStarts.get(idxMax)+" and "+idxMinPair+" "+indelStarts.get(idxMinPair)+" original "+value+" "+indelCalls.get(idxMinPair)+" difference: "+minPair);
+			indelCalls.set(idxMax,minPair);
+			indelCalls.set(idxMinPair,0);
+		}
 		for(int i=0;i<n;i++) {
 			int nextPos = indelStarts.get(i);
 			int nextCall = indelCalls.get(i);
 			int absNextCall = Math.abs(nextCall);
 			if(absNextCall<=1) continue;
-			if(absNextCall<10 ) {
+			if(absNextCall<6 ) {
 				calls+= Math.max(0, absNextCall-2);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels. query pos: "+nextPos+" next call: "+nextCall+" indels: "+calls);
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels. Idx: "+i+" query pos: "+nextPos+" next call: "+nextCall+" indels: "+calls);
 				continue;
 			}
 			//Try to find a balancing indel
