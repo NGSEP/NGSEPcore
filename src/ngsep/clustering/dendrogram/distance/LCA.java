@@ -49,17 +49,20 @@ public class LCA {
         }
     }
 
+    public int findKthAncestorOf(int v, int k) {
+        int x = v;
+        for (int j = 0; j < maxDepth; j++) {
+            if ((k & (1 << j)) != 0) x = up[x][j];
+        }
+        return x;
+    }
+
     public int lowestCommonAncestor (int u, int v) {
         int[] p = depth[u] < depth[v] ? new int[]{v, u} : new int[]{u, v};
         int x = p[0];
         int y = p[1];
 
-        int k = depth[x] - depth[y];
-        for (int j = 0; j < maxDepth; j++) {
-            if ((k & (1 << j)) != 0) {
-                x = up[x][j];
-            }
-        }
+        x = findKthAncestorOf(x, depth[x] - depth[y]);
 
         if (x == y) return x;
 
@@ -96,14 +99,6 @@ public class LCA {
     public double distanceFromRootToLCA (int u, int v) {
         int w = lowestCommonAncestor(u, v);
         return findDistance(0, w, 0.0);
-    }
-
-    public int findKthAncestorOf(int v, int k) {
-        int x = v;
-        for (int j = 0; j < maxDepth; j++) {
-            if ((k & (1 << j)) != 0) x = up[x][j];
-        }
-        return x;
     }
 
     public int hopsToKthAncestor(int v, int k) {
