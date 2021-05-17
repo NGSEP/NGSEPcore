@@ -90,7 +90,7 @@ public class AssemblySequencesRelationshipFilter {
 		
 		
 		int maxScoreS = 0;
-		int minCostS = 1000000000;
+		int minCostS = 100000000;
 		for(AssemblyEdge edge: edgesS) {
 			if(edge.isSameSequenceEdge()) continue;
 			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vS).getSequenceIndex());
@@ -103,7 +103,7 @@ public class AssemblySequencesRelationshipFilter {
 		List<AssemblyEdge> edgesE = new ArrayList<AssemblyEdge>();
 		if(vE!=null) edgesE.addAll(graph.getEdges(vE));
 		int maxScoreE = 0;
-		int minCostE = 1000000000;
+		int minCostE = 100000000;
 		for(AssemblyEdge edge: edgesE) {
 			if(edge.isSameSequenceEdge()) continue;
 			//int connectingLength = getSequenceLength(edge.getConnectingVertex(vE).getSequenceIndex());
@@ -142,11 +142,11 @@ public class AssemblySequencesRelationshipFilter {
 	private boolean filterEmbeddedByCost(AssemblyGraph graph, int sequenceId,int medianLength, int minCostEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
-		double minScoreProportionEmbedded = Math.min(1, 0.5*medianRelationship);
-		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
-		double costLimit = minCostEdges/minScoreProportionEmbedded;
+		double costInflationEmbedded = Math.max(1, 1.0/medianRelationship);
+		//if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
+		double costLimit = minCostEdges*costInflationEmbedded;
 		//double costLimit = minCostEdges;
-		if(sequenceId == debugIdx) System.out.println("min cost edges: "+minCostEdges+" minscoreprop: "+minScoreProportionEmbedded+" cost limit: "+costLimit);
+		if(sequenceId == debugIdx) System.out.println("min cost edges: "+minCostEdges+" median rel: "+medianRelationship+" cost inflation: "+costInflationEmbedded+" cost limit: "+costLimit);
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
 		if(embeddedList.size()==0) return false;

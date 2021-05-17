@@ -105,7 +105,7 @@ public class AssemblyEmbedded implements AssemblySequencesRelationship {
 	}
 	
 	public int getOverlap() {
-		return hostEnd-hostStart;
+		return sequenceEvidenceEnd-sequenceEvidenceStart;
 	}
 	
 	public int getHostStartStandardDeviation() {

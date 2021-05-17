@@ -21,6 +21,7 @@ package ngsep.assembly;
 
 import java.util.Map;
 
+import JSci.maths.statistics.ChiSqrDistribution;
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.LogMath;
 
@@ -110,9 +111,10 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		NormalDistribution overlapSD = edgesDists[3];
 		NormalDistribution evPropD = edgesDists[4];
 		NormalDistribution indelsKbpD = edgesDists[5];
-		double maxIKBP = getMaxAverageIKBP(relationship);
-		double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
-		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
+		//double maxIKBP = getMaxAverageIKBP(relationship);
+		//double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
+		//NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
+		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(2);
 		int maxIndividualCost = 10;
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
@@ -156,7 +158,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Rel: "+relationship+" Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeWCSKProp+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[1]+" "+individualCosts[2]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost);
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Rel: "+relationship+" Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeWCSKProp+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[1]+" "+individualCosts[2]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost+" IKBP rel: "+relationship.getIndelsPerKbp());
 		
 		return cost;
 	}

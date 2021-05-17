@@ -339,8 +339,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return finalAlignment;
 	}
 	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, KmerHitsCluster kmerHitsCluster) {
-		int debugIdxS = 0;
-		int debugIdxQ = 1;
+		int debugIdxS = -1;
+		int debugIdxQ = -1;
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Subject length: "+subjectLength+". Query length: "+queryLength+" kmer hits: "+kmerHits.size()+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
 		int coverageSharedKmers = 0;
