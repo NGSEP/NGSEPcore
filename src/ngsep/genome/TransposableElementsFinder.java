@@ -97,13 +97,25 @@ public class TransposableElementsFinder {
 		if(transposonsDatabaseFile!=null) out.println("Database of transposable elements: "+ transposonsDatabaseFile);
 		log.info(os.toString());
 	}
+	/**
+	 * Adds the transposons found by deNovo and by similarity
+	 * @param genome to which the transposons will be found
+	 * @return GenomicRegionSortedCollection object with the transposons information found by both methods
+	 * @throws InterruptedException  if this exception is caught,it is because for the kmer table the genome could not be loaded, the transposons found by both methods could not be added
+	 * @throws IOException catches the IOException thrown if the specified part of the transposon database file is locked or the path does not exist
+	 */
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) throws InterruptedException, IOException {
 		GenomicRegionSortedCollection<TransposableElementAnnotation> annotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
 		annotations.addAll(findTransposonsDeNovo(genome));
 		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
 		return removeRedundantAnnotations(annotations);
 	}
-	
+	/**
+	 * Find deNovo transposons given a genome
+	 * @param genome to which the transposons will be found 
+	 * @return List<TransposableElementAnnotation> list of transposons found with chromosome, starting and ending position
+	 * @throws InterruptedException if this exception is caught, it is because for the kmer table the genome could not be loaded
+	 */
 	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) throws InterruptedException {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		
@@ -186,7 +198,13 @@ public class TransposableElementsFinder {
 		System.out.println(totalTranspoSize); 	
 		return answer;
 	}
-
+	/**
+	 * find transposons by similarity given a genome and a transposon database
+	 * @param genome to which the transposons will be found 
+	 * @return List<TransposableElementAnnotation> list of transposons found with chromosome, starting and ending position
+	 * @throws InterruptedException if this exception is caught, it is because for the minimizers table the genome could not be loaded
+	 * @throws IOException catches the IOException thrown if the specified part of the transposon database file is locked or the path does not exist
+	 */
 	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome) throws InterruptedException, IOException {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 	
@@ -210,14 +228,23 @@ public class TransposableElementsFinder {
 		}		
 		return answer;
 	}
-	
+	/**
+	 * removes redundant transposons found by deNovo and similarity methods
+	 * @param annotations the transposons found by deNovo and by similarity
+	 * @return List<TransposableElementAnnotation> final list of unique transposable elements with chromosome, starting an ending position
+	 */
 	private List<TransposableElementAnnotation> removeRedundantAnnotations(GenomicRegionSortedCollection<TransposableElementAnnotation> annotations) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		// TODO implement
 		answer.addAll(annotations);
 		return answer;
 	}
-	
+	/**
+	 * Save found the transposons 
+	 * @param transposonAnnotations list of transposons found deNovo and similarity methods
+	 * @param outputFile name of the output file where the transposon annotation will be saved
+	 * @throws IOException catch the IOException thrown if the specified part of the file is locked or does not exist
+	 */
 	public void saveTransposons(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) throws IOException {
 		try (PrintStream outTransposon =  new PrintStream(outputFile)) {	
 			for(TransposableElementAnnotation t:transposonAnnotations) 
@@ -230,3 +257,4 @@ public class TransposableElementsFinder {
 		}
 	}
 }
+	
