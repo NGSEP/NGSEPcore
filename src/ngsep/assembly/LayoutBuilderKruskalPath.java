@@ -77,10 +77,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		log.info("Paths after collecting small embedded paths: "+paths.size());
 		paths = mergeClosePaths(graph, paths, distsEdges);
 		log.info("Paths after first round of merging: "+paths.size());
-		expandPathsWithEmbedded(graph, paths, distsEdges);
-		List<AssemblyPath> finalPaths = mergeClosePaths(graph, paths, distsEdges);
-		/*List<List<AssemblyEdge>> finalPaths = paths;
-		for(int count=1;true;count++) {
+		//expandPathsWithEmbedded(graph, paths, distsEdges);
+		//List<AssemblyPath> finalPaths = mergeClosePaths(graph, paths, distsEdges);
+		List<AssemblyPath> finalPaths = paths;
+		/*for(int count=1;true;count++) {
 			log.info("Starting round "+count+" of improvement");
 			if(!expandPathsWithEmbedded(graph, paths))break;
 			finalPaths = mergeClosePaths(graph, paths);
@@ -312,7 +312,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		
 		
 		Map<Integer,List<Integer>> mergedPathIds = findPathsToMerge(pathEndEdges.values(),paths.size());
-		log.info("Merged path ids: "+mergedPathIds.values());
+		//log.info("Merged path ids: "+mergedPathIds.values());
 		List<AssemblyPath> answer = new ArrayList<AssemblyPath>(mergedPathIds.size());
 		
 		for(List<Integer> idsPath:mergedPathIds.values()) {

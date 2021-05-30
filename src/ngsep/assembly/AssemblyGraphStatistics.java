@@ -385,11 +385,13 @@ public class AssemblyGraphStatistics {
 			readNames.add(readName);
 			int i1 = -1;
 			int i2 = -1;
-			for(int j=readName.length()-1;j>=0;j--) {
+			int i3 = -1;
+			for(int j=0;j<readName.length();j++) {
 				if(readName.charAt(j)!='_') continue;
-				if(i2==-1) i2 = j;
-				else if (i1==-1) {
-					i1 = j;
+				if(i1==-1) i1 = j;
+				else if(i2==-1) i2 = j;
+				else if (i3==-1) {
+					i3 = j;
 					break;
 				}
 			}
@@ -674,8 +676,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==24728 || gsVertex.getSequenceIndex()==34457 || gsVertex.getSequenceIndex()==33653;
-		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==54894 || gsVertex.getSequenceIndex()==84601; 
+		//boolean debug = gsVertex.getSequenceIndex()==250 || gsVertex.getSequenceIndex()==70 || gsVertex.getSequenceIndex()==376;
+		//boolean debug = gsVertex.getSequenceIndex()==58708 || gsVertex.getSequenceIndex()==9375 || gsVertex.getSequenceIndex()==17344; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -730,7 +732,8 @@ public class AssemblyGraphStatistics {
 						distOverlapSDTPPathEdges.processDatapoint(matchedTestEdge.getRawKmerHitsSubjectStartSD());
 						distNumIndelsTPPathEdges.processDatapoint(matchedTestEdge.getNumIndels());
 						distIndelsKbpTPPathEdges.processDatapoint(matchedTestEdge.getIndelsPerKbp());
-						//if(matchedTestEdge.getIndelsPerKbp()>50) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						if(matchedTestEdge.getIndelsPerKbp()>5) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						if(matchedTestEdge.getEvidenceProportion()<0.9) log.info("Low evidence proportion for path edge: "+matchedTestEdge);
 						int lengthSum = testGraph.getSequenceLength(matchedTestEdge.getVertex1().getSequenceIndex())+testGraph.getSequenceLength(matchedTestEdge.getVertex2().getSequenceIndex());
 						distSumLengthsIKbpLayout.processDatapoint(matchedTestEdge.getIndelsPerKbp(), lengthSum);
 						distSumLengthsLayout.processDatapoint(lengthSum);

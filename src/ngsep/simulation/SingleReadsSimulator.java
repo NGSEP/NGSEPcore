@@ -216,7 +216,7 @@ public class SingleReadsSimulator {
 					read = DNAMaskedSequence.getReverseComplement(read).toString();
 				}
 				String finalRead = generateErrors(read);
-				String readId = seq.getName() + "_" + (relStart+1) + "_" + reverse;
+				String readId = seq.getName() + "_" + (relStart+1) + "_" + reverse + "_" + (i+1);
 				if(outFormat == OUT_FORMAT_FASTA) {
 					out.println(">" + readId);
 					out.println(finalRead);

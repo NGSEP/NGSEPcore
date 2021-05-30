@@ -590,9 +590,7 @@ public class AssemblyGraph {
 		int hostPredictedEndLeft = 0;
 		int hostPredictedStartRight = seqLength;
 		List<Integer> hostEvidenceStartsRight = new ArrayList<Integer>();
-		
 		for(AssemblyEmbedded embedded:embeddedList) {
-			
 			int nextEvidenceStart = embedded.getHostEvidenceStart();
 			int nextEvidenceEnd = embedded.getHostEvidenceEnd();
 			int unknownLeft = nextEvidenceStart - embedded.getHostStart();
@@ -721,10 +719,13 @@ public class AssemblyGraph {
 		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
 		//int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
 		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 /*&& d5<10000*/) {
-			System.out.println("Possible chimera identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
+			System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
 		} else if ((countGoodOverlapS > 5 && countPassS ==0) || (countGoodOverlapE>5 && countPassE ==0)) {
-			System.out.println("Possible dangling end identified for sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+			System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+			return true;
+		} else if (embeddedList.size()>0 && !isEmbedded(sequenceId) && numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && edgesS.size()==1) || (hostEvidenceEndsLeft.size()>5 && edgesE.size()==1))) {
+			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
 		}
 		
