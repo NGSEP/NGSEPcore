@@ -69,7 +69,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers()*evProp/Math.sqrt(1+relationship.getIndelsPerKbp());
-		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
+		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
+		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp)/Math.sqrt(1+relationship.getIndelsPerKbp());
 		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers()*evProp;
 		//if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);

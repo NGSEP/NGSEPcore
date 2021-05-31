@@ -19,21 +19,12 @@
  *******************************************************************************/
 package ngsep.assembly;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
@@ -67,15 +58,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	public static final int DEF_NUM_THREADS = 1;
-	private static final int TIMEOUT_SECONDS = 30;
 	
 	private String sequenceNamePrefix = "Contig";
 	
-	private String correctedReadsFile = null;
-	
 	private short normalPloidy = 1;
-	
-	private PrintStream outCorrectedReads = null;
 	
 	private int numThreads = DEF_NUM_THREADS;
 	public Logger getLog() {
@@ -101,34 +87,15 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
-	
-	public String getCorrectedReadsFile() {
-		return correctedReadsFile;
-	}
-
-	public void setCorrectedReadsFile(String correctedReadsFile) {
-		this.correctedReadsFile = correctedReadsFile;
-	}
 
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
-		if(correctedReadsFile==null) return makeConsensus2(graph);
-		try (OutputStream os = new GZIPOutputStream(new FileOutputStream(correctedReadsFile));
-			 PrintStream out = new PrintStream(os)) {
-			this.outCorrectedReads = out;
-			return makeConsensus2(graph);
-		} catch (IOException e) {
-			e.printStackTrace();
-			log.warning("Error opening file for corrected reads "+e.getMessage());
-			return null;
-		}
-	}
-	
-	private List<QualifiedSequence> makeConsensus2(AssemblyGraph graph) {
-		ThreadPoolExecutor poolConsensus = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		aligner.setLog(log);
+		aligner.setNumThreads(numThreads);
+		aligner.setAlignEmbedded(true);
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
-		Map<String, BuildConsensusTask> tasksMap = new LinkedHashMap<String, BuildConsensusTask>();
 		List<AssemblyPath> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
 		{
@@ -136,42 +103,14 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			String sequenceName = ""+sequenceNamePrefix+"_"+(i+1);
 			path.setPathId(i+1);
 			path.setSequenceName(sequenceName);
-			if(numThreads==1) {
-				CharSequence consensusSequence = makeConsensus (graph, path);
-				consensusList.add(new QualifiedSequence(sequenceName,consensusSequence));
-			} else {
-				BuildConsensusTask task = new BuildConsensusTask(this, graph, path);
-				poolConsensus.execute(task);
-				tasksMap.put(sequenceName, task);
-			}	
+			CharSequence consensusSequence = makeConsensus (graph, path, aligner);
+			consensusList.add(new QualifiedSequence(sequenceName,consensusSequence));	
 		}
-		int finishTime = 10*graph.getNumSequences();
-		poolConsensus.shutdown();
-		try {
-			poolConsensus.awaitTermination(finishTime, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-    	if(!poolConsensus.isShutdown()) {
-			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
-		}
-    	for(String sequenceName:tasksMap.keySet()) {
-    		BuildConsensusTask task = tasksMap.get(sequenceName);
-    		CharSequence seq = task.getConsensusSequence();
-    		if(seq==null) {
-    			log.warning("Null consensus sequence for contig: "+sequenceName);
-    			continue;
-    		}
-    		consensusList.add(new QualifiedSequence(sequenceName,seq));
-    	}
 		return consensusList;
 	}
 	
 	
-	CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) {
-		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
-		aligner.setLog(log);
-		aligner.setAlignEmbedded(true);
+	private CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path, AssemblyPathReadsAligner aligner) {
 		aligner.alignPathReads(graph, path);
 		int pathIdx = path.getPathId();
 		String sequenceName = path.getSequenceName();
@@ -184,9 +123,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
-		if(outCorrectedReads!=null) {
-			for(ReadAlignment aln:alignments) correctRead(rawConsensus, aln, variants);
-		}
 		return applyVariants(rawConsensus, variants);
 	}
 
@@ -259,7 +195,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				countSupport=1;
 			}
 		}
-		if(countSupport>1) mergedRegions.add(nextRegion);
+		if(countSupport>=5) mergedRegions.add(nextRegion);
 		return mergedRegions;
 	}
 
@@ -403,88 +339,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return new DNAMaskedSequence(polishedConsensus.toString());
 	}
 	
-	private void correctRead(StringBuilder consensus, ReadAlignment alignment, List<CalledGenomicVariant> variants) {
-		String readName = alignment.getReadName();
-		String readNameDebug=null;
-		CharSequence sequence = alignment.getReadCharacters();
-		StringBuilder correctedRead = new StringBuilder(sequence.length());
-		Map<Integer,GenomicVariant> indelCalls = alignment.getIndelCalls();
-		if(indelCalls==null || indelCalls.size()==0) {
-			printRead (readName, sequence, alignment.isNegativeStrand());
-			return;
-		}
-		int indelsCorrectedRef = 0;
-		int indelsCorrectedConsensus = 0;
-		int nextVarIdx = 0;
-		int nextReadPos = 0;
-		for(int refpos:indelCalls.keySet()) {
-			GenomicVariant indelReadCall = indelCalls.get(refpos);
-			int indelReadPos = alignment.getAlignedReadPosition(refpos);
-			int indelEndReadPos = alignment.getAlignedReadPosition(indelReadCall.getLast());
-			if(indelReadPos<nextReadPos) {
-				//log.warning("Inconsistency correcting errors of "+readName+". Next indel pos: "+indelReadPos+" next pos: "+nextReadPos);
-				//printRead (readName, sequence, alignment.isNegativeStrand());
-				//return;
-				//Now this can happen if the consensus allele was used to correct a previous variant
-				continue;
-			}
-			CharSequence previousSegment = sequence.subSequence(nextReadPos, indelReadPos+1);
-			if(readName.equals(readNameDebug)) System.out.println("CorrectRead. Read: "+readName+" pos start indel: "+indelReadPos+" pos after indel: "+indelEndReadPos+" previous segment: "+previousSegment.subSequence(Math.max(0, previousSegment.length()-30), previousSegment.length()));
-			correctedRead.append(previousSegment);
-			nextReadPos = indelReadPos+1;
-			String refSegment = consensus.substring(refpos, indelReadCall.getLast()-1);
-			String consensusSegment = null;
-			int lastReadPosVariant = -1;
-			boolean correctIndel = true;
-			//Check if called indel
-			while(nextVarIdx<variants.size()) {
-				CalledGenomicVariant calledVariant = variants.get(nextVarIdx);
-				if(calledVariant.getAlleles().length>1 && GenomicRegionSpanComparator.getInstance().span(calledVariant, indelReadCall.getFirst(), indelReadCall.getLast())) {
-					consensusSegment = calculateVariantSegment (alignment, indelReadCall, calledVariant);
-					lastReadPosVariant = alignment.getAlignedReadPosition(calledVariant.getLast());
-					if(consensusSegment==null || lastReadPosVariant==-1) correctIndel=false;
-					
-					break;
-				} else if (indelReadCall.getLast() < calledVariant.getFirst()) {
-					break;
-				}
-				nextVarIdx++;
-			}
-			//Process indel
-			if(!correctIndel) continue;
-			if(readName.equals(readNameDebug)) System.out.println("CorrectRead. Read: "+readName+" correcting indel at "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" length: "+indelReadCall.length());
-			boolean isInsertion = indelReadCall.getLast()-refpos==1;
-			// If consensus was calculated, append the consensus.
-			if(consensusSegment!=null) {
-				correctedRead.append(consensusSegment);
-				nextReadPos = lastReadPosVariant+1;
-				if(readName.equals(readNameDebug)) {
-					String sequenceBefore = sequence.subSequence(Math.max(0, indelReadPos-10), Math.min(sequence.length(), lastReadPosVariant+10)).toString();
-					System.out.println("CorrectRead. Read: "+readName+" pos start indel: "+indelReadPos+" pos end indel: "+indelEndReadPos+" end variant: "+lastReadPosVariant+" originalSegment: "+sequenceBefore+" corrected segment "+correctedRead.substring(Math.max(0,correctedRead.length()-20)));
-					System.out.println("CorrectRead. Read: "+readName+" next read pos: "+nextReadPos+" next basepairs: "+sequence.subSequence(nextReadPos, Math.min(sequence.length(), nextReadPos+20)));
-				}
-				indelsCorrectedConsensus++;
-			} else {
-				indelsCorrectedRef++;
-				if(isInsertion) {
-					nextReadPos+=indelReadCall.length();
-				} else {
-					//add reference sequence for uncorrected false deletion. 
-					//Genomic coordinates in this case correspond to string indexes because the deletion coordinates include flanking basepairs
-					correctedRead.append(refSegment);
-				}
-				if(readName.equals(readNameDebug)) {
-					String sequenceBefore = sequence.subSequence(Math.max(0, indelReadPos-10), Math.min(sequence.length(), indelEndReadPos+10)).toString();
-					System.out.println("CorrectRead. Read: "+readName+" pos start indel: "+indelReadPos+" pos after indel: "+indelEndReadPos+" ref segment: "+refSegment+" originalSegment: "+sequenceBefore+" corrected segment "+correctedRead.substring(Math.max(0,correctedRead.length()-20)));
-					System.out.println("CorrectRead. Read: "+readName+" next read pos: "+nextReadPos+" next basepairs: "+sequence.subSequence(nextReadPos, Math.min(sequence.length(), nextReadPos+20)));
-				}
-			} 
-			if(nextReadPos>=sequence.length()) break;
-		}
-		if(nextReadPos<sequence.length()) correctedRead.append(sequence.subSequence(nextReadPos,sequence.length()));
-		if(readName.equals(readNameDebug)) System.out.println("CorrectRead. Read: "+readName+" total indels: "+indelCalls.size()+" corrected indels to ref: "+indelsCorrectedRef+" corrected indels consensus "+indelsCorrectedConsensus);
-		printRead (readName, correctedRead.toString(), alignment.isNegativeStrand());
-	}
+	
 
 	private String calculateVariantSegment(ReadAlignment alignment, GenomicVariant indelReadCall, CalledGenomicVariant calledVariant) {
 		//Check that indel call is contained
@@ -519,34 +374,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		//if(bestAlleleStart<0) throw new RuntimeException("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
 		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" consensus segment "+answer);
 		return answer;
-	}
-
-	private void printRead(String readName, CharSequence sequence, boolean reverse) {
-		if(reverse) sequence = DNAMaskedSequence.getReverseComplement(sequence);
-		synchronized (outCorrectedReads) {
-			outCorrectedReads.println(">"+readName);
-			outCorrectedReads.println(sequence);
-		}
-	}
-}
-class BuildConsensusTask implements Runnable {
-	private ConsensusBuilderBidirectionalWithPolishing parent;
-	private AssemblyGraph graph;
-	private AssemblyPath path;
-	
-	private CharSequence consensusSequence;
-	public BuildConsensusTask(ConsensusBuilderBidirectionalWithPolishing parent, AssemblyGraph graph, AssemblyPath path) {
-		super();
-		this.parent = parent;
-		this.graph = graph;
-		this.path = path;
-	}
-	public CharSequence getConsensusSequence() {
-		return consensusSequence;
-	}
-	@Override
-	public void run() {
-		consensusSequence = parent.makeConsensus(graph,path);
 	}
 }
 
@@ -604,18 +431,6 @@ class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
 			consensus.setCharAt(consensusPos, maxBP);
 		} 
 		if (maxCount<10) return;
-		//Correct reads
-		for(int i=0;i<n;i++) {
-			if(i==maxIdx) continue;
-			char c = DNASequence.BASES_STRING.charAt(i);
-			List<ReadAlignment> alnsC = alnsPerNucleotide.get(c);
-			if(alnsC.size()!=1) continue;
-			ReadAlignment aln = alnsC.get(0);
-			int readPos = aln.getAlignedReadPosition(pos);
-			if(readPos<0) continue;
-			DNAMaskedSequence seq = (DNAMaskedSequence)aln.getReadCharacters();
-			seq.setCharAt(readPos, maxBP);
-		}
 	}
 
 	@Override

@@ -85,6 +85,7 @@ public class Assembler {
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
 	private boolean correctReads = false;
 	private int ploidy = DEF_PLOIDY;
+	private int errorCorrectionRounds = 1;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private int numThreads = DEF_NUM_THREADS;
@@ -280,9 +281,12 @@ public class Assembler {
 		List<QualifiedSequence> sequences;
 		//correctReads(sequences,map);
 		AssemblyGraph graph;
+		KmersMap map = null;
 		if(graphFile!=null) {
 			sequences = load(inputFile, inputFormat, minReadLength);
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
+			//TODO: allow this option
+			errorCorrectionRounds = 0;
 			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
 			log.info("Calculating kmers distribution");
@@ -298,7 +302,7 @@ public class Assembler {
 			
 			sequences = extractor.getLoadedSequences();
 			Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
-			KmersMap map = extractor.getKmersMap();
+			map = extractor.getKmersMap();
 			long totalBp = 0;
 			Distribution distReadLength = new Distribution(0, 100000, 1000);
 			for(QualifiedSequence seq:sequences) {
@@ -319,14 +323,7 @@ public class Assembler {
 				log.info("Performed homopolymer compression");
 			}
 			
-			GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
-			builder.setKmerLength(kmerLength);
-			builder.setWindowLength(windowLength);
-			builder.setPloidy(ploidy);
-			builder.setNumThreads(numThreads);
-			builder.setKmersMap(map);
-			builder.setLog(log);
-			graph = builder.buildAssemblyGraph(sequences,compressionFactors);
+			graph = buildGraph(sequences, map, compressionFactors);
 			if(bpHomopolymerCompression>0) {
 				List<QualifiedSequence> originalSeqs = load(inputFile,inputFormat, minReadLength);
 				log.info("Loaded original sequences to restore. Compressed sequences: "+sequences.size()+". Loaded: "+originalSeqs.size());
@@ -344,7 +341,24 @@ public class Assembler {
 		}
 		
 		if(progressNotifier!=null && !progressNotifier.keepRunning(50)) return;
-		if(graphFile==null) {
+		if(graphFile==null && errorCorrectionRounds>0) {
+			String outFileGraph = outputPrefix+"_uncorrected.graph.gz";
+			AssemblyGraphFileHandler.save(graph, outFileGraph);
+			log.info("Saved uncorrected graph to "+outFileGraph);
+		}
+		
+		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
+		indelCorrector.setNumThreads(numThreads);
+		indelCorrector.setLog(log);
+		for(int i=0;i<errorCorrectionRounds;i++) {
+			long startRound = System.currentTimeMillis();
+			log.info("Started round "+(i+1)+" of error correction.");
+			indelCorrector.correctErrors(graph);
+			graph = buildGraph(graph.getSequences(), map, null);
+			long timeRound = System.currentTimeMillis()-startRound;
+			log.info("Finished round "+(i+1)+" of error correction. Time round: "+(timeRound/1000));
+		}
+		if(errorCorrectionRounds>0 && graphFile==null) {
 			String outFileGraph = outputPrefix+".graph.gz";
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
@@ -363,13 +377,14 @@ public class Assembler {
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
 			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
 			consensusP.setNumThreads(numThreads);
-			if(correctReads) consensusP.setCorrectedReadsFile(outputPrefix+"_correctedReads.fa.gz");
 			consensus = consensusP;
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
 		}
+		
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		
 		long time2 = System.currentTimeMillis();
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
@@ -453,6 +468,18 @@ public class Assembler {
 		diff1 = (time4-time3)/1000;
 		diff2 = (time4-startTime)/1000;
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
+	}
+	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map, double[] compressionFactors) {
+		AssemblyGraph graph;
+		GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
+		builder.setKmerLength(kmerLength);
+		builder.setWindowLength(windowLength);
+		builder.setPloidy(ploidy);
+		builder.setNumThreads(numThreads);
+		builder.setKmersMap(map);
+		builder.setLog(log);
+		graph = builder.buildAssemblyGraph(sequences,compressionFactors);
+		return graph;
 	}
 
 	private void correctReads(List<QualifiedSequence> sequences, KmersMap map) throws InterruptedException {

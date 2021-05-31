@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.alignments.LongReadsAlignerFactory;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
@@ -27,11 +29,14 @@ public class AssemblyPathReadsAligner {
 	//Parameters
 	private boolean onlyGenerateConsensus = false;
 	private boolean alignEmbedded = false;
+	private int numThreads = 1;
 	
 	//Output
 	private StringBuilder consensus;
 	private List<ReadAlignment> alignedReads;
 	private Set<Integer> unalignedReadIds;
+	
+	private LongReadsAlignerFactory factory = new LongReadsAlignerFactory();
 	
 	
 	
@@ -40,6 +45,7 @@ public class AssemblyPathReadsAligner {
 	}
 	public void setLog(Logger log) {
 		this.log = log;
+		factory.setLog(log);
 	}
 	
 	public boolean isOnlyGenerateConsensus() {
@@ -64,6 +70,14 @@ public class AssemblyPathReadsAligner {
 	public Set<Integer> getUnalignedReadIds() {
 		return unalignedReadIds;
 	}
+	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+		factory.setNumThreads(numThreads);
+	}
 	public void alignPathReads(AssemblyGraph graph, AssemblyPath path) {
 		int debugIdx = -1;
 		int n = path.getPathLength();
@@ -73,6 +87,7 @@ public class AssemblyPathReadsAligner {
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = path.getVertexLeft();
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
+		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, Math.max(numThreads, 100));
 		alignedReads = new ArrayList<ReadAlignment>();
 		unalignedReadIds = new HashSet<>();
 		int totalReads = 0;
@@ -147,21 +162,14 @@ public class AssemblyPathReadsAligner {
 				CharSequence seq = read.getCharacters();
 				boolean reverse = !lastVertex.isStart();
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
+				String seqStr = seq.toString();
 				Map<Long, Integer> uniqueKmersSubject = KmersExtractor.extractLocallyUniqueKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, Math.max(0, rawConsensus.length()-seq.length()),rawConsensus.length());
 				totalReads++;
-				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, seq, uniqueKmersSubject);
-				if (alnRead!=null) {
-					alnRead.setReadName(read.getName());
-					alnRead.setReadNumber(readIndex);
-					alnRead.setNegativeStrand(reverse);
-					alignedReads.add(alnRead);
-					if(alnRead.getSoftClipEnd()>10) {
-						//log.warning("Weird alignment of consensus backbone read. Alignment: "+alnRead+" soft clip: "+alnRead.getSoftClipEnd()+" consensus end: "+rawConsensus.substring(rawConsensus.length()-alnRead.getSoftClipEnd()-10)+" soft clipped sequence: "+alnRead.getReadCharacters().subSequence(alnRead.getReadLength()-alnRead.getSoftClipEnd()-10, alnRead.getReadLength()) );
-					}
-				}
-				else {
-					if(pathIdx == debugIdx) System.err.println("Backbone read: "+read.getName()+" could not be aligned to extended consensus");
-					unalignedReadIds.add(readIndex);
+				try {
+					poolAlign.queueTask(()->alignReadProcess(pathIdx, rawConsensus, uniqueKmersSubject, readIndex, read.getName(), seqStr, reverse));
+				} catch (InterruptedException e) {
+					//TODO: Better handling
+					e.printStackTrace();
 				}
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) System.out.println("Consensus length: "+rawConsensus.length()+" Vertex: "+vertexNextEdge.getUniqueNumber()+" sequence: "+read.length()+" alignment: "+alnRead);
 				if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
@@ -173,16 +181,13 @@ public class AssemblyPathReadsAligner {
 						CharSequence embeddedSeq = embeddedRead.getCharacters();
 						boolean reverseE = (reverse!=embedded.isReverse());
 						if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
+						String embeddedString = embeddedSeq.toString();
 						totalReads++;
-						ReadAlignment alnEmbedded = alignRead(aligner,pathIdx, rawConsensus, embeddedSeq, uniqueKmersSubject);
-						if(alnEmbedded!=null) {
-							alnEmbedded.setReadName(embeddedRead.getName());
-							alnEmbedded.setReadNumber(embedded.getSequenceId());
-							alnEmbedded.setNegativeStrand(reverseE);
-							alignedReads.add(alnEmbedded);
-						} else {
-							if(pathIdx == debugIdx) System.err.println("Embedded read: "+read.getName()+" could not be aligned to extended consensus");
-							unalignedReadIds.add(embedded.getSequenceId());
+						try {
+							poolAlign.queueTask(()->alignReadProcess(pathIdx, rawConsensus, uniqueKmersSubject, embedded.getSequenceId(), embeddedRead.getName(), embeddedString, reverseE));
+						} catch (InterruptedException e) {
+							//TODO: Better handling
+							e.printStackTrace();
 						}
 						if (totalReads%1000==0) log.info("Path "+pathIdx+". Aligning. Processed reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
 					}
@@ -190,8 +195,32 @@ public class AssemblyPathReadsAligner {
 			}
 			lastVertex = nextVertex;
 		}
+		try {
+			poolAlign.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Better handling
+			e.printStackTrace();
+		}
 		consensus = rawConsensus;
 		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
+	}
+	private void alignReadProcess(int pathIdx, StringBuilder rawConsensus, Map<Long, Integer> uniqueKmersSubject,
+			int readId, String readName, CharSequence embeddedSeq, boolean reverse) {
+		MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner();
+		ReadAlignment aln = alignRead(aligner,pathIdx, rawConsensus, embeddedSeq, uniqueKmersSubject);
+		if(aln!=null) {
+			aln.setReadName(readName);
+			aln.setReadNumber(readId);
+			aln.setNegativeStrand(reverse);
+			synchronized (alignedReads) {
+				alignedReads.add(aln);
+			}
+		} else {
+			synchronized (unalignedReadIds) {
+				unalignedReadIds.add(readId);
+			}
+			
+		}
 	}
 	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, int start, int end) {
 		Map<Long, Integer> uniqueCodesSubject = KmersExtractor.extractLocallyUniqueKmerCodes(subject, KMER_LENGTH_LOCAL_ALN, start,end);
@@ -217,8 +246,12 @@ public class AssemblyPathReadsAligner {
 			}	
 		} else if (clusters.size()==0) return null;
 		KmerHitsCluster bestCluster = clusters.get(0);
+		ReadAlignment aln;
+		synchronized (aligner) {
+			aln = aligner.buildCompleteAlignment(subjectIdx, subject, read, bestCluster);
+		}
 		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
-		return aligner.buildCompleteAlignment(subjectIdx, subject, read, bestCluster);
+		return aln;
 	}
 	private List<UngappedSearchHit> alignKmerCodes(int subjectIdx, int subjectLength, Map<Long, Integer> uniqueCodesSubject, Map<Integer, Long> codesQuery) {
 		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();

@@ -100,7 +100,8 @@ public class ReadAlignment implements GenomicRegion {
     
     //Quick retrieval data
     private short [] alleleCallLength; //Length of the allele call at each read position. 0 for skipped bases
-    private Map<Integer,GenomicVariant> indelCalls; //Indel calls indexed by the last reference position before the event. Null for alignments without indels 
+    private Map<Integer,GenomicVariant> indelCalls; //Indel calls indexed by the last reference position before the event. Null for alignments without indels
+    private Map<Integer,Integer> indelStartsByReadPos; //Indel starts indexed by read position
     private boolean alleleCallsUpdated = false;
 	
 	//Read information loaded on demand 
@@ -719,6 +720,7 @@ public class ReadAlignment implements GenomicRegion {
 		if(alignment == null) {
 			alleleCallLength = null;
 			indelCalls = null;
+			indelStartsByReadPos = null;
 			alleleCallsUpdated = true;
 			return;
 		}
@@ -728,6 +730,7 @@ public class ReadAlignment implements GenomicRegion {
 		alleleCallLength = new short [readLength];
 		Arrays.fill(alleleCallLength, (short)0);
 		indelCalls = null;
+		indelStartsByReadPos = null;
 		boolean previousIsIndel=false;
 		for(int i=0;i<alignment.length;i++) {
 			int length = getOperationLength(alignment[i]);
@@ -775,10 +778,12 @@ public class ReadAlignment implements GenomicRegion {
 								}
 								if(indelCalls==null) {
 									indelCalls = new TreeMap<Integer,GenomicVariant>();
+									indelStartsByReadPos = new TreeMap<Integer, Integer>();
 								}
 								GenomicVariantImpl indel = new GenomicVariantImpl(sequenceName, currentRefPos, refLast, GenomicVariant.TYPE_INDEL);
 								indel.setLength(nextOpLen);
 								indelCalls.put(currentRefPos, indel);
+								indelStartsByReadPos.put(currentReadPos, currentRefPos);
 							} else {
 								//Process match or mismatch call
 								alleleCallLength[currentReadPos] = (short)1;
@@ -979,6 +984,23 @@ public class ReadAlignment implements GenomicRegion {
 		failIfReadUnmappedOrInconsistentAlignment();
 		updateAlleleCallsInfo();
 		return indelCalls;
+	}
+	/**
+	 * Returns start sites in this alignment for indel events indexed and sorted by aligned read position
+	 * @return Map<Integer,GenomicVariant> Map with zero based read positions as keys and indel events as values
+	 * null if the alignment does not have indel calls
+	 */
+	public Map<Integer,GenomicVariant> getIndelCallsByAlignedReadPos () {
+		failIfReadUnmappedOrInconsistentAlignment();
+		updateAlleleCallsInfo();
+		 
+		if(indelStartsByReadPos==null) return null;
+		Map<Integer,GenomicVariant> answer = new TreeMap<Integer, GenomicVariant>();
+		for(Map.Entry<Integer, Integer> entry:indelStartsByReadPos.entrySet()) {
+			GenomicVariant indelCall = indelCalls.get(entry.getValue());
+			if(indelCall!=null) answer.put(entry.getKey(), indelCall);
+		}
+		return answer;
 	}
 	/**
 	 * 

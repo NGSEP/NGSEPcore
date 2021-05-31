@@ -29,9 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -66,7 +64,6 @@ public class HaplotypeReadsClusterCalculator {
 
 	private Logger log = Logger.getLogger(HaplotypeReadsClusterCalculator.class.getName());
 	public static final int DEF_NUM_THREADS = 1;
-	private static final int TIMEOUT_SECONDS = 30;
 	
 	private int numThreads = DEF_NUM_THREADS;
 	
@@ -91,33 +88,25 @@ public class HaplotypeReadsClusterCalculator {
 
 	public List<Set<Integer>> clusterReads(AssemblyGraph graph, int ploidy) {
 		//System.out.println("HaplotypeReadsClustering. Edges printed vertex "+graph.getEdges(graph.getVertex(181, true)).size());
-		ThreadPoolExecutor poolClustering = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		List<ClusterReadsTask> tasksList = new ArrayList<ClusterReadsTask>();
 		List<AssemblyPath> paths = graph.getPaths();
+		Map<Integer,List<PhasedPathBlock>> pathBlocks = new TreeMap<Integer, List<PhasedPathBlock>>();
 		for(int i = 0; i < paths.size(); i++)
 		{
 			AssemblyPath path = paths.get(i);
-			ClusterReadsTask task = new ClusterReadsTask(this, graph, path, i+1, ploidy);
-			poolClustering.execute(task);
-			tasksList.add(task);	
+			int pathId = i+1;
+			path.setPathId(pathId);
+			List<PhasedPathBlock> blocks = clusterReadsPath(graph,path, ploidy);
+			pathBlocks.put(pathId,blocks);
 		}
-		int finishTime = 10*graph.getNumSequences();
-		poolClustering.shutdown();
-		try {
-			poolClustering.awaitTermination(finishTime, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-    	if(!poolClustering.isShutdown()) {
-			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await Termination call");
-		}
-    	return mergePathClusters(graph,tasksList,ploidy);
+    	return mergePathClusters(graph,pathBlocks,ploidy);
 	}
 	
-	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, AssemblyPath path, int pathIdx, int ploidy) {
+	List<PhasedPathBlock> clusterReadsPath(AssemblyGraph graph, AssemblyPath path, int ploidy) {
+		int pathIdx = path.getPathId();
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
 		aligner.setAlignEmbedded(true);
+		aligner.setNumThreads(numThreads);
 		aligner.alignPathReads(graph, path);
 		StringBuilder rawConsensus = aligner.getConsensus();
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
@@ -303,7 +292,7 @@ public class HaplotypeReadsClusterCalculator {
 		}
 	}
 	
-	private List<Set<Integer>> mergePathClusters(AssemblyGraph graph, List<ClusterReadsTask> tasksList, int ploidy) {
+	private List<Set<Integer>> mergePathClusters(AssemblyGraph graph, Map<Integer,List<PhasedPathBlock>> pathBlocks, int ploidy) {
 		List<AssemblyPath> paths = graph.getPaths();
 		log.info("Merging reads from "+paths.size()+" diploid paths");
 		List<Set<Integer>> inputClusters = new ArrayList<Set<Integer>>();
@@ -317,9 +306,12 @@ public class HaplotypeReadsClusterCalculator {
     		
     		int firstIdCluster = inputClusterId;
     		AssemblyPath path = paths.get(i);
-    		ClusterReadsTask task = tasksList.get(i);
-    		int pathId = task.getPathIdx();
-    		List<PhasedPathBlock> haplotypeBlocks = task.getPhasedBlocks();
+    		int pathId = path.getPathId();
+    		List<PhasedPathBlock> haplotypeBlocks = pathBlocks.get(pathId);
+    		if(haplotypeBlocks==null) {
+    			log.warning("Haplotype blocks not found for path: "+pathId);
+    			continue;
+    		}
     		log.info("Calculated "+haplotypeBlocks.size()+" blocks from haplotyping for path: "+pathId);
     		for(PhasedPathBlock block:haplotypeBlocks) {
     			int firstIdClusterBlock = inputClusterId;
@@ -505,34 +497,6 @@ public class HaplotypeReadsClusterCalculator {
 		}
 	}
 
-}
-class ClusterReadsTask implements Runnable {
-	private HaplotypeReadsClusterCalculator parent;
-	private AssemblyGraph graph;
-	private AssemblyPath path;
-	private int pathIdx;
-	private int ploidy;
-	private List<PhasedPathBlock> phasedBlocks;
-	public ClusterReadsTask(HaplotypeReadsClusterCalculator parent, AssemblyGraph graph, AssemblyPath path, int pathIdx, int ploidy) {
-		super();
-		this.parent = parent;
-		this.graph = graph;
-		this.path = path;
-		this.pathIdx = pathIdx;
-		this.ploidy = ploidy;
-	}
-	@Override
-	public void run() {
-		phasedBlocks = parent.clusterReadsPath(graph,path, pathIdx, ploidy);
-	}
-	
-	public List<PhasedPathBlock> getPhasedBlocks() {
-		return phasedBlocks;
-	}
-	public int getPathIdx() {
-		return pathIdx;
-	}
-	
 }
 class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener {
 	private static final int MIN_DEPTH_ALLELE = 3;

@@ -50,7 +50,7 @@ public class AssemblySequencesRelationshipFilter {
 			int maxScore = Math.max(bestValues[0], bestValues[1]);
 			if(bestValues[0]==0 || bestValues[1]==0) {
 				if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
-				graph.removeVertices(seqId);
+				//graph.removeVertices(seqId);
 				maxScore = 0;
 			}
 			//if(filterEmbeddedByCost(graph, seqId, medianLength, Math.min(bestValues[2], bestValues[3]))) {
@@ -71,8 +71,8 @@ public class AssemblySequencesRelationshipFilter {
 			int nM = Math.min(nS, nE); 
 			if(seqId == debugIdx) System.out.println("Final edges for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+" START "+graph.getEdges(vS)+" END "+graph.getEdges(vE));
 			if(nM==0 /*|| (nM==1 && Math.max(nS, nE)>20) */) {
-				System.out.println("Disbalanced number of edges for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Values: "+nS+" "+nE+" Removing vertices");
-				graph.removeVertices(seqId);
+				//System.out.println("Disbalanced number of edges for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Values: "+nS+" "+nE+" Removing vertices");
+				//graph.removeVertices(seqId);
 			}
 		}
 		//graph.pruneEmbeddedSequences();

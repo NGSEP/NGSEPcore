@@ -45,6 +45,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	private Logger log = Logger.getLogger(LayoutBuilderKruskalPath.class.getName());
 
 	private int minPathLength = 6;
+	private boolean runImprovementAlgorithms = true;
 	
 	
 	public Logger getLog() {
@@ -60,6 +61,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		this.minPathLength = minPathLength;
 	}
 	
+	public boolean isRunImprovementAlgorithms() {
+		return runImprovementAlgorithms;
+	}
+	public void setRunImprovementAlgorithms(boolean runImprovementAlgorithms) {
+		this.runImprovementAlgorithms = runImprovementAlgorithms;
+	}
 	@Override
 	public void findPaths(AssemblyGraph graph) {
 		List<AssemblyEdge> pathEdges = graph.selectSafeEdges();
@@ -71,24 +78,18 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<AssemblyPath> paths = graph.buildPaths(pathEdges);
-		Distribution [] distsEdges = calculateDistributions(pathEdges);
-		log.info("Paths costs algorithm: "+paths.size());
-		paths = collectAlternativeSmallPaths(graph, paths);
-		log.info("Paths after collecting small embedded paths: "+paths.size());
-		paths = mergeClosePaths(graph, paths, distsEdges);
-		log.info("Paths after first round of merging: "+paths.size());
-		//expandPathsWithEmbedded(graph, paths, distsEdges);
-		//List<AssemblyPath> finalPaths = mergeClosePaths(graph, paths, distsEdges);
-		List<AssemblyPath> finalPaths = paths;
-		/*for(int count=1;true;count++) {
-			log.info("Starting round "+count+" of improvement");
-			if(!expandPathsWithEmbedded(graph, paths))break;
-			finalPaths = mergeClosePaths(graph, paths);
-			if(finalPaths.size()==paths.size()) break;
-			paths = finalPaths;
-		}*/
+		if(runImprovementAlgorithms) {
+			Distribution [] distsEdges = calculateDistributions(pathEdges);
+			log.info("Paths costs algorithm: "+paths.size());
+			paths = collectAlternativeSmallPaths(graph, paths);
+			log.info("Paths after collecting small embedded paths: "+paths.size());
+			paths = mergeClosePaths(graph, paths, distsEdges);
+			log.info("Paths after first round of merging: "+paths.size());
+			//expandPathsWithEmbedded(graph, paths, distsEdges);
+			//paths = mergeClosePaths(graph, paths, distsEdges);
+		}
 		
-		for(AssemblyPath path:finalPaths) {
+		for(AssemblyPath path:paths) {
 			if(path.getPathLength()<minPathLength) continue;
 			graph.addPath(path);
 		}

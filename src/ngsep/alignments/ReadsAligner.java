@@ -96,8 +96,8 @@ public class ReadsAligner {
 	private ReferenceGenome genome;
 	private ReferenceGenomeFMIndex fMIndex=null;
 	private FMIndexReadAlignmentAlgorithm shortReadsAligner;
-	//The process will handle as many long read aligners as number of threads
-	private List<MinimizersTableReadAlignmentAlgorithm> longReadsAligners = new ArrayList<MinimizersTableReadAlignmentAlgorithm>();
+	private LongReadsAlignerFactory longReadsAlignerFactory = new LongReadsAlignerFactory();
+	
 	
 	private ThreadPoolManager pool;
 	
@@ -275,7 +275,7 @@ public class ReadsAligner {
 		
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		if (platform.isLongReads()) {
-			createFirstLongReadAligner();
+			initializeLongReadsFactory();
 		} else {
 			if (fMIndex!=null) {
 				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
@@ -319,6 +319,14 @@ public class ReadsAligner {
 		log.info("Time: "+seconds+" seconds");
 		printStatistics(paired);
 		
+	}
+	private void initializeLongReadsFactory() {
+		longReadsAlignerFactory.setLog(log);
+		longReadsAlignerFactory.setGenome(genome);
+		longReadsAlignerFactory.setKmerLength(kmerLength);
+		longReadsAlignerFactory.setMaxAlnsPerRead(maxAlnsPerRead);
+		longReadsAlignerFactory.setWindowLength(windowLength);
+		longReadsAlignerFactory.setNumThreads(numThreads);
 	}
 	private void createFMIndexReadsAligner() {
 		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
@@ -739,7 +747,10 @@ public class ReadsAligner {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
 			//System.out.println("Long reads. Aligning: "+read.getName());
-			MinimizersTableReadAlignmentAlgorithm longReadsAligner = requestLongReadsAligner();
+			synchronized (longReadsAlignerFactory) {
+				if(longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
+			}
+			MinimizersTableReadAlignmentAlgorithm longReadsAligner = longReadsAlignerFactory.requestLongReadsAligner();
 			synchronized (longReadsAligner) {
 				alignments = longReadsAligner.alignRead(read);
 			}
@@ -748,47 +759,6 @@ public class ReadsAligner {
 			alignments = shortReadsAligner.alignRead(read);
 		}
 		return filterAlignments(alignments, assignSecondaryStatus);
-	}
-	private int lastReadsAlignerIndex = 0;
-	private synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner()  {
-		if(longReadsAligners.size()==0) {
-			createFirstLongReadAligner();
-			return longReadsAligners.get(0);
-		} else if (longReadsAligners.size()<numThreads) {
-			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-			MinimizersTableReadAlignmentAlgorithm first = longReadsAligners.get(0);
-			aligner.setLog(log);
-			aligner.setMaxAlnsPerRead(maxAlnsPerRead);
-			aligner.setMinimizersTable(genome, first.getMinimizersTable());
-			longReadsAligners.add(aligner);
-			lastReadsAlignerIndex=longReadsAligners.size()-1;
-			Runtime runtime = Runtime.getRuntime();
-			long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-			usedMemory/=1000000000;
-			log.info("Created long reads aligner "+(lastReadsAlignerIndex+1)+". Memory: "+usedMemory);
-			return aligner;
-		}
-		lastReadsAlignerIndex++;
-		if(lastReadsAlignerIndex==longReadsAligners.size()) lastReadsAlignerIndex=0;
-		return longReadsAligners.get(lastReadsAlignerIndex);
-	}
-	private void createFirstLongReadAligner() {
-		Runtime runtime = Runtime.getRuntime();
-		long startTime = System.currentTimeMillis();
-		MinimizersTableReadAlignmentAlgorithm longReadsAligner = new MinimizersTableReadAlignmentAlgorithm();
-		longReadsAligner.setLog(log);
-		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		try {
-			longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		long time2 = System.currentTimeMillis();
-		long diff = (time2-startTime)/1000;
-		log.info("Created first long reads aligner. Time (s): "+diff+". Memory: "+usedMemory);
-		longReadsAligners.add(longReadsAligner);
 	}
 	
 	
