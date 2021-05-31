@@ -454,6 +454,7 @@ public class AssemblyGraph {
 		while (agenda.size()>0) {
 			
 			int nextSequenceIdx = agenda.removeFirst();
+			int nextSequenceLength = getSequenceLength(nextSequenceIdx);
 			List<AssemblyEmbedded> embeddedList = getEmbeddedByHostId(nextSequenceIdx);
 			for(AssemblyEmbedded embedded:embeddedList) {
 				int seqId = embedded.getSequenceId();
@@ -468,8 +469,12 @@ public class AssemblyGraph {
 					int rootStartParent = parentObject.getHostStart();
 					int rootStartSequence = rootStartParent+embedded.getHostStart();
 					int rootEndSequence = rootStartParent+embedded.getHostEnd();
-					
+					if(parentObject.isReverse()) {
+						rootStartSequence = rootStartParent+(nextSequenceLength-embedded.getHostEnd());
+						rootEndSequence = rootStartParent+(nextSequenceLength-embedded.getHostStart());
+					}
 					boolean reverse = parentObject.isReverse()!=embedded.isReverse();
+					
 					embeddedSequencesMap.put(seqId, new AssemblyEmbedded(seqId, embedded.getRead(), reverse, sequenceIndex, rootSequence, rootStartSequence, rootEndSequence));
 				}
 				

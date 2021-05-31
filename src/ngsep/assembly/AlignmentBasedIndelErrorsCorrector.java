@@ -121,6 +121,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 			for(Map.Entry<Integer, GenomicVariant> entry:calls.entrySet()) {
 				int posRead = entry.getKey();
 				GenomicVariant indel = entry.getValue();
+				if(indel.length()>2) continue;
 				if(posRead>nextPos) correctedRead.append(alignedRead.substring(nextPos, posRead+1));
 				nextPos = posRead+1;
 				boolean correctIndel = true;
