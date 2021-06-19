@@ -60,6 +60,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 		pathsFinder.setLog(log);
 	}
 
+	/**
+	 * @return Number of threads
+	 */
 	public int getNumThreads() {
 		return numThreads;
 	}
