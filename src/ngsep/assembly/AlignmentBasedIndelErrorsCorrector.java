@@ -67,6 +67,10 @@ public class AlignmentBasedIndelErrorsCorrector {
 		return numThreads;
 	}
 
+	/**
+	 * Changes the number of threads
+	 * @param numThreads
+	 */
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
