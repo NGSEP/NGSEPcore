@@ -69,7 +69,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 	/**
 	 * Corrects errors in reads
-	 * @param graph
+	 * @param graph Input graph with reads
 	 */
 	public void correctErrors(AssemblyGraph graph) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
