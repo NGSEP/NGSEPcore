@@ -85,7 +85,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		aligner.setAlignEmbedded(true);
 		AssemblyGraph copyGraph = graph.buildSubgraph(null);
 		copyGraph.removeVerticesChimericReads();
-		copyGraph.updateScores(0.5);
+		copyGraph.updateScores(0);
 		filter.filterEdgesAndEmbedded(copyGraph, 0.5);
 		pathsFinder.findPaths(copyGraph);
 		int n =graph.getNumSequences();
@@ -121,7 +121,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		for(ReadAlignment aln:alignments) {
 			int readId = aln.getReadNumber();
 			if(sequencePaths[readId]>0) {
-				log.warning("Read "+readId+" "+aln.getReadName()+" already correctd by path: "+sequencePaths[readId]+" current path: "+path.getPathId());
+				log.warning("Read "+readId+" "+aln.getReadName()+" already corrected by path: "+sequencePaths[readId]+" current path: "+path.getPathId());
 				continue;
 			}
 			while (indexNextActive<filteredVars.size()) {
@@ -139,12 +139,14 @@ public class AlignmentBasedIndelErrorsCorrector {
 			for(Map.Entry<Integer, GenomicVariant> entry:calls.entrySet()) {
 				int posRead = entry.getKey();
 				GenomicVariant indel = entry.getValue();
-				if(indel.length()>2) continue;
+				if(indel.length()>3) continue;
 				if(posRead>nextPos) {
 					//Apply homozygous indels not called in this alignment
 					for(int j=indexNextActive;j<filteredVars.size();j++) {
 						CalledGenomicVariant calledVar = filteredVars.get(j);
 						if(calledVar.isHeterozygous()) continue;
+						int diffLength = calledVar.getAlleles()[0].length()-calledVar.getAlleles()[1].length();
+						if(Math.abs(diffLength)>3) continue;
 						if(calledVar.getFirst() > lastRef && calledVar.getLast()<indel.getFirst()) {
 							int readPosStartVar = aln.getAlignedReadPosition(calledVar.getFirst());
 							int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast());

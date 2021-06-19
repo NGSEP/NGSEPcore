@@ -56,11 +56,11 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		this.weightsSecondaryFeatures = weightsSecondaryFeatures;
 	}
 	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
-		NormalDistribution overlapD = edgesDists[0];
+		//NormalDistribution overlapD = edgesDists[0];
 		double evProp = relationship.getEvidenceProportion();
-		double overlapRel = (double)relationship.getOverlap()/overlapD.getMean();
-		if(overlapRel>1) overlapRel = 1;
-		double maxIKBP = getMaxAverageIKBP (relationship);
+		//double overlapRel = (double)relationship.getOverlap()/overlapD.getMean();
+		//if(overlapRel>1) overlapRel = 1;
+		//double maxIKBP = getMaxAverageIKBP (relationship);
 		//return edge.getCoverageSharedKmers();
 		//return edge.getRawKmerHits();
 		//double score = relationship.getWeightedCoverageSharedKmers();
@@ -69,8 +69,9 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers()*evProp/Math.sqrt(1+relationship.getIndelsPerKbp());
-		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
-		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp)/Math.sqrt(1+relationship.getIndelsPerKbp());
+		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
+		if(weightsSecondaryFeatures>0) score/=Math.sqrt(Math.max(1, relationship.getIndelsPerKbp()));
+		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp)/Math.sqrt(1+relationship.getIndelsPerKbp());
 		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers()*evProp;
 		//if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
 		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
