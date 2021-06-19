@@ -67,7 +67,10 @@ public class AlignmentBasedIndelErrorsCorrector {
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
-
+	/**
+	 * Corrects errors in reads
+	 * @param graph
+	 */
 	public void correctErrors(AssemblyGraph graph) {
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
