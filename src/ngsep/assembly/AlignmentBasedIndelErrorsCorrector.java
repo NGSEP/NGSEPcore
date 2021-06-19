@@ -149,11 +149,14 @@ public class AlignmentBasedIndelErrorsCorrector {
 						if(Math.abs(diffLength)>3) continue;
 						if(calledVar.getFirst() > lastRef && calledVar.getLast()<indel.getFirst()) {
 							int readPosStartVar = aln.getAlignedReadPosition(calledVar.getFirst());
-							int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast());
+							int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast()); 
 							if(readPosStartVar> nextPos && readPosEndVar<posRead && readPosStartVar<readPosEndVar) {
-								if(readPosEndVar-readPosStartVar>10) System.err.println("WARN: Correcting indel spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+alignedRead.substring(readPosStartVar,readPosEndVar+1)+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]);
+								String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
+								String correctedAllele = calledVar.getCalledAlleles()[0];
+								if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
+								if(currentSegment.length()>10) System.err.println("WARN: Correcting indel spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
 								correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
-								correctedRead.append(calledVar.getCalledAlleles()[0]);
+								correctedRead.append(correctedAllele);
 								nextPos = readPosEndVar+1;
 							}
 						} else {
