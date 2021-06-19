@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 
 public class AlignmentBasedIndelErrorsCorrector {
@@ -96,7 +98,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-		List<GenomicRegion> activeSegments = ConsensusBuilderBidirectionalWithPolishing.calculateActiveSegments(sequenceName, alignments);
+		//TODO: Define better ploidy
+		List<CalledGenomicVariant> calledVars = ConsensusBuilderBidirectionalWithPolishing.callVariants(sequenceName, rawConsensus, alignments, 2);
+		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
+		for(CalledGenomicVariant call:calledVars) {
+			if(!call.isUndecided() && !call.isHomozygousReference()) filteredVars.add(call);
+		}
 		int indexNextActive = 0;
 		int correctedErrors = 0;
 		int correctedReads = 0;
@@ -107,8 +114,8 @@ public class AlignmentBasedIndelErrorsCorrector {
 				log.warning("Read "+readId+" "+aln.getReadName()+" already correctd by path: "+sequencePaths[readId]+" current path: "+path.getPathId());
 				continue;
 			}
-			while (indexNextActive<activeSegments.size()) {
-				GenomicRegion activeSegment = activeSegments.get(indexNextActive);
+			while (indexNextActive<filteredVars.size()) {
+				GenomicRegion activeSegment = filteredVars.get(indexNextActive);
 				if(activeSegment.getLast()<aln.getFirst()) {
 					indexNextActive++;
 				} else break;
@@ -118,15 +125,36 @@ public class AlignmentBasedIndelErrorsCorrector {
 			Map<Integer,GenomicVariant> calls = aln.getIndelCallsByAlignedReadPos();
 			if(calls == null) continue;
 			int nextPos = 0;
+			int lastRef = 0;
 			for(Map.Entry<Integer, GenomicVariant> entry:calls.entrySet()) {
 				int posRead = entry.getKey();
 				GenomicVariant indel = entry.getValue();
 				if(indel.length()>2) continue;
-				if(posRead>nextPos) correctedRead.append(alignedRead.substring(nextPos, posRead+1));
+				if(posRead>nextPos) {
+					//Apply homozygous indels not called in this alignment
+					for(int j=indexNextActive;j<filteredVars.size();j++) {
+						CalledGenomicVariant calledVar = filteredVars.get(j);
+						if(calledVar.isHeterozygous()) continue;
+						if(calledVar.getFirst() > lastRef && calledVar.getLast()<indel.getFirst()) {
+							int readPosStartVar = aln.getAlignedReadPosition(calledVar.getFirst());
+							int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast());
+							if(readPosStartVar> nextPos && readPosEndVar<posRead && readPosStartVar<readPosEndVar) {
+								if(readPosEndVar-readPosStartVar>10) System.err.println("WARN: Correcting indel spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+alignedRead.substring(readPosStartVar,readPosEndVar+1)+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]);
+								correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
+								correctedRead.append(calledVar.getCalledAlleles()[0]);
+								nextPos = readPosEndVar+1;
+							}
+						} else {
+							break;
+						}
+					}
+					correctedRead.append(alignedRead.substring(nextPos, posRead+1));
+				}
 				nextPos = posRead+1;
+				//Correct if indel not called in this region
 				boolean correctIndel = true;
-				for(int j=indexNextActive;j<activeSegments.size();j++) {
-					GenomicRegion activeSegment = activeSegments.get(j);
+				for(int j=indexNextActive;j<filteredVars.size();j++) {
+					GenomicRegion activeSegment = filteredVars.get(j);
 					if(activeSegment.getLast()>=indel.getFirst()) {
 						correctIndel = (activeSegment.getFirst()>indel.getLast());
 						break;
@@ -142,6 +170,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 					}
 					correctedErrors++;
 				}
+				lastRef = indel.getLast();
 			}
 			if(nextPos<rawConsensus.length()) correctedRead.append(alignedRead.substring(nextPos));
 			aln.setReadCharacters(null);

@@ -119,7 +119,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		
-		List<CalledGenomicVariant> variants = callVariants(sequenceName, rawConsensus, alignments);
+		List<CalledGenomicVariant> variants = callVariants(sequenceName, rawConsensus, alignments, normalPloidy);
 		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
@@ -145,10 +145,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}		
 	}
 
-	private List<CalledGenomicVariant> callVariants(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments) {
+	public static List<CalledGenomicVariant> callVariants(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, int normalPloidy) {
 		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
 		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
-		log.info("Number of active segments "+activeSegments.size());
+		System.out.println("Number of active segments "+activeSegments.size());
 		int firstIdxAln = 0;
 		for(GenomicRegion region:activeSegments) {
 			int first = Math.max(1, region.getFirst());
@@ -199,7 +199,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return mergedRegions;
 	}
 
-	private String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln, String consensusAllele) {
+	private static String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln, String consensusAllele) {
 		Map<Integer,List<String>> alleleCallsByLength = new HashMap<Integer, List<String>>();
 		List<String> allCalls = new ArrayList<String>();
 		int count = 0;
@@ -240,7 +240,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return consensus;
 	}
 
-	private String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
+	private static String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
 		KmersMap kmersMap = new DefaultKmersMapImpl();
 		CountsRankHelper<String> firstKmerCounts = new CountsRankHelper<String>();
 		CountsRankHelper<String> lastKmerCounts = new CountsRankHelper<String>();
@@ -274,7 +274,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return assembly;
 	}
 
-	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
+	private static CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
 		List<String> alleles = new ArrayList<String>(2);
 		alleles.add(currentConsensus);
 		boolean hetero = false;
