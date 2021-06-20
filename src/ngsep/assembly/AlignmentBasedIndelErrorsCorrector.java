@@ -102,6 +102,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 
 	private void correctErrors(AssemblyGraph graph, AssemblyGraph copyGraph, AssemblyPath path, int[] sequencePaths, AssemblyPathReadsAligner aligner) {
+		int debugIdx = -1;
 		String sequenceName = "Consensus_"+path.getPathId();
 		aligner.alignPathReads(copyGraph, path);
 		StringBuilder rawConsensus = aligner.getConsensus();
@@ -134,6 +135,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 			StringBuilder correctedRead = new StringBuilder(alignedRead.length());
 			Map<Integer,GenomicVariant> calls = aln.getIndelCallsByAlignedReadPos();
 			if(calls == null) continue;
+			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" indel calls: "+calls.size()+" aln: "+aln);
 			int nextPos = 0;
 			int lastRef = 0;
 			for(Map.Entry<Integer, GenomicVariant> entry:calls.entrySet()) {
@@ -144,22 +146,23 @@ public class AlignmentBasedIndelErrorsCorrector {
 					//Apply homozygous indels not called in this alignment
 					for(int j=indexNextActive;j<filteredVars.size();j++) {
 						CalledGenomicVariant calledVar = filteredVars.get(j);
-						if(calledVar.isHeterozygous()) continue;
-						int diffLength = calledVar.getAlleles()[0].length()-calledVar.getAlleles()[1].length();
-						if(Math.abs(diffLength)>3) continue;
+						if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. ReadId: "+readId+" Next active var: "+calledVar.getFirst()+" "+calledVar.getLast()+" ref limits: "+lastRef+" "+indel.getFirst()+" read limits: "+nextPos+" "+posRead);
 						if(calledVar.getFirst() > lastRef && calledVar.getLast()<indel.getFirst()) {
+							if(calledVar.isHeterozygous()) continue;
+							int diffLength = calledVar.getAlleles()[0].length()-calledVar.getAlleles()[1].length();
+							if(Math.abs(diffLength)>3) continue;
 							int readPosStartVar = aln.getAlignedReadPosition(calledVar.getFirst());
 							int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast()); 
 							if(readPosStartVar> nextPos && readPosEndVar<posRead && readPosStartVar<readPosEndVar) {
 								String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
 								String correctedAllele = calledVar.getCalledAlleles()[0];
 								if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
-								if(currentSegment.length()>10) System.err.println("WARN: Correcting indel spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+								if(readId==debugIdx || currentSegment.length()>10) System.err.println("WARN: Correcting indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
 								correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
 								correctedRead.append(correctedAllele);
 								nextPos = readPosEndVar+1;
 							}
-						} else {
+						} else if (calledVar.getLast()>=indel.getFirst()) {
 							break;
 						}
 					}
@@ -176,6 +179,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 					}
 				}
 				if(correctIndel) {
+					if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Read id: "+readId+" Correcting indel at: "+indel.getFirst()+" "+indel.getLast()+" length "+indel.length()+" outside active regions");
 					if(indel.getLast()==indel.getFirst()+1) {
 						//Insertion
 						nextPos +=indel.length();
@@ -188,6 +192,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 				lastRef = indel.getLast();
 			}
 			if(nextPos<rawConsensus.length()) correctedRead.append(alignedRead.substring(nextPos));
+			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+aln.getReadCharacters()+" corrected: "+correctedRead);
 			aln.setReadCharacters(null);
 			CharSequence correctedReadS;
 			if(aln.isNegativeStrand()) {
@@ -199,6 +204,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 			qseq.setCharacters(correctedReadS);
 			sequencePaths[readId] = path.getPathId();
 			correctedReads++;
+			
 		}
 		log.info("IndelErrorsCorrector. Path: "+path.getPathId()+" Corrected reads: "+correctedReads+" correctedErrors: "+correctedErrors);
 	}

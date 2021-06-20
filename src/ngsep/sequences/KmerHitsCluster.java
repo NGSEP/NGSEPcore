@@ -111,7 +111,7 @@ public class KmerHitsCluster {
 			maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()));
 		}
 		maxDistance *=5;
-		if(maxDistance < 100) maxDistance=100;
+		if(maxDistance < 300) maxDistance=300;
 		//if(maxDistance<0.01*query.length()) maxDistance*=2;
 		else maxDistance=Math.min(queryLength/20,maxDistance);
 		if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" average: "+(sum/n)+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" abs distance avg: "+distAbs.getAverage()+" stdev "+Math.sqrt(distAbs.getVariance())+" max distance: "+maxDistance);

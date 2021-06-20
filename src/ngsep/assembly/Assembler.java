@@ -358,7 +358,7 @@ public class Assembler {
 			long timeRound = System.currentTimeMillis()-startRound;
 			log.info("Finished round "+(i+1)+" of error correction. Time round: "+(timeRound/1000));
 		}
-		if(errorCorrectionRounds>0 && graphFile==null) {
+		if(graphFile==null) {
 			String outFileGraph = outputPrefix+".graph.gz";
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
