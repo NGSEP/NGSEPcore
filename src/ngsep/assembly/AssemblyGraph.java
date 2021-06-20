@@ -596,6 +596,7 @@ public class AssemblyGraph {
 		int hostPredictedStartRight = seqLength;
 		List<Integer> hostEvidenceStartsRight = new ArrayList<Integer>();
 		for(AssemblyEmbedded embedded:embeddedList) {
+			if(embedded.getEvidenceProportion()<0.5) continue;
 			int nextEvidenceStart = embedded.getHostEvidenceStart();
 			int nextEvidenceEnd = embedded.getHostEvidenceEnd();
 			int unknownLeft = nextEvidenceStart - embedded.getHostStart();
@@ -621,6 +622,7 @@ public class AssemblyGraph {
 		if(hostEvidenceEndsLeft.size()<5 || hostEvidenceStartsRight.size()<5) {
 			for(AssemblyEdge edge: edgesS) {
 				if(edge.isSameSequenceEdge()) continue;
+				if(edge.getEvidenceProportion()<0.5) continue;
 				int nextEvidenceStart = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 				int nextEvidenceEnd = (edge.getVertex1()==vS)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 				int unknownLeft = nextEvidenceStart;
@@ -639,6 +641,7 @@ public class AssemblyGraph {
 			}
 			for(AssemblyEdge edge: edgesE) {
 				if(edge.isSameSequenceEdge()) continue;
+				if(edge.getEvidenceProportion()<0.5) continue;
 				int nextEvidenceStart = (edge.getVertex1()==vE)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 				int nextEvidenceEnd = (edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd();
 				int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
@@ -717,7 +720,7 @@ public class AssemblyGraph {
 				if(edge.getEvidenceProportion()>=limitEvProp) countPassE++;
 			}
 		}
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE+" embedded size: "+embeddedList.size()+" is emb: "+isEmbedded(sequenceId));
 		int d1 = hostEvidenceEndLeft-hostPredictedStartRight;
 		int d2 = hostPredictedEndLeft-hostEvidenceStartRight;
 		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
@@ -729,8 +732,8 @@ public class AssemblyGraph {
 		} else if ((countGoodOverlapS > 5 && countPassS ==0) || (countGoodOverlapE>5 && countPassE ==0)) {
 			System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
-		} else if (embeddedList.size()>0 && !isEmbedded(sequenceId) && numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && edgesS.size()==1) || (hostEvidenceEndsLeft.size()>5 && edgesE.size()==1))) {
-			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+		} else if (numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && countPassS<=numIncompleteEdgesLeft) || (hostEvidenceEndsLeft.size()>5 && countPassE<=numIncompleteEdgesRight))) {
+			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
 		}
 		
