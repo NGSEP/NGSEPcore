@@ -20,6 +20,8 @@ import ngsep.transcriptome.Transcript;
 
 public class CDNACatalogAligner {
 	// Constants for default values
+	public static final int INPUT_TYPE_CDNA = 1;
+	public static final int INPUT_TYPE_PROTEIN = 2;
 	public static final String DEF_OUT_PREFIX = "catalogsAlignment";
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
@@ -33,6 +35,7 @@ public class CDNACatalogAligner {
 	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private boolean skipMCL= false;
+	private int inputType = INPUT_TYPE_CDNA;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -90,7 +93,15 @@ public class CDNACatalogAligner {
 	public void setMinPctKmers(String value) {
 		setMinPctKmers((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-	
+	public int getInputType() {
+		return inputType;
+	}
+	public void setInputType(int inputType) {
+		this.inputType = inputType;
+	}
+	public void setInputType(String value) {
+		setInputType((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public static void main(String[] args) throws Exception {
 		CDNACatalogAligner instance = new CDNACatalogAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -103,11 +114,15 @@ public class CDNACatalogAligner {
 	
 	private void loadFile(String fileName) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
+		if(inputType==INPUT_TYPE_PROTEIN) handler.setSequenceType(StringBuilder.class);
 		List<QualifiedSequence> sequences = handler.loadSequences(fileName);
 		
 		List<HomologyUnit> units = new ArrayList<>();
 		for(QualifiedSequence seq : sequences) {
-			HomologyUnit unit = new HomologyUnit(cdnaCatalogs.size()+1, seq.getName(), translator.getProteinSequence(seq.getCharacters()));
+			String proteinSequence = seq.getCharacters().toString();
+			if(inputType==INPUT_TYPE_CDNA) proteinSequence = translator.getProteinSequence(proteinSequence);
+			if(proteinSequence.length()<10) System.out.println("Small sequence "+proteinSequence+" with name: "+seq.getName()+" length: "+proteinSequence.length());
+			HomologyUnit unit = new HomologyUnit(cdnaCatalogs.size()+1, seq.getName(), proteinSequence);
 			units.add(unit);
 		}
 		

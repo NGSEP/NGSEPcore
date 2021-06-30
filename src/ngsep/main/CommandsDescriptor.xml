@@ -997,6 +997,9 @@ Minimum percentage of k-mers to call orthologs
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and returns unfiltered orthogroups.
 </option>
+<option id="t" type="INT" attribute="inputType" defaultConstant="INPUT_TYPE_CDNA">
+Type of sequences in the input file. 1 for CDNA, 2 for proteins.
+</option>
 </command>
 
 <command id="TransposonsFinder" class="ngsep.genome.TransposableElementsFinder" groupId="Genomes" printHelp="false">
