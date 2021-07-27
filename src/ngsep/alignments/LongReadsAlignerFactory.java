@@ -73,6 +73,12 @@ public class LongReadsAlignerFactory {
 	private List<MinimizersTableReadAlignmentAlgorithm> longReadsAligners = new ArrayList<MinimizersTableReadAlignmentAlgorithm>();
 	private int lastReadsAlignerIndex = 0;
 	public synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner()  {
+		return requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_AFFINE_GAP);
+	}
+	public synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner(int alignmentAlgorithm)  {
+		if(alignmentAlgorithm != MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_AFFINE_GAP) {
+			return new MinimizersTableReadAlignmentAlgorithm(alignmentAlgorithm);
+		}
 		if(longReadsAligners.size()==0) {
 			createFirstLongReadAligner();
 			return longReadsAligners.get(0);

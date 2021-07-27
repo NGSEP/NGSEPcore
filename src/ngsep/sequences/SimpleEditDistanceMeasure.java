@@ -1,9 +1,30 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
+public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure, PairwiseAligner {
 
 	private int indelDistance = 1;
 	private int mismatchDistance = 1;
@@ -35,7 +56,7 @@ public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
 		}
 		return scores;
 	}
-	public List<CharSequence> pairwiseAlignment(CharSequence seq1, CharSequence seq2) {
+	public String [] calculateAlignment(CharSequence seq1, CharSequence seq2) {
 		StringBuilder alignedSequence1 = new StringBuilder();
 		StringBuilder alignedSequence2 = new StringBuilder();
 		int [][] scores = calculateScoresMatrix(seq1, seq2);
@@ -77,9 +98,9 @@ public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
                 }
             }
         }
-		List<CharSequence> answer = new ArrayList<>();
-		answer.add(alignedSequence1.reverse().toString());
-		answer.add(alignedSequence2.reverse().toString());
+		String [] answer = new String[2];
+		answer[0] = alignedSequence1.reverse().toString();
+		answer[1] = alignedSequence2.reverse().toString();
 		return answer;
 	}
 

@@ -116,10 +116,10 @@ public class BestStarMultipleSequenceAlignmentAlgorithm implements MultipleSeque
 		for (int i = 0; i < sequences.size(); i++) {
 			if (i != centerIndex){
 				QualifiedSequence seq = sequences.get(i);
-				List<CharSequence> alignedChars = editDistanceMeasure.pairwiseAlignment(center.getCharacters(), seq.getCharacters());
+				String [] alignedChars = editDistanceMeasure.calculateAlignment(center.getCharacters(), seq.getCharacters());
 				List<QualifiedSequence> alignedSeqs = new ArrayList<>();
-				alignedSeqs.add(new QualifiedSequence(center.getName(), alignedChars.get(0)));
-				alignedSeqs.add(new QualifiedSequence(seq.getName(), alignedChars.get(1)));
+				alignedSeqs.add(new QualifiedSequence(center.getName(), alignedChars[0]));
+				alignedSeqs.add(new QualifiedSequence(seq.getName(), alignedChars[1]));
 				pairwiseAlignments.add(new QualifiedSequenceList(alignedSeqs));
 			}
 		}

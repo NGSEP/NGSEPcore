@@ -676,8 +676,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==250 || gsVertex.getSequenceIndex()==70 || gsVertex.getSequenceIndex()==376;
-		//boolean debug = gsVertex.getSequenceIndex()==58708 || gsVertex.getSequenceIndex()==9375 || gsVertex.getSequenceIndex()==17344; 
+		//boolean debug = gsVertex.getSequenceIndex()==378 || gsVertex.getSequenceIndex()==1902 || gsVertex.getSequenceIndex()==3943;
+		//boolean debug = gsVertex.getSequenceIndex()==87137 || gsVertex.getSequenceIndex()==169482 || gsVertex.getSequenceIndex()==76979; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -833,7 +833,7 @@ public class AssemblyGraphStatistics {
 			Map<String,Integer> sequencesPathCounts = new HashMap<String,Integer>();
 			long estimatedLength=0;
 			int lastOverlap = 0;
-			log.info("Compare layouts. Next path: "+(i+1)+" Limits "+nextPath.getVertexLeft()+" to "+nextPath.getVertexRight());
+			log.info("Compare layouts. Next path: "+(i+1)+" Limits "+nextPath.getVertexLeft()+" to "+nextPath.getVertexRight()+" Edges: "+nextPath.getPathLength());
 			totalTestLayoutPaths++;
 			totalTestLayoutEdges+=nextPath.getPathLength();
 			AssemblyPath nextGSPath = null;

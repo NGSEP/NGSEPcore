@@ -354,9 +354,9 @@ public class Assembler {
 			long startRound = System.currentTimeMillis();
 			log.info("Started round "+(i+1)+" of error correction.");
 			indelCorrector.correctErrors(graph);
-			graph = buildGraph(graph.getSequences(), map, null);
 			long timeRound = System.currentTimeMillis()-startRound;
-			log.info("Finished round "+(i+1)+" of error correction. Time round: "+(timeRound/1000));
+			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000));
+			graph = buildGraph(graph.getSequences(), map, null);
 		}
 		if(graphFile==null) {
 			String outFileGraph = outputPrefix+".graph.gz";

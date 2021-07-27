@@ -26,9 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import ngsep.assembly.AlignmentConstantGap;
 import ngsep.genome.GenomicRegion;
 import ngsep.math.NumberArrays;
+import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
@@ -1383,9 +1383,9 @@ public class ReadAlignment implements GenomicRegion {
 			char subjectChar = subjectAln.charAt(i);
 			char queryChar = queryAln.charAt(i);
 			byte op = ReadAlignment.ALIGNMENT_MATCH;
-			if(subjectChar == AlignmentConstantGap.GAP_CHARACTER) {
+			if(subjectChar == LimitedSequence.GAP_CHARACTER) {
 				op = ReadAlignment.ALIGNMENT_INSERTION;
-			} else if(queryChar == AlignmentConstantGap.GAP_CHARACTER) {
+			} else if(queryChar == LimitedSequence.GAP_CHARACTER) {
 				op = ReadAlignment.ALIGNMENT_DELETION;
 			}
 			if(op != nextOperator) {

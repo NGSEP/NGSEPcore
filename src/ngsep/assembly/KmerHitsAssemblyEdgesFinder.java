@@ -6,11 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.alignments.KmerBasedPairwiseAligner;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerHitsCluster;
-import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 
 public class KmerHitsAssemblyEdgesFinder {
@@ -85,7 +85,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			Collections.sort(queryClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
 			KmerHitsCluster cluster = queryClusters.get(0);
 			AssemblyEdge edge = graph.getSameSequenceEdge(queryIdx);
-			int [] alnData = MinimizersTableReadAlignmentAlgorithm.simulateAlignment(queryIdx, queryLength, queryIdx, queryLength, cluster);
+			int [] alnData = KmerBasedPairwiseAligner.simulateAlignment(queryIdx, queryLength, queryIdx, queryLength, cluster);
 			edge.setCoverageSharedKmers(alnData[0]);
 			edge.setWeightedCoverageSharedKmers(alnData[1]);
 			edge.setNumSharedKmers(cluster.getNumDifferentKmers());
@@ -297,12 +297,12 @@ public class KmerHitsAssemblyEdgesFinder {
 				return false;
 			}
 		} else {
-			simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 			if(simulatedAlnData[2]<20) {
 				KmerHitsCluster clusterMod = addLocalHits(subjectSeqIdx, querySequenceId, cluster,graph.getSequence(subjectSeqIdx).getCharacters().toString(),query);
 				if(clusterMod!=cluster) {
 					cluster = clusterMod;
-					simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+					simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 				}
 			}
 		}
@@ -372,12 +372,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			}
 			overlap = (int) (((double)(subjectLength-aln.getFirst()))/compressionFactor);
 		} else {
-			simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 			if(simulatedAlnData[2]<20) {
 				KmerHitsCluster clusterMod = addLocalHits(subjectSeqIdx, querySequenceId, cluster,graph.getSequence(subjectSeqIdx).getCharacters().toString(),query);
 				if(clusterMod!=cluster) {
 					cluster = clusterMod;
-					simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+					simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 				}
 			}
 		}
@@ -451,12 +451,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			}
 			overlap = (int) (((double)aln.getLast())/compressionFactor);
 		} else {
-			simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 			if(simulatedAlnData[2]<20) {
 				KmerHitsCluster clusterMod = addLocalHits(subjectSeqIdx, querySequenceId, cluster,graph.getSequence(subjectSeqIdx).getCharacters().toString(),query);
 				if(clusterMod!=cluster) {
 					cluster = clusterMod;
-					simulatedAlnData =  MinimizersTableReadAlignmentAlgorithm.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+					simulatedAlnData =  KmerBasedPairwiseAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 				}
 			}
 		}

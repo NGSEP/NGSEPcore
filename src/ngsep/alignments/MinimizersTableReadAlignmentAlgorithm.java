@@ -20,7 +20,6 @@
 package ngsep.alignments;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,30 +34,63 @@ import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
+import ngsep.sequences.PairwiseAligner;
 import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.SimpleEditDistanceMeasure;
 
 /**
  * @author Jorge Duitama
  */
 public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 
+	public static final int ALIGNMENT_ALGORITHM_AFFINE_GAP = 1;
+	public static final int ALIGNMENT_ALGORITHM_DYNAMIC_KMERS = 2;
+	public static final int ALIGNMENT_ALGORITHM_EDIT_DISTANCE = 3;
+	public static final int ALIGNMENT_ALGORITHM_NAIVE = 4;
 	private Logger log = Logger.getLogger(MinimizersTableReadAlignmentAlgorithm.class.getName());
+	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 	private int maxLengthFullPairwiseAlignment = 4000;
 	private int maxLengthEndsPairwiseAlignment = 500;
-	private PairwiseAlignmentAffineGap alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
-	private PairwiseAlignmentAffineGap alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
-	private PairwiseAlignmentAffineGap alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+	private PairwiseAligner alignerCenter;
+	private PairwiseAligner alignerStart;
+	private PairwiseAligner alignerEnd;
 	private int maxAlnsPerRead = 3;
 	private ReferenceGenome genome;
 	private MinimizersTable minimizersTable;
 	private boolean onlyPositiveStrand = false;
-	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 	
 	public MinimizersTableReadAlignmentAlgorithm() {
-		alignerStart.setForceStart2(false);
-		alignerEnd.setForceEnd2(false);
+		alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
+		alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+		alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+		((PairwiseAlignmentAffineGap)alignerStart).setForceStart2(false);
+		((PairwiseAlignmentAffineGap)alignerEnd).setForceEnd2(false);
+	}
+	public MinimizersTableReadAlignmentAlgorithm(int alignmentAlgorithm) {
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_AFFINE_GAP) {
+			alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
+			alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+			alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
+			((PairwiseAlignmentAffineGap)alignerStart).setForceStart2(false);
+			((PairwiseAlignmentAffineGap)alignerEnd).setForceEnd2(false);
+		}
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_DYNAMIC_KMERS) {
+			alignerCenter = new KmerBasedPairwiseAligner();
+			alignerStart = new KmerBasedPairwiseAligner();
+			alignerEnd = new KmerBasedPairwiseAligner();
+		}
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_EDIT_DISTANCE) {
+			alignerCenter = new SimpleEditDistanceMeasure();
+			alignerStart = new SimpleEditDistanceMeasure();
+			alignerEnd = new SimpleEditDistanceMeasure();
+		}
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_NAIVE) {
+			alignerCenter = new NaivePairwiseAligner(false);
+			alignerStart = new NaivePairwiseAligner(true);
+			alignerEnd = new NaivePairwiseAligner(false);
+		}
 	}
 	public Logger getLog() {
 		return log;
@@ -206,17 +238,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
 	}
-
 	
-
-	public void printClusters(List<KmerHitsCluster> clusters) {
-		System.out.println("Clusters: "+clusters.size());
-		for(KmerHitsCluster cluster:clusters) {
-			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
-		}
-		
-	}
-
 	public ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) { 
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = -1;
@@ -237,15 +259,27 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
 				alnStart = kmerHit.getStart();
 				queryStart = kmerHit.getQueryIdx();
-				if(queryStart>0 && queryStart<maxLengthEndsPairwiseAlignment && queryStart<kmerHit.getStart()) {
+				boolean startAligned = queryStart<=0;
+				if(!startAligned && queryStart<kmerHit.getStart()) {
 					String queryStr = query.subSequence(0,queryStart).toString();
-					alnStart = Math.max(0, kmerHit.getStart()-queryStart-5);
-					queryStart=0;
-					String subjectStr = subject.subSequence(alnStart,kmerHit.getStart()).toString();
-					String [] alignedFragments = alignerStart.getAlignment(queryStr, subjectStr);
-					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-					numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
-				} else if (queryStart>0) alignmentEncoding.add(ReadAlignment.getAlnValue(queryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+					int possibleAlnStart = Math.max(0, kmerHit.getStart()-queryStart-5);
+					String subjectStr = subject.subSequence(possibleAlnStart,kmerHit.getStart()).toString();
+					String [] alignedFragments;
+					if(queryStr.length()<=5 || subjectStr.length()<=5) {
+						alignedFragments = (new NaivePairwiseAligner(true)).calculateAlignment(queryStr, subjectStr);
+					} else {
+						alignedFragments = alignerStart.calculateAlignment(queryStr, subjectStr);
+					}
+					if(alignedFragments!=null) {
+						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+						startAligned = true;
+						queryStart=0;
+						alnStart = possibleAlnStart;
+					}
+					
+				} 
+				if(!startAligned) alignmentEncoding.add(ReadAlignment.getAlnValue(queryStart, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 				nextMatchLength+=kmerLength;
 				coverageSharedKmers+=kmerLength;
 				double weight = kmerHit.getWeight();
@@ -256,7 +290,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
-				if(subjectNextLength==queryNextLength && (subjectNextLength<10 || subjectNextLength>maxLengthFullPairwiseAlignment)) {
+				if(subjectNextLength==queryNextLength && subjectNextLength<100) {
 					nextMatchLength+=subjectNextLength;
 					if(subjectNextLength>0) numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), query.subSequence(queryNext, kmerHit.getQueryIdx()));
 				} else {
@@ -265,12 +299,12 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						alignmentEncoding.add(ReadAlignment.getAlnValue(nextMatchLength, ReadAlignment.ALIGNMENT_MATCH));
 						nextMatchLength = 0;
 					}
-					if(subjectNextLength>0 && queryNextLength>0) {		
-						if (subjectNextLength>maxLengthFullPairwiseAlignment || queryNextLength>maxLengthFullPairwiseAlignment) return null;
+					if(subjectNextLength>0 && queryNextLength>0) {
 						String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
 						String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
 						//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
-						String [] alignedFragments = alignerCenter.getAlignment(queryStr,subjectStr);
+						String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
+						if(alignedFragments==null) return null;
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 					} else if (subjectNextLength>0) {
@@ -310,21 +344,27 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			nextMatchLength = 0;
 		}
 		int alnEnd = subjectNext;
-		if(queryNext<query.length()) {
-			int remainder = query.length()-queryNext;
+		
+		int remainder = query.length()-queryNext;
+		boolean endAligned = remainder<=0;
+		if(!endAligned) {
 			int end = Math.min(subjectNext+remainder+5, subject.length());
-			if(subject.length()-subjectNext>=remainder && remainder<=maxLengthEndsPairwiseAlignment && (end-subjectNext)<=maxLengthEndsPairwiseAlignment) {
+			if(subject.length()-subjectNext>=remainder) {
 				String queryStr = query.subSequence(queryNext,query.length()).toString();
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
 				//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
-				String [] alignedFragments = alignerEnd.getAlignment(queryStr, subjectStr);
-				alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-				numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
-				alnEnd = end;
-			} else {
-				//Ignore last bp
-				alignmentEncoding.add(ReadAlignment.getAlnValue(remainder, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
+				String [] alignedFragments = alignerEnd.calculateAlignment(queryStr, subjectStr);
+				if(alignedFragments!=null) {
+					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+					numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+					alnEnd = end;
+					endAligned = true;
+				}	
 			}
+		}
+		if(!endAligned) {
+			//Ignore last bp
+			alignmentEncoding.add(ReadAlignment.getAlnValue(remainder, ReadAlignment.ALIGNMENT_SKIPFROMREAD));
 		}
 		ReadAlignment finalAlignment = new ReadAlignment(subjectIdx, alnStart+1, alnEnd, query.length(), 0);
 		finalAlignment.setReadCharacters(query);
@@ -338,146 +378,12 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		finalAlignment.clipBorders(10);
 		return finalAlignment;
 	}
-	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, KmerHitsCluster kmerHitsCluster) {
-		int debugIdxS = -1;
-		int debugIdxQ = -1;
-		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
-		if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Subject length: "+subjectLength+". Query length: "+queryLength+" kmer hits: "+kmerHits.size()+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
-		int coverageSharedKmers = 0;
-		double weightedCoverageSharedKmers = 0;
-		List<Integer> indelStarts = new ArrayList<Integer>();
-		List<Integer> indelCalls = new ArrayList<Integer>();
-		int initialNumIndels = 0;
-		int subjectNext = -1;
-		int queryNext = 0;
-		for(UngappedSearchHit kmerHit:kmerHits) {
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
-			int kmerLength = kmerHit.getQuery().length();
-			if(subjectNext==-1) {
-				//Inconsistent kmer hit
-				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
-				coverageSharedKmers+=kmerLength;
-				double weight = kmerHit.getWeight();
-				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
-				//Kmer does not overlap with already aligned segments
-				int subjectNextLength = kmerHit.getStart()-subjectNext;
-				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
-				//Penalize up to 3 bp for each inconsistency
-				//if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
-				int diff = Math.abs(queryNextLength-subjectNextLength);
-				if(diff>2) {
-					indelStarts.add(kmerHit.getQueryIdx());
-					indelCalls.add(queryNextLength-subjectNextLength);
-					initialNumIndels+=diff;
-				}
-				coverageSharedKmers+=kmerLength;
-				double weight = kmerHit.getWeight();
-				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else {
-				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
-				int diffSubject = kmerSubjectNext - subjectNext;
-				int kmerQueryNext = kmerHit.getQueryIdx()+kmerLength;
-				int diffQuery = kmerQueryNext - queryNext;
-				if (diffSubject>0 && diffSubject==diffQuery) {
-					//Kmer consistent with current alignment. Augment match with difference
-					subjectNext = kmerSubjectNext;
-					queryNext = kmerQueryNext;
-					coverageSharedKmers+=Math.min(diffQuery, kmerLength);
-					double weight = kmerHit.getWeight();
-					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
-					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				} else {
-					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				}
-				
-			}
-			
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ)  System.out.println("subject id "+subjectSeqIdx+" Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
+
+	public void printClusters(List<KmerHitsCluster> clusters) {
+		System.out.println("Clusters: "+clusters.size());
+		for(KmerHitsCluster cluster:clusters) {
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
 		}
-		int numIndels = calculateTotalIndels(subjectSeqIdx, querySeqIdx,indelStarts, indelCalls);
-		//if(subjectSeqIdx==0) System.out.println("query length: "+queryLength+" cov: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers);
-		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers),numIndels};
-		return answer;
-	}
-	private static int calculateTotalIndels(int subjectSeqIdx, int querySeqIdx, List<Integer> indelStarts, List<Integer> indelCalls) {
-		int calls = 0;
-		int debugIdxS = -1;
-		int debugIdxQ = -1;
-		int n = indelCalls.size();
-		if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Calculating indels. calls: "+indelCalls);
-		boolean [] processed = new boolean[n];
-		Arrays.fill(processed, false);
-		while (true) {
-			//Find maximum
-			int idxMax = 0;
-			int maxAbs = 0;
-			for(int i=0;i<n;i++) {
-				if(processed[i]) continue;
-				int next = Math.abs(indelCalls.get(i));
-				if(next<10) processed[i] = true;
-				if(next>maxAbs) {
-					idxMax = i;
-					maxAbs = next;
-				}
-			}
-			if(maxAbs<6) break;
-			//Try to find balancing indel
-			int value = indelCalls.get(idxMax);
-			int idxMinPair = idxMax;
-			int minPair = maxAbs;
-			for(int i=Math.max(0, idxMax-1);i<n && i<idxMax+2;i++) {
-				int pairValue = Math.abs(value+indelCalls.get(i));
-				if(pairValue<minPair) {
-					idxMinPair = i;
-					minPair = pairValue;
-				}
-			}
-			processed[idxMax] = true;
-			if(minPair>0.2*maxAbs) {
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Keeping high value of site "+idxMax+" "+indelStarts.get(idxMax)+" value "+value+" min difference: "+minPair);
-				continue;
-			}
-			processed[idxMinPair] = true;
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Replacing values of sites "+idxMax+" "+indelStarts.get(idxMax)+" and "+idxMinPair+" "+indelStarts.get(idxMinPair)+" original "+value+" "+indelCalls.get(idxMinPair)+" difference: "+minPair);
-			indelCalls.set(idxMax,minPair);
-			indelCalls.set(idxMinPair,0);
-		}
-		for(int i=0;i<n;i++) {
-			int nextPos = indelStarts.get(i);
-			int nextCall = indelCalls.get(i);
-			int absNextCall = Math.abs(nextCall);
-			if(absNextCall<=1) continue;
-			if(absNextCall<6 ) {
-				calls+= Math.max(0, absNextCall-2);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels. Idx: "+i+" query pos: "+nextPos+" next call: "+nextCall+" indels: "+calls);
-				continue;
-			}
-			//Try to find a balancing indel
-			int j;
-			int sumRange = 0;
-			for(j=i;j<n && j<i+3;j++) {
-				int nextCall2 = indelCalls.get(j);
-				sumRange+=nextCall2;
-				if(Math.abs(sumRange)< 0.2*absNextCall) {
-					break;
-				}
-			}
-			if(i>1 && j<n-2) {
-				calls+=Math.max(0, Math.abs(sumRange)-2);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Adding indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
-			} else {
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Ignoring indels group from "+i+" to "+j+". query pos: "+nextPos+" sum range. "+sumRange+" indels: "+calls);
-			}
-			
-			i=j;
-		}
-		return calls;
+		
 	}
 }

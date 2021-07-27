@@ -63,7 +63,7 @@ public class KmerHitsCluster {
 		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
 		rawKmerHits = inputHits.size();
 		for(UngappedSearchHit hit:inputHits) {
-			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
+			//if (subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" kmer: "+hit.getQuery()+ " estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
 			List<UngappedSearchHit> list = hitsMultiMap.computeIfAbsent(hit.getQueryIdx(), l -> new ArrayList<UngappedSearchHit>());
 			list.add(hit);
 		}
@@ -109,6 +109,9 @@ public class KmerHitsCluster {
 		} else if (queryLength>2000) {
 			// For graph construction
 			maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()));
+		} else {
+			//Small cases
+			maxDistance = 50;
 		}
 		maxDistance *=5;
 		if(maxDistance < 300) maxDistance=300;
@@ -814,15 +817,15 @@ public class KmerHitsCluster {
 		List<List<UngappedSearchHit>> answer = new ArrayList<List<UngappedSearchHit>>();
 		Collections.sort(hits, (h1,h2)->h1.getQueryIdx()-h2.getQueryIdx());
 		List<UngappedSearchHit> nextSubcluster = new ArrayList<UngappedSearchHit>();
-		int nextQueryStart = 0;
+		int lastQueryStart = 0;
 		for(UngappedSearchHit hit:hits) {
 			//TODO: define better this parameter
-			if(hit.getQueryIdx()>nextQueryStart+30000) {
+			if(hit.getQueryIdx()>lastQueryStart+30000) {
 				if(nextSubcluster.size()>0) answer.add(nextSubcluster); 
 				nextSubcluster = new ArrayList<UngappedSearchHit>();
 			}
 			nextSubcluster.add(hit);
-			nextQueryStart = hit.getQueryIdx()+hit.getQuery().length();
+			lastQueryStart = hit.getQueryIdx();
 		}
 		if(nextSubcluster.size()>0) answer.add(nextSubcluster);
 		return answer;

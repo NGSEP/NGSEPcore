@@ -24,7 +24,7 @@ package ngsep.sequences;
  * Adapted from https://www.itu.dk/~sestoft/bsa/Match2.java
  * @author David Guevara
  */
-public class PairwiseAlignmentAffineGap {
+public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 	
 	private int match=1;
 	private int openGap=3;
@@ -111,14 +111,14 @@ public class PairwiseAlignmentAffineGap {
 		this.forceEnd2 = forceEnd2;
 	}
 
-	public String[] getAlignment(String s1, String s2) 
+	public String[] calculateAlignment(CharSequence s1, CharSequence s2) 
 	{		
 		initMatrices(s1, s2);
 	    calculateMatrices(s1, s2);	    
         return getAlignedStrings(s1, s2);
 	}
 	
-	private void initMatrices(String s1, String s2)
+	private void initMatrices(CharSequence s1, CharSequence s2)
 	{
 		if(insertionScores.length<s1.length()+1 || insertionScores[0].length < s2.length() +1 ) {
 			//System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
@@ -144,7 +144,7 @@ public class PairwiseAlignmentAffineGap {
 	    }
 	}
 	
-	private void calculateMatrices(String s1, String s2)
+	private void calculateMatrices(CharSequence s1, CharSequence s2)
 	{
 		for (int i = 1; i <= s1.length(); i++)
 	    {
@@ -171,7 +171,7 @@ public class PairwiseAlignmentAffineGap {
 	
 	
 	
-	private String[] getAlignedStrings(String s1, String s2)
+	private String[] getAlignedStrings(CharSequence s1, CharSequence s2)
 	{
 		StringBuffer sb1 = new StringBuffer();
 		StringBuffer sb2 = new StringBuffer();
