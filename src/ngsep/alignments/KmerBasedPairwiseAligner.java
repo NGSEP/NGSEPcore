@@ -9,6 +9,7 @@ import java.util.Map;
 
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.PairwiseAligner;
@@ -23,13 +24,20 @@ public class KmerBasedPairwiseAligner implements PairwiseAligner {
 		if(n1<=5 || n2<=5) {
 			return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
 		}
-		int nMin = Math.min(n1, n2);
-		int nMax = Math.max(n1, n2);
-		if(0.3*nMax>nMin) {
+		if(n1<n2) {
+			String[] alnRev = calculateAlignment(sequence2, sequence1);
+			if(alnRev == null) return null;
+			String [] answer = {alnRev[1].toString(),alnRev[0].toString()};
+			return answer;
+		}
+		if(0.3*n1>n2) {
 			System.err.println("WARN: Unbalanced lengths for global alignment: "+n1+" "+n2);
 			return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
 		}
-		if(n1<20 && n2 < 20) {
+		if(n1<=20) {
+			int distance = (int) (new HammingSequenceDistanceMeasure()).calculateDistance(sequence1.subSequence(0, n2), sequence2);
+			if(distance <= 0.2*n1 ) return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
+			
 			SimpleEditDistanceMeasure editDistanceAligner = new SimpleEditDistanceMeasure();
 			return editDistanceAligner.calculateAlignment(sequence1, sequence2);
 		}
