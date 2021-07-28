@@ -1,7 +1,8 @@
 package ngsep.alignments.test;
 
 import junit.framework.TestCase;
-import ngsep.alignments.KmerBasedPairwiseAligner;
+import ngsep.alignments.PairwiseAlignerDynamicKmers;
+import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.sequences.SimpleEditDistanceMeasure;
 
 public class PairwiseAlignmentTest extends TestCase {
@@ -10,10 +11,11 @@ public class PairwiseAlignmentTest extends TestCase {
 		String seq2 = "ATGGACAGTACATAGTATGGACAGTACATAGT";
 		SimpleEditDistanceMeasure aligner1 = new SimpleEditDistanceMeasure();
 		String [] aln1 = aligner1.calculateAlignment(seq1, seq2);
-		KmerBasedPairwiseAligner aligner2 = new KmerBasedPairwiseAligner();
+		PairwiseAlignerDynamicKmers aligner2 = new PairwiseAlignerDynamicKmers();
+		//PairwiseAlignerSimpleGap aligner2 = new PairwiseAlignerSimpleGap();
 		String [] aln2 = aligner2.calculateAlignment(seq1, seq2);
-		//System.out.println("aln1 "+aln1[0]+" "+aln1[1]);
-		//System.out.println("aln2 "+aln2[0]+" "+aln2[1]);
+		System.out.println(aln1[0]+"\n"+aln1[1]);
+		System.out.println(aln2[0]+"\n"+aln2[1]);
 		assertEquals(aln1[0], aln2[0]);
 		assertEquals(aln1[1], aln2[1]);
 		

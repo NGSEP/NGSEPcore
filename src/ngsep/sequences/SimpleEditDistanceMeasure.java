@@ -19,12 +19,13 @@
  *******************************************************************************/
 package ngsep.sequences;
 
+
 /**
  * 
  * @author Jorge Duitama
  *
  */
-public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure, PairwiseAligner {
+public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
 
 	private int indelDistance = 1;
 	private int mismatchDistance = 1;

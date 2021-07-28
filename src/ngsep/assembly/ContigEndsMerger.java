@@ -9,10 +9,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.alignments.UngappedSearchHitsCluster;
+import ngsep.alignments.UngappedSearchHitsClusterBuilder;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.UngappedSearchHit;
@@ -129,11 +130,11 @@ public class ContigEndsMerger {
 			List<UngappedSearchHit> hitsSubject = entry.getValue();
 			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
 			if (hitsSubject.size() < 20) continue;
-			List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(END_LENGTH, END_LENGTH, hitsSubject, 0);
+			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, END_LENGTH, hitsSubject, 0);
 			Collections.sort(clusters, (c1,c2)->c2.getNumDifferentKmers()-c1.getNumDifferentKmers());
 			int maxNumDifKmer = -1;
 			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" clusters: "+clusters.size());
-			for(KmerHitsCluster cluster:clusters) {
+			for(UngappedSearchHitsCluster cluster:clusters) {
 				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
 				int numKmers = cluster.getNumDifferentKmers(); 
 				if(numKmers<20) break;

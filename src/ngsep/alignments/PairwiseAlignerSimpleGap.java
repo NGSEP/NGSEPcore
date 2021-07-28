@@ -17,18 +17,19 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.sequences;
+package ngsep.alignments;
+
+import ngsep.sequences.LimitedSequence;
 
 /**
- * Performs pairwise alignment using the affine gap method.
+ * Performs pairwise alignment using the simple gap scoring method.
  * Adapted from https://www.itu.dk/~sestoft/bsa/Match2.java
  * @author David Guevara
  */
-public class PairwiseAlignmentAffineGap implements PairwiseAligner {
+public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	
 	private int match=1;
-	private int openGap=3;
-	private int extGap=1;
+	private int openGap=2;
 	private int mismatch=1;
 	
 	private boolean forceStart1 = true;
@@ -36,14 +37,13 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 	private boolean forceEnd1 = true;
 	private boolean forceEnd2 = true;
 	
-	private int[][] insertionScores;
-	private int[][] deletionScores;
 	private int[][] matchScores;
 	
-	public PairwiseAlignmentAffineGap(int capacity) 
+	public PairwiseAlignerSimpleGap() {
+		
+	}
+	public PairwiseAlignerSimpleGap(int capacity) 
 	{
-		insertionScores = new int [capacity][capacity];
-		deletionScores = new int [capacity][capacity];
 		matchScores = new int [capacity][capacity];
 	}
 	
@@ -61,14 +61,6 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 
 	public void setOpenGap(int openGap) {
 		this.openGap = openGap;
-	}
-
-	public int getExtGap() {
-		return extGap;
-	}
-
-	public void setExtGap(int extGap) {
-		this.extGap = extGap;
 	}
 
 	public int getMismatch() {
@@ -120,27 +112,20 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 	
 	private void initMatrices(CharSequence s1, CharSequence s2)
 	{
-		if(insertionScores.length<s1.length()+1 || insertionScores[0].length < s2.length() +1 ) {
-			//System.out.println("Resizing matrices to "+(s1.length() + 1)+" - "+(s2.length() +1));
-			insertionScores = new int[s1.length() + 1][s2.length() + 1];
-			deletionScores = new int[s1.length() + 1][s2.length() + 1];
+		if(matchScores==null || matchScores.length<s1.length()+1 || matchScores[0].length < s2.length() +1 ) {
 			matchScores = new int[s1.length() + 1][s2.length() + 1];
 		}
 		
 		matchScores[0][0] = 0;
-		for (int i = 1; i < insertionScores.length; i++) 
+		for (int i = 1; i < matchScores.length; i++) 
 		{
-			if (forceStart1) insertionScores[i][0] = - openGap - extGap * (i - 1);
-			else insertionScores[i][0] = 0;
-	    	deletionScores[i][0] = s1.length() * -openGap * 1000;
-	    	matchScores[i][0] = deletionScores[i][0];
+			if (forceStart1) matchScores[i][0] = - openGap * i;
+			else matchScores[i][0] = 0;
 	    }
-	    for (int i = 1; i < insertionScores[0].length; i++) 
+	    for (int i = 1; i < matchScores[0].length; i++) 
 	    {
-	    	if (forceStart2) deletionScores[0][i] = - openGap - extGap * (i - 1);
-	    	else deletionScores[0][i] = 0;
-	        insertionScores[0][i] = s2.length() * -openGap * 1000;
-	        matchScores[0][i] = insertionScores[0][i];
+	    	if (forceStart2) matchScores[0][i] = - openGap * i;
+	    	else matchScores[0][i] = 0;
 	    }
 	}
 	
@@ -151,12 +136,7 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 	    	for (int j = 1; j <= s2.length(); j++)
 	    	{
 	    		int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
-	    		matchScores[i][j] = Math.max(matchScores[i-1][j-1] + matchScore, Math.max(insertionScores[i-1][j-1] + matchScore, deletionScores[i-1][j-1] + matchScore));
-	    		
-	    		insertionScores[i][j] = Math.max(matchScores[i-1][j] - openGap, Math.max(insertionScores[i-1][j] - extGap, deletionScores[i-1][j] - openGap));
-	    		
-	    		deletionScores[i][j] = Math.max(matchScores[i][j-1] - openGap, Math.max(insertionScores[i][j-1] - openGap, deletionScores[i][j-1] - extGap));
-	    		
+	    		matchScores[i][j] = Math.max(matchScores[i-1][j-1] + matchScore, Math.max(matchScores[i-1][j] - openGap, matchScores[i][j-1] - openGap));
 	    	}
 	    }
 	}
@@ -177,24 +157,13 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
 		StringBuffer sb2 = new StringBuffer();
 		int i = s1.length();
 		int j = s2.length();
-		int k = 0;
 	    int val = matchScores[i][j];
-	    if(forceEnd1 && forceEnd2) {
-	    	if (val < insertionScores[i][j]) {
-	    		k = 1;
-	    		val = insertionScores[i][j];
-	    	}
-	    	if (val < deletionScores[i][j]) {
-	    		k = 2;
-	    	}
-	    }
     	if (!forceEnd1) {
     		// Find better score over the last column
     		for (int h=i;h>=0;h--) {
     			int score = matchScores[h][s2.length()];
     			if (score>val) {
     				i=h;
-    				k=0;
     				val = score; 
     			}
     		}
@@ -206,7 +175,6 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
     			if (score>val) {
     				i=s1.length();
     				j=h;
-    				k=0;
     				val = score; 
     			}
     		}
@@ -223,36 +191,23 @@ public class PairwiseAlignmentAffineGap implements PairwiseAligner {
     	// Traceback cycle
 		while(i>0 && j>0) {
 			int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
-			if (k==0) {
-				//Match matrix
+			int score = matchScores[i][j]; 
+			if(score == matchScores[i-1][j-1] + matchScore) {
 				sb1.append(s1.charAt(i - 1));
 				sb2.append(s2.charAt(j - 1));
-				int score = matchScores[i][j]; 
-				if(score == matchScores[i-1][j-1] + matchScore) k = 0;
-	    		else if(score == insertionScores[i-1][j-1] + matchScore) k = 1;
-	    		else if(score == deletionScores[i-1][j-1] + matchScore) k = 2;
-	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
 				i--;
-    			j--;
-			} else if (k==1) {
+				j--;
+			} else if(score == matchScores[i-1][j] - openGap) {
 				sb1.append(s1.charAt(i - 1));
 				sb2.append(LimitedSequence.GAP_CHARACTER);
-				int score = insertionScores[i][j];
-				if(score == matchScores[i-1][j] - openGap) k = 0;
-	    		else if(score == insertionScores[i-1][j] - extGap) k = 1;
-	    		else if(score == deletionScores[i-1][j] - openGap) k = 2;
-	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
 				i--;
-			} else {
-				sb1.append(LimitedSequence.GAP_CHARACTER);
-				sb2.append(s2.charAt(j - 1));
-				int score = deletionScores[i][j];
-				if(score == matchScores[i][j-1] - openGap) k = 0;
-	    		else if(score == insertionScores[i][j-1] - openGap) k = 1;
-	    		else if(score == deletionScores[i][j-1] - extGap) k = 2;
-	    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
-				j--;
 			}
+    		else if(score == matchScores[i][j-1] - openGap) {
+    			sb1.append(LimitedSequence.GAP_CHARACTER);
+    			sb2.append(s2.charAt(j - 1));
+    			j--;
+    		}
+    		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
         }
 		while (i>0) {
 			sb1.append(s1.charAt(i - 1));

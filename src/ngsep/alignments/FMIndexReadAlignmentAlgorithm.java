@@ -16,10 +16,8 @@ import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.LimitedSequence;
-import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.UngappedSearchHit;
 
@@ -133,7 +131,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		int kmersCount=kmersMap.size();
 		if(kmersCount==0) return finalAlignments;
 		List<UngappedSearchHit> initialKmerHits = searchKmers (kmersMap);
-		List<KmerHitsCluster> clusteredKmerHits = clusterKmerHits(query, initialKmerHits);
+		List<UngappedSearchHitsCluster> clusteredKmerHits = clusterKmerHits(query, initialKmerHits);
 		if(clusteredKmerHits.size()==0) return finalAlignments;
 		//System.out.println("Initial kmer hits: "+initialKmerHits.size()+" Clusters: "+clusteredKmerHits.size());
 		Collections.sort(clusteredKmerHits, (o1, o2) -> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
@@ -142,7 +140,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		//if(readAln!=null) finalAlignments.add(readAln);
 		int kmersMaxCluster = 0;
 		for (int i=0;i<clusteredKmerHits.size() && i<2*maxAlnsPerRead;i++) {
-			KmerHitsCluster cluster = clusteredKmerHits.get(i);
+			UngappedSearchHitsCluster cluster = clusteredKmerHits.get(i);
 			int numKmers = cluster.getNumDifferentKmers();
 			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = numKmers;
@@ -180,8 +178,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		return answer;
 	}
 
-	private List<KmerHitsCluster> clusterKmerHits(String query, List<UngappedSearchHit> initialKmerHits) {
-		List<KmerHitsCluster> clusters = new ArrayList<>();
+	private List<UngappedSearchHitsCluster> clusterKmerHits(String query, List<UngappedSearchHit> initialKmerHits) {
+		List<UngappedSearchHitsCluster> clusters = new ArrayList<>();
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = new LinkedHashMap<Integer, List<UngappedSearchHit>>();
 		for(UngappedSearchHit hit:initialKmerHits) {
 			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.computeIfAbsent(hit.getSequenceIdx(), k -> new ArrayList<>());
@@ -196,20 +194,20 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		return clusters;
 	}
 	
-	private List<KmerHitsCluster> clusterSequenceKmerAlns(String query, int sequenceLength, List<UngappedSearchHit> sequenceHits) {
-		List<KmerHitsCluster> answer = new ArrayList<>();
+	private List<UngappedSearchHitsCluster> clusterSequenceKmerAlns(String query, int sequenceLength, List<UngappedSearchHit> sequenceHits) {
+		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
-		KmerHitsCluster cluster=null;
+		UngappedSearchHitsCluster cluster=null;
 		for(UngappedSearchHit kmerHit:sequenceHits) {
 			if(cluster==null || !cluster.addKmerHit(kmerHit, 0)) {
-				cluster = new KmerHitsCluster(query.length(), sequenceLength, kmerHit);
+				cluster = new UngappedSearchHitsCluster(query.length(), sequenceLength, kmerHit);
 				answer.add(cluster);
 			}
 		}
 		return answer;
 	}
 
-	private ReadAlignment createNewAlignmentFromConsistentKmers(KmerHitsCluster cluster, String query) {
+	private ReadAlignment createNewAlignmentFromConsistentKmers(UngappedSearchHitsCluster cluster, String query) {
 		String sequenceName = cluster.getSubjectName();
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
@@ -252,7 +250,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
 		completeAlns++;
-		PairwiseAlignmentAffineGap alignerFullRead = createAlignerFullRead(Math.max(query.length(), refSeq.length()));
+		PairwiseAlignerAffineGap alignerFullRead = createAlignerFullRead(Math.max(query.length(), refSeq.length()));
 		String [] rawAln = alignerFullRead.calculateAlignment(query, refSeq.toString());
 		int mismatches = countMismatches(rawAln);
 		if(mismatches>0.1*query.length()) return null;
@@ -266,8 +264,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		
 		return aln;
 	}
-	private PairwiseAlignmentAffineGap createAlignerFullRead(int capacity) {
-		PairwiseAlignmentAffineGap alignerFullRead = new PairwiseAlignmentAffineGap(capacity);
+	private PairwiseAlignerAffineGap createAlignerFullRead(int capacity) {
+		PairwiseAlignerAffineGap alignerFullRead = new PairwiseAlignerAffineGap(capacity);
 		alignerFullRead.setForceStart2(false);
 		alignerFullRead.setForceEnd2(false);
 		return alignerFullRead;
@@ -387,7 +385,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				String readSegment = read.substring(0,endReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				PairwiseAlignmentAffineGap alignerSTRsLeft = createAlignerLeftTR(Math.max(readSegment.length(), refSeq.length()));
+				PairwiseAlignerAffineGap alignerSTRsLeft = createAlignerLeftTR(Math.max(readSegment.length(), refSeq.length()));
 				String [] alignmentLeft = alignerSTRsLeft.calculateAlignment(readSegment, refSeq.toString());
 				leftMismatches = countMismatches(alignmentLeft);
 				encodedLeftAln = ReadAlignment.encodePairwiseAlignment(alignmentLeft);
@@ -408,7 +406,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				String readSegment = read.substring(startReadSegment);
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
-				PairwiseAlignmentAffineGap alignerSTRsRight = createAlignerRightTR(Math.max(readSegment.length(), refSeq.length()));
+				PairwiseAlignerAffineGap alignerSTRsRight = createAlignerRightTR(Math.max(readSegment.length(), refSeq.length()));
 				String [] alignmentRight = alignerSTRsRight.calculateAlignment(readSegment, refSeq.toString());
 				rightMismatches = countMismatches(alignmentRight);
 				encodedRightAln = ReadAlignment.encodePairwiseAlignment(alignmentRight);
@@ -480,14 +478,14 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		aln.setNumMismatches(mismatches);
 		return aln;
 	}
-	public PairwiseAlignmentAffineGap createAlignerLeftTR (int capacity) {
-		PairwiseAlignmentAffineGap alignerSTRsLeft = new PairwiseAlignmentAffineGap(capacity);
+	public PairwiseAlignerAffineGap createAlignerLeftTR (int capacity) {
+		PairwiseAlignerAffineGap alignerSTRsLeft = new PairwiseAlignerAffineGap(capacity);
 		alignerSTRsLeft.setForceEnd1(false);
 		return alignerSTRsLeft;
 	}
 	
-	public PairwiseAlignmentAffineGap createAlignerRightTR (int capacity) {
-		PairwiseAlignmentAffineGap alignerSTRsRight = new PairwiseAlignmentAffineGap(capacity);
+	public PairwiseAlignerAffineGap createAlignerRightTR (int capacity) {
+		PairwiseAlignerAffineGap alignerSTRsRight = new PairwiseAlignerAffineGap(capacity);
 		alignerSTRsRight.setForceStart1(false);
 		return alignerSTRsRight;
 	}

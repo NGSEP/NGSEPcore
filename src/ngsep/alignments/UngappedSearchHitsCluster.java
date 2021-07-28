@@ -1,0 +1,460 @@
+package ngsep.alignments;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+import ngsep.sequences.AbstractLimitedSequence;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.UngappedSearchHit;
+
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
+public class UngappedSearchHitsCluster {
+
+	private int queryLength;
+	private int kmerLength;
+	//Map indexed by query start
+	private Map<Integer,UngappedSearchHit> hitsMap=new TreeMap<Integer, UngappedSearchHit>();
+	private int subjectIdx;
+	private String subjectName;
+	private int subjectLength;
+	private int subjectPredictedStart;
+	private int subjectPredictedEnd;
+	private int queryPredictedStart;
+	private int queryPredictedEnd;
+	private int queryEvidenceStart;
+	private int queryEvidenceEnd;
+	private int subjectEvidenceStart;
+	private int subjectEvidenceEnd;
+	private int predictedOverlap;
+	private int averagePredictedOverlap;
+	private int medianPredictedOverlap;
+	private int fromLimitsPredictedOverlap;
+	private double subjectStartSD=0;
+	private double predictedOverlapSD=0;
+	private double weightedCount=0;
+	private int rawKmerHits=0;
+	private double rawKmerHitsSubjectStartSD = 0;
+	private boolean allConsistent = true;
+	private boolean firstKmerPresent = false;
+	private boolean lastKmerPresent = false;
+	
+	public UngappedSearchHitsCluster(int queryLength, int subjectLength, List<UngappedSearchHit> hits) {
+		
+		
+		if(hits.size()==0) throw new RuntimeException("Invalid empty input hits for cluster"+hits.size());
+		UngappedSearchHit firstHit = hits.get(0);
+		subjectIdx = firstHit.getSequenceIdx();
+		subjectName = firstHit.getSequenceName();
+		kmerLength = firstHit.getQuery().length();
+		this.queryLength = queryLength;
+		this.subjectLength = subjectLength;
+		//Create cluster with selected hits
+		boolean initialized = false;
+		for(UngappedSearchHit hit:hits) {
+			if(!initialized) {
+				subjectPredictedStart = estimateSubjectStart(hit);
+				subjectPredictedEnd = estimateSubjectEnd(hit);
+				subjectEvidenceStart = hit.getStart();
+				subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
+				queryPredictedStart = estimateQueryStart(hit);
+				queryPredictedEnd = estimateQueryEnd(hit);
+				queryEvidenceStart = hit.getQueryIdx();
+				queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
+				initialized = true;
+			}
+			addHit(hit);
+		}
+		summarize();
+	}
+
+	
+
+	public UngappedSearchHitsCluster(int queryLength, int subjectLength, UngappedSearchHit kmerHit) {
+		this.queryLength = queryLength;
+		subjectIdx = kmerHit.getSequenceIdx();
+		subjectName = kmerHit.getSequenceName();
+		this.subjectLength = subjectLength;
+		int kmerQueryStart = kmerHit.getQueryIdx();
+		subjectPredictedStart = estimateSubjectStart(kmerHit);
+		subjectPredictedEnd = estimateSubjectEnd(kmerHit);
+		subjectEvidenceStart = kmerHit.getStart();
+		subjectEvidenceEnd = subjectEvidenceStart+kmerHit.getQuery().length();
+		queryPredictedStart = estimateQueryStart(kmerHit);
+		queryPredictedEnd = estimateQueryEnd(kmerHit);
+		queryEvidenceStart = kmerHit.getQueryIdx();
+		queryEvidenceEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
+		hitsMap.put(kmerQueryStart, kmerHit);
+		firstKmerPresent = queryEvidenceStart == 0;
+		lastKmerPresent = queryEvidenceEnd==queryLength;
+	}
+	
+	private void addHit(UngappedSearchHit hit) {
+		hitsMap.put(hit.getQueryIdx(), hit);
+		int estStart = estimateSubjectStart(hit);
+		int estEnd = estimateSubjectEnd(hit);
+		if(estStart!=subjectPredictedStart || estEnd!=subjectPredictedEnd) allConsistent = false;
+		subjectPredictedStart = Math.min(subjectPredictedStart, estStart);
+		subjectPredictedEnd = Math.max(subjectPredictedEnd, estEnd);
+		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getStart());
+		subjectEvidenceEnd = Math.max(subjectEvidenceEnd, hit.getStart()+hit.getQuery().length());
+		queryPredictedStart = Math.min(queryPredictedStart, estimateQueryStart(hit));
+		queryPredictedEnd = Math.max(queryPredictedEnd, estimateQueryEnd(hit));
+		queryEvidenceStart = Math.min(queryEvidenceStart, hit.getQueryIdx());
+		queryEvidenceEnd = Math.max(queryEvidenceEnd, hit.getQueryIdx() + hit.getQuery().length());
+		if(queryEvidenceStart==0) firstKmerPresent = true;
+		if (queryEvidenceEnd==queryLength) lastKmerPresent = true;
+	}
+	
+	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
+		int estStart = estimateSubjectStart(kmerHit);
+		int estEnd = estimateSubjectEnd(kmerHit);
+		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
+		if(subjectPredictedStart > estEnd || subjectPredictedEnd < estStart) return false;
+		if(toleranceChange>0 && Math.abs(subjectPredictedStart-estStart)>toleranceChange) return false;
+		if(toleranceChange>0 && Math.abs(subjectPredictedEnd-estEnd)>toleranceChange) return false;
+		addHit(kmerHit);
+		return true;
+	}
+	
+	private int estimateSubjectStart(UngappedSearchHit hit) {
+		return hit.getStart() - hit.getQueryIdx();
+	}
+
+	private int estimateSubjectEnd(UngappedSearchHit hit) {
+		return hit.getStart()+(queryLength-hit.getQueryIdx());
+	}
+	
+	private int estimateQueryStart(UngappedSearchHit hit) {
+		return hit.getQueryIdx() - hit.getStart();
+	}
+
+	private int estimateQueryEnd(UngappedSearchHit hit) {
+		return hit.getQueryIdx()+(subjectLength-hit.getStart());
+	}
+
+	
+	public void summarize() {
+		weightedCount = 0;
+		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
+		hits.addAll(hitsMap.values());
+		for(UngappedSearchHit hit: hits) {
+			weightedCount += hit.getWeight();
+		}
+		//Hits are already sorted by query id
+		predictQueryStart (hits);
+		predictQueryEnd (hits);
+		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
+		predictSubjectStart (hits);
+		predictSubjectEnd (hits);
+		predictOverlap (hits);
+		calculateSubjectStartSD(hits);
+	}
+
+	private void calculateSubjectStartSD(List<UngappedSearchHit> hits) {
+		double sum=0;
+		double sum2=0;
+		int n = hits.size();
+		for(UngappedSearchHit hit:hits) {
+			int start = estimateSubjectStart(hit);
+			sum+=start;
+			sum2+=(start*start);
+		}
+		double startVariance = (sum2-sum*sum/n)/n-1;
+		subjectStartSD = Math.sqrt(startVariance);
+		
+	}
+	private void predictOverlap(List<UngappedSearchHit> hits) {
+		List<Integer> estimatedOverlaps = new ArrayList<Integer>();
+		double sum=0;
+		double sum2=0;
+		int n = hits.size();
+		for(UngappedSearchHit hit:hits) {
+			int overlap = estimateOverlap (hit);
+			estimatedOverlaps.add(overlap);
+			sum+=overlap;
+			sum2+=overlap*overlap;
+		}
+		averagePredictedOverlap = (int)Math.round(sum/n);
+		medianPredictedOverlap = estimatedOverlaps.get(estimatedOverlaps.size()/2);
+		double predictedOverlapVariance = (sum2-sum*sum/n)/n-1;
+		predictedOverlapSD = Math.sqrt(predictedOverlapVariance);
+		predictedOverlap = averagePredictedOverlap;
+		fromLimitsPredictedOverlap = 0;
+		if (subjectPredictedStart>0 && subjectPredictedEnd>subjectLength && queryPredictedEnd<queryLength) {
+			//Average with estimation from subject start
+			fromLimitsPredictedOverlap = ((subjectLength-subjectPredictedStart)+queryPredictedEnd)/2;
+			//predictedOverlap = (predictedOverlap+(sequenceLength-subjectPredictedStart)+queryPredictedEnd)/3;
+		} else if (subjectPredictedStart<0 && subjectPredictedEnd<subjectLength && queryPredictedStart>0) {
+			//Average with estimation from subject end
+			fromLimitsPredictedOverlap = (subjectPredictedEnd+(queryLength-queryPredictedStart))/2;
+			//predictedOverlap = (predictedOverlap+subjectPredictedEnd+(query.length()-queryPredictedStart))/3;
+		}
+		//if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Predicting overlap. Avg: "+averagePredictedOverlap+" median: "+medianPredictedOverlap+" from limits: "+fromLimitsPredictedOverlap);
+		//if(fromLimitsPredictedOverlap>0) predictedOverlap=fromLimitsPredictedOverlap;
+		//else predictedOverlap = averagePredictedOverlap;
+		//predictedOverlap = (averagePredictedOverlap+medianPredictedOverlap)/2;
+	}
+
+	private void predictSubjectStart(List<UngappedSearchHit> hits) {
+		double totalSumSubject = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=0;i<n && i < 50;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)(n-i))/n;
+			weightSum += weight;
+			totalSumSubject += weight*estimateSubjectStart(hit);
+		}
+		subjectPredictedStart = (int) Math.round(totalSumSubject / weightSum);
+	}
+	private void predictQueryStart(List<UngappedSearchHit> hits) {
+		double totalSumQuery = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=0;i<n && i < 50;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)(n-i))/n;
+			weightSum += weight;
+			totalSumQuery += weight*estimateQueryStart(hit);
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqStart: "+estimateQueryStart(hit)+" weight: "+weight+" sum: "+totalSumQuery);
+		}
+		queryPredictedStart = (int) Math.round(totalSumQuery / weightSum);
+		//if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. evidenceStart "+queryEvidenceStart+" predicted start: "+queryPredictedStart+" sum: "+totalSumQuery+" weight sum: "+weightSum);
+		//int d = queryPredictedStart-queryEvidenceStart;
+		//if (n>100 && d>=50) System.out.println("WARN: Predicted start "+queryPredictedStart+" for cluster to subject: "+sequenceIdx+" much larger than evidence: "+queryEvidenceStart+" query length: "+query.length());
+	}
+
+	private void predictSubjectEnd(List<UngappedSearchHit> hits) {
+		double totalSumSubject = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=Math.max(0, n-50);i<n;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)i)/n;
+			weightSum += weight;
+			totalSumSubject += weight*estimateSubjectEnd(hit);
+		}
+		subjectPredictedEnd = (int) Math.round(totalSumSubject / weightSum);
+	}
+	private void predictQueryEnd(List<UngappedSearchHit> hits) {
+		double totalSumQuery = 0;
+		double weightSum = 0;
+		int n = hits.size();
+		for(int i=Math.max(0, n-50);i<n;i++) {
+			UngappedSearchHit hit = hits.get(i);
+			double weight = ((double)i)/n;
+			weightSum += weight;
+			totalSumQuery += weight*estimateQueryEnd(hit);
+			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqEnd: "+estimateQueryEnd(hit)+" weight: "+weight+" sum: "+totalSumQuery);
+		}
+		queryPredictedEnd = (int) Math.round(totalSumQuery / weightSum);
+		//if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("KmerHitsCluster. evidenceEnd "+queryEvidenceEnd+" predicted end: "+queryPredictedEnd+" sum: "+totalSumQuery+" weight sum: "+weightSum);
+		//int d = queryEvidenceEnd-queryPredictedEnd;
+		//if (n>100 && d>=50) System.out.println("WARN: Predicted end "+queryPredictedEnd+" for cluster to subject: "+sequenceIdx+" much smaller than evidence: "+queryEvidenceEnd+" query length: "+query.length());
+	}
+	
+	private int estimateOverlap(UngappedSearchHit hit) {
+		int start = estimateSubjectStart(hit);
+		int end = estimateSubjectEnd(hit);
+		int qS = estimateQueryStart(hit);
+		int qE = estimateQueryEnd(hit);
+		int overlap = Math.min(queryLength, subjectLength);
+		overlap = Math.min(overlap, subjectLength-start);
+		overlap = Math.min(overlap, end);
+		overlap = Math.min(overlap, queryLength-qS);
+		overlap = Math.min(overlap, qE);
+		
+		return overlap;
+	}
+
+	public String getSubjectName() {
+		return subjectName;
+	}
+	
+	/**
+	 * @return the sequenceIdx
+	 */
+	public int getSubjectIdx() {
+		return subjectIdx;
+	}
+
+	public int getSubjectPredictedStart() {
+		return subjectPredictedStart;
+	}
+
+	public int getSubjectPredictedEnd() {
+		return subjectPredictedEnd;
+	}
+	public int getSubjectEvidenceStart() {
+		return subjectEvidenceStart;
+	}
+
+	public int getSubjectEvidenceEnd() {
+		return subjectEvidenceEnd;
+	}
+	public void setSubjectPredictedLimits (int predictedStart, int predictedEnd) {
+		if(predictedEnd<=predictedStart) throw new IllegalArgumentException("Predicted end "+predictedEnd+" must be larger than predicted start: "+predictedStart);
+		subjectPredictedStart = predictedStart;
+		subjectPredictedEnd = predictedEnd;
+	}
+	
+	public int getQueryPredictedStart() {
+		return queryPredictedStart;
+	}
+	public int getQueryPredictedEnd() {
+		return queryPredictedEnd;
+	}
+	public int getQueryEvidenceStart() {
+		return queryEvidenceStart;
+	}
+	public int getQueryEvidenceEnd() {
+		return queryEvidenceEnd;
+	}
+	
+	public int getPredictedOverlap() {
+		return predictedOverlap;
+	}
+	
+	public int getAveragePredictedOverlap() {
+		return averagePredictedOverlap;
+	}
+	public int getMedianPredictedOverlap() {
+		return medianPredictedOverlap;
+	}
+	public int getFromLimitsPredictedOverlap() {
+		return fromLimitsPredictedOverlap;
+	}
+	public double getPredictedOverlapSD() {
+		return predictedOverlapSD;
+	}
+	
+	public double getSubjectStartSD() {
+		return subjectStartSD;
+	}
+	public double getWeightedCount() {
+		return weightedCount;
+	}
+	
+	public int getRawKmerHits() {
+		return rawKmerHits;
+	}
+	
+	public void setRawKmerHits(int rawKmerHits) {
+		this.rawKmerHits = rawKmerHits;
+	}
+	public double getRawKmerHitsSubjectStartSD() {
+		return rawKmerHitsSubjectStartSD;
+	}
+	public void setRawKmerHitsSubjectStartSD(double rawKmerHitsSubjectStartSD) {
+		this.rawKmerHitsSubjectStartSD = rawKmerHitsSubjectStartSD;
+	}
+	/**
+	 * 
+	 * @return the kmerNumbers
+	 */
+	public int getNumDifferentKmers() {
+		return hitsMap.size();
+	}
+	
+	/**
+	 * @return the allConsistent
+	 */
+	public boolean isAllConsistent() {
+		return allConsistent;
+	}
+
+	public boolean isFirstKmerPresent() {
+		return firstKmerPresent;
+	}
+	/**
+	 * @return the lastAlnPresent
+	 */
+	public boolean isLastKmerPresent() {
+		return lastKmerPresent;
+	}
+	
+	public List<UngappedSearchHit> getHitsByQueryIdx () {
+		List<UngappedSearchHit> sortedHits = new ArrayList<UngappedSearchHit>();
+		sortedHits.addAll(hitsMap.values());
+		return sortedHits;
+	}
+
+	public UngappedSearchHit getKmerHit(int queryKmerIdx) {
+		return hitsMap.get(queryKmerIdx);
+	}
+	
+	public void disposeHits () {
+		hitsMap.clear();
+	}
+	
+	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes) {
+		
+		Map<Long,List<Integer>> subjectCodesPos = new HashMap<Long, List<Integer>>();
+		for(int i:subjectCodes.keySet()) {
+			long code = subjectCodes.get(i);
+			List<Integer> posList = subjectCodesPos.computeIfAbsent(code, v->new ArrayList<Integer>());
+			posList.add(i);
+		}
+		int lastQueryStart = -1;
+		int lastSubjectStart = -1;
+		UngappedSearchHit lastHit = null;
+		ArrayList<Integer> queryStarts = new ArrayList<Integer>(hitsMap.size());
+		queryStarts.addAll(hitsMap.keySet());
+		for(int queryStart:queryStarts) {
+			UngappedSearchHit hit = hitsMap.get(queryStart);
+			int subjectStart = hit.getStart();
+			int diffQ = queryStart-lastQueryStart;
+			int diffS = subjectStart - lastSubjectStart;
+			int diffC = Math.abs(diffQ-diffS);
+			if(lastHit!=null && diffC<10 && diffQ<100 && diffS>0) {
+				int j=lastSubjectStart+1;
+				for(int i=lastQueryStart+1;i<queryStart;i++) {
+					Long code = queryCodes.get(i);
+					if(code == null) continue;
+					List<Integer> posList = subjectCodesPos.get(code);
+					if(posList==null) continue;
+					Integer selectedPos = null;
+					if(posList.size()<10) {
+						for(int k:posList) {
+							if(k>=j && k<j+10) {
+								selectedPos = k;
+								break;
+							}
+						}
+					} else {
+						for(int k=j;k<j+10;k++) {
+							Long codeS = subjectCodes.get(k);
+							if(codeS!=null && codeS.longValue() == code.longValue()) {
+								selectedPos = k;
+								break;
+							}
+						}
+					}
+					if(selectedPos==null) {
+						j++;
+					} else {
+						CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
+						UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
+						rescuedHit.setQueryIdx(i);
+						double weight = (lastHit.getWeight()+hit.getWeight())/2;
+						rescuedHit.setWeight(weight);
+						addHit(rescuedHit);
+						j = selectedPos+1;
+					}
+				}
+			}
+			lastQueryStart = queryStart;
+			lastSubjectStart = subjectStart;
+			lastHit = hit;
+		}
+	}
+	
+}

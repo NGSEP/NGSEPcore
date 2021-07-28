@@ -10,56 +10,48 @@ import java.util.Map;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
-import ngsep.sequences.PairwiseAligner;
 import ngsep.sequences.SimpleEditDistanceMeasure;
 import ngsep.sequences.UngappedSearchHit;
 
-public class KmerBasedPairwiseAligner implements PairwiseAligner {
+public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 	@Override
 	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
-		if(n1<=5 || n2<=5) {
-			return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
-		}
 		if(n1<n2) {
 			String[] alnRev = calculateAlignment(sequence2, sequence1);
 			if(alnRev == null) return null;
 			String [] answer = {alnRev[1].toString(),alnRev[0].toString()};
 			return answer;
 		}
-		if(0.3*n1>n2) {
-			System.err.println("WARN: Unbalanced lengths for global alignment: "+n1+" "+n2);
-			return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
-		}
-		if(n1<=20) {
-			int distance = (int) (new HammingSequenceDistanceMeasure()).calculateDistance(sequence1.subSequence(0, n2), sequence2);
-			if(distance <= 0.2*n1 ) return (new NaivePairwiseAligner(false)).calculateAlignment(sequence1, sequence2);
-			
-			SimpleEditDistanceMeasure editDistanceAligner = new SimpleEditDistanceMeasure();
-			return editDistanceAligner.calculateAlignment(sequence1, sequence2);
+		if(n2==0) return (new PairwiseAlignerNaive(false)).calculateAlignment(sequence1, sequence2);
+		if(0.3*n1>n2 || n2<20) {
+			//System.err.println("WARN: Unbalanced lengths for global alignment: "+n1+" "+n2);
+			PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
+			aligner.setForceStart1(false);
+			aligner.setForceEnd1(false);
+			return aligner.calculateAlignment(sequence1, sequence2);
 		}
 		int kmerLength = Math.max(5, Math.min(n1, n2)/50);
 		kmerLength = Math.min(31, kmerLength);
 		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodes(sequence1, kmerLength, 0, sequence1.length());
 		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodes(sequence2, kmerLength, 0, sequence2.length());
-		KmerHitsCluster bestCluster = findBestKmersCluster(n1, codesSubject, n2, codesQuery, kmerLength);
+		UngappedSearchHitsCluster bestCluster = findBestKmersCluster(n1, codesSubject, n2, codesQuery, kmerLength);
 		if(bestCluster==null) {
 			System.err.println("WARN: Null cluster for alignment of sequences with lengths: "+n1+" "+n2+" kmer length: "+kmerLength+" kmers: "+codesSubject.size()+" "+codesQuery.size()+" sequences\n"+sequence1+"\n"+sequence2);
 			return null;
 		}
 		List<UngappedSearchHit> kmerHits = bestCluster.getHitsByQueryIdx();
 		int subjectNext = 0;
-		//System.out.println("Subject length: "+subject.length()+". Query length: "+query.length()+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+ " cluster last "+kmerHitsCluster.getSubjectPredictedEnd());
+		//System.out.println("S1 length: "+n1+". S2 length: "+n2+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+" cluster predicted start: "+bestCluster.getSubjectPredictedStart());
 		int queryNext = 0;
 		int alnStart = -1;
 		StringBuilder aln1 = new StringBuilder();
 		StringBuilder aln2 = new StringBuilder();
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
-			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
+			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
 			if(alnStart==-1) {
 				//Inconsistent kmer hit
 				if (kmerHit.getStart()<bestCluster.getSubjectPredictedStart()) continue;
@@ -67,12 +59,7 @@ public class KmerBasedPairwiseAligner implements PairwiseAligner {
 				String seq1Fragment = sequence1.subSequence(0,alnStart).toString();
 				String seq2Fragment = sequence2.subSequence(0,kmerHit.getQueryIdx()).toString();
 				if(seq1Fragment.length()>0 || seq2Fragment.length()>0) {
-					String [] alignedFragments;
-					if(seq1Fragment.length()<=5 || seq2Fragment.length()<=5) {
-						alignedFragments = (new NaivePairwiseAligner(true)).calculateAlignment(seq1Fragment, seq2Fragment);
-					} else {
-						alignedFragments = calculateAlignment(seq1Fragment, seq2Fragment);
-					}
+					String [] alignedFragments = calculateAlignment(seq1Fragment, seq2Fragment);
 					if(alignedFragments==null) return null;
 					aln1.append(alignedFragments[0]);
 					aln2.append(alignedFragments[1]);
@@ -95,7 +82,7 @@ public class KmerBasedPairwiseAligner implements PairwiseAligner {
 					if(subjectNextLength>0 || queryNextLength>0) {
 						String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getStart()).toString();
 						String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
-						//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
+						if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
 						String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
 						if(alignedFragments==null) return null;
 						aln1.append(alignedFragments[0]);
@@ -142,11 +129,12 @@ public class KmerBasedPairwiseAligner implements PairwiseAligner {
 		return answer;
 	}
 	
-	public static KmerHitsCluster findBestKmersCluster (int subjectLength, Map<Integer, Long> codesSubject, int queryLength, Map<Integer, Long> codesQuery, int kmerLength) {
+	public static UngappedSearchHitsCluster findBestKmersCluster (int subjectLength, Map<Integer, Long> codesSubject, int queryLength, Map<Integer, Long> codesQuery, int kmerLength) {
 		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
 		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
 		if(initialKmerHits.size()==0) return null;
-		List<KmerHitsCluster> clusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, subjectLength, initialKmerHits, 0);
+		
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, subjectLength, initialKmerHits, 0);
 		//System.out.println("Number of clusters: "+clusters.size());
 		//printClusters(clusters);
 		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
@@ -175,7 +163,7 @@ public class KmerBasedPairwiseAligner implements PairwiseAligner {
 	}
 	
 	
-	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, KmerHitsCluster kmerHitsCluster) {
+	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, UngappedSearchHitsCluster kmerHitsCluster) {
 		int debugIdxS = -1;
 		int debugIdxQ = -1;
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();

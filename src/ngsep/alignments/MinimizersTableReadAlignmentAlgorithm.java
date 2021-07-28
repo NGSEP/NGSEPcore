@@ -31,11 +31,8 @@ import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
-import ngsep.sequences.KmerHitsCluster;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
-import ngsep.sequences.PairwiseAligner;
-import ngsep.sequences.PairwiseAlignmentAffineGap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.sequences.SimpleEditDistanceMeasure;
@@ -47,7 +44,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 
 	public static final int ALIGNMENT_ALGORITHM_AFFINE_GAP = 1;
 	public static final int ALIGNMENT_ALGORITHM_DYNAMIC_KMERS = 2;
-	public static final int ALIGNMENT_ALGORITHM_EDIT_DISTANCE = 3;
+	public static final int ALIGNMENT_ALGORITHM_SIMPLE_GAP = 3;
 	public static final int ALIGNMENT_ALGORITHM_NAIVE = 4;
 	private Logger log = Logger.getLogger(MinimizersTableReadAlignmentAlgorithm.class.getName());
 	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
@@ -62,34 +59,34 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private boolean onlyPositiveStrand = false;
 	
 	public MinimizersTableReadAlignmentAlgorithm() {
-		alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
-		alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
-		alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
-		((PairwiseAlignmentAffineGap)alignerStart).setForceStart2(false);
-		((PairwiseAlignmentAffineGap)alignerEnd).setForceEnd2(false);
+		alignerCenter = new PairwiseAlignerAffineGap(maxLengthFullPairwiseAlignment+1);
+		alignerStart = new PairwiseAlignerAffineGap(maxLengthEndsPairwiseAlignment);
+		alignerEnd = new PairwiseAlignerAffineGap(maxLengthEndsPairwiseAlignment);
+		((PairwiseAlignerAffineGap)alignerStart).setForceStart2(false);
+		((PairwiseAlignerAffineGap)alignerEnd).setForceEnd2(false);
 	}
 	public MinimizersTableReadAlignmentAlgorithm(int alignmentAlgorithm) {
 		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_AFFINE_GAP) {
-			alignerCenter = new PairwiseAlignmentAffineGap(maxLengthFullPairwiseAlignment+1);
-			alignerStart = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
-			alignerEnd = new PairwiseAlignmentAffineGap(maxLengthEndsPairwiseAlignment);
-			((PairwiseAlignmentAffineGap)alignerStart).setForceStart2(false);
-			((PairwiseAlignmentAffineGap)alignerEnd).setForceEnd2(false);
+			alignerCenter = new PairwiseAlignerAffineGap(maxLengthFullPairwiseAlignment+1);
+			alignerStart = new PairwiseAlignerAffineGap(maxLengthEndsPairwiseAlignment);
+			alignerEnd = new PairwiseAlignerAffineGap(maxLengthEndsPairwiseAlignment);
+			((PairwiseAlignerAffineGap)alignerStart).setForceStart2(false);
+			((PairwiseAlignerAffineGap)alignerEnd).setForceEnd2(false);
 		}
 		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_DYNAMIC_KMERS) {
-			alignerCenter = new KmerBasedPairwiseAligner();
-			alignerStart = new KmerBasedPairwiseAligner();
-			alignerEnd = new KmerBasedPairwiseAligner();
+			alignerCenter = new PairwiseAlignerDynamicKmers();
+			alignerStart = new PairwiseAlignerDynamicKmers();
+			alignerEnd = new PairwiseAlignerDynamicKmers();
 		}
-		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_EDIT_DISTANCE) {
-			alignerCenter = new SimpleEditDistanceMeasure();
-			alignerStart = new SimpleEditDistanceMeasure();
-			alignerEnd = new SimpleEditDistanceMeasure();
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_SIMPLE_GAP) {
+			alignerCenter = new PairwiseAlignerSimpleGap(maxLengthFullPairwiseAlignment+1);
+			alignerStart = new PairwiseAlignerSimpleGap(maxLengthEndsPairwiseAlignment);
+			alignerEnd = new PairwiseAlignerSimpleGap(maxLengthEndsPairwiseAlignment);
 		}
 		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_NAIVE) {
-			alignerCenter = new NaivePairwiseAligner(false);
-			alignerStart = new NaivePairwiseAligner(true);
-			alignerEnd = new NaivePairwiseAligner(false);
+			alignerCenter = new PairwiseAlignerNaive(false);
+			alignerStart = new PairwiseAlignerNaive(true);
+			alignerEnd = new PairwiseAlignerNaive(false);
 		}
 	}
 	public Logger getLog() {
@@ -181,7 +178,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int queryLength = query.length();
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference = minimizersTable.match(-1,query);
-		List<KmerHitsCluster> clusters = new ArrayList<KmerHitsCluster>();
+		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
@@ -189,41 +186,41 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getQueryIdx()>21000 && hit.getQueryIdx()<27000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getStart()-h2.getStart());
 			List<UngappedSearchHit> rawClusterKmers = new ArrayList<UngappedSearchHit>();
-			KmerHitsCluster cluster = null;
+			UngappedSearchHitsCluster cluster = null;
 			for(UngappedSearchHit hit:totalHitsSubject) {
 				if(hit.getWeight()<0.01) {
 					//System.out.println("Hit with low weight. Pos: "+hit.getQueryIdx()+" weight: "+hit.getWeight());
 					continue;
 				}
 				if(cluster==null) {
-					cluster = new KmerHitsCluster(queryLength, sequenceLength, hit);
+					cluster = new UngappedSearchHitsCluster(queryLength, sequenceLength, hit);
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (rawClusterKmers.size()>=0.01*query.length()) {
-						List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
+						List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
 						//System.out.println("Qlen: "+query.length()+" next raw cluster inside "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					}
-					cluster = new KmerHitsCluster(queryLength, sequenceLength, hit);
+					cluster = new UngappedSearchHitsCluster(queryLength, sequenceLength, hit);
 					rawClusterKmers.clear();
 				}
 				rawClusterKmers.add(hit);
 			}
 			if(cluster!=null && rawClusterKmers.size()>=0.01*query.length()) {
-				List<KmerHitsCluster> regionClusters = KmerHitsCluster.clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
+				List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
 				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
 		}
 		
 		double maxCount = 0;
-		for (KmerHitsCluster cluster:clusters) {
+		for (UngappedSearchHitsCluster cluster:clusters) {
 			cluster.summarize();
 			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers());
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
 		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
-			KmerHitsCluster cluster = clusters.get(i);
+			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
 			if(cluster.getWeightedCount()<0.2*maxCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
@@ -239,7 +236,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return answer;
 	}
 	
-	public ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, KmerHitsCluster kmerHitsCluster) { 
+	public ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, UngappedSearchHitsCluster kmerHitsCluster) { 
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		int subjectNext = -1;
 		short numMismatches = 0;
@@ -252,7 +249,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		LinkedList<Integer> alignmentEncoding = new LinkedList<Integer>();
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
-			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart()+" cigar length: "+cigar.length());
+			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
 			int kmerLength = kmerHit.getQuery().length();
 			if(alnStart==-1) {
 				//Inconsistent kmer hit
@@ -264,10 +261,11 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					String queryStr = query.subSequence(0,queryStart).toString();
 					int possibleAlnStart = Math.max(0, kmerHit.getStart()-queryStart-5);
 					String subjectStr = subject.subSequence(possibleAlnStart,kmerHit.getStart()).toString();
-					String [] alignedFragments;
+					//System.out.println("Hit start. Query segment: "+queryStr+" subject segment: "+subjectStr);
+					String [] alignedFragments = null;
 					if(queryStr.length()<=5 || subjectStr.length()<=5) {
-						alignedFragments = (new NaivePairwiseAligner(true)).calculateAlignment(queryStr, subjectStr);
-					} else {
+						alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
+					} else if(queryStr.length()<maxLengthEndsPairwiseAlignment && subjectStr.length()<maxLengthEndsPairwiseAlignment){
 						alignedFragments = alignerStart.calculateAlignment(queryStr, subjectStr);
 					}
 					if(alignedFragments!=null) {
@@ -347,12 +345,12 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 		int remainder = query.length()-queryNext;
 		boolean endAligned = remainder<=0;
-		if(!endAligned) {
+		if(!endAligned && remainder+5 < maxLengthEndsPairwiseAlignment) {
 			int end = Math.min(subjectNext+remainder+5, subject.length());
 			if(subject.length()-subjectNext>=remainder) {
 				String queryStr = query.subSequence(queryNext,query.length()).toString();
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
-				//System.out.println("Aligning end of length "+subjectStr.length()+" of subject subsequence with total length: "+subject.length()+" to end with length "+queryStr.length()+" of query with total length: "+query.length());
+				//System.out.println("Aligning end "+subjectStr+" of subject subsequence with total length: "+subject.length()+" to end "+queryStr+" of query with total length: "+query.length());
 				String [] alignedFragments = alignerEnd.calculateAlignment(queryStr, subjectStr);
 				if(alignedFragments!=null) {
 					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
@@ -379,9 +377,9 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return finalAlignment;
 	}
 
-	public void printClusters(List<KmerHitsCluster> clusters) {
+	public void printClusters(List<UngappedSearchHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
-		for(KmerHitsCluster cluster:clusters) {
+		for(UngappedSearchHitsCluster cluster:clusters) {
 			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
 		}
 		

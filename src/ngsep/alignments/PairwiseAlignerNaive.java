@@ -3,12 +3,11 @@ package ngsep.alignments;
 import java.util.Arrays;
 
 import ngsep.sequences.LimitedSequence;
-import ngsep.sequences.PairwiseAligner;
 
-class NaivePairwiseAligner implements PairwiseAligner {
+class PairwiseAlignerNaive implements PairwiseAligner {
 	private boolean gapsLeft = false;
 	
-	public NaivePairwiseAligner(boolean gapsLeft) {
+	public PairwiseAlignerNaive(boolean gapsLeft) {
 		super();
 		this.gapsLeft = gapsLeft;
 	}
