@@ -13,8 +13,8 @@ import ngsep.math.Distribution;
 import ngsep.sequences.UngappedSearchHit;
 
 public class UngappedSearchHitsClusterBuilder {
-	private int idxSubjectDebug = 4;
-	private int queryLengthDebug = 31887;
+	private int idxSubjectDebug = -1;
+	private int queryLengthDebug = -1;
 	private boolean debug = false;
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
@@ -123,6 +123,7 @@ public class UngappedSearchHitsClusterBuilder {
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				if(subcluster.size()<minHits) continue;
 				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectLength, sequenceHits);
+				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
 				cluster.setRawKmerHitsSubjectStartSD(1);
@@ -217,25 +218,16 @@ public class UngappedSearchHitsClusterBuilder {
 			}
 		}
 		int modeDist = (int) Math.round(dist.getLocalMode(-300, 300));
-		median+=(modeDist/2);
+		if(Math.abs(modeDist)>=100) median+=(modeDist/2);
 		
 		//System.out.println(subjectStarts);
 		if(debug) dist.printDistributionInt(System.out);
-		int maxDistance = 5*queryLength; 
-		if(subjectLength>maxDistance) {
-			// For mapping to a long reference subject
-			maxDistance = (int) Math.max(distAbs.getAverage(), rawKmerHitsSubjectStartSD);
-		} else if (queryLength>2000) {
-			// For graph construction
-			maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()));
-		} else {
-			//Small cases
-			maxDistance = 50;
-		}
+		int maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()+1));
 		maxDistance *=5;
-		if(maxDistance < 300) maxDistance=300;
+		maxDistance=Math.min(queryLength/20,maxDistance);
+		maxDistance=Math.max(queryLength/40,maxDistance);
+		maxDistance=Math.max(10,maxDistance);
 		//if(maxDistance<0.01*query.length()) maxDistance*=2;
-		else maxDistance=Math.min(queryLength/20,maxDistance);
 		if(debug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" average: "+(sum/n)+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" abs distance avg: "+distAbs.getAverage()+" stdev "+Math.sqrt(distAbs.getVariance())+" max distance: "+maxDistance);
 		
 		List<UngappedSearchHit> selectedHits = selectHitsByDistanceWithMedian(hitsMultiMap, median, maxDistance);
@@ -244,7 +236,7 @@ public class UngappedSearchHitsClusterBuilder {
 			return selectedHits;
 		}
 		replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
-		List<UngappedSearchHit> filteredHits = removeDisorganized (selectedHits);
+		List<UngappedSearchHit> filteredHits = removeDisorganized (selectedHits, median);
 		if(filteredHits.size()<1) {
 			System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" "+subjectName+" selected hits: "+selectedHits.size()+" query length: "+queryLength);
 			
@@ -361,24 +353,29 @@ public class UngappedSearchHitsClusterBuilder {
 		return copy.get(copy.size()/2);
 	}
 
-	private List<UngappedSearchHit> removeDisorganized(List<UngappedSearchHit> selectedHits) {
+	private List<UngappedSearchHit> removeDisorganized(List<UngappedSearchHit> selectedHits, int median) {
 		int n = selectedHits.size();
-		if(n<=30) return selectSorted(selectedHits, 0, n-1);
+		//if(n<=30) return selectSorted(selectedHits, 0, n-1, median);
 		boolean [] vicinityConsistent = new boolean [n];
 		Arrays.fill(vicinityConsistent, false);
-		for(int i=15;i<n-15;i++) {
+		for(int i=10;i<n-10;i++) {
 			UngappedSearchHit hit = selectedHits.get(i);
 			int start = hit.getStart();
 			boolean consistent = true;
-			for(int j=i-1;j>=i-15 && consistent;j--) {
+			for(int j=i-1;j>=i-10 && consistent;j--) {
 				UngappedSearchHit hit2 = selectedHits.get(j);
 				if(hit2.getStart()>=start) consistent = false; 
 			}
-			for(int j=i+1;j<=i+15 && consistent;j++) {
+			for(int j=i+1;j<=i+10 && consistent;j++) {
 				UngappedSearchHit hit2 = selectedHits.get(j);
 				if(hit2.getStart()<=start) consistent = false; 
 			}
 			vicinityConsistent[i] = consistent;
+			if(!consistent) {
+				for(int j=i-1;j>=i-10;j--) vicinityConsistent[j] = false;
+				for(int j=i+1;j<=i+10 ;j++) vicinityConsistent[j] = false;
+				i+=10;
+			}
 		}
 		List<UngappedSearchHit> dpSortedHits = new ArrayList<UngappedSearchHit>();
 		double sum = 0;
@@ -388,6 +385,7 @@ public class UngappedSearchHitsClusterBuilder {
 		while(i<n) {
 			UngappedSearchHit hit = selectedHits.get(i);
 			if(vicinityConsistent[i]) {
+				if(debug) System.out.println("Adding consistent hit at "+hit.getQueryIdx());
 				dpSortedHits.add(hit);
 				double s = estimateSubjectStart(hit);
 				sum+=s;
@@ -397,7 +395,7 @@ public class UngappedSearchHitsClusterBuilder {
 			} else {
 				int j;
 				for(j=i+1;j<n && !vicinityConsistent[j];j++);
-				dpSortedHits.addAll(selectSorted(selectedHits,i,j-1));
+				dpSortedHits.addAll(selectSorted(selectedHits,i,j-1,median));
 				i=j;
 			}
 		}
@@ -426,7 +424,7 @@ public class UngappedSearchHitsClusterBuilder {
 			return answer;
 		}
 		Collections.sort(dpSortedHits,(h1,h2)->Math.abs(estimateSubjectStart(h2)-averageStart)-Math.abs(estimateSubjectStart(h1)-averageStart));
-		if(debug) System.out.println("Sorted by distance");
+		//if(debug) System.out.println("Sorted by distance");
 		for (int k=0;k<dpSortedHits.size();k++) {
 			UngappedSearchHit hit = dpSortedHits.get(k);
 			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
@@ -438,7 +436,8 @@ public class UngappedSearchHitsClusterBuilder {
 	}
 
 
-	private List<UngappedSearchHit> selectSorted(List<UngappedSearchHit> selectedHits, int first, int last) {
+	private List<UngappedSearchHit> selectSorted(List<UngappedSearchHit> selectedHits, int first, int last, int median) {
+		if(debug) System.out.println("DP Sorting hits from "+first+" to "+last+" median distance: "+median);
 		//Check sorted first
 		List<UngappedSearchHit> regionHits = new ArrayList<UngappedSearchHit>(last-first+1);
 		int lastStartSubject = -1;
@@ -472,26 +471,47 @@ public class UngappedSearchHitsClusterBuilder {
 				else {
 					UngappedSearchHit hit1 = regionHits.get(i-1);
 					UngappedSearchHit hit2 = regionHitsBySubject.get(j-1);
-					if(hit1==hit2) scores[i][j] = 1 + scores[i-1][j-1];
+					if(hit1==hit2) scores[i][j] = calculateScore(hit1,median) + scores[i-1][j-1];
 					else scores[i][j] = Math.max(scores[i-1][j], scores[i][j-1]);
 				}
 			}
 			 
 		}
-		List<UngappedSearchHit> answer = new LinkedList<UngappedSearchHit>();
+		if(debug) printMatrix(scores);
+		List<UngappedSearchHit> answer = new ArrayList<UngappedSearchHit>();
 		int i= n;
 		int j = n;
 		while(i>0 && j>0) {
 			UngappedSearchHit hit1 = regionHits.get(i-1);
 			UngappedSearchHit hit2 = regionHitsBySubject.get(j-1);
 			if(hit1==hit2) {
-				answer.add(0,hit1);
+				if(debug) System.out.println("Added DP sorted hit at "+hit1.getQueryIdx());
+				answer.add(hit1);
 				i--;
 				j--;
 			} else if (scores[i][j] == scores[i-1][j]) i--;
 			else j--;
 		}
+		Collections.reverse(answer);
 		return answer;
+	}
+	private void printMatrix(int[][] scores) {
+		for(int i=0;i<scores.length;i++) {
+			for(int j=0;j<scores[i].length;j++) {
+				if(j>0) System.out.print("\t");
+				System.out.print(""+scores[i][j]);
+			}
+			System.out.println();
+		}
+		
+	}
+	private int calculateScore(UngappedSearchHit hit, int median) {
+		/*int start = estimateSubjectStart(hit);
+		int distance = Math.abs(start-median);
+		int score = (int) (1000*Math.max(0, 1-((double)distance)/1000.0));
+		if(debug) System.out.println("Score for hit: "+hit.getQueryIdx()+" "+score+" start. "+start+" distance: "+distance);
+		return score;*/
+		return 1;
 	}
 	
 }

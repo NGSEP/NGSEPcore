@@ -750,7 +750,7 @@ public class ReadsAligner {
 			synchronized (longReadsAlignerFactory) {
 				if(longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
 			}
-			MinimizersTableReadAlignmentAlgorithm longReadsAligner = longReadsAlignerFactory.requestLongReadsAligner();
+			MinimizersTableReadAlignmentAlgorithm longReadsAligner = longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 			synchronized (longReadsAligner) {
 				alignments = longReadsAligner.alignRead(read);
 			}
