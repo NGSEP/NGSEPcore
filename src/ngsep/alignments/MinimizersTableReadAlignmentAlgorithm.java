@@ -303,15 +303,23 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					if(subjectNextLength>0 && queryNextLength>0) {
 						String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
 						String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
-						if (subjectIdx == subjectIdxDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
+						if (subjectIdx == subjectIdxDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length()+"\n"+subjectStr+"\n"+queryStr);
 						String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
 						if(alignedFragments==null && (queryNextLength<0.1*subjectNextLength || subjectNextLength<0.1*queryNextLength) ) {
 							//Possible large indel event
 							alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
 						}
-						if(alignedFragments==null) return null;
-						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+						if(alignedFragments==null) {
+							int maxLength = Math.max(subjectNextLength,queryNextLength);
+							if(maxLength>0.2*query.length()) return null;
+							alignmentEncoding.add(ReadAlignment.getAlnValue(Math.min(subjectNextLength, queryNextLength), ReadAlignment.ALIGNMENT_MISMATCH));
+							if(subjectNextLength>queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength-queryNextLength, ReadAlignment.ALIGNMENT_DELETION));
+							else if (subjectNextLength<queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength-subjectNextLength, ReadAlignment.ALIGNMENT_INSERTION));
+							numMismatches+=Math.max(subjectNextLength,queryNextLength);
+						} else {
+							alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+							numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+						}
 					} else if (subjectNextLength>0) {
 						alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength, ReadAlignment.ALIGNMENT_DELETION));
 						numMismatches+=subjectNextLength;
