@@ -305,6 +305,10 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
 						if (subjectIdx == subjectIdxDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
 						String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
+						if(alignedFragments==null && (queryNextLength<0.1*subjectNextLength || subjectNextLength<0.1*queryNextLength) ) {
+							//Possible large indel event
+							alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
+						}
 						if(alignedFragments==null) return null;
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
