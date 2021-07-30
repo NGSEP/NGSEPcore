@@ -16,6 +16,7 @@ import ngsep.sequences.KmersMap;
 import ngsep.sequences.KmersMapAnalyzer;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.ShortKmerCodesTable;
 
 public class GraphBuilderMinimizers implements GraphBuilder {
 
@@ -98,7 +99,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		graph.setPloidy(ploidy);
 		
 		long time1 = System.currentTimeMillis();
-		MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
+		ShortKmerCodesTable table = new ShortKmerCodesTable(kmersAnalyzer, kmerLength, windowLength);
+		//MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
 		table.setLog(log);
 		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		
@@ -195,21 +197,21 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		extractor.countSequenceKmers(seq);
 		if (seqId%1000==0) log.info("Kmers extracted for "+(seqId)+" sequences.");
 	}
-	public void addSequenceToTable(MinimizersTable table, int seqId, CharSequence seq) {
+	//public void addSequenceToTable(MinimizersTable table, int seqId, CharSequence seq) {
+	public void addSequenceToTable(ShortKmerCodesTable table, int seqId, CharSequence seq) {
 		table.addSequence(seqId, seq);
 		if (seqId%1000==0) log.info("Processed "+(seqId)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
-	
-	private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+	//private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);  
 			if(rels==null) {
-				Map<Integer, Long> codesForward = KmersExtractor.extractDNAKmerCodes(seq.toString(), kmerLength, 0, seq.length());
-				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq.length(), codesForward);
+				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-				Map<Integer, Long> codesReverse = KmersExtractor.extractDNAKmerCodes(complement, kmerLength, 0, complement.length());
-				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement.length(), codesReverse);
+				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
+				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
 					rels = selectGoodEmbedded(rels);

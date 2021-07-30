@@ -69,6 +69,14 @@ public class ReferenceGenome {
 		sequences = new QualifiedSequenceList();
 		sequences.add(refQS);
 	}
+	/**
+	 * Creates a reference genome sequence with the given sequence
+	 * @param sequences that will make the reference genome
+	 */
+	public ReferenceGenome(QualifiedSequenceList sequences) {
+		this.sequences = new QualifiedSequenceList(sequences);
+		this.sequences.setAllowChanges(false);
+	}
 	
 	/**
 	 * @return String the path of the file from which this genome was loaded

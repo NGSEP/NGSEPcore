@@ -22,15 +22,23 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.ReferenceGenome;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.RawRead;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 
@@ -46,8 +54,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 	public AlignmentBasedIndelErrorsCorrector() {
 		super();
 		pathsFinder = new LayoutBuilderKruskalPath();
-		pathsFinder.setMinPathLength(1);
-		pathsFinder.setRunImprovementAlgorithms(false);
 		filter = new AssemblySequencesRelationshipFilter();	
 	}
 
@@ -92,22 +98,90 @@ public class AlignmentBasedIndelErrorsCorrector {
 		int [] sequencePaths = new int [n];
 		Arrays.fill(sequencePaths, 0);
 		List<AssemblyPath> paths = copyGraph.getPaths();
+		Map<Integer,AssemblyPath> selectedPathsMap = new HashMap<Integer, AssemblyPath>(paths.size());
+		Map<Integer,QualifiedSequence> selectedPathsConsensus = new HashMap<Integer, QualifiedSequence>(paths.size());
+		Map<Integer,List<ReadAlignment>> selectedPathsAlns = new HashMap<Integer, List<ReadAlignment>>(paths.size());
+		Set<Integer> alignedReadIds = new HashSet<Integer>();
+		
 		for(int i = 0; i < paths.size(); i++)
 		{
 			AssemblyPath path = paths.get(i);
-			path.setPathId(i+1);
-			correctErrors(graph, copyGraph, path, sequencePaths, aligner);
+			int pathId = i+1;
+			path.setPathId(pathId);
+			String sequenceName = ""+pathId;
+			if(path.getPathLength()>10) {
+				aligner.alignPathReads(copyGraph, path);
+				String pathConsensus = aligner.getConsensus().toString();
+				List<ReadAlignment> alignments = aligner.getAlignedReads();
+				for(ReadAlignment aln:alignments) {
+					aln.setSequenceName(sequenceName);
+					alignedReadIds.add(aln.getReadNumber());
+				}
+				selectedPathsMap.put(pathId, path);
+				selectedPathsConsensus.put(pathId, new QualifiedSequence(sequenceName,pathConsensus));
+				selectedPathsAlns.put(pathId, alignments);
+			}
+		}
+		Runtime runtime = Runtime.getRuntime();
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		log.info("Aligned reads within paths: "+alignedReadIds.size()+". Memory: "+usedMemory+" Aligning remaining reads.");
+		QualifiedSequenceList sequences = new QualifiedSequenceList(selectedPathsConsensus.values());
+		MinimizersTableReadAlignmentAlgorithm aligner2 = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		ReferenceGenome genome = new ReferenceGenome(sequences);
+		try {
+			aligner2.loadGenome(genome, 15, 30, numThreads, false);
+		} catch (InterruptedException e) {
+			log.severe("Error building index for assembled genome "+e.getMessage());
+			e.printStackTrace();
+			return;
+		}
+		log.info("Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths");
+		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, 1000);
+		for(int i=0;i<n;i++) {
+			if(alignedReadIds.contains(i)) continue;
+			QualifiedSequence seq = graph.getSequence(i);
+			if(seq==null) continue;
+			alignReadProcess(aligner2, seq, selectedPathsAlns);
+		}
+		try {
+			poolAlign.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Better handling
+			e.printStackTrace();
+			return;
+		}
+		int numAligned = 0;
+		for(List<ReadAlignment> alns:selectedPathsAlns.values()) numAligned+=alns.size();
+		log.info("Aligned remaining reads. Number unaligned: "+(graph.getNumSequences()-numAligned));
+		for(Map.Entry<Integer, AssemblyPath>entry:selectedPathsMap.entrySet())
+		{
+			int pathId = entry.getKey();
+			AssemblyPath path = entry.getValue();
+			log.info("Correcting errors for reads aligned to path: "+pathId);
+			QualifiedSequence consensus = selectedPathsConsensus.get(pathId);
+			correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths);
 		}
 		
 	}
 
-	private void correctErrors(AssemblyGraph graph, AssemblyGraph copyGraph, AssemblyPath path, int[] sequencePaths, AssemblyPathReadsAligner aligner) {
+	private void alignReadProcess(MinimizersTableReadAlignmentAlgorithm aligner, QualifiedSequence seq, Map<Integer,List<ReadAlignment>> selectedPathsAlns) {
+		List<ReadAlignment> alns = aligner.alignRead(new RawRead(seq.getName(), seq.getCharacters(), null));
+		if(alns.size()==0) {
+			System.out.println("Unaligned read "+seq.getName()+" to consensus");
+			//numUnaligned++;
+			return;
+		}
+		ReadAlignment aln = alns.get(0);
+		int pathId = Integer.parseInt(aln.getSequenceName());
+		List<ReadAlignment> pathAlns = selectedPathsAlns.get(pathId);
+		synchronized (pathAlns) {
+			pathAlns.add(aln);
+		}
+	}
+
+	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, String sequenceName, String rawConsensus, int [] sequencePaths) {
 		int debugIdx = -1;
-		String sequenceName = "Consensus_"+path.getPathId();
-		aligner.alignPathReads(copyGraph, path);
-		StringBuilder rawConsensus = aligner.getConsensus();
-		List<ReadAlignment> alignments = aligner.getAlignedReads();
-		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		//TODO: Define better ploidy
 		List<CalledGenomicVariant> calledVars = ConsensusBuilderBidirectionalWithPolishing.callVariants(sequenceName, rawConsensus, alignments, 2);
@@ -192,6 +266,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 				lastRef = indel.getLast();
 			}
 			if(nextPos<rawConsensus.length()) correctedRead.append(alignedRead.substring(nextPos));
+			if(readId == debugIdx || aln.getSoftClipEnd()>1000) System.out.println("Removing "+aln.getSoftClipEnd()+" bp from end of read "+readId+" "+aln.getReadName()); 
+			correctedRead.delete(correctedRead.length()-aln.getSoftClipEnd(),correctedRead.length());
+			if(readId == debugIdx || aln.getSoftClipStart()>1000) System.out.println("Removing "+aln.getSoftClipStart()+" bp from start of read "+readId+" "+aln.getReadName());
+			correctedRead.delete(0, aln.getSoftClipStart());
+			
+			
 			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+aln.getReadCharacters()+" corrected: "+correctedRead);
 			aln.setReadCharacters(null);
 			CharSequence correctedReadS;

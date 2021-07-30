@@ -59,6 +59,9 @@ public class QualifiedSequenceList implements List<QualifiedSequence>, Serializa
 	public QualifiedSequenceList (List<QualifiedSequence> sequences) {
 		addAll(sequences);
 	}
+	public QualifiedSequenceList (Collection<QualifiedSequence> sequences) {
+		addAll(sequences);
+	}
 	
 	public boolean isAllowChanges() {
 		return allowChanges;

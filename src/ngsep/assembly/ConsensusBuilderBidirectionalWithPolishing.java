@@ -145,7 +145,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}		
 	}
 
-	public static List<CalledGenomicVariant> callVariants(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, int normalPloidy) {
+	public static List<CalledGenomicVariant> callVariants(String sequenceName, CharSequence consensus, List<ReadAlignment> alignments, int normalPloidy) {
 		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
 		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
 		System.out.println("Number of active segments "+activeSegments.size());
@@ -158,7 +158,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				if(aln.getLast()>=first) break;
 				firstIdxAln++;
 			}
-			String currentConsensus = consensus.substring(first-1,last);
+			String currentConsensus = consensus.subSequence(first-1,last).toString();
 			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, null);
 			String altConsensus = null;
 			if(normalPloidy>1 && localConsensus!=null) altConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, localConsensus);

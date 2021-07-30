@@ -35,7 +35,6 @@ import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
-import ngsep.sequences.SimpleEditDistanceMeasure;
 
 /**
  * @author Jorge Duitama
@@ -106,20 +105,24 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	}
 
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) throws InterruptedException {
+		loadGenome(genome, kmerLength, windowLength, numThreads,true);
+	}
+	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads, boolean buildKmersTable) throws InterruptedException {
 		this.genome = genome;
 		int n = genome.getNumSequences();
-		//log.info("Calculating kmers distribution");
-		KmersExtractor extractor = new KmersExtractor();
-		extractor.setNumThreads(numThreads);
-		log.info("Extracting kmers from reference sequence");
-		extractor.processQualifiedSequences(genome.getSequencesList());
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		//minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
 		minimizersTable = new MinimizersTable(kmerLength, windowLength);
-		minimizersTable.setKmersMap(extractor.getKmersMap());
-		minimizersTable.setMaxCountPerMinimizer(20);
-		minimizersTable.setKeepSingletons(true);
+		
+		//log.info("Calculating kmers distribution");
+		if(buildKmersTable) {
+			KmersExtractor extractor = new KmersExtractor();
+			extractor.setNumThreads(numThreads);
+			log.info("Extracting kmers from reference sequence");
+			extractor.processQualifiedSequences(genome.getSequencesList());
+			minimizersTable.setKmersMap(extractor.getKmersMap());
+		}
 		minimizersTable.setLog(log);
 		ThreadPoolManager poolMinimizers = new ThreadPoolManager(numThreads, n);
 		poolMinimizers.setSecondsPerTask(60);
@@ -128,7 +131,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			poolMinimizers.queueTask(()->minimizersTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
 		}
 		poolMinimizers.terminatePool();
-		minimizersTable.calculateDistributionHits().printDistribution(System.err);
+		//minimizersTable.calculateDistributionHits().printDistribution(System.err);
 		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}
 	
