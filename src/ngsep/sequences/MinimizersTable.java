@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -318,6 +319,13 @@ public class MinimizersTable {
 		//computeSequenceMinimizers(-1, 0, query.length(), codes);
 		return match(queryIdx, query.length(), codes);
 		//return new HashMap<Integer, List<UngappedSearchHit>>();
+		/*Random r = new Random();
+		Map<Integer, Long> selectedCodes = new HashMap<Integer, Long>();
+		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
+			if(r.nextBoolean()) selectedCodes.put(entry.getKey(), entry.getValue());
+		}
+		return match(queryIdx, query.length(), selectedCodes);
+		*/
 	}
 	/**
 	 * Calculates the hits of the given query

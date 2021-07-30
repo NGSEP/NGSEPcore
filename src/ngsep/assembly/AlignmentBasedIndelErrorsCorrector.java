@@ -142,7 +142,8 @@ public class AlignmentBasedIndelErrorsCorrector {
 			if(alignedReadIds.contains(i)) continue;
 			QualifiedSequence seq = graph.getSequence(i);
 			if(seq==null) continue;
-			alignReadProcess(aligner2, seq, selectedPathsAlns);
+			final int id = i;
+			alignReadProcess(aligner2, id, seq, selectedPathsAlns);
 		}
 		try {
 			poolAlign.terminatePool();
@@ -165,14 +166,14 @@ public class AlignmentBasedIndelErrorsCorrector {
 		
 	}
 
-	private void alignReadProcess(MinimizersTableReadAlignmentAlgorithm aligner, QualifiedSequence seq, Map<Integer,List<ReadAlignment>> selectedPathsAlns) {
+	private void alignReadProcess(MinimizersTableReadAlignmentAlgorithm aligner, int id, QualifiedSequence seq, Map<Integer,List<ReadAlignment>> selectedPathsAlns) {
 		List<ReadAlignment> alns = aligner.alignRead(new RawRead(seq.getName(), seq.getCharacters(), null));
 		if(alns.size()==0) {
 			System.out.println("Unaligned read "+seq.getName()+" to consensus");
-			//numUnaligned++;
 			return;
 		}
 		ReadAlignment aln = alns.get(0);
+		aln.setReadNumber(id);
 		int pathId = Integer.parseInt(aln.getSequenceName());
 		List<ReadAlignment> pathAlns = selectedPathsAlns.get(pathId);
 		synchronized (pathAlns) {
@@ -189,6 +190,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		for(CalledGenomicVariant call:calledVars) {
 			if(!call.isUndecided() && !call.isHomozygousReference()) filteredVars.add(call);
 		}
+		int consensusLength = rawConsensus.length();
 		int indexNextActive = 0;
 		int correctedErrors = 0;
 		int correctedReads = 0;
@@ -265,12 +267,17 @@ public class AlignmentBasedIndelErrorsCorrector {
 				}
 				lastRef = indel.getLast();
 			}
-			if(nextPos<rawConsensus.length()) correctedRead.append(alignedRead.substring(nextPos));
-			if(readId == debugIdx || aln.getSoftClipEnd()>1000) System.out.println("Removing "+aln.getSoftClipEnd()+" bp from end of read "+readId+" "+aln.getReadName()); 
-			correctedRead.delete(correctedRead.length()-aln.getSoftClipEnd(),correctedRead.length());
-			if(readId == debugIdx || aln.getSoftClipStart()>1000) System.out.println("Removing "+aln.getSoftClipStart()+" bp from start of read "+readId+" "+aln.getReadName());
-			correctedRead.delete(0, aln.getSoftClipStart());
-			
+			if(nextPos<consensusLength) correctedRead.append(alignedRead.substring(nextPos));
+			//Removing soft clips within the sequence
+			 
+			/*if(aln.getLast()+aln.getSoftClipEnd()<consensusLength) {
+				if(readId == debugIdx || aln.getSoftClipEnd()>1000) System.out.println("Removing "+aln.getSoftClipEnd()+" bp from end of read "+readId+" "+aln);
+				correctedRead.delete(correctedRead.length()-aln.getSoftClipEnd(),correctedRead.length());
+			}
+			if(aln.getFirst()-aln.getSoftClipStart()>0) {
+				if(readId == debugIdx || aln.getSoftClipStart()>1000) System.out.println("Removing "+aln.getSoftClipStart()+" bp from start of read "+readId+" "+aln);
+				correctedRead.delete(0, aln.getSoftClipStart());
+			}*/
 			
 			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+aln.getReadCharacters()+" corrected: "+correctedRead);
 			aln.setReadCharacters(null);

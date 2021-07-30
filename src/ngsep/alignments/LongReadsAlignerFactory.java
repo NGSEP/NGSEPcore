@@ -105,7 +105,7 @@ public class LongReadsAlignerFactory {
 		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
 		if(genome!=null) {
 			try {
-				longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads);
+				longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads,false);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
