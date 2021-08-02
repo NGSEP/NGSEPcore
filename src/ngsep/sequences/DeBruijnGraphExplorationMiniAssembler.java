@@ -29,7 +29,7 @@ public class DeBruijnGraphExplorationMiniAssembler {
 		});
 		
 		agenda.add(sourceKmer);
-		for (int candidates = 0;agenda.size()>0 && candidates < 5000;candidates++) {
+		while (agenda.size()>0 && agenda.size()<10000) {
 			String nextState = agenda.remove();
 			//if(sourceKmerIdx==2528) System.out.println("Next state: "+nextState+" length: "+nextState.length()+" score: "+getScore(nextState, destKmer)+" agenda size: "+agenda.size());
 			//Satisfability
