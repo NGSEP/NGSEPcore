@@ -268,9 +268,12 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
 -->
+<option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
+Number of rounds of alignment based error correction to perform.
+</option>
 <option id="c" type="BOOLEAN" attribute="correctReads">
-For the Polishing consensus, output a file with reads corrected after alignment to the consensus sequence.
-Ignored for other consensus algorithms
+Output a file with reads corrected after alignment to the consensus sequence.
+Useful to restart from a graph after error correction.
 </option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads

@@ -249,7 +249,7 @@ public class UngappedSearchHitsClusterBuilder {
 		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
 			UngappedSearchHit hit = selectHit(hits, median, maxDistance);
 			if(hit!=null) {
-				//if (debug) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" estS: "+estimateSubjectStart(hit)+" all starts: "+calculateHitStarts(hits));
+				if (debug) System.out.println("Selected hits. Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estq: "+estimateQueryStart(hit)+" estS: "+estimateSubjectStart(hit)+" all starts: "+calculateHitStarts(hits));
 				selectedHits.add(hit);
 			}
 		}
@@ -332,6 +332,7 @@ public class UngappedSearchHitsClusterBuilder {
 				List<UngappedSearchHit> hits = hitsMultiMap.get(nextHit.getQueryIdx());
 				vicinityEstStart = getMedian(localValues);
 				UngappedSearchHit updatedHit = selectHit(hits, vicinityEstStart, 10);
+				if (debug) System.out.println("Trying to replace outlier at qpos "+nextHit.getQueryIdx()+" hit: "+nextHit.getStart()+" ests: "+estStart+" local median: "+vicinityEstStart+" all starts: "+calculateHitStarts(hits));
 				if(updatedHit!=null && updatedHit!=nextHit) {
 					if (debug) System.out.println("Replacing hit. qpos "+updatedHit.getQueryIdx()+" hit: "+updatedHit.getStart()+" estq: "+estimateQueryStart(updatedHit)+" estS: "+estimateSubjectStart(updatedHit));
 					selectedHits.set(i, updatedHit);
@@ -418,7 +419,7 @@ public class UngappedSearchHitsClusterBuilder {
 			for(UngappedSearchHit hit:dpSortedHits) {
 				double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
 				if(distance <= maxDistance) answer.add(hit);
-				else if(debug) System.out.println("Removing outlier: "+hit.getQueryIdx());
+				else if(debug) System.out.println("Removing outlier: "+hit.getQueryIdx()+" subject: "+hit.getStart()+" estimated start: "+estimateSubjectStart(hit));
 			}
 			return answer;
 		}
@@ -428,7 +429,7 @@ public class UngappedSearchHitsClusterBuilder {
 			UngappedSearchHit hit = dpSortedHits.get(k);
 			double distance = Math.abs(estimateSubjectStart(hit)-averageStart);
 			if(distance <= maxDistance || k>=0.02*n2) answer.add(hit);
-			else if(debug) System.out.println("Removing outlier after sorting: "+hit.getQueryIdx());
+			else if(debug) System.out.println("Removing outlier after sorting: "+hit.getQueryIdx()+" subject: "+hit.getStart()+" estimated start: "+estimateSubjectStart(hit));
 		}
 		Collections.sort(answer,(h1,h2)->h1.getQueryIdx()-h2.getQueryIdx());
 		return answer;
@@ -484,7 +485,7 @@ public class UngappedSearchHitsClusterBuilder {
 			UngappedSearchHit hit1 = regionHits.get(i-1);
 			UngappedSearchHit hit2 = regionHitsBySubject.get(j-1);
 			if(hit1==hit2) {
-				if(debug) System.out.println("Added DP sorted hit at "+hit1.getQueryIdx());
+				//if(debug) System.out.println("Added DP sorted hit at "+hit1.getQueryIdx());
 				answer.add(hit1);
 				i--;
 				j--;

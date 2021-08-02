@@ -59,6 +59,7 @@ public class Assembler {
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
+	public static final int DEF_ERROR_CORRCTION_ROUNDS = 1;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
@@ -224,6 +225,16 @@ public class Assembler {
 		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
 	}
 	
+	public int getErrorCorrectionRounds() {
+		return errorCorrectionRounds;
+	}
+	public void setErrorCorrectionRounds(int errorCorrectionRounds) {
+		this.errorCorrectionRounds = errorCorrectionRounds;
+	}
+	public void setErrorCorrectionRounds(String value) {
+		this.setErrorCorrectionRounds((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public boolean isCorrectReads() {
 		return correctReads;
 	}
@@ -285,8 +296,6 @@ public class Assembler {
 		if(graphFile!=null) {
 			sequences = load(inputFile, inputFormat, minReadLength);
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
-			//TODO: allow this option
-			errorCorrectionRounds = 0;
 			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
 		} else {
 			log.info("Calculating kmers distribution");

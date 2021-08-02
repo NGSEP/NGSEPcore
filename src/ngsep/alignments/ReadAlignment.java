@@ -1244,6 +1244,43 @@ public class ReadAlignment implements GenomicRegion {
 		return answer;
 	}
 	
+	public void collapseComplementaryIndels() {
+		if(alignment==null || alignment.length<5) return;
+		List<Integer> answer = new ArrayList<Integer>();
+		int collapsedLength = 0;
+		for (int i=0;i<alignment.length;i++) {
+			int codeID1 = alignment[i];
+			if(i==0 || i>=alignment.length-3) {
+				answer.add(codeID1);
+				continue;
+			}
+			int codeMX = alignment[i+1];
+			int codeID2 = alignment[i+2];
+			byte operatorID1 = getOperator(codeID1);
+			byte operatorID2 = getOperator(codeID2);
+			byte operatorMX = getOperator(codeMX);
+			if(operatorID1!=operatorID2 && (operatorID1==ALIGNMENT_DELETION || operatorID1==ALIGNMENT_INSERTION ) && (operatorID2==ALIGNMENT_DELETION || operatorID2==ALIGNMENT_INSERTION ) && (operatorMX==ALIGNMENT_MATCH|| operatorMX==ALIGNMENT_MISMATCH)) {
+				int lID1 = getOperationLength(codeID1);
+				int lMX = getOperationLength(codeMX);
+				int lID2 = getOperationLength(codeID2);
+				int diff = Math.abs(lID1-lID2);
+				int minLength = Math.min(lID1, lID2);
+				//if(readLength==21841 && lID1>lMX) System.out.println("Potential collapse event. Lengths: "+lID1+" "+lMX+" "+lID2+" operators: "+operatorID1+" "+operatorMX+" "+operatorID2+" diff: "+diff );
+				if(minLength>10 && lID1>1.5*lMX && lID2 > 1.5*lMX && diff<Math.max(5, 0.5*lMX)) {
+					lMX+=minLength;
+					answer.add(getAlnValue(lMX, operatorMX));
+					if(lID1>lID2) answer.add(getAlnValue(diff, operatorID1));
+					else if(lID2>lID1) answer.add(getAlnValue(diff, operatorID2));
+					collapsedLength+=minLength;
+					i+=2;
+				} else answer.add(codeID1);
+			} else answer.add(codeID1);
+		}
+		
+		setAlignment(answer);
+		numMismatches = (short) Math.max(0, numMismatches-collapsedLength);
+	}
+	
 	public int getSoftClipStart() {
 		if(getCigarItemOperator(0) == ALIGNMENT_SKIPFROMREAD) {
 			return getCigarItemLength(0);

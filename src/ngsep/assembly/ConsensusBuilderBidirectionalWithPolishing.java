@@ -174,6 +174,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 			Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
 			if(indelCalls==null) continue;
 			for(GenomicVariant indelCall:indelCalls.values()) {
+				if(indelCall.length()>10) {
+					if(indelCall.length()>100) System.out.println("WARN: Long indel from alignment: "+aln + "coordinates: "+indelCall.getFirst()+"-"+indelCall.getLast()+" Ignoring.");
+					continue;
+				}
 				if(indelCall.getLast()-indelCall.getFirst()>1) rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst(), indelCall.getLast()));
 				else rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst()-1, indelCall.getLast()+1));
 			}
@@ -190,11 +194,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				nextRegion.setLast(Math.max(nextRegion.getLast(), rawRegion.getLast()));
 				countSupport++;
 			} else {
-				if(countSupport>1) mergedRegions.add(nextRegion);
+				if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" support: "+countSupport);
+				if(countSupport>=5) mergedRegions.add(nextRegion);
 				nextRegion = (GenomicRegionImpl)rawRegion;
 				countSupport=1;
 			}
 		}
+		if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" support: "+countSupport);
 		if(countSupport>=5) mergedRegions.add(nextRegion);
 		return mergedRegions;
 	}
