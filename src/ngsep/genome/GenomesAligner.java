@@ -159,6 +159,9 @@ public class GenomesAligner {
 		inferOrthologs();
 		printPartialResults();
 		alignGenomes();
+
+		buildPAMatrix();
+		
 		printAlignmentResults();
 		log.info("Process finished");
 	}
@@ -247,6 +250,77 @@ public class GenomesAligner {
 			
 		}
 	}
+	
+	/**
+	 * Build P/A matrix based on Homology Units
+	 */
+	public void buildPAMatrix()
+	{
+		log.info("Building P/A matrix");
+		int numGenomes = genomes.size();
+		List<List<HomologyUnit>> geneFamilies = new ArrayList<>();
+		geneFamilies.addAll(orthologyUnitClusters);
+		geneFamilies.addAll(getPrivateGeneFamilies());
+		int numGeneFamilies = geneFamilies.size();
+		
+		int[][] paMatrix = new int[numGeneFamilies][numGenomes];
+		for(int i=0; i<numGeneFamilies;i++)
+		{
+			List<HomologyUnit> cluster = geneFamilies.get(i);
+			for(HomologyUnit hom : cluster)
+			{
+				paMatrix[i][hom.getGenomeId()-1] ++;
+			}
+		}
+		
+		printPAMatrix(paMatrix);
+			
+		log.info("Genomes loaded: " + numGenomes);
+		log.info("Gene Families loaded: " + numGeneFamilies);
+		
+		
+
+	}
+	
+	/**
+	 * Get private gene families to build the cloud/unique genome
+	 * @return
+	 */
+	public List<List<HomologyUnit>> getPrivateGeneFamilies()
+	{
+	
+		List<List<HomologyUnit>> privateGeneFamilies = new ArrayList<>();
+	
+		//TODO: set o hash con ids de genes que están en clusters de ortólogos
+		
+		for(AnnotatedReferenceGenome genome : genomes)
+		{
+			List<HomologyUnit> allGenes = genome.getHomologyUnits();
+			
+			for(HomologyUnit hom : allGenes)
+			{
+				if(!existHomologyUnitInOrthologs(hom)) 
+				{
+					List<HomologyUnit> listhom = new ArrayList<>();
+					listhom.add(hom);
+					privateGeneFamilies.add(listhom);
+				}
+			}
+		}
+		
+		return  privateGeneFamilies;
+	}
+	
+	public boolean existHomologyUnitInOrthologs(HomologyUnit hom)
+	{
+		for(int i=0; i<orthologyUnitClusters.size();i++)
+		{
+			List<HomologyUnit> cluster = orthologyUnitClusters.get(i);
+			if (cluster.contains(hom)) return true;
+		}
+		return false;
+	}
+	
 	
 	/**
 	 * Print synteny blocks
@@ -606,6 +680,50 @@ public class GenomesAligner {
 		
 
 	}
+	
+	//TODO: Print P/A matrix
+	private void printPAMatrix(int[][] paMatrix)
+	{
+		//Print ortholog clusters
+		try (PrintStream outPA = new PrintStream(outputPrefix+"_paMatrix.txt");PrintStream outFreq = new PrintStream(outputPrefix+"_gfFreqs.txt")) 
+		{
+			outPA.print("");
+			for(AnnotatedReferenceGenome genome : genomes)
+			{
+				outPA.print("\t"+genome.getId());
+			}
+			outFreq.print("GeneFamily\tFrequency\tExactGroup\tSoftGroup\n");
+			for(int i=0;i<paMatrix.length;i++)
+			{
+				double countFreq = 0;
+				outPA.println();
+				outPA.print("gf-"+i);
+				outFreq.print("gf-"+i);
+				int totGenomes = paMatrix[i].length;
+				for(int j=0;j<totGenomes;j++)
+				{
+					outPA.print("\t"+paMatrix[i][j]);
+					if(paMatrix[i][j]>0) countFreq ++;
+				}
+				double freq = countFreq/totGenomes;
+				outFreq.print("\t" + freq);
+				
+				//TODO: crear otra estructura para esto. Constantes de categs
+				String exact = (freq == 1) ? "exact_core": "exact_accesory";
+				outFreq.print("\t" + exact);
+				String soft = (freq >= 0.9) ? "soft_core": "soft_accesory";
+				outFreq.print("\t" + soft);
+				
+				outFreq.println();
+				
+			}
+		}
+		
+		catch (Exception e) {
+			// TODO: handle exception
+		}
+	}
+	
 	private void printGenomeMetadata(int id, QualifiedSequenceList sequencesMetadata, String jsFilename) throws IOException {
 		String outFilename = outputPrefix+"_genome"+id+".tsv";
 		try (PrintStream out = new PrintStream(outFilename);
