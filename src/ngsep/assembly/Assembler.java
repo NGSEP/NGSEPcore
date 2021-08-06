@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
@@ -59,7 +60,7 @@ public class Assembler {
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
-	public static final int DEF_ERROR_CORRCTION_ROUNDS = 1;
+	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
@@ -86,7 +87,7 @@ public class Assembler {
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
 	private boolean correctReads = false;
 	private int ploidy = DEF_PLOIDY;
-	private int errorCorrectionRounds = 1;
+	private int errorCorrectionRounds = DEF_ERROR_CORRCTION_ROUNDS;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private int numThreads = DEF_NUM_THREADS;
@@ -554,6 +555,7 @@ public class Assembler {
 	 */
 	private List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
+		handler.setSequenceType(DNASequence.class);
 		List<QualifiedSequence> seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
 		for(QualifiedSequence seq:seqsQL) {
@@ -572,7 +574,7 @@ public class Assembler {
 	private List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setSequenceType(DNAMaskedSequence.class);
+			reader.setSequenceType(DNASequence.class);
 			//TODO: Option to load quality scores
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			Iterator<RawRead> it = reader.iterator();

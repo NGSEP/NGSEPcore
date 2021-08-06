@@ -75,6 +75,7 @@ public class KmersExtractor {
 	private boolean ignoreLowComplexity = false;
 	private int numThreads = DEF_NUM_THREADS;
 	private int minReadLength = 0;
+	private boolean readNCharacters = false;
 	
 	// Model attributes
 	private KmersMap kmersMap = null;
@@ -278,7 +279,9 @@ public class KmersExtractor {
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 100);
     	long totalLength = 0;
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setSequenceType(DNAMaskedSequence.class);
+			if(freeText) reader.setSequenceType(StringBuilder.class);
+			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
+			else reader.setSequenceType(DNASequence.class);
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
@@ -303,6 +306,9 @@ public class KmersExtractor {
 		initialize();
 		ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
+			if(freeText) reader.setSequenceType(StringBuilder.class);
+			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
+			else reader.setSequenceType(DNASequence.class);
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
@@ -325,6 +331,9 @@ public class KmersExtractor {
     	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
+    		if(freeText) reader.setSequenceType(StringBuilder.class);
+			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
+			else reader.setSequenceType(DNASequence.class);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				QualifiedSequence seq = it.next();
@@ -512,7 +521,7 @@ public class KmersExtractor {
 			if(lastCode==-1) {
 				CharSequence kmer = source.subSequence(i, i+kmerLength);
 				if (!DNASequence.isDNA(kmer)) continue;
-				code = AbstractLimitedSequence.getHash(kmer, 0, kmerLength, EMPTYDNASEQ);
+				code = DNASequence.getDNAHash(kmer, 0, kmerLength);
 			} else {
 				char lastCharNextKmer = source.charAt(i+kmerLength-1);
 				if(!DNASequence.isInAlphabeth(lastCharNextKmer)) {
@@ -521,7 +530,7 @@ public class KmersExtractor {
 					i+=kmerLength-1;
 					continue;
 				}
-				code = AbstractLimitedSequence.getNextHash(lastCode,kmerLength,lastCharNextKmer,EMPTYDNASEQ);
+				code = DNASequence.getNextDNAHash(lastCode,kmerLength,lastCharNextKmer);
 			}
 			kmerCodesMap.put(i, code);
 			lastCode = code;
