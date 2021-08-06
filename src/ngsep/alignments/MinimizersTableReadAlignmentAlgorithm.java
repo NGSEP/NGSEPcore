@@ -243,6 +243,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		int subjectIdxDebug = -1;
 		int queryLengthDebug = -1;
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
+		String queryS = query.toString();
 		int queryLength= query.length();
 		
 		int subjectNext = -1;
@@ -265,7 +266,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				queryStart = kmerHit.getQueryIdx();
 				boolean startAligned = queryStart<=0;
 				if(!startAligned && queryStart<kmerHit.getStart()) {
-					String queryStr = query.subSequence(0,queryStart).toString();
+					String queryStr = queryS.substring(0,queryStart);
 					int possibleAlnStart = Math.max(0, kmerHit.getStart()-queryStart-5);
 					String subjectStr = subject.subSequence(possibleAlnStart,kmerHit.getStart()).toString();
 					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Hit start. Query segment: "+queryStr+" subject segment: "+subjectStr);
@@ -297,7 +298,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				if(subjectNextLength==queryNextLength && subjectNextLength<100) {
 					nextMatchLength+=subjectNextLength;
-					if(subjectNextLength>0) numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), query.subSequence(queryNext, kmerHit.getQueryIdx()));
+					if(subjectNextLength>0) numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), queryS.substring(queryNext, kmerHit.getQueryIdx()));
 				} else {
 					if(nextMatchLength>0 && (subjectNextLength>0 || queryNextLength>0)) {
 						if (subjectIdx == subjectIdxDebug  && queryLength==queryLengthDebug) System.out.println("Found internal segment for possible alignment. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength+" current match length: "+nextMatchLength);
@@ -306,7 +307,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 					}
 					if(subjectNextLength>0 && queryNextLength>0) {
 						String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
-						String queryStr = query.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
+						String queryStr = queryS.substring(queryNext,kmerHit.getQueryIdx()).toString();
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length()+"\n"+subjectStr+"\n"+queryStr);
 						String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
 						if(alignedFragments==null && (queryNextLength<0.1*subjectNextLength || subjectNextLength<0.1*queryNextLength) ) {
@@ -367,7 +368,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		if(!endAligned && remainder+5 < maxLengthEndsPairwiseAlignment) {
 			int end = Math.min(subjectNext+remainder+5, subject.length());
 			if(subject.length()-subjectNext>=remainder) {
-				String queryStr = query.subSequence(queryNext,query.length()).toString();
+				String queryStr = queryS.substring(queryNext,query.length()).toString();
 				String subjectStr = subject.subSequence(subjectNext,end).toString();
 				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning end "+subjectStr+" of subject subsequence with total length: "+subject.length()+" to end "+queryStr+" of query with total length: "+query.length());
 				String [] alignedFragments = alignerEnd.calculateAlignment(queryStr, subjectStr);

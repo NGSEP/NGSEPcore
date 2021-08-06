@@ -142,9 +142,11 @@ public class AlignmentBasedIndelErrorsCorrector {
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		log.info("Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths. Memory: "+usedMemory);
+		int numRemaininigReads = 0;
 		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, 1000);
 		for(int i=0;i<n;i++) {
 			if(alignedReadIds.contains(i)) continue;
+			numRemaininigReads++;
 			QualifiedSequence seq = graph.getSequence(i);
 			if(seq==null) continue;
 			final int id = i;
@@ -160,7 +162,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 		long startCorrection = System.currentTimeMillis();
 		int numAligned = 0;
 		for(List<ReadAlignment> alns:selectedPathsAlns.values()) numAligned+=alns.size();
-		log.info("Aligned remaining reads. Number unaligned: "+(graph.getNumSequences()-numAligned));
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		log.info("Aligned "+numRemaininigReads+" remaining reads. Final number unaligned: "+(graph.getNumSequences()-numAligned));
 		for(Map.Entry<Integer, AssemblyPath>entry:selectedPathsMap.entrySet())
 		{
 			int pathId = entry.getKey();
@@ -290,7 +294,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 				correctedRead.delete(0, aln.getSoftClipStart());
 			}*/
 			
-			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+aln.getReadCharacters()+" corrected: "+correctedRead);
+			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+alignedRead+" corrected: "+correctedRead);
 			aln.setReadCharacters(null);
 			CharSequence correctedReadS;
 			if(aln.isNegativeStrand()) {
@@ -304,6 +308,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 			correctedReads++;
 			
 		}
-		log.info("IndelErrorsCorrector. Path: "+path.getPathId()+" Corrected reads: "+correctedReads+" correctedErrors: "+correctedErrors);
+		Runtime runtime = Runtime.getRuntime();
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		log.info("IndelErrorsCorrector. Path: "+path.getPathId()+" Corrected reads: "+correctedReads+" correctedErrors: "+correctedErrors+" Memory: "+usedMemory);
 	}
 }
