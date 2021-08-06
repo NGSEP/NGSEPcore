@@ -264,6 +264,7 @@ public class DNASequence extends AbstractLimitedSequence{
 		long code = DNASequence.getDNAHash(randomSequence, 0, 15);
 		for(int i=15;i<randomSequence.length();i++) {
 			code = DNASequence.getNextDNAHash(code, 15, randomSequence.charAt(i));
+			if(code!= (code & 0x3FFFFFFF)) System.out.println("Code "+code+" larger than 2E30");
 			char [] seq2 = DNASequence.getDNASequence(code, 15);
 			String k1 = new String (seq2);
 			String k2 = randomSequence.substring(i-14, i+1);

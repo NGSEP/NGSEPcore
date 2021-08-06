@@ -27,7 +27,7 @@ public class ShortKmerCodesTable {
 	
 	//Structures to implement the minimizers like codes hash table
 	//Map with code as key and row of the sequencesByCodeTable as value
-	private Map<Integer,Integer> matrixRowMap;
+	private Map<Long,Integer> matrixRowMap;
 	//Table with encoded entries. Each row corresponds to a single code
 	private long [][] sequencesByCodeTable;
 	//Actual lengths of the lists within the table
@@ -63,7 +63,7 @@ public class ShortKmerCodesTable {
 		initializeTable(capacity);
 	}
 	public void initializeTable(int capacity) {
-		matrixRowMap = new HashMap<Integer, Integer>(capacity);
+		matrixRowMap = new HashMap<Long, Integer>(capacity);
 		sequencesByCodeTable = new long [capacity][1];
 		for(int i=0;i<sequencesByCodeTable.length;i++) Arrays.fill(sequencesByCodeTable[i], 0);
 		sequencesByCodeTableColumnLengths = new short [capacity];
@@ -73,7 +73,7 @@ public class ShortKmerCodesTable {
 	}
 	
 	//Hash table management methods
-	private long[] lookupHits(int code) {
+	private long[] lookupHits(long code) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) return EMPTY_LONG_ARRAY;
 		return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
@@ -87,8 +87,8 @@ public class ShortKmerCodesTable {
 	 * @param code number to query
 	 * @return int times that the given code has been observed
 	 */
-	public int getTotalHits(int minimizer) {
-		Integer row = matrixRowMap.get(minimizer);
+	public int getTotalHits(long code) {
+		Integer row = matrixRowMap.get(code);
 		if(row==null) return 0;
 		return sequencesByCodeTableColumnLengths[row];
 	}
@@ -98,13 +98,13 @@ public class ShortKmerCodesTable {
 	 * @param minimizer number to query
 	 * @return int number of different sequences where the minimizer has been observed
 	 */
-	public int getCountDifferentSequences(int minimizer) {
-		Integer row = matrixRowMap.get(minimizer);
+	public int getCountDifferentSequences(long code) {
+		Integer row = matrixRowMap.get(code);
 		if(row==null) return 0;
 		return codeCountDifferentSequences[row];
 	}
 	
-	private void addCodeSequence (int code, List<MinimizersTableEntry> entries) {
+	private void addCodeSequence (long code, List<KmerCodesTableEntry> entries) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) {
 			row = size();
@@ -117,7 +117,7 @@ public class ShortKmerCodesTable {
 		}
 		int currentCount = sequencesByCodeTableColumnLengths[row];
 		if (currentCount+entries.size()<Short.MAX_VALUE) {
-			for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
+			for (KmerCodesTableEntry entry:entries) addToTable(row, entry.encode());
 			totalEntries+=entries.size();
 			codeCountDifferentSequences[row]++;
 		}
@@ -169,18 +169,18 @@ public class ShortKmerCodesTable {
 		int n = sequence.length();
 		String sequenceStr = sequence.toString();
 		int step = 500000;
-		Map<Integer, List<MinimizersTableEntry>> codesSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
+		Map<Long, List<KmerCodesTableEntry>> codesSeq = new HashMap<Long, List<KmerCodesTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
-			List<MinimizersTableEntry> codeEntriesList = computeSequenceCodes(sequenceId, sequenceStr, start, Math.min(n, start+step));
-			for(MinimizersTableEntry entry:codeEntriesList) {
-				List<MinimizersTableEntry> codesList = codesSeq.computeIfAbsent(entry.getMinimizer(), l->new ArrayList<MinimizersTableEntry>());
+			List<KmerCodesTableEntry> codeEntriesList = computeSequenceCodes(sequenceId, sequenceStr, start, Math.min(n, start+step));
+			for(KmerCodesTableEntry entry:codeEntriesList) {
+				List<KmerCodesTableEntry> codesList = codesSeq.computeIfAbsent(entry.getKmerCode(), l->new ArrayList<KmerCodesTableEntry>());
 				codesList.add(entry);
 			}
 		}
 		//log.info("Sequence "+sequenceId+" number of minimizers: "+minimizersSeq.size());
 		
 		synchronized (sequenceLengths) {
-			for(Map.Entry<Integer, List<MinimizersTableEntry>> codesEntry:codesSeq.entrySet()) {
+			for(Map.Entry<Long, List<KmerCodesTableEntry>> codesEntry:codesSeq.entrySet()) {
 				if (codesEntry.getValue().size()== 0) continue;
 				addCodeSequence (codesEntry.getKey(), codesEntry.getValue());
 			}
@@ -194,7 +194,7 @@ public class ShortKmerCodesTable {
 	 * @param sequence characters of the sequence to calculate
 	 * @return List<MinimizersTableEntry> Codes selected for the given sequence.
 	 */
-	public List<MinimizersTableEntry> computeSequenceCodes(int sequenceId, String sequence,int start,int end) {
+	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, String sequence,int start,int end) {
 		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
 		//log.info("Extracted codes for sequence "+sequenceId+" from "+start+" to "+end+" Nuber of codes: "+codes.size());
@@ -208,9 +208,9 @@ public class ShortKmerCodesTable {
 	 * @param kmerCodes Input codes to be selected
 	 * @return List<MinimizersTableEntry> selected codes
 	 */
-	private List<MinimizersTableEntry> computeSequenceCodes(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
+	private List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
 		int debugIdx = -2;
-		List<MinimizersTableEntry> answer = new ArrayList<MinimizersTableEntry>();
+		List<KmerCodesTableEntry> answer = new ArrayList<KmerCodesTableEntry>();
 		Map<Integer, Integer> hashcodes = new HashMap<Integer, Integer>();
 		for(Map.Entry<Integer, Long> entry: kmerCodes.entrySet()) {
 			int i = entry.getKey();
@@ -246,7 +246,7 @@ public class ShortKmerCodesTable {
 			if (minimizerI==previousMinimizer) continue;
 			if(minimizerI != null) {
 				long originalCode = kmerCodes.get(minPos);
-				MinimizersTableEntry entry = new MinimizersTableEntry((int)originalCode, sequenceId, minPos);
+				KmerCodesTableEntry entry = new KmerCodesTableEntry(originalCode, sequenceId, minPos);
 				answer.add(entry);
 			}
 			previousMinimizer = minimizerI;
@@ -265,7 +265,9 @@ public class ShortKmerCodesTable {
 		}
 		int count;
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
-			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash);
+			//Select the 15-mer suffix
+			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash & 0x3FFFFFFF);
+			//count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash);
 			//count = 20;
 		} else {
 			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
@@ -293,6 +295,13 @@ public class ShortKmerCodesTable {
 		//computeSequenceMinimizers(-1, 0, query.length(), codes);
 		return match(queryIdx, query.length(), codes);
 		//return new HashMap<Integer, List<UngappedSearchHit>>();
+		/*Random r = new Random();
+		Map<Integer, Long> selectedCodes = new HashMap<Integer, Long>();
+		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
+			if(r.nextDouble()<1) selectedCodes.put(entry.getKey(), entry.getValue());
+		}
+		return match(queryIdx, query.length(), selectedCodes);
+		*/
 	}
 	/**
 	 * Calculates the hits of the given query
@@ -317,28 +326,27 @@ public class ShortKmerCodesTable {
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
 			int startQuery = entry.getKey();
 			long kmerCode = entry.getValue();
-			int intCode = (int)kmerCode;
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
-			int countSeqs = getCountDifferentSequences(intCode);
+			int countSeqs = getCountDifferentSequences(kmerCode);
 			//if (queryIdx == idxDebug && count>1) System.out.println("Minimizers table. For minimizer: "+minimizer+" query entries: "+count+" count sequences: "+countSeqs+" mode "+mode);
 			if (countSeqs>limitSequences) {
 				multihitCodes++;
 				continue;
 			}
 			
-			long [] codesMatching = lookupHits(intCode);
+			long [] codesMatching = lookupHits(kmerCode);
 			if(codesMatching.length>0) numUsedCodes++;
-			CharSequence kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
+			CharSequence kmer = new String(DNASequence.getDNASequence(kmerCode, kmerLength));
 			for(long entryCode:codesMatching) {
-				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(intCode, entryCode);
+				KmerCodesTableEntry matchingEntry = new KmerCodesTableEntry(kmerCode, entryCode);
 				int subjectIdx = matchingEntry.getSequenceId();
 				if (subjectIdx < 0) {
-					System.err.println("Invalid subject "+subjectIdx+" query code: "+intCode+" matching code: "+entryCode+" start: "+matchingEntry.getStart());
+					System.err.println("Invalid subject "+subjectIdx+" query code: "+kmerCode+" matching code: "+entryCode+" start: "+matchingEntry.getStart());
 					continue;
 				}
 				UngappedSearchHit hit = new UngappedSearchHit(kmer, subjectIdx, matchingEntry.getStart());
 				hit.setQueryIdx(startQuery);
-				hit.setWeight(calculateWeight(intCode));
+				hit.setWeight(calculateWeight(kmerCode));
 				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
 				targetHits.add(hit);
 				if(subjectIdx==queryIdx) selfSequenceCount++;
@@ -349,7 +357,7 @@ public class ShortKmerCodesTable {
 		
 	}
 
-	private double calculateWeight(int code) {
+	private double calculateWeight(long code) {
 		//if(kmersMap==null) return 1;
 		int countDifferent = getCountDifferentSequences(code);
 		/*int totalCount = getTotalHits(minimizer);

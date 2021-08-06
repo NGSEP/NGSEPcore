@@ -116,7 +116,7 @@ public class MinimizersTable {
 		return minimizerCountDifferentSequences[row];
 	}
 	
-	private void addMinimizerSequence (int minimizer, List<MinimizersTableEntry> entries) {
+	private void addMinimizerSequence (int minimizer, List<KmerCodesTableEntry> entries) {
 		Integer row = matrixRowMap.get(minimizer);
 		if(row==null) {
 			row = size();
@@ -129,7 +129,7 @@ public class MinimizersTable {
 		}
 		int currentCount = sequencesByMinimizerTableColumnLengths[row];
 		if (currentCount+entries.size()<Short.MAX_VALUE) {
-			for (MinimizersTableEntry entry:entries) addToTable(row, entry.encode());
+			for (KmerCodesTableEntry entry:entries) addToTable(row, entry.encode());
 			totalEntries+=entries.size();
 			minimizerCountDifferentSequences[row]++;
 		}
@@ -181,18 +181,18 @@ public class MinimizersTable {
 		int n = sequence.length();
 		String sequenceStr = sequence.toString();
 		int step = 500000;
-		Map<Integer, List<MinimizersTableEntry>> minimizersSeq = new HashMap<Integer, List<MinimizersTableEntry>>();
+		Map<Integer, List<KmerCodesTableEntry>> minimizersSeq = new HashMap<Integer, List<KmerCodesTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
-			List<MinimizersTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequenceStr, start, Math.min(n, start+step));
-			for(MinimizersTableEntry entry:minEntriesList) {
-				List<MinimizersTableEntry> minList = minimizersSeq.computeIfAbsent(entry.getMinimizer(), l->new ArrayList<MinimizersTableEntry>());
+			List<KmerCodesTableEntry> minEntriesList = computeSequenceMinimizers(sequenceId, sequenceStr, start, Math.min(n, start+step));
+			for(KmerCodesTableEntry entry:minEntriesList) {
+				List<KmerCodesTableEntry> minList = minimizersSeq.computeIfAbsent((int)entry.getKmerCode(), l->new ArrayList<KmerCodesTableEntry>());
 				minList.add(entry);
 			}
 		}
 		//log.info("Sequence "+sequenceId+" number of minimizers: "+minimizersSeq.size());
 		
 		synchronized (sequenceLengths) {
-			for(Map.Entry<Integer, List<MinimizersTableEntry>> minEntry:minimizersSeq.entrySet()) {
+			for(Map.Entry<Integer, List<KmerCodesTableEntry>> minEntry:minimizersSeq.entrySet()) {
 				if (minEntry.getValue().size()== 0) continue;
 				addMinimizerSequence (minEntry.getKey(), minEntry.getValue());
 			}
@@ -206,7 +206,7 @@ public class MinimizersTable {
 	 * @param sequence characters of the sequence to calculate
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
-	public List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, String sequence,int start,int end) {
+	public List<KmerCodesTableEntry> computeSequenceMinimizers(int sequenceId, String sequence,int start,int end) {
 		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
 		//log.info("Extracted codes for sequence "+sequenceId+" from "+start+" to "+end+" Nuber of codes: "+codes.size());
@@ -220,9 +220,9 @@ public class MinimizersTable {
 	 * @param sequenceKmers Kmers considered to build minimizers
 	 * @return Map<Integer, List<MinimizersTableEntry>> Minimizers calculated for the given sequence indexed by the minimizer
 	 */
-	private List<MinimizersTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
+	private List<KmerCodesTableEntry> computeSequenceMinimizers(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
 		int debugIdx = -2;
-		List<MinimizersTableEntry> minimizersSeq = new ArrayList<MinimizersTableEntry>();
+		List<KmerCodesTableEntry> minimizersSeq = new ArrayList<KmerCodesTableEntry>();
 		Map<Integer, Integer> hashcodesForward = new HashMap<Integer, Integer>();
 		for(Map.Entry<Integer, Long> entry: kmerCodes.entrySet()) {
 			int i = entry.getKey();
@@ -257,7 +257,7 @@ public class MinimizersTable {
 			}
 			if (minimizerI==previousMinimizer) continue;
 			if(minimizerI != null) {
-				MinimizersTableEntry entry = new MinimizersTableEntry(minimizerI, sequenceId, minPos);
+				KmerCodesTableEntry entry = new KmerCodesTableEntry(minimizerI, sequenceId, minPos);
 				minimizersSeq.add(entry);
 			}
 			previousMinimizer = minimizerI;
@@ -322,7 +322,7 @@ public class MinimizersTable {
 		/*Random r = new Random();
 		Map<Integer, Long> selectedCodes = new HashMap<Integer, Long>();
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
-			if(r.nextBoolean()) selectedCodes.put(entry.getKey(), entry.getValue());
+			if(r.nextDouble()<0.2) selectedCodes.put(entry.getKey(), entry.getValue());
 		}
 		return match(queryIdx, query.length(), selectedCodes);
 		*/
@@ -337,11 +337,11 @@ public class MinimizersTable {
 		//int idxDebug = 1;
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
-		List<MinimizersTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
+		List<KmerCodesTableEntry> minimizersQueryList = computeSequenceMinimizers(-1, 0, queryLength, codes);
 		
 		Map<Integer,Integer> minimizersLocalCounts = new HashMap<Integer, Integer>();
-		for(MinimizersTableEntry entry:minimizersQueryList) {
-			minimizersLocalCounts.compute(entry.getMinimizer(), (k,v)->(v==null?1:v+1));
+		for(KmerCodesTableEntry entry:minimizersQueryList) {
+			minimizersLocalCounts.compute((int)entry.getKmerCode(), (k,v)->(v==null?1:v+1));
 		}
 		if (queryIdx == idxDebug) {
 			Set<Long> uniqueCodes = new HashSet<Long>();
@@ -354,8 +354,8 @@ public class MinimizersTable {
 		int selfSequenceCount = 0;
 		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<Integer, List<UngappedSearchHit>>();
 		//Set<Integer> usedMinimizers = new HashSet<Integer>();
-		for(MinimizersTableEntry entry:minimizersQueryList) {
-			int minimizer = entry.getMinimizer();
+		for(KmerCodesTableEntry entry:minimizersQueryList) {
+			int minimizer = (int)entry.getKmerCode();
 			//if(usedMinimizers.contains(minimizer)) continue;
 			//usedMinimizers.add(minimizer);
 			int count = minimizersLocalCounts.getOrDefault(minimizer, 0);
@@ -375,7 +375,7 @@ public class MinimizersTable {
 			long [] codesMatching = lookupHits(minimizer);
 			if(codesMatching.length>0) numUsedMinimizers++;
 			for(long entryCode:codesMatching) {
-				MinimizersTableEntry matchingEntry = new MinimizersTableEntry(minimizer, entryCode);
+				KmerCodesTableEntry matchingEntry = new KmerCodesTableEntry(minimizer, entryCode);
 				int subjectIdx = matchingEntry.getSequenceId();
 				if (subjectIdx < 0) {
 					System.err.println("Invalid subject "+subjectIdx+" minimizer: "+minimizer+" matching code: "+entryCode+" start: "+matchingEntry.getStart());

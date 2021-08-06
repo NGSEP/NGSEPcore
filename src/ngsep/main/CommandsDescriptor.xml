@@ -228,11 +228,9 @@ Prefix of the output files.
 <option id="g" type="FILE" attribute="graphFile">
 File with a saved graph to perform layout and consensus.
 </option>
-<!-- 
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to identify overlaps
 </option>
--->
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta.
 </option>

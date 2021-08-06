@@ -83,9 +83,6 @@ public class KmersExtractor {
 	private List<QualifiedSequence> loadedSequences = null;
 	
 	
-	private static final DNASequence EMPTYDNASEQ = new DNASequence();
-	
-	
 	// Get and set methods
 	public Logger getLog() {
 		return log;

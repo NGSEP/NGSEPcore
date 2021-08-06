@@ -55,7 +55,7 @@ public class Assembler {
 	// Constants for default values
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
+	public static final int DEF_KMER_LENGTH = 15;
 	public static final int DEF_WINDOW_LENGTH = 30;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
@@ -307,7 +307,7 @@ public class Assembler {
 			extractor.setInputFormat(inputFormat);
 			extractor.setMinReadLength(minReadLength);
 			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
-			if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+			//if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 			extractor.processFile(inputFile);
 			
 			sequences = extractor.getLoadedSequences();

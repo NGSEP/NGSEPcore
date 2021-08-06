@@ -7,18 +7,18 @@ import java.util.Map;
 import junit.framework.TestCase;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.MinimizersTable;
-import ngsep.sequences.MinimizersTableEntry;
+import ngsep.sequences.KmerCodesTableEntry;
 
 public class MinimizersTableTest extends TestCase {
 	private String sequence = "CTCAACTAGATCGCACAACGTCGGAATGGTTTCATCCACAGATTGAATTTTTGGTTGCTGTATCAGTCCTTGAATGATGTCCATTCTTGATAGGAGGGTTGTTATAGATATTAATCACTCGAAGTCGTGAACAAGAAATTGTCTTCTCTCCAGTATTCAGTCTCTGTGAT";
 	public void testEncodeDecode () {
 		MinimizersTable table = new MinimizersTable(15, 5);
-		List<MinimizersTableEntry> minimizers = table.computeSequenceMinimizers(0,sequence,0, sequence.length());
+		List<KmerCodesTableEntry> minimizers = table.computeSequenceMinimizers(0,sequence,0, sequence.length());
 		
-		for(MinimizersTableEntry entry:minimizers) {
+		for(KmerCodesTableEntry entry:minimizers) {
 			long code = entry.encode();
-			MinimizersTableEntry copy = new MinimizersTableEntry(entry.getMinimizer(), code);
-			assertEquals(entry.getMinimizer(), copy.getMinimizer());
+			KmerCodesTableEntry copy = new KmerCodesTableEntry(entry.getKmerCode(), code);
+			assertEquals(entry.getKmerCode(), copy.getKmerCode());
 			assertEquals(entry.getSequenceId(), copy.getSequenceId());
 			assertEquals(entry.getStart(), copy.getStart());
 		}
@@ -27,9 +27,9 @@ public class MinimizersTableTest extends TestCase {
 	public void testMassiveEncodeDecode () {
 		for (int i=0;i<100000;i++) {
 			for(int j=0;j<100;j++) {
-				MinimizersTableEntry entry = new MinimizersTableEntry(0,i,j);
+				KmerCodesTableEntry entry = new KmerCodesTableEntry(0,i,j);
 				long code = entry.encode();
-				MinimizersTableEntry copy = new MinimizersTableEntry(0, code);
+				KmerCodesTableEntry copy = new KmerCodesTableEntry(0, code);
 				assertEquals(i, copy.getSequenceId());
 				assertEquals(j, copy.getStart());
 			}
