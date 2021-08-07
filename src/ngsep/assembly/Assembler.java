@@ -20,7 +20,9 @@
 package ngsep.assembly;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
@@ -360,16 +363,38 @@ public class Assembler {
 		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
 		indelCorrector.setNumThreads(numThreads);
 		indelCorrector.setLog(log);
+		List<QualifiedSequence> correctedSequences = null;
 		for(int i=0;i<errorCorrectionRounds;i++) {
 			long startRound = System.currentTimeMillis();
 			log.info("Started round "+(i+1)+" of error correction.");
 			indelCorrector.correctErrors(graph);
 			long timeRound = System.currentTimeMillis()-startRound;
 			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000));
-			graph = buildGraph(graph.getSequences(), map, null);
+			correctedSequences = graph.getSequences();
+			if(map == null) {
+				KmersExtractor extractor = new KmersExtractor();
+				extractor.setLog(log);
+				extractor.setNumThreads(numThreads);
+				extractor.processQualifiedSequences(correctedSequences);
+				map = extractor.getKmersMap();
+			}
+			graph = buildGraph(correctedSequences, map, null);
 		}
-		if(graphFile==null) {
+		if(graphFile==null || correctedSequences!=null) {
 			String outFileGraph = outputPrefix+".graph.gz";
+			if(correctedSequences!=null) {
+				String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
+				try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
+					 PrintStream outReads = new PrintStream(os)) {
+					for(QualifiedSequence seq:correctedSequences) {
+						outReads.println(">"+seq.getName());
+						outReads.println(seq.getCharacters());
+					}
+				}
+				log.info("Saved corrected reads to "+outFileCorrectedReads);
+				outFileGraph = outputPrefix+"_corrected.graph.gz";
+			}
+			
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph to "+outFileGraph);
 		}
@@ -580,7 +605,7 @@ public class Assembler {
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
-				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
+				CharSequence characters = read.getCharacters();
 				if(characters.length()>=minReadLength) sequences.add(new QualifiedSequence(read.getName(), characters));
 			}
 		}

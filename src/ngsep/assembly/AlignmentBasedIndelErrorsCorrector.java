@@ -197,7 +197,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 
 	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, String sequenceName, String rawConsensus, int [] sequencePaths) {
-		int debugIdx = -1;
+		int debugIdx = 0;
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		//TODO: Define better ploidy
 		List<CalledGenomicVariant> calledVars = ConsensusBuilderBidirectionalWithPolishing.callVariants(sequenceName, rawConsensus, alignments, 2);
@@ -205,7 +205,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 		for(CalledGenomicVariant call:calledVars) {
 			if(!call.isUndecided() && !call.isHomozygousReference()) filteredVars.add(call);
 		}
-		int consensusLength = rawConsensus.length();
 		int indexNextActive = 0;
 		int correctedErrors = 0;
 		int correctedReads = 0;
@@ -248,7 +247,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 								String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
 								String correctedAllele = calledVar.getCalledAlleles()[0];
 								if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
-								if(readId==debugIdx || currentSegment.length()>30) System.err.println("WARN: Correcting indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+								if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
 								correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
 								correctedRead.append(correctedAllele);
 								nextPos = readPosEndVar+1;
@@ -282,7 +281,34 @@ public class AlignmentBasedIndelErrorsCorrector {
 				}
 				lastRef = indel.getLast();
 			}
-			if(nextPos<consensusLength) correctedRead.append(alignedRead.substring(nextPos));
+			if(nextPos<aln.getReadLength()) {
+				//Apply homozygous indels not called in this alignment
+				for(int j=indexNextActive;j<filteredVars.size();j++) {
+					CalledGenomicVariant calledVar = filteredVars.get(j);
+					if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. ReadId: "+readId+" Next active var: "+calledVar.getFirst()+" "+calledVar.getLast()+" alleles: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" heterozygous: "+calledVar.isHeterozygous()+" ref limits: "+lastRef+" "+aln.getLast()+" read limits: "+nextPos+" "+aln.getReadLength());
+					if(calledVar.getFirst() > lastRef && calledVar.getLast()<aln.getLast()) {
+						if(calledVar.isHeterozygous()) continue;
+						int diffLength = calledVar.getAlleles()[0].length()-calledVar.getAlleles()[1].length();
+						if(Math.abs(diffLength)>3) continue;
+						int readPosStartVar = aln.getAlignedReadPosition(calledVar.getFirst());
+						int readPosEndVar = aln.getAlignedReadPosition(calledVar.getLast()); 
+						if(readPosStartVar> nextPos && readPosEndVar<aln.getReadLength() && readPosStartVar<readPosEndVar) {
+							String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
+							String correctedAllele = calledVar.getCalledAlleles()[0];
+							if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
+							if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+							correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
+							correctedRead.append(correctedAllele);
+							nextPos = readPosEndVar+1;
+						} else {
+							if(readId==debugIdx) System.out.println("AlignmentBasedErrorCorrection. Discarded called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" read limits: "+nextPos+" "+aln.getReadLength());
+						}
+					} else if (calledVar.getLast()>=aln.getLast()) {
+						break;
+					}
+				}
+				correctedRead.append(alignedRead.substring(nextPos));
+			}
 			//Removing soft clips within the sequence
 			 
 			/*if(aln.getLast()+aln.getSoftClipEnd()<consensusLength) {
@@ -294,7 +320,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 				correctedRead.delete(0, aln.getSoftClipStart());
 			}*/
 			
-			if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+alignedRead+" corrected: "+correctedRead);
+			//if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Correcting read: "+readId+" initial read: "+alignedRead+" corrected: "+correctedRead);
 			aln.setReadCharacters(null);
 			CharSequence correctedReadS;
 			if(aln.isNegativeStrand()) {
