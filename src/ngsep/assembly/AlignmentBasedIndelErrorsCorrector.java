@@ -97,8 +97,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 		filter.filterEdgesAndEmbedded(copyGraph, 0.5);
 		pathsFinder.findPaths(copyGraph);
 		int n =graph.getNumSequences();
-		int [] sequencePaths = new int [n];
-		Arrays.fill(sequencePaths, 0);
 		List<AssemblyPath> paths = copyGraph.getPaths();
 		Map<Integer,AssemblyPath> selectedPathsMap = new HashMap<Integer, AssemblyPath>(paths.size());
 		Map<Integer,QualifiedSequence> selectedPathsConsensus = new HashMap<Integer, QualifiedSequence>(paths.size());
@@ -150,28 +148,53 @@ public class AlignmentBasedIndelErrorsCorrector {
 			QualifiedSequence seq = graph.getSequence(i);
 			if(seq==null) continue;
 			final int id = i;
-			alignReadProcess(aligner2, id, seq, selectedPathsAlns);
+			try {
+				poolAlign.queueTask(()->alignReadProcess(aligner2, id, seq, selectedPathsAlns));
+			} catch (InterruptedException e) {
+				// TODO: Better handling
+				e.printStackTrace();
+			}
 		}
 		try {
 			poolAlign.terminatePool();
 		} catch (InterruptedException e) {
 			// TODO Better handling
 			e.printStackTrace();
-			return;
 		}
-		long startCorrection = System.currentTimeMillis();
+		
 		int numAligned = 0;
-		for(List<ReadAlignment> alns:selectedPathsAlns.values()) numAligned+=alns.size();
+		int [] sequencePaths = new int [n];
+		Arrays.fill(sequencePaths, 0);
+		for(Map.Entry<Integer,List<ReadAlignment>> entry:selectedPathsAlns.entrySet()) {
+			int pathId = entry.getKey();
+			List<ReadAlignment> alns = entry.getValue();
+			numAligned+=alns.size();
+			for(ReadAlignment aln:alns) sequencePaths[aln.getReadNumber()] = pathId;
+		}
+		long endAln2 = System.currentTimeMillis();
+		long timeAln2 = (endAln2-endAln)/1000;
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("Aligned "+numRemaininigReads+" remaining reads. Final number unaligned: "+(graph.getNumSequences()-numAligned));
+		log.info("Aligned "+numRemaininigReads+" remaining reads. Final number unaligned: "+(graph.getNumSequences()-numAligned)+". Time process (s): "+timeAln2+" Memory: "+usedMemory);
+		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 2*numThreads);
+		long startCorrection = System.currentTimeMillis();
 		for(Map.Entry<Integer, AssemblyPath>entry:selectedPathsMap.entrySet())
 		{
 			int pathId = entry.getKey();
 			AssemblyPath path = entry.getValue();
 			log.info("Correcting errors for reads aligned to path: "+pathId);
 			QualifiedSequence consensus = selectedPathsConsensus.get(pathId);
-			correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths);
+			try {
+				poolCorrection.queueTask(()->correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			poolCorrection.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Better handling
+			e.printStackTrace();
 		}
 		long endCorr = System.currentTimeMillis();
 		long timeCorr = (endCorr-startCorrection)/1000; 
@@ -205,14 +228,15 @@ public class AlignmentBasedIndelErrorsCorrector {
 		for(CalledGenomicVariant call:calledVars) {
 			if(!call.isUndecided() && !call.isHomozygousReference()) filteredVars.add(call);
 		}
+		int pathId = path.getPathId();
 		int indexNextActive = 0;
 		int correctedErrors = 0;
 		int correctedReads = 0;
 		
 		for(ReadAlignment aln:alignments) {
 			int readId = aln.getReadNumber();
-			if(sequencePaths[readId]>0) {
-				log.warning("Read "+readId+" "+aln.getReadName()+" already corrected by path: "+sequencePaths[readId]+" current path: "+path.getPathId());
+			if(sequencePaths[readId]!=pathId) {
+				log.warning("Read "+readId+" "+aln.getReadName()+" corrected by path: "+sequencePaths[readId]+" current path: "+pathId);
 				continue;
 			}
 			while (indexNextActive<filteredVars.size()) {
@@ -330,7 +354,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 			}
 			QualifiedSequence qseq = graph.getSequence(readId);
 			qseq.setCharacters(correctedReadS);
-			sequencePaths[readId] = path.getPathId();
 			correctedReads++;
 			
 		}
