@@ -104,11 +104,7 @@ public class LongReadsAlignerFactory {
 		longReadsAligner.setLog(log);
 		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
 		if(genome!=null) {
-			try {
-				longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads,false);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
+			longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads,false);
 		}
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;

@@ -327,6 +327,8 @@ public class ReadsAligner {
 		longReadsAlignerFactory.setMaxAlnsPerRead(maxAlnsPerRead);
 		longReadsAlignerFactory.setWindowLength(windowLength);
 		longReadsAlignerFactory.setNumThreads(numThreads);
+		longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		log.info("Initialized aligner");
 	}
 	private void createFMIndexReadsAligner() {
 		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);

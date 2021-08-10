@@ -104,10 +104,10 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 
-	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) throws InterruptedException {
+	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) {
 		loadGenome(genome, kmerLength, windowLength, numThreads,true);
 	}
-	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads, boolean buildKmersTable) throws InterruptedException {
+	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads, boolean buildKmersTable) {
 		this.genome = genome;
 		int n = genome.getNumSequences();
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
@@ -128,9 +128,19 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		poolMinimizers.setSecondsPerTask(60);
 		for (int i=0;i<n;i++) {
 			final int seqId = i;
-			poolMinimizers.queueTask(()->minimizersTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
+			try {
+				poolMinimizers.queueTask(()->minimizersTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Concurrence error creating minimizers table",e);
+			}
 		}
-		poolMinimizers.terminatePool();
+		try {
+			poolMinimizers.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error creating minimizers table",e);
+		}
 		//minimizersTable.calculateDistributionHits().printDistribution(System.err);
 		log.info("Calculated minimizers. Total: "+minimizersTable.size());
 	}

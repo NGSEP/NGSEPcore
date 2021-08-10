@@ -130,13 +130,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		QualifiedSequenceList sequences = new QualifiedSequenceList(selectedPathsConsensus.values());
 		MinimizersTableReadAlignmentAlgorithm aligner2 = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		ReferenceGenome genome = new ReferenceGenome(sequences);
-		try {
-			aligner2.loadGenome(genome, 15, 30, numThreads, false);
-		} catch (InterruptedException e) {
-			log.severe("Error building index for assembled genome "+e.getMessage());
-			e.printStackTrace();
-			return;
-		}
+		aligner2.loadGenome(genome, 15, 30, numThreads, false);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		log.info("Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths. Memory: "+usedMemory);

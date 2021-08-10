@@ -344,19 +344,29 @@ public class KmersExtractor {
     	}
     	poolKmers.terminatePool();
 	}
-    public void processQualifiedSequences(List<QualifiedSequence> sequences) throws InterruptedException {
+    public void processQualifiedSequences(List<QualifiedSequence> sequences) {
     	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	int i = 0;
     	for(QualifiedSequence qseq:sequences) {
     		if(qseq.getLength()<minReadLength) continue;
     		if(qseq.getLength()>1000000) log.info("Processing sequence "+qseq.getName());
-    		countSequenceKmers (qseq, poolKmers);
+    		try {
+				countSequenceKmers (qseq, poolKmers);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				//throw new RuntimeException("Concurrence error extracting k-mers",e);
+			}
     		if(qseq.getLength()>1000000) log.info("Processed sequence "+qseq.getName()+" total k-mers: "+kmersMap.size());
     		i++;
     		if(i%100==0) log.info("Processed "+i+" sequences");
     	}
-    	poolKmers.terminatePool();
+    	try {
+			poolKmers.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error extracting k-mers",e);
+		}
     }
    
     public void countSequenceKmers(QualifiedSequence qseq, ThreadPoolManager manager) throws InterruptedException {
