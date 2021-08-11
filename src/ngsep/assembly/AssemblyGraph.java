@@ -729,13 +729,13 @@ public class AssemblyGraph {
 		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<seqLength/2) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
-		} else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
+		} /*else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
 			System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
 		} else if (numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && countPassS<=numIncompleteEdgesLeft) || (hostEvidenceEndsLeft.size()>5 && countPassE<=numIncompleteEdgesRight))) {
 			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
-		}
+		} */
 		
 		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
 			System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);

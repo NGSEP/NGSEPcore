@@ -120,7 +120,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double maxIKBP = getMaxAverageIKBP(relationship);
 		//double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		//NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
-		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(2);
+		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(1);
 		int maxIndividualCost = 10;
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
