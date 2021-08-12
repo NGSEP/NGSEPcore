@@ -676,8 +676,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==378 || gsVertex.getSequenceIndex()==1902 || gsVertex.getSequenceIndex()==3943;
-		//boolean debug = gsVertex.getSequenceIndex()==87137 || gsVertex.getSequenceIndex()==169482 || gsVertex.getSequenceIndex()==76979; 
+		//boolean debug = gsVertex.getSequenceIndex()==881 || gsVertex.getSequenceIndex()==2723 || gsVertex.getSequenceIndex()==14132;
+		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
@@ -688,16 +688,16 @@ public class AssemblyGraphStatistics {
 			testEdgesMatched.put(edge.getConnectingVertex(testVertex).getUniqueNumber(), false);
 			testEdgesByConnectingVertex.put(edge.getConnectingVertex(testVertex).getUniqueNumber(),edge);
 		}
-		boolean gsEmbedded = goldStandardGraph.isEmbedded(gsVertex.getSequenceIndex());
+		boolean vertexEmbedded = testGraph.isEmbedded(gsVertex.getSequenceIndex());
 		for(AssemblyEdge gsEdge:gsEdges) {
 			AssemblyVertex gsConnectingVertex = gsEdge.getConnectingVertex(gsVertex);
-			boolean edgeEmbedded = gsEmbedded || goldStandardGraph.isEmbedded(gsConnectingVertex.getSequenceIndex());
+			boolean edgeEmbeddedInTest = vertexEmbedded || testGraph.isEmbedded(gsConnectingVertex.getSequenceIndex());
 			int number = gsConnectingVertex.getUniqueNumber();
 			AssemblyEdge matchedTestEdge = testEdgesByConnectingVertex.get(number);
 			boolean match = testEdgesMatched.containsKey(number);
 			if(match) {
 				//True positive
-				if(edgeEmbedded) tpEdgesEmbedded++;
+				if(edgeEmbeddedInTest) tpEdgesEmbedded++;
 				else {
 					tpEdgesNotEmbedded++;
 					if(!gsEdge.isSameSequenceEdge()) updateOverlapStats(gsEdge, matchedTestEdge);
@@ -706,7 +706,7 @@ public class AssemblyGraphStatistics {
 			}
 			else {
 				//False negative
-				if(edgeEmbedded) fnEdgesEmbedded++;
+				if(edgeEmbeddedInTest) fnEdgesEmbedded++;
 				else {
 					fnEdgesNotEmbedded++;
 					//out.println("False negative edge between vertex: "+logVertex(gsVertex)+" and "+logVertex(gsConnectingVertex)+" overlap: "+gsEdge.getOverlap());
@@ -740,7 +740,7 @@ public class AssemblyGraphStatistics {
 					}
 				} else {
 					distOverlapsFNPathEdges.processDatapoint(gsEdge.getOverlap());
-					//log.info("Path edge not found between "+logVertex(gsVertex)+ " and "+logVertex(gsConnectingVertex)+" gsEdge: "+logEdge(gsEdge));
+					//log.info("Path edge not matched. Embedded vertices in test. "+edgeEmbeddedInTest+" edge: "+gsEdge);
 				}
 				totalPathEdges++;
 				if (gsEdge.isSameSequenceEdge()) distLengthsLayoutReads.processDatapoint(goldStandardGraph.getSequenceLength(gsVertex.getSequenceIndex()));

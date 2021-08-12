@@ -38,14 +38,12 @@ import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
-import ngsep.sequences.ReadsFileErrorsCorrector;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
-import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 
 /**
@@ -88,11 +86,11 @@ public class Assembler {
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
-	private boolean correctReads = false;
 	private int ploidy = DEF_PLOIDY;
 	private int errorCorrectionRounds = DEF_ERROR_CORRCTION_ROUNDS;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
+	private boolean saveCorrected = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	
@@ -239,15 +237,16 @@ public class Assembler {
 		this.setErrorCorrectionRounds((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public boolean isCorrectReads() {
-		return correctReads;
+	public boolean isSaveCorrected() {
+		return saveCorrected;
 	}
-	public void setCorrectReads(boolean correctReads) {
-		this.correctReads = correctReads;
+	public void setSaveCorrected(boolean saveCorrected) {
+		this.saveCorrected = saveCorrected;
 	}
-	public void setCorrectReads(Boolean correctReads) {
-		this.setCorrectReads(correctReads.booleanValue());
+	public void setSaveCorrected(Boolean saveCorrected) {
+		this.setSaveCorrected(saveCorrected.booleanValue());
 	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -382,7 +381,7 @@ public class Assembler {
 		}
 		if(graphFile==null || correctedSequences!=null) {
 			String outFileGraph = outputPrefix+".graph.gz";
-			if(correctedSequences!=null) {
+			if(correctedSequences!=null && saveCorrected) {
 				String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
 				try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
 					 PrintStream outReads = new PrintStream(os)) {
@@ -394,9 +393,10 @@ public class Assembler {
 				log.info("Saved corrected reads to "+outFileCorrectedReads);
 				outFileGraph = outputPrefix+"_corrected.graph.gz";
 			}
-			
-			AssemblyGraphFileHandler.save(graph, outFileGraph);
-			log.info("Saved graph to "+outFileGraph);
+			if(correctedSequences==null || saveCorrected) {
+				AssemblyGraphFileHandler.save(graph, outFileGraph);
+				log.info("Saved graph to "+outFileGraph);
+			}
 		}
 		
 		LayoutBuilder pathsFinder;
@@ -517,19 +517,6 @@ public class Assembler {
 		return graph;
 	}
 
-	private void correctReads(List<QualifiedSequence> sequences, KmersMap map) throws InterruptedException {
-		ReadsFileErrorsCorrector corrector = new ReadsFileErrorsCorrector();
-		corrector.setKmersMap(map);
-		corrector.setLog(log);
-		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 100);
-		int i=0;
-		for(QualifiedSequence seq:sequences) {
-			poolCorrection.queueTask(()->corrector.processRead(seq));
-			i++;
-			if(i%1000==0) log.info("Corrected "+i+" reads"); 
-		}
-		poolCorrection.terminatePool();
-	}
 	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
 		double [] compressionFactors = new double[sequences.size()];
 		for(int i=0;i<sequences.size();i++) {
@@ -561,14 +548,15 @@ public class Assembler {
 	 * 
 	 * @param Filename the file path
 	 * @return The sequences
-	 * @throws IOException The file cannot opened
+	 * @throws IOException The file cannot be opened
 	 */
 	private List<QualifiedSequence> load(String filename, byte inputFormat, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences;
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
-		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		//Not needed anymore because in this case the reads are related to a graph
+		//Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
 	}
 
