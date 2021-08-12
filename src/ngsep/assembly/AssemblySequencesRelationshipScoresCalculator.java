@@ -32,22 +32,7 @@ import ngsep.math.LogMath;
  */
 public class AssemblySequencesRelationshipScoresCalculator {
 	private int debugIdx = -1;
-	private Map<Integer,Double> averageIKBPVertices;
-	private Map<Integer,Double> averageIKBPEmbedded;
 	private double weightsSecondaryFeatures = 0.5;
-	
-	public Map<Integer, Double> getAverageIKBPVertices() {
-		return averageIKBPVertices;
-	}
-	public void setAverageIKBPVertices(Map<Integer, Double> averageIKBPVertices) {
-		this.averageIKBPVertices = averageIKBPVertices;
-	}
-	public Map<Integer, Double> getAverageIKBPEmbedded() {
-		return averageIKBPEmbedded;
-	}
-	public void setAverageIKBPEmbedded(Map<Integer, Double> averageIKBPEmbedded) {
-		this.averageIKBPEmbedded = averageIKBPEmbedded;
-	}
 	
 	public double getWeightsSecondaryFeatures() {
 		return weightsSecondaryFeatures;
@@ -58,6 +43,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	public int calculateScore(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		//NormalDistribution overlapD = edgesDists[0];
 		double evProp = relationship.getEvidenceProportion();
+		NormalDistribution indelsKbpD = edgesDists[5];
 		//double overlapRel = (double)relationship.getOverlap()/overlapD.getMean();
 		//if(overlapRel>1) overlapRel = 1;
 		//double maxIKBP = getMaxAverageIKBP (relationship);
@@ -73,42 +59,10 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
 		if(weightsSecondaryFeatures>0) {
 			score*=Math.sqrt(evProp);
-			score/=Math.sqrt(Math.max(1, relationship.getIndelsPerKbp()));
+			if(indelsKbpD.getVariance()<1) score/=Math.sqrt(Math.max(1, relationship.getIndelsPerKbp()));
 		}
-		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp)/Math.sqrt(1+relationship.getIndelsPerKbp());
-		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers()*evProp;
-		//if(logRelationship(relationship)) System.out.println("Relationship: "+relationship+" Evidence proportion: "+evProp+" score: "+score);
-		//double score = relationship.getOverlap()*evProp+relationship.getWeightedCoverageSharedKmers()*Math.sqrt(overlapProportion);
-		//double score = (relationship.getOverlap()+relationship.getWeightedCoverageSharedKmers())*evProp*evProp;
-		
-		/*NormalDistribution globalIKBP = edgesDists[5];
-		double globalMean = globalIKBP.getMean();
-		double avg = Math.max(globalMean, maxIKBP);
-		//Average is not controlled in the chimera detection for embedded relationships
-		//if(relationship instanceof AssemblyEmbedded) avg = Math.min(globalMean*2, avg);
-		NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,globalIKBP.getVariance()));
-		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
-		if(pValueIKBP>0.0001) pValueIKBP = 0.5;
-		//pValueIKBP*=2;
-		score*=pValueIKBP;*/
 		
 		return (int)Math.round(score);
-	}
-	private double getMaxAverageIKBP(AssemblySequencesRelationship relationship) {
-		Double avgIKBP1;
-		Double avgIKBP2;
-		if(relationship instanceof AssemblyEmbedded) {
-			AssemblyEmbedded embedded = (AssemblyEmbedded)relationship;
-			avgIKBP1 = averageIKBPEmbedded.get(embedded.getHostId());
-			avgIKBP2 = averageIKBPEmbedded.get(embedded.getSequenceId());
-		} else {
-			AssemblyEdge edge = (AssemblyEdge) relationship;
-			avgIKBP1 = averageIKBPVertices.get(edge.getVertex1().getUniqueNumber());
-			avgIKBP2 = averageIKBPVertices.get(edge.getVertex2().getUniqueNumber());
-		}
-		if(avgIKBP1==null) avgIKBP1=1.0;
-		if(avgIKBP2==null) avgIKBP2=1.0;
-		return Math.max(avgIKBP1, avgIKBP2);
 	}
 	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		NormalDistribution overlapD = edgesDists[0];
@@ -120,7 +74,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double maxIKBP = getMaxAverageIKBP(relationship);
 		//double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		//NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
-		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(2);
+		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(indelsKbpD.getMean()+Math.sqrt(indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];

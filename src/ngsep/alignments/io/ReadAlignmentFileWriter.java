@@ -106,8 +106,8 @@ public class ReadAlignmentFileWriter implements Closeable {
 		//System.out.println("Saved record ");	
 	}
 	public void close() {
-		writer.close();
-		out.close();
+		if(writer!=null) writer.close();
+		if(out!=null) out.close();
 	}
 	public void setSampleInfo(String sampleId, ReadAlignment.Platform platform) {
 		this.sampleId = sampleId;

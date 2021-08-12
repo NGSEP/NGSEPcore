@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
@@ -320,6 +321,19 @@ public class ReadsAligner {
 		printStatistics(paired);
 		
 	}
+	
+	//Constructors
+	
+	public ReadsAligner() {
+		
+	}
+	
+	public ReadsAligner(ReferenceGenome genome, Platform platform) {
+		this.genome = genome;
+		this.platform = platform;
+		if (platform.isLongReads()) initializeLongReadsFactory();
+	}
+	
 	private void initializeLongReadsFactory() {
 		longReadsAlignerFactory.setLog(log);
 		longReadsAlignerFactory.setGenome(genome);
@@ -327,7 +341,10 @@ public class ReadsAligner {
 		longReadsAlignerFactory.setMaxAlnsPerRead(maxAlnsPerRead);
 		longReadsAlignerFactory.setWindowLength(windowLength);
 		longReadsAlignerFactory.setNumThreads(numThreads);
+		longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		log.info("Initialized aligner");
 	}
+	
 	private void createFMIndexReadsAligner() {
 		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
 		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())
@@ -364,15 +381,14 @@ public class ReadsAligner {
 	}
 	
 	/**
-	 * Aligns readsFile with the fMIndexFile
-	 * @param fMIndexFile Binary file with the serialization of an FMIndex
+	 * Aligns readsFile to the reference genome
 	 * @param readsFile Fastq file with the reads to align
-	 * @param out
+	 * @param writer
 	 * @throws IOException
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
-		
+		if(platform.isLongReads() && longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
@@ -747,9 +763,7 @@ public class ReadsAligner {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
 			//System.out.println("Long reads. Aligning: "+read.getName());
-			synchronized (longReadsAlignerFactory) {
-				if(longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
-			}
+			
 			MinimizersTableReadAlignmentAlgorithm longReadsAligner = longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 			synchronized (longReadsAligner) {
 				alignments = longReadsAligner.alignRead(read);

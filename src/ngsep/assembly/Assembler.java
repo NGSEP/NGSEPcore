@@ -20,7 +20,9 @@
 package ngsep.assembly;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,20 +30,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
-import ngsep.sequences.ReadsFileErrorsCorrector;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
-import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 
 /**
@@ -54,12 +56,12 @@ public class Assembler {
 	// Constants for default values
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = KmersExtractor.DEF_KMER_LENGTH;
+	public static final int DEF_KMER_LENGTH = 15;
 	public static final int DEF_WINDOW_LENGTH = 30;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
-	public static final int DEF_ERROR_CORRCTION_ROUNDS = 1;
+	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
@@ -84,11 +86,11 @@ public class Assembler {
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
-	private boolean correctReads = false;
 	private int ploidy = DEF_PLOIDY;
-	private int errorCorrectionRounds = 1;
+	private int errorCorrectionRounds = DEF_ERROR_CORRCTION_ROUNDS;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
+	private boolean saveCorrected = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	
@@ -235,15 +237,16 @@ public class Assembler {
 		this.setErrorCorrectionRounds((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public boolean isCorrectReads() {
-		return correctReads;
+	public boolean isSaveCorrected() {
+		return saveCorrected;
 	}
-	public void setCorrectReads(boolean correctReads) {
-		this.correctReads = correctReads;
+	public void setSaveCorrected(boolean saveCorrected) {
+		this.saveCorrected = saveCorrected;
 	}
-	public void setCorrectReads(Boolean correctReads) {
-		this.setCorrectReads(correctReads.booleanValue());
+	public void setSaveCorrected(Boolean saveCorrected) {
+		this.setSaveCorrected(saveCorrected.booleanValue());
 	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -306,7 +309,7 @@ public class Assembler {
 			extractor.setInputFormat(inputFormat);
 			extractor.setMinReadLength(minReadLength);
 			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
-			if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
+			//if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 			extractor.processFile(inputFile);
 			
 			sequences = extractor.getLoadedSequences();
@@ -359,18 +362,41 @@ public class Assembler {
 		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
 		indelCorrector.setNumThreads(numThreads);
 		indelCorrector.setLog(log);
+		List<QualifiedSequence> correctedSequences = null;
 		for(int i=0;i<errorCorrectionRounds;i++) {
 			long startRound = System.currentTimeMillis();
 			log.info("Started round "+(i+1)+" of error correction.");
 			indelCorrector.correctErrors(graph);
 			long timeRound = System.currentTimeMillis()-startRound;
 			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000));
-			graph = buildGraph(graph.getSequences(), map, null);
+			correctedSequences = graph.getSequences();
+			if(map == null) {
+				KmersExtractor extractor = new KmersExtractor();
+				extractor.setLog(log);
+				extractor.setNumThreads(numThreads);
+				extractor.processQualifiedSequences(correctedSequences);
+				map = extractor.getKmersMap();
+			}
+			graph = buildGraph(correctedSequences, map, null);
 		}
-		if(graphFile==null) {
+		if(graphFile==null || correctedSequences!=null) {
 			String outFileGraph = outputPrefix+".graph.gz";
-			AssemblyGraphFileHandler.save(graph, outFileGraph);
-			log.info("Saved graph to "+outFileGraph);
+			if(correctedSequences!=null && saveCorrected) {
+				String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
+				try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
+					 PrintStream outReads = new PrintStream(os)) {
+					for(QualifiedSequence seq:correctedSequences) {
+						outReads.println(">"+seq.getName());
+						outReads.println(seq.getCharacters());
+					}
+				}
+				log.info("Saved corrected reads to "+outFileCorrectedReads);
+				outFileGraph = outputPrefix+"_corrected.graph.gz";
+			}
+			if(correctedSequences==null || saveCorrected) {
+				AssemblyGraphFileHandler.save(graph, outFileGraph);
+				log.info("Saved graph to "+outFileGraph);
+			}
 		}
 		
 		LayoutBuilder pathsFinder;
@@ -491,19 +517,6 @@ public class Assembler {
 		return graph;
 	}
 
-	private void correctReads(List<QualifiedSequence> sequences, KmersMap map) throws InterruptedException {
-		ReadsFileErrorsCorrector corrector = new ReadsFileErrorsCorrector();
-		corrector.setKmersMap(map);
-		corrector.setLog(log);
-		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 100);
-		int i=0;
-		for(QualifiedSequence seq:sequences) {
-			poolCorrection.queueTask(()->corrector.processRead(seq));
-			i++;
-			if(i%1000==0) log.info("Corrected "+i+" reads"); 
-		}
-		poolCorrection.terminatePool();
-	}
 	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
 		double [] compressionFactors = new double[sequences.size()];
 		for(int i=0;i<sequences.size();i++) {
@@ -535,14 +548,15 @@ public class Assembler {
 	 * 
 	 * @param Filename the file path
 	 * @return The sequences
-	 * @throws IOException The file cannot opened
+	 * @throws IOException The file cannot be opened
 	 */
 	private List<QualifiedSequence> load(String filename, byte inputFormat, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences;
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
-		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		//Not needed anymore because in this case the reads are related to a graph
+		//Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
 	}
 
@@ -554,6 +568,7 @@ public class Assembler {
 	 */
 	private List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
+		handler.setSequenceType(DNASequence.class);
 		List<QualifiedSequence> seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
 		for(QualifiedSequence seq:seqsQL) {
@@ -572,13 +587,13 @@ public class Assembler {
 	private List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setSequenceType(DNAMaskedSequence.class);
+			reader.setSequenceType(DNASequence.class);
 			//TODO: Option to load quality scores
 			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
-				DNAMaskedSequence characters = (DNAMaskedSequence) read.getCharacters();
+				CharSequence characters = read.getCharacters();
 				if(characters.length()>=minReadLength) sequences.add(new QualifiedSequence(read.getName(), characters));
 			}
 		}

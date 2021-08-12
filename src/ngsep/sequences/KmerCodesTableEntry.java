@@ -1,19 +1,19 @@
 package ngsep.sequences;
 
-public class MinimizersTableEntry {
-	private int minimizer;
+public class KmerCodesTableEntry {
+	private long kmerCode;
 	private int sequenceId;
 	private int start;
 	
 	
-	public MinimizersTableEntry(int minimizer, int sequenceId, int start) {
-		this.minimizer = minimizer;
+	public KmerCodesTableEntry(long kmerCode, int sequenceId, int start) {
+		this.kmerCode = kmerCode;
 		this.sequenceId = sequenceId;
 		this.start = start;
 	}
 
-	public MinimizersTableEntry (int minimizer, long entryCode) {
-		this.minimizer = minimizer;
+	public KmerCodesTableEntry (long kmerCode, long entryCode) {
+		this.kmerCode = kmerCode;
 		start = (int) (entryCode & 0xFFFFFFFF);
 		sequenceId = (int) (entryCode >> 32);
 	}
@@ -29,8 +29,8 @@ public class MinimizersTableEntry {
 		return code;
 	}
 
-	public int getMinimizer() {
-		return minimizer;
+	public long getKmerCode() {
+		return kmerCode;
 	}
 
 	public int getSequenceId() {

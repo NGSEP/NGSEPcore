@@ -240,7 +240,7 @@ public class AssemblyPathReadsAligner {
 		}
 	}
 	public ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
-		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(read, KMER_LENGTH_LOCAL_ALN, 0, read.length());
+		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(read.toString(), KMER_LENGTH_LOCAL_ALN, 0, read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, KMER_LENGTH_LOCAL_ALN);
 		if(bestCluster==null) return null;

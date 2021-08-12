@@ -49,7 +49,7 @@ public class AssemblySequencesRelationshipFilter {
 			int [] bestValues = filterEdges(graph, seqId, medianLength, minScoreProportionEdges);
 			int maxScore = Math.max(bestValues[0], bestValues[1]);
 			if(bestValues[0]==0 || bestValues[1]==0) {
-				if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
+				//if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
 				//graph.removeVertices(seqId);
 				maxScore = 0;
 			}

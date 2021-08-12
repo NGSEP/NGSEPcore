@@ -85,8 +85,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			log.info("Paths after collecting small embedded paths: "+paths.size());
 			paths = mergeClosePaths(graph, paths, distsEdges);
 			log.info("Paths after first round of merging: "+paths.size());
-			//expandPathsWithEmbedded(graph, paths, distsEdges);
-			//paths = mergeClosePaths(graph, paths, distsEdges);
+			expandPathsWithEmbedded(graph, paths, distsEdges);
+			paths = mergeClosePaths(graph, paths, distsEdges);
 		}
 		
 		for(AssemblyPath path:paths) {

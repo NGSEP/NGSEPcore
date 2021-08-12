@@ -277,7 +277,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	 * Return the maximum number of characters encoded in a single number
 	 * @return byte
 	 */
-	private byte getMaxHashSize() {
+	protected byte getMaxHashSize() {
 		if(maxHashSize==0) maxHashSize = (byte)(32/getBitsPerCharacter());
 		return maxHashSize;
 	}
@@ -289,7 +289,9 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	 * @return int Number representing the substring of seq between start (included) and end (not included)
 	 */
 	private int getHash(CharSequence seq, int start, int end) {
-		long number = getHash(seq, start, end, this);
+		long number;
+		if(this instanceof DNASequence) number = DNASequence.getDNAHash(seq, start, end);
+		else number = getHash(seq, start, end, this);
 		return (int)(number+Integer.MIN_VALUE);
 	}
 	/**
@@ -300,6 +302,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	 */
 	private char [] getSequence(int number, int size) {
 		long absoluteNumber = (long)number-(long)Integer.MIN_VALUE;
+		if(this instanceof DNASequence) return DNASequence.getDNASequence(absoluteNumber, size);
 		return getSequence(absoluteNumber, size,this);
 	}
 	

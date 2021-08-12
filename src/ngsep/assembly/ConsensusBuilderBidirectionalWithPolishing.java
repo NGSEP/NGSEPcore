@@ -194,13 +194,13 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 				nextRegion.setLast(Math.max(nextRegion.getLast(), rawRegion.getLast()));
 				countSupport++;
 			} else {
-				if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" support: "+countSupport);
+				if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
 				if(countSupport>=5) mergedRegions.add(nextRegion);
 				nextRegion = (GenomicRegionImpl)rawRegion;
 				countSupport=1;
 			}
 		}
-		if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" support: "+countSupport);
+		if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
 		if(countSupport>=5) mergedRegions.add(nextRegion);
 		return mergedRegions;
 	}

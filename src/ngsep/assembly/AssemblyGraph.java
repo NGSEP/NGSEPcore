@@ -729,13 +729,13 @@ public class AssemblyGraph {
 		if( numCrossing<2  && d1>1000 && d2>1000 && d3>2000 && d4>2000 && d5<seqLength/2) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
-		} else if ((countGoodOverlapS > 5 && countPassS ==0) || (countGoodOverlapE>5 && countPassE ==0)) {
+		} /*else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
 			System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
 		} else if (numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && countPassS<=numIncompleteEdgesLeft) || (hostEvidenceEndsLeft.size()>5 && countPassE<=numIncompleteEdgesRight))) {
 			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" countpassEvProp: "+countPassS+" "+countPassE);
 			return true;
-		}
+		} */
 		
 		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
 			System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
@@ -892,14 +892,14 @@ public class AssemblyGraph {
 				indelsKbpDistributionSafe.processDatapoint(edge.getIndelsPerKbp());
 			}
 		}
-		System.out.println("Dist overlap");
+		/*System.out.println("Dist overlap");
 		overlapDistributionAll.printDistribution(System.out);
 		System.out.println("Dist WCSK");
 		wcskDistributionAll.printDistribution(System.out);
 		System.out.println("Dist WCSK prop");
 		wcskPropOverlapAll.printDistribution(System.out);
 		System.out.println("Dist ev prop");
-		evPropDistributionAll.printDistribution(System.out);
+		evPropDistributionAll.printDistribution(System.out);*/
 		double numSafe = overlapDistributionSafe.getCount();
 		System.out.println("Number of safe edges: "+numSafe);
 		NormalDistribution [] answer = new NormalDistribution[distsAll.length];
@@ -915,7 +915,10 @@ public class AssemblyGraph {
 				mean = distsAll[i].getLocalMode(distsAll[i].getMinValueDistribution(), distsAll[i].getAverage());
 			}
 			if(i==5 ) mean = Math.max(mean, 0.5);
-			double variance = Math.pow(distsAll[i].getEstimatedStandardDeviationPeak(mean),2);
+			double variance;
+			if(i!=5) variance = Math.pow(distsAll[i].getEstimatedStandardDeviationPeak(mean),2);
+			else if (numSafe>20) variance = distsSafe[i].getVariance();
+			else variance = distsAll[i].getVariance();
 			if(numSafe>20) variance = Math.max(variance, distsSafe[i].getVariance());
 			// For overlap, WCSK and IKBP the variance should be at least the mean
 			if((i<2 || i==5) && variance < mean) variance = mean;
@@ -937,35 +940,7 @@ public class AssemblyGraph {
 		System.out.println("Average overlap standard deviation: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));
 		System.out.println("Average indels kbp: "+edgesDists[5].getMean()+" SD: "+Math.sqrt(edgesDists[5].getVariance()));
-		Map<Integer,Double> averageIKBPVertices = new HashMap<Integer, Double>();
-		Map<Integer,Double> averageIKBPEmbedded = new HashMap<Integer, Double>();
-		double limit = Math.max(5,edgesDists[5].getMean()+3*Math.sqrt(edgesDists[5].getVariance()));
-		int n = sequences.size();
-		for(int i=0;i<n;i++) {
-			AssemblyVertex v1 = getVertex(i, true);
-			if(v1==null) continue;
-			List<AssemblyEdge> edges1 = getEdges(v1);
-			double avgV1 = calculateAverageIKBP(i,edges1);
-			AssemblyVertex v2 = getVertex(i, false);
-			List<AssemblyEdge> edges2 = getEdges(v2);
-			double avgV2 = calculateAverageIKBP(i,edges2);
-			List<AssemblyEmbedded> embedded = new ArrayList<AssemblyEmbedded>(getEmbeddedByHostId(i));
-			embedded.addAll(getEmbeddedBySequenceId(i));
-			double avgEmbedded = calculateAverageIKBP(i,embedded);
-			
-			if(avgV1>limit || avgV2>limit) {
-				System.out.println("Large IKBP "+avgV1+" "+avgV2+" "+avgEmbedded+" for sequence: "+i+" "+getSequence(i).getName()+" Global average: "+edgesDists[5].getMean());
-				//removeVertices(i);
-			}
-			averageIKBPVertices.put(v1.getUniqueNumber(), avgV1);
-			averageIKBPVertices.put(v2.getUniqueNumber(), avgV2);
-			averageIKBPEmbedded.put(i, avgEmbedded);
-		}
-		//System.out.println("Distribution indels kbp");
-		//edgesStats[5].printDistribution(System.out);
 		AssemblySequencesRelationshipScoresCalculator calculator = new AssemblySequencesRelationshipScoresCalculator();
-		calculator.setAverageIKBPVertices(averageIKBPVertices);
-		calculator.setAverageIKBPEmbedded(averageIKBPEmbedded);
 		calculator.setWeightsSecondaryFeatures(weightsSecondaryFeatures);
 		List<AssemblyEdge> allEdges = getEdges();
 		for(AssemblyEdge edge: allEdges) {
@@ -979,23 +954,4 @@ public class AssemblyGraph {
 			}
 		}
 	}
-	private double calculateAverageIKBP(int index, List<? extends AssemblySequencesRelationship> relationships) {
-		int debugIdx = -1;
-		if(index==debugIdx) System.out.println("Calculating average IKBPs for "+index+" "+getSequence(index).getName()+" Relationships: "+relationships.size());
-		List<Double> numbers = new ArrayList<Double>();
-		for(AssemblySequencesRelationship rel:relationships) {
-			if(rel instanceof AssemblyEdge && ((AssemblyEdge)rel).isSameSequenceEdge()) continue;
-			numbers.add(rel.getIndelsPerKbp());
-		}
-		if(numbers.size()==0) return 1;
-		Collections.sort(numbers);
-		if(index==debugIdx) System.out.println("Calculating average IKBPs for "+index+" "+getSequence(index).getName()+" Type: "+relationships.get(0).getClass().getName()+"Numbers: "+numbers);
-		double median = numbers.get(numbers.size()/2);
-		double averageF = 0;
-		int n2 = Math.min(numbers.size(), 5);
-		for(int j=0;j<n2;j++) averageF+=numbers.get(j);
-		averageF/=n2;
-		return Math.min(median, averageF);
-	}
-	
 }

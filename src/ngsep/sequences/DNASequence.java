@@ -32,6 +32,7 @@ public class DNASequence extends AbstractLimitedSequence{
 	private static final long serialVersionUID = 1L;
 	public static final String [] BASES_ARRAY = {"A","C","G","T"};
 	public static final String BASES_STRING = "ACGT";
+	private static final int [] ARRAY_BASES_INDEXING = {0,-1,1,-1,-1,-1,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,-1,-1,-1,-1,-1};
 	public static final DNASequence EMPTY_DNA_SEQUENCE = new DNASequence();
 	
 	/**
@@ -54,13 +55,26 @@ public class DNASequence extends AbstractLimitedSequence{
 	protected int getBitsPerCharacter() {
 		return 2;
 	}
+	
+	@Override
+	protected byte getMaxHashSize() {
+		return (byte)16;
+	}
+	private static int getDNAIndex (char base) {
+		int i = base - 65;
+		try {
+			return ARRAY_BASES_INDEXING[i];
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return -1;
+		}
+	}
 	public static boolean isInAlphabeth(char base) {
-		return BASES_STRING.indexOf(base)>=0;
+		return getDNAIndex(base)>=0;
 	}
 	
 	public static boolean isDNA (CharSequence sequence) {
 		for(int i=0;i<sequence.length();i++) {
-			if(!isInAlphabeth(sequence.charAt(i))) return false;
+			if(getDNAIndex(sequence.charAt(i))<0) return false;
 		}
 		return true;
 	}
@@ -89,7 +103,7 @@ public class DNASequence extends AbstractLimitedSequence{
 	 * @return char Complement of the given base
 	 */
 	public static char getComplement(char base) {
-		int index = BASES_STRING.indexOf(base);
+		int index = getDNAIndex(base);
 		if(index>=0) {
 			return BASES_STRING.charAt(BASES_STRING.length()-index-1);
 		}
@@ -105,6 +119,59 @@ public class DNASequence extends AbstractLimitedSequence{
 			return ((DNASequence)sequence).getReverseComplement();
 		}
 		return new DNASequence(sequence).getReverseComplement();
+	}
+	
+	/**
+	 * Returns the number corresponding with a suitable size substring of the given sequence 
+	 * @param seq Sequence to calculate hash
+	 * @param start Zero based start position
+	 * @param end Zero based end position
+	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
+	 */
+	public static long getDNAHash(CharSequence seq, int start, int end) {
+		long number =0;
+		for(int i=start;i<end;i++) {
+			number <<= 2;
+			int index = getDNAIndex(seq.charAt(i));
+			if(index <0) {
+				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by "+DNASequence.class.getName());
+			}
+			number+=index;
+			if(number<0) throw new RuntimeException("Encoding reached a long negative number for sequence: "+seq+" between "+start+" and "+end);
+		}
+		return number;
+	}
+	
+	/**
+	 * Gets the sequence corresponding with the given hash and the given size
+	 * @param number Hash number to decode
+	 * @param size Size of the sequence to return
+	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * @return char[] Decoded String as a char array
+	 */
+	public static char [] getDNASequence(long number, int size) {
+		char [] answer = new char[size];
+		for(int i=0;i<size;i++) {
+			int nextDigit = (int)(number&3);
+			int index = size-i-1;
+			answer[index] = DNASequence.BASES_STRING.charAt(nextDigit);
+			number = number>>2;
+		}
+		return answer;
+	}
+	
+	public static long getNextDNAHash(long hash, int length, char nextCharacter) {
+		int index = getDNAIndex(nextCharacter);
+		if(index <0) {
+			throw new IllegalArgumentException("Character "+nextCharacter+" not supported by sequence of type "+DNASequence.class.getName());
+		}
+		long bitModule = 1L << (2*(length-1));
+		bitModule--;
+		long answer = hash & bitModule;
+		answer <<= 2;
+		answer+=index;
+		return answer;
 	}
 	/**
 	 * Test main for methods of AbstractLimitedSequence
@@ -193,5 +260,17 @@ public class DNASequence extends AbstractLimitedSequence{
 		}
 		time2 = System.currentTimeMillis();
 		System.out.println("Time DNASequence append: "+ (time2 - time1));
+		time1 = time2;
+		long code = DNASequence.getDNAHash(randomSequence, 0, 15);
+		for(int i=15;i<randomSequence.length();i++) {
+			code = DNASequence.getNextDNAHash(code, 15, randomSequence.charAt(i));
+			if(code!= (code & 0x3FFFFFFF)) System.out.println("Code "+code+" larger than 2E30");
+			char [] seq2 = DNASequence.getDNASequence(code, 15);
+			String k1 = new String (seq2);
+			String k2 = randomSequence.substring(i-14, i+1);
+			if(!k1.equals(k2)) System.out.println("Error encoding / decoding next character. Expected: "+k2+" given: "+k1); 
+		}
+		time2 = System.currentTimeMillis();
+		System.out.println("Time kmers encoding and decoding: "+ (time2 - time1));
 	}
 }
