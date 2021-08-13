@@ -269,9 +269,8 @@ Algorithm used to build the consensus. It can be Simple or Polishing.
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
-<option id="c" type="BOOLEAN" attribute="correctReads">
-Output a file with reads corrected after alignment to the consensus sequence.
-Useful to restart from a graph after error correction.
+<option id="sc" type="BOOLEAN" attribute="saveCorrected">
+Save the corrected reads
 </option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads

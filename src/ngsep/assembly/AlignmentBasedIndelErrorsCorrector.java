@@ -27,6 +27,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
@@ -126,7 +129,8 @@ public class AlignmentBasedIndelErrorsCorrector {
 		long timeAln = (endAln-start)/1000; 
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("Aligned reads within paths: "+alignedReadIds.size()+". Time Alignment (s): "+timeAln+" Memory: "+usedMemory+" Aligning remaining reads.");
+		int unaligned = n - alignedReadIds.size();
+		log.info("Aligned reads within paths: "+alignedReadIds.size()+" Unaligned: "+unaligned+". Time Alignment (s): "+timeAln+" Memory: "+usedMemory+" Aligning remaining reads.");
 		QualifiedSequenceList sequences = new QualifiedSequenceList(selectedPathsConsensus.values());
 		MinimizersTableReadAlignmentAlgorithm aligner2 = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		ReferenceGenome genome = new ReferenceGenome(sequences);
@@ -134,11 +138,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		log.info("Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths. Memory: "+usedMemory);
-		int numRemaininigReads = 0;
 		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, 1000);
 		for(int i=0;i<n;i++) {
 			if(alignedReadIds.contains(i)) continue;
-			numRemaininigReads++;
 			QualifiedSequence seq = graph.getSequence(i);
 			if(seq==null) continue;
 			final int id = i;
@@ -156,36 +158,41 @@ public class AlignmentBasedIndelErrorsCorrector {
 			e.printStackTrace();
 		}
 		
-		int numAligned = 0;
+		int totalAlignments = 0;
 		int [] sequencePaths = new int [n];
 		Arrays.fill(sequencePaths, 0);
 		for(Map.Entry<Integer,List<ReadAlignment>> entry:selectedPathsAlns.entrySet()) {
 			int pathId = entry.getKey();
 			List<ReadAlignment> alns = entry.getValue();
-			numAligned+=alns.size();
-			for(ReadAlignment aln:alns) sequencePaths[aln.getReadNumber()] = pathId;
+			totalAlignments+=alns.size();
+			for(ReadAlignment aln:alns) {
+				sequencePaths[aln.getReadNumber()] = pathId;
+				alignedReadIds.add(aln.getReadNumber());
+			}
 		}
 		long endAln2 = System.currentTimeMillis();
 		long timeAln2 = (endAln2-endAln)/1000;
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("Aligned "+numRemaininigReads+" remaining reads. Final number unaligned: "+(graph.getNumSequences()-numAligned)+". Time process (s): "+timeAln2+" Memory: "+usedMemory);
-		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 2*numThreads);
+		log.info("Finished alignment process. Aligned "+alignedReadIds.size()+" reads. Unaligned: "+(n-alignedReadIds.size())+". Total alignments: "+totalAlignments+" Time process (s): "+timeAln2+" Memory: "+usedMemory);
+		//ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 2*numThreads);
+		ThreadPoolExecutor poolCorrection = new ThreadPoolExecutor(numThreads, numThreads, 10000, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		long startCorrection = System.currentTimeMillis();
 		for(Map.Entry<Integer, AssemblyPath>entry:selectedPathsMap.entrySet())
 		{
 			int pathId = entry.getKey();
 			AssemblyPath path = entry.getValue();
-			log.info("Correcting errors for reads aligned to path: "+pathId);
 			QualifiedSequence consensus = selectedPathsConsensus.get(pathId);
-			try {
-				poolCorrection.queueTask(()->correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+			log.info("IndelErrorsCorrector. Scheduling path: "+path.getPathId()+" length: "+path.getPathLength());
+			poolCorrection.execute(()->correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths));
 		}
 		try {
-			poolCorrection.terminatePool();
+			long waitTime = 1000*selectedPathsMap.size();
+			log.info("IndelErrorsCorrector. Terminating pool. Wait time: "+waitTime);
+			poolCorrection.shutdown();
+			poolCorrection.awaitTermination(waitTime, TimeUnit.SECONDS);
+			if(!poolCorrection.isShutdown()) System.err.println("WARN. Pool did not finish");
+			log.info("IndelErrorsCorrector. Terminated pool");
 		} catch (InterruptedException e) {
 			// TODO Better handling
 			e.printStackTrace();
@@ -214,7 +221,8 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 
 	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, String sequenceName, String rawConsensus, int [] sequencePaths) {
-		int debugIdx = 0;
+		int debugIdx = -1;
+		log.info("IndelErrorsCorrector. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength());
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		//TODO: Define better ploidy
 		List<CalledGenomicVariant> calledVars = ConsensusBuilderBidirectionalWithPolishing.callVariants(sequenceName, rawConsensus, alignments, 2);
@@ -265,7 +273,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 								String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
 								String correctedAllele = calledVar.getCalledAlleles()[0];
 								if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
-								if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+								//if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
 								correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
 								correctedRead.append(correctedAllele);
 								nextPos = readPosEndVar+1;
@@ -314,7 +322,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 							String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
 							String correctedAllele = calledVar.getCalledAlleles()[0];
 							if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
-							if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+							//if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
 							correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
 							correctedRead.append(correctedAllele);
 							nextPos = readPosEndVar+1;
