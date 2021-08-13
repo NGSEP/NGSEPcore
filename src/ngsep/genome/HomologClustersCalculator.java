@@ -50,13 +50,13 @@ public class HomologClustersCalculator {
 		this.log = log;
 	}
 
-	public List<List<HomologyUnit>> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
+	public List<HomologyCluster> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
 		List<HomologyCatalog> catalogs = new ArrayList<>();
 		for(AnnotatedReferenceGenome genome : genomes) catalogs.add(genome.getHomologyCatalog()); 
 		return clusterHomologsCatalogs(catalogs, homologyEdges);
 	}
 	
-	public List<List<HomologyUnit>> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges) {
+	public List<HomologyCluster> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges) {
 		log.info("Clustering orthologs and paralogs");
 		
 		//Set sample size for MCL skip for short clusters
@@ -72,7 +72,8 @@ public class HomologClustersCalculator {
 		//Skip mcl, return connected components
 		if(skipMCL) {
 			log.info("Skipped MCL, returning connected components instead.");
-			return partitions;
+			
+			return convertListHUtoHC(partitions);
 		}
 		
 		log.info("Starting processing partitions");
@@ -92,10 +93,27 @@ public class HomologClustersCalculator {
 		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
 		generateStatistics();
 		
-		return clusters;
+		return convertListHUtoHC(clusters);
 	}
 	
-	private void printPartitionsResults(List<List<HomologyUnit>> partitions) {
+	/**
+	 * Convert a list of lists of homology units to a list of homology clusters
+	 * @param clusters
+	 * @return
+	 */
+	private List<HomologyCluster> convertListHUtoHC(List<List<HomologyUnit>> clusters){
+		 List<HomologyCluster> homologyClusters = new ArrayList<>();
+		 int count = 0;
+		 for(List<HomologyUnit> cluster : clusters) {
+			 HomologyCluster newCluster = new HomologyCluster(count, cluster);
+			 count++;
+			 homologyClusters.add(newCluster);
+		 }
+		 return homologyClusters;
+		
+	}
+	
+	private void printPartitionsResults(List<List<HomologyUnit> > partitions) {
 		Distribution partitionSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
 		for(List<HomologyUnit> p : partitions) partitionSizes.processDatapoint(p.size());
 		
@@ -185,7 +203,6 @@ public class HomologClustersCalculator {
 			
 			if (currentPartition.size() > 1) partitions.add(currentPartition);
 		}
-			
 		return partitions;
 	}
 	

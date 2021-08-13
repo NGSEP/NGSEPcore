@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +49,7 @@ import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
 
 /**
  * @author Daniel Tello
+ * @author Laura Gonzalez
  * @author Jorge Duitama
  */
 public class GenomesAligner {
@@ -57,6 +59,7 @@ public class GenomesAligner {
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
+	public static final double DEF_MIN_FREQUENCY_SOFT_CORE = 0.9;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
@@ -67,11 +70,15 @@ public class GenomesAligner {
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
+	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
-	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
+	
+	private List<HomologyCluster> listHomologyCluster = new ArrayList<>();
+	private int[][] paMatrix;
+
 	
 	// Synteny
 	private List<SyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
@@ -138,6 +145,16 @@ public class GenomesAligner {
 	}
 	public void setMaxHomologsUnit(String value) {
 		setMaxHomologsUnit((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public double getMinFrequencySoftCore() {
+		return minFrequencySoftCore;
+	}
+	public void setMinFrequencySoftCore(double minFrequencySoftCore) {
+		this.minFrequencySoftCore = minFrequencySoftCore;
+	}
+	public void setMinFrequencySoftCore(String value) {
+		setMinFrequencySoftCore((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
 	public static void main(String[] args) throws Exception 
@@ -223,7 +240,7 @@ public class GenomesAligner {
 	public void alignGenomes() {		
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologs(genomes, homologyEdges);
+		listHomologyCluster = calculator.clusterHomologs(genomes, homologyEdges);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
 		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
@@ -258,52 +275,65 @@ public class GenomesAligner {
 	{
 		log.info("Building P/A matrix");
 		int numGenomes = genomes.size();
-		List<List<HomologyUnit>> geneFamilies = new ArrayList<>();
-		geneFamilies.addAll(orthologyUnitClusters);
-		geneFamilies.addAll(getPrivateGeneFamilies());
-		int numGeneFamilies = geneFamilies.size();
 		
-		int[][] paMatrix = new int[numGeneFamilies][numGenomes];
+		listHomologyCluster.addAll(getPrivateGeneFamilies());
+		
+		int numGeneFamilies = listHomologyCluster.size();
+		
+		paMatrix = new int[numGeneFamilies][numGenomes];
+		
 		for(int i=0; i<numGeneFamilies;i++)
 		{
-			List<HomologyUnit> cluster = geneFamilies.get(i);
+			List<HomologyUnit> cluster = listHomologyCluster.get(i).getHomologyUnitsCluster();
 			for(HomologyUnit hom : cluster)
 			{
 				paMatrix[i][hom.getGenomeId()-1] ++;
 			}
 		}
-		
-		printPAMatrix(paMatrix);
+		calculateFrequencies(minFrequencySoftCore);
+		printPAMatrix();
 			
 		log.info("Genomes loaded: " + numGenomes);
 		log.info("Gene Families loaded: " + numGeneFamilies);
 		
-		
-
 	}
 	
 	/**
 	 * Get private gene families to build the cloud/unique genome
 	 * @return
 	 */
-	public List<List<HomologyUnit>> getPrivateGeneFamilies()
+	public List<HomologyCluster> getPrivateGeneFamilies()
 	{
+		List<HomologyCluster> privateGeneFamilies = new ArrayList<>();
+		int count = listHomologyCluster.size();
 	
-		List<List<HomologyUnit>> privateGeneFamilies = new ArrayList<>();
-	
-		//TODO: set o hash con ids de genes que están en clusters de ortólogos
+		//Build a set with genes included in orthologs
+		Set<String> genesIncluded = new HashSet<String>();
+		for(int i=0; i<listHomologyCluster.size();i++)
+		{
+			List<HomologyUnit> cluster = listHomologyCluster.get(i).getHomologyUnitsCluster();
+			for(HomologyUnit hom: cluster)
+				genesIncluded.add(hom.getId());
+		}
+		
 		
 		for(AnnotatedReferenceGenome genome : genomes)
 		{
 			List<HomologyUnit> allGenes = genome.getHomologyUnits();
 			
-			for(HomologyUnit hom : allGenes)
+			for(HomologyUnit hom2 : allGenes)
 			{
-				if(!existHomologyUnitInOrthologs(hom)) 
+				if(!genesIncluded.contains(hom2.getId())) 
 				{
-					List<HomologyUnit> listhom = new ArrayList<>();
-					listhom.add(hom);
-					privateGeneFamilies.add(listhom);
+					log.info("Detected private gene family" + hom2.getId());
+					List<HomologyUnit> listahom= new ArrayList<>();
+					listahom.add(hom2);
+					
+					HomologyCluster homclus = new HomologyCluster(count,listahom);
+					privateGeneFamilies.add(homclus);
+					genesIncluded.add(hom2.getId());
+					//log.info("Private size: " + privateGeneFamilies.size() + " Count value: " + count);
+					count ++;
 				}
 			}
 		}
@@ -311,16 +341,31 @@ public class GenomesAligner {
 		return  privateGeneFamilies;
 	}
 	
-	public boolean existHomologyUnitInOrthologs(HomologyUnit hom)
+	/**
+	 * Calculate the frequency of each gene family within the genomes
+	 * Categorize each family according to exact and soft threshold
+	 */
+	public void calculateFrequencies(double freqSoft)
 	{
-		for(int i=0; i<orthologyUnitClusters.size();i++)
+		for(int i=0;i<listHomologyCluster.size();i++)
 		{
-			List<HomologyUnit> cluster = orthologyUnitClusters.get(i);
-			if (cluster.contains(hom)) return true;
+			double countFreq = 0;
+			int totGenomes = paMatrix[i].length;
+			for(int j=0;j<totGenomes;j++)
+			{
+				if(paMatrix[i][j]>0) countFreq ++;
+			}
+			double freq = countFreq/totGenomes;
+			
+			HomologyCluster cluster = listHomologyCluster.get(i);
+			
+			cluster.setFrequency(freq);
+			String exact = (freq == 1) ? HomologyCluster.ECORE: HomologyCluster.EACCESORY;
+			cluster.setExactCategory(exact);
+			String soft = (freq >= freqSoft) ? HomologyCluster.SCORE: HomologyCluster.SACCESORY;
+			cluster.setSoftCategory(soft);
 		}
-		return false;
 	}
-	
 	
 	/**
 	 * Print synteny blocks
@@ -666,25 +711,15 @@ public class GenomesAligner {
 		}
 
 		//Print ortholog clusters
-		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
-			for(List<HomologyUnit> cluster:orthologyUnitClusters) {
-				outClusters.print(cluster.get(0).getId());
-				for(int i=1;i<cluster.size();i++) {
-					HomologyUnit unit = cluster.get(i);
-					outClusters.print("\t"+unit.getId());
-				}
-				outClusters.println();
-			}
-		}
-
-		
-
+		CDNACatalogAligner.printResults(outputPrefix, listHomologyCluster);
 	}
 	
-	//TODO: Print P/A matrix
-	private void printPAMatrix(int[][] paMatrix)
+	/**
+	 * Print PA matrix and table of frequencies
+	 */
+	private void printPAMatrix()
 	{
-		//Print ortholog clusters
+		//Print PA matrix and frequencies
 		try (PrintStream outPA = new PrintStream(outputPrefix+"_paMatrix.txt");PrintStream outFreq = new PrintStream(outputPrefix+"_gfFreqs.txt")) 
 		{
 			outPA.print("");
@@ -692,35 +727,32 @@ public class GenomesAligner {
 			{
 				outPA.print("\t"+genome.getId());
 			}
+			
 			outFreq.print("GeneFamily\tFrequency\tExactGroup\tSoftGroup\n");
 			for(int i=0;i<paMatrix.length;i++)
 			{
-				double countFreq = 0;
 				outPA.println();
 				outPA.print("gf-"+i);
-				outFreq.print("gf-"+i);
 				int totGenomes = paMatrix[i].length;
+				
 				for(int j=0;j<totGenomes;j++)
 				{
 					outPA.print("\t"+paMatrix[i][j]);
-					if(paMatrix[i][j]>0) countFreq ++;
+
 				}
-				double freq = countFreq/totGenomes;
-				outFreq.print("\t" + freq);
-				
-				//TODO: crear otra estructura para esto. Constantes de categs
-				String exact = (freq == 1) ? "exact_core": "exact_accesory";
-				outFreq.print("\t" + exact);
-				String soft = (freq >= 0.9) ? "soft_core": "soft_accesory";
-				outFreq.print("\t" + soft);
-				
+			
+				HomologyCluster cluster = listHomologyCluster.get(i);			
+				outFreq.print("gf-"+i);
+				outFreq.print("\t" + cluster.getFrequency());
+				outFreq.print("\t" + cluster.getExactCategory());
+				outFreq.print("\t" + cluster.getSoftCategory());
 				outFreq.println();
 				
 			}
 		}
 		
 		catch (Exception e) {
-			// TODO: handle exception
+			log.warning ("" + e);
 		}
 	}
 	

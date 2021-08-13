@@ -41,7 +41,7 @@ public class CDNACatalogAligner {
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
 	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
-	private List<List<HomologyUnit>> orthologyUnitClusters=new ArrayList<>();
+	private List<HomologyCluster> orthologyUnitClusters=new ArrayList<>();
 	
 	//logging
 	public Logger getLog() {
@@ -137,7 +137,7 @@ public class CDNACatalogAligner {
 		generateOrthologs();
 		printPartialResults();
 		generateClusters();
-		printResults();
+		printResults(outputPrefix,orthologyUnitClusters);
 		log.info("Process finished");
 	}
 	
@@ -199,13 +199,14 @@ public class CDNACatalogAligner {
 		}
 	}
 	
-	public void printResults() throws FileNotFoundException {	
+	public static void printResults(String outputPrefix, List<HomologyCluster> orthologyUnitClusters) throws FileNotFoundException {
 		//Print ortholog clusters
 		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
-			for(List<HomologyUnit> cluster:orthologyUnitClusters) {
-				outClusters.print(cluster.get(0).getId());
-				for(int i=1;i<cluster.size();i++) {
-					HomologyUnit unit = cluster.get(i);
+			for(HomologyCluster cluster:orthologyUnitClusters) {
+				List<HomologyUnit> memCluster = cluster.getHomologyUnitsCluster();
+				outClusters.print("gf-"+cluster.getClusterId());
+				for(int i=0;i<memCluster.size();i++) {
+					HomologyUnit unit = memCluster.get(i);
 					outClusters.print("\t"+unit.getId());
 				}
 				outClusters.println();
