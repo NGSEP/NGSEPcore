@@ -23,7 +23,7 @@ public class ContigEndsMerger {
 
 	private Logger log = Logger.getLogger(ContigEndsMerger.class.getName());
 	private static final int END_LENGTH = 50000;
-	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
+	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
@@ -34,7 +34,7 @@ public class ContigEndsMerger {
 	
 	public List<QualifiedSequence> mergeContigs(List<QualifiedSequence> contigs) {
 		
-		ShortKmerCodesTable table = new ShortKmerCodesTable(25, 40);
+		ShortKmerCodesTable table = new ShortKmerCodesTable(31, 40);
 		Map<Integer,String> contigEndsMap = new HashMap<Integer, String>();
 		List<QualifiedSequence> contigsForGraph = new ArrayList<QualifiedSequence>(contigs.size());
 		List<QualifiedSequence> smallContigs = new ArrayList<QualifiedSequence>(contigs.size());
@@ -126,9 +126,8 @@ public class ContigEndsMerger {
 	}
 	private void buildEdges(AssemblyGraph graph, int queryEndIdx,String queryEnd, Map<Integer,String> contigEndsMap, Map<Integer, List<UngappedSearchHit>> hits, boolean revQuery, int countLimit) {
 		int debugIdx = -1;
-		//int debugIdx = 48;
+		//int debugIdx = 23;
 		int querySeqId = queryEndIdx/2;
-		int queryLength = graph.getSequenceLength(querySeqId);
 		boolean queryStartSeq = (queryEndIdx%2==0);
 		for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hits.entrySet()) {
 			int subjectEndIdx = entry.getKey();
@@ -145,7 +144,7 @@ public class ContigEndsMerger {
 				System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" clusters: "+clusters.size());
 				for(UngappedSearchHitsCluster cluster:clusters) System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" next cluster "+cluster.getPredictedOverlap()+" estimated: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers: "+cluster.getNumDifferentKmers());
 			}
-			for(int i=0;i<clusters.size() && i<2;i++) {
+			for(int i=0;i<clusters.size() && i<50;i++) {
 				UngappedSearchHitsCluster cluster = clusters.get(i);
 				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
 				int numKmers = cluster.getNumDifferentKmers(); 
@@ -153,18 +152,15 @@ public class ContigEndsMerger {
 				ReadAlignment aln = aligner.buildCompleteAlignment(subjectEndIdx, subjectEnd, queryEnd, cluster);
 				if(aln==null) continue;
 				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" mismatches: "+aln.getNumMismatches()+" indel length: "+aln.getTotalLengthIndelCalls()+" CSK "+aln.getCoverageSharedKmers()+" overlap: "+cluster.getPredictedOverlap()+" alignment: "+aln);
-				int overlap1 = cluster.getPredictedOverlap();
-				if(aln.getTotalLengthIndelCalls()>0.01*overlap1) continue;
-				if(aln.getCoverageSharedKmers()<0.3*overlap1) continue;	
+					
 				int softClipStart = aln.getSoftClipStart();
 				int softClipEnd = aln.getSoftClipEnd();
-				
+				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" soft clips: "+softClipStart+" "+softClipEnd);
 				if(subjectEndIdx%2==0 && queryStartSeq==revQuery && softClipStart>1000 && softClipEnd<100) {
 					//Query before subject
 					AssemblyVertex subjectVertex = graph.getVertex(subjectSeqId, true);
 					AssemblyVertex queryVertex = graph.getVertex(querySeqId, queryStartSeq);
-					int overlap = aln.getLast();
-					AssemblyEdge edge = new AssemblyEdge(queryVertex, subjectVertex, overlap);
+					AssemblyEdge edge = new AssemblyEdge(queryVertex, subjectVertex, cluster.getPredictedOverlap());
 					edge.setVertex1EvidenceStart(aln.getAlignedReadPosition(aln.getFirst()));
 					edge.setVertex1EvidenceEnd(aln.getAlignedReadPosition(aln.getLast()));
 					edge.setVertex2EvidenceStart(aln.getFirst()-1);
@@ -173,15 +169,18 @@ public class ContigEndsMerger {
 					edge.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
 					edge.setNumMismatches(aln.getNumMismatches());
 					edge.setNumIndels(aln.getTotalLengthIndelCalls());
-					System.err.println("Adding edge. Num mismatches: "+aln.getNumMismatches()+" num indels: "+aln.getTotalLengthIndelCalls()+" edge: "+edge);
-					graph.addEdge(edge);
+					if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" edge to add: "+edge);
+					if(passFilters(edge)) {
+						System.err.println("Adding edge. Num mismatches: "+aln.getNumMismatches()+" num indels: "+aln.getTotalLengthIndelCalls()+" edge: "+edge);
+						graph.addEdge(edge);
+					}
+					
 				}
 				if(subjectEndIdx%2==1 && queryStartSeq!=revQuery && softClipStart<100 && softClipEnd>1000) {
 					//Query after subject
 					AssemblyVertex subjectVertex = graph.getVertex(subjectSeqId, false);
 					AssemblyVertex queryVertex = graph.getVertex(querySeqId, queryStartSeq);
-					int overlap = 100000-aln.getFirst();
-					AssemblyEdge edge = new AssemblyEdge(subjectVertex, queryVertex, overlap);
+					AssemblyEdge edge = new AssemblyEdge(subjectVertex, queryVertex, cluster.getPredictedOverlap());
 					edge.setVertex1EvidenceStart(aln.getFirst()-1);
 					edge.setVertex1EvidenceEnd(aln.getLast());
 					edge.setVertex2EvidenceStart(aln.getAlignedReadPosition(aln.getFirst()));
@@ -190,13 +189,20 @@ public class ContigEndsMerger {
 					edge.setWeightedCoverageSharedKmers(aln.getWeightedCoverageSharedKmers());
 					edge.setNumMismatches(aln.getNumMismatches());
 					edge.setNumIndels(aln.getTotalLengthIndelCalls());
-					System.err.println("Adding edge. Num mismatches: "+aln.getNumMismatches()+" num indels: "+aln.getTotalLengthIndelCalls()+" edge: "+edge);
-					graph.addEdge(edge);
+					if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" edge to add: "+edge);
+					if(passFilters(edge)) {
+						System.err.println("Adding edge. Num mismatches: "+aln.getNumMismatches()+" num indels: "+aln.getTotalLengthIndelCalls()+" edge: "+edge);
+						graph.addEdge(edge);
+					}
 				}
 			}
 			
 		}
 		
+	}
+
+	private boolean passFilters(AssemblyEdge edge) {
+		return edge.getIndelsPerKbp()<5 && edge.getEvidenceProportion()>0.8;
 	}
 
 }
