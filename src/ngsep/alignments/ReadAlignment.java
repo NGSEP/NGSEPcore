@@ -21,6 +21,7 @@ package ngsep.alignments;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -839,6 +840,44 @@ public class ReadAlignment implements GenomicRegion {
 			}
 		}
 		return -1;
+	}
+	
+	/**
+	 * Returns the read positions that correspond to the given reference coordinates
+	 * @param referencePositions Sorted list of 1-based reference coordinate
+	 * @return Map<Integer,Integer> with input reference positions as keys and 
+	 * 0-based positions within the aligned read. Only mapped positions are given in the output
+	 */
+	public Map<Integer,Integer> getAlignedReadPositions (List<Integer> referencePositions) {
+		Map<Integer,Integer> answer = new HashMap<Integer, Integer>();
+		failIfReadUnmappedOrInconsistentAlignment();
+		int indexInput = 0;
+		int currentRefPos = first;
+		int currentReadPos = 0;
+		for(int i=0;i<alignment.length;i++) {
+			int nextReferencePos=0;
+			for(;indexInput<referencePositions.size();indexInput++) {
+				nextReferencePos = referencePositions.get(indexInput);
+				if(nextReferencePos>=currentRefPos) break;
+			}
+			if(indexInput<referencePositions.size()) return answer;
+			int length = getOperationLength(alignment[i]);
+			boolean cRef = consumesReferenceBases(alignment[i]);
+			boolean cRead = consumesReadBases(alignment[i]);
+			if(cRef && cRead) {
+				if(currentRefPos+length>nextReferencePos) {
+					int nextReadPos = currentReadPos + nextReferencePos-currentRefPos;
+					if(nextReadPos < readLength) answer.put(nextReferencePos,nextReadPos);
+				}
+			}
+			if(cRef) {
+				currentRefPos += length;
+			}
+			if(cRead) {
+				currentReadPos += length;
+			}
+		}
+		return answer;
 	}
 
 	private void failIfReadUnmappedOrInconsistentAlignment() {

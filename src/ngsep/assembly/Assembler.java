@@ -376,7 +376,8 @@ public class Assembler {
 			usedMemory = runtime.totalMemory()-runtime.freeMemory();
 			usedMemory/=1000000000;
 			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000)+" Memory: "+usedMemory);
-			correctedSequences = graph.getSequences();
+			correctedSequences = new ArrayList<QualifiedSequence>(graph.getSequences());
+			Collections.sort(correctedSequences,(s1,s2)->s2.getLength()-s1.getLength());
 			if(map == null) {
 				KmersExtractor extractor = new KmersExtractor();
 				extractor.setLog(log);
@@ -562,7 +563,6 @@ public class Assembler {
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
-		//Not needed anymore because in this case the reads are related to a graph
 		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
 	}
