@@ -29,4 +29,5 @@ import ngsep.sequences.QualifiedSequence;
 public interface ConsensusBuilder {
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph);
 	public void setSequenceNamePrefix(String sequenceNamePrefix);
+	public void setNumThreads(int numThreads);
 }

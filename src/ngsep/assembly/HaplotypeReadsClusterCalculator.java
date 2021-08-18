@@ -108,9 +108,8 @@ public class HaplotypeReadsClusterCalculator {
 		aligner.setAlignEmbedded(true);
 		aligner.setNumThreads(numThreads);
 		aligner.alignPathReads(graph, path);
-		StringBuilder rawConsensus = aligner.getConsensus();
+		StringBuilder rawConsensus = new StringBuilder(aligner.getConsensus());
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
-		Set<Integer> unalignedReadIds = aligner.getUnalignedReadIds();
 		List<List<ReadAlignment>> clusters = null;
 		String sequenceName = "diploidPath_"+pathIdx;
 		int countHetVars = 0;
@@ -137,11 +136,11 @@ public class HaplotypeReadsClusterCalculator {
 			//System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
 			Set<Integer> sequenceIds = new HashSet<Integer>();
 			for(ReadAlignment aln:alignments) sequenceIds.add(aln.getReadNumber());
-			//Add not aligned reads within the path
-			sequenceIds.addAll(unalignedReadIds);
-			PhasedPathBlock block = new PhasedPathBlock();
-			block.addPhasedReadIds(sequenceIds);
-			answer.add(block);
+			//TODO: Add not aligned reads within the path
+			//sequenceIds.addAll(unalignedReadIds);
+			//PhasedPathBlock block = new PhasedPathBlock();
+			//block.addPhasedReadIds(sequenceIds);
+			//answer.add(block);
 			return answer;
 		}
 		log.info("Path: "+sequenceName+". het vars: "+countHetVars+" alignments: "+alignments.size()+" clusters from haplotyping: "+clusters.size());
