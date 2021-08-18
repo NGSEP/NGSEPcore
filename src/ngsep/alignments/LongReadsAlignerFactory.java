@@ -84,7 +84,7 @@ public class LongReadsAlignerFactory {
 			MinimizersTableReadAlignmentAlgorithm first = longReadsAligners.get(0);
 			aligner.setLog(log);
 			aligner.setMaxAlnsPerRead(maxAlnsPerRead);
-			if(genome!=null) aligner.setMinimizersTable(genome, first.getMinimizersTable());
+			if(genome!=null) aligner.setKmerCodesTable(genome, first.getKmerCodesTable());
 			longReadsAligners.add(aligner);
 			lastReadsAlignerIndex=longReadsAligners.size()-1;
 			//Runtime runtime = Runtime.getRuntime();

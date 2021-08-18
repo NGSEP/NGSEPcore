@@ -18,6 +18,7 @@ public class ShortKmerCodesTable {
 	
 	private int kmerLength;
 	private int windowLength;
+	private int maxHitsKmerCode = 0;
 	
 	
 	private KmersMapAnalyzer kmersAnalyzer;
@@ -116,7 +117,8 @@ public class ShortKmerCodesTable {
 			if(row==sequencesByCodeTable.length) resizeTable();
 		}
 		int currentCount = sequencesByCodeTableColumnLengths[row];
-		if (currentCount+entries.size()<Short.MAX_VALUE) {
+		int newCount = currentCount+entries.size(); 
+		if (newCount<Short.MAX_VALUE && (maxHitsKmerCode==0 || newCount<maxHitsKmerCode)) {
 			for (KmerCodesTableEntry entry:entries) addToTable(row, entry.encode());
 			totalEntries+=entries.size();
 			codeCountDifferentSequences[row]++;
@@ -159,6 +161,14 @@ public class ShortKmerCodesTable {
 	
 	public void setKmersMap(KmersMap kmersMap) {
 		this.kmersMap = kmersMap;
+	}
+	
+	
+	public int getMaxHitsKmerCode() {
+		return maxHitsKmerCode;
+	}
+	public void setMaxHitsKmerCode(int maxHitsKmerCode) {
+		this.maxHitsKmerCode = maxHitsKmerCode;
 	}
 	/**
 	 * Adds selected codes of the given sequence to the table
@@ -206,7 +216,7 @@ public class ShortKmerCodesTable {
 	 * @param start of the sequence to consider
 	 * @param end of the sequence to consider
 	 * @param kmerCodes Input codes to be selected
-	 * @return List<MinimizersTableEntry> selected codes
+	 * @return List<KmerCodesTableEntry> selected codes
 	 */
 	private List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
 		int debugIdx = -2;

@@ -296,10 +296,13 @@ public class Assembler {
 		//correctReads(sequences,map);
 		AssemblyGraph graph;
 		KmersMap map = null;
+		long usedMemory;
 		if(graphFile!=null) {
 			sequences = load(inputFile, inputFormat, minReadLength);
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
-			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges");
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Memory: "+usedMemory);
 		} else {
 			log.info("Calculating kmers distribution");
 			KmersExtractor extractor = new KmersExtractor();
@@ -323,7 +326,7 @@ public class Assembler {
 			}
 			log.info("Loaded "+sequences.size()+" sequences. Total basepairs: "+totalBp);
 			distReadLength.printDistributionInt(System.out);
-			long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
 			usedMemory/=1000000000;
 			long time1 = System.currentTimeMillis();
 			long diff1 = (time1-startTime)/1000;
@@ -365,11 +368,16 @@ public class Assembler {
 		List<QualifiedSequence> correctedSequences = null;
 		for(int i=0;i<errorCorrectionRounds;i++) {
 			long startRound = System.currentTimeMillis();
-			log.info("Started round "+(i+1)+" of error correction.");
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			log.info("Started round "+(i+1)+" of error correction. Memory: "+usedMemory);
 			indelCorrector.correctErrors(graph);
 			long timeRound = System.currentTimeMillis()-startRound;
-			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000));
-			correctedSequences = graph.getSequences();
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000)+" Memory: "+usedMemory);
+			correctedSequences = new ArrayList<QualifiedSequence>(graph.getSequences());
+			Collections.sort(correctedSequences,(s1,s2)->s2.getLength()-s1.getLength());
 			if(map == null) {
 				KmersExtractor extractor = new KmersExtractor();
 				extractor.setLog(log);
@@ -471,12 +479,12 @@ public class Assembler {
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
 		long diff1 = (time3-time2)/1000;
 		long diff2 = (time3-startTime)/1000;
-		log.info("Layout and initial consensus complete. Memory: "+usedMemory+" Time process (s): "+diff1+" total time (s): "+diff2);
+		log.info("Layout and initial consensus complete. Time process (s): "+diff1+" total time (s): "+diff2+" Memory: "+usedMemory);
 		List<Integer> lengths = new ArrayList<Integer>();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
 		long [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
@@ -555,8 +563,7 @@ public class Assembler {
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
 		else throw new IOException("the file not is a fasta or fastq file: " + filename);
-		//Not needed anymore because in this case the reads are related to a graph
-		//Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
 	}
 
