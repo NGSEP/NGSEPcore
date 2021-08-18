@@ -31,9 +31,9 @@ import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
-import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.ShortKmerCodesTable;
 
 /**
  * @author Jorge Duitama
@@ -53,7 +53,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private PairwiseAligner alignerEnd;
 	private int maxAlnsPerRead = 3;
 	private ReferenceGenome genome;
-	private MinimizersTable minimizersTable;
+	private ShortKmerCodesTable kmerCodesTable;
 	private boolean onlyPositiveStrand = false;
 	
 	public MinimizersTableReadAlignmentAlgorithm() {
@@ -110,47 +110,48 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.genome = genome;
 		int n = genome.getNumSequences();
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
-		log.info("Creating minimizers table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
+		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		//minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
-		minimizersTable = new MinimizersTable(kmerLength, windowLength);
+		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength);
 		
 		//log.info("Calculating kmers distribution");
 		if(buildKmersTable) {
 			KmersExtractor extractor = new KmersExtractor();
+			extractor.setLog(log);
 			extractor.setNumThreads(numThreads);
 			log.info("Extracting kmers from reference sequence");
 			extractor.processQualifiedSequences(genome.getSequencesList());
-			minimizersTable.setKmersMap(extractor.getKmersMap());
+			kmerCodesTable.setKmersMap(extractor.getKmersMap());
 		}
-		minimizersTable.setLog(log);
-		ThreadPoolManager poolMinimizers = new ThreadPoolManager(numThreads, n);
-		poolMinimizers.setSecondsPerTask(60);
+		kmerCodesTable.setLog(log);
+		kmerCodesTable.setMaxHitsKmerCode(20);
+		ThreadPoolManager poolTable = new ThreadPoolManager(numThreads, n);
+		poolTable.setSecondsPerTask(60);
 		for (int i=0;i<n;i++) {
 			final int seqId = i;
 			try {
-				poolMinimizers.queueTask(()->minimizersTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
+				poolTable.queueTask(()->kmerCodesTable.addSequence(seqId, genome.getSequenceCharacters(seqId)));
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 				throw new RuntimeException("Concurrence error creating minimizers table",e);
 			}
 		}
 		try {
-			poolMinimizers.terminatePool();
+			poolTable.terminatePool();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-			throw new RuntimeException("Concurrence error creating minimizers table",e);
+			throw new RuntimeException("Concurrence error creating codes table",e);
 		}
 		//minimizersTable.calculateDistributionHits().printDistribution(System.err);
-		log.info("Calculated minimizers. Total: "+minimizersTable.size());
+		log.info("Calculated kmer codes. Total: "+kmerCodesTable.size());
 	}
 	
-	
-	public MinimizersTable getMinimizersTable() {
-		return minimizersTable;
+	public ShortKmerCodesTable getKmerCodesTable() {
+		return kmerCodesTable;
 	}
-	public void setMinimizersTable(ReferenceGenome genome, MinimizersTable minimizersTable) {
+	public void setKmerCodesTable(ReferenceGenome genome, ShortKmerCodesTable kmerCodesTable) {
 		this.genome = genome;
-		this.minimizersTable = minimizersTable;
+		this.kmerCodesTable = kmerCodesTable;
 	}
 	@Override
 	public List<ReadAlignment> alignRead (RawRead read) {
@@ -189,7 +190,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
 		int queryLength = query.length();
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
-		Map<Integer,List<UngappedSearchHit>> hitsByReference = minimizersTable.match(-1,query);
+		Map<Integer,List<UngappedSearchHit>> hitsByReference = kmerCodesTable.match(-1,query);
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
