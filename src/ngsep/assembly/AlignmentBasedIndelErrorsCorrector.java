@@ -236,7 +236,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		}
 		log.info("IndelErrorsCorrector. Filtered indels in path: "+path.getPathId()+": "+filteredIndels.size());
 		
-		ThreadPoolExecutor poolCorrection = new ThreadPoolExecutor(numThreads, numThreads, 10000, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 4*numThreads);
 		int pathId = path.getPathId();
 		int indexNextActive = 0;
 		
@@ -253,14 +253,15 @@ public class AlignmentBasedIndelErrorsCorrector {
 				} else break;
 			}
 			int i = indexNextActive;
-			poolCorrection.execute(()->correctRead(graph.getSequence(readId), aln, pathConsensus, filteredIndels, i));
+			try {
+				poolCorrection.queueTask(()->correctRead(graph.getSequence(readId), aln, pathConsensus, filteredIndels, i));
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		try {
-			int waitTime = alignments.size();
-			//log.info("IndelErrorsCorrector. Terminating pool. Wait time: "+waitTime);
-			poolCorrection.shutdown();
-			poolCorrection.awaitTermination(waitTime, TimeUnit.SECONDS);
-			if(!poolCorrection.isShutdown()) System.err.println("WARN. Pool did not finish");
+			poolCorrection.terminatePool();
 			log.info("IndelErrorsCorrector. Terminated pool path: "+path.getPathId());
 		} catch (InterruptedException e) {
 			// TODO Better handling
