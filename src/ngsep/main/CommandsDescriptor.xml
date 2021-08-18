@@ -269,9 +269,8 @@ Algorithm used to build the consensus. It can be Simple or Polishing.
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
-<option id="c" type="BOOLEAN" attribute="correctReads">
-Output a file with reads corrected after alignment to the consensus sequence.
-Useful to restart from a graph after error correction.
+<option id="sc" type="BOOLEAN" attribute="saveCorrected">
+Save the corrected reads
 </option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads
@@ -973,6 +972,12 @@ Skip the MCL clustering phase and return unfiltered orthogroups.
 </option>
 <option id="f" type="DOUBLE" attribute="minFrequencySoftCore" defaultConstant="DEF_MIN_FREQUENCY_SOFT_CORE">
 Minimum frequency to classify soft core gene families
+</option>
+<option id="d" type="STRING" attribute="inputDirectory">
+Input Directory with FASTA (fna.gz) and GFF (gff.gz) files
+</option>
+<option id="i" type="STRING" attribute="inputFile">
+Input File with genome identifiers (prefix of fasta and gff files)
 </option>
 <!--
 <option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
