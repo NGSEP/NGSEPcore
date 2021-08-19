@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
+import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -34,6 +35,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	private String sequenceNamePrefix = "Contig";
+	private int numThreads = 1;
 	
 	public Logger getLog() {
 		return log;
@@ -49,6 +51,16 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 
 	public void setSequenceNamePrefix(String sequenceNamePrefix) {
 		this.sequenceNamePrefix = sequenceNamePrefix;
+	}
+	
+	
+
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
 	}
 
 	@Override
@@ -72,12 +84,18 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 		return consensusList;
 	}
 	
+	//private List<ReadAlignment> allAlns = new ArrayList<ReadAlignment>();
 	public CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) 
 	{
+		
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
-		aligner.setOnlyGenerateConsensus(true);
+		aligner.setNumThreads(numThreads);
+		//aligner.setOnlyGenerateConsensus(true);
+		//aligner.setAlignEmbedded(true);
 		aligner.alignPathReads(graph, path);
-		return aligner.getConsensus().toString();
+		
+		//allAlns.addAll(aligner.getAlignedReads());
+		return aligner.getConsensus();
 	}
 }

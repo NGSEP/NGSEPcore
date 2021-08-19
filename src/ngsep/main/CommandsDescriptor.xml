@@ -973,6 +973,12 @@ Skip the MCL clustering phase and return unfiltered orthogroups.
 <option id="f" type="DOUBLE" attribute="minFrequencySoftCore" defaultConstant="DEF_MIN_FREQUENCY_SOFT_CORE">
 Minimum frequency to classify soft core gene families
 </option>
+<option id="d" type="STRING" attribute="inputDirectory">
+Input Directory with FASTA (fna.gz) and GFF (gff.gz) files
+</option>
+<option id="i" type="STRING" attribute="inputFile">
+Input File with genome identifiers (prefix of fasta and gff files)
+</option>
 <!--
 <option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
 Maximum number of homologs per unit to be displayed in the D3 visualization

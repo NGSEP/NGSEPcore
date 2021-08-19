@@ -27,9 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
@@ -116,7 +113,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 			String sequenceName = ""+pathId;
 			if(path.getPathLength()>10) {
 				aligner.alignPathReads(copyGraph, path);
-				String pathConsensus = aligner.getConsensus().toString();
+				CharSequence pathConsensus = aligner.getConsensus();
 				List<ReadAlignment> alignments = aligner.getAlignedReads();
 				for(ReadAlignment aln:alignments) {
 					aln.setSequenceName(sequenceName);
@@ -274,7 +271,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 	
 	private void correctRead (QualifiedSequence read, ReadAlignment aln, String pathConsensus, List<CalledGenomicVariant> indels, int firstIndelPos) {
-		int debugIdx = 0;
+		int debugIdx = -1;
 		int readId = aln.getReadNumber();
 		int nI = indels.size();
 		List<Integer> referencePositionsCalledIndels = new ArrayList<Integer>();

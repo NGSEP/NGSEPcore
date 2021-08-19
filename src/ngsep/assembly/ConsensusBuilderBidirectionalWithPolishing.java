@@ -114,7 +114,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		aligner.alignPathReads(graph, path);
 		int pathIdx = path.getPathId();
 		String sequenceName = path.getSequenceName();
-		StringBuilder rawConsensus = aligner.getConsensus();
+		StringBuilder rawConsensus = new StringBuilder(aligner.getConsensus());
 		List<ReadAlignment> alignments = aligner.getAlignedReads();
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());

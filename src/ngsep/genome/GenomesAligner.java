@@ -23,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -71,6 +72,9 @@ public class GenomesAligner {
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
+	private String inputFile = null;
+	private String inputDirectory = null;
+
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -157,6 +161,19 @@ public class GenomesAligner {
 		setMinFrequencySoftCore((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	public String getInputDirectory() {
+		return inputDirectory;
+	}
+	public void setInputDirectory(String inputDirectory) {
+		this.inputDirectory = inputDirectory;
+	}
+	
 	public static void main(String[] args) throws Exception 
 	{
 		GenomesAligner instance = new GenomesAligner();
@@ -166,6 +183,8 @@ public class GenomesAligner {
 			String fileTranscriptome = args[i++];
 			instance.loadGenome(fileGenome, fileTranscriptome);
 		}
+		if(instance.getInputFile()!= null)
+			instance.loadGenomesFromFile();
 		instance.run();
 	}
 	
@@ -182,6 +201,8 @@ public class GenomesAligner {
 		printAlignmentResults();
 		log.info("Process finished");
 	}
+	
+
 	
 	private void inferOrthologs() {
 		genomesDescription();
@@ -236,7 +257,21 @@ public class GenomesAligner {
 		genomes.add(annGenome);
 	}
 
+	public void loadGenomesFromFile() throws IOException {
+		if(inputDirectory == null) throw new IOException("You must specify the input folder");
+		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
+		try (FileReader reader = new FileReader(inputDirectory + "/" + inputFile);
+			 BufferedReader in = new BufferedReader(reader)) {
+			String line = in.readLine();
+			log.info("Loading genomes in " + inputDirectory + "/" + inputFile);
+			while(line!=null) {
+				log.info("Loading genome " + line);
+				loadGenome(inputDirectory + "/"+line +".fna.gz", inputDirectory + "/"+line +".gff.gz");
+				line = in.readLine();
+			}
+		}
 
+	}
 	public void alignGenomes() {		
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
@@ -874,4 +909,5 @@ public class GenomesAligner {
 
 		return code;
 	}
+
 }
