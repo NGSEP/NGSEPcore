@@ -262,10 +262,11 @@ Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if 
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
+-->
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_POLISHING" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
--->
+
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
