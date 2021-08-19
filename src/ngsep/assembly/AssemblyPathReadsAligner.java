@@ -284,18 +284,8 @@ public class AssemblyPathReadsAligner {
 		}
 		return true;
 	}
-	public List<CalledGenomicVariant> callIndels (AssemblyPath path, List<ReadAlignment> alns, int normalPloidy) {
-		String consensus = path.getConsensus();
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("AssemblyPathReadsAligner. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory: "+usedMemory);
-		List<CalledGenomicVariant> calledIndels = callVariants(path.getSequenceName(), consensus, alns, normalPloidy);
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("AssemblyPathReadsAligner. Called indels in path: "+path.getPathId()+": "+calledIndels.size()+" Memory: "+usedMemory);
-		return calledIndels;
-	}
-	private List<CalledGenomicVariant> callVariants(String sequenceName, CharSequence consensus, List<ReadAlignment> alignments, int normalPloidy) {
+	public List<CalledGenomicVariant> callIndels (String consensus, List<ReadAlignment> alignments, int normalPloidy) {
+		String sequenceName = "";
 		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
 		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
 		System.out.println("Number of active segments "+activeSegments.size());
@@ -313,7 +303,8 @@ public class AssemblyPathReadsAligner {
 			String altConsensus = null;
 			if(normalPloidy>1 && localConsensus!=null) altConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, localConsensus);
 			CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus, altConsensus);
-			answer.add(call);
+			//TODO: check if it is worth to return homozygous reference calls
+			if(!call.isUndecided() && !call.isHomozygousReference()) answer.add(call);
 		}
 		return answer;
 	}
@@ -433,16 +424,15 @@ public class AssemblyPathReadsAligner {
 	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
 		List<String> alleles = new ArrayList<String>(2);
 		alleles.add(currentConsensus);
-		boolean hetero = false;
+		boolean hetero = altConsensus!=null && !altConsensus.equals(localConsensus);
 		if(localConsensus!=null && !localConsensus.equals(currentConsensus)) alleles.add(localConsensus);
-		if(altConsensus!=null && !altConsensus.equals(currentConsensus) && !altConsensus.equals(localConsensus)) {
+		if(hetero && !altConsensus.equals(currentConsensus)) {
 			alleles.add(altConsensus);
 		}
-		hetero = altConsensus!=null && !altConsensus.equals(localConsensus);
 		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
 		CalledGenomicVariantImpl call;
-		if(alleles.size()==1 || currentConsensus.equals(localConsensus)) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOREF); 
-		else if (hetero) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HETERO);
+		if (hetero) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HETERO);
+		else if(alleles.size()==1) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOREF);
 		else call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOALT);
 		return call;
 	}

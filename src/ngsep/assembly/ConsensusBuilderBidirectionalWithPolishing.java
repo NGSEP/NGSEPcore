@@ -106,7 +106,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		
-		List<CalledGenomicVariant> variants = aligner.callIndels(path, alignments, normalPloidy);
+		List<CalledGenomicVariant> variants = aligner.callIndels(path.getConsensus(), alignments, normalPloidy);
 		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
