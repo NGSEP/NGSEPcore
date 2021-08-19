@@ -105,11 +105,9 @@ public class HaplotypeReadsClusterCalculator {
 		int pathIdx = path.getPathId();
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
-		aligner.setAlignEmbedded(true);
-		aligner.setNumThreads(numThreads);
-		aligner.alignPathReads(graph, path);
-		StringBuilder rawConsensus = new StringBuilder(aligner.getConsensus());
-		List<ReadAlignment> alignments = aligner.getAlignedReads();
+		aligner.calculateConsensus(path);
+		List<ReadAlignment> alignments = aligner.alignPathReads(graph, path, numThreads);
+		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		List<List<ReadAlignment>> clusters = null;
 		String sequenceName = "diploidPath_"+pathIdx;
 		int countHetVars = 0;
@@ -117,9 +115,9 @@ public class HaplotypeReadsClusterCalculator {
 			
 			for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 			Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(rawConsensus, alignments, sequenceName);
+			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path.getConsensus(), alignments, sequenceName);
 			countHetVars = hetVars.size();
-			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, rawConsensus.toString(),alignments,hetVars);
+			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, path.getConsensus(),alignments,hetVars);
 			if(countHetVars>0) {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
@@ -223,7 +221,7 @@ public class HaplotypeReadsClusterCalculator {
 		return answer;
 	}
 	
-	private List<CalledGenomicVariant> findHeterozygousVariants(StringBuilder consensus, List<ReadAlignment> alignments, String sequenceName) {
+	private List<CalledGenomicVariant> findHeterozygousVariants(String consensus, List<ReadAlignment> alignments, String sequenceName) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
@@ -499,11 +497,11 @@ public class HaplotypeReadsClusterCalculator {
 }
 class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener {
 	private static final int MIN_DEPTH_ALLELE = 3;
-	private StringBuilder consensus;
+	private String consensus;
 	private List<CalledGenomicVariant> heterozygousVariants = new ArrayList<CalledGenomicVariant>();
 	private boolean callIndels = false;
 
-	public SimpleHeterozygousVariantsDetectorPileupListener(StringBuilder consensus) {
+	public SimpleHeterozygousVariantsDetectorPileupListener(String consensus) {
 		super();
 		this.consensus = consensus;
 	}

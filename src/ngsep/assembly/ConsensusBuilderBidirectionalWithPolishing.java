@@ -30,24 +30,13 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
-import ngsep.genome.GenomicRegion;
-import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
-import ngsep.genome.GenomicRegionSpanComparator;
-import ngsep.math.CountsRankHelper;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
-import ngsep.sequences.DeBruijnGraphExplorationMiniAssembler;
-import ngsep.sequences.DefaultKmersMapImpl;
-import ngsep.sequences.HammingSequenceDistanceMeasure;
-import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
-import ngsep.variants.CalledGenomicVariantImpl;
-import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
 
 /**
  * 
@@ -93,8 +82,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	{
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
-		aligner.setNumThreads(numThreads);
-		aligner.setAlignEmbedded(true);
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		List<AssemblyPath> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
@@ -111,15 +98,15 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 	
 	private CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path, AssemblyPathReadsAligner aligner) {
-		aligner.alignPathReads(graph, path);
+		aligner.calculateConsensus(path);
+		List<ReadAlignment> alignments = aligner.alignPathReads(graph, path, numThreads);
 		int pathIdx = path.getPathId();
 		String sequenceName = path.getSequenceName();
-		StringBuilder rawConsensus = new StringBuilder(aligner.getConsensus());
-		List<ReadAlignment> alignments = aligner.getAlignedReads();
+		StringBuilder rawConsensus = new StringBuilder(path.getConsensus());
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		
-		List<CalledGenomicVariant> variants = callVariants(sequenceName, rawConsensus, alignments, normalPloidy);
+		List<CalledGenomicVariant> variants = aligner.callIndels(path, alignments, normalPloidy);
 		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");
 		//Identify and correct SNV errors first
 		correctSNVErrors(sequenceName, rawConsensus, alignments, variants);
@@ -145,157 +132,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}		
 	}
 
-	public static List<CalledGenomicVariant> callVariants(String sequenceName, CharSequence consensus, List<ReadAlignment> alignments, int normalPloidy) {
-		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
-		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
-		System.out.println("Number of active segments "+activeSegments.size());
-		int firstIdxAln = 0;
-		for(GenomicRegion region:activeSegments) {
-			int first = Math.max(1, region.getFirst());
-			int last = Math.min(consensus.length(), region.getLast());
-			while(firstIdxAln<alignments.size()) {
-				ReadAlignment aln = alignments.get(firstIdxAln);
-				if(aln.getLast()>=first) break;
-				firstIdxAln++;
-			}
-			String currentConsensus = consensus.subSequence(first-1,last).toString();
-			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, null);
-			String altConsensus = null;
-			if(normalPloidy>1 && localConsensus!=null) altConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, localConsensus);
-			CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus, altConsensus);
-			answer.add(call);
-		}
-		return answer;
-	}
-	public static List<GenomicRegion> calculateActiveSegments(String sequenceName, List<ReadAlignment> alignments) {
-		//Extract indel calls adding one bp on the sides for insertions
-		List<GenomicRegion> rawRegions = new ArrayList<GenomicRegion>();
-		for(ReadAlignment aln:alignments) {
-			Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
-			if(indelCalls==null) continue;
-			for(GenomicVariant indelCall:indelCalls.values()) {
-				if(indelCall.length()>10) {
-					if(indelCall.length()>100) System.out.println("WARN: Long indel from alignment: "+aln + "coordinates: "+indelCall.getFirst()+"-"+indelCall.getLast()+" Ignoring.");
-					continue;
-				}
-				if(indelCall.getLast()-indelCall.getFirst()>1) rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst(), indelCall.getLast()));
-				else rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst()-1, indelCall.getLast()+1));
-			}
-			
-		}
-		if(rawRegions.size()<2) return rawRegions;
-		//Merge overlapping regions
-		Collections.sort(rawRegions,GenomicRegionPositionComparator.getInstance());
-		List<GenomicRegion> mergedRegions = new ArrayList<GenomicRegion>();
-		GenomicRegionImpl nextRegion = (GenomicRegionImpl)rawRegions.get(0);
-		int countSupport = 1;
-		for(GenomicRegion rawRegion: rawRegions) {
-			if(GenomicRegionSpanComparator.getInstance().span(nextRegion, rawRegion) ) {
-				nextRegion.setLast(Math.max(nextRegion.getLast(), rawRegion.getLast()));
-				countSupport++;
-			} else {
-				if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
-				if(countSupport>=5) mergedRegions.add(nextRegion);
-				nextRegion = (GenomicRegionImpl)rawRegion;
-				countSupport=1;
-			}
-		}
-		if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
-		if(countSupport>=5) mergedRegions.add(nextRegion);
-		return mergedRegions;
-	}
-
-	private static String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln, String consensusAllele) {
-		Map<Integer,List<String>> alleleCallsByLength = new HashMap<Integer, List<String>>();
-		List<String> allCalls = new ArrayList<String>();
-		int count = 0;
-		for(int i=firstIdxAln;i<alignments.size();i++) {
-			ReadAlignment aln = alignments.get(i);
-			if(aln.getFirst()>last) break;
-			CharSequence call = aln.getAlleleCall(first, last);
-			if(call==null) continue;
-			String callStr = call.toString();
-			if(consensusAllele!=null && callStr.equals(consensusAllele)) continue;
-			count++;
-			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(call.length(), (v)->new ArrayList<String>());
-			lengthCalls.add(callStr);
-			allCalls.add(callStr);
-		}
-		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Alignments: "+count);
-		if(count<5) return null;
-		List<String> maxLength = null;
-		for(List<String> nextList:alleleCallsByLength.values()) {
-			if(maxLength==null || maxLength.size()<nextList.size()) {
-				maxLength = nextList;
-			}
-		}
-		if(maxLength==null) return null;
-		//Double check that the majority length actually has at least half of the total reads
-		if(count <10 && maxLength.size()<0.8*count) return null;
-		if(2*maxLength.size()<count) {
-			if(last-first+1>=8) {
-				boolean debug = first ==-1 || first == -2; 
-				if(debug) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
-				String assembly = makeDeBruijnConsensus(last-first+1, allCalls);
-				return assembly;
-			}
-			return null;
-		}
-		String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(maxLength);
-		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength+" consensus "+consensus);
-		return consensus;
-	}
-
-	private static String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
-		KmersMap kmersMap = new DefaultKmersMapImpl();
-		CountsRankHelper<String> firstKmerCounts = new CountsRankHelper<String>();
-		CountsRankHelper<String> lastKmerCounts = new CountsRankHelper<String>();
-		int kmerLength = Math.max(6, currentLength/4);
-		kmerLength = Math.min(kmerLength, 15);
-		int minCallLength = allCalls.get(0).length();
-		int maxCallLength = 0;
-		List<Integer> lengths = new ArrayList<Integer>(allCalls.size());
-		for(String call:allCalls) {
-			minCallLength = Math.min(minCallLength, call.length());
-			maxCallLength = Math.max(maxCallLength, call.length());
-			lengths.add(call.length());
-			int last = call.length()-kmerLength;
-			for(int i=0;i<=last;i++) {
-				String kmer = call.substring(i,i+kmerLength);
-				kmersMap.addOcurrance(kmer);
-				if(i==0) firstKmerCounts.add(kmer);
-				else if (i==last) lastKmerCounts.add(kmer);
-			}
-		}
-		if(firstKmerCounts.getNumDifferent()==0 || lastKmerCounts.getNumDifferent()==0) return null;
-		Collections.sort(lengths);
-		int medianCallLength = lengths.get(allCalls.size()/2);
-		
-		String bestKmerStart = firstKmerCounts.selectBest(1).keySet().iterator().next();
-		String bestKmerEnd = lastKmerCounts.selectBest(1).keySet().iterator().next();
-		//System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
-		DeBruijnGraphExplorationMiniAssembler miniAssembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap, allCalls.size()/3);
-		String assembly = miniAssembler.assemble(bestKmerStart, bestKmerEnd, medianCallLength-1, medianCallLength, maxCallLength);
-		//System.out.println("Assembly: "+assembly);
-		return assembly;
-	}
-
-	private static CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
-		List<String> alleles = new ArrayList<String>(2);
-		alleles.add(currentConsensus);
-		boolean hetero = false;
-		if(localConsensus!=null && !localConsensus.equals(currentConsensus)) alleles.add(localConsensus);
-		if(altConsensus!=null && !altConsensus.equals(currentConsensus) && !altConsensus.equals(localConsensus)) {
-			alleles.add(altConsensus);
-		}
-		hetero = altConsensus!=null && !altConsensus.equals(localConsensus);
-		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
-		CalledGenomicVariantImpl call;
-		if(alleles.size()==1 || currentConsensus.equals(localConsensus)) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOREF); 
-		else if (hetero) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HETERO);
-		else call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOALT);
-		return call;
-	}
+	
 
 	private void correctSNVErrors(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> variants) {
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
@@ -343,43 +180,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		}
 		log.info("Applied "+appliedVariants+" variants");
 		return new DNAMaskedSequence(polishedConsensus.toString());
-	}
-	
-	
-
-	private String calculateVariantSegment(ReadAlignment alignment, GenomicVariant indelReadCall, CalledGenomicVariant calledVariant) {
-		//Check that indel call is contained
-		if(calledVariant.getFirst()>indelReadCall.getFirst()) return null;
-		if(calledVariant.getLast()<indelReadCall.getLast()) return null;
-		//String readName = alignment.getReadName();
-		CharSequence extendedReadCall = alignment.getAlleleCall(calledVariant.getFirst(), calledVariant.getLast());
-		if(extendedReadCall==null) return null;
-		String [] alleles = calledVariant.getAlleles();
-		if(alleles.length<2) return null;
-		String majorAllele = calledVariant.isHomozygousReference()?alleles[0]:alleles[1];
-		String secondAllele = calledVariant.isHomozygousReference()?alleles[1]:alleles[0];
-		if(alleles.length>2) secondAllele = alleles[2];
-		
-		
-		String extendedCallStr = extendedReadCall.toString();
-		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele);
-		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" secnd allele "+secondAllele);
-		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" extendedcall "+extendedCallStr);
-		if(majorAllele.equals(extendedCallStr)) return null;
-		if(normalPloidy>1 && secondAllele.equals(extendedCallStr)) return null;
-		//TODO: Take into account heterozygosity
-		String bestAllele = majorAllele;
-		int refOffsetLeft = indelReadCall.getFirst()-calledVariant.getFirst()+1;
-		if(refOffsetLeft>=10) return null;
-		int bestAlleleStart = refOffsetLeft;
-		//int bestAlleleEnd = bestAllele.length()-refOffsetRight;
-		if(bestAlleleStart>=bestAllele.length()) return null;
-		String answer = bestAllele.substring(bestAlleleStart);
-		if(answer.length()>=10) return null;
-		//System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
-		//if(bestAlleleStart<0) throw new RuntimeException("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
-		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" consensus segment "+answer);
-		return answer;
 	}
 }
 

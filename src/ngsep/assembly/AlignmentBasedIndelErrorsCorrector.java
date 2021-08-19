@@ -48,6 +48,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	private LayoutBuilderKruskalPath pathsFinder;
 	private AssemblySequencesRelationshipFilter filter;
 	private int numThreads=1;
+	private static Runtime runtime = Runtime.getRuntime();
 	
 	
 	
@@ -85,7 +86,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 	 * @param graph Input graph with reads
 	 */
 	public void correctErrors(AssemblyGraph graph) {
-		Runtime runtime = Runtime.getRuntime();
 		long start = System.currentTimeMillis(); 
 	
 		AssemblyGraph copyGraph = graph.buildSubgraph(null);
@@ -98,13 +98,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 		
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
-		aligner.setNumThreads(numThreads);
-		aligner.setAlignEmbedded(true);
 		Map<Integer,AssemblyPath> selectedPathsMap = new HashMap<Integer, AssemblyPath>(paths.size());
-		Map<Integer,QualifiedSequence> selectedPathsConsensus = new HashMap<Integer, QualifiedSequence>(paths.size());
-		Map<Integer,List<ReadAlignment>> selectedPathsAlns = new HashMap<Integer, List<ReadAlignment>>(paths.size());
+		QualifiedSequenceList selectedPathsQS = new QualifiedSequenceList();
+		Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels = new HashMap<Integer, List<CalledGenomicVariant>>(paths.size());
 		Set<Integer> alignedReadIds = new HashSet<Integer>();
-		
+		int [] sequencePaths = new int [n];
+		Arrays.fill(sequencePaths, 0);
 		for(int i = 0; i < paths.size(); i++)
 		{
 			AssemblyPath path = paths.get(i);
@@ -112,127 +111,55 @@ public class AlignmentBasedIndelErrorsCorrector {
 			path.setPathId(pathId);
 			String sequenceName = ""+pathId;
 			if(path.getPathLength()>10) {
-				aligner.alignPathReads(copyGraph, path);
-				CharSequence pathConsensus = aligner.getConsensus();
-				List<ReadAlignment> alignments = aligner.getAlignedReads();
+				aligner.calculateConsensus(path);
+				List<ReadAlignment> alignments = aligner.alignPathReads(copyGraph, path, numThreads);
+				Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
+				List<ReadAlignment> selectedAlns = new ArrayList<ReadAlignment>(alignments.size());
 				for(ReadAlignment aln:alignments) {
-					aln.setSequenceName(sequenceName);
-					alignedReadIds.add(aln.getReadNumber());
+					int readId = aln.getReadNumber();
+					if(sequencePaths[readId]==0) {
+						sequencePaths[readId] = pathId;
+						aln.setSequenceName(sequenceName);
+						alignedReadIds.add(aln.getReadNumber());
+						selectedAlns.add(aln);
+					}
 				}
 				selectedPathsMap.put(pathId, path);
-				selectedPathsConsensus.put(pathId, new QualifiedSequence(sequenceName,pathConsensus));
-				selectedPathsAlns.put(pathId, alignments);
+				selectedPathsQS.add(new QualifiedSequence(sequenceName,path.getConsensus()));
+				//TODO: Define better ploidy
+				List<CalledGenomicVariant> pathIndels = aligner.callIndels(path, selectedAlns,2);
+				selectedPathsCalledIndels.put(pathId,pathIndels);
+				correctErrors(graph, selectedAlns, path, pathIndels, sequencePaths);
 			}
+			
 		}
 		long endAln = System.currentTimeMillis();
 		long timeAln = (endAln-start)/1000; 
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		int unaligned = n - alignedReadIds.size();
-		log.info("IndelErrorsCorrector. Aligned reads within paths: "+alignedReadIds.size()+" Unaligned: "+unaligned+". Time Alignment (s): "+timeAln+" Memory: "+usedMemory+" Aligning remaining reads.");
+		log.info("IndelErrorsCorrector. Aligned and corrected reads within paths: "+alignedReadIds.size()+" Unaligned: "+unaligned+". Time (s): "+timeAln+" Memory: "+usedMemory+" Correcting remaining reads.");
 		
-		QualifiedSequenceList sequences = new QualifiedSequenceList(selectedPathsConsensus.values());
-		alignRemainingReads(graph, sequences, selectedPathsAlns, alignedReadIds);
-		int totalAlignments = 0;
-		int [] sequencePaths = new int [n];
-		Arrays.fill(sequencePaths, 0);
-		for(Map.Entry<Integer,List<ReadAlignment>> entry:selectedPathsAlns.entrySet()) {
-			int pathId = entry.getKey();
-			List<ReadAlignment> alns = entry.getValue();
-			totalAlignments+=alns.size();
-			for(ReadAlignment aln:alns) {
-				sequencePaths[aln.getReadNumber()] = pathId;
-				alignedReadIds.add(aln.getReadNumber());
-			}
-		}
-		long endAln2 = System.currentTimeMillis();
-		long timeAln2 = (endAln2-endAln)/1000;
+		correctRemainingReads(graph, selectedPathsMap, selectedPathsQS, selectedPathsCalledIndels, alignedReadIds);
+		long endCorr2 = System.currentTimeMillis();
+		long timeCorr2 = (endCorr2-endAln)/1000;
+		long timeTotal = (endCorr2-start)/1000;
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Finished alignment process. Aligned "+alignedReadIds.size()+" reads. Unaligned: "+(n-alignedReadIds.size())+". Total alignments: "+totalAlignments+" Time process (s): "+timeAln2+" Memory: "+usedMemory);
-		//ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 2*numThreads);
-		
-		long startCorrection = System.currentTimeMillis();
-		for(Map.Entry<Integer, AssemblyPath>entry:selectedPathsMap.entrySet())
-		{
-			int pathId = entry.getKey();
-			AssemblyPath path = entry.getValue();
-			QualifiedSequence consensus = selectedPathsConsensus.get(pathId);
-			correctErrors(graph, selectedPathsAlns.get(path.getPathId()), path, consensus.getName(), consensus.getCharacters().toString(), sequencePaths);
-		}
-		long endCorr = System.currentTimeMillis();
-		long timeCorr = (endCorr-startCorrection)/1000; 
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Corrected errors within paths: "+alignedReadIds.size()+". Time error correction (s): "+timeCorr+" Memory: "+usedMemory);
-		
+		log.info("IndelErrorsCorrector. Aligned and corrected remaining reads. Time process: "+timeCorr2+" Total time error correction (s): "+timeTotal+" Memory: "+usedMemory);	
 	}
 
-	private void alignRemainingReads(AssemblyGraph graph, QualifiedSequenceList pathSequences, Map<Integer, List<ReadAlignment>> selectedPathsAlns, Set<Integer> alignedReadIds) {
-		
-		int n = graph.getNumSequences();
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
-		ReferenceGenome genome = new ReferenceGenome(pathSequences);
-		aligner.loadGenome(genome, 15, 30, numThreads, false);
-		
-		Runtime runtime = Runtime.getRuntime();
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths. Memory: "+usedMemory);
-		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, 1000);
-		for(int i=0;i<n;i++) {
-			if(alignedReadIds.contains(i)) continue;
-			QualifiedSequence seq = graph.getSequence(i);
-			if(seq==null) continue;
-			final int id = i;
-			try {
-				poolAlign.queueTask(()->alignReadProcess(aligner, id, seq, selectedPathsAlns));
-			} catch (InterruptedException e) {
-				// TODO: Better handling
-				e.printStackTrace();
-			}
-		}
-		try {
-			poolAlign.terminatePool();
-		} catch (InterruptedException e) {
-			// TODO Better handling
-			e.printStackTrace();
-		}
-	}
+	
 
-	private void alignReadProcess(MinimizersTableReadAlignmentAlgorithm aligner, int id, QualifiedSequence seq, Map<Integer,List<ReadAlignment>> selectedPathsAlns) {
-		List<ReadAlignment> alns = aligner.alignRead(new RawRead(seq.getName(), seq.getCharacters(), null));
-		if(alns.size()==0) {
-			System.out.println("Unaligned read "+seq.getName()+" to consensus");
-			return;
-		}
-		ReadAlignment aln = alns.get(0);
-		aln.setReadNumber(id);
-		int pathId = Integer.parseInt(aln.getSequenceName());
-		List<ReadAlignment> pathAlns = selectedPathsAlns.get(pathId);
-		synchronized (pathAlns) {
-			pathAlns.add(aln);
-		}
-	}
-
-	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, String sequenceName, String pathConsensus, int [] sequencePaths) {
+	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, List<CalledGenomicVariant> pathIndels, int [] sequencePaths) {
 		long start = System.currentTimeMillis();
-		Runtime runtime = Runtime.getRuntime();
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory: "+usedMemory);
-		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
-		//TODO: Define better ploidy
-		List<CalledGenomicVariant> calledIndels = ConsensusBuilderBidirectionalWithPolishing.callVariants(sequenceName, pathConsensus, alignments, 2);
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Called indels in path: "+path.getPathId()+": "+calledIndels.size()+" Memory: "+usedMemory);
+		String pathConsensus = path.getConsensus();
 		List<CalledGenomicVariant> filteredIndels = new ArrayList<CalledGenomicVariant>();
-		for(CalledGenomicVariant call:calledIndels) {
+		for(CalledGenomicVariant call:pathIndels) {
 			if(!call.isUndecided() && !call.isHomozygousReference()) filteredIndels.add(call);
 		}
 		log.info("IndelErrorsCorrector. Filtered indels in path: "+path.getPathId()+": "+filteredIndels.size());
-		
+		Collections.sort(filteredIndels,GenomicRegionPositionComparator.getInstance());
 		ThreadPoolManager poolCorrection = new ThreadPoolManager(numThreads, 4*numThreads);
 		int pathId = path.getPathId();
 		int indexNextActive = 0;
@@ -265,9 +192,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 			e.printStackTrace();
 		}
 		long time = (System.currentTimeMillis()-start)/1000;
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Finished path: "+path.getPathId()+" in "+time+" seconds. Memory: "+usedMemory);
+		log.info("IndelErrorsCorrector. Corrected reads aligned to path: "+path.getPathId()+" in "+time+" seconds. Memory: "+usedMemory);
 	}
 	
 	private void correctRead (QualifiedSequence read, ReadAlignment aln, String pathConsensus, List<CalledGenomicVariant> indels, int firstIndelPos) {
@@ -391,5 +318,51 @@ public class AlignmentBasedIndelErrorsCorrector {
 			correctedReadS = new DNASequence(correctedRead);
 		}
 		read.setCharacters(correctedReadS);
+	}
+	
+	private void correctRemainingReads(AssemblyGraph graph, Map<Integer,AssemblyPath> selectedPathsMap, QualifiedSequenceList pathSequences, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels, Set<Integer> alignedReadIds) {
+		
+		int n = graph.getNumSequences();
+		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		ReferenceGenome genome = new ReferenceGenome(pathSequences);
+		aligner.loadGenome(genome, 15, 30, numThreads, false);
+		
+		
+		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		log.info("IndelErrorsCorrector. Built minimizers for consensus sequences of: "+genome.getNumSequences()+" paths. Memory: "+usedMemory);
+		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, 1000);
+		for(int i=0;i<n;i++) {
+			if(alignedReadIds.contains(i)) continue;
+			QualifiedSequence seq = graph.getSequence(i);
+			if(seq==null) continue;
+			final int id = i;
+			try {
+				poolAlign.queueTask(()->correctRemainingReadProcess(selectedPathsMap, aligner, id, seq, selectedPathsCalledIndels));
+			} catch (InterruptedException e) {
+				// TODO: Better handling
+				e.printStackTrace();
+			}
+		}
+		try {
+			poolAlign.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Better handling
+			e.printStackTrace();
+		}
+	}
+
+	private void correctRemainingReadProcess(Map<Integer,AssemblyPath> selectedPathsMap, MinimizersTableReadAlignmentAlgorithm aligner, int id, QualifiedSequence seq, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels) {
+		List<ReadAlignment> alns = aligner.alignRead(new RawRead(seq.getName(), seq.getCharacters(), null));
+		if(alns.size()==0) {
+			System.out.println("Unaligned read "+seq.getName()+" to consensus");
+			return;
+		}
+		ReadAlignment aln = alns.get(0);
+		aln.setReadNumber(id);
+		int pathId = Integer.parseInt(aln.getSequenceName());
+		List<CalledGenomicVariant> calledIndelsPath = selectedPathsCalledIndels.get(pathId);
+		String pathConsensus = selectedPathsMap.get(pathId).getConsensus();
+		correctRead(seq, aln, pathConsensus, calledIndelsPath, 0);
 	}
 }
