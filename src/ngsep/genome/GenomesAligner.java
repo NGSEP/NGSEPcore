@@ -21,6 +21,7 @@ package ngsep.genome;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -183,13 +185,14 @@ public class GenomesAligner {
 			String fileTranscriptome = args[i++];
 			instance.loadGenome(fileGenome, fileTranscriptome);
 		}
-		if(instance.getInputFile()!= null)
-			instance.loadGenomesFromFile();
+		
 		instance.run();
 	}
 	
 	public void run () throws IOException {
 		logParameters ();
+		
+		if(getInputFile()!= null) loadGenomesFromFile();
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		inferOrthologs();
@@ -260,18 +263,68 @@ public class GenomesAligner {
 	public void loadGenomesFromFile() throws IOException {
 		if(inputDirectory == null) throw new IOException("You must specify the input folder");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		try (FileReader reader = new FileReader(inputDirectory + "/" + inputFile);
+		String fileSeparator = File.separator;
+		try (FileReader reader = new FileReader(inputDirectory + fileSeparator + inputFile);
 			 BufferedReader in = new BufferedReader(reader)) {
 			String line = in.readLine();
-			log.info("Loading genomes in " + inputDirectory + "/" + inputFile);
+			log.info("Loading genomes in " + inputDirectory + fileSeparator + inputFile);
 			while(line!=null) {
 				log.info("Loading genome " + line);
-				loadGenome(inputDirectory + "/"+line +".fna.gz", inputDirectory + "/"+line +".gff.gz");
+				String pathFile = inputDirectory + fileSeparator + line;
+				String fastaFile = checkExistingFasta(pathFile);
+				String gffFile = checkExistingGFF(pathFile);
+				if(fastaFile == null || gffFile == null)
+					log.warning("FASTA or GFF3 for the genome " + line + " did not exist. The genome was removed from the analysis.");
+				else loadGenome(fastaFile,gffFile);
 				line = in.readLine();
 			}
 		}
-
 	}
+	
+	/**
+	 * Check if a FASTA file exists given a prefix
+	 * @param pathFile
+	 * @return
+	 */
+	public String checkExistingFasta(String pathFile) 
+	{
+		List<String> extensions = new ArrayList<>();
+		extensions.add(".fna");
+		extensions.add(".fna.gz");
+		extensions.add(".fa");
+		extensions.add(".fa.gz");
+		extensions.add(".fas");
+		extensions.add(".fas.gz");
+		extensions.add(".fasta");
+		extensions.add(".fasta.gz");
+		for (String string : extensions) {
+			String pathFastaString = pathFile+string;
+			File file = new File(pathFastaString);
+			if(file.exists()) return pathFastaString;
+		}	
+		return null;
+	}
+	
+	/**
+	 * Check if a GFF3 annotation file exists given a prefix
+	 * @param pathFile
+	 * @return
+	 */
+	public String checkExistingGFF(String pathFile) 
+	{
+		List<String> extensions = new ArrayList<>();
+		extensions.add(".gff");
+		extensions.add(".gff.gz");
+		extensions.add(".gff3");
+		extensions.add(".gff3.gz");
+		for (String string : extensions) {
+			String pathGffString = pathFile+string;
+			File file = new File(pathGffString);
+			if(file.exists()) return pathGffString;
+		}	
+		return null;
+	}
+	
 	public void alignGenomes() {		
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
