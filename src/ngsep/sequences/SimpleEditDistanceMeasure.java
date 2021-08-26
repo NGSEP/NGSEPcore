@@ -99,9 +99,7 @@ public class SimpleEditDistanceMeasure implements SequenceDistanceMeasure {
                 }
             }
         }
-		String [] answer = new String[2];
-		answer[0] = alignedSequence1.reverse().toString();
-		answer[1] = alignedSequence2.reverse().toString();
+		String [] answer = {alignedSequence1.reverse().toString(),alignedSequence2.reverse().toString()};
 		return answer;
 	}
 
