@@ -423,6 +423,7 @@ public class Assembler {
 			consensus = consensusP;
 		} else {
 			consensus = new ConsensusBuilderBidirectionalSimple();
+			consensus.setNumThreads(numThreads);
 		}
 		
 		graph.removeVerticesChimericReads();

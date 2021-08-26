@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public class AssemblyPath {
 	private LinkedList<AssemblyEdge> edges = new LinkedList<AssemblyEdge>();
@@ -12,6 +13,8 @@ public class AssemblyPath {
 	private int pathId;
 	private String sequenceName;
 	private List<AssemblyPath> alternativeSmallPaths=new ArrayList<AssemblyPath>();
+	private String consensus;
+	private Map<Integer, Integer> pathVerticesConsensusEnds;
 	
 	public AssemblyPath(AssemblyEdge edge) {
 		edges.add(edge);
@@ -170,5 +173,19 @@ public class AssemblyPath {
 	public List<AssemblyPath> getAlternativeSmallPaths() {
 		return alternativeSmallPaths;
 	}
+	public String getConsensus() {
+		return consensus;
+	}
+	
+	public void setConsensus(String consensus) {
+		this.consensus = consensus;
+	}
+	public Map<Integer, Integer> getPathVerticesConsensusEnds() {
+		return pathVerticesConsensusEnds;
+	}
+	public void setPathVerticesConsensusEnds(Map<Integer, Integer> pathVerticesConsensusEnds) {
+		this.pathVerticesConsensusEnds = pathVerticesConsensusEnds;
+	}
+	
 	
 }

@@ -1,40 +1,40 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.UngappedSearchHitsCluster;
+import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
+import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.main.ThreadPoolManager;
+import ngsep.math.CountsRankHelper;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.DeBruijnGraphExplorationMiniAssembler;
+import ngsep.sequences.DefaultKmersMapImpl;
+import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.variants.CalledGenomicVariant;
+import ngsep.variants.CalledGenomicVariantImpl;
+import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 
 public class AssemblyPathReadsAligner {
 	private Logger log = Logger.getLogger(AssemblyPathReadsAligner.class.getName());
-	
+	private static Runtime runtime = Runtime.getRuntime();
 	public static final int KMER_LENGTH_LOCAL_ALN = 31;
-	
-	//Parameters
-	private boolean onlyGenerateConsensus = false;
-	private boolean alignEmbedded = false;
-	private int numThreads = 1;
-	
-	//Output
-	private StringBuilder consensus;
-	private List<ReadAlignment> alignedReads;
-	private Set<Integer> unalignedReadIds;
-	
-	//private LongReadsAlignerFactory factory = new LongReadsAlignerFactory();
-	
 	
 	
 	public Logger getLog() {
@@ -45,44 +45,12 @@ public class AssemblyPathReadsAligner {
 		//factory.setLog(log);
 	}
 	
-	public boolean isOnlyGenerateConsensus() {
-		return onlyGenerateConsensus;
-	}
-	public void setOnlyGenerateConsensus(boolean onlyGenerateConsensus) {
-		this.onlyGenerateConsensus = onlyGenerateConsensus;
-	}
-	public boolean isAlignEmbedded() {
-		return alignEmbedded;
-	}
-	public void setAlignEmbedded(boolean alignEmbedded) {
-		this.alignEmbedded = alignEmbedded;
-	}
-	public StringBuilder getConsensus() {
-		return consensus;
-	}
-	public List<ReadAlignment> getAlignedReads() {
-		return alignedReads;
-	}
-	
-	public Set<Integer> getUnalignedReadIds() {
-		return unalignedReadIds;
-	}
-	
-	public int getNumThreads() {
-		return numThreads;
-	}
-	public void setNumThreads(int numThreads) {
-		this.numThreads = numThreads;
-		//factory.setNumThreads(numThreads);
-	}
-	public void alignPathReads(AssemblyGraph graph, AssemblyPath path) {
+	public void calculateConsensus(AssemblyPath path) {
 		int debugIdx = -1;
 		int n = path.getPathLength();
 		int pathIdx = path.getPathId();
-		Runtime runtime = Runtime.getRuntime();
-		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("Building consensus for path "+pathIdx+" "+path.getSequenceName()+" with length: "+n+" Memory: "+usedMemory);
+		long usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
+		log.info("Building consensus for path "+pathIdx+" "+path.getSequenceName()+" with length: "+n+" Memory (Mbp): "+usedMemory);
 		List<AssemblyEdge> edges = path.getEdges();
 		Map<Integer,Integer> pathVerticesEnds = new HashMap<Integer, Integer>();
 		StringBuilder rawConsensus = new StringBuilder();
@@ -90,7 +58,6 @@ public class AssemblyPathReadsAligner {
 		//Build consensus first
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
-		int totalReads = 0;
 		for(int j = 0; j < n; j++) {
 			AssemblyEdge edge = edges.get(j);
 			AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
@@ -162,19 +129,34 @@ public class AssemblyPathReadsAligner {
 			}
 			lastVertex = nextVertex;
 		}
-		consensus = rawConsensus;
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("Consensus built for path "+pathIdx+". Length: "+consensus.length()+" Memory: "+usedMemory+" Aligning reads.");
-		if(onlyGenerateConsensus) return;
-		alignedReads = new ArrayList<ReadAlignment>();
-		unalignedReadIds = new HashSet<>();
+		path.setConsensus(rawConsensus.toString());
+		path.setPathVerticesConsensusEnds(pathVerticesEnds);
+		log.info("Consensus built for path "+pathIdx+". Length: "+rawConsensus.length()+" Memory (Mbp): "+usedMemory);
+		
+	}
+	
+	public List<ReadAlignment> alignPathReads(AssemblyGraph graph, AssemblyPath path, int numThreads) {
+		int debugIdx = -1;
+		int n = path.getPathLength();
+		int pathIdx = path.getPathId();
+		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
+		String consensus = path.getConsensus();
+		Map<Integer,Integer> pathVerticesEnds = path.getPathVerticesConsensusEnds();
+		
+		List<AssemblyEdge> edges = path.getEdges();
+		int totalReads = 0;
+		long usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
+		
+		
 		ThreadPoolManager poolAlign = new ThreadPoolManager(numThreads, Math.max(numThreads, 1000));
-		lastVertex = path.getVertexLeft();
+		AssemblyVertex lastVertex = path.getVertexLeft();
 		for(int j = 0; j < n; j++) {
 			AssemblyEdge edge = edges.get(j);
 			AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
-			if ((j+1)%500==0) log.info("Path "+pathIdx+". Aligning. Processed path edges: "+(j+1)+" of "+n+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size());
+			if ((j+1)%500==0) {
+				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
+				log.info("Path "+pathIdx+". Aligning. Processed path edges: "+(j+1)+" of "+n+" alignments: "+alignedReads.size()+" Memory (Mbp): "+usedMemory);
+			}
 			if(!edge.isSameSequenceEdge()) {
 				lastVertex = nextVertex;
 				continue;		
@@ -184,21 +166,17 @@ public class AssemblyPathReadsAligner {
 			QualifiedSequence read = lastVertex.getRead(); 
 			CharSequence seq = read.getCharacters();
 			boolean reverse = !lastVertex.isStart();
-			if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
-			String seqStr = seq.toString();
+			if(reverse) seq = DNASequence.getReverseComplement(seq);
+			//String seqStr = seq.toString();
 			int endConsensusPathVertex = Math.min(consensus.length(), pathVerticesEnds.get(readIndex));
-			int startConsensusPathVertex = Math.max(0, endConsensusPathVertex-seqStr.length()-100);
+			int startConsensusPathVertex = Math.max(0, endConsensusPathVertex-seq.length()-100);
 			Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodes(consensus, KMER_LENGTH_LOCAL_ALN, startConsensusPathVertex,endConsensusPathVertex);
 			totalReads++;
 			//Synchronic call to calculate actual backbone read ends
-			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seqStr, reverse, startConsensusPathVertex,endConsensusPathVertex);
+			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex, alignedReads);
 			
-			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" sequence: "+seqStr.length()+" alignment: "+alnRead);
+			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" sequence: "+seq.length()+" alignment: "+alnRead);
 			
-			if(!alignEmbedded) {
-				lastVertex = nextVertex;
-				continue;
-			}
 			if(alnRead!=null) {
 				startConsensusPathVertex = alnRead.getFirst()-alnRead.getSoftClipStart();
 				endConsensusPathVertex = alnRead.getLast()+alnRead.getSoftClipEnd();
@@ -209,19 +187,19 @@ public class AssemblyPathReadsAligner {
 					CharSequence embeddedSeq = embeddedRead.getCharacters();
 					boolean reverseE = (reverse!=embedded.isReverse());
 					if(reverseE) embeddedSeq = DNAMaskedSequence.getReverseComplement(embeddedSeq);
-					String embeddedString = embeddedSeq.toString();
 					int startConsensusEmbedded = startConsensusPathVertex+embedded.getHostStart();
 					int endConsensusEmbedded = startConsensusPathVertex+embedded.getHostEnd();
 					if(reverse) {
-						startConsensusEmbedded = startConsensusPathVertex+(seqStr.length()-embedded.getHostEnd());
-						endConsensusEmbedded = startConsensusPathVertex+(seqStr.length()-embedded.getHostStart());
+						startConsensusEmbedded = startConsensusPathVertex+(seq.length()-embedded.getHostEnd());
+						endConsensusEmbedded = startConsensusPathVertex+(seq.length()-embedded.getHostStart());
 					}
 					//if(embedded.getSequenceId()==1940) System.out.println("Consensus length: "+rawConsensus.length()+" limits: "+startConsensus+" "+endConsensus+" reverseEmb: "+reverseE+" host: "+readIndex+" "+read.getName()+" Reverse host: "+reverse+" rel: "+embedded);
 					totalReads++;
 					try {
 						final int s = startConsensusEmbedded;
 						final int e = endConsensusEmbedded;
-						poolAlign.queueTask(()->alignReadProcess(pathIdx, consensus, kmersSubject, embedded.getSequenceId(), embeddedRead.getName(), embeddedString, reverseE, s, e));
+						CharSequence q = embeddedSeq;
+						poolAlign.queueTask(()->alignReadProcess(pathIdx, consensus, kmersSubject, embedded.getSequenceId(), embeddedRead.getName(), q, reverseE, s, e, alignedReads));
 					} catch (InterruptedException e) {
 						//TODO: Better handling
 						e.printStackTrace();
@@ -230,9 +208,6 @@ public class AssemblyPathReadsAligner {
 				}
 			} else {
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
-				synchronized (unalignedReadIds) {
-					for(AssemblyEmbedded embedded:embeddedList) unalignedReadIds.add(embedded.getSequenceId());
-				}
 				if(pathIdx == debugIdx && j<10) System.err.println("WARN: Unaligned consensus backbone read "+nextVertex.getRead().getName()+" to final consensus. Unaligned embedded reads: "+embeddedList.size());
 			}
 			lastVertex = nextVertex;
@@ -243,9 +218,9 @@ public class AssemblyPathReadsAligner {
 			// TODO Better handling
 			e.printStackTrace();
 		}
-		usedMemory = runtime.totalMemory()-runtime.freeMemory();
-		usedMemory/=1000000000;
-		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" unaligned: "+unalignedReadIds.size()+" Memory: "+usedMemory);
+		usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
+		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" Memory (Mbp): "+usedMemory);
+		return alignedReads;
 	}
 	private Map<Integer, Long> selectKmers(Map<Integer, Long> kmersSubject, int startConsensus, int endConsensus) {
 		Map<Integer, Long> answer = new LinkedHashMap<Integer, Long>();
@@ -255,39 +230,244 @@ public class AssemblyPathReadsAligner {
 		}
 		return answer;
 	}
-	private ReadAlignment alignReadProcess(int pathIdx, StringBuilder subject, Map<Integer, Long> kmersSubject,
-			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus) {
+	private ReadAlignment alignReadProcess(int pathIdx, String consensus, Map<Integer, Long> kmersSubject,
+			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus, List<ReadAlignment> alignedReads) {
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		Map<Integer, Long> selKmersSubject = selectKmers(kmersSubject,startConsensus,endConsensus);
-		ReadAlignment aln = alignRead(aligner,pathIdx, subject, sequence, selKmersSubject);
+		ReadAlignment aln = alignRead(aligner,pathIdx, consensus, sequence, selKmersSubject);
 		if(aln!=null) {
 			aln.setReadName(readName);
 			aln.setReadNumber(readId);
 			aln.setNegativeStrand(reverse);
+			aln.setReadCharacters(sequence);
+			//aln.setReadCharacters(null);
 			synchronized (alignedReads) {
 				alignedReads.add(aln);
 			}
 		} else {
-			ReadAlignment aln2 = alignRead(aligner,pathIdx, subject, sequence, kmersSubject);
-			if(aln2!=null) System.err.println("WARN: Alignment found for previously unaligned read "+readId+" "+readName+" reverse: "+reverse+". Given limits: "+startConsensus+" "+endConsensus+" aln: "+aln2);
-			synchronized (unalignedReadIds) {
-				unalignedReadIds.add(readId);
+			ReadAlignment aln2 = alignRead(aligner,pathIdx, consensus, sequence, kmersSubject);
+			if(aln2!=null) {
+				System.err.println("WARN: Alignment found for previously unaligned read "+readId+" "+readName+" reverse: "+reverse+". Given limits: "+startConsensus+" "+endConsensus+" aln: "+aln2);
+				aln2.setReadName(readName);
+				aln2.setReadNumber(readId);
+				aln2.setNegativeStrand(reverse);
+				aln2.setReadCharacters(sequence);
+				synchronized (alignedReads) {
+					alignedReads.add(aln2);
+				}
+				return aln2;
 			}
-			
 		}
 		return aln;
 	}
 	private ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
-		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(read.toString(), KMER_LENGTH_LOCAL_ALN, 0, read.length());
+		String readStr = read.toString();
+		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(readStr, KMER_LENGTH_LOCAL_ALN, 0, read.length());
 		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
 		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, KMER_LENGTH_LOCAL_ALN);
 		if(bestCluster==null) return null;
 		ReadAlignment aln;
 		synchronized (aligner) {
-			aln = aligner.buildCompleteAlignment(subjectIdx, subject, read, bestCluster);
+			aln = aligner.buildCompleteAlignment(subjectIdx, subject, readStr, bestCluster);
 		}
+		if(!evaluateAlignment(aln)) return null;
 		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
 		return aln;
+	}
+	private boolean evaluateAlignment(ReadAlignment aln) {
+		if(aln==null) return false;
+		Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
+		if(indelCalls==null) return true;
+		for(GenomicVariant indelCall:indelCalls.values()) {
+			if(indelCall.length()>100) return false;
+		}
+		return true;
+	}
+	public List<CalledGenomicVariant> callIndels (String consensus, List<ReadAlignment> alignments, int normalPloidy) {
+		String sequenceName = "";
+		List<GenomicRegion> activeSegments = calculateActiveSegments(sequenceName, alignments);
+		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
+		System.out.println("Number of active segments "+activeSegments.size());
+		int firstIdxAln = 0;
+		for(GenomicRegion region:activeSegments) {
+			int first = Math.max(1, region.getFirst());
+			int last = Math.min(consensus.length(), region.getLast());
+			while(firstIdxAln<alignments.size()) {
+				ReadAlignment aln = alignments.get(firstIdxAln);
+				if(aln.getLast()>=first) break;
+				firstIdxAln++;
+			}
+			String currentConsensus = consensus.subSequence(first-1,last).toString();
+			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, null);
+			String altConsensus = null;
+			if(normalPloidy>1 && localConsensus!=null) altConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, localConsensus);
+			CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus, altConsensus);
+			//TODO: check if it is worth to return homozygous reference calls
+			if(!call.isUndecided() && !call.isHomozygousReference()) answer.add(call);
+		}
+		return answer;
+	}
+	private List<GenomicRegion> calculateActiveSegments(String sequenceName, List<ReadAlignment> alignments) {
+		//Extract indel calls adding one bp on the sides for insertions
+		List<GenomicRegion> rawRegions = new ArrayList<GenomicRegion>();
+		for(ReadAlignment aln:alignments) {
+			Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
+			if(indelCalls==null) continue;
+			for(GenomicVariant indelCall:indelCalls.values()) {
+				if(indelCall.length()>10) {
+					if(indelCall.length()>100) System.out.println("WARN: Long indel from alignment: "+aln + "coordinates: "+indelCall.getFirst()+"-"+indelCall.getLast()+" Ignoring.");
+					continue;
+				}
+				if(indelCall.getLast()-indelCall.getFirst()>1) rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst(), indelCall.getLast()));
+				else rawRegions.add(new GenomicRegionImpl(sequenceName, indelCall.getFirst()-1, indelCall.getLast()+1));
+			}
+			
+		}
+		if(rawRegions.size()<2) return rawRegions;
+		//Merge overlapping regions
+		Collections.sort(rawRegions,GenomicRegionPositionComparator.getInstance());
+		List<GenomicRegion> mergedRegions = new ArrayList<GenomicRegion>();
+		GenomicRegionImpl nextRegion = (GenomicRegionImpl)rawRegions.get(0);
+		int countSupport = 1;
+		for(GenomicRegion rawRegion: rawRegions) {
+			if(GenomicRegionSpanComparator.getInstance().span(nextRegion, rawRegion) ) {
+				nextRegion.setLast(Math.max(nextRegion.getLast(), rawRegion.getLast()));
+				countSupport++;
+			} else {
+				if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
+				if(countSupport>=5) mergedRegions.add(nextRegion);
+				nextRegion = (GenomicRegionImpl)rawRegion;
+				countSupport=1;
+			}
+		}
+		if(nextRegion.length()>20) System.out.println("Adding long region "+nextRegion.getSequenceName()+":"+nextRegion.getFirst()+"-"+nextRegion.getLast()+" "+nextRegion.length()+" support: "+countSupport);
+		if(countSupport>=5) mergedRegions.add(nextRegion);
+		return mergedRegions;
+	}
+
+	private String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln, String consensusAllele) {
+		Map<Integer,List<String>> alleleCallsByLength = new HashMap<Integer, List<String>>();
+		List<String> allCalls = new ArrayList<String>();
+		int count = 0;
+		for(int i=firstIdxAln;i<alignments.size();i++) {
+			ReadAlignment aln = alignments.get(i);
+			if(aln.getFirst()>last) break;
+			CharSequence call = aln.getAlleleCall(first, last);
+			if(call==null) continue;
+			String callStr = call.toString();
+			if(consensusAllele!=null && callStr.equals(consensusAllele)) continue;
+			count++;
+			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(call.length(), (v)->new ArrayList<String>());
+			lengthCalls.add(callStr);
+			allCalls.add(callStr);
+		}
+		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Alignments: "+count);
+		if(count<5) return null;
+		List<String> maxLength = null;
+		for(List<String> nextList:alleleCallsByLength.values()) {
+			if(maxLength==null || maxLength.size()<nextList.size()) {
+				maxLength = nextList;
+			}
+		}
+		if(maxLength==null) return null;
+		//Double check that the majority length actually has at least half of the total reads
+		if(count <10 && maxLength.size()<0.8*count) return null;
+		if(2*maxLength.size()<count) {
+			if(last-first+1>=8) {
+				boolean debug = first ==-1 || first == -2; 
+				if(debug) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
+				String assembly = makeDeBruijnConsensus(last-first+1, allCalls);
+				return assembly;
+			}
+			return null;
+		}
+		String consensus = HammingSequenceDistanceMeasure.makeHammingConsensus(maxLength);
+		//if(first < 10000) System.out.println("Active site: "+first +" "+last+" Majority alleles: "+maxLength+" consensus "+consensus);
+		return consensus;
+	}
+
+	private String makeDeBruijnConsensus(int currentLength, List<String> allCalls) {
+		KmersMap kmersMap = new DefaultKmersMapImpl();
+		CountsRankHelper<String> firstKmerCounts = new CountsRankHelper<String>();
+		CountsRankHelper<String> lastKmerCounts = new CountsRankHelper<String>();
+		int kmerLength = Math.max(6, currentLength/4);
+		kmerLength = Math.min(kmerLength, 15);
+		int minCallLength = allCalls.get(0).length();
+		int maxCallLength = 0;
+		List<Integer> lengths = new ArrayList<Integer>(allCalls.size());
+		for(String call:allCalls) {
+			minCallLength = Math.min(minCallLength, call.length());
+			maxCallLength = Math.max(maxCallLength, call.length());
+			lengths.add(call.length());
+			int last = call.length()-kmerLength;
+			for(int i=0;i<=last;i++) {
+				String kmer = call.substring(i,i+kmerLength);
+				kmersMap.addOcurrance(kmer);
+				if(i==0) firstKmerCounts.add(kmer);
+				else if (i==last) lastKmerCounts.add(kmer);
+			}
+		}
+		if(firstKmerCounts.getNumDifferent()==0 || lastKmerCounts.getNumDifferent()==0) return null;
+		Collections.sort(lengths);
+		int medianCallLength = lengths.get(allCalls.size()/2);
+		
+		String bestKmerStart = firstKmerCounts.selectBest(1).keySet().iterator().next();
+		String bestKmerEnd = lastKmerCounts.selectBest(1).keySet().iterator().next();
+		//System.out.println("First kmer: "+bestKmerStart+" lastKmer: "+bestKmerEnd+" total calls: "+allCalls.size()+" median length: "+medianCallLength+" maxlength: "+maxCallLength+" minlength: "+minCallLength);
+		DeBruijnGraphExplorationMiniAssembler miniAssembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap, allCalls.size()/3);
+		String assembly = miniAssembler.assemble(bestKmerStart, bestKmerEnd, medianCallLength-1, medianCallLength, maxCallLength);
+		//System.out.println("Assembly: "+assembly);
+		return assembly;
+	}
+
+	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
+		List<String> alleles = new ArrayList<String>(2);
+		alleles.add(currentConsensus);
+		boolean hetero = altConsensus!=null && !altConsensus.equals(localConsensus);
+		if(localConsensus!=null && !localConsensus.equals(currentConsensus)) alleles.add(localConsensus);
+		if(hetero && !altConsensus.equals(currentConsensus)) {
+			alleles.add(altConsensus);
+		}
+		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
+		CalledGenomicVariantImpl call;
+		if (hetero) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HETERO);
+		else if(alleles.size()==1) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOREF);
+		else call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOALT);
+		return call;
+	}
+	private String calculateVariantSegment(ReadAlignment alignment, GenomicVariant indelReadCall, CalledGenomicVariant calledVariant, int normalPloidy) {
+		//Check that indel call is contained
+		if(calledVariant.getFirst()>indelReadCall.getFirst()) return null;
+		if(calledVariant.getLast()<indelReadCall.getLast()) return null;
+		//String readName = alignment.getReadName();
+		CharSequence extendedReadCall = alignment.getAlleleCall(calledVariant.getFirst(), calledVariant.getLast());
+		if(extendedReadCall==null) return null;
+		String [] alleles = calledVariant.getAlleles();
+		if(alleles.length<2) return null;
+		String majorAllele = calledVariant.isHomozygousReference()?alleles[0]:alleles[1];
+		String secondAllele = calledVariant.isHomozygousReference()?alleles[1]:alleles[0];
+		if(alleles.length>2) secondAllele = alleles[2];
+		
+		
+		String extendedCallStr = extendedReadCall.toString();
+		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele);
+		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" secnd allele "+secondAllele);
+		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" extendedcall "+extendedCallStr);
+		if(majorAllele.equals(extendedCallStr)) return null;
+		if(normalPloidy>1 && secondAllele.equals(extendedCallStr)) return null;
+		//TODO: Take into account heterozygosity
+		String bestAllele = majorAllele;
+		int refOffsetLeft = indelReadCall.getFirst()-calledVariant.getFirst()+1;
+		if(refOffsetLeft>=10) return null;
+		int bestAlleleStart = refOffsetLeft;
+		//int bestAlleleEnd = bestAllele.length()-refOffsetRight;
+		if(bestAlleleStart>=bestAllele.length()) return null;
+		String answer = bestAllele.substring(bestAlleleStart);
+		if(answer.length()>=10) return null;
+		//System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
+		//if(bestAlleleStart<0) throw new RuntimeException("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
+		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" consensus segment "+answer);
+		return answer;
 	}
 }

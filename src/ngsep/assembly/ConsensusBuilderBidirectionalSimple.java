@@ -34,6 +34,7 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	
 	private Logger log = Logger.getLogger(ConsensusBuilderBidirectionalWithPolishing.class.getName());
 	private String sequenceNamePrefix = "Contig";
+	private int numThreads = 1;
 	
 	public Logger getLog() {
 		return log;
@@ -50,10 +51,22 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	public void setSequenceNamePrefix(String sequenceNamePrefix) {
 		this.sequenceNamePrefix = sequenceNamePrefix;
 	}
+	
+	
+
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
 
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
+		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		aligner.setLog(log);
 		//List of final contigs
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		List<AssemblyPath> paths = graph.getPaths(); 
@@ -64,20 +77,13 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			path.setPathId(i+1);
 			path.setSequenceName(sequenceName);
 			log.info("processing path: "+sequenceName+" size: "+path.getPathLength());
-			CharSequence consensusPath = makeConsensus (graph, path);
+			
+			aligner.calculateConsensus(path);
+			CharSequence consensusPath = path.getConsensus();
 			log.info("processed path: "+sequenceName+" consensus length: "+consensusPath.length());
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
 		
 		return consensusList;
-	}
-	
-	public CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) 
-	{
-		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
-		aligner.setLog(log);
-		aligner.setOnlyGenerateConsensus(true);
-		aligner.alignPathReads(graph, path);
-		return aligner.getConsensus().toString();
 	}
 }
