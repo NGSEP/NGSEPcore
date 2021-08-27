@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.QualifiedSequence;
 
 /**
@@ -66,6 +65,8 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 	@Override
 	public List<QualifiedSequence> makeConsensus(AssemblyGraph graph) 
 	{
+		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
+		aligner.setLog(log);
 		//List of final contigs
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		List<AssemblyPath> paths = graph.getPaths(); 
@@ -76,26 +77,13 @@ public class ConsensusBuilderBidirectionalSimple implements ConsensusBuilder {
 			path.setPathId(i+1);
 			path.setSequenceName(sequenceName);
 			log.info("processing path: "+sequenceName+" size: "+path.getPathLength());
-			CharSequence consensusPath = makeConsensus (graph, path);
+			
+			aligner.calculateConsensus(path);
+			CharSequence consensusPath = path.getConsensus();
 			log.info("processed path: "+sequenceName+" consensus length: "+consensusPath.length());
 			consensusList.add(new QualifiedSequence(sequenceName,consensusPath));
 		}
 		
 		return consensusList;
-	}
-	
-	//private List<ReadAlignment> allAlns = new ArrayList<ReadAlignment>();
-	public CharSequence makeConsensus(AssemblyGraph graph, AssemblyPath path) 
-	{
-		
-		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
-		aligner.setLog(log);
-		aligner.setNumThreads(numThreads);
-		//aligner.setOnlyGenerateConsensus(true);
-		//aligner.setAlignEmbedded(true);
-		aligner.alignPathReads(graph, path);
-		
-		//allAlns.addAll(aligner.getAlignedReads());
-		return aligner.getConsensus();
 	}
 }

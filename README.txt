@@ -1107,21 +1107,25 @@ OPTIONS:
 Comparing genomes
 -----------------
 
-This module takes two assembled genomes in fasta format and their corresponding
-transcriptome gene annotations in GFF3 format and runs a whole genome
-comparison taking unique genes as orthology units. It also predicts paralogs
-within each genome.
+This module takes a list of assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format and runs a whole genome comparison taking unique genes as orthology units. It also predicts paralogs within each genome. See the README.txt file for further details of input and output files.
 
 USAGE:
 
-java -jar NGSEPcore.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GENOME2> <TRANSCRIPTOME2>
+java -jar NGSEPcore_4.1.1.jar GenomesAligner <OPTIONS> <GENOME1> <TRANSCRIPTOME1> <GENOME2> <TRANSCRIPTOME2>
+
+or
+
+java -jar NGSEPcore_4.1.1.jar GenomesAligner -d <PATHTOFOLDER> -i <INPUTFILE>
 
 OPTIONS:
 
-	-o STRING	: Prefix of output files. Default: genomesAlignment
-	-k INT		: K-mer length to find orthologs. Default: 10
-	-p INT		: Minimum percentage of k-mers to find orthologs.
-			  Default: 50
+        -d STRING : Input Directory with INPUTFILE, FASTA (fa, fna, fasta) and GFF3 (gff, gff3) compressed (.gz) or uncompressed files.
+        -i STRING : Input File with genome identifiers (prefix of fasta and gff3 files)
+        -o STRING : Prefix for output files. Default: genomesAlignment
+        -k INT    : K-mer length to find orthologs. Default: 10
+        -p INT    : Minimum percentage of k-mers to call orthologs Default: 50
+        -s        : Skip the MCL clustering phase and return unfiltered orthogroups.
+        -f DOUBLE : Minimum frequency to classify soft core gene families Default: 0.9
 			
 The output is a series of text files having the ids and physical coordinates of
 the paralogs within each genome and the orthologs between the two genomes.
@@ -1145,9 +1149,15 @@ have the following format:
 
 The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
 <PREFIX>_paralogsG2.tsv, have the same 10 first columns but columns 7 to 10
-contain genes within the same genome as genes in column 1 to 4. The file
-<PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
+contain genes within the same genome as genes in column 1 to 4. 
+
+Pangenome files are:
+The file <PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
 that can be inferred from the pairwise homolog relationships.
+The file <PREFIX>_paMatrix.txt contains the Presence/Absence matrix where each row corresponds 
+to a gene family and each column corresponds to a genome.
+The file <PREFIX>_gfFreqs.txt contains the frequency of each gene family within the genomes and
+its classification into exact/soft core/accesory genomes.
 
 Finally, the files:
 

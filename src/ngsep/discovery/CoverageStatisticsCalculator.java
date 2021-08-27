@@ -94,8 +94,8 @@ public class CoverageStatisticsCalculator implements PileupListener {
 	public void setMinMQ(int minMQ) {
 		this.minMQ = minMQ;
 	}
-	public void setMinMQ(Integer minMQ) {
-		this.setMinMQ(minMQ.intValue());
+	public void setMinMQ(String value) {
+		this.setMinMQ((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public ReferenceGenome getGenome() {

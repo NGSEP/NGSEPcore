@@ -71,6 +71,8 @@ public class AssemblyGraph {
 
 	private List<AssemblyPath> paths = new ArrayList<AssemblyPath>();
 	
+	private Set<Integer> chimericSequenceIds = new HashSet<Integer>();
+	
 	private int numEdges = 0;
 	
 	private int ploidy = DEF_PLOIDY_ASSEMBLY;
@@ -573,14 +575,15 @@ public class AssemblyGraph {
 
 	public void removeVerticesChimericReads () {
 		for(int i=0;i<sequences.size();i++) {
-			if(isChimeric(i)) {
+			if(calculateChimericStatus(i)) {
 				removeVertices(i);
 				removeEmbeddedRelations(i);
+				chimericSequenceIds.add(i);
 			}
 		}
 	}
 	
-	private boolean isChimeric(int sequenceId) {
+	private boolean calculateChimericStatus(int sequenceId) {
 		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
 		int idxDebug = -1;
 		int seqLength = getSequenceLength(sequenceId);
@@ -746,6 +749,10 @@ public class AssemblyGraph {
 		}*/
 		
 		return false;
+	}
+	
+	public boolean isChimeric(int sequenceId) {
+		return chimericSequenceIds.contains(sequenceId);
 	}
 	
 	public List<AssemblyEdge> selectSafeEdges(  ) {

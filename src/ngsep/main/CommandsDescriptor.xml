@@ -262,10 +262,10 @@ Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if 
 <option id="al" type="STRING" attribute="layoutAlgorithm" defaultConstant="LAYOUT_ALGORITHM_KRUSKAL_PATH" >
 Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 </option>
+-->
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_POLISHING" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
--->
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
@@ -949,7 +949,7 @@ Compares two partially or completely assembled genomes based on their gene annot
 </intro>
 <title>Comparing genomes</title>
 <description>
-This module takes two assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
+This module takes a list of assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
 and runs a whole genome comparison taking unique genes as orthology units.
 It also predicts paralogs within each genome.
 See the README.txt file for further details of input and output files.
@@ -958,8 +958,14 @@ See the README.txt file for further details of input and output files.
 <argument>TRANSCRIPTOME1</argument>
 <argument>GENOME2</argument>
 <argument>TRANSCRIPTOME2</argument>
+<option id="d" type="STRING" attribute="inputDirectory">
+Input Directory with INPUTFILE, FASTA (fa, fna, fasta) and GFF3 (gff, gff3) compressed (.gz) or uncompressed files.
+</option>
+<option id="i" type="STRING" attribute="inputFile">
+Input File with genome identifiers (prefix for fasta and gff files)
+</option>
 <option id="o" type="STRING" attribute="outputPrefix" defaultConstant="DEF_OUT_PREFIX">
-Prefix of output files.
+Prefix for output files.
 </option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length to find orthologs.
@@ -971,14 +977,10 @@ Minimum percentage of k-mers to call orthologs
 Skip the MCL clustering phase and return unfiltered orthogroups.
 </option>
 <option id="f" type="DOUBLE" attribute="minFrequencySoftCore" defaultConstant="DEF_MIN_FREQUENCY_SOFT_CORE">
-Minimum frequency to classify soft core gene families
+Minimum frequency to classify soft core gene families.
 </option>
-<option id="d" type="STRING" attribute="inputDirectory">
-Input Directory with FASTA (fna.gz) and GFF (gff.gz) files
-</option>
-<option id="i" type="STRING" attribute="inputFile">
-Input File with genome identifiers (prefix of fasta and gff files)
-</option>
+
+
 <!--
 <option id="MH" type="INT" defaultConstant="DEF_MAX_HOMOLOGS_UNIT" attribute="maxHomologsUnit">
 Maximum number of homologs per unit to be displayed in the D3 visualization
