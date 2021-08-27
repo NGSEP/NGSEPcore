@@ -22,31 +22,26 @@ public class MaximalCliquesFinder {
 		}
 		return inputGraph;
 	}
-	
 	private static ArrayList<Node> getIntersections(ArrayList<Node> nodes1, ArrayList<Node> nodes2) {
 		ArrayList<Node> intersections = new ArrayList<>(nodes1);
 		intersections.retainAll(nodes2);
 		return intersections;
 	}
-	
 	private static ArrayList<Node> getUnions(ArrayList<Node> nodes1, List<Node> nodes2) {
 		ArrayList<Node> intersections = new ArrayList<>(nodes1);
 		intersections.addAll(nodes2);
 		return intersections;
 	}
-	
 	private static ArrayList<Node> removeNodeNeighbors(ArrayList<Node> nodeList, Node v) { 
 		ArrayList<Node> nodes = new ArrayList<Node>(nodeList); 
 		nodes.removeAll(v.getNeighbors()); 
 		return nodes; 
 	} 
-	
 	private static Node getPivotNode(ArrayList<Node> nodeList) {
 		Collections.sort(nodeList);
 		Node pivot = nodeList.get(nodeList.size()-1);
 		return pivot;
 	}
-	
 	private static ArrayList<Integer> getNodeIdxs(ArrayList<Node> nodeList) {
 		ArrayList<Integer> idxs = new ArrayList<>();
 		for(Node v:nodeList) {
@@ -54,7 +49,6 @@ public class MaximalCliquesFinder {
 		}
 		return idxs;
 	}
-	
 	private static void pivotBronKerbosch(ArrayList<Node> R, ArrayList<Node> P, ArrayList<Node> X,
 			ArrayList<ArrayList<Integer>> maxCliques) {
 		if(P.isEmpty() && X.isEmpty()) {
@@ -74,7 +68,6 @@ public class MaximalCliquesFinder {
 			X.add(v);
 		}
 	}
-	
 	public static ArrayList<ArrayList<Integer>> callMaxCliqueFinder(List<Integer> idxs, boolean[][] edges){
 		ArrayList<Node> inputGraph = generateInputGraph(idxs, edges);
 		ArrayList<ArrayList<Integer>> result = new ArrayList<>();
@@ -107,7 +100,6 @@ public class MaximalCliquesFinder {
 	}
 **/
 }
-
 class Node implements Comparable <Node>{
 	int idx;
 	int degree;

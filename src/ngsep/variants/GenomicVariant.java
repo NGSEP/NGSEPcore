@@ -40,7 +40,9 @@ public interface GenomicVariant extends GenomicRegion {
 	public static final byte TYPE_LARGEDEL = 12;
 	public static final byte TYPE_LARGEINS = 13;
 	public static final byte TYPE_INVERSION = 14;
+	public static final byte TYPE_DUPLICATION = 15;
 	
+	public static final String TYPENAME_UNDETERMINED = "UND";
 	public static final String TYPENAME_BIALLELIC_SNV = "SNV";
 	public static final String TYPENAME_MULTIALLELIC_SNV = "MULTISNV";
 	public static final String TYPENAME_EMBEDDED_SNV = "EMBEDDED";
@@ -51,6 +53,7 @@ public interface GenomicVariant extends GenomicRegion {
 	public static final String TYPENAME_LARGEDEL = "DEL";
 	public static final String TYPENAME_LARGEINS = "INS";
 	public static final String TYPENAME_INVERSION = "INV";
+	public static final String TYPENAME_DUPLICATION = "DUP";
 	
 	
 	public static final int MAX_NUM_ALLELES = 100;
