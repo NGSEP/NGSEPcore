@@ -22,10 +22,10 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 	
 	public static final double DEFAULT_PD_NORM_FACTOR = 900;
 	public static final double DEFAULT_EDGE_TRESHOLD = 0.7;
+	
 	private double pdNormFactor = DEFAULT_PD_NORM_FACTOR;
 	private double edgeTreshold = DEFAULT_EDGE_TRESHOLD;
-	
-	private ReferenceGenome refGenome;
+	//private ReferenceGenome refGenome;
 	private Map<String, List<GenomicVariant>> signatures;
 	private int partitionSignatureSize = 10;
 	
@@ -34,10 +34,10 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		// TODO Auto-generated method stub
 		this.signatures = signatures;
 	}
-	public void setReferenceGenome(ReferenceGenome ref) {
+	/**public void setReferenceGenome(ReferenceGenome ref) {
 		// TODO Auto-generated method stub
 		this.refGenome = ref;
-	}
+	}**/
 	public double calculateSPD(GenomicVariant sign1, GenomicVariant sign2) {
 		double SPD = 0;
 		double SD = 0;

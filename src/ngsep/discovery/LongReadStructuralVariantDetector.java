@@ -82,6 +82,15 @@ public class LongReadStructuralVariantDetector {
 		return (cigOp == 'N' || cigOp == 'D') || cigOp == 'I';
 	}
 	**/
+	public GenomicVariantImpl createSignature(GenomicVariant indel) {
+		int first = indel.getFirst();
+		int last = indel.getLast();
+		String seqName = indel.getSequenceName(); 
+		byte type = first + 1 == last ? GenomicVariant.TYPE_LARGEINS : GenomicVariant.TYPE_LARGEDEL;
+		GenomicVariantImpl signature = new GenomicVariantImpl(seqName, first, last, type);
+		if(signature.getType() == GenomicVariant.TYPE_LARGEINS) signature.setLast(first + 1); 
+		return signature;
+	}
 	public void findSignatures(ReadAlignment aln) {
 		/**
 		String cigarStr = aln.getCigarString();
@@ -122,27 +131,22 @@ public class LongReadStructuralVariantDetector {
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
 				if(indel.length()<50) continue;
-				int begin = indel.getFirst();
-				int end = indel.getLast();
-				String seqName = indel.getSequenceName();
-				int length = indel.length();
-				byte varType = indel.getType();
-				GenomicVariant sig = new GenomicVariantImpl(seqName, begin, end, varType);
-				sig.setType(varType);
+				GenomicVariant signature = createSignature(indel);
+				String seqName = signature.getSequenceName();
 				System.out.println(" Indel first: " + indel.getFirst() + " last: " + indel.getLast() + " chr: " + indel.getSequenceName() + " with length: " + indel.length());
 				if(signatures.containsKey(seqName)) {
 					List<GenomicVariant> signs = signatures.get(seqName);
-					signs.add(sig);
+					signs.add(signature);
 					signatures.put(seqName, signs);
 				}
 				else {
 					List<GenomicVariant> signs = new ArrayList<>();
-					signs.add(sig);
+					signs.add(signature);
 					signatures.put(seqName, signs);
 				}
 			}
 		}
-	}
+	}	
 	public List<GenomicVariantAnnotation> annotateStructuralVariant(GenomicVariant variant){
 		List<GenomicVariantAnnotation> annotations = new ArrayList<>();
 		GenomicVariantAnnotation svLengthAnnot = new GenomicVariantAnnotation(variant,
@@ -166,6 +170,20 @@ public class LongReadStructuralVariantDetector {
 		filters.add(FILTER_SETTING_MISSING);
 		return filters;
 	}
+/**
+	public void makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variants) throws IOException{
+		try(ReadAlignmentFileReader alignmentReader = new ReadAlignmentFileReader(alignmentFile, refGenome)){
+			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
+			alignmentReader.setFilterFlags(filterFlags);
+			alignmentReader.setMinMQ(minMQ);
+			Iterator<ReadAlignment> it = alignmentReader.iterator();
+			ReadAlignment aln = it.next();
+			while(it.hasNext()) {
+				aln = it.next();
+			}
+		}
+	}
+	**/
 	public List<VCFRecord> getRecords(List<GenomicVariant> variants, VCFFileHeader header){
 		List<VCFRecord> records = new ArrayList<>();
 		for(GenomicVariant variant:variants) {
@@ -193,7 +211,6 @@ public class LongReadStructuralVariantDetector {
 		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
 			LongReadVariantDetectorAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm();
 			caller.setSignatures(signatures);
-			caller.setReferenceGenome(refGenome);
 			variants = caller.callVariants();
 		}
 		List<GenomicVariant> variantsList = variants.asList();

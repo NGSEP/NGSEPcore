@@ -8,9 +8,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.variants.GenomicVariant;
 
 public interface LongReadVariantDetectorAlgorithm {
-	
-	public void setReferenceGenome(ReferenceGenome ref);
-	
+		
 	public void setSignatures(Map<String, List<GenomicVariant>> signatures);
 	
 	public GenomicRegionSortedCollection<GenomicVariant> callVariants();
