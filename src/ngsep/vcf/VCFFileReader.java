@@ -262,6 +262,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		List<GenomicVariantAnnotation> annotations = new ArrayList<GenomicVariantAnnotation>();
 		if(NO_INFO_CHAR.equals(infoField)) return annotations;
 		String [] infoItems = ParseUtils.parseStringWithText(infoField, ';','\"');
+		boolean svLenPresent = false;
 		for(int i=0;i<infoItems.length;i++) {
 			int idx = infoItems[i].indexOf("=");
 			if(idx <0) annotations.add(new GenomicVariantAnnotation(variant, infoItems[i], true));
@@ -284,7 +285,19 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 					GenomicVariantImpl impl = (GenomicVariantImpl)variant; 
 					impl.setLast(last);
 					//TODO: only change length if the length attribute is not present
-					impl.setLength(last-variant.getFirst()+1);
+					if(!svLenPresent) impl.setLength(last-variant.getFirst()+1);
+				}
+				if(GenomicVariantAnnotation.ATTRIBUTE_SVLEN.equals(attribute) && (variant instanceof GenomicVariantImpl)) {
+					int length = Integer.parseInt(value);
+					GenomicVariantImpl impl = (GenomicVariantImpl)variant; 
+					impl.setLength(length);
+					svLenPresent = true;
+				}
+				if(GenomicVariantAnnotation.ATTRIBUTE_SVTYPE.equals(attribute)) {
+					byte type = GenomicVariantImpl.getVariantTypeId(value);
+					if(type>=10) {
+						variant.setType(type);
+					}
 				}
 			}
 		}

@@ -20,24 +20,26 @@ public class VCFDirectSVComparison {
 	private ReferenceGenome genome;
 	private List<GenomicVariant> referenceVariants;
 	private List<GenomicVariant> testVariants;
+	private List<Integer> truePositivesPerVar;
+	private List<Integer> falsePositivesPerVar;
+	private int truePositiveBps;
+	private int falsePositiveBps;
 	
 	public VCFDirectSVComparison() {
 		referenceVariants = new ArrayList<>();
 		testVariants = new ArrayList<>();
+		truePositivesPerVar = new ArrayList<>();
+		falsePositivesPerVar = new ArrayList<>();
 	}
-	
 	public List<GenomicVariant> getReferenceVariants() {
 		return referenceVariants;
 	}
-
 	public List<GenomicVariant> getTestVariants() {
 		return testVariants;
 	}
-	
 	public void setGenome(String file) throws IOException{
 		genome = new ReferenceGenome(file);
 	}
-	
 	public int findIntersectingVariants(String vcf1, String vcf2) throws IOException{
 		try(VCFFileReader input1 = new VCFFileReader(vcf1);
 				VCFFileReader input2 = new VCFFileReader(vcf2);){
@@ -55,35 +57,14 @@ public class VCFDirectSVComparison {
 			int firstRef = -1;
 			int lastTest = -1;
 			int lastRef = -1;
-			int ref = 0;
+			int refCount = 1;
 			while(testRecords != null && refRecords != null) {
-				/*while(refRecords.getVariant().isSNV() && it2.hasNext()) { 
-					refRecords = it2.next();
-				}
-				/**if(testVariant.getFirst() - firstTest < -1000) {
-					System.out.println("Cambio de cromosoma: test");
-					while(refVariant.getFirst() >= firstRef) {
-						firstRef = refVariant.getFirst();
-						if(it2.hasNext())refRecords = it2.next();
-						else break;
-						refVariant = refRecords.getVariant();
-					}
-				}else if(refVariant.getFirst() - firstRef < -1000) {
-					System.out.println("Cambio de cromosoma: referencia");
-					while(testVariant.getFirst() >= firstTest) {
-						firstTest = testVariant.getFirst();
-						if(it1.hasNext()) testRecords = it1.next();
-						else break;
-						testVariant = testRecords.getVariant();
-					}
-				}**/
 				testVariant = (GenomicVariantImpl) testRecords.getVariant();
 				refVariant = (GenomicVariantImpl) refRecords.getVariant();
 				firstTest = testVariant.getFirst();
 				firstRef = refVariant.getFirst();
 				lastTest = testVariant.getLast();
 				lastRef = refVariant.getLast();
-				//int cmp = compare(firstTest, firstRef, lastTest, lastRef);
 				if(lastRef-firstRef < 2) {
 					lastRef = firstRef + refVariant.length()- 1;
 					refVariant.setLast(lastRef);
@@ -93,15 +74,11 @@ public class VCFDirectSVComparison {
 					testVariant.setLast(lastTest);
 				}
 				int cmp = comparator.compare(testVariant, refVariant);
-				//System.out.println(testRecords.getVariant().length() + " " + (lastTest-firstTest + 1) );
 				//System.out.println("Comparison: "+cmp + " for: " + 
 					//	"firstTest: "+ firstTest + " lastTest: " + lastTest +
 						//" firstRef: " + firstRef + " lastRef: " + lastRef);
 				if(cmp > 1) {
-					if(it2.hasNext()) {
-						refRecords = it2.next();
-						//ref++;
-					}
+					if(it2.hasNext()) refRecords = it2.next();
 					else break;
 				}
 				else if(cmp < -1) {
@@ -109,34 +86,35 @@ public class VCFDirectSVComparison {
 					else break;
 				}
 				else {
-					if(intersectionTreshold(firstTest, firstRef,
+					if(isIntersection(firstTest, firstRef,
 							lastTest, lastRef)) {
-						intersectingVariants++;
+						if(testVariant.getType() == refVariant.getType()) intersectingVariants++;
 						testVariants.add(testVariant);
 						referenceVariants.add(refVariant);
-						//ref++;
 					}
 					if(it1.hasNext()) testRecords = it1.next();
 					else break;
-					if(it2.hasNext())refRecords = it2.next();
+					if(it2.hasNext()) refRecords = it2.next();
 					else break;
 				}
-			}//System.out.println(" La cantidad de referencia: " + ref);
+			}
+			//System.out.println(refCount);
 			return intersectingVariants;
 		}
 	}
-	
-	/**public int compare(int first1, int first2, int last1, int last2) {
-		if(last1 < first2) return -1;
-		else if(last2 < first1) return 1;
-		else return 0;
-	}**/
-	
-	public boolean intersectionTreshold(int first1, int first2, int last1, int last2) {
+	public int estimateTruePositiveNucleotides(int intersection) {
+		return intersection;
+	}
+	public int estimateFalsePositiveNucleotides(int testLength, int intersection) {
+		return testLength - intersection;
+	}
+	public double estimateIntersectionPercentageOverReference(int first1, int first2, int last1, int last2) {
 		int higherLast = 0;
 		int lowerLast = 0;
 		int higherFirst = 0;
 		int lowerFirst = 0;
+		int refLength = last2 - first2 + 1;
+		int testLength = last1 - first1 + 1;
 		if(last2 > last1) {
 			higherLast = last2;
 			lowerLast = last1;
@@ -154,21 +132,41 @@ public class VCFDirectSVComparison {
 			lowerFirst = first2;
 		}
 		int span = higherLast - lowerFirst;
-		if(span == 0) return false;
+		if(span == 0) return 0;
 		int complement = (higherFirst - lowerFirst) + (higherLast - lowerLast);
 		int intersection = span - complement;
-		double percentage = (double) intersection / span;
-		//System.out.println(" Intersection: " + intersection + " union: " + span + " percentage: " + percentage);
+		int truePositiveNucleotides = estimateTruePositiveNucleotides(intersection);
+		int falsePositiveNucleotides = estimateFalsePositiveNucleotides(testLength, intersection);
+		truePositivesPerVar.add(truePositiveNucleotides);
+		falsePositivesPerVar.add(falsePositiveNucleotides);
+		truePositiveBps += truePositiveNucleotides;
+		falsePositiveBps += falsePositiveNucleotides;
+		double percentage = (double) intersection / refLength;
+		//System.out.println(" Intersection: " + intersection + " union: " + refLength + " percentage: " + percentage);
+		return percentage;
+	}
+	public boolean isIntersection(int first1, int first2, int last1, int last2) {
+		double percentage = estimateIntersectionPercentageOverReference(first1,first2,last1,last2);
 		return percentage >= PERCENTAGE_INTERSECTION_TRESHOLD;
 	}
-	
+	public int getTotalTruePositiveBps() {
+		return truePositiveBps;
+	}
+	public int getTotalFalsePositiveBps() {
+		return falsePositiveBps;
+	}
 	public static void main(String[] args) throws IOException {
 		VCFDirectSVComparison v = new VCFDirectSVComparison();
 		v.setGenome(args[0]);
 		String testFile = args[1];
 		String refFile = args[2];
 		int ints = v.findIntersectingVariants(testFile, refFile);
-		System.out.println(ints);
+		System.out.println(" Intersections: " + ints);
+		System.out.println(" Total True positive bases: " + v.getTotalTruePositiveBps());
+		System.out.println(" Total False positive bases: " + v.getTotalFalsePositiveBps());
+		double precision = (double) v.getTotalTruePositiveBps() / (v.getTotalTruePositiveBps() + v.getTotalFalsePositiveBps());
+		System.out.println(" Precision: " + precision*100);
+		System.out.println(" FDR: " + ((1 - precision)*100));
 		//List<GenomicVariant> tests = v.getTestVariants();
 		//List<GenomicVariant> refs = v.getReferenceVariants();
 		//for(int i = 0; i < tests.size(); i++) {

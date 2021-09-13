@@ -9,7 +9,9 @@ import ngsep.variants.GenomicVariant;
 
 public interface LongReadVariantDetectorAlgorithm {
 		
-	public void setSignatures(Map<String, List<GenomicVariant>> signatures);
+	//public void setSignatures(Map<String, List<GenomicVariant>> signatures);
+	
+	public void setSignatures(GenomicRegionSortedCollection<GenomicVariant> signatures);
 	
 	public GenomicRegionSortedCollection<GenomicVariant> callVariants();
 }

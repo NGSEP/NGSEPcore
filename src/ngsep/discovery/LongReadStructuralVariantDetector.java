@@ -19,6 +19,7 @@ import JSci.maths.statistics.SampleStatistics;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.graphs.CliquesFinder;
@@ -26,6 +27,7 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
+import ngsep.variants.CalledLargeIndel;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
@@ -39,49 +41,46 @@ public class LongReadStructuralVariantDetector {
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "Clique";
 	public static final String FILTER_SETTING_MISSING = ".";
 	
-	private Map<String, List<GenomicVariant>> signatures;
+	private GenomicRegionSortedCollection<GenomicVariant> signatures;
 	private ReferenceGenome refGenome;
-	private GenomicRegionSortedCollection<ReadAlignment> alignments;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	private GenomicRegionSortedCollection<GenomicVariant> variants;
 	
 	LongReadStructuralVariantDetector(){
-		signatures = new LinkedHashMap<>();
-		alignments = new GenomicRegionSortedCollection<ReadAlignment>();
 	}
 	public void setRefGenome(String referenceFile) throws IOException {
-		refGenome = new ReferenceGenome(referenceFile);
+		this.refGenome = new ReferenceGenome(referenceFile);
 	}
 	public void readAlignments(String alignmentFile) throws IOException{
 		try(ReadAlignmentFileReader alignmentReader = new ReadAlignmentFileReader(alignmentFile, refGenome)){
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			alignmentReader.setFilterFlags(filterFlags);
 			alignmentReader.setMinMQ(minMQ);
+			Map<String, List<GenomicVariant>> candidates = new LinkedHashMap<>();
 			Iterator<ReadAlignment> it = alignmentReader.iterator();
 			ReadAlignment aln = it.next();
-			//List<ReadAlignment> tempAlns = new ArrayList<>();
 			while(it.hasNext()) {
 				aln = it.next();
-				findSignatures(aln);
-				//tempAlns.add(aln);
-				//System.out.println(" Alignment processed at: " + aln.getSequenceName() + " pos: " + aln.getFirst());
+				findSignatures(aln, candidates);
 			}
-			//QualifiedSequenceList seqs = new QualifiedSequenceList();
-			//for(String key:signatures.keySet()) seqs.add(new QualifiedSequence(key));
-			//alignments = new GenomicRegionSortedCollection<ReadAlignment>(seqs);
-			//alignments.addAll(tempAlns);
+			long startTime = System.currentTimeMillis();
+			System.out.println(" Passing to sorted ds");
+			QualifiedSequenceList seqs = new QualifiedSequenceList();
+			for(String k:candidates.keySet()) seqs.add(new QualifiedSequence(k));
+			signatures = new GenomicRegionSortedCollection<>(seqs);
+			for(List<GenomicVariant> s:candidates.values()) signatures.addAll(s);
+			signatures.forceSort();
+			System.out.println(" sorted!");
+			long endTime = System.currentTimeMillis();
+			System.out.println("Total execution time of ds: " + (endTime-startTime) + "ms"); 
 		}
 	}
-	public Map<String, List<GenomicVariant>> getSignatures() {
+	public GenomicRegionSortedCollection<GenomicVariant> getSignatures() {
 		return signatures;
 	}
 	public ReferenceGenome getRefGenome() {
 		return refGenome;
 	}
-	/**
-	public boolean isAlnGap(char cigOp) {
-		return (cigOp == 'N' || cigOp == 'D') || cigOp == 'I';
-	}
-	**/
 	public GenomicVariantImpl createSignature(GenomicVariant indel) {
 		int first = indel.getFirst();
 		int last = indel.getLast();
@@ -91,66 +90,25 @@ public class LongReadStructuralVariantDetector {
 		if(signature.getType() == GenomicVariant.TYPE_LARGEINS) signature.setLast(first + 1); 
 		return signature;
 	}
-	public void findSignatures(ReadAlignment aln) {
-		/**
-		String cigarStr = aln.getCigarString();
-		String strAmount = "";
-		int amount = 0;
-		int currentPos = aln.getFirst();
-		for(int i = 0; i < cigarStr.length(); i++) {
-			char op = cigarStr.charAt(i);
-			if(Character.isDigit(op)) strAmount += op;
-			else {
-				amount = Integer.parseInt(strAmount);
-				if(amount >= 50 && isAlnGap(op)) {
-					int begin = currentPos;
-					int end = currentPos + amount;
-					int length = end - begin + 1;
-					if(op == 'I') end = begin + 1;
-					String chr = aln.getSequenceName();
-					GenomicVariant sig = new GenomicVariant(chr, begin, end, length, GenomicVariant.ALN_TYPENAME_INTRALIGNMENT);
-					sig.setType(op);
-					if(GenomicVariants.containsKey(chr)) {
-						List<GenomicVariant> signs = GenomicVariants.get(chr);
-						signs.add(sig);
-						GenomicVariants.put(chr, signs);
-					}else {
-						List<GenomicVariant> signs = new ArrayList<>();
-						signs.add(sig);
-						GenomicVariants.put(chr, signs);
-					}
-				}
-				currentPos += amount;
-				strAmount = "";
-				amount = 0;
-			}
-		}
-		**/
+	public void findSignatures(ReadAlignment aln, Map<String, List<GenomicVariant>> signatures) {
 		Map<Integer, GenomicVariant> calls = aln.getIndelCalls();
 		if(calls != null) {
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
-				if(indel.length()<50) continue;
+				if(indel.length() < 10) continue;
 				GenomicVariant signature = createSignature(indel);
 				String seqName = signature.getSequenceName();
-				System.out.println(" Indel first: " + indel.getFirst() + " last: " + indel.getLast() + " chr: " + indel.getSequenceName() + " with length: " + indel.length());
-				if(signatures.containsKey(seqName)) {
-					List<GenomicVariant> signs = signatures.get(seqName);
-					signs.add(signature);
-					signatures.put(seqName, signs);
-				}
-				else {
-					List<GenomicVariant> signs = new ArrayList<>();
-					signs.add(signature);
-					signatures.put(seqName, signs);
-				}
+				System.out.println(" Indel first: " + indel.getFirst() + " last: " + indel.getLast() + " chr: "
+				+ indel.getSequenceName() + " with length: " + indel.length());
+				signatures.computeIfAbsent(seqName, (k) -> new ArrayList<>()).add(signature);
 			}
 		}
 	}	
 	public List<GenomicVariantAnnotation> annotateStructuralVariant(GenomicVariant variant){
 		List<GenomicVariantAnnotation> annotations = new ArrayList<>();
+		int length = variant.getType() == GenomicVariant.TYPE_LARGEDEL ? variant.length()*(-1) : variant.length();
 		GenomicVariantAnnotation svLengthAnnot = new GenomicVariantAnnotation(variant,
-				GenomicVariantAnnotation.ATTRIBUTE_SVLEN, variant.length());
+				GenomicVariantAnnotation.ATTRIBUTE_SVLEN, length);
 		GenomicVariantAnnotation svEndAnnot = new GenomicVariantAnnotation(variant,
 				GenomicVariantAnnotation.ATTRIBUTE_END, variant.getLast());
 		GenomicVariantAnnotation svTypeAnnot = new GenomicVariantAnnotation(variant,
@@ -170,20 +128,45 @@ public class LongReadStructuralVariantDetector {
 		filters.add(FILTER_SETTING_MISSING);
 		return filters;
 	}
-/**
-	public void makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variants) throws IOException{
+	public void makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) throws IOException{
 		try(ReadAlignmentFileReader alignmentReader = new ReadAlignmentFileReader(alignmentFile, refGenome)){
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			alignmentReader.setFilterFlags(filterFlags);
 			alignmentReader.setMinMQ(minMQ);
+			GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(variants.getSequenceNames());
 			Iterator<ReadAlignment> it = alignmentReader.iterator();
 			ReadAlignment aln = it.next();
+			int i = 0;
+			GenomicVariant var = variantsList.get(i);
+			int totalAlnVarInt = 0;
+			int refAlnCalls = 0;
+			int altAlnCalls = 0;
 			while(it.hasNext()) {
-				aln = it.next();
+				int cmp = cmpClassInstance.compare(var, aln);
+				if(cmp < -1) {
+					aln = it.next();
+				}else if(cmp > 1) {
+					if(totalAlnVarInt > 0) {
+						CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, -1);
+					}
+					if(i < variantsList.size() - 1) {
+						i++;
+						var = variantsList.get(i);
+						totalAlnVarInt = 0;
+						refAlnCalls = 0;
+						altAlnCalls = 0;
+					}
+					else break;
+				}
+				else {
+					int begin = var.getFirst();
+					if(aln.getIndelCall(begin) == null) refAlnCalls++;
+					else altAlnCalls++;
+					totalAlnVarInt++;
+				}
 			}
 		}
 	}
-	**/
 	public List<VCFRecord> getRecords(List<GenomicVariant> variants, VCFFileHeader header){
 		List<VCFRecord> records = new ArrayList<>();
 		for(GenomicVariant variant:variants) {
@@ -207,17 +190,16 @@ public class LongReadStructuralVariantDetector {
 	public void run(String algorithm, String refFile, String alnFile) throws IOException {
 		setRefGenome(refFile);
 		readAlignments(alnFile);
-		GenomicRegionSortedCollection<GenomicVariant> variants = new GenomicRegionSortedCollection<>();
 		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
 			LongReadVariantDetectorAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm();
 			caller.setSignatures(signatures);
 			variants = caller.callVariants();
 		}
 		List<GenomicVariant> variantsList = variants.asList();
-		for(GenomicVariant v:variantsList) {
- 			System.out.println(v.getSequenceName() + " begin: " + v.getFirst() + " end: " + v.getLast() + " type: " + 
-					GenomicVariantImpl.getVariantTypeName(v.getType())+ " length: " + v.length() + " QS: " + v.getVariantQS());
-		}
+		//for(GenomicVariant v:variantsList) {
+ 			//System.out.println(v.getSequenceName() + " begin: " + v.getFirst() + " end: " + v.getLast() + " type: " + 
+				//	GenomicVariantImpl.getVariantTypeName(v.getType())+ " length: " + v.length() + " QS: " + v.getVariantQS());
+		//}
 		VCFFileHeader header = createVCFHeader();
 		List<VCFRecord> records = getRecords(variantsList, header);
 		String saveFile = "variants.vcf";
