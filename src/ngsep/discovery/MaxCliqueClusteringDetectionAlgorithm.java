@@ -15,6 +15,8 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.graphs.MaximalCliquesFinder;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.variants.CalledInversion;
+import ngsep.variants.CalledLargeIndel;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
 
@@ -27,19 +29,13 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 	
 	private double pdNormFactor = DEFAULT_PD_NORM_FACTOR;
 	private double edgeTreshold = DEFAULT_EDGE_TRESHOLD;
-	private GenomicRegionSortedCollection<GenomicVariant> signatures;
+	private GenomicRegionSortedCollection<GenomicRegion> signatures;
 	
-	@Override
-	//public void setSignatures(Map<String, List<GenomicVariant>> signatures) {
-		// TODO Auto-generated method stub
-		//this.signatures = signatures;
-	//}
-	
-	public void setSignatures(GenomicRegionSortedCollection<GenomicVariant> signatures) {
+	public void setSignatures(GenomicRegionSortedCollection<GenomicRegion> signatures) {
 		// TODO Auto-generated method stub
 		this.signatures = signatures;
 	}
-	public double calculateSPD(GenomicVariant sign1, GenomicVariant sign2) {
+	public double calculateSPD(GenomicRegion sign1, GenomicRegion sign2) {
 		double SPD = 0;
 		double SD = 0;
 		int PD = 0;
@@ -54,13 +50,13 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		SPD = SD + (double) PD/pdNormFactor;
 		return SPD;
 	}
-	public boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> candidateSignatures) {
+	public boolean[][] calculateAdjacencyMatrix(List<GenomicRegion> candidateSignatures) {
 		int n = candidateSignatures.size();
 		boolean[][] adjacencyMatrix = new boolean[n][n];
 		for(int i = 0; i < n; i++) {
-			GenomicVariant si = candidateSignatures.get(i);
+			GenomicRegion si = candidateSignatures.get(i);
 			for(int j = 0; j < n; j++) {
-				GenomicVariant sj = candidateSignatures.get(j);
+				GenomicRegion sj = candidateSignatures.get(j);
 				double spd = calculateSPD(si, sj);
 				if(spd < edgeTreshold && !si.equals(sj)) {
 					adjacencyMatrix[i][j] = true;
@@ -69,15 +65,23 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		}
 		return adjacencyMatrix;
 	}	
-	public short calculateVariantScore(List<GenomicVariant> candidates) {
+	public short calculateVariantScore(List<GenomicRegion> candidates) {
 		double score = 0;
 		SampleStatistics calcSpan = new SampleStatistics();
 		SampleStatistics calcPos = new SampleStatistics();
-		for(GenomicVariant sign:candidates) {
+		for(GenomicRegion sign:candidates) {
 			calcPos.update(sign.getFirst());
 			calcSpan.update(sign.length());
 		}
-		double numSign = Math.min(80, candidates.size());
+		int n = 0;
+		for (GenomicRegion sign:candidates) {
+			if(sign instanceof CalledLargeIndel) {
+				CalledLargeIndel indel = (CalledLargeIndel) sign;
+				n += indel.getSupportingFragments();
+			}
+			if(n >= 80) break;
+		}
+		double numSign = Math.min(80, n);
 		double spanMean = calcSpan.getMean();
 		double normPos = (numSign/8)*(1-Math.min(1, 
 						(Math.sqrt(calcPos.getVariance()))/spanMean));
@@ -91,29 +95,42 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		if(v1.getType() != v2.getType()) return false;
 		if(Math.abs(v1.getFirst() - v2.getFirst()) < MAX_CONSENSUS_LENGTH) return true; 
 		if(Math.abs(v1.getLast() - v2.getLast()) < MAX_CONSENSUS_LENGTH) return true; 
-		//if(Math.abs(v1.length() - v2.length()) < 20) return true; 
+		if(Math.abs(v1.length() - v2.length()) < MAX_CONSENSUS_LENGTH) return true; 
 		return false;
 	}
-	public boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
+	public boolean testDownstreamSignatureCompatibility(GenomicRegion s1, GenomicRegion s2) {
 		return s2.getFirst() - s1.getLast() < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
+	}
+	public byte getSignatureType(GenomicRegion signature) {
+		byte type = 0;
+		if(signature instanceof CalledLargeIndel) {
+			CalledLargeIndel indelSign = (CalledLargeIndel) signature;
+			type = indelSign.getType();
+		}
+		if(signature instanceof CalledInversion) {
+			type = GenomicVariant.TYPE_INVERSION;
+		}
+		return type;
 	}
 	public Map<String, List<List<Integer>>> findVariantClusters() {
 		Map<String, List<List<Integer>>> clusters = new LinkedHashMap<>();
 		List<String> keys = signatures.getSequenceNames().getNamesStringList();
-		for(String k:keys) System.out.println("$ sequence: " + k);
 		for(String k:keys){
-			List<GenomicVariant> signList = signatures.getSequenceRegions(k).asList();
+			List<GenomicRegion> signList = signatures.getSequenceRegions(k).asList();
 			List<List<Integer>> chrClusters = new ArrayList<>();
-			List<GenomicVariant> indel = new ArrayList<>();
-			List<GenomicVariant> del = new ArrayList<>();
-			List<GenomicVariant> ins = new ArrayList<>();
-			List<GenomicVariant> inv = new ArrayList<>();
-			List<GenomicVariant> dup = new ArrayList<>();
-			List<GenomicVariant> tan = new ArrayList<>();
-			List<GenomicVariant> und = new ArrayList<>();
-			List<List<GenomicVariant>> signsPerType = new ArrayList<>();
-			for(GenomicVariant sign:signList) {
-				String type = GenomicVariantImpl.getVariantTypeName(sign.getType());
+			List<GenomicRegion> indel = new ArrayList<>();
+			List<GenomicRegion> del = new ArrayList<>();
+			List<GenomicRegion> ins = new ArrayList<>();
+			List<GenomicRegion> inv = new ArrayList<>();
+			List<GenomicRegion> dup = new ArrayList<>();
+			List<GenomicRegion> tan = new ArrayList<>();
+			List<GenomicRegion> und = new ArrayList<>();
+			List<List<GenomicRegion>> signsPerType = new ArrayList<>();
+			for(GenomicRegion sign:signList) {
+				String type = GenomicVariantImpl.getVariantTypeName(getSignatureType(sign));
+				//System.out.println(" Sign first: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
+					//	+ sign.getSequenceName() + " with length: " + sign.length());
+				//System.out.println(type);
 				if(GenomicVariant.TYPENAME_INDEL.equals(type)) indel.add(sign);
 				else if(GenomicVariant.TYPENAME_LARGEDEL.equals(type)) del.add(sign);
 				else if(GenomicVariant.TYPENAME_LARGEINS.equals(type)) ins.add(sign);
@@ -129,17 +146,16 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 			signsPerType.add(inv);
 			signsPerType.add(tan);
 			signsPerType.add(und);
-			for(List<GenomicVariant> typePartition:signsPerType) {
+			for(List<GenomicRegion> typePartition:signsPerType) {
 				if(typePartition.isEmpty()) continue;
-				System.out.println("#: " + typePartition.size());
-				List<GenomicVariant> toCluster = new ArrayList<>();
+				List<GenomicRegion> toCluster = new ArrayList<>();
 				for(int i = 0; i < typePartition.size() - 1; i++) {
-					GenomicVariant current = typePartition.get(i);
-					GenomicVariant next = typePartition.get(i+1);
+					GenomicRegion current = typePartition.get(i);
+					GenomicRegion next = typePartition.get(i+1);
 					toCluster.add(current);
 					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 100) {
 						List<Integer> idxs = new ArrayList<>();
-						for(GenomicVariant sign:toCluster) idxs.add(signList.indexOf(sign));
+						for(GenomicRegion sign:toCluster) idxs.add(signList.indexOf(sign));
 						if(toCluster.size() < 3) {
 							chrClusters.add(idxs);
 							toCluster.clear();
@@ -147,8 +163,8 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 						else{
 							boolean[][] adjMatrix = calculateAdjacencyMatrix(toCluster);
 							System.out.println("#partition size: " + toCluster.size());
-							System.out.println("Processing partition with types: " + typePartition.get(0).getType() 
-									+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
+							//System.out.println("Processing partition with types: " + getSignatureType(typePartition.get(0)) 
+								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
 							ArrayList<ArrayList<Integer>> maxCliques = MaximalCliquesFinder
 									.callMaxCliqueFinder(idxs, adjMatrix);
 							System.out.println("Cliques found");
@@ -163,14 +179,13 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		System.out.println(" Finished clustering process");
 		return clusters;
 	}
-	public GenomicVariantImpl processClusterToVariant(List<GenomicVariant> clusterSigns, String sequenceName){
-		//SampleStatistics calcEnd = new SampleStatistics();
-		//for(GenomicVariant v:clusterSigns) calcEnd.update(v.getLast());;
-		GenomicVariant first = clusterSigns.get(0);
-		GenomicVariant last = clusterSigns.get(clusterSigns.size()-1);
+	public GenomicVariantImpl processClusterToVariant(List<GenomicRegion> clusterSigns, String sequenceName){
+		GenomicRegion first = clusterSigns.get(0);
+		GenomicRegion last = clusterSigns.get(clusterSigns.size()-1);
+		int end = -1;
+		for(GenomicRegion v:clusterSigns) if(v.getLast() > end) end = v.getLast();
 		int begin = first.getFirst();
-		int end = last.getLast();
-		byte type = first.getType();
+		byte type = getSignatureType(first);
 		short variantScore = calculateVariantScore(clusterSigns);
 		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, begin, end, type);
 		variant.setVariantQS(variantScore);
@@ -210,16 +225,17 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		GenomicRegionSortedCollection<GenomicVariant> sortedVariants = new GenomicRegionSortedCollection<>(sequences);
 		for(String k:keys) {
 			List<List<Integer>> chrClusters = clusters.get(k);
+			List<GenomicRegion> chrSignList = signatures.getSequenceRegions(k).asList();
 			for(List<Integer> cluster:chrClusters) {
-				List<GenomicVariant> clusterSigns = new ArrayList<>();
-				for(int idx:cluster) clusterSigns.add(signatures.getSequenceRegions(k).asList().get(idx));
+				List<GenomicRegion> clusterSigns = new ArrayList<>();
+				for(int idx:cluster) clusterSigns.add(chrSignList.get(idx));
 				Collections.sort(clusterSigns, Comparator.comparingInt(s -> s.getFirst()));
-				System.out.println("Cluster with size: " + clusterSigns.size());
-				/**for (GenomicVariant sign:clusterSigns) {
-					System.out.println("Signature: " + sign.getSequenceName() + " begin: " + sign.getFirst() + " end: " +
+				System.out.println("$Cluster with size: " + clusterSigns.size());
+				for (GenomicRegion sign:clusterSigns) {
+					System.out.println("$Signature: " + sign.getSequenceName() + " begin: " + sign.getFirst() + " end: " +
 							sign.getLast() + " length: " + sign.length() + " type: " + 
-							GenomicVariantImpl.getVariantTypeName(sign.getType()));
-				}**/
+							GenomicVariantImpl.getVariantTypeName(getSignatureType(sign)));
+				}
 				GenomicVariantImpl variant = processClusterToVariant(clusterSigns, k);
 				if(variant.length() >= 30) variants.add(variant);
 			}

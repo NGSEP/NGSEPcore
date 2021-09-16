@@ -10,9 +10,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import JSci.maths.statistics.SampleStatistics;
@@ -27,6 +29,7 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
+import ngsep.variants.CalledInversion;
 import ngsep.variants.CalledLargeIndel;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
@@ -40,8 +43,9 @@ public class LongReadStructuralVariantDetector {
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "Clique";
 	public static final String FILTER_SETTING_MISSING = ".";
+	public static final String KEY_SEPARATOR = ",";
 	
-	private GenomicRegionSortedCollection<GenomicVariant> signatures;
+	private GenomicRegionSortedCollection<GenomicRegion> signatures;
 	private ReferenceGenome refGenome;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	private GenomicRegionSortedCollection<GenomicVariant> variants;
@@ -56,26 +60,24 @@ public class LongReadStructuralVariantDetector {
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			alignmentReader.setFilterFlags(filterFlags);
 			alignmentReader.setMinMQ(minMQ);
-			Map<String, List<GenomicVariant>> candidates = new LinkedHashMap<>();
+			Map<String, Integer> candidates = new LinkedHashMap<>();
+			Set<String> sequenceNames = new LinkedHashSet<>();
 			Iterator<ReadAlignment> it = alignmentReader.iterator();
 			ReadAlignment aln = it.next();
 			while(it.hasNext()) {
 				aln = it.next();
-				findSignatures(aln, candidates);
+				findSignatures(aln, candidates, sequenceNames);
 			}
-			long startTime = System.currentTimeMillis();
-			System.out.println(" Passing to sorted ds");
-			QualifiedSequenceList seqs = new QualifiedSequenceList();
-			for(String k:candidates.keySet()) seqs.add(new QualifiedSequence(k));
-			signatures = new GenomicRegionSortedCollection<>(seqs);
-			for(List<GenomicVariant> s:candidates.values()) signatures.addAll(s);
+			QualifiedSequenceList qualifiedSequenceNames = new QualifiedSequenceList();
+			for(String seqName:sequenceNames) qualifiedSequenceNames.add(new QualifiedSequence(seqName));
+			signatures = new GenomicRegionSortedCollection<>(qualifiedSequenceNames);
+			for(Map.Entry<String, Integer> entry : candidates.entrySet()) {
+				decodeKeyToSignature(entry.getKey(), entry.getValue());
+			}
 			signatures.forceSort();
-			System.out.println(" sorted!");
-			long endTime = System.currentTimeMillis();
-			System.out.println("Total execution time of ds: " + (endTime-startTime) + "ms"); 
 		}
 	}
-	public GenomicRegionSortedCollection<GenomicVariant> getSignatures() {
+	public GenomicRegionSortedCollection<GenomicRegion> getSignatures() {
 		return signatures;
 	}
 	public ReferenceGenome getRefGenome() {
@@ -90,17 +92,42 @@ public class LongReadStructuralVariantDetector {
 		if(signature.getType() == GenomicVariant.TYPE_LARGEINS) signature.setLast(first + 1); 
 		return signature;
 	}
-	public void findSignatures(ReadAlignment aln, Map<String, List<GenomicVariant>> signatures) {
+	public void decodeKeyToSignature(String info, int count) {
+		String [] signInfo = info.split(KEY_SEPARATOR);
+		String seqName = signInfo[0];
+		int first =  Integer.parseInt(signInfo[1]);
+		int last =  Integer.parseInt(signInfo[2]);
+		int length =  Integer.parseInt(signInfo[3]);
+		byte type = first + 1 == last ? GenomicVariant.TYPE_LARGEINS : GenomicVariant.TYPE_LARGEDEL;
+		if(type == GenomicVariant.TYPE_LARGEDEL || type == GenomicVariant.TYPE_LARGEINS) {
+			CalledLargeIndel sign = new CalledLargeIndel(seqName, first, last, 
+					type == GenomicVariant.TYPE_LARGEDEL, length, count);
+			signatures.add(sign);
+		}
+		else if(type == GenomicVariant.TYPE_INVERSION) {
+			CalledInversion sign = new CalledInversion(seqName, first, last, count);
+			signatures.add(sign);
+		}
+	}
+	public void computeIndelToSignatureKey(GenomicVariant indel, Map<String, Integer> signatures) {
+		String signatureInfo = "";
+		String seqName = indel.getSequenceName();
+		String first = Integer.toString(indel.getFirst());
+		String last = Integer.toString(indel.getLast());
+		String length = Integer.toString(indel.length());
+		signatureInfo = seqName + KEY_SEPARATOR + first + KEY_SEPARATOR + last +
+				KEY_SEPARATOR + length;
+		signatures.compute(signatureInfo, (k,v)-> (v == null) ? 1 : v + 1);
+	}
+	public void findSignatures(ReadAlignment aln, Map<String, Integer> signatures, Set<String> sequenceNames) {
 		Map<Integer, GenomicVariant> calls = aln.getIndelCalls();
 		if(calls != null) {
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
 				if(indel.length() < 10) continue;
-				GenomicVariant signature = createSignature(indel);
-				String seqName = signature.getSequenceName();
-				System.out.println(" Indel first: " + indel.getFirst() + " last: " + indel.getLast() + " chr: "
-				+ indel.getSequenceName() + " with length: " + indel.length());
-				signatures.computeIfAbsent(seqName, (k) -> new ArrayList<>()).add(signature);
+				String seqName = indel.getSequenceName();
+				computeIndelToSignatureKey(indel, signatures);
+				sequenceNames.add(seqName);
 			}
 		}
 	}	
@@ -196,10 +223,6 @@ public class LongReadStructuralVariantDetector {
 			variants = caller.callVariants();
 		}
 		List<GenomicVariant> variantsList = variants.asList();
-		//for(GenomicVariant v:variantsList) {
- 			//System.out.println(v.getSequenceName() + " begin: " + v.getFirst() + " end: " + v.getLast() + " type: " + 
-				//	GenomicVariantImpl.getVariantTypeName(v.getType())+ " length: " + v.length() + " QS: " + v.getVariantQS());
-		//}
 		VCFFileHeader header = createVCFHeader();
 		List<VCFRecord> records = getRecords(variantsList, header);
 		String saveFile = "variants.vcf";
