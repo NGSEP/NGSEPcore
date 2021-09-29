@@ -4,13 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SyntenyVertex {
-	private HomologyEdge homologyRelationship;
+	private HomologyCluster homologyCluster;
 	private int weight;
 	private List<SyntenyEdge> edges = new ArrayList<SyntenyEdge>();
-	public SyntenyVertex(HomologyEdge homologyRelationship, int weight) {
+	public SyntenyVertex(HomologyCluster homologyCluster) {
 		super();
-		this.homologyRelationship = homologyRelationship;
-		this.weight = weight;
+		this.homologyCluster = homologyCluster;
 	}
 	public int getWeight() {
 		return weight;
@@ -18,8 +17,8 @@ public class SyntenyVertex {
 	public void setWeight(int weight) {
 		this.weight = weight;
 	}
-	public HomologyEdge getHomologyRelationship() {
-		return homologyRelationship;
+	public HomologyCluster getHomologyCluster() {
+		return homologyCluster;
 	}
 	public void addEdge (SyntenyEdge edge) {
 		edges.add(edge);

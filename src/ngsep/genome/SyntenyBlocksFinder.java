@@ -3,6 +3,7 @@ package ngsep.genome;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class SyntenyBlocksFinder {
@@ -22,18 +23,18 @@ public class SyntenyBlocksFinder {
 	 * @param homologyEdges
 	 * @return List<SyntenyBlock> Blocks of synteny between the query genome and the subject genome
 	 */
-	public List<SyntenyBlock> findSyntenyBlocks(List<HomologyEdge> homologyEdges) {
-		List<SyntenyBlock> syntenyBlocks = new ArrayList<>();
+	public List<PairwiseSyntenyBlock> findSyntenyBlocks(List<HomologyEdge> homologyEdges) {
+		List<PairwiseSyntenyBlock> syntenyBlocks = new ArrayList<>();
 		List<SyntenyVertex> vertices = buildGraph(homologyEdges);
-		HashMap<SyntenyVertex, List<SyntenyEdge>> orthologsTraceback = traverseVertices(vertices);
+		Map<SyntenyVertex, List<SyntenyVertex>> orthologsTraceback = traverseVertices(vertices);
 		SyntenyVertex maxVertex = findMaximalWeight(vertices);
 		while (maxVertex!=null) {
-			List<SyntenyEdge> path = orthologsTraceback.getOrDefault(maxVertex, new ArrayList<SyntenyEdge>());
-			SyntenyBlock block = buildSyntenyBlock(path);
+			List<SyntenyVertex> path = orthologsTraceback.getOrDefault(maxVertex, new ArrayList<SyntenyVertex>());
+			PairwiseSyntenyBlock block = buildSyntenyBlock(path);
 			if(block == null) break;
 			//TODO: Check how length is validated
 			int length = 0;
-			for (SyntenyEdge se : path) length += se.getSource().getHomologyRelationship().getQueryUnit().length() + se.getTarget().getHomologyRelationship().getQueryUnit().length();
+			for (SyntenyVertex v : path) length += v.getHomologyCluster().getHomologyUnitsCluster().get(0).length();
 			if (length >= minBlockLength) syntenyBlocks.add(block);
 			maxVertex = findMaximalWeight(vertices);
 		}
@@ -48,22 +49,27 @@ public class SyntenyBlocksFinder {
 		homologyRelationships.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
 		for (int i=0;i<n;i++) {
 			HomologyEdge rel = homologyRelationships.get(i);
-			SyntenyVertex sv = new SyntenyVertex(rel, rel.getSubjectUnit().length());
+			List<HomologyUnit> units = new ArrayList<HomologyUnit>();
+			units.add(rel.getQueryUnit());
+			units.add(rel.getSubjectUnit());
+			HomologyCluster cluster = new HomologyCluster(i, units);
+			SyntenyVertex sv = new SyntenyVertex(cluster);
+			sv.setWeight(rel.getSubjectUnit().length());
 			vertices.add(sv);
 		}
 		for (int i=0;i<n;i++) {
 			SyntenyVertex v1 = vertices.get(i);
-			HomologyEdge rel1 = v1.getHomologyRelationship();
-			HomologyUnit q1 = rel1.getQueryUnit();
+			HomologyCluster c1 = v1.getHomologyCluster();
+			HomologyUnit q1 = c1.getHomologyUnitsCluster().get(0);
 			int centerQ1 = (q1.getFirst()+q1.getLast())/2;
-			HomologyUnit s1 = rel1.getSubjectUnit();
+			HomologyUnit s1 = c1.getHomologyUnitsCluster().get(1);
 			int centerS1 = (s1.getFirst()+s1.getLast())/2;
 			for (int j=i+1;j<n;j++) {
 				SyntenyVertex v2 = vertices.get(i);
-				HomologyEdge rel2 = v2.getHomologyRelationship();
-				HomologyUnit q2 = rel2.getQueryUnit();
+				HomologyCluster c2 = v2.getHomologyCluster();
+				HomologyUnit q2 = c2.getHomologyUnitsCluster().get(0);
 				int centerQ2 = (q2.getFirst()+q2.getLast())/2;
-				HomologyUnit s2 = rel2.getSubjectUnit();
+				HomologyUnit s2 = c2.getHomologyUnitsCluster().get(1);
 				int centerS2 = (q2.getFirst()+q2.getLast())/2;
 				int dq = centerQ2-centerQ1;
 				if(dq>maxDistance) break;
@@ -77,8 +83,8 @@ public class SyntenyBlocksFinder {
 		return vertices;
 	}
 	
-	private HashMap<SyntenyVertex, List<SyntenyEdge>> traverseVertices(List<SyntenyVertex> vertices) {
-		HashMap<SyntenyVertex, List<SyntenyEdge>> orthologsTraceback = new HashMap<SyntenyVertex, List<SyntenyEdge>>();
+	private Map<SyntenyVertex, List<SyntenyVertex>> traverseVertices(List<SyntenyVertex> vertices) {
+		Map<SyntenyVertex, List<SyntenyVertex>> orthologsTraceback = new HashMap<SyntenyVertex, List<SyntenyVertex>>();
 		for (SyntenyVertex vertex:vertices) {
 			List<SyntenyEdge> edges = vertex.getEdges();
 			for (SyntenyEdge se : edges) {
@@ -87,10 +93,10 @@ public class SyntenyBlocksFinder {
 				int currentWeight = target.getWeight();
 				if (newWeight > currentWeight) {
 					target.setWeight(newWeight);
-					List<SyntenyEdge> parentsSource = orthologsTraceback.getOrDefault(vertex, new ArrayList<SyntenyEdge>());
-					List<SyntenyEdge> parentsTarget = new ArrayList<SyntenyEdge>();
+					List<SyntenyVertex> parentsSource = orthologsTraceback.getOrDefault(vertex, new ArrayList<SyntenyVertex>());
+					List<SyntenyVertex> parentsTarget = new ArrayList<SyntenyVertex>();
 					parentsTarget.addAll(parentsSource);
-					parentsTarget.add(se);
+					parentsTarget.add(vertex);
 					orthologsTraceback.put(target, parentsTarget);
 				}				
 			}
@@ -111,33 +117,37 @@ public class SyntenyBlocksFinder {
 		return maxVertex;
 	}
 	
-	private SyntenyBlock buildSyntenyBlock(List<SyntenyEdge> path) {
+	private PairwiseSyntenyBlock buildSyntenyBlock(List<SyntenyVertex> path) {
 		if (path.isEmpty()) return null;
 		
 		// remove vertices
-		for (SyntenyEdge se : path) {
-			SyntenyVertex s = se.getSource();
-			SyntenyVertex t = se.getTarget();
-			s.setWeight(-1);
-			t.setWeight(-1);
+		int genomeId1 = -1;
+		int genomeId2 = -1;
+		for (SyntenyVertex v : path) {
+			v.setWeight(-1);
+			if(genomeId1<0) {
+				List<HomologyUnit> units = v.getHomologyCluster().getHomologyUnitsCluster(); 
+				genomeId1 = units.get(0).getGenomeId();
+				genomeId2 = units.get(1).getGenomeId();
+			}
 		}
-		SyntenyBlock sb = new SyntenyBlock(path); 
+		PairwiseSyntenyBlock sb = new PairwiseSyntenyBlock(genomeId1,genomeId2,path); 
 		
 		return sb;
 
 	}
 	
-	private List<SyntenyBlock> collapseOverlapped(List<SyntenyBlock> prev) {
-		List<SyntenyBlock> temp = prev;
+	/*private List<PairwiseSyntenyBlock> collapseOverlapped(List<PairwiseSyntenyBlock> prev) {
+		List<PairwiseSyntenyBlock> temp = prev;
 		while (selfOverlap(temp)) {
-			List<SyntenyBlock> collapsed = new ArrayList<>();
+			List<PairwiseSyntenyBlock> collapsed = new ArrayList<>();
 			int i = 0;
 			while (!temp.isEmpty()) {
-				List<SyntenyBlock> toJoin = new ArrayList<>();
-				SyntenyBlock actual = temp.get(i);
+				List<PairwiseSyntenyBlock> toJoin = new ArrayList<>();
+				PairwiseSyntenyBlock actual = temp.get(i);
 				toJoin.add(actual);
 				for (int j = 0; j < temp.size(); j++) {
-					SyntenyBlock other = temp.get(j);
+					PairwiseSyntenyBlock other = temp.get(j);
 					if (i != j && actual.getRegionGenome1().getSequenceName().equals(other.getRegionGenome1().getSequenceName()) && areOverlapping(actual, other)) {
 						toJoin.add(other);
 					}
@@ -150,22 +160,22 @@ public class SyntenyBlocksFinder {
 		return temp;
 	}
 	
-	private SyntenyBlock joinCollapsed(List<SyntenyBlock> toJoin) {
+	private PairwiseSyntenyBlock joinCollapsed(List<PairwiseSyntenyBlock> toJoin) {
 		if (toJoin.size() == 1)
 			return toJoin.get(0);
 		List<SyntenyEdge> joinedHomologies = new ArrayList<>();
-		for (SyntenyBlock e : toJoin) {
+		for (PairwiseSyntenyBlock e : toJoin) {
 			joinedHomologies.addAll(e.getHomologies());
 		}
-		SyntenyBlock joined = new SyntenyBlock(joinedHomologies);
+		PairwiseSyntenyBlock joined = new PairwiseSyntenyBlock(joinedHomologies);
 		return joined;
-	}
+	}*/
 	
-	public boolean selfOverlap(List<SyntenyBlock> test) {
+	public boolean selfOverlap(List<PairwiseSyntenyBlock> test) {
 		for (int i = 0; i < test.size(); i++) {
-			SyntenyBlock actual = test.get(i);
+			PairwiseSyntenyBlock actual = test.get(i);
 			for (int j = 0; j < test.size(); j++) {
-				SyntenyBlock other = test.get(j);
+				PairwiseSyntenyBlock other = test.get(j);
 				if (i != j && actual.getRegionGenome1().getSequenceName().equals(other.getRegionGenome1().getSequenceName()) && areOverlapping(actual, other)) {
 					return true;
 				}
@@ -174,7 +184,7 @@ public class SyntenyBlocksFinder {
 		return false;
 	}
 
-	private boolean areOverlapping(SyntenyBlock e1, SyntenyBlock e2) {
+	private boolean areOverlapping(PairwiseSyntenyBlock e1, PairwiseSyntenyBlock e2) {
 		long start1 = e1.getRegionGenome1().getFirst();
 		long end1 = e1.getRegionGenome1().getLast();
 		long start2 = e2.getRegionGenome1().getFirst();

@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,7 +86,7 @@ public class GenomesAligner {
 
 	
 	// Synteny
-	private List<SyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
+	//private List<PairwiseSyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
 	//private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
 	private int minBlockLength = 1000000;
 	private int maxDistance = 1000000;
@@ -331,7 +330,7 @@ public class GenomesAligner {
 		listHomologyCluster = calculator.clusterHomologs(genomes, homologyEdges);
 		if(genomes.size()<2) return;
 		// By now this is still done for two genomes
-		SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
+		//SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
 		AnnotatedReferenceGenome genome2 = genomes.get(1);
 		QualifiedSequenceList sequencesG1 = genome1.getSequencesMetadata();
@@ -351,7 +350,7 @@ public class GenomesAligner {
 			}
 			List<HomologyEdge> homologyRelationships = new ArrayList<HomologyEdge>();
 			for(HomologyUnit unit:unitsChrG1) homologyRelationships.addAll(unit.getOrthologRelationships(genome2.getId()));
-			orthologsSyntenyBlocks.addAll(syntenyBlocksFinder.findSyntenyBlocks(homologyRelationships));
+			//orthologsSyntenyBlocks.addAll(syntenyBlocksFinder.findSyntenyBlocks(homologyRelationships));
 			
 		}
 	}
@@ -458,11 +457,11 @@ public class GenomesAligner {
 	/**
 	 * Print synteny blocks
 	 */
-	private void printSyntenyBlocks(List<SyntenyBlock> syntenyBlocks, String outFilename) {
+	private void printSyntenyBlocks(List<PairwiseSyntenyBlock> syntenyBlocks, String outFilename) {
 		try (PrintStream outSynteny = new PrintStream(outFilename)){
 			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
 			outSynteny.println(headers);
-			for (SyntenyBlock sb : syntenyBlocks) {
+			for (PairwiseSyntenyBlock sb : syntenyBlocks) {
 				GenomicRegion r1 = sb.getRegionGenome1();
 				GenomicRegion r2 = sb.getRegionGenome2();
 				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();

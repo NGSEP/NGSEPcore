@@ -93,4 +93,11 @@ public class HomologyCluster
 	public void setSoftCategory(String softCat) {
 		this.softCat = softCat;
 	}
+
+	public HomologyUnit findHomologyUnit(int genomeId) {
+		for(HomologyUnit unit:homologyUnitsCluster) {
+			if(unit.getGenomeId()== genomeId) return unit;
+		}
+		return null;
+	}
 }
