@@ -311,6 +311,7 @@ public class Assembler {
 			extractor.setLoadSequences(true);
 			extractor.setInputFormat(inputFormat);
 			extractor.setMinReadLength(minReadLength);
+			extractor.setReadNCharacters(false);
 			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 			//if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 			extractor.processFile(inputFile);

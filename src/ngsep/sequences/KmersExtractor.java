@@ -75,7 +75,7 @@ public class KmersExtractor {
 	private boolean ignoreLowComplexity = false;
 	private int numThreads = DEF_NUM_THREADS;
 	private int minReadLength = 0;
-	private boolean readNCharacters = false;
+	private boolean readNCharacters = true;
 	
 	// Model attributes
 	private KmersMap kmersMap = null;
@@ -197,6 +197,14 @@ public class KmersExtractor {
 	}
 	public List<QualifiedSequence> getLoadedSequences() {
 		return loadedSequences;
+	}
+	
+	
+	public boolean isReadNCharacters() {
+		return readNCharacters;
+	}
+	public void setReadNCharacters(boolean readNCharacters) {
+		this.readNCharacters = readNCharacters;
 	}
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
