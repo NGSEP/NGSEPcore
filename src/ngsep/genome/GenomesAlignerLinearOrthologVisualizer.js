@@ -3,15 +3,13 @@ const form = option.append('form');
 const containerSection = option.append('div').attr('class', 'container section');
 containerSection.append('h1').attr('class', 'black-text center').text('Linear visualization');
 option.append('input').attr('type', 'button').attr('onClick', 'history.go(0)').attr('value', 'Start again!');
-option.append('input').attr('id', 'LCSbutton').attr('type', 'button').attr('value', 'LCS');
-d3.select('#LCSbutton').on('click', showLCS);
-option.append('input').attr('id', 'Multiplebutton').attr('type', 'button').attr('value', 'Multiple');
-d3.select('#Multiplebutton').on('click', showMultiple);
-option.append('input').attr('id', 'Uniquesbutton').attr('type', 'button').attr('value', 'Uniques');
-d3.select('#Uniquesbutton').on('click', showUniques);
+option.append('input').attr('id', 'SyntenyButton').attr('type', 'button').attr('value', 'Synteny');
+d3.select('#SyntenyButton').on('click', showSynteny);
+option.append('input').attr('id', 'AllButton').attr('type', 'button').attr('value', 'All');
+d3.select('#AllButton').on('click', showAll);
 
 // TODO?: Slider instead of text input for better user feedback
-option.append('input').attr('id', 'MinimumChromosomeLengthTextInput').attr('type', 'text').attr('placeholder', `800000`);
+option.append('input').attr('id', 'MinimumChromosomeLengthTextInput').attr('type', 'text').attr('placeholder', `100000`);
 option.append('input').attr('id', 'MinimumChromosomeLengthButton').attr('type', 'button').attr('value', `ChromosomeLength`);
 d3.select('#MinimumChromosomeLengthButton').on('click', chromosomeLength);
 
@@ -20,7 +18,7 @@ const canvasContainer = option.append('div').attr('class', 'container');
 canvasContainer.append('div').attr('class', 'canvas');
 
 
-minimumChromosomeLength = 800000;
+minimumChromosomeLength = 100000;
 const dims = {
     height: 800,
     width: 1000
@@ -428,28 +426,18 @@ const chromosomesDisplayed = (genomeData1, genomeData2, ortholog) => {
     return displayed.genome1 && displayed.genome2;
 };
 
-// Show LCS
-function showLCS() {
-    paintData(allOrthologs.lcs);
-    document.getElementById('LCSbutton').disabled = true;
-    document.getElementById('Multiplebutton').disabled = false;
-    document.getElementById('Uniquesbutton').disabled = false;
+// Show synteny
+function showSynteny() {
+    paintData(allOrthologs.synteny);
+    document.getElementById('SyntenyButton').disabled = true;
+    document.getElementById('AllButton').disabled = false;
 }
 
-// Show multiples
-function showMultiple() {
-    paintData(allOrthologs.multiple);
-    document.getElementById('LCSbutton').disabled = false;
-    document.getElementById('Multiplebutton').disabled = true;
-    document.getElementById('Uniquesbutton').disabled = false;
-}
-
-// Show uniques
-function showUniques() {
-    paintData(allOrthologs.unique);
-    document.getElementById('LCSbutton').disabled = false;
-    document.getElementById('Multiplebutton').disabled = false;
-    document.getElementById('Uniquesbutton').disabled = true;
+// Show all
+function showAll() {
+    paintData(allOrthologs.all);
+    document.getElementById('SyntenyButton').disabled = false;
+    document.getElementById('AllButton').disabled = true;
 }
 
 // Filter chromosomes
@@ -464,19 +452,16 @@ function chromosomeLength() {
 // Split data
 const divideOrthologs = orthologs => {
     orthologs = createLineData(orthologs);
-    orthologsLCS = [];
-    orthologsMultiple = [];
-    orthologsUnique = [];
+    orthologsSynteny = [];
+    orthologsAll = [];
     orthologs.map(ortholog => {
-        if (ortholog.type === 'L') {
-		orthologsLCS.push(ortholog)
-		orthologsUnique.push(ortholog)
-	}
-        if (ortholog.type === 'M') orthologsMultiple.push(ortholog)
-        if (ortholog.type === 'U') orthologsUnique.push(ortholog)
+        if (ortholog.block > -1) {
+			orthologsSynteny.push(ortholog)
+		}
+		orthologsAll.push(ortholog)
     });
 
-    dividedOrthologs = { 'lcs': orthologsLCS, 'multiple': orthologsMultiple, 'unique': orthologsUnique };
+    dividedOrthologs = { 'synteny': orthologsSynteny, 'all': orthologsAll };
     return dividedOrthologs;
 }
 

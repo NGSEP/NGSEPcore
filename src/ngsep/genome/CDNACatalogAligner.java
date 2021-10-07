@@ -204,7 +204,7 @@ public class CDNACatalogAligner {
 		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
 			for(HomologyCluster cluster:orthologyUnitClusters) {
 				List<HomologyUnit> memCluster = cluster.getHomologyUnitsCluster();
-				outClusters.print("gf-"+cluster.getClusterId());
+				outClusters.print(cluster.getClusterId());
 				for(int i=0;i<memCluster.size();i++) {
 					HomologyUnit unit = memCluster.get(i);
 					outClusters.print("\t"+unit.getId());
