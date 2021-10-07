@@ -44,9 +44,6 @@ public class HomologyUnit implements GenomicRegion {
 	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();
 	private int totalHomologs = 0;
 	
-	//LCS mates of this orthology unit
-	private Map<Integer, HomologyUnit> matesInLCS = new HashMap<>();
-	
 	public HomologyUnit(int genomeId, String id, String sequenceName, int first, int last) {
 		super();
 		this.genomeId = genomeId;
@@ -229,13 +226,6 @@ public class HomologyUnit implements GenomicRegion {
 		return homologsMap.get(genomeId).size()==0;
 	}
 	
-	public HomologyUnit getLCSMate (int genomeId) {
-		return matesInLCS.get(genomeId);
-	}
-	
-	public void setMateInLCS (HomologyUnit mate) {
-		matesInLCS.put(mate.genomeId,mate);
-	}
 	public String getUniqueKey() {
 		return ""+genomeId+"\t"+id;
 	}

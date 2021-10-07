@@ -21,8 +21,9 @@
 package ngsep.genome;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Map;
 
 
 /**
@@ -42,24 +43,35 @@ public class HomologyCluster
 	
 	// Attributes
 	private List<HomologyUnit> homologyUnitsCluster = new ArrayList<>();
-	private Logger log;
+	private Map<Integer,GenomicRegionSortedCollection<LocalHomologyCluster>> homologyUnitsByRegion = new HashMap<>();
 	private int clusterId;
 	private double frequency;
 	private String exactCat;
 	private String softCat;
 	
-	
-	public Logger getLog() {
-		return log;
-	}
-
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-	
 	public HomologyCluster(int clusterId, List<HomologyUnit> homologyUnitsCluster) {
 		this.clusterId = clusterId;
 		this.homologyUnitsCluster = homologyUnitsCluster;
+		Map<Integer,GenomicRegionSortedCollection<HomologyUnit>> rawUnitsByRegion = new HashMap<>();
+		for(HomologyUnit unit:homologyUnitsCluster) {
+			GenomicRegionSortedCollection<HomologyUnit> genomeUnits = rawUnitsByRegion.computeIfAbsent(unit.getGenomeId(), v->new GenomicRegionSortedCollection<>());
+			genomeUnits.add(unit);
+		}
+		for(Map.Entry<Integer,GenomicRegionSortedCollection<HomologyUnit>> entry:rawUnitsByRegion.entrySet()) {
+			int genomeId = entry.getKey();
+			List<HomologyUnit> current = entry.getValue().asList(); 
+			GenomicRegionSortedCollection<LocalHomologyCluster> merged = new GenomicRegionSortedCollection<>();
+			LocalHomologyCluster nextCluster = null;
+			for(HomologyUnit unit:current) {
+				if(nextCluster==null || nextCluster.getSequenceName()!=unit.getSequenceName() || nextCluster.getLast()<unit.getFirst()+50000) {
+					nextCluster = new LocalHomologyCluster(this,unit);
+					merged.add(nextCluster);
+				} else {
+					nextCluster.addUnit(unit);
+				}
+			}
+			homologyUnitsByRegion.put(genomeId, merged);
+		}
 	}
 	
 	public List<HomologyUnit> getHomologyUnitsCluster() {
@@ -94,10 +106,23 @@ public class HomologyCluster
 		this.softCat = softCat;
 	}
 
-	public HomologyUnit findHomologyUnit(int genomeId) {
-		for(HomologyUnit unit:homologyUnitsCluster) {
-			if(unit.getGenomeId()== genomeId) return unit;
-		}
-		return null;
+	public HomologyUnit findUniqueHomologyUnit(int genomeId) {
+		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(genomeId);
+		if(subclustersGenome==null) return null;
+		//TODO: define better
+		return subclustersGenome.asList().get(0).getHomologyUnitsCluster().get(0);
+	}
+	public List<LocalHomologyCluster> getLocalClusters(int genomeId, String sequenceName) {
+		List<LocalHomologyCluster> answer = new ArrayList<LocalHomologyCluster>();
+		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(genomeId);
+		if(subclustersGenome==null) return answer;
+		return subclustersGenome.getSequenceRegions(sequenceName).asList();
+	}
+	public LocalHomologyCluster getLocalCluster(HomologyUnit unit) {
+		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(unit.getGenomeId());
+		if(subclustersGenome==null) return null;
+		GenomicRegionSortedCollection<LocalHomologyCluster> intersecting = subclustersGenome.findSpanningRegions(unit);
+		if(intersecting.size()==0) return null;
+		return intersecting.asList().get(0);
 	}
 }

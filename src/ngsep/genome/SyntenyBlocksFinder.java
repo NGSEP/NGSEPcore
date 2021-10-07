@@ -49,13 +49,11 @@ public class SyntenyBlocksFinder {
 		homologyRelationships.sort((a,b)->a.getQueryUnit().getFirst()-b.getQueryUnit().getFirst());
 		for (int i=0;i<n;i++) {
 			HomologyEdge rel = homologyRelationships.get(i);
-			List<HomologyUnit> units = new ArrayList<HomologyUnit>();
-			units.add(rel.getQueryUnit());
-			units.add(rel.getSubjectUnit());
-			HomologyCluster cluster = new HomologyCluster(i, units);
-			SyntenyVertex sv = new SyntenyVertex(cluster);
-			sv.setWeight(rel.getSubjectUnit().length());
-			vertices.add(sv);
+			//LocalHomologyCluster c1 = new Lo
+			//SyntenyVertex sv = new SyntenyVertex(cluster);
+			//sv.setWeight(rel.getSubjectUnit().length());
+			//vertices.add(sv);
+			//TODO: Redo this
 		}
 		for (int i=0;i<n;i++) {
 			SyntenyVertex v1 = vertices.get(i);
@@ -77,7 +75,6 @@ public class SyntenyBlocksFinder {
 				if(!s1.getSequenceName().equals(s2.getSequenceName()) || ds>maxDistance) continue; 
 				//TODO: Check weight
 				SyntenyEdge se = new SyntenyEdge(v1, v2, s2.length());
-				v1.addEdge(se);
 			}
 		}
 		return vertices;
@@ -86,7 +83,9 @@ public class SyntenyBlocksFinder {
 	private Map<SyntenyVertex, List<SyntenyVertex>> traverseVertices(List<SyntenyVertex> vertices) {
 		Map<SyntenyVertex, List<SyntenyVertex>> orthologsTraceback = new HashMap<SyntenyVertex, List<SyntenyVertex>>();
 		for (SyntenyVertex vertex:vertices) {
-			List<SyntenyEdge> edges = vertex.getEdges();
+			//List<SyntenyEdge> edges = vertex.getEdges();
+			//TODO: Fix this
+			List<SyntenyEdge> edges = new ArrayList<SyntenyEdge>();
 			for (SyntenyEdge se : edges) {
 				SyntenyVertex target = se.getTarget();
 				int newWeight = se.getWeight() + vertex.getWeight();
@@ -131,7 +130,7 @@ public class SyntenyBlocksFinder {
 				genomeId2 = units.get(1).getGenomeId();
 			}
 		}
-		PairwiseSyntenyBlock sb = new PairwiseSyntenyBlock(genomeId1,genomeId2,path); 
+		PairwiseSyntenyBlock sb = new PairwiseSyntenyBlock(path); 
 		
 		return sb;
 

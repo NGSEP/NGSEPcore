@@ -1,15 +1,14 @@
 package ngsep.genome;
 
-import java.util.ArrayList;
-import java.util.List;
 
 public class SyntenyVertex {
-	private HomologyCluster homologyCluster;
+	private LocalHomologyCluster localRegion1;
+	private LocalHomologyCluster localRegion2;
 	private int weight;
-	private List<SyntenyEdge> edges = new ArrayList<SyntenyEdge>();
-	public SyntenyVertex(HomologyCluster homologyCluster) {
+	public SyntenyVertex(LocalHomologyCluster localRegion1, LocalHomologyCluster localRegion2) {
 		super();
-		this.homologyCluster = homologyCluster;
+		this.localRegion1 = localRegion1;
+		this.localRegion2 = localRegion2;
 	}
 	public int getWeight() {
 		return weight;
@@ -18,15 +17,13 @@ public class SyntenyVertex {
 		this.weight = weight;
 	}
 	public HomologyCluster getHomologyCluster() {
-		return homologyCluster;
+		return localRegion1.getParent();
 	}
-	public void addEdge (SyntenyEdge edge) {
-		edges.add(edge);
+	public LocalHomologyCluster getLocalRegion1() {
+		return localRegion1;
 	}
-	
-	public List<SyntenyEdge> getEdges() {
-		return edges;
+	public LocalHomologyCluster getLocalRegion2() {
+		return localRegion2;
 	}
-	
 	
 }

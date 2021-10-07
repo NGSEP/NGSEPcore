@@ -164,34 +164,40 @@ public class VCFLDCalculator {
 		//Frequency of alleles together
 		double n00=0;
 		//Individual frequencies of allele zero in shared sites
-		double n01=0;
-		double n02=0;
+		double n0v1=0;
+		double n0v2=0;
 		
 		int shared = 0;
 		for(int i=0;i<n;i++) {
 			CalledGenomicVariant call1 = calls1.get(i);
 			CalledGenomicVariant call2 = calls2.get(i);
-			if(call1.isUndecided() || call1.isHeterozygous()) continue;
-			if(call2.isUndecided() || call2.isHeterozygous()) continue;
-			shared++;
+			if(call1.isUndecided()) continue;
+			if(call2.isUndecided()) continue;
+			if(call1.isHeterozygous() && call2.isHeterozygous()) continue;
+			shared+=2;
 			if(call1.isHomozygousReference()) {
-				n01++;
+				n0v1+=2;
+				if(call2.isHomozygousReference()) n00+=2;
+				else if (call2.isHeterozygous()) n00++;
+			} else if (call1.isHeterozygous()) {
+				n0v1++;
 				if(call2.isHomozygousReference()) n00++;
 			}
-			if(call2.isHomozygousReference()) n02++;
+			if(call2.isHomozygousReference()) n0v2+=2;
+			else if (call2.isHeterozygous()) n0v2++;
 		}
 		if(shared == 0) return new LDStatistics(0, 0, 0, shared);
 		double p00 = n00/shared;
-		double p01 = n01/shared;
-		double p02 = n02/shared;
-		double d = p00-p01*p02;
+		double p0v1 = n0v1/shared;
+		double p0v2 = n0v2/shared;
+		double d = p00-p0v1*p0v2;
 		double dPrime;
-		if(p01==0 || p02==0 || p01==1 || p02==1) dPrime = 0; 
-		else if(d<0) dPrime = d/Math.min(p01*p02, (1-p01)*(1-p02));
-		else dPrime = d/Math.min(p01*(1-p02), (1-p01)*p02);
+		if(p0v1==0 || p0v2==0 || p0v1==1 || p0v2==1) dPrime = 0; 
+		else if(d<0) dPrime = d/Math.min(p0v1*p0v2, (1-p0v1)*(1-p0v2));
+		else dPrime = d/Math.min(p0v1*(1-p0v2), (1-p0v1)*p0v2);
 		double r2 = d*d;
-		if(p01==0 || p02==0 || p01==1 || p02==1) r2 = 0; 
-		else r2/= (p01*p02*(1-p01)*(1-p02));
+		if(p0v1==0 || p0v2==0 || p0v1==1 || p0v2==1) r2 = 0; 
+		else r2/= (p0v1*p0v2*(1-p0v1)*(1-p0v2));
 		return new LDStatistics(d, dPrime, r2, shared);
 	}
 

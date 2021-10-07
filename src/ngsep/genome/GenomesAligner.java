@@ -81,12 +81,13 @@ public class GenomesAligner {
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
 	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	
-	private List<HomologyCluster> listHomologyCluster = new ArrayList<>();
+	private List<HomologyCluster> homologyClusters = new ArrayList<>();
+	private List<PairwiseSyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
 	private int[][] paMatrix;
 
 	
 	// Synteny
-	//private List<PairwiseSyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
+	//
 	//private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
 	private int minBlockLength = 1000000;
 	private int maxDistance = 1000000;
@@ -196,46 +197,13 @@ public class GenomesAligner {
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		inferOrthologs();
 		printPartialResults();
-		alignGenomes();
-
-		buildPAMatrix();
-		
+		identifyHomologyClusters();
+		if(genomes.size()>1) {
+			alignGenomes();
+			buildPAMatrix();
+		}
 		printAlignmentResults();
 		log.info("Process finished");
-	}
-	
-
-	
-	private void inferOrthologs() {
-		genomesDescription();
-		
-		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome = genomes.get(i);
-			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
-			homologyEdges.addAll(edges);
-			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
-		}
-		
-		
-		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome1 = genomes.get(i);
-			for (int j=0;j<genomes.size();j++) {
-				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) {
-					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
-					homologyEdges.addAll(edges);
-					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
-				}
-			}
-		}
-	}
-	
-	private void genomesDescription() {
-		log.info("Total number of genomes: " + genomes.size());
-		for(int i = 0; i < genomes.size(); i++) {
-			AnnotatedReferenceGenome genome = genomes.get(i);
-			log.info(String.format("Genome #%d has %d genes.", i+1, genome.getHomologyUnits().size()));
-		}
 	}
 	
 	private void logParameters() {
@@ -324,35 +292,63 @@ public class GenomesAligner {
 		return null;
 	}
 	
-	public void alignGenomes() {		
+	private void inferOrthologs() {
+		genomesDescription();
+		// Identify paralogs
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
+			homologyEdges.addAll(edges);
+			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
+		}
+		
+		//Identify orthology relationships between pairs of genomes
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome1 = genomes.get(i);
+			for (int j=0;j<genomes.size();j++) {
+				AnnotatedReferenceGenome genome2 = genomes.get(j);
+				if(i!=j) {
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
+					homologyEdges.addAll(edges);
+					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
+				}
+			}
+		}
+	}
+	
+	private void genomesDescription() {
+		log.info("Total number of genomes: " + genomes.size());
+		for(int i = 0; i < genomes.size(); i++) {
+			AnnotatedReferenceGenome genome = genomes.get(i);
+			log.info(String.format("Genome #%d has %d genes.", i+1, genome.getHomologyUnits().size()));
+		}
+	}
+	
+	private void printPartialResults() throws FileNotFoundException {
+		//Print orthology relationships
+		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
+			for(HomologyEdge edge : homologyEdges) {
+				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
+				outOrthologs.println();
+			}
+		}
+	}
+	
+	private void identifyHomologyClusters () {
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		listHomologyCluster = calculator.clusterHomologs(genomes, homologyEdges);
-		if(genomes.size()<2) return;
+		homologyClusters = calculator.clusterHomologs(genomes, homologyEdges);
+	}
+	
+	public void alignGenomes() {		
+		
+		
 		// By now this is still done for two genomes
 		//SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
 		AnnotatedReferenceGenome genome1 = genomes.get(0);
 		AnnotatedReferenceGenome genome2 = genomes.get(1);
-		QualifiedSequenceList sequencesG1 = genome1.getSequencesMetadata();
-		for(QualifiedSequence chrG1:sequencesG1) {
-			List<HomologyUnit> unitsChrG1 = genome1.getUniqueHomologyUnits(chrG1.getName());
-			log.info("Unique units G1 for "+chrG1.getName()+": "+unitsChrG1.size());
-			//Whole chromosome synteny LCS algorithm
-			String chrNameG2 = findBestChromosome(unitsChrG1, genome2.getId());
-			if(chrNameG2!=null) {
-				List<HomologyUnit> selectedUnits = alignOrthologyUnits(genome1.getId(),unitsChrG1,genome2.getId(),chrNameG2);
-
-				List<HomologyUnit> unitsChrG2 = genome2.getUniqueHomologyUnits(chrNameG2);
-				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrNameG2+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+selectedUnits.size());
-				completeLCS(genome1.getId(),genome1.getHomologyUnits(chrG1.getName()),genome2.getId());
-			} else {
-				log.info("Mate sequence not found for "+chrG1.getName()+" Sequence orthology units: "+unitsChrG1.size());
-			}
-			List<HomologyEdge> homologyRelationships = new ArrayList<HomologyEdge>();
-			for(HomologyUnit unit:unitsChrG1) homologyRelationships.addAll(unit.getOrthologRelationships(genome2.getId()));
-			//orthologsSyntenyBlocks.addAll(syntenyBlocksFinder.findSyntenyBlocks(homologyRelationships));
-			
-		}
+		PairwiseSyntenyBlocksFinder mainFinder = new LCSMainPairwiseSyntenyBlocksFinder();
+		orthologsSyntenyBlocks = mainFinder.findSyntenyBlocks(genome1, genome2, homologyClusters);
 	}
 	
 	/**
@@ -363,15 +359,15 @@ public class GenomesAligner {
 		log.info("Building P/A matrix");
 		int numGenomes = genomes.size();
 		
-		listHomologyCluster.addAll(getPrivateGeneFamilies());
+		homologyClusters.addAll(getPrivateGeneFamilies());
 		
-		int numGeneFamilies = listHomologyCluster.size();
+		int numGeneFamilies = homologyClusters.size();
 		
 		paMatrix = new int[numGeneFamilies][numGenomes];
 		
 		for(int i=0; i<numGeneFamilies;i++)
 		{
-			List<HomologyUnit> cluster = listHomologyCluster.get(i).getHomologyUnitsCluster();
+			List<HomologyUnit> cluster = homologyClusters.get(i).getHomologyUnitsCluster();
 			for(HomologyUnit hom : cluster)
 			{
 				paMatrix[i][hom.getGenomeId()-1] ++;
@@ -392,13 +388,13 @@ public class GenomesAligner {
 	public List<HomologyCluster> getPrivateGeneFamilies()
 	{
 		List<HomologyCluster> privateGeneFamilies = new ArrayList<>();
-		int count = listHomologyCluster.size();
+		int count = homologyClusters.size();
 	
 		//Build a set with genes included in orthologs
 		Set<String> genesIncluded = new HashSet<String>();
-		for(int i=0; i<listHomologyCluster.size();i++)
+		for(int i=0; i<homologyClusters.size();i++)
 		{
-			List<HomologyUnit> cluster = listHomologyCluster.get(i).getHomologyUnitsCluster();
+			List<HomologyUnit> cluster = homologyClusters.get(i).getHomologyUnitsCluster();
 			for(HomologyUnit hom: cluster)
 				genesIncluded.add(hom.getId());
 		}
@@ -434,7 +430,7 @@ public class GenomesAligner {
 	 */
 	public void calculateFrequencies(double freqSoft)
 	{
-		for(int i=0;i<listHomologyCluster.size();i++)
+		for(int i=0;i<homologyClusters.size();i++)
 		{
 			double countFreq = 0;
 			int totGenomes = paMatrix[i].length;
@@ -444,7 +440,7 @@ public class GenomesAligner {
 			}
 			double freq = countFreq/totGenomes;
 			
-			HomologyCluster cluster = listHomologyCluster.get(i);
+			HomologyCluster cluster = homologyClusters.get(i);
 			
 			cluster.setFrequency(freq);
 			String exact = (freq == 1) ? HomologyCluster.ECORE: HomologyCluster.EACCESORY;
@@ -454,281 +450,7 @@ public class GenomesAligner {
 		}
 	}
 	
-	/**
-	 * Print synteny blocks
-	 */
-	private void printSyntenyBlocks(List<PairwiseSyntenyBlock> syntenyBlocks, String outFilename) {
-		try (PrintStream outSynteny = new PrintStream(outFilename)){
-			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
-			outSynteny.println(headers);
-			for (PairwiseSyntenyBlock sb : syntenyBlocks) {
-				GenomicRegion r1 = sb.getRegionGenome1();
-				GenomicRegion r2 = sb.getRegionGenome2();
-				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();
-				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast();
-				outSynteny.println(line);
-//				Printing of homology units that form the synteny block. 
-				
-//				for (SyntenyEdge se : sb.getHomologies()) {
-//					HomologyEdge s = se.getSource();
-//					HomologyEdge t = se.getTarget();
-//					line += "\t" + s.getQueryUnit().getId() + "/" + s.getSubjectUnit().getId() + "\t";
-//					line += "\t" + t.getQueryUnit().getId() + "/" + t.getSubjectUnit().getId() + "\t";
-//				}
-				
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 
-	/**
-	 * Selects the chromosome having the largest number of mates with the given units
-	 * @param units to select the chromosome with the best fit
-	 * @param genomeId Id of the genome to query orthologs
-	 * @return String name of the most frequent chromosome in the mates of the given units
-	 */
-	private String findBestChromosome(List<HomologyUnit> units, int genomeId) {
-		Map<String,Integer> chrMateCounts = new HashMap<>();
-
-		//Go over the orthology units. Locate chromosome of each unique ortholog and update counts map
-
-		for(HomologyUnit unit:units)
-		{
-			HomologyUnit mate = unit.getUniqueOrtholog(genomeId);
-			if(mate == null) continue;
-			String sequenceName = mate.getSequenceName();			
-			if((chrMateCounts.containsKey(sequenceName)))
-			{
-				int value = chrMateCounts.get(sequenceName)+1;
-				chrMateCounts.put(sequenceName, value);
-			}
-			else
-			{
-				chrMateCounts.put(sequenceName, 1);
-			}
-
-		}
-		//Find the chromosome with the largest count
-		int bestChromosomeCounts = 0;
-		String bestChromosome = null;
-
-		for(Map.Entry<String,Integer> entry : chrMateCounts.entrySet()) {
-			String name = entry.getKey();
-			int chromosomeProteins = entry.getValue();
-
-			if(chromosomeProteins > bestChromosomeCounts)
-			{
-				bestChromosomeCounts = chromosomeProteins;
-				bestChromosome = name;
-			}
-		}
-
-		return bestChromosome;
-	}
-
-
-
-
-	/**
-	 * Aligns the orthology units from two homologous chromosomes using LCS
-	 * @param genome1Id Id of the first genome
-	 * @param unitsChrG1 This list has only one chromosome and is sorted by position
-	 * @param genome2Id Id of the second genome
-	 * @param unitsChrG2 This list has only one chromosome and is sorted by position
-	 * @return List<OrthologyUnit> List of selected units of the first list making the LCS relative to the second list
-	 */
-	private List<HomologyUnit> alignOrthologyUnits(int genome1Id, List<HomologyUnit> unitsChrG1, int genome2Id, String seqName2) {
-		List<HomologyUnit> answer = new ArrayList<>();
-
-		List<HomologyUnit> unitsG1List = new ArrayList<>();
-		List<HomologyUnit> unitsG2List = new ArrayList<>();
-		//Assigns mates of units in G2
-
-		// Select orthology units in G1 having mate in g2 and assign the mate of units in G2.
-
-		//At the same time create two new lists of the same size with the  units in g1 having its mate in g2
-
-		for(int i=0; i<unitsChrG1.size(); i++)
-		{
-			HomologyUnit unitG1 = unitsChrG1.get(i);
-			HomologyUnit unitG2 = unitG1.getUniqueOrtholog(genome2Id);
-			if(unitG2==null) continue;
-			if(!unitG2.getSequenceName().equals(seqName2)) continue;
-			unitsG1List.add(unitG1);			
-			unitsG2List.add(unitG2);
-		}
-		Collections.sort(unitsG2List, GenomicRegionPositionComparator.getInstance());		
-
-
-		Set<Integer> lcsForward = findLCS(unitsG1List, unitsG2List, genome2Id);
-
-		Collections.reverse(unitsG2List);
-
-		Set<Integer> lcsReverse = findLCS(unitsG1List, unitsG2List, genome2Id);
-
-		Set<Integer> lcs = lcsForward;
-		if(lcsReverse.size()>lcsForward.size()) lcs = lcsReverse;
-		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
-		// Select the orthology units in G1 located at the indexes given by the output of LCS
-		for(int i:lcs)
-		{
-			HomologyUnit lcsResult = unitsG1List.get(i);
-			HomologyUnit unitG2 = lcsResult.getUniqueOrtholog(genome2Id);
-			lcsResult.setMateInLCS(unitG2);
-			unitG2.setMateInLCS(lcsResult);
-			answer.add(lcsResult);
-		}
-
-
-		return answer;
-	}
-
-	private Set<Integer> findLCS(List<HomologyUnit> unitsG1List, List<HomologyUnit> unitsG2List, int genome2Id) {
-		//Reverse map with unit ids as keys and positions as values
-		Map<String,Integer> sortedUnitsG2Pos = new HashMap<>();
-		for(int i=0; i<unitsG2List.size(); i++) {
-			HomologyUnit unit=unitsG2List.get(i);
-			sortedUnitsG2Pos.put(unit.getId(), i);
-		}
-		// Create int array with the positions in g2 for the units in g1. Input for LCS
-		int []positions = new int[unitsG1List.size()];
-		for(int i=0; i<unitsG1List.size(); i++)
-		{
-			HomologyUnit unitG1 = unitsG1List.get(i);
-			int j = sortedUnitsG2Pos.get(unitG1.getUniqueOrtholog(genome2Id).getId());
-			positions[i] = j;
-			//System.out.println("Positions [ "+i+"]:"+j);
-		}
-		// Run LCS
-
-		Set<Integer> lcs = findLCS(positions);
-		return lcs;
-	}
-
-	/**
-	 * Calculates the longest common subsequence (LCS) of sorted entries in the given indexes array using dynamic programming 
-	 * @param indexesMap Indexes to find the LCS
-	 * @return SortedSet<Integer> Positions making the LCS
-	 */
-	public SortedSet<Integer> findLCS (int [] indexesMap) {
-		SortedSet<Integer> answer = new TreeSet<>();
-		int n = indexesMap.length;
-		int [] [] m = new int [n][n+1];
-		for(int i=0; i<n; i++)
-		{
-			for(int j=0; j<n+1; j++)
-			{
-				if(i==0)
-				{
-					if(j==0 || indexesMap[i]>0) {
-						m[i][j] = 0;
-					}
-					else {
-						m[i][j] = 1;
-					}
-
-				}
-				else if(j<=indexesMap[i])
-				{
-					m[i][j] = m[i-1][j];
-				}
-				else
-				{
-					m[i][j] = Math.max((m[i-1][j]),(m[i-1][indexesMap[i]]+1));
-				}
-				//System.out.print(" "+m[i][j]);
-			}
-			//System.out.println();
-		}
-
-		int i = m.length-1;
-		int j = m[0].length-1;
-		//System.out.println("LCS matrix size: "+i+"-"+j);
-		while(i > 0 && j > 0)
-		{
-			//System.out.print("Position: "+i+"-"+j);
-			int up = m[i-1][j];
-			int diag = -1;
-			if(j>indexesMap[i]) {
-				diag = m[i-1][indexesMap[i]]+1;
-			}
-			if(diag >= up )
-			{
-				answer.add(i);
-				j=indexesMap[i];
-				i--;
-			} else {
-				i--;
-			}
-			//System.out.println(" Diag score: "+diag+" up score: "+up+" size answer: "+answer.size()+" next Position: "+i+"-"+j);
-		}
-		if(i==0 && indexesMap[i]==0)
-		{
-			answer.add(i);
-		}
-		return answer;
-	}
-
-	private void completeLCS(int genomeId1, List<HomologyUnit> chrUnits, int genomeId2) {
-		int i1=-1;
-		HomologyUnit mate1=null;
-		for(int i=0;i<chrUnits.size();i++) {
-			HomologyUnit chrUnit = chrUnits.get(i);
-			HomologyUnit mateInLCS = chrUnit.getLCSMate(genomeId2);
-			if(mateInLCS==null) continue;
-
-			if(i1==-1) {
-				i1 = i;
-				mate1 = mateInLCS;
-				continue;
-			}
-			boolean reverse = false;
-			String seqName2 = mate1.getSequenceName();
-			//In yeast some genes intersect
-			int firstG2 = mate1.getFirst()+1;
-			int lastG2 = mateInLCS.getLast()-1;
-			if(firstG2>lastG2) {
-				reverse = true;
-				firstG2 = mateInLCS.getFirst()+1;
-				lastG2 = mate1.getLast()-1;
-			}
-			for(int j=i1+1;j<i;j++) {
-				HomologyUnit chrUnitB = chrUnits.get(j);
-				Collection<HomologyUnit> orthologs2 = chrUnitB.getOrthologUnits(genomeId2);
-				if(chrUnitB.getId().equals("YJR023C_EC1118")) System.out.println("Orthologs for "+chrUnitB.getId()+" "+orthologs2.size()+" range G2: "+firstG2+"-"+lastG2);
-				if(orthologs2.size()==0) continue;
-				List<HomologyUnit> matesInRange = new ArrayList<>();
-				for(HomologyUnit ortholog2:orthologs2) {
-					if(seqName2.equals(ortholog2.getSequenceName()) && ortholog2.getFirst()>=firstG2 && ortholog2.getLast()<=lastG2) {
-						matesInRange.add(ortholog2);
-					}
-				}
-				if(chrUnitB.getId().equals("YJR023C_EC1118")) System.out.println("Mates in range for "+chrUnitB.getId()+" "+matesInRange.size());
-				if(matesInRange.size()!=1) continue;
-				HomologyUnit mate = matesInRange.get(0);
-				chrUnitB.setMateInLCS(mate);
-				mate.setMateInLCS(chrUnitB);
-				if(reverse) {
-					lastG2 = mate.getLast()-1;
-				} else {
-					firstG2 = mate.getFirst()+1; 
-				}
-			}
-			i1=i;
-			mate1 = mateInLCS;
-		}
-	}
-	
-	private void printPartialResults() throws FileNotFoundException {
-		//Print orthology relationships
-		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
-			for(HomologyEdge edge : homologyEdges) {
-				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
-				outOrthologs.println();
-			}
-		}
-	}
 
 	public void printAlignmentResults() throws IOException {
 		String jsFilename = outputPrefix + "_vizVariables.js";
@@ -798,7 +520,39 @@ public class GenomesAligner {
 		}
 
 		//Print ortholog clusters
-		CDNACatalogAligner.printResults(outputPrefix, listHomologyCluster);
+		CDNACatalogAligner.printResults(outputPrefix, homologyClusters);
+
+		printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt");
+		
+	}
+	
+	/**
+	 * Print synteny blocks
+	 */
+	private void printSyntenyBlocks(String outFilename) throws IOException {
+		try (PrintStream outSynteny = new PrintStream(outFilename)){
+			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
+			outSynteny.println(headers);
+			for (PairwiseSyntenyBlock sb : orthologsSyntenyBlocks) {
+				GenomicRegion r1 = sb.getRegionGenome1();
+				GenomicRegion r2 = sb.getRegionGenome2();
+				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();
+				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast();
+				outSynteny.println(line);
+//				Printing of homology units that form the synteny block. 
+				
+				for (SyntenyVertex vertex : sb.getHomologies()) {
+					LocalHomologyCluster c1 = vertex.getLocalRegion1();
+					LocalHomologyCluster c2 = vertex.getLocalRegion2();
+					line="\t";
+					for(HomologyUnit u1:c1.getHomologyUnitsCluster()) line+=u1.getId()+",";
+					line+="\t";
+					for(HomologyUnit u2:c2.getHomologyUnitsCluster()) line+=u2.getId()+",";
+					outSynteny.println(line);
+				}
+				
+			}
+		}
 	}
 	
 	/**
@@ -828,7 +582,7 @@ public class GenomesAligner {
 
 				}
 			
-				HomologyCluster cluster = listHomologyCluster.get(i);			
+				HomologyCluster cluster = homologyClusters.get(i);			
 				outFreq.print("gf-"+i);
 				outFreq.print("\t" + cluster.getFrequency());
 				outFreq.print("\t" + cluster.getExactCategory());
