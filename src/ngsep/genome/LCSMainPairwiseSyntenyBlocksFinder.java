@@ -266,6 +266,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 			SyntenyVertex vertex = vertices.get(j);
 			LocalHomologyCluster nextInSynteny1 = vertex.getLocalRegion1();
 			LocalHomologyCluster nextInSynteny2 = vertex.getLocalRegion2();
+			if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Limits: "+unitG1.getFirst()+"-"+unitG1.getLast()+". Next region 1: "+nextInSynteny1.getFirst()+" Last synteny 2: "+lastInSynteny2.getLast()+" next 2: "+nextInSynteny2.getFirst()+" contained: "+unitsInLCS.contains(unitG1.getUniqueKey()));
 			if(nextInSynteny1.getFirst()<unitG1.getFirst()) {
 				answer.add(vertex);
 				lastInSynteny2 = nextInSynteny2;
@@ -277,11 +278,13 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 				continue;
 			}
 			HomologyCluster cluster = unitsToClusters.get(unitG1.getUniqueKey());
+			//if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Cluster: "+cluster);
 			if(cluster==null) {
 				i++;
 				continue;
 			}
 			LocalHomologyCluster localCluster1 = cluster.getLocalCluster(unitG1);
+			//if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Local Cluster: "+localCluster1);
 			if(localCluster1==null) {
 				i++;
 				continue;
@@ -291,17 +294,21 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 				i++;
 				continue;
 			}
-			int leftLimit = (lastInSynteny2!=null)?lastInSynteny2.getLast():0;
-			int rightLimit = nextInSynteny2.getFirst();
+			
+			int leftLimit = (lastInSynteny2!=null)?lastInSynteny2.getFirst():0;
+			int rightLimit = nextInSynteny2.getLast();
 			if(reverse) {
-				leftLimit = nextInSynteny2.getLast();
-				rightLimit = (lastInSynteny2!=null)?lastInSynteny2.getFirst():Integer.MAX_VALUE;
+				leftLimit = nextInSynteny2.getFirst();
+				rightLimit = (lastInSynteny2!=null)?lastInSynteny2.getLast():Integer.MAX_VALUE;
 			}
+			if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Local Clusters: "+localClusters2.size()+" limits: "+leftLimit+" "+rightLimit);
 			for(LocalHomologyCluster c2:localClusters2) {
+				if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Next synteny: "+c2.getHomologyUnitsCluster().get(0).getId()+" "+c2.getSequenceName()+" "+c2.getFirst()+" "+c2.getLast());
 				if((c2.getFirst()>leftLimit) && c2.getLast()<rightLimit) {
 					SyntenyVertex middleVertex = new SyntenyVertex(localCluster1, c2);
 					answer.add(middleVertex);
 					lastInSynteny2 = c2;
+					if("YAL016W".equals(unitG1.getId())) System.out.println("Filling synteny of unit. Adding vertex");
 					break;
 				}
 			}

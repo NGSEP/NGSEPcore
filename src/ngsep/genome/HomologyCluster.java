@@ -62,13 +62,17 @@ public class HomologyCluster
 			List<HomologyUnit> current = entry.getValue().asList(); 
 			GenomicRegionSortedCollection<LocalHomologyCluster> merged = new GenomicRegionSortedCollection<>();
 			LocalHomologyCluster nextCluster = null;
+			HomologyUnit lastUnit = null;
 			for(HomologyUnit unit:current) {
-				if(nextCluster==null || nextCluster.getSequenceName()!=unit.getSequenceName() || nextCluster.getLast()<unit.getFirst()+50000) {
+				HomologyEdge nextEdge = (lastUnit!=null)?lastUnit.getHomologyEdge(unit):null;
+				//TODO: Parameters
+				if(nextCluster==null || nextCluster.getSequenceName()!=unit.getSequenceName() || nextCluster.getLast()<unit.getFirst()-20000 || nextEdge==null || nextEdge.getScore()<20) {
 					nextCluster = new LocalHomologyCluster(this,unit);
 					merged.add(nextCluster);
 				} else {
 					nextCluster.addUnit(unit);
 				}
+				lastUnit = unit;
 			}
 			homologyUnitsByRegion.put(genomeId, merged);
 		}

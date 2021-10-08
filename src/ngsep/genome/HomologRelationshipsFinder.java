@@ -9,8 +9,8 @@ import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
 
 public class HomologRelationshipsFinder {
-	public static final byte DEF_KMER_LENGTH = 10;
-	public static final int DEF_MIN_PCT_KMERS = 50;
+	public static final byte DEF_KMER_LENGTH = 6;
+	public static final int DEF_MIN_PCT_KMERS = 5;
 	
 	private byte kmerLength = DEF_KMER_LENGTH;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
@@ -68,20 +68,13 @@ public class HomologRelationshipsFinder {
 		//Counts of k-mers mapping to each protein in the FM-index
 		Map<String,Integer> kmerSupportMap = new TreeMap<>();
 		int totalKmers = 0;
-		String searchSequence = unit.getUnitSequence();
+		List<String> kmers = unit.getKmers(kmerLength,kmerLength);
 		//Step 1: Generate k-mers to query the FM-Index looking for homologous transcripts to calculate the kmer counts
-		for(int i=0; i<searchSequence.length()-kmerLength+1; i+=kmerLength) {
-			String kmer = searchSequence.substring(i, i+kmerLength);
-			
+		for(String kmer:kmers) {
 			List <UngappedSearchHit> kmerHits = indexCatalog.exactSearch(kmer);
 			for(UngappedSearchHit hit:kmerHits) {
 				String name = hit.getSequenceName();
-				if(kmerSupportMap.containsKey(name)) {
-					int value = 1 + kmerSupportMap.get(name);
-					kmerSupportMap.put(name, value);
-				} else {
-					kmerSupportMap.put(name, 1);
-				}
+				kmerSupportMap.compute(name, (k,v)->v!=null?v+1:1);
 			}
 			totalKmers++;
 		}

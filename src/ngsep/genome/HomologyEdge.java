@@ -26,6 +26,10 @@ public class HomologyEdge {
 		return score;
 	}
 	
+	public void setScore(double score) {
+		this.score = score;
+	}
+
 	public double getKs() {
 		return ks;
 	}

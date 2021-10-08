@@ -53,13 +53,16 @@ public class MCLJob extends Thread {
 		int runs = 0;
 		boolean convergenceState = false;
 		double[][] backup;
+		double lastSTD = 1000;
 		while(!convergenceState) {
 			runs++;
 			backup = copyOf(similarityMatrix);
 			backup = squareMatrixTimes(backup, E_POWER);
 			backup = inflateMatrix(backup, INFLATION_COEFFICIENT);
-			convergenceState = verifyConvergence(backup, similarityMatrix, DEVIATION_THRESHOLD);
+			double std = calculateStandardError(similarityMatrix, backup);
 			similarityMatrix = backup;
+			convergenceState = (std<=DEVIATION_THRESHOLD || std>=0.99*lastSTD);
+			lastSTD = std;
 		}
 		
 		System.out.println(String.format("Matrix converged after %d runs", runs));
@@ -104,9 +107,9 @@ public class MCLJob extends Thread {
 	 * Verifies if the standard deviation the matrix is below the desired threshold. Each matrix needs to have the same dimensions.
 	 * @param oldState one state to be compared
 	 * @param newState other state to be compared
-	 * @return true if the std is below the desired threshold, false otherwise.
+	 * @return double standard error between old and new state
 	 */
-	private boolean verifyConvergence(double[][] oldState, double[][] newState, double threshold) {
+	private double calculateStandardError(double[][] oldState, double[][] newState) {
 		double squaredSum = 0;
 		for(int i = 0; i < oldState.length; i++) {
 			for(int j = 0; j < oldState[0].length; j++) {
@@ -114,9 +117,10 @@ public class MCLJob extends Thread {
 				squaredSum += (errVal)*(errVal);
 			}
 		}
-		double count = (oldState.length*oldState[0].length) - 1;
+		double count = (oldState.length*oldState[0].length);
 		double std = Math.sqrt(squaredSum/(count));
-		return std <= threshold;
+		System.out.println("Next round error: "+std);
+		return std;
 	}
 	
 	/**

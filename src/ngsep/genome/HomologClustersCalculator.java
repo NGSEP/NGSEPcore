@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -56,6 +57,8 @@ public class HomologClustersCalculator {
 	private boolean skipMCL;
 	private Distribution distClusterSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
 	private int sampleSize = 0;
+	private byte kmerLength = HomologRelationshipsFinder.DEF_KMER_LENGTH;
+	private int minPctKmers = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	
 	private Logger log;
 	
@@ -73,26 +76,49 @@ public class HomologClustersCalculator {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+	
+	public byte getKmerLength() {
+		return kmerLength;
+	}
 
-	public List<HomologyCluster> clusterHomologs(List<AnnotatedReferenceGenome> genomes, List<HomologyEdge> homologyEdges) {
+	public void setKmerLength(byte kmerLength) {
+		this.kmerLength = kmerLength;
+	}
+
+	public int getMinPctKmers() {
+		return minPctKmers;
+	}
+
+	public void setMinPctKmers(int minPctKmers) {
+		this.minPctKmers = minPctKmers;
+	}
+
+	public List<HomologyCluster> clusterHomologs(List<AnnotatedReferenceGenome> genomes) {
 		List<HomologyCatalog> catalogs = new ArrayList<>();
 		for(AnnotatedReferenceGenome genome : genomes) catalogs.add(genome.getHomologyCatalog()); 
-		return clusterHomologsCatalogs(catalogs, homologyEdges);
+		return clusterHomologsCatalogs(catalogs);
 	}
 	
-	public List<HomologyCluster> clusterHomologsCatalogs(List<HomologyCatalog> catalogs, List<HomologyEdge> homologyEdges) {
+	public List<HomologyCluster> clusterHomologsCatalogs(List<HomologyCatalog> catalogs) {
 		log.info("Clustering orthologs and paralogs");
 		
 		//Set sample size for MCL skip for short clusters
 		sampleSize = catalogs.size();
 		//Divide homologs into smaller partitions
 		List<HomologyUnit> units = new ArrayList<>();
-		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits()); 
+		for(HomologyCatalog catalog : catalogs) units.addAll(catalog.getHomologyUnits());
+		makeBidirectional(units);
 		log.info("Dividing homologs via connected components");
 		List<List<HomologyUnit>> partitions = divideUnits(units);
-		log.info("Finished dividing homolog units");
+		for(List<HomologyUnit> partition : partitions) updateEdges(partition);
+		//Second round with better scores
+		makeBidirectional(units);
+		partitions = divideUnits(units);
+		for(List<HomologyUnit> partition : partitions) updateEdges(partition);
+		log.info("Finished dividing homolog units. Number of clusters: "+partitions.size());
 		printPartitionsResults(partitions);
 		
+		//partitions = breakPartitionsByDegree (partitions);
 		//Skip mcl, return connected components
 		if(skipMCL) {
 			log.info("Skipped MCL, returning connected components instead.");
@@ -120,6 +146,114 @@ public class HomologClustersCalculator {
 		return convertListHUtoHC(clusters);
 	}
 	
+	private void makeBidirectional(List<HomologyUnit> units) {
+		for(HomologyUnit unit1:units) {
+			Collection<HomologyEdge> edges = unit1.getAllHomologyRelationships();
+			for(HomologyEdge edge:edges) {
+				HomologyUnit u2 = edge.getSubjectUnit();
+				if(u2.getHomologyEdge(unit1)==null) {
+					u2.addHomologRelationship(new HomologyEdge(u2, unit1, 0));
+				}
+			}
+		}
+		
+	}
+
+	private List<List<HomologyUnit>> breakPartitionsByDegree(List<List<HomologyUnit>> partitions) {
+		List<List<HomologyUnit>> answer = new ArrayList<List<HomologyUnit>>();
+		for(List<HomologyUnit> cluster : partitions) {
+			int n = cluster.size();
+			if(n<20 || n<=2*sampleSize) {
+				answer.add(cluster);
+				continue;
+			}
+			//TODO: Divide by node degree peaks
+			List<HomologyUnit> highDegreeNodes = new ArrayList<HomologyUnit>();
+			List<HomologyUnit> lowDegreeNodes = new ArrayList<HomologyUnit>();
+			for(HomologyUnit unit:cluster) {
+				double degree = unit.getTotalHomologs();
+				if(degree < n/10) {
+					lowDegreeNodes.add(unit);
+				} else {
+					highDegreeNodes.add(unit);
+				}
+			}
+			if(highDegreeNodes.size()>0) {
+				answer.add(highDegreeNodes);
+				if(lowDegreeNodes.size()>0) {
+					List<List<HomologyUnit>> lowDegreepartitions = divideUnits(lowDegreeNodes);
+					answer.addAll(lowDegreepartitions);
+					log.info("Breaking by degree cluster with "+cluster.size()+" units. High degree: "+highDegreeNodes.size()+" low degree: "+lowDegreeNodes.size()+" partitions: "+lowDegreepartitions.size());
+				} else {
+					log.info("Dense cluster with "+cluster.size()+" units.");
+				}
+				
+				
+			} else {
+				log.info("Sparse cluster with "+cluster.size()+" units.");
+				answer.add(cluster);
+			}
+			
+			
+		}
+		
+		return answer;
+	}
+
+	private void updateEdges(List<HomologyUnit> partition) {
+		Map<String,HomologyUnit> unitsByKey = new HashMap<String, HomologyUnit>();
+		Map<String,Set<String>> kmersByUnit = new HashMap<String, Set<String>>();
+		Map<String,Set<String>> unitsByKmer = new HashMap<String, Set<String>>();
+		if(partition.size()>500) log.info("Updating edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId()); 
+		for(HomologyUnit unit1:partition) {
+			//TODO: Parameters
+			String uniqueKey = unit1.getUniqueKey();
+			unitsByKey.put(uniqueKey, unit1);
+			List<String> kmers = unit1.getKmers(kmerLength,1);
+			Set<String> kmersSet = new HashSet<String>(kmers);
+			kmersByUnit.put(uniqueKey, kmersSet);
+			for(String kmer:kmersSet) {
+				Set<String> units = unitsByKmer.computeIfAbsent(kmer, v->new HashSet<String>());
+				units.add(uniqueKey);
+			}
+		}
+		if(partition.size()>500) log.info("Updating edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId()+" kmers calculated");
+		int processed = 0;
+		for(HomologyUnit unit1:partition) {
+			//TODO: Parameters
+			Set<String> kmers1 = kmersByUnit.get(unit1.getUniqueKey());
+			int n = kmers1.size();
+			if(n==0) {
+				log.warning("Updating edges of partition with size "+partition.size()+" Unit "+unit1.getGenomeId()+" "+unit1.getId()+" has zero kmers");
+				continue;
+			}
+			Map<String,Integer> countsMatchingUnits = new HashMap<String, Integer>();
+			for(String kmer:kmers1) {
+				Set<String> units = unitsByKmer.get(kmer);
+				if(units==null) continue;
+				for(String unitKey:units) {
+					countsMatchingUnits.compute(unitKey, (k,v)->v!=null?v+1:1);
+				}
+			}
+			unit1.removeAllHomologyRelationships();
+			
+			for(Map.Entry<String,Integer> entry:countsMatchingUnits.entrySet()) {
+				String key2 = entry.getKey();
+				int count = entry.getValue();
+				HomologyUnit unit2 = unitsByKey.get(key2);
+				if(unit1==unit2) continue;
+				
+				double score = 100.0*count/n;
+				if(score <minPctKmers) continue;
+				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
+				unit1.addHomologRelationship(edge);
+			}
+			processed++;
+			if(partition.size()>500 && processed%100==0) log.info("Processed "+processed+" of "+partition.size()+" units. last unit "+unit1.getId());
+		}
+		if(partition.size()>500) log.info("Updated edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId());
+	}
+
 	/**
 	 * Convert a list of lists of homology units to a list of homology clusters
 	 * @param clusters
@@ -173,55 +307,42 @@ public class HomologClustersCalculator {
 	public List<List<HomologyUnit>> divideUnits(List<HomologyUnit> units) {
 		List<List<HomologyUnit>> partitions = new ArrayList<>();
 		
-		List<HomologyUnit> filteredUnits = new ArrayList<>();
-		for(HomologyUnit unit : units) {
-			if (unit.getTotalHomologs() > 0) {
-				filteredUnits.add(unit);
-			}
-		}
+		Set<String> inputUnitIds = new HashSet<String>();
+		for(HomologyUnit unit : units) inputUnitIds.add(unit.getUniqueKey());
 		
-		Set<String> marked = new HashSet<>();
-		int markedCount = 0;
+		Map<String,Integer> clustersMap = new HashMap<String, Integer>();
+		Set<String> marked = new HashSet<String>();
 		int totalCount = units.size();
-		for (int i = 0; i < filteredUnits.size(); i++) {
-			if (marked.contains(filteredUnits.get(i).getUniqueKey())) continue;
+		for (int i = 0; i < units.size(); i++) {
+			HomologyUnit nextStart = units.get(i); 
+			if (clustersMap.containsKey(nextStart.getUniqueKey())) continue;
 			Queue<HomologyUnit> queue = new LinkedList<>();
 			List<HomologyUnit> currentPartition = new ArrayList<>();
 			
-			queue.add(filteredUnits.get(i));
+			queue.add(nextStart);
+			marked.add(nextStart.getUniqueKey());
+			if(marked.size()%1000 == 0) log.info(String.format("Dividing units, current progress: %d/%d. Queue size: %d", marked.size(), totalCount, queue.size()));
 			while(!queue.isEmpty()) {
-				if(markedCount%1000 == 0) {
-					log.info(String.format("Dividing units, current progress: %d/%d. Queue size: %d", markedCount, totalCount, queue.size()));
-				}
-				
 				HomologyUnit currentUnit = queue.poll();
-				if(currentPartition.contains(currentUnit)) {
-					//Element already inside current partition.
+				String key = currentUnit.getUniqueKey();
+				if(clustersMap.containsKey(key)) {
+					//Element inside different partition, merge with current partition.
+					log.warning(String.format("Processing unit ID: %s assigned to cluster %d. Current cluster: %d", key,clustersMap.get(key),partitions.size()));
 					continue;
-				} else {
-					if(marked.contains(currentUnit.getUniqueKey())) {
-						//Element inside different partition, merge with current partition.
-						boolean merged = false; 
-						for(int j = 0; j < partitions.size() && !merged; j++) {
-							List<HomologyUnit> set = partitions.get(j);
-							if(set.contains(currentUnit)) {
-								merged = true;
-								currentPartition.addAll(set);
-								partitions.remove(j);
-							}
-						}
-							
-						if(!merged) log.warning(String.format("Did not find partition to merge, but unit was marked. ID: %s", currentUnit.getUniqueKey()));
-					} else {
-						//Add element to partition and add its edges to the queue
-						marked.add(currentUnit.getUniqueKey());
-						markedCount++;
-						currentPartition.add(currentUnit);
-						Collection<HomologyEdge> edges = currentUnit.getAllHomologyRelationships();
-						for(HomologyEdge edge : edges) {
-							queue.add(edge.getSubjectUnit());
-						}
+				}
+				//Add element to partition and add its edges to the queue
+				currentPartition.add(currentUnit);
+				clustersMap.put(key,partitions.size());
+				Collection<HomologyEdge> edges = currentUnit.getAllHomologyRelationships();
+				for(HomologyEdge edge : edges) {
+					HomologyUnit su = edge.getSubjectUnit();
+					String skey = su.getUniqueKey();
+					if(inputUnitIds.contains(skey) && !marked.contains(skey)) {
+						queue.add(su);
+						marked.add(skey);
+						if(marked.size()%1000 == 0) log.info(String.format("Dividing units, current progress: %d/%d. Queue size: %d", marked.size(), totalCount, queue.size()));
 					}
+					
 				}
 			}
 			
@@ -275,7 +396,9 @@ public class HomologClustersCalculator {
 		for(int i = 0; i < partition.size(); i++) {
 			HomologyUnit currentUnit = partition.get(i);
 			for(HomologyEdge edge : currentUnit.getAllHomologyRelationships()) {
-				matrix[i][indexOf.get(edge.getSubjectUnit().getUniqueKey())] = edge.getScore();
+				String key = edge.getSubjectUnit().getUniqueKey();
+				Integer j = indexOf.get(key);
+				if(j!=null)matrix[i][j] = edge.getScore();
 			}
 		}
 		

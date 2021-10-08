@@ -12,11 +12,8 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
-import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.ProteinTranslator;
-import ngsep.transcriptome.Transcript;
 
 public class CDNACatalogAligner {
 	// Constants for default values
@@ -40,7 +37,6 @@ public class CDNACatalogAligner {
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
 	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
-	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	private List<HomologyCluster> orthologyUnitClusters=new ArrayList<>();
 	
 	//logging
@@ -135,7 +131,6 @@ public class CDNACatalogAligner {
 		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		generateOrthologs();
-		printPartialResults();
 		generateClusters();
 		printResults(outputPrefix,orthologyUnitClusters);
 		log.info("Process finished");
@@ -147,7 +142,6 @@ public class CDNACatalogAligner {
 		for(int i=0;i<cdnaCatalogs.size();i++) {
 			HomologyCatalog catalog = cdnaCatalogs.get(i);
 			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogsOrganism(catalog);
-			homologyEdges.addAll(edges);
 			log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
 		}
 		
@@ -158,7 +152,6 @@ public class CDNACatalogAligner {
 				HomologyCatalog catalog2 = cdnaCatalogs.get(j);
 				if(i!=j) {
 					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2);
-					homologyEdges.addAll(edges);
 					log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
 				}
 			}
@@ -186,17 +179,9 @@ public class CDNACatalogAligner {
 	private void generateClusters() {
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs, homologyEdges);
-	}
-	
-	private void printPartialResults() throws FileNotFoundException {
-		//Print orthology relationships
-		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
-			for(HomologyEdge edge : homologyEdges) {
-				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
-				outOrthologs.println();
-			}
-		}
+		calculator.setKmerLength(homologRelationshipsFinder.getKmerLength());
+		calculator.setMinPctKmers(homologRelationshipsFinder.getMinPctKmers());
+		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs);
 	}
 	
 	public static void printResults(String outputPrefix, List<HomologyCluster> orthologyUnitClusters) throws FileNotFoundException {

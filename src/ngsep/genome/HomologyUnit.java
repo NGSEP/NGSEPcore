@@ -34,6 +34,7 @@ public class HomologyUnit implements GenomicRegion {
 	private String id;
 	//TODO: Change to entityID, more generic? GenomeID when built for a genome, OrganismID when built for organisms
 	private int genomeId;
+	private String uniqueKey;
 	private String sequenceName;
 	private int first;
 	private int last;
@@ -52,6 +53,7 @@ public class HomologyUnit implements GenomicRegion {
 		this.first = first;
 		this.last = last;
 		homologsMap.put(genomeId, new HashMap<>());
+		uniqueKey = ""+genomeId+"\t"+id;
 	}
 	public HomologyUnit(int genomeId, String id, String unitSequence) {
 		this.genomeId = genomeId;
@@ -148,6 +150,7 @@ public class HomologyUnit implements GenomicRegion {
 	public void removeAllHomologyRelationships() {
 		homologsMap = new HashMap<Integer, Map<String,HomologyEdge>>();
 		homologsMap.put(genomeId, new HashMap<String, HomologyEdge>());
+		totalHomologs = 0;
 	}
 
 	/**
@@ -196,7 +199,7 @@ public class HomologyUnit implements GenomicRegion {
 	 * Returns the ortholog of this unit with the given genome id and the given id
 	 * @param genomeId Id of the genome to query
 	 * @param id of the unit to look for
-	 * @return OrthologyUnit ortholog of this unit or null if the ortholog was not found
+	 * @return HomologyUnit ortholog of this unit or null if the ortholog was not found
 	 */
 	public HomologyUnit getOrtholog(int genomeId, String id) {
 		Map<String,HomologyEdge> orthologRelationships = homologsMap.get(genomeId);
@@ -205,6 +208,18 @@ public class HomologyUnit implements GenomicRegion {
 		if(edge == null) return null;
 		return edge.getSubjectUnit();
 		
+	}
+	
+	/**
+	 * Returns the edge connecting this unit with the given unit
+	 * @param unit Homology unit related to this unit
+	 * @return HomologyEdge Relationship between units
+	 */
+	public HomologyEdge getHomologyEdge(HomologyUnit unit) {
+		Map<String,HomologyEdge> orthologRelationships = homologsMap.get(unit.getGenomeId());
+		if(orthologRelationships==null) return null;
+		HomologyEdge edge = orthologRelationships.get(unit.getId());
+		return edge;
 	}
 	/**
 	 * Tells if the given unit is an ortholog of this unit
@@ -227,6 +242,14 @@ public class HomologyUnit implements GenomicRegion {
 	}
 	
 	public String getUniqueKey() {
-		return ""+genomeId+"\t"+id;
+		return uniqueKey;
+	}
+	public List<String> getKmers(int kmerLength,int kmerOffset) {
+		List<String> answer = new ArrayList<String>();
+		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) {
+			String kmer = unitSequence.substring(i, i+kmerLength);
+			answer.add(kmer);
+		}
+		return answer;
 	}
 }

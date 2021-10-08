@@ -76,7 +76,7 @@ public class GenomesAligner {
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
-	private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
+	//private List<HomologyEdge> homologyEdges = new ArrayList<HomologyEdge>();
 	
 	private List<HomologyCluster> homologyClusters = new ArrayList<>();
 	private List<PairwiseSyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
@@ -193,7 +193,6 @@ public class GenomesAligner {
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		inferOrthologs();
-		printPartialResults();
 		identifyHomologyClusters();
 		if(genomes.size()>1) {
 			alignGenomes();
@@ -295,7 +294,6 @@ public class GenomesAligner {
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
 			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
-			homologyEdges.addAll(edges);
 			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
 		}
 		
@@ -306,7 +304,6 @@ public class GenomesAligner {
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
 				if(i!=j) {
 					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
-					homologyEdges.addAll(edges);
 					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
 				}
 			}
@@ -321,20 +318,21 @@ public class GenomesAligner {
 		}
 	}
 	
-	private void printPartialResults() throws FileNotFoundException {
-		//Print orthology relationships
-		try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_rawOrthologs.txt");) {
-			for(HomologyEdge edge : homologyEdges) {
-				outOrthologs.print(String.format("%s\t%s\t%f", edge.getQueryUnit().getId(), edge.getSubjectUnit().getId(), edge.getScore()));
-				outOrthologs.println();
-			}
-		}
-	}
-	
-	private void identifyHomologyClusters () {
+	public void identifyHomologyClusters () {
 		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
 		calculator.setLog(log);
-		homologyClusters = calculator.clusterHomologs(genomes, homologyEdges);
+		calculator.setKmerLength(homologRelationshipsFinder.getKmerLength());
+		calculator.setMinPctKmers(homologRelationshipsFinder.getMinPctKmers());
+		homologyClusters = calculator.clusterHomologs(genomes);
+	}
+	
+	private List<HomologyEdge> getAllHomologyEdges() {
+		List<HomologyEdge> answer = new ArrayList<HomologyEdge>();
+		for(AnnotatedReferenceGenome genome:genomes) {
+			List<HomologyUnit> units = genome.getHomologyUnits();
+			for(HomologyUnit unit:units) answer.addAll(unit.getAllHomologyRelationships());
+		}
+		return answer;
 	}
 	
 	public void alignGenomes() {		
@@ -482,14 +480,16 @@ public class GenomesAligner {
 			// Print paralogs
 			try (PrintStream outParalogs = new PrintStream(outputPrefix+"_paralogsG"+id+".tsv");
 				 PrintStream outParalogsJS = new PrintStream(new FileOutputStream(jsFilename, true))) {
-				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\tparalogsCount\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd\tscore");
+				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\torthogroup\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd\torthogroup2\tscore");
 				outParalogsJS.println("const paralogsG" + id + " = [");
 				for(HomologyUnit unit:genome.getHomologyUnits()) {
+					int clusterId1 = clusterIdsByHomologyUnit.getOrDefault(unit.getUniqueKey(), -1);
 					Collection<HomologyEdge> paralogRelationships = unit.getParalogRelationships(); 
 					for(HomologyEdge paralogRelationship: paralogRelationships) {
 						HomologyUnit paralog = paralogRelationship.getSubjectUnit();
-						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+paralogRelationships.size());
-						outParalogs.print("\t"+id+"\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast());
+						int clusterId2 = clusterIdsByHomologyUnit.getOrDefault(paralog.getUniqueKey(), -1);
+						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+clusterId1);
+						outParalogs.print("\t"+id+"\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast()+"\t"+clusterId2);
 						outParalogs.println("\t"+paralogRelationship.getScore());
 						outParalogsJS.println("{geneId: '"+unit.getId()
 						+"', chromosome: '"+unit.getSequenceName()
