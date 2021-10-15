@@ -34,6 +34,7 @@ import ngsep.variants.CalledLargeIndel;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
+import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileWriter;
 import ngsep.vcf.VCFRecord;
@@ -41,14 +42,16 @@ import ngsep.vcf.VCFRecord;
 public class LongReadStructuralVariantDetector {
 	
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	public static final double HETEROCIGOZITY_TRESHOLD = 0.2;
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "Clique";
 	public static final String FILTER_SETTING_MISSING = ".";
 	public static final String KEY_SEPARATOR = ",";
 	
 	private GenomicRegionSortedCollection<GenomicRegion> signatures;
-	private ReferenceGenome refGenome;
-	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	private GenomicRegionSortedCollection<GenomicVariant> variants;
+	private ReferenceGenome refGenome;
+	private int indelTresholdSize = 10;
+	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	LongReadStructuralVariantDetector(){
 	}
@@ -124,7 +127,7 @@ public class LongReadStructuralVariantDetector {
 		if(calls != null) {
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
-				if(indel.length() < 10) continue;
+				if(indel.length() < indelTresholdSize) continue;
 				String seqName = indel.getSequenceName();
 				computeIndelToSignatureKey(indel, signatures);
 				sequenceNames.add(seqName);
@@ -145,9 +148,10 @@ public class LongReadStructuralVariantDetector {
 		annotations.add(svTypeAnnot);
 		return annotations;
 	}
-	public VCFFileHeader createVCFHeader() {
+	public VCFFileHeader createVCFHeader(String sampleId) {
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
-		header.addDefaultSample("C24");
+		//header.addDefaultSample("C24");
+		header.addSample(new Sample(sampleId), true);
 		return header;
 	}
 	public List<String> getVariantFilters(GenomicVariant variants){
@@ -155,55 +159,85 @@ public class LongReadStructuralVariantDetector {
 		filters.add(FILTER_SETTING_MISSING);
 		return filters;
 	}
-	public void makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) throws IOException{
+	public List<CalledGenomicVariant> makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) throws IOException{
+		List<CalledGenomicVariant> genotypeCalls = new ArrayList<>();
 		try(ReadAlignmentFileReader alignmentReader = new ReadAlignmentFileReader(alignmentFile, refGenome)){
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			alignmentReader.setFilterFlags(filterFlags);
 			alignmentReader.setMinMQ(minMQ);
 			GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(variants.getSequenceNames());
 			Iterator<ReadAlignment> it = alignmentReader.iterator();
-			ReadAlignment aln = it.next();
-			int i = 0;
-			GenomicVariant var = variantsList.get(i);
-			int totalAlnVarInt = 0;
-			int refAlnCalls = 0;
-			int altAlnCalls = 0;
+			ReadAlignment aln = it.next();	
+			int varIdx = 0;
+			int genotype = -1;
+			int currIntersectingVars = 0;
+			int [] alnCalls = new int [variantsList.size()];
+			int [] alnCoveredPerVar = new int [variantsList.size()];
+			boolean lastVar = false;
 			while(it.hasNext()) {
+				GenomicVariant var = variantsList.get(varIdx);
 				int cmp = cmpClassInstance.compare(var, aln);
-				if(cmp < -1) {
-					aln = it.next();
-				}else if(cmp > 1) {
-					if(totalAlnVarInt > 0) {
-						CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, -1);
-					}
-					if(i < variantsList.size() - 1) {
-						i++;
-						var = variantsList.get(i);
-						totalAlnVarInt = 0;
-						refAlnCalls = 0;
-						altAlnCalls = 0;
-					}
-					else break;
+				System.out.println("varIdx " + varIdx);
+				System.out.println(var.getSequenceName() + " " + var.getFirst() + " " + var.getLast() + " " 
+						+ aln.getSequenceName() + " " + aln.getFirst() + " " + aln.getLast());
+				System.out.println("cmp = " + cmp);
+				if(cmp > 1 || lastVar) {
+					varIdx -= currIntersectingVars;
+					currIntersectingVars = 0;
+					if(it.hasNext()) aln = it.next();
+					lastVar = false;
+				}
+				else if(cmp < -1) {
+					genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 1 : 2;
+					CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, genotype);
+					genotypeCalls.add(calledVariant);
+					System.out.println("genotype " + genotype);
+					if(varIdx + 1 != variantsList.size()) varIdx++;
+					else lastVar = true;
+					//CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, -1);
+					//genotypeCalls.add(calledVariant);
 				}
 				else {
 					int begin = var.getFirst();
-					if(aln.getIndelCall(begin) == null) refAlnCalls++;
-					else altAlnCalls++;
-					totalAlnVarInt++;
+					alnCoveredPerVar[varIdx]++;
+					if(aln.getIndelCall(begin) != null) alnCalls[varIdx]++;
+					currIntersectingVars++;
+					if(varIdx + 1 != variantsList.size()) varIdx++;
+					else lastVar = true;
+					System.out.println(" lastVar= " + lastVar);
 				}
 			}
+			//add remaining calls
+			for(;varIdx < variantsList.size(); varIdx++) {
+				GenomicVariant var = variantsList.get(varIdx);	
+				genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 1 : 2;
+				CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, genotype);
+				genotypeCalls.add(calledVariant);
+				System.out.println("genotype " + genotype);
+				varIdx++;
+			}
 		}
+		return genotypeCalls;
 	}
-	public List<VCFRecord> getRecords(List<GenomicVariant> variants, VCFFileHeader header){
+	/**
+	public List<CalledGenomicVariant> makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) throws IOException{
+		List<CalledGenomicVariant> genotypeCalls = new ArrayList<>();
+		for(GenomicVariant variant : variantsList) {
+			genotypeCalls.add(new CalledGenomicVariantImpl(variant, -1));
+		}
+		return genotypeCalls;
+	}**/
+	public List<VCFRecord> buildRecords(List<GenomicVariant> variants, List<CalledGenomicVariant> genotypeCalls, VCFFileHeader header){
 		List<VCFRecord> records = new ArrayList<>();
-		for(GenomicVariant variant:variants) {
-			CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(variant, -1);
+		for(int i = 0; i < variants.size(); i++) {
+			GenomicVariant variant = variants.get(i);
+			CalledGenomicVariant calledVariant = genotypeCalls.get(i);
 			List<CalledGenomicVariant> calls = new ArrayList<>();
 			calls.add(calledVariant);
 			List<GenomicVariantAnnotation> infoFields = annotateStructuralVariant(variant);
 			List<String> filters = getVariantFilters(variant);
 			VCFRecord record = new VCFRecord(variant, filters,
-					 infoFields, VCFRecord.DEF_FORMAT_ARRAY_NONE,  calls, header);
+					 infoFields, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL,  calls, header);
 			records.add(record);
 		}
 		return records;
@@ -214,24 +248,24 @@ public class LongReadStructuralVariantDetector {
 		writer.printHeader(header, pr);
 		writer.printVCFRecords(records, pr);
 	}
-	public void run(String algorithm, String refFile, String alnFile) throws IOException {
+	public void run(String algorithm, String refFile, String alnFile, String sampleId) throws IOException {
 		setRefGenome(refFile);
 		readAlignments(alnFile);
 		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
-			LongReadVariantDetectorAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm();
-			caller.setSignatures(signatures);
+			LongReadVariantDetectorAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm(refGenome, signatures);
 			variants = caller.callVariants();
 		}
 		List<GenomicVariant> variantsList = variants.asList();
-		VCFFileHeader header = createVCFHeader();
-		List<VCFRecord> records = getRecords(variantsList, header);
-		String saveFile = "variants.vcf";
+		List<CalledGenomicVariant> genotypeCalls = makeGenotypeCalls(alnFile, variantsList);
+		VCFFileHeader header = createVCFHeader(sampleId);
+		List<VCFRecord> records = buildRecords(variantsList, genotypeCalls, header);
+		String saveFile = sampleId + ".variants.vcf";
 		printVCFFile(records, header, saveFile);
 	}
 	public static void main(String[] args) throws IOException {
 		// TODO Auto-generated method stub
 		LongReadStructuralVariantDetector caller = new LongReadStructuralVariantDetector();
-		caller.run(MAX_CLIQUE_FINDER_ALGORITHM, args[0], args[1]);
+		caller.run(MAX_CLIQUE_FINDER_ALGORITHM, args[0], args[1], args[2]);
 	}
 }
 	

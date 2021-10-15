@@ -10,6 +10,7 @@ import java.util.Map;
 
 import JSci.maths.statistics.SampleStatistics;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.graphs.MaximalCliquesFinder;
@@ -24,15 +25,18 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 	
 	public static final double DEFAULT_PD_NORM_FACTOR = 900;
 	public static final double DEFAULT_EDGE_TRESHOLD = 0.7;
-	public static final double MAX_CONSENSUS_LENGTH = 100;
+	public static final double MAX_CONSENSUS_LENGTH = 300;
 	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 100;
 	
 	private double pdNormFactor = DEFAULT_PD_NORM_FACTOR;
 	private double edgeTreshold = DEFAULT_EDGE_TRESHOLD;
 	private GenomicRegionSortedCollection<GenomicRegion> signatures;
+	private ReferenceGenome refGenome;
+	private int lengthToDefineSVEvent = 40;
 	
-	public void setSignatures(GenomicRegionSortedCollection<GenomicRegion> signatures) {
-		// TODO Auto-generated method stub
+	public MaxCliqueClusteringDetectionAlgorithm(ReferenceGenome genome, 
+			GenomicRegionSortedCollection<GenomicRegion>  signatures){
+		this.refGenome = genome;
 		this.signatures = signatures;
 	}
 	public double calculateSPD(GenomicRegion sign1, GenomicRegion sign2) {
@@ -90,6 +94,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		score = normSpan + normPos + numSign;
 		return (short) score;
 	}
+	/**
 	public boolean testCandidateCompatibility(GenomicVariant v1, GenomicVariant v2) {
 		if(!v1.getSequenceName().equals(v2.getSequenceName())) return false;
 		if(v1.getType() != v2.getType()) return false;
@@ -97,7 +102,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		if(Math.abs(v1.getLast() - v2.getLast()) < MAX_CONSENSUS_LENGTH) return true; 
 		if(Math.abs(v1.length() - v2.length()) < MAX_CONSENSUS_LENGTH) return true; 
 		return false;
-	}
+	}**/
 	public boolean testDownstreamSignatureCompatibility(GenomicRegion s1, GenomicRegion s2) {
 		return s2.getFirst() - s1.getLast() < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
 	}
@@ -153,7 +158,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 					GenomicRegion current = typePartition.get(i);
 					GenomicRegion next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 100) {
+					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 300) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicRegion sign:toCluster) idxs.add(signList.indexOf(sign));
 						if(toCluster.size() < 3) {
@@ -180,18 +185,35 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		return clusters;
 	}
 	public GenomicVariantImpl processClusterToVariant(List<GenomicRegion> clusterSigns, String sequenceName){
-		GenomicRegion first = clusterSigns.get(0);
-		GenomicRegion last = clusterSigns.get(clusterSigns.size()-1);
-		int end = -1;
-		for(GenomicRegion v:clusterSigns) if(v.getLast() > end) end = v.getLast();
-		int begin = first.getFirst();
-		byte type = getSignatureType(first);
+		GenomicRegion firstVar = clusterSigns.get(0);
+		//GenomicRegion lastVar = clusterSigns.get(clusterSigns.size()-1);
+		int endOfSpan = -1;
+		for(GenomicRegion v:clusterSigns) if(v.getLast() > endOfSpan) endOfSpan = v.getLast();
+		int first = firstVar.getFirst();
+		int last = endOfSpan;
+		byte type = getSignatureType(firstVar);
 		short variantScore = calculateVariantScore(clusterSigns);
-		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, begin, end, type);
+		List<String> alleles = new ArrayList<>();
+		String ref = "";
+		String alt = "";
+		if(GenomicVariant.TYPE_LARGEINS == type) {
+			last = first+1;
+			ref = "" + refGenome.getReferenceBase(sequenceName, first);
+			alt = "<" + GenomicVariant.TYPENAME_LARGEINS + ">";
+		}else if(GenomicVariant.TYPE_LARGEDEL == type) {
+			ref = "" + refGenome.getReferenceBase(sequenceName, first);
+			alt = "<" + GenomicVariant.TYPENAME_LARGEDEL + ">";
+		}
+		alleles.add(ref);
+		alleles.add(alt);
+		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
+		variant.setLength(endOfSpan - first + 1);
+		variant.setLast(last);
+		variant.setType(type);
 		variant.setVariantQS(variantScore);
-		if(GenomicVariantImpl.TYPE_LARGEINS == variant.getType()) variant.setLast(begin+1);
 		return variant;
 	}
+	/**
 	public void filterVariantsBySimilarity(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
 		List<GenomicVariant> variantsToKeep = new ArrayList<>();
 		List<GenomicVariant> variantsList = sortedVariants.asList();
@@ -200,6 +222,31 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 			GenomicVariant current = variantsList.get(i);
 			GenomicVariant next = variantsList.get(i+1);
 			if(testCandidateCompatibility(current, next)) {
+				localCandidates.add(current);
+				localCandidates.add(next);
+			}else {
+				if(!localCandidates.isEmpty()) {
+					Collections.sort(localCandidates, Comparator.comparingInt(v -> (int) v.getVariantQS()));
+					variantsToKeep.add(localCandidates.get(localCandidates.size() - 1));
+					localCandidates.clear();
+				}else {
+					variantsToKeep.add(current);
+				}
+			}
+		}
+		sortedVariants.retainAll(variantsToKeep);
+		sortedVariants.forceSort();
+	}**/
+	public void filterVariantsBySimilarity(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
+		List<GenomicVariant> variantsToKeep = new ArrayList<>();
+		List<GenomicVariant> variantsList = sortedVariants.asList();
+		List<GenomicVariant> localCandidates = new ArrayList<>();
+		GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(sortedVariants.getSequenceNames());
+		for(int i = 0; i < sortedVariants.size() - 1; i++) {
+			GenomicVariant current = variantsList.get(i);
+			GenomicVariant next = variantsList.get(i+1);
+			int cmp = cmpClassInstance.compare(current, next);
+			if(cmp == -1 || cmp == 0 || cmp == 1) {
 				localCandidates.add(current);
 				localCandidates.add(next);
 			}else {
@@ -237,12 +284,20 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 							GenomicVariantImpl.getVariantTypeName(getSignatureType(sign)));
 				}
 				GenomicVariantImpl variant = processClusterToVariant(clusterSigns, k);
-				if(variant.length() >= 30) variants.add(variant);
+				if(variant.length() >= lengthToDefineSVEvent) variants.add(variant);
 			}
 		}
 		sortedVariants.addAll(variants);
 		sortedVariants.forceSort();
 		filterVariantsBySimilarity(sortedVariants);
+		System.out.println("Variants filtered");
 		return sortedVariants;
+	}
+	@Override
+	public void setRefGenome(ReferenceGenome genome) {
+		this.refGenome = genome;
+	}
+	public void setSignatures(GenomicRegionSortedCollection<GenomicRegion> signatures) {
+		this.signatures = signatures;
 	}
 }

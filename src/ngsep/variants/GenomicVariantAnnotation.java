@@ -35,8 +35,7 @@ public class GenomicVariantAnnotation {
 	public static final String ATTRIBUTE_SOMATIC = "SOMATIC";
 	public static final String ATTRIBUTE_VALIDATED = "VALIDATED";
 	public static final String ATTRIBUTE_1000G = "1000G";
-	public static final String ATTRIBUTE_SVLEN = "SVLEN";
-	public static final String ATTRIBUTE_SVTYPE = "SVTYPE";
+
 	//New annotation attributes
 	/**
 	 * Code of the annotation for closeness to a transcript
@@ -83,6 +82,15 @@ public class GenomicVariantAnnotation {
 	 * Phred scaled fisher strand bias 
 	 */
 	public static final String ATTRIBUTE_FISHER_STRAND_BIAS = "FS";
+	/**
+	 * Length specific attribute for structural variants
+	 */
+	public static final String ATTRIBUTE_SVLEN = "SVLEN";
+	/**
+	 * Type specific attribute for structural variants
+	 */
+	public static final String ATTRIBUTE_SVTYPE = "SVTYPE";
+	
 	
 	private GenomicVariant genomicVariant;
 	private String attribute;
