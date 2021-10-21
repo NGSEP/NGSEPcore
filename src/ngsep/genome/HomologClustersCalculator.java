@@ -316,6 +316,7 @@ public class HomologClustersCalculator {
 		for (int i = 0; i < units.size(); i++) {
 			HomologyUnit nextStart = units.get(i); 
 			if (clustersMap.containsKey(nextStart.getUniqueKey())) continue;
+			//System.out.println("Next start "+nextStart.getUniqueKey());
 			Queue<HomologyUnit> queue = new LinkedList<>();
 			List<HomologyUnit> currentPartition = new ArrayList<>();
 			
@@ -333,6 +334,7 @@ public class HomologClustersCalculator {
 				//Add element to partition and add its edges to the queue
 				currentPartition.add(currentUnit);
 				clustersMap.put(key,partitions.size());
+				//System.out.println("Adding key "+key + " to cluster:" + partitions.size() );
 				Collection<HomologyEdge> edges = currentUnit.getAllHomologyRelationships();
 				for(HomologyEdge edge : edges) {
 					HomologyUnit su = edge.getSubjectUnit();

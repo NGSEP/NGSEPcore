@@ -54,6 +54,7 @@ public class HomologyCluster
 		this.homologyUnitsCluster = homologyUnitsCluster;
 		Map<Integer,GenomicRegionSortedCollection<HomologyUnit>> rawUnitsByRegion = new HashMap<>();
 		for(HomologyUnit unit:homologyUnitsCluster) {
+			if(unit.getSequenceName()==null) continue;
 			GenomicRegionSortedCollection<HomologyUnit> genomeUnits = rawUnitsByRegion.computeIfAbsent(unit.getGenomeId(), v->new GenomicRegionSortedCollection<>());
 			genomeUnits.add(unit);
 		}
@@ -110,12 +111,6 @@ public class HomologyCluster
 		this.softCat = softCat;
 	}
 
-	public HomologyUnit findUniqueHomologyUnit(int genomeId) {
-		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(genomeId);
-		if(subclustersGenome==null) return null;
-		//TODO: define better
-		return subclustersGenome.asList().get(0).getHomologyUnitsCluster().get(0);
-	}
 	public List<LocalHomologyCluster> getLocalClusters(int genomeId, String sequenceName) {
 		List<LocalHomologyCluster> answer = new ArrayList<LocalHomologyCluster>();
 		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(genomeId);

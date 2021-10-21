@@ -60,6 +60,7 @@ public class HomologyUnit implements GenomicRegion {
 		this.id = id;
 		this.unitSequence = unitSequence;
 		homologsMap.put(genomeId, new HashMap<>());
+		uniqueKey = ""+genomeId+"\t"+id;
 	}
 	
 
