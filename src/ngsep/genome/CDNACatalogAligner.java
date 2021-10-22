@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -131,7 +133,9 @@ public class CDNACatalogAligner {
 		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		generateOrthologs();
+		printRelationships(outputPrefix+"_rawHomologs.txt");
 		generateClusters();
+		printRelationships(outputPrefix+"_finalHomologs.txt");
 		printResults(outputPrefix,orthologyUnitClusters);
 		log.info("Process finished");
 	}
@@ -184,6 +188,21 @@ public class CDNACatalogAligner {
 		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs);
 	}
 	
+	private void printRelationships(String filename) throws IOException {
+		try (PrintStream out = new PrintStream(filename);) {
+			out.println("Unit1\tUnit2\tscore");
+			for(HomologyCatalog catalog:cdnaCatalogs) {
+				List<HomologyUnit> units = catalog.getHomologyUnits();
+				for(HomologyUnit unit:units) {
+					Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
+					for(HomologyEdge edge:edges) {
+						HomologyUnit target = edge.getSubjectUnit();
+						out.println(unit.getId()+"\t"+target.getId()+"\t"+edge.getScore());
+					}
+				}
+			}
+		}
+	}
 	public static void printResults(String outputPrefix, List<HomologyCluster> orthologyUnitClusters) throws FileNotFoundException {
 		//Print ortholog clusters
 		try (PrintStream outClusters = new PrintStream(outputPrefix+"_clusters.txt");) {
