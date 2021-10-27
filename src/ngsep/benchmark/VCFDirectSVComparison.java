@@ -102,8 +102,8 @@ public class VCFDirectSVComparison {
 					if(it1.hasNext()) {
 						testRecords = it1.next();
 						testVariantCount++;
-						falsePositiveBps++;
-						if(testVariant.length() < treshold) falsePositiveBpsTreshold++;
+						falsePositiveBps += Math.abs(testVariant.length());
+						if(testVariant.length() < treshold) falsePositiveBpsTreshold+= Math.abs(testVariant.length());
 						testVariants.add(testVariant);
 					}
 					else break;

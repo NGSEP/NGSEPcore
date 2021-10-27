@@ -42,7 +42,7 @@ import ngsep.vcf.VCFRecord;
 public class LongReadStructuralVariantDetector {
 	
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	public static final double HETEROCIGOZITY_TRESHOLD = 0.2;
+	public static final double HETEROCIGOZITY_TRESHOLD = 0.8;
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "Clique";
 	public static final String FILTER_SETTING_MISSING = ".";
 	public static final String KEY_SEPARATOR = ",";
@@ -50,7 +50,7 @@ public class LongReadStructuralVariantDetector {
 	private GenomicRegionSortedCollection<GenomicRegion> signatures;
 	private GenomicRegionSortedCollection<GenomicVariant> variants;
 	private ReferenceGenome refGenome;
-	private int indelTresholdSize = 10;
+	private int indelTresholdSize = 30;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	LongReadStructuralVariantDetector(){
@@ -177,10 +177,6 @@ public class LongReadStructuralVariantDetector {
 			while(it.hasNext()) {
 				GenomicVariant var = variantsList.get(varIdx);
 				int cmp = cmpClassInstance.compare(var, aln);
-				System.out.println("varIdx " + varIdx);
-				System.out.println(var.getSequenceName() + " " + var.getFirst() + " " + var.getLast() + " " 
-						+ aln.getSequenceName() + " " + aln.getFirst() + " " + aln.getLast());
-				System.out.println("cmp = " + cmp);
 				if(cmp > 1 || lastVar) {
 					varIdx -= currIntersectingVars;
 					currIntersectingVars = 0;
@@ -188,45 +184,44 @@ public class LongReadStructuralVariantDetector {
 					lastVar = false;
 				}
 				else if(cmp < -1) {
-					genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 1 : 2;
+					genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 2 : 1;
+					//System.out.println("het% " + (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx]);
 					CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, genotype);
 					genotypeCalls.add(calledVariant);
-					System.out.println("genotype " + genotype);
+					//System.out.println("genotype " + genotype);
 					if(varIdx + 1 != variantsList.size()) varIdx++;
 					else lastVar = true;
-					//CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, -1);
-					//genotypeCalls.add(calledVariant);
 				}
 				else {
-					int begin = var.getFirst();
 					alnCoveredPerVar[varIdx]++;
-					if(aln.getIndelCall(begin) != null) alnCalls[varIdx]++;
+					if(isSVAlleleAlnCall(aln, var)) alnCalls[varIdx]++;
 					currIntersectingVars++;
 					if(varIdx + 1 != variantsList.size()) varIdx++;
 					else lastVar = true;
-					System.out.println(" lastVar= " + lastVar);
 				}
 			}
 			//add remaining calls
 			for(;varIdx < variantsList.size(); varIdx++) {
 				GenomicVariant var = variantsList.get(varIdx);	
-				genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 1 : 2;
+				genotype = (double) alnCalls[varIdx] / alnCoveredPerVar[varIdx] > HETEROCIGOZITY_TRESHOLD ? 2 : 1;
 				CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(var, genotype);
 				genotypeCalls.add(calledVariant);
-				System.out.println("genotype " + genotype);
 				varIdx++;
 			}
 		}
 		return genotypeCalls;
 	}
-	/**
-	public List<CalledGenomicVariant> makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) throws IOException{
-		List<CalledGenomicVariant> genotypeCalls = new ArrayList<>();
-		for(GenomicVariant variant : variantsList) {
-			genotypeCalls.add(new CalledGenomicVariantImpl(variant, -1));
+	public boolean isSVAlleleAlnCall(ReadAlignment aln, GenomicVariant var) {
+		GenomicVariant firstIndelCall = aln.getIndelCall(var.getFirst());
+		byte firstIndelCallType = 0;
+		if(firstIndelCall != null) {
+			firstIndelCallType = firstIndelCall.getFirst() + 1 == firstIndelCall.getLast() ? 
+					GenomicVariant.TYPE_LARGEINS : GenomicVariant.TYPE_LARGEDEL;
 		}
-		return genotypeCalls;
-	}**/
+		if(firstIndelCall == null || 
+				firstIndelCallType != var.getType()) return false;
+		return true;
+	}
 	public List<VCFRecord> buildRecords(List<GenomicVariant> variants, List<CalledGenomicVariant> genotypeCalls, VCFFileHeader header){
 		List<VCFRecord> records = new ArrayList<>();
 		for(int i = 0; i < variants.size(); i++) {

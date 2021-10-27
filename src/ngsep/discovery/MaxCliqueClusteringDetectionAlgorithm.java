@@ -26,7 +26,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 	public static final double DEFAULT_PD_NORM_FACTOR = 900;
 	public static final double DEFAULT_EDGE_TRESHOLD = 0.7;
 	public static final double MAX_CONSENSUS_LENGTH = 300;
-	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 100;
+	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 50;
 	
 	private double pdNormFactor = DEFAULT_PD_NORM_FACTOR;
 	private double edgeTreshold = DEFAULT_EDGE_TRESHOLD;
@@ -43,12 +43,16 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		double SPD = 0;
 		double SD = 0;
 		int PD = 0;
+		int span1 = sign1.length();
+		int span2 = sign2.length();
 		int first1 = sign1.getFirst();
 		int last1 = sign1.getLast();
 		int first2 = sign2.getFirst();
 		int last2 = sign2.getLast();
-		SD = Math.abs((last1-first1)-(last2-first2));
-		SD = (double) SD/Math.max((last1-first1), (last2-first2));
+		if(last1 - first1 < 2) last1 = first1 + span1 - 1;
+		if(last2 - first2 < 2) last2 = first2 + span2 - 1;
+		SD = Math.abs((span1)-(span2));
+		SD = (double) SD/Math.max((span1), (span2));
 		PD = Math.min(Math.abs(first1-first2), Math.abs(last1-last2));
 		PD = Math.min(PD, Math.abs(((first1-last1)/2)) - ((first2-last2)/2));
 		SPD = SD + (double) PD/pdNormFactor;
@@ -151,6 +155,8 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 			signsPerType.add(inv);
 			signsPerType.add(tan);
 			signsPerType.add(und);
+			System.out.println("~ " + ins.size());
+			System.out.println("~ " + del.size());
 			for(List<GenomicRegion> typePartition:signsPerType) {
 				if(typePartition.isEmpty()) continue;
 				List<GenomicRegion> toCluster = new ArrayList<>();
@@ -161,18 +167,23 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 300) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicRegion sign:toCluster) idxs.add(signList.indexOf(sign));
+						//if(toCluster.size() == 1) {
+							//toCluster.clear();
+							//continue;
+						//}
 						if(toCluster.size() < 3) {
-							chrClusters.add(idxs);
+							//chrClusters.add(idxs);
 							toCluster.clear();
+							continue;
 						}
 						else{
 							boolean[][] adjMatrix = calculateAdjacencyMatrix(toCluster);
-							System.out.println("#partition size: " + toCluster.size());
-							//System.out.println("Processing partition with types: " + getSignatureType(typePartition.get(0)) 
+							//System.out.println("#partition size: " + toCluster.size());
+							//System.out.println("#Processing partition with types: " + getSignatureType(typePartition.get(0)) 
 								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
 							ArrayList<ArrayList<Integer>> maxCliques = MaximalCliquesFinder
 									.callMaxCliqueFinder(idxs, adjMatrix);
-							System.out.println("Cliques found");
+							//System.out.println("Cliques found");
 							chrClusters.addAll(maxCliques);
 							toCluster.clear();
 						}
@@ -188,7 +199,10 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		GenomicRegion firstVar = clusterSigns.get(0);
 		//GenomicRegion lastVar = clusterSigns.get(clusterSigns.size()-1);
 		int endOfSpan = -1;
-		for(GenomicRegion v:clusterSigns) if(v.getLast() > endOfSpan) endOfSpan = v.getLast();
+		for(GenomicRegion v:clusterSigns) {
+			int currentEndOfSpan = v.getFirst() + v.length() - 1;
+			if(currentEndOfSpan > endOfSpan) endOfSpan = currentEndOfSpan;
+		}
 		int first = firstVar.getFirst();
 		int last = endOfSpan;
 		byte type = getSignatureType(firstVar);
@@ -213,49 +227,54 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		variant.setVariantQS(variantScore);
 		return variant;
 	}
-	/**
 	public void filterVariantsBySimilarity(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
 		List<GenomicVariant> variantsToKeep = new ArrayList<>();
 		List<GenomicVariant> variantsList = sortedVariants.asList();
 		List<GenomicVariant> localCandidates = new ArrayList<>();
-		for(int i = 0; i < sortedVariants.size() - 1; i++) {
-			GenomicVariant current = variantsList.get(i);
-			GenomicVariant next = variantsList.get(i+1);
-			if(testCandidateCompatibility(current, next)) {
-				localCandidates.add(current);
-				localCandidates.add(next);
-			}else {
-				if(!localCandidates.isEmpty()) {
-					Collections.sort(localCandidates, Comparator.comparingInt(v -> (int) v.getVariantQS()));
-					variantsToKeep.add(localCandidates.get(localCandidates.size() - 1));
-					localCandidates.clear();
-				}else {
-					variantsToKeep.add(current);
-				}
-			}
-		}
-		sortedVariants.retainAll(variantsToKeep);
-		sortedVariants.forceSort();
-	}**/
-	public void filterVariantsBySimilarity(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
-		List<GenomicVariant> variantsToKeep = new ArrayList<>();
-		List<GenomicVariant> variantsList = sortedVariants.asList();
-		List<GenomicVariant> localCandidates = new ArrayList<>();
+		List<List<GenomicVariant>> variantsPerType = new ArrayList<>();
 		GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(sortedVariants.getSequenceNames());
-		for(int i = 0; i < sortedVariants.size() - 1; i++) {
+		List<GenomicVariant> indel = new ArrayList<>();
+		List<GenomicVariant> del = new ArrayList<>();
+		List<GenomicVariant> ins = new ArrayList<>();
+		List<GenomicVariant> inv = new ArrayList<>();
+		List<GenomicVariant> dup = new ArrayList<>();
+		List<GenomicVariant> tan = new ArrayList<>();
+		List<GenomicVariant> und = new ArrayList<>();
+		for(int i = 0; i < sortedVariants.size(); i++) {
 			GenomicVariant current = variantsList.get(i);
-			GenomicVariant next = variantsList.get(i+1);
-			int cmp = cmpClassInstance.compare(current, next);
-			if(cmp == -1 || cmp == 0 || cmp == 1) {
-				localCandidates.add(current);
-				localCandidates.add(next);
-			}else {
-				if(!localCandidates.isEmpty()) {
-					Collections.sort(localCandidates, Comparator.comparingInt(v -> (int) v.getVariantQS()));
-					variantsToKeep.add(localCandidates.get(localCandidates.size() - 1));
-					localCandidates.clear();
+			String type = GenomicVariantImpl.getVariantTypeName(current.getType());
+			if(GenomicVariant.TYPENAME_INDEL.equals(type)) indel.add(current);
+			else if(GenomicVariant.TYPENAME_LARGEDEL.equals(type)) del.add(current);
+			else if(GenomicVariant.TYPENAME_LARGEINS.equals(type)) ins.add(current);
+			else if(GenomicVariant.TYPENAME_DUPLICATION.equals(type)) dup.add(current);
+			else if(GenomicVariant.TYPENAME_INVERSION.equals(type)) inv.add(current);
+			else if(GenomicVariant.TYPENAME_CNV.equals(type)) tan.add(current);
+			else if(GenomicVariant.TYPENAME_UNDETERMINED.equals(type)) und.add(current);
+		}
+		variantsPerType.add(indel);
+		variantsPerType.add(del);
+		variantsPerType.add(ins);
+		variantsPerType.add(dup);
+		variantsPerType.add(inv);
+		variantsPerType.add(tan);
+		variantsPerType.add(und);
+		for(List<GenomicVariant> typedVariantList : variantsPerType) {
+			if(typedVariantList.isEmpty()) continue;
+			for(int i = 0; i < typedVariantList.size() - 1; i++) {
+				GenomicVariant current = typedVariantList.get(i);
+				GenomicVariant next = typedVariantList.get(i+1);
+				int cmp = cmpClassInstance.compare(current, next);
+				if(cmp == -1 || cmp == 0 || cmp == 1) {
+					localCandidates.add(current);
+					localCandidates.add(next);
 				}else {
-					variantsToKeep.add(current);
+					if(!localCandidates.isEmpty()) {
+						Collections.sort(localCandidates, Comparator.comparingInt(v -> (int) v.getVariantQS()));
+						variantsToKeep.add(localCandidates.get(localCandidates.size() - 1));
+						localCandidates.clear();
+					}else {
+						variantsToKeep.add(current);
+					}
 				}
 			}
 		}
