@@ -177,10 +177,13 @@ public class HaplotypeReadsClusterCalculator {
 				region.setLast(Math.max(region.getLast(), aln.getLast()));
 				totalBasePairs+=aln.getReadLength();
 			}
-			PathReadsCluster block = new PathReadsCluster(totalBasePairs/region.length());
+			//TODO Guess better 
+			double totalLength  = Math.max(10000, region.length()-10000);
+			PathReadsCluster block = new PathReadsCluster(totalBasePairs/totalLength);
 			block.addReadIds(sequenceIdsHap0);
 			block.addReadIds(sequenceIdsHap1);
 			answer.add(block);
+			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding phased block with "+sequenceIdsHap0.size()+" and "+sequenceIdsHap1.size()+" reads and estimated length: "+totalLength);
 			readIdsInPhasedBlocks.addAll(sequenceIdsHap0);
 			readIdsInPhasedBlocks.addAll(sequenceIdsHap1);
 			phasedBlocksByFirst.put(region.getFirst(), block);
@@ -209,10 +212,11 @@ public class HaplotypeReadsClusterCalculator {
 					break;
 				}
 				if(nextUnphasedBlock.size()>0) {
-					PathReadsCluster block = new PathReadsCluster(totalBasePairs/unphasedRegion.length());
+					double totalLength  = Math.max(10000, unphasedRegion.length()-10000);
+					PathReadsCluster block = new PathReadsCluster(totalBasePairs/totalLength);
 					block.addReadIds(nextUnphasedBlock);
 					answer.add(block);
-					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
+					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads and estimated length: "+totalLength);
 					nextUnphasedBlock = new HashSet<Integer>();
 					totalBasePairs = 0;
 					unphasedRegion = null;
@@ -268,8 +272,11 @@ public class HaplotypeReadsClusterCalculator {
 			int posBefore = (i==0)?-20:hetVars.get(i-1).getLast();
 			int posAfter = (i==n-1)?consensus.length()+20:hetVars.get(i+1).getFirst();
 			if(hetVar.getFirst()-20>posBefore && hetVar.getLast()+20<posAfter) {
-				filteredVars.add(hetVar);
-				if(hetVar instanceof CalledSNV) countSNVs++;
+				//filteredVars.add(hetVar);
+				if(hetVar instanceof CalledSNV) {
+					countSNVs++;
+					filteredVars.add(hetVar);
+				}
 			}
 		}
 		//if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
@@ -343,20 +350,23 @@ public class HaplotypeReadsClusterCalculator {
     			System.out.println("Path: "+pathId+ " next block with "+inputClustersBlock.size() +" clusters. Total read depth: "+rd+" proportion: "+proportion+" addToAll: "+addToAll+" merge: "+merge);
     			Set<Integer> mergedCluster = new HashSet<>();
     			for(Set<Integer> inputCluster:inputClustersBlock) {
-    				for(int readId:inputCluster) { 
-        				readsClusters.put(readId, inputClusterId);
-        				//if (readId == 3692) System.out.println("Read "+readId+" "+graph.getSequence(readId).getName()+" input path: "+i+" input cluster: "+inputClusterId);
-        				//if(inputCluster.size()<20 || readId%5==0) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
-        				/*if(pathId==debugIdx)*/ System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
-        			}
     				if(addToAll) {
     					readIdsForAllHaps.addAll(inputCluster);
-    				} else if(!merge) {
-    					inputClusters.add(inputCluster);
-        				clusterRestrictions.put(inputClusterId, new ArrayList<Integer>());
-            			inputClusterId++;
+    					for(int readId:inputCluster) { 
+            				/*if(pathId==debugIdx) */ System.out.println("Add to all read: "+readId+" "+graph.getSequence(readId).getName());
+            			}
     				} else {
-    					mergedCluster.addAll(inputCluster);
+    					for(int readId:inputCluster) { 
+            				readsClusters.put(readId, inputClusterId);
+            				/*if(pathId==debugIdx)*/ System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
+            			}
+    					if(!merge) {
+    						inputClusters.add(inputCluster);
+            				clusterRestrictions.put(inputClusterId, new ArrayList<Integer>());
+                			inputClusterId++;
+    					} else {
+    						mergedCluster.addAll(inputCluster);
+    					}
     				}
     			}
     			if(merge) {
@@ -402,7 +412,7 @@ public class HaplotypeReadsClusterCalculator {
     				String key = ReadsClusterEdge.getKey(idMin,idMax);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				if((idMax==16 || idMax == 17) && (idMin == 4 || idMin==3)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if((idMax==10 || idMax == 9) && (idMin == 0 || idMin==1)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
