@@ -386,12 +386,12 @@ public class AssemblyGraphStatistics {
 			int i1 = -1;
 			int i2 = -1;
 			int i3 = -1;
-			for(int j=0;j<readName.length();j++) {
+			for(int j=readName.length()-1;j>=0;j--) {
 				if(readName.charAt(j)!='_') continue;
-				if(i1==-1) i1 = j;
+				if(i3==-1) i3 = j;
 				else if(i2==-1) i2 = j;
-				else if (i3==-1) {
-					i3 = j;
+				else if (i1==-1) {
+					i1 = j;
 					break;
 				}
 			}
@@ -400,7 +400,7 @@ public class AssemblyGraphStatistics {
 			boolean reverse = readName.charAt(i2+1)=='1';
 			int flags = 0;
 			if (reverse) flags = ReadAlignment.FLAG_READ_REVERSE_STRAND;
-			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags);
+			//System.out.println("Next sequence: "+readName+" first: "+first+" reverse: "+reverse+" flags: "+flags+" seq: "+seqName);
 			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
 			aln.setReadNumber(i);
 			aln.setReadName(readName);
@@ -676,7 +676,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==881 || gsVertex.getSequenceIndex()==2723 || gsVertex.getSequenceIndex()==14132;
+		//boolean debug = gsVertex.getSequenceIndex()==69 || gsVertex.getSequenceIndex()==44 || gsVertex.getSequenceIndex()==61;
 		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);

@@ -35,6 +35,7 @@ public class AssemblyPathReadsAligner {
 	private Logger log = Logger.getLogger(AssemblyPathReadsAligner.class.getName());
 	private static Runtime runtime = Runtime.getRuntime();
 	public static final int KMER_LENGTH_LOCAL_ALN = 31;
+	private boolean haploid = true;
 	
 	
 	public Logger getLog() {
@@ -45,6 +46,14 @@ public class AssemblyPathReadsAligner {
 		//factory.setLog(log);
 	}
 	
+	
+	
+	public boolean isHaploid() {
+		return haploid;
+	}
+	public void setHaploid(boolean haploid) {
+		this.haploid = haploid;
+	}
 	public void calculateConsensus(AssemblyPath path) {
 		int debugIdx = -1;
 		int n = path.getPathLength();
@@ -208,7 +217,7 @@ public class AssemblyPathReadsAligner {
 				}
 			} else {
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
-				if(pathIdx == debugIdx && j<10) System.err.println("WARN: Unaligned consensus backbone read "+nextVertex.getRead().getName()+" to final consensus. Unaligned embedded reads: "+embeddedList.size());
+				if(pathIdx == debugIdx) System.err.println("WARN: Unaligned consensus backbone read "+nextVertex.getRead().getName()+" to final consensus. Unaligned embedded reads: "+embeddedList.size());
 			}
 			lastVertex = nextVertex;
 		}
@@ -235,6 +244,7 @@ public class AssemblyPathReadsAligner {
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		Map<Integer, Long> selKmersSubject = selectKmers(kmersSubject,startConsensus,endConsensus);
+		//if(readId == 61) System.out.println("Query: "+sequence+"\nsubject: "+consensus.substring(startConsensus, endConsensus));
 		ReadAlignment aln = alignRead(aligner,pathIdx, consensus, sequence, selKmersSubject);
 		if(aln!=null) {
 			aln.setReadName(readName);
@@ -245,39 +255,76 @@ public class AssemblyPathReadsAligner {
 			synchronized (alignedReads) {
 				alignedReads.add(aln);
 			}
-		} else {
-			ReadAlignment aln2 = alignRead(aligner,pathIdx, consensus, sequence, kmersSubject);
-			if(aln2!=null) {
-				System.err.println("WARN: Alignment found for previously unaligned read "+readId+" "+readName+" reverse: "+reverse+". Given limits: "+startConsensus+" "+endConsensus+" aln: "+aln2);
-				aln2.setReadName(readName);
-				aln2.setReadNumber(readId);
-				aln2.setNegativeStrand(reverse);
-				aln2.setReadCharacters(sequence);
-				synchronized (alignedReads) {
-					alignedReads.add(aln2);
-				}
-				return aln2;
+			return aln;
+		}
+		if(!haploid) {
+			int n = sequence.length()/2;
+			CharSequence subqueryLeft = sequence.subSequence(0, n);
+			CharSequence subqueryRight = sequence.subSequence(n,sequence.length());
+			ReadAlignment alnLeft = alignRead(aligner, pathIdx, subqueryLeft, readName, kmersSubject);
+			//if(readId==61) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryLeft.length()+" Left aln: "+alnLeft);
+			ReadAlignment alnRight = alignRead(aligner, pathIdx, subqueryRight, readName, kmersSubject);
+			//if(readId==61) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryRight.length()+" Right aln: "+alnRight);
+			ReadAlignment selected = alnLeft;
+			if(selected == null || (alnRight!=null && alnRight.length()>alnLeft.length())) {
+				selected = alnLeft;
 			}
+			if(selected!=null && selected == alnLeft) {
+				selected.setReadName(readName);
+				selected.setReadNumber(readId);
+				selected.setNegativeStrand(reverse);
+				selected.setReadCharacters(sequence);
+				//TODO: Do this better
+				selected.setCigarString(selected.getCigarString()+(sequence.length()-n)+"S");
+				synchronized (alignedReads) {
+					alignedReads.add(selected);
+				}
+				return selected;
+			} else if (selected!=null) {
+				selected.setReadName(readName);
+				selected.setReadNumber(readId);
+				selected.setNegativeStrand(reverse);
+				selected.setReadCharacters(sequence);
+				//TODO: Do this better
+				selected.setCigarString(""+n+"S"+selected.getCigarString());
+				synchronized (alignedReads) {
+					alignedReads.add(selected);
+				}
+				return selected;
+			}
+		}
+		ReadAlignment aln2 = alignRead(aligner,pathIdx, consensus, sequence, kmersSubject);
+		if(aln2!=null) {
+			System.err.println("WARN: Alignment found for previously unaligned read "+readId+" "+readName+" reverse: "+reverse+". Given limits: "+startConsensus+" "+endConsensus+" aln: "+aln2);
+			aln2.setReadName(readName);
+			aln2.setReadNumber(readId);
+			aln2.setNegativeStrand(reverse);
+			aln2.setReadCharacters(sequence);
+			synchronized (alignedReads) {
+				alignedReads.add(aln2);
+			}
+			return aln2;
 		}
 		return aln;
 	}
 	private ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
 		String readStr = read.toString();
 		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(readStr, KMER_LENGTH_LOCAL_ALN, 0, read.length());
-		//System.out.println("Number of unique k-mers read: "+uniqueKmersRead.size());
+		//if(read.length()==14871) System.out.println("Number of codes query: "+codesQuery.size());
 		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, KMER_LENGTH_LOCAL_ALN);
 		if(bestCluster==null) return null;
 		ReadAlignment aln;
 		synchronized (aligner) {
 			aln = aligner.buildCompleteAlignment(subjectIdx, subject, readStr, bestCluster);
 		}
-		if(!evaluateAlignment(aln)) return null;
-		//System.out.println("Number of clusters: "+clusters.size()+" best cluster kmers: "+bestCluster.getNumDifferentKmers()+" first "+bestCluster.getFirst()+" last "+bestCluster.getLast());
+		//if(read.length()==14871) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
+		if(!evaluateAlignment(aln)) aln = null;
 		return aln;
 	}
 	private boolean evaluateAlignment(ReadAlignment aln) {
 		if(aln==null) return false;
 		Map<Integer,GenomicVariant> indelCalls = aln.getIndelCalls();
+		if(!haploid) return true;
 		if(indelCalls==null) return true;
 		for(GenomicVariant indelCall:indelCalls.values()) {
 			if(indelCall.length()>100) return false;

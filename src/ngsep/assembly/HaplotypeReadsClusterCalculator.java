@@ -105,6 +105,7 @@ public class HaplotypeReadsClusterCalculator {
 		int pathIdx = path.getPathId();
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
+		aligner.setHaploid(false);
 		aligner.calculateConsensus(path);
 		List<ReadAlignment> alignments = aligner.alignPathReads(graph, path, numThreads);
 		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
@@ -114,7 +115,7 @@ public class HaplotypeReadsClusterCalculator {
 		if(alignments.size()>0) {
 			for(ReadAlignment aln:alignments) {
 				aln.setSequenceName(sequenceName);
-				
+				//if(aln.getReadNumber()==61) System.out.println("Read "+aln.getReadName()+" aligned to path "+pathIdx);
 			}
 			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path.getConsensus(), alignments, sequenceName);
 			countHetVars = hetVars.size();
@@ -169,6 +170,7 @@ public class HaplotypeReadsClusterCalculator {
 				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
 				region.setLast(Math.max(region.getLast(), aln.getLast()));
 				totalBasePairs+=aln.getReadLength();
+				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to first haplotype");
 			}
 			Set<Integer> sequenceIdsHap1 = new HashSet<Integer>();
 			for(ReadAlignment aln:alnsHap1) {
@@ -176,6 +178,7 @@ public class HaplotypeReadsClusterCalculator {
 				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
 				region.setLast(Math.max(region.getLast(), aln.getLast()));
 				totalBasePairs+=aln.getReadLength();
+				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to second haplotype");
 			}
 			//TODO Guess better 
 			double totalLength  = Math.max(10000, region.length()-10000);
@@ -203,6 +206,7 @@ public class HaplotypeReadsClusterCalculator {
 				if(phasedRegion.getLast()>aln.getLast()) {
 					if(aln.getFirst()>=phasedRegion.getFirst()) {
 						addRead = false;
+						if(pathIdx == debugIdx) System.out.print("Unphased aln within phased region "+phasedRegion.getFirst()+"-"+phasedRegion.getLast()+": "+aln);
 						//Alignment contained in block but not assigned
 						/*PhasedPathBlock block = phasedBlocksByFirst.get(region.getFirst());
 						if(block!=null) {
@@ -345,8 +349,8 @@ public class HaplotypeReadsClusterCalculator {
     			List<Set<Integer>> inputClustersBlock = block.getPhasedReadIds();
     			double rd = block.getReadDepth();
     			double proportion = block.calculateProportion(); 
-    			boolean addToAll = inputClustersBlock.size()==1 && rd>1.5*averageHaploidRd;
-    			boolean merge = inputClustersBlock.size()>1 && rd<1.5*averageHaploidRd && proportion < 0.2;
+    			boolean addToAll = inputClustersBlock.size()==1 && rd>1.4*averageHaploidRd;
+    			boolean merge = inputClustersBlock.size()>1 && rd<1.4*averageHaploidRd && proportion < 0.2;
     			System.out.println("Path: "+pathId+ " next block with "+inputClustersBlock.size() +" clusters. Total read depth: "+rd+" proportion: "+proportion+" addToAll: "+addToAll+" merge: "+merge);
     			Set<Integer> mergedCluster = new HashSet<>();
     			for(Set<Integer> inputCluster:inputClustersBlock) {
