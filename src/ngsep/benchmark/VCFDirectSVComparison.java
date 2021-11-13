@@ -110,20 +110,25 @@ public class VCFDirectSVComparison {
 				}
 				else {
 					System.out.println(" ------------------------------------------------------------------------- ");
-					VariantIntersectionMetricsCalculator calc = 
-							new VariantIntersectionMetricsCalculator(testVariant, refVariant);
-					boolean isIntersection = isIntersection(calc.estimateIntersectionPercentageOverReference());
-					updateStatisticsForBaseAnalysis(calc.estimateTruePositiveNucleotides(),
-							calc.estimateFalsePositiveNucleotides(), calc.estimateTruePositiveNucleotides(treshold), 
-							calc.estimateFalsePositiveNucleotides(treshold));
-					if(isIntersection) {
-						if(testVariant.getType() == refVariant.getType() &&
-								isSVByLength(refVariant.length())) {
-							numIntersectingVariants++;
-							intersectingRefVariants.add(refVariant);
-							intersectingTestVariants.add(testVariant);
-							
+					if(testVariant.getType() == refVariant.getType()) {
+						VariantIntersectionMetricsCalculator calc = 
+								new VariantIntersectionMetricsCalculator(testVariant, refVariant);
+						boolean isIntersection = isIntersection(calc.estimateIntersectionPercentageOverReference());
+						updateStatisticsForBaseAnalysis(calc.estimateTruePositiveNucleotides(),
+								calc.estimateFalsePositiveNucleotides(), calc.estimateTruePositiveNucleotides(treshold), 
+								calc.estimateFalsePositiveNucleotides(treshold));
+						if(isIntersection) {
+							if(isSVByLength(refVariant.length())) {
+								numIntersectingVariants++;
+								intersectingRefVariants.add(refVariant);
+								intersectingTestVariants.add(testVariant);
+								
+							}
 						}
+					}else {
+						falsePositiveBps += Math.abs(testVariant.length());
+						if(testVariant.length() < treshold) falsePositiveBpsTreshold+= Math.abs(testVariant.length());
+						
 					}
 					if(it1.hasNext()) {
 						testRecords = it1.next();
