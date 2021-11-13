@@ -248,6 +248,8 @@ public class CalledSNV implements CalledGenomicVariant {
 		this.countC = allCounts[1];
 		this.countG = allCounts[2];
 		this.countT = allCounts[3];
+		int sum = this.countA+this.countC+this.countG+this.countT;
+		if(sum>totalReadDepth) totalReadDepth = sum;
 	}
 	/**
 	 * Changes the log conditional probabilities based on the full matrix of probabilities for the 16 possible sorted genotypes

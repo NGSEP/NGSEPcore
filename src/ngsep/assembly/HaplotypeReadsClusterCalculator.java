@@ -117,7 +117,7 @@ public class HaplotypeReadsClusterCalculator {
 				aln.setSequenceName(sequenceName);
 				//if(aln.getReadNumber()==61) System.out.println("Read "+aln.getReadName()+" aligned to path "+pathIdx);
 			}
-			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path.getConsensus(), alignments, sequenceName);
+			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path, alignments, sequenceName);
 			countHetVars = hetVars.size();
 			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, path.getConsensus(),alignments,hetVars);
 			if(countHetVars>0) {
@@ -249,7 +249,8 @@ public class HaplotypeReadsClusterCalculator {
 		return answer;
 	}
 	
-	private List<CalledGenomicVariant> findHeterozygousVariants(String consensus, List<ReadAlignment> alignments, String sequenceName) {
+	private List<CalledGenomicVariant> findHeterozygousVariants(AssemblyPath path, List<ReadAlignment> alignments, String sequenceName) {
+		String consensus = path.getConsensus();
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
@@ -260,23 +261,29 @@ public class HaplotypeReadsClusterCalculator {
 		hetVarsListener.setCallIndels(true);
 		generator.addListener(hetVarsListener);
 		
+		double readDepth = 0;
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
 			generator.processAlignment(aln);
+			readDepth+=aln.getReadLength();
 			count++;
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
 		}
 		generator.notifyEndOfAlignments();
+		readDepth/=consensus.length();
 		List<CalledGenomicVariant> hetVars = hetVarsListener.getHeterozygousVariants();
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
 		int countSNVs = 0;
 		int n = hetVars.size();
 		for(int i=0;i<n;i++) {
 			CalledGenomicVariant hetVar = hetVars.get(i);
-			int posBefore = (i==0)?-20:hetVars.get(i-1).getLast();
-			int posAfter = (i==n-1)?consensus.length()+20:hetVars.get(i+1).getFirst();
-			if(hetVar.getFirst()-20>posBefore && hetVar.getLast()+20<posAfter) {
-				//filteredVars.add(hetVar);
+			if(hetVar.getTotalReadDepth()<0.7*readDepth) {
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with depth: "+hetVar.getTotalReadDepth()+" average: "+readDepth);
+				continue;
+			}
+			int posBefore = (i==0)?-50:hetVars.get(i-1).getLast();
+			int posAfter = (i==n-1)?consensus.length()+50:hetVars.get(i+1).getFirst();
+			if(hetVar.getFirst()-50>posBefore && hetVar.getLast()+50<posAfter) {
 				if(hetVar instanceof CalledSNV) {
 					countSNVs++;
 					filteredVars.add(hetVar);
@@ -416,7 +423,7 @@ public class HaplotypeReadsClusterCalculator {
     				String key = ReadsClusterEdge.getKey(idMin,idMax);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				//if((idMax==72 || idMax == 73) && (idMin == 52 || idMin==53)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if((idMax==94 || idMax == 95) && (idMin == 0 || idMin==1)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
