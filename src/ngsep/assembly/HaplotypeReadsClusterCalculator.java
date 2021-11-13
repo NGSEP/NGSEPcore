@@ -289,7 +289,7 @@ public class HaplotypeReadsClusterCalculator {
 	}
 
 	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
-		/*FastaSequencesHandler handler = new FastaSequencesHandler();
+		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList sequences = new QualifiedSequenceList();
 		sequences.add(new QualifiedSequence(sequenceName,consensus));
 		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
@@ -304,7 +304,7 @@ public class HaplotypeReadsClusterCalculator {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			return;
-		}*/
+		}
 		VCFFileWriter vcfWriter = new VCFFileWriter();
 		VCFFileHeader header =VCFFileHeader.makeDefaultEmptyHeader();
 		header.addDefaultSample("sample");
@@ -350,19 +350,19 @@ public class HaplotypeReadsClusterCalculator {
     			double rd = block.getReadDepth();
     			double proportion = block.calculateProportion(); 
     			boolean addToAll = inputClustersBlock.size()==1 && rd>1.4*averageHaploidRd;
-    			boolean merge = inputClustersBlock.size()>1 && rd<1.4*averageHaploidRd && proportion < 0.2;
+    			boolean merge = inputClustersBlock.size()>1 && rd<1.4*averageHaploidRd /*&& proportion < 0.3*/;
     			System.out.println("Path: "+pathId+ " next block with "+inputClustersBlock.size() +" clusters. Total read depth: "+rd+" proportion: "+proportion+" addToAll: "+addToAll+" merge: "+merge);
     			Set<Integer> mergedCluster = new HashSet<>();
     			for(Set<Integer> inputCluster:inputClustersBlock) {
     				if(addToAll) {
     					readIdsForAllHaps.addAll(inputCluster);
     					for(int readId:inputCluster) { 
-            				/*if(pathId==debugIdx) */ System.out.println("Add to all read: "+readId+" "+graph.getSequence(readId).getName());
+            				if(pathId==debugIdx)  System.out.println("Add to all read: "+readId+" "+graph.getSequence(readId).getName());
             			}
     				} else {
     					for(int readId:inputCluster) { 
             				readsClusters.put(readId, inputClusterId);
-            				/*if(pathId==debugIdx)*/ System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
+            				if(pathId==debugIdx) System.out.println("Cluster: "+inputClusterId+" read: "+readId+" "+graph.getSequence(readId).getName());
             			}
     					if(!merge) {
     						inputClusters.add(inputCluster);
@@ -416,7 +416,7 @@ public class HaplotypeReadsClusterCalculator {
     				String key = ReadsClusterEdge.getKey(idMin,idMax);
     				ReadsClusterEdge clusterEdge = clusterEdgesMap.computeIfAbsent(key, (v)->new ReadsClusterEdge(idMin, idMax));
     				clusterEdge.addAssemblyEdge(edge);
-    				//if((idMax==10 || idMax == 9) && (idMin == 0 || idMin==1)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
+    				//if((idMax==72 || idMax == 73) && (idMin == 52 || idMin==53)) System.out.println("Using edge "+edge+" for clusters joining. Current cluster edge:  "+clusterEdge);
     			}
     		}
     	}
@@ -470,6 +470,13 @@ public class HaplotypeReadsClusterCalculator {
     			}
     		}
     	}
+    	for(int i=0;i<inputClusters.size();i++) {
+    		Integer assignment = inputClustersAssignment.get(i);
+    		if(assignment==null) {
+    			System.out.println("Joining cluster "+i+" without edges. assignment: 0");
+    			assignCluster(inputClustersAssignment, i, 0, clusterRestrictions.get(i), ploidy);
+    		}
+    	}
     	log.info("Finished haplotype reads clustering. Assigned "+inputClustersAssignment.size()+" input clusters");
     	//add back to input clusters unassigned and unmapped reads
     	for(int i=0;i<paths.size();i++) {
@@ -493,20 +500,22 @@ public class HaplotypeReadsClusterCalculator {
 	}
 
 	private double calculateAverageHaploidRD(Map<Integer, List<PathReadsCluster>> pathBlocks) {
-		double haploidRD = 0;
-		int numPhasedClusters = 0;
+		double sumHaploidRD = 0;
+		double sumPhasedClusters = 0;
 		double totalRD = 0;
 		int totalClusters = 0;
 		for(List<PathReadsCluster> pathCLusters:pathBlocks.values()) {
 			for(PathReadsCluster cluster:pathCLusters) {
 				totalRD+=cluster.getReadDepth();
 				totalClusters++;
-				if(!cluster.isPhased()) continue;
-				haploidRD+=cluster.getReadDepth()/cluster.getPhasedReadIds().size();
-				numPhasedClusters++;
+				double ploidy = cluster.getPhasedReadIds().size();
+				if(ploidy<=1) continue;
+				double weight = cluster.calculateProportion()/0.5;
+				sumHaploidRD+=cluster.getReadDepth()*weight/ploidy;
+				sumPhasedClusters+=weight;
 			}
 		}
-		if(numPhasedClusters>0) return haploidRD/numPhasedClusters;
+		if(sumPhasedClusters>0) return sumHaploidRD/sumPhasedClusters;
 		return totalRD/(totalClusters);
 	}
 
