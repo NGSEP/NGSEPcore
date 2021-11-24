@@ -55,6 +55,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 			String chrNameG1 = findBestChromosome(unitsChrG2, genome1.getId());
 			if(chrNameG1!=null) {
 				PairwiseSyntenyBlock block = alignOrthologyClusters(unitsToClusters,genome2.getId(), unitsChrG2,genome1.getId(),chrNameG1);
+				if(block == null) continue;
 				List<HomologyUnit> unitsChrG1 = genome2.getHomologyUnits(chrNameG1);
 				log.info("Sequence "+chrG2.getName()+" in second genome aligned to sequence "+chrNameG1+" in the first genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+block.getHomologies().size());
 				answer.add(block);
@@ -142,6 +143,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 			unitsG1List.add(localCluster1);			
 			unitsG2List.add(localCluster2);
 		}
+		if(unitsG1List.size()==0) return null;
 		//Not needed because they are already sorted
 		//Collections.sort(unitsG1List, GenomicRegionPositionComparator.getInstance());
 		Collections.sort(unitsG2List, GenomicRegionPositionComparator.getInstance());		
@@ -156,7 +158,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 		Set<Integer> lcs = lcsForward;
 		boolean reverse = lcsReverse.size()>lcsForward.size();
 		if(reverse) lcs = lcsReverse;
-		
+		if(lcs.size()==0) return null;
 		//System.out.println("Positions for LCS: "+positions.length+" LCS: "+lcs.size());
 		// Select the orthology units in G1 located at the indexes given by the output of LCS
 		List<SyntenyVertex> block = new ArrayList<SyntenyVertex>();
@@ -199,6 +201,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 	public SortedSet<Integer> findLCS (int [] indexesMap) {
 		SortedSet<Integer> answer = new TreeSet<>();
 		int n = indexesMap.length;
+		if(n==0) return answer;
 		int [] [] m = new int [n][n+1];
 		for(int i=0; i<n; i++)
 		{
