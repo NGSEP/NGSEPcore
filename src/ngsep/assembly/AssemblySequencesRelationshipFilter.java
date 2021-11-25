@@ -213,8 +213,8 @@ public class AssemblySequencesRelationshipFilter {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				graph.removeEmbedded(embedded);
-				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded);
-				addEdgeFromEmbedded(graph, embedded);
+				//if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded);
+				//addEdgeFromEmbedded(graph, embedded);
 			}
 			return false;
 		} else {
