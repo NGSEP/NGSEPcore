@@ -337,6 +337,7 @@ public class AssemblyGraphStatistics {
 			//Infer distributions to calculate costs
 			log.info("Updating scores");
 			graph.updateScores(0.5);
+			//graph.updateScores(0);
 			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
@@ -345,6 +346,7 @@ public class AssemblyGraphStatistics {
 			log.info("Removing vertices chimeric reads");
 			graph.removeVerticesChimericReads();
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+			findProblematicVertices(graph);
 			log.info("Filtering edges and embedded");
 			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			//log.info("Updating scores after filtering");
@@ -374,6 +376,7 @@ public class AssemblyGraphStatistics {
 			printStatistics(out);
 		}
 	}
+	
 	public List<ReadAlignment> buildAlignmentsFromSimulatedReads(List<QualifiedSequence> sequences) {
 		//Create true alignments of simulated reads to the target genome
 		QualifiedSequenceList seqNames = genome.getSequencesMetadata();
@@ -676,7 +679,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==69 || gsVertex.getSequenceIndex()==44 || gsVertex.getSequenceIndex()==61;
+		//boolean debug = gsVertex.getSequenceIndex()==1485 || gsVertex.getSequenceIndex()==518 || gsVertex.getSequenceIndex()==139;
 		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
@@ -921,6 +924,58 @@ public class AssemblyGraphStatistics {
 			}
 			log.info("Compare layouts. Finished path: "+(i+1)+" edges: "+nextPath.getPathLength()+" estimated length: "+estimatedLength+" Sequences "+sequencesPathCounts);
 			System.out.println();
+		}
+	}
+	
+	private void findProblematicVertices(AssemblyGraph testGraph) {
+		System.out.println("Finding problematic vertices.");
+		int n = testGraph.getNumSequences();
+		for(int i=0;i<n;i++) {
+			//Check embedded status
+			if(!testGraph.isEmbedded(i)) {
+				checkProblematicVertex(testGraph, testGraph.getVertex(i, true));
+				checkProblematicVertex(testGraph, testGraph.getVertex(i, false));
+			}
+		}
+	}
+	private void checkProblematicVertex(AssemblyGraph testGraph, AssemblyVertex vTest) {
+		if(vTest==null) return;
+		List<AssemblyEdge> edgesTest = new ArrayList<>(testGraph.getEdges(vTest));
+		if(edgesTest.size()<3) return;
+		Collections.sort(edgesTest, (e1,e2)->e1.getCost()-e2.getCost());
+		int d1 = edgesTest.size();
+		AssemblyEdge e1 = edgesTest.get(0);
+		if(e1.isSameSequenceEdge()) e1 = edgesTest.get(1);
+		int compared = 0;
+		for(int j=1;j<edgesTest.size() && compared<4;j++) {
+			AssemblyEdge e2 = edgesTest.get(j);
+			if(e2==e1 || e2.isSameSequenceEdge()) continue;
+			if(testGraph.isEmbedded(e2.getConnectingVertex(vTest).getSequenceIndex())) continue;
+			if(e2.getOverlap()<0.5*e1.getOverlap()) break;
+			else if (e2.getOverlap()>=e1.getOverlap()) {
+				AssemblyEdge eT = e1;
+				e1 = e2;
+				e2 = eT;
+			}
+			AssemblyVertex v1 = e1.getConnectingVertex(vTest);
+			AssemblyVertex v1C = testGraph.getSameSequenceEdge(v1).getConnectingVertex(v1);
+			int remainingLength1 = testGraph.getSequenceLength(v1.getSequenceIndex())-e1.getOverlap();
+			AssemblyVertex v2 = e2.getConnectingVertex(vTest);
+			AssemblyVertex v2C = testGraph.getSameSequenceEdge(v2).getConnectingVertex(v2);
+			if(testGraph.isEmbedded(v1.getSequenceIndex()) || testGraph.isEmbedded(v2.getSequenceIndex())) {
+				j++;
+				continue;
+			}
+			int remainingLength2 = testGraph.getSequenceLength(v2.getSequenceIndex())-e2.getOverlap();
+			if(remainingLength1+100<remainingLength2) {
+				//There should be an edge between v1V and v2
+				AssemblyEdge edge = testGraph.getEdge(v1C, v2);
+				if(edge==null) System.out.println("Possible edge within repetitive sequence. Vertex: "+vTest+" disconnected vertices: "+v1C+" and "+v2+" remaining lengths: "+remainingLength1+" "+remainingLength2+" degrees "+d1+" "+testGraph.getEdges(v1).size()+" "+testGraph.getEdges(v2).size()+" embedded: "+testGraph.isEmbedded(vTest.getSequenceIndex())+" "+testGraph.isEmbedded(v1.getSequenceIndex())+" "+" "+testGraph.isEmbedded(v2.getSequenceIndex()));
+			} else {
+				//TODO: v2 should be embedded within v1
+				
+			}
+			j++;
 		}
 	}
 
