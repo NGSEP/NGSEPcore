@@ -78,9 +78,10 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<AssemblyPath> paths = graph.buildPaths(pathEdges);
+		log.info("Paths costs algorithm: "+paths.size());
 		if(runImprovementAlgorithms) {
 			Distribution [] distsEdges = calculateDistributions(pathEdges);
-			log.info("Paths costs algorithm: "+paths.size());
+			
 			paths = collectAlternativeSmallPaths(graph, paths);
 			log.info("Paths after collecting small embedded paths: "+paths.size());
 			paths = mergeClosePaths(graph, paths, distsEdges);
@@ -90,8 +91,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		
 		for(AssemblyPath path:paths) {
-			if(path.getPathLength()<minPathLength) continue;
-			graph.addPath(path);
+			if(path.getPathLength()>=minPathLength) graph.addPath(path);
+			//else path.print(System.out);
 		}
 		log.info("Final number of paths: "+graph.getPaths().size());
 		System.out.println("Estimated N statistics");

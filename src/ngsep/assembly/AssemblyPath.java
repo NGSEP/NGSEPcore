@@ -1,5 +1,6 @@
 package ngsep.assembly;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -185,6 +186,12 @@ public class AssemblyPath {
 	}
 	public void setPathVerticesConsensusEnds(Map<Integer, Integer> pathVerticesConsensusEnds) {
 		this.pathVerticesConsensusEnds = pathVerticesConsensusEnds;
+	}
+	public void print(PrintStream out) {
+		out.println("Path: "+pathId);
+		for(AssemblyEdge edge:edges) {
+			out.println(edge);
+		}
 	}
 	
 	

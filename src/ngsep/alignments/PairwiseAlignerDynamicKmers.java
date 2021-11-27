@@ -202,10 +202,12 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					indelCalls.add(queryNextLength-subjectNextLength);
 					initialNumIndels+=diff;
 				}
-				coverageSharedKmers+=kmerLength;
+				int nextCSK = subjectNextLength + kmerLength;
+				if(diff > 1) nextCSK = Math.max(kmerLength, nextCSK-diff);
+				coverageSharedKmers+=nextCSK;
 				double weight = kmerHit.getWeight();
-				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+				weightedCoverageSharedKmers+=((double)nextCSK*weight);
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getStart()+" subdist: "+subjectNextLength+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryIdx()+" qdist: "+queryNextLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
 			} else {
@@ -220,7 +222,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					coverageSharedKmers+=Math.min(diffQuery, kmerLength);
 					double weight = kmerHit.getWeight();
 					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
-					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getStart()+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryIdx()+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				} else {
 					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				}
