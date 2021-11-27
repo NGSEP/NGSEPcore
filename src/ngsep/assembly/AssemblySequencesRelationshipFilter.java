@@ -193,9 +193,10 @@ public class AssemblySequencesRelationshipFilter {
 		if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		
 		double scoreLimit = minScoreProportionEmbedded*maxScoreEdges;
-		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" minscoreprop: "+minScoreProportionEmbedded+" score limit: "+scoreLimit);
+		
 		List<AssemblyEmbedded> embeddedList= new ArrayList<AssemblyEmbedded>();
 		embeddedList.addAll(graph.getEmbeddedBySequenceId(sequenceId));
+		if(sequenceId == debugIdx) System.out.println("max score edges: "+maxScoreEdges+" minscoreprop: "+minScoreProportionEmbedded+" score limit: "+scoreLimit+" num embedded: "+embeddedList.size());
 		if(embeddedList.size()==0) return false;
 		AssemblyEmbedded embeddedMax = null;
 		double maxScoreEmbedded = -1;

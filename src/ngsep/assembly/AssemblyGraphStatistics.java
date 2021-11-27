@@ -336,8 +336,8 @@ public class AssemblyGraphStatistics {
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
 			log.info("Updating scores");
-			graph.updateScores(0.5);
-			//graph.updateScores(0);
+			//graph.updateScores(0.5);
+			graph.updateScores(0);
 			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
@@ -359,7 +359,10 @@ public class AssemblyGraphStatistics {
 				//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMaxCoverageSharedKmers();
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
-				pathsFinder = new LayoutBuilderKruskalPath();
+				LayoutBuilderKruskalPath kruskal = new LayoutBuilderKruskalPath();
+				kruskal.setRunImprovementAlgorithms(false);
+				pathsFinder = kruskal;
+				
 			}
 			//System.out.println("Searched vertex: "+graph.getVertex(1222, true));
 			//System.out.println("Searched vertex: "+graph.getVertex(963, false));
@@ -679,7 +682,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==1485 || gsVertex.getSequenceIndex()==518 || gsVertex.getSequenceIndex()==139;
+		//boolean debug = gsVertex.getSequenceIndex()==3782 || gsVertex.getSequenceIndex()==4368 || gsVertex.getSequenceIndex()==365;
 		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
@@ -777,7 +780,7 @@ public class AssemblyGraphStatistics {
 		rmsePredictedOverlap+=error*error;
 		countPredictedOverlap++;
 		distOverlapError.processDatapoint(error);
-		if(logErrors && error < -200) System.out.println("Large overlap error in edge. GS edge: "+gsEdge+"\ntest edge: "+testEdge );
+		if(logErrors && error < -200 && gsEdge.isLayoutEdge()) System.out.println("Large overlap error in edge. GS edge: "+gsEdge+"\ntest edge: "+testEdge );
 		error = gsEdge.getOverlap()-testEdge.getAverageOverlap();
 		rmseAveragePredictedOverlap+=error*error;
 		countAveragePredictedOverlap++;

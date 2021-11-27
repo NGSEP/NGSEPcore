@@ -86,7 +86,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		individualCosts[0] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[0],cumulativeOverlap),maxIndividualCost);
 		//double cost1 = maxIndividualCost*(1-cumulativeOverlap);
 		
-		double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
+		//double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
+		double cumulativeWCSK = wcskD.cumulative(relationship.getCoverageSharedKmers());
 		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],cumulativeWCSK),maxIndividualCost);
 		
 		double cumulativeWCSKProp = wcskPropD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(relationship.getOverlap()+1));

@@ -188,10 +188,11 @@ public class AssemblyPath {
 		this.pathVerticesConsensusEnds = pathVerticesConsensusEnds;
 	}
 	public void print(PrintStream out) {
-		out.println("Path: "+pathId);
+		out.print("Path: "+pathId);
 		for(AssemblyEdge edge:edges) {
-			out.println(edge);
+			out.print(edge);
 		}
+		System.out.println();
 	}
 	
 	
