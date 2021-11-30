@@ -3,6 +3,7 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -190,7 +191,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		for (int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			//Clean previous relationships to avoid race conditions
-			relationshipsPerSequence.set(seqId, null);
+			//relationshipsPerSequence.set(seqId, null);
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
 			poolSearch2.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
@@ -203,6 +204,21 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		long time5 = System.currentTimeMillis();
 		diff = (time5-time4)/1000;
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
+		Set<Integer> orphanEmbeddedIds = graph.calculateEmbeddedToChimeric();
+		for(int seqId:orphanEmbeddedIds) {
+			CharSequence seq = sequences.get(seqId).getCharacters();
+			for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.removeRelationship(rel);
+			relationshipsPerSequence.set(seqId, null);
+			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
+			final int i = seqId;
+			processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence);
+			for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.addRelationship(rel);
+		}
+		usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		long time6 = System.currentTimeMillis();
+		diff = (time6-time5)/1000;
+		log.info("Recalculated information for "+orphanEmbeddedIds.size()+" sequences embedded into chimeric sequences. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time reprocessing (s): "+diff);
 		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}
@@ -220,7 +236,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);  
-			//if(rels==null) {
+			if(rels==null) {
 				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
@@ -232,7 +248,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 					rels = selectGoodEmbedded(rels);
 					if(rels.size()>=ploidy) relationshipsPerSequence.set(seqId, rels);
 				}
-			//}
+			}
 			if ((seqId)%1000==0) {
 				int edges = 0;
 				int embedded = 0;
@@ -273,10 +289,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				List<AssemblySequencesRelationship> nextList = relationshipsPerSequence.get(i);
 				if(nextList == null) break;
 				//if ((i+1)%1000==0) log.info("Adding relationships for sequence "+(i+1) +" Relationships sequence: "+nextList.size());
-				for(AssemblySequencesRelationship next:nextList) {
-					if(next instanceof AssemblyEmbedded) graph.addEmbedded((AssemblyEmbedded)next);
-					if(next instanceof AssemblyEdge) graph.addEdge((AssemblyEdge)next);
-				}
+				for(AssemblySequencesRelationship next:nextList) graph.addRelationship(next);
 				//nextList.clear();
 				if(i == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(i, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(i, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(i));
 				if ((i+1)%10000==0) {

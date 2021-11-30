@@ -101,9 +101,10 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
 			minHits = (int)Math.min(minHits, minProportionOverlap*cluster.getNumDifferentKmers());
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self cluster hits: "+selfHitsCount+" self cluster kmers: "+cluster.getNumDifferentKmers()+" min hits: "+minHits);
+			if (queryIdx == idxDebug || selfHitsCount>2*cluster.getNumDifferentKmers()) System.out.println("EdgesFinder. Query: "+queryIdx+" self cluster hits: "+selfHitsCount+" self cluster kmers: "+cluster.getNumDifferentKmers()+" min hits: "+minHits);
 		}
 		minHits = calculateMinimumHitsFromTotal(queryIdx, hitsForward, hitsReverse, minHits);
+		if(!extensiveSearch) minHits*=2;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);
@@ -219,7 +220,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			if(count >=minHits) passCount++;
 		}
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Min hits: "+minHits+" number of passing subject ids: "+passCount+" max count: "+maxCount);
-		return Math.max(minHits, maxCount/5);
+		return Math.max(minHits, maxCount/4);
 	}
 	private int countDistinctKmers(List<UngappedSearchHit> hits) {
 		Set<Integer> kmers = new HashSet<>();

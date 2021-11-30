@@ -583,9 +583,28 @@ public class AssemblyGraph {
 		}
 	}
 	
+	public Set<Integer> calculateEmbeddedToChimeric() {
+		Set<Integer> chimericIds = new HashSet<>();
+		for(int i=0;i<sequences.size();i++) {
+			if(calculateChimericStatus(i)) chimericIds.add(i);
+		}
+		Set<Integer> answer = new HashSet<>();
+		for(Map.Entry<Integer,List<AssemblyEmbedded>> entry:embeddedMapBySequence.entrySet()) {
+			int i = entry.getKey();
+			List<AssemblyEmbedded> relsHosts = entry.getValue();
+			boolean orphan = true;
+			for(AssemblyEmbedded rel:relsHosts) {
+				orphan = chimericIds.contains(rel.getHostId());
+				if(!orphan) break;
+			}
+			if(orphan) answer.add(i);
+		}
+		return answer;
+	}
+	
 	private boolean calculateChimericStatus(int sequenceId) {
 		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
-		int idxDebug = -1;
+		int idxDebug = 2250;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
@@ -961,4 +980,16 @@ public class AssemblyGraph {
 			}
 		}
 	}
+	public void addRelationship(AssemblySequencesRelationship rel) {
+		if(rel instanceof AssemblyEmbedded) addEmbedded((AssemblyEmbedded)rel);
+		if(rel instanceof AssemblyEdge) addEdge((AssemblyEdge)rel);
+		
+	}
+	public void removeRelationship(AssemblySequencesRelationship rel) {
+		if(rel instanceof AssemblyEdge) removeEdge((AssemblyEdge)rel);
+		if(rel instanceof AssemblyEmbedded) removeEmbedded((AssemblyEmbedded)rel);
+		
+		
+	}
+	
 }
