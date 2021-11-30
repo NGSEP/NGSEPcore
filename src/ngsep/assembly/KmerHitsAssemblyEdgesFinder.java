@@ -103,7 +103,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			minHits = (int) Math.max(minHits,DEF_MIN_HITS);
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" self cluster hits: "+selfHitsCount+" self cluster kmers: "+cluster.getNumDifferentKmers()+" min hits: "+minHits);
 		}
-		if(!extensiveSearch) minHits*=2;
+		minHits = calculateMinimumHitsFromTotal(queryIdx, hitsForward, hitsReverse, minHits);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" min hits: "+minHits);
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);
@@ -207,6 +207,28 @@ public class KmerHitsAssemblyEdgesFinder {
 		}
 		return answer;
 	}
+	
+	private int calculateMinimumHitsFromTotal(int queryIdx, Map<Integer, List<UngappedSearchHit>> hitsForward, Map<Integer, List<UngappedSearchHit>> hitsReverse, int minHits) {
+		List<Integer> allHitsDistinctKmers = new ArrayList<>();
+		for(List<UngappedSearchHit> hits:hitsForward.values()) allHitsDistinctKmers.add(countDistinctKmers(hits));
+		for(List<UngappedSearchHit> hits:hitsReverse.values()) allHitsDistinctKmers.add(countDistinctKmers(hits));
+		int maxCount = 0;
+		int passCount = 0;
+		for(int count:allHitsDistinctKmers) {
+			maxCount = Math.max(maxCount, count);
+			if(count >=minHits) passCount++;
+		}
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Min hits: "+minHits+" number of passing subject ids: "+passCount+" max count: "+maxCount);
+		return Math.max(minHits, maxCount/5);
+	}
+	private int countDistinctKmers(List<UngappedSearchHit> hits) {
+		Set<Integer> kmers = new HashSet<>();
+		for(UngappedSearchHit hit:hits) {
+			kmers.add(hit.getQueryIdx());
+		}
+		return kmers.size();
+	}
+
 	private int calculateMinimumClusterSize(int queryIdx, List<UngappedSearchHitsCluster> clustersForward, List<UngappedSearchHitsCluster> clustersReverse, int minHits) {
 		List<UngappedSearchHitsCluster> allClusters = new ArrayList<UngappedSearchHitsCluster>(clustersForward.size()+clustersReverse.size());
 		allClusters.addAll(clustersForward);

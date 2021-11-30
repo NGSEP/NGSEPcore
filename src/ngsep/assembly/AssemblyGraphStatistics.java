@@ -682,11 +682,11 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==3782 || gsVertex.getSequenceIndex()==4368 || gsVertex.getSequenceIndex()==365;
+		//boolean debug = gsVertex.getSequenceIndex()==4487 || gsVertex.getSequenceIndex()==1272 || gsVertex.getSequenceIndex()==2129;
 		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
 		if(debug) {
-			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, out);
-			printEdgeList("Test", testVertex, testEdges, testGraph, true, out);
+			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
+			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);
 		}
 		Map<Integer,Boolean> testEdgesMatched = new HashMap<Integer, Boolean>();
 		Map<Integer,AssemblyEdge> testEdgesByConnectingVertex = new HashMap<Integer, AssemblyEdge>();
@@ -807,11 +807,12 @@ public class AssemblyGraphStatistics {
 		return false;
 	}
 
-	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, AssemblyGraph graph, boolean includeEmbedded, PrintStream out) {
+	public void printEdgeList(String text, AssemblyVertex v, List<AssemblyEdge> edges, AssemblyGraph graph, boolean includeEmbedded, boolean sortByCost, PrintStream out) {
 		out.println(text+" vertex "+v);
 		List<AssemblyEdge> copy = new ArrayList<AssemblyEdge>();
 		copy.addAll(edges);
-		Collections.sort(copy,(e1,e2)->e2.getOverlap()-e1.getOverlap());
+		if(sortByCost) Collections.sort(copy,(e1,e2)->e1.getCost()-e2.getCost());
+		else Collections.sort(copy,(e1,e2)->e2.getOverlap()-e1.getOverlap());
 		for(AssemblyEdge edge:copy) {
 			if(includeEmbedded || !graph.isEmbedded(edge.getConnectingVertex(v).getSequenceIndex())) out.println(edge);
 		}
@@ -943,17 +944,30 @@ public class AssemblyGraphStatistics {
 	}
 	private void checkProblematicVertex(AssemblyGraph testGraph, AssemblyVertex vTest) {
 		if(vTest==null) return;
+		if(testGraph.isEmbedded(vTest.getSequenceIndex())) return;
+		int debugIdx = -1;
 		List<AssemblyEdge> edgesTest = new ArrayList<>(testGraph.getEdges(vTest));
 		if(edgesTest.size()<3) return;
 		Collections.sort(edgesTest, (e1,e2)->e1.getCost()-e2.getCost());
 		int d1 = edgesTest.size();
 		AssemblyEdge e1 = edgesTest.get(0);
 		if(e1.isSameSequenceEdge()) e1 = edgesTest.get(1);
+		if(vTest.getSequenceIndex()==debugIdx) System.out.println("E1 with embedded: "+testGraph.isEmbedded(e1.getConnectingVertex(vTest).getSequenceIndex()));
 		int compared = 0;
-		for(int j=1;j<edgesTest.size() && compared<4;j++) {
+		for(int j=1;j<edgesTest.size() && compared<5;j++) {
 			AssemblyEdge e2 = edgesTest.get(j);
+			if(vTest.getSequenceIndex()==debugIdx) System.out.println("Number of comparisons: "+compared+" j:"+j+" Comparing edge: "+e1+" with "+e2);
 			if(e2==e1 || e2.isSameSequenceEdge()) continue;
-			if(testGraph.isEmbedded(e2.getConnectingVertex(vTest).getSequenceIndex())) continue;
+			if(vTest.getSequenceIndex()==debugIdx) System.out.println("Pass 2. e2emb: "+testGraph.isEmbedded(e2.getConnectingVertex(vTest).getSequenceIndex()));
+			if(testGraph.isEmbedded(e2.getConnectingVertex(vTest).getSequenceIndex())) {
+				compared++;
+				continue;
+			}
+			if(testGraph.isEmbedded(e1.getConnectingVertex(vTest).getSequenceIndex())) {
+				e1=e2;
+				continue;
+			}
+			//if(vTest.getSequenceIndex()==debugIdx) System.out.println("Pass 3");
 			if(e2.getOverlap()<0.5*e1.getOverlap()) break;
 			else if (e2.getOverlap()>=e1.getOverlap()) {
 				AssemblyEdge eT = e1;
@@ -965,10 +979,6 @@ public class AssemblyGraphStatistics {
 			int remainingLength1 = testGraph.getSequenceLength(v1.getSequenceIndex())-e1.getOverlap();
 			AssemblyVertex v2 = e2.getConnectingVertex(vTest);
 			AssemblyVertex v2C = testGraph.getSameSequenceEdge(v2).getConnectingVertex(v2);
-			if(testGraph.isEmbedded(v1.getSequenceIndex()) || testGraph.isEmbedded(v2.getSequenceIndex())) {
-				j++;
-				continue;
-			}
 			int remainingLength2 = testGraph.getSequenceLength(v2.getSequenceIndex())-e2.getOverlap();
 			if(remainingLength1+100<remainingLength2) {
 				//There should be an edge between v1V and v2
@@ -978,7 +988,7 @@ public class AssemblyGraphStatistics {
 				//TODO: v2 should be embedded within v1
 				
 			}
-			j++;
+			compared++;
 		}
 	}
 

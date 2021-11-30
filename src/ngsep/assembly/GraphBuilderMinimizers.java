@@ -14,7 +14,6 @@ import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.KmersMapAnalyzer;
-import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.ShortKmerCodesTable;
 

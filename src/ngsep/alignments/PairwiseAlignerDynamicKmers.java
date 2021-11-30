@@ -202,7 +202,8 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					indelCalls.add(queryNextLength-subjectNextLength);
 					initialNumIndels+=diff;
 				}
-				int nextCSK = subjectNextLength + kmerLength;
+				//TODO: use 2*window length
+				int nextCSK = Math.min(100, subjectNextLength) + kmerLength;
 				if(diff > 1) nextCSK = Math.max(kmerLength, nextCSK-diff);
 				coverageSharedKmers+=nextCSK;
 				double weight = kmerHit.getWeight();
