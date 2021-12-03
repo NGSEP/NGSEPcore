@@ -39,6 +39,10 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 
 				PairwiseSyntenyBlock block = alignOrthologyClusters(unitsToClusters,genome1.getId(), unitsChrG1,genome2.getId(),chrNameG2);
 				List<HomologyUnit> unitsChrG2 = genome2.getHomologyUnits(chrNameG2);
+				if(block==null || unitsChrG2==null) {
+					//log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrNameG2+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2+" Block: "+block);
+					continue;
+				}
 				log.info("Sequence "+chrG1.getName()+" in first genome aligned to sequence "+chrNameG2+" in the second genome. Orthology units sequence genome 1 "+unitsChrG1.size()+". Orthology units sequence genome 2: "+unitsChrG2.size()+" LCS size: "+block.getHomologies().size());
 				answer.add(block);
 				pairedSequenceNamesG2.add(chrNameG2);
