@@ -604,7 +604,7 @@ public class AssemblyGraph {
 	
 	private boolean calculateChimericStatus(int sequenceId) {
 		if(verticesStart.get(sequenceId)==null || verticesEnd.get(sequenceId)==null) return false;
-		int idxDebug = 2250;
+		int idxDebug = -1;
 		int seqLength = getSequenceLength(sequenceId);
 		
 		List<AssemblyEmbedded> embeddedList = new ArrayList<AssemblyEmbedded>();
@@ -624,15 +624,13 @@ public class AssemblyGraph {
 			int unknownLeft = nextEvidenceStart - embedded.getHostStart();
 			int unknownRight = embedded.getHostEnd() - nextEvidenceEnd;
 			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Embedded "+embedded.getSequenceId()+" reverse"+embedded.isReverse()+" limits: "+nextEvidenceStart+" "+nextEvidenceEnd+" unknown: "+unknownLeft+" "+unknownRight+" count: "+embedded.getNumSharedKmers()+" CSK: "+embedded.getCoverageSharedKmers());
-			
-			
+			hostPredictedEndLeft = Math.max(hostPredictedEndLeft, embedded.getHostEnd());
+			hostPredictedStartRight = Math.min(hostPredictedStartRight, embedded.getHostStart());
 			if(unknownRight>1000 && unknownLeft<1000) {
 				hostEvidenceEndsLeft.add(nextEvidenceEnd);
-				hostPredictedEndLeft = Math.max(hostPredictedEndLeft, embedded.getHostEnd());
 			}
 			if(unknownLeft>1000 && unknownRight<1000) {
 				hostEvidenceStartsRight.add(nextEvidenceStart);
-				hostPredictedStartRight = Math.min(hostPredictedStartRight, embedded.getHostStart());
 			}
 		}
 		int numIncompleteEdgesLeft = 0;
@@ -650,10 +648,11 @@ public class AssemblyGraph {
 				int unknownLeft = nextEvidenceStart;
 				int unknownRight = edge.getOverlap() - nextEvidenceEnd;
 				if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge start "+edge+" evidence end: "+nextEvidenceEnd+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+				hostPredictedEndLeft = Math.max(hostPredictedEndLeft, edge.getOverlap());
 				if(unknownRight<0) continue;
 				if(unknownRight>1000 && unknownLeft<1000) {
 					hostEvidenceEndsLeft.add(nextEvidenceEnd);
-					hostPredictedEndLeft = Math.max(hostPredictedEndLeft, edge.getOverlap());
+					
 				}
 				if(unknownLeft>1000 && unknownRight<1000) {
 					hostEvidenceStartsRight.add(nextEvidenceStart);
@@ -669,6 +668,7 @@ public class AssemblyGraph {
 				int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 				int unknownRight = seqLength - nextEvidenceEnd;
 				if(sequenceId==idxDebug) System.out.println("Finding chimeras. Edge end "+edge+" evidence start: "+nextEvidenceStart+" unknown: "+unknownLeft+" "+unknownRight+" count: "+edge.getNumSharedKmers()+" CSK: "+edge.getCoverageSharedKmers());
+				hostPredictedStartRight = Math.min(hostPredictedStartRight, seqLength-edge.getOverlap());
 				if(unknownLeft<0) continue;
 				if(unknownRight>1000 && unknownLeft<1000) {
 					hostEvidenceEndsLeft.add(nextEvidenceEnd);
@@ -677,7 +677,6 @@ public class AssemblyGraph {
 				}
 				if(unknownLeft>1000 && unknownRight<1000) {
 					hostEvidenceStartsRight.add(nextEvidenceStart);
-					hostPredictedStartRight = Math.min(hostPredictedStartRight, seqLength-edge.getOverlap());
 				}
 			}
 		}
@@ -688,7 +687,11 @@ public class AssemblyGraph {
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
 		int hostEvidenceEndLeft = hostEvidenceEndsLeft.size()>0?hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2):0;
 		Collections.sort(hostEvidenceStartsRight,(n1,n2)->n1-n2);
-		int hostEvidenceStartRight = hostEvidenceStartsRight.size()>0?hostEvidenceStartsRight.get(hostEvidenceStartsRight.size()/2):seqLength;
+		int hostEvidenceStartRight = hostEvidenceStartsRight.size()>0?hostEvidenceStartsRight.get(hostEvidenceStartsRight.size()/2):0;
+		if(hostEvidenceEndLeft==0 && hostEvidenceStartRight>0) hostEvidenceEndLeft = hostEvidenceStartRight;
+		else if(hostEvidenceEndLeft>0 && hostEvidenceStartRight==0) hostEvidenceStartRight = hostEvidenceEndLeft;
+		else if(hostEvidenceStartRight==0) hostEvidenceStartRight = seqLength;
+		
 		int minEvidenceStart = Math.min(hostEvidenceStartRight, hostEvidenceEndLeft);
 		int maxEvidenceEnd = Math.max(hostEvidenceStartRight, hostEvidenceEndLeft);
 		
