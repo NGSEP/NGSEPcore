@@ -456,7 +456,7 @@ public class Assembler {
 				String outFileGraph = outputPrefix+"_hap"+haplotypeNumber+".graph.gz";
 				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
 				log.info("Saved graph to "+outFileGraph);
-				haplotypeGraph.updateScores(0.5);
+				haplotypeGraph.updateScores(0);
 				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
 				//haplotypeGraph.updateScores();
 				pathsFinder.findPaths(haplotypeGraph);
@@ -468,7 +468,7 @@ public class Assembler {
 				haplotypeNumber++;
 			}
 		} else {
-			graph.updateScores(0.5);
+			graph.updateScores(0);
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			//graph.updateScores();
 			

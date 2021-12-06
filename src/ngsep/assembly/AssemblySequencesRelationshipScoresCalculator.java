@@ -79,7 +79,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
 		double [] limitPValues = {1,0.5,0.1,0.05,0.5,0.25};
-		double [] weights      = {1,  1,0,   0,w,w};
+		double [] weights      = {1,  1,0,   0,0.5,w};
 		
 		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
