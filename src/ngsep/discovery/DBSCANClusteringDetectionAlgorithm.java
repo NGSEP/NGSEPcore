@@ -1,41 +1,36 @@
 package ngsep.discovery;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import JSci.maths.statistics.SampleStatistics;
-import ngsep.genome.GenomicRegion;
-import ngsep.genome.GenomicRegionComparator;
+import ngsep.clustering.DBSCANClusteringAlgorithm;
+import ngsep.clustering.Pair;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.graphs.MaximalCliquesFinder;
-import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
-import ngsep.variants.CalledInversion;
-import ngsep.variants.CalledLargeIndel;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
 
-public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
+public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
-	public static final double DEFAULT_PD_NORM_FACTOR = 900;
-	public static final double DEFAULT_EDGE_TRESHOLD = 0.7;
-	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 50;
+	public final static int MIN_DEFAULT_POINTS = 4;
+	public final static double DEFAULT_EPSILON = 50;
+	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 1000;
 	
-	private double pdNormFactor = DEFAULT_PD_NORM_FACTOR;
-	private double edgeTreshold = DEFAULT_EDGE_TRESHOLD;
+	public int minPoints = MIN_DEFAULT_POINTS;
+	public  double epsilon = DEFAULT_EPSILON;
+	
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
-
-	public MaxCliqueClusteringDetectionAlgorithm(ReferenceGenome genome, 
+	
+	public DBSCANClusteringDetectionAlgorithm(ReferenceGenome genome, 
 			GenomicRegionSortedCollection<GenomicVariant>  signatures, int SVEventLength){
 		this.signatures = signatures;
 	}
-	
+
+	@Override
 	public Map<String, List<List<Integer>>> callVariantClusters() {
+		// TODO Auto-generated method stub
 		Map<String, List<List<Integer>>> clusters = new LinkedHashMap<>();
 		List<String> keys = signatures.getSequenceNames().getNamesStringList();
 		for(String k:keys){
@@ -72,11 +67,12 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 			for(List<GenomicVariant> typePartition:signsPerType) {
 				if(typePartition.isEmpty()) continue;
 				List<GenomicVariant> toCluster = new ArrayList<>();
+				//toCluster.addAll(typePartition);
 				for(int i = 0; i < typePartition.size() - 1; i++) {
 					GenomicVariant current = typePartition.get(i);
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 300) {
+					if(!testDownstreamSignatureCompatibility(current,next)) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicVariant sign:toCluster) idxs.add(signList.indexOf(sign));
 						if(toCluster.size() < 4) {
@@ -84,14 +80,14 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 							continue;
 						}
 						else{
-							boolean[][] adjMatrix = calculateAdjacencyMatrix(toCluster);
+							double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
 							//System.out.println("#partition size: " + toCluster.size());
 							//System.out.println("#Processing partition with types: " + getSignatureType(typePartition.get(0)) 
 								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
-							ArrayList<ArrayList<Integer>> maxCliques = MaximalCliquesFinder
-									.callMaxCliqueFinder(idxs, adjMatrix);
+							List<List<Integer>> partClusters = DBSCANClusteringAlgorithm
+									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
 							//System.out.println("Cliques found");
-							chrClusters.addAll(maxCliques);
+							for(List<Integer> cluster : partClusters) if(cluster.size() > 3) chrClusters.add(cluster);;
 							toCluster.clear();
 						}
 					}
@@ -102,75 +98,45 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		return clusters;
 	}
 	
-	public double calculateSPD(GenomicVariant sign1, GenomicVariant sign2) {
-		double SPD = 0;
-		double SD = 0;
-		int PD = 0;
-		int span1 = sign1.length();
-		int span2 = sign2.length();
-		int first1 = sign1.getFirst();
-		int last1 = sign1.getLast();
-		int first2 = sign2.getFirst();
-		int last2 = sign2.getLast();
-		if(last1 - first1 < 2) last1 = first1 + span1 - 1;
-		if(last2 - first2 < 2) last2 = first2 + span2 - 1;
-		SD = calculateSD(span1, span2);
-		PD = calculatePD(first1, first2, last1, last2);
-		SPD = SD + (double) PD/pdNormFactor;
-		return SPD;
-	}
-	
-	public static double calculateSD(int span1, int span2) {
-		double SD = Math.abs((span1)-(span2));
-		SD = (double) SD/Math.max((span1), (span2));
-		return SD;
-	}
-	
-	public static int calculatePD(int first1, int first2, int last1, int last2) {
-		int PD = Math.min(Math.abs(first1-first2), Math.abs(last1-last2));
-		PD = Math.min(PD, Math.abs(((first1-last1)/2)) - ((first2-last2)/2));
-		return PD;
-	}
-	
-	public boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> candidateSignatures) {
+	private double [][] calculateDistanceMatrix(List<GenomicVariant> candidateSignatures) {
+		// TODO Auto-generated method stub
 		int n = candidateSignatures.size();
-		boolean[][] adjacencyMatrix = new boolean[n][n];
+		double [][] distanceMatrix = new double[n][n];
 		for(int i = 0; i < n; i++) {
 			GenomicVariant si = candidateSignatures.get(i);
 			for(int j = 0; j < n; j++) {
 				GenomicVariant sj = candidateSignatures.get(j);
-				double spd = calculateSPD(si, sj);
-				if(spd < edgeTreshold && !si.equals(sj)) {
-					adjacencyMatrix[i][j] = true;
+				if(!si.equals(sj)) {
+					double distance = calculateThreeDimEuclideanDistance(si, sj);
+					distanceMatrix[i][j] = distance;
 				}
 			}
 		}
-		return adjacencyMatrix;
-	}	
+		return distanceMatrix;
+	}
+	
+	private double calculateThreeDimEuclideanDistance(GenomicVariant s1, GenomicVariant s2) {
+		return calculateThreeDimEuclideanDistance(s1.getFirst(), s2.getFirst(), s1.getLast(), s2.getLast(), 
+				s1.length(), s2.length());
+	}
+	
+	public static double calculateThreeDimEuclideanDistance(int x1, int x2, int y1, int y2, int z1, int z2) {
+		double eDistance;
+		double xDistance = Math.pow(x2-x1 ,2);
+		double yDistance = Math.pow(y2-y1, 2);
+		double zDistance = Math.pow(z2-z1, 2);
+		eDistance = xDistance + yDistance + zDistance;
+		eDistance = Math.sqrt(eDistance);
+		return eDistance;
+	}
 	
 	public boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
 		return s2.getFirst() - s1.getLast() < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
 	}
 	/**
-	public byte getSignatureType(GenomicRegion signature) {
-		byte type = 0;
-		if(signature instanceof CalledLargeIndel) {
-			CalledLargeIndel indelSign = (CalledLargeIndel) signature;
-			type = indelSign.getType();
-		}
-		if(signature instanceof CalledInversion) {
-			type = GenomicVariant.TYPE_INVERSION;
-		}
-		return type;
-	}**/
-	
-	/**
-	@Override
-	public void setRefGenome(ReferenceGenome genome) {
-		this.refGenome = genome;
-	}
-	public void setSignatures(GenomicRegionSortedCollection<GenomicRegion> signatures) {
-		this.signatures = signatures;
+	public static void main (String[] args) {
+		double dist = calculateThreeDimEuclideanDistance(28216662, 28219678, 28220049, 28219724, 3388, 45);
+		System.out.println(dist);
 	}
 	**/
 }
