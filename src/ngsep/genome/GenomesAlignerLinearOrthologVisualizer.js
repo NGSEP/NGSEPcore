@@ -26,6 +26,7 @@ const dims = {
 
 const margin = { left: 80, right: 20, top: 20, bottom: 20 };
 
+let allSyntenyBlocks = {};
 let allOrthologs = {};
 
 const graph = d3.selectAll('.canvas')
@@ -40,9 +41,15 @@ const chromosomeLabelsG1 = graph.append('g')
 const chromosomeLabelsG2 = graph.append('g')
     .attr('class', 'chromosomeLabelsG2');
 
+// group for synteny blocks
+const blocksGroup = graph.append('g')
+    .attr('class', 'syntenyBlocks');
+
 // group for ortholog lines
 const linesGroup = graph.append('g')
     .attr('class', 'orthologLines');
+
+
 
 //scales
 const y1 = d3.scaleLinear()
@@ -341,6 +348,59 @@ const restartTicksG2 = (t, zoomed = false) => {
     y2AxisGroup.transition(t).call(y2Axis);
 }
 
+var lineFunc = d3.line()
+  .x(function(d) { return d.x })
+  .y(function(d) { return d.y })
+
+const paintSyntenyBlocks = syntenyBlocks => {
+    // Create data to be painted
+    const blocks = blocksGroup.selectAll('line.syntenyBlock').data(syntenyBlocks);
+
+    // // Current selection
+    // lines.remove();
+
+    // Exit selection
+    blocks.exit().remove();
+
+    var t = graph.transition().duration(750);
+
+    // Enter selection
+    // lines.enter()
+    //     .append('line')
+    //     .merge(lines)
+    //     .attr('class', 'orthologLine')
+    //     .attr('id', d => `${d.geneId}::${d.geneIdG2}`)
+    //     .attr('x1', margin.left)
+    //     .attr('x2', dims.width)
+    //     .attr('y1', d => y1(d.geneStart))
+    //     .attr('y2', d => y2(d.geneStartG2))
+    //     .style('stroke', d => color(d.chromosome));
+    blocks
+        // .transition(t) // Uncomment this line for cool and inefficient animations
+        .attr('x1', margin.left)
+        .attr('x2', dims.width)
+        .attr('y1', d => y1(d.regionStartG1))
+        .attr('y2', d => y2(d.regionStartG2))
+        .style('stroke', d => color(d.chromosomeG1));
+
+    blocks.enter()
+        .append('path')
+        .attr('d', d => lineFunc(d.coords))
+        .attr('class', 'syntenyBlock')
+        .attr('stroke', d => color(d.chromosomeG1))
+        .attr('fill', d => color(d.chromosomeG1));
+
+    graph.selectAll('line.syntenyBlock')
+        .attr('y1', d => {
+            return y1(d.regionStartG1)
+        })
+        .attr('opacity', d => d.regionStartG1 > y1.domain()[1] || d.regionStartG1 < y1.domain()[0] || d.regionStartG2 > y2.domain()[1] || d.regionStartG2 < y2.domain()[0] ? 0.0 : 1.0);
+
+    // Animations
+    // zoom1();
+    // zoom2();
+};
+
 const paintData = orthologs => {
     // Create data to be painted
     const lines = linesGroup.selectAll('line.orthologLine').data(orthologs);
@@ -394,11 +454,46 @@ const paintData = orthologs => {
 };
 
 // Create data to draw the lines in the correct positions
+const createSyntenyBlocksData = (blocks, genomeId1, genomeId2) => {
+	blocksData = []
+    blocks.forEach(block => {
+    	    
+        if (chromosomesDisplayed(genomeData1, genomeData2, block.chromosomeG1, block.chromosomeG2)) {
+	        block.coords = [];
+            block.coords.push( { 'x': margin.left, 'y': y1(lengthsG1[block.chromosomeG1] + parseInt(block.regionStartG1))});
+            block.coords.push( { 'x': dims.width, 'y': y2(lengthsG2[block.chromosomeG2] + parseInt(block.regionStartG2))});
+            block.coords.push( { 'x': dims.width, 'y': y2(lengthsG2[block.chromosomeG2] + parseInt(block.regionEndG2))});
+            block.coords.push( { 'x': margin.left, 'y': y1(lengthsG1[block.chromosomeG1] + parseInt(block.regionEndG1))});
+            
+
+            blocksData.push(block);
+        }
+    });
+    return blocksData;
+}
+
+// Auxiliary function to check if a chromosome is displayed
+const chromosomesDisplayed = (genomeData1, genomeData2, chrG1, chrG2) => {
+    const displayed = { genome1: false, genome2: false };
+    genomeData1.forEach(chromosome => {
+        if (chromosome.Name == chrG1) {
+            displayed.genome1 = true;
+        }
+    })
+    genomeData2.forEach(chromosome => {
+        if (chromosome.Name == chrG2) {
+            displayed.genome2 = true;
+        }
+    })
+    return displayed.genome1 && displayed.genome2;
+};
+
+
 // This is actually a filter for the orthologs, but can be extended
 const createLineData = orthologs => {
     lineData = []
     orthologs.forEach(ortholog => {
-        if (chromosomesDisplayed(genomeData1, genomeData2, ortholog)) {
+        if (chromosomesDisplayed(genomeData1, genomeData2, ortholog.chromosome, ortholog.chromosomeG2)) {
             ortholog.geneStart = lengthsG1[ortholog.chromosome] + parseInt(ortholog.geneStart);
             ortholog.geneStartG2 = lengthsG2[ortholog.chromosomeG2] + parseInt(ortholog.geneStartG2);
             ortholog.geneEnd = lengthsG1[ortholog.chromosome] + parseInt(ortholog.geneEnd);
@@ -410,25 +505,15 @@ const createLineData = orthologs => {
     return lineData;
 };
 
-// Auxiliary function to check if a chromosome is displayed
-const chromosomesDisplayed = (genomeData1, genomeData2, ortholog) => {
-    const displayed = { genome1: false, genome2: false };
-    genomeData1.forEach(chromosome => {
-        if (chromosome.Name == ortholog.chromosome) {
-            displayed.genome1 = true;
-        }
-    })
-    genomeData2.forEach(chromosome => {
-        if (chromosome.Name == ortholog.chromosomeG2) {
-            displayed.genome2 = true;
-        }
-    })
-    return displayed.genome1 && displayed.genome2;
-};
-
 // Show synteny
 function showSynteny() {
-    paintData(allOrthologs.synteny);
+	if(allOrthologs.synteny.length<500) {
+		paintData(allOrthologs.synteny);
+	}
+	else {
+		paintSyntenyBlocks(allSyntenyBlocks);
+	}
+	
     document.getElementById('SyntenyButton').disabled = true;
     document.getElementById('AllButton').disabled = false;
 }
@@ -450,16 +535,18 @@ function chromosomeLength() {
 }
 
 // Split data
-const divideOrthologs = orthologs => {
-    orthologs = createLineData(orthologs);
+const divideOrthologs = (orthologs,genomeId2) => {
     orthologsSynteny = [];
     orthologsAll = [];
     orthologs.map(ortholog => {
-        if (ortholog.block > -1) {
-			orthologsSynteny.push(ortholog)
-		}
-		orthologsAll.push(ortholog)
+	if (parseInt(ortholog.genomeId2) == genomeId2) {
+	    if (ortholog.block > -1) {
+	        orthologsSynteny.push(ortholog)
+	    }
+	    orthologsAll.push(ortholog);
+	}
     });
+    orthologs = createLineData(orthologsAll);
 
     dividedOrthologs = { 'synteny': orthologsSynteny, 'all': orthologsAll };
     return dividedOrthologs;
@@ -467,4 +554,5 @@ const divideOrthologs = orthologs => {
 
 // Read data
 prepareData();
-allOrthologs = divideOrthologs(orthologsG1);
+allOrthologs = divideOrthologs(orthologsG1,2);
+allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);

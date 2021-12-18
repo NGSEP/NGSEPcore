@@ -22,7 +22,6 @@ package ngsep.genome;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -505,9 +504,9 @@ public class GenomesAligner {
 			}
 		}
 
-		try (PrintStream outD3Paralogs = new PrintStream(outputPrefix+"_circularParalogView.html");) {
+		/*try (PrintStream outD3Paralogs = new PrintStream(outputPrefix+"_circularParalogView.html");) {
 			printD3Visualization(outD3Paralogs,"GenomesAlignerCircularParalogVisualizer.js", jsFilename, 5);
-		}
+		}*/
 		
 		if(genomes.size()>1) {
 			for(int i=0;i<genomes.size();i++) {
@@ -529,25 +528,27 @@ public class GenomesAligner {
 				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", jsFilename, 5);
 			}
 			
-			try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
+			/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
 				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
-			}
+			}*/
 		}
 
 		//Print ortholog clusters
 		CDNACatalogAligner.printResults(outputPrefix, homologyClusters);
 
-		printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt");
+		printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt", jsFilename);
 		
 	}
 	
 	/**
 	 * Print synteny blocks
 	 */
-	private void printSyntenyBlocks(String outFilename) throws IOException {
-		try (PrintStream outSynteny = new PrintStream(outFilename)){
+	private void printSyntenyBlocks(String outFilename, String jsFilename) throws IOException {
+		try (PrintStream outSynteny = new PrintStream(outFilename);
+			 PrintStream outSyntenyJS = new PrintStream(new FileOutputStream(jsFilename, true));){
 			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
 			outSynteny.println(headers);
+			outSyntenyJS.println("const syntenyBlocks = [");
 			for (PairwiseSyntenyBlock sb : orthologsSyntenyBlocks) {
 				GenomicRegion r1 = sb.getRegionGenome1();
 				GenomicRegion r2 = sb.getRegionGenome2();
@@ -565,8 +566,17 @@ public class GenomesAligner {
 					for(HomologyUnit u2:c2.getHomologyUnitsCluster()) line+=u2.getId()+",";
 					outSynteny.println(line);
 				}
-				
+				outSyntenyJS.println("{genomeIdG1: "+sb.getGenomeId1()
+				+", chromosomeG1: '"+r1.getSequenceName()+"'"
+				+", regionStartG1: "+r1.getFirst()
+				+", regionEndG1: "+r1.getLast()
+				+", genomeIdG2: "+sb.getGenomeId2()
+				+", chromosomeG2: '"+r2.getSequenceName() + "'" 
+				+", regionStartG2: "+r2.getFirst()
+				+", regionEndG2: "+r2.getLast()
+				+"},");
 			}
+			outSyntenyJS.println("];");
 		}
 	}
 	

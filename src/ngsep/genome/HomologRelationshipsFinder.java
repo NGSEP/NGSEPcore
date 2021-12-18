@@ -9,7 +9,7 @@ import ngsep.sequences.FMIndex;
 import ngsep.sequences.UngappedSearchHit;
 
 public class HomologRelationshipsFinder {
-	public static final byte DEF_KMER_LENGTH = 6;
+	public static final byte DEF_KMER_LENGTH = 5;
 	public static final int DEF_MIN_PCT_KMERS = 5;
 	
 	private byte kmerLength = DEF_KMER_LENGTH;
