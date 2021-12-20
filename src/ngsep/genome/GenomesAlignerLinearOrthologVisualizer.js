@@ -153,6 +153,9 @@ function zoom1() {
         });
     }
     y1AxisGroup.transition(t).call(y1Axis);
+
+	allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);
+	paintSyntenyBlocks (allSyntenyBlocks)
     graph.selectAll('line.orthologLine').transition(t)
         .attr('y1', d => {
             return y1(d.geneStart)
@@ -194,6 +197,9 @@ function zoom2() {
         });
     }
     y2AxisGroup.transition(t).call(y2Axis);
+
+	allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);
+	paintSyntenyBlocks (allSyntenyBlocks)
     graph.selectAll('line.orthologLine').transition(t)
         .attr('y2', d => {
             return y2(d.geneStartG2)
@@ -394,7 +400,7 @@ const paintSyntenyBlocks = syntenyBlocks => {
         .attr('y1', d => {
             return y1(d.regionStartG1)
         })
-        .attr('opacity', d => d.regionStartG1 > y1.domain()[1] || d.regionStartG1 < y1.domain()[0] || d.regionStartG2 > y2.domain()[1] || d.regionStartG2 < y2.domain()[0] ? 0.0 : 1.0);
+        .attr('opacity', d => d.regionStartG1 > y1.domain()[1] || d.regionEndG1 < y1.domain()[0] || d.regionStartG2 > y2.domain()[1] || d.regionStartG2 < y2.domain()[0] ? 0.0 : 1.0);
 
     // Animations
     // zoom1();
@@ -454,19 +460,24 @@ const paintData = orthologs => {
 };
 
 // Create data to draw the lines in the correct positions
-const createSyntenyBlocksData = (blocks, genomeId1, genomeId2) => {
+const createSyntenyBlocksData = (blocks) => {
 	blocksData = []
     blocks.forEach(block => {
     	    
         if (chromosomesDisplayed(genomeData1, genomeData2, block.chromosomeG1, block.chromosomeG2)) {
-	        block.coords = [];
-            block.coords.push( { 'x': margin.left, 'y': y1(lengthsG1[block.chromosomeG1] + parseInt(block.regionStartG1))});
-            block.coords.push( { 'x': dims.width, 'y': y2(lengthsG2[block.chromosomeG2] + parseInt(block.regionStartG2))});
-            block.coords.push( { 'x': dims.width, 'y': y2(lengthsG2[block.chromosomeG2] + parseInt(block.regionEndG2))});
-            block.coords.push( { 'x': margin.left, 'y': y1(lengthsG1[block.chromosomeG1] + parseInt(block.regionEndG1))});
-            
-
-            blocksData.push(block);
+			y11 = lengthsG1[block.chromosomeG1] + parseInt(block.regionStartG1);
+			y12 = lengthsG1[block.chromosomeG1] + parseInt(block.regionEndG1);
+			y21 = lengthsG2[block.chromosomeG2] + parseInt(block.regionStartG2);
+			y22 = lengthsG2[block.chromosomeG2] + parseInt(block.regionEndG2);
+			if(y11>=y1.domain()[0] && y12 <=y1.domain()[1] && y21>=y2.domain()[0] && y22 <=y2.domain()[1]) {
+				block.coords = [];
+                block.coords.push( { 'x': margin.left, 'y': y1(y11) } );
+                block.coords.push( { 'x': dims.width, 'y': y2(y21) } );
+                block.coords.push( { 'x': dims.width, 'y': y2(y22) } );
+                block.coords.push( { 'x': margin.left, 'y': y1(y12) } );
+                blocksData.push(block);
+			}
+	        
         }
     });
     return blocksData;
