@@ -57,6 +57,8 @@ public class GenomesAligner {
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
+	public static final int DEF_MIN_BLOCK_LENGTH = PairwiseSyntenyBlocksFinder.DEF_MIN_BLOCK_LENGTH;
+	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = PairwiseSyntenyBlocksFinder.DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	public static final double DEF_MIN_FREQUENCY_SOFT_CORE = 0.9;
 
 	// Logging and progress
@@ -68,6 +70,8 @@ public class GenomesAligner {
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
+	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
+	private int maxDistanceBetweenUnits = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
 	private String inputDirectory = null;
@@ -82,11 +86,7 @@ public class GenomesAligner {
 	private int[][] paMatrix;
 
 	
-	// Synteny
-	//
-	//private List<SyntenyBlock> paralogsSyntenyBlocks = new ArrayList<>();
-	private int minBlockLength = 1000000;
-	private int maxDistance = 1000000;
+	
 
 	public Logger getLog() {
 		return log;
@@ -334,15 +334,20 @@ public class GenomesAligner {
 		return answer;
 	}
 	
-	public void alignGenomes() {		
+	public void alignGenomes() {
+		//PairwiseSyntenyBlocksFinder mainFinder = new LCSMainPairwiseSyntenyBlocksFinder();
+		HalSyntenyPairwiseSyntenyBlocksFinder finder = new HalSyntenyPairwiseSyntenyBlocksFinder();
+		finder.setMaxDistance(maxDistanceBetweenUnits);
+		finder.setMinBlockLength(minBlockLength);
+		for(int i=0;i<genomes.size();i++) {
+			for(int j=i+1;j<genomes.size();j++) {
+				AnnotatedReferenceGenome genome1 = genomes.get(i);
+				AnnotatedReferenceGenome genome2 = genomes.get(j);
+				
+				orthologsSyntenyBlocks = finder.findSyntenyBlocks(genome1, genome2, homologyClusters);
+			}
+		}
 		
-		
-		// By now this is still done for two genomes
-		//SyntenyBlocksFinder syntenyBlocksFinder = new SyntenyBlocksFinder(minBlockLength, maxDistance);
-		AnnotatedReferenceGenome genome1 = genomes.get(0);
-		AnnotatedReferenceGenome genome2 = genomes.get(1);
-		PairwiseSyntenyBlocksFinder mainFinder = new LCSMainPairwiseSyntenyBlocksFinder();
-		orthologsSyntenyBlocks = mainFinder.findSyntenyBlocks(genome1, genome2, homologyClusters);
 	}
 	
 	/**

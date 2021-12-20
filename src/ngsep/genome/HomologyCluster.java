@@ -117,6 +117,13 @@ public class HomologyCluster
 		if(subclustersGenome==null) return answer;
 		return subclustersGenome.getSequenceRegions(sequenceName).asList();
 	}
+	
+	public List<LocalHomologyCluster> getLocalClusters(int genomeId) {
+		List<LocalHomologyCluster> answer = new ArrayList<LocalHomologyCluster>();
+		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(genomeId);
+		if(subclustersGenome==null) return answer;
+		return subclustersGenome.asList();
+	}
 	public LocalHomologyCluster getLocalCluster(HomologyUnit unit) {
 		GenomicRegionSortedCollection<LocalHomologyCluster> subclustersGenome = homologyUnitsByRegion.get(unit.getGenomeId());
 		if(subclustersGenome==null) return null;

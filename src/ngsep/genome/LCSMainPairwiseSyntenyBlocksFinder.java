@@ -32,7 +32,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 		for(QualifiedSequence chrG1:sequencesG1) {
 			List<HomologyUnit> unitsChrG1 = genome1.getHomologyUnits(chrG1.getName());
 			log.info("Total units G1 for "+chrG1.getName()+": "+unitsChrG1.size());
-			if(unitsChrG1.size()<3) continue;
+			if(unitsChrG1.size()<5) continue;
 			//Whole chromosome synteny LCS algorithm
 			String chrNameG2 = findBestChromosome(unitsChrG1, genome2.getId());
 			if(chrNameG2!=null) {
@@ -56,6 +56,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 			List<HomologyUnit> unitsChrG2 = genome2.getHomologyUnits(chrG2.getName());
 			if(pairedSequenceNamesG2.contains(chrG2.getName())) continue;
 			log.info("Total units G2 for "+chrG2.getName()+": "+unitsChrG2.size());
+			if(unitsChrG2.size()<5) continue;
 			//Whole chromosome synteny LCS algorithm
 			String chrNameG1 = findBestChromosome(unitsChrG2, genome1.getId());
 			if(chrNameG1!=null) {
