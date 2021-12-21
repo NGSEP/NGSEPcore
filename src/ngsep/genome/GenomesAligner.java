@@ -558,7 +558,7 @@ public class GenomesAligner {
 				GenomicRegion r1 = sb.getRegionGenome1();
 				GenomicRegion r2 = sb.getRegionGenome2();
 				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();
-				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast();
+				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+r2.isNegativeStrand();
 				outSynteny.println(line);
 //				Printing of homology units that form the synteny block. 
 				
@@ -579,6 +579,7 @@ public class GenomesAligner {
 				+", chromosomeG2: '"+r2.getSequenceName() + "'" 
 				+", regionStartG2: "+r2.getFirst()
 				+", regionEndG2: "+r2.getLast()
+				+", negativeG2: "+(r2.isNegativeStrand()?1:0)
 				+"},");
 			}
 			outSyntenyJS.println("];");

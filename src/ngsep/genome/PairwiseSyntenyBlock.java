@@ -19,6 +19,10 @@ public class PairwiseSyntenyBlock {
 		String seqName2 = null;
 		int first2 = Integer.MAX_VALUE;
 		int last2 = 0;
+		int lastStart = -1;
+		int votesPositive = 0;
+		int votesNegative = 0;
+		
 		for (SyntenyVertex sv : homologies) {
 			LocalHomologyCluster g1 = sv.getLocalRegion1();
 			LocalHomologyCluster g2 = sv.getLocalRegion2();
@@ -33,10 +37,17 @@ public class PairwiseSyntenyBlock {
 				seqName2 = g2.getSequenceName();
 			}
 			last1 = Math.max(last1, g1.getLast());
-			last2 = Math.max(last2, g2.getLast());	
+			last2 = Math.max(last2, g2.getLast());
+			if(lastStart>0) {
+				if( g2.getFirst()>=lastStart) votesPositive++;
+				else votesNegative++;
+			}
+			//if("chrVII".equals(seqName1)) System.out.println("Next vertex "+g1.getSequenceName()+":"+g1.getFirst()+"-"+g1.getLast()+" to "+g2.getSequenceName()+":"+g2.getFirst()+"-"+g2.getLast()+" lastStart: "+lastStart+" votes: "+votesPositive+" "+votesNegative);
+			lastStart = g2.getFirst();
 		}
 		regionGenome1 = new GenomicRegionImpl(seqName1, first1, last1);
 		regionGenome2 = new GenomicRegionImpl(seqName2, first2, last2);
+		((GenomicRegionImpl)regionGenome2).setNegativeStrand(votesNegative>votesPositive);
 		this.homologies = homologies;
 	}
 

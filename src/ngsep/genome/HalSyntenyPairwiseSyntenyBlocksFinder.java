@@ -79,7 +79,7 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 			SyntenyVertex v = vertices.get(i);
 			LocalHomologyCluster c1 = v.getLocalRegion1();
 			LocalHomologyCluster c2 = v.getLocalRegion2();
-			if(c1.getFirst()>240000 && c1.getLast()<255000) System.out.println("Next vertex g1 "+c1.getSequenceName()+":"+c1.getFirst()+"-"+c1.getLast()+" g2 "+c2.getSequenceName()+":"+c2.getFirst()+"-"+c2.getLast()+" idx: "+i);
+			//if(c1.getFirst()>240000 && c1.getLast()<255000) System.out.println("Next vertex g1 "+c1.getSequenceName()+":"+c1.getFirst()+"-"+c1.getLast()+" g2 "+c2.getSequenceName()+":"+c2.getFirst()+"-"+c2.getLast()+" idx: "+i);
 		}
 		return vertices;
 	}

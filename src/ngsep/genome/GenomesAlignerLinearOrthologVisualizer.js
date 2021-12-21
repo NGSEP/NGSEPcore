@@ -3,9 +3,9 @@ const form = option.append('form');
 const containerSection = option.append('div').attr('class', 'container section');
 containerSection.append('h1').attr('class', 'black-text center').text('Linear visualization');
 option.append('input').attr('type', 'button').attr('onClick', 'history.go(0)').attr('value', 'Start again!');
-option.append('input').attr('id', 'SyntenyButton').attr('type', 'button').attr('value', 'Synteny');
+option.append('input').attr('id', 'SyntenyButton').attr('type', 'button').attr('value', 'Synteny orthologs');
 d3.select('#SyntenyButton').on('click', showSynteny);
-option.append('input').attr('id', 'AllButton').attr('type', 'button').attr('value', 'All');
+option.append('input').attr('id', 'AllButton').attr('type', 'button').attr('value', 'All orthologs');
 d3.select('#AllButton').on('click', showAll);
 
 // TODO?: Slider instead of text input for better user feedback
@@ -26,7 +26,6 @@ const dims = {
 
 const margin = { left: 80, right: 20, top: 20, bottom: 20 };
 
-let allSyntenyBlocks = {};
 let allOrthologs = {};
 
 const graph = d3.selectAll('.canvas')
@@ -154,8 +153,7 @@ function zoom1() {
     }
     y1AxisGroup.transition(t).call(y1Axis);
 
-	allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);
-	paintSyntenyBlocks (allSyntenyBlocks)
+	paintSyntenyBlocks (syntenyBlocks)
     graph.selectAll('line.orthologLine').transition(t)
         .attr('y1', d => {
             return y1(d.geneStart)
@@ -198,8 +196,7 @@ function zoom2() {
     }
     y2AxisGroup.transition(t).call(y2Axis);
 
-	allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);
-	paintSyntenyBlocks (allSyntenyBlocks)
+	paintSyntenyBlocks (syntenyBlocks)
     graph.selectAll('line.orthologLine').transition(t)
         .attr('y2', d => {
             return y2(d.geneStartG2)
@@ -358,78 +355,58 @@ var lineFunc = d3.line()
   .x(function(d) { return d.x })
   .y(function(d) { return d.y })
 
-const paintSyntenyBlocks = syntenyBlocks => {
+const paintSyntenyBlocks = blocks => {
+	// Create data to draw the lines in the correct positions
+	blocksData = []
+    blocks.forEach(block => {
+    	    
+        if (chromosomesDisplayed(genomeData1, genomeData2, block.chromosomeG1, block.chromosomeG2)) {
+			y11 = lengthsG1[block.chromosomeG1] + parseInt(block.regionStartG1);
+			y12 = lengthsG1[block.chromosomeG1] + parseInt(block.regionEndG1);
+			y21 = lengthsG2[block.chromosomeG2] + parseInt(block.regionStartG2);
+			y22 = lengthsG2[block.chromosomeG2] + parseInt(block.regionEndG2);
+			if(y11>=y1.domain()[0] && y12 <=y1.domain()[1] && y21>=y2.domain()[0] && y22 <=y2.domain()[1]) {
+				block.coords = [];
+                block.coords.push( { 'x': margin.left, 'y': y1(y11) } );
+				if (block.negativeG2==1) {
+					block.coords.push( { 'x': dims.width, 'y': y2(y22) } );
+					block.coords.push( { 'x': dims.width, 'y': y2(y21) } );
+				} else {
+					block.coords.push( { 'x': dims.width, 'y': y2(y21) } );
+                	block.coords.push( { 'x': dims.width, 'y': y2(y22) } );
+				}
+                block.coords.push( { 'x': margin.left, 'y': y1(y12) } );
+                blocksData.push(block);
+			}
+	        
+        }
+    });
+	// Remove previous blocks
+	blocksGroup.selectAll('path.syntenyBlock').remove();
+	
     // Create data to be painted
-    const blocks = blocksGroup.selectAll('line.syntenyBlock').data(syntenyBlocks);
-
-    // // Current selection
-    // lines.remove();
+    const blockPaths = blocksGroup.selectAll('path.syntenyBlock').data(blocksData);
 
     // Exit selection
-    blocks.exit().remove();
+    blockPaths.exit().remove();
 
-    var t = graph.transition().duration(750);
-
-    // Enter selection
-    // lines.enter()
-    //     .append('line')
-    //     .merge(lines)
-    //     .attr('class', 'orthologLine')
-    //     .attr('id', d => `${d.geneId}::${d.geneIdG2}`)
-    //     .attr('x1', margin.left)
-    //     .attr('x2', dims.width)
-    //     .attr('y1', d => y1(d.geneStart))
-    //     .attr('y2', d => y2(d.geneStartG2))
-    //     .style('stroke', d => color(d.chromosome));
-    blocks
-        // .transition(t) // Uncomment this line for cool and inefficient animations
-        .attr('x1', margin.left)
-        .attr('x2', dims.width)
-        .attr('y1', d => y1(d.regionStartG1))
-        .attr('y2', d => y2(d.regionStartG2))
-        .style('stroke', d => color(d.chromosomeG1));
-
-    blocks.enter()
+    blockPaths.enter()
         .append('path')
         .attr('d', d => lineFunc(d.coords))
         .attr('class', 'syntenyBlock')
         .attr('stroke', d => color(d.chromosomeG1))
         .attr('fill', d => color(d.chromosomeG1));
-
-    graph.selectAll('line.syntenyBlock')
-        .attr('y1', d => {
-            return y1(d.regionStartG1)
-        })
-        .attr('opacity', d => d.regionStartG1 > y1.domain()[1] || d.regionEndG1 < y1.domain()[0] || d.regionStartG2 > y2.domain()[1] || d.regionStartG2 < y2.domain()[0] ? 0.0 : 1.0);
-
-    // Animations
-    // zoom1();
-    // zoom2();
 };
 
 const paintData = orthologs => {
     // Create data to be painted
     const lines = linesGroup.selectAll('line.orthologLine').data(orthologs);
 
-    // // Current selection
-    // lines.remove();
-
     // Exit selection
     lines.exit().remove();
 
     var t = graph.transition().duration(750);
 
-    // Enter selection
-    // lines.enter()
-    //     .append('line')
-    //     .merge(lines)
-    //     .attr('class', 'orthologLine')
-    //     .attr('id', d => `${d.geneId}::${d.geneIdG2}`)
-    //     .attr('x1', margin.left)
-    //     .attr('x2', dims.width)
-    //     .attr('y1', d => y1(d.geneStart))
-    //     .attr('y2', d => y2(d.geneStartG2))
-    //     .style('stroke', d => color(d.chromosome));
     lines
         // .transition(t) // Uncomment this line for cool and inefficient animations
         .attr('x1', margin.left)
@@ -453,35 +430,7 @@ const paintData = orthologs => {
             return y1(d.geneStart)
         })
         .attr('opacity', d => d.geneStart > y1.domain()[1] || d.geneStart < y1.domain()[0] || d.geneStartG2 > y2.domain()[1] || d.geneStartG2 < y2.domain()[0] ? 0.0 : 1.0);
-
-    // Animations
-    // zoom1();
-    // zoom2();
 };
-
-// Create data to draw the lines in the correct positions
-const createSyntenyBlocksData = (blocks) => {
-	blocksData = []
-    blocks.forEach(block => {
-    	    
-        if (chromosomesDisplayed(genomeData1, genomeData2, block.chromosomeG1, block.chromosomeG2)) {
-			y11 = lengthsG1[block.chromosomeG1] + parseInt(block.regionStartG1);
-			y12 = lengthsG1[block.chromosomeG1] + parseInt(block.regionEndG1);
-			y21 = lengthsG2[block.chromosomeG2] + parseInt(block.regionStartG2);
-			y22 = lengthsG2[block.chromosomeG2] + parseInt(block.regionEndG2);
-			if(y11>=y1.domain()[0] && y12 <=y1.domain()[1] && y21>=y2.domain()[0] && y22 <=y2.domain()[1]) {
-				block.coords = [];
-                block.coords.push( { 'x': margin.left, 'y': y1(y11) } );
-                block.coords.push( { 'x': dims.width, 'y': y2(y21) } );
-                block.coords.push( { 'x': dims.width, 'y': y2(y22) } );
-                block.coords.push( { 'x': margin.left, 'y': y1(y12) } );
-                blocksData.push(block);
-			}
-	        
-        }
-    });
-    return blocksData;
-}
 
 // Auxiliary function to check if a chromosome is displayed
 const chromosomesDisplayed = (genomeData1, genomeData2, chrG1, chrG2) => {
@@ -518,12 +467,8 @@ const createLineData = orthologs => {
 
 // Show synteny
 function showSynteny() {
-	if(allOrthologs.synteny.length<500) {
-		paintData(allOrthologs.synteny);
-	}
-	else {
-		paintSyntenyBlocks(allSyntenyBlocks);
-	}
+	blocksGroup.selectAll('path.syntenyBlock').remove();
+	paintData(allOrthologs.synteny);
 	
     document.getElementById('SyntenyButton').disabled = true;
     document.getElementById('AllButton').disabled = false;
@@ -531,6 +476,7 @@ function showSynteny() {
 
 // Show all
 function showAll() {
+	blocksGroup.selectAll('path.syntenyBlock').remove();
     paintData(allOrthologs.all);
     document.getElementById('SyntenyButton').disabled = false;
     document.getElementById('AllButton').disabled = true;
@@ -566,4 +512,4 @@ const divideOrthologs = (orthologs,genomeId2) => {
 // Read data
 prepareData();
 allOrthologs = divideOrthologs(orthologsG1,2);
-allSyntenyBlocks = createSyntenyBlocksData(syntenyBlocks,1,2);
+paintSyntenyBlocks(syntenyBlocks);
