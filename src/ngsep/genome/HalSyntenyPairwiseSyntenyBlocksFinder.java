@@ -34,8 +34,9 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 	@Override
 	public List<PairwiseSyntenyBlock> findSyntenyBlocks(AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<HomologyCluster> clusters) {
 		List<PairwiseSyntenyBlock> syntenyBlocks = new ArrayList<PairwiseSyntenyBlock>();
+		//System.out.println("Building graph. Clusters: "+clusters.size());
 		List<SyntenyVertex> vertices = buildVertices(g1, g2, clusters);
-		
+		//System.out.println("Built graph with "+vertices.size()+" vertices");
 		int n = vertices.size();
 		int [] vertexWeights = new int [n];
 		for (int i=0;i<n;i++) {
@@ -46,8 +47,10 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 		for (int i=0;i<n;i++) {
 			edges.add(buildEdgesVertex(vertices, vertexWeights, i));
 		}
+		System.out.println("Built graph with "+vertices.size()+" vertices and "+edges.size()+" edges");
 		List<Integer> nextPathIndexes = findNextPath(vertexWeights,edges,verticesInBlocks);
 		while (nextPathIndexes!=null) {
+			//System.out.println("Found next path of size: "+nextPathIndexes.size());
 			List<SyntenyVertex> path = new ArrayList<>(nextPathIndexes.size());
 			for(int i:nextPathIndexes) {
 				path.add(vertices.get(i));
@@ -65,6 +68,7 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 		for(HomologyCluster cluster:clusters) {
 			List<LocalHomologyCluster> clustersG1 = cluster.getLocalClusters(g1.getId());
 			List<LocalHomologyCluster> clustersG2 = cluster.getLocalClusters(g2.getId());
+			if(clustersG1.size()*clustersG2.size()>100) continue;
 			for(LocalHomologyCluster c1:clustersG1) {
 				for(LocalHomologyCluster c2: clustersG2) {
 					SyntenyVertex v = new SyntenyVertex(c1, c2);

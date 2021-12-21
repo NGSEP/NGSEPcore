@@ -343,7 +343,7 @@ public class GenomesAligner {
 			for(int j=i+1;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome1 = genomes.get(i);
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				
+				log.info("Aligning genome "+i+" with genome "+j);
 				orthologsSyntenyBlocks = finder.findSyntenyBlocks(genome1, genome2, homologyClusters);
 			}
 		}
@@ -398,7 +398,6 @@ public class GenomesAligner {
 				genesIncluded.add(hom.getId());
 		}
 		
-		
 		for(AnnotatedReferenceGenome genome : genomes)
 		{
 			List<HomologyUnit> allGenes = genome.getHomologyUnits();
@@ -407,11 +406,10 @@ public class GenomesAligner {
 			{
 				if(!genesIncluded.contains(hom2.getId())) 
 				{
-					log.info("Detected private gene family" + hom2.getId());
-					List<HomologyUnit> listahom= new ArrayList<>();
-					listahom.add(hom2);
+					List<HomologyUnit> homologsList= new ArrayList<>();
+					homologsList.add(hom2);
 					
-					HomologyCluster homclus = new HomologyCluster(count,listahom);
+					HomologyCluster homclus = new HomologyCluster(count,homologsList);
 					privateGeneFamilies.add(homclus);
 					genesIncluded.add(hom2.getId());
 					//log.info("Private size: " + privateGeneFamilies.size() + " Count value: " + count);
@@ -419,7 +417,7 @@ public class GenomesAligner {
 				}
 			}
 		}
-		
+		log.info("Detected "+privateGeneFamilies.size()+" private genes. Total clusters: " + count);
 		return  privateGeneFamilies;
 	}
 	

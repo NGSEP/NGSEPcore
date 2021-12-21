@@ -45,7 +45,7 @@ import ngsep.math.Distribution;
 public class HomologClustersCalculator {
 	//Possible program arguments
 	private static final int PREFERRED_ORTHOGROUP_SIZE = 50;
-	private static final int MAX_SIZE_MCL = 5000;
+	private static final int MAX_SIZE_MCL = 1000;
 	
 	//Statistics
 	private int countLarge = 0;
@@ -403,6 +403,7 @@ public class HomologClustersCalculator {
 				if(j!=null)matrix[i][j] = edge.getScore();
 			}
 		}
+		log.info(String.format("Matrix built for MCL RUN #%d.", countMedium, clusters.size()));
 		
 		MCLJob job = new MCLJob(matrix);
 		job.run();

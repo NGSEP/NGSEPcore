@@ -57,11 +57,15 @@ public class MCLJob extends Thread {
 		while(!convergenceState) {
 			runs++;
 			backup = copyOf(similarityMatrix);
+			//System.out.println("Matrix copied");
 			backup = squareMatrixTimes(backup, E_POWER);
+			//System.out.println("Matrix elevated");
 			backup = inflateMatrix(backup, INFLATION_COEFFICIENT);
+			//System.out.println("Matrix inflated");
 			double std = calculateStandardError(similarityMatrix, backup);
 			similarityMatrix = backup;
 			convergenceState = (std<=DEVIATION_THRESHOLD || std>=0.99*lastSTD);
+			System.out.println("Last std: "+lastSTD+" Standard error: "+std+" convergence: "+convergenceState);
 			lastSTD = std;
 		}
 		
@@ -119,7 +123,6 @@ public class MCLJob extends Thread {
 		}
 		double count = (oldState.length*oldState[0].length);
 		double std = Math.sqrt(squaredSum/(count));
-		System.out.println("Next round error: "+std);
 		return std;
 	}
 	
