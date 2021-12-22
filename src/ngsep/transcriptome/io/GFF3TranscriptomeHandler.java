@@ -209,7 +209,7 @@ public class GFF3TranscriptomeHandler {
 						//Direct CDs without transcript
 						transcript = createTranscriptFromCDSFeature(geneChild);
 						if(transcript == null) continue;
-						if(transcript.getId()==null) transcript.setId(gene.getId());
+						if(transcript.getId()==null) transcript.setId(gene.getId()+"_mRNA");
 						segments.addAll(createFeatureSegments(geneChild, transcript));
 					}
 					if(transcript!=null) {
