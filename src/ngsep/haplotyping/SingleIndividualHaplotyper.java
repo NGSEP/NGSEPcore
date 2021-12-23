@@ -249,6 +249,7 @@ public class SingleIndividualHaplotyper {
 			List<Byte> calls = new ArrayList<>(50);
 			int realCalls = 0;
 			int first = i;
+			int firstAln = i;
 			for(int j=i;j<hetCalls.size();j++) {
 				GenomicVariant var = hetCalls.get(j);
 				if(var.getFirst()>lastAln) {
@@ -282,10 +283,10 @@ public class SingleIndividualHaplotyper {
 			}
 			
 			if(realCalls==0) continue;
-			if(lastNextBlock>=0 && first>lastNextBlock) {
+			if(lastNextBlock>=0 && firstAln>lastNextBlock) {
 				CalledGenomicVariant lastCall = hetCalls.get(lastNextBlock);
-				CalledGenomicVariant nextCall = hetCalls.get(first);
-				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock +" "+lastCall.getFirst()+" next SNP: "+first+" "+nextCall.getFirst()+" next alignment: "+aln);
+				CalledGenomicVariant nextCall = hetCalls.get(firstAln);
+				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock +" "+lastCall.getFirst()+" next SNP: "+firstAln+" "+nextCall.getFirst()+" next alignment: "+aln);
 				if(fragments.size()>0) {	
 					if(algorithm==null) loadAlgorithm();
 					List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
@@ -296,9 +297,10 @@ public class SingleIndividualHaplotyper {
 					answer.add(block);
 				}
 				fragments = new ArrayList<>();
-				firstNextBlock = first;
+				firstNextBlock = firstAln;
 				lastNextBlock = first;
 			}
+			if(first<firstNextBlock) System.err.println("Error calculating start of fragment. First: "+first+" firstNextBlock: "+firstNextBlock+" aln : "+aln);
 			fragments.add(new HaplotypeFragment(aln.getReadNumber(), first-firstNextBlock,NumberArrays.toByteArray(calls)));
 			if(fragments.size()%1000==0) log.info("Added "+fragments.size()+" fragments"+" calls last fragment: "+realCalls);
 			lastNextBlock=Math.max(lastNextBlock, first+calls.size()-1);

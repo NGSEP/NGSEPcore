@@ -336,6 +336,7 @@ public class HaplotypeReadsClusterCalculator {
 		int n = hetVars.size();
 		for(int i=0;i<n;i++) {
 			CalledGenomicVariant hetVar = hetVars.get(i);
+			if(path.getPathId() == debugIdx) System.out.println("Next raw heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" alleles: "+hetVar.getAlleles()[0]+" "+hetVar.getAlleles()[1]);
 			if(hetVar.getTotalReadDepth()<0.7*readDepth) {
 				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with depth: "+hetVar.getTotalReadDepth()+" average: "+readDepth);
 				continue;
@@ -347,7 +348,7 @@ public class HaplotypeReadsClusterCalculator {
 					countSNVs++;
 					filteredVars.add(hetVar);
 				}
-			}
+			} else if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" close to other variant. Limits next: "+posBefore+" "+posAfter);
 		}
 		//if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
 		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars.size()+" SNVs: "+countSNVs);
@@ -748,10 +749,10 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 		
 		char altBase = (maxBp==refBase)?secondBp:maxBp;
 		if(pos==idxDebug) System.out.println("SimpleHetVars. Max count: "+maxCount+" secondCount: "+secondCount+" total alns: "+alns.size()+" ref: "+refBase+" maxBp: "+maxBp+" secondBp: "+secondBp);
-		if(maxCount+secondCount<alns.size()-1) return;
+		if(maxCount+secondCount<0.9*alns.size()) return;
 		if(secondCount < MIN_DEPTH_ALLELE) return;
 		//TODO: Define better
-		if(secondCount < 0.25*maxCount) return;
+		if(secondCount < 0.2*maxCount) return;
 		if(refBase!=maxBp && refBase != secondBp) return;
 		CalledSNV calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO);
 		calledSNV.setAllBaseCounts(acgtCounts);

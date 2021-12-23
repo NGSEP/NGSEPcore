@@ -79,6 +79,7 @@ public class HaplotypeBlock
 		matrix = new ArrayList <HaplotypeFragment>(fragments);
 		haplotype = null;
 		fragmentsClusters = null;
+		sort();
 	}
 	
 	/**
