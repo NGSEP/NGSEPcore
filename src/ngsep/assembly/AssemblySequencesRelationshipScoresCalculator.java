@@ -55,10 +55,11 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double score = (0.001*relationship.getOverlap())*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers();
 		//double score = overlapRel*relationship.getWeightedCoverageSharedKmers()*evProp/Math.sqrt(1+relationship.getIndelsPerKbp());
-		double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
+		double score = 1.0*relationship.getCoverageSharedKmers()*evProp;
+		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
 		//double score = Math.sqrt(relationship.getOverlap())*(0.01*relationship.getWeightedCoverageSharedKmers())*Math.sqrt(evProp);
 		if(weightsSecondaryFeatures>0) {
-			score*=Math.sqrt(evProp);
+			//score*=Math.sqrt(evProp);
 			if(indelsKbpD.getVariance()<1) score/=Math.sqrt(Math.max(1, relationship.getIndelsPerKbp()-1));
 		}
 		

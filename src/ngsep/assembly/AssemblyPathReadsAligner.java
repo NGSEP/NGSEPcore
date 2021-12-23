@@ -16,6 +16,7 @@ import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignmentPositionComparator;
 import ngsep.main.ThreadPoolManager;
 import ngsep.math.CountsRankHelper;
 import ngsep.sequences.DNAMaskedSequence;
@@ -36,6 +37,7 @@ public class AssemblyPathReadsAligner {
 	private static Runtime runtime = Runtime.getRuntime();
 	public static final int KMER_LENGTH_LOCAL_ALN = 31;
 	private boolean haploid = true;
+	private boolean buildUnalignedReadRecords = false;
 	
 	
 	public Logger getLog() {
@@ -53,6 +55,14 @@ public class AssemblyPathReadsAligner {
 	}
 	public void setHaploid(boolean haploid) {
 		this.haploid = haploid;
+	}
+	
+	
+	public boolean isBuildUnalignedReadRecords() {
+		return buildUnalignedReadRecords;
+	}
+	public void setBuildUnalignedReadRecords(boolean buildUnalignedReadRecords) {
+		this.buildUnalignedReadRecords = buildUnalignedReadRecords;
 	}
 	public void calculateConsensus(AssemblyPath path) {
 		int debugIdx = -1;
@@ -217,6 +227,13 @@ public class AssemblyPathReadsAligner {
 				}
 			} else {
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
+				for(AssemblyEmbedded embedded:embeddedList) {
+					QualifiedSequence seqEmb = graph.getSequence(embedded.getSequenceId());
+					ReadAlignment unalignedReadRecord = buildUnalignedReadRecord(embedded.getSequenceId(),seqEmb.getName(),seqEmb.getCharacters());
+					synchronized (alignedReads) {
+						alignedReads.add(unalignedReadRecord);
+					}
+				}
 				if(pathIdx == debugIdx) System.err.println("WARN: Unaligned consensus backbone read "+nextVertex.getRead().getName()+" to final consensus. Unaligned embedded reads: "+embeddedList.size());
 			}
 			lastVertex = nextVertex;
@@ -227,6 +244,7 @@ public class AssemblyPathReadsAligner {
 			// TODO Better handling
 			e.printStackTrace();
 		}
+		Collections.sort(alignedReads, ReadAlignmentPositionComparator.getInstance() );
 		usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" Memory (Mbp): "+usedMemory);
 		return alignedReads;
@@ -305,6 +323,17 @@ public class AssemblyPathReadsAligner {
 			}
 			return aln2;
 		}
+		if(buildUnalignedReadRecords && aln==null) {
+			ReadAlignment unalignedReadRecord = buildUnalignedReadRecord(readId,readName,sequence);
+			synchronized (alignedReads) {
+				alignedReads.add(unalignedReadRecord);
+			}
+		}
+		return aln;
+	}
+	private ReadAlignment buildUnalignedReadRecord(int readId, String readName, CharSequence sequence) {
+		ReadAlignment aln = new ReadAlignment(0,0,0,sequence.length(),ReadAlignment.FLAG_READ_UNMAPPED);
+		aln.setReadCharacters(sequence);
 		return aln;
 	}
 	private ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {

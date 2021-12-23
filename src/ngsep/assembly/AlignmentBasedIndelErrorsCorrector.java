@@ -113,7 +113,6 @@ public class AlignmentBasedIndelErrorsCorrector {
 			if(path.getPathLength()>10) {
 				aligner.calculateConsensus(path);
 				List<ReadAlignment> alignments = aligner.alignPathReads(copyGraph, path, numThreads);
-				Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 				List<ReadAlignment> selectedAlns = new ArrayList<ReadAlignment>(alignments.size());
 				for(ReadAlignment aln:alignments) {
 					int readId = aln.getReadNumber();

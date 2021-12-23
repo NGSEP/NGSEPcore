@@ -20,7 +20,6 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +29,6 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
@@ -104,7 +102,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		String sequenceName = path.getSequenceName();
 		StringBuilder rawConsensus = new StringBuilder(path.getConsensus());
 		for(ReadAlignment aln:alignments) aln.setSequenceName(sequenceName);
-		Collections.sort(alignments, GenomicRegionPositionComparator.getInstance());
 		
 		List<CalledGenomicVariant> variants = aligner.callIndels(path.getConsensus(), alignments, normalPloidy);
 		log.info("Path "+pathIdx+" "+sequenceName+" Identified "+variants.size()+" total variants from read alignments");

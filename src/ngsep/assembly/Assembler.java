@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -363,6 +363,7 @@ public class Assembler {
 			log.info("Saved uncorrected graph to "+outFileGraph);
 		}
 		
+		//Current error correction
 		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
 		indelCorrector.setNumThreads(numThreads);
 		indelCorrector.setLog(log);
@@ -388,6 +389,8 @@ public class Assembler {
 			}
 			graph = buildGraph(correctedSequences, map, null);
 		}
+		
+		//Save graph and corrected reads
 		if(graphFile==null || correctedSequences!=null) {
 			String outFileGraph = outputPrefix+".graph.gz";
 			if(correctedSequences!=null && saveCorrected) {
@@ -414,8 +417,6 @@ public class Assembler {
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		} else {
 			pathsFinder= new LayoutBuilderKruskalPath();
-			//LayourBuilder pathsFinder = new LayoutBuilderMetricMSTChristofides();
-			//LayourBuilder pathsFinder = new LayoutBuilderModifiedKruskal();
 		}
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
@@ -446,7 +447,14 @@ public class Assembler {
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
 			hapsCalculator.setLog(log);
 			hapsCalculator.setNumThreads(numThreads);
-			List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
+			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(diploidGraph, ploidy);
+			saveReadsPhasingData (graph, readsData, outputPrefix+"_phasedReadsData.txt");
+			filterGraphWithPhasingData(graph,readsData);
+			String outFileGraph = outputPrefix+"_filteredByPhase.graph.gz";
+			AssemblyGraphFileHandler.save(graph, outFileGraph);
+			log.info("Saved graph with phase filtering to "+outFileGraph);
+			
+			/*List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
 			log.info("Separated reads in "+readIdsClusters.size()+" clusters");
 			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(5);
 			int haplotypeNumber= 0;
@@ -466,8 +474,8 @@ public class Assembler {
 				log.info("Assembled "+sequencesCluster.size()+" sequences for next haplotype cluster");
 				assembledSequences.addAll(sequencesCluster);
 				haplotypeNumber++;
-			}
-		} else {
+			}*/
+		} /*else {*/
 			graph.updateScores(0);
 			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			//graph.updateScores();
@@ -475,7 +483,7 @@ public class Assembler {
 			pathsFinder.findPaths(graph);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 			assembledSequences.addAll(consensus.makeConsensus(graph));
-		}
+		//}
 		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
@@ -513,6 +521,42 @@ public class Assembler {
 		diff1 = (time4-time3)/1000;
 		diff2 = (time4-startTime)/1000;
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
+	}
+	private void saveReadsPhasingData(AssemblyGraph graph, Map<Integer, ReadPathPhasingData> readsData, String outFilename) throws IOException {
+		try (PrintStream out = new PrintStream(outFilename)) {
+			for(int i=0;i<graph.getNumSequences();i++) {
+				QualifiedSequence seq = graph.getSequence(i);
+				out.print(i+"\t"+seq.getName());
+				if(graph.isChimeric(i)) {
+					out.println("\tChimeric");
+					continue;
+				}
+				ReadPathPhasingData data = readsData.get(i);
+				if(data==null) {
+					out.println("\tNoData");
+					continue;
+				}
+				out.println(" \t"+data.getPathId()+"\t"+data.getBlockNumber()+"\t"+data.getPhaseWithinBlock()+"\t"+data.isInHomozygousRegion()+"\t"+data.getReadDepth());
+			}
+		}
+		
+		
+	}
+	private void filterGraphWithPhasingData(AssemblyGraph graph, Map<Integer, ReadPathPhasingData> readsData) {
+		for(AssemblyEdge edge: graph.getEdges()) {
+			if(edge.isSameSequenceEdge()) continue;
+			ReadPathPhasingData d1 = readsData.get(edge.getVertex1().getSequenceIndex());
+			ReadPathPhasingData d2 = readsData.get(edge.getVertex2().getSequenceIndex());
+			if(d1==null || d2==null) continue;
+			if(d1.isOppositePhase(d2)) graph.removeEdge(edge);
+		}
+		for (AssemblyEmbedded embedded:graph.getAllEmbedded()) {
+			ReadPathPhasingData d1 = readsData.get(embedded.getSequenceId());
+			ReadPathPhasingData d2 = readsData.get(embedded.getHostId());
+			if(d1==null || d2==null) continue;
+			if(d1.isOppositePhase(d2)) graph.removeEmbedded(embedded);
+		}
+		
 	}
 	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map, double[] compressionFactors) {
 		AssemblyGraph graph;

@@ -184,9 +184,9 @@ public class AssemblySequencesRelationshipFilter {
 	private boolean filterEmbeddedByScore(AssemblyGraph graph, int sequenceId,int medianLength, NormalDistribution distLengths, int maxScoreEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
-		//double minScoreProportionEmbedded = 0.8;
+		double minScoreProportionEmbedded = 0.8;
 		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
-		double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
+		//double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
 		//double minScoreProportionEmbedded = Math.min(0.8, distLengths.cumulative(sequenceLength));
 		//double minScoreProportionEmbedded = 0.8*cumulative;
 		//This can be improved if the graph is completely calculated

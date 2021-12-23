@@ -69,6 +69,17 @@ public class HaplotypeBlock
 		haplotype = null;
 		fragmentsClusters = null;
 	}
+	/**
+	 * Constructor that initializes the attributes of a HaplotypeBlock with the given parameters.
+	 * @param variants.
+	 */
+	public HaplotypeBlock(List<CalledGenomicVariant> calls, List<HaplotypeFragment> fragments) 
+	{
+		this.calls = calls;
+		matrix = new ArrayList <HaplotypeFragment>(fragments);
+		haplotype = null;
+		fragmentsClusters = null;
+	}
 	
 	/**
 	 * Add fragment to the matrix
@@ -76,7 +87,15 @@ public class HaplotypeBlock
 	 * @param alleleCalls Calls starting from the given column
 	 */
 	public void addFragment(int id, int firstColumn, byte[] alleleCalls) {
-		HaplotypeFragment fragment = new HaplotypeFragment(id, firstColumn, alleleCalls);
+		addFragment(new HaplotypeFragment(id, firstColumn, alleleCalls));
+	}
+	
+	/**
+	 * Adds a given fragment to the matrix
+	 * @param firstColumn where valid allele calls are found
+	 * @param alleleCalls Calls starting from the given column
+	 */
+	public void addFragment(HaplotypeFragment fragment) {
 		matrix.add(fragment);
 		sorted = false;
 	}
@@ -127,6 +146,16 @@ public class HaplotypeBlock
 	 */
 	public void setFragmentsClusters(List<List<HaplotypeFragment>> fragmentsClusters) {
 		this.fragmentsClusters = fragmentsClusters;
+	}
+	
+	public List<List<Integer>> getClusteredFragmentIds() {
+		List<List<Integer>> answer = new ArrayList<>(fragmentsClusters.size());
+		for(List<HaplotypeFragment> cluster: fragmentsClusters) {
+			List<Integer> nextList = new ArrayList<>(cluster.size());
+			for(HaplotypeFragment fragment:cluster) nextList.add(fragment.getId());
+			answer.add(nextList);
+		}
+		return answer;
 	}
 
 	/**
@@ -441,5 +470,6 @@ public class HaplotypeBlock
 		double total = total0+total1;
 		return total>0?total0/total:0;
 	}
+	
 }
 
