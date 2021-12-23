@@ -121,11 +121,12 @@ public class HaplotypeReadsClusterCalculator {
 			List<PathReadsCluster> blocksPath = entry.getValue();
 			int blockNumber = 0;
 			for(PathReadsCluster block:blocksPath) {
+				int minReads = block.getMinReads();
 				double rd = block.getReadDepth();
 				double proportion = block.calculateProportion();
 				List<Set<Integer>> phasedReadIdsBlock = block.getPhasedReadIds();
 				boolean homozygousBlock = phasedReadIdsBlock.size()==1 && rd>1.4*averageHaploidRd;
-    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.4*averageHaploidRd /*&& proportion < 0.3*/;
+    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.4*averageHaploidRd && (rd<averageHaploidRd || (Math.abs(0.5-proportion)>0.2 && minReads<20));
     			System.out.println("Path: "+pathId+ " next block with "+phasedReadIdsBlock.size() +" clusters. Total read depth: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" falsePhasedBlock: "+falsePhasedBlock);
     			for(int i=0;i<phasedReadIdsBlock.size();i++) {
     				Set<Integer> readIds = phasedReadIdsBlock.get(i);
@@ -833,6 +834,8 @@ class ReadsClusterEdge {
 class PathReadsCluster {
 	private List<Set<Integer>> readIds = new ArrayList<Set<Integer>>();
 	private int numVariants = 0;
+	private int numReads = 0;
+	private int minReads = 0;
 	private double readDepth = 0;
 	
 	public PathReadsCluster(double readDepth, int numVariants) {
@@ -842,6 +845,8 @@ class PathReadsCluster {
 	}
 	public void addReadIds(Set<Integer> readIds ) {
 		this.readIds.add(readIds);
+		numReads+=readIds.size();
+		minReads = minReads>0?Math.min(minReads, readIds.size()):readIds.size();
 	}
 	public List<Set<Integer>> getPhasedReadIds() {
 		return readIds;
@@ -855,6 +860,13 @@ class PathReadsCluster {
 	}
 	public boolean isPhased() {
 		return readIds.size()>1;
+	}
+	
+	public int getNumReads() {
+		return numReads;
+	}
+	public int getMinReads() {
+		return minReads;
 	}
 	public double calculateProportion () {
 		if(readIds.size()<=1) return 1;
