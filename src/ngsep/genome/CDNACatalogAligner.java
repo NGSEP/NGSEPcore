@@ -19,8 +19,8 @@ import ngsep.transcriptome.ProteinTranslator;
 
 public class CDNACatalogAligner {
 	// Constants for default values
-	public static final int INPUT_TYPE_CDNA = 1;
-	public static final int INPUT_TYPE_PROTEIN = 2;
+	public static final int INPUT_TYPE_CDNA = HomologyCatalog.INPUT_TYPE_CDNA;
+	public static final int INPUT_TYPE_PROTEIN = HomologyCatalog.INPUT_TYPE_PROTEIN;
 	public static final String DEF_OUT_PREFIX = "catalogsAlignment";
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
@@ -31,14 +31,13 @@ public class CDNACatalogAligner {
 	private ProgressNotifier progressNotifier=null;
 	
 	// Parameters
-	private ProteinTranslator translator = new ProteinTranslator();
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private boolean skipMCL= false;
 	private int inputType = INPUT_TYPE_CDNA;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
-	private List<HomologyCatalog> cdnaCatalogs = new ArrayList<>();
+	private List<HomologyCatalog> homologyCatalogs = new ArrayList<>();
 	private List<HomologyCluster> orthologyUnitClusters=new ArrayList<>();
 	
 	//logging
@@ -111,26 +110,13 @@ public class CDNACatalogAligner {
 	}
 	
 	private void loadFile(String fileName) throws IOException {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		if(inputType==INPUT_TYPE_PROTEIN) handler.setSequenceType(StringBuilder.class);
-		List<QualifiedSequence> sequences = handler.loadSequences(fileName);
-		
-		List<HomologyUnit> units = new ArrayList<>();
-		for(QualifiedSequence seq : sequences) {
-			String proteinSequence = seq.getCharacters().toString();
-			if(inputType==INPUT_TYPE_CDNA) proteinSequence = translator.getProteinSequence(proteinSequence);
-			if(proteinSequence.length()<10) System.out.println("Small sequence "+proteinSequence+" with name: "+seq.getName()+" length: "+proteinSequence.length());
-			HomologyUnit unit = new HomologyUnit(cdnaCatalogs.size()+1, seq.getName(), proteinSequence);
-			units.add(unit);
-		}
-		
-		HomologyCatalog catalog = new HomologyCatalog(units);
-		cdnaCatalogs.add(catalog);
+		HomologyCatalog catalog = HomologyCatalog.loadFromFasta(fileName,homologyCatalogs.size()+1,inputType);
+		homologyCatalogs.add(catalog);
 	}
 	
 	public void run () throws IOException {
 		logParameters();
-		if(cdnaCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
+		if(homologyCatalogs.size()==0) throw new IOException("At least one organism's data should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		generateOrthologs();
 		printRelationships(outputPrefix+"_rawHomologs.txt");
@@ -142,18 +128,18 @@ public class CDNACatalogAligner {
 	
 	private void generateOrthologs() {
 		catalogsDescription();
-		
-		for(int i=0;i<cdnaCatalogs.size();i++) {
-			HomologyCatalog catalog = cdnaCatalogs.get(i);
+		int n = homologyCatalogs.size();
+		for(int i=0;i<n;i++) {
+			HomologyCatalog catalog = homologyCatalogs.get(i);
 			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogsOrganism(catalog);
 			log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
 		}
 		
 		
-		for(int i=0;i<cdnaCatalogs.size();i++) {
-			HomologyCatalog catalog1 = cdnaCatalogs.get(i);
-			for (int j=0;j<cdnaCatalogs.size();j++) {
-				HomologyCatalog catalog2 = cdnaCatalogs.get(j);
+		for(int i=0;i<n;i++) {
+			HomologyCatalog catalog1 = homologyCatalogs.get(i);
+			for (int j=0;j<n;j++) {
+				HomologyCatalog catalog2 = homologyCatalogs.get(j);
 				if(i!=j) {
 					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2);
 					log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
@@ -163,9 +149,9 @@ public class CDNACatalogAligner {
 	}
 	
 	private void catalogsDescription() {
-		log.info("Total number of catalogs: " + cdnaCatalogs.size());
-		for(int i = 0; i < cdnaCatalogs.size(); i++) {
-			HomologyCatalog catalog = cdnaCatalogs.get(i);
+		log.info("Total number of catalogs: " + homologyCatalogs.size());
+		for(int i = 0; i < homologyCatalogs.size(); i++) {
+			HomologyCatalog catalog = homologyCatalogs.get(i);
 			log.info(String.format("Catalog #%d has %d genes.", i+1, catalog.getHomologyUnits().size()));
 		}
 	}
@@ -173,7 +159,7 @@ public class CDNACatalogAligner {
 	public void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		out.println("Loaded: "+ cdnaCatalogs.size()+" annotated genomes");
+		out.println("Loaded: "+ homologyCatalogs.size()+" annotated genomes");
 		out.println("Output prefix:"+ outputPrefix);
 		out.println("K-mer length: "+ getKmerLength());
 		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
@@ -185,13 +171,13 @@ public class CDNACatalogAligner {
 		calculator.setLog(log);
 		calculator.setKmerLength(homologRelationshipsFinder.getKmerLength());
 		calculator.setMinPctKmers(homologRelationshipsFinder.getMinPctKmers());
-		orthologyUnitClusters = calculator.clusterHomologsCatalogs(cdnaCatalogs);
+		orthologyUnitClusters = calculator.clusterHomologsCatalogs(homologyCatalogs);
 	}
 	
 	private void printRelationships(String filename) throws IOException {
 		try (PrintStream out = new PrintStream(filename);) {
 			out.println("Unit1\tUnit2\tscore");
-			for(HomologyCatalog catalog:cdnaCatalogs) {
+			for(HomologyCatalog catalog:homologyCatalogs) {
 				List<HomologyUnit> units = catalog.getHomologyUnits();
 				for(HomologyUnit unit:units) {
 					Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
