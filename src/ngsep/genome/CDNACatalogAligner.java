@@ -6,16 +6,12 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
-import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.io.FastaSequencesHandler;
-import ngsep.transcriptome.ProteinTranslator;
 
 public class CDNACatalogAligner {
 	// Constants for default values
@@ -131,7 +127,7 @@ public class CDNACatalogAligner {
 		int n = homologyCatalogs.size();
 		for(int i=0;i<n;i++) {
 			HomologyCatalog catalog = homologyCatalogs.get(i);
-			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogsOrganism(catalog);
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(catalog.getHomologyUnits());
 			log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
 		}
 		
@@ -141,7 +137,7 @@ public class CDNACatalogAligner {
 			for (int j=0;j<n;j++) {
 				HomologyCatalog catalog2 = homologyCatalogs.get(j);
 				if(i!=j) {
-					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1, catalog2);
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1.getHomologyUnits(), catalog2.getHomologyUnits());
 					log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
 				}
 			}

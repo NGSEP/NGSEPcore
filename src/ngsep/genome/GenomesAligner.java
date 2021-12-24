@@ -292,7 +292,7 @@ public class GenomesAligner {
 		// Identify paralogs
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
-			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome);
+			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome.getHomologyUnits());
 			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
 		}
 		
@@ -302,7 +302,7 @@ public class GenomesAligner {
 			for (int j=0;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
 				if(i!=j) {
-					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyCatalog(), genome2.getHomologyCatalog());
+					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyUnits(), genome2.getHomologyUnits());
 					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
 				}
 			}

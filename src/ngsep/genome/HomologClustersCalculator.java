@@ -59,8 +59,9 @@ public class HomologClustersCalculator {
 	private int sampleSize = 0;
 	private byte kmerLength = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	private int minPctKmers = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
+	private boolean removeEdgesOutsideClusters = false;
 	
-	private Logger log;
+	private Logger log = Logger.getAnonymousLogger();
 	
 	/**
 	 * @param skipMCL skips the MCL pipeline during clusterHomologs if true
@@ -112,9 +113,9 @@ public class HomologClustersCalculator {
 		List<List<HomologyUnit>> partitions = divideUnits(units);
 		for(List<HomologyUnit> partition : partitions) updateEdges(partition);
 		//Second round with better scores
-		makeBidirectional(units);
-		partitions = divideUnits(units);
-		for(List<HomologyUnit> partition : partitions) updateEdges(partition);
+		//makeBidirectional(units);
+		//partitions = divideUnits(units);
+		//for(List<HomologyUnit> partition : partitions) updateEdges(partition);
 		log.info("Finished dividing homolog units. Number of clusters: "+partitions.size());
 		printPartitionsResults(partitions);
 		
@@ -138,7 +139,9 @@ public class HomologClustersCalculator {
 			if(task.getNewTasks() != null) tasks.addAll(task.getNewTasks());
 			if(task.getResults().size() > 0) clusters.addAll(task.getResults());
 		}
-		
+		if (removeEdgesOutsideClusters) {
+			for(List<HomologyUnit> partition : clusters) updateEdges(partition);
+		}
 		//Cluster statistics
 		for(List<HomologyUnit> cluster : clusters) distClusterSizes.processDatapoint(cluster.size());
 		generateStatistics();
@@ -240,12 +243,12 @@ public class HomologClustersCalculator {
 			for(Map.Entry<String,Integer> entry:countsMatchingUnits.entrySet()) {
 				String key2 = entry.getKey();
 				int count = entry.getValue();
-				if(count<HomologRelationshipsFinder.DEF_MIN_NUM_KMERS) continue;
+				//if(count<HomologRelationshipsFinder.DEF_MIN_NUM_KMERS) continue;
 				HomologyUnit unit2 = unitsByKey.get(key2);
 				if(unit1==unit2) continue;
 				
 				double score = 100.0*count/n;
-				if(score <minPctKmers) continue;
+				//if(score <minPctKmers) continue;
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 			}
