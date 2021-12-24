@@ -11,6 +11,7 @@ import ngsep.sequences.UngappedSearchHit;
 public class HomologRelationshipsFinder {
 	public static final byte DEF_KMER_LENGTH = 5;
 	public static final int DEF_MIN_PCT_KMERS = 5;
+	public static final int DEF_MIN_NUM_KMERS = 3;
 	
 	private byte kmerLength = DEF_KMER_LENGTH;
 	private int minPctKmers = DEF_MIN_PCT_KMERS;
@@ -83,6 +84,7 @@ public class HomologRelationshipsFinder {
 		for(Map.Entry<String,Integer> entry : kmerSupportMap.entrySet()) {
 			String homologId = entry.getKey();
 			double transcriptKmers = entry.getValue();
+			if(transcriptKmers<1+DEF_MIN_NUM_KMERS/2) continue;
 			double percent = (transcriptKmers/totalKmers)*100;
 			if(percent < minPctKmers) continue;
 			HomologyUnit homolog = catalog.getHomologyUnit(homologId);

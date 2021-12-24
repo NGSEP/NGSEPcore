@@ -240,6 +240,7 @@ public class HomologClustersCalculator {
 			for(Map.Entry<String,Integer> entry:countsMatchingUnits.entrySet()) {
 				String key2 = entry.getKey();
 				int count = entry.getValue();
+				if(count<HomologRelationshipsFinder.DEF_MIN_NUM_KMERS) continue;
 				HomologyUnit unit2 = unitsByKey.get(key2);
 				if(unit1==unit2) continue;
 				
