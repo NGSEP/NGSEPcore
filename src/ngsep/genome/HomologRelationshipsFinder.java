@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 public class HomologRelationshipsFinder {
 	
-	public static final byte DEF_KMER_LENGTH = 5;
+	public static final byte DEF_KMER_LENGTH = 6;
 	public static final int DEF_MIN_PCT_KMERS = 5;
 	public static final int DEF_MIN_NUM_KMERS = 3;
 	

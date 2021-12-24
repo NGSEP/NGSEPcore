@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
@@ -171,15 +173,23 @@ public class CDNACatalogAligner {
 	}
 	
 	private void printRelationships(String filename) throws IOException {
+		Map<String,Integer> clusterAssignment = new HashMap<String,Integer>();
+		for(HomologyCluster cluster:orthologyUnitClusters) {
+			for(HomologyUnit unit:cluster.getHomologyUnitsCluster()) {
+				clusterAssignment.put(unit.getUniqueKey(), cluster.getClusterId());
+			}
+		}
 		try (PrintStream out = new PrintStream(filename);) {
-			out.println("Unit1\tUnit2\tscore");
+			out.println("Unit1\tUnit2\tscore\tClusterUnit1\tClusterUnit2");
 			for(HomologyCatalog catalog:homologyCatalogs) {
 				List<HomologyUnit> units = catalog.getHomologyUnits();
 				for(HomologyUnit unit:units) {
+					int clusterId1 = clusterAssignment.getOrDefault(unit.getUniqueKey(), -1);
 					Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
 					for(HomologyEdge edge:edges) {
 						HomologyUnit target = edge.getSubjectUnit();
-						out.println(unit.getId()+"\t"+target.getId()+"\t"+edge.getScore());
+						int clusterId2 = clusterAssignment.getOrDefault(target.getUniqueKey(), -1);
+						out.println(unit.getId()+"\t"+target.getId()+"\t"+edge.getScore()+"\t"+clusterId1+"\t"+clusterId2);
 					}
 				}
 			}
