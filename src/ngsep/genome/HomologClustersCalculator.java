@@ -111,7 +111,7 @@ public class HomologClustersCalculator {
 		makeBidirectional(units);
 		log.info("Dividing homologs via connected components");
 		List<List<HomologyUnit>> partitions = divideUnits(units);
-		for(List<HomologyUnit> partition : partitions) updateEdges(partition);
+		//for(List<HomologyUnit> partition : partitions) updateEdges(partition);
 		//Second round with better scores
 		//makeBidirectional(units);
 		//partitions = divideUnits(units);
@@ -155,7 +155,7 @@ public class HomologClustersCalculator {
 			for(HomologyEdge edge:edges) {
 				HomologyUnit u2 = edge.getSubjectUnit();
 				if(u2.getHomologyEdge(unit1)==null) {
-					u2.addHomologRelationship(new HomologyEdge(u2, unit1, 0));
+					u2.addHomologRelationship(new HomologyEdge(u2, unit1, 0.01));
 				}
 			}
 		}
@@ -203,59 +203,10 @@ public class HomologClustersCalculator {
 		return answer;
 	}
 
-	private void updateEdges(List<HomologyUnit> partition) {
-		Map<String,HomologyUnit> unitsByKey = new HashMap<String, HomologyUnit>();
-		Map<String,Set<String>> kmersByUnit = new HashMap<String, Set<String>>();
-		Map<String,Set<String>> unitsByKmer = new HashMap<String, Set<String>>();
-		if(partition.size()>500) log.info("Updating edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId()); 
-		for(HomologyUnit unit1:partition) {
-			//TODO: Parameters
-			String uniqueKey = unit1.getUniqueKey();
-			unitsByKey.put(uniqueKey, unit1);
-			List<String> kmers = unit1.getKmers(kmerLength,1);
-			Set<String> kmersSet = new HashSet<String>(kmers);
-			kmersByUnit.put(uniqueKey, kmersSet);
-			for(String kmer:kmersSet) {
-				Set<String> units = unitsByKmer.computeIfAbsent(kmer, v->new HashSet<String>());
-				units.add(uniqueKey);
-			}
-		}
-		if(partition.size()>500) log.info("Updating edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId()+" kmers calculated");
-		int processed = 0;
-		for(HomologyUnit unit1:partition) {
-			//TODO: Parameters
-			Set<String> kmers1 = kmersByUnit.get(unit1.getUniqueKey());
-			int n = kmers1.size();
-			if(n==0) {
-				log.warning("Updating edges of partition with size "+partition.size()+" Unit "+unit1.getGenomeId()+" "+unit1.getId()+" has zero kmers");
-				continue;
-			}
-			Map<String,Integer> countsMatchingUnits = new HashMap<String, Integer>();
-			for(String kmer:kmers1) {
-				Set<String> units = unitsByKmer.get(kmer);
-				if(units==null) continue;
-				for(String unitKey:units) {
-					countsMatchingUnits.compute(unitKey, (k,v)->v!=null?v+1:1);
-				}
-			}
-			unit1.removeAllHomologyRelationships();
-			
-			for(Map.Entry<String,Integer> entry:countsMatchingUnits.entrySet()) {
-				String key2 = entry.getKey();
-				int count = entry.getValue();
-				//if(count<HomologRelationshipsFinder.DEF_MIN_NUM_KMERS) continue;
-				HomologyUnit unit2 = unitsByKey.get(key2);
-				if(unit1==unit2) continue;
-				
-				double score = 100.0*count/n;
-				//if(score <minPctKmers) continue;
-				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
-				unit1.addHomologRelationship(edge);
-			}
-			processed++;
-			if(partition.size()>500 && processed%100==0) log.info("Processed "+processed+" of "+partition.size()+" units. last unit "+unit1.getId());
-		}
-		if(partition.size()>500) log.info("Updated edges of partition with size "+partition.size()+" first unit "+partition.get(0).getId());
+	private void updateEdges(List<HomologyUnit> partition) { 
+		Map<Long,Set<Integer>> unitsByKmerCode = HomologRelationshipsFinder.indexKmersHomologyUnits(partition, kmerLength);
+		for(HomologyUnit unit:partition) unit.removeAllHomologyRelationships();
+		HomologRelationshipsFinder.calculateHomologs(partition, partition, unitsByKmerCode, kmerLength, 0);
 	}
 
 	/**
@@ -481,10 +432,6 @@ public class HomologClustersCalculator {
 			return partition;
 		}
 
-		public void setPartition(List<HomologyUnit> partition) {
-			this.partition = partition;
-		}
-
 		public List<List<HomologyUnit>> getResults() {
 			return results;
 		}
@@ -504,11 +451,6 @@ public class HomologClustersCalculator {
 		public boolean isRequeed() {
 			return requeed;
 		}
-
-		public void setRequeed(boolean requeed) {
-			this.requeed = requeed;
-		}
-		
 		
 	}
 }

@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.sequences.AbstractLimitedSequence;
+
 /**
  * @author Daniel Tello
  * @author Jorge Duitama
@@ -39,7 +41,7 @@ public class HomologyUnit implements GenomicRegion {
 	private int first;
 	private int last;
 	private boolean negativeStrand = false;
-	private String unitSequence;
+	private CharSequence unitSequence;
 	
 	//Homolog relationships
 	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();
@@ -55,7 +57,7 @@ public class HomologyUnit implements GenomicRegion {
 		homologsMap.put(genomeId, new HashMap<>());
 		uniqueKey = ""+genomeId+"\t"+id;
 	}
-	public HomologyUnit(int genomeId, String id, String unitSequence) {
+	public HomologyUnit(int genomeId, String id, CharSequence unitSequence) {
 		this.genomeId = genomeId;
 		this.id = id;
 		this.unitSequence = unitSequence;
@@ -111,7 +113,7 @@ public class HomologyUnit implements GenomicRegion {
 	/**
 	 * @return the unitSequence
 	 */
-	public String getUnitSequence() {
+	public CharSequence getUnitSequence() {
 		return unitSequence;
 	}
 
@@ -119,7 +121,7 @@ public class HomologyUnit implements GenomicRegion {
 	/**
 	 * @param unitSequence the unitSequence to set
 	 */
-	public void setUnitSequence(String unitSequence) {
+	public void setUnitSequence(CharSequence unitSequence) {
 		this.unitSequence = unitSequence;
 	}
 	
@@ -245,11 +247,11 @@ public class HomologyUnit implements GenomicRegion {
 	public String getUniqueKey() {
 		return uniqueKey;
 	}
-	public List<String> getKmers(int kmerLength,int kmerOffset) {
-		List<String> answer = new ArrayList<String>();
+	public List<Long> getKmerCodes(int kmerLength,int kmerOffset) {
+		List<Long> answer = new ArrayList<Long>();
 		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) {
-			String kmer = unitSequence.substring(i, i+kmerLength);
-			answer.add(kmer);
+			long kmerCode = AbstractLimitedSequence.getHash(unitSequence, i, i+kmerLength, (AbstractLimitedSequence)unitSequence);
+			answer.add(kmerCode);
 		}
 		return answer;
 	}

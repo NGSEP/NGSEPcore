@@ -1,6 +1,7 @@
 package ngsep.genome;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,71 +45,51 @@ public class HomologRelationshipsFinder {
 	
 	
 	public List<HomologyEdge> calculateParalogs (List<HomologyUnit> units) {
-		Map<String,HomologyUnit> unitsByKey = new HashMap<String, HomologyUnit>();
-		
-		for(HomologyUnit unit:units) unitsByKey.put(unit.getUniqueKey(), unit);
-		Map<String, Set<String>> kmersByUnit = calculateKmers(units);
-		Map<String,Set<String>> unitsByKmer =indexKmersHomologyUnits(kmersByUnit);
-		return calculateHomologs(units, kmersByUnit, unitsByKey, unitsByKmer);
+		Map<Long,Set<Integer>> unitsByKmer =indexKmersHomologyUnits(units,kmerLength);
+		return calculateHomologs(units, units, unitsByKmer, kmerLength, minPctKmers);
 	}
 	
 	public List<HomologyEdge> calculateOrthologs (List<HomologyUnit> queryUnits, List<HomologyUnit> subjectUnits) {
-		Map<String,HomologyUnit> subjectUnitsByKey = new HashMap<String, HomologyUnit>();
-		for(HomologyUnit unit:subjectUnits) subjectUnitsByKey.put(unit.getUniqueKey(), unit);
-		Map<String,Set<String>> kmersByQueryUnit = calculateKmers(queryUnits);
-		Map<String,Set<String>> kmersBySubjectUnit = calculateKmers(subjectUnits);
-		Map<String,Set<String>> subjectUnitsByKmer =indexKmersHomologyUnits(kmersBySubjectUnit);
-		return calculateHomologs(queryUnits, kmersByQueryUnit, subjectUnitsByKey, subjectUnitsByKmer);
+		Map<Long,Set<Integer>> subjectUnitsByKmer =indexKmersHomologyUnits(subjectUnits, kmerLength);
+		return calculateHomologs(queryUnits, subjectUnits, subjectUnitsByKmer, kmerLength, minPctKmers);
 	}
 	
-	private Map<String, Set<String>> calculateKmers(List<HomologyUnit> units) {
-		Map<String,Set<String>> kmersByUnit = new HashMap<String, Set<String>>();
-		for(HomologyUnit unit:units) {
-			List<String> kmers = unit.getKmers(kmerLength,1);
-			Set<String> kmersSet = new HashSet<String>(kmers);
-			kmersByUnit.put(unit.getUniqueKey(), kmersSet);
-		}
-		return kmersByUnit;
-	}
-	private Map<String, Set<String>> indexKmersHomologyUnits(Map<String, Set<String>> kmersByUnit) {
-		Map<String, Set<String>> unitsByKmer = new HashMap<>();
-		for(Map.Entry<String,Set<String>> entry:kmersByUnit.entrySet()) {
-			String uniqueKey = entry.getKey();
-			Set<String> kmersSet = entry.getValue();
-			for(String kmer:kmersSet) {
-				Set<String> unitsKmer = unitsByKmer.computeIfAbsent(kmer, v->new HashSet<String>());
-				unitsKmer.add(uniqueKey);
+	public static Map<Long,Set<Integer>> indexKmersHomologyUnits(List<HomologyUnit> units, int kmerLength) {
+		Map<Long,Set<Integer>> unitsByKmer = new HashMap<>();
+		for(int i=0;i<units.size();i++) {
+			HomologyUnit unit = units.get(i);
+			List<Long> kmerCodes = unit.getKmerCodes(kmerLength, 1);
+			for(Long code:kmerCodes) {
+				Set<Integer> unitsKmer = unitsByKmer.computeIfAbsent(code, v->new HashSet<Integer>());
+				unitsKmer.add(i);
 			}
 		}
 		return unitsByKmer;
 	}
-	private List<HomologyEdge> calculateHomologs( List<HomologyUnit> queryUnits, Map<String, Set<String>> kmersByQueryUnit, Map<String, HomologyUnit> subjectUnitsByKey, Map<String, Set<String>> subjectUnitsByKmer) {
+	public static List<HomologyEdge> calculateHomologs( List<HomologyUnit> queryUnits, List<HomologyUnit> subjectUnits, Map<Long,Set<Integer>> subjectUnitsByKmer, int kmerLength, int minPctKmers) {
 		List<HomologyEdge> edges = new ArrayList<>();
 		int totalQueryUnits = queryUnits.size();
-		if(totalQueryUnits>1000) log.info("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
+		if(totalQueryUnits>1000) System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		int processed = 0;
 		for(HomologyUnit unit1:queryUnits) {
-			//TODO: Parameters
-			Set<String> kmers1 = kmersByQueryUnit.get(unit1.getUniqueKey());
-			int n = kmers1.size();
+			Set<Long> kmerCodes = new HashSet<Long>(unit1.getKmerCodes(kmerLength, 1));
+			int n = kmerCodes.size();
 			if(n==0) {
-				log.warning("Calculating edges of catalog with size "+totalQueryUnits+" Unit "+unit1.getUniqueKey()+" has zero kmers");
+				System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" Unit "+unit1.getUniqueKey()+" has zero kmers");
 				continue;
 			}
-			Map<String,Integer> countsSubjectUnits = new HashMap<String, Integer>();
-			for(String kmer:kmers1) {
-				Set<String> subjectUnitsKmer = subjectUnitsByKmer.get(kmer);
-				if(subjectUnitsKmer==null) continue;
-				for(String subjectUnitKey:subjectUnitsKmer) {
-					countsSubjectUnits.compute(subjectUnitKey, (k,v)->v!=null?v+1:1);
-				}
+			int [] countsSubjectUnits = new int [subjectUnits.size()];
+			Arrays.fill(countsSubjectUnits, 0);
+			for(long code:kmerCodes) {
+				Set<Integer> subjectUnitIdxsKmer = subjectUnitsByKmer.get(code);
+				if(subjectUnitIdxsKmer==null) continue;
+				for(int i:subjectUnitIdxsKmer) (countsSubjectUnits[i])++;
 			}
 			
-			for(Map.Entry<String,Integer> entry:countsSubjectUnits.entrySet()) {
-				String subjectKey = entry.getKey();
-				int count = entry.getValue();
+			for(int i=0;i<countsSubjectUnits.length;i++) {
+				int count = countsSubjectUnits[i];
 				if(count<DEF_MIN_NUM_KMERS) continue;
-				HomologyUnit unit2 = subjectUnitsByKey.get(subjectKey);
+				HomologyUnit unit2 = subjectUnits.get(i);
 				if(unit1==unit2) continue;
 				
 				double score = 100.0*count/n;
@@ -118,9 +99,9 @@ public class HomologRelationshipsFinder {
 				edges.add(edge);
 			}
 			processed++;
-			if(totalQueryUnits>1000 && processed%1000==0) log.info("Processed "+processed+" of "+totalQueryUnits+" units. last unit "+unit1.getId());
+			if(totalQueryUnits>1000 && processed%1000==0) System.out.println("Processed "+processed+" of "+totalQueryUnits+" units. last unit "+unit1.getId());
 		}
-		if(totalQueryUnits>1000) log.info("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
+		if(totalQueryUnits>1000) System.out.println("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		return edges;
 	}
 	

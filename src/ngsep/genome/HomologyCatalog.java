@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -20,15 +21,15 @@ public class HomologyCatalog {
 	
 	public HomologyCatalog (List<HomologyUnit> units) {
 		for(HomologyUnit unit: units) {
-			homologyUnitsMap.put(unit.getId(), unit);
+			homologyUnitsMap.put(unit.getUniqueKey(), unit);
 		}
-		buildFMIndex();
+		//buildFMIndex();
 	}
 	private void buildFMIndex() {
 		indexHomologyUnits = new FMIndex();
 		QualifiedSequenceList unitSequences = new QualifiedSequenceList();
 		for (HomologyUnit ql:homologyUnitsMap.values()) {
-			String unitSequence = ql.getUnitSequence();
+			CharSequence unitSequence = ql.getUnitSequence();
 			String unitId = ql.getId();
 			QualifiedSequence qualifiedSequence = new QualifiedSequence(unitId, unitSequence);
 			unitSequences.add(qualifiedSequence);
@@ -48,20 +49,17 @@ public class HomologyCatalog {
 		return new ArrayList<>(homologyUnitsMap.values());
 	}
 	
-	public HomologyUnit getHomologyUnit(String unitId) {
-		return homologyUnitsMap.get(unitId);
-	}
 	public static HomologyCatalog loadFromFasta(String filename, int genomeId, int inputType) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		if(inputType==INPUT_TYPE_PROTEIN) handler.setSequenceType(StringBuilder.class);
+		if(inputType==INPUT_TYPE_PROTEIN) handler.setSequenceType(AminoacidSequence.class);
 		List<QualifiedSequence> sequences = handler.loadSequences(filename);
 		ProteinTranslator translator = new ProteinTranslator();
 		List<HomologyUnit> units = new ArrayList<>();
 		for(QualifiedSequence seq : sequences) {
-			String proteinSequence = seq.getCharacters().toString();
-			if(inputType==INPUT_TYPE_CDNA) proteinSequence = translator.getProteinSequence(proteinSequence);
-			if(proteinSequence.length()<10) System.out.println("Small sequence "+proteinSequence+" with name: "+seq.getName()+" length: "+proteinSequence.length());
-			HomologyUnit unit = new HomologyUnit(genomeId, seq.getName(), proteinSequence);
+			CharSequence aminoacidSequence = seq.getCharacters();
+			if(inputType==INPUT_TYPE_CDNA) aminoacidSequence = new AminoacidSequence(translator.getProteinSequence(aminoacidSequence));
+			if(aminoacidSequence.length()<10) System.out.println("Small sequence "+aminoacidSequence+" with name: "+seq.getName()+" length: "+aminoacidSequence.length());
+			HomologyUnit unit = new HomologyUnit(genomeId, seq.getName(), aminoacidSequence);
 			units.add(unit);
 		}
 		

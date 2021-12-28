@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -32,7 +33,6 @@ public class AnnotatedReferenceGenome {
 		this.transcriptome = transcriptome;
 		this.sequencesMetadata = genome.getSequencesMetadata();
 		//Create orthology units based on transcripts
-		//Query each orthology unit against its own genome and select the units that are unique
 		extractHomologyUnits();
 		//log.info("Genome total units "+orthologyUnitsList.size()+" Building FM Index");
 		catalog = new HomologyCatalog(homologyUnitsList); 
@@ -80,7 +80,7 @@ public class AnnotatedReferenceGenome {
 		String geneId = gene.getId();
 		Transcript bestTranscript = null;
 		int bestLength = 0;
-		String bestProtein = null;
+		CharSequence bestProtein = null;
 		
 		for (Transcript tr:transcriptsGene) {
 			String proteinSequence = tr.getProteinSequence(translator);
@@ -89,7 +89,7 @@ public class AnnotatedReferenceGenome {
 			if (proteinLength > bestLength) {
 				bestLength = proteinLength;
 				bestTranscript = tr;
-				bestProtein = proteinSequence;
+				bestProtein = new AminoacidSequence(proteinSequence);
 			}
 		}
 		
@@ -155,10 +155,6 @@ public class AnnotatedReferenceGenome {
 		return this.catalog;
 	}
 	
-	public HomologyUnit getHomologyUnit(String unitId) {
-		return catalog.getHomologyUnit(unitId);
-	}
-
 	/**
 	 * @return List<HomologyUnit> List of unique homology units in this genome
 	 */
