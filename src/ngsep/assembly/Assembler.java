@@ -417,6 +417,7 @@ public class Assembler {
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		} else {
 			pathsFinder= new LayoutBuilderKruskalPath();
+			//((LayoutBuilderKruskalPath)pathsFinder).setRunImprovementAlgorithms(false);
 		}
 		ConsensusBuilder consensus;
 		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
@@ -461,7 +462,7 @@ public class Assembler {
 		graph.updateScores(0);
 		filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
-		
+		if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		assembledSequences.addAll(consensus.makeConsensus(graph));
