@@ -36,6 +36,7 @@ public class SingleIndividualHaplotyper {
 	public static final String DEF_ALGORITHM_NAME=ALGORITHM_NAME_REFHAP;
 	
 	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	public static final double DEF_MAX_MEC_PROPORTION = 0.1;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(SingleIndividualHaplotyper.class.getName());
@@ -293,8 +294,10 @@ public class SingleIndividualHaplotyper {
 					HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
 					algorithm.buildHaplotype(block);
 					block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
-					log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
-					answer.add(block);
+					double mec = block.calculateMECCurrentHaplotypes();
+					double mecProportion = mec/block.calculateTotalCalls();
+					log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
+					if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
 				}
 				fragments = new ArrayList<>();
 				firstNextBlock = firstAln;
@@ -313,8 +316,10 @@ public class SingleIndividualHaplotyper {
 			HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
 			algorithm.buildHaplotype(block);
 			block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
-			log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+block.calculateMECCurrentHaplotypes()+" calls proportion: "+block.calculateRelativeCallsProportion());
-			answer.add(block);
+			double mec = block.calculateMECCurrentHaplotypes();
+			double mecProportion = mec/block.calculateTotalCalls();
+			log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
+			if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
 		}
 		return answer;
 	}

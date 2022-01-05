@@ -466,6 +466,12 @@ public class HaplotypeBlock
 		}
 		return total;
 	}
+	
+	public int calculateTotalCalls() {
+		int answer = 0;
+		for(HaplotypeFragment fragment:matrix) answer+=fragment.getTotalCalls();
+		return answer;
+	}
 
 	public double calculateRelativeCallsProportion() {
 		double total0 = 0;

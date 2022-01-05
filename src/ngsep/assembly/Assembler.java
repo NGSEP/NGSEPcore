@@ -435,6 +435,7 @@ public class Assembler {
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
 		int value = ploidy; 
+		//while(value > 1) {
 		while(value > 0) {
 			AssemblyGraph copyGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");

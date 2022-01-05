@@ -134,12 +134,11 @@ public class HaplotypeReadsClusterCalculator {
 			List<PathReadsCluster> blocksPath = entry.getValue();
 			int blockNumber = 0;
 			for(PathReadsCluster block:blocksPath) {
-				int minReads = block.getMinReads();
 				double rd = block.calculateReadDepth();
 				double proportion = block.calculateProportion();
 				List<Set<Integer>> phasedReadIdsBlock = block.getPhasedReadIds();
 				boolean homozygousBlock = phasedReadIdsBlock.size()==1 && rd>1.4*averageHaploidRd;
-    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd && (rd<1.5*averageHaploidRd || Math.abs(0.5-proportion)>0.2);
+    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd && (rd<averageHaploidRd || Math.abs(0.5-proportion)>0.25 || block.getNumVariants()<10 );
     			if(globalPloidy==1) falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd;
     			GenomicRegion region = block.getBlockRegion();
     			System.out.println("Path: "+pathId+" next block from "+region.getFirst()+" to "+region.getLast()+" vars: "+block.getNumVariants()+" phasedGroups: "+phasedReadIdsBlock.size() +" reads: "+block.getNumReads()+ " basepairs "+block.getTotalBasePairs()+" rd: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" incorrectlyPhasedBlock: "+falsePhasedBlock);
