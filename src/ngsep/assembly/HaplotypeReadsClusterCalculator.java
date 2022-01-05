@@ -50,6 +50,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
+import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
 import ngsep.vcf.VCFFileHeader;
@@ -70,6 +71,8 @@ public class HaplotypeReadsClusterCalculator {
 	
 	private int debugIdx = -1;
 	
+	private int globalPloidy = 2;
+	
 	
 	public Logger getLog() {
 		return log;
@@ -85,6 +88,16 @@ public class HaplotypeReadsClusterCalculator {
 
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
+	}
+	
+	
+
+	public int getGlobalPloidy() {
+		return globalPloidy;
+	}
+
+	public void setGlobalPloidy(int globalPloidy) {
+		this.globalPloidy = globalPloidy;
 	}
 
 	public List<Set<Integer>> clusterReads(AssemblyGraph graph, int ploidy) {
@@ -122,12 +135,14 @@ public class HaplotypeReadsClusterCalculator {
 			int blockNumber = 0;
 			for(PathReadsCluster block:blocksPath) {
 				int minReads = block.getMinReads();
-				double rd = block.getReadDepth();
+				double rd = block.calculateReadDepth();
 				double proportion = block.calculateProportion();
 				List<Set<Integer>> phasedReadIdsBlock = block.getPhasedReadIds();
 				boolean homozygousBlock = phasedReadIdsBlock.size()==1 && rd>1.4*averageHaploidRd;
-    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.4*averageHaploidRd && (rd<averageHaploidRd || (Math.abs(0.5-proportion)>0.2 && minReads<20));
-    			System.out.println("Path: "+pathId+ " next block with "+phasedReadIdsBlock.size() +" clusters. Total read depth: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" falsePhasedBlock: "+falsePhasedBlock);
+    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd && (rd<1.5*averageHaploidRd || Math.abs(0.5-proportion)>0.2);
+    			if(globalPloidy==1) falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd;
+    			GenomicRegion region = block.getBlockRegion();
+    			System.out.println("Path: "+pathId+" next block from "+region.getFirst()+" to "+region.getLast()+" vars: "+block.getNumVariants()+" phasedGroups: "+phasedReadIdsBlock.size() +" reads: "+block.getNumReads()+ " basepairs "+block.getTotalBasePairs()+" rd: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" incorrectlyPhasedBlock: "+falsePhasedBlock);
     			for(int i=0;i<phasedReadIdsBlock.size();i++) {
     				Set<Integer> readIds = phasedReadIdsBlock.get(i);
     				for(int readId:readIds) {
@@ -192,15 +207,23 @@ public class HaplotypeReadsClusterCalculator {
 		if(haplotypeBlocks == null) {
 			//System.out.println("No clusters for path: "+pathIdx+". hetSNVs: "+countHetSNVs+" alignments: "+alignments.size());
 			Set<Integer> sequenceIds = new HashSet<Integer>();
-			double totalBasePairs = 0;
-			double length = path.getConsensus().length();
+			int totalBasePairs = 0;
+			String seqName = null;
+			int firstRegion = 0;
+			int lastRegion = 0;
 			for(ReadAlignment aln:alignmentRecords) {
 				sequenceIds.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
+				seqName = aln.getSequenceName();
+				firstRegion = firstRegion>0?Math.min(firstRegion, aln.getFirst()):aln.getFirst();
+				lastRegion = Math.max(lastRegion, aln.getLast());
 			}
-			PathReadsCluster block = new PathReadsCluster(totalBasePairs/length,0);
-			block.addReadIds(sequenceIds);
-			answer.add(block);
+			if(seqName!=null) {
+				PathReadsCluster cluster = new PathReadsCluster(totalBasePairs,0);
+				cluster.addReadIds(sequenceIds);
+				cluster.setBlockRegion(new GenomicRegionImpl(seqName, firstRegion, lastRegion));
+				answer.add(cluster);
+			}
 			return answer;
 		}
 		log.info("Path: "+sequenceName+". het vars: "+countHetVars+" alignments: "+alignments.size()+" haplotype blocks: "+haplotypeBlocks.size());
@@ -208,25 +231,22 @@ public class HaplotypeReadsClusterCalculator {
 		//Collect phased blocks first
 		Set<Integer> readIdsInPhasedBlocks = new HashSet<Integer>();
 		List<GenomicRegion> phasedPathBoundaries = new ArrayList<GenomicRegion>(haplotypeBlocks.size());
-		Map<Integer,PathReadsCluster> phasedBlocksByFirst = new HashMap<Integer, PathReadsCluster>();
 		for(HaplotypeBlock block:haplotypeBlocks) {
+			List<GenomicVariant> hetVars = block.getAllVariants();
 			List<List<Integer>> readIdsClusters = block.getClusteredFragmentIds();
 			//Not real phasing
 			if(readIdsClusters.size()<2) continue;
+			//Not enough variants for a correction block
+			if(globalPloidy==1 && hetVars.size()<5) continue;
 			List<Integer> readIdsHap0 = readIdsClusters.get(0);
 			List<Integer> readIdsHap1 = readIdsClusters.get(1);
 			//Not real phasing
 			if(readIdsHap0.size()==0 || readIdsHap1.size()==0) continue;
-			ReadAlignment firstAln0 = alnsByReadId.get(readIdsHap0.get(0));
-			ReadAlignment firstAln1 = alnsByReadId.get(readIdsHap1.get(0));
-			double totalBasePairs = 0;
-			GenomicRegionImpl region = new GenomicRegionImpl(firstAln0.getSequenceName(), Math.min(firstAln0.getFirst(), firstAln1.getFirst()), Math.max(firstAln0.getLast(), firstAln1.getLast()));
+			int totalBasePairs = 0;
 			Set<Integer> sequenceIdsHap0 = new HashSet<Integer>();
 			for(int readId:readIdsHap0) {
 				ReadAlignment aln = alnsByReadId.get(readId);
 				sequenceIdsHap0.add(aln.getReadNumber());
-				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
-				region.setLast(Math.max(region.getLast(), aln.getLast()));
 				totalBasePairs+=aln.getReadLength();
 				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to first haplotype");
 			}
@@ -234,27 +254,24 @@ public class HaplotypeReadsClusterCalculator {
 			for(int readId:readIdsHap1) {
 				ReadAlignment aln = alnsByReadId.get(readId);
 				sequenceIdsHap1.add(aln.getReadNumber());
-				region.setFirst(Math.min(region.getFirst(), aln.getFirst()));
-				region.setLast(Math.max(region.getLast(), aln.getLast()));
 				totalBasePairs+=aln.getReadLength();
 				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to second haplotype");
 			}
-			//TODO Guess better 
-			double totalLength  = Math.max(10000, region.length()-10000);
-			PathReadsCluster cluster = new PathReadsCluster(totalBasePairs/totalLength,block.getCallsLenght());
+			GenomicRegionImpl region = new GenomicRegionImpl(hetVars.get(0).getSequenceName(), hetVars.get(0).getFirst(), hetVars.get(hetVars.size()-1).getLast());
+			PathReadsCluster cluster = new PathReadsCluster(totalBasePairs,block.getCallsLenght());
 			cluster.addReadIds(sequenceIdsHap0);
 			cluster.addReadIds(sequenceIdsHap1);
 			answer.add(cluster);
-			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding phased block with "+sequenceIdsHap0.size()+" and "+sequenceIdsHap1.size()+" reads and estimated length: "+totalLength);
+			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding phased block from "+region.getFirst()+" to "+region.getLast()+" with "+sequenceIdsHap0.size()+" and "+sequenceIdsHap1.size()+" reads");
 			readIdsInPhasedBlocks.addAll(sequenceIdsHap0);
 			readIdsInPhasedBlocks.addAll(sequenceIdsHap1);
-			phasedBlocksByFirst.put(region.getFirst(), cluster);
 			phasedPathBoundaries.add(region);
+			cluster.setBlockRegion(region);
 		}
 		Collections.sort(phasedPathBoundaries, GenomicRegionPositionComparator.getInstance());
 		//Build unphased (haploid) blocks with reads not embedded in phased blocks
 		int i=0;
-		double totalBasePairs = 0;
+		int totalBasePairs = 0;
 		GenomicRegionImpl unphasedRegion = null;
 		Set<Integer> nextUnphasedBlock = new HashSet<Integer>();
 		for(ReadAlignment aln:alignments) {
@@ -266,7 +283,7 @@ public class HaplotypeReadsClusterCalculator {
 				if(phasedRegion.getLast()>aln.getLast()) {
 					if(aln.getFirst()>=phasedRegion.getFirst()) {
 						addRead = false;
-						if(pathIdx == debugIdx) System.out.print("Unphased aln within phased region "+phasedRegion.getFirst()+"-"+phasedRegion.getLast()+": "+aln);
+						if(pathIdx == debugIdx) System.out.println("Unphased aln within phased region "+phasedRegion.getFirst()+"-"+phasedRegion.getLast()+": "+aln);
 						//Alignment contained in block but not assigned
 						/*PhasedPathBlock block = phasedBlocksByFirst.get(region.getFirst());
 						if(block!=null) {
@@ -276,11 +293,11 @@ public class HaplotypeReadsClusterCalculator {
 					break;
 				}
 				if(nextUnphasedBlock.size()>0) {
-					double totalLength  = Math.max(10000, unphasedRegion.length()-10000);
-					PathReadsCluster block = new PathReadsCluster(totalBasePairs/totalLength,0);
-					block.addReadIds(nextUnphasedBlock);
-					answer.add(block);
-					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads and estimated length: "+totalLength);
+					PathReadsCluster cluster = new PathReadsCluster(totalBasePairs,0);
+					cluster.addReadIds(nextUnphasedBlock);
+					cluster.setBlockRegion(unphasedRegion);
+					answer.add(cluster);
+					if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block from "+unphasedRegion.getFirst()+" to "+unphasedRegion.getLast()+" with "+nextUnphasedBlock.size()+" reads");
 					nextUnphasedBlock = new HashSet<Integer>();
 					totalBasePairs = 0;
 					unphasedRegion = null;
@@ -301,9 +318,10 @@ public class HaplotypeReadsClusterCalculator {
 			}
 		}
 		if(nextUnphasedBlock.size()>0) {
-			PathReadsCluster block = new PathReadsCluster(totalBasePairs/unphasedRegion.length(),0);
-			block.addReadIds(nextUnphasedBlock);
-			answer.add(block);
+			PathReadsCluster cluster = new PathReadsCluster(totalBasePairs,0);
+			cluster.addReadIds(nextUnphasedBlock);
+			cluster.setBlockRegion(unphasedRegion);
+			answer.add(cluster);
 			if(pathIdx == debugIdx) System.out.println("Path: "+pathIdx+" Adding unphased block with "+nextUnphasedBlock.size()+" reads");
 		}
 		return answer;
@@ -415,7 +433,7 @@ public class HaplotypeReadsClusterCalculator {
     		for(PathReadsCluster block:haplotypeBlocks) {
     			int firstIdClusterBlock = inputClusterId;
     			List<Set<Integer>> inputClustersBlock = block.getPhasedReadIds();
-    			double rd = block.getReadDepth();
+    			double rd = block.calculateReadDepth();
     			double proportion = block.calculateProportion(); 
     			boolean addToAll = inputClustersBlock.size()==1 && rd>1.4*averageHaploidRd;
     			boolean merge = inputClustersBlock.size()>1 && rd<1.4*averageHaploidRd /*&& proportion < 0.3*/;
@@ -574,14 +592,23 @@ public class HaplotypeReadsClusterCalculator {
 		double totalClusters = 0;
 		for(List<PathReadsCluster> pathCLusters:pathBlocks.values()) {
 			for(PathReadsCluster cluster:pathCLusters) {
-				totalRD+=cluster.getReadDepth();
+				double rd = cluster.calculateReadDepth(); 
+				totalRD+=rd;
 				totalClusters++;
-				double ploidy = cluster.getPhasedReadIds().size();
-				if(ploidy<=1) continue;
-				double devProportion = 0.5-Math.abs(0.5-cluster.calculateProportion());
-				double weight = devProportion*cluster.getNumVariants()+0.1;
-				sumHaploidRD+=cluster.getReadDepth()*weight/ploidy;
-				sumPhasedClusters+=weight;
+				double blockPloidy = cluster.getPhasedReadIds().size();
+				if(globalPloidy>=2) {
+					if(blockPloidy<=1 || cluster.getNumVariants()<10) continue;
+					double devProportion = 0.5-Math.abs(0.5-cluster.calculateProportion());
+					double weight = devProportion*cluster.getNumVariants()+0.1;
+					sumHaploidRD+=rd*weight/blockPloidy;
+					sumPhasedClusters+=weight;
+				} else {
+					if(blockPloidy>1 || cluster.getNumReads()<20) continue;
+					double weight = cluster.getBlockRegion().length()/10000+0.1;
+					sumHaploidRD+=rd*weight;
+					sumPhasedClusters+=weight;
+				}
+				
 			}
 		}
 		if(sumPhasedClusters>0) return sumHaploidRD/sumPhasedClusters;
@@ -836,11 +863,12 @@ class PathReadsCluster {
 	private int numVariants = 0;
 	private int numReads = 0;
 	private int minReads = 0;
-	private double readDepth = 0;
+	private int totalBasePairs = 0;
+	private GenomicRegion blockRegion;
 	
-	public PathReadsCluster(double readDepth, int numVariants) {
+	public PathReadsCluster(int totalBasePairs, int numVariants) {
 		super();
-		this.readDepth = readDepth;
+		this.totalBasePairs = totalBasePairs;
 		this.numVariants = numVariants;
 	}
 	public void addReadIds(Set<Integer> readIds ) {
@@ -851,8 +879,16 @@ class PathReadsCluster {
 	public List<Set<Integer>> getPhasedReadIds() {
 		return readIds;
 	}
-	public double getReadDepth() {
-		return readDepth;
+	public double calculateReadDepth() {
+		double length = blockRegion.length();
+		double averageReadLength = totalBasePairs/numReads;
+		if(numVariants>0) {
+			//Add basepairs corresponding to the boundaries of the region
+			length+=(0.5+0.5/numVariants)*averageReadLength;
+		} else {
+			length-=Math.min(0.75*length, averageReadLength);
+		}
+		return (double)totalBasePairs/length;
 	}
 	
 	public int getNumVariants() {
@@ -867,6 +903,21 @@ class PathReadsCluster {
 	}
 	public int getMinReads() {
 		return minReads;
+	}
+	
+	
+	public int getTotalBasePairs() {
+		return totalBasePairs;
+	}
+	
+	public void setTotalBasePairs(int totalBasePairs) {
+		this.totalBasePairs = totalBasePairs;
+	}
+	public GenomicRegion getBlockRegion() {
+		return blockRegion;
+	}
+	public void setBlockRegion(GenomicRegion blockRegion) {
+		this.blockRegion = blockRegion;
 	}
 	public double calculateProportion () {
 		if(readIds.size()<=1) return 1;

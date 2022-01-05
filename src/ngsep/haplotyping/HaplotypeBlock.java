@@ -170,6 +170,13 @@ public class HaplotypeBlock
 		return calls.get(column);
 	}
 	
+	
+	
+	public List<GenomicVariant> getAllVariants() {
+		List<GenomicVariant> answer = new ArrayList<>();
+		for(CalledGenomicVariant call:calls) answer.add(call);
+		return answer;
+	}
 	public List<HaplotypeFragment> getFragments () {
 		return Collections.unmodifiableList(matrix);
 	}

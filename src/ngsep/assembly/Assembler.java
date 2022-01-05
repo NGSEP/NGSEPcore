@@ -434,56 +434,36 @@ public class Assembler {
 		long time2 = System.currentTimeMillis();
 		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
-		if(ploidy > 1) {
-			AssemblyGraph diploidGraph = graph.buildSubgraph(null);
-			log.info("Copied graph. New graph has "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
-			diploidGraph.updateScores(0);
-			filter.filterEdgesAndEmbedded(diploidGraph, minScoreProportionEdges);
+		int value = ploidy; 
+		while(value > 0) {
+			AssemblyGraph copyGraph = graph.buildSubgraph(null);
+			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
+			copyGraph.updateScores(0);
+			filter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
-			log.info("Filtered graph. New graph has now "+diploidGraph.getVertices().size()+" vertices and "+diploidGraph.getEdges().size()+" edges");
+			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
 			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
-			pathsFinder.findPaths(diploidGraph);
-			log.info("Building haplotype subgraphs");
+			pathsFinder.findPaths(copyGraph);
+			log.info("Filtering graph by phasing");
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
 			hapsCalculator.setLog(log);
 			hapsCalculator.setNumThreads(numThreads);
-			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(diploidGraph, ploidy);
-			saveReadsPhasingData (graph, readsData, outputPrefix+"_phasedReadsData.txt");
+			hapsCalculator.setGlobalPloidy(value);
+			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(copyGraph, ploidy);
+			saveReadsPhasingData (graph, readsData, outputPrefix+"_FV"+value+"_phasedReadsData.txt");
 			filterGraphWithPhasingData(graph,readsData);
-			String outFileGraph = outputPrefix+"_filteredByPhase.graph.gz";
+			String outFileGraph = outputPrefix+"_FV"+value+".graph.gz";
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph with phase filtering to "+outFileGraph);
-			
-			/*List<Set<Integer>> readIdsClusters =  hapsCalculator.clusterReads(diploidGraph, ploidy);
-			log.info("Separated reads in "+readIdsClusters.size()+" clusters");
-			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(5);
-			int haplotypeNumber= 0;
-			for(Set<Integer> readIdsCluster: readIdsClusters) {
-				AssemblyGraph haplotypeGraph = graph.buildSubgraph(readIdsCluster);
-				log.info("Built haplotype subgraph with "+haplotypeGraph.getVertices().size()+" vertices and "+haplotypeGraph.getNumEdges()+ " edges from "+readIdsCluster.size()+" reads");
-				String outFileGraph = outputPrefix+"_hap"+haplotypeNumber+".graph.gz";
-				AssemblyGraphFileHandler.save(haplotypeGraph, outFileGraph);
-				log.info("Saved graph to "+outFileGraph);
-				haplotypeGraph.updateScores(0);
-				filter.filterEdgesAndEmbedded(haplotypeGraph, minScoreProportionEdges);
-				//haplotypeGraph.updateScores();
-				pathsFinder.findPaths(haplotypeGraph);
-				log.info("Built "+haplotypeGraph.getPaths().size()+" paths for next haplotype cluster with "+readIdsCluster.size()+" reads");
-				consensus.setSequenceNamePrefix("ContigHap"+haplotypeNumber);
-				List<QualifiedSequence> sequencesCluster = consensus.makeConsensus(haplotypeGraph);
-				log.info("Assembled "+sequencesCluster.size()+" sequences for next haplotype cluster");
-				assembledSequences.addAll(sequencesCluster);
-				haplotypeNumber++;
-			}*/
-		} /*else {*/
-			graph.updateScores(0);
-			filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-			//graph.updateScores();
-			
-			pathsFinder.findPaths(graph);
-			if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
-			assembledSequences.addAll(consensus.makeConsensus(graph));
-		//}
+			value /=2;
+		}
+		graph.updateScores(0);
+		filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+		//graph.updateScores();
+		
+		pathsFinder.findPaths(graph);
+		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
+		assembledSequences.addAll(consensus.makeConsensus(graph));
 		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		try (PrintStream out = new PrintStream(outputPrefix+"_initial.fa")) {
@@ -548,13 +528,19 @@ public class Assembler {
 			ReadPathPhasingData d1 = readsData.get(edge.getVertex1().getSequenceIndex());
 			ReadPathPhasingData d2 = readsData.get(edge.getVertex2().getSequenceIndex());
 			if(d1==null || d2==null) continue;
-			if(d1.isOppositePhase(d2)) graph.removeEdge(edge);
+			if(d1.isOppositePhase(d2)) {
+				if(ploidy==1) System.out.println("Filtering by phasing edge: "+edge);
+				graph.removeEdge(edge);
+			}
 		}
 		for (AssemblyEmbedded embedded:graph.getAllEmbedded()) {
 			ReadPathPhasingData d1 = readsData.get(embedded.getSequenceId());
 			ReadPathPhasingData d2 = readsData.get(embedded.getHostId());
 			if(d1==null || d2==null) continue;
-			if(d1.isOppositePhase(d2)) graph.removeEmbedded(embedded);
+			if(d1.isOppositePhase(d2)) {
+				if(ploidy==1) System.out.println("Filtering by phasing embedded: "+embedded);
+				graph.removeEmbedded(embedded);
+			}
 		}
 		
 	}
