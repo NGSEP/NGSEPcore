@@ -3,6 +3,7 @@ package ngsep.sequences;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -41,12 +42,14 @@ public class ShortKmerCodesTable {
 	private PrimeNumbers primeNumbersHelper;
 	
 	
-
 	public ShortKmerCodesTable(int kmerLength, int windowLength) {
+		this(kmerLength,windowLength,100000);
+	}
+	public ShortKmerCodesTable(int kmerLength, int windowLength, int capacity) {
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
 		this.primeNumbersHelper = new PrimeNumbers();
-		initializeTable(100000);
+		initializeTable(capacity);
 	}
 	public ShortKmerCodesTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
 		this.kmersAnalyzer = kmersAnalyzer;
@@ -198,6 +201,20 @@ public class ShortKmerCodesTable {
 		}	
 	}
 
+	/**
+	 * Calculates the selected codes of the given sequence following the same algorithm used for minimizers but saving the codes instead of the hashes
+	 * @param sequenceId Id of the sequence to calculate
+	 * @param sequence characters of the sequence to calculate
+	 * @return List<MinimizersTableEntry> Codes selected for the given sequence.
+	 */
+	public Map<Integer,Long> computeSequenceCodesAsMap(String sequence,int start,int end) {
+		List<KmerCodesTableEntry> entries = computeSequenceCodes(-1, sequence, start , end);
+		Map<Integer,Long> answer = new LinkedHashMap<>();
+		for(KmerCodesTableEntry entry:entries) {
+			answer.put(entry.getStart(), entry.getKmerCode());
+		}
+		return answer;
+	}
 	/**
 	 * Calculates the selected codes of the given sequence following the same algorithm used for minimizers but saving the codes instead of the hashes
 	 * @param sequenceId Id of the sequence to calculate

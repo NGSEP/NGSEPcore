@@ -34,7 +34,7 @@ public class ContigEndsMerger {
 	
 	public List<QualifiedSequence> mergeContigs(List<QualifiedSequence> contigs) {
 		
-		ShortKmerCodesTable table = new ShortKmerCodesTable(31, 40);
+		ShortKmerCodesTable table = new ShortKmerCodesTable(25, 40);
 		Map<Integer,String> contigEndsMap = new HashMap<Integer, String>();
 		List<QualifiedSequence> contigsForGraph = new ArrayList<QualifiedSequence>(contigs.size());
 		List<QualifiedSequence> smallContigs = new ArrayList<QualifiedSequence>(contigs.size());

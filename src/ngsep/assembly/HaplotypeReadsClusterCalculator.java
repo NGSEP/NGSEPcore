@@ -374,7 +374,7 @@ public class HaplotypeReadsClusterCalculator {
 	}
 
 	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
-		FastaSequencesHandler handler = new FastaSequencesHandler();
+		/*FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList sequences = new QualifiedSequenceList();
 		sequences.add(new QualifiedSequence(sequenceName,consensus));
 		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
@@ -389,7 +389,7 @@ public class HaplotypeReadsClusterCalculator {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			return;
-		}
+		}*/
 		VCFFileWriter vcfWriter = new VCFFileWriter();
 		VCFFileHeader header =VCFFileHeader.makeDefaultEmptyHeader();
 		header.addDefaultSample("sample");
@@ -702,7 +702,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 	}
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		int idxDebug = -1;
+		int idxDebug = 374580;
 		int pos = pileup.getPosition();
 		char refBase = consensus.charAt(pos-1);
 		if(!DNASequence.isInAlphabeth(refBase)) return;
@@ -716,7 +716,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 		int lastRefIndel = -1;
 		for(ReadAlignment aln:alns) {
 			CharSequence alleleCall = aln.getAlleleCall(pos);
-			if(pos==idxDebug) System.out.println("SimpleHetVars. Sequence name "+pileup.getSequenceName()+". Next allele: "+alleleCall);
+			if(pos==idxDebug) System.out.println("SimpleHetVars. Sequence name "+pileup.getSequenceName()+". Next allele: "+alleleCall+" read: "+aln.getReadName());
 			if(alleleCall==null || alleleCall.length()==0) continue;
 			String alleleStr = alleleCall.toString();
 			//Counts for SNVs
@@ -732,7 +732,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			} else refAlleleIndel = alleleStr;
 			alleleCounts.compute(alleleStr, (k,v)->(v==null)?1:v+1);
 		}
-		if(indelAllele!=null) {
+		if(indelAllele!=null && alleleCounts.get(indelAllele)>2) {
 			//Possible indel
 			if(!callIndels) return;
 			if(refAlleleIndel==null) return;

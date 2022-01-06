@@ -27,6 +27,7 @@ import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.ShortKmerCodesTable;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
@@ -35,9 +36,10 @@ import ngsep.variants.GenomicVariantImpl;
 public class AssemblyPathReadsAligner {
 	private Logger log = Logger.getLogger(AssemblyPathReadsAligner.class.getName());
 	private static Runtime runtime = Runtime.getRuntime();
-	public static final int KMER_LENGTH_LOCAL_ALN = 31;
+	public static final int KMER_LENGTH_LOCAL_ALN = 25;
 	private boolean haploid = true;
 	private boolean buildUnalignedReadRecords = false;
+	private ShortKmerCodesTable kmerCodesTable = new ShortKmerCodesTable(KMER_LENGTH_LOCAL_ALN, 40,0);
 	
 	
 	public Logger getLog() {
@@ -189,7 +191,7 @@ public class AssemblyPathReadsAligner {
 			//String seqStr = seq.toString();
 			int endConsensusPathVertex = Math.min(consensus.length(), pathVerticesEnds.get(readIndex));
 			int startConsensusPathVertex = Math.max(0, endConsensusPathVertex-seq.length()-100);
-			Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodes(consensus, KMER_LENGTH_LOCAL_ALN, startConsensusPathVertex,endConsensusPathVertex);
+			Map<Integer, Long> kmersSubject = kmerCodesTable.computeSequenceCodesAsMap(consensus, startConsensusPathVertex, endConsensusPathVertex);
 			totalReads++;
 			//Synchronic call to calculate actual backbone read ends
 			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex, alignedReads);
@@ -227,14 +229,16 @@ public class AssemblyPathReadsAligner {
 				}
 			} else {
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
-				for(AssemblyEmbedded embedded:embeddedList) {
-					QualifiedSequence seqEmb = graph.getSequence(embedded.getSequenceId());
-					ReadAlignment unalignedReadRecord = buildUnalignedReadRecord(embedded.getSequenceId(),seqEmb.getName(),seqEmb.getCharacters());
-					synchronized (alignedReads) {
-						alignedReads.add(unalignedReadRecord);
-					}
-				}
 				if(pathIdx == debugIdx) System.err.println("WARN: Unaligned consensus backbone read "+nextVertex.getRead().getName()+" to final consensus. Unaligned embedded reads: "+embeddedList.size());
+				if (buildUnalignedReadRecords) {
+					for(AssemblyEmbedded embedded:embeddedList) {
+						QualifiedSequence seqEmb = graph.getSequence(embedded.getSequenceId());
+						ReadAlignment unalignedReadRecord = buildUnalignedReadRecord(embedded.getSequenceId(),seqEmb.getName(),seqEmb.getCharacters());
+						synchronized (alignedReads) {
+							alignedReads.add(unalignedReadRecord);
+						}
+					}
+				}	
 			}
 			lastVertex = nextVertex;
 		}
@@ -338,7 +342,8 @@ public class AssemblyPathReadsAligner {
 	}
 	private ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
 		String readStr = read.toString();
-		Map<Integer, Long> codesQuery = KmersExtractor.extractDNAKmerCodes(readStr, KMER_LENGTH_LOCAL_ALN, 0, read.length());
+		
+		Map<Integer, Long> codesQuery = kmerCodesTable.computeSequenceCodesAsMap(readStr, 0, read.length());
 		//if(read.length()==14871) System.out.println("Number of codes query: "+codesQuery.size());
 		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, KMER_LENGTH_LOCAL_ALN);
 		if(bestCluster==null) return null;
