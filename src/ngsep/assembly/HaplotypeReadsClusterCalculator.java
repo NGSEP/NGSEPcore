@@ -702,7 +702,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 	}
 	@Override
 	public void onPileup(PileupRecord pileup) {
-		int idxDebug = 374580;
+		int idxDebug = -1;
 		int pos = pileup.getPosition();
 		char refBase = consensus.charAt(pos-1);
 		if(!DNASequence.isInAlphabeth(refBase)) return;
