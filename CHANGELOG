@@ -1,5 +1,11 @@
-v4.1.1
-
+v4.2.0 07-01-2022
+- GenomesAligner: Improved quality of orthogroup identification. New options -d
+  and -i to recieve a large group of genomes and transcriptomes. New option -f
+  to determine the frequency to label an orthogroup as soft core. 
+- Assembler: Improved the algorithm for diploid species. Added the option -m
+  to specify the minimum read length. Removed the option -uid
+- CDNACatalogAligner: Improved quality of orthogroup identification. New option
+  -y to determine if the input files are CDNA or protein sequences
 
 v4.1.0 12-02-2021
 - New command Assembler to perform de-novo assembly of long reads.

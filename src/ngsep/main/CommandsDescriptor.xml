@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.1.1" date="31-03-2021" jar="NGSEPcore">
+<software name="NGSEP" version="4.2.0" date="07-01-2022" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -266,12 +266,14 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_SIMPLE" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
+<!--
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
 <option id="sc" type="BOOLEAN" attribute="saveCorrected">
 Save the corrected reads
 </option>
+-->
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads
 </option>
@@ -1008,7 +1010,7 @@ Minimum percentage of k-mers to call orthologs
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and returns unfiltered orthogroups.
 </option>
-<option id="t" type="INT" attribute="inputType" defaultConstant="INPUT_TYPE_CDNA">
+<option id="y" type="INT" attribute="inputType" defaultConstant="INPUT_TYPE_CDNA">
 Type of sequences in the input file. 1 for CDNA, 2 for proteins.
 </option>
 </command>
@@ -1400,7 +1402,7 @@ to recalculate allele dosage based on these counts.
 </option>
 </command>
 
-<command id="DistanceClusteringService" class="ngsep.clustering.DistanceClusteringService" groupId="VariantsDownstream">
+<command id="DistanceClusteringService" class="ngsep.clustering.DistanceClusteringService" groupId="VariantsDownstream" printHelp="false">
 <intro>
 Build a dendrogram from a distance matrix
 </intro>
