@@ -574,11 +574,14 @@ public class AssemblyGraph {
 	}
 
 	public void removeVerticesChimericReads () {
-		for(int i=0;i<sequences.size();i++) {
-			if(calculateChimericStatus(i)) {
-				removeVertices(i);
-				removeEmbeddedRelations(i);
-				chimericSequenceIds.add(i);
+		int rounds = 2;
+		for(int h=0;h<rounds;h++) {
+			for(int i=0;i<sequences.size();i++) {
+				if(!isChimeric(i) && calculateChimericStatus(i)) {
+					removeVertices(i);
+					removeEmbeddedRelations(i);
+					chimericSequenceIds.add(i);
+				}
 			}
 		}
 	}

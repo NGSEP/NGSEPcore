@@ -80,6 +80,7 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	{
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
 		aligner.setLog(log);
+		aligner.setBuildUnalignedReadRecords(false);
 		List<QualifiedSequence> consensusList = new ArrayList<QualifiedSequence>();
 		List<AssemblyPath> paths = graph.getPaths(); 
 		for(int i = 0; i < paths.size(); i++)
