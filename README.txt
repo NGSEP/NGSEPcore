@@ -238,20 +238,24 @@ java -jar NGSEPcore.jar Assembler <OPTIONS>
 
 OPTIONS:
 
-	-i FILE		: Input file. See option -f for options on the file
+	-i FILE	: Input file. See option -f for options on the file
 			  format. It can be gzip compressed.
-	-o FILE		: Prefix of the output files.
-	-g FILE		: File with a saved graph to perform layout and
+	-o FILE	: Prefix of the output files.
+	-g FILE	: File with a saved graph to perform layout and
 			  consensus.
+	-k INT		: K-mer length to identify overlaps Default: 15
 	-f INT		: Format of the input file. It can be 0 for fastq or
 			  1 for fasta. Default: 0
 	-w INT		: Window length to calculate minimizers. Default: 30
+	-m INT		: Minimum read length. Default: 5000
 	-mspe DOUBLE	: Minimum proportion from the maximum score of the
 			  edges of a sequence to keep an edge. Default: 0.3
 	-ploidy INT	: Ploidy of the sample. Keep ploidy of 1 if the sample
 			  is inbred, even if it is diploid or polyploid. This
 			  option is still in progress and it has been tested
 			  only in haploid and diploid samples. Default: 1
+	-ac STRING	: Algorithm used to build the consensus. It can be
+			  Simple or Polishing. Default: Simple
 	-t INT		: Number of threads. Default: 1
 
 
@@ -1188,6 +1192,7 @@ OPTIONS:
         -k INT    : K-mer length to find orthologs. Default: 10
         -p INT    : Minimum percentage of k-mers to call orthologs Default: 50
         -s        : Skip the MCL clustering phase and returns unfiltered orthogroups.
+        -y INT    : Type of sequences in the input file. 1 for CDNA, 2 for proteins. Default: 1
 
 This module produces two files as outputs. The first is a text file with
 homology relationships. It has three columns separated by tab:
