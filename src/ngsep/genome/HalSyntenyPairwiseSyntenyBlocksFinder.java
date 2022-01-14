@@ -56,8 +56,11 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 				path.add(vertices.get(i));
 				verticesInBlocks.add(i);
 			}
-			PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
-			syntenyBlocks.add(block);
+			//Discard if it has too few units but add to vertices in blocks to avoid infinite loop
+			if(nextPathIndexes.size()>3) {
+				PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
+				syntenyBlocks.add(block);
+			}
 			nextPathIndexes = findNextPath(vertexWeights,edges,verticesInBlocks);
 		}
 		return syntenyBlocks;

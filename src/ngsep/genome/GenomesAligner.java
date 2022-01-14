@@ -335,7 +335,7 @@ public class GenomesAligner {
 	}
 	
 	public void alignGenomes() {
-		//PairwiseSyntenyBlocksFinder mainFinder = new LCSMainPairwiseSyntenyBlocksFinder();
+		//PairwiseSyntenyBlocksFinder finder = new LCSMainPairwiseSyntenyBlocksFinder();
 		HalSyntenyPairwiseSyntenyBlocksFinder finder = new HalSyntenyPairwiseSyntenyBlocksFinder();
 		finder.setMaxDistance(maxDistanceBetweenUnits);
 		finder.setMinBlockLength(minBlockLength);
