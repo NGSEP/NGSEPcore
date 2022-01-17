@@ -211,7 +211,7 @@ public class HaplotypeReadsClusterCalculator {
 			String seqName = null;
 			int firstRegion = 0;
 			int lastRegion = 0;
-			for(ReadAlignment aln:alignmentRecords) {
+			for(ReadAlignment aln:alignments) {
 				sequenceIds.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
 				seqName = aln.getSequenceName();
