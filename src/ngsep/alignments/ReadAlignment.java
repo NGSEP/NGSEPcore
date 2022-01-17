@@ -595,8 +595,10 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public void setBasesToIgnoreCloseToIndel(byte basesToIgnoreCloseToIndel) {
 		if(basesToIgnoreCloseToIndel<1) throw new IllegalArgumentException("Bases to ignore close to indel must be at least 1");
-		this.basesToIgnoreCloseToIndel = basesToIgnoreCloseToIndel;
-		this.alleleCallsUpdated = false;
+		if(this.basesToIgnoreCloseToIndel != basesToIgnoreCloseToIndel) {
+			this.basesToIgnoreCloseToIndel = basesToIgnoreCloseToIndel;
+			this.alleleCallsUpdated = false;
+		}	
 	}
 	
 	/**
@@ -604,9 +606,18 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param basesToIgnore5P new number of base pairs to ignore
 	 */
 	public void setBasesToIgnore5P(short basesToIgnore5P) {
-		if(isNegativeStrand()) this.basesToIgnoreEnd = basesToIgnore5P;
-		else this.basesToIgnoreStart = basesToIgnore5P;
-		this.alleleCallsUpdated = false;
+		boolean changed = false; 
+		if(isNegativeStrand()) {
+			if (this.basesToIgnoreEnd != basesToIgnore5P) {
+				this.basesToIgnoreEnd = basesToIgnore5P;
+				changed = true;
+			}
+		}
+		else if (this.basesToIgnoreStart != basesToIgnore5P) {
+			this.basesToIgnoreStart = basesToIgnore5P;
+			changed = true;
+		}
+		if(changed) this.alleleCallsUpdated = false;
 	}
 
 	/**
@@ -614,9 +625,17 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param basesToIgnore3P new number of base pairs to ignore
 	 */
 	public void setBasesToIgnore3P(short basesToIgnore3P) {
-		if(isNegativeStrand()) this.basesToIgnoreStart = basesToIgnore3P;
-		else this.basesToIgnoreEnd = basesToIgnore3P;
-		this.alleleCallsUpdated = false;
+		boolean changed = false;
+		if(isNegativeStrand()) {
+			if(this.basesToIgnoreStart != basesToIgnore3P) {
+				this.basesToIgnoreStart = basesToIgnore3P;
+				changed = true;
+			}		
+		} else if(this.basesToIgnoreEnd != basesToIgnore3P) {
+			this.basesToIgnoreEnd = basesToIgnore3P;
+			changed = true;
+		}	
+		if(changed) this.alleleCallsUpdated = false;
 	}
 	
 	/**
@@ -631,8 +650,10 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param basesToIgnoreStart new number of base pairs to ignore
 	 */
 	public void setBasesToIgnoreStart(short basesToIgnoreStart) {
-		this.basesToIgnoreStart = basesToIgnoreStart;
-		this.alleleCallsUpdated = false;
+		if(this.basesToIgnoreStart != basesToIgnoreStart) {
+			this.basesToIgnoreStart = basesToIgnoreStart;
+			this.alleleCallsUpdated = false;
+		}
 	}
 
 	/**
@@ -647,8 +668,10 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param basesToIgnoreEnd new number of base pairs to ignore
 	 */
 	public void setBasesToIgnoreEnd(short basesToIgnoreEnd) {
-		this.basesToIgnoreEnd = basesToIgnoreEnd;
-		this.alleleCallsUpdated = false;
+		if(this.basesToIgnoreEnd != basesToIgnoreEnd) {
+			this.basesToIgnoreEnd = basesToIgnoreEnd;
+			this.alleleCallsUpdated = false;
+		}	
 	}
 	/**
 	 * Provides the read group of this read
@@ -716,7 +739,7 @@ public class ReadAlignment implements GenomicRegion {
 		return s1>=minClipLength || s2>=minClipLength;
 	}
 
-	private void updateAlleleCallsInfo() {
+	public void updateAlleleCallsInfo() {
 		if(alleleCallsUpdated) return;
 		if(alignment == null) {
 			alleleCallLength = null;
