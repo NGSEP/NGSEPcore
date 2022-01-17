@@ -33,7 +33,6 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
@@ -42,11 +41,11 @@ import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.haplotyping.HaplotypeBlock;
 import ngsep.haplotyping.SingleIndividualHaplotyper;
+import ngsep.main.ThreadPoolManager;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -328,25 +327,29 @@ public class HaplotypeReadsClusterCalculator {
 	
 	private List<CalledGenomicVariant> findHeterozygousVariants(AssemblyPath path, List<ReadAlignment> alignments, String sequenceName) {
 		String consensus = path.getConsensus();
-		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-		generator.setLog(log);
-		QualifiedSequenceList metadata = new QualifiedSequenceList();
-		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		generator.setSequencesMetadata(metadata);
-		generator.setMaxAlnsPerStartPos(0);
 		SimpleHeterozygousVariantsDetectorPileupListener hetVarsListener = new SimpleHeterozygousVariantsDetectorPileupListener(consensus);
 		hetVarsListener.setCallIndels(true);
-		generator.addListener(hetVarsListener);
-		
+		QualifiedSequenceList metadata = new QualifiedSequenceList();
+		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
+		List<AlignmentsPileupGenerator> generators = createGenerators(hetVarsListener, metadata );
+		ThreadPoolManager manager = new ThreadPoolManager(numThreads, numThreads);
+		try {
+			for(AlignmentsPileupGenerator generator:generators) {
+				manager.queueTask(()->generator.processAlignments(alignments));
+			}
+			manager.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		double readDepth = 0;
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
-			generator.processAlignment(aln);
 			readDepth+=aln.getReadLength();
 			count++;
 			if(count%1000==0) log.info("Sequence: "+sequenceName+". identified heterozygous SNVs from "+count+" alignments"); 
 		}
-		generator.notifyEndOfAlignments();
+		
 		readDepth/=consensus.length();
 		List<CalledGenomicVariant> hetVars = hetVarsListener.getHeterozygousVariants();
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
@@ -371,6 +374,30 @@ public class HaplotypeReadsClusterCalculator {
 		//if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
 		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars.size()+" SNVs: "+countSNVs);
 		return filteredVars;
+	}
+
+	private List<AlignmentsPileupGenerator> createGenerators(SimpleHeterozygousVariantsDetectorPileupListener hetVarsListener, QualifiedSequenceList metadata ) {
+		List<AlignmentsPileupGenerator> generators = new ArrayList<AlignmentsPileupGenerator>();
+		QualifiedSequence contigM = metadata.get(0);
+		int intervalLength = contigM.getLength() / numThreads;
+		int nextStart = 1;
+		int nextEnd = intervalLength+1;
+		for(int i=0;i<numThreads;i++) {
+			AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+			generator.setLog(log);
+			generator.setSequencesMetadata(metadata);
+			generator.setMaxAlnsPerStartPos(0);
+			generator.addListener(hetVarsListener);
+			generator.setQuerySeq(contigM.getName());
+			generator.setQueryFirst(nextStart);
+			if(i<numThreads-1) generator.setQueryLast(nextEnd);
+			generators.add(generator);
+			nextStart+=intervalLength;
+			nextEnd +=intervalLength;
+		}
+		return generators;
+		
+		
 	}
 
 	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
@@ -698,7 +725,9 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 
 
 	public List<CalledGenomicVariant> getHeterozygousVariants() {
-		return heterozygousVariants;
+		List<CalledGenomicVariant> answer = new ArrayList<CalledGenomicVariant>(heterozygousVariants);
+		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
+		return answer;
 	}
 	@Override
 	public void onPileup(PileupRecord pileup) {
@@ -763,7 +792,10 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			alleles.add(refAlleleIndel);
 			alleles.add(indelAllele);
 			if(pos==idxDebug) System.out.println("SimpleHetVars. Adding indel. Sequence name: "+pileup.getSequenceName()+" Ref count: "+countNonIndelAllele+" indel Count: "+countIndelAllele+" total alns: "+alns.size()+" ref: "+refBase+" nonindel allele: "+refAlleleIndel+" indel allele: "+indelAllele);
-			heterozygousVariants.add(new CalledGenomicVariantImpl(new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles ), CalledGenomicVariant.GENOTYPE_HETERO));
+			synchronized (heterozygousVariants) {
+				heterozygousVariants.add(new CalledGenomicVariantImpl(new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles ), CalledGenomicVariant.GENOTYPE_HETERO));
+			}
+			
 			
 			return;
 		}
@@ -783,9 +815,9 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 		if(refBase!=maxBp && refBase != secondBp) return;
 		CalledSNV calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO);
 		calledSNV.setAllBaseCounts(acgtCounts);
-		
-		heterozygousVariants.add(calledSNV);
-		
+		synchronized (heterozygousVariants) {
+			heterozygousVariants.add(calledSNV);
+		}
 	}
 
 	private boolean isMononucleotide(String allele) {

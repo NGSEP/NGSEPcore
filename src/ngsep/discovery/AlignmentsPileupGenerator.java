@@ -331,6 +331,35 @@ public class AlignmentsPileupGenerator {
 		else log.warning("Cancelled process");
 	}
 	
+	public void processAlignments(List<ReadAlignment> alignments) {
+		int processedAlns = 0;
+		boolean querySeqFound = false;
+		Iterator<ReadAlignment> it = alignments.iterator();
+		//Sequence under processing
+		while(it.hasNext() && keepRunning) {
+			ReadAlignment aln = it.next();
+			//System.out.println("Processing alignment at pos: "+alnRecord.getAlignmentStart()+". Seq: "+alnRecord.getReferenceName()+". Read name: "+alnRecord.getReadName());
+			if(querySeq!=null) {
+				if(querySeq.equals(aln.getSequenceName())) {
+					querySeqFound = true;
+					//Object reuse to make the equals method O(1) in future queries
+					querySeq = aln.getSequenceName();
+					if(aln.getFirst()>queryLast) break;
+					if(queryFirst > aln.getLast()) continue;
+				} else if(querySeqFound) {
+					break;
+				} else {
+					continue;
+				}
+			}
+			processAlignment(aln);
+			processedAlns++;
+			if(processedAlns%1000000 == 0) log.info("Processed "+processedAlns+" alignments");
+		}
+		if(keepRunning) notifyEndOfAlignments();
+		else log.warning("Cancelled process");
+	}
+	
 	private ReadAlignmentFileReader createReader(String filename) throws IOException {
 		ReadAlignmentFileReader reader = new ReadAlignmentFileReader(filename, genome);
 		//reader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_SEQUENCE);
@@ -417,7 +446,7 @@ public class AlignmentsPileupGenerator {
 	
 	public void notifyEndOfAlignments() {
 		processSameStartAlns();
-		processPileups(currentReferenceLast+1);
+		processPileups(Math.min(queryLast, currentReferenceLast)+1);
 		if(currentReferenceSequence!=null) for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
 		currentReferenceSequence=null;
 	}
