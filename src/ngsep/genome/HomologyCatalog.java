@@ -57,9 +57,11 @@ public class HomologyCatalog {
 		List<HomologyUnit> units = new ArrayList<>();
 		for(QualifiedSequence seq : sequences) {
 			CharSequence aminoacidSequence = seq.getCharacters();
+			CharSequence cdsSequence = seq.getCharacters();
 			if(inputType==INPUT_TYPE_CDNA) aminoacidSequence = new AminoacidSequence(translator.getProteinSequence(aminoacidSequence));
 			if(aminoacidSequence.length()<10) System.out.println("Small sequence "+aminoacidSequence+" with name: "+seq.getName()+" length: "+aminoacidSequence.length());
 			HomologyUnit unit = new HomologyUnit(genomeId, seq.getName(), aminoacidSequence);
+			if(inputType==INPUT_TYPE_CDNA) unit.setCdsSequence(cdsSequence);
 			units.add(unit);
 		}
 		

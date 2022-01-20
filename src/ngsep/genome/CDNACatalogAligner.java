@@ -32,6 +32,7 @@ public class CDNACatalogAligner {
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private boolean skipMCL= false;
 	private int inputType = INPUT_TYPE_CDNA;
+	private boolean calculateNucleotideEvolutionStatistics = false;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -120,9 +121,11 @@ public class CDNACatalogAligner {
 		printRelationships(outputPrefix+"_rawHomologs.txt");
 		generateClusters();
 		printRelationships(outputPrefix+"_finalHomologs.txt");
+		if(calculateNucleotideEvolutionStatistics) calculateNucleotideEvolutionStatistics();
 		printResults(outputPrefix,orthologyUnitClusters);
 		log.info("Process finished");
 	}
+	
 	
 	private void generateOrthologs() {
 		catalogsDescription();
@@ -208,5 +211,26 @@ public class CDNACatalogAligner {
 				outClusters.println();
 			}
 		}
+	}
+	private void calculateNucleotideEvolutionStatistics() {
+		for(HomologyCluster cluster:orthologyUnitClusters) {
+			calculateNucleotideEvolutionStatistics(cluster);
+		}
+		
+	}
+	private void calculateNucleotideEvolutionStatistics(HomologyCluster cluster) {
+		for(HomologyUnit unit:cluster.getHomologyUnitsCluster()) {
+			Collection<HomologyEdge> edges = unit.getAllHomologyRelationships();
+			for(HomologyEdge edge:edges) {
+				HomologyUnit u1 = edge.getQueryUnit();
+				HomologyUnit u2 = edge.getSubjectUnit();
+				CharSequence s1 = u1.getCdsSequence();
+				CharSequence s2 = u2.getCdsSequence();
+				//TODO: 1. Align sequences
+				//2. Calculate statistics
+				//3. Update edge with statistics
+			}
+		}
+		
 	}
 }

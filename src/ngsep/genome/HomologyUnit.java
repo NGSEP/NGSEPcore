@@ -42,6 +42,7 @@ public class HomologyUnit implements GenomicRegion {
 	private int last;
 	private boolean negativeStrand = false;
 	private CharSequence unitSequence;
+	private CharSequence cdsSequence;
 	
 	//Homolog relationships
 	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();
@@ -125,6 +126,14 @@ public class HomologyUnit implements GenomicRegion {
 		this.unitSequence = unitSequence;
 	}
 	
+	
+	
+	public CharSequence getCdsSequence() {
+		return cdsSequence;
+	}
+	public void setCdsSequence(CharSequence cdsSequence) {
+		this.cdsSequence = cdsSequence;
+	}
 	/**
 	 * Adds a new ortholog to this unit
 	 * @param unit to associate as ortholog
