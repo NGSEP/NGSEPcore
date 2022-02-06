@@ -1,6 +1,8 @@
 package ngsep.transcriptome;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -10,6 +12,8 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 
 import ngsep.genome.ReferenceGenome;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
@@ -27,97 +31,131 @@ public class MutatedPeptidesExtractor {
 	
 	public static final int DEF_MAX_LENGTH = 10;
 	
-	private int maxLength=DEF_MAX_LENGTH;
+	// Parameters
+	private String inputFile = null;
+	private ReferenceGenome genome;
+	private String transcriptomeFile = null;
+	private Transcriptome transcriptome;
+	private String outputFile = null;
 	private String mutatedSampleId;
 	private String controlSampleId;
-	private Transcriptome transcriptome;
+	private int maxLength=DEF_MAX_LENGTH;
+	
+	
 	private ProteinTranslator translator = new ProteinTranslator();
 	
-	public static void main(String[] args) throws Exception {
-		MutatedPeptidesExtractor instance = new MutatedPeptidesExtractor();
-		String vcfFile = args[0];
-		String transcriptomeMap = args[1];
-		String referenceFile = args[2];
-		instance.loadTranscriptome(transcriptomeMap, new ReferenceGenome(referenceFile));
-		instance.findMutatedPeptides(vcfFile, System.out);
-	}
-	
-	/**
-	 * @return the log
-	 */
+	// Get and set methods
 	public Logger getLog() {
 		return log;
 	}
-
-
-
-	/**
-	 * @param log the log to set
-	 */
 	public void setLog(Logger log) {
 		this.log = log;
 	}
 
-
-
-	/**
-	 * @return the progressNotifier
-	 */
 	public ProgressNotifier getProgressNotifier() {
 		return progressNotifier;
 	}
-
-	/**
-	 * @param progressNotifier the progressNotifier to set
-	 */
 	public void setProgressNotifier(ProgressNotifier progressNotifier) {
 		this.progressNotifier = progressNotifier;
 	}
-
-	/**
-	 * @return the maxLength
-	 */
-	public int getMaxLength() {
-		return maxLength;
+	
+	public String getInputFile() {
+		return inputFile;
 	}
-
-	/**
-	 * @param maxLength the maxLength to set
-	 */
-	public void setMaxLength(int maxLength) {
-		this.maxLength = maxLength;
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
 	}
 	
-	public void setMaxLength(Integer maxLength) {
-		this.setMaxLength(maxLength.intValue());
+	public ReferenceGenome getGenome() {
+		return genome;
+	}
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
+	}
+	public void setGenome(String genomeFile) throws IOException {
+		setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
 	}
 	
-	/**
-	 * @return the mutatedSampleId
-	 */
+	public String getTranscriptomeFile() {
+		return transcriptomeFile;
+	}
+	public void setTranscriptomeFile(String transcriptomeFile) {
+		this.transcriptomeFile = transcriptomeFile;
+	}
+	
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
 	public String getMutatedSampleId() {
 		return mutatedSampleId;
 	}
-
-	/**
-	 * @param mutatedSampleId the mutatedSampleId to set
-	 */
 	public void setMutatedSampleId(String mutatedSampleId) {
-		this.mutatedSampleId = mutatedSampleId;
+		if(mutatedSampleId!=null && mutatedSampleId.trim().length()>0) {
+			this.mutatedSampleId = mutatedSampleId.trim();
+		} else this.mutatedSampleId = null;
 	}
 
-	/**
-	 * @return the controlSampleId
-	 */
 	public String getControlSampleId() {
 		return controlSampleId;
 	}
-
-	/**
-	 * @param controlSampleId the controlSampleId to set
-	 */
 	public void setControlSampleId(String controlSampleId) {
-		this.controlSampleId = controlSampleId;
+		if(controlSampleId!=null && controlSampleId.trim().length()>0) {
+			this.controlSampleId = controlSampleId.trim();
+		} else this.controlSampleId = null;
+	}
+
+	public int getMaxLength() {
+		return maxLength;
+	}
+	public void setMaxLength(int maxLength) {
+		this.maxLength = maxLength;
+	}
+	public void setMaxLength(String value) {
+		setMaxLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public static void main(String[] args) throws Exception {
+		MutatedPeptidesExtractor instance = new MutatedPeptidesExtractor();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	
+	public void run() throws IOException {
+		logParameters();
+		if (genome == null) throw new IOException("The file with the reference genome is a required parameter");
+		loadTranscriptome(transcriptomeFile, genome);
+		if(inputFile==null) {
+			
+			if(outputFile == null) findMutatedPeptides(System.in, System.out);
+			else findMutatedPeptides(System.in, outputFile);
+		} else {
+			if(outputFile == null) findMutatedPeptides(inputFile,System.out);
+			else {
+				findMutatedPeptides(inputFile,outputFile);
+			}
+		}
+		log.info("Process finished");
+	}
+
+	private void logParameters() {
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		PrintStream out = new PrintStream(os);
+		if(inputFile != null) out.println("Input file: "+inputFile);
+		else out.println("Read variants from standard input");
+		out.println("GFF transcriptome file: "+transcriptomeFile);
+		if (genome!=null) out.println("Loaded reference genome from: "+genome.getFilename());
+		if(outputFile != null) out.println("Output file: "+outputFile);
+		else out.println("Annotated VCF will be written to standard output");
+		
+		out.println("Mutated sample id: "+getMutatedSampleId());
+		out.println("Control sample id: "+getControlSampleId());
+		out.println("Maximum peptide length: "+getMaxLength());
+		
+		log.info(""+os.toString());
 	}
 
 	public void loadTranscriptome(String transcriptomeMap, ReferenceGenome genome) throws IOException {
@@ -126,47 +164,65 @@ public class MutatedPeptidesExtractor {
 		transcriptome = handler.loadMap(transcriptomeMap);
 		transcriptome.fillSequenceTranscripts(genome, log);
 	}
-	
-	public void findMutatedPeptides (String vcfFile, PrintStream out) throws IOException  {
-		
-		try (VCFFileReader reader = new VCFFileReader(vcfFile)){
-			//Ids of the samples
-			List<String> sampleIds = reader.getSampleIds();
-			if(sampleIds.size()==0) return;
-			int mutSampleIdx = -1;
-			int controlSampleIdx = -1;
-			
-			if(mutatedSampleId!=null) mutSampleIdx = sampleIds.indexOf(mutatedSampleId);
-			if(controlSampleId!=null) controlSampleIdx = sampleIds.indexOf(controlSampleId);
-			
-			
-			//If you want the full header
-			List<SNV> selectedSNVs = new ArrayList<>();
-			String lastSeqId = null;
-			
-			Iterator<VCFRecord> it = reader.iterator();
-			while(it.hasNext()) {
-				VCFRecord record = it.next();
-				//Basic information from the variant
-				GenomicVariant variant = record.getVariant();
-				if(!(variant  instanceof SNV))continue;
-				
-				if(!variant.getSequenceName().equals(lastSeqId)) {
-					if(lastSeqId!=null) findMutatedPeptides(selectedSNVs,out);
-					selectedSNVs.clear();
-					lastSeqId = variant.getSequenceName();
-				}
-				List<CalledGenomicVariant> genotypeCalls = record.getCalls();
-				CalledGenomicVariant call = genotypeCalls.get(0);
-				if(mutSampleIdx>=0) call = genotypeCalls.get(mutSampleIdx);
-				if((call instanceof CalledSNV) && call.isHeterozygous()) {
-					CalledGenomicVariant controlCall = null;
-					if(controlSampleIdx>=0) controlCall = genotypeCalls.get(controlSampleIdx);
-					if(controlCall==null || controlCall.isHomozygousReference()) selectedSNVs.add((SNV)variant);
-				}
-			}
-			if(lastSeqId!=null) findMutatedPeptides(selectedSNVs,out);
+	public void findMutatedPeptides(String variantsFile,String outputFile) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(variantsFile);
+			 PrintStream out = new PrintStream(outputFile)){
+			findMutatedPeptides(in,out);
 		}
+	}
+	public void findMutatedPeptides(InputStream input,String outputFile) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(input);
+			 PrintStream out = new PrintStream(outputFile)){
+			findMutatedPeptides(in,out);
+		}
+	}
+	public void findMutatedPeptides(InputStream input, PrintStream out) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(input)) {
+			findMutatedPeptides(in,out);
+		}
+	}
+	public void findMutatedPeptides(String variantsFile,PrintStream out) throws IOException {
+		try (VCFFileReader in = new VCFFileReader(variantsFile)){
+			findMutatedPeptides(in,out);
+		}
+	}
+	public void findMutatedPeptides (VCFFileReader reader, PrintStream out) throws IOException  {
+		//Ids of the samples
+		List<String> sampleIds = reader.getSampleIds();
+		if(sampleIds.size()==0) return;
+		int mutSampleIdx = -1;
+		int controlSampleIdx = -1;
+		
+		if(mutatedSampleId!=null) mutSampleIdx = sampleIds.indexOf(mutatedSampleId);
+		if(controlSampleId!=null) controlSampleIdx = sampleIds.indexOf(controlSampleId);
+		
+		
+		//If you want the full header
+		List<SNV> selectedSNVs = new ArrayList<>();
+		String lastSeqId = null;
+		
+		Iterator<VCFRecord> it = reader.iterator();
+		while(it.hasNext()) {
+			VCFRecord record = it.next();
+			//Basic information from the variant
+			GenomicVariant variant = record.getVariant();
+			if(!(variant  instanceof SNV))continue;
+			
+			if(!variant.getSequenceName().equals(lastSeqId)) {
+				if(lastSeqId!=null) findMutatedPeptides(selectedSNVs,out);
+				selectedSNVs.clear();
+				lastSeqId = variant.getSequenceName();
+			}
+			List<CalledGenomicVariant> genotypeCalls = record.getCalls();
+			CalledGenomicVariant call = genotypeCalls.get(0);
+			if(mutSampleIdx>=0) call = genotypeCalls.get(mutSampleIdx);
+			if((call instanceof CalledSNV) && call.isHeterozygous()) {
+				CalledGenomicVariant controlCall = null;
+				if(controlSampleIdx>=0) controlCall = genotypeCalls.get(controlSampleIdx);
+				if(controlCall==null || controlCall.isHomozygousReference()) selectedSNVs.add((SNV)variant);
+			}
+		}
+		if(lastSeqId!=null) findMutatedPeptides(selectedSNVs,out);
 	}
 	
 	public void findMutatedPeptides(List<SNV> selectedSNVs, PrintStream out) {

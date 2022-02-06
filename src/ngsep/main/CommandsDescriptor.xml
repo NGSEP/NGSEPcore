@@ -1649,6 +1649,40 @@ Only used if the consensus sequences are provided in FASTA format (See option -c
 </option>
 </command>
 
+<command id="MutatedPeptidesExtractor" class="ngsep.transcriptome.MutatedPeptidesExtractor" groupId="VariantsDownstream" printHelp="false">
+<intro>Generates a report of mutated peptides from a VCF file with variants.
+</intro>
+<title>Extracting mutated peptides</title>
+<description>
+Generates a report of mutated peptides from a VCF file with variants.
+Requires a gff3 file with gene annotations, and the reference genome in fasta format.
+Reads from standard input unless the -i option is used to specify an input file.
+Writes to standard output unless the -o option is used to specify an output file.
+See the README.txt file for further details of input and output files.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input VCF file with variants to annotate. It can be gzip compressed.
+</option>
+<option id="r" type="GENOME" attribute="genome">
+Fasta file with the reference genome.
+</option>
+<option id="t" type="FILE" attribute="transcriptomeFile">
+Input GFF3 file with gene annotations.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with the report of mutated peptides.
+</option>
+<option id="m" type="STRING" attribute="mutatedSampleId">
+Id of the mutated sample.
+</option>
+<option id="c" type="STRING" attribute="controlSampleId">
+Id of the control sample.
+</option>
+<option id="l" type="INT" attribute="maxLength" defaultConstant="DEF_MAX_LENGTH">
+Maximum peptide length.
+</option>
+</command>
+
 <command id="SingleIndividualSimulator" class="ngsep.simulation.SingleIndividualSimulator" groupId="Benchmark">
 <intro>
 Simulates a single individual with homozygous and heterozygous mutations from a reference genome
