@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
@@ -48,6 +49,7 @@ import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -140,7 +142,7 @@ public class HaplotypeReadsClusterCalculator {
 				List<Set<Integer>> phasedReadIdsBlock = block.getPhasedReadIds();
 				boolean homozygousBlock = phasedReadIdsBlock.size()==1 && rd>1.4*averageHaploidRd;
     			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd && (rd<averageHaploidRd || Math.abs(0.5-proportion)>0.25 || block.getNumVariants()<10 );
-    			if(globalPloidy==1) falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd;
+    			//if(globalPloidy==1) falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd;
     			GenomicRegion region = block.getBlockRegion();
     			System.out.println("Path: "+pathId+" next block from "+region.getFirst()+" to "+region.getLast()+" vars: "+block.getNumVariants()+" phasedGroups: "+phasedReadIdsBlock.size() +" reads: "+block.getNumReads()+ " basepairs "+block.getTotalBasePairs()+" rd: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" incorrectlyPhasedBlock: "+falsePhasedBlock);
     			for(int i=0;i<phasedReadIdsBlock.size();i++) {
@@ -371,6 +373,7 @@ public class HaplotypeReadsClusterCalculator {
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
 		int countSNVs = 0;
 		int n = hetVars.size();
+		int distance = 20;
 		for(int i=0;i<n;i++) {
 			CalledGenomicVariant hetVar = hetVars.get(i);
 			if(path.getPathId() == debugIdx) System.out.println("Next raw heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" alleles: "+hetVar.getAlleles()[0]+" "+hetVar.getAlleles()[1]);
@@ -378,9 +381,9 @@ public class HaplotypeReadsClusterCalculator {
 				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with depth: "+hetVar.getTotalReadDepth()+" average: "+readDepth);
 				continue;
 			}
-			int posBefore = (i==0)?-50:hetVars.get(i-1).getLast();
-			int posAfter = (i==n-1)?consensus.length()+50:hetVars.get(i+1).getFirst();
-			if(hetVar.getFirst()-50>posBefore && hetVar.getLast()+50<posAfter) {
+			int posBefore = (i==0)?-distance:hetVars.get(i-1).getLast();
+			int posAfter = (i==n-1)?consensus.length()+distance:hetVars.get(i+1).getFirst();
+			if(hetVar.getFirst()-distance>posBefore && hetVar.getLast()+distance<posAfter) {
 				if(hetVar instanceof CalledSNV) {
 					countSNVs++;
 					filteredVars.add(hetVar);

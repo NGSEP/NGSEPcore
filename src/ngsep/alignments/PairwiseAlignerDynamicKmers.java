@@ -13,6 +13,7 @@ import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.UngappedSearchHit;
 
 public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
+	private int debugLength = -1;
 	@Override
 	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
@@ -45,14 +46,14 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		}
 		List<UngappedSearchHit> kmerHits = bestCluster.getHitsByQueryIdx();
 		int subjectNext = 0;
-		//System.out.println("S1 length: "+n1+". S2 length: "+n2+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+" cluster predicted start: "+bestCluster.getSubjectPredictedStart());
+		if(n2 == debugLength) System.out.println("S1 length: "+n1+". S2 length: "+n2+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+" cluster predicted start: "+bestCluster.getSubjectPredictedStart()+" kmer length: "+kmerLength);
 		int queryNext = 0;
 		int alnStart = -1;
 		StringBuilder aln1 = new StringBuilder();
 		StringBuilder aln2 = new StringBuilder();
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
-			//System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
+			if(n2 == debugLength) System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
 			if(alnStart==-1) {
 				//Inconsistent kmer hit
 				if (kmerHit.getStart()<bestCluster.getSubjectPredictedStart()) continue;
@@ -60,7 +61,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				String seq1Fragment = sequence1.subSequence(0,alnStart).toString();
 				String seq2Fragment = sequence2.subSequence(0,kmerHit.getQueryIdx()).toString();
 				if(seq1Fragment.length()>0 || seq2Fragment.length()>0) {
-					//System.out.println("Aligning "+seq1Fragment+" with "+seq2Fragment);
+					if(n2 == debugLength) System.out.println("Aligning "+seq1Fragment+" with "+seq2Fragment);
 					String [] alignedFragments = calculateAlignment(seq1Fragment, seq2Fragment);
 					if(alignedFragments==null) return null;
 					aln1.append(alignedFragments[0]);
@@ -69,27 +70,33 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(queryNext <= kmerHit.getQueryIdx() && subjectNext<=kmerHit.getStart()) {
+			} else if(queryNext < kmerHit.getQueryIdx() && subjectNext<kmerHit.getStart()) {
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				if(subjectNextLength==queryNextLength) {
 					nextMatchLength+=subjectNextLength;
 				} else {
+					int minLength = Math.min(subjectNextLength, queryNextLength);
+					int maxLength = Math.max(subjectNextLength, queryNextLength);
+					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+						//Possible invalid kmer hit. Delay alignment
+						if(n2 == debugLength) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
+						continue;
+					}
 					if(nextMatchLength>0) {
 						aln1.append(sequence1,subjectNext-nextMatchLength, subjectNext);
 						aln2.append(sequence2,queryNext-nextMatchLength, queryNext);
 						nextMatchLength = 0;
 					}
-					if(subjectNextLength>0 || queryNextLength>0) {
-						String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getStart()).toString();
-						String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
-						//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
-						String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
-						if(alignedFragments==null) return null;
-						aln1.append(alignedFragments[0]);
-						aln2.append(alignedFragments[1]);
-					}
+					
+					String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getStart()).toString();
+					String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
+					if(n2 == debugLength)  System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
+					String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
+					if(alignedFragments==null) return null;
+					aln1.append(alignedFragments[0]);
+					aln2.append(alignedFragments[1]);
 				}
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getStart()+kmerLength;
@@ -120,7 +127,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 			if(subjectNextLength>0 || queryNextLength>0) {
 				String seq1Fragment = sequence1.subSequence(subjectNext,n1).toString();
 				String seq2Fragment = sequence2.subSequence(queryNext,n2).toString();
-				//if (subjectNextLength>10 || queryNextLength>10) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length());
+				if(n2 == debugLength) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
 				String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
 				if(alignedFragments==null) return null;
 				aln1.append(alignedFragments[0]);

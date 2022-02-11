@@ -36,7 +36,7 @@ public class SingleIndividualHaplotyper {
 	public static final String DEF_ALGORITHM_NAME=ALGORITHM_NAME_REFHAP;
 	
 	public static final int DEF_MIN_MQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	public static final double DEF_MAX_MEC_PROPORTION = 0.1;
+	public static final double DEF_MAX_MEC_PROPORTION = 0.2;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(SingleIndividualHaplotyper.class.getName());

@@ -302,45 +302,52 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				weightedCoverageSharedKmers+=((double)kmerLength*weight);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
+			} else if(kmerHit.getQueryIdx() > queryNext && subjectNext<kmerHit.getStart()) {
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				if(subjectNextLength==queryNextLength && subjectNextLength<100) {
 					nextMatchLength+=subjectNextLength;
-					if(subjectNextLength>0) numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), queryS.substring(queryNext, kmerHit.getQueryIdx()));
+					numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), queryS.substring(queryNext, kmerHit.getQueryIdx()));
 				} else {
-					if(nextMatchLength>0 && (subjectNextLength>0 || queryNextLength>0)) {
+					int minLength = Math.min(subjectNextLength, queryNextLength);
+					int maxLength = Math.max(subjectNextLength, queryNextLength);
+					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+						//Possible invalid kmer hit. Delay alignment
+						if (subjectIdx == subjectIdxDebug  && queryLength==queryLengthDebug) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
+						continue;
+					}
+					if(nextMatchLength>0) {
 						if (subjectIdx == subjectIdxDebug  && queryLength==queryLengthDebug) System.out.println("Found internal segment for possible alignment. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength+" current match length: "+nextMatchLength);
 						alignmentEncoding.add(ReadAlignment.getAlnValue(nextMatchLength, ReadAlignment.ALIGNMENT_MATCH));
 						nextMatchLength = 0;
 					}
-					if(subjectNextLength>0 && queryNextLength>0) {
-						String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
-						String queryStr = queryS.substring(queryNext,kmerHit.getQueryIdx()).toString();
-						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length()+"\n"+subjectStr+"\n"+queryStr);
-						String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
-						if(alignedFragments==null && (queryNextLength<0.1*subjectNextLength || subjectNextLength<0.1*queryNextLength) ) {
-							//Possible large indel event
-							alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
-						}
-						if(alignedFragments==null) {
-							int maxLength = Math.max(subjectNextLength,queryNextLength);
-							if(maxLength>0.2*query.length()) return null;
-							alignmentEncoding.add(ReadAlignment.getAlnValue(Math.min(subjectNextLength, queryNextLength), ReadAlignment.ALIGNMENT_MISMATCH));
-							if(subjectNextLength>queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength-queryNextLength, ReadAlignment.ALIGNMENT_DELETION));
-							else if (subjectNextLength<queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength-subjectNextLength, ReadAlignment.ALIGNMENT_INSERTION));
-							numMismatches+=Math.max(subjectNextLength,queryNextLength);
-						} else {
-							alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
-							numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
-						}
-					} else if (subjectNextLength>0) {
-						alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength, ReadAlignment.ALIGNMENT_DELETION));
-						numMismatches+=subjectNextLength;
-					} else if (queryNextLength>0) {
-						alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength, ReadAlignment.ALIGNMENT_INSERTION));
-						numMismatches+=queryNextLength;
+					String subjectStr = subject.subSequence(subjectNext,kmerHit.getStart()).toString();
+					String queryStr = queryS.substring(queryNext,kmerHit.getQueryIdx()).toString();
+					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+subject.length()+" to segment with length "+queryNextLength+" of query with total length: "+query.length()+"\n"+subjectStr+"\n"+queryStr);
+					String [] alignedFragments = alignerCenter.calculateAlignment(queryStr,subjectStr);
+					if(alignedFragments==null && minLength<0.1*maxLength ) {
+						//Possible large indel event
+						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying naive alignment");
+						alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
+					}
+					if(alignedFragments==null ) {
+						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying single gap alignment");
+						alignedFragments = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
+						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+" mismatches: "+numMismatches+" minLength: "+minLength);
+						if(numMismatches>0.2*minLength) alignedFragments = null; 
+					}
+					if(alignedFragments==null) {
+						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying default alignment");
+						if(maxLength>0.2*query.length()) return null;
+						alignmentEncoding.add(ReadAlignment.getAlnValue(minLength, ReadAlignment.ALIGNMENT_MISMATCH));
+						if(subjectNextLength>queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(subjectNextLength-queryNextLength, ReadAlignment.ALIGNMENT_DELETION));
+						else if (subjectNextLength<queryNextLength) alignmentEncoding.add(ReadAlignment.getAlnValue(queryNextLength-subjectNextLength, ReadAlignment.ALIGNMENT_INSERTION));
+						numMismatches+=Math.max(subjectNextLength,queryNextLength);
+					} else {
+						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
+						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 					}
 				}
 				nextMatchLength+=kmerLength;
