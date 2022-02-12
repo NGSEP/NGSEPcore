@@ -197,10 +197,18 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				subjectNext = kmerHit.getStart()+kmerLength;
 				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(kmerHit.getQueryIdx() >= queryNext && subjectNext<=kmerHit.getStart()) {
+			} else if(kmerHit.getQueryIdx() > queryNext && subjectNext<kmerHit.getStart()) {
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
+				int minLength = Math.min(subjectNextLength, queryNextLength);
+				int maxLength = Math.max(subjectNextLength, queryNextLength);
+				if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+					//Possible invalid kmer hit. Delay alignment
+					if (subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
+					continue;
+				}
+				
 				//Penalize up to 3 bp for each inconsistency
 				//if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
 				int diff = Math.abs(queryNextLength-subjectNextLength);
