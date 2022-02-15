@@ -241,11 +241,15 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		Integer mismatches = alnRecord.getIntegerAttribute(SAMTag.NM.toString());
 		if (mismatches!=null) answer.setNumMismatches((short) Math.min(mismatches,32000));
 		if (loadMode >= LOAD_MODE_ALIGNMENT_SEQUENCE) {
-			answer.setReadCharacters(alnRecord.getReadString());
-			String qs = alnRecord.getBaseQualityString();
-			if(qs!=null && !SAMRecord.NULL_QUALS_STRING.equals(qs)) {
-				answer.setQualityScores(qs);
+			String readChars = alnRecord.getReadString();
+			if(!SAMRecord.NULL_SEQUENCE_STRING.equals(readChars)) {
+				answer.setReadCharacters(readChars);
+				String qs = alnRecord.getBaseQualityString();
+				if(qs!=null && !SAMRecord.NULL_QUALS_STRING.equals(qs)) {
+					answer.setQualityScores(qs);
+				}
 			}
+			
 		}
 		if(loadMode == LOAD_MODE_ALIGNMENT_NAME || loadMode == LOAD_MODE_FULL) answer.setReadName(alnRecord.getReadName());
 		return answer;
