@@ -25,7 +25,7 @@ import ngsep.variants.GenomicVariantImpl;
 public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
 	public final static int MIN_DEFAULT_POINTS = 2;
-	public final static double DEFAULT_EPSILON = 150;
+	public final static double DEFAULT_EPSILON = 250;
 	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 2000;
 	
 	private int minPoints = MIN_DEFAULT_POINTS;
@@ -91,7 +91,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
-						if(toCluster.size() < 4) {
+						if(toCluster.size() < 2) {
 							toCluster.clear();
 							continue;
 						}
