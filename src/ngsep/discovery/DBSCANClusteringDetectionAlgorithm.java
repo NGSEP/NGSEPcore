@@ -6,8 +6,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -24,9 +26,9 @@ import ngsep.variants.GenomicVariantImpl;
 
 public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
-	public final static int MIN_DEFAULT_POINTS = 2;
-	public final static double DEFAULT_EPSILON = 250;
-	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 2000;
+	public final static int MIN_DEFAULT_POINTS = 3;
+	public final static double DEFAULT_EPSILON = 500;
+	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
 	
 	private int minPoints = MIN_DEFAULT_POINTS;
 	private double epsilon = DEFAULT_EPSILON;
@@ -58,7 +60,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 			List<List<GenomicVariant>> signsPerType = new ArrayList<>();
 			for(GenomicVariant sign:signList) {
 				byte type = sign.getType();
-				System.out.println(" Sign first: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
+				System.out.println(" Sign in type list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
 						+ sign.getSequenceName() + " with length: " + sign.length());
 				System.out.println(GenomicVariantImpl.getVariantTypeName(type));
 				if(GenomicVariant.TYPE_INDEL == type) indel.add(sign);
@@ -78,24 +80,24 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 			signsPerType.add(und);
 			for(List<GenomicVariant> typePartition:signsPerType) {
 				if(typePartition.isEmpty()) continue;
+				boolean[] visited = new boolean[typePartition.size() - 1];
 				List<GenomicVariant> toCluster = new ArrayList<>();
 				//toCluster.addAll(typePartition);
 				for(int i = 0; i < typePartition.size() - 1; i++) {
 					//to remove after testing
 					//int r = new Random().nextInt(typePartition.size()-1);
 					GenomicVariant current = typePartition.get(i);
+					visited[i] = true;
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next)) {
+					if(i==typePartition.size() - 2) System.out.println(" Last sign in partition: " + next.getFirst() + " last: " + next.getLast() + " chr: "
+							+ next.getSequenceName() + " with length: " + next.length());
+					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2) {
 						List<Integer> idxs = new ArrayList<>();
+						System.out.println("DSC: " + testDownstreamSignatureCompatibility(current,next));
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
-						if(toCluster.size() < 2) {
-							toCluster.clear();
-							continue;
-						}
-						else{
 							//only for testing
 							/**
 							if(r == i && !ranDistTest) {
@@ -110,23 +112,58 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 							}**/
 							double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
 							//double [][] distanceMatrix = calculateNormalizedDistanceMatrix(toCluster);
-							//System.out.println("#partition size: " + toCluster.size());
+							System.out.println("#partition size: " + toCluster.size());
+							for(GenomicVariant sign:toCluster) {
+								System.out.println(" Sign in partition list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
+										+ sign.getSequenceName() + " with length: " + sign.length());
+							}
 							//System.out.println("#Processing partition with types: " + getSignatureType(typePartition.get(0)) 
 								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
-							List<List<Integer>> partClusters = DBSCANClusteringAlgorithm
+							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
+							List<List<Integer>> partClusters = instance
 									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
 							//System.out.println("Cliques found");
-							for(List<Integer> cluster : partClusters) if(cluster.size() > 3) chrClusters.add(cluster);;
+							//for(List<Integer> cluster : partClusters) if(cluster.size() > 3) chrClusters.add(cluster);
+							List<Integer> noisePoints = instance.getNoisePoints();
+							chrClusters.addAll(partClusters);
+							if(noisePoints.size() > 2) {
+								List<GenomicVariant> noiseSigns = new ArrayList<>();
+								for(int np:noisePoints) noiseSigns.add(signList.get(np));
+								boolean[][] adjMatrix = MaxCliqueClusteringDetectionAlgorithm.
+										calculateAdjacencyMatrix(noiseSigns, 
+												MaxCliqueClusteringDetectionAlgorithm.DEFAULT_PD_NORM_FACTOR, 
+												0.8);
+								ArrayList<ArrayList<Integer>> weakClusters = MaximalCliquesFinder
+										.callMaxCliqueFinder(noisePoints, adjMatrix);
+								chrClusters.addAll(weakClusters);
+							}
 							toCluster.clear();
-						}
 					}
 				}
 			}
 			clusters.put(k, chrClusters);
 		}
+		
 		return clusters;
 	}
-	
+	/**
+	private boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> noiseSigns) {
+		// TODO Auto-generated method stub
+		int n = noiseSigns.size();
+		boolean [][] adjMatrix = new boolean[n][n];
+		for(int i = 0; i < n; i++) {
+			GenomicVariant si = noiseSigns.get(i);
+			for(int j = 0; j < n; j++) {
+				GenomicVariant sj = noiseSigns.get(j);
+				if(!si.equals(sj)) {
+					double distance = calculateThreeDimEuclideanDistance(si, sj);
+					adjMatrix[i][j] = distance < epsilon;
+				}
+			}
+		}
+		return adjMatrix;
+	}
+	**/
 	private double [][] calculateDistanceMatrix(List<GenomicVariant> candidateSignatures) {
 		// TODO Auto-generated method stub
 		int n = candidateSignatures.size();
@@ -137,11 +174,9 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 				GenomicVariant sj = candidateSignatures.get(j);
 				if(!si.equals(sj)) {
 					double distance = calculateThreeDimEuclideanDistance(si, sj);
-					if(si.length()>=10000) {
-						System.out.println("distance between " + si.getFirst() + " " + si.getLast() + " " 
+						/**System.out.println("distance between " + si.getFirst() + " " + si.getLast() + " " 
 								+ si.length() + " and " + sj.getFirst() + " " + sj.getLast() + " " +
-								sj.length() + " is " + distance);
-					}
+								sj.length() + " is " + distance);**/
 					distanceMatrix[i][j] = distance;
 				}
 			}
@@ -165,16 +200,10 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 	}
 	
 	public boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
-		return s2.getFirst() - s1.getLast() < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
+		System.out.println(s1.getLast() + " " + s2.getFirst() + " " + Math.abs(s2.getFirst() - s1.getFirst()));
+		return Math.abs(s2.getFirst() - s1.getFirst()) < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
 	}
-	
-	public static double minMaxScaler(int x, int min, int max) {
-		double normValue;
-		normValue = (double) x;
-		normValue -= (double) min;
-		normValue = normValue / (double) max - min; 
-		return normValue;
-	}
+
 	/**
 	//Only for testing
 	public void testDistributions(String listType, List<GenomicVariant> variants) throws IOException {

@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -87,7 +88,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			}
 			for(List <SimplifiedReadAlignment> alnRegions : alignments.values()) {
 				if(alnRegions.size() > 1) {
-					System.out.println("#Read name=" + alnRegions.get(0).getReadName());
+					//System.out.println("#Read name=" + alnRegions.get(0).getReadName());
 					findInterAlnSignatures(alnRegions);
 				}
 			}
@@ -102,11 +103,13 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		List<GenomicRegion> alnRegions = alignmentRegions.computeIfAbsent(aln.getReadName(), v -> new ArrayList<>());
 		alnRegions.add(alnRegion);
 		**/
-		List<SimplifiedReadAlignment> alnRegions = alignments.computeIfAbsent(aln.getReadName(), v -> new ArrayList<>());
 		Map<Integer,GenomicVariant> filteredCalls = findIntraAlnSignatures(aln);
-		SimplifiedReadAlignment simpleAln = new SimplifiedReadAlignment(aln);
-		simpleAln.setIndelCalls(filteredCalls);
-		alnRegions.add(simpleAln);
+		List<SimplifiedReadAlignment> alnRegions = alignments.computeIfAbsent(aln.getReadName(), v -> new ArrayList<>());
+		if (!aln.isSecondary()) {
+			SimplifiedReadAlignment simpleAln = new SimplifiedReadAlignment(aln);
+			simpleAln.setIndelCalls(filteredCalls);
+			alnRegions.add(simpleAln);
+		}
 	}
 	
 	public GenomicRegionSortedCollection<GenomicVariant> getSignatures() {
@@ -139,23 +142,53 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private Map<Integer, GenomicVariant> findIntraAlnSignatures(ReadAlignment aln) {
 		Map<Integer, GenomicVariant> calls = aln.getIndelCalls();
 		Map<Integer, GenomicVariant> filteredCalls = new HashMap<>();
+		/**
 		if(aln.getFirst() == 14383838) {
 			System.out.println("~secondary=" + aln.isSecondary() + " supplementary=" + aln.isSupplementary());
 			System.out.println("~Read alignment=" +  aln.toString());
-		}
-		//System.out.println("~Read alignment=" +  aln.toString());
-		if(calls != null && !aln.isSecondary()) {
+		}**/
+		//System.out.println("~Read alignment=" + aln.getFirst() + " " + aln.getLast() + " "+ aln.length() + " SCStart " + aln.getSoftClipStart() + 
+			//	" SCEnd " + aln.getSoftClipEnd());
+		if(calls != null){// && !aln.isSecondary()) {
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
 				if(indel.length() < lengthToDefineSVEvent) continue;
-				GenomicVariant sign = createIndelIntraAlnSignature(indel);
+				GenomicVariantImpl sign = createIndelIntraAlnSignature(indel);
+				if(aln.isSecondary()) sign.setNegativeStrand(true);
 				filteredCalls.put(call.getKey(), sign);
 				signatures.add(sign);
-				System.out.println("secondary=" + aln.isSecondary());
+				//System.out.println("secondary=" + aln.isSecondary());
 				System.out.println(" Sign first: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
 					+ sign.getSequenceName() + " with length: " + sign.length());
 				System.out.println(GenomicVariantImpl.getVariantTypeName(sign.getType()));
 			}
+			/**
+			if(aln.isUnique()) {
+				int softClipStart = aln.getSoftClipStart();
+				int softClipEnd = aln.getSoftClipEnd();
+				if(softClipStart >= lengthToDefineSVEvent) {
+					int first = aln.getFirst();
+					int last = first + 1;
+					int length = softClipStart;
+					String seqName = aln.getSequenceName(); 
+					byte type = GenomicVariant.TYPE_LARGEINS;
+					GenomicVariantImpl SCFirstSignature = new GenomicVariantImpl(seqName, first, last, type);
+					SCFirstSignature.setLength(length);
+					filteredCalls.put(first, SCFirstSignature);
+					signatures.add(SCFirstSignature);
+				}
+				if(softClipEnd >= lengthToDefineSVEvent) {
+					int first = aln.getLast();
+					int last = first + 1;
+					int length = softClipEnd;
+					String seqName = aln.getSequenceName(); 
+					byte type = GenomicVariant.TYPE_LARGEINS;
+					GenomicVariantImpl SCLastSignature = new GenomicVariantImpl(seqName, first, last, type);
+					SCLastSignature.setLength(length);
+					filteredCalls.put(first, SCLastSignature);
+					signatures.add(SCLastSignature);
+				}
+			}**/
 		}
 		return filteredCalls; 
 	}
@@ -166,7 +199,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		int nAln = alnRegions.size();
 		SimplifiedReadAlignment firstAln = alnRegions.get(0);
 		SimplifiedReadAlignment lastAln = alnRegions.get(nAln - 1);
-		int interAlnDistance = estimateInterAlnLength(firstAln, lastAln);
 		String sequenceName = firstAln.getSequenceName();
 		if(nAln == 2) {
 			// && Math.abs(firstAln.getLast() - lastAln.getFirst())
@@ -203,7 +235,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		for(int i = 0; i < alnRegions.size(); i++) {
 			SimplifiedReadAlignment current = alnRegions.get(i);
 			System.out.println("#" + current.getSequenceName() + "\t" + current.getFirst() + "\t" + current.getLast() +
-					"\t" + current.length() + "\t" + current.getSoftClipStart() + "\t" + current.getSoftClipEnd());
+					"\t" + current.length() + "\tScStart" + current.getSoftClipStart() + "\tScEnd" + current.getSoftClipEnd());
 		}
 	}
 	
@@ -225,11 +257,11 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private void computeInterAlnIndel(SimplifiedReadAlignment firstAln, SimplifiedReadAlignment lastAln) {
 		int distance = Math.abs(lastAln.getFirst() - firstAln.getLast());
 		String sequenceName = firstAln.getSequenceName();
-		int first = firstAln.getLast();
-		int last = lastAln.getFirst() - 1;
+		int first = firstAln.getLast() + 1;
+		int last = lastAln.getFirst();
 		int length = last - first + 1;
 		int interAlnDistance = estimateInterAlnLength(firstAln, lastAln);
-		if(distance >= lengthToDefineSVEvent && interAlnDistance <= 10) { //distance <= DEL_INTER_DETERMINING_MAX_DISTANCE && getInterAlnDistance(firstAln, lastAln) < lengthToDefineSVEvent) {
+		if(distance >= lengthToDefineSVEvent && interAlnDistance <= 100) { //distance <= DEL_INTER_DETERMINING_MAX_DISTANCE && getInterAlnDistance(firstAln, lastAln) < lengthToDefineSVEvent) {
 			System.out.println("distance=" + distance);
 			byte type = GenomicVariant.TYPE_LARGEDEL;
 			if(length >= lengthToDefineSVEvent) {
@@ -279,31 +311,85 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		List<String> keys = new ArrayList<>(clusters.keySet());
 		QualifiedSequenceList sequences = new QualifiedSequenceList(refGenome.getSequencesList());
 		GenomicRegionSortedCollection<GenomicVariant> sortedVariants = new GenomicRegionSortedCollection<>(sequences);
+		double secondaryAlnExcludingTreshold = 0.2;
 		for(String k:keys) {
 			List<List<Integer>> chrClusters = clusters.get(k);
 			List<GenomicVariant> chrSignList = signatures.getSequenceRegions(k).asList();
 			for(List<Integer> cluster:chrClusters) {
 				List<GenomicVariant> clusterSigns = new ArrayList<>();
-				for(int idx:cluster) clusterSigns.add(chrSignList.get(idx));
-				Collections.sort(clusterSigns, Comparator.comparingInt(s -> s.getFirst()));
-
+				boolean comesFromSecondaryAln = false;
+				int secondaryAlnSignCount = 0;
+				for(int idx:cluster) {
+					GenomicVariant clusteredSign = chrSignList.get(idx);
+					if(clusteredSign.isNegativeStrand()) secondaryAlnSignCount++; 
+					clusterSigns.add(clusteredSign);
+				}
+				boolean trace = false;
 				System.out.println("$Cluster with size: " + clusterSigns.size());
 				for (GenomicVariant sign:clusterSigns) {
-					System.out.println("$Signature: " + sign.getSequenceName() + " begin: " + sign.getFirst() + " end: " +
+					System.out.println("$Signature in cluster: " + sign.getSequenceName() + " begin: " + sign.getFirst() + " end: " +
 							sign.getLast() + " length: " + sign.length() + " type: " + 
 							GenomicVariantImpl.getVariantTypeName(sign.getType()));
+					if(sign.getFirst() == 1716430) trace = true;
 				}
+				double secondaryAlnSignPercentage = (double) secondaryAlnSignCount/cluster.size();
+				if(secondaryAlnSignPercentage >= secondaryAlnExcludingTreshold) comesFromSecondaryAln = true; 
+				if(trace) System.out.println("comes from secondary " + comesFromSecondaryAln);
+				if(comesFromSecondaryAln) continue;
+				Collections.sort(clusterSigns, Comparator.comparingInt(s -> s.getFirst()));
 				GenomicVariantImpl variant = processClusterToVariant(clusterSigns, k);
+				if(trace) System.out.println("Variant created: " + variant.getSequenceName() + variant.getFirst() + variant.getLast() +
+						variant.length());
+				//if(variant.getFirst() == 14363746 && variant.getLast() == 14384751 && Math.abs(variant.length()) == 21006
+					//	&& variant.getType() == GenomicVariant.TYPE_LARGEDEL) {
+				//}
 				if(variant.length() >= lengthToDefineSVEvent) variants.add(variant);
 			}
 		}
 		sortedVariants.addAll(variants);
 		sortedVariants.forceSort();
-		filterVariantsBySimilarity(sortedVariants);
+		List<GenomicVariant> test = sortedVariants.findSpanningRegions("chr1" , 1716430, 1716440).asList();
+		for(GenomicVariant gv : test) {
+			System.out.println("$variant in region before filter: " + gv.getSequenceName() + " begin: " + gv.getFirst() + " end: " +
+					gv.getLast() + " length: " + gv.length() + " type: " + 
+					GenomicVariantImpl.getVariantTypeName(gv.getType()));
+		}
+		filterIntersectingVariants(sortedVariants);
+		List<GenomicVariant> test2 = sortedVariants.findSpanningRegions("chr1" , 17536260, 17561570).asList();
+		for(GenomicVariant gv : test2) {
+			System.out.println("$variant in region after filter: " + gv.getSequenceName() + " begin: " + gv.getFirst() + " end: " +
+					gv.getLast() + " length: " + gv.length() + " type: " + 
+					GenomicVariantImpl.getVariantTypeName(gv.getType()));
+		}
 		//System.out.println("Variants filtered");
 		return sortedVariants;
 	}
 	
+	private void filterIntersectingVariants(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
+		// TODO Auto-generated method stub
+		int n = sortedVariants.size();
+		boolean[] visited = new boolean[n];
+		List<GenomicVariant> variantsToKeep = new ArrayList<>();
+		List<GenomicVariant> variants = sortedVariants.asList();
+		for (int i = 0; i < n; i++) {
+			GenomicVariant variant = variants.get(i);
+			List<GenomicVariant> spanningVariants = sortedVariants.findSpanningRegions(variant).asList();
+			if(!visited[i]) {
+				if(spanningVariants.size() < 2) {
+					variantsToKeep.add(variant);
+					continue;
+				}
+				Collections.sort(spanningVariants, Comparator.comparingInt(v -> (int) v.getVariantQS()));
+				variantsToKeep.add(spanningVariants.get(spanningVariants.size() - 1));
+				for(GenomicVariant visitedVariant : spanningVariants) {
+					int idx = variants.indexOf(visitedVariant);
+					visited[idx] = true;
+				}
+			}
+		}
+		sortedVariants.retainAll(variantsToKeep);
+	}
+
 	public GenomicVariantImpl processClusterToVariant(List<GenomicVariant> clusterSigns, String sequenceName){
 		GenomicVariant firstVar = clusterSigns.get(0);
 		SampleStatistics calcFirst = new SampleStatistics();
@@ -346,13 +432,22 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		variant.setLast(last);
 		variant.setType(type);
 		variant.setVariantQS(variantScore);
+		if(variant.getFirst() == 1716434 && variant.getLast() == 1716435 && variant.length() == 303) {
+			System.out.println("$WEIRD variant processed from cluster: " + variant.getSequenceName() + " begin: " + variant.getFirst() + " end: " +
+					variant.getLast() + " length: " + variant.length() + " type: " + 
+					GenomicVariantImpl.getVariantTypeName(variant.getType()));
+			for (GenomicVariant sign:clusterSigns) {
+				System.out.println("$WEIRD Signature in cluster: " + sign.getSequenceName() + " begin: " + sign.getFirst() + " end: " +
+						sign.getLast() + " length: " + sign.length() + " type: " + 
+						GenomicVariantImpl.getVariantTypeName(sign.getType()));
+			}
+		}
 		return variant;
 	}
 	
 	public void filterVariantsBySimilarity(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
-		List<GenomicVariant> variantsToKeep = new ArrayList<>();
+		Set<GenomicVariant> variantsToKeep = new HashSet<>();
 		List<GenomicVariant> variantsList = sortedVariants.asList();
-		List<GenomicVariant> localCandidates = new ArrayList<>();
 		List<List<GenomicVariant>> variantsPerType = new ArrayList<>();
 		GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(sortedVariants.getSequenceNames());
 		List<GenomicVariant> indel = new ArrayList<>();
@@ -391,23 +486,35 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 				}
 				else cmp = cmpClassInstance.compare(current, next);
 				if(cmp == -1 || cmp == 0 || cmp == 1) {
-					localCandidates.add(current);
-					localCandidates.add(next);
-				}else {
-					if(!localCandidates.isEmpty()) {
-						Collections.sort(localCandidates, Comparator.comparingInt(v -> (int) v.getVariantQS()));
-						variantsToKeep.add(localCandidates.get(localCandidates.size() - 1));
-						localCandidates.clear();
-					}else {
-						variantsToKeep.add(current);
-					}
+					variantsToKeep.add(current.getVariantQS() > next.getVariantQS() ? current : next);
 				}
+				else variantsToKeep.add(current);
 			}
 		}
 		sortedVariants.retainAll(variantsToKeep);
 		sortedVariants.forceSort();
 	}
 	
+	public short calculateSvimVariantScore(List<GenomicVariant> candidates) {
+		double score = 0;
+		SampleStatistics calcPos = new SampleStatistics();
+		SampleStatistics calcSpan = new SampleStatistics();
+		for(GenomicRegion sign:candidates) {
+			calcPos.update(sign.getFirst());
+			calcSpan.update(sign.length());
+		}
+		int n = candidates.size();
+		double numSign = Math.min(80, n);
+		double spanMean = calcSpan.getMean();
+		double normPos = (numSign/8)*(1-Math.min(1, 
+						(Math.sqrt(calcPos.getVariance()))/spanMean));
+		double normSpan = (numSign/8)*(1-Math.min(1, 
+						(Math.sqrt(calcSpan.getVariance()))/spanMean));
+		score = normSpan + normPos + numSign;
+		return (short) score;
+	}
+	
+
 	public short calculateVariantScore(List<GenomicVariant> candidates) {
 		double score = 0;
 		SampleStatistics calcPos = new SampleStatistics();
@@ -460,7 +567,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		clusterSigns.removeAll(outliersToRemove);
 	}
 **/
-	private List<CalledGenomicVariant> makeGenotypeCalls(String alignmentFile, List<GenomicVariant> variantsList) {
+	private List<CalledGenomicVariant> makeGenotypeCalls(List<GenomicVariant> variantsList) {
 		List<CalledGenomicVariant> genotypeCalls = new ArrayList<>();
 		//GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(variants.getSequenceNames());
 		GenomicRegionSortedCollection<SimplifiedReadAlignment> sortedAlns = new GenomicRegionSortedCollection<>(refGenome.getSequencesList());
@@ -473,21 +580,21 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			int varCalls = 0;
 			//GenomicVariantImpl dummyVariant = (GenomicVariantImpl) variant;
 			//dummyVariant.setFirst(variant.getFirst() - 1000);
-			System.out.println("*Variant: " + variant.getSequenceName() + " begin: " + variant.getFirst() + " end: " +
-					variant.getLast() + " length: " + variant.length() + " type: " + 
-					GenomicVariantImpl.getVariantTypeName(variant.getType()));
+			//System.out.println("*Variant: " + variant.getSequenceName() + " begin: " + variant.getFirst() + " end: " +
+				//	variant.getLast() + " length: " + variant.length() + " type: " + 
+					//GenomicVariantImpl.getVariantTypeName(variant.getType()));
 			List<SimplifiedReadAlignment> spanningAlns = sortedAlns.findSpanningRegions(variant).asList();
 			int varCoveredAlns = spanningAlns.size();
 			if(varCoveredAlns == 0) genotype = -1;
 			else {
 				for(SimplifiedReadAlignment alignment : spanningAlns) {
-					System.out.println("*SpanningSRA: " + alignment.getSequenceName() + " begin: " + alignment.getFirst() + " end: " +
-							alignment.getLast() + " length: " + alignment.length());
+					//System.out.println("*SpanningSRA: " + alignment.getSequenceName() + " begin: " + alignment.getFirst() + " end: " +
+						//	alignment.getLast() + " length: " + alignment.length());
 					if(hasSVAlleleAlnCall(alignment, variant)) varCalls++;
 				}
 				//Check calls for intraalignment evidence
 				genotype = decideGenotype(varCalls, varCoveredAlns);
-				System.out.println("genotype=" + genotype);
+				//System.out.println("genotype=" + genotype);
 			}
 			CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(variant, genotype);
 			genotypeCalls.add(calledVariant);
@@ -570,9 +677,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		for(int i = baseQueueBegin; i <= baseQueueLimit; i++) {
 			GenomicVariant candidateIndelCall = aln.getIndelCall(i);
 			byte firstIndelCallType;
-			if(varFirst == 13276741 && aln.getFirst() == 13276741) {
-				System.out.println("i=" + i + " call=" + candidateIndelCall);
-			}
 			if(candidateIndelCall != null) {
 				firstIndelCallType = candidateIndelCall.getFirst() + 1 == candidateIndelCall.getLast() ? 
 						GenomicVariant.TYPE_LARGEINS : GenomicVariant.TYPE_LARGEDEL;
@@ -594,17 +698,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			}
 		}**/
 		return false;
-	}
-	
-	private void filterRecordsByGenotype(List<VCFRecord> records) {
-		// TODO Auto-generated method stub
-		List<VCFRecord> toRemove = new ArrayList<>();
-		for(int i = 0; i < records.size(); i++) {
-			VCFRecord record = records.get(i);
-			CalledGenomicVariant call = record.getCalls().get(0);
-			if(call.isUndecided()) toRemove.add(record); 
-		}
-		records.removeAll(toRemove);
 	}
 	
 	private int decideGenotype(int calls, int coverage) {
@@ -699,14 +792,31 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		variants = callVariants(clusters);
 		List<GenomicVariant> variantsList = variants.asList();
-		List<CalledGenomicVariant> genotypeCalls = makeGenotypeCalls(alnFile, variantsList);
+		List<CalledGenomicVariant> genotypeCalls = makeGenotypeCalls(variantsList);
 		VCFFileHeader header = createVCFHeader(sampleId);
+		//filterVariantsWithoutGenotype(variantsList, genotypeCalls);
 		List<VCFRecord> records = buildRecords(variantsList, genotypeCalls, header);
-		filterRecordsByGenotype(records);
 		String saveFile = sampleId + ".variants.vcf";
 		printVCFFile(records, header, saveFile);
 	}
 	
+	private void filterVariantsWithoutGenotype(List<GenomicVariant> variantsList,
+			List<CalledGenomicVariant> genotypeCalls) {
+		// TODO Auto-generated method stub
+		List<GenomicVariant> variantsToRemove = new ArrayList<>();
+		List<CalledGenomicVariant> callsToRemove = new ArrayList<>();
+		for (int i = 0; i < variantsList.size(); i++) {
+			CalledGenomicVariant call = genotypeCalls.get(i);
+			GenomicVariant variant = variantsList.get(i);
+			if(call.isUndecided()) {
+				callsToRemove.add(call);
+				variantsToRemove.add(variant);
+			}
+		}
+		genotypeCalls.removeAll(callsToRemove);
+		variantsList.removeAll(variantsToRemove);
+	}
+
 	/**
 	public int modifiedAlnComparison(GenomicVariant var, ReadAlignment aln, GenomicRegionComparator cmpClassInstance) {
 		String seqName = aln.getSequenceName();

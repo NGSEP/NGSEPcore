@@ -21,7 +21,9 @@ public class DBSCANClusteringAlgorithm {
 	public static final int UNDEFINED_LABEL = -1;
 	public static final int NOISE_LABEL = 0;
 	
-	public static List<List<Integer>> runDBSCANClustering(List<Integer> idxs,
+	private List<Integer> noisePoints;
+	
+	public List<List<Integer>> runDBSCANClustering(List<Integer> idxs,
 			double [][] distanceMatrix, int minPts, double epsilon) {
 		// TODO Auto-generated method stub
 		int [] clusterLabels = DBSCAN(idxs, distanceMatrix, minPts, epsilon);
@@ -29,7 +31,7 @@ public class DBSCANClusteringAlgorithm {
 		return clusters;
 	}
 	
-	private static int [] DBSCAN(List<Integer> idxs, double [][] distanceMatrix, int minPts, double epsilon) {
+	private int [] DBSCAN(List<Integer> idxs, double [][] distanceMatrix, int minPts, double epsilon) {
 		int [] labels = new int[idxs.size()];
 		Arrays.fill(labels, UNDEFINED_LABEL);
 		int c = 0;
@@ -56,13 +58,23 @@ public class DBSCANClusteringAlgorithm {
 		}
 		return labels;
 	}
-
-	private static List<List<Integer>> assignClustersByLabel(List<Integer> idxs, int[] labels) {
+	
+	/**
+	 * 
+	 * @param idxs the index that identifies the specific object in the original collection
+	 * @param labels id of each cluster
+	 * @return List that contains each cluster as a list
+	 */
+	private List<List<Integer>> assignClustersByLabel(List<Integer> idxs, int[] labels) {
 		// TODO Auto-generated method stub
 		Map <Integer, List<Integer>> clustersMap = new HashMap<>();
+		noisePoints = new ArrayList<>();
 		for(int i = 0; i < labels.length; i++) {
 			int c = labels[i];
-			if(c==NOISE_LABEL) continue;
+			if(c==NOISE_LABEL) {
+				noisePoints.add(idxs.get(i));
+				continue;
+			}
 			int idx = idxs.get(i);
 			List<Integer> cluster = clustersMap.computeIfAbsent(c, v -> new ArrayList<>());
 			cluster.add(idx);
@@ -71,8 +83,7 @@ public class DBSCANClusteringAlgorithm {
 		return clusters;
 	}
 
-	private static List<Integer> rangeQuery(double[][] distanceMatrix, double epsilon,
-			int j) {
+	private List<Integer> rangeQuery(double[][] distanceMatrix, double epsilon, int j) {
 		// TODO Auto-generated method stub
 		List<Integer> neighbors = new ArrayList<>();
 		for(int i = 0; i < distanceMatrix.length; i++) {
@@ -82,6 +93,10 @@ public class DBSCANClusteringAlgorithm {
 			}
 		}
 		return neighbors;
+	}
+	
+	public List<Integer> getNoisePoints(){
+		return noisePoints;
 	}
 	
 	//Main method used for testing the implementation outside the ngsep context. Not supposed to be used in application.
@@ -126,7 +141,8 @@ public class DBSCANClusteringAlgorithm {
 		try(PrintWriter writer = new PrintWriter("ngsep_labels.txt")){
 			for(int label : testClusters) writer.write(label + "\n");
 		}**/
-		List<List<Integer>> clusters = runDBSCANClustering(idxs, distanceMatrix, 13, 1.0);
+		DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
+		List<List<Integer>> clusters = instance.runDBSCANClustering(idxs, distanceMatrix, 13, 1.0);
 		try(PrintWriter writer = new PrintWriter("ngsep_clusters.txt")){
 			int c = 0;
 			for(List<Integer> cluster : clusters) {

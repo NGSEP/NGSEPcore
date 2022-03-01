@@ -76,7 +76,8 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 					GenomicVariant current = typePartition.get(i);
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 300) {
+					if(!testDownstreamSignatureCompatibility(current,next) || toCluster.size() >= 300 ||
+							i==typePartition.size() - 2) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicVariant sign:toCluster) idxs.add(signList.indexOf(sign));
 						if(toCluster.size() < 4) {
@@ -84,7 +85,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 							continue;
 						}
 						else{
-							boolean[][] adjMatrix = calculateAdjacencyMatrix(toCluster);
+							boolean[][] adjMatrix = calculateAdjacencyMatrix(toCluster, pdNormFactor, edgeTreshold);
 							//System.out.println("#partition size: " + toCluster.size());
 							//System.out.println("#Processing partition with types: " + getSignatureType(typePartition.get(0)) 
 								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
@@ -102,7 +103,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		return clusters;
 	}
 	
-	public double calculateSPD(GenomicVariant sign1, GenomicVariant sign2) {
+	public static double calculateSPD(GenomicVariant sign1, GenomicVariant sign2, double PDNormFactor) {
 		double SPD = 0;
 		double SD = 0;
 		int PD = 0;
@@ -116,7 +117,7 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		if(last2 - first2 < 2) last2 = first2 + span2 - 1;
 		SD = calculateSD(span1, span2);
 		PD = calculatePD(first1, first2, last1, last2);
-		SPD = SD + (double) PD/pdNormFactor;
+		SPD = SD + (double) PD/PDNormFactor;
 		return SPD;
 	}
 	
@@ -132,14 +133,15 @@ public class MaxCliqueClusteringDetectionAlgorithm implements LongReadVariantDet
 		return PD;
 	}
 	
-	public boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> candidateSignatures) {
+	public static boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> candidateSignatures, double PDNormFactor, 
+			double edgeTreshold) {
 		int n = candidateSignatures.size();
 		boolean[][] adjacencyMatrix = new boolean[n][n];
 		for(int i = 0; i < n; i++) {
 			GenomicVariant si = candidateSignatures.get(i);
 			for(int j = 0; j < n; j++) {
 				GenomicVariant sj = candidateSignatures.get(j);
-				double spd = calculateSPD(si, sj);
+				double spd = calculateSPD(si, sj, PDNormFactor);
 				if(spd < edgeTreshold && !si.equals(sj)) {
 					adjacencyMatrix[i][j] = true;
 				}
