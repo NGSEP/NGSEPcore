@@ -311,7 +311,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		List<String> keys = new ArrayList<>(clusters.keySet());
 		QualifiedSequenceList sequences = new QualifiedSequenceList(refGenome.getSequencesList());
 		GenomicRegionSortedCollection<GenomicVariant> sortedVariants = new GenomicRegionSortedCollection<>(sequences);
-		double secondaryAlnExcludingTreshold = 0.2;
+		double secondaryAlnExcludingTreshold = 0.5;
 		for(String k:keys) {
 			List<List<Integer>> chrClusters = clusters.get(k);
 			List<GenomicVariant> chrSignList = signatures.getSequenceRegions(k).asList();
@@ -408,7 +408,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		//System.out.println("first: " + first);
 		//System.out.println("last: " + last);
 		byte type = firstVar.getType();
-		short variantScore = calculateVariantScore(clusterSigns);
 		List<String> alleles = new ArrayList<>();
 		String ref = "";
 		String alt = "";
@@ -431,6 +430,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		variant.setLength(endOfSpan - first + 1);
 		variant.setLast(last);
 		variant.setType(type);
+		short variantScore = calculateVariantScore(clusterSigns, variant.length());
 		variant.setVariantQS(variantScore);
 		if(variant.getFirst() == 1716434 && variant.getLast() == 1716435 && variant.length() == 303) {
 			System.out.println("$WEIRD variant processed from cluster: " + variant.getSequenceName() + " begin: " + variant.getFirst() + " end: " +
@@ -515,7 +515,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	}
 	
 
-	public short calculateVariantScore(List<GenomicVariant> candidates) {
+	public short calculateVariantScore(List<GenomicVariant> candidates, int length) {
 		double score = 0;
 		SampleStatistics calcPos = new SampleStatistics();
 		SampleStatistics calcSpan = new SampleStatistics();
@@ -525,12 +525,11 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		int n = candidates.size();
 		double numSign = Math.min(80, n);
-		double spanMean = calcSpan.getMean();
-		double normPos = (numSign/8)*(1-Math.min(1, 
-						(Math.sqrt(calcPos.getVariance()))/spanMean));
-		double normSpan = (numSign/8)*(1-Math.min(1, 
-						(Math.sqrt(calcSpan.getVariance()))/spanMean));
-		score = normSpan + normPos + numSign;
+		double stdSpan = Math.sqrt(calcSpan.getVariance());
+		double stdPos = Math.sqrt(calcPos.getVariance());
+		double spanDeviationScore = 1 - Math.min(1, (double) stdSpan/length);
+		double posDeviationScore = 1 - Math.min(1, (double) stdPos/length);
+		score = numSign + (spanDeviationScore*((double) numSign/8)) + (posDeviationScore*((double) numSign/8));
 		return (short) score;
 	}
 /**
