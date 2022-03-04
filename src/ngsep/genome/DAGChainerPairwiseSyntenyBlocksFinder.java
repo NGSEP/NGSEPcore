@@ -1,7 +1,14 @@
 package ngsep.genome;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import junit.framework.ComparisonCompactor;
 
 
 public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBlocksFinder {
@@ -18,7 +25,8 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		gapUnitLen = 10000;
 		gapOpen = 0;
 		gapExtend = -3;
-		maxDistance = 10000;
+		maxDistance = 100000;
+		minBlockLength = 6;
 	}
 	
 	public int getMinBlockLength() {
@@ -73,11 +81,49 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		
 		System.out.println("Built graph with " + vertices.size() +" vertices");
 		
-		List<DAGChainerEdge> edges = buildEdgesVertex(vertices);
+		//Reconstruct synteny blocks in the same orientation
+		List<DAGChainerEdge> edges = buildEdgesVertex(vertices, false);
 		
 		System.out.println("Built graph with " + edges.size() +" edges");
 	
-		syntenyBlocks.addAll(findPaths(vertices, edges));
+		Set<Integer> verticesInBlocks = new HashSet<>();
+		
+		List<Integer> nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
+		while (nextPathIndexes!=null) {
+			//System.out.println("Found next path of size: "+nextPathIndexes.size());
+			List<SyntenyVertex> path = new ArrayList<>(nextPathIndexes.size());
+			for(int i:nextPathIndexes) {
+				path.add(vertices.get(i));
+				verticesInBlocks.add(i);
+			}
+			//Discard if it has too few units but add to vertices in blocks to avoid infinite loop
+			if(nextPathIndexes.size()>minBlockLength) {
+				PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
+				syntenyBlocks.add(block);
+			}
+			nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
+		}
+		
+		//Reconstruct synteny blocks in the opposite orientation
+		edges = buildEdgesVertex(vertices, true);
+		
+		System.out.println("Built graph with " + edges.size() +" edges");
+	
+		verticesInBlocks = new HashSet<>();
+		
+		nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
+		while (nextPathIndexes!=null) {
+			//System.out.println("Found next path of size: "+nextPathIndexes.size());
+			List<SyntenyVertex> path = new ArrayList<>(nextPathIndexes.size());
+			for(int i:nextPathIndexes) {
+				path.add(vertices.get(i));
+				verticesInBlocks.add(i);
+			}
+			PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
+			syntenyBlocks.add(block);
+
+			nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
+		}
 		
 		
 		return syntenyBlocks;
@@ -114,7 +160,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 	 * @param vertices
 	 * @return List of Edges
 	 */
-	private List<DAGChainerEdge> buildEdgesVertex(List<SyntenyVertex> vertices) {
+	private List<DAGChainerEdge> buildEdgesVertex(List<SyntenyVertex> vertices,boolean inverse) {
 		List<DAGChainerEdge> edges = new ArrayList<>();
 		
 		for (int i=0; i<vertices.size();i++) {
@@ -127,31 +173,32 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				LocalHomologyCluster v2g2 = v2.getLocalRegion2();
 				
 				if (!v1g1.getSequenceName().equals(v2g1.getSequenceName()) || !v1g2.getSequenceName().equals(v2g2.getSequenceName())) {
-					break;
+					continue;
 				} 
-				else if (!calculatePossibleEdge(v1, v2)) {
-					break;
+				else if (!calculatePossibleEdge(v1, v2, inverse)) {
+					continue;
 				}
 				else {
 						DAGChainerEdge edge = new DAGChainerEdge(i, j);
 						edges.add(edge);
-				}
-							
+				}		
 			}
 		}	
 		return edges;
 	}
 	
-	private boolean calculatePossibleEdge(SyntenyVertex v1, SyntenyVertex v2) {
+	private boolean calculatePossibleEdge(SyntenyVertex v1, SyntenyVertex v2, boolean inverse) {
 		
-		double v1g1pos = calculateMidPositiion(v1.getLocalRegion1());
-		double v1g2pos = calculateMidPositiion(v1.getLocalRegion2());
-		double v2g1pos = calculateMidPositiion(v2.getLocalRegion1());
-		double v2g2pos = calculateMidPositiion(v2.getLocalRegion2());
+		int v1g1pos = calculateMidPositiion(v1.getLocalRegion1());
+		int v1g2pos = calculateMidPositiion(v1.getLocalRegion2());
+		int v2g1pos = calculateMidPositiion(v2.getLocalRegion1());
+		int v2g2pos = calculateMidPositiion(v2.getLocalRegion2());
 		
-		if(v1g1pos<v2g1pos && v1g2pos < v2g2pos)
+		
+		if(!inverse && v1g1pos<v2g1pos && v1g2pos < v2g2pos)
 			return true;
-		
+		else if(inverse && v1g1pos<v2g1pos && v1g2pos > v2g2pos)
+			return true;
 		return false;
 	}
 	
@@ -160,9 +207,9 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 	 * @param cluster
 	 * @return
 	 */
-	public double calculateMidPositiion(LocalHomologyCluster cluster)
+	public int calculateMidPositiion(LocalHomologyCluster cluster)
 	{
-		return (cluster.getLast()-cluster.getFirst())/2;
+		return (cluster.getLast() + cluster.getFirst())/2;
 	}
 	/**
 	 * 
@@ -170,66 +217,136 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 	 * @param edges
 	 * @return
 	 */
-	public List<PairwiseSyntenyBlock> findPaths(List<SyntenyVertex> vertices, List<DAGChainerEdge> edges)
+	private List<Integer> findPaths(List<SyntenyVertex> vertices, List<DAGChainerEdge> edges, Set<Integer> verticesInBlocks)
 	{
-		List<PairwiseSyntenyBlock> syntenyBlocks = new ArrayList<PairwiseSyntenyBlock>();
-		
 		double[] paths = new double[vertices.size()];
-		int[] predecesor = new int[vertices.size()];
-		paths[0] = vertices.get(0).getMaximumEdgePCTSharedKmers();
-		predecesor[0] = -1;
+		int[] predecessor = new int[vertices.size()];
+		Arrays.fill(predecessor, -1);
+				
+		HashMap<Integer, ArrayList<Integer>> mapPredecessor = buildMapPredecessors(edges);
 		
-		for (int i = 1; i < paths.length; i++) 
+		//Calculate scores using dynamic programming
+		for (int i = 0; i < paths.length; i++) 
 		{
-			predecesor[i]=-1;
-			paths[i] = vertices.get(i).getMaximumEdgePCTSharedKmers();
-
-			if(vertices.get(i).getLocalRegion1().getFirst() != vertices.get(i-1).getLocalRegion1().getFirst() && vertices.get(i).getLocalRegion2().getFirst() != vertices.get(i-1).getLocalRegion2().getFirst())
-			{
-				if(vertices.get(i).getLocalRegion1().getSequenceName().equals(vertices.get(i-1).getLocalRegion1().getSequenceName()))
-				{
-					paths[i] += Math.max(paths[i-1] + calculateGapPenalty(vertices.get(i-1),vertices.get(i)), 0);
-					predecesor[i] = i-1;
-				}
-			}
+			if(verticesInBlocks.contains(i)) continue;
+			double maxScore = 0;
+			int bestPredecessor = -1;
 			
-			System.out.println(i + " score: " + paths[i] + " contig: " + vertices.get(i).getLocalRegion1().getSequenceName() + " predecesor " + predecesor[i]);
+			ArrayList<Integer> listPredecessors = mapPredecessor.get(i);
+			
+			if(listPredecessors!=null)
+			{
+				for(Integer vOrigen : listPredecessors)
+				{
+					double scoreVertexOrigen = 	Math.max(paths[vOrigen] + calculateGapPenalty(vertices.get(vOrigen),vertices.get(i)), 0);
+					if(scoreVertexOrigen>maxScore)
+					{
+						maxScore = scoreVertexOrigen;
+						bestPredecessor = vOrigen;
+					}
+				}
+				predecessor[i] = bestPredecessor;
+			}
+			paths[i] = vertices.get(i).getMaximumEdgePCTSharedKmers() + maxScore;
+			System.out.println(i + " score: " + paths[i] + " contig: " + vertices.get(i).getLocalRegion1().getSequenceName() + " " + vertices.get(i).getLocalRegion2().getSequenceName() + " predecesor " + predecessor[i]);
 		}
 		
-		//Add blocks
+		List<Integer> homologies = extractBestPath(vertices,edges,paths,predecessor);
 		
-		return syntenyBlocks;
-
+		return homologies;
+	}
+	
+	
+	private List<Integer> extractBestPath(List<SyntenyVertex> vertices, List<DAGChainerEdge> edges, double[] paths,
+			int[] predecessor) {
+		
+		List<Integer> homologies = new ArrayList<>();
+		int bestVertex = -1;
+		double  maxScore = 0;
+		
+		//Find best path
+		for (int i = 0; i < paths.length; i++) {
+			if(paths[i]>maxScore){
+				bestVertex = i;
+				maxScore = paths[i];
+			}
+		}
+		System.out.println("Mejor path es " + maxScore + " y termina en vertex " + bestVertex);
+		
+		int countVertex = 1;
+		int i = bestVertex;
+		while(predecessor[i] >= 0){
+			homologies.add(i);
+			i = predecessor[i];
+			countVertex ++;
+		}
+		
+		Collections.reverse(homologies);
+		
+		//Calculate block Size (Distance or genes)
+		//int end = calculateMidPositiion(vertices.get(bestVertex).getLocalRegion1());
+		//int start = calculateMidPositiion(vertices.get(predecessor[i]).getLocalRegion1());		
+		//if(end-start >= minBlockLength)
+		if(countVertex>=minBlockLength)
+			return homologies;
+		
+		return null;
 	}
 
-	public double calculateNumGaps(double v1g1pos,double v1g2pos,double v2g1pos,double v2g2pos) {
+	/**
+	 * Builds the map of possible predecessors of a SyntenyVertex
+	 * @param edges
+	 * @return
+	 */
+	private HashMap<Integer,ArrayList<Integer>> buildMapPredecessors(List<DAGChainerEdge> edges)
+	{
+		HashMap<Integer, ArrayList<Integer>> mapPredecessor = new HashMap<>();
 		
-		double numGaps = ((v2g1pos-v1g1pos) + (v2g2pos-v1g2pos) + Math.abs((v2g1pos-v1g1pos) + (v2g2pos-v1g2pos)))/(2*gapUnitLen) + 0.5;
+		for (DAGChainerEdge edge : edges) 
+		{
+			if(mapPredecessor.get(edge.v2Index)==null)
+			{
+				mapPredecessor.put(edge.v2Index, new ArrayList<Integer>());
+			}
+			mapPredecessor.get(edge.v2Index).add(edge.v1Index);
+		}
+		
+		return mapPredecessor;
+	}
+
+	public double calculateNumGaps(int distanceG1,int distanceG2) {
+		
+		double numGaps = (distanceG1 + distanceG2 + Math.abs(distanceG1 - distanceG2))/(2 * gapUnitLen) + 0.5;
 		return numGaps;
 	}
 	
 	
 	public double calculateGapPenalty(SyntenyVertex v1, SyntenyVertex v2) {
 	
-		double v1g1pos = calculateMidPositiion(v1.getLocalRegion1());
-		double v1g2pos = calculateMidPositiion(v1.getLocalRegion2());
-		double v2g1pos = calculateMidPositiion(v2.getLocalRegion1());
-		double v2g2pos = calculateMidPositiion(v2.getLocalRegion2());
+		int v1g1pos = calculateMidPositiion(v1.getLocalRegion1());
+		int v1g2pos = calculateMidPositiion(v1.getLocalRegion2());
+		int v2g1pos = calculateMidPositiion(v2.getLocalRegion1());
+		int v2g2pos = calculateMidPositiion(v2.getLocalRegion2());
 		
 		double gapPenalty = 0;
 		
-		double numGaps = calculateNumGaps(v1g1pos,v1g2pos,v2g1pos,v2g2pos);
+		int distanceG1 = v2g1pos - v1g1pos;
+		int distanceG2 = v2g2pos - v1g2pos;
 		
-		if (Math.max(v2g1pos-v1g1pos, v2g2pos-v1g2pos) > maxDistance) {
+		double numGaps = calculateNumGaps(distanceG1, distanceG2);
+		
+		
+		if (Math.max(distanceG1, distanceG2) > maxDistance) {
 			return -1000000000;
 		}
 		else if(numGaps > 0) {
-			gapPenalty = gapOpen + (numGaps*gapExtend);
+			gapPenalty = gapOpen + (numGaps * gapExtend);
 		}
 		
 		return gapPenalty;
 	}
 }
+
 class DAGChainerEdge {
 	int v1Index;
 	int v2Index;
