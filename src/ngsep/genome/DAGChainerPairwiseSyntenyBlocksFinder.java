@@ -8,9 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import junit.framework.ComparisonCompactor;
-
-
 public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBlocksFinder {
 	
 	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
@@ -96,11 +93,9 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				path.add(vertices.get(i));
 				verticesInBlocks.add(i);
 			}
-			//Discard if it has too few units but add to vertices in blocks to avoid infinite loop
-			if(nextPathIndexes.size()>minBlockLength) {
-				PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
-				syntenyBlocks.add(block);
-			}
+			PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
+			syntenyBlocks.add(block);
+			
 			nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
 		}
 		
@@ -124,7 +119,6 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 
 			nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
 		}
-		
 		
 		return syntenyBlocks;
 	}
@@ -179,8 +173,8 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 					continue;
 				}
 				else {
-						DAGChainerEdge edge = new DAGChainerEdge(i, j);
-						edges.add(edge);
+					DAGChainerEdge edge = new DAGChainerEdge(i, j);
+					edges.add(edge);
 				}		
 			}
 		}	
@@ -234,13 +228,10 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 			
 			ArrayList<Integer> listPredecessors = mapPredecessor.get(i);
 			
-			if(listPredecessors!=null)
-			{
-				for(Integer vOrigen : listPredecessors)
-				{
+			if(listPredecessors!=null){
+				for(Integer vOrigen : listPredecessors){
 					double scoreVertexOrigen = 	Math.max(paths[vOrigen] + calculateGapPenalty(vertices.get(vOrigen),vertices.get(i)), 0);
-					if(scoreVertexOrigen>maxScore)
-					{
+					if(scoreVertexOrigen>maxScore){
 						maxScore = scoreVertexOrigen;
 						bestPredecessor = vOrigen;
 					}
@@ -248,7 +239,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				predecessor[i] = bestPredecessor;
 			}
 			paths[i] = vertices.get(i).getMaximumEdgePCTSharedKmers() + maxScore;
-			System.out.println(i + " score: " + paths[i] + " contig: " + vertices.get(i).getLocalRegion1().getSequenceName() + " " + vertices.get(i).getLocalRegion2().getSequenceName() + " predecesor " + predecessor[i]);
+			//System.out.println(i + " score: " + paths[i] + " contig: " + vertices.get(i).getLocalRegion1().getSequenceName() + " " + vertices.get(i).getLocalRegion2().getSequenceName() + " predecesor " + predecessor[i]);
 		}
 		
 		List<Integer> homologies = extractBestPath(vertices,edges,paths,predecessor);
@@ -271,7 +262,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				maxScore = paths[i];
 			}
 		}
-		System.out.println("Mejor path es " + maxScore + " y termina en vertex " + bestVertex);
+		//System.out.println("The best path score is  " + maxScore + " and ends in the vertex " + bestVertex);
 		
 		int countVertex = 1;
 		int i = bestVertex;
@@ -302,10 +293,8 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 	{
 		HashMap<Integer, ArrayList<Integer>> mapPredecessor = new HashMap<>();
 		
-		for (DAGChainerEdge edge : edges) 
-		{
-			if(mapPredecessor.get(edge.v2Index)==null)
-			{
+		for (DAGChainerEdge edge : edges){
+			if(mapPredecessor.get(edge.v2Index)==null){
 				mapPredecessor.put(edge.v2Index, new ArrayList<Integer>());
 			}
 			mapPredecessor.get(edge.v2Index).add(edge.v1Index);
