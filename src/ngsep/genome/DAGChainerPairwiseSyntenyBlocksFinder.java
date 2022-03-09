@@ -120,6 +120,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 			nextPathIndexes = findPaths(vertices,edges,verticesInBlocks);
 		}
 		
+		
 		return syntenyBlocks;
 	}
 	
