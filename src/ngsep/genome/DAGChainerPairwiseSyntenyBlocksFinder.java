@@ -262,7 +262,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				maxScore = paths[i];
 			}
 		}
-		//System.out.println("The best path score is  " + maxScore + " and ends in the vertex " + bestVertex);
+		System.out.println("The best path score is  " + maxScore + " and ends in the vertex " + bestVertex);
 		
 		int countVertex = 1;
 		int i = bestVertex;
@@ -321,6 +321,9 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		
 		int distanceG1 = v2g1pos - v1g1pos;
 		int distanceG2 = v2g2pos - v1g2pos;
+		
+		if(v2g2pos<v1g2pos)
+			distanceG2 = v1g2pos - v2g2pos;
 		
 		double numGaps = calculateNumGaps(distanceG1, distanceG2);
 		
