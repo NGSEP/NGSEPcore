@@ -12,16 +12,21 @@ import java.util.Set;
 public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocksFinder {
 	
 	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
-	
+	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistance = DEF_MAX_DISTANCE_BETWEEN_UNITS;
-	
-	
 	
 	public int getMinBlockLength() {
 		return minBlockLength;
 	}
 	public void setMinBlockLength(int minBlockLength) {
 		this.minBlockLength = minBlockLength;
+	}
+	
+	public int getMinHomologUnitsBlock() {
+		return minHomologUnitsBlock;
+	}
+	public void setMinHomologUnitsBlock(int minHomologUnitsBlock) {
+		this.minHomologUnitsBlock = minHomologUnitsBlock;
 	}
 
 	public int getMaxDistance() {
@@ -57,7 +62,7 @@ public class HalSyntenyPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlo
 				verticesInBlocks.add(i);
 			}
 			//Discard if it has too few units but add to vertices in blocks to avoid infinite loop
-			if(nextPathIndexes.size()>3) {
+			if(nextPathIndexes.size()>minHomologUnitsBlock) {
 				PairwiseSyntenyBlock block = new PairwiseSyntenyBlock(path);
 				syntenyBlocks.add(block);
 			}

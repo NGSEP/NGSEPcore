@@ -11,6 +11,7 @@ import java.util.Set;
 public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBlocksFinder {
 	
 	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
+	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistance = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private int maxMatch;
 	private int gapUnitLen;
@@ -22,15 +23,20 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		gapUnitLen = 10000;
 		gapOpen = 0;
 		gapExtend = -3;
-		maxDistance = 100000;
-		minBlockLength = 6;
 	}
 	
 	public int getMinBlockLength() {
-		return minBlockLength;
+		return minHomologUnitsBlock;
 	}
 	public void setMinBlockLength(int minBlockLength) {
 		this.minBlockLength = minBlockLength;
+	}
+	
+	public int getMinHomologUnitsBlock() {
+		return minHomologUnitsBlock;
+	}
+	public void setMinHomologUnitsBlock(int minHomologUnitsBlock) {
+		this.minHomologUnitsBlock = minHomologUnitsBlock;
 	}
 
 	public int getMaxDistance() {
@@ -68,9 +74,6 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		this.gapExtend = gapExtend;
 	}
 	
-	/**
-	 * 
-	 */
 	public List<PairwiseSyntenyBlock> findSyntenyBlocks(AnnotatedReferenceGenome g1, AnnotatedReferenceGenome g2, List<HomologyCluster> clusters) {
 
 		List<PairwiseSyntenyBlock> syntenyBlocks = new ArrayList<PairwiseSyntenyBlock>();
@@ -279,7 +282,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		//int end = calculateMidPositiion(vertices.get(bestVertex).getLocalRegion1());
 		//int start = calculateMidPositiion(vertices.get(predecessor[i]).getLocalRegion1());		
 		//if(end-start >= minBlockLength)
-		if(countVertex>=minBlockLength)
+		if(countVertex>=minHomologUnitsBlock)
 			return homologies;
 		
 		return null;

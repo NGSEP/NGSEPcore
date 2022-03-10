@@ -57,6 +57,7 @@ public class GenomesAligner {
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
+	public static final int DEF_MIN_HOMOLOGY_UNITS_BLOCK = PairwiseSyntenyBlocksFinder.DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	public static final int DEF_MIN_BLOCK_LENGTH = PairwiseSyntenyBlocksFinder.DEF_MIN_BLOCK_LENGTH;
 	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = PairwiseSyntenyBlocksFinder.DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	public static final double DEF_MIN_FREQUENCY_SOFT_CORE = 0.9;
@@ -71,6 +72,7 @@ public class GenomesAligner {
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
 	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
+	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistanceBetweenUnits = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
@@ -84,9 +86,6 @@ public class GenomesAligner {
 	private List<HomologyCluster> homologyClusters = new ArrayList<>();
 	private List<PairwiseSyntenyBlock> orthologsSyntenyBlocks = new ArrayList<>();
 	private int[][] paMatrix;
-
-	
-	
 
 	public Logger getLog() {
 		return log;
@@ -335,10 +334,18 @@ public class GenomesAligner {
 	}
 	
 	public void alignGenomes() {
+		
+		//Select finder:
+		
 		//PairwiseSyntenyBlocksFinder finder = new LCSMainPairwiseSyntenyBlocksFinder();
-		HalSyntenyPairwiseSyntenyBlocksFinder finder = new HalSyntenyPairwiseSyntenyBlocksFinder();
+		//HalSyntenyPairwiseSyntenyBlocksFinder finder = new HalSyntenyPairwiseSyntenyBlocksFinder();
+		DAGChainerPairwiseSyntenyBlocksFinder finder = new DAGChainerPairwiseSyntenyBlocksFinder();
+		
+		//Set parameters according to the user input
 		finder.setMaxDistance(maxDistanceBetweenUnits);
 		finder.setMinBlockLength(minBlockLength);
+		finder.setMinHomologUnitsBlock(minHomologUnitsBlock);
+		
 		for(int i=0;i<genomes.size();i++) {
 			for(int j=i+1;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome1 = genomes.get(i);
@@ -347,7 +354,6 @@ public class GenomesAligner {
 				orthologsSyntenyBlocks = finder.findSyntenyBlocks(genome1, genome2, homologyClusters);
 			}
 		}
-		
 	}
 	
 	/**

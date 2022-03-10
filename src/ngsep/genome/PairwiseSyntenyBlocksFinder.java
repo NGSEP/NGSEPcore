@@ -4,7 +4,8 @@ import java.util.List;
 
 public interface PairwiseSyntenyBlocksFinder {
 	public static final int DEF_MIN_BLOCK_LENGTH = 100000;
-	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = 30000;
+	public static final int DEF_MIN_HOMOLOGY_UNITS_BLOCK = 6;
+	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = 100000;
 	/**
 	 * Calculates synteny blocks based on orthogroups defined by homology clusters
 	 * @param g1 First genome to compare
