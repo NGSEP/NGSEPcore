@@ -444,7 +444,7 @@ public class Assembler {
 			filter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
 			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
-			if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
+			//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(copyGraph);
 			log.info("Filtering graph by phasing");
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
@@ -462,7 +462,7 @@ public class Assembler {
 		graph.updateScores(0);
 		filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
-		if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
+		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		assembledSequences.addAll(consensus.makeConsensus(graph));
