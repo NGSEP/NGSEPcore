@@ -60,9 +60,9 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 			List<List<GenomicVariant>> signsPerType = new ArrayList<>();
 			for(GenomicVariant sign:signList) {
 				byte type = sign.getType();
-				System.out.println(" Sign in type list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
-						+ sign.getSequenceName() + " with length: " + sign.length());
-				System.out.println(GenomicVariantImpl.getVariantTypeName(type));
+				//System.out.println(" Sign in type list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
+					//	+ sign.getSequenceName() + " with length: " + sign.length());
+				//System.out.println(GenomicVariantImpl.getVariantTypeName(type));
 				if(GenomicVariant.TYPE_INDEL == type) indel.add(sign);
 				else if(GenomicVariant.TYPE_LARGEDEL == type) del.add(sign);
 				else if(GenomicVariant.TYPE_LARGEINS == type) ins.add(sign);
@@ -90,11 +90,11 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 					visited[i] = true;
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(i==typePartition.size() - 2) System.out.println(" Last sign in partition: " + next.getFirst() + " last: " + next.getLast() + " chr: "
-							+ next.getSequenceName() + " with length: " + next.length());
+					//if(i==typePartition.size() - 2) System.out.println(" Last sign in partition: " + next.getFirst() + " last: " + next.getLast() + " chr: "
+						//	+ next.getSequenceName() + " with length: " + next.length());
 					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2) {
 						List<Integer> idxs = new ArrayList<>();
-						System.out.println("DSC: " + testDownstreamSignatureCompatibility(current,next));
+						//System.out.println("DSC: " + testDownstreamSignatureCompatibility(current,next));
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
@@ -112,11 +112,11 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 							}**/
 							double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
 							//double [][] distanceMatrix = calculateNormalizedDistanceMatrix(toCluster);
-							System.out.println("#partition size: " + toCluster.size());
-							for(GenomicVariant sign:toCluster) {
-								System.out.println(" Sign in partition list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
-										+ sign.getSequenceName() + " with length: " + sign.length());
-							}
+							//System.out.println("#partition size: " + toCluster.size());
+							//for(GenomicVariant sign:toCluster) {
+								//System.out.println(" Sign in partition list: " + sign.getFirst() + " last: " + sign.getLast() + " chr: "
+									//	+ sign.getSequenceName() + " with length: " + sign.length());
+							//}
 							//System.out.println("#Processing partition with types: " + getSignatureType(typePartition.get(0)) 
 								//	+ " from: " + idxs.get(0) + " to: " + idxs.get(idxs.size()-1));
 							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
@@ -199,8 +199,8 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		return eDistance;
 	}
 	
-	public boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
-		System.out.println(s1.getLast() + " " + s2.getFirst() + " " + Math.abs(s2.getFirst() - s1.getFirst()));
+	private boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
+		//System.out.println(s1.getLast() + " " + s2.getFirst() + " " + Math.abs(s2.getFirst() - s1.getFirst()));
 		return Math.abs(s2.getFirst() - s1.getFirst()) < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
 	}
 
