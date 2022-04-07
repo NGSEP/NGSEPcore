@@ -9,6 +9,8 @@ public class AminoacidSequence extends AbstractLimitedSequence {
 	 * Extended aminoacids to facilitate the indexOf operation using ASCII code
 	 */
 	public static final String AMINOACIDS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	
+	public static final AminoacidSequence EMPTY_AA_SEQUENCE = new AminoacidSequence();
 	/**
 	 * Creates a new Aminoacid sequence with the given characters
 	 * @param sequence CharSequence with the aminoacids for the new sequence

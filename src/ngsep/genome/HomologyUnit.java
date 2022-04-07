@@ -26,7 +26,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.math.ShannonEntropyCalculator;
 import ngsep.sequences.AbstractLimitedSequence;
+import ngsep.sequences.AminoacidSequence;
 
 /**
  * @author Daniel Tello
@@ -256,12 +258,18 @@ public class HomologyUnit implements GenomicRegion {
 	public String getUniqueKey() {
 		return uniqueKey;
 	}
-	public List<Long> getKmerCodes(int kmerLength,int kmerOffset) {
-		List<Long> answer = new ArrayList<Long>();
-		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) {
+	public Map<Long,Double> getKmerCodesWithWeights(int kmerLength,int kmerOffset) {
+		Map<Long,Double> answer = new HashMap<>();
+		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) { 
 			long kmerCode = AbstractLimitedSequence.getHash(unitSequence, i, i+kmerLength, (AbstractLimitedSequence)unitSequence);
-			answer.add(kmerCode);
+			String kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, AminoacidSequence.EMPTY_AA_SEQUENCE));
+			double weight = calculateWeight(kmer);
+			//System.out.println("code: "+kmerCode+" kmer: "+kmer+" weight: "+weight );
+			answer.put(kmerCode,weight);
 		}
 		return answer;
+	}
+	private double calculateWeight(String sequence) {
+		return ShannonEntropyCalculator.calculateEntropy(sequence)+0.1;
 	}
 }

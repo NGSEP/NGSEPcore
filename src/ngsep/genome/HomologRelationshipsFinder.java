@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.alignments.PairwiseAlignerSimpleGap;
+
 
 public class HomologRelationshipsFinder {
 	
 	public static final byte DEF_KMER_LENGTH = 6;
 	public static final int DEF_MIN_PCT_KMERS = 5;
-	public static final int DEF_MIN_NUM_KMERS = 3;
+	public static final int DEF_MIN_WEIGHTED_COUNT = 7;
 	
 	private Logger log = Logger.getAnonymousLogger();
 	
@@ -58,8 +60,8 @@ public class HomologRelationshipsFinder {
 		Map<Long,Set<Integer>> unitsByKmer = new HashMap<>();
 		for(int i=0;i<units.size();i++) {
 			HomologyUnit unit = units.get(i);
-			List<Long> kmerCodes = unit.getKmerCodes(kmerLength, 1);
-			for(Long code:kmerCodes) {
+			Map<Long,Double> kmerCodes = unit.getKmerCodesWithWeights(kmerLength, 1);
+			for(Long code:kmerCodes.keySet()) {
 				Set<Integer> unitsKmer = unitsByKmer.computeIfAbsent(code, v->new HashSet<Integer>());
 				unitsKmer.add(i);
 			}
@@ -72,28 +74,38 @@ public class HomologRelationshipsFinder {
 		if(totalQueryUnits>1000) System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		int processed = 0;
 		for(HomologyUnit unit1:queryUnits) {
-			Set<Long> kmerCodes = new HashSet<Long>(unit1.getKmerCodes(kmerLength, 1));
-			int n = kmerCodes.size();
+			Map<Long,Double> kmerCodesWithWeights = unit1.getKmerCodesWithWeights(kmerLength, 1);
+			
+			int n = kmerCodesWithWeights.size();
 			if(n==0) {
 				System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" Unit "+unit1.getUniqueKey()+" has zero kmers");
 				continue;
 			}
-			int [] countsSubjectUnits = new int [subjectUnits.size()];
-			Arrays.fill(countsSubjectUnits, 0);
-			for(long code:kmerCodes) {
+			Map<Integer,Double> countsSubjectUnits = new HashMap<>();
+			double totalWeight = 0;
+			for(Map.Entry<Long,Double> entry:kmerCodesWithWeights.entrySet()) {
+				long code = entry.getKey();
+				double weight = entry.getValue();
+				totalWeight+=weight;
 				Set<Integer> subjectUnitIdxsKmer = subjectUnitsByKmer.get(code);
 				if(subjectUnitIdxsKmer==null) continue;
-				for(int i:subjectUnitIdxsKmer) (countsSubjectUnits[i])++;
+				//String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
+				//if(subjectUnitIdxsKmer.size()>1) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" weight: "+weight);
+				for(int i:subjectUnitIdxsKmer) countsSubjectUnits.compute(i, (k,v)->(v==null)?weight:v+weight);
 			}
 			
-			for(int i=0;i<countsSubjectUnits.length;i++) {
-				int count = countsSubjectUnits[i];
-				if(count<DEF_MIN_NUM_KMERS) continue;
+			for(Map.Entry<Integer, Double> entry:countsSubjectUnits.entrySet()) {
+				int i = entry.getKey();
+				double count = entry.getValue();
+				double score = 100.0*count/totalWeight;
+				//System.out.println("next subject: "+subjectUnits.get(i).getId()+" count: "+count+" total weight: "+totalWeight+" score: "+score);
+				if(count<DEF_MIN_WEIGHTED_COUNT) continue;
 				HomologyUnit unit2 = subjectUnits.get(i);
 				if(unit1==unit2) continue;
 				
-				double score = 100.0*count/n;
+				
 				if(score <minPctKmers) continue;
+				if(score < 25 && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 				edges.add(edge);
@@ -103,6 +115,14 @@ public class HomologRelationshipsFinder {
 		}
 		if(totalQueryUnits>1000) System.out.println("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		return edges;
+	}
+	private static boolean passSecondaryFilters(HomologyUnit unit1, HomologyUnit unit2, int kmerLength) {
+		PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
+		aligner.setLocal(true);
+		String [] alignment = aligner.calculateAlignment(unit1.getUnitSequence(), unit2.getUnitSequence());
+		//aligner.printAlignmentMatrix(aligner.getMatchScores(), unit1.getUnitSequence().toString(), unit2.getUnitSequence().toString());
+		//System.out.println("Aln: "+alignment[0]+" "+alignment[1]+" score: "+aligner.getMaxScore());
+		return aligner.getMaxScore()>=2*kmerLength;
 	}
 	
 	//Old FMindex algorithm
