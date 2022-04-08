@@ -1,7 +1,6 @@
 package ngsep.genome;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -10,13 +9,17 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.math.ShannonEntropyCalculator;
+import ngsep.sequences.AbstractLimitedSequence;
+import ngsep.sequences.AminoacidSequence;
+import ngsep.sequences.KmersExtractor;
 
 
 public class HomologRelationshipsFinder {
 	
 	public static final byte DEF_KMER_LENGTH = 6;
 	public static final int DEF_MIN_PCT_KMERS = 5;
-	public static final int DEF_MIN_WEIGHTED_COUNT = 7;
+	public static final int DEF_MIN_WEIGHTED_COUNT = 5;
 	
 	private Logger log = Logger.getAnonymousLogger();
 	
@@ -81,7 +84,8 @@ public class HomologRelationshipsFinder {
 				System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" Unit "+unit1.getUniqueKey()+" has zero kmers");
 				continue;
 			}
-			Map<Integer,Double> countsSubjectUnits = new HashMap<>();
+			Map<Integer,Double> rawCountsSubjectUnits = new HashMap<>();
+			Map<Integer,Double> weightedCountsSubjectUnits = new HashMap<>();
 			double totalWeight = 0;
 			for(Map.Entry<Long,Double> entry:kmerCodesWithWeights.entrySet()) {
 				long code = entry.getKey();
@@ -91,21 +95,26 @@ public class HomologRelationshipsFinder {
 				if(subjectUnitIdxsKmer==null) continue;
 				//String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
 				//if(subjectUnitIdxsKmer.size()>1) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" weight: "+weight);
-				for(int i:subjectUnitIdxsKmer) countsSubjectUnits.compute(i, (k,v)->(v==null)?weight:v+weight);
+				for(int i:subjectUnitIdxsKmer) {
+					rawCountsSubjectUnits.compute(i, (k,v)->(v==null)?1:v+1);
+					weightedCountsSubjectUnits.compute(i, (k,v)->(v==null)?weight:v+weight);
+				}
 			}
 			
-			for(Map.Entry<Integer, Double> entry:countsSubjectUnits.entrySet()) {
+			for(Map.Entry<Integer, Double> entry:weightedCountsSubjectUnits.entrySet()) {
 				int i = entry.getKey();
-				double count = entry.getValue();
-				double score = 100.0*count/totalWeight;
-				//System.out.println("next subject: "+subjectUnits.get(i).getId()+" count: "+count+" total weight: "+totalWeight+" score: "+score);
-				if(count<DEF_MIN_WEIGHTED_COUNT) continue;
+				double weightedCount = entry.getValue();
+				double score = 100.0*weightedCount/totalWeight;
+				//double rawCount = rawCountsSubjectUnits.get(i);
+				//double rawPCT = 100.0*rawCount/n;
+				//System.out.println("next subject: "+subjectUnits.get(i).getId()+" weighted count: "+weightedCount+" total weight: "+totalWeight+" score: "+score+" raw count: "+rawCount+" raw score: "+rawPCT);
+				if(weightedCount<DEF_MIN_WEIGHTED_COUNT) continue;
 				HomologyUnit unit2 = subjectUnits.get(i);
 				if(unit1==unit2) continue;
 				
 				
 				if(score <minPctKmers) continue;
-				if(score < 25 && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
+				if((weightedCount<10 || score < 10) && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 				edges.add(edge);
@@ -119,7 +128,31 @@ public class HomologRelationshipsFinder {
 	private static boolean passSecondaryFilters(HomologyUnit unit1, HomologyUnit unit2, int kmerLength) {
 		PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
 		aligner.setLocal(true);
-		String [] alignment = aligner.calculateAlignment(unit1.getUnitSequence(), unit2.getUnitSequence());
+		//String [] alignment = aligner.calculateAlignment(unit1.getUnitSequence(), unit2.getUnitSequence());
+		String seq1 = unit1.getUnitSequence().toString();
+		String seq2 = unit2.getUnitSequence().toString();
+		String [] kmers1= KmersExtractor.extractKmers(seq1, kmerLength, 1, 0, seq1.length(), true, true, false);
+		String [] kmers2 = KmersExtractor.extractKmers(seq2, kmerLength, 1, 0, seq2.length(), true, true, false);
+		Map<String,Integer> lastOccKmerSites2 = new HashMap<>();
+		for(int i=0;i<kmers2.length;i++) {
+			lastOccKmerSites2.put(kmers2[i],i);
+		}
+		int first1=seq1.length();
+		int last1=0;
+		int first2=seq2.length();
+		int last2=0;
+		for(int i=0;i<kmers1.length;i++) {
+			Integer j = lastOccKmerSites2.get(kmers1[i]);
+			if(j!=null) {
+				first1 = Math.min(first1, i);
+				last1 = Math.max(last1, i+kmerLength);
+				first2 = Math.min(first2, j);
+				last2 = Math.max(last2, j+kmerLength);		
+			}
+		}
+		if(first1>=last1 || first2>=last2) return false;
+		String [] alignment = aligner.calculateAlignment(seq1.substring(first1,last1), seq2.substring(first2,last2));
+		
 		//aligner.printAlignmentMatrix(aligner.getMatchScores(), unit1.getUnitSequence().toString(), unit2.getUnitSequence().toString());
 		//System.out.println("Aln: "+alignment[0]+" "+alignment[1]+" score: "+aligner.getMaxScore());
 		return aligner.getMaxScore()>=2*kmerLength;
