@@ -258,18 +258,15 @@ public class HomologyUnit implements GenomicRegion {
 	public String getUniqueKey() {
 		return uniqueKey;
 	}
-	public Map<Long,Double> getKmerCodesWithWeights(int kmerLength,int kmerOffset) {
+	public Map<Long,Double> getKmerCodesWithEntropies(int kmerLength,int kmerOffset) {
 		Map<Long,Double> answer = new HashMap<>();
 		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) { 
 			long kmerCode = AbstractLimitedSequence.getHash(unitSequence, i, i+kmerLength, (AbstractLimitedSequence)unitSequence);
 			String kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, AminoacidSequence.EMPTY_AA_SEQUENCE));
-			double weight = calculateWeight(kmer);
+			double entropy = ShannonEntropyCalculator.calculateEntropy(kmer);
 			//System.out.println("code: "+kmerCode+" kmer: "+kmer+" weight: "+weight );
-			answer.put(kmerCode,weight);
+			answer.put(kmerCode,entropy);
 		}
 		return answer;
-	}
-	private double calculateWeight(String sequence) {
-		return ShannonEntropyCalculator.calculateEntropy(sequence)+0.1;
 	}
 }

@@ -9,6 +9,8 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.math.Distribution;
+import ngsep.math.PhredScoreHelper;
 import ngsep.math.ShannonEntropyCalculator;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.AminoacidSequence;
@@ -63,7 +65,7 @@ public class HomologRelationshipsFinder {
 		Map<Long,Set<Integer>> unitsByKmer = new HashMap<>();
 		for(int i=0;i<units.size();i++) {
 			HomologyUnit unit = units.get(i);
-			Map<Long,Double> kmerCodes = unit.getKmerCodesWithWeights(kmerLength, 1);
+			Map<Long,Double> kmerCodes = unit.getKmerCodesWithEntropies(kmerLength, 1);
 			for(Long code:kmerCodes.keySet()) {
 				Set<Integer> unitsKmer = unitsByKmer.computeIfAbsent(code, v->new HashSet<Integer>());
 				unitsKmer.add(i);
@@ -72,14 +74,23 @@ public class HomologRelationshipsFinder {
 		return unitsByKmer;
 	}
 	public static List<HomologyEdge> calculateHomologs( List<HomologyUnit> queryUnits, List<HomologyUnit> subjectUnits, Map<Long,Set<Integer>> subjectUnitsByKmer, int kmerLength, int minPctKmers) {
+		Distribution kmerAbundances = new Distribution(1, 100, 1);
+		System.out.println("Kmer abundances distribution");
+		for(Map.Entry<Long,Set<Integer>> entry:subjectUnitsByKmer.entrySet()) {
+			int n = entry.getValue().size();
+			kmerAbundances.processDatapoint(n);
+			//if(n>50) System.out.println("Kmer: "+(new String(AbstractLimitedSequence.getSequence(entry.getKey(), kmerLength, new AminoacidSequence())))+" count: "+n);
+		}
+		kmerAbundances.printDistributionInt(System.out);
+		
 		List<HomologyEdge> edges = new ArrayList<>();
 		int totalQueryUnits = queryUnits.size();
 		if(totalQueryUnits>1000) System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		int processed = 0;
 		for(HomologyUnit unit1:queryUnits) {
-			Map<Long,Double> kmerCodesWithWeights = unit1.getKmerCodesWithWeights(kmerLength, 1);
+			Map<Long,Double> kmerCodesWithEntropies = unit1.getKmerCodesWithEntropies(kmerLength, 1);
 			
-			int n = kmerCodesWithWeights.size();
+			int n = kmerCodesWithEntropies.size();
 			if(n==0) {
 				System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" Unit "+unit1.getUniqueKey()+" has zero kmers");
 				continue;
@@ -87,12 +98,15 @@ public class HomologRelationshipsFinder {
 			Map<Integer,Double> rawCountsSubjectUnits = new HashMap<>();
 			Map<Integer,Double> weightedCountsSubjectUnits = new HashMap<>();
 			double totalWeight = 0;
-			for(Map.Entry<Long,Double> entry:kmerCodesWithWeights.entrySet()) {
+			for(Map.Entry<Long,Double> entry:kmerCodesWithEntropies.entrySet()) {
 				long code = entry.getKey();
-				double weight = entry.getValue();
-				totalWeight+=weight;
 				Set<Integer> subjectUnitIdxsKmer = subjectUnitsByKmer.get(code);
 				if(subjectUnitIdxsKmer==null) continue;
+				double pValueCode = kmerAbundances.getEmpiricalPvalue(subjectUnitIdxsKmer.size());
+				double score = Math.max(1,-Math.log10(pValueCode));
+				double weight = entry.getValue()/score+0.01;
+				totalWeight+=weight;
+				
 				//String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
 				//if(subjectUnitIdxsKmer.size()>1) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" weight: "+weight);
 				for(int i:subjectUnitIdxsKmer) {
@@ -114,7 +128,7 @@ public class HomologRelationshipsFinder {
 				
 				
 				if(score <minPctKmers) continue;
-				if((weightedCount<10 || score < 10) && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
+				if((weightedCount<10 && score < 10) && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 				edges.add(edge);
