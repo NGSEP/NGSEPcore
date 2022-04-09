@@ -317,10 +317,8 @@ public class GenomesAligner {
 	}
 	
 	public void identifyHomologyClusters () {
-		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
+		HomologClustersCalculator calculator = new HomologClustersCalculator(homologRelationshipsFinder,skipMCL);
 		calculator.setLog(log);
-		calculator.setKmerLength(homologRelationshipsFinder.getKmerLength());
-		calculator.setMinPctKmers(homologRelationshipsFinder.getMinPctKmers());
 		homologyClusters = calculator.clusterHomologs(genomes);
 	}
 	

@@ -57,8 +57,7 @@ public class HomologClustersCalculator {
 	private boolean skipMCL;
 	private Distribution distClusterSizes = new Distribution(0, PREFERRED_ORTHOGROUP_SIZE, 1);
 	private int sampleSize = 0;
-	private byte kmerLength = HomologRelationshipsFinder.DEF_KMER_LENGTH;
-	private int minPctKmers = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
+	private HomologRelationshipsFinder finder;
 	private boolean removeEdgesOutsideClusters = false;
 	
 	private Logger log = Logger.getAnonymousLogger();
@@ -66,7 +65,8 @@ public class HomologClustersCalculator {
 	/**
 	 * @param skipMCL skips the MCL pipeline during clusterHomologs if true
 	 */
-	public HomologClustersCalculator(boolean skipMCL) {
+	public HomologClustersCalculator(HomologRelationshipsFinder finder, boolean skipMCL) {
+		this.finder = finder;
 		this.skipMCL = skipMCL;
 	}
 	
@@ -78,21 +78,6 @@ public class HomologClustersCalculator {
 		this.log = log;
 	}
 	
-	public byte getKmerLength() {
-		return kmerLength;
-	}
-
-	public void setKmerLength(byte kmerLength) {
-		this.kmerLength = kmerLength;
-	}
-
-	public int getMinPctKmers() {
-		return minPctKmers;
-	}
-
-	public void setMinPctKmers(int minPctKmers) {
-		this.minPctKmers = minPctKmers;
-	}
 
 	public List<HomologyCluster> clusterHomologs(List<AnnotatedReferenceGenome> genomes) {
 		List<HomologyCatalog> catalogs = new ArrayList<>();
@@ -204,9 +189,9 @@ public class HomologClustersCalculator {
 	}
 
 	private void updateEdges(List<HomologyUnit> partition) { 
-		Map<Long,Set<Integer>> unitsByKmerCode = HomologRelationshipsFinder.indexKmersHomologyUnits(partition, kmerLength);
+		Map<Long,Set<Integer>> unitsByKmerCode = finder.indexKmersHomologyUnits(partition);
 		for(HomologyUnit unit:partition) unit.removeAllHomologyRelationships();
-		HomologRelationshipsFinder.calculateHomologs(partition, partition, unitsByKmerCode, kmerLength, 0);
+		finder.calculateHomologs(partition, partition, unitsByKmerCode);
 	}
 
 	/**

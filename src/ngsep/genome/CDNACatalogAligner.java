@@ -168,10 +168,8 @@ public class CDNACatalogAligner {
 	}
 	
 	private void generateClusters() {
-		HomologClustersCalculator calculator = new HomologClustersCalculator(skipMCL);
+		HomologClustersCalculator calculator = new HomologClustersCalculator(homologRelationshipsFinder,skipMCL);
 		calculator.setLog(log);
-		calculator.setKmerLength(homologRelationshipsFinder.getKmerLength());
-		calculator.setMinPctKmers(homologRelationshipsFinder.getMinPctKmers());
 		orthologyUnitClusters = calculator.clusterHomologsCatalogs(homologyCatalogs);
 	}
 	
