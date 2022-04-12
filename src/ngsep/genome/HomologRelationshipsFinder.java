@@ -82,21 +82,24 @@ public class HomologRelationshipsFinder {
 	}
 	public List<HomologyEdge> calculateHomologs( List<HomologyUnit> queryUnits, List<HomologyUnit> subjectUnits, Map<Long,Set<Integer>> subjectUnitsByKmer) {
 		Distribution kmerAbundances = new Distribution(1, 100, 1);
-		System.out.println("Kmer abundances distribution");
+		//System.out.println("Kmer abundances distribution");
 		for(Map.Entry<Long,Set<Integer>> entry:subjectUnitsByKmer.entrySet()) {
 			int n = entry.getValue().size();
 			kmerAbundances.processDatapoint(n);
 			//if(n>50) System.out.println("Kmer: "+(new String(AbstractLimitedSequence.getSequence(entry.getKey(), kmerLength, new AminoacidSequence())))+" count: "+n);
 		}
-		kmerAbundances.printDistributionInt(System.out);
+		//kmerAbundances.printDistributionInt(System.out);
+		double average = kmerAbundances.getAverage();
 		double mode = kmerAbundances.getLocalMode(1, 10);
-		System.out.println("Local mode: "+mode);
-		ChiSqrDistribution chiSq = new ChiSqrDistribution(2*mode);
+		System.out.println("Kmer abundances distribution. Average: "+average+" Local mode: "+mode);
+		ChiSqrDistribution chiSq = new ChiSqrDistribution((mode+average)/2);
 		List<HomologyEdge> edges = new ArrayList<>();
 		int totalQueryUnits = queryUnits.size();
 		if(totalQueryUnits>1000) System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		int processed = 0;
 		for(HomologyUnit unit1:queryUnits) {
+			boolean debug = subjectUnits.size()<3;
+			//debug = debug || unit1.getId().equals("ENSRNOP00000074485");
 			Map<Long,Double> kmerCodesWithEntropies = unit1.getKmerCodesWithEntropies(kmerLength, 1);
 			int length1 = unit1.getUnitSequence().length();
 			int n = kmerCodesWithEntropies.size();
@@ -110,15 +113,20 @@ public class HomologRelationshipsFinder {
 			for(Map.Entry<Long,Double> entry:kmerCodesWithEntropies.entrySet()) {
 				long code = entry.getKey();
 				Set<Integer> subjectUnitIdxsKmer = subjectUnitsByKmer.get(code);
-				if(subjectUnitIdxsKmer==null) continue;
-				//double pValueCode = kmerAbundances.getEmpiricalPvalue(subjectUnitIdxsKmer.size());
-				double pValueCode = 1-chiSq.cumulative(subjectUnitIdxsKmer.size());
+				//A kmer must add to the total weight even if it does not appear in the subject kmers
+				double pValueCode = 1;
+				if(subjectUnitIdxsKmer!=null) {
+					//pValueCode = kmerAbundances.getEmpiricalPvalue(subjectUnitIdxsKmer.size());
+					pValueCode = 1-chiSq.cumulative(subjectUnitIdxsKmer.size());
+				}
 				double score = Math.max(1,-Math.log10(pValueCode));
-				double weight = entry.getValue()/score+0.01;
+				double weight = Math.max(0.5,entry.getValue())/score;
 				totalWeight+=weight;
-				if(subjectUnits.size()<3) {
+				if(subjectUnitIdxsKmer==null) continue;
+				if(debug) {
 					String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
-					if(subjectUnitIdxsKmer.size()>1) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" weight: "+weight);
+					int limit = (queryUnits==subjectUnits)?1:0;
+					if(subjectUnitIdxsKmer.size()>limit) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" pvalue: "+pValueCode+" score: "+score+" weight: "+weight);
 				}
 				
 				for(int i:subjectUnitIdxsKmer) {
@@ -132,7 +140,7 @@ public class HomologRelationshipsFinder {
 				double weightedCount = entry.getValue();
 				double score = 100.0*weightedCount/totalWeight;
 				double rawCount = rawCountsSubjectUnits.get(i);
-				if(subjectUnits.size()<3) {
+				if(debug) {
 					double rawPCT = 100.0*rawCount/n;
 					System.out.println("next subject: "+subjectUnits.get(i).getId()+" weighted count: "+weightedCount+" total weight: "+totalWeight+" score: "+score+" raw count: "+rawCount+" raw score: "+rawPCT);
 				}
@@ -142,7 +150,7 @@ public class HomologRelationshipsFinder {
 				if(score <minPctKmers) continue;
 				int length2 = unit2.getUnitSequence().length();
 				if(length2>maxLengthRatio*length1) continue; 
-				if((weightedCount<10 && score < 10) && !passSecondaryFilters(unit1,unit2,kmerLength)) continue;
+				if((weightedCount<10 && score < 10) && !passSecondaryFilters(unit1,unit2,kmerLength,debug)) continue;
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 				edges.add(edge);
@@ -153,7 +161,7 @@ public class HomologRelationshipsFinder {
 		if(totalQueryUnits>1000) System.out.println("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		return edges;
 	}
-	private static boolean passSecondaryFilters(HomologyUnit unit1, HomologyUnit unit2, int kmerLength) {
+	private static boolean passSecondaryFilters(HomologyUnit unit1, HomologyUnit unit2, int kmerLength, boolean debug) {
 		PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
 		aligner.setLocal(true);
 		//String [] alignment = aligner.calculateAlignment(unit1.getUnitSequence(), unit2.getUnitSequence());
@@ -180,9 +188,8 @@ public class HomologRelationshipsFinder {
 		}
 		if(first1>=last1 || first2>=last2) return false;
 		String [] alignment = aligner.calculateAlignment(seq1.substring(first1,last1), seq2.substring(first2,last2));
+		if(debug) System.out.println("Aln: "+alignment[0]+" "+alignment[1]+" score: "+aligner.getMaxScore());
 		
-		//aligner.printAlignmentMatrix(aligner.getMatchScores(), unit1.getUnitSequence().toString(), unit2.getUnitSequence().toString());
-		//System.out.println("Aln: "+alignment[0]+" "+alignment[1]+" score: "+aligner.getMaxScore());
 		return aligner.getMaxScore()>=2*kmerLength;
 	}
 	
