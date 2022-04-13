@@ -25,7 +25,6 @@ import java.util.List;
 
 import JSci.maths.statistics.GammaDistribution;
 import JSci.maths.statistics.NormalDistribution;
-import ngsep.discovery.LongReadStructuralVariantDetector.SimplifiedReadAlignment;
 import ngsep.math.FisherExactTest;
 import ngsep.math.LogMath;
 import ngsep.math.PhredScoreHelper;
@@ -310,17 +309,13 @@ public class CountsHelper {
 		boolean isAltCall = callAllele == LongReadStructuralVariantDetector.GENOTYPE_ALLELES[1];
 		for(int i=0;i<n;i++) {
 			String alleleI = alleles.get(i);
-			double logCond;
+			double logCond = 0;
 			if(alleleI == callAllele) {
 				//Substitution log prob should not be larger than error log prob
 				if(isAltCall) {
 					System.out.println("varLength " + sampleDistribution.getMean() + " call length " + alleleLength);
 					logCond = sampleDistribution.probability(alleleLength);
 					logCond = Math.log10(logCond);
-					logCondAlleles[i] = Math.max(DEF_LOG_ERROR_PROB_INDEL, logCond);
-					if(logCondAlleles[i]>DEF_LOG_ERROR_PROB_INDEL) {
-						if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
-					}
 				}
 				else {
 					logCond = LongReadStructuralVariantDetector.DEF_LOG_REF_PROB_SV;
@@ -338,6 +333,10 @@ public class CountsHelper {
 					logCond = LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV;
 				}
 			}
+			logCondAlleles[i] = Math.max(LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV, logCond);
+			if(logCondAlleles[i]>LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV) {
+				if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
+			}
 			if(verbose) System.out.println("Allele: "+alleleI+" call: "+callAllele+ " log cond: "+logCondAlleles[i]);
 		}
 		if(index>=0 && bestIndex>=0 && bestIndex!=index) {
@@ -349,7 +348,7 @@ public class CountsHelper {
 		if(index>=0) {
 			//Update raw count
 			counts[index]++;
-			alleleErrorLogProbs[index] += LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV;
+			alleleErrorLogProbs[index] += LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV;
 			//Update strand counts
 			//if(negativeStrand) countsStrand[index][0]++;
 			//else countsStrand[index][1]++;
@@ -360,11 +359,11 @@ public class CountsHelper {
 			for(int j=0;j<logConditionalProbs[i].length;j++) {
 				if (i!=j) {
 					if(j==index) {
-						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV);
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV);
 					} else if ( i==index) {
-						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV);
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV);
 					} else {
-						logConditionalProbs[i][j]+=LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV;
+						logConditionalProbs[i][j]+=LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV;
 					}
 				}
 			}

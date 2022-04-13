@@ -55,8 +55,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	public static final double DEF_HET_RATE = 0.5;
 	public static final double HETEROCIGOZITY_TRESHOLD = 0.8;
 	public static final double DEF_SHAPE_PARAMETER_ERROR_DIST = 0.35;
-	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.999);
-	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.000001);
+	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.9);
+	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.1);
+	public static final double DEF_LOG_ERROR_PROB_SV = Math.log10(0.00001);
+
 	
 	public static final int INV_DETERMINING_MAX_DISTANCE = 1000;
 	public static final int DEL_INTER_DETERMINING_MAX_DISTANCE = 90000;
@@ -632,7 +634,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 					//GenomicVariantImpl.getVariantTypeName(variant.getType()));
 			List<SimplifiedReadAlignment> spanningAlns = sortedAlns.findSpanningRegions(variant).asList();
 			int varCoveredAlns = spanningAlns.size();
-			if(varCoveredAlns == 0) genotype = -1;
+			if(varCoveredAlns == 0) genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 			else {
 				genotype = assignBayesianGenotype(variant, spanningAlns);
 				//System.out.println("genotype=" + genotype);
@@ -641,7 +643,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			genotypeCalls.add(calledVariant);
 		}
 		//return genotypeCalls;
-		return null;
+		return genotypeCalls;
 	}
 	
 	private int assignBayesianGenotype(GenomicVariant variant, List<SimplifiedReadAlignment> spanningAlns) {
@@ -656,6 +658,35 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		double [][] genotypeProbabilities = calculateCalledVariantGenotypePosteriorProbabilities(variant, calls);
 		//from the probabilities choose the most probable one
+		genotype = decideGenotype(genotypeProbabilities);
+		return genotype;
+	}
+
+	private int decideGenotype(double[][] genotypeProbabilities) {
+		// TODO Auto-generated method stub
+		int genotype = -1;
+		double bestGenotypeProb=0;
+		int bestGenotypeIdx = 0;
+		int z = 0;
+		for(int i = 0; i < genotypeProbabilities.length; i++) {
+			for(int j = 0; j < genotypeProbabilities.length; j++) {
+				double currentGenotypeProb = genotypeProbabilities[i][j];
+				if(currentGenotypeProb > bestGenotypeProb) {
+					bestGenotypeProb = currentGenotypeProb;
+					bestGenotypeIdx = z;
+				}
+				z++;
+			}
+		}
+		if(bestGenotypeIdx == 1 || bestGenotypeIdx == 2) {
+			genotype = CalledGenomicVariant.GENOTYPE_HETERO;
+		}
+		else if(bestGenotypeIdx == 3) {
+			genotype = CalledGenomicVariant.GENOTYPE_HOMOALT;
+		}
+		else if(bestGenotypeIdx == 0) {
+		genotype = CalledGenomicVariant.GENOTYPE_HOMOREF ;
+		}
 		return genotype;
 	}
 
@@ -689,6 +720,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		CountsHelper helper = calculateCountsSV(GENOTYPE_ALLELES, variant.length(), calls, 
 				CountsHelper.DEF_MAX_BASE_QS, DEF_HET_RATE, true);
 		double[][] probabilities = helper.getPosteriorProbabilities(CountsHelper.DEF_HETEROZYGOSITY_RATE_DIPLOID);
+		System.out.println("Posterior probabilities for var: first=" + variant.getFirst() + " last=" + variant.getLast() + 
+				" length" + variant.length() + " type" + GenomicVariantImpl.getVariantTypeName(variant.getType()));
 		helper.printProbs(probabilities, false);
 		return probabilities;
 	}
@@ -898,8 +931,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		variants = callVariants(clusters);
 		List<GenomicVariant> variantsList = variants.asList();
 		//List<CalledGenomicVariant> genotypeCalls = makeGenotypeCalls(variantsList);
-		GenomicRegionSortedCollection<GenomicVariant> genotypeCallsCollection = makeGenotypeCalls(variantsList);
-		makeBayesianGenotypeCalls(variantsList);
+		//GenomicRegionSortedCollection<GenomicVariant> genotypeCallsCollection = makeGenotypeCalls(variantsList);
+		GenomicRegionSortedCollection<GenomicVariant> genotypeCallsCollection = makeBayesianGenotypeCalls(variantsList);
 		filterIntersectingVariants(genotypeCallsCollection);
 		List<GenomicVariant> genotypeCalls = genotypeCallsCollection.asList();
 		VCFFileHeader header = createVCFHeader(sampleId);
