@@ -306,10 +306,15 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//Kmer does not overlap with already aligned segments
 				int subjectNextLength = kmerHit.getStart()-subjectNext;
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
-				if(subjectNextLength==queryNextLength && subjectNextLength<100) {
+				boolean goodMatch = subjectNextLength==queryNextLength && subjectNextLength<50;
+				double hammingDistance = goodMatch?hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), queryS.substring(queryNext, kmerHit.getQueryIdx())):0;
+				goodMatch = goodMatch && hammingDistance<0.03*queryNextLength;
+				if(goodMatch) {
 					nextMatchLength+=subjectNextLength;
-					numMismatches+=hamming.calculateDistance(subject.subSequence(subjectNext, kmerHit.getStart()), queryS.substring(queryNext, kmerHit.getQueryIdx()));
-				} else {
+					numMismatches+=hammingDistance;
+					if (subjectIdx == subjectIdxDebug  && queryLength==queryLengthDebug) System.out.println("Aligning equal length strings. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength+" total mismatches: "+numMismatches);
+				}
+				else {
 					int minLength = Math.min(subjectNextLength, queryNextLength);
 					int maxLength = Math.max(subjectNextLength, queryNextLength);
 					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
@@ -335,7 +340,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying single gap alignment");
 						alignedFragments = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
-						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+" mismatches: "+numMismatches+" minLength: "+minLength);
 						if(numMismatches>0.2*minLength) alignedFragments = null; 
 					}
 					if(alignedFragments==null) {
@@ -349,6 +353,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 					}
+					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\ntotal mismatches: "+numMismatches);
 				}
 				nextMatchLength+=kmerLength;
 				coverageSharedKmers+=kmerLength;

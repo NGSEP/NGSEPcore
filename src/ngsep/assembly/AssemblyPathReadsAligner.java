@@ -89,14 +89,15 @@ public class AssemblyPathReadsAligner {
 				if(reverse) seq = DNAMaskedSequence.getReverseComplement(seq);
 				pathVerticesEnds.put(lastVertex.getSequenceIndex(), seq.length());
 				rawConsensus.append(seq);
-				if(pathIdx == debugIdx) System.err.println("Added sequence: "+lastVertex.getRead().getName()+" reverse: "+reverse);
+				if(pathIdx == debugIdx) System.err.println("Added sequence: "+lastVertex.getRead().getName()+" reverse: "+reverse+" length: "+seq.length());
 			} else if(!edge.isSameSequenceEdge()) {
 				// Augment consensus with the next path read
-				CharSequence nextPathSequence = nextVertex.getRead().getCharacters();
+				QualifiedSequence nextRead = nextVertex.getRead();
+				CharSequence nextPathSequence = nextRead.getCharacters();
 				boolean reverse = !nextVertex.isStart();
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
-				if(pathIdx == debugIdx && j<10) System.err.println("Aligning next path read "+nextVertex.getRead().getName()+". Reverse "+reverse+ " edge: "+edge);
+				if(pathIdx == debugIdx) System.err.println("Aligning next path read "+nextRead.getName()+". length1: "+nextRead.getLength()+" length2: "+nextPathSequence.length()+" Reverse "+reverse+ " edge: "+edge);
 				int startSuffixConsensus = Math.max(0, rawConsensus.length()-500);
 				Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
 				int endSegmentQuery = Math.min(nextPathSequence.length(), edge.getOverlap()+10);
@@ -110,7 +111,7 @@ public class AssemblyPathReadsAligner {
 					int posAlnRead = segmentQuery.length()-1-alnRead.getSoftClipEnd();
 					int lastPosSubject = alnRead.getReferencePositionAlignedRead(posAlnRead);
 					int tailSubject = rawConsensus.length()-lastPosSubject-1;
-					if(pathIdx == debugIdx && j<10) System.err.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject+" tail: "+tailSubject+" aln: "+alnRead);
+					if(pathIdx == debugIdx) System.err.println("Sequence length: "+nextPathSequence.length()+" subject length: "+rawConsensus.length()+" Soft clip end: "+alnRead.getSoftClipEnd()+" pos aln: "+posAlnRead+" pos subject: "+lastPosSubject+" tail: "+tailSubject+" aln: "+alnRead);
 					//if(alnRead.getSoftClipEnd()>0 && lastPosSubject>=0 && tailSubject>50) System.err.println("Large subject tail not aligned. Tail length "+tailSubject+" new sequence suffix: "+(lastPosSubject+1)+" Next path alignment: "+alnRead+" Tail of subject: "+rawConsensus.substring(lastPosSubject+1)+" end read: "+nextPathSequence.subSequence(posAlnRead+1, nextPathSequence.length()));
 					//Just in case cycle but if the read aligns this should not enter
 					while(posAlnRead>0 && lastPosSubject<0) {
@@ -142,7 +143,7 @@ public class AssemblyPathReadsAligner {
 				if(pathIdx == debugIdx && j<10) System.err.println("Start suffix: "+startSuffixQuery+" next seq len: "+nextPathSequence.length()+" start remove previous: "+startRemove);
 				if(startSuffixQuery<nextPathSequence.length()) {
 					String remainingSegment = nextPathSequence.subSequence(startSuffixQuery, nextPathSequence.length()).toString();
-					if(pathIdx == debugIdx && j<10) System.err.println("Enlarging consensus. Start new sequence: "+startSuffixQuery+" length of segment to append: "+remainingSegment.length());
+					if(pathIdx == debugIdx) System.err.println("Enlarging consensus. Current length: "+rawConsensus.length()+" remove from: "+startRemove+" SeqName: "+nextRead.getName()+" length: "+nextPathSequence.length()+" Start segment: "+startSuffixQuery+" length segment: "+remainingSegment.length());
 					if(startRemove>0) rawConsensus.delete(startRemove, rawConsensus.length());
 					rawConsensus.append(remainingSegment.toUpperCase());
 				}
@@ -263,6 +264,7 @@ public class AssemblyPathReadsAligner {
 	}
 	private ReadAlignment alignReadProcess(int pathIdx, String consensus, Map<Integer, Long> kmersSubject,
 			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus, List<ReadAlignment> alignedReads) {
+		int debugReadIdx = -1;
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		Map<Integer, Long> selKmersSubject = selectKmers(kmersSubject,startConsensus,endConsensus);
@@ -274,6 +276,7 @@ public class AssemblyPathReadsAligner {
 			aln.setNegativeStrand(reverse);
 			aln.setReadCharacters(sequence);
 			//aln.setReadCharacters(null);
+			if(readId == debugReadIdx) System.out.println("Read name: "+readName+"First alignment attempt: "+aln+" mismatches: "+aln.getNumMismatches());
 			synchronized (alignedReads) {
 				alignedReads.add(aln);
 			}
@@ -284,9 +287,9 @@ public class AssemblyPathReadsAligner {
 			CharSequence subqueryLeft = sequence.subSequence(0, n);
 			CharSequence subqueryRight = sequence.subSequence(n,sequence.length());
 			ReadAlignment alnLeft = alignRead(aligner, pathIdx, subqueryLeft, readName, kmersSubject);
-			//if(readId==61) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryLeft.length()+" Left aln: "+alnLeft);
+			if(readId==debugReadIdx) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryLeft.length()+" Left aln: "+alnLeft);
 			ReadAlignment alnRight = alignRead(aligner, pathIdx, subqueryRight, readName, kmersSubject);
-			//if(readId==61) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryRight.length()+" Right aln: "+alnRight);
+			if(readId==debugReadIdx) System.out.println("Read name: "+readName+" Subsequence length: "+subqueryRight.length()+" Right aln: "+alnRight);
 			ReadAlignment selected = alnLeft;
 			if(selected == null || (alnRight!=null && alnRight.length()>alnLeft.length())) {
 				selected = alnLeft;
