@@ -350,7 +350,7 @@ public class HaplotypeReadsClusterCalculator {
 		
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		List<AlignmentsPileupGenerator> generators = createGenerators(hetCallers, metadata );
+		List<AlignmentsPileupGenerator> generators = createGenerators(path.getPathId(),hetCallers, metadata );
 		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		try {
 			for(AlignmentsPileupGenerator generator:generators) {
@@ -367,7 +367,9 @@ public class HaplotypeReadsClusterCalculator {
 		
 		List<CalledGenomicVariant> hetVars = new ArrayList<>();
 		for (SimpleHeterozygousVariantsDetectorPileupListener hetCaller:hetCallers) {
-			hetVars.addAll(hetCaller.getHeterozygousVariants());
+			List<CalledGenomicVariant> calls = hetCaller.getHeterozygousVariants(); 
+			if(path.getPathId()==debugIdx) System.out.println("Collecting het calls for path: "+path.getPathId()+" Calls: "+calls.size()+" Limits: "+ (calls.size()>0?calls.get(0).getFirst():0)+" "+(calls.size()>0?calls.get(calls.size()-1).getLast():0));
+			hetVars.addAll(calls);
 		}
 		Collections.sort(hetVars,GenomicRegionPositionComparator.getInstance());
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
@@ -376,11 +378,16 @@ public class HaplotypeReadsClusterCalculator {
 		int distance = 20;
 		for(int i=0;i<n;i++) {
 			CalledGenomicVariant hetVar = hetVars.get(i);
+			int varDepth = hetVar.getTotalReadDepth();
 			if(path.getPathId() == debugIdx) System.out.println("Next raw heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" alleles: "+hetVar.getAlleles()[0]+" "+hetVar.getAlleles()[1]);
-			if(hetVar.getTotalReadDepth()<0.7*readDepth) {
-				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with depth: "+hetVar.getTotalReadDepth()+" average: "+readDepth);
+			if(varDepth<0.5*readDepth || (varDepth<0.7*readDepth && varDepth<15) ) {
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with small depth: "+varDepth+" average: "+readDepth);
 				continue;
 			}
+			/*if(varDepth>1.5*readDepth) {
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with large depth: "+varDepth+" average: "+readDepth);
+				continue;
+			}*/
 			int posBefore = (i==0)?-distance:hetVars.get(i-1).getLast();
 			int posAfter = (i==n-1)?consensus.length()+distance:hetVars.get(i+1).getFirst();
 			if(hetVar.getFirst()-distance>posBefore && hetVar.getLast()+distance<posAfter) {
@@ -395,7 +402,7 @@ public class HaplotypeReadsClusterCalculator {
 		return filteredVars;
 	}
 
-	private List<AlignmentsPileupGenerator> createGenerators(List<SimpleHeterozygousVariantsDetectorPileupListener> hetCallers, QualifiedSequenceList metadata ) {
+	private List<AlignmentsPileupGenerator> createGenerators(int pathIdx, List<SimpleHeterozygousVariantsDetectorPileupListener> hetCallers, QualifiedSequenceList metadata ) {
 		List<AlignmentsPileupGenerator> generators = new ArrayList<AlignmentsPileupGenerator>();
 		QualifiedSequence contigM = metadata.get(0);
 		int intervalLength = contigM.getLength() / numThreads;
@@ -411,6 +418,7 @@ public class HaplotypeReadsClusterCalculator {
 			generator.setQueryFirst(nextStart);
 			if(i<numThreads-1) generator.setQueryLast(nextEnd);
 			generators.add(generator);
+			if(pathIdx==debugIdx) System.out.println("Creating generators for path: "+pathIdx+" Next generator limits: "+generator.getQuerySeq()+":"+ generator.getQueryFirst()+"-"+generator.getQueryLast());
 			nextStart+=intervalLength;
 			nextEnd +=intervalLength;
 		}
