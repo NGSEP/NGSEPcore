@@ -43,8 +43,10 @@ import ngsep.discovery.PileupRecord;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.haplotyping.HaplotypeBlock;
 import ngsep.haplotyping.SingleIndividualHaplotyper;
+import ngsep.math.Distribution;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
@@ -174,6 +176,7 @@ public class HaplotypeReadsClusterCalculator {
 		List<ReadAlignment> alignmentRecords = aligner.alignPathReads(graph, path, numThreads);
 		List<HaplotypeBlock> haplotypeBlocks = null;
 		String sequenceName = "diploidPath_"+pathIdx;
+		path.setSequenceName(sequenceName);
 		int countHetVars = 0;
 		List<ReadAlignment> alignments = new ArrayList<>(alignmentRecords.size());
 		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<>();
@@ -190,9 +193,9 @@ public class HaplotypeReadsClusterCalculator {
 		
 		if(alignments.size()>0) {
 			
-			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path, alignments, sequenceName);
+			List<CalledGenomicVariant> hetVars = findHeterozygousVariants(path, alignments);
 			countHetVars = hetVars.size();
-			if(pathIdx == debugIdx) savePathFiles("debug_"+pathIdx,sequenceName, path.getConsensus(),alignments,hetVars);
+			if(pathIdx == debugIdx) savePathFiles(path,alignments,hetVars);
 			if(countHetVars>0) {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
@@ -329,8 +332,9 @@ public class HaplotypeReadsClusterCalculator {
 		return answer;
 	}
 	
-	private List<CalledGenomicVariant> findHeterozygousVariants(AssemblyPath path, List<ReadAlignment> alignments, String sequenceName) {
+	private List<CalledGenomicVariant> findHeterozygousVariants(AssemblyPath path, List<ReadAlignment> alignments) {
 		String consensus = path.getConsensus();
+		String sequenceName = path.getSequenceName();
 		double readDepth = 0;
 		int count = 0;
 		for(ReadAlignment aln:alignments) {
@@ -341,16 +345,16 @@ public class HaplotypeReadsClusterCalculator {
 		}
 		
 		readDepth/=consensus.length();
-		List<SimpleHeterozygousVariantsDetectorPileupListener> hetCallers = new ArrayList<>();
+		List<SimpleVariantsDetectorPileupListener> callers = new ArrayList<>();
 		for(int i=0;i<numThreads;i++) {
-			SimpleHeterozygousVariantsDetectorPileupListener hetVarsListener = new SimpleHeterozygousVariantsDetectorPileupListener(consensus);
-			hetVarsListener.setCallIndels(true);
-			hetCallers.add(hetVarsListener);
+			SimpleVariantsDetectorPileupListener varsListener = new SimpleVariantsDetectorPileupListener(consensus);
+			varsListener.setCallIndels(true);
+			callers.add(varsListener);
 		}
 		
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		List<AlignmentsPileupGenerator> generators = createGenerators(path.getPathId(),hetCallers, metadata );
+		List<AlignmentsPileupGenerator> generators = createGenerators(path.getPathId(),callers, metadata );
 		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		try {
 			for(AlignmentsPileupGenerator generator:generators) {
@@ -365,12 +369,19 @@ public class HaplotypeReadsClusterCalculator {
 			throw new RuntimeException(e);
 		}
 		
+		List<CalledGenomicVariant> allVars = new ArrayList<>();
 		List<CalledGenomicVariant> hetVars = new ArrayList<>();
-		for (SimpleHeterozygousVariantsDetectorPileupListener hetCaller:hetCallers) {
-			List<CalledGenomicVariant> calls = hetCaller.getHeterozygousVariants(); 
-			if(path.getPathId()==debugIdx) System.out.println("Collecting het calls for path: "+path.getPathId()+" Calls: "+calls.size()+" Limits: "+ (calls.size()>0?calls.get(0).getFirst():0)+" "+(calls.size()>0?calls.get(calls.size()-1).getLast():0));
-			hetVars.addAll(calls);
+		for (SimpleVariantsDetectorPileupListener caller:callers) {
+			List<CalledGenomicVariant> calls = caller.getCalls();
+			if(path.getPathId()==debugIdx) System.out.println("Collecting het calls for path: "+path.getPathId()+" Heterozygous Calls: "+calls.size()+" Limits: "+ (calls.size()>0?calls.get(0).getFirst():0)+" "+(calls.size()>0?calls.get(calls.size()-1).getLast():0));
+			allVars.addAll(calls);
+			for(CalledGenomicVariant call:calls) {
+				if(call.isHeterozygous()) hetVars.add(call);
+			}
+			
 		}
+		GenomicRegionSortedCollection<GenomicRegion> denseVariantRegions = calculateDenseRegions(path,allVars,consensus.length());
+		
 		Collections.sort(hetVars,GenomicRegionPositionComparator.getInstance());
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
 		int countSNVs = 0;
@@ -388,6 +399,11 @@ public class HaplotypeReadsClusterCalculator {
 				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with large depth: "+varDepth+" average: "+readDepth);
 				continue;
 			}*/
+			GenomicRegionSortedCollection< GenomicRegion> spanning = denseVariantRegions.findSpanningRegions(hetVar);
+			if (spanning.size()>0) {
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" within dense region. ");
+				continue;
+			}
 			int posBefore = (i==0)?-distance:hetVars.get(i-1).getLast();
 			int posAfter = (i==n-1)?consensus.length()+distance:hetVars.get(i+1).getFirst();
 			if(hetVar.getFirst()-distance>posBefore && hetVar.getLast()+distance<posAfter) {
@@ -402,7 +418,7 @@ public class HaplotypeReadsClusterCalculator {
 		return filteredVars;
 	}
 
-	private List<AlignmentsPileupGenerator> createGenerators(int pathIdx, List<SimpleHeterozygousVariantsDetectorPileupListener> hetCallers, QualifiedSequenceList metadata ) {
+	private List<AlignmentsPileupGenerator> createGenerators(int pathIdx, List<SimpleVariantsDetectorPileupListener> callers, QualifiedSequenceList metadata ) {
 		List<AlignmentsPileupGenerator> generators = new ArrayList<AlignmentsPileupGenerator>();
 		QualifiedSequence contigM = metadata.get(0);
 		int intervalLength = contigM.getLength() / numThreads;
@@ -413,7 +429,7 @@ public class HaplotypeReadsClusterCalculator {
 			generator.setLog(log);
 			generator.setSequencesMetadata(metadata);
 			generator.setMaxAlnsPerStartPos(0);
-			generator.addListener(hetCallers.get(i));
+			generator.addListener(callers.get(i));
 			generator.setQuerySeq(contigM.getName());
 			generator.setQueryFirst(nextStart);
 			if(i<numThreads-1) generator.setQueryLast(nextEnd);
@@ -423,14 +439,49 @@ public class HaplotypeReadsClusterCalculator {
 			nextEnd +=intervalLength;
 		}
 		return generators;
-		
-		
+	}
+	
+	private GenomicRegionSortedCollection<GenomicRegion> calculateDenseRegions(AssemblyPath path,  List<CalledGenomicVariant> allVars,int consensusLength) {
+		//100bp windows with overlap 50
+		GenomicRegionSortedCollection<GenomicRegion> regions = new GenomicRegionSortedCollection<>();
+		int numW = consensusLength/50+2;
+		int [] windows = new int [numW];
+		for(CalledGenomicVariant var:allVars) {
+			int first = var.getFirst();
+			int d1 = first / 100;
+			int w1 = d1*2;
+			int w2 = w1+1;
+			if(first < d1*100+50) w2 = w1-1;
+			windows[w1]++;
+			if(w2>=0 && w2<numW) windows[w2]++;
+		}
+		Distribution distValues = new Distribution(0, 100,1);
+		for(int value:windows) distValues.processDatapoint(value);
+		if(path.getPathId()== debugIdx) {
+			System.out.println("Distribution of variants density");
+			distValues.printDistributionInt(System.out);
+		}
+		double average = distValues.getAverage();
+		double stdev = Math.sqrt(distValues.getVariance());
+		double limit = average+10*Math.max(1,stdev);
+		for(int i=0;i<windows.length;i++) {
+			if(windows[i]>limit) {
+				int first = 50*i+1;
+				int last = first+99;
+				if(path.getPathId()== debugIdx) System.out.println("Next dense region: "+first+" - "+last+" variants: "+windows[i]+" limit: "+limit);
+				regions.add(new GenomicRegionImpl(path.getSequenceName(), first, last));
+			}
+		}
+		return regions;
 	}
 
-	private void savePathFiles(String outPrefix, String sequenceName, String consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
+	private void savePathFiles(AssemblyPath path, List<ReadAlignment> alignments, List<CalledGenomicVariant> hetSNVs) {
+		String outPrefix = "debug_"+path.getPathId();
+		
 		/*FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList sequences = new QualifiedSequenceList();
-		sequences.add(new QualifiedSequence(sequenceName,consensus));
+		String sequenceName = path.getSequenceName();
+		sequences.add(new QualifiedSequence(sequenceName,path.getConsensus()));
 		try (PrintStream out=new PrintStream(outPrefix+".fa")) {
 			handler.saveSequences(sequences, out, 100);
 		} catch (FileNotFoundException e) {
@@ -728,17 +779,19 @@ public class HaplotypeReadsClusterCalculator {
 	}
 
 }
-class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener {
+class SimpleVariantsDetectorPileupListener implements PileupListener {
 	private static final int MIN_DEPTH_ALLELE = 3;
 	private String consensus;
-	private List<CalledGenomicVariant> heterozygousVariants = new ArrayList<CalledGenomicVariant>();
+	private List<CalledGenomicVariant> calls = new ArrayList<CalledGenomicVariant>();
 	private boolean callIndels = false;
 
-	public SimpleHeterozygousVariantsDetectorPileupListener(String consensus) {
+	public SimpleVariantsDetectorPileupListener(String consensus) {
 		super();
 		this.consensus = consensus;
 	}
 	
+	
+
 	public boolean isCallIndels() {
 		return callIndels;
 	}
@@ -751,9 +804,10 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 
 
 
-	public List<CalledGenomicVariant> getHeterozygousVariants() {
-		return heterozygousVariants;
+	public List<CalledGenomicVariant> getCalls() {
+		return calls;
 	}
+
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		int idxDebug = -1;
@@ -773,10 +827,12 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			if(pos==idxDebug) System.out.println("SimpleHetVars. Sequence name "+pileup.getSequenceName()+". Next allele: "+alleleCall+" read: "+aln.getReadName());
 			if(alleleCall==null || alleleCall.length()==0) continue;
 			String alleleStr = alleleCall.toString();
-			//Counts for SNVs
-			char calledBase = alleleStr.charAt(0);
-			int idxBase = DNASequence.BASES_STRING.indexOf(calledBase);
-			if(idxBase>=0) acgtCounts[idxBase]++;
+			if(alleleStr.length()==1) {
+				//Counts for SNVs
+				char calledBase = alleleStr.charAt(0);
+				int idxBase = DNASequence.BASES_STRING.indexOf(calledBase);
+				if(idxBase>=0) acgtCounts[idxBase]++;
+			}
 			//Counts for biallelic indels
 			if(alleleStr.length()>1) {
 				GenomicRegion r = aln.getIndelCall(pos);
@@ -802,7 +858,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			if(countNonIndelAllele<MIN_DEPTH_ALLELE) return;
 			if(countIndelAllele < 0.1*countNonIndelAllele) return;
 			List<String> alleles = new ArrayList<String>(2);
-			//Fix refrence allele for indel call
+			//Fix reference allele for indel call
 			if(indelAllele.length()>2) {
 				//Insertion
 				if(pos == consensus.length()) return;
@@ -817,10 +873,7 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 			alleles.add(refAlleleIndel);
 			alleles.add(indelAllele);
 			if(pos==idxDebug) System.out.println("SimpleHetVars. Adding indel. Sequence name: "+pileup.getSequenceName()+" Ref count: "+countNonIndelAllele+" indel Count: "+countIndelAllele+" total alns: "+alns.size()+" ref: "+refBase+" nonindel allele: "+refAlleleIndel+" indel allele: "+indelAllele);
-			heterozygousVariants.add(new CalledGenomicVariantImpl(new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles ), CalledGenomicVariant.GENOTYPE_HETERO));
-			
-			
-			
+			calls.add(new CalledGenomicVariantImpl(new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles ), CalledGenomicVariant.GENOTYPE_HETERO));
 			return;
 		}
 		int maxIdx = NumberArrays.getIndexMaximum(acgtCounts);
@@ -833,14 +886,24 @@ class SimpleHeterozygousVariantsDetectorPileupListener implements PileupListener
 		char altBase = (maxBp==refBase)?secondBp:maxBp;
 		if(pos==idxDebug) System.out.println("SimpleHetVars. Max count: "+maxCount+" secondCount: "+secondCount+" total alns: "+alns.size()+" ref: "+refBase+" maxBp: "+maxBp+" secondBp: "+secondBp);
 		if(maxCount+secondCount<0.9*alns.size()) return;
-		if(secondCount < MIN_DEPTH_ALLELE) return;
-		//TODO: Define better
-		if(secondCount < 0.2*maxCount) return;
+		if(maxCount<MIN_DEPTH_ALLELE) return;
 		if(refBase!=maxBp && refBase != secondBp) return;
-		CalledSNV calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO);
+		//TODO: Define better
+		boolean secondCountLow = secondCount < MIN_DEPTH_ALLELE || secondCount<0.2*maxCount;
+		CalledSNV calledSNV;
+		if(maxBp!=refBase) {
+			if(secondCountLow) {
+				calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HOMOALT);
+			} else {
+				calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO);
+			}
+		} else if(secondCountLow) return;
+		else {
+			calledSNV = new CalledSNV(new SNV(pileup.getSequenceName(), pileup.getPosition(), refBase, altBase), CalledGenomicVariant.GENOTYPE_HETERO);
+		}
 		calledSNV.setAllBaseCounts(acgtCounts);
+		calls.add(calledSNV);
 		
-		heterozygousVariants.add(calledSNV);
 	}
 
 	private boolean isMononucleotide(String allele) {
