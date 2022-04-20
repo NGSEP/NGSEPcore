@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -133,19 +134,21 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private GenomicVariant createIndelInterAlnSignature(String seqName, int first, int last, int length,
 			byte type) {
 		// TODO Auto-generated method stub
-		GenomicVariantImpl signature = new GenomicVariantImpl(seqName, first, last, type);
+		Signature signature = new Signature(seqName, first, last, type);
 		signature.setLength(length);
+		signature.setSignatureType(Signature.INTERALIGNMENT);
 		return signature;
 	}
 	
-	private GenomicVariantImpl createIndelIntraAlnSignature(GenomicVariant indel) {
+	private GenomicVariant createIndelIntraAlnSignature(GenomicVariant indel) {
 		int first = indel.getFirst();
 		int last = indel.getLast();
 		int length = indel.length();
 		String seqName = indel.getSequenceName(); 
 		byte type = first + 1 == last ? GenomicVariant.TYPE_LARGEINS : GenomicVariant.TYPE_LARGEDEL;
-		GenomicVariantImpl signature = new GenomicVariantImpl(seqName, first, last, type);
+		Signature signature = new Signature(seqName, first, last, type);
 		signature.setLength(length);
+		signature.setSignatureType(Signature.INTRAALIGNMENT);
 		return signature;
 	}
 	
@@ -163,8 +166,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			for (Map.Entry<Integer, GenomicVariant> call : calls.entrySet()) {
 				GenomicVariant indel = call.getValue();
 				if(indel.length() < lengthToDefineSVEvent) continue;
-				GenomicVariantImpl sign = createIndelIntraAlnSignature(indel);
-				if(aln.isSecondary()) sign.setNegativeStrand(true);
+				Signature sign = (Signature) createIndelIntraAlnSignature(indel);
+				if(aln.isSecondary()) sign.setOriginFromSecondaryAlignment();
 				filteredCalls.put(call.getKey(), sign);
 				signatures.add(sign);
 				//System.out.println("secondary=" + aln.isSecondary());
@@ -329,8 +332,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 				boolean comesFromSecondaryAln = false;
 				int secondaryAlnSignCount = 0;
 				for(int idx:cluster) {
-					GenomicVariant clusteredSign = chrSignList.get(idx);
-					if(clusteredSign.isNegativeStrand()) secondaryAlnSignCount++; 
+					Signature clusteredSign = (Signature) chrSignList.get(idx);
+					if(clusteredSign.comesFromSecondaryAlignment()) secondaryAlnSignCount++; 
 					clusterSigns.add(clusteredSign);
 				}
 				/**boolean trace = false;
@@ -626,7 +629,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		sortedAlns.forceSort();
 		for(GenomicVariant variant : variantsList) {
 			int genotype;
-			int varCalls = 0;
+			//int varCalls = 0;
 			//GenomicVariantImpl dummyVariant = (GenomicVariantImpl) variant;
 			//dummyVariant.setFirst(variant.getFirst() - 1000);
 			//System.out.println("*Variant: " + variant.getSequenceName() + " begin: " + variant.getFirst() + " end: " +
@@ -658,11 +661,11 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		double [][] genotypeProbabilities = calculateCalledVariantGenotypePosteriorProbabilities(variant, calls);
 		//from the probabilities choose the most probable one
-		genotype = decideGenotype(genotypeProbabilities);
+		genotype = decideGenotype(genotypeProbabilities, variant);
 		return genotype;
 	}
 
-	private int decideGenotype(double[][] genotypeProbabilities) {
+	private int decideGenotype(double[][] genotypeProbabilities, GenomicVariant variant) {
 		// TODO Auto-generated method stub
 		int genotype = -1;
 		double bestGenotypeProb=0;
@@ -687,6 +690,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		else if(bestGenotypeIdx == 0) {
 		genotype = CalledGenomicVariant.GENOTYPE_HOMOREF ;
 		}
+		double qualityScore = genotype == CalledGenomicVariant.GENOTYPE_HETERO ? genotypeProbabilities[0][1] +
+				genotypeProbabilities[1][0] : bestGenotypeProb;
+		qualityScore = qualityScore*100;
+		variant.setVariantQS((short) qualityScore);
 		return genotype;
 	}
 
@@ -978,6 +985,193 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		String prefix = args[3];
 		int svLength = Integer.parseInt(args[4]);
 		caller.run(algorithm, refFile, alnFile, prefix, svLength);
+	}
+	
+	class Signature implements GenomicVariant {
+		
+		public static final byte INTRAALIGNMENT = 0;
+		public static final byte INTERALIGNMENT = 1;
+
+		private final String[] SIGNATURE_TYPES = {"INTRAALIGNMENT", "INTERALIGNMENT"};
+		private List<String> DEFAULT_ALLELES_BIALLELIC = Arrays.asList(GENOTYPE_ALLELES);
+		
+		private String id;
+		private String sequenceName;
+		private int first;
+		private int last;
+		private int length;
+		private byte signatureType;
+		private boolean comesFromSecondaryAlignment;
+		
+		private List<String> alleles =new ArrayList<String>();
+		private boolean negativeStrand = false;
+		private short variantQS=0;
+		private byte type = GenomicVariant.TYPE_UNDETERMINED;
+		
+		/**
+		 * Creates a biallelic genomic variant with default allele names
+		 * @param sequenceName
+		 * @param first
+		 * @param last
+		 * @param type Type of the variant
+		 */
+		public Signature(String sequenceName, int first, int last, byte type) {
+			this.setSequenceName(sequenceName);
+			this.setFirst(first);
+			this.setLast(last);
+			this.setType(type);
+			this.setLength(last-first+1);
+			alleles = DEFAULT_ALLELES_BIALLELIC;
+		}
+		
+
+		@Override
+		public String getSequenceName() {
+			// TODO Auto-generated method stub
+			return sequenceName;
+		}
+
+		@Override
+		public int getFirst() {
+			// TODO Auto-generated method stub
+			return first;
+		}
+
+		@Override
+		public int getLast() {
+			// TODO Auto-generated method stub
+			return last;
+		}
+
+		@Override
+		public int length() {
+			// TODO Auto-generated method stub
+			return length;
+		}
+		
+		public byte getSignatureType() {
+			return signatureType;
+		}
+		
+		@Override
+		public boolean isPositiveStrand() {
+			// TODO Auto-generated method stub
+			return !negativeStrand;
+		}
+
+		@Override
+		public boolean isNegativeStrand() {
+			// TODO Auto-generated method stub
+			return negativeStrand;
+		}
+
+		@Override
+		public String [] getAlleles() {
+			// TODO Auto-generated method stub
+			return alleles.toArray(new String[0]);
+		}
+
+		@Override
+		public String getReference() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public String getId() {
+			// TODO Auto-generated method stub
+			return this.id;
+		}
+
+
+		@Override
+		public short getVariantQS() {
+			// TODO Auto-generated method stub
+			return this.variantQS;
+		}
+
+
+		@Override
+		public boolean isCompatible(GenomicVariant variant) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public boolean isBiallelic() {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public boolean isSNV() {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public byte getType() {
+			// TODO Auto-generated method stub
+			return this.type;
+		}
+		
+		public String getSignatureTypeAsString() {
+			return SIGNATURE_TYPES[this.type];
+		}
+		
+		
+		private void setLength(int length) {
+			// TODO Auto-generated method stub
+			this.length = length;
+		}
+
+		private void setLast(int last) {
+			// TODO Auto-generated method stub
+			this.last = last;
+		}
+
+		private void setFirst(int first) {
+			// TODO Auto-generated method stub
+			this.first = first;
+		}
+
+		private void setSequenceName(String sequenceName) {
+			// TODO Auto-generated method stub
+			this.sequenceName = sequenceName;
+		}
+		
+		@Override
+		public void setId(String id) {
+			// TODO Auto-generated method stub
+			this.id = id;
+		}
+		
+		@Override
+		public void setVariantQS(short qualityScore) {
+			// TODO Auto-generated method stub
+			this.variantQS = qualityScore;
+		}
+		
+		@Override
+		public void setType(byte type) {
+			// TODO Auto-generated method stub
+			this.type = type;
+		}
+
+		public void setSignatureType(byte signatureType) {
+			this.signatureType = signatureType;
+		}
+
+
+		public boolean comesFromSecondaryAlignment() {
+			return comesFromSecondaryAlignment;
+		}
+
+
+		public void setOriginFromSecondaryAlignment() {
+			this.comesFromSecondaryAlignment = true;
+		}
+		
 	}
 	
 	class SimplifiedReadAlignment implements GenomicRegion{
