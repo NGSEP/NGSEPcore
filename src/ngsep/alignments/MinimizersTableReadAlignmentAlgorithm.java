@@ -124,7 +124,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			kmerCodesTable.setKmersMap(extractor.getKmersMap());
 		}
 		kmerCodesTable.setLog(log);
-		kmerCodesTable.setMaxHitsKmerCode(20);
+		kmerCodesTable.setMaxHitsKmerCode(1000);
 		ThreadPoolManager poolTable = new ThreadPoolManager(numThreads, n);
 		poolTable.setSecondsPerTask(60);
 		for (int i=0;i<n;i++) {

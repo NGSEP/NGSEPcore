@@ -125,7 +125,8 @@ public class ShortKmerCodesTable {
 			for (KmerCodesTableEntry entry:entries) addToTable(row, entry.encode());
 			totalEntries+=entries.size();
 			codeCountDifferentSequences[row]++;
-		}
+		} 
+		//else System.out.println("Rejected codes for kmer: "+new String(DNASequence.getDNASequence(code, kmerLength))+" current count: "+currentCount+" new entries: "+entries.size());
 	}
 	private void resizeTable() {
 		log.info("Resizing codes table. Current number of codes: "+size()+" current capacity: "+sequencesByCodeTable.length);
@@ -185,6 +186,7 @@ public class ShortKmerCodesTable {
 		Map<Long, List<KmerCodesTableEntry>> codesSeq = new HashMap<Long, List<KmerCodesTableEntry>>();
 		for (int start = 0;start < n;start+=step) {
 			List<KmerCodesTableEntry> codeEntriesList = computeSequenceCodes(sequenceId, sequenceStr, start, Math.min(n, start+step));
+			//if(start==21000000) System.out.println("Seq id: "+sequenceId+" raw codes: "+codeEntriesList.size());
 			for(KmerCodesTableEntry entry:codeEntriesList) {
 				List<KmerCodesTableEntry> codesList = codesSeq.computeIfAbsent(entry.getKmerCode(), l->new ArrayList<KmerCodesTableEntry>());
 				codesList.add(entry);
@@ -337,7 +339,8 @@ public class ShortKmerCodesTable {
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
 		int idxDebug = -2;
-		//int idxDebug = 1;
+		//int idxDebug = -1;
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes");
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
@@ -347,6 +350,7 @@ public class ShortKmerCodesTable {
 		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" unique: "+codesLocalCounts.size());
 		*/
 		int numUsedCodes = 0;
+		int notFoundCodes = 0;
 		int multihitCodes = 0;
 		int selfSequenceCount = 0;
 		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<Integer, List<UngappedSearchHit>>();
@@ -363,6 +367,7 @@ public class ShortKmerCodesTable {
 			
 			long [] codesMatching = lookupHits(kmerCode);
 			if(codesMatching.length>0) numUsedCodes++;
+			else notFoundCodes++;
 			CharSequence kmer = new String(DNASequence.getDNASequence(kmerCode, kmerLength));
 			for(long entryCode:codesMatching) {
 				KmerCodesTableEntry matchingEntry = new KmerCodesTableEntry(kmerCode, entryCode);
@@ -379,7 +384,7 @@ public class ShortKmerCodesTable {
 				if(subjectIdx==queryIdx) selfSequenceCount++;
 			}
 		}
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" self sequence count: "+selfSequenceCount+" codes with multiple hits: "+multihitCodes);
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with multiple hits: "+multihitCodes);
 		return answer;
 		
 	}
