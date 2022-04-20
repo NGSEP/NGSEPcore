@@ -139,7 +139,8 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		for(HomologyCluster cluster:clusters) {
 			List<LocalHomologyCluster> clustersG1 = cluster.getLocalClusters(g1.getId());
 			List<LocalHomologyCluster> clustersG2 = cluster.getLocalClusters(g2.getId());
-			
+			//TODO: validate 100 relations
+			if(clustersG1.size()*clustersG2.size()>100) continue;
 			for(LocalHomologyCluster c1:clustersG1) {
 				for(LocalHomologyCluster c2: clustersG2) {
 					SyntenyVertex v = new SyntenyVertex(c1, c2);
