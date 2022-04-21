@@ -206,6 +206,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if(orphanEmbeddedIds.size()>0) {
 			ShortKmerCodesTable tableOrphans = new ShortKmerCodesTable(kmersAnalyzer, kmerLength, windowLength);
 			for(int seqId:orphanEmbeddedIds) {
+				List<AssemblyEmbedded> embeddedRels = graph.getEmbeddedBySequenceId(seqId);
+				if(seqId == idxDebug) System.out.println("Processing orphan sequence: "+seqId+" embedded: "+graph.isEmbedded(seqId)+" current rels: "+relationshipsPerSequence.get(seqId)+" embedded rels graph: "+embeddedRels);
 				for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.removeRelationship(rel);
 				relationshipsPerSequence.set(seqId, null);
 				CharSequence seq = sequences.get(seqId).getCharacters();
@@ -218,7 +220,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			List<List<AssemblySequencesRelationship>> orphanRelationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 			for(int i=0;i<sequences.size();i++) orphanRelationshipsPerSequence.add(null);
 			for(int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
-				if(graph.isEmbedded(seqId)) continue;
+				List<AssemblyEmbedded> embeddedRels = graph.getEmbeddedBySequenceId(seqId);
+				if(seqId == idxDebug) System.out.println("Processing sequence: "+seqId+" embedded: "+graph.isEmbedded(seqId)+" current rels: "+relationshipsPerSequence.get(seqId)+" embedded rels graph: "+embeddedRels);
+				//For orphan sequences, embedded relationships to chimeric sequences were added back in the previous search 
+				if(embeddedRels.size()>0 && !orphanEmbeddedIds.contains(seqId)) continue;
 				CharSequence seq = sequences.get(seqId).getCharacters();
 				double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 				final int i = seqId;
