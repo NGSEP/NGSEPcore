@@ -104,14 +104,13 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	}
 
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) {
-		loadGenome(genome, kmerLength, windowLength, numThreads,true);
+		loadGenome(genome, kmerLength, windowLength, numThreads,false);
 	}
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads, boolean buildKmersTable) {
 		this.genome = genome;
 		int n = genome.getNumSequences();
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
-		//minimizersTable = new MinimizersTable(analyzer, kmerLength, windowLength);
 		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength);
 		
 		//log.info("Calculating kmers distribution");

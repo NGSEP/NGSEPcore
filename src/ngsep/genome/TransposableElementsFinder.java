@@ -106,7 +106,7 @@ public class TransposableElementsFinder {
 	 */
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) throws InterruptedException, IOException {
 		GenomicRegionSortedCollection<TransposableElementAnnotation> annotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
-		annotations.addAll(findTransposonsDeNovo(genome));
+		//annotations.addAll(findTransposonsDeNovo(genome));
 		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
 		return removeRedundantAnnotations(annotations);
 	}
@@ -210,7 +210,7 @@ public class TransposableElementsFinder {
 	
 		System.out.println("creating minimizerTable");
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
-		minimizerTable.loadGenome(genome, 15, 30, 1);
+		minimizerTable.loadGenome(genome, 15, 20, 1);
 		System.out.println("loading known transposions");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
@@ -219,11 +219,12 @@ public class TransposableElementsFinder {
 		System.out.println("searching transposions db");
 		for (QualifiedSequence transposon:knownTransposons) {
 			RawRead read = new RawRead(transposon.getName(), transposon.getCharacters(), null);
-			 List<ReadAlignment> listRead = minimizerTable.alignRead(read);
-			for (ReadAlignment ReadAlig: listRead) {
-				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(ReadAlig.getReadName(),ReadAlig.getFirst(), ReadAlig.getLast());
+			List<ReadAlignment> alignments = minimizerTable.alignRead(read);
+			System.out.println("Transposon sequence id: "+transposon.getName()+" alignments: "+alignments);
+			for (ReadAlignment aln: alignments) {
+				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(aln.getSequenceName(),aln.getFirst(), aln.getLast());
+				alignedTransposon.setTaxonomy(aln.getReadName());
 				answer.add(alignedTransposon);
-				System.out.println(ReadAlig);
 			}
 		}		
 		return answer;
@@ -251,7 +252,8 @@ public class TransposableElementsFinder {
 			{
 				outTransposon.print(t.getSequenceName()+"\t");
 				outTransposon.print(t.getFirst()+"\t");
-				outTransposon.print(t.getLast());
+				outTransposon.print(t.getLast()+"\t");
+				outTransposon.print(t.getTaxonomy());
 				outTransposon.println();
 			}
 		}

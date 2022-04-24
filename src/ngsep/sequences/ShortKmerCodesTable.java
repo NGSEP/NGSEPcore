@@ -192,7 +192,7 @@ public class ShortKmerCodesTable {
 				codesList.add(entry);
 			}
 		}
-		//log.info("Sequence "+sequenceId+" number of minimizers: "+minimizersSeq.size());
+		//log.info("Sequence "+sequenceId+" number of minimizers: "+codesSeq.size());
 		
 		synchronized (sequenceLengths) {
 			for(Map.Entry<Long, List<KmerCodesTableEntry>> codesEntry:codesSeq.entrySet()) {
@@ -398,7 +398,7 @@ public class ShortKmerCodesTable {
 		if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
 		int diff3=diff1+diff2-2*kmerDistModeLocalSD;
 		if(diff3<1) diff3=1;*/
-		int modeMinimizers = mode/2;
+		int modeMinimizers = Math.max(1, mode/2);
 		int diff1 = countDifferent-modeMinimizers;
 		if(diff1<=kmerDistModeLocalSD) return 1;
 		int diff3=diff1-kmerDistModeLocalSD;
