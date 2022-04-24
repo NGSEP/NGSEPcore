@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,9 +237,23 @@ public class TransposableElementsFinder {
 	 */
 	private List<TransposableElementAnnotation> removeRedundantAnnotations(GenomicRegionSortedCollection<TransposableElementAnnotation> annotations) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		// TODO implement
-		answer.addAll(annotations);
+		TransposableElementAnnotation next = null;
+		for(TransposableElementAnnotation ann:annotations) {
+			if(next==null) next = ann;
+			else if (merge(next,ann)) {
+				next.setLast(Math.max(next.getLast(),ann.getLast()));
+			} else {
+				answer.add(next);
+				next = ann;
+			}
+		}
+		answer.add(next);
+		
 		return answer;
+	}
+	private boolean merge(TransposableElementAnnotation next, TransposableElementAnnotation ann) {
+		if(!next.getSequenceName().equals(ann.getSequenceName())) return false;
+		return GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast())>ann.length()/2;
 	}
 	/**
 	 * Save found the transposons 

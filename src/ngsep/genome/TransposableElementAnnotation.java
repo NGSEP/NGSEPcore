@@ -33,6 +33,9 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public int getLast() {
 		return last;
 	}
+	public void setLast(int last) {
+		this.last = last;
+	}
 	@Override
 	public int length() {
 		return last-first+1;
@@ -45,4 +48,5 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public boolean isNegativeStrand() {
 		return false;
 	}
+	
 }
