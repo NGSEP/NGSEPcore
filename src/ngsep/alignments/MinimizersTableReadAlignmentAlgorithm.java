@@ -230,7 +230,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers());
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
 		}
-		Collections.sort(clusters, (o1,o2)-> (int)(o2.getWeightedCount()-o1.getWeightedCount()));
+		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
