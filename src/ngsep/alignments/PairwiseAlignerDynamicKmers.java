@@ -139,6 +139,31 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		return answer;
 	}
 	
+	public static UngappedSearchHitsCluster findBestKmersCluster (CharSequence subjectSequence, int subjectFirst, int subjectLast, CharSequence querySequence, int queryFirst, int queryLast, int kmerLength) {
+		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, subjectFirst, subjectLast);
+		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodes(querySequence, kmerLength, queryFirst, queryLast);
+		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
+		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
+		if(initialKmerHits.size()==0) return null;
+		List<UngappedSearchHit> filteredKmerHits = new ArrayList<>();
+		for(UngappedSearchHit hit: initialKmerHits) {
+			int distanceStartSubject = hit.getStart()-subjectFirst;
+			int distanceStartQuery = hit.getQueryIdx()-queryFirst;
+			int distanceEndSubject = subjectLast-hit.getStart();
+			int distanceEndQuery = queryLast-hit.getQueryIdx();
+			int diff1 = Math.abs(distanceStartSubject-distanceStartQuery);
+			int diff2 = Math.abs(distanceEndSubject-distanceEndQuery);
+			if(diff1 < 200 || diff2<200) filteredKmerHits.add(hit);
+		}
+		
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(querySequence.length(), subjectSequence.length(), filteredKmerHits, 0);
+		//System.out.println("Number of clusters: "+clusters.size());
+		//printClusters(clusters);
+		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
+		else if (clusters.size()==0) return null;
+		return clusters.get(0);
+	}
+	
 	public static UngappedSearchHitsCluster findBestKmersCluster (int subjectLength, Map<Integer, Long> codesSubject, int queryLength, Map<Integer, Long> codesQuery, int kmerLength) {
 		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
 		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
@@ -203,7 +228,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
 				int minLength = Math.min(subjectNextLength, queryNextLength);
 				int maxLength = Math.max(subjectNextLength, queryNextLength);
-				if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+				if(maxLength>minLength+3 && 0.9*maxLength>minLength) {
 					//Possible invalid kmer hit. Delay alignment
 					if (subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
 					continue;
