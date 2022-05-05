@@ -211,7 +211,9 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private int calculateMinimumHitsFromTotal(int queryIdx, Map<Integer, List<UngappedSearchHit>> hitsForward, Map<Integer, List<UngappedSearchHit>> hitsReverse, int minHits) {
 		List<Integer> allHitsDistinctKmers = new ArrayList<>();
-		for(List<UngappedSearchHit> hits:hitsForward.values()) allHitsDistinctKmers.add(countDistinctKmers(hits));
+		for(Map.Entry<Integer,List<UngappedSearchHit>> entry:hitsForward.entrySet()) {
+			if(queryIdx!=entry.getKey()) allHitsDistinctKmers.add(countDistinctKmers(entry.getValue()));
+		}
 		for(List<UngappedSearchHit> hits:hitsReverse.values()) allHitsDistinctKmers.add(countDistinctKmers(hits));
 		int maxCount = 0;
 		int passCount = 0;
