@@ -358,7 +358,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			embeddedEvent.setNumIndels(simulatedAlnData[2]);
 			if(embeddedEvent.getEvidenceProportion()>0.9 && embeddedEvent.getCoverageSharedKmers()>0.5*queryLength && simulatedAlnData[2]>50 ) {
 				QualifiedSequence subject = graph.getSequence(subjectSeqIdx);
-				simulatedAlnData = redoSimulation(subjectSeqIdx, subject.getCharacters(),startSubject,endSubject,querySequenceId,query,0,query.length(),simulatedAlnData);
+				simulatedAlnData = redoSimulation(subjectSeqIdx, subject.getCharacters(),Math.max(0,startSubject),Math.min(subjectLength, endSubject),querySequenceId,query,0,query.length(),simulatedAlnData);
 				//System.out.println("Repeated simulation for embedded: "+embeddedEvent+" new indels: "+simulatedAlnData[2]);
 				embeddedEvent.setNumIndels(simulatedAlnData[2]);
 			}
