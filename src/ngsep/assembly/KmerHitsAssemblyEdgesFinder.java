@@ -534,6 +534,8 @@ public class KmerHitsAssemblyEdgesFinder {
 	private int[] redoSimulation(int subjectSeqIdx, CharSequence subjectSequence, int startSubject, int endSubject, int querySequenceId, CharSequence query, int queryStart, int queryEnd, int [] initialSimulation) {
 		UngappedSearchHitsCluster cluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subjectSequence, startSubject, endSubject, query, queryStart, queryEnd,15);
 		if(cluster ==null) return initialSimulation;
-		return PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectSequence.length(), querySequenceId, query.length(), cluster);
+		int [] newSim = PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectSequence.length(), querySequenceId, query.length(), cluster);
+		if(newSim[2]>=initialSimulation[2]) return initialSimulation;
+		return newSim;
 	}
 }
