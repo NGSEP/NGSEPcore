@@ -385,6 +385,8 @@ public class HaplotypeReadsClusterCalculator {
 		Collections.sort(hetVars,GenomicRegionPositionComparator.getInstance());
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
 		int countSNVs = 0;
+		double snvsRD = 0;
+		List<Double> alleleDosages = new ArrayList<>();
 		int n = hetVars.size();
 		int distance = 20;
 		for(int i=0;i<n;i++) {
@@ -395,10 +397,6 @@ public class HaplotypeReadsClusterCalculator {
 				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with small depth: "+varDepth+" average: "+readDepth);
 				continue;
 			}
-			/*if(varDepth>1.5*readDepth) {
-				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with large depth: "+varDepth+" average: "+readDepth);
-				continue;
-			}*/
 			GenomicRegionSortedCollection< GenomicRegion> spanning = denseVariantRegions.findSpanningRegions(hetVar);
 			if (spanning.size()>0) {
 				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" within dense region. ");
@@ -410,12 +408,33 @@ public class HaplotypeReadsClusterCalculator {
 				if(hetVar instanceof CalledSNV) {
 					countSNVs++;
 					filteredVars.add(hetVar);
+					snvsRD+=hetVar.getTotalReadDepth();
+					CalledSNV csnv = (CalledSNV)hetVar;
+					double ad = (double)Math.min(csnv.getCountReference(), csnv.getCountAlternative())/(csnv.getTotalReadDepth());
+					alleleDosages.add(ad);
 				}
 			} else if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" close to other variant. Limits next: "+posBefore+" "+posAfter);
 		}
+		if(countSNVs==0) return filteredVars;
+		snvsRD/=countSNVs;
+		Collections.sort(alleleDosages);
+		double medianAD = alleleDosages.get(countSNVs/2);
+		if(path.getPathId() == debugIdx) System.out.println("Median allele dosage: "+medianAD+" average RD: "+readDepth+" SNVs average rd: "+snvsRD);
+		//Temporary filter while multigroup haplotyping is implemented
+		List<CalledGenomicVariant> filteredVars2 = new ArrayList<CalledGenomicVariant>();
+		for(CalledGenomicVariant hetVar:filteredVars) {
+			CalledSNV csnv = (CalledSNV)hetVar;
+			double ad = (double)Math.min(csnv.getCountReference(), csnv.getCountAlternative())/(csnv.getTotalReadDepth());
+			if(hetVar.getTotalReadDepth()>1.5*readDepth && Math.abs(ad-medianAD)>0.2) {
+				System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth and allele dosage. Averages: "+readDepth+" "+medianAD+" variant values "+csnv.getTotalReadDepth()+" "+ad);
+				continue;
+			}
+			filteredVars2.add(hetVar);
+		}
+		
 		//if(countSNVs==0) return new ArrayList<CalledGenomicVariant>();
-		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars.size()+" SNVs: "+countSNVs);
-		return filteredVars;
+		log.info("Called variants in sequence: "+sequenceName+". Total heterozygous variants: "+hetVars.size()+" alignments: "+count+" filtered variants: "+filteredVars2.size()+" SNVs: "+countSNVs);
+		return filteredVars2;
 	}
 
 	private List<AlignmentsPileupGenerator> createGenerators(int pathIdx, List<SimpleVariantsDetectorPileupListener> callers, QualifiedSequenceList metadata ) {
