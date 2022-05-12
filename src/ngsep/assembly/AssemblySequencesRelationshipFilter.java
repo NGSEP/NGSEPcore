@@ -48,13 +48,15 @@ public class AssemblySequencesRelationshipFilter {
 			
 			int [] bestValues = filterEdges(graph, seqId, medianLength, minScoreProportionEdges);
 			int maxScore = Math.max(bestValues[0], bestValues[1]);
+			int minCost = Math.min(bestValues[2], bestValues[3]); 
 			if(bestValues[0]==0 || bestValues[1]==0) {
 				//if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
 				//graph.removeVertices(seqId);
 				maxScore = 0;
+				minCost = graph.getSequenceLength(seqId);
 			}
-			//if(filterEmbeddedByCost(graph, seqId, medianLength, Math.min(bestValues[2], bestValues[3]))) {
-			if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) {
+			if(filterEmbeddedByCost(graph, seqId, medianLength, minCost)) {
+			//if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) {
 				numEmbedded++;
 				//List<AssemblyEdge> edges = graph.getEdgesBySequenceId(seqId);
 				//for(AssemblyEdge edge:edges) edge.setCost(10*edge.getCost());
@@ -142,7 +144,8 @@ public class AssemblySequencesRelationshipFilter {
 	private boolean filterEmbeddedByCost(AssemblyGraph graph, int sequenceId,int medianLength, int minCostEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
-		double costInflationEmbedded = Math.max(1, 1.0/medianRelationship);
+		//double costInflationEmbedded = Math.max(1, 1.0/medianRelationship);
+		double costInflationEmbedded = 1.2;
 		//if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		double costLimit = minCostEdges*costInflationEmbedded;
 		//double costLimit = minCostEdges;
@@ -166,8 +169,8 @@ public class AssemblySequencesRelationshipFilter {
 			//Replace embedded relationships with edges to make the sequence not embedded
 			for(AssemblyEmbedded embedded:embeddedList) {
 				graph.removeEmbedded(embedded);
-				if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+graph.getSequenceLength(embedded.getHostId())+"score: "+embedded.getScore());
-				addEdgeFromEmbedded(graph, embedded);
+				//if(sequenceId == debugIdx) System.out.println("Adding edge replacing embedded "+embedded.getHostId()+" limits: "+embedded.getHostStart()+" "+embedded.getHostEnd()+" host length: "+graph.getSequenceLength(embedded.getHostId())+"score: "+embedded.getScore());
+				//addEdgeFromEmbedded(graph, embedded);
 			}
 			return false;
 		} else {
@@ -184,7 +187,7 @@ public class AssemblySequencesRelationshipFilter {
 	private boolean filterEmbeddedByScore(AssemblyGraph graph, int sequenceId,int medianLength, NormalDistribution distLengths, int maxScoreEdges) {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
-		double minScoreProportionEmbedded = 0.8;
+		double minScoreProportionEmbedded = 0.9;
 		//double cumulative = lengthsDistribution.getCumulativeCount(sequenceLength)/lengthsDistribution.getCount();
 		//double minScoreProportionEmbedded = Math.min(0.8, 0.5*medianRelationship);
 		//double minScoreProportionEmbedded = Math.min(0.8, distLengths.cumulative(sequenceLength));

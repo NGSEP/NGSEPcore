@@ -346,7 +346,7 @@ public class AssemblyGraphStatistics {
 			log.info("Removing vertices chimeric reads");
 			graph.removeVerticesChimericReads();
 			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-			findProblematicVertices(graph);
+			//findProblematicVertices(graph);
 			log.info("Filtering edges and embedded");
 			(new AssemblySequencesRelationshipFilter()).filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 			//log.info("Updating scores after filtering");
@@ -560,6 +560,10 @@ public class AssemblyGraphStatistics {
 					int totalLength = testGraph.getSequenceLength(minCostE.getSequenceId())+testGraph.getSequenceLength(minCostE.getHostId());
 					distSumLengthsEmbedded.processDatapoint(totalLength);
 					distSumLengthsIKbpEmbedded.processDatapoint(minIndelsKbp,totalLength);
+					/*if(minIndelsKbp>10) {
+						System.out.println("Large indels per KBP for true embedded. Relationships: ");
+						for(AssemblyEmbedded embedded: hosts) System.out.println(""+embedded);
+					}*/
 				}
 				if(selfEdge!=null) {
 					double p2 = maxWCSK/selfEdge.getCoverageSharedKmers();
@@ -682,8 +686,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==560 || gsVertex.getSequenceIndex()==1421 || gsVertex.getSequenceIndex()==43;
-		//boolean debug = gsVertex.getSequenceIndex()==115095 || gsVertex.getSequenceIndex()==63084 || gsVertex.getSequenceIndex()==19515; 
+		//boolean debug = gsVertex.getSequenceIndex()==91 || gsVertex.getSequenceIndex()== 193 || gsVertex.getSequenceIndex()==204;
+		//boolean debug = gsVertex.getSequenceIndex()==49526 || gsVertex.getSequenceIndex()==76979 || gsVertex.getSequenceIndex()==161486; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);
@@ -738,7 +742,7 @@ public class AssemblyGraphStatistics {
 						distOverlapSDTPPathEdges.processDatapoint(matchedTestEdge.getRawKmerHitsSubjectStartSD());
 						distNumIndelsTPPathEdges.processDatapoint(matchedTestEdge.getNumIndels());
 						distIndelsKbpTPPathEdges.processDatapoint(matchedTestEdge.getIndelsPerKbp());
-						if(matchedTestEdge.getIndelsPerKbp()>5) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						if(matchedTestEdge.getIndelsPerKbp()>7) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
 						if(matchedTestEdge.getEvidenceProportion()<0.9) log.info("Low evidence proportion for path edge: "+matchedTestEdge);
 						int lengthSum = testGraph.getSequenceLength(matchedTestEdge.getVertex1().getSequenceIndex())+testGraph.getSequenceLength(matchedTestEdge.getVertex2().getSequenceIndex());
 						distSumLengthsIKbpLayout.processDatapoint(matchedTestEdge.getIndelsPerKbp(), lengthSum);
