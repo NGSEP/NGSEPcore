@@ -53,7 +53,7 @@ public class AssemblySequencesRelationshipFilter {
 				//if(maxScore>0) System.out.println("Zero score on one side for sequence: "+seqId+" "+graph.getSequence(seqId).getName()+ ". Scores: "+bestValues[0]+" "+bestValues[1]+" Removing vertices");
 				//graph.removeVertices(seqId);
 				maxScore = 0;
-				minCost = graph.getSequenceLength(seqId);
+				minCost = 100*graph.getSequenceLength(seqId);
 			}
 			if(filterEmbeddedByCost(graph, seqId, medianLength, minCost)) {
 			//if(filterEmbeddedByScore(graph, seqId, medianLength, distLengths, maxScore)) {
