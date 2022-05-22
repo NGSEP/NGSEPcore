@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -133,22 +136,28 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 
 	private void correctSNVErrors(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> variants) {
-		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-		generator.setLog(log);
+		
+		List<SimpleSNVErrorCorrectorPileupListener> callers = new ArrayList<>();
+		for(int i=0;i<numThreads;i++) {
+			SimpleSNVErrorCorrectorPileupListener snvsCorrectorListener = new SimpleSNVErrorCorrectorPileupListener(consensus, variants);
+			callers.add(snvsCorrectorListener);
+		}
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		generator.setSequencesMetadata(metadata);
-		generator.setMaxAlnsPerStartPos(0);
-		SimpleSNVErrorCorrectorPileupListener snvsCorrectorListener = new SimpleSNVErrorCorrectorPileupListener(consensus, variants);
-		generator.addListener(snvsCorrectorListener);
-		
-		int count = 0;
-		for(ReadAlignment aln:alignments) {
-			generator.processAlignment(aln);
-			count++;
-			if(count%1000==0) log.info("Sequence: "+sequenceName+". Corrected SNVs from "+count+" alignments"); 
+		List<AlignmentsPileupGenerator> generators = HaplotypeReadsClusterCalculator.createGenerators(callers, metadata, numThreads,log );
+		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		try {
+			for(AlignmentsPileupGenerator generator:generators) {
+				pool.execute(()->generator.processAlignments(alignments));
+			}
+			pool.shutdown();
+	    	pool.awaitTermination(consensus.length(), TimeUnit.SECONDS);
+	    	if(!pool.isShutdown()) {
+				throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
+			}
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
 		}
-		generator.notifyEndOfAlignments();
 	}
 
 	private CharSequence applyVariants(StringBuilder consensus, List<CalledGenomicVariant> variants) {

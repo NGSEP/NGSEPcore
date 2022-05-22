@@ -85,7 +85,7 @@ public class Assembler {
 	private String graphFile = null;
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
 	private String layoutAlgorithm=LAYOUT_ALGORITHM_KRUSKAL_PATH;
-	private String consensusAlgorithm=CONSENSUS_ALGORITHM_SIMPLE;
+	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
 	private int ploidy = DEF_PLOIDY;
 	private int errorCorrectionRounds = DEF_ERROR_CORRCTION_ROUNDS;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;

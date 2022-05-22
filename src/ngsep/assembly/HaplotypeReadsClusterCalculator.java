@@ -355,7 +355,7 @@ public class HaplotypeReadsClusterCalculator {
 		
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		List<AlignmentsPileupGenerator> generators = createGenerators(path.getPathId(),callers, metadata );
+		List<AlignmentsPileupGenerator> generators = createGenerators(callers, metadata, numThreads,log );
 		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		try {
 			for(AlignmentsPileupGenerator generator:generators) {
@@ -442,7 +442,7 @@ public class HaplotypeReadsClusterCalculator {
 		return filteredVars2;
 	}
 
-	private List<AlignmentsPileupGenerator> createGenerators(int pathIdx, List<SimpleVariantsDetectorPileupListener> callers, QualifiedSequenceList metadata ) {
+	public static List<AlignmentsPileupGenerator> createGenerators(List<? extends PileupListener> callers, QualifiedSequenceList metadata, int numThreads, Logger log ) {
 		List<AlignmentsPileupGenerator> generators = new ArrayList<AlignmentsPileupGenerator>();
 		QualifiedSequence contigM = metadata.get(0);
 		int intervalLength = contigM.getLength() / numThreads;
@@ -458,7 +458,6 @@ public class HaplotypeReadsClusterCalculator {
 			generator.setQueryFirst(nextStart);
 			if(i<numThreads-1) generator.setQueryLast(nextEnd);
 			generators.add(generator);
-			if(pathIdx==debugIdx) System.out.println("Creating generators for path: "+pathIdx+" Next generator limits: "+generator.getQuerySeq()+":"+ generator.getQueryFirst()+"-"+generator.getQueryLast());
 			nextStart+=intervalLength;
 			nextEnd +=intervalLength;
 		}
