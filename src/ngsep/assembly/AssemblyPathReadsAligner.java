@@ -14,6 +14,7 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignmentPositionComparator;
@@ -249,6 +250,7 @@ public class AssemblyPathReadsAligner {
 			// TODO Better handling
 			e.printStackTrace();
 		}
+		alignedReads.addAll(alignInternalPaths(graph, path,numThreads));
 		Collections.sort(alignedReads, ReadAlignmentPositionComparator.getInstance() );
 		usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 		log.info("Processed path "+pathIdx+". Length: "+path.getPathLength()+" Total reads: "+totalReads+" alignments: "+alignedReads.size()+" Memory (Mbp): "+usedMemory);
@@ -553,5 +555,46 @@ public class AssemblyPathReadsAligner {
 		//if(bestAlleleStart<0) throw new RuntimeException("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele+" refOffsetLeft: "+refOffsetLeft+" best allele start: "+bestAlleleStart+" extended call "+extendedCallStr);
 		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" consensus segment "+answer);
 		return answer;
+	}
+	private List<ReadAlignment> alignInternalPaths(AssemblyGraph graph, AssemblyPath path, int numThreads) {
+		int debugIdx = -1;
+		int pathIdx = path.getPathId();
+		List<AssemblyPath> internalPaths = path.getAlternativeSmallPaths();
+		if(internalPaths.size()==0 ) return new ArrayList<>();
+		log.info("Aligning internal paths for path: "+path.getPathId()+" number of paths: "+internalPaths.size());
+		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence("", path.getConsensus()));
+		aligner.loadGenome(genome, KMER_LENGTH_LOCAL_ALN, KMER_LENGTH_LOCAL_ALN, numThreads);
+		//log.info("Aligning internal paths for path: "+path.getPathId()+" loaded kmer codes table");
+		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
+		int totalReads = 0;
+		for(AssemblyPath internalPath: internalPaths) {
+			List<AssemblyEdge> edges = internalPath.getEdges();
+			int n = edges.size();
+			for(int j = 0; j < n; j++) {
+				AssemblyEdge edge = edges.get(j);
+				if(!edge.isSameSequenceEdge()) continue;
+				totalReads++;
+				QualifiedSequence read = edge.getVertex1().getRead();
+				List<ReadAlignment> alns = aligner.alignRead(read);
+				if(pathIdx == debugIdx) System.err.println("Aligning internal paths for path: "+path.getPathId()+" Next read: "+read.getName()+" Alignments: "+alns);
+				if(alns.size()==0) continue;
+				ReadAlignment aln = alns.get(0);
+				aln.setReadNumber(edge.getVertex1().getSequenceIndex());
+				alignedReads.add(aln);
+				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(edge.getVertex1().getSequenceIndex());
+				for(AssemblyEmbedded embedded:embeddedList) {
+					QualifiedSequence embeddedRead = embedded.getRead();
+					totalReads++;
+					List<ReadAlignment> alnsE = aligner.alignRead(embeddedRead);
+					if(alnsE.size()==0) continue;
+					aln = alnsE.get(0);
+					aln.setReadNumber(embedded.getSequenceId());
+					alignedReads.add(aln);
+				}
+			}
+		}
+		log.info("Aligning internal paths for path: "+path.getPathId()+" Total reads internal paths: "+totalReads+" aligned: "+alignedReads.size());
+		return alignedReads;
 	}
 }

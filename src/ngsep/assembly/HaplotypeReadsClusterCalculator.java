@@ -253,14 +253,14 @@ public class HaplotypeReadsClusterCalculator {
 				ReadAlignment aln = alnsByReadId.get(readId);
 				sequenceIdsHap0.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
-				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to first haplotype");
+				if(aln.getReadNumber()==975) System.out.println("Adding read "+aln.getReadName()+" to first haplotype of block with "+block.getNumVariants()+" variants");
 			}
 			Set<Integer> sequenceIdsHap1 = new HashSet<Integer>();
 			for(int readId:readIdsHap1) {
 				ReadAlignment aln = alnsByReadId.get(readId);
 				sequenceIdsHap1.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
-				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to second haplotype");
+				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to second haplotype of block with "+block.getNumVariants()+" variants");
 			}
 			GenomicRegionImpl region = new GenomicRegionImpl(hetVars.get(0).getSequenceName(), hetVars.get(0).getFirst(), hetVars.get(hetVars.size()-1).getLast());
 			PathReadsCluster cluster = new PathReadsCluster(totalBasePairs,block.getCallsLenght());
@@ -280,6 +280,7 @@ public class HaplotypeReadsClusterCalculator {
 		GenomicRegionImpl unphasedRegion = null;
 		Set<Integer> nextUnphasedBlock = new HashSet<Integer>();
 		for(ReadAlignment aln:alignments) {
+			if(pathIdx == debugIdx) System.out.println("Next aligned read "+aln.getReadNumber() +" "+aln.getReadName()+" in phased block: "+readIdsInPhasedBlocks.contains(aln.getReadNumber()));
 			if(readIdsInPhasedBlocks.contains(aln.getReadNumber())) continue;
 			boolean addRead = true;
 			//Find next phased block

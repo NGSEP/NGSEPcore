@@ -154,8 +154,11 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	}
 	@Override
 	public List<ReadAlignment> alignRead (RawRead read) {
+		return alignRead((QualifiedSequence)read);
+	}
+	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		List<ReadAlignment> alignments = new ArrayList<>();
-		String readSeq = read.getSequenceString();
+		String readSeq = read.getCharacters().toString();
 		String qual = read.getQualityScores();
 		String reverseQS = null;
 		if(qual == null || qual.length()!=readSeq.length()) {

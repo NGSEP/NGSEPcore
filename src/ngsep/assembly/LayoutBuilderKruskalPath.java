@@ -83,11 +83,15 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			Distribution [] distsEdges = calculateDistributions(pathEdges);
 			
 			paths = collectAlternativeSmallPaths(graph, paths);
-			log.info("Paths after collecting small embedded paths: "+paths.size());
+			log.info("Paths after collecting small paths: "+paths.size());
 			paths = mergeClosePaths(graph, paths, distsEdges);
 			log.info("Paths after first round of merging: "+paths.size());
 			expandPathsWithEmbedded(graph, paths, distsEdges);
+			log.info("Paths after expanding with embedded: "+paths.size());
 			paths = mergeClosePaths(graph, paths, distsEdges);
+			log.info("Paths after second round of merging: "+paths.size());
+			paths = collectAlternativeSmallPaths(graph, paths);
+			log.info("Paths after second round collecting small paths: "+paths.size());
 		}
 		
 		for(AssemblyPath path:paths) {
@@ -195,7 +199,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Set<Integer> indexesToRemove = new HashSet<>();
 		for(int i=0;i<paths.size();i++) {
 			AssemblyPath path = paths.get(i);
-			if(path.getPathLength()>10) continue;
+			log.info("CollectSmallPaths. Next path: "+(i+1)+" length " + path.getPathLength());
+			if(path.getPathLength()>20) continue;
 			AssemblyVertex leftVertex = path.getVertexLeft();
 			AssemblyVertex rightVertex = path.getVertexRight();
 			AssemblyEdge leftEdge = graph.getEdgeMinCost(leftVertex);
@@ -206,14 +211,16 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			if(leftConnecting==null || rightConnecting == null) continue;
 			VertexPathLocation leftLocation = vertexPositions.get(leftConnecting.getUniqueNumber());
 			VertexPathLocation rightLocation = vertexPositions.get(rightConnecting.getUniqueNumber());
+			//log.info("CollectSmallPaths. Next path: "+(i+1)+" length " + path.getPathLength()+" end vertices: "+leftVertex+" "+rightVertex+" connecting "+leftConnecting+" "+rightConnecting+" "+ leftLocation+" "+rightLocation);
 			if(leftLocation==null || rightLocation == null) continue;
 			if(leftLocation.getPath()==path) continue;
 			if(leftLocation.getPath()!=rightLocation.getPath()) continue;
 			AssemblyPath hostPath = leftLocation.getPath();
 			
-			//log.info("Possible integration of path id: "+pathId+" into "+connectingPathId+" lengths: "+path1.getPathLength()+" "+path2.getPathLength()+" conecting pos: "+connectionStart.getPathPosition()+" "+connectionEnd.getPathPosition());
+			
 			if(0.1*hostPath.getPathLength()<path.getPathLength()) continue;
 			if(Math.abs(leftLocation.getPathPosition()-rightLocation.getPathPosition())>1.5*path.getPathLength()) continue;
+			log.info("CollectSmallPaths. Integration of path: "+(i+1)+" into path with length: "+hostPath.getPathLength()+" conecting pos: "+leftLocation.getPathPosition()+" "+rightLocation.getPathPosition());
 			hostPath.addAlternativeSmallPath(path);
 			indexesToRemove.add(i);
 		}
