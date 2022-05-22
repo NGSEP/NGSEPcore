@@ -143,7 +143,7 @@ public class HaplotypeReadsClusterCalculator {
 				double proportion = block.calculateProportion();
 				List<Set<Integer>> phasedReadIdsBlock = block.getPhasedReadIds();
 				boolean homozygousBlock = phasedReadIdsBlock.size()==1 && rd>1.4*averageHaploidRd;
-    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd && (rd<averageHaploidRd || Math.abs(0.5-proportion)>0.25 || block.getNumVariants()<10 );
+    			boolean falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.5*averageHaploidRd && (rd<averageHaploidRd || Math.abs(0.5-proportion)>0.25 || block.getNumVariants()<10 );
     			//if(globalPloidy==1) falsePhasedBlock = phasedReadIdsBlock.size()>1 && rd<1.8*averageHaploidRd;
     			GenomicRegion region = block.getBlockRegion();
     			System.out.println("Path: "+pathId+" next block from "+region.getFirst()+" to "+region.getLast()+" vars: "+block.getNumVariants()+" phasedGroups: "+phasedReadIdsBlock.size() +" reads: "+block.getNumReads()+ " basepairs "+block.getTotalBasePairs()+" rd: "+rd+" proportion: "+proportion+" homozygousBlock: "+homozygousBlock+" incorrectlyPhasedBlock: "+falsePhasedBlock);
@@ -425,6 +425,10 @@ public class HaplotypeReadsClusterCalculator {
 		List<CalledGenomicVariant> filteredVars2 = new ArrayList<CalledGenomicVariant>();
 		for(CalledGenomicVariant hetVar:filteredVars) {
 			CalledSNV csnv = (CalledSNV)hetVar;
+			if(hetVar.getTotalReadDepth()>1.6*snvsRD) {
+				System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth. Average by SNVs: "+snvsRD+" variant values "+csnv.getTotalReadDepth());
+				continue;
+			}
 			double ad = (double)Math.min(csnv.getCountReference(), csnv.getCountAlternative())/(csnv.getTotalReadDepth());
 			if(hetVar.getTotalReadDepth()>1.5*readDepth && Math.abs(ad-medianAD)>0.2) {
 				System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth and allele dosage. Averages: "+readDepth+" "+medianAD+" variant values "+csnv.getTotalReadDepth()+" "+ad);
