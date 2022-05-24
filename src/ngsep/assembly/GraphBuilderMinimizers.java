@@ -1,6 +1,7 @@
 package ngsep.assembly;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -107,7 +108,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		int seqIdMinimizers = 0;
 		long limit = 10*ploidy*expectedAssemblyLength;
 		long totalLengthMinimizers = 0;
-		while( seqIdMinimizers < sequences.size() ) {
+		int n = sequences.size();
+		while( seqIdMinimizers < n) {
 			QualifiedSequence qseq = sequences.get(seqIdMinimizers);
 			totalLengthMinimizers+=qseq.getLength();
 			if(totalLengthMinimizers>limit) break;
@@ -120,7 +122,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			}
 			seqIdMinimizers++;
 		}
-		waitToFinish(sequences.size(), poolMinimizers1);
+		waitToFinish(n, poolMinimizers1);
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
@@ -131,7 +133,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
-		for(int i=0;i<sequences.size();i++) relationshipsPerSequence.add(null);
+		for(int i=0;i<n;i++) relationshipsPerSequence.add(null);
 		
 		//Find first edges between the longest reads
 		ThreadPoolExecutor poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
@@ -142,27 +144,38 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			final int i = seqId;
 			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
 		}
-		waitToFinish(sequences.size(), poolSearch);
+		waitToFinish(n, poolSearch);
 		
 		//Find embedded relationships in not indexed reads
 		poolSearch = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		edgesFinder.setExtensiveSearch(false);
-		for (int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
+		for (int seqId = seqIdMinimizers; seqId < n; seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
 			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, true, relationshipsPerSequence));
 		}
-		waitToFinish(sequences.size(), poolSearch);
-		/*int countCurrentEmbedded = 0;
-		for(int i=0;i<relationshipsPerSequence.size();i++) {
-			if(relationshipsPerSequence.get(i)!=null) countCurrentEmbedded++;
-		}*/
+		waitToFinish(n, poolSearch);
+		boolean [] added = new boolean[n];
+		Arrays.fill(added, false);
+		addRelationshipsToGraph(graph, relationshipsPerSequence, 0, added, false, runtime);
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
 		diff = (time3-time2)/1000;
 		log.info("Identified relationships with the first 10x of sequences. Time mapping (s): "+diff+". Memory: "+usedMemory);
+		
+		//Remove embedded relationships for embedded to chimeric sequences
+		Set<Integer> orphanEmbeddedIds = graph.calculateEmbeddedToChimeric();
+		log.info("Identified "+orphanEmbeddedIds.size()+" sequences embedded to chimeric sequences");
+		for(int seqId:orphanEmbeddedIds) {
+			if(seqId<seqIdMinimizers) continue;
+			List<AssemblyEmbedded> embeddedRels = graph.getEmbeddedBySequenceId(seqId);
+			if(seqId == idxDebug) System.out.println("Processing orphan sequence: "+seqId+" embedded: "+graph.isEmbedded(seqId)+" current rels: "+relationshipsPerSequence.get(seqId)+" embedded rels graph: "+embeddedRels);
+			for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.removeRelationship(rel);
+			relationshipsPerSequence.set(seqId, null);
+			added[seqId] = false;
+		}
 		
 		//Index non embedded reads
 		ThreadPoolExecutor poolMinimizers2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
@@ -189,55 +202,21 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		ThreadPoolExecutor poolSearch2 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
+			if(relationshipsPerSequence.get(seqId)!=null) continue;
 			CharSequence seq = sequences.get(seqId).getCharacters();
 			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
 			poolSearch2.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
 			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
 		}
-		addRelationshipsToGraph(graph, relationshipsPerSequence, runtime);
+		addRelationshipsToGraph(graph, relationshipsPerSequence, seqIdMinimizers, added, true, runtime);
 		waitToFinish(sequences.size(), poolSearch2);
+		
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time5 = System.currentTimeMillis();
 		diff = (time5-time4)/1000;
 		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
-		Set<Integer> orphanEmbeddedIds = graph.calculateEmbeddedToChimeric();
-		if(orphanEmbeddedIds.size()>0) {
-			ShortKmerCodesTable tableOrphans = new ShortKmerCodesTable(kmersAnalyzer, kmerLength, windowLength);
-			for(int seqId:orphanEmbeddedIds) {
-				List<AssemblyEmbedded> embeddedRels = graph.getEmbeddedBySequenceId(seqId);
-				if(seqId == idxDebug) System.out.println("Processing orphan sequence: "+seqId+" embedded: "+graph.isEmbedded(seqId)+" current rels: "+relationshipsPerSequence.get(seqId)+" embedded rels graph: "+embeddedRels);
-				for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.removeRelationship(rel);
-				relationshipsPerSequence.set(seqId, null);
-				CharSequence seq = sequences.get(seqId).getCharacters();
-				addSequenceToTable(tableOrphans, seqId, seq);
-				double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
-				final int i = seqId;
-				processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence);
-				for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(seqId)) graph.addRelationship(rel);
-			}
-			List<List<AssemblySequencesRelationship>> orphanRelationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
-			for(int i=0;i<sequences.size();i++) orphanRelationshipsPerSequence.add(null);
-			for(int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
-				List<AssemblyEmbedded> embeddedRels = graph.getEmbeddedBySequenceId(seqId);
-				if(seqId == idxDebug) System.out.println("Processing sequence: "+seqId+" embedded: "+graph.isEmbedded(seqId)+" current rels: "+relationshipsPerSequence.get(seqId)+" embedded rels graph: "+embeddedRels);
-				//For orphan sequences, embedded relationships to chimeric sequences were added back in the previous search 
-				if(embeddedRels.size()>0 && !orphanEmbeddedIds.contains(seqId)) continue;
-				CharSequence seq = sequences.get(seqId).getCharacters();
-				double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
-				final int i = seqId;
-				processSequence(edgesFinder, tableOrphans, i, seq, compressionFactor, false, orphanRelationshipsPerSequence);
-				for(AssemblySequencesRelationship rel:orphanRelationshipsPerSequence.get(seqId)) graph.addRelationship(rel);
-			}
-			usedMemory = runtime.totalMemory()-runtime.freeMemory();
-			usedMemory/=1000000000;
-			long time6 = System.currentTimeMillis();
-			diff = (time6-time5)/1000;
-			log.info("Recalculated information for "+orphanEmbeddedIds.size()+" sequences embedded into chimeric sequences. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time reprocessing (s): "+diff);
-		}
-		
-		//log.info(" Raw hits for "+edgesFinder.getCountRawHits()+" sequences. Completed hits for "+edgesFinder.getCountCompletedHits()+" sequences");
 		return graph;
 	}
 	
@@ -254,13 +233,14 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	//private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
-			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);  
+			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
+			if(seqId == 2114) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels);
 			if(rels==null) {
 				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-				//if(seqId == 19584) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
+				if(seqId == 2114) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
@@ -294,22 +274,29 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		}
 		return answer;
 	}
-	private void addRelationshipsToGraph(AssemblyGraph graph, List<List<AssemblySequencesRelationship>> relationshipsPerSequence, Runtime runtime) {
+	private void addRelationshipsToGraph(AssemblyGraph graph, List<List<AssemblySequencesRelationship>> relationshipsPerSequence, int firstIndex, boolean [] added, boolean waitForNull, Runtime runtime) {
 		int n = relationshipsPerSequence.size();
-		int i=0;
+		int i=firstIndex;
 		log.info("Adding relationships to graph");
 		while(i<n) {
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Add relationships thread interrupted", e);
+			if(waitForNull) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Add relationships thread interrupted", e);
+				}
 			}
+			
 			for(;i<n;i++) {
+				if(added[i]) continue;
 				List<AssemblySequencesRelationship> nextList = relationshipsPerSequence.get(i);
-				if(nextList == null) break;
+				if(nextList == null) {
+					if(waitForNull) break;
+					else continue;
+				}
 				//if ((i+1)%1000==0) log.info("Adding relationships for sequence "+(i+1) +" Relationships sequence: "+nextList.size());
 				for(AssemblySequencesRelationship next:nextList) graph.addRelationship(next);
-				//nextList.clear();
+				added[i] = true;
 				if(i == idxDebug) log.info("Edges start: "+graph.getEdges(graph.getVertex(i, true)).size()+" edges end: "+graph.getEdges(graph.getVertex(i, false)).size()+" Embedded: "+graph.getEmbeddedBySequenceId(i));
 				if ((i+1)%10000==0) {
 					long usedMemory = runtime.totalMemory()-runtime.freeMemory();
