@@ -199,7 +199,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Set<Integer> indexesToRemove = new HashSet<>();
 		for(int i=0;i<paths.size();i++) {
 			AssemblyPath path = paths.get(i);
-			log.info("CollectSmallPaths. Next path: "+(i+1)+" length " + path.getPathLength());
+			//log.info("CollectSmallPaths. Next path: "+(i+1)+" length " + path.getPathLength());
 			if(path.getPathLength()>20) continue;
 			AssemblyVertex leftVertex = path.getVertexLeft();
 			AssemblyVertex rightVertex = path.getVertexRight();

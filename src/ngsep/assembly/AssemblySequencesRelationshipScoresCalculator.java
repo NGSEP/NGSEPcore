@@ -21,6 +21,7 @@ package ngsep.assembly;
 
 import java.util.Map;
 
+import JSci.maths.statistics.BetaDistribution;
 import JSci.maths.statistics.ChiSqrDistribution;
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.LogMath;
@@ -75,7 +76,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double maxIKBP = getMaxAverageIKBP(relationship);
 		//double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		//NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
-		ChiSqrDistribution normalDistIkbp = new ChiSqrDistribution(indelsKbpD.getMean()+Math.sqrt(indelsKbpD.getVariance()));
+		BetaDistribution betaDistEvProp = new BetaDistribution(10, 1);
+		ChiSqrDistribution chiSqDistIkbp = new ChiSqrDistribution(indelsKbpD.getMean()+Math.sqrt(indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
@@ -101,11 +103,11 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		if(relationship instanceof AssemblyEdge) pValueOverlapSD = 1-overlapSD.cumulative(((AssemblyEdge)relationship).getOverlapStandardDeviation());
 		individualCosts[3] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[3], pValueOverlapSD),maxIndividualCost);
 		
-		double cumulativeEvProp = evPropD.cumulative(relationship.getEvidenceProportion());
+		double cumulativeEvProp = betaDistEvProp.cumulative(relationship.getEvidenceProportion());
 		individualCosts[4] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[4], cumulativeEvProp),maxIndividualCost);
 		//individualCosts[4] = 100.0*(1.0-relationship.getEvidenceProportion());
 		
-		double pValueIKBP = 1-normalDistIkbp.cumulative(relationship.getIndelsPerKbp());
+		double pValueIKBP = 1-chiSqDistIkbp.cumulative(relationship.getIndelsPerKbp());
 		individualCosts[5] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[5],pValueIKBP),maxIndividualCost);
 		//individualCosts[5] = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
 		

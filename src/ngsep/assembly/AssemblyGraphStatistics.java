@@ -309,7 +309,7 @@ public class AssemblyGraphStatistics {
 					}
 					int refSeqLength = refSeq.getLength();
 					
-					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>2000 || aln.getSoftClipEnd()>2000) {
+					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>3000 || aln.getSoftClipEnd()>3000) {
 						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
 						continue;
 					}
@@ -360,7 +360,7 @@ public class AssemblyGraphStatistics {
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
 				LayoutBuilderKruskalPath kruskal = new LayoutBuilderKruskalPath();
-				kruskal.setRunImprovementAlgorithms(false);
+				//kruskal.setRunImprovementAlgorithms(false);
 				pathsFinder = kruskal;
 				
 			}
@@ -686,8 +686,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==91 || gsVertex.getSequenceIndex()== 193 || gsVertex.getSequenceIndex()==204;
-		//boolean debug = gsVertex.getSequenceIndex()==49526 || gsVertex.getSequenceIndex()==76979 || gsVertex.getSequenceIndex()==161486; 
+		//boolean debug = gsVertex.getSequenceIndex()==110 || gsVertex.getSequenceIndex()== 207 || gsVertex.getSequenceIndex()==226;
+		//boolean debug = gsVertex.getSequenceIndex()==249213 || gsVertex.getSequenceIndex()==222873 || gsVertex.getSequenceIndex()==52006; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

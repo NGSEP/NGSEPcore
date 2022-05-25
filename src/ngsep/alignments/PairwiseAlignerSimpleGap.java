@@ -227,7 +227,7 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	    	}
 	    	for (int h = s2.length();h>j;h--) {
 	    		sb1.append(LimitedSequence.GAP_CHARACTER);
-				sb2.append(s2.charAt(j - 1));
+				sb2.append(s2.charAt(h - 1));
 	    	}
 	    }
     	
