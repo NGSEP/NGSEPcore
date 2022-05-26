@@ -254,6 +254,12 @@ Minimum proportion from the maximum score of the edges of a sequence to keep an 
 Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
 This option is still in progress and it has been tested only in haploid and diploid samples.
 </option>
+<option id="cml" type="INT" attribute="circularMoleculesMaxLength" defaultConstant="DEF_CIRCULAR_MAX_LENGTH">
+Maximum length of circular molecules
+</option>
+<option id="cmof" type="FILE" attribute="circularMoleculesStartsFile">
+File with known start sequences of circular molecules
+</option>
 <!-- 
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
 Algorithm used to build the graph. It can be Minimizers or FMIndex. Not used if a graph is provided using the option -g.

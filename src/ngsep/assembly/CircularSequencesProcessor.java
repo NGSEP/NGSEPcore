@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.assembly;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,12 +42,38 @@ import ngsep.sequences.io.FastaSequencesHandler;
 public class CircularSequencesProcessor {
 	private Logger log = Logger.getAnonymousLogger();
 	//constant values for default
-	public static final int DEF_MAX_CONTIG_LENGTH = 6000000;
+	public static final int DEF_MAX_LENGTH = 6000000;
 	private static final int END_LENGTH = 1000;
 	private static final int THRESHOLD=50;
 	// Start sequences for circularization
 	private List<QualifiedSequence> starts;
-	private int maxContigLength = DEF_MAX_CONTIG_LENGTH;
+	private int maxLength = DEF_MAX_LENGTH;
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
+	
+	public int getMaxLength() {
+		return maxLength;
+	}
+	public void setMaxLength(int maxLength) {
+		this.maxLength = maxLength;
+	}
+	public List<QualifiedSequence> getStarts() {
+		return starts;
+	}
+	public void setStarts(List<QualifiedSequence> starts) {
+		this.starts = starts;
+	}
+	
+	public void setStarts(String filename) throws IOException {
+		if(filename==null) return; 
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		starts = handler.loadSequences(filename);
+	}
 
 	public static void main(String[] args) throws Exception {
 		CircularSequencesProcessor instance = new CircularSequencesProcessor();
@@ -74,11 +101,8 @@ public class CircularSequencesProcessor {
 	 * @param contig
 	 */
 	public void processContig(QualifiedSequence contig) {
-		if(contig.getLength()>maxContigLength) return;
+		if(contig.getLength()>maxLength) return;
 		removeRepeatedEnds(contig);
-		//for(int j=0;j<circularContigs.size();j++) {
-			//System.out.println(circularContigs.get(j));
-		//}
 		if(starts!=null) {
 			findStart(contig);
 		}

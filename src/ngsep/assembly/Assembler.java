@@ -64,6 +64,7 @@ public class Assembler {
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
+	public static final int DEF_CIRCULAR_MAX_LENGTH = CircularSequencesProcessor.DEF_MAX_LENGTH;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
 	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP="MaxOverlap";
@@ -88,6 +89,8 @@ public class Assembler {
 	private String consensusAlgorithm=CONSENSUS_ALGORITHM_POLISHING;
 	private int ploidy = DEF_PLOIDY;
 	private int errorCorrectionRounds = DEF_ERROR_CORRCTION_ROUNDS;
+	private int circularMoleculesMaxLength = DEF_CIRCULAR_MAX_LENGTH;
+	private String circularMoleculesStartsFile;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private boolean saveCorrected = false;
@@ -207,6 +210,22 @@ public class Assembler {
 		this.setPloidy((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public int getCircularMoleculesMaxLength() {
+		return circularMoleculesMaxLength;
+	}
+	public void setCircularMoleculesMaxLength(int circularMoleculesMaxLength) {
+		this.circularMoleculesMaxLength = circularMoleculesMaxLength;
+	}
+	public void setCircularMoleculesMaxLength(String value) {
+		this.setCircularMoleculesMaxLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public String getCircularMoleculesStartsFile() {
+		return circularMoleculesStartsFile;
+	}
+	public void setCircularMoleculesStartsFile(String circularMoleculesStartsFile) {
+		this.circularMoleculesStartsFile = circularMoleculesStartsFile;
+	}
 	public int getBpHomopolymerCompression() {
 		return bpHomopolymerCompression;
 	}
@@ -483,9 +502,16 @@ public class Assembler {
 		System.out.println("Initial consensus N statistics");
 		NStatisticsCalculator.printNStatistics(nStats, System.out);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
+		//Final merginig
 		log.info("Built initial consensus. Merging contig ends");
 		ContigEndsMerger merger = new ContigEndsMerger();
 		assembledSequences = merger.mergeContigs(assembledSequences);
+		//Circularization
+		CircularSequencesProcessor circularizator = new CircularSequencesProcessor();
+		circularizator.setLog(log);
+		circularizator.setMaxLength(circularMoleculesMaxLength);
+		circularizator.setStarts(circularMoleculesStartsFile);
+		circularizator.processContigs(assembledSequences);
 		try (PrintStream out = new PrintStream(outputPrefix+".fa")) {
 			handler.saveSequences(assembledSequences, out, 100);
 		}
