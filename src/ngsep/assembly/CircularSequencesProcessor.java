@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.ReferenceGenome;
@@ -42,7 +43,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 public class CircularSequencesProcessor {
 	private Logger log = Logger.getAnonymousLogger();
 	//constant values for default
-	public static final int DEF_MAX_LENGTH = 6000000;
+	public static final int DEF_MAX_LENGTH = 0;
 	private static final int END_LENGTH = 1000;
 	private static final int THRESHOLD=50;
 	// Start sequences for circularization
@@ -112,15 +113,16 @@ public class CircularSequencesProcessor {
 	private void removeRepeatedEnds(QualifiedSequence contig) {
 		String sequence = contig.getCharacters().toString();
 		log.info("Next sequence: "+contig.getName()+" length: "+sequence.length());
-		int maximumInterval = Math.min(50000, sequence.length()/2);
+		int maximumInterval = Math.min(10000, sequence.length()/2);
 		PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
+		//PairwiseAlignerDynamicKmers aligner = new PairwiseAlignerDynamicKmers();
 		aligner.setForceStart1(false);
 		aligner.setForceEnd2(false);
 		for (int i=END_LENGTH; i<maximumInterval;i+=END_LENGTH) {
 			String subseqini= sequence.substring(0, i);
 			String subseqend= sequence.substring(sequence.length()-i);
-			System.err.println("subseq ini: "+subseqini);
-			System.err.println("subseq end: "+subseqend);
+			//System.err.println("subseq ini: "+subseqini);
+			//System.err.println("subseq end: "+subseqend);
 			String [] alignment = aligner.calculateAlignment(subseqini,subseqend);
 			String [] matchingZone = fixAlignment(alignment);
 			log.info("End length: "+i+" Next match: "+ matchingZone[0].length());

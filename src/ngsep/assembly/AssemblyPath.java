@@ -3,6 +3,7 @@ package ngsep.assembly;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,7 @@ public class AssemblyPath {
 			for(AssemblyEdge edge:path2Edges) {
 				if(!edge.isSameSequenceEdge()) connectEdgeRight(graph, edge);
 			}
+			this.alternativeSmallPaths.addAll(path2.alternativeSmallPaths);
 			return true;
 		}
 		if(secondLastVertex1 == null || secondVertex2==null) return false; 
@@ -144,6 +146,7 @@ public class AssemblyPath {
 				AssemblyEdge edge = path2Edges.get(i);
 				if(!edge.isSameSequenceEdge()) connectEdgeRight(graph, edge);
 			}
+			this.alternativeSmallPaths.addAll(path2.alternativeSmallPaths);
 			return true;
 		}
 		if(c3!=null && (c2==null || c3.getOverlap()>c2.getOverlap())) {
@@ -156,10 +159,70 @@ public class AssemblyPath {
 				AssemblyEdge edge = path2Edges.get(i);
 				if(!edge.isSameSequenceEdge()) connectEdgeRight(graph, edge);
 			}
+			this.alternativeSmallPaths.addAll(path2.alternativeSmallPaths);
 			return true;
 		}
 		return false;
 		
+	}
+	
+	public boolean connectPathRight(AssemblyGraph graph, AssemblyPath path2, boolean reverse, List<AssemblySequencesRelationship> junctionRels) {
+		List<AssemblyEdge> path1Edges = new ArrayList<AssemblyEdge>(edges);
+		int n1 = path1Edges.size();
+		List<AssemblyEdge> path2Edges = new ArrayList<AssemblyEdge>(path2.edges);
+		int n2 = path2Edges.size();
+		AssemblyVertex nextVertex2 = path2.vertexLeft;
+		if(reverse) {
+			nextVertex2 = path2.vertexRight;
+			Collections.reverse(path2Edges);
+		}
+		Map<Integer,Integer> lastVerticesLocations1 = new HashMap<>();
+		AssemblyVertex nextVertex1 = vertexRight;
+		for(int i=n1;i>0 && i>=n1-10;i--) {
+			if(i%2==1) lastVerticesLocations1.put(nextVertex1.getUniqueNumber(), i);
+			AssemblyEdge edge = path1Edges.get(i-1);
+			nextVertex1 = edge.getConnectingVertex(nextVertex1);
+		}
+		Map<Integer,Integer> lastVerticesLocations2 = new HashMap<>();
+		
+		for(int i=0;i<n2 && i<=10;i++) {
+			if(i%2==0) lastVerticesLocations2.put(nextVertex2.getUniqueNumber(), i);
+			AssemblyEdge edge = path2Edges.get(i);
+			nextVertex2 = edge.getConnectingVertex(nextVertex2);
+		}
+		
+		Collections.sort(junctionRels,(r1,r2)->r1.getCost()-r2.getCost());
+		System.out.println("Trying to merge path: "+pathId+" with "+path2.getPathId()+" reverse: "+reverse+" rels: "+junctionRels.size());
+		for(AssemblySequencesRelationship rel: junctionRels) System.out.println(rel);
+		AssemblySequencesRelationship rel = junctionRels.get(0);
+		if(rel instanceof AssemblyEdge) {
+			AssemblyEdge edge = (AssemblyEdge)rel;
+			AssemblyVertex vertexRightAfterRemove = edge.getVertex1(); 
+			Integer loc1 = lastVerticesLocations1.get(edge.getVertex1().getUniqueNumber());
+			Integer loc2 = lastVerticesLocations2.get(edge.getVertex2().getUniqueNumber());
+			if (loc1==null || loc2==null) {
+				vertexRightAfterRemove = edge.getVertex2();
+				loc1 = lastVerticesLocations1.get(edge.getVertex2().getUniqueNumber());
+				loc2 = lastVerticesLocations2.get(edge.getVertex1().getUniqueNumber());
+			}
+			System.out.println("Loc1: "+loc1+" loc2: "+loc2+" min cost edge: "+edge);
+			if (loc1==null || loc2==null) return false;
+			while(edges.size()>loc1) edges.removeLast();
+			vertexRight = vertexRightAfterRemove;
+			connectEdgeRight(graph, edge);
+			for(int i=loc2;i<n2;i++) {
+				AssemblyEdge edge2 = path2Edges.get(i);
+				if(!edge2.isSameSequenceEdge()) connectEdgeRight(graph, edge2);
+			}
+			this.alternativeSmallPaths.addAll(path2.alternativeSmallPaths);
+			return true;
+		}
+		
+		//Try relationship with lowest cost
+		
+		
+		
+		return false;
 	}
 	public void reverse() {
 		Collections.reverse(edges);
