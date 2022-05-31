@@ -26,14 +26,12 @@ import ngsep.variants.GenomicVariantImpl;
 
 public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
-	public final static int MIN_DEFAULT_POINTS = 3;
+	public final static int MIN_DEFAULT_POINTS = 4;
 	public final static double DEFAULT_EPSILON = 250;
 	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
 	
 	private int minPoints = MIN_DEFAULT_POINTS;
 	private double epsilon = DEFAULT_EPSILON;
-	//just for test
-	//private boolean ranDistTest = false;
 	
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
 	
@@ -122,10 +120,8 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
 							List<List<Integer>> partClusters = instance
 									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
-							//System.out.println("Cliques found");
-							//for(List<Integer> cluster : partClusters) if(cluster.size() > 3) chrClusters.add(cluster);
-							List<Integer> noisePoints = instance.getNoisePoints();
 							chrClusters.addAll(partClusters);
+							List<Integer> noisePoints = instance.getNoisePoints();
 							if(noisePoints.size() > 2) {
 								List<GenomicVariant> noiseSigns = new ArrayList<>();
 								for(int np:noisePoints) noiseSigns.add(signList.get(np));
