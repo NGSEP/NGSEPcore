@@ -57,8 +57,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	public static final double DEF_HET_RATE = 0.5;
 	public static final double HETEROCIGOZITY_TRESHOLD = 0.8;
 	public static final double DEF_SHAPE_PARAMETER_ERROR_DIST = 0.35;
-	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.9);
-	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.1);
+	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.99);
+	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.0001);
 	public static final double DEF_LOG_ERROR_PROB_SV = Math.log10(0.00001);
 
 	

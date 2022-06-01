@@ -313,7 +313,7 @@ public class CountsHelper {
 			if(alleleI == callAllele) {
 				//Substitution log prob should not be larger than error log prob
 				if(isAltCall) {
-					System.out.println("varLength " + sampleDistribution.getMean() + " call length " + alleleLength);
+					//System.out.println("varLength " + sampleDistribution.getMean() + " call length " + alleleLength);
 					logCond = sampleDistribution.probability(alleleLength);
 					logCond = Math.log10(logCond);
 				}

@@ -122,7 +122,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
 							chrClusters.addAll(partClusters);
 							List<Integer> noisePoints = instance.getNoisePoints();
-							if(noisePoints.size() > 2) {
+							if(noisePoints.size() > 1) {
 								List<GenomicVariant> noiseSigns = new ArrayList<>();
 								for(int np:noisePoints) noiseSigns.add(signList.get(np));
 								boolean[][] adjMatrix = MaxCliqueClusteringDetectionAlgorithm.
