@@ -305,61 +305,6 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		return mergePaths(graph, paths, mergedPathIds, pathEndEdges);
 	}
 	
-	private List<PathEndJunctionEdge> buildPathJunctionEdgesByEndVertex(AssemblyGraph graph, List<AssemblyPath> paths, Distribution[] dists) {
-		Map<Integer,VertexPathLocation> vertexPositions = getPathPositionsMap(paths);
-		Map<Integer,Integer> pathVertexStarts = new HashMap<Integer, Integer>();
-		Map<Integer,Integer> pathVertexEnds = new HashMap<Integer, Integer>();
-		//Find edges connecting paths
-		Map<String,PathEndJunctionEdge> pathEndEdges = new HashMap<String, PathEndJunctionEdge>();
-
-		Distribution costsDistribution = dists[0];
-		for(int i=0;i<paths.size();i++) {
-			AssemblyPath path = paths.get(i);
-			int pathId = i+1;
-			path.setPathId(pathId);
-			pathVertexStarts.put(pathId,path.getVertexLeft().getUniqueNumber());
-			pathVertexEnds.put(pathId,path.getVertexRight().getUniqueNumber());
-		}
-		//Build edges
-		Set<Integer> allVertexEnds = new HashSet<Integer>();
-		allVertexEnds.addAll(pathVertexStarts.values());
-		allVertexEnds.addAll(pathVertexEnds.values());
-		for(int vertexId:allVertexEnds) {
-			AssemblyVertex v1 = graph.getVertexByUniqueId(vertexId);
-			VertexPathLocation v1Loc = vertexPositions.get(v1.getUniqueNumber());
-			if(v1Loc == null) continue;
-			Integer pathEndV1 = v1Loc.getPathEnd();
-			if(pathEndV1==null) continue;
-			AssemblyEdge edge = graph.getEdgeBestOverlap(v1);
-			if(edge == null) continue;
-			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
-			AssemblyVertex v2 = edge.getConnectingVertex(v1);
-			VertexPathLocation v2Loc = vertexPositions.get(v2.getUniqueNumber());
-			if(v2Loc != null && v1Loc.getPath() != v2Loc.getPath()) {
-				Integer pathEndV2 = v2Loc.getPathEnd();
-				if(pathEndV2!=null) addVote(pathEndV1, pathEndV2, edge, pathEndEdges);
-				//log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" edge: "+edge);
-				//if(vertexId==-32163) System.out.println("FInding edges to merge paths. Edge: "+edge);
-				
-			}
-			
-			AssemblyEdge edgeC = graph.getEdgeMinCost(v1);
-			if(edgeC == null) continue;
-			if(edgeC==edge) continue;
-			edge = edgeC;
-			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
-			v2 = edge.getConnectingVertex(v1);
-			v2Loc = vertexPositions.get(v2.getUniqueNumber());
-			if(v2Loc != null && v1Loc.getPath() != v2Loc.getPath()) {
-				Integer pathEndV2 = v2Loc.getPathEnd();
-				//log.info("Adding vote to relationship between path ends "+minId+" "+maxId+" edge: "+edge);
-				//if(vertexId==-32163) System.out.println("FInding edges to merge paths. Edge: "+edge);
-				if(pathEndV2!=null) addVote(pathEndV1, pathEndV2, edge, pathEndEdges);
-			}
-		}
-		return new ArrayList<>(pathEndEdges.values());
-	}
-	
 	private Map<String,PathEndJunctionEdge> buildPathJunctionEdgesByCloseEdges(AssemblyGraph graph, List<AssemblyPath> paths, Distribution[] dists) {
 		log.info("Merging paths from "+paths.size()+" paths");
 		Map<Integer,VertexPathLocation> vertexPositions = getPathPositionsMap(paths);
@@ -367,6 +312,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		Map<String,PathEndJunctionEdge> pathEndEdges = new HashMap<String, PathEndJunctionEdge>();
 
 		Distribution costsDistribution = dists[0];
+		double limitCost = costsDistribution.getAverage()+7*Math.sqrt(costsDistribution.getVariance());
+		log.info("Cost limit to identify possible merging edges: "+limitCost);
 		for(int i=0;i<paths.size();i++) {
 			AssemblyPath path = paths.get(i);
 			int pathId = i+1;
@@ -383,7 +330,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
     		for(AssemblyEdge edge:edges) {
     			if(edge.isSameSequenceEdge()) continue;
     			//TODO. Improve cost
-    			if(edge.getCost()>2*costsDistribution.getAverage()) continue;
+    			if(edge.getCost()>limitCost) continue;
     			AssemblyVertex v2 = edge.getConnectingVertex(v1);
     			VertexPathLocation loc2 = vertexPositions.get(v2.getUniqueNumber());
     			if(loc2==null) continue;
@@ -394,7 +341,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
     		}
     		List<AssemblyEmbedded> embeddedList = graph.getEmbeddedByHostId(v1.getSequenceIndex());
     		for(AssemblyEmbedded embedded:embeddedList) {
-    			if(embedded.getCost()>2*costsDistribution.getAverage()) continue;
+    			if(embedded.getCost()>limitCost) continue;
     			AssemblyVertex v2 = graph.getVertex(embedded.getSequenceId(), true);
     			VertexPathLocation loc2 = vertexPositions.get(v2.getUniqueNumber());
     			if(loc2==null) continue;
@@ -588,7 +535,7 @@ class PathEndJunctionEdge {
 		return relationships;
 	}
 	public String toString() {
-		return "P1: "+path1EndId+" P2: "+path2EndId+" Total cost: "+totalCost+" Votes: "+countVotes;
+		return "P1: "+path1EndId+" P2: "+path2EndId+" Total cost: "+totalCost+" Votes: "+countVotes+" rels: "+relationships;
 	}
 	
 	

@@ -126,7 +126,6 @@ public class ContigEndsMerger {
 	}
 	private void buildEdges(AssemblyGraph graph, int queryEndIdx,String queryEnd, Map<Integer,String> contigEndsMap, Map<Integer, List<UngappedSearchHit>> hits, boolean revQuery, int countLimit) {
 		int debugIdx = -1;
-		//int debugIdx = 23;
 		int querySeqId = queryEndIdx/2;
 		boolean queryStartSeq = (queryEndIdx%2==0);
 		for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hits.entrySet()) {
@@ -202,7 +201,7 @@ public class ContigEndsMerger {
 	}
 
 	private boolean passFilters(AssemblyEdge edge) {
-		return edge.getIndelsPerKbp()<5 && edge.getEvidenceProportion()>0.8;
+		return edge.getIndelsPerKbp()<5 && edge.getNumMismatches()<0.01*edge.getOverlap();
 	}
 
 }
