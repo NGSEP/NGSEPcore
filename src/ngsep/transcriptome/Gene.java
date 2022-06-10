@@ -159,6 +159,9 @@ public class Gene implements GenomicRegion {
 	public void addTextFunctionalAnnotations(List<String> textAnns) {
 		textFunctionalAnnotations.addAll(textAnns);
 	}
+	public void addTextFunctionalAnnotation(String textAnn) {
+		textFunctionalAnnotations.add(textAnn);
+	}
 	
 	@Override
 	public int length() {

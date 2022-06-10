@@ -216,7 +216,8 @@ public class GFF3TranscriptomeHandler {
 				numGenes++;
 				gene.setOntologyTerms(feature.getOntologyTerms());
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
-				
+				String note = feature.getAnnotation(ATTRIBUTE_NOTE);
+				if(loadTextAnnotations && note!=null) gene.addTextFunctionalAnnotation(note);
 				for(GFF3GenomicFeature geneChild:feature.getChildren()) {
 					if(loadTextAnnotations) gene.addTextFunctionalAnnotations(geneChild.getProducts());
 					Transcript transcript = null;
