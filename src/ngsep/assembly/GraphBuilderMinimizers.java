@@ -234,13 +234,14 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
-			//if(seqId == 2114) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels);
+			if(seqId == idxDebug) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels+" read "+seq);
 			if(rels==null) {
 				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
+				if(seqId == idxDebug) System.out.println("Hits for sequence "+seqId+" forward: "+hitsForward.size()+" reverse: "+hitsReverse.size());
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-				//if(seqId == 2114) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
+				if(seqId == idxDebug) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {

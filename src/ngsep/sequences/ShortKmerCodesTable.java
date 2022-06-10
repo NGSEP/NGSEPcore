@@ -340,7 +340,7 @@ public class ShortKmerCodesTable {
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
 		int idxDebug = -2;
 		//int idxDebug = -1;
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes");
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode);
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
@@ -359,7 +359,7 @@ public class ShortKmerCodesTable {
 			long kmerCode = entry.getValue();
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
 			int countSeqs = getCountDifferentSequences(kmerCode);
-			//if (queryIdx == idxDebug && count>1) System.out.println("Minimizers table. For minimizer: "+minimizer+" query entries: "+count+" count sequences: "+countSeqs+" mode "+mode);
+			if (queryIdx == idxDebug && countSeqs>10) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (countSeqs>limitSequences) {
 				multihitCodes++;
 				continue;

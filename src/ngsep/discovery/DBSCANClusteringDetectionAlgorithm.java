@@ -123,14 +123,19 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 							chrClusters.addAll(partClusters);
 							List<Integer> noisePoints = instance.getNoisePoints();
 							if(noisePoints.size() > 1) {
-								List<GenomicVariant> noiseSigns = new ArrayList<>();
-								for(int np:noisePoints) noiseSigns.add(signList.get(np));
+								List<GenomicVariant> noiseSignsToCluster = new ArrayList<>();
+								/**for(int np:noisePoints) noiseSigns.add(signList.get(np));
 								boolean[][] adjMatrix = MaxCliqueClusteringDetectionAlgorithm.
 										calculateAdjacencyMatrix(noiseSigns, 
 												MaxCliqueClusteringDetectionAlgorithm.DEFAULT_PD_NORM_FACTOR, 
-												0.8);
+												0.3);
 								ArrayList<ArrayList<Integer>> weakClusters = MaximalCliquesFinder
 										.callMaxCliqueFinder(noisePoints, adjMatrix);
+										**/
+								for(int np:noisePoints) noiseSignsToCluster.add(signList.get(np));
+								double [][] weakDistanceMatrix = calculateDistanceMatrix(noiseSignsToCluster);
+								List<List<Integer>> weakClusters = 
+										clusterConnectedComponents(noisePoints, weakDistanceMatrix, epsilon);
 								chrClusters.addAll(weakClusters);
 							}
 							toCluster.clear();
@@ -142,6 +147,16 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		
 		return clusters;
 	}
+
+	private List<List<Integer>> clusterConnectedComponents(List<Integer> noisePoints, double[][] weakDistanceMatrix,
+			double epsilon) {
+		// TODO Auto-generated method stub
+		DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
+		List<List<Integer>> weakClusters = inst
+				.runDBSCANClustering(noisePoints, weakDistanceMatrix, 0, epsilon);
+		return weakClusters;
+	}
+
 	/**
 	private boolean[][] calculateAdjacencyMatrix(List<GenomicVariant> noiseSigns) {
 		// TODO Auto-generated method stub
