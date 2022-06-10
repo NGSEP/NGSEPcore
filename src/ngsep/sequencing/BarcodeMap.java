@@ -67,6 +67,7 @@ public class BarcodeMap {
 		answer[1] = findBarcode(read,(byte)1);
 		if(answer[1]==null) return null;
 		answer[0] = barcodeSampleMap.get(answer[1]);
+		if(answer[0]==null) return null;
 		return answer;
 	}
 	/**
@@ -81,6 +82,7 @@ public class BarcodeMap {
 		answer[2] = findBarcode(read2,(byte)2);
 		if(answer[1]!=null && answer[2]!=null) {
 			answer[0] = barcodeSampleMap.get(buildDualKey(answer[1], answer[2]));
+			if(answer[0]==null) return null;
 		} else {
 			return null;
 		}
