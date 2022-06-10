@@ -53,6 +53,7 @@ public class GFF3TranscriptomeHandler {
 	public static final String FEATURE_TYPE_5PUTR = "five_prime_UTR";
 	public static final String FEATURE_TYPE_3PUTR = "three_prime_UTR";
 	public static final String FEATURE_TYPE_CDS = "CDS";
+	public static final String FEATURE_TYPE_POLYPEPTIDE = "polypeptide";
 	
 	//Predefined attributes according to the gff3 specification
 	public static final String ATTRIBUTE_ID = "ID";
@@ -62,6 +63,7 @@ public class GFF3TranscriptomeHandler {
 	public static final String ATTRIBUTE_TARGET = "Target";
 	public static final String ATTRIBUTE_GAP = "Gap";
 	public static final String ATTRIBUTE_DERIVES_FROM = "Derives_from";
+	public static final String ATTRIBUTE_PRODUCT = "product";
 	public static final String ATTRIBUTE_NOTE = "Note";
 	public static final String ATTRIBUTE_DBXREF = "Dbxref";
 	public static final String ATTRIBUTE_ONTOLOGY = "Ontology_term";
@@ -77,6 +79,8 @@ public class GFF3TranscriptomeHandler {
 	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
 	private QualifiedSequenceList sequenceNames;
 	
+	private boolean loadTextAnnotations = false;
+	
 	private Logger log = Logger.getLogger(GFF3TranscriptomeHandler.class.getName());
 	
 	
@@ -87,6 +91,12 @@ public class GFF3TranscriptomeHandler {
 		this.log = log;
 	}
 	
+	public boolean isLoadTextAnnotations() {
+		return loadTextAnnotations;
+	}
+	public void setLoadTextAnnotations(boolean loadTextAnnotations) {
+		this.loadTextAnnotations = loadTextAnnotations;
+	}
 	public GFF3TranscriptomeHandler () {
 		sequenceNames = new QualifiedSequenceList();
 	}
@@ -173,6 +183,17 @@ public class GFF3TranscriptomeHandler {
 				}
 				parent.addChild(feature);
 			}
+			if(parentIds.size()==0) {
+				String derivesId = feature.getAnnotation(ATTRIBUTE_DERIVES_FROM);
+				if(derivesId !=null) {
+					GFF3GenomicFeature parent = featuresWithId.get(derivesId);
+					if(parent==null) {
+						log.warning("Parent "+derivesId+" not found for feature id: "+feature.getId());
+						continue;
+					}
+					parent.addChild(feature);
+				}
+			}
 		}
 		
 		//Assign parent for features with parent id and no id
@@ -197,13 +218,18 @@ public class GFF3TranscriptomeHandler {
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
 				
 				for(GFF3GenomicFeature geneChild:feature.getChildren()) {
+					if(loadTextAnnotations) gene.addTextFunctionalAnnotations(geneChild.getProducts());
 					Transcript transcript = null;
 					List<TranscriptSegment> segments = new ArrayList<TranscriptSegment>();
 					if(FEATURE_TYPE_MRNA.equals(geneChild.getType())) {
 						transcript = createTranscriptFromMRNAFeature(geneChild);
 						if(transcript == null) continue;
 						for(GFF3GenomicFeature mrnaChild:geneChild.getChildren()) {
-							segments.addAll(createFeatureSegments(mrnaChild, transcript));
+							if(FEATURE_TYPE_POLYPEPTIDE.equals(mrnaChild.getId())) {
+								if(loadTextAnnotations) gene.addTextFunctionalAnnotations(mrnaChild.getProducts());
+							} else {
+								segments.addAll(createFeatureSegments(mrnaChild, transcript));
+							}
 						}
 					} else if (FEATURE_TYPE_CDS.equals(geneChild.getType())) {
 						//Direct CDs without transcript
@@ -467,6 +493,10 @@ class GFF3GenomicFeature {
 	public List<String> getDatabaseReferences() {
 		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_DBXREF);
 	}
+	
+	public List<String> getProducts() {
+		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_PRODUCT);
+	}
 
 	public List<String> getValuesList(String attribute) {
 		List<String> values = new ArrayList<>();
@@ -571,6 +601,9 @@ class GFF3GenomicFeatureLine implements GenomicRegion {
 	}
 	public List<String> getDatabaseReferences() {
 		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_DBXREF);
+	}
+	public List<String> getProducts() {
+		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_PRODUCT);
 	}
 	public List<String> getValuesList(String attribute) {
 		String parentsStr = annotations.get(attribute);

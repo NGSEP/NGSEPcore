@@ -19,7 +19,9 @@
  *******************************************************************************/
 package ngsep.transcriptome;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import ngsep.genome.GenomicRegion;
 
@@ -36,6 +38,7 @@ public class Gene implements GenomicRegion {
 	private boolean negativeStrand;
 	private List<String> ontologyTerms;
 	private List<String> databaseReferences;
+	private Set<String> textFunctionalAnnotations = new HashSet<>();
 	
 	/**
 	 * Creates a new Gene with the given information
@@ -145,6 +148,18 @@ public class Gene implements GenomicRegion {
 	public void setDatabaseReferences(List<String> databaseReferences) {
 		this.databaseReferences = databaseReferences;
 	}
+	
+	
+	public Set<String> getTextFunctionalAnnotations() {
+		return textFunctionalAnnotations;
+	}
+	public void setTextFunctionalAnnotations(Set<String> textFunctionalAnnotations) {
+		this.textFunctionalAnnotations = textFunctionalAnnotations;
+	}
+	public void addTextFunctionalAnnotations(List<String> textAnns) {
+		textFunctionalAnnotations.addAll(textAnns);
+	}
+	
 	@Override
 	public int length() {
 		return last-first+1;
