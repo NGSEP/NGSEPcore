@@ -559,8 +559,11 @@ public class GenomesAligner {
 			for (PairwiseSyntenyBlock sb : orthologsSyntenyBlocks) {
 				GenomicRegion r1 = sb.getRegionGenome1();
 				GenomicRegion r2 = sb.getRegionGenome2();
-				String line = r1.getSequenceName() + "\t" + r1.getFirst() +  "\t" + r1.getLast();
-				line+= "\t"+r2.getSequenceName() + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+r2.isNegativeStrand();
+				int length1 = genomes.get(sb.getGenomeId1()-1).getSequenceByName(r1.getSequenceName()).getLength();
+				int length2 = genomes.get(sb.getGenomeId2()-1).getSequenceByName(r2.getSequenceName()).getLength();
+				char orientation = r2.isNegativeStrand()?'-':'+';
+				String line = r1.getSequenceName() + "\t" + length1 + "\t" + r1.getFirst() +  "\t" + r1.getLast();
+				line+= "\t"+r2.getSequenceName() + "\t" + length2 + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+orientation;
 				outSynteny.println(line);
 //				Printing of homology units that form the synteny block. 
 				
