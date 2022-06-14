@@ -411,12 +411,12 @@ public class HaplotypeReadsClusterCalculator {
 		for(CalledGenomicVariant hetVar:filteredVars) {
 			CalledSNV csnv = (CalledSNV)hetVar;
 			if(hetVar.getTotalReadDepth()>1.6*snvsRD) {
-				System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth. Average by SNVs: "+snvsRD+" variant values "+csnv.getTotalReadDepth());
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth. Average by SNVs: "+snvsRD+" variant values "+csnv.getTotalReadDepth());
 				continue;
 			}
 			double ad = (double)Math.min(csnv.getCountReference(), csnv.getCountAlternative())/(csnv.getTotalReadDepth());
 			if(hetVar.getTotalReadDepth()>1.5*readDepth && Math.abs(ad-medianAD)>0.2) {
-				System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth and allele dosage. Averages: "+readDepth+" "+medianAD+" variant values "+csnv.getTotalReadDepth()+" "+ad);
+				if(path.getPathId() == debugIdx) System.out.println("Removing heterozygous variant at "+hetVar.getSequenceName()+":"+hetVar.getFirst()+" with abnormal depth and allele dosage. Averages: "+readDepth+" "+medianAD+" variant values "+csnv.getTotalReadDepth()+" "+ad);
 				continue;
 			}
 			filteredVars2.add(hetVar);

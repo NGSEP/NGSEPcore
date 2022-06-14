@@ -266,7 +266,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
 				AssemblyVertex next = edge.getConnectingVertex(endVertex);
 				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex())) {
-					log.info("Expanding path starting with: "+path.getVertexLeft()+" with embedded. Edge: "+edge);
+					//log.info("Expanding path starting with: "+path.getVertexLeft()+" with embedded. Edge: "+edge);
 					path.connectEdgeLeft(graph, edge);
 					endVertex = path.getVertexLeft();
 					usedEmbedded.add(endVertex.getSequenceIndex());
@@ -281,7 +281,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 				if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
 				AssemblyVertex next = edge.getConnectingVertex(endVertex);
 				if(!usedEmbedded.contains(next.getSequenceIndex()) && graph.isEmbedded(next.getSequenceIndex())) {
-					log.info("Expanding path ending with: "+path.getVertexRight()+" with embedded. Edge: "+edge);
+					//log.info("Expanding path ending with: "+path.getVertexRight()+" with embedded. Edge: "+edge);
 					path.connectEdgeRight(graph, edge);
 					endVertex = path.getVertexRight();
 					usedEmbedded.add(endVertex.getSequenceIndex());
