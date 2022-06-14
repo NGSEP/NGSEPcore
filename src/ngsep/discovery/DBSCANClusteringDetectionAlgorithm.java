@@ -90,7 +90,8 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 					toCluster.add(current);
 					//if(i==typePartition.size() - 2) System.out.println(" Last sign in partition: " + next.getFirst() + " last: " + next.getLast() + " chr: "
 						//	+ next.getSequenceName() + " with length: " + next.length());
-					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2) {
+					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 || 
+							toCluster.size() > 10000) {
 						List<Integer> idxs = new ArrayList<>();
 						//System.out.println("DSC: " + testDownstreamSignatureCompatibility(current,next));
 						for(GenomicVariant sign:toCluster) {
