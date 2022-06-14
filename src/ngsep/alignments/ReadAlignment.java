@@ -527,6 +527,10 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public void setReadName(String readName) {
 		if(readName == null) this.readName = null;
+		if(readName.length()>250) {
+			System.err.println("WARN: Very long name for read: "+readName+". Shortening to 250 characters");
+			readName = readName.substring(0,250);
+		}
 		this.readName = readName.toCharArray();
 	}
 
@@ -578,11 +582,12 @@ public class ReadAlignment implements GenomicRegion {
 		if(qualityScores==null) {
 			this.qualityScores = null;
 			return;
-		} 
+		}
 		int l = qualityScores.length();
+		if(l>readLength) System.err.println("WARN. Setting quality scores longer than read length. Read name: "+new String(readName)+" length: "+readLength+" scores length: "+l);
 		this.qualityScores = new byte [readLength];
 		Arrays.fill(this.qualityScores, (byte)38);
-		for(int i=0;i<l;i++) {
+		for(int i=0;i<l && i<readLength;i++) {
 			int sig = (int) qualityScores.charAt(i);
 			if(sig>127) sig = 127;
 			this.qualityScores[i] = (byte) sig;  
