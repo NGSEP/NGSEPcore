@@ -120,7 +120,7 @@ public class AssemblyPath {
 		
 		
 		AssemblyEdge c1 = graph.getEdge(lastVertex1, firstVertex2);
-		System.err.println("Trying to merge paths with ends: "+lastVertex1+" "+firstVertex2+" Merging direct edge: "+c1);
+		//System.err.println("Trying to merge paths with ends: "+lastVertex1+" "+firstVertex2+" Merging direct edge: "+c1);
 		if(c1!=null && (n1==1 || c1.getCost()<2*lastCost) && c1.getCost()<2*nextCost && c1.getOverlap()>0.5*lastOverlap && (n2==1 || c1.getOverlap()>0.5*nextOverlap)) {
 			System.err.println("Merging paths with ends: "+lastVertex1+" "+firstVertex2+" Merging direct edge: "+c1);
 			connectEdgeRight(graph, c1);
@@ -133,7 +133,7 @@ public class AssemblyPath {
 		if(secondLastVertex1 == null || secondVertex2==null) return false; 
 		AssemblyEdge c2 = graph.getEdge(lastVertex1, secondVertex2);
 		AssemblyEdge c3 = graph.getEdge(secondLastVertex1, firstVertex2);
-		System.err.println("Edges to merge paths: "+c2+" "+c3+" overlaps: "+lastOverlap+" "+nextOverlap+" costs: "+lastCost+" "+nextCost);
+		//System.err.println("Edges to merge paths: "+c2+" "+c3+" overlaps: "+lastOverlap+" "+nextOverlap+" costs: "+lastCost+" "+nextCost);
 		boolean validC2 = c2!=null && c2.getOverlap()>0.8*nextOverlap && c2.getCost()<1.5*lastCost && c2.getCost()<1.5*nextCost && (c3==null || c2.getCost()<2*c3.getCost());
 		if(!validC2) c2= null;
 		boolean validC3 = c3!=null && c3.getOverlap()>0.8*lastOverlap && c3.getCost()<1.5*lastCost && c3.getCost()<1.5*nextCost && (c2==null || c3.getCost()<2*c2.getCost());
@@ -192,8 +192,8 @@ public class AssemblyPath {
 		}
 		
 		Collections.sort(junctionRels,(r1,r2)->r1.getCost()-r2.getCost());
-		System.out.println("Trying to merge path: "+pathId+" with "+path2.getPathId()+" reverse: "+reverse+" rels: "+junctionRels.size());
-		for(AssemblySequencesRelationship rel: junctionRels) System.out.println(rel);
+		//System.out.println("Trying to merge path: "+pathId+" with "+path2.getPathId()+" reverse: "+reverse+" rels: "+junctionRels.size());
+		//for(AssemblySequencesRelationship rel: junctionRels) System.out.println(rel);
 		AssemblySequencesRelationship rel = junctionRels.get(0);
 		if(rel instanceof AssemblyEdge) {
 			AssemblyEdge edge = (AssemblyEdge)rel;
@@ -205,7 +205,7 @@ public class AssemblyPath {
 				loc1 = lastVerticesLocations1.get(edge.getVertex2().getUniqueNumber());
 				loc2 = lastVerticesLocations2.get(edge.getVertex1().getUniqueNumber());
 			}
-			System.out.println("Loc1: "+loc1+" loc2: "+loc2+" min cost edge: "+edge);
+			//System.out.println("Loc1: "+loc1+" loc2: "+loc2+" min cost edge: "+edge);
 			if (loc1==null || loc2==null) return false;
 			while(edges.size()>loc1) edges.removeLast();
 			vertexRight = vertexRightAfterRemove;

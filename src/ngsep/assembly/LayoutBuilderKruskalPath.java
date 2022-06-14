@@ -221,7 +221,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			
 			if(0.1*hostPath.getPathLength()<path.getPathLength()) continue;
 			if(Math.abs(leftLocation.getPathPosition()-rightLocation.getPathPosition())>1.5*path.getPathLength()) continue;
-			log.info("CollectSmallPaths. Integration of path: "+(i+1)+" into path with length: "+hostPath.getPathLength()+" conecting pos: "+leftLocation.getPathPosition()+" "+rightLocation.getPathPosition());
+			//log.info("CollectSmallPaths. Integration of path: "+(i+1)+" into path with length: "+hostPath.getPathLength()+" conecting pos: "+leftLocation.getPathPosition()+" "+rightLocation.getPathPosition());
 			hostPath.addAlternativeSmallPath(path);
 			indexesToRemove.add(i);
 		}
@@ -292,15 +292,15 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	}
 	private List<AssemblyPath> mergeClosePaths (AssemblyGraph graph, List<AssemblyPath> paths, Distribution [] dists) {
 		Map<String,PathEndJunctionEdge> pathEndEdges = buildPathJunctionEdgesByCloseEdges(graph, paths, dists);
-		log.info("Found "+pathEndEdges.size()+" candidate edges connecting vertices");
-		for(PathEndJunctionEdge edge:pathEndEdges.values()) {
-			if(edge.getPath1EndId()<200 && edge.getPath2EndId()<200) System.out.println(edge);
-		}
+		//log.info("Found "+pathEndEdges.size()+" candidate edges connecting vertices");
+		//for(PathEndJunctionEdge edge:pathEndEdges.values()) {
+			//if(edge.getPath1EndId()<200 && edge.getPath2EndId()<200) System.out.println(edge);
+		//}
 		Map<Integer,List<Integer>> mergedPathIds = findPathsToMerge(pathEndEdges.values(),paths.size());
-		log.info("Merged path ids");
-		for(List<Integer> nextPath:mergedPathIds.values()) {
-			if(nextPath.size()>2) System.out.println(nextPath);
-		}
+		//log.info("Merged path ids");
+		//for(List<Integer> nextPath:mergedPathIds.values()) {
+			//if(nextPath.size()>2) System.out.println(nextPath);
+		//}
 		//return paths;
 		return mergePaths(graph, paths, mergedPathIds, pathEndEdges);
 	}
