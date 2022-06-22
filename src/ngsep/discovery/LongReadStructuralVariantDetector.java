@@ -63,7 +63,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	public static final double DEF_LOG_ERROR_PROB_SV = Math.log10(0.00001);
 
 	
-	public static final int INV_DETERMINING_MAX_DISTANCE = 200;
+	public static final int INV_DETERMINING_MAX_DISTANCE = 800;
 	public static final int DEL_INTER_DETERMINING_MAX_DISTANCE = 90000;
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "MCC";
 	public static final String DBSCAN_ALGORITHM = "DBSCAN";
@@ -73,6 +73,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	//private Map<String, List<GenomicRegion>> alignmentRegions;
 	private Map<String, List<SimplifiedReadAlignment>> alignments;
 	private ReferenceGenome refGenome;
+	private String clusteringAlgorithm = DBSCAN_ALGORITHM;
 	private int lengthToDefineSVEvent;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
@@ -81,6 +82,15 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	
 	public void setRefGenome(String referenceFile) throws IOException {
 		this.refGenome = new ReferenceGenome(referenceFile);
+	}
+	
+	public void setClusteringAlgorithm(String algorithm) throws Exception {
+		if(DBSCAN_ALGORITHM.equals(algorithm) || MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
+			this.clusteringAlgorithm = algorithm;
+		}
+		else {
+			throw new Exception("Algorithm must be either DBSCAN or MCC");
+		}
 	}
 	
 	private void readAlignments(String alignmentFile,  int SVLength) throws IOException{
@@ -1043,16 +1053,22 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		this.lengthToDefineSVEvent = SVLength;
 	}
 	
-	public void run(String algorithm, String refFile, String alnFile, String sampleId, int SVLength) throws IOException {
-		setRefGenome(refFile);
-		readAlignments(alnFile, SVLength);
+	public void saveVCFResultsFile(List<GenomicVariant> genotypeCalls, String sampleID) throws IOException {
+		VCFFileHeader header = createVCFHeader(sampleID);
+		List<VCFRecord> records = buildRecords(genotypeCalls, header);
+		String saveFile = sampleID + ".variants.vcf";
+		printVCFFile(records, header, saveFile);
+	}
+	
+	public List<GenomicVariant> run(String alnFile) throws IOException {
+		readAlignments(alnFile, lengthToDefineSVEvent);
 		Map<String, List<List<Integer>>> clusters = new LinkedHashMap<>();
-		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
-			LongReadVariantDetectorClusteringAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm(refGenome, signatures, SVLength);
+		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(clusteringAlgorithm)) {
+			LongReadVariantDetectorClusteringAlgorithm caller = new MaxCliqueClusteringDetectionAlgorithm(refGenome, signatures, lengthToDefineSVEvent);
 			clusters = caller.callVariantClusters();
 		}
-		else if(DBSCAN_ALGORITHM.equals(algorithm)) {
-			LongReadVariantDetectorClusteringAlgorithm caller = new DBSCANClusteringDetectionAlgorithm(refGenome, signatures, SVLength);
+		else if(DBSCAN_ALGORITHM.equals(clusteringAlgorithm)) {
+			LongReadVariantDetectorClusteringAlgorithm caller = new DBSCANClusteringDetectionAlgorithm(refGenome, signatures, lengthToDefineSVEvent);
 			clusters = caller.callVariantClusters();
 		}
 		variants = callVariants(clusters);
@@ -1060,10 +1076,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		GenomicRegionSortedCollection<GenomicVariant> genotypeCallsCollection = makeBayesianGenotypeCalls(variantsList);
 		filterIntersectingVariants(genotypeCallsCollection);
 		List<GenomicVariant> genotypeCalls = genotypeCallsCollection.asList();
-		VCFFileHeader header = createVCFHeader(sampleId);
-		List<VCFRecord> records = buildRecords(genotypeCalls, header);
-		String saveFile = sampleId + ".variants.vcf";
-		printVCFFile(records, header, saveFile);
+		return genotypeCalls;
 	}
 
 	/**
@@ -1074,9 +1087,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		int last =  aln.getFirst() + length;
 		ReadAlignment modAln = new ReadAlignment(seqName, first, last, length, aln.getFlags());
 		return cmpClassInstance.compare(var, modAln);
-	}*/
+	}
+	 * @throws Exception, IOException */
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws Exception, IOException {
 		// TODO Auto-generated method stub
 		LongReadStructuralVariantDetector caller = new LongReadStructuralVariantDetector();
 		String algorithm = args[0];
@@ -1084,7 +1098,11 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		String alnFile = args[2];
 		String prefix = args[3];
 		int svLength = Integer.parseInt(args[4]);
-		caller.run(algorithm, refFile, alnFile, prefix, svLength);
+		caller.setRefGenome(refFile);
+		caller.setClusteringAlgorithm(algorithm);
+		caller.setIndelTresholdSize(svLength);
+		List<GenomicVariant> calledVariants = caller.run(alnFile);
+		caller.saveVCFResultsFile(calledVariants, prefix);
 	}
 	
 	class Signature implements GenomicVariant {
