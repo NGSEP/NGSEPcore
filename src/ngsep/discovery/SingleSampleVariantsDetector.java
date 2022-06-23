@@ -100,6 +100,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	private boolean findSNVs = true;
 	private boolean runRPAnalysis = false;
 	private boolean findNewCNVs = true;
+	private boolean runLongReadSVs = false;
 	// Classes implementing the algorithms for structural variants detection
 	private MultipleMappingRegionsCalculator mmRegsCalc = new MultipleMappingRegionsCalculator();
 	private ReadPairAnalyzer rpAnalyzer = new ReadPairAnalyzer();
@@ -474,7 +475,17 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	public void setFindNewCNVs(Boolean findNewCNVs) {
 		this.setFindNewCNVs(findNewCNVs.booleanValue());
 	}
-
+	
+	public boolean isRunLongReadSVs() {
+		return runLongReadSVs;
+	}
+	public void setRunLongReadSVs(boolean runLongReadSVs) {
+		this.runLongReadSVs = runLongReadSVs;
+	}
+	public void setRunLongReadSVs(Boolean runLongReadSVs) {
+		this.setRunLongReadSVs(runLongReadSVs.booleanValue());
+	}
+	
 	public long getInputGenomeSize() {
 		return inputGenomeSize;
 	}
@@ -615,6 +626,13 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			calledSVs.addAll(svsRP);
 			log.info("Total number of SVs: "+calledSVs.size());
 		}
+		if(runLongReadSVs) {
+			log.info("Running analysis of long read alignment to identify indels and inversions");
+			List<CalledGenomicVariant> svsLongReads = runLongReadSVAnalysis(); 
+			log.info("Found "+svsLongReads.size()+" new structural variants from long reads");
+			calledSVs.addAll(svsLongReads);
+			log.info("Total number of SVs: "+calledSVs.size());
+		}
 		if(progressNotifier!=null && !progressNotifier.keepRunning(15)) return;
 		if(findSNVs) {
 			try {
@@ -635,6 +653,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	}
 
 
+	
 	public void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
@@ -1015,6 +1034,13 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			if(v.getGenotypeQuality()>=minSVQuality) answer.add(v);
 		}
 		return answer;
+	}
+	
+	private List<CalledGenomicVariant> runLongReadSVAnalysis() throws IOException {
+		LongReadStructuralVariantDetector detector = new LongReadStructuralVariantDetector();
+		detector.setRefGenome(genome);
+		List<CalledGenomicVariant> calledVariants = detector.run(inputFile);
+		return filterSVsReadPair(calledVariants);
 	}
 
 	public GenomicRegionSortedCollection<CalledGenomicVariant> getCalledSVs() {

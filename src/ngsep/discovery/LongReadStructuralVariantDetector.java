@@ -80,6 +80,12 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	LongReadStructuralVariantDetector(){
 	}
 	
+	
+	public void setRefGenome(ReferenceGenome refGenome) {
+		this.refGenome = refGenome;
+	}
+
+
 	public void setRefGenome(String referenceFile) throws IOException {
 		this.refGenome = new ReferenceGenome(referenceFile);
 	}
@@ -450,15 +456,15 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		return sortedVariants;
 	}
 	
-	private void filterIntersectingVariants(GenomicRegionSortedCollection<GenomicVariant> sortedVariants) {
+	private void filterIntersectingVariants(GenomicRegionSortedCollection<CalledGenomicVariant> sortedVariants) {
 		// TODO Auto-generated method stub
 		int n = sortedVariants.size();
 		boolean[] visited = new boolean[n];
-		List<GenomicVariant> variantsToKeep = new ArrayList<>();
-		List<GenomicVariant> variants = sortedVariants.asList();
+		List<CalledGenomicVariant> variantsToKeep = new ArrayList<>();
+		List<CalledGenomicVariant> variants = sortedVariants.asList();
 		for (int i = 0; i < n; i++) {
-			GenomicVariant variant = variants.get(i);
-			List<GenomicVariant> spanningVariants = sortedVariants.findSpanningRegions(variant).asList();
+			CalledGenomicVariant variant = variants.get(i);
+			List<CalledGenomicVariant> spanningVariants = sortedVariants.findSpanningRegions(variant).asList();
 			//if(variant.getFirst() >= 46795914 && variant.getLast() <= 46796072) System.out.println("SPVS" + spanningVariants.size());
 			if(!visited[i]) {
 				if(spanningVariants.size() < 2) {
@@ -716,8 +722,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		return false;
 	}**/
 
-	private GenomicRegionSortedCollection<GenomicVariant> makeBayesianGenotypeCalls(List<GenomicVariant> variantsList) {
-		GenomicRegionSortedCollection<GenomicVariant> genotypeCalls = new GenomicRegionSortedCollection<>(refGenome.getSequencesList());
+	private GenomicRegionSortedCollection<CalledGenomicVariant> makeBayesianGenotypeCalls(List<GenomicVariant> variantsList) {
+		GenomicRegionSortedCollection<CalledGenomicVariant> genotypeCalls = new GenomicRegionSortedCollection<>(refGenome.getSequencesList());
 		//GenomicRegionComparator cmpClassInstance = new GenomicRegionComparator(variants.getSequenceNames());
 		GenomicRegionSortedCollection<SimplifiedReadAlignment> sortedAlns = new GenomicRegionSortedCollection<>(refGenome.getSequencesList());
 		for (List<SimplifiedReadAlignment> alns : alignments.values()) {
@@ -1025,7 +1031,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		return filters;
 	}
 	
-	private List<VCFRecord> buildRecords(List<GenomicVariant> genotypeCalls, VCFFileHeader header){
+	private List<VCFRecord> buildRecords(List<CalledGenomicVariant> genotypeCalls, VCFFileHeader header){
 		List<VCFRecord> records = new ArrayList<>();
 		for(int i = 0; i < genotypeCalls.size(); i++) {
 			GenomicVariant variant = genotypeCalls.get(i);
@@ -1053,14 +1059,14 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		this.lengthToDefineSVEvent = SVLength;
 	}
 	
-	public void saveVCFResultsFile(List<GenomicVariant> genotypeCalls, String sampleID) throws IOException {
+	public void saveVCFResultsFile(List<CalledGenomicVariant> genotypeCalls, String sampleID) throws IOException {
 		VCFFileHeader header = createVCFHeader(sampleID);
 		List<VCFRecord> records = buildRecords(genotypeCalls, header);
 		String saveFile = sampleID + ".variants.vcf";
 		printVCFFile(records, header, saveFile);
 	}
 	
-	public List<GenomicVariant> run(String alnFile) throws IOException {
+	public List<CalledGenomicVariant> run(String alnFile) throws IOException {
 		readAlignments(alnFile, lengthToDefineSVEvent);
 		Map<String, List<List<Integer>>> clusters = new LinkedHashMap<>();
 		if(MAX_CLIQUE_FINDER_ALGORITHM.equals(clusteringAlgorithm)) {
@@ -1073,9 +1079,9 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		variants = callVariants(clusters);
 		List<GenomicVariant> variantsList = variants.asList();
-		GenomicRegionSortedCollection<GenomicVariant> genotypeCallsCollection = makeBayesianGenotypeCalls(variantsList);
+		GenomicRegionSortedCollection<CalledGenomicVariant> genotypeCallsCollection = makeBayesianGenotypeCalls(variantsList);
 		filterIntersectingVariants(genotypeCallsCollection);
-		List<GenomicVariant> genotypeCalls = genotypeCallsCollection.asList();
+		List<CalledGenomicVariant> genotypeCalls = genotypeCallsCollection.asList();
 		return genotypeCalls;
 	}
 
@@ -1101,7 +1107,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		caller.setRefGenome(refFile);
 		caller.setClusteringAlgorithm(algorithm);
 		caller.setIndelTresholdSize(svLength);
-		List<GenomicVariant> calledVariants = caller.run(alnFile);
+		List<CalledGenomicVariant> calledVariants = caller.run(alnFile);
 		caller.saveVCFResultsFile(calledVariants, prefix);
 	}
 	

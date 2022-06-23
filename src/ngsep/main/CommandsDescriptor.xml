@@ -694,6 +694,9 @@ By default, the distribution of insert length is estimated only taking into acco
 <option id="runOnlySVs" type="BOOLEAN" attribute="runOnlySVsAnalyses">
 Turns off detection of SNVs and small indels. In this mode, only structural variation will be called.
 </option>
+<option id="runLongReadSVs" type="BOOLEAN" attribute="runLongReadSVs">
+Runs the DBScan algorithm to identify structural variants from alignments of long reads.
+</option>
 </command>
 
 <command id="SIH" class="ngsep.haplotyping.SingleIndividualHaplotyper" groupId="Discovery">
