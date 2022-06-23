@@ -74,7 +74,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private Map<String, List<SimplifiedReadAlignment>> alignments;
 	private ReferenceGenome refGenome;
 	private String clusteringAlgorithm = DBSCAN_ALGORITHM;
-	private int lengthToDefineSVEvent;
+	private int lengthToDefineSVEvent = 50;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	LongReadStructuralVariantDetector(){
