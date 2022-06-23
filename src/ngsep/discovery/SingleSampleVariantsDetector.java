@@ -642,7 +642,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 				dispose();
 			}
 		}
-		if(runRDAnalysis || runRPAnalysis || findRepeats) {
+		if(runRDAnalysis || runRPAnalysis || findRepeats || runLongReadSVs) {
 			log.info("Saving structural variants");
 			try (PrintStream outStructural = new PrintStream(outputPrefix+"_SV.gff")) {
 				GFFVariantsFileHandler svHandler = new GFFVariantsFileHandler();
