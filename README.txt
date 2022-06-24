@@ -1376,10 +1376,10 @@ OPTIONS:
 	-a STRING	: Types of functional annotations related to the
 			  variants. 
 	-saf FILE	: File with the ids of the samples to be selected (or
-			  filtered, see -fs option). The file should have one
+			  removed, see -fs option). The file should have one
 			  line per sample, being the first column the sample
 			  id. Other columns in the file are ignored.
-	-fs		: Flag to filter the samples provided with the -saf
+	-fs		: Flag to remove the samples provided with the -saf
 			  option instead of selecting them. 
 
 Names of functional annotations to use with the option -a should correspond to

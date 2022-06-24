@@ -1184,12 +1184,12 @@ Types of functional annotations related to the variant.
 The types must coincide with sequence ontology terms (See README.txt for details).
 </option>
 <option id="saf" type="FILE" attribute="sampleIds">
-File with the ids of the samples to be selected (or filtered, see -fs option).
+File with the ids of the samples to be selected (or removed, see -fs option).
 The file should have one line per sample, being the first column the sample id.
 Other columns in the file are ignored.
 </option>
 <option id="fs" type="BOOLEAN" attribute="filterSamples">
-Filter the samples provided with the -saf option instead of selecting them.
+Flag to remove the samples provided with the -saf option instead of selecting them.
 </option> 
 </command>
 
