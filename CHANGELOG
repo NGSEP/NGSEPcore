@@ -1,4 +1,13 @@
-v4.2.1
+v4.2.1 28-06-2022
+- Assembler: New options -cml and -cmof to set the maximum contig length and a
+  catalog of start sequencs for circularization
+- Assembler: Switched the default consensus algorithm to Polishing
+- SingleSampleVariantsDetector: Added flag -runLongReadSVs to run a new 
+  algorithm for detection of structural variants from long reads
+- GenomesAligner: Added option -yh and -yd to control the minimum number of
+  units and the maximum distance between units in an output synteny block.
+- GenomesAligner: Changed default values for the k-mer length and percentage of
+  k-mers.
 
 v4.2.0 07-01-2022
 - GenomesAligner: Improved quality of orthogroup identification. New options -d

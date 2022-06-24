@@ -10,7 +10,6 @@ import java.util.Set;
 
 public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBlocksFinder {
 	
-	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
 	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistance = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private int maxMatch;
@@ -23,13 +22,6 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		gapUnitLen = 10000;
 		gapOpen = 0;
 		gapExtend = -3;
-	}
-	
-	public int getMinBlockLength() {
-		return minHomologUnitsBlock;
-	}
-	public void setMinBlockLength(int minBlockLength) {
-		this.minBlockLength = minBlockLength;
 	}
 	
 	public int getMinHomologUnitsBlock() {

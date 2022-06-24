@@ -71,7 +71,6 @@ public class GenomesAligner {
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
-	private int minBlockLength = DEF_MIN_BLOCK_LENGTH;
 	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistanceBetweenUnits = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
@@ -341,7 +340,6 @@ public class GenomesAligner {
 		
 		//Set parameters according to the user input
 		finder.setMaxDistance(maxDistanceBetweenUnits);
-		finder.setMinBlockLength(minBlockLength);
 		finder.setMinHomologUnitsBlock(minHomologUnitsBlock);
 		
 		for(int i=0;i<genomes.size();i++) {

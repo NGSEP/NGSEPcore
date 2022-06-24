@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.2.1" date="01-03-2022" jar="NGSEPcore">
+<software name="NGSEP" version="4.2.1" date="28-06-2022" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -258,7 +258,7 @@ This option is still in progress and it has been tested only in haploid and dipl
 Maximum length of circular molecules
 </option>
 <option id="cmof" type="FILE" attribute="circularMoleculesStartsFile">
-File with known start sequences of circular molecules
+Fasta file with known start sequences of circular molecules
 </option>
 <!-- 
 <option id="ag" type="STRING" attribute="graphConstructionAlgorithm" defaultConstant="GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS" >
@@ -960,9 +960,10 @@ Compares two partially or completely assembled genomes based on their gene annot
 </intro>
 <title>Comparing genomes</title>
 <description>
-This module takes a list of assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format
-and runs a whole genome comparison taking unique genes as orthology units.
-It also predicts paralogs within each genome.
+This module takes a list of assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format and runs whole genome comparisons.
+It calculates orthogroups including orthologs and paralogs.
+It also identifies synteny relationships between each pair of genomes.
+Finally, it calculates gene presence/absence matrices and classifies gene families as core or accessory.
 See the README.txt file for further details of input and output files.
 </description>
 <argument>GENOME1</argument>
@@ -970,10 +971,10 @@ See the README.txt file for further details of input and output files.
 <argument>GENOME2</argument>
 <argument>TRANSCRIPTOME2</argument>
 <option id="d" type="STRING" attribute="inputDirectory">
-Input Directory with INPUTFILE, FASTA (fa, fna, fasta) and GFF3 (gff, gff3) compressed (.gz) or uncompressed files.
+Directory having the input genomes in fasta format and the genome annotations in gff3 format.
 </option>
 <option id="i" type="STRING" attribute="inputFile">
-Input File with genome identifiers (prefix for fasta and gff files)
+Input file with genome identifiers. These identifiers are used as prefixes for the fasta and gff3 files.
 </option>
 <option id="o" type="STRING" attribute="outputPrefix" defaultConstant="DEF_OUT_PREFIX">
 Prefix for output files.
@@ -982,10 +983,16 @@ Prefix for output files.
 K-mer length to find orthologs.
 </option>
 <option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
-Minimum percentage of k-mers to call orthologs
+Minimum percentage of k-mers to call orthologs.
 </option>
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and return unfiltered orthogroups.
+</option>
+<option id="yh" type="INT" attribute="minHomologUnitsBlock" defaultConstant="DEF_MIN_HOMOLOGY_UNITS_BLOCK">
+Minimum number of consistent homology units to call a synteny block.
+</option>
+<option id="yd" type="INT" attribute="maxDistanceBetweenUnits" defaultConstant="DEF_MAX_DISTANCE_BETWEEN_UNITS">
+Maximum distance (in basepairs) between homology units to include them within the same synteny block.
 </option>
 <option id="f" type="DOUBLE" attribute="minFrequencySoftCore" defaultConstant="DEF_MIN_FREQUENCY_SOFT_CORE">
 Minimum frequency to classify soft core gene families.

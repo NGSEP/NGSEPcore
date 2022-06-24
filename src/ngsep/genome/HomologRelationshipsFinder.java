@@ -21,7 +21,7 @@ import ngsep.sequences.KmersExtractor;
 public class HomologRelationshipsFinder {
 	
 	public static final byte DEF_KMER_LENGTH = 6;
-	public static final int DEF_MIN_PCT_KMERS = 5;
+	public static final int DEF_MIN_PCT_KMERS = 11;
 	public static final int DEF_MIN_WEIGHTED_COUNT = 5;
 	public static final int DEF_MAX_LENGTH_RATIO = 2;
 	

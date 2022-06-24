@@ -254,8 +254,11 @@ OPTIONS:
 			  is inbred, even if it is diploid or polyploid. This
 			  option is still in progress and it has been tested
 			  only in haploid and diploid samples. Default: 1
+	-cml INT	: Maximum length of circular molecules Default: 0
+	-cmof FILE	: Fasta file with known start sequences of circular
+        		  molecules
 	-ac STRING	: Algorithm used to build the consensus. It can be
-			  Simple or Polishing. Default: Simple
+			  Simple or Polishing. Default: Polishing
 	-t INT		: Number of threads. Default: 1
 
 
@@ -623,9 +626,9 @@ java -jar NGSEPcore.jar SingleSampleVariantsDetector <OPTIONS>
 
 OPTIONS:
 
-	-i FILE			: Input file with read alignments.
-	-r FILE			: Fasta file with the reference genome.
-	-o FILE			: Prefix for the output files.
+	-i FILE		: Input file with read alignments.
+	-r FILE		: Fasta file with the reference genome.
+	-o FILE		: Prefix for the output files.
 	-sampleId STRING	: Id of the sample for the VCF file. If not set
 				  it looks in the BAM file header for an SM
 				  header tag. If this tag is not present, it
@@ -651,7 +654,7 @@ OPTIONS:
 				  given query sequence
 	-ignoreLowerCaseRef	: Ignore sites where the reference allele is
 				  lower case. 
-	-maxAlnsPerStartPos INT	: Maximum number of alignments allowed to start
+	-maxAlnsPerStartPos INT: Maximum number of alignments allowed to start
 				  at the same reference site. This parameter
 				  helps to control false positives produced by
 				  PCR amplification artifacts. For GBS or RAD
@@ -674,12 +677,12 @@ OPTIONS:
 				  this value. This parameter allows to reduce
 				  the effect of sequencing errors with high
 				  base quality scores. Default: 100
-	-knownSTRs FILE		: File with known short tandem repeats (STRs).
+	-knownSTRs FILE	: File with known short tandem repeats (STRs).
 				  This is a text file with at least three
 				  columns, chromosome, first position and last
 				  position. Positions should be 1-based and
 				  inclusive.
-	-minQuality	INT	: Minimum genotype quality to accept a SNV call
+	-minQuality INT	: Minimum genotype quality to accept a SNV call
 				  Genotype quality is calculated as 1 minus the
 				  posterior probability of the genotype given
 				  the reads (in phred scale). Default: 0
@@ -693,19 +696,19 @@ OPTIONS:
 				  variants in GFF format.
 	-minSVQuality INT	: Minimum quality score (in PHRED scale) for
 				  structural variants. Default: 20
-	-runRep			: Turns on the procedure to find repetitive
+	-runRep		: Turns on the procedure to find repetitive
 				  regions based on reads with multiple
 				  alignments.
 	-runRD			: Turns on read depth (RD) analysis to identify
 				  CNVs
-	-genomeSize INT		: Total size of the genome to use during
+	-genomeSize INT	: Total size of the genome to use during
 				  detection of CNVs. This should be used when
 				  the reference file only includes a part of
 				  the genome (e.g. a chromosome or a partial
 				  assembly).
 	-binSize INT		: Size of the bins to analyze read depth.
 				  Default: 100
-	-algCNV	STRING		: Comma-separated list of read depth algorithms
+	-algCNV STRING		: Comma-separated list of read depth algorithms
 				  to run (e.g. CNVnator,EWT). Default: CNVnator
 	-maxPCTOverlapCNVs INT	: Maximum percentage of overlap of a new CNV
 				  with an input CNV to include it in the output
@@ -715,7 +718,7 @@ OPTIONS:
 				  inversions.
 	-maxLenDeletion INT	: Maximum length of deletions that the
 				  RP analysis can identify. Default: 1000000
-	-sizeSRSeed INT		: Size of the seed to look for split-read
+	-sizeSRSeed INT	: Size of the seed to look for split-read
 				  alignments. Default: 8
 	-ignoreProperPairFlag	: With this option, the proper pair flag will
 				  not be taken into accout to decide if the ends
@@ -723,8 +726,10 @@ OPTIONS:
 				  default, the distribution of insert length is
 				  estimated only taking into account reads with
 				  the proper pair flag turned on.
-	-noSNVS			: Turns off SNV detection. In this mode, only
+	-runOnlySVs		: Turns off SNV detection. In this mode, only
 				  structural variation will be called
+	-runLongReadSVs	: Runs the DBScan algorithm to identify structural
+				  variants from alignments of long reads
 
 Alignments should be provided in SAM, BAM or CRAM format
 (see http://samtools.github.io/hts-specs for details).
@@ -788,11 +793,15 @@ variant calling from whole genome sequencing reads use:
 
 java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
-If interested in structural variation, you can add the options to run read
-depth (RD) and read pair plus split read (RP+SR) approaches to identify
-structural variation:
+If interested in structural variation, for Illumina reads you can add the
+options to run read depth (RD) and read pair plus split read (RP+SR)
+approaches to identify structural variation:
 
 java -jar NGSEPcore.jar SingleSampleVariantsDetector -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+
+To detect structural variants from long reads, add the option -runLongReadSVs
+
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -runLongReadSVs -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
@@ -1056,11 +1065,11 @@ java -jar NGSEPcore.jar TranscriptomeAnalyzer <OPTIONS>
 OPTIONS:
 
 	-i FILE	: Input GFF3 file with gene annotations. It can be gzip
-		  compressed.
+			  compressed.
 	-o FILE	: Prefix of the output files. It can be an absolute path
-		  finished by the prefix
+			  finished by the prefix
 	-r FILE	: Fasta file with the reference genome. It can be gzip
-		  compressed.
+			  compressed.
 
 ------------------------
 Filtering transcriptomes
@@ -1077,11 +1086,11 @@ java -jar NGSEPcore.jar TranscriptomeFilter <OPTIONS>
 
 OPTIONS:
 
-	-i FILE		: Input GFF3 file with gene annotations. It can be gzip
+	-i FILE	: Input GFF3 file with gene annotations. It can be gzip
 			  compressed.
-	-o FILE		: Output file with filtered genes. See option -f for
+	-o FILE	: Output file with filtered genes. See option -f for
 			  output format options.
-	-r FILE		: Fasta file with the reference genome.
+	-r FILE	: Fasta file with the reference genome.
 	-f INT		: Output format. 0: GFF3, 1: gene list, 2: gene
 			  regions, 3: transcript list, 4: transcript regions.
 			  Default: 0
@@ -1111,7 +1120,11 @@ OPTIONS:
 Comparing genomes
 -----------------
 
-This module takes a list of assembled genomes in fasta format and their corresponding transcriptomes in GFF3 format and runs a whole genome comparison taking unique genes as orthology units. It also predicts paralogs within each genome. See the README.txt file for further details of input and output files.
+This module takes a list of assembled genomes in fasta format and their
+corresponding transcriptomes in GFF3 format and runs whole genome comparisons.
+It calculates orthogroups including orthologs and paralogs. It also identifies
+synteny relationships between each pair of genomes. Finally, it calculates gene
+presence/absence matrices and classifies gene families as core or accessory.
 
 USAGE:
 
@@ -1123,14 +1136,42 @@ java -jar NGSEPcore.jar GenomesAligner -d <PATHTOFOLDER> -i <INPUTFILE>
 
 OPTIONS:
 
-        -d STRING : Input Directory with INPUTFILE, FASTA (fa, fna, fasta) and GFF3 (gff, gff3) compressed (.gz) or uncompressed files.
-        -i STRING : Input File with genome identifiers (prefix of fasta and gff3 files)
-        -o STRING : Prefix for output files. Default: genomesAlignment
-        -k INT    : K-mer length to find orthologs. Default: 10
-        -p INT    : Minimum percentage of k-mers to call orthologs Default: 50
-        -s        : Skip the MCL clustering phase and return unfiltered orthogroups.
-        -f DOUBLE : Minimum frequency to classify soft core gene families Default: 0.9
-			
+	-d STRING	: Directory having the input genomes in fasta format
+        		  and the genome annotations in gff3 format.
+	-i STRING	: Input file with genome identifiers. These identifiers
+        		  are used as prefixes for the fasta and gff3 files.
+	-o STRING	: Prefix for output files. Default: genomesAlignment
+	-k INT		: K-mer length to find orthologs. Default: 6
+	-p INT		: Minimum percentage of k-mers to call orthologs. 
+			  Default: 11
+	-s		: Skip the MCL clustering phase and return unfiltered
+			  orthogroups.
+	-yh INT	: Minimum number of consistent homology units to call a synteny
+			  block. Default: 6
+	-yd INT	: Maximum distance (in basepairs) between homology units to
+			  include them within the same synteny block. Default: 100000
+	-f DOUBLE	: Minimum frequency to classify soft core gene families.
+			  Default: 0.9
+
+The options -d and -i are useful to process large numbers of genome assemblies.
+The file referred with the option -i should have one genome identifier for each
+line:
+
+Genome1
+Genome2
+Genome3
+...
+GenomeN
+
+For each genome, the module will look into the directory referred with the
+option -d for one fasta file and one gff3 file having as prefix the genome
+identifier.
+Possible suffixes for the fasta file include .fa, .fna, .fas and .fasta
+and their gzip compressed extensions .fa.gz, .fna.gz, .fas.gz and .fasta.gz
+Possible suffixes for the annotation file include .gff and .gff3 and their
+gzip compressed extensions .gff.gz and .gff3.gz
+
+		
 The output is a series of text files having the ids and physical coordinates of
 the paralogs within each genome and the orthologs between the two genomes.
 The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
@@ -1156,12 +1197,12 @@ The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
 contain genes within the same genome as genes in column 1 to 4. 
 
 Pangenome files are:
-The file <PREFIX>_clusters.txt contains the clusters of homolog genes across genomes
-that can be inferred from the pairwise homolog relationships.
-The file <PREFIX>_paMatrix.txt contains the Presence/Absence matrix where each row corresponds 
-to a gene family and each column corresponds to a genome.
-The file <PREFIX>_gfFreqs.txt contains the frequency of each gene family within the genomes and
-its classification into exact/soft core/accesory genomes.
+The file <PREFIX>_clusters.txt contains the clusters of homolog genes across
+genomes that can be inferred from the pairwise homolog relationships.
+The file <PREFIX>_paMatrix.txt contains the Presence/Absence matrix where each
+row corresponds to a gene family and each column corresponds to a genome.
+The file <PREFIX>_gfFreqs.txt contains the frequency of each gene family within
+the genomes and its classification into exact/soft core/accesory genomes.
 
 Finally, the files:
 
