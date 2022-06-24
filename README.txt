@@ -204,7 +204,7 @@ OPTIONS:
 	-t INT          : Number of threads to process read clusters. Default: 1
 	-maxBaseQS INT  : Maximum value allowed for a base quality score.
 			  Larger values will be equalized to this value.
-			  Default: 100
+			  Default: 30
 	-ignore5 INT	: Ignore this many base pairs from the 5' end of the
 			  reads. Default: 0
 	-ignore3 INT	: Ignore this many base pairs from the 3' end of the
@@ -496,7 +496,7 @@ OPTIONS:
 				  score. Larger values will be equalized to
 				  this value. This parameter allows to reduce
 				  the effect of sequencing errors with high
-				  base quality scores. Default: 100
+				  base quality scores. Default: 30
 	-knownSTRs FILE         : File with known short tandem repeats (STRs).
 				  This is a text file with at least three
 				  columns: chromosome, first position and last
@@ -584,7 +584,7 @@ the value of the parameter to about 100 to retain high sensitivity while
 avoiding a severe penalty in memory usage. The default usage for RAD-Seq or GBS
 samples becomes:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 100 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
+java -jar NGSEPcore.jar MultisampleVariantsDetector -maxAlnsPerStartPos 100 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
 
 WARNING 2: Unlike the behavior of the classical individual analysis per sample,
 in this command the filter executed using the minQuality option applies to the
@@ -601,7 +601,7 @@ Default values of other parameters are also set to maximize sensitivity. For
 conservative variant detection including control for errors in base quality
 scores and PCR amplification artifacts use:
 
-java -jar NGSEPcore.jar FindVariants -maxAlnsPerStartPos 2 -maxBaseQS 30 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
+java -jar NGSEPcore.jar MultisampleVariantsDetector -maxAlnsPerStartPos 2 -r <REFERENCE> -o <OUTPUT_VCF> <BAM_FILE>*
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
@@ -676,7 +676,7 @@ OPTIONS:
 				  score. Larger values will be equalized to
 				  this value. This parameter allows to reduce
 				  the effect of sequencing errors with high
-				  base quality scores. Default: 100
+				  base quality scores. Default: 30
 	-knownSTRs FILE	: File with known short tandem repeats (STRs).
 				  This is a text file with at least three
 				  columns, chromosome, first position and last
@@ -791,17 +791,17 @@ the number of called variants at the cost of generating some false positives in
 samples with small coverage or high sequencing error rates. For conservative
 variant calling from whole genome sequencing reads use:
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 If interested in structural variation, for Illumina reads you can add the
 options to run read depth (RD) and read pair plus split read (RP+SR)
 approaches to identify structural variation:
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -runRD -runRP -maxAlnsPerStartPos 2 -minQuality 40 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 To detect structural variants from long reads, add the option -runLongReadSVs
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -runLongReadSVs -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -runLongReadSVs -maxAlnsPerStartPos 2 -minQuality 40 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 If the error rate towards the three prime end increases over 2% you can also
 use the option -ignore3 to ignore errors at those read positions. If the
@@ -821,9 +821,9 @@ avoiding a severe penalty in memory usage. Also, structural variants should not
 be called using these data. The usage for conservative variant calling in
 RAD-Seq or GBS samples becomes:
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 100 -minQuality 40 -maxBaseQS 30 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 100 -minQuality 40 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
-This module cal also be used to discover variants at different allele frequencies
+This module can also be used to discover variants at different allele frequencies
 in pooled samples. For this use case, the ploidy parameter should be adjusted to
 the number of haplotypes present within the pool. The prior heterozygosity rate
 should also be increased according to the expected proportion of heterozygous
@@ -834,7 +834,7 @@ were included in a pool and sequenced at 20x per individual, then this parameter
 should be larger than 1000. This is a usage example to identify low frequency
 variants from a pool of 48 individuals in a Tilling experiment:
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 5000 -maxBaseQS 30 -h 0.1 -ploidy 96 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 5000 -h 0.1 -ploidy 96 -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 -------------------------------------------
 Molecular haplotyping of single individuals
@@ -903,7 +903,7 @@ MergeVariants using the variants detector (See SingleSampleVariantsDetector).
 For each sample, the command to execute at this stage (in conservative mode)
 should look like this:
 
-java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -maxBaseQS 30 -knownVariants <VARS_FILE> -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
+java -jar NGSEPcore.jar SingleSampleVariantsDetector -maxAlnsPerStartPos 2 -minQuality 40 -knownVariants <VARS_FILE> -r <REFERENCE> -i <INPUT_FILE> -o <OUTPUT_PREFIX>
 
 where VARS_FILE is the output file obtained in the first step of the merging
 process. At the end, this will produce a second set of vcf files which will
