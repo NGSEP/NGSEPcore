@@ -45,7 +45,7 @@ public class CountsHelper {
 	private static final double DEF_HET_PROPORTION = 0.5;
 	private static final int DEF_NUM_FREQUENCIES = 501;
 	private static final byte DEF_MIN_BASE_QS = 3;
-	public static final byte DEF_MAX_BASE_QS = 100;
+	public static final byte DEF_MAX_BASE_QS = 30;
 	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
 	
 	private int totalCount=0;

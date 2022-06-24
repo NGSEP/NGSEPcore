@@ -110,7 +110,17 @@ public class SingleReadsSimulator {
 	public void setStdevReadlength(String value) {
 		this.setStdevReadlength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
-
+	
+	public int getMinReadLength() {
+		return minReadLength;
+	}
+	public void setMinReadLength(int minReadLength) {
+		this.minReadLength = minReadLength;
+	}
+	public void setMinReadLength(String value) {
+		this.setMinReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public double getSubstitutionErrorRate() {
 		return substitutionErrorRate;
 	}
@@ -255,7 +265,7 @@ public class SingleReadsSimulator {
 		}
 		return answer.toString();
 	}
-	private String generateIndelErrorsRandom (String read) {
+	public String generateIndelErrorsRandom (String read) {
 		String alphabet = DNASequence.BASES_STRING;
 		int len = read.length();
 		StringBuilder answer = new StringBuilder(len);
@@ -281,7 +291,7 @@ public class SingleReadsSimulator {
 		}
 		return answer.toString();
 	}
-	private String generateIndelErrorsMononucleotides (String read) {
+	public String generateIndelErrorsMononucleotides (String read) {
 		int len = read.length();
 		StringBuilder answer = new StringBuilder(len);
 		int mononucleotideCount = 0;

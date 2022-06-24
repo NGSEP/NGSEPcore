@@ -130,6 +130,7 @@ public class VCFIndividualGenomeBuilder {
 		if (genome!=null) out.println("Input genome loaded from: "+genome.getFilename());
 		out.println("Variants file:"+ variantsFile);
 		out.println("Output file:"+ outputFile);
+		out.println("Sample ploidy:"+ ploidy);
 		log.info(os.toString());
 	}
 	public void makeGenomeFromVCF(String vcfFile, PrintStream out) throws IOException {
