@@ -749,6 +749,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			if(genotype != CalledGenomicVariant.GENOTYPE_UNDECIDED && 
 					genotype != CalledGenomicVariant.GENOTYPE_HOMOREF) {
 				CalledGenomicVariant calledVariant = new CalledGenomicVariantImpl(variant, genotype);
+				//TODO: make variant a CalledGenomicVariant
+				calledVariant.setGenotypeQuality(variant.getVariantQS());
 				genotypeCalls.add(calledVariant);
 			}
 		}

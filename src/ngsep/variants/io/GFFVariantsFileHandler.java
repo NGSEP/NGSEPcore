@@ -45,6 +45,7 @@ public class GFFVariantsFileHandler {
 	public static final String TAG_ID = "ID";
 	public static final String TAG_GROUP_ID = "GROUP_ID";
 	public static final String TAG_LENGTH = "LENGTH";
+	public static final String TAG_GENOTYPE = "GT";
 	public static final String TAG_SOURCE = "SOURCE";
 	public static final String TAG_NSF = "NSF";
 	public static final String TAG_NC = "NC";
@@ -194,6 +195,11 @@ public class GFFVariantsFileHandler {
 				if (call.getSource()!=null) out.print(";"+TAG_SOURCE+"="+call.getSource());
 				out.print(";"+TAG_NSF+"="+call.getSupportingFragments());
 				out.print(";"+TAG_NSR+"="+call.getNumSplitReads());
+			} else {
+				String gt = "1/1";
+				if(v.isHeterozygous()) gt = "0/1";
+				else if (v.isHomozygousReference())  gt = "0/0";
+				out.print(";"+TAG_GENOTYPE+"="+gt);
 			}
 			out.println();
 			index++;
