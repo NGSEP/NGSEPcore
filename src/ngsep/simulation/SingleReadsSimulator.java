@@ -40,7 +40,7 @@ public class SingleReadsSimulator {
 	private String outputFile = null;
 	private int numberOfReads = DEF_NUM_READS;
 	private int meanReadLength = DEF_MEAN_READ_LENGTH;
-	private int stdevReadlength = DEF_STDEV_READ_LENGTH;
+	private int stdevReadLength = DEF_STDEV_READ_LENGTH;
 	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private double substitutionErrorRate = DEF_SUBSTITUTION_ERROR_RATE;
 	private double indelErrorRate = DEF_INDEL_ERROR_RATE;
@@ -101,14 +101,14 @@ public class SingleReadsSimulator {
 		this.setMeanReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 
-	public int getStdevReadlength() {
-		return stdevReadlength;
+	public int getStdevReadLength() {
+		return stdevReadLength;
 	}
-	public void setStdevReadlength(int stdevReadlength) {
-		this.stdevReadlength = stdevReadlength;
+	public void setStdevReadLength(int stdevReadLength) {
+		this.stdevReadLength = stdevReadLength;
 	}
-	public void setStdevReadlength(String value) {
-		this.setStdevReadlength((int) OptionValuesDecoder.decode(value, Integer.class));
+	public void setStdevReadLength(String value) {
+		this.setStdevReadLength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public int getMinReadLength() {
@@ -171,7 +171,7 @@ public class SingleReadsSimulator {
 		out.println("Output file path: " + outputFile);
 		out.println("Reference total length:" + genome.getTotalLength());
 		out.println("Number of reads:" + numberOfReads);
-		out.println("Read length ~N(mean: " + meanReadLength + ", sdev: " + stdevReadlength + "). Minimum: "+minReadLength);
+		out.println("Read length ~N(mean: " + meanReadLength + ", sdev: " + stdevReadLength + "). Minimum: "+minReadLength);
 		out.println("Substitution error rate: " + substitutionErrorRate);
 		out.println("Indel error rate: " + indelErrorRate);
 		if(OUT_FORMAT_FASTA==outFormat) out.println("Reads will be generated in FASTA format");
@@ -198,7 +198,7 @@ public class SingleReadsSimulator {
 				byte reverse = 0;
 				String read = null;
 				for (int j = 0; j < 100; j++) {
-					readLength = (int) (rnd.nextGaussian() * stdevReadlength + meanReadLength);
+					readLength = (int) (rnd.nextGaussian() * stdevReadLength + meanReadLength);
 					if(readLength<minReadLength) continue;
 					long nextLong = rnd.nextLong();
 					nextStart = nextLong % (totalLength - readLength);
@@ -239,6 +239,7 @@ public class SingleReadsSimulator {
 				
 			}
 		}
+		log.info("Process finished");
 	}
 
 	private String generateErrors(String read) {

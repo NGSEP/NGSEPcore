@@ -1758,10 +1758,10 @@ Number of reads.
 <option id="u" type="INT" attribute="meanReadLength" defaultConstant="DEF_MEAN_READ_LENGTH">
 Average read length.
 </option>
-<option id="s" type="INT" attribute="stdevReadlength" defaultConstant="DEF_STDEV_READ_LENGTH">
+<option id="s" type="INT" attribute="stdevReadLength" defaultConstant="DEF_STDEV_READ_LENGTH">
 Standard deviation read length.
 </option>
-<option id="m" type="INT" attribute="minReadlength" defaultConstant="DEF_MIN_READ_LENGTH">
+<option id="m" type="INT" attribute="minReadLength" defaultConstant="DEF_MIN_READ_LENGTH">
 Minimum read length.
 </option>
 <option id="e" type="DOUBLE" attribute="substitutionErrorRate" defaultConstant="DEF_SUBSTITUTION_ERROR_RATE">
