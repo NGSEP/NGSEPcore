@@ -147,6 +147,26 @@ public class GenomesAligner {
 		setMaxHomologsUnit((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public int getMinHomologUnitsBlock() {
+		return minHomologUnitsBlock;
+	}
+	public void setMinHomologUnitsBlock(int minHomologUnitsBlock) {
+		this.minHomologUnitsBlock = minHomologUnitsBlock;
+	}
+	public void setMinHomologUnitsBlock(String value) {
+		setMinHomologUnitsBlock((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
+	public int getMaxDistanceBetweenUnits() {
+		return maxDistanceBetweenUnits;
+	}
+	public void setMaxDistanceBetweenUnits(int maxDistanceBetweenUnits) {
+		this.maxDistanceBetweenUnits = maxDistanceBetweenUnits;
+	}
+	public void setMaxDistanceBetweenUnits(String value) {
+		setMaxDistanceBetweenUnits((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public double getMinFrequencySoftCore() {
 		return minFrequencySoftCore;
 	}
@@ -206,6 +226,11 @@ public class GenomesAligner {
 		out.println("Output prefix:"+ outputPrefix);
 		out.println("K-mer length: "+ getKmerLength());
 		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		if(skipMCL) out.println("Skip the Markov Clustering step");
+		out.println("Minimum number of consistent homology units to call a synteny block: "+ getMinHomologUnitsBlock());
+		out.println("Maximum distance between homology units : "+ getMaxDistanceBetweenUnits());
+		out.println("Minimum frequency to classify soft core gene families: "+ getMinFrequencySoftCore());
+		
 		log.info(os.toString());
 	}
 	public void loadGenome(String fileGenome, String fileTranscriptome) throws IOException {

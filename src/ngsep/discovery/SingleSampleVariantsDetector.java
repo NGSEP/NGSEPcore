@@ -700,6 +700,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			out.println("Size of the seed for split-read alignments : "+getSplitReadSeed());
 			out.println("Ignore proper pair flag for RP analysis : "+isIgnoreProperPairFlag());
 		}
+		out.println("Run the DBScan algorithm to identify structural variants from alignments of long reads.: "+runLongReadSVs);
 		log.info(os.toString());	
 	}
 	
