@@ -52,6 +52,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private PairwiseAligner alignerStart;
 	private PairwiseAligner alignerEnd;
 	private int maxAlnsPerRead = 3;
+	private double maxProportionBestCount = 0.2;
 	private ReferenceGenome genome;
 	private ShortKmerCodesTable kmerCodesTable;
 	private boolean onlyPositiveStrand = false;
@@ -90,7 +91,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public Logger getLog() {
 		return log;
 	}
-
 	public void setLog(Logger log) {
 		this.log = log;
 	}
@@ -98,11 +98,17 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public int getMaxAlnsPerRead() {
 		return maxAlnsPerRead;
 	}
-
 	public void setMaxAlnsPerRead(int maxAlnsPerRead) {
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
-
+	
+	public double getMaxProportionBestCount() {
+		return maxProportionBestCount;
+	}
+	public void setMaxProportionBestCount(double maxProportionBestCount) {
+		this.maxProportionBestCount = maxProportionBestCount;
+	}
+	
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) {
 		loadGenome(genome, kmerLength, windowLength, numThreads,false);
 	}
@@ -230,14 +236,14 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		double maxCount = 0;
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			cluster.summarize();
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers());
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
 		}
 		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
-			if(cluster.getWeightedCount()<0.2*maxCount) break;
+			if(cluster.getWeightedCount()<maxProportionBestCount*maxCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
 			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);

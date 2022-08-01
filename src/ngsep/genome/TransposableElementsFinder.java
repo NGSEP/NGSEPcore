@@ -212,10 +212,12 @@ public class TransposableElementsFinder {
 		System.out.println("creating minimizerTable");
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
 		minimizerTable.loadGenome(genome, 15, 20, 1);
-		System.out.println("loading known transposions");
+		minimizerTable.setMaxAlnsPerRead(100);
+		minimizerTable.setMaxProportionBestCount(0.1);
+		System.out.println("loading known transposons");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
-		//loading known transposions
+		//loading known transposons
 		List<QualifiedSequence> knownTransposons = load.loadSequences(transposonsDatabaseFile);
 		System.out.println("searching transposions db");
 		for (QualifiedSequence transposon:knownTransposons) {
