@@ -59,12 +59,6 @@ public class DBSCANClusteringAlgorithm {
 		return labels;
 	}
 	
-	/**
-	 * 
-	 * @param idxs the index that identifies the specific object in the original collection
-	 * @param labels id of each cluster
-	 * @return List that contains each cluster as a list
-	 */
 	private List<List<Integer>> assignClustersByLabel(List<Integer> idxs, int[] labels) {
 		// TODO Auto-generated method stub
 		Map <Integer, List<Integer>> clustersMap = new HashMap<>();
@@ -135,12 +129,6 @@ public class DBSCANClusteringAlgorithm {
 			idxs.add(idx);
 			
 		}
-		/**
-		int[] testClusters = DBScan(idxs, distanceMatrix, 13, 1.0);
-		if(xDimNums.size() != testClusters.length) throw new Exception("x and labels dimensions have different sizes");
-		try(PrintWriter writer = new PrintWriter("ngsep_labels.txt")){
-			for(int label : testClusters) writer.write(label + "\n");
-		}**/
 		DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
 		List<List<Integer>> clusters = instance.runDBSCANClustering(idxs, distanceMatrix, 13, 1.0);
 		try(PrintWriter writer = new PrintWriter("ngsep_clusters.txt")){
