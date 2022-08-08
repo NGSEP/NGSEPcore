@@ -52,7 +52,9 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private PairwiseAligner alignerStart;
 	private PairwiseAligner alignerEnd;
 	private int maxAlnsPerRead = 3;
-	private double maxProportionBestCount = 0.2;
+	private double minProportionBestCount = 0.2;
+	private double minProportionReadLength = 0.01;
+	
 	private ReferenceGenome genome;
 	private ShortKmerCodesTable kmerCodesTable;
 	private boolean onlyPositiveStrand = false;
@@ -102,13 +104,18 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 	
-	public double getMaxProportionBestCount() {
-		return maxProportionBestCount;
+	public double getMinProportionBestCount() {
+		return minProportionBestCount;
 	}
-	public void setMaxProportionBestCount(double maxProportionBestCount) {
-		this.maxProportionBestCount = maxProportionBestCount;
+	public void setMinProportionBestCount(double minProportionBestCount) {
+		this.minProportionBestCount = minProportionBestCount;
 	}
-	
+	public double getMinProportionReadLength() {
+		return minProportionReadLength;
+	}
+	public void setMinProportionReadLength(double minProportionReadLength) {
+		this.minProportionReadLength = minProportionReadLength;
+	}
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads) {
 		loadGenome(genome, kmerLength, windowLength, numThreads,false);
 	}
@@ -196,15 +203,43 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return alignments;
 	}
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
+		List<UngappedSearchHitsCluster> clusters = buildHitClusters(query);
+		List<ReadAlignment> answer = buildAlignments(query, clusters);
+		//System.out.println("Found "+answer.size()+" alignments");
+		return answer;
+	}
+	public List<UngappedSearchHitsCluster> buildHitClusters (QualifiedSequence read) {
+		List<UngappedSearchHitsCluster> initialClusters = new ArrayList<>();
+		String readSeq = read.getCharacters().toString();
+		initialClusters.addAll(buildHitClusters(readSeq));
+		String reverseComplement = null;
+		if(!onlyPositiveStrand) {
+			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
+			initialClusters.addAll(buildHitClusters(reverseComplement));
+		}
+		Collections.sort(initialClusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
+		double maxCount = summarize(initialClusters);
+		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
+		for (int i=0;i<initialClusters.size() && i<maxAlnsPerRead;i++) {
+			UngappedSearchHitsCluster cluster = initialClusters.get(i);
+			if(cluster.getWeightedCount()<minProportionBestCount*maxCount) break;
+			
+			answer.add(cluster);
+		}
+		return answer;
+	}
+	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query) {
 		int queryLength = query.length();
-		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
+		
 		Map<Integer,List<UngappedSearchHit>> hitsByReference = kmerCodesTable.match(-1,query);
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
+		double minRawHitsSize = Math.max(10, minProportionReadLength*query.length());
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
 			//System.out.println("Reference id: "+sequenceIdx+" total raw hits: "+totalHitsSubject.size());
 			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getQueryIdx()>21000 && hit.getQueryIdx()<27000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
+			//for(UngappedSearchHit hit: totalHitsSubject) if(query.length()==6931 && hit.getStart()>9409000 && hit.getStart()<9420000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getStart()-h2.getStart());
 			List<UngappedSearchHit> rawClusterKmers = new ArrayList<UngappedSearchHit>();
 			UngappedSearchHitsCluster cluster = null;
@@ -216,34 +251,34 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				if(cluster==null) {
 					cluster = new UngappedSearchHitsCluster(queryLength, sequenceLength, hit);
 				} else if (!cluster.addKmerHit(hit, 0)) {
-					if (rawClusterKmers.size()>=0.01*query.length()) {
+					if (rawClusterKmers.size()>=minRawHitsSize) {
 						List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
 						//System.out.println("Qlen: "+query.length()+" next raw cluster inside "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
-					}
+					} 
+					//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size());
 					cluster = new UngappedSearchHitsCluster(queryLength, sequenceLength, hit);
 					rawClusterKmers.clear();
 				}
 				rawClusterKmers.add(hit);
 			}
-			if(cluster!=null && rawClusterKmers.size()>=0.01*query.length()) {
+			if(cluster!=null && rawClusterKmers.size()>=minRawHitsSize) {
 				List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceLength, rawClusterKmers, 0);
 				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
 		}
-		
-		double maxCount = 0;
-		for (UngappedSearchHitsCluster cluster:clusters) {
-			cluster.summarize();
-			maxCount = Math.max(maxCount,cluster.getWeightedCount());
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
-		}
+		return clusters;
+	}
+	
+	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters) {
 		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
+		double maxCount = summarize(clusters);
+		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
-			if(cluster.getWeightedCount()<maxProportionBestCount*maxCount) break;
+			if(cluster.getWeightedCount()<minProportionBestCount*maxCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
 			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
@@ -253,8 +288,17 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				answer.add(aln);
 			}
 		}
-		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
+	}
+	
+	private double summarize(List<UngappedSearchHitsCluster> clusters) {
+		double maxCount = 0;
+		for (UngappedSearchHitsCluster cluster:clusters) {
+			cluster.summarize();
+			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
+		}
+		return maxCount;
 	}
 	
 	public ReadAlignment buildCompleteAlignment(int subjectIdx, CharSequence subject, CharSequence query, UngappedSearchHitsCluster kmerHitsCluster) { 

@@ -893,6 +893,8 @@ public class AssemblyGraph {
 	
 	public NormalDistribution[] estimateDistributions(List<AssemblyEdge> edges, Set<Integer> repetitiveVertices) {
 		Distribution overlapDistributionSafe = new Distribution(0, 100000, 1000);
+		Distribution cskDistributionSafe = new Distribution(0, 100000, 1000);
+		Distribution cskPropOverlapSafe = new Distribution(0, 1.1, 0.01);
 		Distribution wcskDistributionSafe = new Distribution(0, 100000, 1000);
 		Distribution wcskPropOverlapSafe = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionSafe = new Distribution(0, 500, 10);
@@ -917,6 +919,8 @@ public class AssemblyGraph {
 			indelsKbpDistributionAll.processDatapoint(edge.getIndelsPerKbp());
 			if (isSafeEdge(edge, repetitiveVertices)) {
 				overlapDistributionSafe.processDatapoint(overlap);
+				cskDistributionSafe.processDatapoint(edge.getCoverageSharedKmers());
+				cskPropOverlapSafe.processDatapoint((double)edge.getCoverageSharedKmers()/(edge.getOverlap()+1));
 				wcskDistributionSafe.processDatapoint(edge.getWeightedCoverageSharedKmers());
 				wcskPropOverlapSafe.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(edge.getOverlap()+1));
 				overlapSDDistributionSafe.processDatapoint((double)edge.getOverlapStandardDeviation());
@@ -925,13 +929,15 @@ public class AssemblyGraph {
 			}
 		}
 		/*System.out.println("Dist overlap");
-		overlapDistributionAll.printDistribution(System.out);
+		overlapDistributionSafe.printDistribution(System.out);
+		System.out.println("Dist CSK");
+		cskDistributionSafe.printDistribution(System.out);
 		System.out.println("Dist WCSK");
-		wcskDistributionAll.printDistribution(System.out);
+		wcskDistributionSafe.printDistribution(System.out);
 		System.out.println("Dist WCSK prop");
-		wcskPropOverlapAll.printDistribution(System.out);
+		wcskPropOverlapSafe.printDistribution(System.out);
 		System.out.println("Dist ev prop");
-		evPropDistributionAll.printDistribution(System.out);*/
+		evPropDistributionSafe.printDistribution(System.out);*/
 		double numSafe = overlapDistributionSafe.getCount();
 		System.out.println("Number of safe edges: "+numSafe);
 		NormalDistribution [] answer = new NormalDistribution[distsAll.length];

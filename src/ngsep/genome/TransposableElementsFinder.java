@@ -4,26 +4,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
-import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.io.ReadAlignmentFileWriter;
-import ngsep.genome.io.SimpleGenomicRegionFileHandler;
+import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
-import ngsep.sequences.MinimizersTable;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.sequences.RawRead;
-import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 public class TransposableElementsFinder {
@@ -213,7 +205,9 @@ public class TransposableElementsFinder {
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
 		minimizerTable.loadGenome(genome, 15, 20, 1);
 		minimizerTable.setMaxAlnsPerRead(100);
-		minimizerTable.setMaxProportionBestCount(0.1);
+		//minimizerTable.setMaxAlnsPerRead(10);
+		minimizerTable.setMinProportionBestCount(0.1);
+		minimizerTable.setMinProportionReadLength(0.005);
 		System.out.println("loading known transposons");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
@@ -221,16 +215,27 @@ public class TransposableElementsFinder {
 		List<QualifiedSequence> knownTransposons = load.loadSequences(transposonsDatabaseFile);
 		System.out.println("searching transposions db");
 		for (QualifiedSequence transposon:knownTransposons) {
-			RawRead read = new RawRead(transposon.getName(), transposon.getCharacters(), null);
-			List<ReadAlignment> alignments = minimizerTable.alignRead(read);
-			System.out.println("Transposon sequence id: "+transposon.getName()+" alignments: "+alignments);
-			for (ReadAlignment aln: alignments) {
-				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(aln.getSequenceName(),aln.getFirst(), aln.getLast());
-				alignedTransposon.setTaxonomy(aln.getReadName());
+			List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
+			logClusters(genome, transposon, clusters);
+			for (UngappedSearchHitsCluster cluster:clusters) {
+				int sequenceIdx = cluster.getSubjectIdx();
+				QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
+				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),cluster.getSubjectEvidenceStart(), cluster.getSubjectEvidenceEnd());
+				alignedTransposon.setTaxonomy(transposon.getName());
 				answer.add(alignedTransposon);
 			}
 		}		
 		return answer;
+	}
+	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
+		System.out.println("Transposon sequence id: "+transposon.getName()+" clusters: "+clusters.size());
+		for (UngappedSearchHitsCluster cluster:clusters) {
+			int sequenceIdx = cluster.getSubjectIdx();
+			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
+			System.out.println("SeqName: "+refSeq.getName()+" expected: "+cluster.getSubjectPredictedStart() +" - "+ cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" weight: "+cluster.getWeightedCount());
+			
+		}
+		
 	}
 	/**
 	 * removes redundant transposons found by deNovo and similarity methods
