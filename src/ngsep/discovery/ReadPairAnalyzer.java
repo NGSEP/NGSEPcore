@@ -1013,28 +1013,40 @@ public class ReadPairAnalyzer {
 	private List<ReadPairCalledGenomicVariant> buildSplitReadIndels(GenomicRegionSortedCollection<GenomicRegionWithAlignment> alnsForSplitRead, Integer limitPos) {
 		List<ReadPairCalledGenomicVariant> answer = new ArrayList<ReadPairCalledGenomicVariant>();
 		List<GenomicRegionWithAlignment> alnsList = alnsForSplitRead.asList();
-		if(alnsList.size()==0) return answer;
-		List<ReadAlignment> overlappingAlns = new ArrayList<ReadAlignment>();
-		String seqName = null;
-		int firstPos = -1;
-		int lastPos = -1;
-		for(GenomicRegionWithAlignment aln:alnsList) {
-			if(firstPos==-1 || GenomicRegionSpanComparator.getInstance().span(firstPos, lastPos, aln.getFirst(), aln.getLast())) {
-				overlappingAlns.add(aln.getAlignment());
-				if(firstPos == -1) {
-					seqName = aln.getSequenceName();
-					firstPos = aln.getFirst();
-				}
-				if(lastPos < aln.getLast()) lastPos = aln.getLast();
-			} else break;
-		}
-		GenomicRegionImpl indelRegion = new GenomicRegionImpl(seqName, firstPos, lastPos);
-		if(limitPos ==null || indelRegion.getLast() < limitPos) {
-			ReadPairCalledGenomicVariant indel = buildSplitReadIndel (indelRegion,overlappingAlns); 
-			if(indel!=null) answer.add (indel);
-			alnsForSplitRead.removeFirst(overlappingAlns.size());
-			answer.addAll(buildSplitReadIndels(alnsForSplitRead, limitPos));
-		}
+		int n = alnsList.size();
+		//log.info("Building split read indels from "+n+" input alignments");
+		if(n==0) return answer;
+		int i=0;
+		while(i< n) {
+			List<ReadAlignment> overlappingAlns = new ArrayList<ReadAlignment>();
+			String seqName = null;
+			int firstPos = -1;
+			int lastPos = -1;
+			for(int j=i;j<n;j++) {
+				GenomicRegionWithAlignment aln = alnsList.get(j);
+				if(seqName == null || GenomicRegionSpanComparator.getInstance().span(firstPos, lastPos, aln.getFirst(), aln.getLast())) {
+					overlappingAlns.add(aln.getAlignment());
+					if(seqName == null) {
+						seqName = aln.getSequenceName();
+						firstPos = aln.getFirst();
+					}
+					if(lastPos < aln.getLast()) lastPos = aln.getLast();
+				} else break;
+			}
+			//log.info("Next indel from "+overlappingAlns.size()+" input alignments. First pos: "+i+" Aln region: "+seqName+" "+firstPos+" "+lastPos);
+			if(overlappingAlns.size()==0) {
+				log.warning("Possible error. Overlapping alignments size is empty. Aln region: "+seqName+" "+firstPos+" "+lastPos);
+				i++;
+				continue;
+			}
+			i+=overlappingAlns.size();
+			GenomicRegionImpl indelRegion = new GenomicRegionImpl(seqName, firstPos, lastPos);
+			if(limitPos ==null || indelRegion.getLast() < limitPos) {
+				ReadPairCalledGenomicVariant indel = buildSplitReadIndel (indelRegion,overlappingAlns); 
+				if(indel!=null) answer.add (indel);
+			}
+		}	
+		alnsForSplitRead.clear();
 		return answer;
 	}
 
