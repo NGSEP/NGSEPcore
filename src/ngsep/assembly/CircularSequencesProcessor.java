@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
-import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.ReferenceGenome;
@@ -43,7 +42,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 public class CircularSequencesProcessor {
 	private Logger log = Logger.getAnonymousLogger();
 	//constant values for default
-	public static final int DEF_MAX_LENGTH = 0;
+	public static final int DEF_MAX_LENGTH = 6000000;
 	private static final int END_LENGTH = 1000;
 	private static final int THRESHOLD=50;
 	// Start sequences for circularization
@@ -81,7 +80,6 @@ public class CircularSequencesProcessor {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> contigs = handler.loadSequences(args[0]);
 		instance.starts = handler.loadSequences(args[1]);
-
 		instance.processContigs(contigs);
 		
 		handler.saveSequences(contigs, System.out, 100);
@@ -224,12 +222,15 @@ public class CircularSequencesProcessor {
 		aligner.loadGenome(genome, 15, 20, 1);
 		List<ReadAlignment> alns = new ArrayList<>();
 		for(QualifiedSequence startSeq:starts) {
-			alns.addAll(aligner.alignRead(startSeq));
+			List<ReadAlignment> alnsRead = aligner.alignRead(startSeq);
+			//System.err.println("Start seq: "+startSeq.getName()+" Alignments: "+alnsRead);
+			alns.addAll(alnsRead);
 		}
 		if(alns.size()==0) return;
 		Collections.sort(alns,(a1,a2)->a2.getAlignmentQuality()- a1.getAlignmentQuality());
 		ReadAlignment aln = alns.get(0);
-		int cutSite = aln.getFirst();
+		int cutSite = Math.max(0, aln.getFirst()-aln.getSoftClipStart()-1);
+		if(aln.isNegativeStrand()) cutSite = Math.min(contig.getLength(), aln.getLast()+aln.getSoftClipEnd());
 		String sequence = contig.getCharacters().toString();
 		String subseqLeft = sequence.substring(0,cutSite);
 		String subseqRight = sequence.substring(cutSite);
