@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
@@ -24,10 +27,14 @@ public class TransposableElementsFinder {
 	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
+	
+	public static final int DEF_NUM_THREADS = 1;
+	
 	// Parameters 
 	private String inputFile = null;
 	private String outputFile = null;
 	private String transposonsDatabaseFile = null;
+	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
 	
@@ -65,6 +72,16 @@ public class TransposableElementsFinder {
 		this.transposonsDatabaseFile = transposonsDatabaseFile;
 	}
 	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	
+	public void setNumThreads(String value) {
+		this.setNumThreads(Integer.parseInt(value));
+	}
 	public static void main(String[] args) throws Exception {
 		TransposableElementsFinder instance = new TransposableElementsFinder();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -75,6 +92,7 @@ public class TransposableElementsFinder {
 		logParameters ();
 		if(inputFile==null) throw new IOException("The input genome is a required parameter");
 		if(outputFile==null) throw new IOException("The output file is a required parameter");
+		if(transposonsDatabaseFile==null) throw new IOException("The transposons database file is a required parameter");
 		ReferenceGenome genome = new ReferenceGenome(inputFile);
 		List<TransposableElementAnnotation> transposonAnnotations = findTransposons(genome);
 		saveTransposons(transposonAnnotations,outputFile);
@@ -201,30 +219,76 @@ public class TransposableElementsFinder {
 	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome) throws InterruptedException, IOException {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 	
-		System.out.println("creating minimizerTable");
+		log.info("Creating reference index");
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
-		minimizerTable.loadGenome(genome, 15, 20, 1);
-		minimizerTable.setMaxAlnsPerRead(100);
+		minimizerTable.loadGenome(genome, 15, 20, numThreads);
+		minimizerTable.setMaxAlnsPerRead(10000);
+		//minimizerTable.setMaxAlnsPerRead(100);
 		//minimizerTable.setMaxAlnsPerRead(10);
 		minimizerTable.setMinProportionBestCount(0.1);
 		minimizerTable.setMinProportionReadLength(0.005);
-		System.out.println("loading known transposons");
+		log.info("Loading known transposons");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
 		//loading known transposons
 		List<QualifiedSequence> knownTransposons = load.loadSequences(transposonsDatabaseFile);
-		System.out.println("searching transposions db");
-		for (QualifiedSequence transposon:knownTransposons) {
-			List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
-			logClusters(genome, transposon, clusters);
-			for (UngappedSearchHitsCluster cluster:clusters) {
-				int sequenceIdx = cluster.getSubjectIdx();
-				QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
-				TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),cluster.getSubjectEvidenceStart(), cluster.getSubjectEvidenceEnd());
-				alignedTransposon.setTaxonomy(transposon.getName());
-				answer.add(alignedTransposon);
-			}
-		}		
+		log.info("Searching transposons db");
+		List<TransposableElementAnnotation> elements = alignTransposonSequences(genome, minimizerTable, knownTransposons);
+		answer.addAll(elements);
+		log.info("Finished first round. Identified "+elements.size()+" regions. Starting second round");
+		//Second round
+		List<QualifiedSequence> foundSequences = extractSequences(genome,elements);
+		elements = alignTransposonSequences(genome, minimizerTable, foundSequences);
+		answer.addAll(elements);
+		log.info("Finished second round. Identified "+elements.size()+" regions. Total: "+answer.size());
+		return answer;
+	}
+	private List<QualifiedSequence> extractSequences(ReferenceGenome genome, List<TransposableElementAnnotation> elements) {
+		List<QualifiedSequence> sequences = new ArrayList<>();
+		for(TransposableElementAnnotation ann:elements) {
+			CharSequence sequence = genome.getReference(ann.getSequenceName(), ann.getFirst(), ann.getLast());
+			QualifiedSequence qseq = new QualifiedSequence(ann.getTaxonomy(),sequence);
+			sequences.add(qseq);
+		}
+		return sequences;
+	}
+	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable, List<QualifiedSequence> knownTransposons) {
+		List<List<TransposableElementAnnotation>> predictions = new ArrayList<>();
+		for(int i=0;i<knownTransposons.size();i++) {
+			predictions.add(new ArrayList<>());
+		}
+		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, knownTransposons.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		for (int i=0;i<knownTransposons.size();i++) {
+			QualifiedSequence transposon = knownTransposons.get(i);
+			final int x = i;
+			pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, transposon)));
+		}
+		pool.shutdown();
+		try {
+			pool.awaitTermination(knownTransposons.size(), TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+    	if(!pool.isShutdown()) {
+			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
+		}
+    	List<TransposableElementAnnotation> answer = new ArrayList<>();
+    	for (int i=0;i<knownTransposons.size();i++) {
+    		answer.addAll(predictions.get(i));
+    	}
+		return answer;
+	}
+	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable, QualifiedSequence transposon) {
+		List<TransposableElementAnnotation> answer = new ArrayList<>();
+		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
+		//logClusters(genome, transposon, clusters);
+		for (UngappedSearchHitsCluster cluster:clusters) {
+			int sequenceIdx = cluster.getSubjectIdx();
+			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
+			TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),cluster.getSubjectEvidenceStart(), cluster.getSubjectEvidenceEnd());
+			alignedTransposon.setTaxonomy(transposon.getName());
+			answer.add(alignedTransposon);
+		}
 		return answer;
 	}
 	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
@@ -248,6 +312,7 @@ public class TransposableElementsFinder {
 		for(TransposableElementAnnotation ann:annotations) {
 			if(next==null) next = ann;
 			else if (merge(next,ann)) {
+				if(ann.length()>next.length()) next.setTaxonomy(ann.getTaxonomy());
 				next.setLast(Math.max(next.getLast(),ann.getLast()));
 			} else {
 				answer.add(next);

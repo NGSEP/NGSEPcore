@@ -1048,6 +1048,9 @@ Output file with annotations of transposable elements
 <option id="d" type="FILE" attribute="transposonsDatabaseFile">
 Database of transposable elements to annotate the genome
 </option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
+</option>
 </command>
 
 <command id="VCFAnnotate" class="ngsep.vcf.VCFFunctionalAnnotator" groupId="VariantsDownstream" formerId="Annotate">
