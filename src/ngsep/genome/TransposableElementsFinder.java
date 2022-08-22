@@ -237,6 +237,10 @@ public class TransposableElementsFinder {
 		answer.addAll(elements);
 		log.info("Finished first round. Identified "+elements.size()+" regions. Starting second round");
 		//Second round
+		GenomicRegionSortedCollection<TransposableElementAnnotation> sortedElements = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
+		sortedElements.addAll(elements);
+		elements = removeRedundantAnnotations(sortedElements);
+		log.info("Regions after removing redundancies: "+elements.size());
 		List<QualifiedSequence> foundSequences = extractSequences(genome,elements);
 		elements = alignTransposonSequences(genome, minimizerTable, foundSequences);
 		answer.addAll(elements);
@@ -261,7 +265,7 @@ public class TransposableElementsFinder {
 		for (int i=0;i<knownTransposons.size();i++) {
 			QualifiedSequence transposon = knownTransposons.get(i);
 			final int x = i;
-			pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, transposon)));
+			pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, x, transposon)));
 		}
 		pool.shutdown();
 		try {
@@ -278,7 +282,7 @@ public class TransposableElementsFinder {
     	}
 		return answer;
 	}
-	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable, QualifiedSequence transposon) {
+	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
 		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
 		//logClusters(genome, transposon, clusters);
@@ -289,6 +293,7 @@ public class TransposableElementsFinder {
 			alignedTransposon.setTaxonomy(transposon.getName());
 			answer.add(alignedTransposon);
 		}
+		if(seqId%100==0) log.info("Processed element index "+seqId+" name: "+transposon.getName()+" hits: "+answer.size());
 		return answer;
 	}
 	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
@@ -302,7 +307,7 @@ public class TransposableElementsFinder {
 		
 	}
 	/**
-	 * removes redundant transposons found by deNovo and similarity methods
+	 * Removes redundant transposons found by deNovo and similarity methods
 	 * @param annotations the transposons found by deNovo and by similarity
 	 * @return List<TransposableElementAnnotation> final list of unique transposable elements with chromosome, starting an ending position
 	 */
