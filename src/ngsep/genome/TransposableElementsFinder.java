@@ -235,6 +235,10 @@ public class TransposableElementsFinder {
 		log.info("Searching transposons db");
 		List<TransposableElementAnnotation> elements = alignTransposonSequences(genome, minimizerTable, knownTransposons);
 		answer.addAll(elements);
+		if(answer.size() ==0 ) {
+			log.info("Finished first round. No TEs found with the given database.");
+			return answer;
+		}
 		log.info("Finished first round. Identified "+elements.size()+" regions. Starting second round");
 		//Second round
 		GenomicRegionSortedCollection<TransposableElementAnnotation> sortedElements = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
@@ -324,7 +328,7 @@ public class TransposableElementsFinder {
 				next = ann;
 			}
 		}
-		answer.add(next);
+		if(next!=null)answer.add(next);
 		
 		return answer;
 	}
