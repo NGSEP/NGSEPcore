@@ -53,6 +53,7 @@ public class GenomicVariantImpl implements GenomicVariant {
 		variantTypesByName.put(TYPENAME_LARGEDEL, TYPE_LARGEDEL);
 		variantTypesByName.put(TYPENAME_LARGEINS, TYPE_LARGEINS);
 		variantTypesByName.put(TYPENAME_INVERSION, TYPE_INVERSION);
+		variantTypesByName.put(TYPENAME_DUPLICATION, TYPE_DUPLICATION);
 		//Backwards compatibility
 		variantTypesByName.put("Deletion", TYPE_LARGEDEL);
 		variantTypesByName.put("Insertion", TYPE_LARGEINS);
@@ -68,6 +69,7 @@ public class GenomicVariantImpl implements GenomicVariant {
 		variantTypesById.put(TYPE_LARGEDEL, TYPENAME_LARGEDEL);
 		variantTypesById.put(TYPE_LARGEINS, TYPENAME_LARGEINS);
 		variantTypesById.put(TYPE_INVERSION, TYPENAME_INVERSION);
+		variantTypesById.put(TYPE_DUPLICATION, TYPENAME_DUPLICATION);
 	}
 	
 	

@@ -1,46 +1,32 @@
 package ngsep.discovery;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Random;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
 
-import ngsep.clustering.DBSCANClusteringAlgorithm;
-import ngsep.clustering.Pair;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
-import ngsep.graphs.MaximalCliquesFinder;
-import ngsep.math.Distribution;
+import ngsep.graphs.StronglyConnectedComponents;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
 
-public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
+public class SCCClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
-	public final static int MIN_DEFAULT_POINTS = 4;
-	public final static double DEFAULT_EPSILON = 250;
+	public final static double DEFAULT_MIN_ED = 100;
 	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
-	
-	private int minPoints = MIN_DEFAULT_POINTS;
-	private double epsilon = DEFAULT_EPSILON;
-	
+
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
 	
-	public DBSCANClusteringDetectionAlgorithm(ReferenceGenome genome, 
+	private double minED = DEFAULT_MIN_ED;
+	/**
+	private int testGraphNumber = 0;
+	private int maxTests = 10;
+	**/
+	public SCCClusteringDetectionAlgorithm(ReferenceGenome genome, 
 			GenomicRegionSortedCollection<GenomicVariant>  signatures, int SVEventLength){
 		this.signatures = signatures;
 	}
-
-	@Override
+	
 	public Map<String, List<List<Integer>>> callVariantClusters() {
 		// TODO Auto-generated method stub
 		Map<String, List<List<Integer>>> clusters = new LinkedHashMap<>();
@@ -83,14 +69,30 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 					visited[i] = true;
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 || 
+					if(!DBSCANClusteringDetectionAlgorithm.
+							testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 || 
 							toCluster.size() > 10000) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
-							double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
-							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
+							List<List<Integer>> directedGraph = createGraphAsAdjacencyList(toCluster);
+							List<List<Integer>> partClusters = StronglyConnectedComponents.
+									computeStronglyConnectedComponents(idxs, directedGraph);
+							chrClusters.addAll(partClusters);
+							/**if(r==1 && maxTests>0 && toCluster.size()>1) {
+								int r = new Random().nextInt(100);
+								try {
+									printDirectedGraphForTesting(directedGraph, testGraphNumber);
+								} catch (IOException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+								testGraphNumber++;
+								maxTests--;
+							}
+							**/
+							/**DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
 							List<List<Integer>> partClusters = instance
 									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
 							chrClusters.addAll(partClusters);
@@ -102,7 +104,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 								List<List<Integer>> weakClusters = 
 										clusterConnectedComponents(noisePoints, weakDistanceMatrix, epsilon);
 								chrClusters.addAll(weakClusters);
-							}
+							}**/
 							toCluster.clear();
 					}
 				}
@@ -112,48 +114,38 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		
 		return clusters;
 	}
-
-	private List<List<Integer>> clusterConnectedComponents(List<Integer> noisePoints, double[][] weakDistanceMatrix,
-			double epsilon) {
+	/**
+	private void printDirectedGraphForTesting(List<List<Integer>> directedGraph, int testGraphNumber) throws IOException {
 		// TODO Auto-generated method stub
-		DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
-		List<List<Integer>> weakClusters = inst
-				.runDBSCANClustering(noisePoints, weakDistanceMatrix, 0, epsilon);
-		return weakClusters;
-	}
-	private double [][] calculateDistanceMatrix(List<GenomicVariant> candidateSignatures) {
-		// TODO Auto-generated method stub
-		int n = candidateSignatures.size();
-		double [][] distanceMatrix = new double[n][n];
-		for(int i = 0; i < n; i++) {
-			GenomicVariant si = candidateSignatures.get(i);
-			for(int j = 0; j < n; j++) {
-				GenomicVariant sj = candidateSignatures.get(j);
-				if(!si.equals(sj)) {
-					double distance = calculateThreeDimEuclideanDistance(si, sj);
-					distanceMatrix[i][j] = distance;
+		try(PrintWriter w = new PrintWriter("graphTesting" + testGraphNumber + ".tsv")){
+			w.println("source" + "\t" + "target");
+			for(int i = 0; i < directedGraph.size(); i++) {
+				List<Integer> iNeighbors = directedGraph.get(i);
+				for(int j : iNeighbors) {
+					w.println(i + "\t" + j);
 				}
 			}
 		}
-		return distanceMatrix;
-	}
+	}**/
 
-	public static double calculateThreeDimEuclideanDistance(GenomicVariant s1, GenomicVariant s2) {
-		return calculateThreeDimEuclideanDistance(s1.getFirst(), s2.getFirst(), s1.getLast(), s2.getLast(), 
-				s1.length(), s2.length());
-	}
-	
-	public static double calculateThreeDimEuclideanDistance(int x1, int x2, int y1, int y2, int z1, int z2) {
-		double eDistance;
-		double xDistance = Math.pow(x2-x1 ,2);
-		double yDistance = Math.pow(y2-y1, 2);
-		double zDistance = Math.pow(z2-z1, 2);
-		eDistance = xDistance + yDistance + zDistance;
-		eDistance = Math.sqrt(eDistance);
-		return eDistance;
-	}
-	
-	public static boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
-		return Math.abs(s2.getFirst() - s1.getFirst()) < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
+	private List<List<Integer>> createGraphAsAdjacencyList(List<GenomicVariant> signatures) {
+		// TODO Auto-generated method stub
+		List<List<Integer>> adjacencyList = new ArrayList<>();
+		for(int l = 0; l < signatures.size(); l++) adjacencyList.add(new ArrayList<>());
+		for(int i = 0; i < signatures.size(); i++) {
+			GenomicVariant si = signatures.get(i);
+			for(int j = 0; j < signatures.size(); j++) {
+				GenomicVariant sj = signatures.get(j);
+				if(i==j) continue;
+				if(i<j) {
+					double distance = DBSCANClusteringDetectionAlgorithm.calculateThreeDimEuclideanDistance(si, sj);
+					if(distance < minED) adjacencyList.get(i).add(j);
+				}
+				else {
+					if(sj.length() == si.length()) adjacencyList.get(i).add(j);
+				}
+			}
+		}
+		return adjacencyList;
 	}
 }

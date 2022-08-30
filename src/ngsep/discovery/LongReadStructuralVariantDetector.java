@@ -54,6 +54,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	public static final int DEL_INTER_DETERMINING_MAX_DISTANCE = 90000;
 	public static final String MAX_CLIQUE_FINDER_ALGORITHM = "MCC";
 	public static final String DBSCAN_ALGORITHM = "DBSCAN";
+	public static final String STRONGLY_CONNECTED_COMPONENTS_ALGORITHM = "SCC";
 	
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
 	private GenomicRegionSortedCollection<GenomicVariant> variants;
@@ -77,11 +78,12 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	}
 	
 	public void setClusteringAlgorithm(String algorithm) throws Exception {
-		if(DBSCAN_ALGORITHM.equals(algorithm) || MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm)) {
+		if(DBSCAN_ALGORITHM.equals(algorithm) || MAX_CLIQUE_FINDER_ALGORITHM.equals(algorithm) ||
+				STRONGLY_CONNECTED_COMPONENTS_ALGORITHM.equals(algorithm)) {
 			this.clusteringAlgorithm = algorithm;
 		}
 		else {
-			throw new Exception("Algorithm must be either DBSCAN or MCC");
+			throw new Exception("Algorithm must be either DBSCAN, SCC or MCC");
 		}
 	}
 	
@@ -389,13 +391,20 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		isDuplication = (tandemRepeatSupportingPairings + interspersedTandemRepeatSupportingPairings) > 
 			possibleDupPairings*0.8;
 		if(isDuplication) {
-			String typeOfRepeat = tandemRepeatSupportingPairings >= interspersedTandemRepeatSupportingPairings ? 
+		/**	String typeOfRepeat = tandemRepeatSupportingPairings >= interspersedTandemRepeatSupportingPairings ? 
 					"TANDEM REPEAT" : "INTERSPERSED REPEAT";
 			int nRepeats = typeOfRepeat.equals("TANDEM REPEAT") ? tandemRepeatSupportingPairings : 
 				interspersedTandemRepeatSupportingPairings;
 			System.out.println(variant.getSequenceName() + " " + variant.getFirst() + " " + variant.getLast() + " " +
 					+ variant.length() + " " + GenomicVariantImpl.getVariantTypeName(variant.getType()) + " " +
 					typeOfRepeat + " " + nRepeats);
+					**/
+			variant.setType(GenomicVariant.TYPE_DUPLICATION);
+			System.out.println(GenomicVariantImpl.getVariantTypeName(variant.getType()));
+			List<String> alleles = Arrays.asList(variant.getAlleles());
+			alleles.set(1, "<" + GenomicVariant.TYPENAME_DUPLICATION + ">");
+			GenomicVariantImpl impl = (GenomicVariantImpl) variant;
+			impl.setAlleles(alleles);
 		}
 	}
 	/**
@@ -675,6 +684,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		else if(DBSCAN_ALGORITHM.equals(clusteringAlgorithm)) {
 			LongReadVariantDetectorClusteringAlgorithm caller = new DBSCANClusteringDetectionAlgorithm(refGenome, signatures, lengthToDefineSVEvent);
+			clusters = caller.callVariantClusters();
+		}
+		else if(STRONGLY_CONNECTED_COMPONENTS_ALGORITHM.equals(clusteringAlgorithm)) {
+			LongReadVariantDetectorClusteringAlgorithm caller = new SCCClusteringDetectionAlgorithm(refGenome, signatures, lengthToDefineSVEvent);
 			clusters = caller.callVariantClusters();
 		}
 		variants = callVariants(clusters);
