@@ -52,6 +52,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	private PairwiseAligner alignerStart;
 	private PairwiseAligner alignerEnd;
 	private int maxAlnsPerRead = 3;
+	private double minWeightedCount = 10;
 	private double minProportionBestCount = 0.2;
 	private double minProportionReadLength = 0.01;
 	
@@ -104,6 +105,12 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 	
+	public double getMinWeightedCount() {
+		return minWeightedCount;
+	}
+	public void setMinWeightedCount(double minWeightedCount) {
+		this.minWeightedCount = minWeightedCount;
+	}
 	public double getMinProportionBestCount() {
 		return minProportionBestCount;
 	}
@@ -222,7 +229,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
 		for (int i=0;i<initialClusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = initialClusters.get(i);
-			if(cluster.getWeightedCount()<minProportionBestCount*maxCount) break;
+			double wc = cluster.getWeightedCount(); 
+			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
 			
 			answer.add(cluster);
 		}
@@ -233,13 +241,13 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 		Map<Integer,List<UngappedSearchHit>> hitsByReference = kmerCodesTable.match(-1,query);
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
-		double minRawHitsSize = Math.max(10, minProportionReadLength*query.length());
+		double minRawHitsSize = Math.max(minWeightedCount, minProportionReadLength*query.length());
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
-			//System.out.println("Reference id: "+sequenceIdx+" total raw hits: "+totalHitsSubject.size());
+			System.out.println("Reference id: "+sequenceIdx+" total raw hits: "+totalHitsSubject.size());
 			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getQueryIdx()>21000 && hit.getQueryIdx()<27000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
-			//for(UngappedSearchHit hit: totalHitsSubject) if(query.length()==6931 && hit.getStart()>9409000 && hit.getStart()<9420000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
+			//for(UngappedSearchHit hit: totalHitsSubject) if(query.length()==11805 && hit.getStart()>0 && hit.getStart()<1000000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getStart()-h2.getStart());
 			List<UngappedSearchHit> rawClusterKmers = new ArrayList<UngappedSearchHit>();
 			UngappedSearchHitsCluster cluster = null;
@@ -278,7 +286,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
-			if(cluster.getWeightedCount()<minProportionBestCount*maxCount) break;
+			double wc = cluster.getWeightedCount(); 
+			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
 			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
@@ -482,3 +491,4 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		
 	}
 }
+

@@ -34,6 +34,7 @@ public class TransposableElementsFinder {
 	private String inputFile = null;
 	private String outputFile = null;
 	private String transposonsDatabaseFile = null;
+	private int minTELength = 200;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
@@ -72,6 +73,14 @@ public class TransposableElementsFinder {
 		this.transposonsDatabaseFile = transposonsDatabaseFile;
 	}
 	
+	
+	
+	public int getMinTELength() {
+		return minTELength;
+	}
+	public void setMinTELength(int minTELength) {
+		this.minTELength = minTELength;
+	}
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -119,6 +128,7 @@ public class TransposableElementsFinder {
 		GenomicRegionSortedCollection<TransposableElementAnnotation> annotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
 		//annotations.addAll(findTransposonsDeNovo(genome));
 		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
+		System.out.println("Removing redundancies from final dataset with "+annotations.size()+" annotations");
 		return removeRedundantAnnotations(annotations);
 	}
 	/**
@@ -225,8 +235,8 @@ public class TransposableElementsFinder {
 		minimizerTable.setMaxAlnsPerRead(10000);
 		//minimizerTable.setMaxAlnsPerRead(100);
 		//minimizerTable.setMaxAlnsPerRead(10);
-		minimizerTable.setMinProportionBestCount(0.1);
-		minimizerTable.setMinProportionReadLength(0.005);
+		minimizerTable.setMinProportionBestCount(0);
+		minimizerTable.setMinProportionReadLength(0);
 		log.info("Loading known transposons");
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
@@ -289,11 +299,12 @@ public class TransposableElementsFinder {
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
 		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
-		//logClusters(genome, transposon, clusters);
+		//if(transposon.getName().contains("Chr2_20635304")) logClusters(genome, transposon, clusters);
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),cluster.getSubjectEvidenceStart(), cluster.getSubjectEvidenceEnd());
+			if(alignedTransposon.length()<minTELength) continue;
 			alignedTransposon.setTaxonomy(transposon.getName());
 			answer.add(alignedTransposon);
 		}
@@ -301,7 +312,7 @@ public class TransposableElementsFinder {
 		return answer;
 	}
 	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
-		System.out.println("Transposon sequence id: "+transposon.getName()+" clusters: "+clusters.size());
+		System.out.println("Transposon sequence id: "+transposon.getName()+" length: "+transposon.getLength()+" clusters: "+clusters.size());
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
@@ -319,6 +330,7 @@ public class TransposableElementsFinder {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		TransposableElementAnnotation next = null;
 		for(TransposableElementAnnotation ann:annotations) {
+			//System.out.println("Next annotation. "+ann.getSequenceName()+":"+ann.getFirst()+" "+ann.getLast()+" family: "+ann.getTaxonomy());
 			if(next==null) next = ann;
 			else if (merge(next,ann)) {
 				if(ann.length()>next.length()) next.setTaxonomy(ann.getTaxonomy());
@@ -334,7 +346,8 @@ public class TransposableElementsFinder {
 	}
 	private boolean merge(TransposableElementAnnotation next, TransposableElementAnnotation ann) {
 		if(!next.getSequenceName().equals(ann.getSequenceName())) return false;
-		return GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast())>ann.length()/2;
+		int spanLength = GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast()); 
+		return spanLength > next.length()/4 || spanLength > ann.length()/4;
 	}
 	/**
 	 * Save found the transposons 
