@@ -997,6 +997,9 @@ Maximum distance (in basepairs) between homology units to include them within th
 <option id="f" type="DOUBLE" attribute="minFrequencySoftCore" defaultConstant="DEF_MIN_FREQUENCY_SOFT_CORE">
 Minimum frequency to classify soft core gene families.
 </option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
+</option>
 
 
 <!--
@@ -1028,6 +1031,9 @@ Skip the MCL clustering phase and returns unfiltered orthogroups.
 </option>
 <option id="y" type="INT" attribute="inputType" defaultConstant="INPUT_TYPE_CDNA">
 Type of sequences in the input file. 1 for CDNA, 2 for proteins.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
 </option>
 </command>
 

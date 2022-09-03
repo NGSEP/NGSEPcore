@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.transcriptome.Transcriptome;
@@ -61,6 +62,7 @@ public class GenomesAligner {
 	public static final int DEF_MIN_BLOCK_LENGTH = PairwiseSyntenyBlocksFinder.DEF_MIN_BLOCK_LENGTH;
 	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = PairwiseSyntenyBlocksFinder.DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	public static final double DEF_MIN_FREQUENCY_SOFT_CORE = 0.9;
+	public static final int DEF_NUM_THREADS = 1;
 
 	// Logging and progress
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
@@ -76,6 +78,7 @@ public class GenomesAligner {
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
 	private String inputDirectory = null;
+	private int numThreads = 1;
 
 	
 	// Model attributes
@@ -189,6 +192,15 @@ public class GenomesAligner {
 	public void setInputDirectory(String inputDirectory) {
 		this.inputDirectory = inputDirectory;
 	}
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	
 	public static void main(String[] args) throws Exception 
 	{
@@ -230,6 +242,7 @@ public class GenomesAligner {
 		out.println("Minimum number of consistent homology units to call a synteny block: "+ getMinHomologUnitsBlock());
 		out.println("Maximum distance between homology units : "+ getMaxDistanceBetweenUnits());
 		out.println("Minimum frequency to classify soft core gene families: "+ getMinFrequencySoftCore());
+		out.println("Number of threads: "+ getNumThreads());
 		
 		log.info(os.toString());
 	}
@@ -313,24 +326,63 @@ public class GenomesAligner {
 	private void inferOrthologs() {
 		genomesDescription();
 		// Identify paralogs
+		ThreadPoolManager poolParalogs = new ThreadPoolManager(numThreads, numThreads);
+		poolParalogs.setSecondsPerTask(300);
 		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome = genomes.get(i);
-			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome.getHomologyUnits());
-			log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
+			final int index = i;
+			try {
+				poolParalogs.queueTask(()->calculateParalogs(index));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Concurrence error calculating paralogs for genome "+i,e);
+			}
 		}
-		
+		try {
+			poolParalogs.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error calculating paralogs",e);
+		}
+		log.info("Calculated paralogs");
 		//Identify orthology relationships between pairs of genomes
+		ThreadPoolManager poolOrthologs = new ThreadPoolManager(numThreads, numThreads);
+		poolOrthologs.setSecondsPerTask(300);
 		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome1 = genomes.get(i);
+			
 			for (int j=0;j<genomes.size();j++) {
-				AnnotatedReferenceGenome genome2 = genomes.get(j);
-				if(i!=j) {
-					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyUnits(), genome2.getHomologyUnits());
-					log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
+				if(i==j) continue;
+				try {
+					final int index1=i;
+					final int index2=j;
+					poolOrthologs.queueTask(()->calculateOrthologs(index1, index2));
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					throw new RuntimeException("Concurrence error calculating orthologs between "+i+" "+j,e);
 				}
 			}
 		}
+		try {
+			poolOrthologs.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error calculating orthologs",e);
+		}
+		log.info("Calculated orthologs");
 	}
+	private void calculateParalogs(int i) {
+		log.info("Finding paralogs for genome: "+i);
+		AnnotatedReferenceGenome genome = genomes.get(i);
+		List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(genome.getHomologyUnits());
+		log.info(String.format("Paralogs found for Genome #%d: %d", i+1, edges.size()));
+	}
+	private void calculateOrthologs(int i, int j) {
+		log.info("Finding orthologs for genomes: "+i+" "+j);
+		AnnotatedReferenceGenome genome1 = genomes.get(i);
+		AnnotatedReferenceGenome genome2 = genomes.get(j);
+		List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(genome1.getHomologyUnits(), genome2.getHomologyUnits());
+		log.info(String.format("Orthologs found for Genome #%d #%d: %d", i+1, j+1, edges.size()));
+	}
+	
 	
 	private void genomesDescription() {
 		log.info("Total number of genomes: " + genomes.size());
@@ -346,7 +398,7 @@ public class GenomesAligner {
 		homologyClusters = calculator.clusterHomologs(genomes);
 	}
 	
-	private List<HomologyEdge> getAllHomologyEdges() {
+	public List<HomologyEdge> getAllHomologyEdges() {
 		List<HomologyEdge> answer = new ArrayList<HomologyEdge>();
 		for(AnnotatedReferenceGenome genome:genomes) {
 			List<HomologyUnit> units = genome.getHomologyUnits();

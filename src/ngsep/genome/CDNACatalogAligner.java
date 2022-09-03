@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
+import ngsep.main.ThreadPoolManager;
 
 public class CDNACatalogAligner {
 	// Constants for default values
@@ -23,6 +24,7 @@ public class CDNACatalogAligner {
 	public static final byte DEF_KMER_LENGTH = HomologRelationshipsFinder.DEF_KMER_LENGTH;
 	public static final int DEF_MIN_PCT_KMERS = HomologRelationshipsFinder.DEF_MIN_PCT_KMERS;
 	public static final int DEF_MAX_HOMOLOGS_UNIT = 3;
+	public static final int DEF_NUM_THREADS = 1;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(CDNACatalogAligner.class.getName());
@@ -33,6 +35,7 @@ public class CDNACatalogAligner {
 	private boolean skipMCL= false;
 	private int inputType = INPUT_TYPE_CDNA;
 	private boolean calculateNucleotideEvolutionStatistics = false;
+	private int numThreads = 1;
 	
 	// Model attributes
 	private HomologRelationshipsFinder homologRelationshipsFinder = new HomologRelationshipsFinder();
@@ -98,6 +101,15 @@ public class CDNACatalogAligner {
 	public void setInputType(String value) {
 		setInputType((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public static void main(String[] args) throws Exception {
 		CDNACatalogAligner instance = new CDNACatalogAligner();
 		int i = CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -130,23 +142,53 @@ public class CDNACatalogAligner {
 	private void generateOrthologs() {
 		catalogsDescription();
 		int n = homologyCatalogs.size();
+		ThreadPoolManager poolParalogs = new ThreadPoolManager(numThreads, numThreads);
 		for(int i=0;i<n;i++) {
-			HomologyCatalog catalog = homologyCatalogs.get(i);
-			List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(catalog.getHomologyUnits());
-			log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
+			final int index = i;
+			try {
+				poolParalogs.queueTask(()->calculateParalogs(index));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Concurrence error calculating paralogs for genome "+i,e);
+			} 
 		}
-		
-		
+		try {
+			poolParalogs.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error calculating paralogs",e);
+		}
+		ThreadPoolManager poolOrthologs = new ThreadPoolManager(numThreads, numThreads);
 		for(int i=0;i<n;i++) {
-			HomologyCatalog catalog1 = homologyCatalogs.get(i);
 			for (int j=0;j<n;j++) {
-				HomologyCatalog catalog2 = homologyCatalogs.get(j);
-				if(i!=j) {
-					List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1.getHomologyUnits(), catalog2.getHomologyUnits());
-					log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
+				if(i==j) continue;
+				try {
+					final int index1=i;
+					final int index2=j;
+					poolOrthologs.queueTask(()->calculateOrthologs(index1, index2));
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					throw new RuntimeException("Concurrence error calculating orthologs between "+i+" "+j,e);
 				}
 			}
 		}
+		try {
+			poolOrthologs.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error calculating orthologs",e);
+		}
+	}
+	private void calculateOrthologs(int i, int j) {
+		HomologyCatalog catalog1 = homologyCatalogs.get(i);
+		HomologyCatalog catalog2 = homologyCatalogs.get(j);
+		List<HomologyEdge> edges = homologRelationshipsFinder.calculateOrthologs(catalog1.getHomologyUnits(), catalog2.getHomologyUnits());
+		log.info(String.format("Orthologs found for Organisms #%d #%d: %d", i+1, j+1, edges.size()));
+	}
+	private void calculateParalogs(int i) {
+		HomologyCatalog catalog = homologyCatalogs.get(i);
+		List<HomologyEdge> edges = homologRelationshipsFinder.calculateParalogs(catalog.getHomologyUnits());
+		log.info(String.format("Paralogs found for Organism #%d: %d", i+1, edges.size()));
 	}
 	
 	private void catalogsDescription() {
@@ -160,10 +202,13 @@ public class CDNACatalogAligner {
 	public void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
-		out.println("Loaded: "+ homologyCatalogs.size()+" annotated genomes");
+		if(inputType==INPUT_TYPE_CDNA)  out.println("Loaded: "+ homologyCatalogs.size()+" transcriptomes");
+		if(inputType==INPUT_TYPE_PROTEIN)  out.println("Loaded: "+ homologyCatalogs.size()+" proteomes");
 		out.println("Output prefix:"+ outputPrefix);
 		out.println("K-mer length: "+ getKmerLength());
 		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		if(skipMCL) out.println("Skip the MCL algorithm. Use connected components");
+		out.println("Number of threads: "+ getNumThreads());
 		log.info(os.toString());
 	}
 	

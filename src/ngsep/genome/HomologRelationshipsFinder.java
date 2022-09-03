@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import JSci.maths.statistics.ChiSqrDistribution;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.math.Distribution;
-import ngsep.math.PhredScoreHelper;
 import ngsep.math.ShannonEntropyCalculator;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.AminoacidSequence;
@@ -60,11 +59,13 @@ public class HomologRelationshipsFinder {
 	
 	public List<HomologyEdge> calculateParalogs (List<HomologyUnit> units) {
 		Map<Long,Set<Integer>> unitsByKmer =indexKmersHomologyUnits(units);
+		System.out.println("Indexed: "+unitsByKmer.size()+" kmers");
 		return calculateHomologs(units, units, unitsByKmer);
 	}
 	
 	public List<HomologyEdge> calculateOrthologs (List<HomologyUnit> queryUnits, List<HomologyUnit> subjectUnits) {
 		Map<Long,Set<Integer>> subjectUnitsByKmer =indexKmersHomologyUnits(subjectUnits);
+		System.out.println("Indexed: "+subjectUnitsByKmer.size()+" subject kmers");
 		return calculateHomologs(queryUnits, subjectUnits, subjectUnitsByKmer);
 	}
 	
