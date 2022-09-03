@@ -143,6 +143,7 @@ public class CDNACatalogAligner {
 		catalogsDescription();
 		int n = homologyCatalogs.size();
 		ThreadPoolManager poolParalogs = new ThreadPoolManager(numThreads, numThreads);
+		poolParalogs.setSecondsPerTask(300);
 		for(int i=0;i<n;i++) {
 			final int index = i;
 			try {
@@ -159,6 +160,7 @@ public class CDNACatalogAligner {
 			throw new RuntimeException("Concurrence error calculating paralogs",e);
 		}
 		ThreadPoolManager poolOrthologs = new ThreadPoolManager(numThreads, numThreads);
+		poolOrthologs.setSecondsPerTask(300);
 		for(int i=0;i<n;i++) {
 			for (int j=0;j<n;j++) {
 				if(i==j) continue;
