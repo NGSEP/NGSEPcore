@@ -391,16 +391,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		isDuplication = (tandemRepeatSupportingPairings + interspersedTandemRepeatSupportingPairings) > 
 			possibleDupPairings*0.8;
 		if(isDuplication) {
-		/**	String typeOfRepeat = tandemRepeatSupportingPairings >= interspersedTandemRepeatSupportingPairings ? 
-					"TANDEM REPEAT" : "INTERSPERSED REPEAT";
-			int nRepeats = typeOfRepeat.equals("TANDEM REPEAT") ? tandemRepeatSupportingPairings : 
-				interspersedTandemRepeatSupportingPairings;
-			System.out.println(variant.getSequenceName() + " " + variant.getFirst() + " " + variant.getLast() + " " +
-					+ variant.length() + " " + GenomicVariantImpl.getVariantTypeName(variant.getType()) + " " +
-					typeOfRepeat + " " + nRepeats);
-					**/
 			variant.setType(GenomicVariant.TYPE_DUPLICATION);
-			System.out.println(GenomicVariantImpl.getVariantTypeName(variant.getType()));
 			List<String> alleles = Arrays.asList(variant.getAlleles());
 			alleles.set(1, "<" + GenomicVariant.TYPENAME_DUPLICATION + ">");
 			GenomicVariantImpl impl = (GenomicVariantImpl) variant;

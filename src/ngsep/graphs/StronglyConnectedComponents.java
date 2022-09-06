@@ -6,11 +6,10 @@ import java.util.Scanner;
 
 public class StronglyConnectedComponents {
 	
-	private static int clock;
+	private int clock = 0;
 	
-	public static List<List<Integer>> computeStronglyConnectedComponents(List<Integer> idxs, List<List<Integer>> adjacencyList) {
+	public List<List<Integer>> computeStronglyConnectedComponents(List<Integer> idxs, List<List<Integer>> adjacencyList) {
 		List<List<Integer>> components = new ArrayList<>();
-		clock = 0;
 		int n = adjacencyList.size();
 		boolean[] visited = new boolean[n];
 		int[] order = getOrderByReverseGraph(adjacencyList);
@@ -25,7 +24,7 @@ public class StronglyConnectedComponents {
 		return components;
 	}
 	
-	private static void DFSToCluster(int u, List<List<Integer>> adjacencyList, boolean[] visited, List<Integer> idxs,
+	private void DFSToCluster(int u, List<List<Integer>> adjacencyList, boolean[] visited, List<Integer> idxs,
 			List<List<Integer>> components, List<Integer> answerCluster) {
 		// TODO Auto-generated method stub
 		visited[u] = true;
@@ -37,7 +36,7 @@ public class StronglyConnectedComponents {
 		answerCluster.add(idx);
 	}
 	
-	private static int[] getOrderByReverseGraph(List<List<Integer>> adjacencyList) {
+	private int[] getOrderByReverseGraph(List<List<Integer>> adjacencyList) {
 		// TODO Auto-generated method stub
 		int n = adjacencyList.size();
 		List<List<Integer>> reverseGraph = new ArrayList<>();
@@ -62,7 +61,7 @@ public class StronglyConnectedComponents {
 		return order;
 	}
 	
-	private static void DSFToUpdateClock(List<List<Integer>> reverseGraph, int s, boolean[] visited, int[] order) {
+	private void DSFToUpdateClock(List<List<Integer>> reverseGraph, int s, boolean[] visited, int[] order) {
 		// TODO Auto-generated method stub
 		visited[s] = true;
 		List<Integer> neighbors = reverseGraph.get(s);
@@ -90,7 +89,7 @@ public class StronglyConnectedComponents {
             y = scanner.nextInt();
             adj.get(x-1).add(y - 1);
         }        
-        List<List<Integer>> components = computeStronglyConnectedComponents(idxs, adj);
+        List<List<Integer>> components = new StronglyConnectedComponents().computeStronglyConnectedComponents(idxs, adj);
        //System.out.println(components.size());
         for(List<Integer> c : components) {
         	System.out.print("{");

@@ -77,7 +77,8 @@ public class SCCClusteringDetectionAlgorithm implements LongReadVariantDetectorC
 							idxs.add(signList.indexOf(sign));
 						}
 							List<List<Integer>> directedGraph = createGraphAsAdjacencyList(toCluster);
-							List<List<Integer>> partClusters = StronglyConnectedComponents.
+							StronglyConnectedComponents instance = new StronglyConnectedComponents();
+							List<List<Integer>> partClusters = instance.
 									computeStronglyConnectedComponents(idxs, directedGraph);
 							chrClusters.addAll(partClusters);
 							/**if(r==1 && maxTests>0 && toCluster.size()>1) {
