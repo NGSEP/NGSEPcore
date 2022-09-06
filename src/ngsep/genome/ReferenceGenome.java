@@ -249,5 +249,10 @@ public class ReferenceGenome {
 	public List<String> getSequenceNamesStringList() {
 		return sequences.getNamesStringList();
 	}
+	public int getLongestSequenceLength() {
+		int max = 0;
+		for(QualifiedSequence seq:sequences) max = Math.max(max, seq.getLength());
+		return max;
+	}
 
 }

@@ -129,6 +129,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 	public void loadGenome(ReferenceGenome genome, int kmerLength, int windowLength, int numThreads, boolean buildKmersTable) {
 		this.genome = genome;
 		int n = genome.getNumSequences();
+		int longestSequenceLengthMbp = 1+genome.getLongestSequenceLength()/1000000;
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength);
@@ -145,7 +146,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		kmerCodesTable.setLog(log);
 		kmerCodesTable.setMaxHitsKmerCode(1000);
 		ThreadPoolManager poolTable = new ThreadPoolManager(numThreads, n);
-		poolTable.setSecondsPerTask(60);
+		poolTable.setSecondsPerTask(longestSequenceLengthMbp);
 		for (int i=0;i<n;i++) {
 			final int seqId = i;
 			try {
