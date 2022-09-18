@@ -1037,7 +1037,7 @@ Number of threads.
 </option>
 </command>
 
-<command id="TransposonsFinder" class="ngsep.genome.TransposableElementsFinder" groupId="Genomes" printHelp="false">
+<command id="TransposonsFinder" class="ngsep.genome.TransposableElementsFinder" groupId="Genomes">
 <intro>
 Annotates transposable elements in a genome assembly
 </intro>
@@ -1056,6 +1056,28 @@ Database of transposable elements to annotate the genome
 </option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads.
+</option>
+</command>
+
+<command id="GenomeAssemblyMask" class="ngsep.genome.GenomeAssemblyMask" groupId="Genomes">
+<intro>
+Masks regions in a genome assembly
+</intro>
+<title>Masking regions in a genome assembly</title>
+<description>
+Receives a genome assembly in fasta format and a file of regions (typically repeats) and masks the regions in the genome, either with lowercase characters or with Ns.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input genome to mask. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with the masked genome
+</option>
+<option id="d" type="FILE" attribute="regionsFile">
+Genomic regions to mask. It must have at least three columns: sequence name (chromosome), 1-based first position and 1-based last position.
+</option>
+<option id="h" type="BOOLEAN" attribute="hardMask">
+Mask with N characters. The default is to mask with lowercase characters.
 </option>
 </command>
 
