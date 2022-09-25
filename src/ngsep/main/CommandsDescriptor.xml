@@ -1054,6 +1054,9 @@ Output file with annotations of transposable elements
 <option id="d" type="FILE" attribute="transposonsDatabaseFile">
 Database of transposable elements to annotate the genome
 </option>
+<option id="m" type="INT" attribute="minTELength" defaultConstant="DEF_MIN_TE_LENGTH">
+Minimum length (in basepairs) to call a transposable element.
+</option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads.
 </option>

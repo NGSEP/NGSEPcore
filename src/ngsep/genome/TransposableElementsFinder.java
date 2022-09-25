@@ -27,14 +27,14 @@ public class TransposableElementsFinder {
 	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
-	
+	public static final int DEF_MIN_TE_LENGTH = 200;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	// Parameters 
 	private String inputFile = null;
 	private String outputFile = null;
 	private String transposonsDatabaseFile = null;
-	private int minTELength = 200;
+	private int minTELength = DEF_MIN_TE_LENGTH;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
@@ -73,24 +73,26 @@ public class TransposableElementsFinder {
 		this.transposonsDatabaseFile = transposonsDatabaseFile;
 	}
 	
-	
-	
 	public int getMinTELength() {
 		return minTELength;
 	}
 	public void setMinTELength(int minTELength) {
 		this.minTELength = minTELength;
 	}
+	public void setMinTELength(String value) {
+		this.setMinTELength(Integer.parseInt(value));
+	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
 	}
-	
 	public void setNumThreads(String value) {
 		this.setNumThreads(Integer.parseInt(value));
 	}
+	
 	public static void main(String[] args) throws Exception {
 		TransposableElementsFinder instance = new TransposableElementsFinder();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -115,6 +117,8 @@ public class TransposableElementsFinder {
 		out.println("Input file:"+ inputFile);
 		out.println("Output file:"+ outputFile);
 		if(transposonsDatabaseFile!=null) out.println("Database of transposable elements: "+ transposonsDatabaseFile);
+		out.println("Minimum TE length: "+minTELength);
+		out.println("Number of threads: "+numThreads);
 		log.info(os.toString());
 	}
 	/**
