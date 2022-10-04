@@ -92,12 +92,19 @@ public class GenomicRegionCollectionDensityCalculator {
 			Arrays.fill(windowCounts, 0);
 			List<GenomicRegion> seqRegions = sortedRegions.getSequenceRegions(seq.getName()).asList();
 			for(GenomicRegion region:seqRegions) {
-				for(int i=region.getFirst();i<=region.getLast();i++) {
-					densityMap[i]++;
+				if(region.getFirst()<0 || region.getLast()>=seqLen) {
+					System.err.println("Weird region "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" for sequence "+seq.getName()+" with length: "+seqLen);
+				} else {
+					for(int i=region.getFirst();i<=region.getLast();i++) {
+						densityMap[i]++;
+					}
 				}
+				
 				int midPoint = (region.getFirst()+region.getLast())/2;
-				int w = (midPoint-1)/windowLength;
-				windowCounts[w]++;
+				if(midPoint>=0 && midPoint<seqLen) {
+					int w = (midPoint-1)/windowLength;
+					windowCounts[w]++;
+				}
 			}
 			//Print counts per window
 			int totalW = 0;
