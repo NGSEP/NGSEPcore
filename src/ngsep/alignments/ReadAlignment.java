@@ -1553,6 +1553,7 @@ public class ReadAlignment implements GenomicRegion {
 	
 	public String toString () {
 		String answer = sequenceName+" "+first+" "+last+" "+flags+" "+alignmentQuality+" "+getCigarString();
+		if(numMismatches>0) answer += " NM:"+numMismatches;
 		if(readName!=null) answer = new String(readName)+" "+answer;
 		return answer;
 	}

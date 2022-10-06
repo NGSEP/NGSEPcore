@@ -152,6 +152,7 @@ public class FMIndex
 				hits.add(hit);
 				if(hits.size()>=maxHitsQuery) break;
 			}
+			//System.out.println("Query: "+query+" current internal index: "+i+" matches index: "+matches.size()+" total: "+hits.size()+" maximum: "+maxHitsQuery);
 		}
 		return hits;
 	}

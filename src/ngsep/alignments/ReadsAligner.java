@@ -611,7 +611,7 @@ public class ReadsAligner {
 		int n = Math.min(alns1.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignment aln1 = alns1.get(i);
-			//System.out.println("Pairing "+aln1.getFirst()+" is paired: "+aln1.isPaired());
+			//System.out.println("Pairing "+aln1+" is paired: "+aln1.isPaired());
 			if(aln1.isPaired()) continue;
 			ReadAlignmentPair alnPair = findPairForAlignment(aln1,alns2,onlyProper);
 			if(alnPair!=null) {
@@ -627,9 +627,9 @@ public class ReadsAligner {
 		for (int i = 0; i < n; i++) {
 			ReadAlignment current =alns2.get(i);
 			if(!current.isPaired()) {
-				//System.out.println("Next candidate "+current.getFirst()+" is paired: "+current.isPaired());
+				//System.out.println("Next candidate "+current+" is paired: "+current.isPaired());
 				if(isValidPair(aln1,current,onlyProper)) {
-					//System.out.println("Adding candidate");
+					//System.out.println("Adding candidate. Aln 1: "+aln1+" Aln 2: "+current);
 					candidates.add(current);
 				}
 			}

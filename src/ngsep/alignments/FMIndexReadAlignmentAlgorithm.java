@@ -94,10 +94,10 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		}
 		if(alignments.size()==0) {
 			alignments.addAll(alignQueryToReference(readSeq));
-			//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
+			//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments);
 			if(reverseComplement!=null) {
 				List<ReadAlignment> alnsR = alignQueryToReference(reverseComplement);
-				//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
+				//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR);
 				for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 				alignments.addAll(alnsR);
 			}
@@ -142,7 +142,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		for (int i=0;i<clusteredKmerHits.size() && i<2*maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusteredKmerHits.get(i);
 			int numKmers = cluster.getNumDifferentKmers();
-			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSequenceName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
+			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSubjectName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
 			if(i==0) kmersMaxCluster = numKmers;
 			else if (finalAlignments.size()>0 && (numKmers<2 || numKmers< 0.5*kmersMaxCluster)) break;
 			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
@@ -166,11 +166,12 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 			if(repetitiveKmers.contains(kmerP)) continue;
 			List<UngappedSearchHit> kmerHits=fMIndex.exactSearch(kmer);
 			//System.out.println("Kmer: "+kmer+" hits: "+kmerHits.size());
-			if(kmerHits.size()>50) {
+			if(kmerHits.size()>=ReferenceGenomeFMIndex.MAX_HITS_QUERY) {
 				repetitiveKmers.add(kmerP);
 				continue;
 			}
 			for(UngappedSearchHit hit:kmerHits) {
+				//System.out.println("Next hit: "+hit.getSequenceName()+" "+hit.getStart());
 				hit.setQueryIdx(start);
 				answer.add(hit);
 			}

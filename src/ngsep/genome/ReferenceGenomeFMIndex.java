@@ -35,6 +35,7 @@ import ngsep.sequences.QualifiedSequenceList;
  */
 public class ReferenceGenomeFMIndex {
 
+	public static final int MAX_HITS_QUERY = 50;
 	private QualifiedSequenceList sequencesMetadata;
 	private FMIndex internalIndex;
 	
@@ -46,7 +47,7 @@ public class ReferenceGenomeFMIndex {
 	public ReferenceGenomeFMIndex (ReferenceGenome genome, Logger log) {
 		sequencesMetadata = genome.getSequencesMetadata();
 		internalIndex = new FMIndex();
-		internalIndex.setMaxHitsQuery(50);
+		internalIndex.setMaxHitsQuery(MAX_HITS_QUERY);
 		QualifiedSequenceList sequences = genome.getSequencesList();
 		internalIndex.loadQualifiedSequences(sequences, log);
 	}
