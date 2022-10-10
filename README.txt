@@ -2013,39 +2013,40 @@ OPTIONS:
 		  regions with homozygous reference genotypes.
 
 The output is a tab delimited file with the following fields:
-1. Homozygous reference calls in homozygous reference regions
-2. Heterozygous calls in homozygous reference regions
-3. Homozygous alternative calls in homozygous reference regions
-4. Homozygous reference calls in heterozygous regions
-5. Heterozygous calls in heterozygous regions
-6. Homozygous alternative calls in heterozygous regions
-7. Homozygous reference calls in homozygous alternative regions
-8. Heterozygous calls in homozygous alternative regions
-9. Homozygous alternative calls in homozygous alternative regions
-10. Non matched gold standard homozygous reference calls
-11. Non matched gold standard heterozygous calls
-12. Non matched gold standard homozygous alternative calls
-13. Non matched test homozygous reference calls
-14. Non matched test heterozygous calls
-15. Non matched test homozygous alternative calls
-16. Total gold standard homozygous reference calls
-17. Total gold standard heterozygous calls
-18. Total gold standard homozygous alternative calls
-19. Total test homozygous reference calls
-20. Total test heterozygous calls
-21. Total test homozygous alternative calls
-22. Recall heterozygous calls
-23. False discoveries heterozygous calls
-24. FPPM heterozygous calls
-25. FDR heterozygous calls
-26. Precision heterozygous calls
-27. F1 heterozygous calls
-22. Recall homozygous calls
-23. False discoveries homozygous calls
-24. FPPM homozygous calls
-25. FDR homozygous calls
-26. Precision homozygous calls
-27. F1 homozygous calls
+1. Minimum genotype quality score (GQ field)
+2. Homozygous reference calls in homozygous reference regions
+3. Heterozygous calls in homozygous reference regions
+4. Homozygous alternative calls in homozygous reference regions
+5. Homozygous reference calls in heterozygous regions
+6. Heterozygous calls in heterozygous regions
+7. Homozygous alternative calls in heterozygous regions
+8. Homozygous reference calls in homozygous alternative regions
+9. Heterozygous calls in homozygous alternative regions
+10. Homozygous alternative calls in homozygous alternative regions
+11. Non matched gold standard homozygous reference calls
+12. Non matched gold standard heterozygous calls
+13. Non matched gold standard homozygous alternative calls
+14. Non matched test homozygous reference calls
+15. Non matched test heterozygous calls
+16. Non matched test homozygous alternative calls
+17. Total gold standard homozygous reference calls
+18. Total gold standard heterozygous calls
+19. Total gold standard homozygous alternative calls
+20. Total test homozygous reference calls
+21. Total test heterozygous calls
+22. Total test homozygous alternative calls
+23. Recall heterozygous calls
+24. False discoveries heterozygous calls
+25. FPPM heterozygous calls
+26. FDR heterozygous calls
+27. Precision heterozygous calls
+28. F1 heterozygous calls
+29. Recall homozygous calls
+30. False discoveries homozygous calls
+31. FPPM homozygous calls
+32. FDR homozygous calls
+33. Precision homozygous calls
+34. F1 homozygous calls
 
 The current output also includes distributions of gold standard variants per
 cluster, heterozygous test variants per cluster and genome span per cluster
