@@ -217,8 +217,8 @@ function zoom2() {
 //auxiliary function to get which label to pin
 const topPinnedLabelG1 = value => {
     let pinnedLabel;
-    Object.keys(lengthsG1).forEach((chromosome) => {
-        if (lengthsG1[chromosome] < value) {
+    lengthsG1Map.forEach((value1,chromosome) => {
+        if (value1 < value) {
             pinnedLabel = chromosome
         }
     });
@@ -240,8 +240,8 @@ const bottomPinnedLabelG1 = value => {
 
 const topPinnedLabelG2 = value => {
     let pinnedLabel;
-    Object.keys(lengthsG2).forEach((chromosome) => {
-        if (lengthsG2[chromosome] < value) {
+    lengthsG2Map.forEach((value2,chromosome) => {
+        if (value2 < value) {
             pinnedLabel = chromosome
         }
     });
@@ -272,7 +272,9 @@ const y2Axis = d3.axisRight(y2)
 let maxG1;
 let maxG2;
 let lengthsG1;
+let lengthsG1Map;
 let lengthsG2;
+let lengthsG2Map;
 let ticksG1;
 let ticksG2;
 const prepareData = () => {
@@ -287,20 +289,24 @@ const prepareData = () => {
     // Get the max and relative lengths for axes and ticks
     maxG1 = 0;
     lengthsG1 = {};
+	lengthsG1Map = new Map();
     ticksG1 = [];
     genomeData1.forEach(g => {
         ticksG1.push(maxG1 + 1);
         lengthsG1[g.Name] = maxG1;
+		lengthsG1Map.set(g.Name, maxG1);
         maxG1 += parseInt(g.Length);
         ticksG1.push(maxG1);
     });
     
     maxG2 = 0;
     lengthsG2 = {};
+	lengthsG2Map = new Map();
     ticksG2 = [];
     genomeData2.forEach(g => {
         ticksG2.push(maxG2 + 1);
         lengthsG2[g.Name] = maxG2;
+		lengthsG2Map.set(g.Name, maxG2);
         maxG2 += parseInt(g.Length);
         ticksG2.push(maxG2);
     });
