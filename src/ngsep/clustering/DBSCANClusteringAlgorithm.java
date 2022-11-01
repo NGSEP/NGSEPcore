@@ -22,23 +22,22 @@ public class DBSCANClusteringAlgorithm {
 	public static final int NOISE_LABEL = 0;
 	
 	private List<Integer> noisePoints;
-	
+
 	public List<List<Integer>> runDBSCANClustering(List<Integer> idxs,
-			double [][] distanceMatrix, int minPts, double epsilon) {
+												   List<List<Integer>> adjacencyList, int minPts) {
 		// TODO Auto-generated method stub
-		int [] clusterLabels = DBSCAN(idxs, distanceMatrix, minPts, epsilon);
-		List<List<Integer>> clusters = assignClustersByLabel(idxs, clusterLabels);
-		return clusters;
+		int [] clusterLabels = DBSCAN(idxs, adjacencyList, minPts);
+		return assignClustersByLabel(idxs, clusterLabels);
 	}
-	
-	private int [] DBSCAN(List<Integer> idxs, double [][] distanceMatrix, int minPts, double epsilon) {
+
+	private int [] DBSCAN(List<Integer> idxs, List<List<Integer>> adjacencyList, int minPts) {
 		int [] labels = new int[idxs.size()];
 		Arrays.fill(labels, UNDEFINED_LABEL);
 		int c = 0;
 		for(int i = 0; i < idxs.size(); i++) {
 			if(labels[i] != UNDEFINED_LABEL) continue;
 			//This list must return the idxs.indexOf(neighbor) as the values, which correspond to i and labels' indexes
-			List<Integer> neighbors = rangeQuery(distanceMatrix, epsilon, i);
+			List<Integer> neighbors = rangeQuery(i, adjacencyList);
 			if (neighbors.size() < minPts) {
 				labels[i] = NOISE_LABEL;
 				continue;
@@ -50,7 +49,7 @@ public class DBSCANClusteringAlgorithm {
 				int j = seedQueue.remove();
 				//if(labels[j] == NOISE_LABEL) labels[j] = c;
 				if(labels[j] != UNDEFINED_LABEL) continue;
-				neighbors = rangeQuery(distanceMatrix, epsilon, j);
+				neighbors = rangeQuery(j, adjacencyList);
 				labels[j] = c;
 				if(neighbors.size() < minPts) continue;
 				seedQueue.addAll(neighbors);
@@ -58,7 +57,11 @@ public class DBSCANClusteringAlgorithm {
 		}
 		return labels;
 	}
-	
+
+	private List<Integer> rangeQuery(int i, List<List<Integer>> adjacencyList){
+		return adjacencyList.get(i);
+	}
+
 	private List<List<Integer>> assignClustersByLabel(List<Integer> idxs, int[] labels) {
 		// TODO Auto-generated method stub
 		Map <Integer, List<Integer>> clustersMap = new HashMap<>();
@@ -75,18 +78,6 @@ public class DBSCANClusteringAlgorithm {
 		}
 		List<List<Integer>> clusters = new ArrayList<>(clustersMap.values());
 		return clusters;
-	}
-
-	private List<Integer> rangeQuery(double[][] distanceMatrix, double epsilon, int j) {
-		// TODO Auto-generated method stub
-		List<Integer> neighbors = new ArrayList<>();
-		for(int i = 0; i < distanceMatrix.length; i++) {
-			double distance = distanceMatrix[i][j];
-			if(distance <= epsilon && i != j) {
-				neighbors.add(i);
-			}
-		}
-		return neighbors;
 	}
 	
 	public List<Integer> getNoisePoints(){
@@ -140,5 +131,53 @@ public class DBSCANClusteringAlgorithm {
 				c++;
 			}
 		}
+	}
+
+	public List<List<Integer>> runDBSCANClustering(List<Integer> idxs,
+												   double [][] distanceMatrix, int minPts, double epsilon) {
+		// TODO Auto-generated method stub
+		int [] clusterLabels = DBSCAN(idxs, distanceMatrix, minPts, epsilon);
+		List<List<Integer>> clusters = assignClustersByLabel(idxs, clusterLabels);
+		return clusters;
+	}
+
+	private int [] DBSCAN(List<Integer> idxs, double [][] distanceMatrix, int minPts, double epsilon) {
+		int [] labels = new int[idxs.size()];
+		Arrays.fill(labels, UNDEFINED_LABEL);
+		int c = 0;
+		for(int i = 0; i < idxs.size(); i++) {
+			if(labels[i] != UNDEFINED_LABEL) continue;
+			//This list must return the idxs.indexOf(neighbor) as the values, which correspond to i and labels' indexes
+			List<Integer> neighbors = rangeQuery(distanceMatrix, epsilon, i);
+			if (neighbors.size() < minPts) {
+				labels[i] = NOISE_LABEL;
+				continue;
+			}
+			c++;
+			labels[i] = c;
+			Queue<Integer> seedQueue = new LinkedList<>(neighbors);
+			while(!seedQueue.isEmpty()) {
+				int j = seedQueue.remove();
+				//if(labels[j] == NOISE_LABEL) labels[j] = c;
+				if(labels[j] != UNDEFINED_LABEL) continue;
+				neighbors = rangeQuery(distanceMatrix, epsilon, j);
+				labels[j] = c;
+				if(neighbors.size() < minPts) continue;
+				seedQueue.addAll(neighbors);
+			}
+		}
+		return labels;
+	}
+
+	private List<Integer> rangeQuery(double[][] distanceMatrix, double epsilon, int j) {
+		// TODO Auto-generated method stub
+		List<Integer> neighbors = new ArrayList<>();
+		for(int i = 0; i < distanceMatrix.length; i++) {
+			double distance = distanceMatrix[i][j];
+			if(distance <= epsilon && i != j) {
+				neighbors.add(i);
+			}
+		}
+		return neighbors;
 	}
 }

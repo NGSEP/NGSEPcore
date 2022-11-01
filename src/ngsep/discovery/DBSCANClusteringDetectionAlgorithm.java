@@ -89,18 +89,23 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
-							double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
+							//double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
+							List<List<Integer>> adjacencyList = constructSignatureGraph(toCluster);
 							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
+							//List<List<Integer>> partClusters = instance
+							//		.runDBSCANClustering(idxs, distanceMatrix, minPoints);
 							List<List<Integer>> partClusters = instance
-									.runDBSCANClustering(idxs, distanceMatrix, minPoints, epsilon);
+									.runDBSCANClustering(idxs, adjacencyList, minPoints);
 							chrClusters.addAll(partClusters);
 							List<Integer> noisePoints = instance.getNoisePoints();
 							if(noisePoints.size() > 1) {
 								List<GenomicVariant> noiseSignsToCluster = new ArrayList<>();
 								for(int np:noisePoints) noiseSignsToCluster.add(signList.get(np));
-								double [][] weakDistanceMatrix = calculateDistanceMatrix(noiseSignsToCluster);
-								List<List<Integer>> weakClusters = 
-										clusterConnectedComponents(noisePoints, weakDistanceMatrix, epsilon);
+								//double [][] weakDistanceMatrix = calculateDistanceMatrix(noiseSignsToCluster);
+								List<List<Integer>> weakAdjacencyList = constructSignatureGraph(noiseSignsToCluster);
+								DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
+								List<List<Integer>> weakClusters = inst
+										.runDBSCANClustering(noisePoints, weakAdjacencyList, 0);
 								chrClusters.addAll(weakClusters);
 							}
 							toCluster.clear();
@@ -113,29 +118,26 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		return clusters;
 	}
 
-	private List<List<Integer>> clusterConnectedComponents(List<Integer> noisePoints, double[][] weakDistanceMatrix,
-			double epsilon) {
-		// TODO Auto-generated method stub
-		DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
-		List<List<Integer>> weakClusters = inst
-				.runDBSCANClustering(noisePoints, weakDistanceMatrix, 0, epsilon);
-		return weakClusters;
-	}
-	private double [][] calculateDistanceMatrix(List<GenomicVariant> candidateSignatures) {
-		// TODO Auto-generated method stub
+	private List<List<Integer>> constructSignatureGraph(List<GenomicVariant> candidateSignatures) {
+		List<List<Integer>> graph = new ArrayList<>();
 		int n = candidateSignatures.size();
-		double [][] distanceMatrix = new double[n][n];
-		for(int i = 0; i < n; i++) {
-			GenomicVariant si = candidateSignatures.get(i);
-			for(int j = 0; j < n; j++) {
-				GenomicVariant sj = candidateSignatures.get(j);
-				if(!si.equals(sj)) {
-					double distance = calculateThreeDimEuclideanDistance(si, sj);
-					distanceMatrix[i][j] = distance;
+		for(int i = 0; i < n; i++) graph.add(new ArrayList<>());
+		for(int i = 0; i < n; i++){
+			GenomicVariant iSign = candidateSignatures.get(i);
+			List<Integer> iNeighbors = graph.get(i);
+			for(int j = i; j < n; j++){
+				GenomicVariant jSign = candidateSignatures.get(j);
+				List<Integer> jNeighbors = graph.get(j);
+				if(i!=j){
+					double distance = calculateThreeDimEuclideanDistance(iSign, jSign);
+					if(distance < epsilon) {
+						iNeighbors.add(j);
+						jNeighbors.add(i);
+					}
 				}
 			}
 		}
-		return distanceMatrix;
+		return graph;
 	}
 
 	public static double calculateThreeDimEuclideanDistance(GenomicVariant s1, GenomicVariant s2) {
@@ -155,5 +157,29 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 	
 	public static boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
 		return Math.abs(s2.getFirst() - s1.getFirst()) < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
+	}
+	private double [][] calculateDistanceMatrix(List<GenomicVariant> candidateSignatures) {
+		// TODO Auto-generated method stub
+		int n = candidateSignatures.size();
+		double [][] distanceMatrix = new double[n][n];
+		for(int i = 0; i < n; i++) {
+			GenomicVariant si = candidateSignatures.get(i);
+			for(int j = 0; j < n; j++) {
+				GenomicVariant sj = candidateSignatures.get(j);
+				if(!si.equals(sj)) {
+					double distance = calculateThreeDimEuclideanDistance(si, sj);
+					distanceMatrix[i][j] = distance;
+				}
+			}
+		}
+		return distanceMatrix;
+	}
+	private List<List<Integer>> clusterConnectedComponents(List<Integer> noisePoints, double[][] weakDistanceMatrix,
+														   double epsilon) {
+		// TODO Auto-generated method stub
+		DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
+		List<List<Integer>> weakClusters = inst
+				.runDBSCANClustering(noisePoints, weakDistanceMatrix, 0, epsilon);
+		return weakClusters;
 	}
 }
