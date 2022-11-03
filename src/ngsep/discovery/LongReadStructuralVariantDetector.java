@@ -441,7 +441,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		return genotypeCalls;
 	}
-	
+
 	private int assignBayesianGenotype(GenomicVariant variant, List<SimplifiedReadAlignment> spanningAlns) {
 		// TODO Auto-generated method stub
 		int genotype = -1;
@@ -455,7 +455,32 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		genotype = decideGenotype(genotypeProbabilities, variant);
 		return genotype;
 	}
-	
+
+	private void computeSpanningAlnCall(SimplifiedReadAlignment alignment, GenomicVariant variant,
+										List<GenomicVariant> calls, Set<String> readNames) {
+		// TODO Auto-generated method stub
+		Signature candidateCall;
+		String variantId = variant.getId();
+		boolean addCall = true;
+		boolean interAlnReadWasVisited = false;
+		if(alignment.hasCallsForVariant(variantId)) {
+			candidateCall = (Signature) alignment.getCallByVariantId(variantId);
+		}
+		else {
+			candidateCall = new Signature(variant.getSequenceName(), variant.getFirst(), variant.getLast(),
+					GenomicVariant.TYPE_UNDETERMINED);
+			candidateCall.setReadName(alignment.getReadName());
+		}
+		//Add call to calls depending on many factors
+		if(candidateCall.getSignatureType() == Signature.INTERALIGNMENT)
+			interAlnReadWasVisited = !readNames.add(candidateCall.getReadName());
+		boolean isRefCall = candidateCall.getType() == GenomicVariant.TYPE_UNDETERMINED;
+		if(isRefCall) {
+			boolean alignmentCoversVariant = alignmentCoversVariant(alignment, variant);
+			if(interAlnReadWasVisited || !alignmentCoversVariant) addCall = false;
+		}
+		if(addCall) calls.add(candidateCall);
+	}
 	private boolean alignmentCoversVariant(SimplifiedReadAlignment alignment, GenomicVariant variant) {
 		// TODO Auto-generated method stub
 		int toleranceDiff;
@@ -473,33 +498,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		}
 		return true;
 	}
-
-	private void computeSpanningAlnCall(SimplifiedReadAlignment alignment, GenomicVariant variant,
-			List<GenomicVariant> calls, Set<String> readNames) {
-		// TODO Auto-generated method stub
-		Signature candidateCall;
-		String variantId = variant.getId();
-		boolean addCall = true;
-		boolean interAlnReadWasVisited = false;
-		if(alignment.hasCallsForVariant(variantId)) {
-			candidateCall = (Signature) alignment.getCallByVariantId(variantId);
-		}
-		else {
-			candidateCall = new Signature(variant.getSequenceName(), variant.getFirst(), variant.getLast(),
-					GenomicVariant.TYPE_UNDETERMINED);
-			candidateCall.setReadName(alignment.getReadName());
-		}
-		//Add call to calls depending on many factors
-		if(candidateCall.getSignatureType() == Signature.INTERALIGNMENT) 
-			interAlnReadWasVisited = !readNames.add(candidateCall.getReadName());
-		boolean isRefCall = candidateCall.getType() == GenomicVariant.TYPE_UNDETERMINED;
-		if(isRefCall) {
-			boolean alignmentCoversVariant = alignmentCoversVariant(alignment, variant);
-			if(interAlnReadWasVisited || !alignmentCoversVariant) addCall = false;
-		}
-		if(addCall) calls.add(candidateCall);
-	}
-	
 	private double[][] calculateCalledVariantGenotypePosteriorProbabilities(GenomicVariant variant,
 		List<GenomicVariant> calls) {		
 		CountsHelper helper = calculateCountsSV(GENOTYPE_ALLELES, variant.length(), calls, 

@@ -1,35 +1,21 @@
 package ngsep.discovery;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Random;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-
 import ngsep.clustering.DBSCANClusteringAlgorithm;
-import ngsep.clustering.Pair;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
-import ngsep.graphs.MaximalCliquesFinder;
-import ngsep.math.Distribution;
 import ngsep.variants.GenomicVariant;
-import ngsep.variants.GenomicVariantImpl;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
 	
 	public final static int MIN_DEFAULT_POINTS = 4;
 	public final static double DEFAULT_EPSILON = 250;
-	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
-	
+	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 500;
+
 	private int minPoints = MIN_DEFAULT_POINTS;
 	private double epsilon = DEFAULT_EPSILON;
 	
@@ -47,7 +33,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		List<String> keys = signatures.getSequenceNames().getNamesStringList();
 		for(String k:keys){
 			List<GenomicVariant> signList = signatures.getSequenceRegions(k).asList();
-			List<List<Integer>> chrClusters = new ArrayList<>();
+			//List<List<Integer>> chrClusters = new ArrayList<>();
 			List<GenomicVariant> indel = new ArrayList<>();
 			List<GenomicVariant> del = new ArrayList<>();
 			List<GenomicVariant> ins = new ArrayList<>();
@@ -58,7 +44,6 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 			List<List<GenomicVariant>> signsPerType = new ArrayList<>();
 			for(GenomicVariant sign:signList) {
 				byte type = sign.getType();
-
 				if(GenomicVariant.TYPE_INDEL == type) indel.add(sign);
 				else if(GenomicVariant.TYPE_LARGEDEL == type) del.add(sign);
 				else if(GenomicVariant.TYPE_LARGEINS == type) ins.add(sign);
@@ -76,45 +61,39 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 			signsPerType.add(und);
 			for(List<GenomicVariant> typePartition:signsPerType) {
 				if(typePartition.isEmpty()) continue;
-				boolean[] visited = new boolean[typePartition.size() - 1];
 				List<GenomicVariant> toCluster = new ArrayList<>();
 				for(int i = 0; i < typePartition.size() - 1; i++) {
 					GenomicVariant current = typePartition.get(i);
-					visited[i] = true;
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
 					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 || 
-							toCluster.size() > 10000) {
+							toCluster.size() > 3000) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
 						}
-							//double [][] distanceMatrix = calculateDistanceMatrix(toCluster);
-							List<List<Integer>> adjacencyList = constructSignatureGraph(toCluster);
-							DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
-							//List<List<Integer>> partClusters = instance
-							//		.runDBSCANClustering(idxs, distanceMatrix, minPoints);
-							List<List<Integer>> partClusters = instance
-									.runDBSCANClustering(idxs, adjacencyList, minPoints);
-							chrClusters.addAll(partClusters);
-							List<Integer> noisePoints = instance.getNoisePoints();
-							if(noisePoints.size() > 1) {
-								List<GenomicVariant> noiseSignsToCluster = new ArrayList<>();
-								for(int np:noisePoints) noiseSignsToCluster.add(signList.get(np));
-								//double [][] weakDistanceMatrix = calculateDistanceMatrix(noiseSignsToCluster);
-								List<List<Integer>> weakAdjacencyList = constructSignatureGraph(noiseSignsToCluster);
-								DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
-								List<List<Integer>> weakClusters = inst
-										.runDBSCANClustering(noisePoints, weakAdjacencyList, 0);
-								chrClusters.addAll(weakClusters);
-							}
-							toCluster.clear();
+						List<List<Integer>> adjacencyList = constructSignatureGraph(toCluster);
+						DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
+						List<List<Integer>> partClusters = instance
+								.runDBSCANClustering(idxs, adjacencyList, minPoints);
+						//chrClusters.addAll(partClusters);
+						clusters.computeIfAbsent(k, v -> new ArrayList<>()).addAll(partClusters);
+						List<Integer> noisePoints = instance.getNoisePoints();
+						if(noisePoints.size() > 1) {
+							List<GenomicVariant> noiseSignsToCluster = new ArrayList<>();
+							for(int np:noisePoints) noiseSignsToCluster.add(signList.get(np));
+							List<List<Integer>> weakAdjacencyList = constructSignatureGraph(noiseSignsToCluster);
+							DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
+							List<List<Integer>> weakClusters = inst
+									.runDBSCANClustering(noisePoints, weakAdjacencyList, 0);
+							clusters.computeIfAbsent(k, v -> new ArrayList<>()).addAll(weakClusters);
+						}
+						toCluster = new ArrayList<>();
 					}
 				}
 			}
-			clusters.put(k, chrClusters);
+			//clusters.put(k, chrClusters);
 		}
-		
 		return clusters;
 	}
 
