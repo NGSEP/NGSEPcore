@@ -2,27 +2,14 @@ package ngsep.discovery;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import JSci.maths.statistics.GammaDistribution;
 import JSci.maths.statistics.NormalDistribution;
 import JSci.maths.statistics.SampleStatistics;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
-import ngsep.genome.GenomicRegion;
-import ngsep.genome.GenomicRegionSortedCollection;
-import ngsep.genome.GenomicRegionSpanComparator;
-import ngsep.genome.ReferenceGenome;
+import ngsep.genome.*;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
@@ -38,16 +25,14 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	public static final String FILTER_SETTING_MISSING = ".";
-	public static final String KEY_SEPARATOR = ",";
 	public static final String DEFAULT_VARIANT_ID_PREFIX = "NGSEP.";
 	
 	public static final String[] GENOTYPE_ALLELES = {"REF", "ALT"};
 	public static final double DEF_HET_RATE = 0.5;
-	public static final double HETEROCIGOZITY_TRESHOLD = 0.8;
-	public static final double DEF_SHAPE_PARAMETER_ERROR_DIST = 0.05;
-	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.9999);
-	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.0001);
-	public static final double DEF_LOG_ERROR_PROB_SV = Math.log10(0.00001);
+	public static final double DEF_SHAPE_PARAMETER_ERROR_DIST = 50;
+	public static final double DEF_LOG_REF_PROB_SV = Math.log10(0.999);
+	public static final double DEF_LOG_ALT_PROB_SV = Math.log10(0.001);
+	public static final double DEF_LOG_ERROR_PROB_SV = Math.log10(0.0001);
 
 	
 	public static final int INV_DETERMINING_MAX_DISTANCE = 800;
@@ -351,8 +336,6 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		variant.setLength(endOfSpan - first + 1);
 		variant.setLast(last);
 		variant.setType(type);
-		//short variantScore = calculateVariantScore(clusterSigns, variant.length());
-		//variant.setVariantQS(variantScore);
 		String id = DEFAULT_VARIANT_ID_PREFIX + GenomicVariantImpl.getVariantTypeName(type) + "." + varNumber[type];
 		variant.setId(id);
 		if(variant.length() < lengthToDefineSVEvent) return;
@@ -389,7 +372,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			}
 		}
 		isDuplication = (tandemRepeatSupportingPairings + interspersedTandemRepeatSupportingPairings) > 
-			possibleDupPairings*0.8;
+			possibleDupPairings*0.9;
 		if(isDuplication) {
 			variant.setType(GenomicVariant.TYPE_DUPLICATION);
 			List<String> alleles = Arrays.asList(variant.getAlleles());
@@ -424,9 +407,11 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			sortedAlns.addAll(alns);
 		}
 		sortedAlns.forceSort();
-		for(GenomicVariant variant : variantsList) {
+		List<List<SimplifiedReadAlignment>> spanningAlnsByVariantIdx = findSpanningAlignmentsByVariant(variantsList, sortedAlns.asList());
+		for(int i = 0; i < variantsList.size(); i++) {
+			GenomicVariant variant = variantsList.get(i);
 			int genotype;
-			List<SimplifiedReadAlignment> spanningAlns = sortedAlns.findSpanningRegions(variant).asList();
+			List<SimplifiedReadAlignment> spanningAlns = spanningAlnsByVariantIdx.get(i);
 			int varCoveredAlns = spanningAlns.size();
 			if(varCoveredAlns == 0) genotype = CalledGenomicVariant.GENOTYPE_UNDECIDED;
 			else {
@@ -442,6 +427,94 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		return genotypeCalls;
 	}
 
+	private List<List<SimplifiedReadAlignment>> findSpanningAlignmentsByVariant(List<GenomicVariant> variantsList,
+																					List<SimplifiedReadAlignment> alnSortedList) {
+		int nVar = variantsList.size();
+		int nAln = alnSortedList.size();
+		List<List<SimplifiedReadAlignment>> answer = new ArrayList<>(nVar);
+		for(int l=0; l<nVar;l++) answer.add(new ArrayList<>());
+		GenomicRegionComparator comparator = new GenomicRegionComparator(refGenome.getSequencesList());
+		int iLowerBound = 0;
+		int iUpperBound = 0;
+		int i = 0;
+		int j = 0;
+		boolean[] alnHasCoveredPrevVar = new boolean[nAln];
+		boolean[] visited = new boolean[nAln];
+		while(i<nVar && j<nAln){
+			GenomicVariant variant = variantsList.get(i);
+			SimplifiedReadAlignment alignment = alnSortedList.get(j);
+			int cmp = comparator.compare(alignment, variant);
+			if(cmp < -1){
+				i = iLowerBound;
+				j++;
+			}
+			else if(cmp > 1){
+				if(alnHasCoveredPrevVar[j-1]){
+					if(!visited[j]){
+						iUpperBound = i;
+						i = iLowerBound;
+					}
+					else i++;
+					if(iUpperBound == i) j++;
+				}
+				else{
+					i++;
+					iLowerBound = i;
+				}
+			}
+			else{
+				answer.get(i).add(alignment);
+				alnHasCoveredPrevVar[j] = true;
+				if(i<nVar-1) i++;
+				else{
+					i = iLowerBound;
+					j++;
+				}
+			}
+			visited[j] = true;
+		}
+		return answer;
+	}
+	/**
+	private List<List<SimplifiedReadAlignment>> findSpanningAlignmentsByVariantList(List<GenomicVariant> variantsList,
+																				List<SimplifiedReadAlignment> alnSortedList) {
+		int nVar = variantsList.size();
+		int nAln = alnSortedList.size();
+		List<List<SimplifiedReadAlignment>> answer = new ArrayList<>(nVar);
+		Queue<SimplifiedReadAlignment> alnQueue = new LinkedList<>();
+		for(int l=0; l<nVar;l++) answer.add(new ArrayList<>());
+		GenomicRegionComparator comparator = new GenomicRegionComparator(refGenome.getSequencesList());
+		int lowerBound = 0;
+		int i = 0;
+		while(i < nVar){
+			GenomicVariant variant = variantsList.get(i);
+			boolean holdVariant = true;
+			int j = lowerBound;
+			while(holdVariant){
+				SimplifiedReadAlignment alignment = alnSortedList.get(j);
+				int cmp = comparator.compare(alignment, variant);
+				System.out.println("alnSeq=" + alignment.getSequenceName() + " alnFirst=" + alignment.getFirst() + " alnEnd=" +
+				 alignment.getLast() + " alnLength=" + alignment.length() + " varSeq=" + variant.getSequenceName() +
+				 " varFirst=" + variant.getFirst() + " varLast=" + variant.getLast() + " varLength=" + variant.length());
+				 System.out.print("cmp=" + cmp);
+
+				if(cmp < -1){
+					holdVariant = false;
+					lowerBound = j + 1;
+				}
+				else if(cmp > 1){
+					holdVariant = false;
+					i++;
+				}
+				else{
+					answer.get(i).add(alignment);
+					j++;
+				}
+			}
+		}
+		return answer;
+	}
+**/
 	private int assignBayesianGenotype(GenomicVariant variant, List<SimplifiedReadAlignment> spanningAlns) {
 		// TODO Auto-generated method stub
 		int genotype = -1;

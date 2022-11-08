@@ -92,7 +92,6 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 					}
 				}
 			}
-			//clusters.put(k, chrClusters);
 		}
 		return clusters;
 	}
