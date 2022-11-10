@@ -47,7 +47,9 @@ import ngsep.transcriptome.Transcriptome;
 
 public class GFF3TranscriptomeHandler {
 	public static final String FEATURE_TYPE_GENE = "gene";
+	public static final String FEATURE_TYPE_PCGENE = "protein_coding_gene";
 	public static final String FEATURE_TYPE_TRGENE = "transposable_element_gene";
+	public static final String FEATURE_TYPE_PSEUDOGENE = "pseudogene";
 	public static final String FEATURE_TYPE_EXON = "exon";
 	public static final String FEATURE_TYPE_MRNA = "mRNA";
 	public static final String FEATURE_TYPE_5PUTR = "five_prime_UTR";
@@ -74,9 +76,9 @@ public class GFF3TranscriptomeHandler {
 	
 	
 	
-	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR};
+	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_PCGENE, FEATURE_TYPE_PSEUDOGENE, FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR};
 	//TODO: Use a file resource
-	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
+	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","","SO:0000336","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
 	private QualifiedSequenceList sequenceNames;
 	
 	private boolean loadTextAnnotations = false;
@@ -211,8 +213,8 @@ public class GFF3TranscriptomeHandler {
 		int numGenes = 0;
 		int numTranscripts = 0;
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
-			if(FEATURE_TYPE_GENE.equals(feature.getType()) || FEATURE_TYPE_TRGENE.equals(feature.getType())) {
-				Gene gene = createGeneFromMRNAFeature(feature);
+			if(FEATURE_TYPE_GENE.equals(feature.getType()) || FEATURE_TYPE_TRGENE.equals(feature.getType())|| FEATURE_TYPE_PCGENE.equals(feature.getType()) || FEATURE_TYPE_PSEUDOGENE.equals(feature.getType()) ) {
+				Gene gene = createGeneFromGeneFeature(feature);
 				numGenes++;
 				gene.setOntologyTerms(feature.getOntologyTerms());
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
@@ -279,7 +281,7 @@ public class GFF3TranscriptomeHandler {
 		if(sequenceName==null) throw new RuntimeException("Error loading CDS feature with ID: "+feature.getId()+" at  feature lines: "+feature.getLines().size());
 		return new Transcript(feature.getId(), sequenceName, first, last, negativeStrand);
 	}
-	private Gene createGeneFromMRNAFeature(GFF3GenomicFeature feature) {
+	private Gene createGeneFromGeneFeature(GFF3GenomicFeature feature) {
 		List<GFF3GenomicFeatureLine> geneLines = feature.getLines();
 		if(geneLines.size()>1) {
 			//log.warning("Multiple lines found for feature with ID "+feature.getId()+". Features of type "+FEATURE_TYPE_MRNA+" should not have multiple lines. Processing first line only");
