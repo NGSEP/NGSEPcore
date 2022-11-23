@@ -11,18 +11,17 @@ import java.util.List;
 import java.util.Map;
 
 public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetectorClusteringAlgorithm {
-	
-	public final static int MIN_DEFAULT_POINTS = 4;
-	public final static double DEFAULT_EPSILON = 250;
-	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 500;
 
-	private int minPoints = MIN_DEFAULT_POINTS;
-	private double epsilon = DEFAULT_EPSILON;
-	
+	public final static int MIN_DEFAULT_POINTS = 5;
+	public final static double INTRAALIGNMENT_EPSILON = 250;
+	public final static double INTERALIGNMENT_EPSILON = 500;
+	public final static double INTERTYPE_EPSILON = 250;
+	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
+
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
-	
-	public DBSCANClusteringDetectionAlgorithm(ReferenceGenome genome, 
-			GenomicRegionSortedCollection<GenomicVariant>  signatures, int SVEventLength){
+
+	public DBSCANClusteringDetectionAlgorithm(ReferenceGenome genome,
+											  GenomicRegionSortedCollection<GenomicVariant>  signatures, int SVEventLength){
 		this.signatures = signatures;
 	}
 
@@ -66,8 +65,8 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 					GenomicVariant current = typePartition.get(i);
 					GenomicVariant next = typePartition.get(i+1);
 					toCluster.add(current);
-					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 || 
-							toCluster.size() > 3000) {
+					if(!testDownstreamSignatureCompatibility(current,next) || i==typePartition.size() - 2 ||
+							toCluster.size() > 10000) {
 						List<Integer> idxs = new ArrayList<>();
 						for(GenomicVariant sign:toCluster) {
 							idxs.add(signList.indexOf(sign));
@@ -75,8 +74,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 						List<List<Integer>> adjacencyList = constructSignatureGraph(toCluster);
 						DBSCANClusteringAlgorithm instance = new DBSCANClusteringAlgorithm();
 						List<List<Integer>> partClusters = instance
-								.runDBSCANClustering(idxs, adjacencyList, minPoints);
-						//chrClusters.addAll(partClusters);
+								.runDBSCANClustering(idxs, adjacencyList, MIN_DEFAULT_POINTS);
 						clusters.computeIfAbsent(k, v -> new ArrayList<>()).addAll(partClusters);
 						List<Integer> noisePoints = instance.getNoisePoints();
 						if(noisePoints.size() > 1) {
@@ -85,7 +83,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 							List<List<Integer>> weakAdjacencyList = constructSignatureGraph(noiseSignsToCluster);
 							DBSCANClusteringAlgorithm inst = new DBSCANClusteringAlgorithm();
 							List<List<Integer>> weakClusters = inst
-									.runDBSCANClustering(noisePoints, weakAdjacencyList, 0);
+									.runDBSCANClustering(noisePoints, weakAdjacencyList, 1);
 							clusters.computeIfAbsent(k, v -> new ArrayList<>()).addAll(weakClusters);
 						}
 						toCluster = new ArrayList<>();
@@ -101,13 +99,19 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		int n = candidateSignatures.size();
 		for(int i = 0; i < n; i++) graph.add(new ArrayList<>());
 		for(int i = 0; i < n; i++){
-			GenomicVariant iSign = candidateSignatures.get(i);
+			Signature iSign = (Signature) candidateSignatures.get(i);
 			List<Integer> iNeighbors = graph.get(i);
 			for(int j = i; j < n; j++){
-				GenomicVariant jSign = candidateSignatures.get(j);
+				Signature jSign = (Signature) candidateSignatures.get(j);
 				List<Integer> jNeighbors = graph.get(j);
 				if(i!=j){
 					double distance = calculateThreeDimEuclideanDistance(iSign, jSign);
+					double epsilon;
+					if(iSign.getSignatureType() == jSign.getSignatureType()){
+						if(iSign.getSignatureType()==Signature.INTRAALIGNMENT) epsilon = INTRAALIGNMENT_EPSILON;
+						else epsilon = INTERALIGNMENT_EPSILON;
+					}
+					else epsilon = INTERTYPE_EPSILON;
 					if(distance < epsilon) {
 						iNeighbors.add(j);
 						jNeighbors.add(i);
@@ -119,10 +123,10 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 	}
 
 	public static double calculateThreeDimEuclideanDistance(GenomicVariant s1, GenomicVariant s2) {
-		return calculateThreeDimEuclideanDistance(s1.getFirst(), s2.getFirst(), s1.getLast(), s2.getLast(), 
+		return calculateThreeDimEuclideanDistance(s1.getFirst(), s2.getFirst(), s1.getLast(), s2.getLast(),
 				s1.length(), s2.length());
 	}
-	
+
 	public static double calculateThreeDimEuclideanDistance(int x1, int x2, int y1, int y2, int z1, int z2) {
 		double eDistance;
 		double xDistance = Math.pow(x2-x1 ,2);
@@ -132,7 +136,7 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 		eDistance = Math.sqrt(eDistance);
 		return eDistance;
 	}
-	
+
 	public static boolean testDownstreamSignatureCompatibility(GenomicVariant s1, GenomicVariant s2) {
 		return Math.abs(s2.getFirst() - s1.getFirst()) < MAX_DOWNSTREAM_CONSENSUS_LENGTH;
 	}

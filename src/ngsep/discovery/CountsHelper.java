@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import JSci.maths.statistics.GammaDistribution;
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.FisherExactTest;
 import ngsep.math.LogMath;
@@ -34,12 +33,12 @@ import ngsep.variants.GenomicVariant;
 
 
 /**
- * Class that stores allele counts and genotype probabilities and offer methods to calculate 
- * posterior probabilities from conditionals 
+ * Class that stores allele counts and genotype probabilities and offer methods to calculate
+ * posterior probabilities from conditionals
  * @author Jorge Duitama
  */
 public class CountsHelper {
-	
+
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = 0.001;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = 0.000001;
 	private static final double DEF_HET_PROPORTION = 0.5;
@@ -47,7 +46,7 @@ public class CountsHelper {
 	private static final byte DEF_MIN_BASE_QS = 3;
 	public static final byte DEF_MAX_BASE_QS = 30;
 	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
-	
+
 	private int totalCount=0;
 	private int lowBaseQualityCount = 0;
 	private int [] counts;
@@ -56,14 +55,15 @@ public class CountsHelper {
 	private double [][] logConditionalProbs;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private double heterozygousProportion = DEF_HET_PROPORTION;
-	
+
 	private List<String> alleles;
 	private static double [][] alleleFreqCache;
 	private static double [][][] logProbCacheGT;
 	private static double [][] logProbCacheError;
-	
+	private static double [] logProbSVNormDistCache;
+
 	private boolean verbose = false;
-	
+
 	/**
 	 * Creates a default counts helper
 	 */
@@ -103,7 +103,7 @@ public class CountsHelper {
 		}
 		return helper;
 	}
-	
+
 	public double getHeterozygousProportion() {
 		return heterozygousProportion;
 	}
@@ -136,14 +136,14 @@ public class CountsHelper {
 		int m = DEF_MAX_BASE_QS+1;
 		//Create the cache for at least 10 alleles
 		if(numAlleles<10) numAlleles=10;
-		//Update to 50 if needed
+			//Update to 50 if needed
 		else if (numAlleles<50) numAlleles = 50;
-		//Update to the maximum if needed
+			//Update to the maximum if needed
 		else if(numAlleles<=GenomicVariant.MAX_NUM_ALLELES)numAlleles=GenomicVariant.MAX_NUM_ALLELES;
 		int n = numAlleles+1;
 		if(logProbCacheError!=null && logProbCacheError.length>=n) return;
 		logProbCacheError = new double [m][n];
-		
+
 		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
 			//Log of error probability for quality score i
 			logProbCacheError[i][0] = -0.1*i;
@@ -156,6 +156,13 @@ public class CountsHelper {
 		logProbCacheGT = new double [DEF_NUM_FREQUENCIES][m][n];
 		for(int f=0;f<DEF_NUM_FREQUENCIES;f++) {
 			updateProbabilitiesCacheFrequency (f);
+		}
+		NormalDistribution nd = new NormalDistribution(0, 1);
+		logProbSVNormDistCache = new double[1001];
+		double zScore = 0.0000000000001;
+		for(int i = 0; i < logProbSVNormDistCache.length; i++){
+			logProbSVNormDistCache[i] = Math.log10(nd.probability(zScore));
+			zScore += LongReadStructuralVariantDetector.NORM_DIST_BIN_SIZE;
 		}
 	}
 	private void updateProbabilitiesCacheFrequency(int f) {
@@ -176,7 +183,7 @@ public class CountsHelper {
 				logProbCache[i][j][1] = Math.log10(epa+term);*/
 			}
 		}
-		
+
 	}
 	/**
 	 * Starts all counts to zero
@@ -218,12 +225,12 @@ public class CountsHelper {
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
-			
+
 			int n = alleles.size();
 			//Update probabilities
 			for(int i=0;i<logConditionalProbs.length;i++) {
 				if(i==index) {
-					logConditionalProbs[i][i] += logProbCacheGT[f][qualScore][0]; 
+					logConditionalProbs[i][i] += logProbCacheGT[f][qualScore][0];
 				} else {
 					//The error towards the observed allele depends on the number of alleles
 					logConditionalProbs[i][i] += logProbCacheError[qualScore][n];
@@ -237,12 +244,12 @@ public class CountsHelper {
 						} else {
 							logConditionalProbs[i][j] += logProbCacheError[qualScore][n];
 						}
-					}		
+					}
 				}
 			}
 		}
 	}
-	
+
 	public void updateCountsIndel(String call, String qualityScores, boolean negativeStrand) {
 		totalCount++;
 		int index = alleles.indexOf(call);
@@ -295,9 +302,8 @@ public class CountsHelper {
 		}
 		if(verbose) printProbs(logConditionalProbs, true);
 	}
-	
-	public void updateCountsSV(String callAllele, NormalDistribution sampleDistribution,
-			GammaDistribution errorDistribution, int alleleLength) {
+
+	public void updateCountsSV(String callAllele, int NDIdx) {
 		// TODO Auto-generated method stub
 		totalCount++;
 		int index = alleles.indexOf(callAllele);
@@ -313,24 +319,21 @@ public class CountsHelper {
 			if(alleleI == callAllele) {
 				//Substitution log prob should not be larger than error log prob
 				if(isAltCall) {
-					//System.out.println("varLength " + sampleDistribution.getMean() + " call length " + alleleLength);
-					logCond = sampleDistribution.probability(alleleLength);
-					logCond = Math.log10(logCond);
+					//logCondAlleles[i] = probability of altCall given ALT allele hyphotesis
+					logCond = logProbSVNormDistCache[NDIdx];
 				}
 				else {
-					logCond = LongReadStructuralVariantDetector.DEF_LOG_REF_PROB_SV;
+					logCond = LongReadStructuralVariantDetector.DEF_LOGPROB_REFCALL_REF;
 				}
-			} 
+			}
 			else {
 				if(isAltCall) {
 					//logCondAlleles[i] = probability of altCall given REF allele hyphotesis = prob of seq or aln error
-					//initially with pacbio error rates per base - more accurate model to improve
-					logCond = errorDistribution.probability(alleleLength);
-					logCond = Math.log10(logCond);
+					logCond = LongReadStructuralVariantDetector.DEF_LOGPROB_ALTCALL_REF;
 				}
 				else {
 					//logCondAlleles[i] = probability of refCall given ALT allele hyphotesis
-					logCond = LongReadStructuralVariantDetector.DEF_LOG_ALT_PROB_SV;
+					logCond = LongReadStructuralVariantDetector.DEF_LOGPROB_REFCALL_ALT;
 				}
 			}
 			logCondAlleles[i] = Math.max(LongReadStructuralVariantDetector.DEF_LOG_ERROR_PROB_SV, logCond);
@@ -386,14 +389,14 @@ public class CountsHelper {
 			if(qualScore<DEF_MIN_BASE_QS) continue;
 			//AF=0 can be used because the success probability does not depend on the allele frequency
 			if(allele.charAt(i)==c) logCond+=logProbCacheGT[0][qualScore][0];
-			//Base change error. Assumes 4 bases.
+				//Base change error. Assumes 4 bases.
 			else logCond+=logProbCacheError[qualScore][4];
 		}
 		return logCond;
 	}
 	/**
-	 * 
-	 * @return double[][] Conditional probability of each possible genotype  
+	 *
+	 * @return double[][] Conditional probability of each possible genotype
 	 */
 	public double[][] getLogConditionalProbs() {
 		return logConditionalProbs;
@@ -401,7 +404,7 @@ public class CountsHelper {
 
 	/**
 	 * Calculates the posterior probability of each genotype
-	 * @param hetRate Prior heterozygosity rate 
+	 * @param hetRate Prior heterozygosity rate
 	 * @return double [][] Squared matrix of probabilities.
 	 */
 	public double [][] getPosteriorProbabilities (double hetRate) {
@@ -440,7 +443,7 @@ public class CountsHelper {
 	}
 	/**
 	 * Calculates the posterior probability of homozygous for the major allele against heterozygous genotypes
-	 * @param hetRate Prior heterozygosity rate 
+	 * @param hetRate Prior heterozygosity rate
 	 * @param majorAlleleIdx Index of the major allele
 	 * @return double [] Matrix of probabilities. The entry corresponding to the majorAlleleIdx contains the probability of the homozygous genotype
 	 */
@@ -450,7 +453,7 @@ public class CountsHelper {
 		int heteroGenotypes = nAlleles-1;
 		double logPriorHetero = Math.log10(hetRate/heteroGenotypes);
 		double logPriorHomo = Math.log10((1-hetRate));
-		
+
 		double [] eventsArray = new double [nAlleles];
 		for(int j=0;j<nAlleles;j++) {
 			if(j==majorAlleleIdx) {
@@ -476,7 +479,7 @@ public class CountsHelper {
 		}
 		//Calculate total probability and contribution of each possible event
 		double totalProb = 0;
-		for(int i=0;i<eventsArray.length;i++) { 
+		for(int i=0;i<eventsArray.length;i++) {
 			eventsArray[i] -= logMax;
 			if(eventsArray[i] < -20) {
 				eventsArray[i] = 0.0;
@@ -486,25 +489,25 @@ public class CountsHelper {
 			totalProb+=eventsArray[i];
 		}
 		//Normalize
-		for(int i=0;i<eventsArray.length;i++) { 
+		for(int i=0;i<eventsArray.length;i++) {
 			eventsArray[i] = eventsArray[i]/totalProb;
 		}
 	}
 	/**
-	 * Prints the given probabilities. 
+	 * Prints the given probabilities.
 	 * @param probs Probabilities matrix to print
 	 * @param logs If true, it assumes that the given matrix have log probabilities and then
 	 * calculates exp(10,probs[i][j]) before printing
 	 */
 	public void printProbs (double [][] probs,boolean logs) {
-		for(int i=0;i<probs.length;i++) { 
+		for(int i=0;i<probs.length;i++) {
 			for(int j=0;j<probs[0].length;j++) {
 				if(logs) {
 					System.out.print(" "+Math.pow(10.0, probs[i][j]));
 				} else {
 					System.out.print(" "+probs[i][j]);
 				}
-				
+
 			}
 			System.out.println();
 		}
@@ -515,8 +518,8 @@ public class CountsHelper {
 	public int[] getCounts() {
 		return counts;
 	}
-	
-	
+
+
 	public double[] getAlleleErrorLogProbs() {
 		return alleleErrorLogProbs;
 	}
@@ -541,22 +544,22 @@ public class CountsHelper {
 	public String [] getAlleles() {
 		return alleles.toArray(new String [0]);
 	}
-	
+
 	public List<String> getAllelesList() {
 		return Collections.unmodifiableList(alleles);
 	}
-	
+
 	public byte getMaxBaseQS() {
 		return maxBaseQS;
 	}
 	public void setMaxBaseQS(byte maxBaseQS) {
 		this.maxBaseQS = maxBaseQS;
 	}
-	
+
 	public int getLowBaseQualityCount() {
 		return lowBaseQualityCount;
 	}
-	
+
 	public double getPValueStrandBiasFisher (int i1, int i2) {
 		if(i1<0 || i1>=countsStrand.length) throw new IllegalArgumentException("Invalid first allele index: "+i1);
 		if(i2<0 || i2>=countsStrand.length) throw new IllegalArgumentException("Invalid second allele index: "+i2);
@@ -566,7 +569,7 @@ public class CountsHelper {
 		int d = countsStrand[i2][1];
 		return FisherExactTest.calculatePValue(a, b, c, d);
 	}
-	
+
 	public byte getScoreStrandBiasFisher (int i1, int i2) {
 		double pvalueSB = getPValueStrandBiasFisher(i1, i2);
 		return (byte) Math.min(CalledGenomicVariant.MAX_STRAND_BIAS_SCORE, PhredScoreHelper.calculatePhredScore(pvalueSB));
