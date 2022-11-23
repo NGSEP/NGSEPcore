@@ -15,7 +15,6 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 	public final static int MIN_DEFAULT_POINTS = 5;
 	public final static double INTRAALIGNMENT_EPSILON = 250;
 	public final static double INTERALIGNMENT_EPSILON = 500;
-	public final static double INTERTYPE_EPSILON = 250;
 	public static final double MAX_DOWNSTREAM_CONSENSUS_LENGTH = 4000;
 
 	private GenomicRegionSortedCollection<GenomicVariant> signatures;
@@ -107,11 +106,10 @@ public class DBSCANClusteringDetectionAlgorithm implements LongReadVariantDetect
 				if(i!=j){
 					double distance = calculateThreeDimEuclideanDistance(iSign, jSign);
 					double epsilon;
-					if(iSign.getSignatureType() == jSign.getSignatureType()){
-						if(iSign.getSignatureType()==Signature.INTRAALIGNMENT) epsilon = INTRAALIGNMENT_EPSILON;
-						else epsilon = INTERALIGNMENT_EPSILON;
+					if(iSign.getSignatureType() == jSign.getSignatureType() && iSign.getSignatureType()==Signature.INTRAALIGNMENT) {
+						epsilon = INTRAALIGNMENT_EPSILON;
 					}
-					else epsilon = INTERTYPE_EPSILON;
+					else epsilon = INTERALIGNMENT_EPSILON;
 					if(distance < epsilon) {
 						iNeighbors.add(j);
 						jNeighbors.add(i);
