@@ -29,7 +29,9 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 
 	public static final String[] GENOTYPE_ALLELES = {"REF", "ALT"};
 	public static final double DEF_HET_RATE = 0.5;
-	public static final int DEFAULT_CLUSTER_STD_NORM_FACTOR = 5;
+	public static final int DEFAULT_CLUSTER_STD_NORM_FACTOR_PACBIO_HIFI = 20;
+	public static final int DEFAULT_CLUSTER_STD_NORM_FACTOR_ONT = 30;
+
 	public static final double DEF_PRIOR_HETEROZYGOSITY_RATE = CountsHelper.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final double DEF_LOGPROB_ALTCALL_REF = Math.log10(0.0001);
 	public static final double DEF_LOGPROB_REFCALL_REF = Math.log10(0.999);
@@ -51,6 +53,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private ReferenceGenome refGenome;
 	private String clusteringAlgorithm = DBSCAN_ALGORITHM;
 	private int lengthToDefineSVEvent = 50;
+	private static final int clusterStdNormFactor = DEFAULT_CLUSTER_STD_NORM_FACTOR_PACBIO_HIFI;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 
 	LongReadStructuralVariantDetector(){
@@ -588,7 +591,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		helper.setVerbose(verbose);
 		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
 		helper.setHeterozygousProportion(heterozygousProportion);
-		double std = (double) avgLength/DEFAULT_CLUSTER_STD_NORM_FACTOR;
+		double std = (double) avgLength/clusterStdNormFactor;
 		for(GenomicVariant call: calls) {
 			String callAllele = call.getType() == GenomicVariant.TYPE_UNDETERMINED ? GENOTYPE_ALLELES[0] : GENOTYPE_ALLELES[1];
 			int callLength = call.length();
