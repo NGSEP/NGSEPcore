@@ -242,7 +242,7 @@ public class VCFFileWriter {
 			} else if (formatIdx == VCFRecord.FORMAT_IDX_DP) {
 				//Read depth
 				out.print(var.getTotalReadDepth());
-			} else if (formatIdx == VCFRecord.FORMAT_IDX_ADP) {
+			} else if (formatIdx == VCFRecord.FORMAT_IDX_ADP || formatIdx == VCFRecord.FORMAT_IDX_ADP_GATK) {
 				if(report!=null && report.countsPresent()) {
 					for(int i=0;i<alleles.length;i++) {
 						if(i>0) out.print(",");

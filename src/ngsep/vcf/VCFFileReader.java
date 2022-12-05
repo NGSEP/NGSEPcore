@@ -381,6 +381,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		//Load variant-specific optional information 
 		int [] allCounts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_BSDP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_BSDP],sampleId,variant,4);
 		int [] counts = loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_ADP],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_ADP],sampleId,variant,alleles.length);
+		if (counts==null) loadCounts(knownItemsSample[VCFRecord.FORMAT_IDX_ADP_GATK],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_ADP_GATK],sampleId,variant,alleles.length);
 		double [][] logConditionals = loadConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_PL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_PL],sampleId,variant,callItems.length==1,true);
 		if(logConditionals==null) logConditionals = loadConditionals (numAlleles,knownItemsSample[VCFRecord.FORMAT_IDX_GL],VCFRecord.KNOWN_FORMAT_FIELDS_ARRAY[VCFRecord.FORMAT_IDX_GL],sampleId,variant,callItems.length==1,false);
 		//Create object consistent with the variant information

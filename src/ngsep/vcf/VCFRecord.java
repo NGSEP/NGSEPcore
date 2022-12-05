@@ -87,6 +87,10 @@ public class VCFRecord implements GenomicRegion {
 	 * Text describing the genotype for copy number variants
 	 */
 	public static final String FORMAT_TEXT_GENOTYPE = "TGEN";
+	/**
+	 * Number of base calls (depth) for each allele, including the reference. GATK synonym of ADP
+	 */
+	public static final String FORMAT_ALLELE_DEPTH_GATK = "AD";
 	
 	
 	
@@ -106,6 +110,7 @@ public class VCFRecord implements GenomicRegion {
 	public static final int FORMAT_IDX_NTADF = 11;
 	public static final int FORMAT_IDX_NTRDF = 12;
 	public static final int FORMAT_IDX_TGEN = 13;
+	public static final int FORMAT_IDX_ADP_GATK = 14;
 	
 	public static final int [] DEF_FORMAT_ARRAY_NONE = {};
 	public static final int [] DEF_FORMAT_ARRAY_MINIMAL = {FORMAT_IDX_GT};
@@ -136,7 +141,7 @@ public class VCFRecord implements GenomicRegion {
 		answer.put("AAC", FORMAT_IDX_BSDP);
 		
 		//Added to load counts from GATK VCF files
-		answer.put("AD", FORMAT_IDX_ADP);
+		answer.put(FORMAT_ALLELE_DEPTH_GATK, FORMAT_IDX_ADP_GATK);
 		
 		return answer;
 	}
@@ -144,7 +149,7 @@ public class VCFRecord implements GenomicRegion {
 	public static final String [] KNOWN_FORMAT_FIELDS_ARRAY = loadFormatNames();
 	
 	private static String[] loadFormatNames() {
-		String [] answer = new String[14];
+		String [] answer = new String[15];
 		answer[FORMAT_IDX_GT] = FORMAT_GENOTYPE;
 		answer[FORMAT_IDX_PL] = FORMAT_GENOTYPE_PHRED_LIKELIHOOD;
 		answer[FORMAT_IDX_GL] = FORMAT_GENOTYPE_LIKELIHOOD;
@@ -159,6 +164,7 @@ public class VCFRecord implements GenomicRegion {
 		answer[FORMAT_IDX_NTADF] = FORMAT_NUMBER_TANDEM_DUP_FRAGS;
 		answer[FORMAT_IDX_NTRDF] = FORMAT_NUMBER_TRANS_DUP_FRAGS;
 		answer[FORMAT_IDX_TGEN] = FORMAT_TEXT_GENOTYPE;
+		answer[FORMAT_IDX_ADP_GATK] = FORMAT_ALLELE_DEPTH_GATK;
 		return answer;
 	}
 	
