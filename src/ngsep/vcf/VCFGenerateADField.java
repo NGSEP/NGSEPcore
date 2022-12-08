@@ -11,6 +11,8 @@ public class VCFGenerateADField {
 		PrintStream out = System.out;
 		try (VCFFileReader reader = new VCFFileReader(args[0])) {
 			VCFFileHeader header = reader.getHeader();
+			VCFHeaderLine hl = new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_ALLELE_DEPTH_GATK,"\"Counts for observed alleles, including the reference allele\"","R","Integer");
+			header.addHeaderLine(hl);
 			writer.printHeader(header, out);
 			Iterator<VCFRecord> it = reader.iterator();
 			while (it.hasNext()) {

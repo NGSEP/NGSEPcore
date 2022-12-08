@@ -169,6 +169,9 @@ public class VCFFileHeader {
 		}
 	}
 	
+	public void addHeaderLine(VCFHeaderLine line) {
+		idHeaderLines.add(line);
+	}
 	public void addSamples (List<Sample> samples) {
 		for(Sample sample:samples) {
 			addSample(sample, false);
