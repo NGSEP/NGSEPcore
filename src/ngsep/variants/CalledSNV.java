@@ -513,5 +513,9 @@ public class CalledSNV implements CalledGenomicVariant {
 	 */
 	public void setStrandBiasScore(byte strandBiasScore) {
 		this.strandBiasScore = strandBiasScore;
-	}	
+	}
+	@Override
+	public boolean isStructural() {
+		return false;
+	}
 }

@@ -668,31 +668,9 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		sortedVariants.retainAll(variantsToKeep);
 	}
 
-	private List<GenomicVariantAnnotation> annotateStructuralVariant(GenomicVariant variant){
-		List<GenomicVariantAnnotation> annotations = new ArrayList<>();
-		int length = variant.getType() == GenomicVariant.TYPE_LARGEDEL ? variant.length()*(-1) : variant.length();
-		GenomicVariantAnnotation svLengthAnnot = new GenomicVariantAnnotation(variant,
-				GenomicVariantAnnotation.ATTRIBUTE_SVLEN, length);
-		GenomicVariantAnnotation svEndAnnot = new GenomicVariantAnnotation(variant,
-				GenomicVariantAnnotation.ATTRIBUTE_END, variant.getLast());
-		GenomicVariantAnnotation svTypeAnnot = new GenomicVariantAnnotation(variant,
-				GenomicVariantAnnotation.ATTRIBUTE_SVTYPE, GenomicVariantImpl.getVariantTypeName(variant.getType()));
-		annotations.add(svLengthAnnot);
-		annotations.add(svEndAnnot);
-		annotations.add(svTypeAnnot);
-		return annotations;
-	}
-
 	private VCFFileHeader createVCFHeader(String sampleId) throws IOException {
 		VCFFileHeader header = VCFFileHeader.makeDefaultEmptyHeader();
 		header.addSample(new Sample(sampleId), true);
-		String end = "##INFO=<ID=END,Number=1,Type=Integer,Description=" + "\"End position of the structural variant\"" + ">";
-		String svtype = "##INFO=<ID=SVTYPE,Number=1,Type=String,Description="
-				+ "\"Type of SV:DEL=Deletion, INS=Insertion, DUP=Duplication, INV=Inversion\"" +">";
-		String svlen = "##INFO=<ID=SVLEN,Number=.,Type=Integer,Description=" + "\"Difference in length between REF and ALT alleles\"" + ">";
-		header.loadHeaderLine(end);
-		header.loadHeaderLine(svtype);
-		header.loadHeaderLine(svlen);
 		return header;
 	}
 
@@ -709,7 +687,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 			List<CalledGenomicVariant> calls = new ArrayList<>();
 			CalledGenomicVariant call = (CalledGenomicVariantImpl) variant;
 			calls.add(call);
-			List<GenomicVariantAnnotation> infoFields = annotateStructuralVariant(variant);
+			List<GenomicVariantAnnotation> infoFields = GenomicVariantAnnotation.annotateStructuralVariant(variant);
 			List<String> filters = getVariantFilters(variant);
 			VCFRecord record = new VCFRecord(variant, filters,
 					infoFields, VCFRecord.DEF_FORMAT_ARRAY_MINIMAL,  calls, header);
@@ -1124,6 +1102,12 @@ class Signature implements GenomicVariant {
 
 	public void setAlnIdx(int alnIdx) {
 		this.alnIdx = alnIdx;
+	}
+
+
+	@Override
+	public boolean isStructural() {
+		return true;
 	}
 }
 

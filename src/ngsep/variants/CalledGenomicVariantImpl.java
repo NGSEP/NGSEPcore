@@ -433,6 +433,11 @@ public class CalledGenomicVariantImpl implements CalledGenomicVariant {
 	public void setStrandBiasScore(byte strandBiasScore) {
 		this.strandBiasScore = strandBiasScore;
 	}
+
+	@Override
+	public boolean isStructural() {
+		return variant.isStructural();
+	}
 	
 
 	

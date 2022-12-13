@@ -109,5 +109,9 @@ public interface GenomicVariant extends GenomicRegion {
 	 * @param type New type. See constants in GenomicVariant
 	 */
 	public void setType(byte type);
+	/**
+	 * @return true if the variant is considered a structural variant. false otherwise
+	 */
+	public boolean isStructural();
 	
 }

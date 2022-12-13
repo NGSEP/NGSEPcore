@@ -367,4 +367,8 @@ public class CalledCNV implements CalledGenomicVariant {
 	public byte getStrandBiasScore() {
 		return 0;
 	}
+	@Override
+	public boolean isStructural() {
+		return true;
+	}
 }

@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -32,6 +34,7 @@ import ngsep.discovery.rd.ReadDepthBin;
 import ngsep.discovery.rd.ReadDepthDistribution;
 import ngsep.discovery.rd.SingleSampleReadDepthAlgorithm;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
@@ -643,7 +646,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			}
 		}
 		if(runRDAnalysis || runRPAnalysis || findRepeats || runLongReadSVs) {
-			log.info("Saving structural variants");
+			log.info("Saving structural variants in GFF format");
 			try (PrintStream outStructural = new PrintStream(outputPrefix+"_SV.gff")) {
 				GFFVariantsFileHandler svHandler = new GFFVariantsFileHandler();
 				svHandler.saveVariants(calledSVs.asList(), outStructural);
@@ -927,64 +930,77 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	}
 
 	private void saveSequenceVariants(String sequenceName) {
-		List<CalledCNV> sequenceCNVs= selectCalledCNVs(calledSVs.getSequenceRegions(sequenceName)).asList();
+		GenomicRegionSortedCollection<CalledGenomicVariant> svs = calledSVs.getSequenceRegions(sequenceName);
 		List<CalledGenomicVariant> sequenceVariants = varListener.getCalledVariants();
-		boolean [] varInCNV = new boolean [sequenceVariants.size()]; 
-		intersectVariantsCNVs(sequenceCNVs,sequenceVariants,varInCNV);
-		for(int i=0;i<sequenceVariants.size();i++) {
-			CalledGenomicVariant call = sequenceVariants.get(i);
+		List<CalledGenomicVariant> allCalls = new ArrayList<>();
+		allCalls.addAll(svs);
+		allCalls.addAll(sequenceVariants);
+		Collections.sort(allCalls,GenomicRegionPositionComparator.getInstance());
+		boolean [] varInCNV = new boolean [allCalls.size()];
+		Arrays.fill(varInCNV,false);
+		intersectVariantsCNVs(allCalls, varInCNV);
+		for(int i=0;i<allCalls.size();i++) {
+			CalledGenomicVariant call = allCalls.get(i);
 			int [] format;
 			if(call instanceof CalledSNV) format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV;
+			else if (call.isStructural()) format = VCFRecord.DEF_FORMAT_ARRAY_QUALITY;
 			else if (call.getAllCounts()!=null) format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV;
 			else format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
 			VCFRecord record = new VCFRecord(call, format, call, header);
-			if(call.getStrandBiasScore()!=CalledGenomicVariant.INVALID_STRAND_BIAS_SCORE) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS, call.getStrandBiasScore()));
-			if(varInCNV[i]) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, "1"));
+			if(call.getIndexesCalledAlleles()==null) System.err.println("Null indexes called alleles for variant: "+call.getSequenceName()+":"+call.getFirst()+"-"+call.getLast()+" type: "+call.getType()+" genotype: "+call.getCalledAlleles());
+			if(call instanceof CalledSNV) {
+				if(call.getStrandBiasScore()!=CalledGenomicVariant.INVALID_STRAND_BIAS_SCORE) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS, call.getStrandBiasScore()));
+				if(varInCNV[i]) record.addAnnotation(new GenomicVariantAnnotation(call, GenomicVariantAnnotation.ATTRIBUTE_IN_CNV, "1"));
+			} else if (call.isStructural()) {
+				List<GenomicVariantAnnotation> anns = GenomicVariantAnnotation.annotateStructuralVariant(call);
+				for(GenomicVariantAnnotation ann:anns) record.addAnnotation(ann);
+			}
+			
 			varsFW.printVCFRecord(record, outVars);
 		}
 		outVars.flush();
 		varListener.clear();
 	}
-	private void intersectVariantsCNVs(List<CalledCNV> sequenceCNVs,List<CalledGenomicVariant> sequenceVars, boolean [] varInCNV) {
+	private void intersectVariantsCNVs(List<CalledGenomicVariant> allVars, boolean [] varInCNV) {
 		int threshold = getBinSize();
 		int indexFirst = 0;
-		for(int i=0;i<sequenceVars.size();i++) {
-			CalledGenomicVariant var = sequenceVars.get(i);
+		for(int i=0;i<allVars.size();i++) {
+			CalledGenomicVariant var = allVars.get(i);
 			//Clean up old estimate
-			varInCNV[i] = false;
 			var.updateAllelesCopyNumberFromCounts(normalPloidy);
 			int first = Math.max(0, var.getFirst()-threshold);
 			//Discard CNVs ending before start
-			while(indexFirst<sequenceCNVs.size()) {
-				CalledCNV cnv = sequenceCNVs.get(indexFirst);
-				if(cnv.getLast() < first) {
-					indexFirst++;
+			while(indexFirst<allVars.size()) {
+				CalledGenomicVariant call2 = allVars.get(indexFirst);
+				if(call2 instanceof CalledCNV) {
+					CalledCNV cnv = (CalledCNV)call2;
+					if(cnv.getLast() < first) {
+						indexFirst++;
+					} else {
+						break;
+					}
 				} else {
-					break;
+					indexFirst++;
 				}
 			}
-			if(indexFirst==sequenceCNVs.size()) continue;
-			for(int j=indexFirst;j<sequenceCNVs.size();j++) {
-				CalledCNV cnv = sequenceCNVs.get(j);
-				int startVicinity = cnv.getFirst()-threshold;
-				int endVicinity = cnv.getLast()+threshold;
-				boolean closeToCNV = startVicinity <= var.getLast() && var.getFirst() <= endVicinity;
-				//boolean inCNV = cnv.getStart() <= var.getEnd() && var.getStart() <= cnv.getEnd();
-				//double normalizedCoverage = (var.getCountReference()+var.getCountAlternative())/cnvListener.getHaploidAverageCoverage();
-				//if(inCNV || (closeToCNV && Math.abs(normalizedCoverage-normalPloidy)>0.5)) {
-				if(closeToCNV) {
-					varInCNV[i] = true;
-					byte numCopies = (byte)Math.round(cnv.getNumCopies());
-					var.updateAllelesCopyNumberFromCounts(numCopies);
-					if(var.isHeterozygous()) {
-						cnv.addHeterozygousVariant();
-					}
-				} else if (cnv.getFirst() > var.getLast()+threshold) {
-					break;
+			if(indexFirst==allVars.size()) break;
+			if(var.isStructural()) continue;
+			CalledCNV cnv = (CalledCNV) allVars.get(indexFirst);
+			int startVicinity = cnv.getFirst()-threshold;
+			int endVicinity = cnv.getLast()+threshold;
+			boolean closeToCNV = startVicinity <= var.getLast() && var.getFirst() <= endVicinity;
+			//boolean inCNV = cnv.getStart() <= var.getEnd() && var.getStart() <= cnv.getEnd();
+			//double normalizedCoverage = (var.getCountReference()+var.getCountAlternative())/cnvListener.getHaploidAverageCoverage();
+			//if(inCNV || (closeToCNV && Math.abs(normalizedCoverage-normalPloidy)>0.5)) {
+			if(closeToCNV) {
+				varInCNV[i] = true;
+				byte numCopies = (byte)Math.round(cnv.getNumCopies());
+				var.updateAllelesCopyNumberFromCounts(numCopies);
+				if(var.isHeterozygous()) {
+					cnv.addHeterozygousVariant();
 				}
 			}
 		}
-		
 	}
 
 	@Override

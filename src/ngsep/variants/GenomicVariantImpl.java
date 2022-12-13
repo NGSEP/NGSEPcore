@@ -269,5 +269,12 @@ public class GenomicVariantImpl implements GenomicVariant {
 	public static byte mergeType(byte c1, byte c2) {
 		return (byte)Math.max(c1, c2);
 	}
+
+
+
+	@Override
+	public boolean isStructural() {
+		return getType()>=10;
+	}
 	
 }

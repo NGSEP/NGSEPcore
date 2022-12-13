@@ -201,4 +201,8 @@ public class SNV implements GenomicVariant {
 	public void setType(byte type) {
 		this.type = type;
 	}
+	@Override
+	public boolean isStructural() {
+		return false;
+	}
 }

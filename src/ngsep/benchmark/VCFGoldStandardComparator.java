@@ -1239,5 +1239,11 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		// TODO Auto-generated method stub
 		return 0;
 	}
+
+	@Override
+	public boolean isStructural() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 	
 }

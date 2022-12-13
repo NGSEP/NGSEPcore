@@ -19,6 +19,9 @@
  *******************************************************************************/
 package ngsep.variants;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class GenomicVariantAnnotation {
 	//Reserved 1000g info attributes
 	public static final String ATTRIBUTE_ANCESTRAL_ALLELE = "AA";
@@ -113,5 +116,16 @@ public class GenomicVariantAnnotation {
 	}
 	public void setValue(Object value) {
 		this.value = value;
+	}
+	public static List<GenomicVariantAnnotation> annotateStructuralVariant(GenomicVariant variant){
+		List<GenomicVariantAnnotation> annotations = new ArrayList<>();
+		int length = variant.getType() == GenomicVariant.TYPE_LARGEDEL ? variant.length()*(-1) : variant.length();
+		GenomicVariantAnnotation svLengthAnnot = new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SVLEN, length);
+		GenomicVariantAnnotation svEndAnnot = new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_END, variant.getLast());
+		GenomicVariantAnnotation svTypeAnnot = new GenomicVariantAnnotation(variant, GenomicVariantAnnotation.ATTRIBUTE_SVTYPE, GenomicVariantImpl.getVariantTypeName(variant.getType()));
+		annotations.add(svLengthAnnot);
+		annotations.add(svEndAnnot);
+		annotations.add(svTypeAnnot);
+		return annotations;
 	}
 }

@@ -58,6 +58,9 @@ public class VCFFileHeader {
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_ALLELE_FREQUENCY_SPECTRUM,"\"Allele counts over the population for all alleles, including the reference\"","R","Integer"));
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_TYPE,"\"Type of variant\"", "1", "String"));
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_FISHER_STRAND_BIAS,"\"Phred-scaled p-value using Fisher's exact test to detect strand bias\"","1","Float"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_END,"\"End position of the structural variant\"" ,"1","Integer"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_SVTYPE,"\"Type of SV:DEL=Deletion, INS=Insertion, DUP=Duplication, INV=Inversion\"","1","String"));
+		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("INFO", GenomicVariantAnnotation.ATTRIBUTE_SVLEN,"\"Difference in length between REF and ALT alleles\"","1","Integer"));
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE,"\"Genotype\"","1","String"));
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_PHRED_LIKELIHOOD,"\"Phred-scaled genotype likelihoods rounded to the closest integer\"","G","Integer"));
 		DEFAULT_HEADER_LINES_NGSEP.add(new VCFHeaderLine("FORMAT", VCFRecord.FORMAT_GENOTYPE_QUALITY,"\"Genotype quality\"","1","Integer"));

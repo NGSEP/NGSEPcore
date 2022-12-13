@@ -221,20 +221,20 @@ public class ReadPairCalledGenomicVariant implements CalledGenomicVariant {
 
 	@Override
 	public String[] getCalledAlleles() {
-		// TODO Auto-generated method stub
-		return null;
+		String [] defaultAlleles = {"1"}; 
+		return defaultAlleles;
 	}
 
 	@Override
 	public byte[] getIndexesCalledAlleles() {
-		// TODO Auto-generated method stub
-		return null;
+		byte [] defaultIdxAlleles = {1};
+		return defaultIdxAlleles;
 	}
 
 	@Override
 	public short[] getAllelesCopyNumber() {
-		// TODO Auto-generated method stub
-		return null;
+		short [] defaultCN = {0,2};
+		return defaultCN;
 	}
 
 	@Override
@@ -343,6 +343,13 @@ public class ReadPairCalledGenomicVariant implements CalledGenomicVariant {
 	public byte getStrandBiasScore() {
 		// TODO Auto-generated method stub
 		return INVALID_STRAND_BIAS_SCORE;
+	}
+
+
+
+	@Override
+	public boolean isStructural() {
+		return var.isStructural();
 	}
 
 
