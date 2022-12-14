@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.2.2" date="03-10-2022" jar="NGSEPcore">
+<software name="NGSEP" version="4.3.0" date="16-12-2022" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -208,9 +208,9 @@ Default ploidy of the samples.
 
 <command id="Assembler" class="ngsep.assembly.Assembler" groupId="Reads">
 <intro>
-Performs de-novo assembly from long reads (In progress) 
+Performs de-novo assembly from long reads
 </intro>
-<title>Assembling genomes from long reads (In progress)</title>
+<title>Assembling genomes from long reads</title>
 <description>
 Builds a de-novo assembly from a set of long reads following an overlap-layout-consensus (OLC) approach.
 It receives a fasta or fastq file with raw PacBio HiFi or Nanopore reads and generates an assembly for the sample in fasta format.
@@ -1043,7 +1043,8 @@ Annotates transposable elements in a genome assembly
 </intro>
 <title>Identifying transposable elements</title>
 <description>
-Receives a genome assembly in fasta format and annotates regions with transposable elements.
+Receives a genome assembly in fasta format and a file with known transposable elements (TEs) and annotates regions
+in the assembly with TEs.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome to annotate in fasta format. It can be gzip compressed.

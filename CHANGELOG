@@ -1,3 +1,11 @@
+v4.3.0 16-12-2022
+- New function TransposonsFinder to identify transposable elements in assembled
+  genomes
+- New function GenomeAssemblyMask to mask with lowercase or with N characters
+  a set of regions in a genome assembly
+- GenomesAligner: Added option -t to set the number of threads
+- CDNACatalogAligner: Added option -t to set the number of threads
+
 v4.2.1 28-06-2022
 - Assembler: New options -cml and -cmof to set the maximum contig length and a
   catalog of start sequencs for circularization

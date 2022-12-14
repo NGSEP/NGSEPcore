@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.2.1 (28-06-2022)
+Version 4.3.0 (16-12-2022)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -219,9 +219,9 @@ OPTIONS:
 			  individual genotype calls. Default: 40
 	-ploidy INT     : Default ploidy of the samples. Default: 2
 
-------------------------------------------------
-Assembling genomes from long reads (In progress)
-------------------------------------------------
+----------------------------------
+Assembling genomes from long reads
+----------------------------------
 
 Builds a de-novo assembly from a set of long reads following an
 overlap-layout-consensus (OLC) approach. It receives a fasta or fastq file with
@@ -1152,6 +1152,7 @@ OPTIONS:
 			  include them within the same synteny block. Default: 100000
 	-f DOUBLE	: Minimum frequency to classify soft core gene families.
 			  Default: 0.9
+	-t INT		: Number of threads. Default: 1
 
 The options -d and -i are useful to process large numbers of genome assemblies.
 The file referred with the option -i should have one genome identifier for each
@@ -1234,6 +1235,7 @@ OPTIONS:
         -p INT    : Minimum percentage of k-mers to call orthologs Default: 50
         -s        : Skip the MCL clustering phase and returns unfiltered orthogroups.
         -y INT    : Type of sequences in the input file. 1 for CDNA, 2 for proteins. Default: 1
+	-t INT		: Number of threads. Default: 1
 
 This module produces two files as outputs. The first is a text file with
 homology relationships. It has three columns separated by tab:
@@ -1244,6 +1246,52 @@ homology relationships. It has three columns separated by tab:
 
 The second file is also a tab delimited file with one line for each identified
 cluster. Gene ids within each cluster are separated by tab.
+
+---------------------------------
+Identifying transposable elements
+---------------------------------
+
+Receives a genome assembly in fasta format and a file with known transposable
+elements (TEs) and annotates regions in the assembly with TEs.
+
+USAGE:
+
+java -jar NGSEPcore.jar TransposonsFinder <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input genome to annotate in fasta format. It can be gzip
+			  compressed.
+	-o FILE	: Output file with annotations of transposable elements.
+	-d FILE	: Database of transposable elements to annotate the genome.
+	-m INT		: Minimum length (in basepairs) to call a transposable
+			  element. Default: 200
+	-r INT		: Number of search rounds to identify new TEs from
+			  previously identified TEs. Default: 2
+	-t INT		: Number of threads. Default: 1
+
+
+------------------------------------
+Masking regions in a genome assembly
+------------------------------------
+
+Receives a genome assembly in fasta format and a file of regions
+(typically repeats) and masks the regions in the genome, either with lowercase
+characters or with Ns.
+
+USAGE:
+
+java -jar NGSEPcore.jar GenomeAssemblyMask <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input genome to mask. It can be gzip compressed.
+	-o FILE	: Output file with the masked genome
+	-d FILE	: Genomic regions to mask. It must have at least three columns:
+			  sequence name (chromosome), 1-based first position and
+			  1-based last position.
+	-h		: Mask with N characters. The default is to mask with lowercase
+			  characters.
 
 
 --------------------------------------------------------
