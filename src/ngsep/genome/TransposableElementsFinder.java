@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.genome;
 
 import java.io.ByteArrayOutputStream;
@@ -21,6 +40,13 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 
+/**
+ * 
+ * @author Daniela Lozano
+ * @author Laura Gonzalez
+ * @author Jorge Duitama
+ *
+ */
 public class TransposableElementsFinder {
 	
 	// Logging and progress
@@ -28,13 +54,16 @@ public class TransposableElementsFinder {
 	private ProgressNotifier progressNotifier=null;
 	
 	public static final int DEF_MIN_TE_LENGTH = 200;
+	public static final int DEF_ROUNDS = 2;
 	public static final int DEF_NUM_THREADS = 1;
+	
 	
 	// Parameters 
 	private String inputFile = null;
 	private String outputFile = null;
 	private String transposonsDatabaseFile = null;
 	private int minTELength = DEF_MIN_TE_LENGTH;
+	private int rounds = DEF_ROUNDS;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	// Model attributes
@@ -83,6 +112,16 @@ public class TransposableElementsFinder {
 		this.setMinTELength(Integer.parseInt(value));
 	}
 	
+	public int getRounds() {
+		return rounds;
+	}
+	public void setRounds(int rounds) {
+		this.rounds = rounds;
+	}
+	public void setRounds(String value) {
+		this.setRounds(Integer.parseInt(value));
+	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -118,6 +157,7 @@ public class TransposableElementsFinder {
 		out.println("Output file:"+ outputFile);
 		if(transposonsDatabaseFile!=null) out.println("Database of transposable elements: "+ transposonsDatabaseFile);
 		out.println("Minimum TE length: "+minTELength);
+		out.println("Number of search rounds: "+rounds);
 		out.println("Number of threads: "+numThreads);
 		log.info(os.toString());
 	}
@@ -253,16 +293,19 @@ public class TransposableElementsFinder {
 			log.info("Finished first round. No TEs found with the given database.");
 			return answer;
 		}
-		log.info("Finished first round. Identified "+elements.size()+" regions. Starting second round");
-		//Second round
-		GenomicRegionSortedCollection<TransposableElementAnnotation> sortedElements = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
-		sortedElements.addAll(elements);
-		elements = removeRedundantAnnotations(sortedElements);
-		log.info("Regions after removing redundancies: "+elements.size());
-		List<QualifiedSequence> foundSequences = extractSequences(genome,elements);
-		elements = alignTransposonSequences(genome, minimizerTable, foundSequences);
-		answer.addAll(elements);
-		log.info("Finished second round. Identified "+elements.size()+" regions. Total: "+answer.size());
+		log.info("Finished first round. Identified "+elements.size()+" regions.");
+		for(int i=2;i<=rounds;i++) {
+			//Second round
+			log.info("Starting round "+i);
+			GenomicRegionSortedCollection<TransposableElementAnnotation> sortedElements = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
+			sortedElements.addAll(elements);
+			elements = removeRedundantAnnotations(sortedElements);
+			log.info("Regions after removing redundancies: "+elements.size());
+			List<QualifiedSequence> foundSequences = extractSequences(genome,elements);
+			elements = alignTransposonSequences(genome, minimizerTable, foundSequences);
+			answer.addAll(elements);
+			log.info("Finished round "+i+". Identified "+elements.size()+" regions. Total: "+answer.size());
+		}
 		return answer;
 	}
 	private List<QualifiedSequence> extractSequences(ReferenceGenome genome, List<TransposableElementAnnotation> elements) {

@@ -1057,6 +1057,9 @@ Database of transposable elements to annotate the genome
 <option id="m" type="INT" attribute="minTELength" defaultConstant="DEF_MIN_TE_LENGTH">
 Minimum length (in basepairs) to call a transposable element.
 </option>
+<option id="r" type="INT" attribute="rounds" defaultConstant="DEF_ROUNDS">
+Number of search rounds to identify new TEs from previously identified TEs.
+</option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads.
 </option>
