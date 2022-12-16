@@ -431,7 +431,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		
 		if(knownVariantsFile!=null) {
 			log.info("Loading input variants");
-			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
+			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true,true);
 			log.info("Loaded "+knownVariants.size()+" input variants");
 			inputVariants = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
 			inputVariants.addAll(knownVariants);

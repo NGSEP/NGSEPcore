@@ -896,7 +896,8 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	public void findSNVS() throws IOException {
 		if(knownVariantsFile!=null) {
 			log.info("Loading input variants");
-			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true);
+			//TODO: Consider SVs
+			List<GenomicVariant> knownVariants = VCFFileReader.loadVariants(knownVariantsFile,true,true);
 			log.info("Loaded "+knownVariants.size()+" input variants");
 			GenomicRegionSortedCollection<GenomicVariant> knownVarsC = new GenomicRegionSortedCollection<GenomicVariant>(genome.getSequencesMetadata());
 			knownVarsC.addAll(knownVariants);
