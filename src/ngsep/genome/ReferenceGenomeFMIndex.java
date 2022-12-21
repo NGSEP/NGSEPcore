@@ -98,6 +98,15 @@ public class ReferenceGenomeFMIndex {
 		return seq.getLength();
 	}
 	/**
+	 * Returns the name of the reference sequence with the given index
+	 * @param sequenceIdx Index of the reference sequence
+	 * @return int length of the sequence. Zero if there are no reference sequences with the given name 
+	 */
+	public String getReferenceName(int sequenceIdx) {
+		if(sequenceIdx<0 || sequenceIdx>=sequencesMetadata.size()) throw new IllegalArgumentException("Invalid sequence index: "+sequenceIdx+" total reference sequences: "+sequencesMetadata.size());
+		return sequencesMetadata.get(sequenceIdx).getName();
+	}
+	/**
 	 * Returns the length of the reference sequence with the given name
 	 * @param sequenceIdx Index of the reference sequence
 	 * @return int length of the sequence. Zero if there are no reference sequences with the given name 

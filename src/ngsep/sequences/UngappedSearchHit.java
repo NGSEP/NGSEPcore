@@ -1,57 +1,81 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.sequences;
 
-import java.io.Serializable;
 
-public class UngappedSearchHit implements Serializable {
-	private static final long serialVersionUID = 5920964399280119643L;
-	private int queryIdx=-1;
-	private CharSequence query;
-	private int sequenceIdx=-1;
-	private String sequenceName;
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
+public class UngappedSearchHit {
+	
+	private int queryStart=-1;
+	private int subjectIdx=-1;
 	//Zero based start of this hit within the sequence
-	private int start;
+	private int subjectStart;
+	private short hitLength;
 	//Weight of this hit encoded as a byte
 	private byte weight = 100;
 	
 	/**
 	 * Creates a new ungapped hit to a subject sequence
-	 * @param query sequence
 	 * @param sequenceIdx id of the subject sequence
-	 * @param start zero based first position of the hit within the subject
+	 * @param subjectStart zero based first position of the hit within the subject
 	 */
-	public UngappedSearchHit(CharSequence query, int sequenceIdx, int start) {
-		this.query = query;
-		this.sequenceIdx = sequenceIdx;
-		this.start = start;
-	}
-	public CharSequence getQuery() {
-		return query;
-	}
-	public int getQueryIdx() {
-		return queryIdx;
+	public UngappedSearchHit(int subjectIdx, int subjectStart) {
+		this.subjectIdx = subjectIdx;
+		this.subjectStart = subjectStart;
 	}
 	
-	public void setQueryIdx(int queryIdx) {
-		this.queryIdx = queryIdx;
-	}
-	public int getSequenceIdx() {
-		return sequenceIdx;
-	}
-	public String getSequenceName() {
-		return sequenceName;
-	}
-	public void setSequenceName(String sequenceName) {
-		this.sequenceName = sequenceName;
+	public int getSubjectIdx() {
+		return subjectIdx;
 	}
 	
-	public int getStart() {
-		return start;
+	public int getSubjectStart() {
+		return subjectStart;
 	}
+	
+	public int getQueryStart() {
+		return queryStart;
+	}
+
+	public void setQueryStart(int queryStart) {
+		this.queryStart = queryStart;
+	}
+	
+	public short getHitLength() {
+		return hitLength;
+	}
+
+	public void setHitLength(short hitLength) {
+		this.hitLength = hitLength;
+	}
+
 	public void setWeight (double weight) {
 		if(weight>1) weight=1;
 		if(weight<0) weight = 0;
 		this.weight = (byte)Math.round(100.0*weight);
 	}
+	
+	
 	public double getWeight () {
 		return 0.01*weight;
 	}

@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.assembly;
 
 import java.util.ArrayList;
@@ -12,6 +31,7 @@ import java.util.logging.Logger;
 
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
@@ -19,6 +39,11 @@ import ngsep.sequences.KmersMapAnalyzer;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.ShortKmerCodesTable;
 
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
 public class GraphBuilderMinimizers implements GraphBuilder {
 
 	private Logger log = Logger.getLogger(GraphBuilderMinimizers.class.getName());
@@ -130,7 +155,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		log.info("Built minimizers for the first 10x of sequences. Time minimizers (s): "+diff+" Memory (Gbp): "+usedMemory+" first sequence search: "+seqIdMinimizers);
 		//Distribution minimizerHitsDist = table.calculateDistributionHits();
 		//minimizerHitsDist.printDistributionInt(System.out);
-		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
+		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph, kmerLength);
 		
 		List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(sequences.size());
 		for(int i=0;i<n;i++) relationshipsPerSequence.add(null);
@@ -236,10 +261,10 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
 			if(seqId == idxDebug) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels+" read "+seq);
 			if(rels==null) {
-				Map<Integer,List<UngappedSearchHit>> hitsForward = table.match(seqId, seq);
+				KmerSearchResultsCompressedTable hitsForward = table.matchCompressed(seqId, seq);
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-				Map<Integer,List<UngappedSearchHit>> hitsReverse = table.match(seqId, complement);
-				if(seqId == idxDebug) System.out.println("Hits for sequence "+seqId+" forward: "+hitsForward.size()+" reverse: "+hitsReverse.size());
+				KmerSearchResultsCompressedTable hitsReverse = table.matchCompressed(seqId, complement);
+				if(seqId == idxDebug) System.out.println("Hits for sequence "+seqId+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits());
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
 				if(seqId == idxDebug) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
 				//rels = new ArrayList<AssemblySequencesRelationship>();

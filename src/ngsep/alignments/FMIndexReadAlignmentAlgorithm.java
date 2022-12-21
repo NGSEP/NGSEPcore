@@ -172,7 +172,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 			}
 			for(UngappedSearchHit hit:kmerHits) {
 				//System.out.println("Next hit: "+hit.getSequenceName()+" "+hit.getStart());
-				hit.setQueryIdx(start);
+				hit.setQueryStart(start);
 				answer.add(hit);
 			}
 		}
@@ -183,25 +183,25 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<>();
 		Map<Integer,List<UngappedSearchHit>> hitsBySubjectIdx = new LinkedHashMap<Integer, List<UngappedSearchHit>>();
 		for(UngappedSearchHit hit:initialKmerHits) {
-			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.computeIfAbsent(hit.getSequenceIdx(), k -> new ArrayList<>());
+			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.computeIfAbsent(hit.getSubjectIdx(), k -> new ArrayList<>());
 			hitsSeq.add(hit);
 		}
 		for(int subjectIdx:hitsBySubjectIdx.keySet()) {
 			int subjectLength = fMIndex.getReferenceLength(subjectIdx);
 			List<UngappedSearchHit> hitsSeq = hitsBySubjectIdx.get(subjectIdx);
-			Collections.sort(hitsSeq, (hit0,hit1)-> hit0.getStart()-hit1.getStart());
-			clusters.addAll(clusterSequenceKmerAlns(query, subjectLength, hitsSeq));
+			Collections.sort(hitsSeq, (hit0,hit1)-> hit0.getSubjectStart()-hit1.getSubjectStart());
+			clusters.addAll(clusterSequenceKmerAlns(query, subjectIdx, subjectLength, hitsSeq));
 		}
 		return clusters;
 	}
 	
-	private List<UngappedSearchHitsCluster> clusterSequenceKmerAlns(String query, int sequenceLength, List<UngappedSearchHit> sequenceHits) {
+	private List<UngappedSearchHitsCluster> clusterSequenceKmerAlns(String query, int subjectIdx, int sequenceLength, List<UngappedSearchHit> sequenceHits) {
 		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
 		//System.out.println("Alns to cluster: "+sequenceAlns.size());
 		UngappedSearchHitsCluster cluster=null;
 		for(UngappedSearchHit kmerHit:sequenceHits) {
 			if(cluster==null || !cluster.addKmerHit(kmerHit, 0)) {
-				cluster = new UngappedSearchHitsCluster(query.length(), sequenceLength, kmerHit);
+				cluster = new UngappedSearchHitsCluster(query.length(), subjectIdx, sequenceLength, kmerHit);
 				answer.add(cluster);
 			}
 		}
@@ -209,7 +209,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	}
 
 	private ReadAlignment createNewAlignmentFromConsistentKmers(UngappedSearchHitsCluster cluster, String query) {
-		String sequenceName = cluster.getSubjectName();
+		String sequenceName = fMIndex.getReferenceName(cluster.getSubjectIdx());
 		int first = cluster.getSubjectPredictedStart()+1;
 		int last = cluster.getSubjectPredictedEnd();
 		int lastPerfect = first+query.length()-1;
@@ -499,7 +499,8 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
 		for(int i=0;i<readHits.size()&& i<maxAlnsPerRead;i++) {
 			UngappedSearchHit hit = readHits.get(i);
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
+			String seqName = fMIndex.getReferenceName(hit.getSubjectIdx());
+			ReadAlignment aln = buildAln (query, seqName, hit.getSubjectStart()+1, hit.getSubjectStart()+query.length(), alignment);
 			if(aln==null) continue;
 			aln.setAlignmentQuality((byte) 100);
 			alns.add(aln);
@@ -511,14 +512,15 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		String firstPart = query.substring(0,middle);
 		readHits=fMIndex.exactSearch(firstPart);
 		for(UngappedSearchHit hit: readHits) {
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), hit.getStart()+1, hit.getStart()+query.length(), alignment);
+			String seqName = fMIndex.getReferenceName(hit.getSubjectIdx());
+			ReadAlignment aln = buildAln (query, seqName, hit.getSubjectStart()+1, hit.getSubjectStart()+query.length(), alignment);
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
 			//System.out.println("first half. Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+aln.getCigarString()+" clip: "+mismatches[1]+" "+mismatches[2]);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, hit.getSequenceName(), hit.getStart()+1+mismatches[1], hit.getStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
+					aln = buildAln(query, seqName, hit.getSubjectStart()+1+mismatches[1], hit.getSubjectStart()+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
 				if(aln==null) continue;
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
@@ -533,16 +535,17 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		String secondPart = query.substring(middle);
 		readHits=fMIndex.exactSearch(secondPart);
 		for(UngappedSearchHit hit: readHits) {
-			int start = hit.getStart()-middle;
+			String seqName = fMIndex.getReferenceName(hit.getSubjectIdx());
+			int start = hit.getSubjectStart()-middle;
 			if(start<0) continue;
-			ReadAlignment aln = buildAln (query, hit.getSequenceName(), start+1, start+query.length(), alignment);
+			ReadAlignment aln = buildAln (query, seqName, start+1, start+query.length(), alignment);
 			if (aln==null) continue;
 			int[] mismatches = countMismatches(query, aln);
 			if(mismatches==null) continue;
 			//System.out.println("Second half. Next aln: "+aln.getSequenceName()+":"+aln.getFirst()+" mismatches: "+mismatches[0]+" CIGAR: "+aln.getCigarString()+" clip: "+mismatches[1]+" "+mismatches[2]);
 			if(mismatches[0]<=maxMismatches) {
 				if (mismatches[1]+mismatches[2]>0) {
-					aln = buildAln(query, hit.getSequenceName(), start+1+mismatches[1], start+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
+					aln = buildAln(query, seqName, start+1+mismatches[1], start+query.length()-mismatches[2], encodeAlignment(query.length(),mismatches));
 				}
 				if(aln==null) continue;
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));

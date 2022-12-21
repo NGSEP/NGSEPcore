@@ -147,8 +147,8 @@ public class FMIndex
 				if(last>=sequenceLength) continue;
 				
 				//ReadAlignment alignment = new ReadAlignment(seqName, first, last, searchLength, 0);
-				UngappedSearchHit hit = new UngappedSearchHit(query, sequenceIdx, start);
-				if(sequencesWithNames!=null) hit.setSequenceName(sequencesWithNames.get(sequenceIdx).getName());
+				UngappedSearchHit hit = new UngappedSearchHit(sequenceIdx, start);
+				hit.setHitLength((short)queryLength);
 				hits.add(hit);
 				if(hits.size()>=maxHitsQuery) break;
 			}

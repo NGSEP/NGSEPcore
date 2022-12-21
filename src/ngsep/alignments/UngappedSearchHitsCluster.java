@@ -1,3 +1,22 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.alignments;
 
 import java.util.ArrayList;
@@ -7,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import ngsep.sequences.AbstractLimitedSequence;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.UngappedSearchHit;
 
 /**
@@ -19,11 +36,10 @@ import ngsep.sequences.UngappedSearchHit;
 public class UngappedSearchHitsCluster {
 
 	private int queryLength;
-	private int kmerLength;
+	//private int kmerLength;
 	//Map indexed by query start
 	private Map<Integer,UngappedSearchHit> hitsMap=new TreeMap<Integer, UngappedSearchHit>();
 	private int subjectIdx;
-	private String subjectName;
 	private int subjectLength;
 	private int subjectPredictedStart;
 	private int subjectPredictedEnd;
@@ -46,15 +62,13 @@ public class UngappedSearchHitsCluster {
 	private boolean firstKmerPresent = false;
 	private boolean lastKmerPresent = false;
 	
-	public UngappedSearchHitsCluster(int queryLength, int subjectLength, List<UngappedSearchHit> hits) {
+	public UngappedSearchHitsCluster(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
 		
 		
 		if(hits.size()==0) throw new RuntimeException("Invalid empty input hits for cluster"+hits.size());
-		UngappedSearchHit firstHit = hits.get(0);
-		subjectIdx = firstHit.getSequenceIdx();
-		subjectName = firstHit.getSequenceName();
-		kmerLength = firstHit.getQuery().length();
+		
 		this.queryLength = queryLength;
+		this.subjectIdx = subjectIdx;
 		this.subjectLength = subjectLength;
 		//Create cluster with selected hits
 		boolean initialized = false;
@@ -62,12 +76,12 @@ public class UngappedSearchHitsCluster {
 			if(!initialized) {
 				subjectPredictedStart = estimateSubjectStart(hit);
 				subjectPredictedEnd = estimateSubjectEnd(hit);
-				subjectEvidenceStart = hit.getStart();
-				subjectEvidenceEnd = subjectEvidenceStart+hit.getQuery().length();
+				subjectEvidenceStart = hit.getSubjectStart();
+				subjectEvidenceEnd = subjectEvidenceStart+hit.getHitLength();
 				queryPredictedStart = estimateQueryStart(hit);
 				queryPredictedEnd = estimateQueryEnd(hit);
-				queryEvidenceStart = hit.getQueryIdx();
-				queryEvidenceEnd = hit.getQueryIdx() + hit.getQuery().length();
+				queryEvidenceStart = hit.getQueryStart();
+				queryEvidenceEnd = hit.getQueryStart() + hit.getHitLength();
 				initialized = true;
 			}
 			addHit(hit);
@@ -77,38 +91,37 @@ public class UngappedSearchHitsCluster {
 
 	
 
-	public UngappedSearchHitsCluster(int queryLength, int subjectLength, UngappedSearchHit kmerHit) {
+	public UngappedSearchHitsCluster(int queryLength, int subjectIdx, int subjectLength, UngappedSearchHit kmerHit) {
 		this.queryLength = queryLength;
-		subjectIdx = kmerHit.getSequenceIdx();
-		subjectName = kmerHit.getSequenceName();
+		this.subjectIdx = subjectIdx;
 		this.subjectLength = subjectLength;
-		int kmerQueryStart = kmerHit.getQueryIdx();
+		int kmerQueryStart = kmerHit.getQueryStart();
 		subjectPredictedStart = estimateSubjectStart(kmerHit);
 		subjectPredictedEnd = estimateSubjectEnd(kmerHit);
-		subjectEvidenceStart = kmerHit.getStart();
-		subjectEvidenceEnd = subjectEvidenceStart+kmerHit.getQuery().length();
+		subjectEvidenceStart = kmerHit.getSubjectStart();
+		subjectEvidenceEnd = subjectEvidenceStart+kmerHit.getHitLength();
 		queryPredictedStart = estimateQueryStart(kmerHit);
 		queryPredictedEnd = estimateQueryEnd(kmerHit);
-		queryEvidenceStart = kmerHit.getQueryIdx();
-		queryEvidenceEnd = kmerHit.getQueryIdx() + kmerHit.getQuery().length();
+		queryEvidenceStart = kmerQueryStart;
+		queryEvidenceEnd = kmerQueryStart + kmerHit.getHitLength();
 		hitsMap.put(kmerQueryStart, kmerHit);
 		firstKmerPresent = queryEvidenceStart == 0;
 		lastKmerPresent = queryEvidenceEnd==queryLength;
 	}
 	
 	private void addHit(UngappedSearchHit hit) {
-		hitsMap.put(hit.getQueryIdx(), hit);
+		hitsMap.put(hit.getQueryStart(), hit);
 		int estStart = estimateSubjectStart(hit);
 		int estEnd = estimateSubjectEnd(hit);
 		if(estStart!=subjectPredictedStart || estEnd!=subjectPredictedEnd) allConsistent = false;
 		subjectPredictedStart = Math.min(subjectPredictedStart, estStart);
 		subjectPredictedEnd = Math.max(subjectPredictedEnd, estEnd);
-		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getStart());
-		subjectEvidenceEnd = Math.max(subjectEvidenceEnd, hit.getStart()+hit.getQuery().length());
+		subjectEvidenceStart = Math.min(subjectEvidenceStart, hit.getSubjectStart());
+		subjectEvidenceEnd = Math.max(subjectEvidenceEnd, hit.getSubjectStart()+hit.getHitLength());
 		queryPredictedStart = Math.min(queryPredictedStart, estimateQueryStart(hit));
 		queryPredictedEnd = Math.max(queryPredictedEnd, estimateQueryEnd(hit));
-		queryEvidenceStart = Math.min(queryEvidenceStart, hit.getQueryIdx());
-		queryEvidenceEnd = Math.max(queryEvidenceEnd, hit.getQueryIdx() + hit.getQuery().length());
+		queryEvidenceStart = Math.min(queryEvidenceStart, hit.getQueryStart());
+		queryEvidenceEnd = Math.max(queryEvidenceEnd, hit.getQueryStart() + hit.getHitLength());
 		if(queryEvidenceStart==0) firstKmerPresent = true;
 		if (queryEvidenceEnd==queryLength) lastKmerPresent = true;
 	}
@@ -125,19 +138,19 @@ public class UngappedSearchHitsCluster {
 	}
 	
 	private int estimateSubjectStart(UngappedSearchHit hit) {
-		return hit.getStart() - hit.getQueryIdx();
+		return hit.getSubjectStart() - hit.getQueryStart();
 	}
 
 	private int estimateSubjectEnd(UngappedSearchHit hit) {
-		return hit.getStart()+(queryLength-hit.getQueryIdx());
+		return hit.getSubjectStart()+(queryLength-hit.getQueryStart());
 	}
 	
 	private int estimateQueryStart(UngappedSearchHit hit) {
-		return hit.getQueryIdx() - hit.getStart();
+		return hit.getQueryStart() - hit.getSubjectStart();
 	}
 
 	private int estimateQueryEnd(UngappedSearchHit hit) {
-		return hit.getQueryIdx()+(subjectLength-hit.getStart());
+		return hit.getQueryStart()+(subjectLength-hit.getSubjectStart());
 	}
 
 	
@@ -151,7 +164,7 @@ public class UngappedSearchHitsCluster {
 		//Hits are already sorted by query id
 		predictQueryStart (hits);
 		predictQueryEnd (hits);
-		Collections.sort(hits, (h1,h2)->h1.getStart()-h2.getStart());
+		Collections.sort(hits, (h1,h2)->h1.getSubjectStart()-h2.getSubjectStart());
 		predictSubjectStart (hits);
 		predictSubjectEnd (hits);
 		predictOverlap (hits);
@@ -275,10 +288,6 @@ public class UngappedSearchHitsCluster {
 		return overlap;
 	}
 
-	public String getSubjectName() {
-		return subjectName;
-	}
-	
 	/**
 	 * @return the sequenceIdx
 	 */
@@ -395,7 +404,7 @@ public class UngappedSearchHitsCluster {
 		hitsMap.clear();
 	}
 	
-	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes) {
+	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes, int kmerLength) {
 		
 		Map<Long,List<Integer>> subjectCodesPos = new HashMap<Long, List<Integer>>();
 		for(int i:subjectCodes.keySet()) {
@@ -410,7 +419,7 @@ public class UngappedSearchHitsCluster {
 		queryStarts.addAll(hitsMap.keySet());
 		for(int queryStart:queryStarts) {
 			UngappedSearchHit hit = hitsMap.get(queryStart);
-			int subjectStart = hit.getStart();
+			int subjectStart = hit.getSubjectStart();
 			int diffQ = queryStart-lastQueryStart;
 			int diffS = subjectStart - lastSubjectStart;
 			int diffC = Math.abs(diffQ-diffS);
@@ -441,9 +450,10 @@ public class UngappedSearchHitsCluster {
 					if(selectedPos==null) {
 						j++;
 					} else {
-						CharSequence kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
-						UngappedSearchHit rescuedHit = new UngappedSearchHit(kmer, subjectIdx, selectedPos);
-						rescuedHit.setQueryIdx(i);
+						
+						UngappedSearchHit rescuedHit = new UngappedSearchHit(subjectIdx, selectedPos);
+						rescuedHit.setHitLength((short)kmerLength);
+						rescuedHit.setQueryStart(i);
 						double weight = (lastHit.getWeight()+hit.getWeight())/2;
 						rescuedHit.setWeight(weight);
 						addHit(rescuedHit);

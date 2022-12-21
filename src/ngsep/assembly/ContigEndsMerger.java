@@ -23,6 +23,7 @@ public class ContigEndsMerger {
 
 	private Logger log = Logger.getLogger(ContigEndsMerger.class.getName());
 	private static final int END_LENGTH = 50000;
+	private int kmerLength = 25;
 	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
@@ -34,7 +35,7 @@ public class ContigEndsMerger {
 	
 	public List<QualifiedSequence> mergeContigs(List<QualifiedSequence> contigs) {
 		
-		ShortKmerCodesTable table = new ShortKmerCodesTable(25, 40);
+		ShortKmerCodesTable table = new ShortKmerCodesTable(kmerLength, 40);
 		Map<Integer,String> contigEndsMap = new HashMap<Integer, String>();
 		List<QualifiedSequence> contigsForGraph = new ArrayList<QualifiedSequence>(contigs.size());
 		List<QualifiedSequence> smallContigs = new ArrayList<QualifiedSequence>(contigs.size());
@@ -121,7 +122,7 @@ public class ContigEndsMerger {
 
 	private int getQueryIdxsCount (List<UngappedSearchHit> hits) {
 		Set<Integer> queryStarts = new HashSet<Integer>();
-		for(UngappedSearchHit hit:hits) queryStarts.add(hit.getQueryIdx());
+		for(UngappedSearchHit hit:hits) queryStarts.add(hit.getQueryStart());
 		return queryStarts.size();
 	}
 	private void buildEdges(AssemblyGraph graph, int queryEndIdx,String queryEnd, Map<Integer,String> contigEndsMap, Map<Integer, List<UngappedSearchHit>> hits, boolean revQuery, int countLimit) {
@@ -137,7 +138,7 @@ public class ContigEndsMerger {
 			List<UngappedSearchHit> hitsSubject = entry.getValue();
 			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
 			if (hitsSubject.size() < 20) continue;
-			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, END_LENGTH, hitsSubject, 0);
+			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, subjectEndIdx, END_LENGTH, hitsSubject, 0);
 			Collections.sort(clusters, (c1,c2)->c2.getNumDifferentKmers()-c1.getNumDifferentKmers());
 			if(queryEndIdx == debugIdx) {
 				System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" clusters: "+clusters.size());

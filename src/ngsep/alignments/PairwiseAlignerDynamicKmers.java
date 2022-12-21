@@ -7,8 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import ngsep.sequences.AbstractLimitedSequence;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.UngappedSearchHit;
 
@@ -53,13 +51,13 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		StringBuilder aln2 = new StringBuilder();
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
-			if(n2 == debugLength) System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
+			if(n2 == debugLength) System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getSubjectStart());
 			if(alnStart==-1) {
 				//Inconsistent kmer hit
-				if (kmerHit.getStart()<bestCluster.getSubjectPredictedStart()) continue;
-				alnStart = kmerHit.getStart();
+				if (kmerHit.getSubjectStart()<bestCluster.getSubjectPredictedStart()) continue;
+				alnStart = kmerHit.getSubjectStart();
 				String seq1Fragment = sequence1.subSequence(0,alnStart).toString();
-				String seq2Fragment = sequence2.subSequence(0,kmerHit.getQueryIdx()).toString();
+				String seq2Fragment = sequence2.subSequence(0,kmerHit.getQueryStart()).toString();
 				if(seq1Fragment.length()>0 || seq2Fragment.length()>0) {
 					if(n2 == debugLength) System.out.println("Aligning "+seq1Fragment+" with "+seq2Fragment);
 					String [] alignedFragments = calculateAlignment(seq1Fragment, seq2Fragment);
@@ -68,12 +66,12 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					aln2.append(alignedFragments[1]);
 				}
 				nextMatchLength+=kmerLength;
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(queryNext < kmerHit.getQueryIdx() && subjectNext<kmerHit.getStart()) {
+				subjectNext = kmerHit.getSubjectStart()+kmerLength;
+				queryNext = kmerHit.getQueryStart()+kmerLength;
+			} else if(queryNext < kmerHit.getQueryStart() && subjectNext<kmerHit.getSubjectStart()) {
 				//Kmer does not overlap with already aligned segments
-				int subjectNextLength = kmerHit.getStart()-subjectNext;
-				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
+				int subjectNextLength = kmerHit.getSubjectStart()-subjectNext;
+				int queryNextLength = kmerHit.getQueryStart()-queryNext;
 				if(subjectNextLength==queryNextLength) {
 					nextMatchLength+=subjectNextLength;
 				} else {
@@ -81,7 +79,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					int maxLength = Math.max(subjectNextLength, queryNextLength);
 					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
 						//Possible invalid kmer hit. Delay alignment
-						if(n2 == debugLength) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
+						if(n2 == debugLength) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryStart()+" subject hit start: "+kmerHit.getSubjectStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
 						continue;
 					}
 					if(nextMatchLength>0) {
@@ -90,8 +88,8 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 						nextMatchLength = 0;
 					}
 					
-					String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getStart()).toString();
-					String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryIdx()).toString();
+					String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getSubjectStart()).toString();
+					String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryStart()).toString();
 					if(n2 == debugLength)  System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
 					String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
 					if(alignedFragments==null) return null;
@@ -99,12 +97,12 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					aln2.append(alignedFragments[1]);
 				}
 				nextMatchLength+=kmerLength;
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
+				subjectNext = kmerHit.getSubjectStart()+kmerLength;
+				queryNext = kmerHit.getQueryStart()+kmerLength;
 			} else {
-				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
+				int kmerSubjectNext = kmerHit.getSubjectStart()+kmerLength;
 				int diffSubject = kmerSubjectNext - subjectNext;
-				int kmerQueryNext = kmerHit.getQueryIdx()+kmerLength;
+				int kmerQueryNext = kmerHit.getQueryStart()+kmerLength;
 				int diffQuery = kmerQueryNext - queryNext;
 				if (diffSubject>0 && diffSubject==diffQuery) {
 					//Kmer consistent with current alignment. Augment match with difference
@@ -147,16 +145,16 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		if(initialKmerHits.size()==0) return null;
 		List<UngappedSearchHit> filteredKmerHits = new ArrayList<>();
 		for(UngappedSearchHit hit: initialKmerHits) {
-			int distanceStartSubject = hit.getStart()-subjectFirst;
-			int distanceStartQuery = hit.getQueryIdx()-queryFirst;
-			int distanceEndSubject = subjectLast-hit.getStart();
-			int distanceEndQuery = queryLast-hit.getQueryIdx();
+			int distanceStartSubject = hit.getSubjectStart()-subjectFirst;
+			int distanceStartQuery = hit.getQueryStart()-queryFirst;
+			int distanceEndSubject = subjectLast-hit.getSubjectStart();
+			int distanceEndQuery = queryLast-hit.getQueryStart();
 			int diff1 = Math.abs(distanceStartSubject-distanceStartQuery);
 			int diff2 = Math.abs(distanceEndSubject-distanceEndQuery);
 			if(diff1 < 200 || diff2<200) filteredKmerHits.add(hit);
 		}
 		
-		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(querySequence.length(), subjectSequence.length(), filteredKmerHits, 0);
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(querySequence.length(), 0, subjectSequence.length(), filteredKmerHits, 0);
 		//System.out.println("Number of clusters: "+clusters.size());
 		//printClusters(clusters);
 		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
@@ -169,7 +167,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
 		if(initialKmerHits.size()==0) return null;
 		
-		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, subjectLength, initialKmerHits, 0);
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits, 0);
 		//System.out.println("Number of clusters: "+clusters.size());
 		//printClusters(clusters);
 		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
@@ -188,9 +186,9 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 			List<Integer> subjectPosList = reverseSubjectMap.get(codeRead);
 			if(subjectPosList==null) continue;
 			for(int subjectPos:subjectPosList) {
-				CharSequence kmerRead = new String(AbstractLimitedSequence.getSequence(codeRead, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
-				UngappedSearchHit hit = new UngappedSearchHit(kmerRead, 0 , subjectPos);
-				hit.setQueryIdx(i);
+				UngappedSearchHit hit = new UngappedSearchHit(0 , subjectPos);
+				hit.setQueryStart(i);
+				hit.setHitLength((short)kmerLength);
 				initialKmerHits.add(hit);
 			}
 		}
@@ -211,26 +209,26 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		int subjectNext = -1;
 		int queryNext = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Processing Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getStart());
-			int kmerLength = kmerHit.getQuery().length();
+			int hitLength = kmerHit.getHitLength();
+			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" Processing Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getSubjectStart());
 			if(subjectNext==-1) {
 				//Inconsistent kmer hit
-				if (kmerHit.getStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
-				coverageSharedKmers+=kmerLength;
+				if (kmerHit.getSubjectStart()<kmerHitsCluster.getSubjectPredictedStart()) continue;
+				coverageSharedKmers+=hitLength;
 				double weight = kmerHit.getWeight();
-				weightedCoverageSharedKmers+=((double)kmerLength*weight);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
-			} else if(kmerHit.getQueryIdx() > queryNext && subjectNext<kmerHit.getStart()) {
+				weightedCoverageSharedKmers+=((double)hitLength*weight);
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" hit length: "+hitLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+				subjectNext = kmerHit.getSubjectStart()+hitLength;
+				queryNext = kmerHit.getQueryStart()+hitLength;
+			} else if(kmerHit.getQueryStart() > queryNext && subjectNext<kmerHit.getSubjectStart()) {
 				//Kmer does not overlap with already aligned segments
-				int subjectNextLength = kmerHit.getStart()-subjectNext;
-				int queryNextLength = kmerHit.getQueryIdx()-queryNext;
+				int subjectNextLength = kmerHit.getSubjectStart()-subjectNext;
+				int queryNextLength = kmerHit.getQueryStart()-queryNext;
 				int minLength = Math.min(subjectNextLength, queryNextLength);
 				int maxLength = Math.max(subjectNextLength, queryNextLength);
 				if(maxLength>minLength+3 && 0.9*maxLength>minLength) {
 					//Possible invalid kmer hit. Delay alignment
-					if (subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryIdx()+" subject hit start: "+kmerHit.getStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
+					if (subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryStart()+" subject hit start: "+kmerHit.getSubjectStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
 					continue;
 				}
 				
@@ -238,39 +236,39 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				//if(subjectNextLength!=queryNextLength) numIndels+=Math.abs(queryNextLength-subjectNextLength);
 				int diff = Math.abs(queryNextLength-subjectNextLength);
 				if(diff>2) {
-					indelStarts.add(kmerHit.getQueryIdx());
+					indelStarts.add(kmerHit.getQueryStart());
 					indelCalls.add(queryNextLength-subjectNextLength);
 					initialNumIndels+=diff;
 				}
 				//TODO: use 2*window length
-				int nextCSK = Math.min(100, subjectNextLength) + kmerLength;
-				if(diff > 1) nextCSK = Math.max(kmerLength, nextCSK-diff);
+				int nextCSK = Math.min(100, subjectNextLength) + hitLength;
+				if(diff > 1) nextCSK = Math.max(hitLength, nextCSK-diff);
 				coverageSharedKmers+=nextCSK;
 				double weight = kmerHit.getWeight();
 				weightedCoverageSharedKmers+=((double)nextCSK*weight);
-				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getStart()+" subdist: "+subjectNextLength+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryIdx()+" qdist: "+queryNextLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
-				subjectNext = kmerHit.getStart()+kmerLength;
-				queryNext = kmerHit.getQueryIdx()+kmerLength;
+				if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getSubjectStart()+" subdist: "+subjectNextLength+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryStart()+" qdist: "+queryNextLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+				subjectNext = kmerHit.getSubjectStart()+hitLength;
+				queryNext = kmerHit.getQueryStart()+hitLength;
 			} else {
-				int kmerSubjectNext = kmerHit.getStart()+kmerLength;
+				int kmerSubjectNext = kmerHit.getSubjectStart()+hitLength;
 				int diffSubject = kmerSubjectNext - subjectNext;
-				int kmerQueryNext = kmerHit.getQueryIdx()+kmerLength;
+				int kmerQueryNext = kmerHit.getQueryStart()+hitLength;
 				int diffQuery = kmerQueryNext - queryNext;
 				if (diffSubject>0 && diffSubject==diffQuery) {
 					//Kmer consistent with current alignment. Augment match with difference
 					subjectNext = kmerSubjectNext;
 					queryNext = kmerQueryNext;
-					coverageSharedKmers+=Math.min(diffQuery, kmerLength);
+					coverageSharedKmers+=Math.min(diffQuery, hitLength);
 					double weight = kmerHit.getWeight();
-					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, kmerLength)*weight);
-					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getStart()+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryIdx()+" diff query: "+diffQuery+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+					weightedCoverageSharedKmers+=((double)Math.min(diffQuery, hitLength)*weight);
+					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subid "+subjectSeqIdx+" subnext: "+subjectNext+" subhit: "+kmerHit.getSubjectStart()+" qnext: "+queryNext+" qhit: "+kmerHit.getQueryStart()+" diff query: "+diffQuery+" hit length: "+hitLength+" cov shared: "+coverageSharedKmers+" weight: "+weight+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				} else {
-					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" kmerLength: "+kmerLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
+					if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ) System.out.println("subject id "+subjectSeqIdx+" subject next: "+subjectNext+" inconsistent kmer alignment. diff query: "+diffQuery+" diffsubject "+diffSubject+" hit length: "+hitLength+" cov shared: "+coverageSharedKmers+" wcov: "+weightedCoverageSharedKmers+" partial indels estimation: "+initialNumIndels);
 				}
 				
 			}
 			
-			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ)  System.out.println("subject id "+subjectSeqIdx+" Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
+			if(subjectSeqIdx==debugIdxS && querySeqIdx==debugIdxQ)  System.out.println("subject id "+subjectSeqIdx+" Processed Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext);
 		}
 		int numIndels = initialNumIndels;
 		//int numIndels = calculateTotalIndels(subjectSeqIdx, querySeqIdx,indelStarts, indelCalls);
@@ -278,7 +276,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		int [] answer = {coverageSharedKmers, (int)Math.round(weightedCoverageSharedKmers),numIndels};
 		return answer;
 	}
-	private static int calculateTotalIndels(int subjectSeqIdx, int querySeqIdx, List<Integer> indelStarts, List<Integer> indelCalls) {
+	public static int calculateTotalIndels(int subjectSeqIdx, int querySeqIdx, List<Integer> indelStarts, List<Integer> indelCalls) {
 		int calls = 0;
 		int debugIdxS = -1;
 		int debugIdxQ = -1;
