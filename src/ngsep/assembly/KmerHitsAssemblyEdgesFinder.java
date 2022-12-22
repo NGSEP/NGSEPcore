@@ -32,7 +32,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	
 	private double minProportionEvidence = 0;
 	
-	private int idxDebug = 57;
+	private int idxDebug = -1;
 	
 	private boolean extensiveSearch = false;
 	
@@ -136,7 +136,7 @@ public class KmerHitsAssemblyEdgesFinder {
 				for(UngappedSearchHitsCluster cluster:subjectClusters) if(processCluster(queryIdx, queryR, true, cluster, compressionFactor, minClusterSize, relationships)) return relationships;
 			}
 		}
-		if (queryIdx == idxDebug || queryIdx%50==0) log.info("EdgesFinder. Query: "+queryIdx+" relationships: "+relationships.size()+" Memory: "+calculateMemoryGbp());
+		if (queryIdx == idxDebug) log.info("EdgesFinder. Query: "+queryIdx+" relationships: "+relationships.size()+" Memory: "+calculateMemoryGbp());
 		return relationships;
 	}
 

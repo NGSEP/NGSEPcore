@@ -57,7 +57,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
-	private static int idxDebug = 57;
+	private static int idxDebug = -1;
 	
 	public Logger getLog() {
 		return log;
@@ -262,7 +262,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			if(debug) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels);
 			if(rels==null) {
 				long time0 = System.currentTimeMillis();
-				if(debug || seqId%50==0) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				KmerSearchResultsCompressedTable hitsForward = table.matchCompressed(seqId, seq, seqId);
 				long time1 = System.currentTimeMillis();
 				long diff1 = (time1-time0)/1000;
@@ -278,7 +278,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				long time3 = System.currentTimeMillis();
 				long diff3 = (time3-time2)/1000;
 				debug = debug || diff3>1;
-				if(debug || seqId%50==0) log.info("GraphBuilderMinimizers. Relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded+" counts "+hitsForward.getKmerHitCount(seqId)+" "+hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				if(debug) log.info("GraphBuilderMinimizers. Relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded+" counts "+hitsForward.getKmerHitCount(seqId)+" "+hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
@@ -297,7 +297,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 					if(next instanceof AssemblyEmbedded) embedded++;
 					if(next instanceof AssemblyEdge) edges++;
 				}
-				log.info("Identified relationships for sequence "+(seqId) +" Candidate edges: "+edges+"  candidate embedded hosts "+embedded);
+				log.info("Identified relationships for sequence "+(seqId) +" Candidate edges: "+edges+"  candidate embedded hosts "+embedded+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				//if (onlyEmbedded) log.info("List: "+relationshipsPerSequence.get(seqId));
 			}
 		} catch (RuntimeException e) {
