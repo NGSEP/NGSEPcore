@@ -266,19 +266,19 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				KmerSearchResultsCompressedTable hitsForward = table.matchCompressed(seqId, seq, seqId);
 				long time1 = System.currentTimeMillis();
 				long diff1 = (time1-time0)/1000;
-				debug = debug || diff1>1;
-				if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" time1: "+diff1+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				debug = debug || diff1>10;
+				//if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" time1: "+diff1+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
 				KmerSearchResultsCompressedTable hitsReverse = table.matchCompressed(seqId, complement, seqId);
 				long time2 = System.currentTimeMillis();
 				long diff2 = (time2-time1)/1000;
-				debug = debug || diff2>1;
-				if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits()+" times12: "+diff1+" "+diff2+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				debug = debug || diff2>10;
+				//if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits()+" times12: "+diff1+" "+diff2+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
 				long time3 = System.currentTimeMillis();
 				long diff3 = (time3-time2)/1000;
-				debug = debug || diff3>1;
-				if(debug) log.info("GraphBuilderMinimizers. Relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded+" counts "+hitsForward.getKmerHitCount(seqId)+" "+hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				debug = debug || diff3>10;
+				if(debug) log.info("GraphBuilderMinimizers. Rels for seq "+seqId+" "+rels.size()+" len: "+seq.length()+" totalRels: "+totalRels+" onlyEmbedded: "+onlyEmbedded+" selfHits: "+hitsForward.getKmerHitCount(seqId)+" countsF: "+hitsForward.getInputCodesCount()+" "+hitsForward.getDistinctCodesCount()+" "+ hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" countsR: "+hitsReverse.getInputCodesCount()+" "+hitsReverse.getDistinctCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" subjects: "+hitsForward.getNumSubjects()+" "+hitsReverse.getNumSubjects()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
