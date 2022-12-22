@@ -18,6 +18,9 @@ public class KmerSearchResultsCompressedTable {
 	//Actual lengths of the lists within the table
 	private int [] sequencesBySubjectTableColumnLengths;
 	private int totalHits = 0;
+	private int multihitCodesCount;
+	private int notFoundCodesCount;
+	
 	
 	private Map<Integer, Long> searchCodes;
 	private Map<Long, Double> kmerWeights;
@@ -115,6 +118,19 @@ public class KmerSearchResultsCompressedTable {
 			}
 		}
 		return hits;
+	}
+	
+	public int getMultihitCodesCount() {
+		return multihitCodesCount;
+	}
+	public void setMultihitCodesCount(int multihitCodesCount) {
+		this.multihitCodesCount = multihitCodesCount;
+	}
+	public int getNotFoundCodesCount() {
+		return notFoundCodesCount;
+	}
+	public void setNotFoundCodesCount(int notFoundCodesCount) {
+		this.notFoundCodesCount = notFoundCodesCount;
 	}
 	public Map<Long, Double> getKmerWeights() {
 		return kmerWeights;

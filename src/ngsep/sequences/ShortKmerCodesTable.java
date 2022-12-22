@@ -3,9 +3,11 @@ package ngsep.sequences;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.math.Distribution;
@@ -385,23 +387,41 @@ public class ShortKmerCodesTable {
 	 * @param query sequence
 	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
 	 */
-	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query) {
+	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		//computeSequenceMinimizers(-1, 0, query.length(), codes);
-		return matchCompressed(queryIdx, query.length(), codes);
+		//if(query.length()>100000) {
+		if(query.length()>1000) {
+			Map<Integer, Long> selectedCodes = new HashMap<>(codes.size()/10);
+			List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
+			for(KmerCodesTableEntry entry:selectedCodeEntries) {
+				long code = entry.getKmerCode();
+				int start = entry.getStart();
+				selectedCodes.put(start,code);
+			}
+			return matchCompressed(queryIdx, query.length(), selectedCodes, maxSubjectIdx);
+		} else {
+			//computeSequenceMinimizers(-1, 0, query.length(), codes);
+			return matchCompressed(queryIdx, query.length(), codes, maxSubjectIdx);
+		}
+		
 	}
 	/**
 	 * Calculates the hits of the given query
 	 * @param query sequence
 	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
 	 */
-	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes) {
+	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
 		int idxDebug = -2;
 		//int idxDebug = -1;
-		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, mode);
+		
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode);
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
+		int limitHitsPerSequence = 10;
+		
+		Set<Integer> preselectedSubjectIds = null;
+		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
+		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, mode);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
 			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));
@@ -424,7 +444,11 @@ public class ShortKmerCodesTable {
 			}
 			
 			long [] codesMatching = lookupHits(kmerCode);
-			if(codesMatching.length>0) numUsedCodes++;
+			if(codesMatching.length>limitHitsPerSequence*countSeqs) {
+				multihitCodes++;
+				continue;
+			}
+			else if(codesMatching.length>0) numUsedCodes++;
 			else notFoundCodes++;
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
@@ -434,16 +458,45 @@ public class ShortKmerCodesTable {
 					continue;
 				}
 				if(subjectIdx==queryIdx) selfSequenceCount++;
-				result.addKmerHit(startQuery,subjectIdx,dec[1]);
+				if(preselectedSubjectIds==null || preselectedSubjectIds.contains(subjectIdx)) {
+					if(maxSubjectIdx==-1 || subjectIdx<=maxSubjectIdx) result.addKmerHit(startQuery,subjectIdx,dec[1]);
+				}
 				
 			}
 		}
+		result.setMultihitCodesCount(multihitCodes);
+		result.setNotFoundCodesCount(notFoundCodes);
 		result.setKmerWeights(calculateCodeWeights(codes));
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with multiple hits: "+multihitCodes);
 		return result;
 		
 	}
 	
+	private Set<Integer> preselectSubjectIds(int queryLength, int limitSequences, int limitHitsPerSequence, Map<Integer, Long> codes) {
+		int minHits = queryLength/100;
+		
+		Map<Integer,Integer> subjectHitCounts = new HashMap<>();
+		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
+			long kmerCode = entry.getValue();
+			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
+			int countSeqs = getCountDifferentSequences(kmerCode);
+			if (countSeqs>limitSequences) continue;
+			
+			long [] codesMatching = lookupHits(kmerCode);
+			if(codesMatching.length>limitHitsPerSequence*countSeqs) continue;
+			
+			for(long entryCode:codesMatching) {
+				int [] dec = KmerCodesTableEntry.decode(entryCode);
+				int subjectIdx = dec[0];
+				subjectHitCounts.compute(subjectIdx, (k,v)-> ((v!=null)?v+1:1));
+			}
+		}
+		Set<Integer> answer = new HashSet<>();
+		for(Map.Entry<Integer, Integer> entry:subjectHitCounts.entrySet()) {
+			if(entry.getValue()>=minHits) answer.add(entry.getKey());
+		}
+		return answer;
+	}
 	public Map<Long,Double> calculateCodeWeights(Map<Integer, Long> codes) {
 		Map<Long,Double> answer = new HashMap<>();
 		for(long code:codes.values()) {

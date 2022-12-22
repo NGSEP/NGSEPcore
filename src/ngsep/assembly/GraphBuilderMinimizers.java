@@ -22,7 +22,6 @@ package ngsep.assembly;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,7 +31,6 @@ import java.util.logging.Logger;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
-import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.KmersMapAnalyzer;
@@ -59,7 +57,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
-	private static int idxDebug = -1;
+	private static int idxDebug = 57;
 	
 	public Logger getLog() {
 		return log;
@@ -256,23 +254,41 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		if (seqId%1000==0) log.info("Processed "+(seqId)+" sequences. Total minimizers: "+table.size()+" total entries: "+table.getTotalEntries());
 	}
 	//private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+	private int totalRels = 0;
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
-			if(seqId == idxDebug) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels+" read "+seq);
+			boolean debug = seqId == idxDebug; 
+			if(debug) System.out.println("Identifying relationships for sequence "+seqId+" current: "+rels);
 			if(rels==null) {
-				KmerSearchResultsCompressedTable hitsForward = table.matchCompressed(seqId, seq);
+				long time0 = System.currentTimeMillis();
+				if(debug || seqId%50==0) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				KmerSearchResultsCompressedTable hitsForward = table.matchCompressed(seqId, seq, seqId);
+				long time1 = System.currentTimeMillis();
+				long diff1 = (time1-time0)/1000;
+				debug = debug || diff1>1;
+				if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" time1: "+diff1+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				String complement = DNAMaskedSequence.getReverseComplement(seq).toString();
-				KmerSearchResultsCompressedTable hitsReverse = table.matchCompressed(seqId, complement);
-				if(seqId == idxDebug) System.out.println("Hits for sequence "+seqId+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits());
+				KmerSearchResultsCompressedTable hitsReverse = table.matchCompressed(seqId, complement, seqId);
+				long time2 = System.currentTimeMillis();
+				long diff2 = (time2-time1)/1000;
+				debug = debug || diff2>1;
+				if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits()+" times12: "+diff1+" "+diff2+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
-				if(seqId == idxDebug) System.out.println("Total relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded);
+				long time3 = System.currentTimeMillis();
+				long diff3 = (time3-time2)/1000;
+				debug = debug || diff3>1;
+				if(debug || seqId%50==0) log.info("GraphBuilderMinimizers. Relationships identified for sequence "+seqId+" "+rels.size()+" onlyEmbedded: "+onlyEmbedded+" counts "+hitsForward.getKmerHitCount(seqId)+" "+hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
 					rels = selectGoodEmbedded(rels);
 					if(rels.size()>=1) relationshipsPerSequence.set(seqId, rels);
 				}
+				synchronized (this) {
+					totalRels+=rels.size();
+				}
+				
 			}
 			if ((seqId)%1000==0) {
 				int edges = 0;
