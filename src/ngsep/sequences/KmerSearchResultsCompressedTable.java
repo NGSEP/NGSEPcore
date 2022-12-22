@@ -120,6 +120,15 @@ public class KmerSearchResultsCompressedTable {
 		return hits;
 	}
 	
+	public int getNumSubjects() {
+		return matrixRowMap.size();
+	}
+	public int getInputCodesCount() {
+		return searchCodes.size();
+	}
+	public int getDistinctCodesCount() {
+		return kmerWeights.size();
+	}
 	public int getMultihitCodesCount() {
 		return multihitCodesCount;
 	}
