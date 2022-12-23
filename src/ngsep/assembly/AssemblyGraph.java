@@ -892,17 +892,18 @@ public class AssemblyGraph {
 	}
 	
 	public NormalDistribution[] estimateDistributions(List<AssemblyEdge> edges, Set<Integer> repetitiveVertices) {
-		Distribution overlapDistributionSafe = new Distribution(0, 100000, 1000);
-		Distribution cskDistributionSafe = new Distribution(0, 100000, 1000);
+		int limit = sequences.get(0).getLength();
+		Distribution overlapDistributionSafe = new Distribution(0, limit, 1000);
+		Distribution cskDistributionSafe = new Distribution(0, limit, 1000);
 		Distribution cskPropOverlapSafe = new Distribution(0, 1.1, 0.01);
-		Distribution wcskDistributionSafe = new Distribution(0, 100000, 1000);
+		Distribution wcskDistributionSafe = new Distribution(0, limit, 1000);
 		Distribution wcskPropOverlapSafe = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionSafe = new Distribution(0, 500, 10);
 		Distribution evPropDistributionSafe = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionSafe = new Distribution(0, 100, 1);
 		Distribution [] distsSafe = {overlapDistributionSafe, wcskDistributionSafe, wcskPropOverlapSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
-		Distribution overlapDistributionAll = new Distribution(0, 100000, 1000);
-		Distribution wcskDistributionAll = new Distribution(0, 100000, 1000);
+		Distribution overlapDistributionAll = new Distribution(0, limit, 1000);
+		Distribution wcskDistributionAll = new Distribution(0, limit, 1000);
 		Distribution wcskPropOverlapAll = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionAll = new Distribution(0, 50, 10);
 		Distribution evPropDistributionAll = new Distribution(0, 1.1, 0.02);
