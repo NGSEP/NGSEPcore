@@ -318,78 +318,23 @@ public class ShortKmerCodesTable {
 	
 	/**
 	 * Calculates the hits of the given query
+	 * @param queryIdx Id of the query
 	 * @param query sequence
-	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
+	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject
 	 */
 	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, CharSequence query) {
-		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		//computeSequenceMinimizers(-1, 0, query.length(), codes);
-		return match(queryIdx, query.length(), codes);
+		KmerSearchResultsCompressedTable hitsCompressed = matchCompressed(queryIdx, query, -1);
+		return hitsCompressed.getAllHits();
 	}
 	/**
 	 * Calculates the hits of the given query
+	 * @param queryIdx Id of the query
 	 * @param query sequence
-	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
-	 */
-	public Map<Integer,List<UngappedSearchHit>> match (int queryIdx, int queryLength, Map<Integer, Long> codes) {
-		int idxDebug = -2;
-		//int idxDebug = -1;
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode);
-		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
-		int limitSequences = Math.max(100, 4*mode);
-		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
-		for(Long code:codes.values()) {
-			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));
-		}
-		if (queryIdx == idxDebug) System.out.println("Minimizers table. Counting hits for query. Codes: "+codes.size()+" unique: "+codesLocalCounts.size());
-		*/
-		int numUsedCodes = 0;
-		int notFoundCodes = 0;
-		int multihitCodes = 0;
-		int selfSequenceCount = 0;
-		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<Integer, List<UngappedSearchHit>>();
-		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
-			int startQuery = entry.getKey();
-			long kmerCode = entry.getValue();
-			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
-			int countSeqs = getCountDifferentSequences(kmerCode);
-			if (queryIdx == idxDebug && countSeqs>10) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
-			if (countSeqs>limitSequences) {
-				multihitCodes++;
-				continue;
-			}
-			
-			long [] codesMatching = lookupHits(kmerCode);
-			if(codesMatching.length>0) numUsedCodes++;
-			else notFoundCodes++;
-			for(long entryCode:codesMatching) {
-				KmerCodesTableEntry matchingEntry = new KmerCodesTableEntry(kmerCode, entryCode);
-				int subjectIdx = matchingEntry.getSequenceId();
-				if (subjectIdx < 0) {
-					System.err.println("Invalid subject "+subjectIdx+" query code: "+kmerCode+" matching code: "+entryCode+" start: "+matchingEntry.getStart());
-					continue;
-				}
-				UngappedSearchHit hit = new UngappedSearchHit(subjectIdx, matchingEntry.getStart());
-				hit.setQueryStart(startQuery);
-				hit.setHitLength((short)kmerLength);
-				hit.setWeight(calculateWeight(kmerCode));
-				List<UngappedSearchHit> targetHits = answer.computeIfAbsent(subjectIdx,l -> new ArrayList<UngappedSearchHit>());
-				targetHits.add(hit);
-				if(subjectIdx==queryIdx) selfSequenceCount++;
-			}
-		}
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with multiple hits: "+multihitCodes);
-		return answer;
-		
-	}
-	/**
-	 * Calculates the hits of the given query
-	 * @param query sequence
-	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
+	 * @param maxSubjectIdx Maximum id of a subject to process. -1 to disable this filter
+	 * @return KmerSearchResultsCompressedTable Object encoding the results of the query 
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		//if(query.length()>100000) {
 		if(query.length()>1000) {
 			Map<Integer, Long> selectedCodes = new HashMap<>(codes.size()/10);
 			List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
@@ -406,9 +351,12 @@ public class ShortKmerCodesTable {
 		
 	}
 	/**
-	 * Calculates the hits of the given query
-	 * @param query sequence
-	 * @return Map<Integer,List<MinimizersTableEntry>> Sequences matching kmers of the given query indexed by subject and sorted by subject start position
+	 * Calculates the hits of the query represented by the given codes
+	 * @param queryIdx Id of the query
+	 * @param queryLength Length of the query
+	 * @param codes representing the sequence. The codes length must coincide with this kmerLength
+	 * @param maxSubjectIdx
+	 * @return
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
 		int idxDebug = -2;
@@ -421,7 +369,7 @@ public class ShortKmerCodesTable {
 		
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
-		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, mode);
+		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, mode, kmerLength);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
 			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));

@@ -250,7 +250,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			UngappedSearchHitsCluster cluster = null;
 			for(UngappedSearchHit hit:totalHitsSubject) {
 				if(hit.getWeight()<0.01) {
-					//System.out.println("Hit with low weight. Pos: "+hit.getQueryIdx()+" weight: "+hit.getWeight());
+					//System.out.println("Hit with low weight. Pos: "+hit.getQueryStart()+" weight: "+hit.getWeight());
 					continue;
 				}
 				if(cluster==null) {
@@ -283,11 +283,11 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
-			double wc = cluster.getWeightedCount(); 
+			double wc = cluster.getWeightedCount();
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount());
 			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = buildCompleteAlignment(sequenceIdx, refSeq.getCharacters(), query, cluster);
-			//ReadAlignment aln = alignRead(sequenceIdx, refSeq.getCharacters(),query,subjectStart,subjectEnd,0.3);
 			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
 			if(aln!=null) {
 				aln.setSequenceName(refSeq.getName());
@@ -302,7 +302,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			cluster.summarize();
 			maxCount = Math.max(maxCount,cluster.getWeightedCount());
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
+			//System.out.println("Summarizing clusters. Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
 		}
 		return maxCount;
 	}
@@ -411,7 +411,10 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 					}
-					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\ntotal mismatches: "+numMismatches);
+					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) {
+						if(alignedFragments==null) System.out.println("Default alignmet for query coords "+queryNext+" "+kmerHit.getQueryStart()+" length: "+queryStr.length()+" subject coords: "+subjectNext+" " +kmerHit.getSubjectStart());
+						else System.out.println("Aligned fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\ntotal mismatches: "+numMismatches);
+					}
 				}
 				nextMatchLength+=hitLength;
 				coverageSharedKmers+=hitLength;

@@ -17,6 +17,7 @@ public class KmerSearchResultsCompressedTable {
 	private long [][] sequencesBySubjectTable;
 	//Actual lengths of the lists within the table
 	private int [] sequencesBySubjectTableColumnLengths;
+	private int kmerLength;
 	private int totalHits = 0;
 	private int multihitCodesCount;
 	private int notFoundCodesCount;
@@ -25,8 +26,9 @@ public class KmerSearchResultsCompressedTable {
 	private Map<Integer, Long> searchCodes;
 	private Map<Long, Double> kmerWeights;
 	
-	public KmerSearchResultsCompressedTable(Map<Integer, Long> searchCodes, int capacity) {
+	public KmerSearchResultsCompressedTable(Map<Integer, Long> searchCodes, int kmerLength, int capacity) {
 		this.searchCodes = searchCodes;
+		this.kmerLength = kmerLength;
 		initializeTable(capacity);
 	}
 	private void initializeTable(int capacity) {
@@ -97,7 +99,7 @@ public class KmerSearchResultsCompressedTable {
 		}
 		return kmers.size();
 	}
-	public List<UngappedSearchHit> getHits(int subjectIdx, int kmerLength) {
+	public List<UngappedSearchHit> getHits(int subjectIdx) {
 		Integer row = matrixRowMap.get(subjectIdx);
 		if(row==null) return new ArrayList<>();
 		int n = sequencesBySubjectTableColumnLengths[row];
@@ -112,12 +114,23 @@ public class KmerSearchResultsCompressedTable {
 			hit.setQueryStart(queryStart);
 			Long code = searchCodes.get(queryStart);
 			if(code!=null) {
-				Double weight = kmerWeights.get(code);
-				if(weight!=null) hit.setWeight(weight);
+				if(kmerWeights!=null) {
+					Double weight = kmerWeights.get(code);
+					if(weight!=null) hit.setWeight(weight);
+				}
 				hits.add(hit);	
 			}
 		}
 		return hits;
+	}
+	
+	public Map<Integer,List<UngappedSearchHit>> getAllHits() {
+		Map<Integer,List<UngappedSearchHit>> answer = new HashMap<>();
+		for(int subjectIdx:matrixRowMap.keySet()) {
+			List<UngappedSearchHit> hitsSubject = getHits(subjectIdx);
+			if (hitsSubject.size()>0) answer.put(subjectIdx, hitsSubject);
+		}
+		return answer;
 	}
 	
 	public int getNumSubjects() {

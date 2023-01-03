@@ -64,7 +64,7 @@ public class Assembler {
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
-	public static final int DEF_CIRCULAR_MAX_LENGTH = CircularSequencesProcessor.DEF_MAX_LENGTH;
+	public static final int DEF_CIRCULAR_MAX_LENGTH = 0;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_FMINDEX="FMIndex";
 	public static final String LAYOUT_ALGORITHM_MAX_OVERLAP="MaxOverlap";
