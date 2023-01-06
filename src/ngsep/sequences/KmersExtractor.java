@@ -234,7 +234,6 @@ public class KmersExtractor {
 		logParameters ();
 		if(files.size()==1 && "-".equals(files.get(0))) processFastqFile(System.in);
 		for(String filename:files) processFile(filename);
-		
 	}
 	
 	private void logParameters() {
@@ -618,6 +617,6 @@ public class KmersExtractor {
 			 PrintStream out = new PrintStream(os)) {
 			kmersMap.save(out);
 		}
-		
+		log.info("Process finished");
 	}	
 }

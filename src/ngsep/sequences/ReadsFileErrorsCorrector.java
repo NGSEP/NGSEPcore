@@ -40,6 +40,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.Distribution;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.sequences.io.KmersMapLoader;
 
 /**
  * 
@@ -194,7 +195,11 @@ public class ReadsFileErrorsCorrector {
 	}
 	public void process(String inFilename, String outFilename) throws IOException, InterruptedException {
 		correctedErrors = 0;
-		if (kmersMapFile!=null) loadKmersMap();
+		if (kmersMapFile!=null) {
+			KmersMapLoader loader = new KmersMapLoader();
+			loader.setLog(log);
+			kmersMap = loader.loadKmersMap(kmersMapFile, kmerLength);
+		}
 		else buildKmersMap(inFilename);
 		Distribution kmersDist = kmersMap.calculateAbundancesDistribution();
 		int mode = (int)kmersDist.getLocalMode(5, 125);
@@ -252,29 +257,6 @@ public class ReadsFileErrorsCorrector {
 		assembler = new DeBruijnGraphExplorationMiniAssembler(kmersMap,minKmerCount);
 	}
 
-	private void loadKmersMap() throws IOException {
-		log.info("Loading k-mers map from : "+kmersMapFile);
-		if(kmerLength<=15) kmersMap = new ShortArrayDNAKmersMapImpl((byte) kmerLength);
-		else kmersMap = new DefaultKmersMapImpl();
-		try (FileInputStream fis = new FileInputStream(kmersMapFile)) {
-			InputStream is=fis;
-			if(kmersMapFile.toLowerCase().endsWith(".gz")) {
-				is = new ConcatGZIPInputStream(is);
-			}
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
-				String line = in.readLine();
-				while(line!=null) {
-					String [] items = line.split("\t| ");
-					String kmer = items[0];
-					int count = Integer.parseInt(items[1]);
-					kmersMap.setCount(kmer,count);
-					line = in.readLine();
-				}
-			}
-		}
-		System.out.println("Extracted "+kmersMap.size()+" k-mers from: " + kmersMapFile);
-		
-	}
 	private void buildKmersMap(String inFilename) throws IOException, InterruptedException {
 		log.info("Calculating k-mers map from reads in : "+inFilename);
 		KmersExtractor counter = new KmersExtractor();

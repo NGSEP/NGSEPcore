@@ -222,6 +222,14 @@ public class ShortKmerCodesTable {
 		}
 		return answer;
 	}
+	public Map<Integer,Long> computeSequenceCodesAsMap(String sequence,int start,int end, Map<Integer, Long> kmerCodes) {
+		List<KmerCodesTableEntry> entries = computeSequenceCodes(-1, start, Math.min(end, sequence.length()-kmerLength-windowLength), kmerCodes);
+		Map<Integer,Long> answer = new LinkedHashMap<>();
+		for(KmerCodesTableEntry entry:entries) {
+			answer.put(entry.getStart(), entry.getKmerCode());
+		}
+		return answer;
+	}
 	/**
 	 * Calculates the selected codes of the given sequence following the same algorithm used for minimizers but saving the codes instead of the hashes
 	 * @param sequenceId Id of the sequence to calculate
