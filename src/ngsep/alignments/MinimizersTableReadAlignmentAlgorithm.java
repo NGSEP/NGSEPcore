@@ -30,6 +30,7 @@ import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
+import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
@@ -207,19 +208,19 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		return alignments;
 	}
 	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
-		List<UngappedSearchHitsCluster> clusters = buildHitClusters(query);
+		List<UngappedSearchHitsCluster> clusters = buildHitClusters(query,false);
 		List<ReadAlignment> answer = buildAlignments(query, clusters);
 		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
 	}
-	public List<UngappedSearchHitsCluster> buildHitClusters (QualifiedSequence read) {
+	public List<UngappedSearchHitsCluster> buildHitClusters (QualifiedSequence read, boolean extensiveKmersSearch) {
 		List<UngappedSearchHitsCluster> initialClusters = new ArrayList<>();
 		String readSeq = read.getCharacters().toString();
-		initialClusters.addAll(buildHitClusters(readSeq));
+		initialClusters.addAll(buildHitClusters(readSeq,extensiveKmersSearch));
 		String reverseComplement = null;
 		if(!onlyPositiveStrand) {
 			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
-			initialClusters.addAll(buildHitClusters(reverseComplement));
+			initialClusters.addAll(buildHitClusters(reverseComplement,extensiveKmersSearch));
 		}
 		Collections.sort(initialClusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
 		double maxCount = summarize(initialClusters);
@@ -233,10 +234,15 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		}
 		return answer;
 	}
-	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query) {
+	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch) {
 		int queryLength = query.length();
-		
-		Map<Integer,List<UngappedSearchHit>> hitsByReference = kmerCodesTable.match(-1,query);
+		Map<Integer,List<UngappedSearchHit>> hitsByReference;
+		if(extensiveKmersSearch) {
+			Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerCodesTable.getKmerLength() , 0, query.length());
+			KmerSearchResultsCompressedTable results = kmerCodesTable.matchCompressed(-1, query.length(), codes, -1);
+			hitsByReference = results.getAllHits();	
+		}
+		else hitsByReference = kmerCodesTable.match(-1,query);
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
 		double minRawHitsSize = Math.max(minWeightedCount, minProportionReadLength*query.length());
 		for (int sequenceIdx:hitsByReference.keySet()) {
