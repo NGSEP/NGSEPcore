@@ -112,7 +112,7 @@ public class KmerBasedSwitchErrorsFinder {
 				String rcseqStr = rcseq.toString();
 				Map<Integer, Long> kmerCodesR = KmersExtractor.extractDNAKmerCodes(rcseqStr, 15, 0, rcseqStr.length());
 				Map<Integer,Long> minimizersR = table.computeSequenceCodesAsMap(rcseqStr, 0, rcseq.length(),kmerCodesR);
-				int strand = inferStrand (qseq.getName(),minimizersF,minimizersR);
+				int strand = inferStrand (qseq.getName(),qseq.getLength(), minimizersF,minimizersR);
 				if(strand == 1) switchErrors+= processKmerCodes(qseq.getName(), seqStr.length(), kmerCodesF, out);
 				else if(strand == 2) switchErrors+= processKmerCodes(qseq.getName(), rcseqStr.length(), kmerCodesR, out);
 				
@@ -121,11 +121,12 @@ public class KmerBasedSwitchErrorsFinder {
 		out.println("Total switch errors: "+switchErrors);
 	}
 
-	private int inferStrand(String sequenceId, Map<Integer, Long> minimizersF, Map<Integer, Long> minimizersR) {
+	private int inferStrand(String sequenceId, int length, Map<Integer, Long> minimizersF, Map<Integer, Long> minimizersR) {
 		int countF = calculateCountHaplotypes(minimizersF);
 		int countR = calculateCountHaplotypes(minimizersR);
-		if(countF>2*countR && countF > 100) return 1;
-		if(countR>2*countF && countR > 100) return 2;
+		System.out.println("Sequence: "+sequenceId+" length: "+length+" counts: "+countF+" "+countR);
+		if(countF>countR+100) return 1;
+		if(countR>countF+100) return 2;
 		System.out.println("Strand undefined for sequence: "+sequenceId+" counts: "+countF+" "+countR);
 		return 0;
 	}
