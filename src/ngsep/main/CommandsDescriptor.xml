@@ -96,7 +96,7 @@ K-mer length.
 <option id="m" type="INT" attribute="minKmerCount" defaultConstant="DEF_MIN_KMER_COUNT">
 Minimum count to report a k-mer in the output file.
 </option>
-<option id="t" type="BOOLEAN" attribute="freeText">
+<option id="text" type="BOOLEAN" attribute="freeText">
 Indicates that the sequences should be treated as free text.
 By default it is assumed that the given sequences are DNA and then only DNA k-mers are counted.
 If this option is set, the -s option is also activated to process the text only in the forward direction.
@@ -109,6 +109,9 @@ Format of the input file(s). It can be 0 for fastq or 1 for fasta.
 </option>
 <option id="c" type="BOOLEAN" attribute="ignoreLowComplexity">
 Ignore low complexity k-mers for counting and reporting.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
 </option>
 </command>
 
