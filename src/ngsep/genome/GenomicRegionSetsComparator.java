@@ -87,21 +87,29 @@ public class GenomicRegionSetsComparator {
 			GenomicRegionSpanComparator spanCMP = GenomicRegionSpanComparator.getInstance();
 			
 			int maxOverlap = 0;
-			double sumOverlap = 0;
+			int totalCovered = 0;
 			int lengthRegMaxOverlap = 0;
+			int firstUncovered = r.getFirst();
 			for(GenomicRegion r2:overlapSet) {
 				int overlap = spanCMP.getSpanLength(r.getFirst(), r.getLast(), r2.getFirst(), r2.getLast());
-				sumOverlap+=overlap;
 				if(overlap > maxOverlap) {
 					maxOverlap = overlap;
 					lengthRegMaxOverlap = r2.length();
 				}
+				int coveredStart = Math.max(firstUncovered, r2.getFirst());
+				int coveredLast = Math.min(r.getLast(), r2.getLast());
+				if(coveredLast>=firstUncovered) {
+					totalCovered+=coveredLast-coveredStart+1;
+					if(coveredLast==r.getLast()) break;
+					firstUncovered = coveredLast+1;
+				}
 			}
-			coveredStats += maxOverlap;
+			//coveredStats += maxOverlap;
+			coveredStats += totalCovered;
 			double pct1 = 100.0*maxOverlap/r.length();
 			double pct2 = 0;
 			if(lengthRegMaxOverlap>0) pct2 = 100.0*maxOverlap/lengthRegMaxOverlap;
-			double pct3 = 100.0*sumOverlap/r.length();
+			double pct3 = 100.0*totalCovered/r.length();
 			if(pct1<=maxPCT && pct3<=maxPCT) {
 				out.println(r.getSequenceName()+"\t"+r.getFirst()+"\t"+r.getLast()+"\t"+r.length()+"\t"+lengthRegMaxOverlap+"\t"+maxOverlap+"\t"+pct1+"\t"+pct2+"\t"+pct3);
 			}

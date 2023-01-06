@@ -345,7 +345,7 @@ public class TransposableElementsFinder {
 	}
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
-		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon);
+		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon,true);
 		//if(transposon.getName().contains("Chr2_20635304")) logClusters(genome, transposon, clusters);
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();

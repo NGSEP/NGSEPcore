@@ -161,6 +161,9 @@ public class ShortKmerCodesTable {
 		this.log = log;
 	}
 	
+	public int getKmerLength() {
+		return kmerLength;
+	}
 	public KmersMap getKmersMap() {
 		return kmersMap;
 	}
