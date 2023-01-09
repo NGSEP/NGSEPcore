@@ -19,9 +19,10 @@ public class UngappedSearchHitsClusterBuilder {
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
 		double minHits = Math.min(20,0.01*queryLength);
+		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
 		if(sequenceHits.size()<minHits) return new ArrayList<UngappedSearchHitsCluster>();
 		for(UngappedSearchHit hit:sequenceHits) {
-			//if (queryLength == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart());
+			//if (debug && hit.getSubjectStart()<10000) System.out.println("Next qpos "+hit.getQueryStart()+" hit: "+hit.getSubjectStart());
 			countsByQueryIdx.compute(hit.getQueryStart(), (k,v)->v==null?1:v+1);
 		}
 		//double estimatedClusters = 0.5*sequenceHits.size()/queryLength;
@@ -29,7 +30,7 @@ public class UngappedSearchHitsClusterBuilder {
 		for(int count:countsByQueryIdx.values()) avg+=count;
 		if(avg>0) avg/=countsByQueryIdx.size();
 		double estimatedClusters = avg;
-		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug; 
+		 
 		if(debug) System.out.println("Clustering hits: "+sequenceHits.size()+" estimatedCLusters: "+estimatedClusters);
 		
 		//if(minQueryCoverage==0) 

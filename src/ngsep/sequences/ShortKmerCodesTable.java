@@ -396,13 +396,14 @@ public class ShortKmerCodesTable {
 			long kmerCode = entry.getValue();
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
 			int countSeqs = getCountDifferentSequences(kmerCode);
-			if (queryIdx == idxDebug && countSeqs>10) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
+			if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (countSeqs>limitSequences) {
 				multihitCodes++;
 				continue;
 			}
 			
 			long [] codesMatching = lookupHits(kmerCode);
+			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" limit: "+(limitHitsPerSequence*countSeqs));
 			if(codesMatching.length>limitHitsPerSequence*countSeqs) {
 				multihitCodes++;
 				continue;
@@ -412,6 +413,7 @@ public class ShortKmerCodesTable {
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
 				int subjectIdx = dec[0];
+				if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" next match: "+subjectIdx+" start: "+dec[1]);
 				if (subjectIdx < 0) {
 					System.err.println("Invalid subject "+subjectIdx+" query code: "+kmerCode+" matching code: "+entryCode+" start: "+dec[1]);
 					continue;

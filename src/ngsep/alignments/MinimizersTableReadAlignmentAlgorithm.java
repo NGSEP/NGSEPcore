@@ -227,7 +227,8 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
 		for (int i=0;i<initialClusters.size() && i<maxAlnsPerRead;i++) {
 			UngappedSearchHitsCluster cluster = initialClusters.get(i);
-			double wc = cluster.getWeightedCount(); 
+			double wc = cluster.getWeightedCount();
+			//System.out.println("Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" count: "+wc+" min: "+minWeightedCount);
 			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
 			
 			answer.add(cluster);
@@ -267,7 +268,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 						//System.out.println("Qlen: "+query.length()+" next raw cluster inside "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					} 
-					//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size());
+					//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" limit: "+minRawHitsSize);
 					cluster = new UngappedSearchHitsCluster(queryLength, sequenceIdx, sequenceLength, hit);
 					rawClusterKmers.clear();
 				}
@@ -278,6 +279,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
+			//System.out.println("Reference id: "+sequenceIdx+" total clusters: "+clusters.size());
 		}
 		return clusters;
 	}

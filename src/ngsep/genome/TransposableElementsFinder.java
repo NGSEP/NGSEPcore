@@ -312,6 +312,10 @@ public class TransposableElementsFinder {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		for(TransposableElementAnnotation ann:elements) {
 			CharSequence sequence = genome.getReference(ann.getSequenceName(), ann.getFirst(), ann.getLast());
+			if(sequence==null) {
+				log.warning("No sequence for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
+				continue;
+			}
 			QualifiedSequence qseq = new QualifiedSequence(ann.getTaxonomy(),sequence);
 			sequences.add(qseq);
 		}
@@ -346,11 +350,13 @@ public class TransposableElementsFinder {
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
 		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon,true);
-		//if(transposon.getName().contains("Chr2_20635304")) logClusters(genome, transposon, clusters);
+		//if(transposon.getName().contains("Blc58_hum-B-P992")) logClusters(genome, transposon, clusters);
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
-			TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),cluster.getSubjectEvidenceStart(), cluster.getSubjectEvidenceEnd());
+			int first = Math.max(1, cluster.getSubjectEvidenceStart());
+			int last = Math.min(refSeq.getLength()-1, cluster.getSubjectEvidenceEnd());
+			TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),first, last);
 			if(alignedTransposon.length()<minTELength) continue;
 			alignedTransposon.setTaxonomy(transposon.getName());
 			answer.add(alignedTransposon);

@@ -105,7 +105,7 @@ public class KmerSearchResultsCompressedTable {
 		int n = sequencesBySubjectTableColumnLengths[row];
 		List<UngappedSearchHit> hits = new ArrayList<>(n);
 		long [] encodedHits = sequencesBySubjectTable[row];
-		for(int i=0;i<encodedHits.length;i++) {
+		for(int i=0;i<n;i++) {
 			int [] dec = KmerCodesTableEntry.decode(encodedHits[i]);
 			int queryStart = dec[0];
 			int subjectStart = dec[1];
