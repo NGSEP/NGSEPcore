@@ -28,6 +28,7 @@ public class ShortKmerCodesTable {
 	private KmersMap kmersMap;
 	private int mode=1;
 	private int kmerDistModeLocalSD=5;
+	private int limitHitsPerSequence = 10;
 	
 	//Structures to implement the minimizers like codes hash table
 	//Map with code as key and row of the sequencesByCodeTable as value
@@ -178,6 +179,13 @@ public class ShortKmerCodesTable {
 	}
 	public void setMaxHitsKmerCode(int maxHitsKmerCode) {
 		this.maxHitsKmerCode = maxHitsKmerCode;
+	}
+
+	public int getLimitHitsPerSequence() {
+		return limitHitsPerSequence;
+	}
+	public void setLimitHitsPerSequence(int limitHitsPerSequence) {
+		this.limitHitsPerSequence = limitHitsPerSequence;
 	}
 	/**
 	 * Adds selected codes of the given sequence to the table
@@ -376,7 +384,6 @@ public class ShortKmerCodesTable {
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode);
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
-		int limitHitsPerSequence = 10;
 		
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);

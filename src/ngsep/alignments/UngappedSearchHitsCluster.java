@@ -129,7 +129,7 @@ public class UngappedSearchHitsCluster {
 	public boolean addKmerHit(UngappedSearchHit kmerHit, int toleranceChange) {
 		int estStart = estimateSubjectStart(kmerHit);
 		int estEnd = estimateSubjectEnd(kmerHit);
-		//System.out.println("Hit with idx: "+kmerHit.getQueryIdx()+" Previous coords: "+first+"-"+last+" next cords: "+estFirst+"-"+estLast);
+		//if (kmerHit.getSubjectStart()<100000) System.out.println("Hit with idx: "+kmerHit.getQueryStart()+" Previous coords: "+subjectPredictedStart+"-"+subjectPredictedEnd+" next cords: "+estStart+"-"+estEnd);
 		if(subjectPredictedStart > estEnd || subjectPredictedEnd < estStart) return false;
 		if(toleranceChange>0 && Math.abs(subjectPredictedStart-estStart)>toleranceChange) return false;
 		if(toleranceChange>0 && Math.abs(subjectPredictedEnd-estEnd)>toleranceChange) return false;

@@ -152,6 +152,7 @@ public class GenomeAssemblyMask {
 					String seqBefore = seq.substring(nextPos,firstZeroBased);
 					newSeq.append(seqBefore.toUpperCase());
 				}
+				firstZeroBased = Math.max(firstZeroBased, nextPos);
 				if(hardMask) {
 					String nString = "N".repeat(endZeroBased-firstZeroBased);
 					newSeq.append(nString);
@@ -163,6 +164,7 @@ public class GenomeAssemblyMask {
 			}
 			String seqAfter = seq.substring(nextPos);
 			newSeq.append(seqAfter.toUpperCase());
+			if (qseq.getLength()!=newSeq.length()) throw new RuntimeException("Inconsistent input and output sequence lenghs for "+qseq.getName()+". Expected: "+qseq.getLength()+" calculated: "+newSeq.length());
 			newSequences.add(new QualifiedSequence(name,new DNAMaskedSequence(newSeq)));
 		}
 		return new ReferenceGenome(newSequences);
