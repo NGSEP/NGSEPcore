@@ -126,13 +126,21 @@ java -jar NGSEPcore.jar KmersExtractor <OPTIONS> <SEQUENCES_FILE>*
 OPTIONS:
 
 	-o FILE	: Prefix of the output files.
-	-k INT	: K-mer length. Default: 15
-	-m INT	: Minimum count to report a k-mer in the output file Default: 5
-	-s	: If set, only the forward strand would be used to extract
-		  kmers. Mandatory for non-DNA sequences
-	-f INT  : Format of the input file(s). It can be 0 for fastq or 1 for
-		  fasta. Default: 0
-	-c      : Ignore low complexity k-mers for counting and reporting
+	-k INT		: K-mer length. Default: 15
+	-m INT		: Minimum count to report a k-mer in the output file.
+			  Default: 5
+	-text		: Indicates that the sequences should be treated as
+			  free text. By default it is assumed that the given
+			  sequences are DNA and then only DNA k-mers are
+			  counted. If this option is set, the -s option is also
+			  activated to process the text only in the forward
+			  direction.
+	-s		: If set, only the forward strand would be used to
+			  extract kmers. Mandatory for non-DNA sequences.
+	-f INT		: Format of the input file(s). It can be 0 for fastq or
+			  1 for fasta. Default: 0
+	-c		: Ignore low complexity k-mers for counting and reporting.
+	-t INT		: Number of threads. Default: 1
 
 
 ------------------------
