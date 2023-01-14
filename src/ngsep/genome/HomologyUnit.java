@@ -177,14 +177,14 @@ public class HomologyUnit implements GenomicRegion {
 	}
 
 	/**
-	 * Searches ortholog relationships to the given genome id
+	 * Searches homolog relationships to the given genome id
 	 * @param id of the genome to query
 	 * @return Homolog relationships to units in the given genome id
 	 */
-	public Collection<HomologyEdge> getOrthologRelationships(int genomeId) {
-		Map<String,HomologyEdge> orthologs = homologsMap.get(genomeId);
-		if(orthologs==null) return new ArrayList<>();
-		return Collections.unmodifiableCollection(orthologs.values());
+	public Collection<HomologyEdge> getHomologRelationships(int genomeId) {
+		Map<String,HomologyEdge> homologs = homologsMap.get(genomeId);
+		if(homologs==null) return new ArrayList<>();
+		return Collections.unmodifiableCollection(homologs.values());
 	}
 	
 	public Collection<HomologyUnit> getOrthologUnits(int genomeId) {
@@ -198,14 +198,14 @@ public class HomologyUnit implements GenomicRegion {
 	}
 	
 	/**
-	 * Returns the ortholog of this unit with the given genome id only if it is unique
+	 * Returns the homolog of this unit with the given genome id only if it is unique
 	 * @param genomeId Id of the genome to query
-	 * @return OrthologyUnit ortholog of this unit or null if there are not orthologs or if the ortholog is not unique
+	 * @return OrthologyUnit homolog of this unit or null if there are not homologs or if the homolog is not unique
 	 */
-	public HomologyUnit getUniqueOrtholog(int genomeId) {
-		Collection<HomologyEdge> orthologRelationships = getOrthologRelationships(genomeId);
-		if(orthologRelationships.size()!=1) return null;
-		return orthologRelationships.iterator().next().getSubjectUnit();
+	public HomologyUnit getUniqueHomolog(int genomeId) {
+		Collection<HomologyEdge> homologRelationships = getHomologRelationships(genomeId);
+		if(homologRelationships.size()!=1) return null;
+		return homologRelationships.iterator().next().getSubjectUnit();
 		
 	}
 	

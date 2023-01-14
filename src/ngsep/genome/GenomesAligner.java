@@ -41,6 +41,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.ThreadPoolManager;
+import ngsep.main.io.ParseUtils;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.transcriptome.Transcriptome;
@@ -558,62 +559,34 @@ public class GenomesAligner {
 			int id = genome.getId();
 			//Print metadata
 			printGenomeMetadata(id, genome.getSequencesMetadata(), jsFilename);
-			// Print paralogs
-			try (PrintStream outParalogs = new PrintStream(outputPrefix+"_paralogsG"+id+".tsv");
-				 PrintStream outParalogsJS = new PrintStream(new FileOutputStream(jsFilename, true))) {
-				outParalogs.println("geneId\tchromosome\tgeneStart\tgeneEnd\torthogroup\tgenomeId\tparalogId\tparalogChr\tparalogStart\tparalogEnd\torthogroup2\tscore");
-				outParalogsJS.println("const paralogsG" + id + " = [");
-				for(HomologyUnit unit:genome.getHomologyUnits()) {
-					int clusterId1 = clusterIdsByHomologyUnit.getOrDefault(unit.getUniqueKey(), -1);
-					Collection<HomologyEdge> paralogRelationships = unit.getParalogRelationships(); 
-					for(HomologyEdge paralogRelationship: paralogRelationships) {
-						HomologyUnit paralog = paralogRelationship.getSubjectUnit();
-						int clusterId2 = clusterIdsByHomologyUnit.getOrDefault(paralog.getUniqueKey(), -1);
-						outParalogs.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+clusterId1);
-						outParalogs.print("\t"+id+"\t"+paralog.getId()+"\t"+paralog.getSequenceName()+"\t"+paralog.getFirst()+"\t"+paralog.getLast()+"\t"+clusterId2);
-						outParalogs.println("\t"+paralogRelationship.getScore());
-						outParalogsJS.println("{geneId: '"+unit.getId()
-						+"', chromosome: '"+unit.getSequenceName()
-						+"', geneStart: "+unit.getFirst()
-						+", geneEnd: "+unit.getLast()
-						+", paralogId: '"+paralog.getId()
-						+"', paralogChr: '"+paralog.getSequenceName()
-						+"', paralogStart: "+paralog.getFirst()
-						+", paralogEnd: "+paralog.getLast()+"},");
-					}
-				}
-				outParalogsJS.println("];");
-			}
 		}
 
 		/*try (PrintStream outD3Paralogs = new PrintStream(outputPrefix+"_circularParalogView.html");) {
 			printD3Visualization(outD3Paralogs,"GenomesAlignerCircularParalogVisualizer.js", jsFilename, 5);
 		}*/
-		
-		if(genomes.size()>1) {
+		try (PrintStream outRelationships = new PrintStream(outputPrefix+"_relationships.tsv");
+				PrintStream outJS = new PrintStream(new FileOutputStream(jsFilename, true));) {
 			for(int i=0;i<genomes.size();i++) {
 				AnnotatedReferenceGenome genome = genomes.get(i);
 				int id = genome.getId();
-				// Print orthologs
-				try (PrintStream outOrthologs = new PrintStream(outputPrefix+"_orthologsG"+id+".tsv");
-					PrintStream outOrthologsJS = new PrintStream(new FileOutputStream(jsFilename, true));) {
-						outOrthologs.println("geneId\tchromosome\tgeneStart\tgeneEnd\torthogroup\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\torthogroup2\tscore\tblock");
-						outOrthologsJS.println("const orthologsG" + id + " = [");
-						for(HomologyUnit unit:genome.getHomologyUnits()) {
-							printOrthologyUnit(unit, outOrthologs, outOrthologsJS,clusterIdsByHomologyUnit,syntenyBlockIdByPair);
-						}
-						outOrthologsJS.println("];");
-				}
-			}
-			//Print D3 visualizations
-			try (PrintStream outD3Linear = new PrintStream(outputPrefix+"_linearOrthologView.html");) {
-				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", jsFilename, 5);
-			}
+				// Print relationships
 			
-			/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
-				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
-			}*/
+				outRelationships.println("genomeId1\tgeneId\tchromosome\tgeneStart\tgeneEnd\torthogroup\tgenomeId2\tgeneIdG2\tchromosomeG2\tgeneStartG2\tgeneEndG2\torthogroup2\tscore\tblock");
+				outJS.println("const orthologsG" + id + " = [");
+				for(HomologyUnit unit:genome.getHomologyUnits()) {
+					printHomologyUnit(unit, outRelationships, outJS,clusterIdsByHomologyUnit,syntenyBlockIdByPair);
+				}
+				outJS.println("];");
+			}
 		}
+		//Print D3 visualizations
+		try (PrintStream outD3Linear = new PrintStream(outputPrefix+"_linearOrthologView.html");) {
+			printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", jsFilename, 5);
+		}
+		
+		/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
+			printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
+		}*/
 
 		//Print ortholog clusters
 		CDNACatalogAligner.printResults(outputPrefix, homologyClusters);
@@ -627,31 +600,22 @@ public class GenomesAligner {
 	 */
 	private void printSyntenyBlocks(String outFilename, String jsFilename) throws IOException {
 		try (PrintStream outSynteny = new PrintStream(outFilename);
-			 PrintStream outSyntenyJS = new PrintStream(new FileOutputStream(jsFilename, true));){
-			String headers = "SequenceName1\tStart1\tEnd1\tSequenceName2\tStart2\tEnd2";
+			 PrintStream outJS = new PrintStream(new FileOutputStream(jsFilename, true));){
+			String headers = "BlockId\tGenomeId1\tSequenceName1\tSequenceLength1\tStart1\tEnd1\tGenomeId2\tSequenceName2\tSequenceLength2\tStart2\tEnd2";
 			outSynteny.println(headers);
-			outSyntenyJS.println("const syntenyBlocks = [");
-			for (PairwiseSyntenyBlock sb : orthologsSyntenyBlocks) {
+			outJS.println("const syntenyBlocks = [");
+			for(int i=0;i<orthologsSyntenyBlocks.size();i++) {
+				PairwiseSyntenyBlock sb = orthologsSyntenyBlocks.get(i);
+				int id = i+1;
 				GenomicRegion r1 = sb.getRegionGenome1();
 				GenomicRegion r2 = sb.getRegionGenome2();
 				int length1 = genomes.get(sb.getGenomeId1()-1).getSequenceByName(r1.getSequenceName()).getLength();
 				int length2 = genomes.get(sb.getGenomeId2()-1).getSequenceByName(r2.getSequenceName()).getLength();
 				char orientation = r2.isNegativeStrand()?'-':'+';
-				String line = r1.getSequenceName() + "\t" + length1 + "\t" + r1.getFirst() +  "\t" + r1.getLast();
-				line+= "\t"+r2.getSequenceName() + "\t" + length2 + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+orientation;
+				String line = id+"\t"+sb.getGenomeId1()+"\t"+ r1.getSequenceName() + "\t" + length1 + "\t" + r1.getFirst() +  "\t" + r1.getLast();
+				line+= "\t"+sb.getGenomeId2()+"\t"+r2.getSequenceName() + "\t" + length2 + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+orientation;
 				outSynteny.println(line);
-//				Printing of homology units that form the synteny block. 
-				
-				for (SyntenyVertex vertex : sb.getHomologies()) {
-					LocalHomologyCluster c1 = vertex.getLocalRegion1();
-					LocalHomologyCluster c2 = vertex.getLocalRegion2();
-					line="\t";
-					for(HomologyUnit u1:c1.getHomologyUnitsCluster()) line+=u1.getId()+",";
-					line+="\t";
-					for(HomologyUnit u2:c2.getHomologyUnitsCluster()) line+=u2.getId()+",";
-					outSynteny.println(line);
-				}
-				outSyntenyJS.println("{genomeIdG1: "+sb.getGenomeId1()
+				outJS.println("{genomeIdG1: "+sb.getGenomeId1()
 				+", chromosomeG1: '"+r1.getSequenceName()+"'"
 				+", regionStartG1: "+r1.getFirst()
 				+", regionEndG1: "+r1.getLast()
@@ -662,7 +626,7 @@ public class GenomesAligner {
 				+", negativeG2: "+(r2.isNegativeStrand()?1:0)
 				+"},");
 			}
-			outSyntenyJS.println("];");
+			outJS.println("];");
 		}
 	}
 	
@@ -723,22 +687,22 @@ public class GenomesAligner {
 	}
 
 
-	private void printOrthologyUnit(HomologyUnit unit, PrintStream out, PrintStream outJS, Map<String,Integer> clusterIdsByHomologyUnit, Map<String,Integer> syntenyBlockIdByPair) {
+	private void printHomologyUnit(HomologyUnit unit, PrintStream out, PrintStream outJS, Map<String,Integer> clusterIdsByHomologyUnit, Map<String,Integer> syntenyBlockIdByPair) {
 		int clusterId1 = clusterIdsByHomologyUnit.getOrDefault(unit.getUniqueKey(), -1);
 		for(int i=0;i<genomes.size();i++) {
 			AnnotatedReferenceGenome genome = genomes.get(i);
 			int genomeId = genome.getId();
-			if(genomeId==unit.getGenomeId()) continue;
-			Collection<HomologyEdge> orthologRelationships = unit.getOrthologRelationships(genomeId);
-			if(orthologRelationships.size()==0) return;
+			Collection<HomologyEdge> orthologRelationships = unit.getHomologRelationships(genomeId);
 			for(HomologyEdge edge:orthologRelationships) {
 				HomologyUnit ortholog = edge.getSubjectUnit();
 				int clusterId2 = clusterIdsByHomologyUnit.getOrDefault(ortholog.getUniqueKey(), -1);
 				int syntenyBlock = syntenyBlockIdByPair.getOrDefault(unit.getUniqueKey()+"-"+ortholog.getUniqueKey(), -1);
-				out.print(unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+clusterId1);
+				out.print(unit.getGenomeId()+"\t"+ unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+clusterId1);
 				out.print("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+clusterId2);
-				out.println("\t"+edge.getScore()+"\t"+syntenyBlock);
-				outJS.println("{geneId: '"+unit.getId()
+				out.println("\t"+ParseUtils.ENGLISHFMT.format(edge.getScore())+"\t"+syntenyBlock);
+				//Can conflict with a genomeId property in the js
+				outJS.println("{genomeId1: '"+unit.getGenomeId()
+				+"', geneId: '"+unit.getId()
 				+"', chromosome: '"+unit.getSequenceName()
 				+"', geneStart: "+unit.getFirst()
 				+", geneEnd: "+unit.getLast()

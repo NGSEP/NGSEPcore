@@ -24,7 +24,7 @@ const dims = {
     width: 1000
 }
 
-const margin = { left: 80, right: 20, top: 20, bottom: 20 };
+const margin = { left: 200, right: 200, top: 20, bottom: 20 };
 
 let allOrthologs = {};
 
@@ -327,7 +327,7 @@ const prepareData = () => {
         .append('text')
         .attr('class', 'chromosomeLabelG1')
         .text(d => d.Name)
-        .attr('transform', d => `translate(${margin.left - 20}, ${y1(d.Length / 2 + lengthsG1[d.Name]) + 10})`)
+        .attr('transform', d => `translate(${margin.left - 50}, ${y1(d.Length / 2 + lengthsG1[d.Name]) + 10})`)
         .attr('text-anchor', 'end')
         .attr('fill', d => color(d.Name));
     const labelsG2 = chromosomeLabelsG2.selectAll('text').data(genomeData2);
@@ -336,7 +336,7 @@ const prepareData = () => {
         .append('text')
         .attr('class', 'chromosomeLabelG2')
         .text(d => d.Name)
-        .attr('transform', d => `translate(${dims.width + margin.right}, ${y2(d.Length / 2 + lengthsG2[d.Name]) + 10})`)
+        .attr('transform', d => `translate(${dims.width + 50}, ${y2(d.Length / 2 + lengthsG2[d.Name]) + 10})`)
         .attr('text-anchor', 'start')
         .attr('fill', d => color(d.Name));
 }

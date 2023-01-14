@@ -109,7 +109,7 @@ public class LCSMainPairwiseSyntenyBlocksFinder implements PairwiseSyntenyBlocks
 
 		for(HomologyUnit unit:units)
 		{
-			HomologyUnit mate = unit.getUniqueOrtholog(genomeId);
+			HomologyUnit mate = unit.getUniqueHomolog(genomeId);
 			if(mate == null) continue;
 			String sequenceName = mate.getSequenceName();			
 			if((chrMateCounts.containsKey(sequenceName)))
