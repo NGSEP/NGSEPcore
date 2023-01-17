@@ -21,6 +21,7 @@ package ngsep.transcriptome;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,14 @@ public class Transcriptome {
 	 */
 	public List<Transcript> getTranscriptsByGene(String geneId) {
 		return transcriptsByGene.get(geneId);
+	}
+	/**
+	 * Returns all transcripts related to a sequence name
+	 * @param sequenceName Name of the sequence to retrieve transcripts
+	 * @return List<Transcript> transcripts annotated in the sequence
+	 */
+	public List<Transcript> getTranscriptsBySequence(String sequenceName) {
+		return sortedTranscripts.getSequenceRegions(sequenceName).asList();
 	}
 	
 	/**
@@ -548,5 +557,43 @@ public class Transcriptome {
 			id = genesPrefix+newGeneId;
 		}
 		return id;
+	}
+	public List<Transcript> getReversedTranscripts(QualifiedSequence qseq) {
+		List<Transcript> transcriptsSeq = getTranscriptsBySequence(qseq.getName());
+		List<Transcript> answer = new ArrayList<>();
+		Map<String,Gene> revGenes = new HashMap<>();
+		for(Transcript t:transcriptsSeq) {
+			Gene revGene = revGenes.get(t.getGeneId());
+			if(revGene == null) {
+				Gene g = genesMap.get(t.getGeneId());
+				revGene = new Gene(g.getId(), g.getName(), g.getSequenceName(), qseq.getLength()-g.getLast()+1, qseq.getLength()-g.getFirst()+1, !g.isNegativeStrand());
+				revGene.setDatabaseReferences(g.getDatabaseReferences());
+				revGene.setTextFunctionalAnnotations(g.getTextFunctionalAnnotations());
+				revGene.setOntologyTerms(g.getOntologyTerms());
+				revGenes.put(g.getId(),revGene);
+			}
+			answer.add(createReverseTranscript(t, qseq.getLength(), revGene));
+		}
+		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
+		return answer;
+		
+	}
+	private Transcript createReverseTranscript(Transcript t, int seqLen, Gene revGene) {
+		//TODO: Check coordinates
+		int first = seqLen - t.getLast()+1;
+		int last = seqLen - t.getFirst()+1;
+		Transcript rev = new Transcript(t.getId(), t.getSequenceName(), first, last, !t.isNegativeStrand());
+		rev.setGene(revGene);
+		rev.setStatus(t.getStatus());
+		List<TranscriptSegment> segments = t.getTranscriptSegments();
+		List<TranscriptSegment> revSegments = new ArrayList<>(segments.size());
+		for(TranscriptSegment segment:segments) {
+			TranscriptSegment revSeg = new TranscriptSegment(rev, seqLen-segment.getLast()+1, seqLen-segment.getFirst()+1);
+			revSeg.setStatus(segment.getStatus());
+			revSeg.setFirstCodonPositionOffset(segment.getFirstCodonPositionOffset());
+			revSegments.add(revSeg);
+		}
+		rev.setTranscriptSegments(revSegments);
+		return rev;
 	}
 }

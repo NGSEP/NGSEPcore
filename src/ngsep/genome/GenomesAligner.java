@@ -30,8 +30,10 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,8 +44,10 @@ import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.ThreadPoolManager;
 import ngsep.main.io.ParseUtils;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
 
@@ -79,6 +83,7 @@ public class GenomesAligner {
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
 	private String inputDirectory = null;
+	private int referenceGenomeId = -1;
 	private int numThreads = 1;
 
 	
@@ -193,6 +198,17 @@ public class GenomesAligner {
 	public void setInputDirectory(String inputDirectory) {
 		this.inputDirectory = inputDirectory;
 	}
+	
+	public int getReferenceGenomeId() {
+		return referenceGenomeId;
+	}
+	public void setReferenceGenomeId(int referenceGenomeId) {
+		this.referenceGenomeId = referenceGenomeId;
+	}
+	public void setReferenceGenomeId(String value) {
+		setReferenceGenomeId((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -224,6 +240,11 @@ public class GenomesAligner {
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		inferOrthologs();
 		identifyHomologyClusters();
+		if(referenceGenomeId>=0) {
+			sortAndOrientGenomes();
+			inferOrthologs();
+			identifyHomologyClusters();
+		}
 		if(genomes.size()>1) {
 			alignGenomes();
 			buildPAMatrix();
@@ -407,9 +428,20 @@ public class GenomesAligner {
 		}
 		return answer;
 	}
-	
-	public void alignGenomes() {
+	public void sortAndOrientGenomes () {
+		DAGChainerPairwiseSyntenyBlocksFinder finder = createBlocksFinder();
+		AnnotatedReferenceGenome refGenome = genomes.get(referenceGenomeId);
 		
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome1 = genomes.get(i);
+			if(refGenome!=genome1) {
+				genomes.set(i, sortAndOrientGenome(genome1,refGenome,finder));
+			} else {
+				genomes.set(i, new AnnotatedReferenceGenome(refGenome.getId(), refGenome.getUnannotatedGenome(), refGenome.getTranscriptome()));
+			}
+		}
+	}
+	private DAGChainerPairwiseSyntenyBlocksFinder createBlocksFinder() {
 		//Select finder:
 		
 		//PairwiseSyntenyBlocksFinder finder = new LCSMainPairwiseSyntenyBlocksFinder();
@@ -419,17 +451,68 @@ public class GenomesAligner {
 		//Set parameters according to the user input
 		finder.setMaxDistance(maxDistanceBetweenUnits);
 		finder.setMinHomologUnitsBlock(minHomologUnitsBlock);
-		
+		return finder;
+	}
+	public void alignGenomes() {
+		DAGChainerPairwiseSyntenyBlocksFinder finder = createBlocksFinder();
 		for(int i=0;i<genomes.size();i++) {
 			for(int j=i+1;j<genomes.size();j++) {
 				AnnotatedReferenceGenome genome1 = genomes.get(i);
 				AnnotatedReferenceGenome genome2 = genomes.get(j);
 				log.info("Aligning genome "+i+" with genome "+j);
-				orthologsSyntenyBlocks = finder.findSyntenyBlocks(genome1, genome2, homologyClusters);
+				orthologsSyntenyBlocks.addAll(finder.findSyntenyBlocks(genome1, genome2, homologyClusters));
 			}
 		}
 	}
 	
+	private AnnotatedReferenceGenome sortAndOrientGenome(AnnotatedReferenceGenome genome, AnnotatedReferenceGenome refGenome, DAGChainerPairwiseSyntenyBlocksFinder finder) {
+		log.info("Aligning genome with reference genome");
+		List<PairwiseSyntenyBlock> blocksReference = finder.findSyntenyBlocks(genome, refGenome, homologyClusters);
+		log.info("Updating genome");
+		Map<String,PairwiseSyntenyBlock> longestBlockPerSequence = new LinkedHashMap<>();
+		for(PairwiseSyntenyBlock block: blocksReference) {
+			GenomicRegion r1 = block.getRegionGenome1();
+			PairwiseSyntenyBlock longestBlockSeq = longestBlockPerSequence.get(r1.getSequenceName());
+			if (longestBlockSeq==null || longestBlockSeq.getRegionGenome1().length()<r1.length()) longestBlockPerSequence.put(r1.getSequenceName(), block);
+		}
+		List<PairwiseSyntenyBlock> longestBlocks = new ArrayList<>(longestBlockPerSequence.values());
+		
+		GenomicRegionComparator cmp = new GenomicRegionComparator(refGenome.getSequencesMetadata());
+		Collections.sort(longestBlocks, (b1,b2)-> cmp.compare(b1.getRegionGenome2(), b2.getRegionGenome2()));
+		QualifiedSequenceList sequencesUpdatedGenome = new QualifiedSequenceList();
+		List<Transcript> transcriptsUpdatedGenome = new ArrayList<>();
+		Set<String> processedSequenceNames = new HashSet<>();
+		Set<String> reversedSequenceNames = new HashSet<>();
+		for(PairwiseSyntenyBlock block: longestBlocks) {
+			String seqId1 =block.getRegionGenome1().getSequenceName();
+			QualifiedSequence qseq = genome.getSequenceByName(seqId1);
+			if(block.isNegativeStrand()) {
+				DNAMaskedSequence seq = (DNAMaskedSequence) qseq.getCharacters();
+				DNAMaskedSequence rev = seq.getReverseComplement();
+				QualifiedSequence revSeq = new QualifiedSequence(seqId1,rev);
+				revSeq.setComments(qseq.getComments());
+				sequencesUpdatedGenome.add(revSeq);
+				transcriptsUpdatedGenome.addAll(genome.getReversedTranscripts(qseq));
+				reversedSequenceNames.add(seqId1);
+			} else {
+				sequencesUpdatedGenome.add(qseq);
+				transcriptsUpdatedGenome.addAll(genome.getTranscripts(qseq));
+			}
+			processedSequenceNames.add(seqId1);
+		}
+		for(QualifiedSequence qseq:genome.getSequencesMetadata()) {
+			if(!processedSequenceNames.contains(qseq.getName())) {
+				sequencesUpdatedGenome.add(qseq);
+				transcriptsUpdatedGenome.addAll(genome.getTranscripts(qseq));
+			}
+		}
+		ReferenceGenome updatedGenome = new ReferenceGenome(sequencesUpdatedGenome);
+		Transcriptome updatedTranscriptome = new Transcriptome(updatedGenome.getSequencesMetadata());
+		for (Transcript t: transcriptsUpdatedGenome) updatedTranscriptome.addTranscript(t);
+		updatedTranscriptome.fillSequenceTranscripts(updatedGenome, log);
+		AnnotatedReferenceGenome answer = new AnnotatedReferenceGenome(genome.getId(), updatedGenome, updatedTranscriptome);
+		return answer;
+	}
 	/**
 	 * Build P/A matrix based on Homology Units
 	 */

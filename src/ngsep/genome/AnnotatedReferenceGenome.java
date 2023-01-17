@@ -284,4 +284,20 @@ public class AnnotatedReferenceGenome {
 	public List<String> getSequenceNamesStringList() {
 		return genome.getSequenceNamesStringList();
 	}
+
+	public List<Transcript> getTranscripts(QualifiedSequence qseq) {
+		return transcriptome.getTranscriptsBySequence(qseq.getName());
+		
+	}
+	public List<Transcript> getReversedTranscripts(QualifiedSequence qseq) {
+		return transcriptome.getReversedTranscripts(qseq);
+	}
+
+	public Transcriptome getTranscriptome() {
+		return transcriptome;
+	}
+
+	public ReferenceGenome getUnannotatedGenome() {
+		return genome;
+	}
 }

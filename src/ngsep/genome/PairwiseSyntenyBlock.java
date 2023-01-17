@@ -95,4 +95,7 @@ public class PairwiseSyntenyBlock {
 	public GenomicRegion getRegionGenome2() {
 		return regionGenome2;
 	}
+	public boolean isNegativeStrand() {
+		return regionGenome2.isNegativeStrand();
+	}
 }
