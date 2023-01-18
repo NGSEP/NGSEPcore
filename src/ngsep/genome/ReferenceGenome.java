@@ -84,6 +84,10 @@ public class ReferenceGenome {
 	public String getFilename() {
 		return filename;
 	}
+	
+	public void setFilename(String filename) {
+		this.filename = filename;
+	}
 	/**
 	 * Returns the reference base pair at the given coordinate
 	 * @param sequenceName Name of the sequence to search

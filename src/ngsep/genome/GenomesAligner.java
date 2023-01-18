@@ -47,9 +47,11 @@ import ngsep.main.io.ParseUtils;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
+import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
 
 /**
  * @author Daniel Tello
@@ -83,7 +85,7 @@ public class GenomesAligner {
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
 	private String inputDirectory = null;
-	private int referenceGenomeId = -1;
+	private int referenceGenomeId = 1;
 	private int numThreads = 1;
 
 	
@@ -238,13 +240,14 @@ public class GenomesAligner {
 		if(getInputFile()!= null) loadGenomesFromFile();
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		inferOrthologs();
-		identifyHomologyClusters();
-		if(referenceGenomeId>=0) {
-			sortAndOrientGenomes();
+		if(referenceGenomeId>0) {
 			inferOrthologs();
 			identifyHomologyClusters();
+			sortAndOrientGenomes();
+			saveGenomes();
 		}
+		inferOrthologs();
+		identifyHomologyClusters();
 		if(genomes.size()>1) {
 			alignGenomes();
 			buildPAMatrix();
@@ -428,19 +431,6 @@ public class GenomesAligner {
 		}
 		return answer;
 	}
-	public void sortAndOrientGenomes () {
-		DAGChainerPairwiseSyntenyBlocksFinder finder = createBlocksFinder();
-		AnnotatedReferenceGenome refGenome = genomes.get(referenceGenomeId);
-		
-		for(int i=0;i<genomes.size();i++) {
-			AnnotatedReferenceGenome genome1 = genomes.get(i);
-			if(refGenome!=genome1) {
-				genomes.set(i, sortAndOrientGenome(genome1,refGenome,finder));
-			} else {
-				genomes.set(i, new AnnotatedReferenceGenome(refGenome.getId(), refGenome.getUnannotatedGenome(), refGenome.getTranscriptome()));
-			}
-		}
-	}
 	private DAGChainerPairwiseSyntenyBlocksFinder createBlocksFinder() {
 		//Select finder:
 		
@@ -464,7 +454,37 @@ public class GenomesAligner {
 			}
 		}
 	}
-	
+	public void sortAndOrientGenomes () {
+		DAGChainerPairwiseSyntenyBlocksFinder finder = createBlocksFinder();
+		AnnotatedReferenceGenome refGenome = genomes.get(referenceGenomeId-1);
+		
+		for(int i=0;i<genomes.size();i++) {
+			AnnotatedReferenceGenome genome1 = genomes.get(i);
+			if(refGenome!=genome1) {
+				genomes.set(i, sortAndOrientGenome(genome1,refGenome,finder));
+			} else {
+				genomes.set(i, new AnnotatedReferenceGenome(refGenome.getId(), refGenome.getUnannotatedGenome(), refGenome.getTranscriptome()));
+			}
+		}
+	}
+	private void saveGenomes() throws IOException {
+		String dirName = outputPrefix+"_alignedGenomes";
+		File dir = new File(dirName);
+		if (!dir.exists()) dir.mkdir();
+		FastaSequencesHandler faHandler = new FastaSequencesHandler();
+		GFF3TranscriptomeWriter gffWriter = new GFF3TranscriptomeWriter();
+		for(AnnotatedReferenceGenome genome:genomes) {
+			ReferenceGenome unannotated = genome.getUnannotatedGenome();
+			File f = new File(unannotated.getFilename());
+			Transcriptome transcriptome = genome.getTranscriptome();
+			try (PrintStream out = new PrintStream(dir+File.separator+f.getName())) {
+				faHandler.saveSequences(unannotated.getSequencesList(), out, 100);
+			}
+			try (PrintStream out = new PrintStream(dir+File.separator+f.getName()+".gff3")) {
+				gffWriter.printTranscriptome(transcriptome, out);
+			}
+		}
+	}
 	private AnnotatedReferenceGenome sortAndOrientGenome(AnnotatedReferenceGenome genome, AnnotatedReferenceGenome refGenome, DAGChainerPairwiseSyntenyBlocksFinder finder) {
 		log.info("Aligning genome with reference genome");
 		List<PairwiseSyntenyBlock> blocksReference = finder.findSyntenyBlocks(genome, refGenome, homologyClusters);
@@ -489,6 +509,7 @@ public class GenomesAligner {
 			if(block.isNegativeStrand()) {
 				DNAMaskedSequence seq = (DNAMaskedSequence) qseq.getCharacters();
 				DNAMaskedSequence rev = seq.getReverseComplement();
+				if(rev==null) throw new RuntimeException("Null reverse complement of sequence: "+qseq.getName());
 				QualifiedSequence revSeq = new QualifiedSequence(seqId1,rev);
 				revSeq.setComments(qseq.getComments());
 				sequencesUpdatedGenome.add(revSeq);
@@ -502,11 +523,12 @@ public class GenomesAligner {
 		}
 		for(QualifiedSequence qseq:genome.getSequencesMetadata()) {
 			if(!processedSequenceNames.contains(qseq.getName())) {
-				sequencesUpdatedGenome.add(qseq);
+				sequencesUpdatedGenome.add(genome.getSequenceByName(qseq.getName()));
 				transcriptsUpdatedGenome.addAll(genome.getTranscripts(qseq));
 			}
 		}
 		ReferenceGenome updatedGenome = new ReferenceGenome(sequencesUpdatedGenome);
+		updatedGenome.setFilename(genome.getUnannotatedGenome().getFilename());
 		Transcriptome updatedTranscriptome = new Transcriptome(updatedGenome.getSequencesMetadata());
 		for (Transcript t: transcriptsUpdatedGenome) updatedTranscriptome.addTranscript(t);
 		updatedTranscriptome.fillSequenceTranscripts(updatedGenome, log);
