@@ -90,12 +90,12 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 		List<PairwiseSyntenyBlock> syntenyBlocks = new ArrayList<PairwiseSyntenyBlock>();
 		List<SyntenyVertex> vertices = buildVertices(g1, g2, clusters);
 		
-		System.out.println("Built graph with " + vertices.size() +" vertices");
+		System.out.println("Built synteny graph with " + vertices.size() +" vertices");
 		
 		//Reconstruct synteny blocks in the same orientation
 		List<DAGChainerEdge> edges = buildEdgesVertex(vertices, false);
 		
-		System.out.println("Built graph with " + edges.size() +" edges");
+		System.out.println("Built synteny graph with " + edges.size() +" edges");
 	
 		Set<Integer> verticesInBlocks = new HashSet<>();
 		
@@ -278,7 +278,7 @@ public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBl
 				maxScore = paths[i];
 			}
 		}
-		System.out.println("The best path score is  " + maxScore + " and ends in the vertex " + bestVertex);
+		//System.out.println("The best path score is  " + maxScore + " and ends in the vertex " + bestVertex);
 		
 		int countVertex = 1;
 		int i = bestVertex;

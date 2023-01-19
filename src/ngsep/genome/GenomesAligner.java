@@ -85,7 +85,7 @@ public class GenomesAligner {
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
 	private String inputFile = null;
 	private String inputDirectory = null;
-	private int referenceGenomeId = 1;
+	private int referenceGenomeId = 0;
 	private int numThreads = 1;
 
 	
@@ -263,6 +263,7 @@ public class GenomesAligner {
 		out.println("Output prefix:"+ outputPrefix);
 		out.println("K-mer length: "+ getKmerLength());
 		out.println("Minimum percentage of k-mers to call orthologs: "+ getMinPctKmers());
+		if(referenceGenomeId>0) out.println("Genome to be used as a reference: "+ genomes.get(referenceGenomeId-1).getUnannotatedGenome().getFilename());
 		if(skipMCL) out.println("Skip the Markov Clustering step");
 		out.println("Minimum number of consistent homology units to call a synteny block: "+ getMinHomologUnitsBlock());
 		out.println("Maximum distance between homology units : "+ getMaxDistanceBetweenUnits());

@@ -988,6 +988,10 @@ K-mer length to find orthologs.
 <option id="p" type="INT" attribute="minPctKmers" defaultConstant="DEF_MIN_PCT_KMERS">
 Minimum percentage of k-mers to call orthologs.
 </option>
+<option id="r" type="INT" attribute="referenceGenomeId">
+One-based id of the genome to be used as a reference to align other genomes.
+By default genomes will not be modified.  
+</option>
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and return unfiltered orthogroups.
 </option>
