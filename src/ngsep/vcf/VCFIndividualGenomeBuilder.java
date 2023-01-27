@@ -231,6 +231,7 @@ public class VCFIndividualGenomeBuilder {
 			Iterator<VCFRecord> it = reader.iterator();
 			while(it.hasNext()) {
 				VCFRecord record = it.next();
+				if(record.getVariant().isStructural()) continue;
 				List<CalledGenomicVariant> genotypeCalls = record.getCalls();
 				if(genotypeCalls.size()<1) continue;
 				CalledGenomicVariant call = genotypeCalls.get(0);
