@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -33,6 +34,7 @@ import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
@@ -65,6 +67,9 @@ public class TransposableElementsFinder {
 	private int minTELength = DEF_MIN_TE_LENGTH;
 	private int rounds = DEF_ROUNDS;
 	private int numThreads = DEF_NUM_THREADS;
+	private double minWeightedCount = 10;
+	private int maxAlnsPerTransposon = 10000;
+	private double minProportionBestCount = 0;
 	
 	// Model attributes
 	
@@ -276,10 +281,8 @@ public class TransposableElementsFinder {
 		log.info("Creating reference index");
 		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
 		minimizerTable.loadGenome(genome, 15, 20, numThreads);
-		minimizerTable.setMaxAlnsPerRead(10000);
-		//minimizerTable.setMaxAlnsPerRead(100);
-		//minimizerTable.setMaxAlnsPerRead(10);
-		minimizerTable.setMinProportionBestCount(0);
+		minimizerTable.setMaxAlnsPerRead(maxAlnsPerTransposon);
+		minimizerTable.setMinProportionBestCount(minProportionBestCount);
 		minimizerTable.setMinProportionReadLength(0);
 		log.info("Loading known transposons");
 		//load the fasta
@@ -348,21 +351,51 @@ public class TransposableElementsFinder {
 		return answer;
 	}
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
+		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
+		String readSeq = transposon.getCharacters().toString();
+		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true);
+		double maxCount = summarize(forwardClusters);
+		for (UngappedSearchHitsCluster cluster:forwardClusters) rawHits.add(buildTransposon(genome, cluster, false,transposon));
+		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
+		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,true);
+		maxCount = Math.max(maxCount, summarize(reverseClusters));
+		for (UngappedSearchHitsCluster cluster:reverseClusters) rawHits.add(buildTransposon(genome, cluster, true,transposon));
+		Collections.sort(rawHits, (o1,o2)-> ((int)o2.getCount())-((int)o1.getCount()));
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
-		List<UngappedSearchHitsCluster> clusters= minimizerTable.buildHitClusters(transposon,true);
-		//if(transposon.getName().contains("Blc58_hum-B-P992")) logClusters(genome, transposon, clusters);
-		for (UngappedSearchHitsCluster cluster:clusters) {
-			int sequenceIdx = cluster.getSubjectIdx();
-			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
-			int first = Math.max(1, cluster.getSubjectEvidenceStart());
-			int last = Math.min(refSeq.getLength()-1, cluster.getSubjectEvidenceEnd());
-			TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),first, last);
-			if(alignedTransposon.length()<minTELength) continue;
-			alignedTransposon.setTaxonomy(transposon.getName());
-			answer.add(alignedTransposon);
+		for (int i=0;i<rawHits.size() && i<maxAlnsPerTransposon;i++) {
+			TransposableElementAnnotation ann = rawHits.get(i);
+			if(ann.length()<minTELength) continue;
+			double wc = ann.getCount();
+			//System.out.println("Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" count: "+wc+" min: "+minWeightedCount);
+			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
+			
+			answer.add(ann);
 		}
+		//if(transposon.getName().contains("Blc58_hum-B-P992")) logClusters(genome, transposon, clusters);
+		
 		if(seqId%100==0) log.info("Processed element index "+seqId+" name: "+transposon.getName()+" hits: "+answer.size());
 		return answer;
+	}
+	private double summarize(List<UngappedSearchHitsCluster> clusters) {
+		double maxCount = 0;
+		for (UngappedSearchHitsCluster cluster:clusters) {
+			cluster.summarize();
+			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+			//System.out.println("Summarizing clusters. Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
+		}
+		return maxCount;
+	}
+	private TransposableElementAnnotation buildTransposon(ReferenceGenome genome, UngappedSearchHitsCluster cluster, boolean negativeStrand, QualifiedSequence transposon) {
+		int sequenceIdx = cluster.getSubjectIdx();
+		QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
+		int first = Math.max(1, cluster.getSubjectEvidenceStart());
+		int last = Math.min(refSeq.getLength()-1, cluster.getSubjectEvidenceEnd());
+		TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),first, last);
+		
+		alignedTransposon.setNegativeStrand(negativeStrand);
+		alignedTransposon.setCount(cluster.getWeightedCount());
+		alignedTransposon.setTaxonomy(transposon.getName());
+		return alignedTransposon;
 	}
 	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
 		System.out.println("Transposon sequence id: "+transposon.getName()+" length: "+transposon.getLength()+" clusters: "+clusters.size());
@@ -415,6 +448,7 @@ public class TransposableElementsFinder {
 				outTransposon.print(t.getSequenceName()+"\t");
 				outTransposon.print(t.getFirst()+"\t");
 				outTransposon.print(t.getLast()+"\t");
+				outTransposon.print((t.isNegativeStrand()?"-":"+")+"\t");
 				outTransposon.print(t.getTaxonomy());
 				outTransposon.println();
 			}

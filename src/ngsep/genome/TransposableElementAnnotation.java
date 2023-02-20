@@ -29,6 +29,7 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	private int first;
 	private int last;
 	private String taxonomy;
+	private double count = 0;
 	private boolean negativeStrand=false;
 	
 	/**
@@ -76,6 +77,10 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public void setNegativeStrand(boolean negativeStrand) {
 		this.negativeStrand = negativeStrand;
 	}
-	
-	
+	public double getCount() {
+		return count;
+	}
+	public void setCount(double count) {
+		this.count = count;
+	}
 }

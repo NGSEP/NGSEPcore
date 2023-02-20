@@ -215,28 +215,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		//System.out.println("Found "+answer.size()+" alignments");
 		return answer;
 	}
-	public List<UngappedSearchHitsCluster> buildHitClusters (QualifiedSequence read, boolean extensiveKmersSearch) {
-		List<UngappedSearchHitsCluster> initialClusters = new ArrayList<>();
-		String readSeq = read.getCharacters().toString();
-		initialClusters.addAll(buildHitClusters(readSeq,extensiveKmersSearch));
-		String reverseComplement = null;
-		if(!onlyPositiveStrand) {
-			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();
-			initialClusters.addAll(buildHitClusters(reverseComplement,extensiveKmersSearch));
-		}
-		Collections.sort(initialClusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
-		double maxCount = summarize(initialClusters);
-		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
-		for (int i=0;i<initialClusters.size() && i<maxAlnsPerRead;i++) {
-			UngappedSearchHitsCluster cluster = initialClusters.get(i);
-			double wc = cluster.getWeightedCount();
-			//System.out.println("Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" count: "+wc+" min: "+minWeightedCount);
-			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
-			
-			answer.add(cluster);
-		}
-		return answer;
-	}
 	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch) {
 		int queryLength = query.length();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
