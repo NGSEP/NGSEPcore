@@ -27,6 +27,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 
+ * @author Laura Gonzalez
+ *
+ */
 public class DAGChainerPairwiseSyntenyBlocksFinder  implements PairwiseSyntenyBlocksFinder {
 	
 	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
