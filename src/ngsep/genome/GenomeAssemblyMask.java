@@ -22,6 +22,7 @@ package ngsep.genome;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -118,6 +119,7 @@ public class GenomeAssemblyMask {
 	private Map<String,List<GenomicRegion>> loadRegions(String regionsFile) throws IOException {
 		SimpleGenomicRegionFileHandler handler = new SimpleGenomicRegionFileHandler();
 		Map<String,List<GenomicRegion>> regions = handler.loadRegionsAsMap(regionsFile);
+		for(List<GenomicRegion> regionsChr:regions.values()) Collections.sort(regionsChr,GenomicRegionPositionComparator.getInstance());
 		return regions;
 	}
 	private void logParameters() {
@@ -152,15 +154,17 @@ public class GenomeAssemblyMask {
 					String seqBefore = seq.substring(nextPos,firstZeroBased);
 					newSeq.append(seqBefore.toUpperCase());
 				}
-				firstZeroBased = Math.max(firstZeroBased, nextPos);
-				if(hardMask) {
-					String nString = "N".repeat(endZeroBased-firstZeroBased);
-					newSeq.append(nString);
-				} else {
-					String regionSeq = seq.substring(firstZeroBased,endZeroBased);
-					newSeq.append(regionSeq.toLowerCase());
+				nextPos = Math.max(firstZeroBased, nextPos);
+				if(nextPos<endZeroBased) {
+					if(hardMask) {
+						String nString = "N".repeat(endZeroBased-nextPos);
+						newSeq.append(nString);
+					} else {
+						String regionSeq = seq.substring(nextPos,endZeroBased);
+						newSeq.append(regionSeq.toLowerCase());
+					}
 				}
-				nextPos = endZeroBased;
+				nextPos = Math.max(nextPos, endZeroBased);
 			}
 			String seqAfter = seq.substring(nextPos);
 			newSeq.append(seqAfter.toUpperCase());
