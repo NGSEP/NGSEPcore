@@ -19,23 +19,20 @@
  *******************************************************************************/
 package ngsep.transcriptome.io;
 
-import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import ngsep.genome.GenomicRegion;
+import ngsep.genome.io.GFF3GenomicFeature;
+import ngsep.genome.io.GFF3GenomicFeatureLine;
+import ngsep.genome.io.GFF3Loader;
 import ngsep.main.io.ConcatGZIPInputStream;
-import ngsep.main.io.ParseUtils;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -46,39 +43,6 @@ import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 
 public class GFF3TranscriptomeHandler {
-	public static final String FEATURE_TYPE_GENE = "gene";
-	public static final String FEATURE_TYPE_PCGENE = "protein_coding_gene";
-	public static final String FEATURE_TYPE_TRGENE = "transposable_element_gene";
-	public static final String FEATURE_TYPE_PSEUDOGENE = "pseudogene";
-	public static final String FEATURE_TYPE_EXON = "exon";
-	public static final String FEATURE_TYPE_MRNA = "mRNA";
-	public static final String FEATURE_TYPE_5PUTR = "five_prime_UTR";
-	public static final String FEATURE_TYPE_3PUTR = "three_prime_UTR";
-	public static final String FEATURE_TYPE_CDS = "CDS";
-	public static final String FEATURE_TYPE_POLYPEPTIDE = "polypeptide";
-	
-	//Predefined attributes according to the gff3 specification
-	public static final String ATTRIBUTE_ID = "ID";
-	public static final String ATTRIBUTE_NAME = "Name";
-	public static final String ATTRIBUTE_ALIAS = "Alias";
-	public static final String ATTRIBUTE_PARENT = "Parent";
-	public static final String ATTRIBUTE_TARGET = "Target";
-	public static final String ATTRIBUTE_GAP = "Gap";
-	public static final String ATTRIBUTE_DERIVES_FROM = "Derives_from";
-	public static final String ATTRIBUTE_PRODUCT = "product";
-	public static final String ATTRIBUTE_NOTE = "Note";
-	public static final String ATTRIBUTE_DBXREF = "Dbxref";
-	public static final String ATTRIBUTE_ONTOLOGY = "Ontology_term";
-	public static final String ATTRIBUTE_CIRCULAR = "Is_circular";
-	
-	
-	
-	
-	
-	
-	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_PCGENE, FEATURE_TYPE_PSEUDOGENE, FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR};
-	//TODO: Use a file resource
-	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","","SO:0000336","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205"};
 	private QualifiedSequenceList sequenceNames;
 	
 	private boolean loadTextAnnotations = false;
@@ -140,7 +104,24 @@ public class GFF3TranscriptomeHandler {
 		Transcriptome answer = new Transcriptome(sequenceNames);
 		Map<String,GFF3GenomicFeature> featuresWithId = new HashMap<String, GFF3GenomicFeature>();
 		List<GFF3GenomicFeatureLine> featureLinesWithParentAndNoId = new ArrayList<>();
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
+		GFF3Loader loader = new GFF3Loader(sequenceNames);
+		loader.setLog(log);
+		List<GFF3GenomicFeatureLine> allLines = loader.loadFeatureLines(is);
+		for(GFF3GenomicFeatureLine line:allLines) {
+			String id = line.getId();
+			if(id!=null) {
+				GFF3GenomicFeature feature = featuresWithId.get(id);
+				if(feature==null) {
+					feature = new GFF3GenomicFeature(line);
+					featuresWithId.put(id,feature);
+				} else {
+					feature.addLine(line);
+				}
+			} else if(line.hasParents()) {
+				featureLinesWithParentAndNoId.add(line);
+			}
+		}
+		/*try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
 			String line=in.readLine();
 			for(int i=1;line!=null;i++) {
 				if("##FASTA".equals(line.trim())) break;
@@ -158,22 +139,11 @@ public class GFF3TranscriptomeHandler {
 						line=in.readLine();
 						continue;
 					}
-					String id = featureLine.getId();
-					if(id!=null) {
-						GFF3GenomicFeature feature = featuresWithId.get(id);
-						if(feature==null) {
-							feature = new GFF3GenomicFeature(featureLine);
-							featuresWithId.put(id,feature);
-						} else {
-							feature.addLine(featureLine);
-						}
-					} else if(featureLine.hasParents()) {
-						featureLinesWithParentAndNoId.add(featureLine);
-					}
+					
 				}
 				line=in.readLine();
 			}
-		}
+		}*/
 		//Assign parents for features with IDs
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
 			Set<String> parentIds = feature.getParentIds();
@@ -186,7 +156,7 @@ public class GFF3TranscriptomeHandler {
 				parent.addChild(feature);
 			}
 			if(parentIds.size()==0) {
-				String derivesId = feature.getAnnotation(ATTRIBUTE_DERIVES_FROM);
+				String derivesId = feature.getAnnotation(GFF3GenomicFeatureLine.ATTRIBUTE_DERIVES_FROM);
 				if(derivesId !=null) {
 					GFF3GenomicFeature parent = featuresWithId.get(derivesId);
 					if(parent==null) {
@@ -213,28 +183,28 @@ public class GFF3TranscriptomeHandler {
 		int numGenes = 0;
 		int numTranscripts = 0;
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
-			if(FEATURE_TYPE_GENE.equals(feature.getType()) || FEATURE_TYPE_TRGENE.equals(feature.getType())|| FEATURE_TYPE_PCGENE.equals(feature.getType()) || FEATURE_TYPE_PSEUDOGENE.equals(feature.getType()) ) {
+			if(GFF3GenomicFeatureLine.FEATURE_TYPE_GENE.equals(feature.getType()) || GFF3GenomicFeatureLine.FEATURE_TYPE_TRGENE.equals(feature.getType())|| GFF3GenomicFeatureLine.FEATURE_TYPE_PCGENE.equals(feature.getType()) || GFF3GenomicFeatureLine.FEATURE_TYPE_PSEUDOGENE.equals(feature.getType()) ) {
 				Gene gene = createGeneFromGeneFeature(feature);
 				numGenes++;
 				gene.setOntologyTerms(feature.getOntologyTerms());
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
-				String note = feature.getAnnotation(ATTRIBUTE_NOTE);
+				String note = feature.getAnnotation(GFF3GenomicFeatureLine.ATTRIBUTE_NOTE);
 				if(loadTextAnnotations && note!=null) gene.addTextFunctionalAnnotation(note);
 				for(GFF3GenomicFeature geneChild:feature.getChildren()) {
 					if(loadTextAnnotations) gene.addTextFunctionalAnnotations(geneChild.getProducts());
 					Transcript transcript = null;
 					List<TranscriptSegment> segments = new ArrayList<TranscriptSegment>();
-					if(FEATURE_TYPE_MRNA.equals(geneChild.getType())) {
+					if(GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA.equals(geneChild.getType())) {
 						transcript = createTranscriptFromMRNAFeature(geneChild);
 						if(transcript == null) continue;
 						for(GFF3GenomicFeature mrnaChild:geneChild.getChildren()) {
-							if(FEATURE_TYPE_POLYPEPTIDE.equals(mrnaChild.getId())) {
+							if(GFF3GenomicFeatureLine.FEATURE_TYPE_POLYPEPTIDE.equals(mrnaChild.getId())) {
 								if(loadTextAnnotations) gene.addTextFunctionalAnnotations(mrnaChild.getProducts());
 							} else {
 								segments.addAll(createFeatureSegments(mrnaChild, transcript));
 							}
 						}
-					} else if (FEATURE_TYPE_CDS.equals(geneChild.getType())) {
+					} else if (GFF3GenomicFeatureLine.FEATURE_TYPE_CDS.equals(geneChild.getType())) {
 						//Direct CDs without transcript
 						transcript = createTranscriptFromCDSFeature(geneChild);
 						if(transcript == null) continue;
@@ -251,8 +221,8 @@ public class GFF3TranscriptomeHandler {
 				}
 			}
 		}
-		if(numGenes==0) log.warning("No genes found in transcriptome file. Check that gene features have \""+FEATURE_TYPE_GENE+"\" as the exact feature type");
-		if(numTranscripts==0) log.warning("No transcripts found in transcriptome file. Check that transcript features have \""+FEATURE_TYPE_MRNA+"\" as the exact feature type");
+		if(numGenes==0) log.warning("No genes found in transcriptome file. Check that gene features have \""+GFF3GenomicFeatureLine.FEATURE_TYPE_GENE+"\" as the exact feature type");
+		if(numTranscripts==0) log.warning("No transcripts found in transcriptome file. Check that transcript features have \""+GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA+"\" as the exact feature type");
 		//log.warning("Loaded "+numTranscripts+" transcripts for "+numGenes+" genes");
 		return answer;
 	}
@@ -310,13 +280,13 @@ public class GFF3TranscriptomeHandler {
 		String featureType = feature.getType();
 		for(GFF3GenomicFeatureLine line:feature.getLines()) {
 			TranscriptSegment segment = new TranscriptSegment(transcript, line.getFirst(), line.getLast());
-			if (FEATURE_TYPE_5PUTR.equals(featureType)) {
+			if (GFF3GenomicFeatureLine.FEATURE_TYPE_5PUTR.equals(featureType)) {
 				segment.setStatus(TranscriptSegment.STATUS_5P_UTR);
 				segments.add(segment);
-			} else if (FEATURE_TYPE_3PUTR.equals(featureType)) {
+			} else if (GFF3GenomicFeatureLine.FEATURE_TYPE_3PUTR.equals(featureType)) {
 				segment.setStatus(TranscriptSegment.STATUS_3P_UTR);
 				segments.add(segment);
-			} else if (FEATURE_TYPE_CDS.equals(featureType)) {
+			} else if (GFF3GenomicFeatureLine.FEATURE_TYPE_CDS.equals(featureType)) {
 				segment.setStatus(TranscriptSegment.STATUS_CODING);
 				segment.setFirstCodonPositionOffset(line.getPhase());
 				segments.add(segment);
@@ -324,79 +294,7 @@ public class GFF3TranscriptomeHandler {
 		}
 		return segments;
 	}
-	public GFF3GenomicFeatureLine loadFeatureLine (String line, int lineNumber) {
-		String [] items = ParseUtils.parseString(line, '\t');
-		//Memory saver for sequenceNames
-		QualifiedSequence seq;
-		try {
-			seq = sequenceNames.addOrLookupName(items[0]);
-		} catch (Exception e2) {
-			log.warning("Can not load genomic feature at line: "+line+". Unrecognized sequence name. "+items[0]);
-			return null;
-		}
-		String type = loadType(items[2]);
-		int first;
-		try {
-			first = Integer.parseInt(items[3]);
-		} catch (NumberFormatException e1) {
-			log.warning("Error loading feature at line "+line+". Start coordinate must be a positive integer");
-			return null;
-		}
-		int last;
-		try {
-			last = Integer.parseInt(items[4]);
-		} catch (NumberFormatException e1) {
-			log.warning("Error loading feature at line "+line+". End coordinate must be a positive integer");
-			return null;
-		}
-		GFF3GenomicFeatureLine answer = new GFF3GenomicFeatureLine(seq.getName(), first, last,type);
-		answer.setSource(items[1]);
-		answer.setLineNumber(lineNumber);
-		answer.setNegativeStrand(items[6].charAt(0)=='-');
-		if(items[7].charAt(0)!='.') {
-			try {
-				answer.setPhase(Byte.parseByte(items[7]));
-			} catch (NumberFormatException e) {
-				log.warning("Error loading phase of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". Value: "+items[7]);
-			}
-		} else if (FEATURE_TYPE_CDS.equals(type)) {
-			log.warning("Error loading phase of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". The phase field is required for CDS features");
-		}
-		String errorMessage = "Error loading annotations of feature at "+answer.getSequenceName()+":"+answer.getFirst()+"-"+answer.getLast()+". ";
-		String [] annItems = ParseUtils.parseStringWithText(items[8], ';', '\"');
-		for(int i=0;i<annItems.length;i++) {
-			if(annItems[i].trim().length()==0) continue;
-			int idx = annItems[i].indexOf("=");
-			if(idx <=0 || idx == annItems[i].length()-1) log.warning(errorMessage+"Annotation "+annItems[i]+" is not a key-value pair");
-			else answer.addAnnotation(annItems[i].substring(0,idx),annItems[i].substring(idx+1));
-		}
-		return answer;
-	}
-	/**
-	 * Returns the known feature type given the type string. This helps to save memory with feature types
-	 * @param typeStr Type to search
-	 * @return String If typeStr is a supported SOFA id, it returns the correspoonding name.
-	 * otherwise it returns a supported type equals to typeStr or typeStr itself if it is not a known type
-	 */
-	public String loadType(String typeStr) {
-		String type = typeStr;
-		int idxType = -1;
-		//Search type name
-		for(int i=0;i<supportedFeatureTypes.length && idxType == -1;i++) {
-			if(supportedFeatureTypes[i].equals(typeStr)) {
-				idxType = i;
-				type = supportedFeatureTypes[idxType];
-			}
-		}
-		//Search type id
-		for(int i=0;i<supportedFeatureTypesSOFAIDs.length && idxType == -1;i++) {
-			if(supportedFeatureTypesSOFAIDs[i].equals(typeStr)) {
-				idxType = i;
-				type = supportedFeatureTypes[idxType];
-			}
-		}
-		return type;
-	}
+
 	/**
 	 * Loads the transcripts sequences from the given fasta file 
 	 * @param filename Name of the fasta file with the transcript sequences
@@ -418,210 +316,4 @@ public class GFF3TranscriptomeHandler {
 			}
 		}
 	}
-}
-class GFF3GenomicFeature {
-	private List<GFF3GenomicFeatureLine> lines = new ArrayList<>();
-	private List<GFF3GenomicFeature> children = new ArrayList<GFF3GenomicFeature>();
-	private String id;
-	private String type;
-	
-	public GFF3GenomicFeature(GFF3GenomicFeatureLine line) {
-		id = line.getId();
-		type = line.getType();
-		lines.add(line);
-	}
-	
-	/**
-	 * Adds the given line to the feature
-	 * @param line New line to add
-	 * @throws IOException If the ID of the new line is different from the ID of this feature
-	 * @throws IOException If the type of the new line is different from the type of this feature
-	 */
-	public void addLine(GFF3GenomicFeatureLine line) throws IOException {
-		if(id==null) throw new IOException("Error loading line at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+". Features with null ids can not have multiple lines");
-		if(!id.equals(line.getId())) throw new IOException("Error loading line at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+" the type must be the same for all lines with the same id. Expected: "+type+" given: "+line.getType());;
-		if(!type.equals(line.getType())) throw new IOException("Error loading line at "+line.getSequenceName()+":"+line.getFirst()+"-"+line.getLast()+" the type must be the same for all lines with the same id. Expected: "+type+" given: "+line.getType());;
-		lines.add(line);
-	}
-	public List<GFF3GenomicFeatureLine> getLines() {
-		return lines;
-	}
-	public void addChild(GFF3GenomicFeature child) {
-		children.add(child);
-	}
-	public void addChildWithoutId(GFF3GenomicFeatureLine featureLine) {
-		children.add(new GFF3GenomicFeature(featureLine)); 
-		
-	}
-	public List<GFF3GenomicFeature> getChildren() {
-		return children;
-	}
-	public String getType() {
-		return type;
-	}
-	public String getId() {
-		return id;
-	}
-	public String getName() {
-		for(GFF3GenomicFeatureLine line:lines) {
-			String name = line.getName(); 
-			if(name!=null) return name; 
-		}
-		return null;
-	}
-	public String getAnnotation(String attribute) {
-		for(GFF3GenomicFeatureLine line:lines) {
-			String ann = line.getAnnotation(attribute); 
-			if(ann!=null) return ann; 
-		}
-		return null;
-	}
-	public boolean hasParents() {
-		for(GFF3GenomicFeatureLine line:lines) {
-			if(line.hasParents()) return true; 
-		}
-		return false;
-	}
-	public Set<String> getParentIds() {
-		Set<String> ids = new HashSet<>();
-		for(GFF3GenomicFeatureLine line:lines) {
-			ids.addAll(line.getParentIds());
-		}
-		return ids;
-	}
-	public List<String> getOntologyTerms() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_ONTOLOGY);
-	}
-	
-	public List<String> getDatabaseReferences() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_DBXREF);
-	}
-	
-	public List<String> getProducts() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_PRODUCT);
-	}
-
-	public List<String> getValuesList(String attribute) {
-		List<String> values = new ArrayList<>();
-		for(GFF3GenomicFeatureLine line:lines) {
-			values.addAll(line.getValuesList(attribute));
-		}
-		return values;
-	}
-}
-class GFF3GenomicFeatureLine implements GenomicRegion {
-	private String sequenceName;
-	private String source;
-	private String type;
-	private int first;
-	private int last;
-	private boolean negativeStrand=false;
-	private byte phase = -1;
-	private int lineNumber = 0;
-	private Map<String,String> annotations = new HashMap<String, String>();
-	
-	public GFF3GenomicFeatureLine(String sequenceName, int first, int last, String type) {
-		super();
-		this.sequenceName = sequenceName;
-		this.first = first;
-		this.last = last;
-		this.type = type;
-	}
-	
-	public String getSequenceName() {
-		return sequenceName;
-	}
-	
-	public int getFirst() {
-		return first;
-	}
-	
-	public int getLast() {
-		return last;
-	}
-	
-	public String getType() {
-		return type;
-	}
-	
-	public String getSource() {
-		return source;
-	}
-	
-	public boolean isNegativeStrand() {
-		return negativeStrand;
-	}
-	public Map<String, String> getAnnotations() {
-		return annotations;
-	}
-	public void addAnnotation(String key, String value) {
-		annotations.put(key, value);
-	}
-	@Override
-	public int length() {
-		return last-first+1;
-	}
-	@Override
-	public boolean isPositiveStrand() {
-		return !negativeStrand;
-	}
-	public String getAnnotation(String tag) {
-		return annotations.get(tag);
-	}
-	public void setSource(String source) {
-		this.source = source;
-	}
-	public void setNegativeStrand(boolean negativeStrand) {
-		this.negativeStrand = negativeStrand;
-	}
-	public byte getPhase() {
-		return phase;
-	}
-	public void setPhase(byte phase) {
-		this.phase = phase;
-	}
-	public String getId() {
-		return annotations.get(GFF3TranscriptomeHandler.ATTRIBUTE_ID);
-	}
-	public String getName() {
-		return annotations.get(GFF3TranscriptomeHandler.ATTRIBUTE_NAME);
-	}
-	public Set<String> getParentIds() {
-		String parentsStr = annotations.get(GFF3TranscriptomeHandler.ATTRIBUTE_PARENT);
-		if(parentsStr==null) return new HashSet<>();
-		String [] parentIdsArr = parentsStr.split(",");
-		Set<String> answer = new HashSet<>();
-		for(int i = 0;i<parentIdsArr.length;i++) {
-			answer.add(parentIdsArr[i]);
-		}
-		return answer;
-	}
-	public boolean hasParents() {
-		return annotations.get(GFF3TranscriptomeHandler.ATTRIBUTE_PARENT)!=null;
-	}
-	public List<String> getOntologyTerms() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_ONTOLOGY);
-	}
-	public List<String> getDatabaseReferences() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_DBXREF);
-	}
-	public List<String> getProducts() {
-		return getValuesList(GFF3TranscriptomeHandler.ATTRIBUTE_PRODUCT);
-	}
-	public List<String> getValuesList(String attribute) {
-		String parentsStr = annotations.get(attribute);
-		if(parentsStr==null) return new ArrayList<>();
-		String [] parentIdsArr = parentsStr.split(",");
-		return Arrays.asList(parentIdsArr);
-	}
-
-	public int getLineNumber() {
-		return lineNumber;
-	}
-
-	public void setLineNumber(int lineNumber) {
-		this.lineNumber = lineNumber;
-	}
-	
-	
 }
