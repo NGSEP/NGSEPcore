@@ -865,7 +865,7 @@ public class GenomesAligner {
 	private String htmlStyleCode() {
 		String code = "<style>\n" + 
 				"		svg {\n" + 
-				"		  font: 18px sans-serif;\n" + 
+				"		  font: 13px sans-serif;\n" + 
 				"		}\n" + 
 				"		.background path {\n" + 
 				"		  fill: none;\n" + 

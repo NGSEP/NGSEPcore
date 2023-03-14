@@ -206,7 +206,7 @@ function zoom2() {
     topPinnedLabel = topPinnedLabelG2(y2.domain()[0]);
     bottomPinnedLabel = bottomPinnedLabelG2(y2.domain()[1]);
     graph.selectAll('text.chromosomeLabelG2').transition(t)
-        .attr('transform', d => `translate(${dims.width + margin.right}, 
+        .attr('transform', d => `translate(${dims.width + 40}, 
             ${d.Name === topPinnedLabel ?
                 y2.range()[0] + margin.top :
                 d.Name === bottomPinnedLabel ?
