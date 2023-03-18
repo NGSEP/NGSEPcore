@@ -97,6 +97,7 @@ public class HomologRelationshipsFinder {
 		for(int i=0;i<units.size();i++) {
 			HomologyUnit unit = units.get(i);
 			Map<Long,Double> kmerCodes = unit.getKmerCodesWithEntropies(kmerLength, 1);
+			//if("TcDm25H1_000257900".equals(unit.getId())) System.out.println("Unit: "+unit.getId()+" Kmer codes: "+kmerCodes.size());
 			for(Long code:kmerCodes.keySet()) {
 				Set<Integer> unitsKmer = unitsByKmer.computeIfAbsent(code, v->new HashSet<Integer>());
 				unitsKmer.add(i);
@@ -115,15 +116,15 @@ public class HomologRelationshipsFinder {
 		//kmerAbundances.printDistributionInt(System.out);
 		double average = kmerAbundances.getAverage();
 		double mode = kmerAbundances.getLocalMode(1, 10);
-		System.out.println("Kmer abundances distribution. Average: "+average+" Local mode: "+mode);
+		log.info("Kmer abundances distribution. Average: "+average+" Local mode: "+mode);
 		ChiSqrDistribution chiSq = new ChiSqrDistribution((mode+average)/2);
 		List<HomologyEdge> edges = new ArrayList<>();
 		int totalQueryUnits = queryUnits.size();
-		if(totalQueryUnits>1000) System.out.println("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
+		if(totalQueryUnits>1000) log.info("Calculating edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		int processed = 0;
 		for(HomologyUnit unit1:queryUnits) {
 			boolean debug = subjectUnits.size()<3;
-			//debug = debug || unit1.getId().equals("ENSRNOP00000074485");
+			//debug = debug || unit1.getId().equals("TcDm25H1_000257900");
 			Map<Long,Double> kmerCodesWithEntropies = unit1.getKmerCodesWithEntropies(kmerLength, 1);
 			int length1 = unit1.getUnitSequence().length();
 			int n = kmerCodesWithEntropies.size();
@@ -143,6 +144,7 @@ public class HomologRelationshipsFinder {
 					//pValueCode = kmerAbundances.getEmpiricalPvalue(subjectUnitIdxsKmer.size());
 					pValueCode = 1-chiSq.cumulative(subjectUnitIdxsKmer.size());
 				}
+				pValueCode = Math.max(pValueCode, 0.00001);
 				double score = Math.max(1,-Math.log10(pValueCode));
 				double weight = Math.max(0.5,entry.getValue())/score;
 				totalWeight+=weight;
@@ -178,11 +180,12 @@ public class HomologRelationshipsFinder {
 				HomologyEdge edge = new HomologyEdge(unit1, unit2, score);
 				unit1.addHomologRelationship(edge);
 				edges.add(edge);
+				if(debug) System.out.println("Added relationship between "+unit1.getId()+" and "+unit2.getId());
 			}
 			processed++;
-			if(totalQueryUnits>1000 && processed%1000==0) System.out.println("Processed "+processed+" of "+totalQueryUnits+" units. last unit "+unit1.getId());
+			if(totalQueryUnits>1000 && processed%1000==0) log.info("Processed "+processed+" of "+totalQueryUnits+" units. last unit "+unit1.getId());
 		}
-		if(totalQueryUnits>1000) System.out.println("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
+		if(totalQueryUnits>1000) log.info("Calculated edges of catalog with size "+totalQueryUnits+" first unit "+queryUnits.get(0).getId());
 		return edges;
 	}
 	private static boolean passSecondaryFilters(HomologyUnit unit1, HomologyUnit unit2, int kmerLength, boolean debug) {
