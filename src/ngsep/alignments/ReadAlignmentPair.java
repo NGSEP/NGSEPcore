@@ -27,16 +27,20 @@ package ngsep.alignments;
  */
 public class ReadAlignmentPair{
 	private ReadAlignment aln1;
+	private ReadAlignment aln2;
 	public ReadAlignment getAln1() {
 		return aln1;
 	}
 	public ReadAlignment getAln2() {
 		return aln2;
 	}
-	private ReadAlignment aln2;
+	
 	public ReadAlignmentPair(ReadAlignment pAln1, ReadAlignment pAln2) {
 		aln1=pAln1;
 		aln2=pAln2;
+	}
+	public int getQualitySum() {
+		return aln1.getAlignmentQuality()+aln2.getAlignmentQuality();
 	}
 
 }

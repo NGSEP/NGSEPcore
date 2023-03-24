@@ -24,7 +24,6 @@ import ngsep.sequences.UngappedSearchHit;
 public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	
 	private int kmerLength;
-	private int maxAlnsPerRead;
 	private ReferenceGenomeFMIndex fMIndex;
 	
 	private Map<String, List<GenomicRegion>> knownSTRs;
@@ -38,10 +37,9 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 	private int fewMismatchesAlns = 0;
 	private int completeAlns = 0;
 	
-	public FMIndexReadAlignmentAlgorithm(ReferenceGenomeFMIndex fMIndex, int kmerLength, int maxAlnsPerRead) {
+	public FMIndexReadAlignmentAlgorithm(ReferenceGenomeFMIndex fMIndex, int kmerLength) {
 		this.fMIndex = fMIndex;
 		this.kmerLength = kmerLength;
-		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 	public ReferenceGenomeFMIndex getFMIndex() {
 		return fMIndex;
@@ -139,10 +137,10 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		//ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
 		//if(readAln!=null) finalAlignments.add(readAln);
 		int kmersMaxCluster = 0;
-		for (int i=0;i<clusteredKmerHits.size() && i<2*maxAlnsPerRead;i++) {
+		for (int i=0;i<clusteredKmerHits.size();i++) {
 			UngappedSearchHitsCluster cluster = clusteredKmerHits.get(i);
 			int numKmers = cluster.getNumDifferentKmers();
-			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSubjectName()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent());
+			//System.out.println("Processing cluster "+i+" spanning "+cluster.getSubjectIdx()+":"+cluster.getSubjectPredictedStart()+"-"+cluster.getSubjectPredictedEnd()+" Num kmers: "+cluster.getNumDifferentKmers()+" consistent: "+cluster.isAllConsistent()+" max kmers: "+kmersMaxCluster);
 			if(i==0) kmersMaxCluster = numKmers;
 			else if (finalAlignments.size()>0 && (numKmers<2 || numKmers< 0.5*kmersMaxCluster)) break;
 			ReadAlignment readAln = createNewAlignmentFromConsistentKmers(cluster, query);
@@ -497,7 +495,7 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
 		// Whole read exact search
 		List<UngappedSearchHit> readHits=fMIndex.exactSearch(query);
-		for(int i=0;i<readHits.size()&& i<maxAlnsPerRead;i++) {
+		for(int i=0;i<readHits.size();i++) {
 			UngappedSearchHit hit = readHits.get(i);
 			String seqName = fMIndex.getReferenceName(hit.getSubjectIdx());
 			ReadAlignment aln = buildAln (query, seqName, hit.getSubjectStart()+1, hit.getSubjectStart()+query.length(), alignment);
@@ -527,8 +525,6 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				aln.setNumMismatches((short) mismatches[0]);
 				
 				alns.add(aln);
-				//Best alignments selected during the filtering step
-				if(alns.size()>=3*maxAlnsPerRead) break;
 			}
 		}
 		if (alns.size()>0) return alns;
@@ -551,8 +547,6 @@ public class FMIndexReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
 				aln.setAlignmentQuality((byte) (100-5*mismatches[0]));
 				aln.setNumMismatches((short) mismatches[0]);
 				alns.add(aln);
-				//Best alignments selected during the filtering step
-				if(alns.size()>=3*maxAlnsPerRead) break;
 			}
 		}
 		return alns;

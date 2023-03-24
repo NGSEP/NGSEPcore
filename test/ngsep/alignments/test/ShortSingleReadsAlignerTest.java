@@ -32,7 +32,7 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 			genomeIndexer.createIndex(FASTA_PATH,FM_INDEX_PATH);	
 		}
 		ReferenceGenomeFMIndex fmIndex = ReferenceGenomeFMIndex.load(genome, FM_INDEX_PATH);
-		readsAligner=new FMIndexReadAlignmentAlgorithm(fmIndex, 15, 3);
+		readsAligner=new FMIndexReadAlignmentAlgorithm(fmIndex, 15);
 	}
 
 	public void afterSetUpReadsAligner() {

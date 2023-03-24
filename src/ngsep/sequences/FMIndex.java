@@ -123,7 +123,7 @@ public class FMIndex
 	 */
 	public List<UngappedSearchHit> exactSearch (String query, int firstIndex, int lastIndex) {
 		List<UngappedSearchHit> hits = new ArrayList<>();
-		for (int i=0;i<internalIndexes.size() && hits.size()<maxHitsQuery;i++) 
+		for (int i=0;i<internalIndexes.size();i++) 
 		{
 			FMIndexSingleSequence idxSeq = internalIndexes.get(i);
 			CombinedMultisequenceFMIndexMetadata metadata = internalMetadata.get(i);
@@ -214,7 +214,8 @@ public class FMIndex
 			if(line==null) throw new IOException("Empty index file");
 			if(!line.startsWith("#COMPOUNDINDEX")) throw new IOException("#COMPOUNDINDEX section not found. Line: "+line);
 			String [] items = line.split("\t");
-			index.maxHitsQuery = Integer.parseInt(items[1]);
+			//Legacy index support. This number is not processed anymore
+			//index.maxHitsQuery = Integer.parseInt(items[1]);
 			line = reader.readLine();
 			while (line!=null && !line.equals("#INTERNALINDEXES")) {
 				items = line.split("\t");

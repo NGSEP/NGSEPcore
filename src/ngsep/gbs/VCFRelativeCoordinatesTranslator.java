@@ -484,7 +484,7 @@ public class VCFRelativeCoordinatesTranslator {
 				if(indexN <=30 || indexN>=seq.length()-30) {
 					singleConsensus++;
 					RawRead read = new RawRead(consensusName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
-					List<ReadAlignment> alns = aligner.alignRead(read, true);
+					List<ReadAlignment> alns = aligner.alignRead(read, true, false);
 					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
@@ -500,8 +500,8 @@ public class VCFRelativeCoordinatesTranslator {
 					
 					RawRead read1 = new RawRead(consensusName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
 					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
-					List<ReadAlignment> alns1 = aligner.alignRead(read1, true);
-					List<ReadAlignment> alns2 = aligner.alignRead(read2, true);
+					List<ReadAlignment> alns1 = aligner.alignRead(read1, true, true);
+					List<ReadAlignment> alns2 = aligner.alignRead(read2, true, true);
 					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
 					pairedConsensus++;
 					if(alns1.size()==0|| alns2.size()==0) {

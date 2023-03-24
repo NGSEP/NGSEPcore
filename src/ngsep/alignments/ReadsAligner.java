@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
 import ngsep.main.CommandsDescriptor;
@@ -98,6 +99,7 @@ public class ReadsAligner {
 	private ReferenceGenomeFMIndex fMIndex=null;
 	private FMIndexReadAlignmentAlgorithm shortReadsAligner;
 	private LongReadsAlignerFactory longReadsAlignerFactory = new LongReadsAlignerFactory();
+	private GenomicRegionComparator comparator;
 	
 	
 	private ThreadPoolManager pool;
@@ -345,15 +347,12 @@ public class ReadsAligner {
 		log.info("Initialized aligner");
 	}
 	
-	private void createFMIndexReadsAligner() {
-		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength,maxAlnsPerRead);
-		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty())
-			try {
-				shortReadsAligner.loadSTRsFile(knownSTRsFile);
-			} catch (IOException e) {
-				log.info("Could not load file with known STRs. Error message: "+e.getMessage());
-				e.printStackTrace();
-			}
+	private void createFMIndexReadsAligner() throws IOException {
+		shortReadsAligner = new FMIndexReadAlignmentAlgorithm(fMIndex,kmerLength);
+		comparator = new GenomicRegionComparator(fMIndex.getSequencesMetadata());
+		if(knownSTRsFile!=null && !knownSTRsFile.isEmpty()) {
+			shortReadsAligner.loadSTRsFile(knownSTRsFile);
+		}
 	}
 	
 	private void logParameters() {
@@ -464,7 +463,7 @@ public class ReadsAligner {
 	}
 	
 	private void processSingleRead(int readNumber, RawRead read, ReadAlignmentFileWriter writer) {
-		List<ReadAlignment> alns = alignRead(read, true);
+		List<ReadAlignment> alns = alignRead(read, true, false);
 		//System.out.println("Alignments for: "+read.getName()+" "+alns.size());
 		int numAlns = alns.size();
 		if(alns.size()>1) {
@@ -482,9 +481,9 @@ public class ReadsAligner {
 	}
 	
 	private void processPairedEndRead (int readNumber, RawRead read1, RawRead read2, ReadAlignmentFileWriter writer) {
-		List<ReadAlignment> alns1 = alignRead(read1,false);
+		List<ReadAlignment> alns1 = alignRead(read1,false, true);
 		for(ReadAlignment aln:alns1) aln.setFirstOfPair(true);
-		List<ReadAlignment> alns2 = alignRead(read2,false);
+		List<ReadAlignment> alns2 = alignRead(read2,false, true);
 		for(ReadAlignment aln:alns2) aln.setSecondOfPair(true);
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
 		//System.out.println("Alignments found: "+alns1.size()+" "+alns2.size());
@@ -510,7 +509,8 @@ public class ReadsAligner {
 			}
 		} else {
 			numMapped = 2;
-			//System.out.println("Alignments read 1: "+alns1.size()+" read 2: "+alns2.size());
+			//System.out.println("Alignments read 1: "+alns1);
+			//System.out.println("Alignments read 2: "+alns2);
 			List<ReadAlignmentPair> pairAlns = findPairs(alns1, alns2, true);
 			//System.out.println("Pairs proper: "+pairAlns.size());
 			if(pairAlns.isEmpty()) {
@@ -584,6 +584,7 @@ public class ReadsAligner {
 	}
 
 	private void addPairAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired1, int numAlnsUnpaired2) {
+		Collections.sort(pairAlns,(p1,p2)->p2.getQualitySum()-p1.getQualitySum());
 		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
 		for (int i = 0; i < n; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
@@ -608,12 +609,31 @@ public class ReadsAligner {
 
 	public List<ReadAlignmentPair> findPairs(List<ReadAlignment> alns1, List<ReadAlignment> alns2,boolean onlyProper){
 		List<ReadAlignmentPair> pairEndAlns = new ArrayList<ReadAlignmentPair>();
-		int n = Math.min(alns1.size(),maxAlnsPerRead);
-		for (int i = 0; i < n; i++) {
-			ReadAlignment aln1 = alns1.get(i);
+		List<ReadAlignment> sortedAlns1 = new ArrayList<>();
+		sortedAlns1.addAll(alns1);
+		Collections.sort(sortedAlns1, comparator );
+		List<ReadAlignment> sortedAlns2 = new ArrayList<>();
+		sortedAlns2.addAll(alns2);
+		Collections.sort(sortedAlns2, comparator );
+		int n1 = sortedAlns1.size();
+		int n2 = sortedAlns2.size();
+		int initialIndex2 = 0;
+		for (int i = 0; i < n1; i++) {
+			ReadAlignment aln1 = sortedAlns1.get(i);
 			//System.out.println("Pairing "+aln1+" is paired: "+aln1.isPaired());
 			if(aln1.isPaired()) continue;
-			ReadAlignmentPair alnPair = findPairForAlignment(aln1,alns2,onlyProper);
+			//Update initial index
+			while(initialIndex2<n2) {
+				ReadAlignment aln2 = sortedAlns2.get(initialIndex2);
+				int cmp = comparator.compare(aln2, aln1);
+				if(cmp>=-1) break;
+				if(cmp==-2) {
+					if(!onlyProper || aln1.getLast()-aln2.getFirst()<=maxInsertLength) break;
+				}
+				initialIndex2++;
+			}
+			if(initialIndex2==n2) break;
+			ReadAlignmentPair alnPair = findPairForAlignment(aln1,sortedAlns2,initialIndex2,onlyProper);
 			if(alnPair!=null) {
 				pairEndAlns.add(alnPair);
 			}
@@ -621,10 +641,10 @@ public class ReadsAligner {
 		return pairEndAlns;
 	}
 
-	public ReadAlignmentPair findPairForAlignment(ReadAlignment aln1, List<ReadAlignment> alns2,boolean onlyProper) {
+	public ReadAlignmentPair findPairForAlignment(ReadAlignment aln1, List<ReadAlignment> alns2,int initialIndex2, boolean onlyProper) {
 		List<ReadAlignment> candidates = new ArrayList<ReadAlignment>();
-		int n = Math.min(alns2.size(),maxAlnsPerRead);
-		for (int i = 0; i < n; i++) {
+		int n = alns2.size();
+		for (int i = initialIndex2; i < n; i++) {
 			ReadAlignment current =alns2.get(i);
 			if(!current.isPaired()) {
 				//System.out.println("Next candidate "+current+" is paired: "+current.isPaired());
@@ -632,6 +652,11 @@ public class ReadsAligner {
 					//System.out.println("Adding candidate. Aln 1: "+aln1+" Aln 2: "+current);
 					candidates.add(current);
 				}
+			}
+			int cmp = comparator.compare(aln1, current);
+			if(cmp==-3) break;
+			if(cmp==-2) {
+				if(onlyProper && current.getLast()-aln1.getFirst()>maxInsertLength) break;
 			}
 		}
 		if(candidates.size()==1) {
@@ -645,6 +670,7 @@ public class ReadsAligner {
 
 	public boolean isValidPair(ReadAlignment aln1, ReadAlignment aln2,boolean onlyProper) {
 		if(!aln1.getSequenceName().equals(aln2.getSequenceName())) return false;
+		if(aln1.isFirstOfPair()==aln2.isFirstOfPair()) return false;
 		int start1 = aln1.getFirst();
 		int start2 = aln2.getFirst();
 		int end1 = aln1.getLast();
@@ -757,9 +783,9 @@ public class ReadsAligner {
 	}
 
 	public List<ReadAlignment> alignRead(RawRead read) {
-		return alignRead(read, true);
+		return alignRead(read, true, false);
 	}
-	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus) {
+	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus, boolean paired) {
 		List<ReadAlignment> alignments;
 		if(platform.isLongReads()) {
 			//System.out.println("Long reads. Aligning: "+read.getName());
@@ -769,24 +795,33 @@ public class ReadsAligner {
 				alignments = longReadsAligner.alignRead(read);
 			}
 		} else {
-			if(shortReadsAligner==null) createFMIndexReadsAligner();
+			if(shortReadsAligner==null)
+				try {
+					createFMIndexReadsAligner();
+				} catch (IOException e) {
+					log.warning("I/O error creating reads aligner: "+e.getMessage());
+					e.printStackTrace();
+				}
 			alignments = shortReadsAligner.alignRead(read);
 		}
-		return filterAlignments(alignments, assignSecondaryStatus);
+		return filterAlignments(alignments, assignSecondaryStatus, paired);
 	}
 	
 	
-	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary) {
+	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments, boolean assignSecondary, boolean paired) {
 		if (alignments.size()==0) return alignments;
 		Collections.sort(alignments, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
 		short bestQual = alignments.get(0).getAlignmentQuality();
 		//TODO. Investigate alignment score
 		int threshold = (int) (0.9*bestQual);
+		if(paired) threshold/=2;
 		List<ReadAlignment> filteredAlignments = new ArrayList<>();
-		int n = Math.min(alignments.size(),maxAlnsPerRead);
+		int n = maxAlnsPerRead;
+		if(paired) n=Math.max(n, 50);
+		n = Math.min(alignments.size(),n);
 		for (int i=0;i<n;i++) {
 			ReadAlignment aln = alignments.get(i);	
-			//System.out.println("read: "+aln.getReadCharacters()+" First: "+aln.getFirst()+" flags: "+aln.getFlags()+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
+			//System.out.println("Aln: "+aln+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
 			if(aln.getAlignmentQuality()<=threshold) break;
 			if(assignSecondary && i>0) aln.setSecondary(true);
 			filteredAlignments.add(aln);

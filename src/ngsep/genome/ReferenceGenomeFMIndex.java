@@ -35,13 +35,12 @@ import ngsep.sequences.QualifiedSequenceList;
  */
 public class ReferenceGenomeFMIndex {
 
-	public static final int MAX_HITS_QUERY = 50;
+	public static final int MAX_HITS_QUERY = 1000;
 	private QualifiedSequenceList sequencesMetadata;
 	private FMIndex internalIndex;
 	
 	//For load purposes
 	private ReferenceGenomeFMIndex () {
-		
 	}
 	
 	public ReferenceGenomeFMIndex (ReferenceGenome genome, Logger log) {
@@ -65,6 +64,7 @@ public class ReferenceGenomeFMIndex {
 		fmIndex.sequencesMetadata = genome.getSequencesMetadata();
 		try {
 			fmIndex.internalIndex = FMIndex.load(genome.getSequencesList(), indexFile);
+			fmIndex.internalIndex.setMaxHitsQuery(MAX_HITS_QUERY);
 		} catch(IOException | NumberFormatException | ArrayIndexOutOfBoundsException e) {
 			throw new IOException("Error loading FM-index file. The file could have an outdated format. Try building again the index with the command GenomeIndexer",e);
 		}
