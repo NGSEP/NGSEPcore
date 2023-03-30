@@ -277,9 +277,9 @@ public class ReadsAligner {
 		if(genome==null) throw new IOException("The reference genome is a required parameter");
 		
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
-		if (platform.isLongReads()) {
+		//if (platform.isLongReads()) {
 			initializeLongReadsFactory();
-		} else {
+		/*} else {
 			if (fMIndex!=null) {
 				log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
 			} else if (fmIndexFile!=null) {
@@ -290,21 +290,20 @@ public class ReadsAligner {
 				fMIndex = new ReferenceGenomeFMIndex(genome, log);
 			}
 			createFMIndexReadsAligner();
-		}
+		}*/
 		
-		boolean longReads = platform.isLongReads();
-		pool = new ThreadPoolManager(numThreads, longReads?100:10000);
+		pool = new ThreadPoolManager(numThreads, platform.isLongReads()?100:10000);
 		boolean paired = false;
 		PrintStream out = System.out;
 		if(outputFile!=null) out = new PrintStream(outputFile); 
 		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
 			writer.setSampleInfo(sampleId, platform);
-			if(!longReads && inputFile!=null && inputFile2!=null) {
+			if(inputFile!=null && inputFile2!=null) {
 				log.info("Aligning paired end reads from files: "+inputFile + " and "+inputFile2);
 				paired = true;
 				alignReads(inputFile,inputFile2, writer);
 			} else if (inputFile!=null) {
-				if(longReads && inputFile2!=null) log.warning("Paired end alignment not supported for long reads. Ignoring file "+ inputFile2);
+				//if(longReads && inputFile2!=null) log.warning("Paired end alignment not supported for long reads. Ignoring file "+ inputFile2);
 				log.info("Aligning single reads from file: "+inputFile);
 				alignReads(inputFile, writer);
 			} else if (inputFile2!=null ) {
@@ -333,7 +332,7 @@ public class ReadsAligner {
 	public ReadsAligner(ReferenceGenome genome, Platform platform) {
 		this.genome = genome;
 		this.platform = platform;
-		if (platform.isLongReads()) initializeLongReadsFactory();
+		//if (platform.isLongReads()) initializeLongReadsFactory();
 	}
 	
 	private void initializeLongReadsFactory() {
@@ -343,7 +342,10 @@ public class ReadsAligner {
 		longReadsAlignerFactory.setMaxAlnsPerRead(maxAlnsPerRead);
 		longReadsAlignerFactory.setWindowLength(windowLength);
 		longReadsAlignerFactory.setNumThreads(numThreads);
-		longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		//System.out.println("Long reads: "+platform.isLongReads());
+		if(platform.isLongReads())  longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		else longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_SHORTREADS);
+		comparator = new GenomicRegionComparator(genome.getSequencesMetadata());
 		log.info("Initialized aligner");
 	}
 	
@@ -370,9 +372,10 @@ public class ReadsAligner {
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
 		if (knownSTRsFile!=null) out.println("Fie with known short tandem repeats "+knownSTRsFile);
 		out.println("Maximum alignments per read: "+ maxAlnsPerRead);
-		if(platform.isLongReads()) {
+		//if(platform.isLongReads()) {
 			out.println("Window length to calculate minimizers: "+ windowLength);
-		} else if (inputFile2!=null) {
+		//} 
+		if (inputFile2!=null) {
 			out.println("Proper limits for paired-end alignment. Minimum: "+ minInsertLength+" maximum: "+maxInsertLength);
 		}
 		out.println("Number of threads: "+ numThreads);
@@ -387,7 +390,7 @@ public class ReadsAligner {
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
-		if(platform.isLongReads() && longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
+		if(/*platform.isLongReads() &&*/ longReadsAlignerFactory.getGenome()==null) initializeLongReadsFactory();
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
@@ -569,12 +572,12 @@ public class ReadsAligner {
 	
 	private void checkProgress (int readNumber) {
 		if(readNumber%1000>0) return;
-		if(!platform.isLongReads() && readNumber%100000>0) return;
+		//if(!platform.isLongReads() && readNumber%100000>0) return;
 		
 		int progress = readNumber/100000;
-		if(platform.isLongReads() ) {
+		//if(platform.isLongReads() ) {
 			progress = readNumber/1000;
-		}
+		//}
 		
 		log.info("Processed "+readNumber+" fragments. Aligned "+readsAligned+" reads");
 		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
@@ -787,22 +790,11 @@ public class ReadsAligner {
 	}
 	public List<ReadAlignment> alignRead(RawRead read, boolean assignSecondaryStatus, boolean paired) {
 		List<ReadAlignment> alignments;
-		if(platform.isLongReads()) {
-			//System.out.println("Long reads. Aligning: "+read.getName());
-			
-			MinimizersTableReadAlignmentAlgorithm longReadsAligner = longReadsAlignerFactory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
-			synchronized (longReadsAligner) {
-				alignments = longReadsAligner.alignRead(read);
-			}
-		} else {
-			if(shortReadsAligner==null)
-				try {
-					createFMIndexReadsAligner();
-				} catch (IOException e) {
-					log.warning("I/O error creating reads aligner: "+e.getMessage());
-					e.printStackTrace();
-				}
-			alignments = shortReadsAligner.alignRead(read);
+		int algorithm = MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_SHORTREADS;
+		if(platform.isLongReads()) algorithm = MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS;
+		MinimizersTableReadAlignmentAlgorithm readsAligner = longReadsAlignerFactory.requestLongReadsAligner(algorithm);
+		synchronized (readsAligner) {
+			alignments = readsAligner.alignRead(read);
 		}
 		return filterAlignments(alignments, assignSecondaryStatus, paired);
 	}
@@ -834,10 +826,11 @@ public class ReadsAligner {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		DecimalFormat fmt = ParseUtils.ENGLISHFMT;
-		if(shortReadsAligner!=null) {
-			out.println("Reads with less than 2 mismatches: "+shortReadsAligner.getFewMismatchesAlns());
-			out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
-		}
+		//TODO: Report again
+		//if(shortReadsAligner!=null) {
+			//out.println("Reads with less than 2 mismatches: "+shortReadsAligner.getFewMismatchesAlns());
+			//out.println("Complete alignments tried: "+shortReadsAligner.getCompleteAlns());
+		//}
 		
 		out.println("Total reads: "+totalReads);
 		out.println("Reads aligned: "+readsAligned);

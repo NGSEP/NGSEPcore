@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.alignments.UngappedSearchHitsClusterBuilder;
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -24,7 +24,7 @@ public class ContigEndsMerger {
 	private Logger log = Logger.getLogger(ContigEndsMerger.class.getName());
 	private static final int END_LENGTH = 50000;
 	private int kmerLength = 25;
-	private MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+	private LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
@@ -149,7 +149,7 @@ public class ContigEndsMerger {
 				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
 				int numKmers = cluster.getNumDifferentKmers(); 
 				if(numKmers<countLimit) break;
-				ReadAlignment aln = aligner.buildCompleteAlignment(subjectEndIdx, subjectEnd, queryEnd, cluster);
+				ReadAlignment aln = aligner.buildAlignment(queryEnd, subjectEnd, cluster);
 				if(aln==null) continue;
 				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" mismatches: "+aln.getNumMismatches()+" indel length: "+aln.getTotalLengthIndelCalls()+" CSK "+aln.getCoverageSharedKmers()+" overlap: "+cluster.getPredictedOverlap()+" alignment: "+aln);
 					

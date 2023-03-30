@@ -70,23 +70,26 @@ public class LongReadsAlignerFactory {
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 	}
-	private List<MinimizersTableReadAlignmentAlgorithm> longReadsAligners = new ArrayList<MinimizersTableReadAlignmentAlgorithm>();
+	private List<MinimizersTableReadAlignmentAlgorithm> readAligners = new ArrayList<MinimizersTableReadAlignmentAlgorithm>();
 	private int lastReadsAlignerIndex = 0;
 	public synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner()  {
 		return requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_AFFINE_GAP);
 	}
 	public synchronized MinimizersTableReadAlignmentAlgorithm requestLongReadsAligner(int alignmentAlgorithm)  {
-		if(longReadsAligners.size()==0) {
+		if(readAligners.size()==0) {
 			createFirstLongReadAligner(alignmentAlgorithm);
-			return longReadsAligners.get(0);
-		} else if (alignmentAlgorithm!=MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_AFFINE_GAP || longReadsAligners.size()<2*numThreads) {
+			return readAligners.get(0);
+		} else if (alignmentAlgorithm!=MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_AFFINE_GAP || readAligners.size()<2*numThreads) {
 			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(alignmentAlgorithm);
-			MinimizersTableReadAlignmentAlgorithm first = longReadsAligners.get(0);
+			MinimizersTableReadAlignmentAlgorithm first = readAligners.get(0);
 			aligner.setLog(log);
-			aligner.setMaxAlnsPerRead(maxAlnsPerRead);
+			aligner.setMaxAlnsPerRead(first.getMaxAlnsPerRead());
+			aligner.setMinWeightedCount(first.getMinWeightedCount());
+			aligner.setMinProportionBestCount(first.getMinProportionBestCount());
+			aligner.setMinProportionReadLength(first.getMinProportionReadLength());
 			if(genome!=null) aligner.setKmerCodesTable(genome, first.getKmerCodesTable());
-			longReadsAligners.add(aligner);
-			lastReadsAlignerIndex=longReadsAligners.size()-1;
+			readAligners.add(aligner);
+			lastReadsAlignerIndex=readAligners.size()-1;
 			//Runtime runtime = Runtime.getRuntime();
 			//long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 			//usedMemory/=1000000000;
@@ -94,23 +97,24 @@ public class LongReadsAlignerFactory {
 			return aligner;
 		}
 		lastReadsAlignerIndex++;
-		if(lastReadsAlignerIndex==longReadsAligners.size()) lastReadsAlignerIndex=0;
-		return longReadsAligners.get(lastReadsAlignerIndex);
+		if(lastReadsAlignerIndex==readAligners.size()) lastReadsAlignerIndex=0;
+		return readAligners.get(lastReadsAlignerIndex);
 	}
 	private void createFirstLongReadAligner(int alignmentAlgorithm) {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
-		MinimizersTableReadAlignmentAlgorithm longReadsAligner = new MinimizersTableReadAlignmentAlgorithm(alignmentAlgorithm);
-		longReadsAligner.setLog(log);
-		longReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
+		MinimizersTableReadAlignmentAlgorithm readsAligner = new MinimizersTableReadAlignmentAlgorithm(alignmentAlgorithm);
+		readsAligner.setLog(log);
+		readsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
+		if (MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_SHORTREADS==alignmentAlgorithm) readsAligner.setMinWeightedCount(1);
 		if(genome!=null) {
-			longReadsAligner.loadGenome (genome, kmerLength, windowLength, numThreads,false);
+			readsAligner.loadGenome (genome, kmerLength, windowLength, numThreads,false);
 		}
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
 		long diff = (time2-startTime)/1000;
 		log.info("Created first long reads aligner. Time (s): "+diff+". Memory: "+usedMemory);
-		longReadsAligners.add(longReadsAligner);
+		readAligners.add(readsAligner);
 	}
 }

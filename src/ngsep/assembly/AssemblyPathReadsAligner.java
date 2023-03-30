@@ -15,6 +15,7 @@ import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
+import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignmentPositionComparator;
@@ -78,8 +79,7 @@ public class AssemblyPathReadsAligner {
 		StringBuilder rawConsensus = new StringBuilder();
 		AssemblyVertex lastVertex = path.getVertexLeft();
 		//Build consensus first
-		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		for(int j = 0; j < n; j++) {
 			AssemblyEdge edge = edges.get(j);
 			AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
@@ -268,7 +268,7 @@ public class AssemblyPathReadsAligner {
 			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus, List<ReadAlignment> alignedReads) {
 		int debugReadIdx = -1;
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		Map<Integer, Long> selKmersSubject = selectKmers(kmersSubject,startConsensus,endConsensus);
 		//if(readId == 61) System.out.println("Query: "+sequence+"\nsubject: "+consensus.substring(startConsensus, endConsensus));
 		ReadAlignment aln = alignRead(aligner,pathIdx, consensus, sequence, selKmersSubject);
@@ -345,7 +345,7 @@ public class AssemblyPathReadsAligner {
 		aln.setReadCharacters(sequence);
 		return aln;
 	}
-	private ReadAlignment alignRead(MinimizersTableReadAlignmentAlgorithm aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
+	private ReadAlignment alignRead(LongReadsUngappedSearchHitsClusterAligner aligner, int subjectIdx, CharSequence subject, CharSequence read, Map<Integer, Long> codesSubject) {
 		String readStr = read.toString();
 		
 		Map<Integer, Long> codesQuery = kmerCodesTable.computeSequenceCodesAsMap(readStr, 0, read.length());
@@ -354,7 +354,7 @@ public class AssemblyPathReadsAligner {
 		if(bestCluster==null) return null;
 		ReadAlignment aln;
 		synchronized (aligner) {
-			aln = aligner.buildCompleteAlignment(subjectIdx, subject, readStr, bestCluster);
+			aln = aligner.buildAlignment(readStr, subject, bestCluster);
 		}
 		//if(read.length()==14871) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
 		if(!evaluateAlignment(aln)) aln = null;

@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.alignments.UngappedSearchHitsClusterBuilder;
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
@@ -274,8 +274,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		if(querySequenceId==idxDebug) System.out.println("Candidate embedded: "+subjectSeqIdx+" "+subjectSequence.getName()+" propEv "+proportionEvidence);
 		if(completeAlignment) {
 			if(querySequenceId==idxDebug) System.out.println("Performing complete alignment for embedded candidate: "+querySequenceId+" "+graph.getSequence(querySequenceId).getName()+" subject: "+subjectSeqIdx+" "+subjectSequence.getName());
-			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
+			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+			aln = aligner.buildAlignment(query, graph.getSequence(subjectSeqIdx).getCharacters(),  cluster);
 			if(aln==null) {
 				System.err.println("Alignment could not be performed for embedded candidate. Query: "+graph.getSequence(querySequenceId).getName()+" subject: "+subjectSequence.getName());
 				return false;
@@ -355,8 +355,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] simulatedAlnData = null;
 		if(querySequenceId==idxDebug) System.out.println("Candidate edge: "+subjectSeqIdx+" "+graph.getSequence(subjectSeqIdx).getName()+" propEv "+proportionEvidence+" overlap: "+overlap+" qlen: "+queryLength+" prop: "+overlap/queryLength);
 		if(completeAlignment) {
-			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
+			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+			aln = aligner.buildAlignment(query,graph.getSequence(subjectSeqIdx).getCharacters(), cluster);
 			if(aln==null) {
 				System.err.println("Alignment could not be performed for edge candidate. Query: "+graph.getSequence(querySequenceId).getName()+" subject: "+graph.getSequence(subjectSeqIdx).getName());
 				return;
@@ -433,8 +433,8 @@ public class KmerHitsAssemblyEdgesFinder {
 		int [] simulatedAlnData = null;
 		if(querySequenceId==idxDebug) System.out.println("Candidate edge: "+subjectSeqIdx+" "+graph.getSequence(subjectSeqIdx).getName()+" propEv "+proportionEvidence+" overlap: "+overlap+" qlen: "+queryLength+" prop: "+overlap/queryLength);
 		if(completeAlignment) {
-			MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-			aln = aligner.buildCompleteAlignment(subjectSeqIdx, graph.getSequence(subjectSeqIdx).getCharacters().toString(), query, cluster);
+			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+			aln = aligner.buildAlignment(query, graph.getSequence(subjectSeqIdx).getCharacters(), cluster);
 			if(aln==null) {
 				System.err.println("Alignment could not be performed for edge candidate. Query: "+graph.getSequence(querySequenceId).getName()+" subject: "+graph.getSequence(subjectSeqIdx).getName());
 				return;
