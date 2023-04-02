@@ -235,9 +235,9 @@ public class GenomesAligner {
 	}
 	
 	public void run () throws IOException {
+		if(getInputFile()!= null) loadGenomesFromFile();
 		logParameters ();
 		
-		if(getInputFile()!= null) loadGenomesFromFile();
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
 		if(referenceGenomeId>0) {
@@ -481,10 +481,22 @@ public class GenomesAligner {
 			try (PrintStream out = new PrintStream(dir+File.separator+f.getName())) {
 				faHandler.saveSequences(unannotated.getSequencesList(), out, 100);
 			}
-			try (PrintStream out = new PrintStream(dir+File.separator+f.getName()+".gff3")) {
+			String filePrefix = removeExtension(f.getName());
+			try (PrintStream out = new PrintStream(dir+File.separator+filePrefix+".gff3")) {
 				gffWriter.printTranscriptome(transcriptome, out);
 			}
 		}
+	}
+	private String removeExtension(String name) {
+		int i = name.lastIndexOf('.');
+		if(i<1) return name;
+		String answer = name.substring(0,i);
+		if(".gz".equalsIgnoreCase(name.substring(i))) {
+			int j = answer.lastIndexOf('.');
+			if(j<1) return answer;
+			answer = answer.substring(0,j);
+		}
+		return answer;
 	}
 	private AnnotatedReferenceGenome sortAndOrientGenome(AnnotatedReferenceGenome genome, AnnotatedReferenceGenome refGenome, DAGChainerPairwiseSyntenyBlocksFinder finder) {
 		log.info("Aligning genome with reference genome");
