@@ -150,6 +150,7 @@ public class PairedReadsAligner {
 			pairedAlns.addAll( findPairs(query1F, clusters1F, false, query2R, clusters2R, true, true));
 			pairedAlns.addAll( findPairs(query1R, clusters1R, true, query2F, clusters2F, false, true));
 			//System.out.println("Pairs proper: "+pairedAlns.size());
+			properPair=pairedAlns.size()>0;
 			if(pairedAlns.isEmpty() ) {
 				pairedAlns.addAll(findPairs(query1F, clusters1F, false, query2R, clusters2R, true, false));
 				pairedAlns.addAll(findPairs(query1R, clusters1R, true, query2F, clusters2F, false, false));
@@ -218,7 +219,6 @@ public class PairedReadsAligner {
 				numReadsAligned = 2;
 				addPairedAlignments(alns, pairedAlns, clusters1F.size()+clusters1R.size(),clusters2F.size()+ clusters2R.size());
 				pair=true;
-				properPair=true;
 				if(pairedAlns.size()==1) numUniqueAlignments=2;
 			}
 		}
@@ -257,7 +257,7 @@ public class PairedReadsAligner {
 			pairedClusters.addAll(findPairsSubject(clustersSubject1, r1, clustersSubject2, r2, onlyProper ));
 		}
 		//System.out.println("Paired clusters: "+pairedClusters.size()+" proper: "+onlyProper);
-		return buildPairedAlignments(query1, query2, pairedClusters,true, aligner);
+		return buildPairedAlignments(query1, query2, pairedClusters, aligner);
 	}
 
 	private Map<Integer, List<UngappedSearchHitsCluster>> organizeBySubjectIdx(List<UngappedSearchHitsCluster> clusters) {
@@ -298,7 +298,7 @@ public class PairedReadsAligner {
 		int n = clusters2.size();
 		for (int i = initialIndex2; i < n; i++) {
 			UngappedSearchHitsCluster current =clusters2.get(i);
-			//System.out.println("Next candidate "+current+" is paired: "+current.isPaired());
+			//System.out.println("Next candidate "+current+" is paired: "+clustersPaired[i]);
 			if(!clustersPaired[i]) {
 				if(!onlyProper || isValidPair(c1,r1,current,r2)) {
 					candidatePositions.add(i);
@@ -309,11 +309,12 @@ public class PairedReadsAligner {
 				if(distance>maxInsertLength) break;
 			}
 		}
+		//System.out.println("Candidate clusters for pairing: "+candidatePositions);
 		if(candidatePositions.size()==0) return null;
 		int pos =  pickBestPairPosition(c1, clusters2, candidatePositions);
 		clustersPaired[pos]=true;
 		//System.out.println("Adding candidate. Aln 1: "+aln1+" Aln 2: "+current);
-		return new UngappedSearchHitClusterPair(c1, r1, clusters2.get(pos),r2);
+		return new UngappedSearchHitClusterPair(c1, r1, clusters2.get(pos),r2, onlyProper);
 	}
 	private boolean isValidPair(UngappedSearchHitsCluster c1, boolean r1, UngappedSearchHitsCluster c2,boolean r2) {
 		if(c1.getSubjectIdx()!=c2.getSubjectIdx()) return false;
@@ -330,6 +331,7 @@ public class PairedReadsAligner {
 			insertLength = end1-start2+1;
 			properDirection = !r2 && r1;
 		}
+		//System.out.println("Min insert length: "+minInsertLength+" max insert length: "+maxInsertLength+" next: "+insertLength);
 		return properDirection && insertLength>=minInsertLength && insertLength<=maxInsertLength;
 	}
 	private int pickBestPairPosition(UngappedSearchHitsCluster c1, List<UngappedSearchHitsCluster> clustersSubject2, List<Integer> candidatePositions) {
@@ -357,7 +359,7 @@ public class PairedReadsAligner {
 		return answer;
 	}
 	
-	private List<ReadAlignmentPair> buildPairedAlignments(CharSequence query1, CharSequence query2, List<UngappedSearchHitClusterPair> pairedClusters, boolean properPairs, UngappedSearchHitsClusterAligner aligner) {
+	private List<ReadAlignmentPair> buildPairedAlignments(CharSequence query1, CharSequence query2, List<UngappedSearchHitClusterPair> pairedClusters, UngappedSearchHitsClusterAligner aligner) {
 		List<ReadAlignmentPair> answer = new ArrayList<>();
 		Collections.sort(pairedClusters,(c1,c2)->c2.getScore()-c1.getScore());
 		for(UngappedSearchHitClusterPair pair:pairedClusters) {
@@ -373,7 +375,7 @@ public class PairedReadsAligner {
 			if(aln2==null) continue;
 			aln2.setSequenceName(referenceName);
 			aln2.setNegativeStrand(pair.isReverse2());
-			answer.add(buildPair(aln1, aln2, properPairs));
+			answer.add(buildPair(aln1, aln2, pair.isProper()));
 			if(answer.size()>3*maxAlnsPerRead) break;
 		}
 		return answer;
@@ -449,13 +451,15 @@ class UngappedSearchHitClusterPair {
 	private boolean reverse1;
 	private UngappedSearchHitsCluster cluster2;
 	private boolean reverse2;
+	private boolean proper= false;
 	
-	public UngappedSearchHitClusterPair(UngappedSearchHitsCluster cluster1,	boolean r1, UngappedSearchHitsCluster cluster2, boolean r2) {
+	public UngappedSearchHitClusterPair(UngappedSearchHitsCluster cluster1,	boolean r1, UngappedSearchHitsCluster cluster2, boolean r2, boolean proper) {
 		super();
 		this.cluster1 = cluster1;
 		reverse1 = r1;
 		this.cluster2 = cluster2;
 		reverse2 = r2;
+		this.proper = proper;
 	}
 	
 
@@ -475,6 +479,10 @@ class UngappedSearchHitClusterPair {
 
 	public boolean isReverse2() {
 		return reverse2;
+	}
+	
+	public boolean isProper() {
+		return proper;
 	}
 
 
