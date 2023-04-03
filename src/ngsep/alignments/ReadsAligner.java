@@ -489,12 +489,12 @@ public class ReadsAligner {
 	
 	private void checkProgress (int readNumber) {
 		if(readNumber%1000>0) return;
-		//if(!platform.isLongReads() && readNumber%100000>0) return;
+		if(!platform.isLongReads() && readNumber%100000>0) return;
 		
 		int progress = readNumber/100000;
-		//if(platform.isLongReads() ) {
+		if(platform.isLongReads() ) {
 			progress = readNumber/1000;
-		//}
+		}
 		
 		log.info("Processed "+readNumber+" fragments. Aligned "+readsAligned+" reads");
 		if (progressNotifier!=null && !progressNotifier.keepRunning(progress)) {
