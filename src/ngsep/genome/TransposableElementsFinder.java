@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
+import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
@@ -279,10 +279,8 @@ public class TransposableElementsFinder {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 	
 		log.info("Creating reference index");
-		MinimizersTableReadAlignmentAlgorithm minimizerTable = new MinimizersTableReadAlignmentAlgorithm();
+		MinimizersUngappedSearchHitsClustersFinder minimizerTable = new MinimizersUngappedSearchHitsClustersFinder();
 		minimizerTable.loadGenome(genome, 15, 20, numThreads);
-		minimizerTable.setMaxAlnsPerRead(maxAlnsPerTransposon);
-		minimizerTable.setMinProportionBestCount(minProportionBestCount);
 		minimizerTable.setMinProportionReadLength(0);
 		log.info("Loading known transposons");
 		//load the fasta
@@ -324,7 +322,7 @@ public class TransposableElementsFinder {
 		}
 		return sequences;
 	}
-	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable, List<QualifiedSequence> knownTransposons) {
+	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable, List<QualifiedSequence> knownTransposons) {
 		List<List<TransposableElementAnnotation>> predictions = new ArrayList<>();
 		for(int i=0;i<knownTransposons.size();i++) {
 			predictions.add(new ArrayList<>());
@@ -350,7 +348,7 @@ public class TransposableElementsFinder {
     	}
 		return answer;
 	}
-	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersTableReadAlignmentAlgorithm minimizerTable,int seqId, QualifiedSequence transposon) {
+	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
 		String readSeq = transposon.getCharacters().toString();
 		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true);

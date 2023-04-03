@@ -457,11 +457,12 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(genome);
-		if(fmIndexFile!=null) {
-			aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
-		}
-		else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
+		//if(fmIndexFile!=null) {
+			//aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
+		//}
+		//else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
 		
+		aligner.setMaxAlnsPerRead(1);
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
 		int numNCharsPairedEnd = pairedEndAnchor.length();	
 		
@@ -484,7 +485,7 @@ public class VCFRelativeCoordinatesTranslator {
 				if(indexN <=30 || indexN>=seq.length()-30) {
 					singleConsensus++;
 					RawRead read = new RawRead(consensusName, consensus.getCharacters(),RawRead.generateFixedQSString('5', consensus.getLength()));
-					List<ReadAlignment> alns = aligner.alignRead(read, true, false);
+					List<ReadAlignment> alns = aligner.alignRead(read);
 					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments: "+alns.size()+". Total unmapped "+unmappedRead);
 					if(alns.size()==0) {
 						unmappedReadSingle++;
@@ -500,11 +501,18 @@ public class VCFRelativeCoordinatesTranslator {
 					
 					RawRead read1 = new RawRead(consensusName, seq1, RawRead.generateFixedQSString('5', seq1.length()));
 					RawRead read2 = new RawRead(consensusName, seq2.getReverseComplement(), RawRead.generateFixedQSString('5', seq2.length()));
-					List<ReadAlignment> alns1 = aligner.alignRead(read1, true, true);
-					List<ReadAlignment> alns2 = aligner.alignRead(read2, true, true);
-					if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
+					//if((i+1)%10000==0) log.info("Aligning consensus sequence "+(i+1)+" id: "+consensus.getName()+" sequence: "+seq+" alignments 1: "+alns1.size()+" alignments 2: "+alns2.size()+" Total unmapped "+unmappedRead);
 					pairedConsensus++;
-					if(alns1.size()==0|| alns2.size()==0) {
+					List<ReadAlignment> alnsPair = aligner.alignPairedEndReads(read1, read2,false);
+					List<ReadAlignment> alns1 = new ArrayList<>();
+					List<ReadAlignment> alns2 = new ArrayList<>();
+					for(ReadAlignment aln:alnsPair) {
+						if(!aln.isProperPair()) continue;
+						if(aln.isPartialAlignment(10)) continue;
+						if(aln.isFirstOfPair()) alns1.add(aln);
+						else alns2.add(aln);
+					}
+					if(alns1.size()==0 || alns2.size()==0) {
 						if(alns1.size()==0 && alns2.size()!=0) singlemapfor++;
 						else if(alns1.size()!=0 && alns2.size()==0) singlemaprev++;
 						else noAlignPaired++;
@@ -512,24 +520,11 @@ public class VCFRelativeCoordinatesTranslator {
 						unmappedRead++;
 						continue;
 					}
-					List<ReadAlignmentPair> pairs = aligner.findPairs(alns1, alns2, true);
-					if(pairs.size()==0) {
-						unpaired++;
-						unmappedReadPaired++;
-						unmappedRead++;
-						continue;
-					}
-					ReadAlignmentPair first = pairs.get(0);
-					ReadAlignment aln1 = first.getAln1();
-					ReadAlignment aln2 = first.getAln2();
+					
+					ReadAlignment aln1 = alns1.get(0);
+					ReadAlignment aln2 = alns2.get(0);
 					if(consensusName.equals(debugConsensusName)) System.err.println("First algn aln1: " + aln1.getReadCharacters() + "\t" + aln1.getFlags() + "\t" + aln1.getFirst() + "\t" + aln1.getCigarString());
 					if(consensusName.equals(debugConsensusName)) System.err.println("Second algn aln2: " + aln2.getReadCharacters() + "\t" + aln2.getFlags() + "\t" + aln2.getFirst() + "\t" + aln2.getCigarString());
-					if(aln1.isPartialAlignment(10) || aln2.isPartialAlignment(10)) {
-						partial++;
-						unmappedReadPaired++;
-						unmappedRead++;
-						continue;
-					}
 					int last1 = aln1.getLast(); 
 					int last2 = aln2.getLast();
 					if(aln1.getFirst()<last2) {
@@ -573,7 +568,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						
 						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment (aln1 < aln2): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
-						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
+						if(alns1.size()>1 || alns2.size()>1) combined.setAlignmentQuality((byte)10);
 						alignments.put(consensusName,combined);
 					} else if (aln2.getFirst() < aln1.getLast()) {
 				 		int internalSoftClip2 = aln2.getSoftClipEnd();
@@ -619,7 +614,7 @@ public class VCFRelativeCoordinatesTranslator {
 						combined.setCigarString(cigar);
 						combined.setAlignmentQuality(aln1.getAlignmentQuality());
 						if(consensusName.equals(debugConsensusName)) System.err.println("Combined alignment aln2 < aln1): " + combined.getReadCharacters() + "\t" +  combined.getFirst() + "\t" + combined.getCigarString());
-						if(pairs.size()>1) combined.setAlignmentQuality((byte)10);
+						if(alns1.size()>1 || alns2.size()>1) combined.setAlignmentQuality((byte)10);
 						alignments.put(consensusName,combined);
 					} else {
 						oddAlign++;

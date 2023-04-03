@@ -31,10 +31,6 @@ import ngsep.sequences.UngappedSearchHit;
  *
  */
 public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearchHitsClusterAligner {
-	public static final int ALIGNMENT_ALGORITHM_AFFINE_GAP = 1;
-	public static final int ALIGNMENT_ALGORITHM_DYNAMIC_KMERS = 2;
-	public static final int ALIGNMENT_ALGORITHM_SIMPLE_GAP = 3;
-	public static final int ALIGNMENT_ALGORITHM_NAIVE = 4;
 	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 	private int maxLengthFullPairwiseAlignment = 4000;
 	private int maxLengthEndsPairwiseAlignment = 500;

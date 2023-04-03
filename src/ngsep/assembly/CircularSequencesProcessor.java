@@ -25,9 +25,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadsAligner;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -218,8 +218,8 @@ public class CircularSequencesProcessor {
 	}
 	private void findStart(QualifiedSequence contig) {
 		ReferenceGenome genome = new ReferenceGenome(contig);
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm();
-		aligner.loadGenome(genome, 15, 20, 1);
+		ReadsAligner aligner = new ReadsAligner();
+		aligner.setGenome(genome);
 		List<ReadAlignment> alns = new ArrayList<>();
 		for(QualifiedSequence startSeq:starts) {
 			List<ReadAlignment> alnsRead = aligner.alignRead(startSeq);

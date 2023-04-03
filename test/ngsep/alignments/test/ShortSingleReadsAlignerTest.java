@@ -1,5 +1,4 @@
 package ngsep.alignments.test;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -12,39 +11,25 @@ import java.util.Map;
 
 import junit.framework.TestCase;
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.FMIndexReadAlignmentAlgorithm;
-import ngsep.genome.GenomeIndexer;
+import ngsep.alignments.ShortReadsUngappedSearchHitsClusterAligner;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.ReferenceGenome;
-import ngsep.genome.ReferenceGenomeFMIndex;
 
 public class ShortSingleReadsAlignerTest extends TestCase {
-	private FMIndexReadAlignmentAlgorithm readsAligner;
-	public final static String FM_INDEX_PATH= "./test/Saccharomyces_cerevisiae.fmindex";
+	private ReferenceGenome genome;
 	public final static String FASTA_PATH= "./training/Saccharomyces_cerevisiae.fa";
 
 
 	public void setUpReadsAligner() throws IOException {
-		ReferenceGenome genome = new ReferenceGenome(FASTA_PATH);
-		File f = new File(FM_INDEX_PATH);
-		if(!f.exists()) {
-			GenomeIndexer genomeIndexer=new GenomeIndexer();
-			genomeIndexer.createIndex(FASTA_PATH,FM_INDEX_PATH);	
-		}
-		ReferenceGenomeFMIndex fmIndex = ReferenceGenomeFMIndex.load(genome, FM_INDEX_PATH);
-		readsAligner=new FMIndexReadAlignmentAlgorithm(fmIndex, 15);
-	}
-
-	public void afterSetUpReadsAligner() {
-		File f = new File(FM_INDEX_PATH);
-		f.delete();
+		genome = new ReferenceGenome(FASTA_PATH);
 	}
 
 	public void testLoadTRF() throws IOException {
 		setUpReadsAligner();
 		String path = setUpTRF();
-		readsAligner.loadSTRsFile(path);
-		Map<String, List<GenomicRegion>> map = readsAligner.getKnownSTRs(); 
+		ShortReadsUngappedSearchHitsClusterAligner aligner = new ShortReadsUngappedSearchHitsClusterAligner();
+		aligner.loadSTRsFile(path);
+		Map<String, List<GenomicRegion>> map = aligner.getKnownSTRs(); 
 		assertEquals(false, isOverlappging(map));
 		assertEquals(true, map.get("chrI").size()<=3);
 		assertEquals(true, map.get("chrII").size()<=3);
@@ -52,10 +37,11 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 		//Case 1
 		//Region "chrXI 122235 122272"
 		ReadAlignment aln=new ReadAlignment("chrXI", 122176, 122265, 90, 0);
+		aln.setSequenceIndex(10);
 		String read =    "TCGGATCGAAATGAACGATATTCTCCCTTATATTATCAGCCAGTAGCGTATACTCTGGCATTTTTCATTTATTTGACTTATTTTTATTTN";
 		//	122176	122235 -> 122176	122234
-		/*GenomicRegion region =readsAligner.getAligner().findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		ReadAlignment newAln=readsAligner.getAligner().verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
+		GenomicRegion region =aligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
+		ReadAlignment newAln= aligner.verifyShortTandemRepeats(aln.getSequenceIndex(),aln.getFirst(),aln.getLast(),read,genome.getSequenceCharacters(aln.getSequenceIndex()), region);
 		assertEquals(122176, newAln.getFirst());
 		assertEquals(122234, newAln.getLast());
 		assertEquals("59M31S", newAln.getCigarString());
@@ -63,10 +49,11 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 		//Case 2
 		//Region "chrII 151275 151285"
 		aln=new ReadAlignment("chrII", 151281, 151370, 90, 0);
+		aln.setSequenceIndex(1);
 		read =          "TTTTTATTATGCATTTAAGAGTAGTCTCTACTTATGAACATTTTCTCTGGCCTCTGATCACGTTACTTTATTACCCGGATACTGATCATN";
 		//	151281	151370 -> 151286	151370
-		region =readsAligner.getAligner().findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.getAligner().verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
+		region =aligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
+		newAln=aligner.verifyShortTandemRepeats(aln.getSequenceIndex(),aln.getFirst(),aln.getLast(),read,genome.getSequenceCharacters(aln.getSequenceIndex()), region);
 		assertEquals(151286, newAln.getFirst());
 		assertEquals(151370, newAln.getLast());
 		assertEquals("5S85M", newAln.getCigarString());
@@ -74,11 +61,12 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 		//Case 3a
 		//Region "chrIX 255901 255918"
 		aln=new ReadAlignment("chrIX", 255867, 255956, 90, 0);
+		aln.setSequenceIndex(8);
 		read =         "ATTTTCTTTTATTTTTTTGATAAAACTACTACGCTAAAAATAAAATAAAAATGTATGATTTCCCTCCATTTCCGACCAATTGTATAATTT";
 		//Left:  255867 255900
 		//Right: 255919 255956
-		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
+		region =aligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
+		newAln=aligner.verifyShortTandemRepeats(aln.getSequenceIndex(),aln.getFirst(),aln.getLast(),read,genome.getSequenceCharacters(aln.getSequenceIndex()),region);
 		assertNotNull(newAln);
 		assertEquals(255867, newAln.getFirst());
 		assertEquals(255956, newAln.getLast());
@@ -87,19 +75,16 @@ public class ShortSingleReadsAlignerTest extends TestCase {
 		//Case 3c
 		//Region "chrXII 460003 460019"
 		aln=new ReadAlignment("chrXII", 459953, 460042, 90, 0);
+		aln.setSequenceIndex(11);
 		read =         "GATATGTACAAACAATATCCTCCTCCGATATTCTCCTCCGATATTCCTACAAAAAAAAAAACACTCCGGTTTTGTTCTCTTCCCTCCATT";
 		//Left:  459953 460002
 		//Right: 460020 460042
-		region =readsAligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
-		newAln=readsAligner.verifyShortTandemRepeats(aln.getSequenceName(),aln.getFirst(),aln.getLast(),read,region);
+		region =aligner.findTandemRepeat(aln.getSequenceName(),aln.getFirst(),aln.getLast());
+		newAln=aligner.verifyShortTandemRepeats(aln.getSequenceIndex(),aln.getFirst(),aln.getLast(),read,genome.getSequenceCharacters(aln.getSequenceIndex()),region);
 		assertNotNull(newAln);
 		assertEquals(459966, newAln.getFirst());
 		assertEquals(460042, newAln.getLast());
 		assertEquals("13M3I1M10I23M17M6D14M2I1M1I2M3I", newAln.getCigarString());
-*/
-		File f = new File(path);
-		f.delete();
-		afterSetUpReadsAligner();
 	}
 
 	private Object isOverlappging(Map<String, List<GenomicRegion>> map) {

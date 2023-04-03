@@ -21,25 +21,17 @@ package ngsep.alignments;
 
 import java.util.List;
 
-import ngsep.sequences.QualifiedSequence;
-
-public interface ReadAlignmentAlgorithm {
+/**
+ * 
+ * @author Jorge Duitama
+ *
+ */
+public interface UngappedSearchHitsClustersFinder {
 	/**
-	 * Aligns the given read to a reference genome.
-	 * Both forward and reverse strands of the read will be aligned
-	 * @param read to be aligned
-	 * @return List<ReadAlignment> Alignments found for the given read
+	 * Finds clusters of kmer hits for the given sequence.
+	 * Only the forward strand of this sequence will be mapped
+	 * @param read to find
+	 * @return List<UngappedSearchHitsCluster> Clusters of kmer hits indicating possible alignment sites
 	 */
-	public List<ReadAlignment> alignRead (QualifiedSequence read);
-	/**
-	 * Aligns the given sequence to a reference genome.
-	 * Only the forward strand of this sequence will be aligned
-	 * @param sequence to be aligned
-	 * @return List<ReadAlignment> Alignments found for the given sequence. Query names and quality scores will have null values
-	 */
-	public List<ReadAlignment> alignQuerySequence (CharSequence sequence);
-	/**
-	 * @return UngappedSearchHitsClusterAligner The aligner used to generate read alignments from clusterd kmer hits
-	 */
-	public UngappedSearchHitsClusterAligner getClusterAligner();
+	public List<UngappedSearchHitsCluster> findHitClusters(CharSequence query);
 }

@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import ngsep.alignments.MinimizersTableReadAlignmentAlgorithm;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadsAligner;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
@@ -326,9 +326,10 @@ public class AlignmentBasedIndelErrorsCorrector {
 	private void correctRemainingReads(AssemblyGraph graph, Map<Integer,AssemblyPath> selectedPathsMap, QualifiedSequenceList pathSequences, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels, Set<Integer> alignedReadIds) {
 		
 		int n = graph.getNumSequences();
-		MinimizersTableReadAlignmentAlgorithm aligner = new MinimizersTableReadAlignmentAlgorithm(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
+		ReadsAligner aligner = new ReadsAligner();
 		ReferenceGenome genome = new ReferenceGenome(pathSequences);
-		aligner.loadGenome(genome, 15, 30, numThreads, false);
+		aligner.setGenome(genome);
+		aligner.setNumThreads(numThreads);
 		
 		
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
@@ -356,7 +357,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		}
 	}
 
-	private void correctRemainingReadProcess(Map<Integer,AssemblyPath> selectedPathsMap, MinimizersTableReadAlignmentAlgorithm aligner, int id, QualifiedSequence seq, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels, boolean chimeric) {
+	private void correctRemainingReadProcess(Map<Integer,AssemblyPath> selectedPathsMap, ReadsAligner aligner, int id, QualifiedSequence seq, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels, boolean chimeric) {
 		List<ReadAlignment> alns = aligner.alignRead(new RawRead(seq.getName(), seq.getCharacters(), null));
 		if(alns.size()==0) {
 			System.out.println("Unaligned read "+seq.getName()+" to consensus");

@@ -68,7 +68,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
 		ReadAlignment aln = buildAln(query, subjectIdx, subject, first, lastPerfect, alignment);
 		if(aln!=null) {
-			//System.out.println("Built alignment at "+subjectIdx+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString());
+			//System.out.println("Built alignment  "+aln);
 			//TODO: use sequence name to find tandem repeats
 			GenomicRegion region =findTandemRepeat("",first,last);
 			if(region!=null) {
@@ -88,7 +88,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 						aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
 						aln.setNumMismatches((short) mismatches[0]);
 						fewMismatchesAlns++;
-						//System.out.println("Mismatches alignment at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+": "+mismatches);
+						//System.out.println("Few mismatches alignment: "+aln);
 						return aln;
 					}
 				}
@@ -110,7 +110,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		aln = buildAln(query, subjectIdx, subject, first, last, alnCodes);
 		if(aln==null) return null;
 		if (!aln.clipBorders(minMatchLength)) return null;
-		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString());
+		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString()+" mismatches: "+mismatches);
 		aln.setAlignmentQuality((byte) Math.round(100-5*mismatches));
 		aln.setNumMismatches((short)mismatches);
 		

@@ -25,5 +25,17 @@ package ngsep.alignments;
  *
  */
 public interface UngappedSearchHitsClusterAligner {
-	public ReadAlignment buildAlignment(CharSequence query, CharSequence subject, UngappedSearchHitsCluster kmerHitsCluster);
+	public static final int ALIGNMENT_ALGORITHM_AFFINE_GAP = 1;
+	public static final int ALIGNMENT_ALGORITHM_DYNAMIC_KMERS = 2;
+	public static final int ALIGNMENT_ALGORITHM_SIMPLE_GAP = 3;
+	public static final int ALIGNMENT_ALGORITHM_NAIVE = 4;
+	public static final int ALIGNMENT_ALGORITHM_SHORT_READS = 5;
+	/**
+	 * Performs the alignment process to build a read alignment from a cluster of ungapped hits
+	 * @param query sequence to be aligned
+	 * @param subject sequence for the alignment
+	 * @param cluster of shared substrings between the query and the subject  
+	 * @return ReadAlignment object describing the alignment between the query and the subject
+	 */
+	public ReadAlignment buildAlignment(CharSequence query, CharSequence subject, UngappedSearchHitsCluster hitsCluster);
 }

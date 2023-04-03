@@ -1557,4 +1557,16 @@ public class ReadAlignment implements GenomicRegion {
 		if(readName!=null) answer = new String(readName)+" "+answer;
 		return answer;
 	}
+	public static ReadAlignment createMockAlignmentUnmappedRead(RawRead read, boolean paired, boolean first) {
+		ReadAlignment alnNoMap = new ReadAlignment(null, 0, 0, read.getLength(), ReadAlignment.FLAG_READ_UNMAPPED);
+		alnNoMap.setReadName(read.getName());
+		alnNoMap.setReadCharacters(read.getCharacters());
+		alnNoMap.setQualityScores(read.getQualityScores());
+		alnNoMap.setPaired(paired);
+		if(paired) {
+			alnNoMap.setFirstOfPair(first);
+			alnNoMap.setSecondOfPair(!first);
+		}
+		return alnNoMap;
+	}
 }

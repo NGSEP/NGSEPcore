@@ -28,46 +28,25 @@ import java.util.logging.Logger;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.UngappedSearchHit;
-import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.KmersExtractor;
-import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.RawRead;
 import ngsep.sequences.ShortKmerCodesTable;
 
 /**
  * @author Jorge Duitama
  */
-public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgorithm {
+public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearchHitsClustersFinder {
 
-	public static final int ALIGNMENT_ALGORITHM_AFFINE_GAP = LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_AFFINE_GAP;
-	public static final int ALIGNMENT_ALGORITHM_DYNAMIC_KMERS = LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS;
-	public static final int ALIGNMENT_ALGORITHM_SIMPLE_GAP = LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SIMPLE_GAP;
-	public static final int ALIGNMENT_ALGORITHM_NAIVE = LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_NAIVE;
-	public static final int ALIGNMENT_ALGORITHM_SHORTREADS = 100;
-
-	private Logger log = Logger.getLogger(MinimizersTableReadAlignmentAlgorithm.class.getName());
+	private Logger log = Logger.getLogger(MinimizersUngappedSearchHitsClustersFinder.class.getName());
 	
-	private UngappedSearchHitsClusterAligner aligner;
-	private int maxAlnsPerRead = 3;
-	private double minWeightedCount = 5;
-	private double minProportionBestCount = 0.2;
+	
+	private int minRawHits = 10;
 	private double minProportionReadLength = 0.01;
 	
 	private ReferenceGenome genome;
 	private ShortKmerCodesTable kmerCodesTable;
-	private boolean onlyPositiveStrand = false;
 	
-	public MinimizersTableReadAlignmentAlgorithm() {
-		this (ALIGNMENT_ALGORITHM_AFFINE_GAP);
-	}
-	public MinimizersTableReadAlignmentAlgorithm(int alignmentAlgorithm) {
-		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_SHORTREADS) {
-			aligner = new ShortReadsUngappedSearchHitsClusterAligner();
-		} else {
-			aligner = new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
-		}
-	}
+	
 	
 	public Logger getLog() {
 		return log;
@@ -76,30 +55,12 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.log = log;
 	}
 	
-	public UngappedSearchHitsClusterAligner getAligner() {
-		return aligner;
-	}
-	public void setAligner(UngappedSearchHitsClusterAligner aligner) {
-		this.aligner = aligner;
-	}
-	public int getMaxAlnsPerRead() {
-		return maxAlnsPerRead;
-	}
-	public void setMaxAlnsPerRead(int maxAlnsPerRead) {
-		this.maxAlnsPerRead = maxAlnsPerRead;
-	}
 	
-	public double getMinWeightedCount() {
-		return minWeightedCount;
+	public int getMinRawHits() {
+		return minRawHits;
 	}
-	public void setMinWeightedCount(double minWeightedCount) {
-		this.minWeightedCount = minWeightedCount;
-	}
-	public double getMinProportionBestCount() {
-		return minProportionBestCount;
-	}
-	public void setMinProportionBestCount(double minProportionBestCount) {
-		this.minProportionBestCount = minProportionBestCount;
+	public void setMinRawHits(int minRawHits) {
+		this.minRawHits = minRawHits;
 	}
 	public double getMinProportionReadLength() {
 		return minProportionReadLength;
@@ -159,48 +120,11 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		this.genome = genome;
 		this.kmerCodesTable = kmerCodesTable;
 	}
+	
+	
 	@Override
-	public List<ReadAlignment> alignRead (RawRead read) {
-		return alignRead((QualifiedSequence)read);
-	}
-	public List<ReadAlignment> alignRead (QualifiedSequence read) {
-		List<ReadAlignment> alignments = new ArrayList<>();
-		String readSeq = read.getCharacters().toString();
-		String qual = read.getQualityScores();
-		String reverseQS = null;
-		if(qual == null || qual.length()!=readSeq.length()) {
-			qual = RawRead.generateFixedQSString('5', readSeq.length());
-			reverseQS = qual;
-		} else if (!onlyPositiveStrand) {
-			reverseQS = new StringBuilder(qual).reverse().toString();
-		}
-		String reverseComplement = null;
-		if(!onlyPositiveStrand) {
-			reverseComplement = DNAMaskedSequence.getReverseComplement(readSeq).toString();	
-		}
-		
-		alignments.addAll(alignQueryToReference(readSeq));
-		//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
-		if(reverseComplement!=null) {
-			List<ReadAlignment> alnsR = alignQueryToReference(reverseComplement);
-			//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
-			for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
-			alignments.addAll(alnsR);
-		}
-		
-		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
-		for(ReadAlignment aln:alignments) {
-			aln.setReadName(read.getName());
-			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
-			else aln.setQualityScores(reverseQS);
-		}
-		return alignments;
-	}
-	public List<ReadAlignment> alignQueryToReference(CharSequence query) {
-		List<UngappedSearchHitsCluster> clusters = buildHitClusters(query,false);
-		List<ReadAlignment> answer = buildAlignments(query, clusters);
-		//System.out.println("Found "+answer.size()+" alignments");
-		return answer;
+	public List<UngappedSearchHitsCluster> findHitClusters(CharSequence query) {
+		return buildHitClusters(query, false);
 	}
 	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch) {
 		int queryLength = query.length();
@@ -212,7 +136,7 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 		}
 		else hitsByReference = kmerCodesTable.match(-1,query);
 		List<UngappedSearchHitsCluster> clusters = new ArrayList<UngappedSearchHitsCluster>();
-		double minRawHitsSize = Math.max(2*minWeightedCount, minProportionReadLength*query.length());
+		double minRawHitsSize = Math.max(minRawHits, minProportionReadLength*query.length());
 		for (int sequenceIdx:hitsByReference.keySet()) {
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
@@ -260,37 +184,6 @@ public class MinimizersTableReadAlignmentAlgorithm implements ReadAlignmentAlgor
 			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
 		}
 		
-	}
-	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters) {
-		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
-		double maxCount = summarize(clusters);
-		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
-		//System.out.println("Filtering clusters. Max alns per read: "+maxAlnsPerRead);
-		for (int i=0;i<clusters.size() && i<maxAlnsPerRead;i++) {
-			UngappedSearchHitsCluster cluster = clusters.get(i);
-			int sequenceIdx = cluster.getSubjectIdx();
-			double wc = cluster.getWeightedCount();
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount());
-			if(i>0 && (wc<minWeightedCount || wc<minProportionBestCount*maxCount)) break;
-			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
-			ReadAlignment aln = aligner.buildAlignment(query, refSeq.getCharacters(), cluster);
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
-			if(aln!=null) {
-				aln.setSequenceName(refSeq.getName());
-				answer.add(aln);
-			}
-		}
-		return answer;
-	}
-	
-	private double summarize(List<UngappedSearchHitsCluster> clusters) {
-		double maxCount = 0;
-		for (UngappedSearchHitsCluster cluster:clusters) {
-			cluster.summarize();
-			maxCount = Math.max(maxCount,cluster.getWeightedCount());
-			//System.out.println("Summarizing clusters. Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
-		}
-		return maxCount;
 	}
 }
 
