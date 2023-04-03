@@ -36,7 +36,13 @@ public class SingleReadsAligner {
 	public void setMinWeightedCount(double minWeightedCount) {
 		this.minWeightedCount = minWeightedCount;
 	}
-
+	
+	public int getMaxAlnsPerRead() {
+		return maxAlnsPerRead;
+	}
+	public void setMaxAlnsPerRead(int maxAlnsPerRead) {
+		this.maxAlnsPerRead = maxAlnsPerRead;
+	}
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		
 		List<ReadAlignment> alignments = new ArrayList<>();
@@ -70,9 +76,7 @@ public class SingleReadsAligner {
 	}
 	public List<ReadAlignment> alignQuerySequence(CharSequence query) {
 		List<UngappedSearchHitsCluster> clusters = hitClustersFinder.findHitClusters(query);
-		List<ReadAlignment> alignments = buildAlignments(query, clusters);
-		//System.out.println("Found "+answer.size()+" alignments");
-		return filterAlignments(alignments);
+		return buildAlignments(query, clusters);
 	}
 	
 	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters) {
@@ -96,7 +100,7 @@ public class SingleReadsAligner {
 				answer.add(aln);
 			}
 		}
-		return answer;
+		return filterAlignments(answer);
 	}
 	
 	private double summarize(List<UngappedSearchHitsCluster> clusters) {

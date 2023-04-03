@@ -97,7 +97,9 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		//Perform smith waterman
 		first = Math.max(1, first-3);
 		last = Math.min(subject.length(), last+3);
-		if(last-first+1>1.5*query.length()) return null;
+		int d = last-first+1;
+		if(d>1.5*query.length()) return null;
+		if(d<0.5*query.length()) return null;
 		CharSequence refSeq = subject.subSequence(first-1, last);
 		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
