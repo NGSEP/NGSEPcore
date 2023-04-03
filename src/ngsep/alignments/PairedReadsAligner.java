@@ -89,53 +89,61 @@ public class PairedReadsAligner {
 		List<UngappedSearchHitsCluster> clusters1R = clustersFinder.findHitClusters(query1R);
 		List<UngappedSearchHitsCluster> clusters2F = clustersFinder.findHitClusters(query2F);
 		List<UngappedSearchHitsCluster> clusters2R = clustersFinder.findHitClusters(query2R);
-		
+		ReadAlignment unmapped1 = ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true);
+		ReadAlignment unmapped2 = ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false); 
 		//System.out.println("Clusters found: "+clusters1F.size()+" "+clusters1R.size()+" "+clusters2F.size()+" "+clusters2R.size());
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
 		if(clusters1F.size()+clusters1R.size()==0) {
 			List<ReadAlignment> alns2 = new ArrayList<>();
 			alns2.addAll(alignAsSingle(query2F, false, clusters2F));
 			alns2.addAll(alignAsSingle(query2R, true, clusters2R));
-			ReadAlignment unmapped = ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true);
-			if (createUnmappedReadRecords) alns.add(unmapped);
-			int n =Math.min(alns2.size(), maxAlnsPerRead);
-			for(int i=0;i<n;i++) {
-				ReadAlignment aln2 = alns2.get(i);
-				aln2.setPaired(true);
-				aln2.setSecondOfPair(true);
-				aln2.setMateUnmapped(true);
-				if(i>0) aln2.setSecondary(true);
-				else setMateInfo(unmapped, aln2);
-				if (aln2.getAlignmentQuality()>=50) aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
-				alns.add(aln2);
+			if (createUnmappedReadRecords) alns.add(unmapped1);
+			if(alns2.size()==0) {
+				unmapped1.setMateUnmapped(true);
+				unmapped2.setMateUnmapped(true);
+				if (createUnmappedReadRecords) alns.add(unmapped2);
+			} else {
+				int n =Math.min(alns2.size(), maxAlnsPerRead);
+				for(int i=0;i<n;i++) {
+					ReadAlignment aln2 = alns2.get(i);
+					aln2.setPaired(true);
+					aln2.setSecondOfPair(true);
+					aln2.setMateUnmapped(true);
+					setMateInfo(aln2, unmapped1);
+					if(i>0) aln2.setSecondary(true);
+					else setMateInfo(unmapped1, aln2);
+					if (aln2.getAlignmentQuality()>=50) aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
+					alns.add(aln2);
+				}
+				if(alns2.size()==1 && alns2.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
+				numReadsAligned = 1;
 			}
-			if(alns2.size()==1 && alns2.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
-			
-			
-			if(alns2.size()>0) numReadsAligned = 1;
-			else if (createUnmappedReadRecords) alns.add(ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false));
 		} else if(clusters2F.size()+clusters2R.size()==0) {
 			List<ReadAlignment> alns1 = new ArrayList<>();
 			alns1.addAll(alignAsSingle(query1F, false, clusters1F));
 			alns1.addAll(alignAsSingle(query1R, true, clusters1R));
-			ReadAlignment unmapped = ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false); 
-			if (createUnmappedReadRecords) alns.add(unmapped);
-			int n =Math.min(alns1.size(), maxAlnsPerRead);
-			for(int i=0;i<n;i++) {
-				ReadAlignment aln1 = alns1.get(i);
-				aln1.setPaired(true);
-				aln1.setFirstOfPair(true);
-				aln1.setMateUnmapped(true);
-				if(i>0) aln1.setSecondary(true);
-				else setMateInfo(unmapped, aln1);
-				if (aln1.getAlignmentQuality()>=50) aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
-				alns.add(aln1);
+			alns.add(unmapped2);
+			if(alns1.size()==0) {
+				unmapped1.setMateUnmapped(true);
+				unmapped2.setMateUnmapped(true);
+				if (createUnmappedReadRecords) alns.add(unmapped1);
+			} else {
+				int n =Math.min(alns1.size(), maxAlnsPerRead);
+				for(int i=0;i<n;i++) {
+					ReadAlignment aln1 = alns1.get(i);
+					aln1.setPaired(true);
+					aln1.setFirstOfPair(true);
+					aln1.setMateUnmapped(true);
+					if(i>0) aln1.setSecondary(true);
+					else setMateInfo(unmapped2, aln1);
+					if (aln1.getAlignmentQuality()>=50) aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
+					alns.add(aln1);
+				}
+				if(alns1.size()==1 && alns1.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
+				
+				
+				if(alns1.size()>0) numReadsAligned = 1;
 			}
-			if(alns1.size()==1 && alns1.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
-			
-			
-			if(alns1.size()>0) numReadsAligned = 1;
-			else if (createUnmappedReadRecords) alns.add(ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true));
 		} else {
 			List<ReadAlignmentPair> pairedAlns = new ArrayList<>();
 			pairedAlns.addAll( findPairs(query1F, clusters1F, false, query2R, clusters2R, true, true));
@@ -162,7 +170,6 @@ public class PairedReadsAligner {
 				//System.out.println("Alignments 2: "+alns2);
 				if(alns1.size()>0) numReadsAligned++;
 				if(alns2.size()>0) numReadsAligned++;
-				ReadAlignment unmapped2 = ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false);
 				int n = Math.min(alns1.size(), maxAlnsPerRead);
 				for(int i=0;i<n;i++) {
 					ReadAlignment aln1 = alns1.get(i);
@@ -184,7 +191,6 @@ public class PairedReadsAligner {
 					alns.add(aln1);
 				}
 				if(alns1.size()==1 && alns1.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
-				ReadAlignment unmapped1 = ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true);
 				n =Math.min(alns2.size(), maxAlnsPerRead);
 				for(int i=0;i<n;i++) {
 					ReadAlignment aln2 = alns2.get(i);
