@@ -17,6 +17,7 @@ import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.ReadAlignmentPositionComparator;
 import ngsep.alignments.ReadsAligner;
 import ngsep.main.ThreadPoolManager;
@@ -565,6 +566,8 @@ public class AssemblyPathReadsAligner {
 		ReadsAligner aligner = new ReadsAligner();
 		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence("", path.getConsensus()));
 		aligner.setGenome(genome);
+		//TODO: Select correct platform
+		aligner.setPlatform(Platform.PACBIO);
 		//log.info("Aligning internal paths for path: "+path.getPathId()+" loaded kmer codes table");
 		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
 		int totalReads = 0;

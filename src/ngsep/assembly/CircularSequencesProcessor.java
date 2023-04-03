@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadsAligner;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -220,6 +221,8 @@ public class CircularSequencesProcessor {
 		ReferenceGenome genome = new ReferenceGenome(contig);
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(genome);
+		//TODO: Select correct platform
+		aligner.setPlatform(Platform.PACBIO);
 		List<ReadAlignment> alns = new ArrayList<>();
 		for(QualifiedSequence startSeq:starts) {
 			List<ReadAlignment> alnsRead = aligner.alignRead(startSeq);

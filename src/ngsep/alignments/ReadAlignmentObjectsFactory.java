@@ -33,7 +33,7 @@ public class ReadAlignmentObjectsFactory {
 	private int windowLength = ReadsAligner.DEF_WINDOW_LENGTH;
 	private int numThreads = 1;
 	private Platform platform;
-	private int alignmentAlgorithm=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_AFFINE_GAP;
+	private int alignmentAlgorithm=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS;
 	private ReferenceGenome genome;
 
 	
