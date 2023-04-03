@@ -381,13 +381,13 @@ public class ShortKmerCodesTable {
 		int idxDebug = -2;
 		//int idxDebug = -1;
 		
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode);
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength);
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
 		int limitSequences = Math.max(100, 4*mode);
 		
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
-		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, mode, kmerLength);
+		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, Math.max(1, sequenceLengths.size()/10));
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
 			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));

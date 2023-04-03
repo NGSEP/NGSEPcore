@@ -88,6 +88,7 @@ public class PairedReadsAligner {
 		List<UngappedSearchHitsCluster> clusters1F = clustersFinder.findHitClusters(query1F);
 		List<UngappedSearchHitsCluster> clusters1R = clustersFinder.findHitClusters(query1R);
 		List<UngappedSearchHitsCluster> clusters2F = clustersFinder.findHitClusters(query2F);
+		//System.out.println("Searching reverse of: "+read2.getName());
 		List<UngappedSearchHitsCluster> clusters2R = clustersFinder.findHitClusters(query2R);
 		ReadAlignment unmapped1 = ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true);
 		ReadAlignment unmapped2 = ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false); 
@@ -255,6 +256,7 @@ public class PairedReadsAligner {
 			if(clustersSubject2==null) continue;
 			pairedClusters.addAll(findPairsSubject(clustersSubject1, r1, clustersSubject2, r2, onlyProper ));
 		}
+		//System.out.println("Paired clusters: "+pairedClusters.size()+" proper: "+onlyProper);
 		return buildPairedAlignments(query1, query2, pairedClusters,true, aligner);
 	}
 
@@ -361,11 +363,13 @@ public class PairedReadsAligner {
 		for(UngappedSearchHitClusterPair pair:pairedClusters) {
 			CharSequence subject = genome.getSequenceCharacters(pair.getCluster1().getSubjectIdx());
 			ReadAlignment aln1 = aligner.buildAlignment(query1, subject, pair.getCluster1());
+			//System.out.println("Aln1: "+aln1);
 			if(aln1==null) continue;
 			String referenceName = genome.getSequenceByIndex(aln1.getSequenceIndex()).getName();
 			aln1.setSequenceName(referenceName);
 			aln1.setNegativeStrand(pair.isReverse1());
 			ReadAlignment aln2 = aligner.buildAlignment(query2, subject, pair.getCluster2());
+			//System.out.println("Aln2: "+aln2+" cluster predicted limits: "+pair.getCluster2().getSubjectPredictedStart()+" " +pair.getCluster2().getSubjectPredictedEnd());
 			if(aln2==null) continue;
 			aln2.setSequenceName(referenceName);
 			aln2.setNegativeStrand(pair.isReverse2());
@@ -449,10 +453,8 @@ class UngappedSearchHitClusterPair {
 	public UngappedSearchHitClusterPair(UngappedSearchHitsCluster cluster1,	boolean r1, UngappedSearchHitsCluster cluster2, boolean r2) {
 		super();
 		this.cluster1 = cluster1;
-		this.cluster1.summarize();
 		reverse1 = r1;
 		this.cluster2 = cluster2;
-		this.cluster2.summarize();
 		reverse2 = r2;
 	}
 	

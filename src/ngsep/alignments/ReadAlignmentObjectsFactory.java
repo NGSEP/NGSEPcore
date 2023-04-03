@@ -103,7 +103,7 @@ public class ReadAlignmentObjectsFactory {
 		long startTime = System.currentTimeMillis();
 		first = new MinimizersUngappedSearchHitsClustersFinder();
 		first.setLog(log);
-		if(!platform.isLongReads()) first.setMinRawHits(2);
+		if(!platform.isLongReads()) first.setMinRawHits(1);
 		first.loadGenome (genome, kmerLength, windowLength, numThreads,false);
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;

@@ -153,6 +153,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 				}
 				if(cluster==null) {
 					cluster = new UngappedSearchHitsCluster(queryLength, sequenceIdx, sequenceLength, hit);
+					//System.out.println("Created first cluster. Evidence limits: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hit length: "+hit.getHitLength()+" weight: "+hit.getWeight());
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (rawClusterKmers.size()>=minRawHitsSize) {
 						List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
@@ -167,12 +168,13 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 			}
 			if(cluster!=null && rawClusterKmers.size()>=minRawHitsSize) {
 				List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
-				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size()+" cluster0 end: "+regionClusters.get(0).getSubjectPredictedEnd());
 				clusters.addAll(regionClusters);
 			}
+			//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" limit: "+minRawHitsSize);
 			//System.out.println("Reference id: "+sequenceIdx+" total clusters: "+clusters.size());
 		}
-		//System.out.println("Final numnber of clusters: "+clusters.size());
+		//System.out.println("Final number of clusters: "+clusters.size());
 		return clusters;
 	}
 	

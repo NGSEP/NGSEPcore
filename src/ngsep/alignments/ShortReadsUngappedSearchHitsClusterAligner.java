@@ -67,8 +67,8 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		List<Integer> alignment = new ArrayList<Integer>(1);
 		alignment.add(ReadAlignment.getAlnValue(query.length(), ReadAlignment.ALIGNMENT_MATCH));
 		ReadAlignment aln = buildAln(query, subjectIdx, subject, first, lastPerfect, alignment);
+		//System.out.println("Built ungapped alignment  "+aln+" predicted limits: "+first+" "+last);
 		if(aln!=null) {
-			//System.out.println("Built alignment  "+aln);
 			//TODO: use sequence name to find tandem repeats
 			GenomicRegion region =findTandemRepeat("",first,last);
 			if(region!=null) {
@@ -98,6 +98,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		first = Math.max(1, first-3);
 		last = Math.min(subject.length(), last+3);
 		int d = last-first+1;
+		//System.out.println("Building gapped alignment. Predicted limits: "+first+" "+last+" distance: "+d+" query length: "+query.length());
 		if(d>1.5*query.length()) return null;
 		if(d<0.5*query.length()) return null;
 		CharSequence refSeq = subject.subSequence(first-1, last);

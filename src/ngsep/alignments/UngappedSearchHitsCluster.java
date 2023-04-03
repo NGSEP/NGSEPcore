@@ -251,7 +251,7 @@ public class UngappedSearchHitsCluster {
 		int n = hits.size();
 		for(int i=Math.max(0, n-50);i<n;i++) {
 			UngappedSearchHit hit = hits.get(i);
-			double weight = ((double)i)/n;
+			double weight = ((double)(i+1))/n;
 			weightSum += weight;
 			totalSumSubject += weight*estimateSubjectEnd(hit);
 		}
@@ -263,7 +263,7 @@ public class UngappedSearchHitsCluster {
 		int n = hits.size();
 		for(int i=Math.max(0, n-50);i<n;i++) {
 			UngappedSearchHit hit = hits.get(i);
-			double weight = ((double)i)/n;
+			double weight = ((double)(i+1))/n;
 			weightSum += weight;
 			totalSumQuery += weight*estimateQueryEnd(hit);
 			//if (sequenceIdx==idxSubjectDebug && query.length() == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" estqEnd: "+estimateQueryEnd(hit)+" weight: "+weight+" sum: "+totalSumQuery);
