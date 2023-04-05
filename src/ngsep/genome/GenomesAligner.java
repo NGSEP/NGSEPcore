@@ -688,11 +688,12 @@ public class GenomesAligner {
 		CDNACatalogAligner.printResults(outputPrefix, homologyClusters);
 		
 		if(genomes.size()>1) {
+			//Ortholog JS visualization for the first two genomes
 			String jsFilename = outputPrefix + "_vizVariables.js";
 			 // Create Javascript file for visualization variables
 	        try (PrintStream outJS = new PrintStream(jsFilename);) {
 	        	//Print genomes metadata
-	        	for(int i=0;i<genomes.size();i++) {
+	        	for(int i=0;i<2;i++) {
 	    			AnnotatedReferenceGenome genome = genomes.get(i);
 	    			int id = genome.getId();
 	    			
@@ -702,7 +703,7 @@ public class GenomesAligner {
 	    			}
 	    			outJS.println("];");
 	    		}
-				for(int i=0;i<genomes.size();i++) {
+				for(int i=0;i<2;i++) {
 					AnnotatedReferenceGenome genome = genomes.get(i);
 					int id = genome.getId();
 					outJS.println("const orthologsG" + id + " = [");
@@ -748,16 +749,18 @@ public class GenomesAligner {
 				String line = id+"\t"+sb.getGenomeId1()+"\t"+ r1.getSequenceName() + "\t" + length1 + "\t" + r1.getFirst() +  "\t" + r1.getLast();
 				line+= "\t"+sb.getGenomeId2()+"\t"+r2.getSequenceName() + "\t" + length2 + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+orientation;
 				outSynteny.println(line);
-				outJS.println("{genomeIdG1: "+sb.getGenomeId1()
-				+", chromosomeG1: '"+r1.getSequenceName()+"'"
-				+", regionStartG1: "+r1.getFirst()
-				+", regionEndG1: "+r1.getLast()
-				+", genomeIdG2: "+sb.getGenomeId2()
-				+", chromosomeG2: '"+r2.getSequenceName() + "'" 
-				+", regionStartG2: "+r2.getFirst()
-				+", regionEndG2: "+r2.getLast()
-				+", negativeG2: "+(r2.isNegativeStrand()?1:0)
-				+"},");
+				if(sb.getGenomeId1()==1 && sb.getGenomeId2()==2) {
+					outJS.println("{genomeIdG1: "+sb.getGenomeId1()
+					+", chromosomeG1: '"+r1.getSequenceName()+"'"
+					+", regionStartG1: "+r1.getFirst()
+					+", regionEndG1: "+r1.getLast()
+					+", genomeIdG2: "+sb.getGenomeId2()
+					+", chromosomeG2: '"+r2.getSequenceName() + "'" 
+					+", regionStartG2: "+r2.getFirst()
+					+", regionEndG2: "+r2.getLast()
+					+", negativeG2: "+(r2.isNegativeStrand()?1:0)
+					+"},");
+				}
 			}
 			outJS.println("];");
 		}
@@ -819,7 +822,7 @@ public class GenomesAligner {
 					out.print(unit.getGenomeId()+"\t"+ unit.getId()+"\t"+unit.getSequenceName()+"\t"+unit.getFirst()+"\t"+unit.getLast()+"\t"+clusterId1);
 					out.print("\t"+ortholog.getGenomeId()+"\t"+ortholog.getId()+"\t"+ortholog.getSequenceName()+"\t"+ortholog.getFirst()+"\t"+ortholog.getLast()+"\t"+clusterId2);
 					out.println("\t"+ParseUtils.ENGLISHFMT.format(edge.getScore())+"\t"+syntenyBlock);
-				} else {
+				} else if (ortholog.getGenomeId()<3){
 					//Can conflict with a genomeId property in the js
 					out.println("{genomeId1: '"+unit.getGenomeId()
 					+"', geneId: '"+unit.getId()
