@@ -412,13 +412,13 @@ public class CommandsDescriptor {
 		System.err.println("Citing");
 		System.err.println("------");
 		System.err.println();
-		System.err.println("To cite NGSEP, please include in your references the following manuscript:");
+		System.err.println("The manuscript of NGSEP 4, focused on orthologs and genome alignment is published in Molecular Ecology Resources:");
 		System.err.println();
-		System.err.println("Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)");
-		System.err.println("NGSEP3: accurate variant calling across species and sequencing protocols.");
-		System.err.println("Bioinformatics 35(22): 4716-4723. http://doi.org/10.1093/bioinformatics/btz275");
+		System.err.println("Tello D, Gonzalez-Garcia LN, Gomez J, et al. (2023).");
+		System.err.println("NGSEP 4: Efficient and accurate identification of orthogroups and whole-genome alignment.");
+		System.err.println("Molecular Ecology Resources 23(3): 712-724. https://doi.org/10.1111/1755-0998.13737");
 		System.err.println();
-		System.err.println("See the README.txt file for papers describing the algorithms implemented in NGSEP and supporting packages");
+		System.err.println("Please visit our wiki (https://sourceforge.net/p/ngsep/wiki/Home/) to select the publications related to the functionalities of NGSEP used in your research");
 		System.err.println();
 	}
 	
