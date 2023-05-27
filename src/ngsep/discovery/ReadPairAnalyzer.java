@@ -1079,7 +1079,7 @@ public class ReadPairAnalyzer {
 		
 		for(ReadAlignment aln: alns) {
 			if(refFirst > debugStart && refFirst<debugEnd) System.out.println("Next read: "+aln.getReadName()+". Unmapped flag: "+aln.isReadUnmapped()+". Mate unmapped flag: "+aln.isMateUnmapped()+" location "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+" CIGAR: "+aln.getCigarString()+" Negative strand: "+aln.isNegativeStrand()+" Mate location "+aln.getMateSequenceName()+":"+aln.getMateFirst()+" mate negative strand: "+aln.isMateNegativeStrand());
-			
+			if(aln.getReadCharacters()==null) continue;
 			String read = aln.getReadCharacters().toString().toUpperCase();
 			if(aln.isReadUnmapped() && !aln.isMateNegativeStrand()) {
 				read = DNAMaskedSequence.getReverseComplement(read).toString();
