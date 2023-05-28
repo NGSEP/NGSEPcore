@@ -354,8 +354,8 @@ public class ShortKmerCodesTable {
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		if(query.length()>1000) {
-			Map<Integer, Long> selectedCodes = new HashMap<>(codes.size()/10);
+		//if(query.length()>1000) {
+			Map<Integer, Long> selectedCodes = new LinkedHashMap<>(codes.size()/10);
 			List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
 			for(KmerCodesTableEntry entry:selectedCodeEntries) {
 				long code = entry.getKmerCode();
@@ -363,10 +363,10 @@ public class ShortKmerCodesTable {
 				selectedCodes.put(start,code);
 			}
 			return matchCompressed(queryIdx, query.length(), selectedCodes, maxSubjectIdx);
-		} else {
+		//} else {
 			//computeSequenceMinimizers(-1, 0, query.length(), codes);
-			return matchCompressed(queryIdx, query.length(), codes, maxSubjectIdx);
-		}
+			//return matchCompressed(queryIdx, query.length(), codes, maxSubjectIdx);
+		//}
 		
 	}
 	/**
@@ -403,7 +403,8 @@ public class ShortKmerCodesTable {
 			long kmerCode = entry.getValue();
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
 			int countSeqs = getCountDifferentSequences(kmerCode);
-			if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
+			//if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
+			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (countSeqs>limitSequences) {
 				multihitCodes++;
 				continue;
