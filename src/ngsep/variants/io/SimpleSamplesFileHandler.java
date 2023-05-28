@@ -38,11 +38,8 @@ public class SimpleSamplesFileHandler {
 	public List<Sample> loadSamples (String filename) throws IOException {
 		List<Sample> samples = new ArrayList<Sample>();
 		QualifiedSequenceList groupIds = new QualifiedSequenceList();
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			in = new BufferedReader(new InputStreamReader(fis));
+		try (FileInputStream fis = new FileInputStream(filename);
+			 BufferedReader in = new BufferedReader(new InputStreamReader(fis))) {
 			String line=in.readLine();
 			while (line!=null) {
 				String [] items = line.split("\t");
@@ -55,10 +52,7 @@ public class SimpleSamplesFileHandler {
 				samples.add(s);
 				line=in.readLine();
 			}
-		} finally {
-			if (in!=null) in.close();
-			if (fis!=null) fis.close();
-		}
+		} 
 		
 		return samples;
 	}

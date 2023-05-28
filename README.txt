@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.3.2 (31-03-2023)
+Version 4.3.2 (09-06-2023)
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
@@ -1468,7 +1468,8 @@ OPTIONS:
 			  based dendograms.
         -fineStructure	: Generates the input files for FineStructure. The
 			  option -s is required for this format.
-	-flapjack	: Generates the input files for Flapjack
+	-flapjack	: Generates the input files for Flapjack.
+	-genepop	: Generates the input format for GenePop.
 	-GWASPoly	: Generates the input file for GWASPoly.
 	-haploview	: Generates the input files for Haploview.
 	-hapmap		: Generates the Hapmap format, which can be used in

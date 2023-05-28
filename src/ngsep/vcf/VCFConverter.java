@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,7 @@ public class VCFConverter {
 	private boolean printJoinMap= false;
 	private boolean printPhase = false;
 	private boolean printFineStructure = false;
+	private boolean printGenePop = false;
 	private String sequenceName = null;
 	private String idParent1 = null;
 	private String idParent2 = null;
@@ -285,6 +287,16 @@ public class VCFConverter {
 		this.setPrintFineStructure(printFineStructure.booleanValue());
 	}
 	
+	public boolean isPrintGenePop() {
+		return printGenePop;
+	}
+	public void setPrintGenePop(boolean printGenePop) {
+		this.printGenePop = printGenePop;
+	}
+	public void setPrintGenePop(Boolean printGenePop) {
+		this.setPrintGenePop(printGenePop.booleanValue());
+	}
+	
 	public String getSequenceName() {
 		return sequenceName;
 	}
@@ -365,6 +377,7 @@ public class VCFConverter {
 		if (printSpagedi) out.print(" spagedi");
 		if (printStructure) out.print(" structure");
 		if (printTreeMix) out.print(" treeMix");
+		if (printGenePop) out.print(" GenePop");
 		out.println();
 		if (sequenceName!=null) out.println("Sequence name for phase or fineStructure: "+sequenceName);
 		if (populationFile!=null) out.println("File with population assignments: "+populationFile);
@@ -392,7 +405,7 @@ public class VCFConverter {
 		PrintStream outJoinMap = null;
 		PrintStream outTreemix = null;
 		//Load the matrix if at least one format need the matrix to be transposed
-		boolean loadMatrix = printFasta || printStructure || printrrBLUP || printSpagedi || printEmma || printPlink || printHaploview || printPowerMarker || printFlapjack || printEigensoft || printDarwin || printFineStructure;
+		boolean loadMatrix = printFasta || printStructure || printrrBLUP || printSpagedi || printEmma || printPlink || printHaploview || printPowerMarker || printFlapjack || printEigensoft || printDarwin || printFineStructure || printGenePop;
 		boolean loadMatrixSeqName = printPhase;
 		List<List<CalledGenomicVariant>> callsPerVariant = new ArrayList<List<CalledGenomicVariant>>();
 		List<String> sampleIds = null;
@@ -502,8 +515,10 @@ public class VCFConverter {
 		if(printPowerMarker) printPowerMarker(sampleIds,callsPerVariant,prefix);
 		if(printFlapjack) printFlapjack(sampleIds,callsPerVariant,prefix);
 		if(printEigensoft) printEigensoft(sampleIds,callsPerVariant,prefix);
+		if(printGenePop) printGenePop(sampleIds,callsPerVariant,prefix+"_genePop.in");
 		if(printPhase) printPhase(sampleIds,callsPerVariant,prefix+"_"+sequenceName+"_phase.inp");
 		if(printFineStructure) printFineStructure(sampleIds.size(),callsPerVariant,prefix+"_fs_"+sequenceName+".phase");
+		
 	}
 	
 	private void printFlapjack(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outPrefix) throws IOException {
@@ -846,6 +861,59 @@ public class VCFConverter {
 		}
 		out.flush();
 		out.close();
+	}
+	
+	private void printGenePop(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String outFile) throws IOException {
+		StringBuilder [] sequences = new StringBuilder[sampleIds.size()];
+		for(int i=0;i<sequences.length;i++) sequences[i] = new StringBuilder(sampleIds.get(i)+",");
+		String [] formattedAlleles = new String[100];
+		for(int a=0;a<10;a++) formattedAlleles[a] = "0"+a;
+		for(int a=10;a<100;a++) formattedAlleles[a] = ""+a;
+		Map<String, List<Integer>> groupsWithSampleIdxs;
+		if(populationFile!=null) {
+			SimpleSamplesFileHandler samplesFH = new SimpleSamplesFileHandler();
+			Map<String,Sample> samplesMap = samplesFH.loadSamplesAsMap(populationFile);
+			if(samplesMap.size()==0)throw new IOException("The populations file does not contain any sample");
+			groupsWithSampleIdxs = Sample.getGroupsWithSampleIdxs(samplesMap, sampleIds);
+			if(groupsWithSampleIdxs.size()==0)throw new IOException("The populations file does not contain any group");
+		} else {
+			groupsWithSampleIdxs = new HashMap<>();
+			List<Integer> allIds = new ArrayList<>();
+			for(int i=0;i<sampleIds.size();i++) allIds.add(i);
+			groupsWithSampleIdxs.put("All", allIds);
+		}
+		
+		try (PrintStream out = new PrintStream(outFile)) {
+			out.println("GenePopFile");
+			for(List<CalledGenomicVariant> callsVariant:calls) {
+				if(callsVariant.size()>0 && callsVariant.get(0).getAlleles().length>99) continue;
+				
+				for(int i=0;i<callsVariant.size();i++) {
+					CalledGenomicVariant calledVar = callsVariant.get(i);
+					if(i==0) out.println(calledVar.getSequenceName()+":"+calledVar.getFirst());
+					String allele = "0000";
+					if(!calledVar.isUndecided()) {
+						byte [] idxsAlleles = calledVar.getIndexesCalledAlleles();
+						if(idxsAlleles.length==1) {
+							String a0 = formattedAlleles[idxsAlleles[0]+1];
+							allele = a0 + a0;
+						} else if(idxsAlleles.length>1) {
+							String a0 = formattedAlleles[idxsAlleles[0]+1];
+							String a1 = formattedAlleles[idxsAlleles[1]+1];
+							allele = a0 + a1;
+						}
+					}
+					sequences[i].append(" "+allele);
+				}
+			}
+			for(List<Integer> ids:groupsWithSampleIdxs.values()) {
+				out.println("POP");
+				for(int i:ids) {
+					out.println(sequences[i].toString());
+				}
+			}
+			
+		}
 	}
 	
 	private void printrrBLUP(List<String> sampleIds,List<List<CalledGenomicVariant>> calls, String prefix) throws IOException {

@@ -1269,6 +1269,9 @@ Generates the input files for FineStructure. The option -s is required for this 
 <option id="flapjack" type="BOOLEAN" attribute="printFlapjack">
 Generates the input files for Flapjack.
 </option>
+<option id="genepop" type="BOOLEAN" attribute="printGenePop">
+Generates the input format for GenePop.
+</option>
 <option id="GWASPoly" type="BOOLEAN" attribute="printGWASPoly">
 Generates the input file for GWASPoly.
 </option>

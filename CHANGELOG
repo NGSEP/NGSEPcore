@@ -1,3 +1,5 @@
+v4.3.2 09-06-2023
+- VCFConverter: Added option -genepop to export to the GenePop file format
 v4.3.1 10-01-2023
 - KmersExtractor: The option -t now specifies the number of threads. New option
   -text to indicate that the input is free text.
