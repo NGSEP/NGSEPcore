@@ -708,11 +708,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		this.lengthToDefineSVEvent = SVLength;
 	}
 
-	public void saveVCFResultsFile(List<CalledGenomicVariant> genotypeCalls, String sampleID) throws IOException {
+	public void saveVCFResultsFile(List<CalledGenomicVariant> genotypeCalls, String sampleID, String outFile) throws IOException {
 		VCFFileHeader header = createVCFHeader(sampleID);
 		List<VCFRecord> records = buildRecords(genotypeCalls, header);
-		String saveFile = sampleID + ".variants.vcf";
-		printVCFFile(records, header, saveFile);
+		printVCFFile(records, header, outFile);
 	}
 
 	public List<CalledGenomicVariant> run(String alnFile) throws IOException {
@@ -751,7 +750,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		caller.setClusteringAlgorithm(algorithm);
 		caller.setIndelTresholdSize(svLength);
 		List<CalledGenomicVariant> calledVariants = caller.run(alnFile);
-		caller.saveVCFResultsFile(calledVariants, prefix);
+		caller.saveVCFResultsFile(calledVariants, prefix, prefix + ".variants.vcf");
 	}
 
 	class SimplifiedReadAlignment implements GenomicRegion{

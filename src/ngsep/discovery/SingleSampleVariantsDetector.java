@@ -1038,7 +1038,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		rpAnalyzer.setDuplications(duplications);
 		List<CalledGenomicVariant> svsRP = rpAnalyzer.findVariants(inputFile);
 		log.info("Identified "+svsRP.size()+" candidate structural variants using the read pair algorithm. Filtering by quality score");
-		svsRP = filterSVsReadPair(svsRP);
+		svsRP = filterSVsByQuality(svsRP);
 		for(CalledCNV cnv:duplications) {
 			if(cnv.getTandemFragments()>1 && cnv.getTandemFragments()>3*cnv.getTransDupFragments()) cnv.setTextGenotype(CalledCNV.TEXT_GEN_TANDEMDUP);
 			else if(cnv.getTransDupFragments()>1 && cnv.getTransDupFragments()>3*cnv.getTandemFragments()) cnv.setTextGenotype(CalledCNV.TEXT_GEN_TRANSDUP);
@@ -1046,7 +1046,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		return svsRP;
 	}
 	
-	private List<CalledGenomicVariant> filterSVsReadPair(List<CalledGenomicVariant> svs) {
+	private List<CalledGenomicVariant> filterSVsByQuality(List<CalledGenomicVariant> svs) {
 		List<CalledGenomicVariant> answer = new ArrayList<CalledGenomicVariant>();
 		for(CalledGenomicVariant v:svs) {
 			if(v.getGenotypeQuality()>=minSVQuality) answer.add(v);
@@ -1058,7 +1058,9 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		LongReadStructuralVariantDetector detector = new LongReadStructuralVariantDetector();
 		detector.setRefGenome(genome);
 		List<CalledGenomicVariant> calledVariants = detector.run(inputFile);
-		return filterSVsReadPair(calledVariants);
+		List<CalledGenomicVariant> filtered = filterSVsByQuality(calledVariants);
+		if(!findSNVs) detector.saveVCFResultsFile(filtered, sampleId, outputPrefix+".vcf");
+		return filtered;
 	}
 
 	public GenomicRegionSortedCollection<CalledGenomicVariant> getCalledSVs() {
