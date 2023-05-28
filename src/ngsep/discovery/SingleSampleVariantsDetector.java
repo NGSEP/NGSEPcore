@@ -944,7 +944,11 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			CalledGenomicVariant call = allCalls.get(i);
 			int [] format;
 			if(call instanceof CalledSNV) format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV;
-			else if (call.isStructural()) format = VCFRecord.DEF_FORMAT_ARRAY_QUALITY;
+			else if (call.isStructural()) {
+				//TODO: Decided if structural variants should appear in this VCF
+				//format = VCFRecord.DEF_FORMAT_ARRAY_QUALITY;
+				continue;
+			}
 			else if (call.getAllCounts()!=null) format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_SNV;
 			else format = VCFRecord.DEF_FORMAT_ARRAY_NGSEP_NOSNV;
 			VCFRecord record = new VCFRecord(call, format, call, header);
@@ -1059,7 +1063,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		detector.setRefGenome(genome);
 		List<CalledGenomicVariant> calledVariants = detector.run(inputFile);
 		List<CalledGenomicVariant> filtered = filterSVsByQuality(calledVariants);
-		if(!findSNVs) detector.saveVCFResultsFile(filtered, sampleId, outputPrefix+".vcf");
+		detector.saveVCFResultsFile(filtered, sampleId, outputPrefix+"_SVsLongReads.vcf");
 		return filtered;
 	}
 
