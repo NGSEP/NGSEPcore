@@ -121,32 +121,11 @@ public class GFF3TranscriptomeHandler {
 				featureLinesWithParentAndNoId.add(line);
 			}
 		}
-		/*try (BufferedReader in = new BufferedReader(new InputStreamReader(is))) {
-			String line=in.readLine();
-			for(int i=1;line!=null;i++) {
-				if("##FASTA".equals(line.trim())) break;
-				if(line.length()>0 && line.charAt(0)!='#') {
-					GFF3GenomicFeatureLine featureLine;
-					try {
-						featureLine = loadFeatureLine(line,i); 
-					} catch (RuntimeException e) {
-						e.printStackTrace();
-						log.warning("Error loading line "+line+". "+e.getMessage());
-						line=in.readLine();
-						continue;
-					}
-					if(featureLine==null) {
-						line=in.readLine();
-						continue;
-					}
-					
-				}
-				line=in.readLine();
-			}
-		}*/
-		//Assign parents for features with IDs
+		List<GFF3GenomicFeatureLine> cdsFeaturesWithoutParent = new ArrayList<>();
+		//Assign parents for features with IDs and collect CDS without parents
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
 			Set<String> parentIds = feature.getParentIds();
+			boolean parentPresent = parentIds.size()>0;
 			for(String parentId:parentIds) {
 				GFF3GenomicFeature parent = featuresWithId.get(parentId);
 				if(parent==null) {
@@ -155,9 +134,10 @@ public class GFF3TranscriptomeHandler {
 				}
 				parent.addChild(feature);
 			}
-			if(parentIds.size()==0) {
+			if(!parentPresent) {
 				String derivesId = feature.getAnnotation(GFF3GenomicFeatureLine.ATTRIBUTE_DERIVES_FROM);
-				if(derivesId !=null) {
+				parentPresent = derivesId !=null; 
+				if(parentPresent) {
 					GFF3GenomicFeature parent = featuresWithId.get(derivesId);
 					if(parent==null) {
 						log.warning("Parent "+derivesId+" not found for feature id: "+feature.getId());
@@ -166,6 +146,7 @@ public class GFF3TranscriptomeHandler {
 					parent.addChild(feature);
 				}
 			}
+			if(!parentPresent && GFF3GenomicFeatureLine.FEATURE_TYPE_CDS.equals(feature.getType()) && feature.getLines().size()==1) cdsFeaturesWithoutParent.add(feature.getLines().get(0));
 		}
 		
 		//Assign parent for features with parent id and no id
@@ -221,6 +202,25 @@ public class GFF3TranscriptomeHandler {
 				}
 			}
 		}
+		//Add orphan CDS
+		for (GFF3GenomicFeatureLine cdsFeature: cdsFeaturesWithoutParent) {
+			String id = cdsFeature.getId();
+			
+			Gene gene = new Gene(id+"_gene", id, cdsFeature.getSequenceName(), cdsFeature.getFirst(), cdsFeature.getLast(), cdsFeature.isNegativeStrand() );
+			gene.setOntologyTerms(cdsFeature.getOntologyTerms());
+			Transcript transcript = new Transcript(id+"_mRNA", cdsFeature.getSequenceName(), cdsFeature.getFirst(), cdsFeature.getLast(), cdsFeature.isNegativeStrand() );
+			transcript.setGene(gene);
+			List<TranscriptSegment> segments = new ArrayList<TranscriptSegment>(1);
+			TranscriptSegment segment = new TranscriptSegment(transcript, cdsFeature.getFirst(), cdsFeature.getLast());
+			segment.setStatus(TranscriptSegment.STATUS_CODING);
+			segment.setFirstCodonPositionOffset(cdsFeature.getPhase());
+			segments.add(segment);
+			transcript.setTranscriptSegments(segments);
+			answer.addTranscript(transcript);
+			numGenes++;
+			numTranscripts++;
+		}
+		
 		if(numGenes==0) log.warning("No genes found in transcriptome file. Check that gene features have \""+GFF3GenomicFeatureLine.FEATURE_TYPE_GENE+"\" as the exact feature type");
 		if(numTranscripts==0) log.warning("No transcripts found in transcriptome file. Check that transcript features have \""+GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA+"\" as the exact feature type");
 		//log.warning("Loaded "+numTranscripts+" transcripts for "+numGenes+" genes");
