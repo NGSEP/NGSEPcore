@@ -1569,4 +1569,11 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return alnNoMap;
 	}
+	public static Platform loadPlatformFromString(String platform) {
+		if("ILLUMINA".equals(platform)) return Platform.ILLUMINA;
+		if("IONTORRENT".equals(platform)) return Platform.IONTORRENT;
+		if("PACBIO".equals(platform)) return Platform.PACBIO;
+		if("ONT".equals(platform)) return Platform.ONT;
+		return null;
+	}
 }

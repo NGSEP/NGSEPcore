@@ -42,6 +42,7 @@ import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
@@ -66,6 +67,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	//Memory saver to avoid loading the read group for each alignment
 	private QualifiedSequenceList readGroupIds = new QualifiedSequenceList();
 	private Map<String,String> sampleIdsByReadGroup = new HashMap<>();
+	private Map<String,ReadAlignment.Platform> platformsByReadGroup = new HashMap<>();
 	
 	private int requiredFlags = 0;
 	private int filterFlags = 0;
@@ -117,6 +119,18 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	
 	public List<String> getReadGroups() {
 		return readGroupIds.getNamesStringList();
+	}
+	/**
+	 * Returns the platform used to sequence the reads if it is unique through the different read groups
+	 * @return Platform unique through read groups. Null if there is no platform information or if there is more than one platform registered
+	 */
+	public Platform getUniquePlatform() {
+		Platform chosen = null;
+		for(Platform p:platformsByReadGroup.values()) {
+			if (chosen == null) chosen = p;
+			else if (chosen!=p) return null;
+		}
+		return chosen;
 	}
 	
 	/**
@@ -175,6 +189,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			if(!sampleIdsByReadGroup.containsKey(id)) {
 				readGroupIds.addOrLookupName(id);
 				sampleIdsByReadGroup.put(id, sampleId);
+				Platform platform = ReadAlignment.loadPlatformFromString(rgRecord.getPlatform());
+				if(platform!=null) platformsByReadGroup.put(id, platform);
 			} else if (!sampleIdsByReadGroup.get(id).equals(sampleId)) {
 				throw new IOException("The read group ID: "+id+" is associated to two different samples: "+sampleId+" and "+sampleIdsByReadGroup.get(id)+". Read group ids should be unique across samples");
 			}

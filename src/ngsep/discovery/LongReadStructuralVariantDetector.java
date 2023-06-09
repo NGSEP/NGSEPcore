@@ -6,6 +6,7 @@ import java.util.*;
 
 import JSci.maths.statistics.SampleStatistics;
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.*;
 import ngsep.sequences.QualifiedSequenceList;
@@ -53,13 +54,10 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private ReferenceGenome refGenome;
 	private String clusteringAlgorithm = DBSCAN_ALGORITHM;
 	private int lengthToDefineSVEvent = 50;
-	private static final int clusterStdNormFactor = DEFAULT_CLUSTER_STD_NORM_FACTOR_PACBIO_HIFI;
+	private int clusterStdNormFactor = DEFAULT_CLUSTER_STD_NORM_FACTOR_PACBIO_HIFI;
 	private int minMQ = DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 
-	LongReadStructuralVariantDetector(){
-	}
-
-
+	
 	public void setRefGenome(ReferenceGenome refGenome) {
 		this.refGenome = refGenome;
 	}
@@ -82,6 +80,8 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 	private void readAlignments(String alignmentFile,  int SVLength) throws IOException{
 		try(ReadAlignmentFileReader alignmentReader = new ReadAlignmentFileReader(alignmentFile, refGenome)){
 			setIndelTresholdSize(SVLength);
+			Platform platform = alignmentReader.getUniquePlatform();
+			if(platform == Platform.ONT) clusterStdNormFactor = DEFAULT_CLUSTER_STD_NORM_FACTOR_ONT;
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			alignmentReader.setFilterFlags(filterFlags);
 			alignmentReader.setMinMQ(minMQ);
@@ -584,7 +584,7 @@ public class LongReadStructuralVariantDetector implements LongReadVariantDetecto
 		return probabilities;
 	}
 
-	public static CountsHelper calculateCountsSV(String[] genotypeAlleles, int avgLength, List<GenomicVariant> calls,
+	public CountsHelper calculateCountsSV(String[] genotypeAlleles, int avgLength, List<GenomicVariant> calls,
 												 byte maxBaseQS, double heterozygousProportion, int lengthToDefineSVEvent, boolean verbose) {
 		// TODO Auto-generated method stub
 		CountsHelper helper = new CountsHelper(genotypeAlleles);
