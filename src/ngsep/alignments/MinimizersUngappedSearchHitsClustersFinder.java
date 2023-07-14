@@ -193,9 +193,9 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		int max = clusters.get(0).getNumDifferentKmers();
 		int limit = max*6/10;
 		if(max==3) limit++;
-		System.out.println("Filtering clusters. Max: "+max+" limit: "+limit);
+		//System.out.println("Filtering clusters. Max: "+max+" limit: "+limit);
 		for(UngappedSearchHitsCluster cluster:clusters) {
-			System.out.println("Filtering clusters. Next cluster count: "+cluster.getNumDifferentKmers()+" limit: "+limit);
+			//System.out.println("Filtering clusters. Next cluster count: "+cluster.getNumDifferentKmers()+" limit: "+limit);
 			if(cluster.getNumDifferentKmers()<limit) break;
 			filteredClusters.add(cluster);
 		}
