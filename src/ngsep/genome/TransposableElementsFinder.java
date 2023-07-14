@@ -351,11 +351,11 @@ public class TransposableElementsFinder {
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, QualifiedSequence transposon) {
 		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
 		String readSeq = transposon.getCharacters().toString();
-		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true);
+		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true,false);
 		double maxCount = summarize(forwardClusters);
 		for (UngappedSearchHitsCluster cluster:forwardClusters) rawHits.add(buildTransposon(genome, cluster, false,transposon));
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
-		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,true);
+		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,true,false);
 		maxCount = Math.max(maxCount, summarize(reverseClusters));
 		for (UngappedSearchHitsCluster cluster:reverseClusters) rawHits.add(buildTransposon(genome, cluster, true,transposon));
 		Collections.sort(rawHits, (o1,o2)-> ((int)o2.getCount())-((int)o1.getCount()));

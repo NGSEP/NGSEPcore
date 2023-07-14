@@ -79,20 +79,25 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength);
 		
-		//log.info("Calculating kmers distribution");
 		if(buildKmersTable) {
+			//log.info("Calculating kmers distribution");
 			KmersExtractor extractor = new KmersExtractor();
 			extractor.setLog(log);
 			extractor.setNumThreads(numThreads);
-			log.info("Extracting kmers from reference sequence");
+			log.info("Calculating kmer counts from reference sequence");
 			extractor.processQualifiedSequences(genome.getSequencesList());
-			kmerCodesTable.setKmersMap(extractor.getKmersMap());
+			log.info("Calculated kmer counts from reference sequence");
+			//kmerCodesTable.setKmersMap(extractor.getKmersMap());
 		}
 		kmerCodesTable.setLog(log);
 		//TODO: Fix introduced bias
 		kmerCodesTable.setMaxHitsKmerCode(1000);
 		kmerCodesTable.setLimitHitsPerSequence(1000);
-		ThreadPoolManager poolTable = new ThreadPoolManager(numThreads, n);
+		log.info("Filling kmer codes");
+		
+		//TODO: Improve parallelization
+		//ThreadPoolManager poolTable = new ThreadPoolManager(numThreads, n);
+		ThreadPoolManager poolTable = new ThreadPoolManager(1, n);
 		poolTable.setSecondsPerTask(longestSequenceLengthMbp);
 		for (int i=0;i<n;i++) {
 			final int seqId = i;
@@ -124,9 +129,9 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 	
 	@Override
 	public List<UngappedSearchHitsCluster> findHitClusters(CharSequence query) {
-		return buildHitClusters(query, false);
+		return buildHitClusters(query, false, true);
 	}
-	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch) {
+	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch, boolean filterClusters) {
 		int queryLength = query.length();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
 		if(extensiveKmersSearch) {
@@ -174,12 +179,28 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 			//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" limit: "+minRawHitsSize);
 			//System.out.println("Reference id: "+sequenceIdx+" total clusters: "+clusters.size());
 		}
+		//System.out.println("Clusters before filtering: "+clusters.size()+" filter: "+filterClusters);
+		if(clusters.size()>3 && filterClusters) clusters = filterClusters(clusters); 
 		//System.out.println("Final number of clusters: "+clusters.size());
 		return clusters;
 	}
 	
 	
 
+	private List<UngappedSearchHitsCluster> filterClusters(List<UngappedSearchHitsCluster> clusters) {
+		List<UngappedSearchHitsCluster> filteredClusters = new ArrayList<>();
+		Collections.sort(clusters, (c1,c2)-> c2.getNumDifferentKmers()-c1.getNumDifferentKmers());
+		int max = clusters.get(0).getNumDifferentKmers();
+		int limit = max*6/10;
+		if(max==3) limit++;
+		System.out.println("Filtering clusters. Max: "+max+" limit: "+limit);
+		for(UngappedSearchHitsCluster cluster:clusters) {
+			System.out.println("Filtering clusters. Next cluster count: "+cluster.getNumDifferentKmers()+" limit: "+limit);
+			if(cluster.getNumDifferentKmers()<limit) break;
+			filteredClusters.add(cluster);
+		}
+		return filteredClusters;
+	}
 	public void printClusters(List<UngappedSearchHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
 		for(UngappedSearchHitsCluster cluster:clusters) {
