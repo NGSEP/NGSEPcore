@@ -129,7 +129,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 	
 	@Override
 	public List<UngappedSearchHitsCluster> findHitClusters(CharSequence query) {
-		return buildHitClusters(query, false, true);
+		return buildHitClusters(query, false, false);
 	}
 	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch, boolean filterClusters) {
 		int queryLength = query.length();
