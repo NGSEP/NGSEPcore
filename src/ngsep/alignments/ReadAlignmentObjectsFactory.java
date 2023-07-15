@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.genome.ReferenceGenome;
+import ngsep.genome.ReferenceGenomeFMIndex;
 
 public class ReadAlignmentObjectsFactory {
 	
@@ -35,6 +36,7 @@ public class ReadAlignmentObjectsFactory {
 	private Platform platform;
 	private int alignmentAlgorithm=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS;
 	private ReferenceGenome genome;
+	private ReferenceGenomeFMIndex fmIndex;
 
 	
 	public ReadAlignmentObjectsFactory(ReferenceGenome genome) {
@@ -84,43 +86,58 @@ public class ReadAlignmentObjectsFactory {
 	public void setAlignmentAlgorithm(int alignmentAlgorithm) {
 		this.alignmentAlgorithm = alignmentAlgorithm;
 	}
-	MinimizersUngappedSearchHitsClustersFinder first=null;
+	
+	public ReferenceGenomeFMIndex getFmIndex() {
+		return fmIndex;
+	}
+	public void setFmIndex(ReferenceGenomeFMIndex fmIndex) {
+		this.fmIndex = fmIndex;
+	}
+
+
+	UngappedSearchHitsClustersFinder first=null;
 	public synchronized UngappedSearchHitsClustersFinder requestClustersFinder()  {
 		if(first == null) {
 			createFirstFinder();
 			return first;
-		} else {
+		} else if (first instanceof MinimizersUngappedSearchHitsClustersFinder){
+			MinimizersUngappedSearchHitsClustersFinder firstI = (MinimizersUngappedSearchHitsClustersFinder) first;
 			MinimizersUngappedSearchHitsClustersFinder next = new MinimizersUngappedSearchHitsClustersFinder();
 			next.setLog(log);
-			next.setMinRawHits(first.getMinRawHits());
-			next.setMinProportionReadLength(first.getMinProportionReadLength());
-			next.setKmerCodesTable(genome, first.getKmerCodesTable());
+			next.setMinRawHits(firstI.getMinRawHits());
+			next.setMinProportionReadLength(firstI.getMinProportionReadLength());
+			next.setKmerCodesTable(genome, firstI.getKmerCodesTable());
+			return next;
+		} else {
+			FMIndexUngappedSearchHitsClustersFinder next = new FMIndexUngappedSearchHitsClustersFinder(fmIndex, kmerLength);
 			return next;
 		}
 	}
 	private void createFirstFinder() {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
-		first = new MinimizersUngappedSearchHitsClustersFinder();
-		first.setLog(log);
-		if(!platform.isLongReads()) first.setMinRawHits(1);
-		first.loadGenome (genome, kmerLength, windowLength, numThreads,false);
+		if(platform.isLongReads()) {
+			MinimizersUngappedSearchHitsClustersFinder finder = new MinimizersUngappedSearchHitsClustersFinder();
+			finder.setLog(log);
+			//if(!platform.isLongReads()) first.setMinRawHits(1);
+			finder.loadGenome (genome, kmerLength, windowLength, numThreads,false);
+			first = finder; 
+		} else {
+			if (fmIndex!=null) {
+				log.info("Aligning reads using built index with "+fmIndex.getSequencesMetadata().size()+" sequences");
+			} else {
+				log.info("Calculating FM-index from genome file: "+genome.getFilename());
+				fmIndex = new ReferenceGenomeFMIndex(genome, log);
+			}
+			FMIndexUngappedSearchHitsClustersFinder finder = new FMIndexUngappedSearchHitsClustersFinder(fmIndex, kmerLength);
+			first = finder;
+		}
+		
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
 		long diff = (time2-startTime)/1000;
 		log.info("Created first clusters finder. Time (s): "+diff+". Memory: "+usedMemory);
-		/*if (fMIndex!=null) {
-						log.info("Aligning reads using built index with "+fMIndex.getSequencesMetadata().size()+" sequences");
-					} else if (fmIndexFile!=null) {
-						log.info("Loading reference index from file: "+fmIndexFile);
-						fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
-					} else {
-						log.info("Calculating FM-index from genome file: "+genome.getFilename());
-						fMIndex = new ReferenceGenomeFMIndex(genome, log);
-					}
-					createFMIndexReadsAligner();
-				}*/
 	}
 	private List<LongReadsUngappedSearchHitsClusterAligner> aligners = new ArrayList<LongReadsUngappedSearchHitsClusterAligner>();
 	private int lastAlignerIndex = 0;

@@ -271,6 +271,12 @@ public class ReadsAligner {
 		long time = System.currentTimeMillis();
 		logParameters ();
 		if(genome==null) throw new IOException("The reference genome is a required parameter");
+		if(fmIndexFile!=null) {
+			if (fmIndexFile!=null) {
+				log.info("Loading reference index from file: "+fmIndexFile);
+				fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
+			}
+		}
 		initializeFactory();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		
@@ -327,6 +333,7 @@ public class ReadsAligner {
 		factory.setWindowLength(windowLength);
 		factory.setNumThreads(numThreads);
 		factory.setPlatform(platform);
+		factory.setFmIndex(fMIndex);
 		if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		else factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SHORT_READS);
 		factory.requestClustersFinder();
