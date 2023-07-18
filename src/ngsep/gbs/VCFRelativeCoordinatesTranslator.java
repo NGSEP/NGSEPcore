@@ -217,13 +217,9 @@ public class VCFRelativeCoordinatesTranslator {
 			while(vcfReader.hasNext()) {
 				VCFRecord translatedRecord = null;
 				VCFRecord record = vcfReader.next();
-				
-				
-					
-				
 				String clusterID = record.getSequenceName();
 				ReadAlignment alignment =  alignments.get(clusterID);
-				if(alignment != null ) {
+				if(alignment != null && !alignment.isReadUnmapped()) {
 					// If variant is SNP
 					if(record.getVariant().isSNV()) {
 						translatedRecord = translateRecord(alignment, record, header);
@@ -457,10 +453,10 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner();
 		aligner.setGenome(genome);
-		//if(fmIndexFile!=null) {
-			//aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
-		//}
-		//else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
+		if(fmIndexFile!=null) {
+			aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
+		}
+		else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
 		
 		aligner.setMaxAlnsPerRead(1);
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;

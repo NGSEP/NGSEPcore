@@ -617,7 +617,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		//Create pool manager and statistics
 		ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
-		
+		boolean terminated = false;
 		//Timer for mem checks
 		Timer timer = new Timer();
 		
@@ -679,13 +679,13 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 				numCluster++;
 			}
-			
-			
+			poolManager.terminatePool();
+			terminated = true;
 		} finally {
 			for(FastqFileReader reader:readers) {
 				if(reader!=null) reader.close();
 			}
-			poolManager.terminatePool();
+			if(!terminated) poolManager.terminatePool();
 			timer.cancel();
 		}
 	}
@@ -718,7 +718,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		
 		//Create pool manager and statistics
 		ThreadPoolManager poolManager = new ThreadPoolManager(numThreads, MAX_TASK_COUNT);
-		
+		boolean terminated = false;
 		//Timer for mem checks
 		Timer timer = new Timer();
 		
@@ -788,7 +788,8 @@ public class KmerPrefixReadsClusteringAlgorithm {
 					
 				numCluster++;
 			}
-			
+			poolManager.terminatePool();
+			terminated = true;
 			
 		} finally {
 			for(FastqFileReader reader:readers_1) {
@@ -797,7 +798,7 @@ public class KmerPrefixReadsClusteringAlgorithm {
 			for(FastqFileReader reader:readers_2) {
 				if(reader!=null) reader.close();
 			}
-			poolManager.terminatePool();
+			if(!terminated) poolManager.terminatePool();
 			timer.cancel();
 		}
 	}
