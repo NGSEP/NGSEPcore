@@ -1,5 +1,10 @@
-v4.3.2 09-06-2023
+v4.3.2 19-07-2023
 - VCFConverter: Added option -genepop to export to the GenePop file format
+- GenomesAligner: Added option -r to select one genome as reference and
+  sort and orient contigs of the other genomes according to the reference
+- GenomesAligner: Fixed clustering error for families with large numbers of
+  paralogs
+- TransposonsFinder: Added strand information to the output
 v4.3.1 10-01-2023
 - KmersExtractor: The option -t now specifies the number of threads. New option
   -text to indicate that the input is free text.
