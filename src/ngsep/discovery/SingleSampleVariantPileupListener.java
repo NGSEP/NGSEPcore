@@ -47,7 +47,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public static final double DEF_HETEROZYGOSITY_RATE_DIPLOID = CountsHelper.DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	public static final double DEF_HETEROZYGOSITY_RATE_HAPLOID = CountsHelper.DEF_HETEROZYGOSITY_RATE_HAPLOID;
 	public static final byte DEF_MAX_BASE_QS = CountsHelper.DEF_MAX_BASE_QS;
-	public static final short DEF_MIN_QUALITY = 0;
+	public static final short DEF_MIN_QUALITY = 40;
 	public static final String DEF_SAMPLE_ID = "Sample";
 	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 3;
 	

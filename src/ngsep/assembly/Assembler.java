@@ -56,8 +56,8 @@ public class Assembler {
 	// Constants for default values
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
-	public static final int DEF_KMER_LENGTH = 15;
-	public static final int DEF_WINDOW_LENGTH = 30;
+	public static final int DEF_KMER_LENGTH = 25;
+	public static final int DEF_WINDOW_LENGTH = 40;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;

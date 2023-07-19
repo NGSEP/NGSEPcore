@@ -555,7 +555,7 @@ inclusive.
 <option id="minQuality" type="INT" attribute="minQuality" defaultConstant="DEF_MIN_QUALITY">
 Minimum variant quality. In this command, this filter applies to the QUAL column of the VCF, which is
 calculated for each variant as the maximum of the genotype qualities of samples with non-homozygous reference genotype calls.
-See the command FilterVCF to apply filters of quality and read depth on individual genotype calls.
+See the command VCFFilter to apply filters of quality and read depth on individual genotype calls.
 </option>
 <option id="embeddedSNVs" type="BOOLEAN" attribute="callEmbeddedSNVs">
 Flag to call SNVs within STRs. By default, STRs are treated as a single locus and hence no SNV will be called within an STR.
