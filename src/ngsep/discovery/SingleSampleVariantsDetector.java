@@ -70,7 +70,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	public static final byte DEF_MAX_BASE_QS = SingleSampleVariantPileupListener.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	public static final String DEF_SAMPLE_ID = SingleSampleVariantPileupListener.DEF_SAMPLE_ID;
-	public static final short DEF_MIN_SV_QUALITY = 20;
+	public static final short DEF_MIN_SV_QUALITY = 0;
 	public static final short DEF_BIN_SIZE = ReadDepthDistribution.DEFAULT_BIN_SIZE;
 	public static final String DEF_ALGORITHM_CNV = "CNVnator";
 	public static final short DEF_MAX_PCT_OVERLAP_CNVS = 100;
