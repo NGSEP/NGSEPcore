@@ -363,7 +363,7 @@ OPTIONS:
 			  alignment proper. Default: 0
 	-maxIL INT	: Maximum predicted insert length to consider an
 			  alignment proper. Default: 1000
-	-w INT		: Window length to compute minimizers. Default: 5
+	-w INT		: Window length to compute minimizers. Default: 20
 	-t INT		: Number of threads used to align reads. Default: 1
 
 
