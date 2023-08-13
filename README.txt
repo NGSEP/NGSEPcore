@@ -1,6 +1,6 @@
 NGSEP - Next Generation Sequencing Experience Platform
 Version 4.3.2 (19-07-2023)
-o
+
 ===========================================================================
 
 NGSEP provides an object model to enable different kinds of
