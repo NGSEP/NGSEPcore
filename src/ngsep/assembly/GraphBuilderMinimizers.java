@@ -21,6 +21,8 @@ package ngsep.assembly;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,6 +30,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import ngsep.math.Distribution;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
@@ -186,7 +189,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		usedMemory/=1000000000;
 		long time3 = System.currentTimeMillis();
 		diff = (time3-time2)/1000;
-		log.info("Identified relationships with the first 10x of sequences. Time mapping (s): "+diff+". Memory: "+usedMemory);
+		log.info("Identified relationships with the first 10x of sequences. Repetitive: "+repetitiveSequenceIds.size()+" Time mapping (s): "+diff+". Memory: "+usedMemory);
 		
 		//Remove embedded relationships for embedded to chimeric sequences
 		Set<Integer> orphanEmbeddedIds = graph.calculateEmbeddedToChimeric();
@@ -239,7 +242,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		usedMemory/=1000000000;
 		long time5 = System.currentTimeMillis();
 		diff = (time5-time4)/1000;
-		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
+		log.info("Built graph. Edges: "+graph.getEdges().size()+" Embedded: "+graph.getEmbeddedCount()+"  Repetitive: "+repetitiveSequenceIds.size()+" Memory: "+usedMemory+" Time graph construction (s): "+diff);
+		//updateRelationshipsRepeats(graph,repetitiveSequenceIds);
+		log.info("Finished graph construction");
 		return graph;
 	}
 	
@@ -255,6 +260,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	}
 	//private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 	private int totalRels = 0;
+	private Set<Integer> repetitiveSequenceIds = new HashSet<>();
 	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
@@ -278,7 +284,15 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				long time3 = System.currentTimeMillis();
 				long diff3 = (time3-time2)/1000;
 				debug = debug || diff3>10;
-				if(debug) log.info("GraphBuilderMinimizers. Rels for seq "+seqId+" "+rels.size()+" len: "+seq.length()+" totalRels: "+totalRels+" onlyEmbedded: "+onlyEmbedded+" selfHits: "+hitsForward.getKmerHitCount(seqId)+" countsF: "+hitsForward.getInputCodesCount()+" "+hitsForward.getDistinctCodesCount()+" "+ hitsForward.getTotalHits()+" " +hitsForward.getMultihitCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" countsR: "+hitsReverse.getInputCodesCount()+" "+hitsReverse.getDistinctCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultihitCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" subjects: "+hitsForward.getNumSubjects()+" "+hitsReverse.getNumSubjects()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				int [] countsF = hitsForward.getNormalizedCountsDist();
+				int [] countsR = hitsReverse.getNormalizedCountsDist();
+				boolean repetitive = countsF[1]>countsF[0]/2 || countsR[1]>countsR[0]/2; 
+				//debug = debug || repetitive;
+				if(debug) log.info("GraphBuilderMinimizers. Rels for seq "+seqId+" "+rels.size()+" len: "+seq.length()+" totalRels: "+totalRels+" onlyEmbedded: "+onlyEmbedded+" selfHits: "+hitsForward.getKmerHitCount(seqId)+" countsF: "+hitsForward.getInputCodesCount()+" "+hitsForward.getDistinctCodesCount()+" "+ hitsForward.getTotalHits()+" " +hitsForward.getMultisequenceCodesCount()+" "+hitsForward.getNotFoundCodesCount()+" countsR: "+hitsReverse.getInputCodesCount()+" "+hitsReverse.getDistinctCodesCount()+" "+hitsReverse.getTotalHits()+" "+ hitsReverse.getMultisequenceCodesCount()+" "+hitsReverse.getNotFoundCodesCount()+" subjects: "+hitsForward.getNumSubjects()+" "+hitsReverse.getNumSubjects()+" timesAll: "+diff1+" "+diff2+" "+diff3+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
+				if(debug) {
+					System.out.println("Sequence "+seqId+" Profile Forward: "+printArray(countsF));
+					System.out.println("Sequence "+seqId+" Profile Reverse: "+printArray(countsR));
+				}
 				//rels = new ArrayList<AssemblySequencesRelationship>();
 				if(!onlyEmbedded) relationshipsPerSequence.set(seqId, rels);
 				else {
@@ -287,6 +301,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				}
 				synchronized (this) {
 					totalRels+=rels.size();
+					if(repetitive) repetitiveSequenceIds.add(seqId);
 				}
 				
 			}
@@ -304,6 +319,12 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			if(!onlyEmbedded) relationshipsPerSequence.set(seqId, new ArrayList<AssemblySequencesRelationship>());
 			throw e;
 		}
+	}
+	private String printArray(int[] normalizedCountsDist) {
+		StringBuilder answer = new StringBuilder();
+		for(int i=0;i<normalizedCountsDist.length;i++) answer.append(" "+normalizedCountsDist[i]);
+		
+		return answer.toString();
 	}
 	private List<AssemblySequencesRelationship> selectGoodEmbedded(List<AssemblySequencesRelationship> rels) {
 		List<AssemblySequencesRelationship> answer = new ArrayList<AssemblySequencesRelationship>();
@@ -359,5 +380,69 @@ public class GraphBuilderMinimizers implements GraphBuilder {
     	if(!pool.isShutdown()) {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 		}
+	}
+	private void updateRelationshipsRepeats(AssemblyGraph graph, Set<Integer> repetitiveSequenceIds) {
+		List<Set<Integer>> connectedComponents = graph.findConnectedComponentsSequences(repetitiveSequenceIds);
+		log.info("RemoveEdgesRepeats. Num connected components: "+connectedComponents.size());
+		KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
+		for(Set<Integer> cluster: connectedComponents) {
+			log.info("RemoveEdgesRepeats. Next connected component. Size: "+cluster.size()+" Elements: "+cluster);
+			if(cluster.size()<100) continue;
+			List<Integer> clusterList = new ArrayList<>(cluster);
+			Collections.sort(clusterList);
+			KmersMap localMap = calculateKmersMap(graph, cluster);
+			//Distribution kmersDist = localMap.calculateAbundancesDistribution();
+			KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(localMap, false);
+			System.out.println("Mode depth: "+kmersAnalyzer.getMode());
+			ShortKmerCodesTable table = new ShortKmerCodesTable(kmersAnalyzer, kmerLength, windowLength);
+			for(int i:clusterList) {
+				QualifiedSequence seq = graph.getSequence(i);
+				System.out.println("Calculating local minimizers for local repetitive sequence: "+i);
+				table.addSequence(i, seq.getCharacters());
+			}
+			int n = graph.getNumSequences();
+			List<List<AssemblySequencesRelationship>> relationshipsPerSequence = new ArrayList<List<AssemblySequencesRelationship>>(n);
+			for(int i=0;i<n;i++) relationshipsPerSequence.add(null);
+			for(int i:clusterList) {
+				System.out.println("Updating relationships for repetitive sequence: "+i);
+				QualifiedSequence seq = graph.getSequence(i);
+				processSequence(edgesFinder, table, i, seq.getCharacters(), 1, false, relationshipsPerSequence);
+			}
+			
+			AssemblyGraph subgraph = graph.buildSubgraph(cluster);
+			List<AssemblyEdge> edges = subgraph.getEdges();
+			List<AssemblyEmbedded> embeddedRels = subgraph.getAllEmbedded();
+			log.info("RemoveEdgesRepeats. Next connected component subgraph. Edges: "+edges.size()+" embedded: "+embeddedRels.size());
+			for(AssemblyEdge edge:edges) {
+				if(!edge.isSameSequenceEdge()) graph.removeEdge(edge);
+			}
+			for(AssemblyEmbedded embedded: embeddedRels) graph.removeEmbedded(embedded);
+			for(int i:clusterList) {
+				for(AssemblySequencesRelationship rel:relationshipsPerSequence.get(i)) {
+					graph.addRelationship(rel);
+				}
+			}
+			/*Distribution ikbpDist = new Distribution(0, 10, 0.1);
+			for(AssemblyEdge edge:edges) {
+				//System.out.println("Next edge "+edge);
+				ikbpDist.processDatapoint(edge.getIndelsPerKbp());
+			}
+			for(AssemblyEmbedded embedded:embeddedRels) {
+				//System.out.println("Next embedded "+embedded);
+				ikbpDist.processDatapoint(embedded.getIndelsPerKbp());
+				//if(embedded.getIndelsPerKbp()>3) graph.removeEmbedded(embedded); 
+			}
+			System.out.println("Dist IKBP");
+			ikbpDist.printDistribution(System.out);*/
+		}	
+	}
+	private KmersMap calculateKmersMap(AssemblyGraph graph, Set<Integer> cluster) {
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setKmerLength(kmerLength);
+		for(int i:cluster) {
+			QualifiedSequence seq = graph.getSequence(i);
+			extractor.countSequenceKmers(seq);
+		}
+		return extractor.getKmersMap();
 	}
 }

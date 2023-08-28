@@ -59,7 +59,7 @@ public class ShortKmerCodesTable {
 		this.kmersMap = kmersAnalyzer.getKmersMap();
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
-		this.mode = kmersAnalyzer.getMode();
+		this.mode = Math.max(1,kmersAnalyzer.getMode());
 		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
 		//TODO: This is ok for assemblies but it is not ok for reference genomes
 		int capacityPrimes = (int) Math.min(100000000, kmersAnalyzer.getNumKmers(this.mode));
@@ -364,19 +364,14 @@ public class ShortKmerCodesTable {
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
 		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		//if(query.length()>1000) {
-			Map<Integer, Long> selectedCodes = new LinkedHashMap<>(codes.size()/10);
-			List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
-			for(KmerCodesTableEntry entry:selectedCodeEntries) {
-				long code = entry.getKmerCode();
-				int start = entry.getStart();
-				selectedCodes.put(start,code);
-			}
-			return matchCompressed(queryIdx, query.length(), selectedCodes, maxSubjectIdx);
-		//} else {
-			//computeSequenceMinimizers(-1, 0, query.length(), codes);
-			//return matchCompressed(queryIdx, query.length(), codes, maxSubjectIdx);
-		//}
+		Map<Integer, Long> selectedCodes = new LinkedHashMap<>(codes.size()/10);
+		List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
+		for(KmerCodesTableEntry entry:selectedCodeEntries) {
+			long code = entry.getKmerCode();
+			int start = entry.getStart();
+			selectedCodes.put(start,code);
+		}
+		return matchCompressed(queryIdx, query.length(), selectedCodes, maxSubjectIdx);
 		
 	}
 	/**
@@ -406,7 +401,8 @@ public class ShortKmerCodesTable {
 		*/
 		int numUsedCodes = 0;
 		int notFoundCodes = 0;
-		int multihitCodes = 0;
+		int multiSequenceCodes = 0;
+		int [] normalizedCountsDist = new int [10];
 		int selfSequenceCount = 0;
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
 			int startQuery = entry.getKey();
@@ -416,14 +412,17 @@ public class ShortKmerCodesTable {
 			//if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (countSeqs>limitSequences) {
-				multihitCodes++;
+				multiSequenceCodes++;
 				continue;
 			}
 			
 			long [] codesMatching = lookupHits(kmerCode);
+			int numHits = codesMatching.length;
+			int normalized = (int)Math.round((double)numHits/mode);
+			if(normalized<normalizedCountsDist.length) normalizedCountsDist[normalized]++;
+			else normalizedCountsDist[normalizedCountsDist.length-1]++;
 			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" limit: "+(limitHitsPerSequence*countSeqs));
 			if(codesMatching.length>limitHitsPerSequence*countSeqs) {
-				multihitCodes++;
 				continue;
 			}
 			else if(codesMatching.length>0) numUsedCodes++;
@@ -443,10 +442,11 @@ public class ShortKmerCodesTable {
 				
 			}
 		}
-		result.setMultihitCodesCount(multihitCodes);
+		result.setMultisequenceCodesCount(multiSequenceCodes);
+		result.setNormalizedCountsDist(normalizedCountsDist);
 		result.setNotFoundCodesCount(notFoundCodes);
 		result.setKmerWeights(calculateCodeWeights(codes));
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with multiple hits: "+multihitCodes);
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with hits in multiple sequences: "+multiSequenceCodes);
 		return result;
 		
 	}

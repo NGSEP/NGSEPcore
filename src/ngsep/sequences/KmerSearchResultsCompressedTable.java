@@ -19,7 +19,8 @@ public class KmerSearchResultsCompressedTable {
 	private int [] sequencesBySubjectTableColumnLengths;
 	private int kmerLength;
 	private int totalHits = 0;
-	private int multihitCodesCount;
+	private int [] normalizedCountsDist;
+	private int multisequenceCodesCount;
 	private int notFoundCodesCount;
 	
 	
@@ -142,11 +143,17 @@ public class KmerSearchResultsCompressedTable {
 	public int getDistinctCodesCount() {
 		return kmerWeights.size();
 	}
-	public int getMultihitCodesCount() {
-		return multihitCodesCount;
+	public int getMultisequenceCodesCount() {
+		return multisequenceCodesCount;
 	}
-	public void setMultihitCodesCount(int multihitCodesCount) {
-		this.multihitCodesCount = multihitCodesCount;
+	public void setMultisequenceCodesCount(int multisequenceCodesCount) {
+		this.multisequenceCodesCount = multisequenceCodesCount;
+	}
+	public int[] getNormalizedCountsDist() {
+		return normalizedCountsDist;
+	}
+	public void setNormalizedCountsDist(int[] normalizedCountsDist) {
+		this.normalizedCountsDist = normalizedCountsDist;
 	}
 	public int getNotFoundCodesCount() {
 		return notFoundCodesCount;

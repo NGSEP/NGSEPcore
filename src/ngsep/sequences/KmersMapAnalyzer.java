@@ -41,6 +41,7 @@ public class KmersMapAnalyzer {
 		} else {
 			mode = Math.max(10, 3*(int)distribution.getAverage());
 			int limit = Math.min(10000, 100*(int)distribution.getAverage());
+			limit = Math.min(limit, completeCounts.length-1);
 			for(int k=10;k<limit;k++) {
 				long maxValue = completeCounts[k];
 				int localMode = k;
@@ -103,7 +104,7 @@ public class KmersMapAnalyzer {
 			average/=count;
 		}
 		
-		int maxDepthPrint = 5*Math.max(mode, (int)average);
+		int maxDepthPrint = Math.min(kmerCounts.length-1, 5*Math.max(mode, (int)average));
 		
 		if(assembly) {
 			distribution.printDistribution(System.out,true, maxDepthPrint);

@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import JSci.maths.statistics.NormalDistribution;
@@ -1003,6 +1004,43 @@ public class AssemblyGraph {
 		if(rel instanceof AssemblyEmbedded) removeEmbedded((AssemblyEmbedded)rel);
 		
 		
+	}
+	public List<Set<Integer>> findConnectedComponentsSequences(Set<Integer> sequenceIds) {
+		List<Set<Integer>> answer = new ArrayList<>();
+		Set<Integer> clustered = new HashSet<>();
+		for(int start:sequenceIds) {
+			if(clustered.contains(start)) continue;
+			Queue<Integer> queue = new LinkedList<>();
+			Set<Integer> nextCluster = new HashSet<>();
+			queue.add(start);
+			nextCluster.add(start);
+			while(queue.size()>0) {
+				int next = queue.poll();
+				Set<Integer> allRelatedSequences = calculateAllRelatedSequences(next);
+				for(int j:allRelatedSequences) {
+					if(sequenceIds.contains(j) && !nextCluster.contains(j)) {
+						nextCluster.add(j);
+						queue.add(j);
+					}
+				}
+			}
+			answer.add(nextCluster);
+			clustered.addAll(nextCluster);		
+		}
+		return answer;
+	}
+	private Set<Integer> calculateAllRelatedSequences(int seq) {
+		Set<Integer> answer = new HashSet<>();
+		List<AssemblyEdge> edges = getEdgesBySequenceId(seq);
+		for(AssemblyEdge edge:edges) {
+			if(edge.getVertex1().getSequenceIndex()!=seq) answer.add(edge.getVertex1().getSequenceIndex());
+			if(edge.getVertex2().getSequenceIndex()!=seq) answer.add(edge.getVertex2().getSequenceIndex());
+		}
+		List<AssemblyEmbedded> embedded1 = getEmbeddedByHostId(seq);
+		for(AssemblyEmbedded embedded:embedded1) answer.add(embedded.getSequenceId());
+		List<AssemblyEmbedded> embedded2 = getEmbeddedBySequenceId(seq);
+		for(AssemblyEmbedded embedded:embedded2) answer.add(embedded.getHostId());
+		return answer;
 	}
 	
 }

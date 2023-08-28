@@ -686,8 +686,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==110 || gsVertex.getSequenceIndex()== 207 || gsVertex.getSequenceIndex()==226;
-		//boolean debug = gsVertex.getSequenceIndex()==249213 || gsVertex.getSequenceIndex()==222873 || gsVertex.getSequenceIndex()==52006; 
+		//boolean debug = gsVertex.getSequenceIndex()==9843 || gsVertex.getSequenceIndex()== 145705 || gsVertex.getSequenceIndex()==30853;
+		//boolean debug = gsVertex.getSequenceIndex()==990 || gsVertex.getSequenceIndex()==125 || gsVertex.getSequenceIndex()==511; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);
@@ -855,9 +855,12 @@ public class AssemblyGraphStatistics {
 			for(AssemblyEdge nextTestEdge:edges) {
 				if(nextTestEdge.isSameSequenceEdge()) {
 					String readId = nextTestEdge.getVertex1().getRead().getName();
-					int idx = readId.indexOf("_");
+					int idx = readId.lastIndexOf("_");
 					if(idx>0) {
-						sequencesPathCounts.compute(readId.substring(0,idx),(k,v)->v==null?1:v+1);
+						String s1 = readId.substring(0,idx);
+						idx = s1.lastIndexOf("_");
+						//if(nextTestEdge.getVertex1().getRead().getLength()>20000) System.out.println("Parsing read id: Read id"+readId+" s1: "+s1+" idx: "+idx);
+						if(idx>0) sequencesPathCounts.compute(s1.substring(0, idx),(k,v)->v==null?1:v+1);
 					}
 					estimatedLength+= nextTestEdge.getVertex1().getRead().getLength()-lastOverlap;
 				} else lastOverlap = nextTestEdge.getOverlap();
