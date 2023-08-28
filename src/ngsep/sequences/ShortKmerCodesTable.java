@@ -307,10 +307,20 @@ public class ShortKmerCodesTable {
 	}
 
 	private int getHash(long dnaHash) {
+
+		long range = (long)(Math.pow(2, Long.toBinaryString(dnaHash).length())-1);
 		int prime = 1073676287;
 		//if(kmersAnalyzer!=null) {
 		if(kmersAnalyzer==null) {
-			long answer = (dnaHash+1)%prime;
+
+			long answer = (~dnaHash +(dnaHash << 21)) & range;
+			answer = (answer ^ answer >> 24);
+			answer = (answer + (answer << 3) + (answer << 8)) & range;
+			answer = (answer ^ answer >> 14);
+			answer = (answer + (answer << 2) + (answer << 4)) & range;
+			answer = (answer ^ answer >> 28);
+			answer = (answer + (answer << 31)) & range;
+
 			return (int) answer;
 		}
 		int count;
