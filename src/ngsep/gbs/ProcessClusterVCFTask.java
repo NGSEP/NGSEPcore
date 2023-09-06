@@ -50,7 +50,6 @@ public class ProcessClusterVCFTask extends Thread {
 	private VCFFileWriter vcfWriter;
 	private PrintStream outVariants;
 	private PrintStream outConsensus = null;
-	private PrintStream clusterDetails = null;
 	private boolean isPairedEnd;
 	
 	private KmerPrefixReadsClusteringAlgorithm parent;
@@ -88,9 +87,6 @@ public class ProcessClusterVCFTask extends Thread {
 			synchronized (outConsensus) {
 				writeConsensusFasta();
 				vcfWriter.printVCFRecords(generatedRecords, outVariants);
-				if(clusterDetails != null) {
-					writeClusterDetails();
-				}
 			}
 		}
 		
@@ -100,10 +96,6 @@ public class ProcessClusterVCFTask extends Thread {
 		}
 		
 		hasFinished = true;
-	}
-	
-	private void writeClusterDetails() {
-		clusterDetails.println(readCluster.getClusterNumber()+"\t"+readCluster.getNumberOfTotalReads());
 	}
 
 	private List<VCFRecord> generateRecordsForCluster() {
