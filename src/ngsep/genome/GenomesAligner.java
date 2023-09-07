@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.transcriptome.Gene;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 import ngsep.transcriptome.io.GFF3TranscriptomeHandler;
@@ -717,27 +719,56 @@ public class GenomesAligner {
 			try (PrintStream outD3Linear = new PrintStream(outputPrefix+"_linearOrthologView.html");) {
 				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", jsFilename, 5);
 			}
-			printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt", jsFilename);
+			printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt", outputPrefix +"_SynvisioCollinearity.txt", jsFilename);
+			printSynVisioAnnotFile(outputPrefix+"_SynvisioAnnot.txt");
 			/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
 				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
 			}*/
 		}
-		
 
-
-		
-		
 	}
 	
+	private void printSynVisioAnnotFile(String synvisioAnnotFilename) throws IOException
+	{
+		try (PrintStream outSynvisioAnnot = new PrintStream(synvisioAnnotFilename))
+		{
+			for(AnnotatedReferenceGenome genome:genomes) {
+				Transcriptome transcriptome = genome.getTranscriptome();
+				List<Gene> genesGenome = transcriptome.getAllGenes();
+				for (Gene gene:genesGenome)
+				{
+					String line = gene.getSequenceName() + "\t" + gene.getId() + "\t" + gene.getFirst() + "\t" + gene.getLast();
+					outSynvisioAnnot.println(line);
+				}
+				
+			}
+		}
+	}
 	/**
 	 * Print synteny blocks
 	 */
-	private void printSyntenyBlocks(String outFilename, String jsFilename) throws IOException {
+	private void printSyntenyBlocks(String outFilename, String synvisioFilename, String jsFilename) throws IOException {
 		try (PrintStream outSynteny = new PrintStream(outFilename);
+			 PrintStream outCollinearity = new PrintStream(synvisioFilename);
 			 PrintStream outJS = new PrintStream(new FileOutputStream(jsFilename, true));){
-			String headers = "BlockId\tGenomeId1\tSequenceName1\tSequenceLength1\tStart1\tEnd1\tGenomeId2\tSequenceName2\tSequenceLength2\tStart2\tEnd2";
-			outSynteny.println(headers);
+			 String headers = "BlockId\tGenomeId1\tSequenceName1\tSequenceLength1\tStart1\tEnd1\tGenomeId2\tSequenceName2\tSequenceLength2\tStart2\tEnd2";
+			 outSynteny.println(headers);
 			outJS.println("const syntenyBlocks = [");
+			
+			String colHeader = "############### Parameters ###############\n"+
+					"# MATCH_SCORE: 0\n" +
+					"# MATCH_SIZE: 0\n" +
+					"# GAP_PENALTY: 0\n" +
+					"# OVERLAP_WINDOW: 0\n" +
+					"# E_VALUE: 0\n" +
+					"# MAX GAPS: 0\n" +
+					"############### Statistics ###############\n" +
+					"# Number of collinear genes: 0, Percentage: 0\n" +
+					"# Number of all genes: 0\n" +
+					"##########################################";
+			outCollinearity.println(colHeader);
+			
+			
 			for(int i=0;i<orthologsSyntenyBlocks.size();i++) {
 				PairwiseSyntenyBlock sb = orthologsSyntenyBlocks.get(i);
 				int id = i+1;
@@ -749,6 +780,38 @@ public class GenomesAligner {
 				String line = id+"\t"+sb.getGenomeId1()+"\t"+ r1.getSequenceName() + "\t" + length1 + "\t" + r1.getFirst() +  "\t" + r1.getLast();
 				line+= "\t"+sb.getGenomeId2()+"\t"+r2.getSequenceName() + "\t" + length2 + "\t" + r2.getFirst() +  "\t" + r2.getLast()+ "\t"+orientation;
 				outSynteny.println(line);
+				
+				
+				String line2 = "## Alignment "+i+": score=10000 e_value=0 N="+sb.getHomologies().size()+" "+r1.getSequenceName()+"&"+r2.getSequenceName()+" ";
+				if(orientation=='-')
+					line2+="minus";
+				else
+					line2+="plus";
+				outCollinearity.println(line2);
+				
+				int countGenes=0;
+				//Printing of homology units that form the synteny block.
+				for (SyntenyVertex vertex : sb.getHomologies()) {
+					LocalHomologyCluster c1 = vertex.getLocalRegion1();
+					LocalHomologyCluster c2 = vertex.getLocalRegion2();
+					line2="  "+i+"-";
+					if(countGenes<10)
+						line2 += "  "+countGenes+":\t";
+					else if (countGenes<100)
+						line2 += " "+countGenes+":\t";
+					else
+						line2 += countGenes+":\t";
+					//for(HomologyUnit u1:c1.getHomologyUnitsCluster())
+					line2+=c1.getHomologyUnitsCluster().get(0).getId();
+					line2+="\t";
+					//for(HomologyUnit u2:c2.getHomologyUnitsCluster()) 
+					line2+=c2.getHomologyUnitsCluster().get(0).getId();
+					line2 +="\t0";
+					outCollinearity.println(line2);
+					countGenes++;
+				}
+				
+				
 				if(sb.getGenomeId1()==1 && sb.getGenomeId2()==2) {
 					outJS.println("{genomeIdG1: "+sb.getGenomeId1()
 					+", chromosomeG1: '"+r1.getSequenceName()+"'"
