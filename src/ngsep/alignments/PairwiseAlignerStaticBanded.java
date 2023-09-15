@@ -20,7 +20,7 @@
 package ngsep.alignments;
 
 import java.util.HashMap;
-import java.util.Objects;
+import java.util.Map;
 
 import ngsep.sequences.LimitedSequence; 
 
@@ -31,219 +31,135 @@ import ngsep.sequences.LimitedSequence;
  */
 public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 
-    private int match =1; 
+	private int match =1; 
 
-    private int mismatch = 1; 
+	private int mismatch = 1; 
 
-    private int  indel = 2; 
+	private int  indel = 2; 
 
-    private HashMap<Tuple,Integer> nodes = new HashMap<>(); 
-
-    private int k = 3; 
-    
-    
+	private int band = 10;
+	
+	public PairwiseAlignerStaticBanded () {}
+	public PairwiseAlignerStaticBanded (int band) {
+		this.band = band;
+	}
    
 
-    public int getK() {
-		return k;
+	public int getBand() {
+		return band;
 	}
-
-	public void setK(int k) {
-		this.k = k;
+	public void setBand(int band) {
+		this.band = band;
 	}
-
 	@Override
-    public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2 ) {
-        // sequence1.length()> sequence2.length()-> Right definition of 
-
-        if (checkminK(sequence1, sequence2)){
-            calculateHashMap(sequence1, sequence2);
-            return aligenedSequences(sequence1, sequence2); 
-        }else{
-            throw new RuntimeException("K value is not possible"); 
-        }
+	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2 ) {
+		Map<Integer,Integer> dp = calculateHashMap(sequence1, sequence2);
+        return alignSequences(dp, sequence1, sequence2);
     }
 	
-	public int getMaxScore(CharSequence sequence1, CharSequence sequence2 ) {
+	private Map<Integer,Integer> calculateHashMap(CharSequence sequence1, CharSequence sequence2) {
+		boolean debug = false;
+		int n1 = sequence1.length();
+		int n2 = sequence2.length();
 		
-			return nodes.get(new Tuple(sequence1.length(),sequence2.length())); 
-
-	}
-	
-    private void calculateHashMap(CharSequence sequence1, CharSequence sequence2){
-    	 int i = sequence1.length();
-         int j = sequence2.length();
-         
-
-        //Set node 0,0 
-        nodes.put(new Tuple(0,0), 0); 
-        //Set other nodes
-        for (int row = 0; row <sequence1.length()+1; row++ ){
-            for (int col = Math.max(0,row-this.k) ; col<Math.min(k+row+1, sequence2.length()+1); col++){
-            	if (row == 0 && col == 0 ){
-                 
-                }else if (row == 0 && col <=this.k ){
-                	
-                    nodes.put(new Tuple(row,col), nodes.get(new Tuple(row, col-1))+ insertionCost(sequence1.charAt(row), sequence2.charAt(col-1))); 
-
-                }else if (col == 0 && row != 0 ){
-                	
-                    nodes.put(new Tuple(row,col), nodes.get(new Tuple (row-1, col))+deletionCost(sequence1.charAt(row-1), sequence2.charAt(col))); 
-
-                }else if(col-row ==this.k){
-       
-                	
-                	int maxNum = Math.max(nodes.get(new Tuple(row-1,col-1))+matchMismatchCost(sequence1.charAt(row-1), sequence2.charAt(col-1)), 
-      					  				  nodes.get(new Tuple(row, col-1))+insertionCost(sequence1.charAt(row-1), sequence2.charAt(col-1)));
-                	nodes.put(new Tuple(row,col),maxNum); 
-          
-                	
-                	
-                }else if(row-col==this.k){
-                	
-                	int maxNum = Math.max(nodes.get(new Tuple(row-1,col-1))+matchMismatchCost(sequence1.charAt(row-1), sequence2.charAt(col-1)), 
-                						  nodes.get(new Tuple (row-1, col))+deletionCost(sequence1.charAt(row-1), sequence2.charAt(col-1)));
-                	nodes.put(new Tuple(row,col),maxNum); 
-                	
-                }else{
-         
-                	
-                    int maxNum = Math.max(nodes.get(new Tuple(row-1,col-1))+matchMismatchCost(sequence1.charAt(row-1), sequence2.charAt(col-1)), 
-                    					  nodes.get(new Tuple(row, col-1))+insertionCost(sequence1.charAt(row-1), sequence2.charAt(col-1))); 
-                    maxNum = Math.max(maxNum, nodes.get(new Tuple (row-1, col))+deletionCost(sequence1.charAt(row-1), sequence2.charAt(col-1))); 
-                    nodes.put(new Tuple(row,col),maxNum); 
-
+		int alignmentBand = Math.max(band, 3*Math.abs(n1-n2));
+		if(debug) System.out.println("N1: "+n1+" N2: "+n2+" band: "+alignmentBand);
+		Map<Integer,Integer> dp = new HashMap<>(n1);
+		for (int row = 0; row <=n1; row++ ) {
+			int firstCol = Math.max(0,row-alignmentBand);
+			int lastCol = Math.min(row+alignmentBand, sequence2.length());
+			for (int col = firstCol ; col<=lastCol; col++) {
+				if (row == 0 && col == 0 ){
+					dp.put(getHash(n1, 0, 0), 0);
+				} else if (row == 0){
+					dp.put(getHash(n1, row,col), dp.get(getHash(n1, row, col-1))+ insertionCost(sequence2.charAt(col-1)));
+				} else if (col == 0){
+					dp.put(getHash(n1, row,col), dp.get(getHash(n1, row-1, col))+deletionCost(sequence1.charAt(row-1)));
+				} else {
+					Integer diagonal = dp.get(getHash(n1, row-1, col-1));
+					Integer up = dp.get(getHash(n1, row-1, col));
+					Integer left = dp.get(getHash(n1, row, col-1));
+					char c1 = sequence1.charAt(row-1);
+					char c2 = sequence2.charAt(col-1);
+					if(debug && diagonal == null) System.out.println("Diagonal not calculated");
+					if(debug && up == null) System.out.println("Up not calculated");
+					if(debug && left == null) System.out.println("Left not calculated");
+					int maxNum = -n1*n2;
+					if(diagonal!=null) maxNum = diagonal+matchMismatchCost(c1, c2); 
+					if(up!=null) maxNum = Math.max(maxNum, up+deletionCost(c1)); 
+					if(left!=null) maxNum = Math.max(maxNum, left+insertionCost(c2));
+					if(debug && getHash(n1,row,col) == 145160) System.out.println("row: "+row+" col: "+col);
+					dp.put(getHash(n1,row,col),maxNum);
+					if(debug && row==379 && col==761) System.out.println("hash: "+getHash(n1, row, col)+" score: "+maxNum+" diag: "+diagonal+" left: "+left+" up: "+up+" c1: "+c1+" c2: "+c2);
                 }
-
             }
         }
-
+		if(debug) System.out.println("Final score: "+dp.get(getHash(n1, n1, n2)));
+		return dp;
     }
-
-    private String[] aligenedSequences(CharSequence sequence1, CharSequence sequence2){
-
-        int i = sequence1.length();
-        int j = sequence2.length();
-        
-
-
-        StringBuffer ns1 = new StringBuffer();
+	private String[] alignSequences(Map<Integer,Integer> dp, CharSequence sequence1, CharSequence sequence2) {
+		int n1 = sequence1.length();
+		int n2 = sequence2.length();
+		int i = n1;
+		int j = n2;
+		
+		StringBuffer ns1 = new StringBuffer();
 		StringBuffer ns2 = new StringBuffer();
-
-        while (j>0 || i>0){
-            int actual = nodes.get(new Tuple(i,j)); 
-            if (i==0 && j!=0){
-                ns1.append(LimitedSequence.GAP_CHARACTER); 
-                ns2.append(sequence2.charAt(j-1)); 
-                j--;
-            }else if(j==0 && i!=0 ){
-                ns1.append(sequence1.charAt(i-1)); 
-                ns2.append(LimitedSequence.GAP_CHARACTER); 
-                i--; 
-            }else if (actual == nodes.get(new Tuple(i-1,j-1))+matchMismatchCost(sequence1.charAt(i-1), sequence2.charAt(j-1))){
-                
-            	
-            	ns1.append(sequence1.charAt(i-1)); 
-                ns2.append(sequence2.charAt(j-1)); 
-                j--; 
-                i--; 
-            }else if ((j-i == this.k)&&(actual == nodes.get(new Tuple(i, j-1))+insertionCost(sequence1.charAt(i-1), sequence2.charAt(j-1)))){
-                ns1.append(LimitedSequence.GAP_CHARACTER); 
-                ns2.append(sequence2.charAt(j-1)); 
-                j--;
-            }else if ((i-j == this.k ) && (actual == nodes.get(new Tuple (i-1, j))+deletionCost(sequence1.charAt(i-1), sequence2.charAt(j-1)))){
-                ns1.append(sequence1.charAt(i-1)); 
-                ns2.append(LimitedSequence.GAP_CHARACTER); 
-                i--; 
-            }
-            else if ((j-i != this.k) &&(i-j != this.k )) {
-            	if(actual == nodes.get(new Tuple(i, j-1))+insertionCost(sequence1.charAt(i-1), sequence2.charAt(j-1))) {
-            		ns1.append(LimitedSequence.GAP_CHARACTER); 
-                    ns2.append(sequence2.charAt(j-1)); 
-                    j--;
-            	}else if (actual == nodes.get(new Tuple (i-1, j))+deletionCost(sequence1.charAt(i-1), sequence2.charAt(j-1))) {
-            		ns1.append(sequence1.charAt(i-1)); 
-                    ns2.append(LimitedSequence.GAP_CHARACTER); 
-                    i--; 
-            		
-            	}else throw new RuntimeException("Unexpected score error at "+i+" "+j); 
-
-            	
-            }else throw new RuntimeException("Unexpected score error at "+i+" "+j); 
-            }
-        String[] seqs = new String[2]; 
-        seqs[0] = ns1.reverse().toString();
-        seqs[1] = ns2.reverse().toString();
-        return seqs;
-
-        
-
-
-
-    }
-    
-
-    private int insertionCost(char l1, char l2){
-        return -indel; 
-
-    }
-    private int deletionCost(char l1, char l2){
-        return -indel; 
-
-    }
-    private int matchMismatchCost(char l1, char l2){
-        if (l1 == l2){
-            return match;
-
-        }else{
-            return -mismatch; 
-        }
-
-    }
-
-
-
-    private boolean checkminK(CharSequence sequence1, CharSequence sequence2){
-        return this.k!=0 &&((this.k>= sequence1.length()-sequence2.length())||(this.k>= sequence2.length()-sequence1.length()));
-    }
-    
-}
-
-class Tuple{
-    private int num1; 
-    private int num2; 
-
-    public Tuple(int num1, int num2){
-        this.num1 = num1; 
-        this.num2 = num2; 
-    }
-
-    public int getNum1(){
-        return num1; 
-    }
-    public int getNum2(){
-        return num2; 
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
-        Tuple other = (Tuple) o ; 
-        return num1 == other.num1 && num2 == other.num2; 
-
-    }
-    @Override
-    public int hashCode(){
-        return Objects.hash(num1,num2); 
-    }
-
-	@Override
-	public String toString() {
-		return "Tuple [num1=" + num1 + ", num2=" + num2 + "]";
+		while (j>0 || i>0){
+			int actual = dp.get(getHash(n1, i,j)); 
+			if (i==0 && j>0){
+				ns1.append(LimitedSequence.GAP_CHARACTER); 
+				ns2.append(sequence2.charAt(j-1)); 
+				j--;
+			} else if(j==0 && i>0 ){
+				ns1.append(sequence1.charAt(i-1));
+				ns2.append(LimitedSequence.GAP_CHARACTER);
+				i--;
+			} else {
+				Integer diagonal = dp.get(getHash(n1, i-1, j-1));
+				Integer up = dp.get(getHash(n1, i-1, j));
+				Integer left = dp.get(getHash(n1, i, j-1));
+				char c1 = sequence1.charAt(i-1);
+				char c2 = sequence2.charAt(j-1);
+				if(diagonal!=null && actual == diagonal+matchMismatchCost(c1,c2)) {
+					ns1.append(c1);
+					ns2.append(c2);
+					j--; 
+					i--;
+				} else if (up!=null && actual == up+deletionCost(c1)) {
+					ns1.append(sequence1.charAt(i-1)); 
+					ns2.append(LimitedSequence.GAP_CHARACTER);
+					i--;
+				} else if (left!=null && actual == left+insertionCost(c1)) {
+					ns1.append(LimitedSequence.GAP_CHARACTER);
+					ns2.append(sequence2.charAt(j-1));
+					j--;
+				} else {
+					throw new RuntimeException("Reached position without calculation. "+i+" "+j+" score: "+actual+" diag: "+diagonal+" left: "+left+" up: "+up+" c1: "+c1+" c2: "+c2);
+				}
+			}
+		}
+		String[] seqs = new String[2]; 
+		seqs[0] = ns1.reverse().toString();
+		seqs[1] = ns2.reverse().toString();
+		return seqs;
 	}
 
-
+	private int insertionCost(char l1) {
+		return -indel; 
+	}
+	private int deletionCost(char l1) {
+		return -indel;
+	}
+	private int matchMismatchCost(char l1, char l2){
+		if (l1 == l2){
+			return match;
+		} else {
+			return -mismatch;
+		}
+	}
+	public int getHash (int l1, int i, int j) {
+		return (""+i+"-"+j).hashCode();
+		//return j*l1+i;
+	}    
 }

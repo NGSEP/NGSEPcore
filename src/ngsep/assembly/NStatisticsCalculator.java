@@ -1,11 +1,22 @@
 package ngsep.assembly;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import ngsep.genome.ReferenceGenome;
+import ngsep.sequences.QualifiedSequence;
+
 public class NStatisticsCalculator {
+	public static void main(String[] args) throws Exception {
+		ReferenceGenome genome = new ReferenceGenome(args[0]);
+		List<Integer> lengths = new ArrayList<>(genome.getNumSequences());
+		for(QualifiedSequence seq:genome.getSequencesMetadata()) lengths.add(seq.getLength());
+		long [] stats = calculateNStatistics(lengths);
+		printNStatistics(stats, System.out);
+	}
 	public static long[] calculateNStatistics(List<Integer> numbers) {
 		long [] answer = new long [10];
 		Arrays.fill(answer, 0);

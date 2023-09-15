@@ -54,6 +54,11 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 			alignerStart = new PairwiseAlignerDynamicKmers();
 			alignerEnd = new PairwiseAlignerDynamicKmers();
 		}
+		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_STATIC_BAND) {
+			alignerCenter = new PairwiseAlignerStaticBanded(50);
+			alignerStart = new PairwiseAlignerStaticBanded(50);
+			alignerEnd = new PairwiseAlignerStaticBanded(50);
+		}
 		if(alignmentAlgorithm == ALIGNMENT_ALGORITHM_SIMPLE_GAP) {
 			alignerCenter = new PairwiseAlignerSimpleGap(maxLengthFullPairwiseAlignment+1);
 			alignerStart = new PairwiseAlignerSimpleGap(maxLengthEndsPairwiseAlignment);

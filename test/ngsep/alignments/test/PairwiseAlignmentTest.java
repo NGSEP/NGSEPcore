@@ -6,7 +6,6 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
-import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignerStaticBanded;
 import ngsep.sequences.DNASequence;
@@ -63,106 +62,66 @@ public class PairwiseAlignmentTest extends TestCase {
     }
 	
 	
-	public void loadTwoSequences() {
-		String file = "./dataTest/"+"exampleFLOGenes.fa"; 
+	public List<QualifiedSequence> loadSequences() throws IOException {
+		String file = "./dataTest/exampleFLOGenes.fa"; 
 		
 		FastaSequencesHandler reader = new FastaSequencesHandler(); 
 		reader.setSequenceType(DNASequence.class);
 		reader.setKeepLowerCase(false);
-		List<QualifiedSequence> sequences; 
-		
-		try {
-		sequences = reader.loadSequences(file);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			sequences = null; 
-		} 
-		Random rand = new Random(); 
-		int i = rand.nextInt(sequences.size()); 
-		int j = rand.nextInt(sequences.size()); 
-
-		
-		
-		seq1 = sequences.get(i).getCharacters(); 
-		seq2 = sequences.get(j).getCharacters(); 
-		
+		return reader.loadSequences(file);
 	}
 	
 	//Create test with JUnit cases 
-	public void testPairwiseAlignmentStaticBanded() {
+	public void testPairwiseAlignmentStaticBanded() throws IOException {
 		
 		//Create Aligners
-				PairwiseAlignerStaticBanded aligner1 = new PairwiseAlignerStaticBanded(); 
-				PairwiseAlignerSimpleGap aligner2 = new PairwiseAlignerSimpleGap();
-				PairwiseAlignerDynamicKmers aligner3 = new PairwiseAlignerDynamicKmers();
+		PairwiseAlignerStaticBanded aligner1 = new PairwiseAlignerStaticBanded(); 
+		PairwiseAlignerSimpleGap aligner2 = new PairwiseAlignerSimpleGap();
 				
 		//Get random sequence
-	
-
-			double deltaMax = 10*0.01;
-			double deltaMin = (0)*0.01;
-			int cases = 50; 
-
-			int smallError = 0; 
-			for (int i = 0; i<cases; i++) {
+		Random rand = new Random();
+		List<QualifiedSequence> sequences = loadSequences();
+		double deltaMax = 10*0.01;
+		double deltaMin = (0)*0.01;
+		int cases = 50; 
+		int smallError = 0;
+		for (int c = 0; c<cases; c++) {
 				
-				
-				loadTwoSequences(); 
-				//System.err.println("Testing alignments");
-				//Banded Alignment
-					//Set K-band value-Positive number
-				int k = seq1.length()-seq2.length(); 
-
-				if (k<0) {
-					k = -k; 
-					aligner1.setK(k);
-				}else if (k == 0) {
-					aligner1.setK(seq1.length()/4);
-				}else {
-					aligner1.setK(k);
-					
-				}
-				
-				String []aln1 = aligner1.calculateAlignment(seq1, seq2);
-				System.out.println(aln1[0]+"\n"+aln1[1]);
-				
-				int maxScoreAligner1 = aligner1.getMaxScore(seq1, seq2);
-				//Score static banded
-	
-				maxScoreAligner1 = FindScore(aln1[0],aln1[1]); 
-
 			
-				//Simple Gap Alignment
-				String [] aln2 = aligner2.calculateAlignment(seq1,seq2);
-				System.out.println(aln2[0]+"\n"+aln2[1]);
-				
-				//Score simple gap
-				int maxScoreAligner2 = FindScore(aln2[0],aln2[1]); 
-				
-				//System.out.println(maxScoreAligner1+" "+maxScoreAligner2);
-				
-				double delta = Math.abs(maxScoreAligner2- maxScoreAligner1) ; 
-				System.out.println(delta/Math.abs(maxScoreAligner2));
-				
-				assertTrue((delta/Math.abs(maxScoreAligner2))<0.1);
+			int i = rand.nextInt(sequences.size()); 
+			int j = rand.nextInt(sequences.size());
+			//int i=36;
+			//int j=38;
+			seq1 = sequences.get(i).getCharacters(); 
+			seq2 = sequences.get(j).getCharacters(); 
+			//System.err.println("Testing alignments");
+			//Banded Alignment
+			//Set K-band value-Positive number
+			
+			System.out.println("Starting alignments. P1: "+i+" Name1: "+sequences.get(i).getName()+ " L1: "+seq1.length()+" P2: "+j+" Name 2: "+sequences.get(j).getName()+" L2: "+seq2.length());
+			String [] aln1 = aligner1.calculateAlignment(seq1, seq2);
+			System.out.println(aln1[0]+"\n"+aln1[1]);
+			
+			//Score static banded
 
-			}
-		
-		
-		
-		
-		
-		
-	
-		
-		
-		 
+			int maxScoreAligner1 = FindScore(aln1[0],aln1[1]); 
 
 		
+			//Simple Gap Alignment
+			String [] aln2 = aligner2.calculateAlignment(seq1,seq2);
+			System.out.println(aln2[0]+"\n"+aln2[1]);
+			
+			//Score simple gap
+			int maxScoreAligner2 = FindScore(aln2[0],aln2[1]); 
+			
+			//System.out.println(maxScoreAligner1+" "+maxScoreAligner2);
+			
+			double delta = Math.abs(maxScoreAligner2- maxScoreAligner1) ; 
+			System.out.println("L1: "+seq1.length()+" L2: "+seq2.length()+" score 1: "+maxScoreAligner1+" score 2: "+maxScoreAligner2+" Delta: "+ delta/Math.abs(maxScoreAligner2));
+			
+			assertTrue((delta/Math.abs(maxScoreAligner2))<0.1);
 
-
-		
+		}
 		
 		/*
 		

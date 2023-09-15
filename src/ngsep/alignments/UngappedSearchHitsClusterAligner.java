@@ -30,6 +30,7 @@ public interface UngappedSearchHitsClusterAligner {
 	public static final int ALIGNMENT_ALGORITHM_SIMPLE_GAP = 3;
 	public static final int ALIGNMENT_ALGORITHM_NAIVE = 4;
 	public static final int ALIGNMENT_ALGORITHM_SHORT_READS = 5;
+	public static final int ALIGNMENT_ALGORITHM_STATIC_BAND = 6;
 	/**
 	 * Performs the alignment process to build a read alignment from a cluster of ungapped hits
 	 * @param query sequence to be aligned
