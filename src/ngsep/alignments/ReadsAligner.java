@@ -336,6 +336,7 @@ public class ReadsAligner {
 		factory.setFmIndex(fMIndex);
 		if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		//if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_STATIC_BAND);
+		//if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SIMPLE_GAP);
 		else factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SHORT_READS);
 		factory.requestClustersFinder();
 		//System.out.println("Long reads: "+platform.isLongReads());
