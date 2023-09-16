@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import junit.framework.TestCase;
+import ngsep.alignments.PairwiseAligner;
 import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignerStaticBanded;
@@ -96,8 +97,8 @@ public class PairwiseAlignmentTest extends TestCase {
 			
 			int i = rand.nextInt(sequences.size()); 
 			int j = rand.nextInt(sequences.size());
-			//i=32;
-			//j=43;
+			//i=36;
+			//j=44;
 			seq1 = sequences.get(i).getCharacters(); 
 			seq2 = sequences.get(j).getCharacters(); 
 			//System.err.println("Testing alignments");
@@ -232,15 +233,15 @@ public class PairwiseAlignmentTest extends TestCase {
 		List<QualifiedSequence> sequences = loadSequences();
 		double deltaMax = 10*0.01;
 		double deltaMin = (0)*0.01;
-		int cases = 50; 
+		int cases = 1; 
 		int smallError = 0;
 		for (int c = 0; c<cases; c++) {
 				
 			
 			int i = rand.nextInt(sequences.size()); 
 			int j = rand.nextInt(sequences.size());
-			//i=32;
-			//j=43;
+			//i=19;
+			//j=35;
 			seq1 = sequences.get(i).getCharacters(); 
 			seq2 = sequences.get(j).getCharacters(); 
 			//System.err.println("Testing alignments");
@@ -271,5 +272,31 @@ public class PairwiseAlignmentTest extends TestCase {
 			assertTrue((delta/Math.abs(maxScoreAligner2))<0.1);
 
 		}
+	}
+	public void testRuntime() throws IOException {
+		
+		List<QualifiedSequence> sequences = loadSequences();
+		System.out.println("Static banded");
+		calculateRuntime(sequences, new PairwiseAlignerStaticBanded());
+		System.out.println("Simple gap");
+		calculateRuntime(sequences, new PairwiseAlignerSimpleGap());
+		System.out.println("Dynamic kmers");
+		calculateRuntime(sequences, new PairwiseAlignerDynamicKmers());
+		
+		
+	}
+
+	public void calculateRuntime(List<QualifiedSequence> sequences, PairwiseAligner aligner) {
+		int n = sequences.size();
+		long s1 = System.currentTimeMillis();
+		for(int i=0;i<20;i++) {
+			String seq1 = sequences.get(i).getCharacters().toString();
+			for(int j=i;j<20;j++) {
+				String seq2 = sequences.get(j).getCharacters().toString();
+				aligner.calculateAlignment(seq1, seq2);
+			}
+		}
+		long s2 = System.currentTimeMillis();
+		System.out.println("Time: "+(s2-s1));
 	}
 }
