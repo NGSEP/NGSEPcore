@@ -37,7 +37,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 
 	private int  indel = 2; 
 
-	private int band = 15;
+	private int band = 20;
 	
 	public PairwiseAlignerStaticBanded () {}
 	public PairwiseAlignerStaticBanded (int band) {
@@ -62,8 +62,8 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		boolean debug = false;
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
-		int alignmentBand = band;
-		//int alignmentBand = Math.max(band, Math.abs(n1-n2));
+		//int alignmentBand = band;
+		int alignmentBand = Math.max(band, 5*Math.abs(n1-n2));
 		if(debug) System.out.println("N1: "+n1+" N2: "+n2+" band: "+alignmentBand);
 		Map<Integer,Integer> dp = new HashMap<>(n1*band);
 		for (int row = 0; row <=n1; row++ ) {
