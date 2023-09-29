@@ -1,4 +1,4 @@
-package ngsep.clustering.dendrogram;
+package ngsep.clustering;
 
 public class DendrogramEdge {
 

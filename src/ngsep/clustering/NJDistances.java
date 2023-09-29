@@ -1,6 +1,4 @@
-package ngsep.clustering.nj;
-
-import ngsep.clustering.Pair;
+package ngsep.clustering;
 
 /**
  * Utility class containing methods to calculate distances

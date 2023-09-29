@@ -1,4 +1,4 @@
-package ngsep.clustering.msa;
+package ngsep.alignments;
 
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequenceList;

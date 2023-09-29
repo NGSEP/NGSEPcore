@@ -1,4 +1,4 @@
-package ngsep.clustering.nj;
+package ngsep.clustering;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -6,10 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import ngsep.clustering.DistanceMatrix;
-import ngsep.clustering.DistanceMatrixClustering;
-import ngsep.clustering.Pair;
-import ngsep.clustering.dendrogram.Dendrogram;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 

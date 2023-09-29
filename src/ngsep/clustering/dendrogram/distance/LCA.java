@@ -1,7 +1,7 @@
 package ngsep.clustering.dendrogram.distance;
 
+import ngsep.clustering.Dendrogram;
 import ngsep.clustering.Pair;
-import ngsep.clustering.dendrogram.Dendrogram;
 
 import java.util.List;
 

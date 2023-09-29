@@ -1,9 +1,4 @@
-package ngsep.clustering.nj;
-
-import ngsep.clustering.DistanceMatrix;
-import ngsep.clustering.DistanceMatrixClustering;
-import ngsep.clustering.Pair;
-import ngsep.clustering.dendrogram.Dendrogram;
+package ngsep.clustering;
 
 import java.util.*;
 import java.util.function.BiFunction;

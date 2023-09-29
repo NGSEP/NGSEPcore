@@ -1,9 +1,5 @@
-package ngsep.clustering.upgma;
+package ngsep.clustering;
 
-import ngsep.clustering.DistanceMatrix;
-import ngsep.clustering.DistanceMatrixClustering;
-import ngsep.clustering.dendrogram.Dendrogram;
-import ngsep.clustering.dendrogram.DendrogramEdge;
 import ngsep.main.ProgressNotifier;
 
 import java.util.ArrayList;

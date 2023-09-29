@@ -1,8 +1,5 @@
 package ngsep.clustering;
 
-import ngsep.clustering.dendrogram.Dendrogram;
-import ngsep.clustering.nj.FastNJ;
-import ngsep.clustering.nj.NeighborJoining;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 
