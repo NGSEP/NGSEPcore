@@ -1495,7 +1495,7 @@ Default: 0.
 </command>
 
 
-<command id="NeighborJoining" class="ngsep.clustering.nj.NeighborJoining" groupId="VariantsDownstream">
+<command id="NeighborJoining" class="ngsep.clustering.NeighborJoining" groupId="VariantsDownstream">
 <intro>
 Construct a neighbor joining dendrogam given a distance matrix file
 </intro>
