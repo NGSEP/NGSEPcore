@@ -270,8 +270,10 @@ public class GenotypeImputer {
 	
 	private void processRecords(List<VCFRecord> currentRecords, List<Sample> samples, List<VCFRecord> lastRecords, VCFFileWriter writer, PrintStream outGenotypes, boolean sequenceChange) {
 		List<VCFRecord> recordsImpute = calculateRecordsImpute (currentRecords,lastRecords);
-		Map<String, List<CalledSNV>> genotypes = convertToCalledGenotypes(samples, recordsImpute);
-		imputeGenotypes(genotypes);
+		if(recordsImpute.size()>3) {
+			Map<String, List<CalledSNV>> genotypes = convertToCalledGenotypes(samples, recordsImpute);
+			imputeGenotypes(genotypes);
+		}
 		int printStart = 0;
 		if(lastRecords.size()>0) {
 			printStart+=overlap;
