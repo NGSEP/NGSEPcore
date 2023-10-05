@@ -686,6 +686,7 @@ public class AssemblyGraph {
 		}
 		
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" ends left: "+hostEvidenceEndsLeft+" starts right: "+hostEvidenceStartsRight);
+		if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0) return false;
 		//if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0 || hostEvidenceStartsRight.size()+numIncompleteEdgesRight<5 || hostEvidenceEndsLeft.size()+numIncompleteEdgesLeft<5 ) return false;
 		//if(numIncompleteEdgesLeft<3 && numIncompleteEdgesRight<3 && (hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3)) return false;
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
