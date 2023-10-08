@@ -3,6 +3,7 @@ package ngsep.clustering;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -87,14 +88,13 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	 * Returns a new List without the elements specified by the pair
 	 * of indices in the given list
 	 * @param xs - List of elements
-	 * @param neighbors - Pair of indices to remove
+	 * @param u - First index to remove
+	 * @param v - Second index to remove
 	 * @param <A> - Parameterized type of the list
 	 * @return A new list without the elements specified by the pair of indices
 	 */
-	private <A> List<A> deleteFromList (List<A> xs, Pair<Integer, Integer> neighbors) {
+	private <A> List<A> deleteFromList (List<A> xs, int u, int v) {
 		int n = xs.size();
-		int u = neighbors.first;
-		int v = neighbors.second;
 		ArrayList<A> ys = new ArrayList<>(n);
 		for (int i = 0; i < n; i++) {
 			if (i != u && i != v) ys.add(xs.get(i));
@@ -109,9 +109,13 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	 * @return A vector from a distance matrix D of size n x n, defined as:
 	 * rowSumVector_i = 1 / (n - 2) * \sum_{j=1}^n D_{i j} for all 1<= i <= n
 	 */
-	private double[] rowSums (double[][] D) {
-		int n = D.length;
+	public static double[] neighborJoiningRowSums (double[][] D) {
+		int n = D.length; 
 		double[] a = new double[n];
+		if(n==2) {
+			Arrays.fill(a,0);
+			return a;
+		}
 		for (int i = 0; i < n; i++) {
 			for (int j = 0; j < n; j++) {
 				a[i] += D[i][j];
@@ -128,43 +132,36 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	 * @param rowSumVector - A vector defined as rowSumVector_i = 1 / (n - 2) * \sum_{j=1}^n D_{i j} for all 1<= i <= n
 	 * @return a pair of nodes (u, v) = argmin_{(i, j)} D_{i j} - rowSumVector_i - rowSumVector_j
 	 */
-	private Pair<Integer, Integer> findNeighbors (
-			double[][] D,
-			double[] rowSumVector
-	) {
+	private int [] findNeighbors (double[][] D,double[] rowSumVector) {
 		int n = D.length;
-		int u = 0;
-		int v = 0;
+		int [] answer = new int[2];
 		double minS = Double.MAX_VALUE;
 		for (int i = 0; i < n; i++) {
 			for (int j = i + 1; j < n; j++) {
 				double S = D[i][j] - rowSumVector[i] - rowSumVector[j];
 				if (S < minS) {
 					minS = S;
-					u = i;
-					v = j;
+					answer[0] = i;
+					answer[1] = j;
 				}
 			}
 		}
-		return new Pair<>(u, v);
+		
+		return answer;
 	}
 
 	/**
 	 *
 	 * @param D - Distance matrix of size n
-	 * @param neighbors - The pair of neighbors (u, v) joined by x
+	 * @param u - first index to join
+	 * @param v second index to join
 	 * @return A new distance matrix D' of size n - 1, in which the nodes/indices
 	 * (u, v) are replaced are merged into a new node x, and is represented as
 	 * the last row (and column) in D'. Distances from x to the other nodes is calculated
 	 * using distanceBetweenNewAndOldNode.
 	 */
-	private double[][] recalculateDistances (
-			double[][] D,
-			Pair<Integer, Integer> neighbors
-	) {
+	private double[][] recalculateDistances (double[][] D, int u, int v) {
 		int n = D.length;
-		int u = neighbors.first;
-		int v = neighbors.second;
 		double[][] newD = new double[n - 1][n - 1];
 
 		int x = 0;
@@ -185,8 +182,7 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		x = 0;
 		for (int i = 0; i < n; i++) {
 			if (i != u && i != v){
-				newD[x][n - 2] = NJDistances
-						.distanceBetweenNewAndOldNode(D, u, v, i);
+				newD[x][n - 2] = NJDistances.distanceBetweenNewAndOldNode(D, u, v, i);
 				newD[n - 2][x] = newD[x][n - 2];
 				x++;
 			}
@@ -198,65 +194,6 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	// Neighbor joining algorithm
 
 	/**
-	 * Receives a list of nodes (trees) and the distance matrix that specifies the pairwise distance
-	 * between each node.
-	 * Runs an iteration of the neighbor joining algorithm, described by the following steps:
-	 * 1. Calculates a vector rowSumVector_i = 1 / (n - 2) * \sum_{j=1}^n D_{i j} for all 1<= i <= n to use
-	 * when finding neighbors and calculating their distances.
-	 * 2. Find a pair of neighbors (u, v) in accordance to the findNeighbors function.
-	 * 3. Join nodes (u, v) to a new node x calculating their distances (dux, dvx).
-	 * 4. Recalculate the labels of the trees and distance matrix taking into account the new merged node x.
-	 * Return the new distance matrix and the new list of trees
-	 * @param matrix - Distance matrix
-	 * @param subtrees - List of node (trees) characterized by the distance matrix
-	 * @return A pair with the new distance matrix and the new list of trees
-	 */
-	private Pair<DistanceMatrix, List<Dendrogram>> runNeighborJoining (
-			DistanceMatrix matrix,
-			List<Dendrogram> subtrees
-	) {
-		double[][] D = matrix.getDistances();
-		int n = D.length;
-		List<String> names = matrix.getIds();
-		double[] rowSumVector = n == 2 ? new double[]{0, 0} : rowSums(D);
-		Pair<Integer, Integer> neighbors = findNeighbors(D, rowSumVector);
-		int u = neighbors.first;
-		int v = neighbors.second;
-		String newNodeName = names.get(u) + "!" + names.get(v);
-		double distance1 = 0.5 * D[u][v];
-		double distance2 = 0.5 * D[u][v];
-		if(n>2) {
-			double [] distances = NJDistances.distanceBetweenNeighbors(D, rowSumVector, u,v);
-			distance1 = distances[0];
-			distance2 = distances[1];
-		}
-				
-		Dendrogram newNode = Dendrogram.join2(newNodeName, subtrees.get(u), distance1, subtrees.get(v), distance2);
-
-		List<String> newNames = deleteFromList(names, neighbors);
-		newNames.add(newNodeName);
-		List<Dendrogram> newSubtrees = deleteFromList(subtrees, neighbors);
-		newSubtrees.add(newNode);
-		double[][] newD = recalculateDistances(D, neighbors);
-		return new Pair<>(
-				new DistanceMatrix(newNames, newD),
-				newSubtrees
-		);
-	}
-
-	/**
-	 *
-	 * @param names - The labels of each leaf in the tree to be constructed
-	 * @return The initial set of trees, each one containing only one node
-	 * labeled by the taxa to be clustered
-	 */
-	private List<Dendrogram> initializeSubtrees (List<String> names) {
-		List<Dendrogram> subtrees = new ArrayList<>(names.size());
-		for (String name : names) subtrees.add(new Dendrogram(name));
-		return subtrees;
-	}
-
-	/**
 	 * Clusters a given set of sequences characterized by a pairwise distance
 	 * matrix. Runs the runNeighborJoining function until the resulting list
 	 * of trees is reduced to only one tree.
@@ -265,12 +202,26 @@ public class NeighborJoining implements DistanceMatrixClustering {
 	 */
 	@Override
 	public Dendrogram buildDendrogram(DistanceMatrix distances) {
-		List<Dendrogram> subtrees = initializeSubtrees(distances.getIds());
+		List<String> names = distances.getIds();
+		List<Dendrogram> subtrees = new ArrayList<>(names.size());
+		for (String name : names) subtrees.add(new Dendrogram(name));
 		DistanceMatrix matrix = distances;
+		double[][] D = matrix.getDistances();
 		while (subtrees.size() > 1) {
-			Pair<DistanceMatrix, List<Dendrogram>> njResult = runNeighborJoining(matrix, subtrees);
-			matrix = njResult.first;
-			subtrees = njResult.second;
+			double[] rowSumVector = neighborJoiningRowSums(D);
+			int [] neighbors = findNeighbors(D, rowSumVector);
+			int u = neighbors[0];
+			int v = neighbors[1];
+			Dendrogram d1 = subtrees.get(u);
+			Dendrogram d2 = subtrees.get(u);
+			String newNodeName = d1.getLabel() + "!" + d2.getLabel();
+			double [] neighborDistances = NJDistances.distanceBetweenNeighbors(D, rowSumVector, u,v);
+			DendrogramEdge e1 = new DendrogramEdge(neighborDistances[0], subtrees.get(u));
+			DendrogramEdge e2 = new DendrogramEdge(neighborDistances[1], subtrees.get(v));
+			Dendrogram newNode = new Dendrogram(newNodeName, List.of(e1,e2));
+			subtrees = deleteFromList(subtrees, u, v);
+			subtrees.add(newNode);
+			D = recalculateDistances(D, u, v);
 		}
 		return subtrees.get(0);
 	}

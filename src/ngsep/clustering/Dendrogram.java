@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Queue;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class Dendrogram {
@@ -261,20 +260,5 @@ public class Dendrogram {
 		Dendrogram t =  this.normalize(this, this.getBranchLengthSum());
 		t.generateIds();
 		return t;
-	}
-
-	/**
-	 * Joins a pair of nodes (u, v) to a new node x. Returns the new
-	 * tree with x as the root
-	 * @param name - Label of the new tree x
-	 * @param distances - A pair (dux, dvx) with the distance between u and x, and the distance between v and x respectively
-	 * @param nodes - The pair of trees (u, v) to be joined
-	 * @return A new tree with x as the root
-	 */
-	public static Dendrogram join2 (String name, Dendrogram node1, double distance1, Dendrogram node2, double distance2) {
-		return new Dendrogram(name, List.of(
-				new DendrogramEdge(distance1, node1),
-				new DendrogramEdge(distance2, node2)
-		));
 	}
 }
