@@ -195,11 +195,8 @@ public class FastNJ implements DistanceMatrixClustering {
             x = 0;
             for (int i = 0; i < n; i++) {
                 if (!indexSet.contains(i)) {
-                    newD[x][j] = NJDistances.distanceBetweenNewAndOldNode(
-                            D,
-                            neighbors.get(j - (n - 2 * m)),
-                            i
-                    );
+                	Pair<Integer,Integer> ne = neighbors.get(j - (n - 2 * m));
+                    newD[x][j] = NJDistances.distanceBetweenNewAndOldNode(D, ne.first , ne.second, i);
                     newD[j][x] = newD[x][j];
                     x++;
                 }
@@ -258,13 +255,14 @@ public class FastNJ implements DistanceMatrixClustering {
             int u = x.first;
             int v = x.second;
             String name = newNodeNames.get(i);
-            Pair<Double, Double> distances = n == 2 ?
-                    new Pair<>(0.5 * D[u][v], 0.5 * D[u][v]) :
-                    NJDistances.distanceBetweenNeighbors(D, rowSumVector, x);
-            newNodes.add(Dendrogram.join2(name, distances, new Pair<>(
-                    subtrees.get(u),
-                    subtrees.get(v)
-            )));
+            double distance1 = 0.5 * D[u][v];
+    		double distance2 = 0.5 * D[u][v];
+    		if(n>2) {
+    			double [] distances = NJDistances.distanceBetweenNeighbors(D, rowSumVector, u, v);
+    			distance1 = distances[0];
+    			distance2 = distances[1];
+    		}
+            newNodes.add(Dendrogram.join2(name, subtrees.get(u), distance1, subtrees.get(v), distance2));
         }
 
         Set<Integer> indices = new HashSet<>();

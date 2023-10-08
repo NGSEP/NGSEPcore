@@ -186,7 +186,7 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		for (int i = 0; i < n; i++) {
 			if (i != u && i != v){
 				newD[x][n - 2] = NJDistances
-						.distanceBetweenNewAndOldNode(D, neighbors, i);
+						.distanceBetweenNewAndOldNode(D, u, v, i);
 				newD[n - 2][x] = newD[x][n - 2];
 				x++;
 			}
@@ -223,13 +223,15 @@ public class NeighborJoining implements DistanceMatrixClustering {
 		int u = neighbors.first;
 		int v = neighbors.second;
 		String newNodeName = names.get(u) + "!" + names.get(v);
-		Pair<Double, Double> neighborDistances = n == 2 ?
-				new Pair<>(0.5 * D[u][v], 0.5 * D[u][v]) :
-				NJDistances.distanceBetweenNeighbors(D, rowSumVector, neighbors);
-		Dendrogram newNode = Dendrogram.join2(newNodeName, neighborDistances, new Pair<>(
-				subtrees.get(u),
-				subtrees.get(v)
-		));
+		double distance1 = 0.5 * D[u][v];
+		double distance2 = 0.5 * D[u][v];
+		if(n>2) {
+			double [] distances = NJDistances.distanceBetweenNeighbors(D, rowSumVector, u,v);
+			distance1 = distances[0];
+			distance2 = distances[1];
+		}
+				
+		Dendrogram newNode = Dendrogram.join2(newNodeName, subtrees.get(u), distance1, subtrees.get(v), distance2);
 
 		List<String> newNames = deleteFromList(names, neighbors);
 		newNames.add(newNodeName);

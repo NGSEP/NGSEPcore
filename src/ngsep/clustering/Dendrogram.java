@@ -89,26 +89,6 @@ public class Dendrogram {
 		}
 	}
 
-	public List<List<Pair<Integer, Double>>> toAdjacencyList () {
-		int n = this.size;
-		List<List<Pair<Integer, Double>>> adj = Stream.generate(ArrayList<Pair<Integer, Double>>::new)
-				.limit(n)
-				.collect(Collectors.toList());
-		Queue<Dendrogram> q = new LinkedList<>();
-		q.add(this);
-		while (!q.isEmpty()) {
-			Dendrogram v = q.remove();
-			for (DendrogramEdge e : v.children) {
-				Dendrogram u = e.getDestination();
-				adj.get(v.getId()).add(new Pair<>(
-						u.getId(), e.getWeight()
-				));
-				q.add(u);
-			}
-		}
-		return adj;
-	}
-
 	public List<Dendrogram> getLeaves () {
 		List<Dendrogram> leaves = new ArrayList<>();
 		Queue<Dendrogram> q = new LinkedList<>();
@@ -155,7 +135,7 @@ public class Dendrogram {
 		return children;
 	}
 
-	private static Pair<List<String>, List<String>> separateNewickChildren (String newick) {
+	private static List<List<String>> separateNewickChildren (String newick) {
 		List<String> children = extractNewickChildren(newick);
 		List<String> leaves = new ArrayList<>();
 		List<String> trees = new ArrayList<>();
@@ -170,13 +150,26 @@ public class Dendrogram {
 				leaves.add(trimmed);
 			}
 		}
-		return new Pair<>(leaves, trees);
+		List<List<String>> answer = new ArrayList<>(2);
+		answer.add(leaves);
+		answer.add(trees);
+		return answer;
 	}
 
-	private static Pair<Integer, Dendrogram> fromNewick (int index, String newick) {
-		Pair<List<String>, List<String>> newickChildren = separateNewickChildren(newick);
-		List<String> newickLeaves = newickChildren.first;
-		List<String> newickTrees = newickChildren.second;
+	private static int currentIndex = 0;
+	public static Dendrogram fromNewick (String newick) {
+		int n = newick.length();
+		int end = n - 1;
+		while (newick.charAt(end) != ')') end--;
+		currentIndex = 0;
+		Dendrogram t = fromNewick(currentIndex, newick.substring(0, end + 1));
+		t.generateIds();
+		return t;
+	}
+	private static Dendrogram fromNewick (int index, String newick) {
+		List<List<String>> newickChildren = separateNewickChildren(newick);
+		List<String> newickLeaves = newickChildren.get(0);
+		List<String> newickTrees = newickChildren.get(1);
 		List<DendrogramEdge> edges = new ArrayList<>();
 
 		// Process leaves
@@ -191,33 +184,19 @@ public class Dendrogram {
 		}
 
 		// Process subtrees
-		int currIndex = index;
 		for (String tree: newickTrees) {
 			int lastSemicolon = tree.lastIndexOf(':');
 			String dest = tree.substring(0, lastSemicolon);
-			double weight = Double.parseDouble(
-					tree.substring(lastSemicolon + 1)
-			);
-			Pair<Integer, Dendrogram> indexAndTree = fromNewick(currIndex + 1, dest);
-			currIndex = indexAndTree.first;
-			Dendrogram subtree = indexAndTree.second;
+			double weight = Double.parseDouble(tree.substring(lastSemicolon + 1));
+			currentIndex++;
+			Dendrogram subtree = fromNewick(currentIndex, dest);
 			edges.add(new DendrogramEdge(weight, subtree));
 		}
 
-		return new Pair<>(
-				currIndex,
-				new Dendrogram("T" + index, edges)
-		);
+		return new Dendrogram("T" + index, edges);
 	}
 
-	public static Dendrogram fromNewick (String newick) {
-		int n = newick.length();
-		int end = n - 1;
-		while (newick.charAt(end) != ')') end--;
-		Dendrogram t = fromNewick(0, newick.substring(0, end + 1)).second;
-		t.generateIds();
-		return t;
-	}
+	
 
 	private Dendrogram fromFile (InputStream in) {
 		BufferedReader br = new BufferedReader(new InputStreamReader(in));
@@ -292,18 +271,10 @@ public class Dendrogram {
 	 * @param nodes - The pair of trees (u, v) to be joined
 	 * @return A new tree with x as the root
 	 */
-	public static Dendrogram join2 (
-			String name,
-			Pair<Double, Double> distances,
-			Pair<Dendrogram, Dendrogram> nodes
-	) {
-		double dux = distances.first;
-		double dvx = distances.second;
-		Dendrogram unode = nodes.first;
-		Dendrogram vnode = nodes.second;
+	public static Dendrogram join2 (String name, Dendrogram node1, double distance1, Dendrogram node2, double distance2) {
 		return new Dendrogram(name, List.of(
-				new DendrogramEdge(dux, unode),
-				new DendrogramEdge(dvx, vnode)
+				new DendrogramEdge(distance1, node1),
+				new DendrogramEdge(distance2, node2)
 		));
 	}
 }
