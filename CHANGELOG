@@ -1,3 +1,5 @@
+v4.3.3
+- New command HierarchicalClustering. Replaces NeighborJoining
 v4.3.2 19-07-2023
 - VCFConverter: Added option -genepop to export to the GenePop file format
 - GenomesAligner: Added option -r to select one genome as reference and

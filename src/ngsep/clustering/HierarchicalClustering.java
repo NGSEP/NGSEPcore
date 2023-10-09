@@ -1,6 +1,26 @@
+/*******************************************************************************
+ * NGSEP - Next Generation Sequencing Experience Platform
+ * Copyright 2016 Jorge Duitama
+ *
+ * This file is part of NGSEP.
+ *
+ *     NGSEP is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     NGSEP is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package ngsep.clustering;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 
 import java.io.PrintStream;
@@ -9,15 +29,19 @@ import java.util.logging.Logger;
 
 /**
  * Class that exposes various distance based clustering algorithms
+ * @author Sebastian Lemus
+ * @author Jorge Duitama
  */
-public class DistanceClusteringService {
+public class HierarchicalClustering {
 
     // Constants for command options
     private static final int NJ = 0;
     private static final int FASTNJ = 1;
+    private static final int UPGMA = 2;
     private static final Set<Integer> ALG_OPTIONS = Set.of(
             NJ,
-            FASTNJ
+            FASTNJ,
+            UPGMA
     );
 
     // Logging and progress
@@ -61,18 +85,21 @@ public class DistanceClusteringService {
     public int getAlgorithm () {
         return algorithm;
     }
-    public void setAlgorithm (Integer algorithm) {
+    public void setAlgorithm (int algorithm) {
         this.algorithm = algorithm;
     }
+    public void setAlgorithm(String value) {
+		setAlgorithm((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 
 
     // Constructor
-    public DistanceClusteringService () {
+    public HierarchicalClustering () {
 
     }
 
     public static void main(String[] args) throws Exception {
-        DistanceClusteringService service = new DistanceClusteringService();
+        HierarchicalClustering service = new HierarchicalClustering();
         CommandsDescriptor.getInstance().loadOptions(service, args);
         service.run();
     }
@@ -91,12 +118,7 @@ public class DistanceClusteringService {
         if (!ALG_OPTIONS.contains(algorithm)) {
             throw new Exception("You must provide with a valid option for the algorithm to be used");
         }
-        DistanceMatrixClustering method = new NeighborJoining();
-        if (algorithm == FASTNJ) {
-            method = new FastNJ();
-        }
-
-        Dendrogram tree = method.buildDendrogram(matrix);
+        Dendrogram tree = runClustering(matrix);
 
         if (outputFile == null) {
             tree.printTree(System.out);
@@ -104,4 +126,18 @@ public class DistanceClusteringService {
             tree.printTree(new PrintStream(outputFile));
         }
     }
+	public Dendrogram runClustering(DistanceMatrix matrix) {
+		DistanceMatrixClustering method = createClusteringService();
+        Dendrogram tree = method.buildDendrogram(matrix);
+		return tree;
+	}
+	private DistanceMatrixClustering createClusteringService() {
+		DistanceMatrixClustering method = new NeighborJoining();
+        if (algorithm == FASTNJ) {
+            method = new FastNJ();
+        } else if (algorithm == UPGMA) {
+        	method = new UPGMA();
+        }
+		return method;
+	}
 }
