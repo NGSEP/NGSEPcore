@@ -60,7 +60,7 @@ public class ReadsAligner {
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_MAX_ALNS_PER_READ=1;
 	public static final int DEF_KMER_LENGTH = 25;
-	public static final int DEF_WINDOW_LENGTH = 20;
+	public static final int DEF_WINDOW_LENGTH = 40;
 	public static final int DEF_MIN_INSERT_LENGTH=0;
 	public static final int DEF_MAX_INSERT_LENGTH=1000;
 	public static final int DEF_NUM_THREADS=1;
