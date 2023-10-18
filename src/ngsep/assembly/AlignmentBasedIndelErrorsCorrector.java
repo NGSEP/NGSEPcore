@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.ReadsAligner;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
@@ -85,7 +86,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	 * Corrects errors in reads
 	 * @param graph Input graph with reads
 	 */
-	public void correctErrors(AssemblyGraph graph) {
+	public void correctErrors(AssemblyGraph graph, List<QualifiedSequence> sequences) {
 		long start = System.currentTimeMillis(); 
 	
 		AssemblyGraph copyGraph = graph.buildSubgraph(null);
@@ -94,6 +95,8 @@ public class AlignmentBasedIndelErrorsCorrector {
 		filter.filterEdgesAndEmbedded(copyGraph, 0.5);
 		pathsFinder.findPaths(copyGraph);
 		int n =graph.getNumSequences();
+		if(sequences!=null) graph.replaceSequences(sequences);
+		
 		List<AssemblyPath> paths = copyGraph.getPaths();
 		
 		AssemblyPathReadsAligner aligner = new AssemblyPathReadsAligner();
@@ -127,14 +130,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 				selectedPathsQS.add(new QualifiedSequence(sequenceName,path.getConsensus()));
 				long usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 				log.info("AssemblyPathReadsAligner. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory (Mbp): "+usedMemory);
-				//TODO: Define better ploidy
 				List<CalledGenomicVariant> pathIndels = aligner.callIndels(path.getConsensus(), selectedAlns, 2);
 				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 				log.info("AssemblyPathReadsAligner. Called indels in path: "+path.getPathId()+": "+pathIndels.size()+" Memory (Mbp): "+usedMemory);
 				Collections.sort(pathIndels,GenomicRegionPositionComparator.getInstance());
 				selectedPathsCalledIndels.put(pathId,pathIndels);
 				correctErrors(graph, selectedAlns, path, pathIndels, sequencePaths);
-				
 			}
 			
 		}
@@ -151,7 +152,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		long timeTotal = (endCorr2-start)/1000;
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
-		log.info("IndelErrorsCorrector. Aligned and corrected remaining reads. Time process: "+timeCorr2+" Total time error correction (s): "+timeTotal+" Memory: "+usedMemory);	
+		log.info("IndelErrorsCorrector. Aligned and corrected remaining reads. Time process: "+timeCorr2+" Total time error correction (s): "+timeTotal+" Memory: "+usedMemory);
 	}
 
 	
@@ -329,8 +330,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		ReadsAligner aligner = new ReadsAligner();
 		ReferenceGenome genome = new ReferenceGenome(pathSequences);
 		aligner.setGenome(genome);
-		aligner.setNumThreads(numThreads);
-		
+		aligner.setPlatform(Platform.PACBIO);
 		
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;

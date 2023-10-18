@@ -20,6 +20,7 @@
 package ngsep.assembly;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -251,6 +252,7 @@ public class Assembler {
 	}
 	public void setErrorCorrectionRounds(int errorCorrectionRounds) {
 		this.errorCorrectionRounds = errorCorrectionRounds;
+		if(errorCorrectionRounds>0) saveCorrected = true;
 	}
 	public void setErrorCorrectionRounds(String value) {
 		this.setErrorCorrectionRounds((int) OptionValuesDecoder.decode(value, Integer.class));
@@ -315,26 +317,32 @@ public class Assembler {
 	public void run(String inputFile, String outputPrefix) throws IOException, InterruptedException {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
+		KmersExtractor extractor = new KmersExtractor();
+		extractor.setLog(log);
+		extractor.setNumThreads(numThreads);
+		extractor.setReadNCharacters(false);
+		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
+		LayoutBuilder pathsFinder = createLayoutBuilder();
+		ConsensusBuilder consensus = createConsensusBuilder();
+		
 		List<QualifiedSequence> sequences;
 		//correctReads(sequences,map);
 		AssemblyGraph graph;
 		KmersMap map = null;
 		long usedMemory;
+		List<QualifiedSequence> compressedSeqs;
 		if(graphFile!=null) {
 			sequences = load(inputFile, inputFormat, minReadLength);
+			compressedSeqs = sequences;
 			graph = AssemblyGraphFileHandler.load(sequences, graphFile);
 			usedMemory = runtime.totalMemory()-runtime.freeMemory();
 			usedMemory/=1000000000;
 			log.info("Loaded assembly graph with "+graph.getVertices().size()+" vertices and "+graph.getEdges().size()+" edges. Memory: "+usedMemory);
 		} else {
 			log.info("Calculating kmers distribution");
-			KmersExtractor extractor = new KmersExtractor();
-			extractor.setLog(log);
-			extractor.setNumThreads(numThreads);
 			extractor.setLoadSequences(true);
 			extractor.setInputFormat(inputFormat);
 			extractor.setMinReadLength(minReadLength);
-			extractor.setReadNCharacters(false);
 			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 			//if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 			extractor.processFile(inputFile);
@@ -356,7 +364,7 @@ public class Assembler {
 			long diff1 = (time1-startTime)/1000;
 			log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
-			List<QualifiedSequence> compressedSeqs = sequences;
+			compressedSeqs = sequences;
 			if (bpHomopolymerCompression>0) {
 				compressedSeqs = runHomopolymerCompression (sequences);
 				log.info("Performed homopolymer compression");
@@ -379,83 +387,14 @@ public class Assembler {
 			log.info("Saved uncorrected graph to "+outFileGraph);
 		}
 		
-		//Current error correction
-		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
-		indelCorrector.setNumThreads(numThreads);
-		indelCorrector.setLog(log);
-		List<QualifiedSequence> correctedSequences = null;
-		for(int i=0;i<errorCorrectionRounds;i++) {
-			long startRound = System.currentTimeMillis();
-			usedMemory = runtime.totalMemory()-runtime.freeMemory();
-			usedMemory/=1000000000;
-			log.info("Started round "+(i+1)+" of error correction. Memory: "+usedMemory);
-			indelCorrector.correctErrors(graph);
-			long timeRound = System.currentTimeMillis()-startRound;
-			usedMemory = runtime.totalMemory()-runtime.freeMemory();
-			usedMemory/=1000000000;
-			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000)+" Memory: "+usedMemory);
-			correctedSequences = new ArrayList<QualifiedSequence>(graph.getSequences());
-			Collections.sort(correctedSequences,(s1,s2)->s2.getLength()-s1.getLength());
-			if(map == null) {
-				KmersExtractor extractor = new KmersExtractor();
-				extractor.setLog(log);
-				extractor.setNumThreads(numThreads);
-				extractor.processQualifiedSequences(correctedSequences);
-				map = extractor.getKmersMap();
-			}
-			graph = buildGraph(correctedSequences, map);
-		}
-		
-		//Save graph and corrected reads
-		if(graphFile==null || correctedSequences!=null) {
-			String outFileGraph = outputPrefix+".graph.gz";
-			if(correctedSequences!=null && saveCorrected) {
-				String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
-				try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
-					 PrintStream outReads = new PrintStream(os)) {
-					for(QualifiedSequence seq:correctedSequences) {
-						outReads.println(">"+seq.getName());
-						outReads.println(seq.getCharacters());
-					}
-				}
-				log.info("Saved corrected reads to "+outFileCorrectedReads);
-				outFileGraph = outputPrefix+"_corrected.graph.gz";
-			}
-			if(correctedSequences==null || saveCorrected) {
-				AssemblyGraphFileHandler.save(graph, outFileGraph);
-				log.info("Saved graph to "+outFileGraph);
-			}
-		}
-		
-		LayoutBuilder pathsFinder;
-		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
-			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
-			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
-		} else {
-			pathsFinder= new LayoutBuilderKruskalPath();
-			//((LayoutBuilderKruskalPath)pathsFinder).setRunImprovementAlgorithms(false);
-		}
-		ConsensusBuilder consensus;
-		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
-			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
-			consensusP.setNumThreads(numThreads);
-			consensus = consensusP;
-		} else {
-			consensus = new ConsensusBuilderBidirectionalSimple();
-			consensus.setNumThreads(numThreads);
-		}
-		
-		graph.removeVerticesChimericReads();
-		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
-		
 		long time2 = System.currentTimeMillis();
-		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
 		int value = ploidy; 
 		while(value > 1) {
 		//while(value > 0) {
 			AssemblyGraph copyGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
+			copyGraph.removeVerticesChimericReads();
 			copyGraph.updateScores(0);
 			filter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
@@ -463,6 +402,9 @@ public class Assembler {
 			//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(copyGraph);
 			log.info("Filtering graph by phasing");
+			if (compressedSeqs!=sequences) {
+				copyGraph.replaceSequences(sequences);
+			}
 			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
 			hapsCalculator.setLog(log);
 			hapsCalculator.setNumThreads(numThreads);
@@ -475,13 +417,47 @@ public class Assembler {
 			log.info("Saved graph with phase filtering to "+outFileGraph);
 			value /=2;
 		}
+		
+		//Current error correction
+		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
+		indelCorrector.setNumThreads(numThreads);
+		indelCorrector.setLog(log);
+		for(int i=0;i<errorCorrectionRounds;i++) {
+			long startRound = System.currentTimeMillis();
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			log.info("Started round "+(i+1)+" of error correction. Memory: "+usedMemory);
+			indelCorrector.correctErrors(graph,(sequences!=compressedSeqs?sequences:null));
+			sequences = new ArrayList<>();
+			sequences.addAll(graph.getSequences());
+			Collections.sort(sequences,(s1,s2)->s2.getLength()-s1.getLength());
+			compressedSeqs = sequences;
+			long timeRound = System.currentTimeMillis()-startRound;
+			usedMemory = runtime.totalMemory()-runtime.freeMemory();
+			usedMemory/=1000000000;
+			log.info("Finished error correction process "+(i+1)+". Time: "+(timeRound/1000)+" Memory: "+usedMemory);
+			extractor.setMinReadLength(0);
+			extractor.dispose();
+			extractor.processQualifiedSequences(sequences);
+			map = extractor.getKmersMap();
+			graph = buildGraph(sequences, map);
+		}
+		
+		
+		//Save final graph and corrected reads
+		if(graphFile==null || errorCorrectionRounds>0) {
+			saveGraphAndCorrectedReads(outputPrefix, sequences, graph);
+		}
+		graph.removeVerticesChimericReads();
+		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		
 		graph.updateScores(0);
 		filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
 		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
-		if (bpHomopolymerCompression>0) {
+		if (compressedSeqs!=sequences) {
 			graph.replaceSequences(sequences);
 		}
 		assembledSequences.addAll(consensus.makeConsensus(graph));
@@ -529,6 +505,49 @@ public class Assembler {
 		diff1 = (time4-time3)/1000;
 		diff2 = (time4-startTime)/1000;
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
+	}
+	private void saveGraphAndCorrectedReads(String outputPrefix, List<QualifiedSequence> sequences, AssemblyGraph graph)
+			throws IOException, FileNotFoundException {
+		String outFileGraph = outputPrefix+".graph.gz";
+		if(errorCorrectionRounds>0 && saveCorrected) {
+			String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
+			try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
+				 PrintStream outReads = new PrintStream(os)) {
+				for(QualifiedSequence seq:sequences) {
+					outReads.println(">"+seq.getName());
+					outReads.println(seq.getCharacters());
+				}
+			}
+			log.info("Saved corrected reads to "+outFileCorrectedReads);
+			outFileGraph = outputPrefix+"_corrected.graph.gz";
+		}
+		if(errorCorrectionRounds==0 || saveCorrected) {
+			AssemblyGraphFileHandler.save(graph, outFileGraph);
+			log.info("Saved graph to "+outFileGraph);
+		}
+	}
+	private ConsensusBuilder createConsensusBuilder() {
+		ConsensusBuilder consensus;
+		if(CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) {
+			ConsensusBuilderBidirectionalWithPolishing consensusP = new ConsensusBuilderBidirectionalWithPolishing();
+			consensusP.setNumThreads(numThreads);
+			consensus = consensusP;
+		} else {
+			consensus = new ConsensusBuilderBidirectionalSimple();
+			consensus.setNumThreads(numThreads);
+		}
+		return consensus;
+	}
+	private LayoutBuilder createLayoutBuilder() {
+		LayoutBuilder pathsFinder;
+		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
+			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
+			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
+		} else {
+			pathsFinder= new LayoutBuilderKruskalPath();
+			//((LayoutBuilderKruskalPath)pathsFinder).setRunImprovementAlgorithms(false);
+		}
+		return pathsFinder;
 	}
 	private void saveReadsPhasingData(AssemblyGraph graph, Map<Integer, ReadPathPhasingData> readsData, String outFilename) throws IOException {
 		try (PrintStream out = new PrintStream(outFilename)) {

@@ -85,7 +85,7 @@ public class AssemblyGraphFileHandler {
 				QualifiedSequence seq = sequences.get(seqId);
 				//System.out.println("Loaded and sorted sequence: "+seq.getName()+" "+seq.getLength()+" loaded line. "+line+" seqname: "+items[1]);
 				if(!seq.getName().equals(items[1]))  throw new IOException("Unexpected sequence name at line " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+line);
-				if(seq.getLength()!=Integer.parseInt(items[2])) throw new IOException("Unexpected sequence length at line" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[2]);
+				//if(seq.getLength()!=Integer.parseInt(items[2])) throw new IOException("Unexpected sequence length at line" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[2]);
 				seqId++;
 				line=in.readLine();
 			}
