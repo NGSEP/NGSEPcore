@@ -243,12 +243,10 @@ Window length to calculate minimizers.
 <option id="m" type="INT" attribute="minReadLength" defaultConstant="DEF_MIN_READ_LENGTH">
 Minimum read length.
 </option>
-<!--
 <option id="bh" type="INT" attribute="bpHomopolymerCompression" defaultConstant="DEF_BP_HOMOPOLYMER_COMPRESSION">
 Perform homopolymer compression keeping homopolymers up to the given number of pase pairs.
 A value less or equal to zero disables homopolymer compression. 
 </option>
--->
 <option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
 Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
 </option>
@@ -275,10 +273,11 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_POLISHING" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
-<!--
+
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
+<!--
 <option id="sc" type="BOOLEAN" attribute="saveCorrected">
 Save the corrected reads
 </option>

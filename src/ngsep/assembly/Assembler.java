@@ -356,22 +356,15 @@ public class Assembler {
 			long diff1 = (time1-startTime)/1000;
 			log.info("Reads loaded. Time(s): "+diff1+" Memory (Gbp): "+usedMemory);
 			if(progressNotifier!=null && !progressNotifier.keepRunning(10)) return;
-			double [] compressionFactors =null;
+			List<QualifiedSequence> compressedSeqs = sequences;
 			if (bpHomopolymerCompression>0) {
-				compressionFactors = runHomopolymerCompression (sequences);
+				compressedSeqs = runHomopolymerCompression (sequences);
 				log.info("Performed homopolymer compression");
+				extractor.dispose();
+				extractor.processQualifiedSequences(compressedSeqs);
+				map = extractor.getKmersMap();
 			}
-			
-			graph = buildGraph(sequences, map, compressionFactors);
-			if(bpHomopolymerCompression>0) {
-				List<QualifiedSequence> originalSeqs = load(inputFile,inputFormat, minReadLength);
-				log.info("Loaded original sequences to restore. Compressed sequences: "+sequences.size()+". Loaded: "+originalSeqs.size());
-				for(int i=0;i<sequences.size();i++) {
-					QualifiedSequence seq = sequences.get(i);
-					CharSequence original = originalSeqs.get(i).getCharacters();
-					seq.setCharacters(original);
-				}
-			}
+			graph = buildGraph(compressedSeqs, map);
 			usedMemory = runtime.totalMemory()-runtime.freeMemory();
 			usedMemory/=1000000000;
 			long time2 = System.currentTimeMillis();
@@ -410,7 +403,7 @@ public class Assembler {
 				extractor.processQualifiedSequences(correctedSequences);
 				map = extractor.getKmersMap();
 			}
-			graph = buildGraph(correctedSequences, map, null);
+			graph = buildGraph(correctedSequences, map);
 		}
 		
 		//Save graph and corrected reads
@@ -488,6 +481,9 @@ public class Assembler {
 		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
+		if (bpHomopolymerCompression>0) {
+			graph.replaceSequences(sequences);
+		}
 		assembledSequences.addAll(consensus.makeConsensus(graph));
 		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
@@ -576,7 +572,7 @@ public class Assembler {
 		}
 		
 	}
-	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map, double[] compressionFactors) {
+	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map) {
 		AssemblyGraph graph;
 		GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
 		builder.setKmerLength(kmerLength);
@@ -585,19 +581,19 @@ public class Assembler {
 		builder.setNumThreads(numThreads);
 		builder.setKmersMap(map);
 		builder.setLog(log);
-		graph = builder.buildAssemblyGraph(sequences,compressionFactors);
+		graph = builder.buildAssemblyGraph(sequences);
 		return graph;
 	}
 
-	private double [] runHomopolymerCompression(List<QualifiedSequence> sequences) {
-		double [] compressionFactors = new double[sequences.size()];
+	private List<QualifiedSequence> runHomopolymerCompression(List<QualifiedSequence> sequences) {
+		List<QualifiedSequence> answer = new ArrayList<>(sequences.size());
 		for(int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
-			compressionFactors[i] = compressHomopolymers(seq);
+			answer.add(compressHomopolymers(seq));
 		}
-		return compressionFactors;
+		return answer;
 	}
-	private double compressHomopolymers(QualifiedSequence seq) {
+	private QualifiedSequence compressHomopolymers(QualifiedSequence seq) {
 		String seqStr = seq.getCharacters().toString();
 		int n = seqStr.length();
 		StringBuilder compressed = new StringBuilder(n);
@@ -610,10 +606,7 @@ public class Assembler {
 			if(homopolymerCount<=bpHomopolymerCompression) compressed.append(c);
 			c2=c;
 		}
-		double answer = compressed.length();
-		if(n>0) answer /=n;
-		seq.setCharacters(new DNAMaskedSequence(compressed));
-		return answer;
+		return new QualifiedSequence(seq.getName(), new DNAMaskedSequence(compressed));
 	}
 	/**
 	 * Load the sequences of the file

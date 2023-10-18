@@ -46,10 +46,6 @@ public class AssemblyGraph {
 	private List<QualifiedSequence> sequences;
 	
 	/**
-	 * Sum of lengths from sequence 0 to i
-	 */
-	private long [] cumulativeReadLength;
-	/**
 	 * Start vertices indexed by sequence index
 	 */
 	private Map<Integer,AssemblyVertex> verticesStart;
@@ -89,14 +85,11 @@ public class AssemblyGraph {
 	public AssemblyGraph(List<QualifiedSequence> sequences) {
 		int n = sequences.size();
 		this.sequences = Collections.unmodifiableList(sequences);
-		cumulativeReadLength = new long [n];
 		initStructures(n);
 		
 		for (int i=0;i<sequences.size();i++) {
 			QualifiedSequence seq = sequences.get(i);
 			int length = seq.getLength();
-			cumulativeReadLength[i]=length;
-			if(i>0) cumulativeReadLength[i]+=cumulativeReadLength[i-1];
 			AssemblyVertex vS = new AssemblyVertex(seq, true, i);
 			verticesStart.put(i,vS);
 			verticesByUnique.put(vS.getUniqueNumber(), vS);
@@ -130,7 +123,6 @@ public class AssemblyGraph {
 		AssemblyGraph subgraph = new AssemblyGraph();
 		int n = sequences.size();
 		subgraph.sequences = sequences;
-		subgraph.cumulativeReadLength = cumulativeReadLength;
 		subgraph.initStructures(n);
 		//Add vertices
 		for(AssemblyVertex vertex:verticesByUnique.values()) {
@@ -255,9 +247,6 @@ public class AssemblyGraph {
 	}
 	public int getSequenceLength(int sequenceIdx) {
 		return sequences.get(sequenceIdx).getLength();
-	}
-	public long getCumulativeLength(int sequenceIdx) {
-		return cumulativeReadLength[sequenceIdx];
 	}
 	public int getNumSequences () {
 		return sequences.size();
@@ -1042,6 +1031,16 @@ public class AssemblyGraph {
 		List<AssemblyEmbedded> embedded2 = getEmbeddedBySequenceId(seq);
 		for(AssemblyEmbedded embedded:embedded2) answer.add(embedded.getHostId());
 		return answer;
+	}
+	public void replaceSequences(List<QualifiedSequence> sequences2) {
+		if(sequences.size()!=sequences2.size()) throw new RuntimeException("Number of sequences does not coincide. Expected: "+sequences.size()+" given: "+sequences2.size());
+		int n = sequences.size();
+		for(int i=0;i<n;i++) {
+			QualifiedSequence seq1 = sequences.get(i);
+			QualifiedSequence seq2 = sequences2.get(i);
+			if(seq1.getName()!=seq2.getName()) throw new RuntimeException("Sequence "+i+" does not coincide. Expected: "+seq1.getName()+" given: "+seq2.getName());
+			seq1.setCharacters(seq2.getCharacters());
+		}
 	}
 	
 }

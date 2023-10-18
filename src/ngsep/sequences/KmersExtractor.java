@@ -618,5 +618,9 @@ public class KmersExtractor {
 			kmersMap.save(out);
 		}
 		log.info("Process finished");
-	}	
+	}
+	public void dispose() {
+		kmersMap = null;
+		loadedSequences = null;
+	}
 }

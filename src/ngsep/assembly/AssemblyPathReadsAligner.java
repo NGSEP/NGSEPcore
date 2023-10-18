@@ -100,10 +100,13 @@ public class AssemblyPathReadsAligner {
 				if(reverse) nextPathSequence = DNAMaskedSequence.getReverseComplement(nextPathSequence);
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				if(pathIdx == debugIdx) System.err.println("Aligning next path read "+nextRead.getName()+". length1: "+nextRead.getLength()+" length2: "+nextPathSequence.length()+" Reverse "+reverse+ " edge: "+edge);
-				int startSuffixConsensus = Math.max(0, rawConsensus.length()-500);
+				int startSuffixConsensus = Math.max(0, rawConsensus.length()-nextPathSequence.length());
 				Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
-				int endSegmentQuery = Math.min(nextPathSequence.length(), edge.getOverlap()+10);
-				int startSegmentQuery = Math.max(0, endSegmentQuery-520);
+				//int endSegmentQuery = Math.min(nextPathSequence.length(), edge.getOverlap()+10);
+				//int startSegmentQuery = Math.max(0, endSegmentQuery-520);
+				
+				int startSegmentQuery = 0;
+				int endSegmentQuery = Math.min(nextPathSequence.length(), 2*edge.getOverlap());
 				String segmentQuery = nextPathSequence.subSequence(startSegmentQuery, endSegmentQuery).toString();
 				ReadAlignment alnRead = alignRead(aligner, pathIdx, rawConsensus, segmentQuery, kmersSubject);
 				int startRemove = -1;
@@ -138,7 +141,8 @@ public class AssemblyPathReadsAligner {
 					}
 					if(pathIdx == debugIdx && j<10) System.err.println("Calculated start new suffix from alignment: "+startSuffixQuery );
 				} else {
-					if(pathIdx == debugIdx && j<10) System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					//if(pathIdx == debugIdx && j<10) System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
 					startSuffixQuery = edge.getOverlap();
 					
 				}

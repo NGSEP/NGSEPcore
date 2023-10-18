@@ -30,8 +30,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import ngsep.math.Distribution;
-import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.KmersExtractor;
@@ -102,22 +100,14 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	public void setKmersMap(KmersMap kmersMap) {
 		this.kmersMap = kmersMap;
 	}
-	@Override
-	public AssemblyGraph buildAssemblyGraph(List<QualifiedSequence> sequences) {
-		return buildAssemblyGraph(sequences,null);
-	}
-		
-	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences, final double [] compressionFactors) {
+	@Override	
+	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences) {
 		Runtime runtime = Runtime.getRuntime();
 		
 		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(kmersMap, false);
 		int modeDepth = kmersAnalyzer.getMode();
 		long expectedAssemblyLength = kmersAnalyzer.getExpectedAssemblyLength();
 		
-		if(compressionFactors!=null) {
-			double averageCompression = NumberArrays.getAverage(compressionFactors);
-			expectedAssemblyLength/= averageCompression;
-		}
 		log.info("Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
 		
 		AssemblyGraph graph = new AssemblyGraph(sequences);
@@ -166,9 +156,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		edgesFinder.setExtensiveSearch(true);
 		for (int seqId = 0; seqId < seqIdMinimizers; seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
-			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
-			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
+			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, false, relationshipsPerSequence));
 		}
 		waitToFinish(n, poolSearch);
 		
@@ -177,9 +166,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		edgesFinder.setExtensiveSearch(false);
 		for (int seqId = seqIdMinimizers; seqId < n; seqId++) {
 			CharSequence seq = sequences.get(seqId).getCharacters();
-			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
-			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, true, relationshipsPerSequence));
+			poolSearch.execute(()->processSequence(edgesFinder, table, i, seq, true, relationshipsPerSequence));
 		}
 		waitToFinish(n, poolSearch);
 		boolean [] added = new boolean[n];
@@ -230,9 +218,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		for (int seqId = seqIdMinimizers; seqId < sequences.size(); seqId++) {
 			if(relationshipsPerSequence.get(seqId)!=null) continue;
 			CharSequence seq = sequences.get(seqId).getCharacters();
-			double compressionFactor = compressionFactors!=null?compressionFactors[seqId]:1;
 			final int i = seqId;
-			poolSearch2.execute(()->processSequence(edgesFinder, table, i, seq, compressionFactor, false, relationshipsPerSequence));
+			poolSearch2.execute(()->processSequence(edgesFinder, table, i, seq, false, relationshipsPerSequence));
 			//if ((seqId+1)%1000==0) log.info("Scheduled sequence "+(seqId+1));
 		}
 		addRelationshipsToGraph(graph, relationshipsPerSequence, seqIdMinimizers, added, true, runtime);
@@ -261,7 +248,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	//private void processSequence(KmerHitsAssemblyEdgesFinder finder, MinimizersTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 	private int totalRels = 0;
 	private Set<Integer> repetitiveSequenceIds = new HashSet<>();
-	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, double compressionFactor, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
+	private void processSequence(KmerHitsAssemblyEdgesFinder finder, ShortKmerCodesTable table, int seqId, CharSequence seq, boolean onlyEmbedded, List<List<AssemblySequencesRelationship>> relationshipsPerSequence ) {
 		try {
 			List<AssemblySequencesRelationship> rels = relationshipsPerSequence.get(seqId);
 			boolean debug = seqId == idxDebug; 
@@ -280,7 +267,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 				long diff2 = (time2-time1)/1000;
 				debug = debug || diff2>10;
 				//if(debug) log.info("GraphBuilderMinimizers. Sequence "+seqId+" total rels: "+totalRels+" forward: "+hitsForward.getTotalHits()+" reverse: "+hitsReverse.getTotalHits()+" times12: "+diff1+" "+diff2+" Memory: "+KmerHitsAssemblyEdgesFinder.calculateMemoryGbp());
-				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse, compressionFactor);
+				rels = finder.inferRelationshipsFromKmerHits(seqId, seq.toString(), complement, hitsForward, hitsReverse);
 				long time3 = System.currentTimeMillis();
 				long diff3 = (time3-time2)/1000;
 				debug = debug || diff3>10;
@@ -406,7 +393,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			for(int i:clusterList) {
 				System.out.println("Updating relationships for repetitive sequence: "+i);
 				QualifiedSequence seq = graph.getSequence(i);
-				processSequence(edgesFinder, table, i, seq.getCharacters(), 1, false, relationshipsPerSequence);
+				processSequence(edgesFinder, table, i, seq.getCharacters(), false, relationshipsPerSequence);
 			}
 			
 			AssemblyGraph subgraph = graph.buildSubgraph(cluster);

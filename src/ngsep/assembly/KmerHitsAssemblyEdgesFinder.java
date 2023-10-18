@@ -70,7 +70,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		this.completeAlignment = completeAlignment;
 	}
 
-	public List<AssemblySequencesRelationship> inferRelationshipsFromKmerHits(int queryIdx, CharSequence queryF, CharSequence queryR, KmerSearchResultsCompressedTable hitsForward, KmerSearchResultsCompressedTable hitsReverse, double compressionFactor ) {
+	public List<AssemblySequencesRelationship> inferRelationshipsFromKmerHits(int queryIdx, CharSequence queryF, CharSequence queryR, KmerSearchResultsCompressedTable hitsForward, KmerSearchResultsCompressedTable hitsReverse) {
 		List<AssemblySequencesRelationship> relationships = new ArrayList<AssemblySequencesRelationship>();
 		int queryLength = queryF.length();
 		
@@ -101,8 +101,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Clusters reverse: "+clustersReverse.size()+" Memory: "+calculateMemoryGbp());
 			//Combined query min coverage and percentage of kmers
 			int minClusterSize = calculateMinimumClusterSize(queryIdx, clustersForward, clustersReverse, minHits);
-			for(UngappedSearchHitsCluster cluster:clustersForward) processCluster(queryIdx, queryF, false, cluster, compressionFactor, minClusterSize, relationships);
-			for(UngappedSearchHitsCluster cluster:clustersReverse) processCluster(queryIdx, queryR, true, cluster, compressionFactor, minClusterSize, relationships);
+			for(UngappedSearchHitsCluster cluster:clustersForward) processCluster(queryIdx, queryF, false, cluster, minClusterSize, relationships);
+			for(UngappedSearchHitsCluster cluster:clustersReverse) processCluster(queryIdx, queryR, true, cluster, minClusterSize, relationships);
 		} else {
 			int i=0;
 			int minClusterSize = minHits;
@@ -110,13 +110,13 @@ public class KmerHitsAssemblyEdgesFinder {
 				int subjectIdxF = subjectIdxsF.get(i);
 				List<UngappedSearchHitsCluster> subjectClustersF = createClusters(queryIdx, queryLength, subjectIdxF, hitsForward.getHits(subjectIdxF));
 				for(UngappedSearchHitsCluster clusterF:subjectClustersF) {
-					if (processCluster(queryIdx, queryF, false, clusterF, compressionFactor, minClusterSize, relationships)) return relationships;
+					if (processCluster(queryIdx, queryF, false, clusterF, minClusterSize, relationships)) return relationships;
 					minClusterSize = Math.max(minClusterSize, clusterF.getNumDifferentKmers()/2);
 				}
 				int subjectIdxR = subjectIdxsR.get(i);
 				List<UngappedSearchHitsCluster> subjectClustersR = createClusters(queryIdx, queryLength, subjectIdxR, hitsReverse.getHits(subjectIdxR));
 				for(UngappedSearchHitsCluster clusterR:subjectClustersR) {
-					if (processCluster(queryIdx, queryR, true, clusterR, compressionFactor, minClusterSize, relationships)) return relationships;
+					if (processCluster(queryIdx, queryR, true, clusterR, minClusterSize, relationships)) return relationships;
 					minClusterSize = Math.max(minClusterSize, clusterR.getNumDifferentKmers()/2);
 				}
 				i++;
@@ -125,12 +125,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			for(;i<subjectIdxsF.size();i++) {
 				int subjectIdxF = subjectIdxsF.get(i);
 				List<UngappedSearchHitsCluster> subjectClusters = createClusters(queryIdx, queryLength, subjectIdxF, hitsForward.getHits(subjectIdxF));
-				for(UngappedSearchHitsCluster cluster:subjectClusters) if(processCluster(queryIdx, queryF, false, cluster, compressionFactor, minClusterSize, relationships)) return relationships;
+				for(UngappedSearchHitsCluster cluster:subjectClusters) if(processCluster(queryIdx, queryF, false, cluster, minClusterSize, relationships)) return relationships;
 			}
 			for(;i<subjectIdxsR.size();i++) {
 				int subjectIdxR = subjectIdxsR.get(i);
 				List<UngappedSearchHitsCluster> subjectClusters = createClusters(queryIdx, queryLength, subjectIdxR, hitsReverse.getHits(subjectIdxR));
-				for(UngappedSearchHitsCluster cluster:subjectClusters) if(processCluster(queryIdx, queryR, true, cluster, compressionFactor, minClusterSize, relationships)) return relationships;
+				for(UngappedSearchHitsCluster cluster:subjectClusters) if(processCluster(queryIdx, queryR, true, cluster, minClusterSize, relationships)) return relationships;
 			}
 		}
 		if (queryIdx == idxDebug) log.info("EdgesFinder. Query: "+queryIdx+" relationships: "+relationships.size()+" Memory: "+calculateMemoryGbp());
@@ -214,7 +214,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		
 	}
 
-	private boolean processCluster(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, double compressionFactor, int minClusterSize, List<AssemblySequencesRelationship> relationships) {
+	private boolean processCluster(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, int minClusterSize, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = query.length();
 		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
@@ -229,16 +229,16 @@ public class KmerHitsAssemblyEdgesFinder {
 		int endSubject = cluster.getSubjectPredictedEnd();
 		
 		if(startSubject>=0 && endSubject<=subjectLength) {
-			boolean answer = addEmbedded(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+			boolean answer = addEmbedded(querySequenceId, query, queryRC, cluster, relationships);
 			cluster.disposeHits();
 			return answer;
 		} else if (startSubject>=0) {
-			addQueryAfterSubjectEdge(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+			addQueryAfterSubjectEdge(querySequenceId, query, queryRC, cluster, relationships);
 		} else if (endSubject<=subjectLength) {
-			addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+			addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, cluster, relationships);
 		} else {
 			// Similar sequences. Add possible embedded
-			addEmbedded(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+			addEmbedded(querySequenceId, query, queryRC, cluster, relationships);
 		}
 		cluster.disposeHits();
 		return false;
@@ -259,7 +259,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		
 		return true;
 	}
-	private boolean addEmbedded(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
+	private boolean addEmbedded(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int startSubject = cluster.getSubjectPredictedStart();
 		int endSubject = cluster.getSubjectPredictedEnd();
 		int subjectSeqIdx = cluster.getSubjectIdx();
@@ -285,12 +285,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			int skipEnd = aln.getSoftClipEnd();
 			if(aln.getFirst()-skipStart<0) {
 				if(querySequenceId==idxDebug) System.out.println("The alignment start minus the skipped base pairs goes beyond the subject sequence. Aln first: "+aln.getFirst()+" skip: "+skipStart);
-				addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, compressionFactor, cluster ,relationships);
+				addQueryBeforeSubjectEdge(querySequenceId, query, queryRC, cluster ,relationships);
 				return false;
 			}
 			if(aln.getLast()+skipEnd>subjectLength) {
 				if(querySequenceId==idxDebug) System.out.println("The alignment end plus the skipped base pairs goes beyond the subject sequence. Aln end: "+aln.getLast()+" skip: "+skipEnd);
-				addQueryAfterSubjectEdge(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+				addQueryAfterSubjectEdge(querySequenceId, query, queryRC, cluster, relationships);
 				return false;
 			}
 		} else {
@@ -341,13 +341,13 @@ public class KmerHitsAssemblyEdgesFinder {
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
 		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<5 && embeddedEvent.getWeightedCoverageSharedKmers()>0.7*queryLength;
 	}
-	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
+	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		AssemblyVertex vertexSubject = graph.getVertex(subjectSeqIdx, false);
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, !queryRC);
-		int overlap = (int) ((double)cluster.getPredictedOverlap()/compressionFactor);
+		int overlap = (int) ((double)cluster.getPredictedOverlap());
 		double proportionEvidence = cluster.getSubjectEvidenceEnd()-cluster.getSubjectEvidenceStart();
 		proportionEvidence/=(overlap+1);
 		
@@ -364,17 +364,17 @@ public class KmerHitsAssemblyEdgesFinder {
 			if(querySequenceId==idxDebug) System.out.println("Alignment limits subject: "+aln.getFirst()+" - "+aln.getLast()+" query: "+aln.getAlignedReadPosition(aln.getFirst())+" - "+aln.getAlignedReadPosition(aln.getLast())+" CIGAR: "+aln.getCigarString());
 			if(aln.getFirst()-aln.getSoftClipStart()>0 && aln.getLast()+aln.getSoftClipEnd()<subjectLength) {
 				if(querySequenceId==idxDebug) System.out.println("Sequence looks embedded after alignment. New predicted limits: "+(aln.getFirst()-aln.getSoftClipStart())+" - "+(aln.getLast()+aln.getSoftClipEnd()));
-				addEmbedded(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+				addEmbedded(querySequenceId, query, queryRC, cluster, relationships);
 			}
-			overlap = (int) (((double)(subjectLength-aln.getFirst()))/compressionFactor);
+			overlap = subjectLength-aln.getFirst();
 		} else {
 			simulatedAlnData =  PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		
 		AssemblyEdge edge = new AssemblyEdge(vertexSubject, vertexQuery, overlap);
-		edge.setAverageOverlap((int) ((double)cluster.getAveragePredictedOverlap()/compressionFactor));
-		edge.setMedianOverlap((int) ((double)cluster.getMedianPredictedOverlap()/compressionFactor));
-		edge.setFromLimitsOverlap((int) ((double)cluster.getFromLimitsPredictedOverlap()/compressionFactor));
+		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
+		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
+		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		edge.setRawKmerHits(cluster.getRawKmerHits());
@@ -419,13 +419,13 @@ public class KmerHitsAssemblyEdgesFinder {
 		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
 	}
 
-	private void addQueryBeforeSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, double compressionFactor, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
+	private void addQueryBeforeSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
 		int subjectSeqIdx = cluster.getSubjectIdx();
 		int subjectLength = graph.getSequenceLength(subjectSeqIdx);
 		AssemblyVertex vertexSubject = graph.getVertex(subjectSeqIdx, true);
 		AssemblyVertex vertexQuery = graph.getVertex(querySequenceId, queryRC);
-		int overlap = (int) ((double)cluster.getPredictedOverlap()/compressionFactor);
+		int overlap = cluster.getPredictedOverlap();
 		double proportionEvidence = cluster.getSubjectEvidenceEnd()-cluster.getSubjectEvidenceStart();
 		proportionEvidence/=(overlap+1);
 
@@ -442,16 +442,16 @@ public class KmerHitsAssemblyEdgesFinder {
 			if(querySequenceId==idxDebug) System.out.println("Alignment limits subject: "+aln.getFirst()+" - "+aln.getLast()+" query: "+aln.getAlignedReadPosition(aln.getFirst())+" - "+aln.getAlignedReadPosition(aln.getLast())+" CIGAR: "+aln.getCigarString());
 			if(aln.getFirst()-aln.getSoftClipStart()>0 && aln.getLast()+aln.getSoftClipEnd()<subjectLength) {
 				if(querySequenceId==idxDebug) System.out.println("Sequence looks embedded after alignment. New predicted limits: "+(aln.getFirst()-aln.getSoftClipStart())+" - "+(aln.getLast()+aln.getSoftClipEnd()));
-				addEmbedded(querySequenceId, query, queryRC, compressionFactor, cluster, relationships);
+				addEmbedded(querySequenceId, query, queryRC, cluster, relationships);
 			}
-			overlap = (int) (((double)aln.getLast())/compressionFactor);
+			overlap = aln.getLast();
 		} else {
 			simulatedAlnData =  PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		AssemblyEdge edge = new AssemblyEdge(vertexQuery, vertexSubject, overlap);
-		edge.setAverageOverlap((int) ((double)cluster.getAveragePredictedOverlap()/compressionFactor));
-		edge.setMedianOverlap((int) ((double)cluster.getMedianPredictedOverlap()/compressionFactor));
-		edge.setFromLimitsOverlap((int) ((double)cluster.getFromLimitsPredictedOverlap()/compressionFactor));
+		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
+		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
+		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
 		
 		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
