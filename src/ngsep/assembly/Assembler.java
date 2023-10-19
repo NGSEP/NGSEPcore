@@ -415,6 +415,10 @@ public class Assembler {
 			map = extractor.getKmersMap();
 			graph = buildGraph(sequences, map);
 		}
+		//Save final graph and corrected reads
+		if(graphFile==null || errorCorrectionRounds>0) {
+			saveGraphAndCorrectedReads(outputPrefix, sequences, graph);
+		}
 		long time2 = System.currentTimeMillis();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
 		int value = ploidy; 
@@ -445,10 +449,7 @@ public class Assembler {
 			log.info("Saved graph with phase filtering to "+outFileGraph);
 			value /=2;
 		}
-		//Save final graph and corrected reads
-		if(graphFile==null || errorCorrectionRounds>0) {
-			saveGraphAndCorrectedReads(outputPrefix, sequences, graph);
-		}
+		
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		
