@@ -97,6 +97,10 @@ public class Assembler {
 	private boolean saveCorrected = false;
 	private int numThreads = DEF_NUM_THREADS;
 	
+	//Model objects
+	private AssemblySequencesRelationshipFilter relationshipsFilter = new AssemblySequencesRelationshipFilter();
+	private LayoutBuilder pathsFinder = createLayoutBuilder();
+	private ConsensusBuilder consensus = createConsensusBuilder();
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -192,6 +196,7 @@ public class Assembler {
 	public void setLayoutAlgorithm(String layoutAlgorithm) {
 		if(!LAYOUT_ALGORITHM_KRUSKAL_PATH.equals(layoutAlgorithm) && !LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) throw new IllegalArgumentException("Unrecognized layout algorithm "+layoutAlgorithm);
 		this.layoutAlgorithm = layoutAlgorithm;
+		pathsFinder = createLayoutBuilder();	
 	}
 	public String getConsensusAlgorithm() {
 		return consensusAlgorithm;
@@ -199,6 +204,7 @@ public class Assembler {
 	public void setConsensusAlgorithm(String consensusAlgorithm) {
 		if(!CONSENSUS_ALGORITHM_SIMPLE.equals(consensusAlgorithm) && !CONSENSUS_ALGORITHM_POLISHING.equals(consensusAlgorithm)) throw new IllegalArgumentException("Unrecognized consensus algorithm "+consensusAlgorithm);
 		this.consensusAlgorithm = consensusAlgorithm;
+		consensus = createConsensusBuilder();
 	}
 	
 	public int getPloidy() {
@@ -321,9 +327,8 @@ public class Assembler {
 		extractor.setLog(log);
 		extractor.setNumThreads(numThreads);
 		extractor.setReadNCharacters(false);
-		AssemblySequencesRelationshipFilter filter = new AssemblySequencesRelationshipFilter();
-		LayoutBuilder pathsFinder = createLayoutBuilder();
-		ConsensusBuilder consensus = createConsensusBuilder();
+		
+		
 		
 		List<QualifiedSequence> sequences;
 		//correctReads(sequences,map);
@@ -386,39 +391,7 @@ public class Assembler {
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved uncorrected graph to "+outFileGraph);
 		}
-		
-		long time2 = System.currentTimeMillis();
-		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
-		int value = ploidy; 
-		while(value > 1) {
-		//while(value > 0) {
-			AssemblyGraph copyGraph = graph.buildSubgraph(null);
-			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
-			copyGraph.removeVerticesChimericReads();
-			copyGraph.updateScores(0);
-			filter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
-			//diploidGraph.updateScores();
-			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
-			//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
-			pathsFinder.findPaths(copyGraph);
-			log.info("Filtering graph by phasing");
-			if (compressedSeqs!=sequences) {
-				copyGraph.replaceSequences(sequences);
-			}
-			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
-			hapsCalculator.setLog(log);
-			hapsCalculator.setNumThreads(numThreads);
-			hapsCalculator.setGlobalPloidy(value);
-			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(copyGraph, ploidy);
-			saveReadsPhasingData (graph, readsData, outputPrefix+"_FV"+value+"_phasedReadsData.txt");
-			filterGraphWithPhasingData(graph,readsData);
-			String outFileGraph = outputPrefix+"_FV"+value+".graph.gz";
-			AssemblyGraphFileHandler.save(graph, outFileGraph);
-			log.info("Saved graph with phase filtering to "+outFileGraph);
-			value /=2;
-		}
-		
-		//Current error correction
+		//Current error correction. By now not phase sensitive
 		AlignmentBasedIndelErrorsCorrector indelCorrector = new AlignmentBasedIndelErrorsCorrector();
 		indelCorrector.setNumThreads(numThreads);
 		indelCorrector.setLog(log);
@@ -442,8 +415,36 @@ public class Assembler {
 			map = extractor.getKmersMap();
 			graph = buildGraph(sequences, map);
 		}
-		
-		
+		long time2 = System.currentTimeMillis();
+		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
+		int value = ploidy; 
+		while(value > 1) {
+		//while(value > 0) {
+			AssemblyGraph copyGraph = graph.buildSubgraph(null);
+			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
+			copyGraph.removeVerticesChimericReads();
+			copyGraph.updateScores(0);
+			relationshipsFilter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
+			//diploidGraph.updateScores();
+			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
+			//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
+			pathsFinder.findPaths(copyGraph);
+			log.info("Filtering graph by phasing");
+			if (compressedSeqs!=sequences) {
+				copyGraph.replaceSequences(sequences);
+			}
+			HaplotypeReadsClusterCalculator hapsCalculator = new HaplotypeReadsClusterCalculator();
+			hapsCalculator.setLog(log);
+			hapsCalculator.setNumThreads(numThreads);
+			hapsCalculator.setGlobalPloidy(value);
+			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(copyGraph, ploidy);
+			saveReadsPhasingData (graph, readsData, outputPrefix+"_FV"+value+"_phasedReadsData.txt");
+			filterGraphWithPhasingData(graph,readsData);
+			String outFileGraph = outputPrefix+"_FV"+value+".graph.gz";
+			AssemblyGraphFileHandler.save(graph, outFileGraph);
+			log.info("Saved graph with phase filtering to "+outFileGraph);
+			value /=2;
+		}
 		//Save final graph and corrected reads
 		if(graphFile==null || errorCorrectionRounds>0) {
 			saveGraphAndCorrectedReads(outputPrefix, sequences, graph);
@@ -452,7 +453,7 @@ public class Assembler {
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		
 		graph.updateScores(0);
-		filter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
+		relationshipsFilter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
 		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
