@@ -319,7 +319,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			if(rel instanceof AssemblyEmbedded) {
 				AssemblyEmbedded embedded = (AssemblyEmbedded)rel;
 				//if(embedded.getAlignment()!=null ) return true;
-				if(embedded.getEvidenceProportion()>0.99 && embedded.getIndelsPerKbp()<10 && embedded.getWeightedCoverageSharedKmers()>0.5*embedded.getRead().getLength()) answer.add(embedded);
+				if(KmerHitsAssemblyEdgesFinder.isGoodEmbedded(embedded)) answer.add(embedded);
 			}
 		}
 		return answer;

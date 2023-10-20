@@ -310,7 +310,7 @@ public class AssemblyGraphStatistics {
 					int refSeqLength = refSeq.getLength();
 					
 					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>3000 || aln.getSoftClipEnd()>3000) {
-						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd());
+						log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd()+" aligned to "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast());
 						continue;
 					}
 					
@@ -686,8 +686,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==9843 || gsVertex.getSequenceIndex()== 145705 || gsVertex.getSequenceIndex()==30853;
-		//boolean debug = gsVertex.getSequenceIndex()==990 || gsVertex.getSequenceIndex()==125 || gsVertex.getSequenceIndex()==511; 
+		//boolean debug = gsVertex.getSequenceIndex()==674 || gsVertex.getSequenceIndex()== 516 || gsVertex.getSequenceIndex()==1839;
+		//boolean debug = gsVertex.getSequenceIndex()==645 || gsVertex.getSequenceIndex()==497 || gsVertex.getSequenceIndex()==1798; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

@@ -319,12 +319,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			embeddedEvent.setCoverageSharedKmers(simulatedAlnData[0]);
 			embeddedEvent.setWeightedCoverageSharedKmers(simulatedAlnData[1]);
 			embeddedEvent.setNumIndels(simulatedAlnData[2]);
-			if(embeddedEvent.getEvidenceProportion()>0.9 && embeddedEvent.getCoverageSharedKmers()>0.5*queryLength && simulatedAlnData[2]>50 ) {
+			/*if(embeddedEvent.getEvidenceProportion()>0.9 && embeddedEvent.getCoverageSharedKmers()>0.5*queryLength && simulatedAlnData[2]>50 ) {
 				QualifiedSequence subject = graph.getSequence(subjectSeqIdx);
 				simulatedAlnData = redoSimulation(subjectSeqIdx, subject.getCharacters(),Math.max(0,startSubject),Math.min(subjectLength, endSubject),querySequenceId,query,0,query.length(),simulatedAlnData);
 				if(querySequenceId==idxDebug) System.out.println("Repeated simulation for embedded: "+embeddedEvent+" new indels: "+simulatedAlnData[2]);
 				embeddedEvent.setNumIndels(simulatedAlnData[2]);
-			}
+			}*/
 		}
 		if(queryRC) {
 			int reversedStart = queryLength - embeddedEvent.getSequenceEvidenceEnd();
@@ -339,7 +339,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		relationships.add(embeddedEvent);
 		
 		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
-		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<5 && embeddedEvent.getWeightedCoverageSharedKmers()>0.7*queryLength;
+		return isGoodEmbedded(embeddedEvent);
+	}
+	public static boolean isGoodEmbedded(AssemblyEmbedded embeddedEvent) {
+		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<1 && embeddedEvent.getWeightedCoverageSharedKmers()>0.9*embeddedEvent.getRead().getLength();
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
@@ -398,12 +401,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setCoverageSharedKmers(simulatedAlnData[0]);
 			edge.setWeightedCoverageSharedKmers(simulatedAlnData[1]);
 			edge.setNumIndels(simulatedAlnData[2]);
-			if(edge.getEvidenceProportion()>0.9 && edge.getCoverageSharedKmers()>0.5*overlap && simulatedAlnData[2]>50  ) {
+			/*if(edge.getEvidenceProportion()>0.9 && edge.getCoverageSharedKmers()>0.5*overlap && simulatedAlnData[2]>50  ) {
 				QualifiedSequence subject = graph.getSequence(subjectSeqIdx);
 				simulatedAlnData = redoSimulation(subjectSeqIdx, subject.getCharacters(),Math.max(0, subjectLength-overlap),subject.getLength(),querySequenceId,query,0,overlap,simulatedAlnData);
 				if(querySequenceId==idxDebug) System.out.println("Repeated simulation for edge: "+edge+" new indels: "+simulatedAlnData[2]);
 				edge.setNumIndels(simulatedAlnData[2]);
-			}
+			}*/
 		}
 		if(queryRC) {
 			int reversedStart = queryLength - edge.getVertex2EvidenceEnd();
@@ -475,12 +478,12 @@ public class KmerHitsAssemblyEdgesFinder {
 			edge.setCoverageSharedKmers(simulatedAlnData[0]);
 			edge.setWeightedCoverageSharedKmers(simulatedAlnData[1]);
 			edge.setNumIndels(simulatedAlnData[2]);
-			if(edge.getEvidenceProportion()>0.9 && edge.getCoverageSharedKmers()>0.5*overlap && simulatedAlnData[2]>50  ) {
+			/*if(edge.getEvidenceProportion()>0.9 && edge.getCoverageSharedKmers()>0.5*overlap && simulatedAlnData[2]>50  ) {
 				QualifiedSequence subject = graph.getSequence(subjectSeqIdx);
 				simulatedAlnData = redoSimulation(subjectSeqIdx, subject.getCharacters(),0,overlap,querySequenceId,query,Math.max(0, queryLength-overlap),queryLength,simulatedAlnData);
 				if(querySequenceId==idxDebug) System.out.println("Repeated simulation for edge: "+edge+" new indels: "+simulatedAlnData[2]);
 				edge.setNumIndels(simulatedAlnData[2]);
-			}
+			}*/
 		}
 		if(queryRC) {
 			int reversedStart = queryLength - edge.getVertex1EvidenceEnd();
