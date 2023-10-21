@@ -95,6 +95,7 @@ public class Assembler {
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private boolean saveCorrected = false;
+	private double weightIndels = 0;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	//Model objects
@@ -414,6 +415,7 @@ public class Assembler {
 			extractor.processQualifiedSequences(sequences);
 			map = extractor.getKmersMap();
 			graph = buildGraph(sequences, map);
+			weightIndels = 1;
 		}
 		//Save final graph and corrected reads
 		if(graphFile==null || errorCorrectionRounds>0) {
@@ -427,7 +429,7 @@ public class Assembler {
 			AssemblyGraph copyGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
 			copyGraph.removeVerticesChimericReads();
-			copyGraph.updateScores(0);
+			copyGraph.updateScores(weightIndels);
 			relationshipsFilter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
 			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
@@ -453,7 +455,7 @@ public class Assembler {
 		graph.removeVerticesChimericReads();
 		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
 		
-		graph.updateScores(0);
+		graph.updateScores(weightIndels);
 		relationshipsFilter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
 		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
