@@ -35,7 +35,6 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.SimpleSequenceListLoader;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
-import ngsep.variants.DiversityStatistics;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantAnnotation;
 import ngsep.variants.GenomicVariantImpl;
