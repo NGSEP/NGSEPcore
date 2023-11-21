@@ -38,6 +38,7 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 	// Parameters
 	private String inputFile = null;
 	private String outputFile;
+	private String outputFileFullCounts;
 	private ReferenceGenome genome = null;
 	private int minRD = DEF_MIN_RD;
 	private int maxRD = DEF_MAX_RD;
@@ -48,6 +49,7 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 	
 	// Model attributes
 	private AlignmentsPileupGenerator generator;
+	private PrintStream outFullCounts;
 	
 	
 	private Distribution distProp = new Distribution(0, 0.5, 0.01);
@@ -88,6 +90,12 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 		this.outputFile = outputFile;
 	}
 	
+	public String getOutputFileFullCounts() {
+		return outputFileFullCounts;
+	}
+	public void setOutputFileFullCounts(String outputFileFullCounts) {
+		this.outputFileFullCounts = outputFileFullCounts;
+	}
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
@@ -196,6 +204,7 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 		PrintStream out = new PrintStream(os);
 		if(inputFile != null) out.println("Input file: "+inputFile);
 		if(outputFile != null) out.println("Output file: "+outputFile);
+		if(outputFileFullCounts != null) out.println("Output file for complete counts: "+outputFileFullCounts);
 		else out.println("Write to standard output");
 		out.println("Minimum read depth: "+getMinRD());
 		out.println("Maximum read depth: "+getMaxRD());
@@ -214,7 +223,15 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 		generator.setProcessSecondaryAlignments(secondaryAlns);
 		generator.setMaxAlnsPerStartPos(maxRD);
 		if(genome!=null) generator.setGenome(genome);
-		generator.processFile(filename);
+		if(outputFileFullCounts!=null) {
+			try (PrintStream out = new PrintStream(outputFileFullCounts)) {
+				outFullCounts = out;
+				generator.processFile(filename);
+			}
+		} else {
+			generator.processFile(filename);
+		}
+		
 		
 	}
 	public void printResults (PrintStream out) {
@@ -286,6 +303,9 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 			if(currentSequencePropDist!=null) currentSequencePropDist.processDatapoint(prop);
 		}
 		coveredGenomeSize++;
+		if(outFullCounts!=null && countSecondMax>0) {
+			outFullCounts.println(pileup.getSequenceName()+"\t"+pileup.getPosition()+"\t"+calls.size()+"\t"+alleleCounts.size()+"\t"+countMax+"\t"+countSecondMax);
+		}
 		if(progressNotifier!=null && coveredGenomeSize%10000==0) {
 			int progress = (int)(coveredGenomeSize/10000);
 			generator.setKeepRunning(progressNotifier.keepRunning(progress));

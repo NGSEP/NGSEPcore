@@ -1005,6 +1005,11 @@ OPTIONS:
 			  (chromosome), first position in the sequence, and
 			  last position in the sequence. Both positions are
 			  assumed to be 1-based.
+	-of FILE	: Separate output file with the complete counts
+			  information for sites with more than one allele. The
+			  file has the following data separated by tab:
+			  sequence name, position, read depth, number of
+			  different alleles, max depth, and second max depth
 	-s		: Consider secondary alignments. By default, only
 			  primary alignments are processed.
 
