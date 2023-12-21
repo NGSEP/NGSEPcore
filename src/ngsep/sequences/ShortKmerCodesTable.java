@@ -393,6 +393,7 @@ public class ShortKmerCodesTable {
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
 		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, Math.max(1, sequenceLengths.size()/10));
+		Set<Long> internalMultiHitCodes = calculateInternalMultihitKmers(codes);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
 			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));
@@ -402,7 +403,11 @@ public class ShortKmerCodesTable {
 		int numUsedCodes = 0;
 		int notFoundCodes = 0;
 		int multiSequenceCodes = 0;
+		int multihitCodes = 0;
 		int [] normalizedCountsDist = new int [10];
+		Set<Long> usedCodes = new HashSet<>();
+		Set<Long> internalMultiUsedCodes = new HashSet<>();
+		Set<Long> highDepthUsedCodes = new HashSet<>();
 		int selfSequenceCount = 0;
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
 			int startQuery = entry.getKey();
@@ -422,11 +427,20 @@ public class ShortKmerCodesTable {
 			if(normalized<normalizedCountsDist.length) normalizedCountsDist[normalized]++;
 			else normalizedCountsDist[normalizedCountsDist.length-1]++;
 			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" limit: "+(limitHitsPerSequence*countSeqs));
-			if(codesMatching.length>limitHitsPerSequence*countSeqs) {
+			if(numHits>limitHitsPerSequence*countSeqs) {
+				multihitCodes++;
 				continue;
 			}
-			else if(codesMatching.length>0) numUsedCodes++;
+			else if(numHits>0) {
+				usedCodes.add(kmerCode);
+				 
+				numUsedCodes++;
+			}
 			else notFoundCodes++;
+			if(normalized>=2) {
+				highDepthUsedCodes.add(kmerCode);
+				if(internalMultiHitCodes.contains(kmerCode)) internalMultiUsedCodes.add(kmerCode);
+			}
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
 				int subjectIdx = dec[0];
@@ -442,10 +456,15 @@ public class ShortKmerCodesTable {
 				
 			}
 		}
+		result.setUsedCodesCount(numUsedCodes);
 		result.setMultisequenceCodesCount(multiSequenceCodes);
-		result.setNormalizedCountsDist(normalizedCountsDist);
+		result.setMultihitCodesCount(multihitCodes);
 		result.setNotFoundCodesCount(notFoundCodes);
+		result.setDistinctUsedCodesCount(usedCodes.size());
+		result.setNormalizedCountsDist(normalizedCountsDist);
 		result.setKmerWeights(calculateCodeWeights(codes));
+		result.setHighDepthUsedKmerCodes(highDepthUsedCodes);
+		result.setInternalMultihitUsedKmerCodes(internalMultiUsedCodes);
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with hits in multiple sequences: "+multiSequenceCodes);
 		return result;
 		
@@ -473,6 +492,19 @@ public class ShortKmerCodesTable {
 		Set<Integer> answer = new HashSet<>();
 		for(Map.Entry<Integer, Integer> entry:subjectHitCounts.entrySet()) {
 			if(entry.getValue()>=minHits) answer.add(entry.getKey());
+		}
+		return answer;
+	}
+	private Set<Long> calculateInternalMultihitKmers(Map<Integer, Long> searchCodes) {
+		Set<Long> answer = new HashSet<>();
+		Map<Long,Integer> countsMap = new HashMap<>();
+		for(Map.Entry<Integer,Long> entry:searchCodes.entrySet()) {
+			countsMap.compute(entry.getValue(), (k,v)->v!=null?v+1:1);
+		}
+		for(Map.Entry<Long,Integer> entry:countsMap.entrySet()) {
+			if(entry.getValue()>2) {
+				answer.add(entry.getKey());
+			}
 		}
 		return answer;
 	}

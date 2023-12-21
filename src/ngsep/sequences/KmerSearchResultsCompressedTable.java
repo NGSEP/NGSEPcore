@@ -20,12 +20,17 @@ public class KmerSearchResultsCompressedTable {
 	private int kmerLength;
 	private int totalHits = 0;
 	private int [] normalizedCountsDist;
+	private int usedCodesCount;
 	private int multisequenceCodesCount;
+	private int multihitCodesCount;
 	private int notFoundCodesCount;
+	private int distinctUsedCodesCount;
 	
 	
 	private Map<Integer, Long> searchCodes;
 	private Map<Long, Double> kmerWeights;
+	private Set<Long> highDepthUsedKmerCodes;
+	private Set<Long> internalMultihitUsedKmerCodes;
 	
 	public KmerSearchResultsCompressedTable(Map<Integer, Long> searchCodes, int kmerLength, int capacity) {
 		this.searchCodes = searchCodes;
@@ -143,11 +148,24 @@ public class KmerSearchResultsCompressedTable {
 	public int getDistinctCodesCount() {
 		return kmerWeights.size();
 	}
+	
+	public int getUsedCodesCount() {
+		return usedCodesCount;
+	}
+	public void setUsedCodesCount(int usedCodesCount) {
+		this.usedCodesCount = usedCodesCount;
+	}
 	public int getMultisequenceCodesCount() {
 		return multisequenceCodesCount;
 	}
 	public void setMultisequenceCodesCount(int multisequenceCodesCount) {
 		this.multisequenceCodesCount = multisequenceCodesCount;
+	}
+	public int getMultihitCodesCount() {
+		return multihitCodesCount;
+	}
+	public void setMultihitCodesCount(int multihitCodesCount) {
+		this.multihitCodesCount = multihitCodesCount;
 	}
 	public int[] getNormalizedCountsDist() {
 		return normalizedCountsDist;
@@ -161,12 +179,34 @@ public class KmerSearchResultsCompressedTable {
 	public void setNotFoundCodesCount(int notFoundCodesCount) {
 		this.notFoundCodesCount = notFoundCodesCount;
 	}
+	
+	public int getDistinctUsedCodesCount() {
+		return distinctUsedCodesCount;
+	}
+
+	public void setDistinctUsedCodesCount(int distinctUsedCodesCount) {
+		this.distinctUsedCodesCount = distinctUsedCodesCount;
+	}
+
 	public Map<Long, Double> getKmerWeights() {
 		return kmerWeights;
 	}
 	public void setKmerWeights(Map<Long, Double> kmerWeights) {
 		this.kmerWeights = kmerWeights;
 	}
-
 	
+	public Set<Long> getHighDepthUsedKmerCodes() {
+		return highDepthUsedKmerCodes;
+	}
+	public void setHighDepthUsedKmerCodes(Set<Long> highDepthUsedKmerCodes) {
+		this.highDepthUsedKmerCodes = highDepthUsedKmerCodes;
+	}
+	
+	public Set<Long> getInternalMultihitUsedKmerCodes() {
+		return internalMultihitUsedKmerCodes;
+	}
+
+	public void setInternalMultihitUsedKmerCodes(Set<Long> internalMultihitUsedKmerCodes) {
+		this.internalMultihitUsedKmerCodes = internalMultihitUsedKmerCodes;
+	}
 }
