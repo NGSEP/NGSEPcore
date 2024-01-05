@@ -204,8 +204,9 @@ public class KmerHitsAssemblyEdgesFinder {
 			maxCount = Math.max(maxCount, count);
 			if(count >=minHits) passCount++;
 		}
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Min hits: "+minHits+" number of passing clusters: "+passCount+" max count: "+maxCount);
-		return Math.max(minHits, maxCount/5);
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Min hits: "+minHits+" number of clusters passing minHits: "+passCount+" max count: "+maxCount);
+		if(passCount>allClusters.size()/10) return Math.max(minHits, maxCount/5);
+		else return maxCount/5;
 	}
 	public void printSubjectHits(int subjectIdx, List<UngappedSearchHit> subjectHits) {
 		for(UngappedSearchHit hit:subjectHits) {

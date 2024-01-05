@@ -310,7 +310,7 @@ public class AssemblyGraphStatistics {
 					int refSeqLength = refSeq.getLength();
 					
 					if(aln.getFirst()-aln.getSoftClipStart()>-1000 && aln.getLast()+aln.getSoftClipEnd()<refSeqLength+1000 && aln.getSoftClipStart()>3000 || aln.getSoftClipEnd()>3000) {
-						log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd()+" aligned to "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast());
+						//log.warning("Alignment of read idx "+idx+ " name "+aln.getReadName()+" has a large soft clip: "+aln.getSoftClipStart()+" "+aln.getSoftClipEnd()+" aligned to "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast());
 						continue;
 					}
 					
@@ -336,7 +336,6 @@ public class AssemblyGraphStatistics {
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
 			log.info("Updating scores");
-			//graph.updateScores(1);
 			graph.updateScores(0);
 			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
@@ -686,8 +685,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==598523 || gsVertex.getSequenceIndex()== 105749 || gsVertex.getSequenceIndex()==973353;
-		//boolean debug = gsVertex.getSequenceIndex()==60 || gsVertex.getSequenceIndex()==379 || gsVertex.getSequenceIndex()==196; 
+		//boolean debug = gsVertex.getSequenceIndex()==513290 || gsVertex.getSequenceIndex()== 213638 || gsVertex.getSequenceIndex()==1267;
+		//boolean debug = gsVertex.getSequenceIndex()==757 || gsVertex.getSequenceIndex()==236 || gsVertex.getSequenceIndex()==752; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

@@ -166,7 +166,7 @@ public class AssemblyPath {
 		
 	}
 	
-	public boolean connectPathRight(AssemblyGraph graph, AssemblyPath path2, boolean reverse, List<AssemblySequencesRelationship> junctionRels) {
+	public List<AssemblyPath> connectPathRight(AssemblyGraph graph, AssemblyPath path2, boolean reverse, List<AssemblySequencesRelationship> junctionRels) {
 		List<AssemblyEdge> path1Edges = new ArrayList<AssemblyEdge>(edges);
 		int n1 = path1Edges.size();
 		List<AssemblyEdge> path2Edges = new ArrayList<AssemblyEdge>(path2.edges);
@@ -178,14 +178,14 @@ public class AssemblyPath {
 		}
 		Map<Integer,Integer> lastVerticesLocations1 = new HashMap<>();
 		AssemblyVertex nextVertex1 = vertexRight;
-		for(int i=n1;i>0 && i>=n1-10;i--) {
+		for(int i=n1;i>0 && i>=n1-20;i--) {
 			if(i%2==1) lastVerticesLocations1.put(nextVertex1.getUniqueNumber(), i);
 			AssemblyEdge edge = path1Edges.get(i-1);
 			nextVertex1 = edge.getConnectingVertex(nextVertex1);
 		}
 		Map<Integer,Integer> lastVerticesLocations2 = new HashMap<>();
 		
-		for(int i=0;i<n2 && i<=10;i++) {
+		for(int i=0;i<n2 && i<=20;i++) {
 			if(i%2==0) lastVerticesLocations2.put(nextVertex2.getUniqueNumber(), i);
 			AssemblyEdge edge = path2Edges.get(i);
 			nextVertex2 = edge.getConnectingVertex(nextVertex2);
@@ -194,6 +194,7 @@ public class AssemblyPath {
 		Collections.sort(junctionRels,(r1,r2)->r1.getCost()-r2.getCost());
 		//System.out.println("Trying to merge path: "+pathId+" with "+path2.getPathId()+" reverse: "+reverse+" rels: "+junctionRels.size());
 		//for(AssemblySequencesRelationship rel: junctionRels) System.out.println(rel);
+		//Try relationship with lowest cost
 		AssemblySequencesRelationship rel = junctionRels.get(0);
 		if(rel instanceof AssemblyEdge) {
 			AssemblyEdge edge = (AssemblyEdge)rel;
@@ -206,8 +207,25 @@ public class AssemblyPath {
 				loc2 = lastVerticesLocations2.get(edge.getVertex1().getUniqueNumber());
 			}
 			//System.out.println("Loc1: "+loc1+" loc2: "+loc2+" min cost edge: "+edge);
-			if (loc1==null || loc2==null) return false;
-			while(edges.size()>loc1) edges.removeLast();
+			if (loc1==null || loc2==null) return null;
+			int newPathLength = loc1+(n2-loc2);
+			//The new path length should be larger than the original path lengths and the sum of the leftovers
+			if(newPathLength<n1 || newPathLength<n2 || newPathLength<=(n1-loc1)+loc2) return null;
+			List<AssemblyPath> leftoverPaths = new ArrayList<>();
+			AssemblyPath leftover1 = null;
+			while(edges.size()>loc1) {
+				AssemblyEdge edgeRemoved = edges.removeLast();
+				if(leftover1==null) leftover1 = new AssemblyPath(edgeRemoved);
+				else if(!edgeRemoved.isSameSequenceEdge()) leftover1.connectEdgeLeft(graph, edgeRemoved);
+			}
+			if(leftover1!=null && leftover1.getPathLength()>1) leftoverPaths.add(leftover1);
+			AssemblyPath leftover2 = null;
+			for(int i=0;i<loc2;i++) {
+				AssemblyEdge edge2 = path2Edges.get(i);
+				if(leftover2==null) leftover2 = new AssemblyPath(edge2);
+				else if(!edge2.isSameSequenceEdge()) leftover2.connectEdgeRight(graph, edge2);
+			}
+			if(leftover2!=null && leftover2.getPathLength()>1) leftoverPaths.add(leftover2);
 			vertexRight = vertexRightAfterRemove;
 			connectEdgeRight(graph, edge);
 			for(int i=loc2;i<n2;i++) {
@@ -215,14 +233,14 @@ public class AssemblyPath {
 				if(!edge2.isSameSequenceEdge()) connectEdgeRight(graph, edge2);
 			}
 			this.alternativeSmallPaths.addAll(path2.alternativeSmallPaths);
-			return true;
+			return leftoverPaths;
 		}
 		
-		//Try relationship with lowest cost
 		
 		
 		
-		return false;
+		
+		return null;
 	}
 	public void reverse() {
 		Collections.reverse(edges);
