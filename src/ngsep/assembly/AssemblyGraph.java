@@ -693,7 +693,7 @@ public class AssemblyGraph {
 		for(AssemblyEmbedded embedded:embeddedList) {
 			int unknownLeft = embedded.getHostEvidenceStart() - embedded.getHostStart();
 			int unknownRight = embedded.getHostEnd() - embedded.getHostEvidenceEnd();
-			if(unknownLeft<200 && unknownRight<200 && minEvidenceStart-embedded.getHostEvidenceStart()>100 && embedded.getHostEvidenceEnd()-maxEvidenceEnd>100) {
+			if(unknownLeft<1000 && unknownRight<1000 && minEvidenceStart-embedded.getHostEvidenceStart()>100 && embedded.getHostEvidenceEnd()-maxEvidenceEnd>100) {
 				if(sequenceId==idxDebug) System.out.println("Embedded crossing. Sequence: "+embedded.getSequenceId());
 				numCrossing++;
 			}
@@ -710,7 +710,7 @@ public class AssemblyGraph {
 			int unknownLeft = (edge.getVertex1()==vS)?edge.getVertex1EvidenceStart():edge.getVertex2EvidenceStart();
 			int unknownRight = edge.getOverlap() - nextEvidenceEnd;
 			
-			if(unknownLeft<200 && unknownRight<200 && nextEvidenceEnd-maxEvidenceEnd>100) {
+			if(unknownLeft<1000 && unknownRight<1000 && nextEvidenceEnd-maxEvidenceEnd>100) {
 				if(sequenceId==idxDebug) System.out.println("Edge start crossing. Edge: "+edge);
 				numCrossing++;
 			}
@@ -729,7 +729,7 @@ public class AssemblyGraph {
 			int unknownLeft = edge.getOverlap() - (seqLength-nextEvidenceStart);
 			int unknownRight = seqLength - ((edge.getVertex1()==vE)?edge.getVertex1EvidenceEnd():edge.getVertex2EvidenceEnd());
 			
-			if(unknownLeft<200 && unknownRight<200 && minEvidenceStart - nextEvidenceStart > 100) {
+			if(unknownLeft<1000 && unknownRight<1000 && minEvidenceStart - nextEvidenceStart > 100) {
 				if(sequenceId==idxDebug) System.out.println("Edge end crossing. Edge: "+edge);
 				numCrossing++;
 			}
@@ -745,7 +745,7 @@ public class AssemblyGraph {
 		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
 		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
 		int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
-		if( numCrossing==0  && d1>1000 && d2>1000 && d3>1000 && d4>1000 && d5<seqLength/2) {
+		if( numCrossing==0  && d1>1000 && d2>1000 && d3>1000 && d4>1000 && d5<seqLength/10) {
 			System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
 			return true;
 		} /*else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
