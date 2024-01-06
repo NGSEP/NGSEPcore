@@ -11,7 +11,8 @@ import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.UngappedSearchHit;
 
 public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
-	private int debugLength = -1;
+	private static int debugLength = -1;
+	private PairwiseAlignerStaticBanded alignerBanded = new PairwiseAlignerStaticBanded();
 	@Override
 	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
@@ -23,7 +24,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 			String [] answer = {alnRev[1].toString(),alnRev[0].toString()};
 			return answer;
 		}
-		if(n2==0) return (new PairwiseAlignerNaive(false)).calculateAlignment(sequence1, sequence2);
+		if(n1<50 && n2==0) return (new PairwiseAlignerNaive(false)).calculateAlignment(sequence1, sequence2);
 		if(n1<100 && n2<20) {
 			PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
 			aligner.setForceStart1(false);
@@ -79,7 +80,8 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				} else {
 					int minLength = Math.min(subjectNextLength, queryNextLength);
 					int maxLength = Math.max(subjectNextLength, queryNextLength);
-					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+					int diffLength = maxLength-minLength;
+					if(diffLength>3 && 0.95*maxLength>minLength) {
 						//Possible invalid kmer hit. Delay alignment
 						if(n2 == debugLength) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryStart()+" subject hit start: "+kmerHit.getSubjectStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
 						continue;
@@ -95,6 +97,10 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					if(n2 == debugLength)  System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
 					String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
 					if(n2 == debugLength && alignedFragments==null) System.out.println("Null middle alignment between "+seq1Fragment+" and "+seq2Fragment);  
+					if(alignedFragments==null && diffLength<=10) {
+						//Try with the static band if the length difference is small
+						alignedFragments = alignerBanded.calculateAlignment(seq1Fragment, seq2Fragment);
+					}
 					if(alignedFragments==null) return null;
 					aln1.append(alignedFragments[0]);
 					aln2.append(alignedFragments[1]);
@@ -172,11 +178,18 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		if(initialKmerHits.size()==0) return null;
 		
 		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits, 0);
-		//System.out.println("Number of clusters: "+clusters.size());
-		//printClusters(clusters);
+		if(queryLength==debugLength) System.out.println("Number of clusters: "+clusters.size());
+		if(queryLength==debugLength) printClusters(clusters);
 		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
 		else if (clusters.size()==0) return null;
 		return clusters.get(0);
+	}
+	public static void printClusters(List<UngappedSearchHitsCluster> clusters) {
+		System.out.println("Clusters: "+clusters.size());
+		for(UngappedSearchHitsCluster cluster:clusters) {
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
+		}
+		
 	}
 	private static List<UngappedSearchHit> alignKmerCodes(Map<Integer, Long> codesSubject, Map<Integer, Long> codesQuery, int kmerLength) {
 		Map<Long,List<Integer>> reverseSubjectMap = new HashMap<Long, List<Integer>>();
@@ -194,6 +207,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				hit.setQueryStart(i);
 				hit.setHitLength((short)kmerLength);
 				initialKmerHits.add(hit);
+				//if(i<30) System.out.println("Next hit for kmer at "+i+" pos "+subjectPos); 
 			}
 		}
 		return initialKmerHits;

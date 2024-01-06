@@ -201,12 +201,5 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		}
 		return filteredClusters;
 	}
-	public void printClusters(List<UngappedSearchHitsCluster> clusters) {
-		System.out.println("Clusters: "+clusters.size());
-		for(UngappedSearchHitsCluster cluster:clusters) {
-			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
-		}
-		
-	}
 }
 
