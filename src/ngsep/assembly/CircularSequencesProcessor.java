@@ -20,6 +20,7 @@
 package ngsep.assembly;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,9 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadsAligner;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.genome.ReferenceGenome;
+import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
+import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequence;
@@ -41,13 +45,17 @@ import ngsep.sequences.io.FastaSequencesHandler;
  *
  */
 public class CircularSequencesProcessor {
-	private Logger log = Logger.getAnonymousLogger();
+	private Logger log = Logger.getLogger(CircularSequencesProcessor.class.getName());
+	private ProgressNotifier progressNotifier = null;
 	//constant values for default
 	public static final int DEF_MAX_LENGTH = 6000000;
 	private static final int END_LENGTH = 1000;
 	private static final int THRESHOLD=50;
-	// Start sequences for circularization
-	private List<QualifiedSequence> starts;
+	
+	// Parameters
+	private String inputFile;
+	private String outputFile;
+	private List<QualifiedSequence> starts; // Start sequences for circularization
 	private int maxLength = DEF_MAX_LENGTH;
 	
 	public Logger getLog() {
@@ -56,6 +64,39 @@ public class CircularSequencesProcessor {
 	public void setLog(Logger log) {
 		this.log = log;
 	}
+
+	public ProgressNotifier getProgressNotifier() {
+		return progressNotifier;
+	}
+	public void setProgressNotifier(ProgressNotifier progressNotifier) { 
+		this.progressNotifier = progressNotifier;
+	}
+	
+	public String getInputFile() {
+		return inputFile;
+	}
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
+	
+	public List<QualifiedSequence> getStarts() {
+		return starts;
+	}
+	public void setStarts(List<QualifiedSequence> starts) {
+		this.starts = starts;
+	}
+	public void setStarts(String filename) throws IOException {
+		if(filename==null) return; 
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		starts = handler.loadSequences(filename);
+	}
 	
 	public int getMaxLength() {
 		return maxLength;
@@ -63,27 +104,22 @@ public class CircularSequencesProcessor {
 	public void setMaxLength(int maxLength) {
 		this.maxLength = maxLength;
 	}
-	public List<QualifiedSequence> getStarts() {
-		return starts;
-	}
-	public void setStarts(List<QualifiedSequence> starts) {
-		this.starts = starts;
-	}
-	
-	public void setStarts(String filename) throws IOException {
-		if(filename==null) return; 
-		FastaSequencesHandler handler = new FastaSequencesHandler();
-		starts = handler.loadSequences(filename);
+	public void setMaxLength(String value) {
+		this.setMaxLength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 
 	public static void main(String[] args) throws Exception {
 		CircularSequencesProcessor instance = new CircularSequencesProcessor();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+	}
+	private void run() throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		List<QualifiedSequence> contigs = handler.loadSequences(args[0]);
-		instance.starts = handler.loadSequences(args[1]);
-		instance.processContigs(contigs);
-		
-		handler.saveSequences(contigs, System.out, 100);
+		List<QualifiedSequence> contigs = handler.loadSequences(inputFile);
+		processContigs(contigs);
+		try (PrintStream out = new PrintStream(outputFile)) {
+			handler.saveSequences(contigs, out, 100);
+		}
 	}
 	
 	/**

@@ -1207,6 +1207,7 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public String getCigarString() {
 		StringBuilder cigar = new StringBuilder();
+		if(alignment == null) return "";
 		for(int i=0;i<alignment.length;i++) {
 			int length = getOperationLength(alignment[i]);
 			byte operator = getOperator(alignment[i]);

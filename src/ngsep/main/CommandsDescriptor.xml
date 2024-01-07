@@ -1,4 +1,4 @@
-<software name="NGSEP" version="4.3.2" date="19-07-2023" jar="NGSEPcore">
+<software name="NGSEP" version="4.3.3" date="26-01-2024" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -217,10 +217,8 @@ Performs de-novo assembly from long reads
 <description>
 Builds a de-novo assembly from a set of long reads following an overlap-layout-consensus (OLC) approach.
 It receives a fasta or fastq file with raw PacBio HiFi or Nanopore reads and generates an assembly for the sample in fasta format.
-It also generates a grap.gz file with the information of the overlap graph.
+It also generates a graph.gz file with the information of the overlap graph.
 This graph can be provided as input in a second run skip the graph construction step.
-Note: Although this functionality is already producing competitive assemblies compared to other tools, 
-the following versions will probably have improvements on contiguity and phasing of diploid assemblies.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input file. See option -f for options on the file format . It can be gzip compressed.
@@ -250,7 +248,6 @@ A value less or equal to zero disables homopolymer compression.
 <option id="mspe" type="DOUBLE" attribute="minScoreProportionEdges" defaultConstant="DEF_MIN_SCORE_PROPORTION_EDGES">
 Minimum proportion from the maximum score of the edges of a sequence to keep an edge.
 </option>
- 
 <option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
 Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
 This option is still in progress and it has been tested only in haploid and diploid samples.
@@ -273,7 +270,6 @@ Algorithm used to build the layout. It can be MaxOverlap or KruskalPath.
 <option id="ac" type="STRING" attribute="consensusAlgorithm" defaultConstant="CONSENSUS_ALGORITHM_POLISHING" >
 Algorithm used to build the consensus. It can be Simple or Polishing.
 </option>
-
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
@@ -284,6 +280,62 @@ Save the corrected reads
 -->
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads
+</option>
+</command>
+
+<command id="AssemblyReferenceSorter" class="ngsep.assembly.AssemblyReferenceSorter" groupId="Reads">
+<intro>
+Sorts contigs of a de-novo assembly by mapping to a reference assembly
+</intro>
+<title>Sorting contigs of genome assemblies</title>
+<description>
+Sorts contigs of a de-novo assembly by mapping to a reference assembly of an individual of either the same or a close species.
+It does not join contigs. It only sorts and orient contigs to make the input genome colinear with the reference genome.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input genome in FASTA format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file
+</option>
+<option id="r" type="GENOME" attribute="referenceFile">
+Reference genome to map contigs in FASTA format. Required parameter. It can be gzip compressed. 
+</option>
+<option id="ploidy" type="INT" attribute="ploidy" defaultConstant="DEF_PLOIDY">
+Ploidy of the sample. Keep ploidy of 1 if the sample is inbred, even if it is diploid or polyploid.
+</option>
+<option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
+K-mer length
+</option>
+<option id="w" type="INT" attribute="windowLength" defaultConstant="DEF_WINDOW_LENGTH">
+Window length to calculate minimizers.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads
+</option>
+</command>
+
+<command id="CircularSequencesProcessor" class="ngsep.assembly.CircularSequencesProcessor" groupId="Reads">
+<intro>
+Standardize circular contigs in genome assemblies
+</intro>
+<title>Circularizing genome assemblies</title>
+<description>
+Standardize the start and orientation of circular sequences in genome assemblies.
+It receives a fasta file with the assembly, identifies sequences with repeated ends, and remove redundancies.
+A set of start sequences can be provided to map and reorient contigs according to these start sequences
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input genome in FASTA format. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file
+</option>
+<option id="s" type="FILE" attribute="starts">
+Fasta file with sequences to be used as start sequences
+</option>
+<option id="ml" type="INT" attribute="maxLength" defaultConstant="DEF_MAX_LENGTH">
+Maximum length of a contig to try circularization. Longer contigs will not be modified
 </option>
 </command>
 
