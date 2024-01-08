@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import ngsep.math.Distribution;
@@ -55,7 +57,7 @@ public class UngappedSearchHitsClusterBuilder {
 		if(avg>0) avg/=countsByQueryIdx.size();
 		double estimatedClusters = avg;
 		 
-		if(debug) System.out.println("Clustering hits: "+sequenceHits.size()+" estimatedCLusters: "+estimatedClusters);
+		if(debug) System.out.println("Clustering hits: "+sequenceHits.size()+" query starts: "+countsByQueryIdx.size()+" estimatedClusters: "+estimatedClusters);
 		
 		//if(minQueryCoverage==0) 
 		return clusterRegionKmerAlnsMultiple(queryLength, subjectIdx, subjectLength, sequenceHits, estimatedClusters);
@@ -255,8 +257,16 @@ public class UngappedSearchHitsClusterBuilder {
 			if(debug) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx);
 			return selectedHits;
 		}
-		replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
-		List<UngappedSearchHit> filteredHits = removeDisorganized (selectedHits, median);
+		Set<Integer> outliersToRemove = replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
+		List<UngappedSearchHit> filteredHits = new ArrayList<UngappedSearchHit>();
+		if(outliersToRemove.size()>0 && outliersToRemove.size()<0.2*selectedHits.size()) {
+			for(int i=0;i<selectedHits.size();i++) {
+				if(!outliersToRemove.contains(i)) filteredHits.add(selectedHits.get(i));
+				else if (debug) System.out.println("Removing outlier at qpos "+selectedHits.get(i).getQueryStart()+" hit: "+selectedHits.get(i).getSubjectStart());
+				
+			}
+		} else filteredHits.addAll(selectedHits);
+		filteredHits = removeDisorganized (filteredHits, median);
 		if(filteredHits.size()<1) {
 			if(debug) System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" selected hits: "+selectedHits.size()+" query length: "+queryLength);
 			
@@ -300,7 +310,7 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
-	private void replaceHitsByLocalAgreement(List<UngappedSearchHit> selectedHits, Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance, int queryLength) {
+	private Set<Integer> replaceHitsByLocalAgreement(List<UngappedSearchHit> selectedHits, Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance, int queryLength) {
 		//Find trustable site
 		int minHitPos = -1;
 		int minCost = -1;
@@ -316,12 +326,13 @@ public class UngappedSearchHitsClusterBuilder {
 				minCost = cost;
 			}
 		}
-		if(minHitPos==-1) return;
+		if(minHitPos==-1) return new HashSet<Integer>();
 		UngappedSearchHit minHit = selectedHits.get(minHitPos);
 		if (debug) System.out.println("Hit closest to median. qpos "+minHit.getQueryStart()+" hit: "+minHit.getSubjectStart()+" cost: "+minCost+" estq: "+estimateQueryStart(minHit)+" estS: "+estimateSubjectStart(minHit));
 		int vicinityEstStart = estimateSubjectStart(minHit);
 		LinkedList<Integer> localValues = new LinkedList<Integer>();
 		localValues.add(vicinityEstStart);
+		Set<Integer> posHitsToRemove = new HashSet<Integer>();
 		for(int i=minHitPos-1;i>=0;i--) {
 			UngappedSearchHit nextHit = selectedHits.get(i);
 			int estStart = estimateSubjectStart(nextHit);
@@ -334,6 +345,8 @@ public class UngappedSearchHitsClusterBuilder {
 					if (debug) System.out.println("Replacing hit. qpos "+updatedHit.getQueryStart()+" hit: "+updatedHit.getSubjectStart()+" estq: "+estimateQueryStart(updatedHit)+" estS: "+estimateSubjectStart(updatedHit));
 					selectedHits.set(i, updatedHit);
 					estStart = estimateSubjectStart(updatedHit);
+				} else {
+					posHitsToRemove.add(i);
 				}
 			} else {
 				vicinityEstStart = estStart;
@@ -356,6 +369,8 @@ public class UngappedSearchHitsClusterBuilder {
 					if (debug) System.out.println("Replacing hit. qpos "+updatedHit.getQueryStart()+" hit: "+updatedHit.getSubjectStart()+" estq: "+estimateQueryStart(updatedHit)+" estS: "+estimateSubjectStart(updatedHit));
 					selectedHits.set(i, updatedHit);
 					estStart = estimateSubjectStart(updatedHit);
+				} else {
+					posHitsToRemove.add(i);
 				}
 			} else {
 				vicinityEstStart = estStart;
@@ -363,7 +378,7 @@ public class UngappedSearchHitsClusterBuilder {
 			localValues.add(estStart);
 			if(localValues.size()>10) localValues.removeFirst();
 		}
-		
+		return posHitsToRemove;
 	}
 
 	private int getMedian(LinkedList<Integer> localValues) {

@@ -527,6 +527,8 @@ public class KmersExtractor {
 		//List<Long> kmerCodes = new ArrayList<Long>();
 		//Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
 		if (n < kmerLength) return new long[0];
+		int rangeLength = end-start+1;
+		if(rangeLength<=kmerLength) return new long[0];
 		int lastKmerStart = end - kmerLength;
 		long [] kmerCodesArray = new long[lastKmerStart-start+1];
 		Arrays.fill(kmerCodesArray, -1);
