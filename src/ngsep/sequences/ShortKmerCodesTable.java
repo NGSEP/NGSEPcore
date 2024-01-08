@@ -203,7 +203,6 @@ public class ShortKmerCodesTable {
 		int step = 500000;
 		//Map<Long, List<Long>> codesSeq = new HashMap<Long, List<Long>>();
 		List<KmerCodesTableEntry> codesSeq = new ArrayList<KmerCodesTableEntry>();
-		int countMinimizers = 0;
 		int totalMinimizers = 0;
 		for (int start = 0;start < n;start+=step) {
 			List<KmerCodesTableEntry> codeEntriesList = computeSequenceCodes(sequenceId, sequenceStr, start, Math.min(n, start+step));
@@ -212,37 +211,37 @@ public class ShortKmerCodesTable {
 			if(codesSeq.size()>=1000000) {
 				addCodesSequenceTask(sequenceId, n, codesSeq);
 				//addCodesSequence(sequenceId, n, codesSeq);
+				totalMinimizers+=codesSeq.size();
 				codesSeq.clear();
-				totalMinimizers+=countMinimizers;
-				countMinimizers=0;
 			}
 		}
 		addCodesSequenceTask(sequenceId, n, codesSeq);
 		//addCodesSequence(sequenceId, n, codesSeq);
-		totalMinimizers+=countMinimizers;
+		totalMinimizers+=codesSeq.size();
 		long time = (System.currentTimeMillis()-startTime)/1000;
 		if(n>1000000) log.info("Sequence "+sequenceId+" length: "+n+" total minimizers: "+totalMinimizers+" pct: "+(100*totalMinimizers/sequence.length())+" time(s): "+time);
 	}
 	private void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
-		try {
-			final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
-			if(poolAddKmerCodes!=null) poolAddKmerCodes.queueTask(()->addCodesSequence(sequenceId, n, codesSeqToAdd));
-			else addCodesSequence(sequenceId, n, codesSeqToAdd);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			throw new RuntimeException("Concurrence error creating minimizers table",e);
-		}
+		final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
+		if(poolAddKmerCodes!=null) {
+			try {
+				poolAddKmerCodes.queueTask(()->addCodesSequence(sequenceId, n, codesSeqToAdd));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Concurrence error creating minimizers table",e);
+			}
+		} else addCodesSequence(sequenceId, n, codesSeqToAdd);
 	}
 	private synchronized void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
-		long startTime = System.currentTimeMillis();
+		//long startTime = System.currentTimeMillis();
 		for(KmerCodesTableEntry entry:codesSeq) {
 			List<Long> a = new ArrayList<Long>(1);
 			a.add(entry.encode());
 			addCodeSequence (entry.getKmerCode(), a);
 		}
+		//long time = (System.currentTimeMillis()-startTime)/1000;
+		//if(seqLen>1000000) log.info("Sequence "+sequenceId+" length: "+seqLen+" entries added: "+codesSeq.size()+" time(s): "+time);
 		codesSeq.clear();
-		long time = (System.currentTimeMillis()-startTime)/1000;
-		if(seqLen>1000000) log.info("Sequence "+sequenceId+" length: "+seqLen+" entries added: "+codesSeq.size()+" time(s): "+time);
 	}
 	public void endAddingSequences() {
 		try {
