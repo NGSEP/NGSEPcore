@@ -259,13 +259,14 @@ public class UngappedSearchHitsClusterBuilder {
 		}
 		Set<Integer> outliersToRemove = replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
 		List<UngappedSearchHit> filteredHits = new ArrayList<UngappedSearchHit>();
-		if(outliersToRemove.size()>0 && outliersToRemove.size()<0.2*selectedHits.size()) {
-			for(int i=0;i<selectedHits.size();i++) {
-				if(!outliersToRemove.contains(i)) filteredHits.add(selectedHits.get(i));
-				else if (debug) System.out.println("Removing outlier at qpos "+selectedHits.get(i).getQueryStart()+" hit: "+selectedHits.get(i).getSubjectStart());
+		//if(outliersToRemove.size()>0 && outliersToRemove.size()<0.2*selectedHits.size()) {
+			//for(int i=0;i<selectedHits.size();i++) {
+				//if(!outliersToRemove.contains(i)) filteredHits.add(selectedHits.get(i));
+				//else if (debug) System.out.println("Removing outlier at qpos "+selectedHits.get(i).getQueryStart()+" hit: "+selectedHits.get(i).getSubjectStart());
 				
-			}
-		} else filteredHits.addAll(selectedHits);
+			//}
+		//} else filteredHits.addAll(selectedHits);
+		filteredHits.addAll(selectedHits);
 		filteredHits = removeDisorganized (filteredHits, median);
 		if(filteredHits.size()<1) {
 			if(debug) System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" selected hits: "+selectedHits.size()+" query length: "+queryLength);
