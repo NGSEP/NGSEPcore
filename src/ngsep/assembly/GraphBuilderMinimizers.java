@@ -32,9 +32,9 @@ import java.util.logging.Logger;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.KmersExtractor;
-import ngsep.sequences.KmersMap;
 import ngsep.sequences.KmersMapAnalyzer;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.sequences.ShortKmerCodesTable;
 
 /**
@@ -49,36 +49,27 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	public static final int DEF_WINDOW_LENGTH = 10;
 	public static final int DEF_NUM_THREADS = 1;
 	
-	private int kmerLength=KmersExtractor.DEF_KMER_LENGTH;
-	private int windowLength=DEF_WINDOW_LENGTH;
+	
 	private int ploidy = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	private int numThreads = DEF_NUM_THREADS;
 	private int depthCompleteIndexing = 10;
-	private KmersMap kmersMap;
+	private KmersMapAnalyzer kmersAnalyzer;
+	private ShortKmerCodesSampler sampler; 
+	
 	
 	private static final int TIMEOUT_SECONDS = 30;
 	
 	private static int idxDebug = -1;
 	
+	public GraphBuilderMinimizers(KmersMapAnalyzer kmersAnalyzer, ShortKmerCodesSampler sampler) {
+		this.kmersAnalyzer = kmersAnalyzer;
+		this.sampler = sampler;
+	}
 	public Logger getLog() {
 		return log;
 	}
 	public void setLog(Logger log) {
 		this.log = log;
-	}
-
-	
-	public int getKmerLength() {
-		return kmerLength;
-	}
-	public void setKmerLength(int kmerLength) {
-		this.kmerLength = kmerLength;
-	}
-	public int getWindowLength() {
-		return windowLength;
-	}
-	public void setWindowLength(int windowLength) {
-		this.windowLength = windowLength;
 	}
 	
 	public int getPloidy() {
@@ -94,18 +85,16 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		this.numThreads = numThreads;
 	}
 	
-	public KmersMap getKmersMap() {
-		return kmersMap;
+	public KmersMapAnalyzer getKmersAnalyzer() {
+		return kmersAnalyzer;
 	}
-	public void setKmersMap(KmersMap kmersMap) {
-		this.kmersMap = kmersMap;
+	public void setKmersAnalyzer(KmersMapAnalyzer kmersAnalyzer) {
+		this.kmersAnalyzer = kmersAnalyzer;
 	}
 	@Override	
 	public AssemblyGraph buildAssemblyGraph(final List<QualifiedSequence> sequences) {
 		Runtime runtime = Runtime.getRuntime();
-		
-		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(kmersMap, false);
-		int modeDepth = kmersAnalyzer.getMode();
+		int modeDepth = Math.max(1,kmersAnalyzer.getMode());
 		long expectedAssemblyLength = kmersAnalyzer.getExpectedAssemblyLength();
 		
 		log.info("Mode: "+modeDepth+" Expected assembly length: "+expectedAssemblyLength);
@@ -116,9 +105,17 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		graph.setPloidy(ploidy);
 		
 		long time1 = System.currentTimeMillis();
-		ShortKmerCodesTable table = new ShortKmerCodesTable(kmersAnalyzer, kmerLength, windowLength);
-		//MinimizersTable table = new MinimizersTable(kmersAnalyzer, kmerLength, windowLength);
+		
+		
+		//Create the structures with appropriate initial capacity
+		int capacity = kmersAnalyzer.getKmersMap().size()/10;
+		ShortKmerCodesTable table = new ShortKmerCodesTable(sampler,capacity,false);
 		table.setLog(log);
+		table.setMode(modeDepth);
+		table.setKmerDistModeLocalSD(kmersAnalyzer.getModeLocalSD());
+		
+		
+		
 		//table.setMaxAbundanceMinimizer(Math.max(100, 5*modeDepth));
 		ThreadPoolExecutor poolMinimizers1 = new ThreadPoolExecutor(numThreads, numThreads, TIMEOUT_SECONDS, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		int seqIdMinimizers = 0;
@@ -393,9 +390,9 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 		}
 	}
-	private void updateRelationshipsRepeats(AssemblyGraph graph, Set<Integer> repetitiveSequenceIds) {
-		List<Set<Integer>> connectedComponents = graph.findConnectedComponentsSequences(repetitiveSequenceIds);
-		log.info("RemoveEdgesRepeats. Num connected components: "+connectedComponents.size());
+	//private void updateRelationshipsRepeats(AssemblyGraph graph, Set<Integer> repetitiveSequenceIds) {
+		//List<Set<Integer>> connectedComponents = graph.findConnectedComponentsSequences(repetitiveSequenceIds);
+		//log.info("RemoveEdgesRepeats. Num connected components: "+connectedComponents.size());
 		/*KmerHitsAssemblyEdgesFinder edgesFinder = new KmerHitsAssemblyEdgesFinder(graph);
 		for(Set<Integer> cluster: connectedComponents) {
 			log.info("RemoveEdgesRepeats. Next connected component. Size: "+cluster.size()+" Elements: "+cluster);
@@ -447,8 +444,8 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			System.out.println("Dist IKBP");
 			ikbpDist.printDistribution(System.out);*/
 		//}	
-	}
-	private KmersMap calculateKmersMap(AssemblyGraph graph, Set<Integer> cluster) {
+	//}
+	/*private KmersMap calculateKmersMap(AssemblyGraph graph, Set<Integer> cluster) {
 		KmersExtractor extractor = new KmersExtractor();
 		extractor.setKmerLength(kmerLength);
 		for(int i:cluster) {
@@ -456,5 +453,5 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 			extractor.countSequenceKmers(seq);
 		}
 		return extractor.getKmersMap();
-	}
+	}*/
 }

@@ -30,6 +30,7 @@ import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.KmerSearchResultsCompressedTable;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.sequences.ShortKmerCodesTable;
 
 /**
@@ -78,7 +79,10 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		int longestSequenceLengthMbp = 1+genome.getLongestSequenceLength()/1000000;
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
-		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength,10*n*longestSequenceLengthMbp,true);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler();
+		sampler.setKmerLength(kmerLength);
+		sampler.setWindowLength(windowLength);
+		kmerCodesTable = new ShortKmerCodesTable(sampler,10*n*longestSequenceLengthMbp,true);
 		tableKmerLength = kmerLength;
 		if(buildKmersTable) {
 			//log.info("Calculating kmers distribution");

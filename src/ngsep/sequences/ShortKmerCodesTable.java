@@ -63,24 +63,12 @@ public class ShortKmerCodesTable {
 	private ThreadPoolManager poolAddKmerCodes;
 	
 	
-	public ShortKmerCodesTable(int kmerLength, int windowLength) {
-		this(kmerLength,windowLength,10, false);
+	public ShortKmerCodesTable(ShortKmerCodesSampler sampler) {
+		this(sampler,1000, false);
 	}
-	public ShortKmerCodesTable(int kmerLength, int windowLength, int capacity, boolean useThreadToAddCodes) {
-		this.codesSampler = new ShortKmerCodesSampler();
-		this.codesSampler.setKmerLength(kmerLength);
-		this.codesSampler.setWindowLength(windowLength);
+	public ShortKmerCodesTable(ShortKmerCodesSampler sampler, int capacity, boolean useThreadToAddCodes) {
+		this.codesSampler = sampler;
 		initializeTable(capacity, useThreadToAddCodes);
-	}
-	public ShortKmerCodesTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
-		this.mode = Math.max(1,kmersAnalyzer.getMode());
-		this.kmerDistModeLocalSD = kmersAnalyzer.getModeLocalSD();
-		this.codesSampler = new ShortKmerCodesSampler(new MinimapShortKmerCodesSamplingAlgorithm(), new CountsBasedShortKmerCodesHashFunction(kmerLength, kmersAnalyzer));
-		this.codesSampler.setKmerLength(kmerLength);
-		this.codesSampler.setWindowLength(windowLength);
-		//Create the structures with appropriate initial capacity
-		int capacity = kmersAnalyzer.getKmersMap().size()/10;
-		initializeTable(capacity,false);
 	}
 	private void initializeTable(int capacity, boolean useThreadToAddCodes) {
 		matrixRowMap = new HashMap<Long, Integer>(capacity);
@@ -92,7 +80,19 @@ public class ShortKmerCodesTable {
 		Arrays.fill(codeCountDifferentSequences, (short)0);
 		if(useThreadToAddCodes) poolAddKmerCodes = new ThreadPoolManager(1, 100);
 	}
-	
+
+	public int getMode() {
+		return mode;
+	}
+	public void setMode(int mode) {
+		this.mode = mode;
+	}
+	public int getKmerDistModeLocalSD() {
+		return kmerDistModeLocalSD;
+	}
+	public void setKmerDistModeLocalSD(int kmerDistModeLocalSD) {
+		this.kmerDistModeLocalSD = kmerDistModeLocalSD;
+	}
 	//Hash table management methods
 	private long[] lookupHits(long code) {
 		Integer row = matrixRowMap.get(code);
@@ -270,9 +270,10 @@ public class ShortKmerCodesTable {
 	 * @return KmerSearchResultsCompressedTable Object encoding the results of the query 
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
-		long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), codesSampler.getKmerLength(), 0, query.length());
+		//long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), codesSampler.getKmerLength(), 0, query.length());
+		//List<KmerCodesTableEntry> selectedCodeEntries = codesSampler.computeSequenceCodes(queryIdx, 0, segmentCodes);
+		List<KmerCodesTableEntry> selectedCodeEntries = codesSampler.computeSequenceCodes(queryIdx, query.toString(), 0, query.length());
 		Map<Integer, Long> selectedCodes = new LinkedHashMap<>();
-		List<KmerCodesTableEntry> selectedCodeEntries = codesSampler.computeSequenceCodes(queryIdx, 0, segmentCodes);
 		for(KmerCodesTableEntry entry:selectedCodeEntries) {
 			long code = entry.getKmerCode();
 			int start = entry.getStart();

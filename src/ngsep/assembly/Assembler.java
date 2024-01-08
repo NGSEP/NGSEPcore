@@ -33,12 +33,16 @@ import java.util.Map;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
+import ngsep.sequences.CountsBasedShortKmerCodesHashFunction;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
+import ngsep.sequences.KmersMapAnalyzer;
+import ngsep.sequences.MinimapShortKmerCodesSamplingAlgorithm;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.sequences.io.FastqFileReader;
 import ngsep.assembly.io.AssemblyGraphFileHandler;
@@ -596,13 +600,15 @@ public class Assembler {
 		
 	}
 	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map) {
+		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(map, false);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler(new MinimapShortKmerCodesSamplingAlgorithm(), new CountsBasedShortKmerCodesHashFunction(kmerLength, kmersAnalyzer));
+		sampler.setKmerLength(kmerLength);
+		sampler.setWindowLength(windowLength);
 		AssemblyGraph graph;
-		GraphBuilderMinimizers builder = new GraphBuilderMinimizers();
-		builder.setKmerLength(kmerLength);
-		builder.setWindowLength(windowLength);
+		GraphBuilderMinimizers builder = new GraphBuilderMinimizers(kmersAnalyzer, sampler);
 		builder.setPloidy(ploidy);
 		builder.setNumThreads(numThreads);
-		builder.setKmersMap(map);
+		builder.setKmersAnalyzer(kmersAnalyzer);
 		builder.setLog(log);
 		graph = builder.buildAssemblyGraph(sequences);
 		return graph;

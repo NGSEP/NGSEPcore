@@ -15,6 +15,7 @@ import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.ReadAlignment;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.sequences.ShortKmerCodesTable;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.io.FastaSequencesHandler;
@@ -23,7 +24,6 @@ public class ContigEndsMerger {
 
 	private Logger log = Logger.getLogger(ContigEndsMerger.class.getName());
 	private static final int END_LENGTH = 50000;
-	private int kmerLength = 25;
 	private LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 	public static void main(String[] args) throws Exception {
 		ContigEndsMerger instance = new ContigEndsMerger();
@@ -34,8 +34,8 @@ public class ContigEndsMerger {
 	}
 	
 	public List<QualifiedSequence> mergeContigs(List<QualifiedSequence> contigs) {
-		
-		ShortKmerCodesTable table = new ShortKmerCodesTable(kmerLength, 40);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler();
+		ShortKmerCodesTable table = new ShortKmerCodesTable(sampler);
 		Map<Integer,String> contigEndsMap = new HashMap<Integer, String>();
 		List<QualifiedSequence> contigsForGraph = new ArrayList<QualifiedSequence>(contigs.size());
 		List<QualifiedSequence> smallContigs = new ArrayList<QualifiedSequence>(contigs.size());
