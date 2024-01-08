@@ -37,8 +37,8 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		}
 		int kmerLength = Math.max(5, Math.min(n1, n2)/50);
 		kmerLength = Math.min(31, kmerLength);
-		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodes(sequence1, kmerLength, 0, sequence1.length());
-		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodes(sequence2, kmerLength, 0, sequence2.length());
+		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodesAsMap(sequence1, kmerLength, 0, sequence1.length());
+		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodesAsMap(sequence2, kmerLength, 0, sequence2.length());
 		UngappedSearchHitsCluster bestCluster = findBestKmersCluster(n1, codesSubject, n2, codesQuery, kmerLength);
 		if(bestCluster==null) {
 			//System.err.println("WARN: Null cluster for alignment of sequences with lengths: "+n1+" "+n2+" kmer length: "+kmerLength+" kmers: "+codesSubject.size()+" "+codesQuery.size()+" sequences\n"+sequence1+"\n"+sequence2);
@@ -148,8 +148,8 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 	}
 	
 	public static UngappedSearchHitsCluster findBestKmersCluster (CharSequence subjectSequence, int subjectFirst, int subjectLast, CharSequence querySequence, int queryFirst, int queryLast, int kmerLength) {
-		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodes(subjectSequence, kmerLength, subjectFirst, subjectLast);
-		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodes(querySequence, kmerLength, queryFirst, queryLast);
+		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodesAsMap(subjectSequence, kmerLength, subjectFirst, subjectLast);
+		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodesAsMap(querySequence, kmerLength, queryFirst, queryLast);
 		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
 		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
 		if(initialKmerHits.size()==0) return null;

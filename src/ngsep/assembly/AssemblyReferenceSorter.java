@@ -171,7 +171,8 @@ public class AssemblyReferenceSorter {
 		QualifiedSequenceList refMetadata = referenceGenome.getSequencesMetadata();
 		QualifiedSequenceList sequences = assembly.getSequencesList();
 		Map<String,ReadAlignment> contigAlns = new Hashtable<String, ReadAlignment>();
-		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, 60*sequences.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		//TODO: Improve parallel processing
+		ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 60*sequences.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		for (QualifiedSequence seq:sequences) {
 			pool.execute(()->mapContig(seq, refMetadata, minimizerTable, contigAlns));
 		}
@@ -211,11 +212,11 @@ public class AssemblyReferenceSorter {
 		String seqName = qseq.getName();
 		log.info("Mapping contig "+seqName);
 		DNAMaskedSequence contigSeq = (DNAMaskedSequence) qseq.getCharacters();
-		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(contigSeq.toString(),false,true);
+		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.findHitClusters(contigSeq.toString());
 		ReadAlignment alnF = buildAlignment(qseq, forwardClusters, refMetadata, false);
 		log.info("Sequence: "+seqName+" Forward clusters: "+forwardClusters.size()+" alignment: "+alnF);
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(contigSeq).toString();
-		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,false,true);
+		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.findHitClusters(reverseComplement);
 		ReadAlignment alnR = buildAlignment(qseq, reverseClusters, refMetadata, true);
 		log.info("Sequence: "+seqName+" Reverse clusters: "+reverseClusters.size()+" alignment: "+alnR);
 		ReadAlignment aln = alnF;

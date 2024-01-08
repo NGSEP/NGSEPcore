@@ -42,7 +42,7 @@ public class AssemblyPathReadsAligner {
 	public static final int KMER_LENGTH_LOCAL_ALN = 25;
 	private boolean haploid = true;
 	private boolean buildUnalignedReadRecords = false;
-	private ShortKmerCodesTable kmerCodesTable = new ShortKmerCodesTable(KMER_LENGTH_LOCAL_ALN, 40,0);
+	private ShortKmerCodesTable kmerCodesTable = new ShortKmerCodesTable(KMER_LENGTH_LOCAL_ALN, 40);
 	
 	
 	public Logger getLog() {
@@ -101,7 +101,8 @@ public class AssemblyPathReadsAligner {
 				//if (rawConsensus.length()>490000 && rawConsensus.length()<530000) printAllOverlappingSeqs(graph,path,j,vertexPreviousEdge);
 				if(pathIdx == debugIdx) System.err.println("Aligning next path read "+nextRead.getName()+". length1: "+nextRead.getLength()+" length2: "+nextPathSequence.length()+" Reverse "+reverse+ " edge: "+edge);
 				int startSuffixConsensus = Math.max(0, rawConsensus.length()-nextPathSequence.length());
-				Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodes(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
+				//Map<Integer, Long> kmersSubject = kmerCodesTable.computeSequenceCodesAsMap(rawConsensus.toString(), startSuffixConsensus, rawConsensus.length());
+				Map<Integer, Long> kmersSubject = KmersExtractor.extractDNAKmerCodesAsMap(rawConsensus, KMER_LENGTH_LOCAL_ALN, startSuffixConsensus,rawConsensus.length());
 				//int endSegmentQuery = Math.min(nextPathSequence.length(), edge.getOverlap()+10);
 				//int startSegmentQuery = Math.max(0, endSegmentQuery-520);
 				

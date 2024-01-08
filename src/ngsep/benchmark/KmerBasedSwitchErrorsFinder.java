@@ -49,7 +49,6 @@ public class KmerBasedSwitchErrorsFinder {
 	private Set<Long> uniqueKmerCodesHap2;
 	
 	private KmersMapLoader loader = new KmersMapLoader();
-	private ShortKmerCodesTable table = new ShortKmerCodesTable(15, 40);
 	
 	public static void main(String[] args) throws IOException {
 		KmerBasedSwitchErrorsFinder instance = new KmerBasedSwitchErrorsFinder();
@@ -99,6 +98,7 @@ public class KmerBasedSwitchErrorsFinder {
 	}
 
 	private void processAssembly(String assemblyFile, PrintStream out) throws IOException {
+		ShortKmerCodesTable table = new ShortKmerCodesTable(15, 40);
 		int switchErrors = 0;
 		try (FastaFileReader reader = new FastaFileReader(assemblyFile)) {
 			Iterator <QualifiedSequence> it = reader.iterator();
@@ -106,11 +106,11 @@ public class KmerBasedSwitchErrorsFinder {
 				QualifiedSequence qseq = it.next();
 				DNAMaskedSequence seq = (DNAMaskedSequence) qseq.getCharacters();
 				String seqStr = seq.toString();
-				Map<Integer, Long> kmerCodesF = KmersExtractor.extractDNAKmerCodes(seqStr, 15, 0, seqStr.length());	
+				long [] kmerCodesF = KmersExtractor.extractDNAKmerCodes(seqStr, 15, 0, seqStr.length());	
 				Map<Integer,Long> minimizersF = table.computeSequenceCodesAsMap(seqStr, 0, seqStr.length(),kmerCodesF);
 				DNAMaskedSequence rcseq = seq.getReverseComplement();
 				String rcseqStr = rcseq.toString();
-				Map<Integer, Long> kmerCodesR = KmersExtractor.extractDNAKmerCodes(rcseqStr, 15, 0, rcseqStr.length());
+				long [] kmerCodesR = KmersExtractor.extractDNAKmerCodes(rcseqStr, 15, 0, rcseqStr.length());
 				Map<Integer,Long> minimizersR = table.computeSequenceCodesAsMap(rcseqStr, 0, rcseq.length(),kmerCodesR);
 				int strand = inferStrand (qseq.getName(),qseq.getLength(), minimizersF,minimizersR);
 				if(strand == 1) switchErrors+= processKmerCodes(qseq.getName(), seqStr.length(), kmerCodesF, out);
@@ -132,12 +132,12 @@ public class KmerBasedSwitchErrorsFinder {
 	}
 
 	
-	private int processKmerCodes(String seqId, int seqLen, Map<Integer, Long> kmerCodes, PrintStream out) {
+	private int processKmerCodes(String seqId, int seqLen, long [] kmerCodes, PrintStream out) {
 		int nw = seqLen / 10000 + 1;
 		int [][] windowCounts = new int [nw][2];  
-		for(Map.Entry<Integer, Long> entry:kmerCodes.entrySet()) {
-			int start = entry.getKey();
-			long code = entry.getValue();
+		for(int start = 0;start<kmerCodes.length;start++) {
+			long code = kmerCodes[start];
+			if(code==-1) continue;
 			int w = start/20000;
 			if(uniqueKmerCodesHap1.contains(code)) {
 				windowCounts[w][0]++;

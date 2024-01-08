@@ -27,13 +27,10 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -294,7 +291,7 @@ public class KmersExtractor {
 				countSequenceKmers (read, poolKmers);
 				if(loadSequences) loadedSequences.add(read);
 				totalLength+=read.getLength();
-				if((i+1)%1000==0) log.info("Processed "+(i+1)+" sequences");
+				if((i+1)%1000==0) log.info("Processed "+(i+1)+" sequences. Total length: "+totalLength);
 			}
 		}
 		poolKmers.terminatePool();
@@ -415,11 +412,11 @@ public class KmersExtractor {
 		}
 		if(!freeText && !ignoreLowComplexity && kmerLength<=15) {
 			//Faster alternative
-			Map<Integer,Long> codes = extractDNAKmerCodes(seq, kmerLength, 0, seq.length());
+			long [] codes = extractDNAKmerCodes(seq, kmerLength, 0, seq.length());
 			synchronized (kmersMap) {
 				ShortArrayDNAKmersMapImpl skmersMap = (ShortArrayDNAKmersMapImpl) kmersMap;
-				for(long code:codes.values()) {	
-					skmersMap.addCodeOccurance(code);
+				for(int i=0;i<codes.length;i++) {	
+					skmersMap.addCodeOccurance(codes[i]);
 				}
 			}
 			return;
@@ -520,15 +517,19 @@ public class KmersExtractor {
 	 * @param kmerLength must be at most 31 to allow unique encoding of DNA kmers
 	 * @param start of the source sequence
 	 * @param end of the source sequence
-	 * @return Map<Integer,Long> with kmer codes indexed by start position
+	 * @return long[] Array of kmer codes. The index corresponds to the sequence origin minus start
 	 */
-	public static Map<Integer,Long> extractDNAKmerCodes (CharSequence source, int kmerLength, int start, int end) {
+	public static long[] extractDNAKmerCodes (CharSequence source, int kmerLength, int start, int end) {
 		validateLimits(source, start, end);
 		if(kmerLength>31) throw new IllegalArgumentException("This method only works with kmer lengths up to 31");
 		int n = source.length();
-		Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
-		if (n < kmerLength) return kmerCodesMap;
+		//WARN: Big Maps have concurrency issues
+		//List<Long> kmerCodes = new ArrayList<Long>();
+		//Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
+		if (n < kmerLength) return new long[0];
 		int lastKmerStart = end - kmerLength;
+		long [] kmerCodesArray = new long[lastKmerStart-start+1];
+		Arrays.fill(kmerCodesArray, -1);
 		long lastCode = -1;
 		for(int i = start; i <=lastKmerStart; i++) {
 			long code;
@@ -546,12 +547,23 @@ public class KmersExtractor {
 				}
 				code = DNASequence.getNextDNAHash(lastCode,kmerLength,lastCharNextKmer);
 			}
-			kmerCodesMap.put(i, code);
-			lastCode = code;
+			kmerCodesArray[i-start] = code;
+			//kmerCodesMap.put(i, code);
+			//kmerCodes.add(code);
+			//lastCode = code;
+		}
+		return kmerCodesArray;
+	}
+	public static Map<Integer,Long>  extractDNAKmerCodesAsMap (CharSequence source, int kmerLength, int start, int end) {
+		//Not good for concurrency
+		Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
+		long [] codes = extractDNAKmerCodes(source, kmerLength, start, end);
+		for(int i=0;i<codes.length;i++) {
+			if(codes[i]>=0) kmerCodesMap.put(start+i, codes[i]);
 		}
 		return kmerCodesMap;
 	}
-	public static Map<Long, Integer> extractLocallyUniqueKmerCodes(CharSequence sequence, int kmerLength, int start, int end) {
+	/*public static Map<Long, Integer> extractLocallyUniqueKmerCodes(CharSequence sequence, int kmerLength, int start, int end) {
 		Map<Integer,Long> rawCodes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, end);
 		Map<Long, Integer> answer = new HashMap<Long, Integer>();
 		Map<Long, Integer> reverseMap = new HashMap<Long,Integer>();
@@ -576,7 +588,7 @@ public class KmersExtractor {
 			}
 		}
 		return answer;
-	}
+	}*/
 	
 	
 	private static boolean passFilters(String kmer, boolean freeText, boolean ignoreLowComplexity) {

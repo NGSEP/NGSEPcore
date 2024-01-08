@@ -328,6 +328,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		
 		int n = graph.getNumSequences();
 		ReadsAligner aligner = new ReadsAligner();
+		aligner.setNumThreads(numThreads);
 		ReferenceGenome genome = new ReferenceGenome(pathSequences);
 		aligner.setGenome(genome);
 		aligner.setPlatform(Platform.PACBIO);

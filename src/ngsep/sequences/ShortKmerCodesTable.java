@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 import ngsep.math.PrimeNumbers;
 
@@ -40,19 +41,19 @@ public class ShortKmerCodesTable {
 	//Count of different sequences reporting each code
 	private short [] codeCountDifferentSequences;
 	
-	private Map<Integer,Integer> sequenceLengths = new HashMap<Integer, Integer>();
 	private long totalEntries = 0;
 	private PrimeNumbers primeNumbersHelper;
+	private ThreadPoolManager poolAddKmerCodes;
 	
 	
 	public ShortKmerCodesTable(int kmerLength, int windowLength) {
-		this(kmerLength,windowLength,100000);
+		this(kmerLength,windowLength,10, false);
 	}
-	public ShortKmerCodesTable(int kmerLength, int windowLength, int capacity) {
+	public ShortKmerCodesTable(int kmerLength, int windowLength, int capacity, boolean useThreadToAddCodes) {
 		this.kmerLength = kmerLength;
 		this.windowLength = windowLength;
 		this.primeNumbersHelper = new PrimeNumbers();
-		initializeTable(capacity);
+		initializeTable(capacity, useThreadToAddCodes);
 	}
 	public ShortKmerCodesTable(KmersMapAnalyzer kmersAnalyzer, int kmerLength, int windowLength) {
 		this.kmersAnalyzer = kmersAnalyzer;
@@ -67,9 +68,9 @@ public class ShortKmerCodesTable {
 		
 		//Create the structures with appropriate initial capacity
 		int capacity = kmersMap.size()/10;
-		initializeTable(capacity);
+		initializeTable(capacity,false);
 	}
-	public void initializeTable(int capacity) {
+	private void initializeTable(int capacity, boolean useThreadToAddCodes) {
 		matrixRowMap = new HashMap<Long, Integer>(capacity);
 		sequencesByCodeTable = new long [capacity][1];
 		for(int i=0;i<sequencesByCodeTable.length;i++) Arrays.fill(sequencesByCodeTable[i], 0);
@@ -77,6 +78,7 @@ public class ShortKmerCodesTable {
 		Arrays.fill(sequencesByCodeTableColumnLengths, (short)0);
 		codeCountDifferentSequences = new short [capacity];
 		Arrays.fill(codeCountDifferentSequences, (short)0);
+		if(useThreadToAddCodes) poolAddKmerCodes = new ThreadPoolManager(1, 100);
 	}
 	
 	//Hash table management methods
@@ -111,7 +113,7 @@ public class ShortKmerCodesTable {
 		return codeCountDifferentSequences[row];
 	}
 	
-	private void addCodeSequence (long code, List<KmerCodesTableEntry> entries) {
+	private void addCodeSequence (long code, List<Long> entries) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) {
 			row = size();
@@ -125,7 +127,7 @@ public class ShortKmerCodesTable {
 		int currentCount = sequencesByCodeTableColumnLengths[row];
 		int newCount = currentCount+entries.size(); 
 		if (newCount<Short.MAX_VALUE && (maxHitsKmerCode==0 || newCount<maxHitsKmerCode)) {
-			for (KmerCodesTableEntry entry:entries) addToTable(row, entry.encode());
+			for (long entry:entries) addToTable(row, entry);
 			totalEntries+=entries.size();
 			codeCountDifferentSequences[row]++;
 		} 
@@ -187,33 +189,68 @@ public class ShortKmerCodesTable {
 	public void setLimitHitsPerSequence(int limitHitsPerSequence) {
 		this.limitHitsPerSequence = limitHitsPerSequence;
 	}
+	
 	/**
 	 * Adds selected codes of the given sequence to the table
 	 * @param sequenceId Id of the sequence to add
 	 * @param sequence to add
 	 */
 	public void addSequence (int sequenceId, CharSequence sequence) {
+		long startTime = System.currentTimeMillis();
 		int n = sequence.length();
+		if(n>1000000) log.info("Starting Sequence "+sequenceId);
 		String sequenceStr = sequence.toString();
 		int step = 500000;
-		Map<Long, List<KmerCodesTableEntry>> codesSeq = new HashMap<Long, List<KmerCodesTableEntry>>();
+		//Map<Long, List<Long>> codesSeq = new HashMap<Long, List<Long>>();
+		List<KmerCodesTableEntry> codesSeq = new ArrayList<KmerCodesTableEntry>();
+		int countMinimizers = 0;
+		int totalMinimizers = 0;
 		for (int start = 0;start < n;start+=step) {
 			List<KmerCodesTableEntry> codeEntriesList = computeSequenceCodes(sequenceId, sequenceStr, start, Math.min(n, start+step));
-			//if(start==21000000) System.out.println("Seq id: "+sequenceId+" raw codes: "+codeEntriesList.size());
-			for(KmerCodesTableEntry entry:codeEntriesList) {
-				List<KmerCodesTableEntry> codesList = codesSeq.computeIfAbsent(entry.getKmerCode(), l->new ArrayList<KmerCodesTableEntry>());
-				codesList.add(entry);
+			//if(sequenceId==0) System.out.println("Seq id: "+sequenceId+" start: "+start+" raw codes: "+codeEntriesList.size()+" time: "+(System.currentTimeMillis()-startTime)/1000);
+			codesSeq.addAll(codeEntriesList);
+			if(codesSeq.size()>=1000000) {
+				addCodesSequenceTask(sequenceId, n, codesSeq);
+				//addCodesSequence(sequenceId, n, codesSeq);
+				codesSeq.clear();
+				totalMinimizers+=countMinimizers;
+				countMinimizers=0;
 			}
 		}
-		//log.info("Sequence "+sequenceId+" number of minimizers: "+codesSeq.size());
-		
-		synchronized (sequenceLengths) {
-			for(Map.Entry<Long, List<KmerCodesTableEntry>> codesEntry:codesSeq.entrySet()) {
-				if (codesEntry.getValue().size()== 0) continue;
-				addCodeSequence (codesEntry.getKey(), codesEntry.getValue());
-			}
-			sequenceLengths.put(sequenceId, n);
-		}	
+		addCodesSequenceTask(sequenceId, n, codesSeq);
+		//addCodesSequence(sequenceId, n, codesSeq);
+		totalMinimizers+=countMinimizers;
+		long time = (System.currentTimeMillis()-startTime)/1000;
+		if(n>1000000) log.info("Sequence "+sequenceId+" length: "+n+" total minimizers: "+totalMinimizers+" pct: "+(100*totalMinimizers/sequence.length())+" time(s): "+time);
+	}
+	private void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
+		try {
+			final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
+			if(poolAddKmerCodes!=null) poolAddKmerCodes.queueTask(()->addCodesSequence(sequenceId, n, codesSeqToAdd));
+			else addCodesSequence(sequenceId, n, codesSeqToAdd);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error creating minimizers table",e);
+		}
+	}
+	private synchronized void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
+		long startTime = System.currentTimeMillis();
+		for(KmerCodesTableEntry entry:codesSeq) {
+			List<Long> a = new ArrayList<Long>(1);
+			a.add(entry.encode());
+			addCodeSequence (entry.getKmerCode(), a);
+		}
+		codesSeq.clear();
+		long time = (System.currentTimeMillis()-startTime)/1000;
+		if(seqLen>1000000) log.info("Sequence "+sequenceId+" length: "+seqLen+" entries added: "+codesSeq.size()+" time(s): "+time);
+	}
+	public void endAddingSequences() {
+		try {
+			poolAddKmerCodes.terminatePool();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Concurrence error creating minimizers table",e);
+		}
 	}
 
 	/**
@@ -230,7 +267,7 @@ public class ShortKmerCodesTable {
 		}
 		return answer;
 	}
-	public Map<Integer,Long> computeSequenceCodesAsMap(String sequence,int start,int end, Map<Integer, Long> kmerCodes) {
+	public Map<Integer,Long> computeSequenceCodesAsMap(String sequence,int start,int end, long [] kmerCodes) {
 		List<KmerCodesTableEntry> entries = computeSequenceCodes(-1, start, Math.min(end, sequence.length()-kmerLength-windowLength), kmerCodes);
 		Map<Integer,Long> answer = new LinkedHashMap<>();
 		for(KmerCodesTableEntry entry:entries) {
@@ -245,10 +282,11 @@ public class ShortKmerCodesTable {
 	 * @return List<MinimizersTableEntry> Codes selected for the given sequence.
 	 */
 	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, String sequence,int start,int end) {
-		//Map<Integer, String> kmers = KmersExtractor.extractKmersAsMap(sequence.toString(), kmerLength, 1, start, Math.min(sequence.length(),end+windowLength+kmerLength), false, true, true);
-		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
-		//log.info("Extracted codes for sequence "+sequenceId+" from "+start+" to "+end+" Nuber of codes: "+codes.size());
-		return computeSequenceCodes(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), codes);
+		//new PrimeNumbers(1000000);
+		long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
+		//log.info("Extracted codes for sequence "+sequenceId+" from "+start+" to "+end+" Number of codes: "+codes.size());
+		//return new ArrayList<KmerCodesTableEntry>();
+		return computeSequenceCodes(sequenceId, start, Math.min(end, sequence.length()-kmerLength-windowLength), segmentCodes);
 	}
 	/**
 	 * Calculates the selected codes of the given codes following the same algorithm used for minimizers but saving the codes instead of the hashes
@@ -258,23 +296,26 @@ public class ShortKmerCodesTable {
 	 * @param kmerCodes Input codes to be selected
 	 * @return List<KmerCodesTableEntry> selected codes
 	 */
-	private List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, int end, Map<Integer, Long> kmerCodes) {
+	private List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, int end, long [] segmentCodes) {
 		int debugIdx = -2;
 		List<KmerCodesTableEntry> answer = new ArrayList<KmerCodesTableEntry>();
-		Map<Integer, Integer> hashcodes = new HashMap<Integer, Integer>();
-		for(Map.Entry<Integer, Long> entry: kmerCodes.entrySet()) {
-			int i = entry.getKey();
-			long code = entry.getValue();
-			int hash = getHash(code);
-			hashcodes.put(i, hash);
+		Integer [] hashcodes = new Integer [segmentCodes.length];
+		Arrays.fill(hashcodes, null);
+		for(int i=0;i<segmentCodes.length;i++) {
+			long code = segmentCodes[i];
+			if(code<0) continue;
+			hashcodes[i]=getHash(code);
 		}
-		if(sequenceId==debugIdx) System.err.println("Calculated hash codes for sequence "+sequenceId+" from "+start+" to "+end+" Hash codes: "+hashcodes.size());
+		if(sequenceId==debugIdx) System.err.println("Calculated hash codes for sequence "+sequenceId+" from "+start+" to "+end);
 		Integer previousMinimizer = null;
 		int previousMinimizerPos = -1;
 		for(int i=start;i<end;i++) {
+			int posIArray = i-start;
+			int posLastKmerWindow = posIArray+windowLength-1;
+			if(posLastKmerWindow>=segmentCodes.length) break;
 			Integer minimizerI = null;
 			int minPos = -1;
-			Integer newHash = hashcodes.get(i+windowLength-1);
+			Integer newHash = hashcodes[posLastKmerWindow];
 			boolean lastInRange = previousMinimizer!=null && previousMinimizerPos>=i;
 			if(lastInRange && (newHash==null || previousMinimizer < newHash)) {
 				minimizerI = previousMinimizer;
@@ -285,7 +326,7 @@ public class ShortKmerCodesTable {
 			}
 			if(minimizerI == null) {
 				for(int j=0;j<windowLength;j++) {
-					Integer hash = hashcodes.get(i+j);
+					Integer hash = hashcodes[posIArray+j];
 					if (hash!=null && (minimizerI==null || hash <= minimizerI)) {
 						minimizerI = hash;
 						minPos = i+j;
@@ -295,7 +336,7 @@ public class ShortKmerCodesTable {
 			}
 			if (minimizerI==previousMinimizer) continue;
 			if(minimizerI != null) {
-				long originalCode = kmerCodes.get(minPos);
+				long originalCode = segmentCodes[minPos-start];
 				KmerCodesTableEntry entry = new KmerCodesTableEntry(originalCode, sequenceId, minPos);
 				answer.add(entry);
 			}
@@ -363,9 +404,9 @@ public class ShortKmerCodesTable {
 	 * @return KmerSearchResultsCompressedTable Object encoding the results of the query 
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, CharSequence query, int maxSubjectIdx) {
-		Map<Integer, Long> codes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
-		Map<Integer, Long> selectedCodes = new LinkedHashMap<>(codes.size()/10);
-		List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), codes);
+		long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(query.toString(), kmerLength, 0, query.length());
+		Map<Integer, Long> selectedCodes = new LinkedHashMap<>();
+		List<KmerCodesTableEntry> selectedCodeEntries = computeSequenceCodes(queryIdx, 0, query.length(), segmentCodes);
 		for(KmerCodesTableEntry entry:selectedCodeEntries) {
 			long code = entry.getKmerCode();
 			int start = entry.getStart();
@@ -392,7 +433,7 @@ public class ShortKmerCodesTable {
 		
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
-		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, Math.max(1, sequenceLengths.size()/10));
+		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, 10);
 		Set<Long> internalMultiHitCodes = calculateInternalMultihitKmers(codes);
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
