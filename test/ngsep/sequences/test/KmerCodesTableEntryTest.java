@@ -4,14 +4,14 @@ package ngsep.sequences.test;
 import java.util.List;
 
 import junit.framework.TestCase;
-import ngsep.sequences.ShortKmerCodesTable;
 import ngsep.sequences.KmerCodesTableEntry;
+import ngsep.sequences.ShortKmerCodesSampler;
 
-public class ShortKmerCodesTableTest extends TestCase {
+public class KmerCodesTableEntryTest extends TestCase {
 	private String sequence = "CTCAACTAGATCGCACAACGTCGGAATGGTTTCATCCACAGATTGAATTTTTGGTTGCTGTATCAGTCCTTGAATGATGTCCATTCTTGATAGGAGGGTTGTTATAGATATTAATCACTCGAAGTCGTGAACAAGAAATTGTCTTCTCTCCAGTATTCAGTCTCTGTGAT";
 	public void testEncodeDecode () {
-		ShortKmerCodesTable table = new ShortKmerCodesTable(15, 5);
-		List<KmerCodesTableEntry> minimizers = table.computeSequenceCodes(0,sequence,0, sequence.length());
+		ShortKmerCodesSampler codesSampler = new ShortKmerCodesSampler();
+		List<KmerCodesTableEntry> minimizers = codesSampler.computeSequenceCodes(0,sequence,0, sequence.length());
 		
 		for(KmerCodesTableEntry entry:minimizers) {
 			long code = entry.encode();

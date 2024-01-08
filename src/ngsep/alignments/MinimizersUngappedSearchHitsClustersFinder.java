@@ -45,6 +45,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 	
 	private ReferenceGenome genome;
 	private ShortKmerCodesTable kmerCodesTable;
+	private int tableKmerLength;
 	
 	
 	
@@ -78,7 +79,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		//KmersMapAnalyzer analyzer = new KmersMapAnalyzer(extractor.getKmersMap(), true);
 		log.info("Creating kmer codes table for genome with "+n+" sequences loaded from file: "+genome.getFilename());
 		kmerCodesTable = new ShortKmerCodesTable(kmerLength, windowLength,10*n*longestSequenceLengthMbp,true);
-		
+		tableKmerLength = kmerLength;
 		if(buildKmersTable) {
 			//log.info("Calculating kmers distribution");
 			KmersExtractor extractor = new KmersExtractor();
@@ -137,7 +138,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		int queryLength = query.length();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
 		if(extensiveKmersSearch) {
-			Map<Integer,Long> codes = KmersExtractor.extractDNAKmerCodesAsMap(query.toString(), kmerCodesTable.getKmerLength() , 0, query.length());
+			Map<Integer,Long> codes = KmersExtractor.extractDNAKmerCodesAsMap(query.toString(), tableKmerLength , 0, query.length());
 			KmerSearchResultsCompressedTable results = kmerCodesTable.matchCompressed(-1, query.length(), codes, -1);
 			hitsByReference = results.getAllHits();	
 		}

@@ -29,9 +29,11 @@ import java.util.Set;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
+import ngsep.sequences.MinimapShortKmerCodesHashFunction;
+import ngsep.sequences.MinimapShortKmerCodesSamplingAlgorithm;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.ShortArrayDNAKmersMapImpl;
-import ngsep.sequences.ShortKmerCodesTable;
+import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.KmersMapLoader;
 
@@ -98,7 +100,7 @@ public class KmerBasedSwitchErrorsFinder {
 	}
 
 	private void processAssembly(String assemblyFile, PrintStream out) throws IOException {
-		ShortKmerCodesTable table = new ShortKmerCodesTable(15, 40);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler(new MinimapShortKmerCodesSamplingAlgorithm(), new MinimapShortKmerCodesHashFunction());
 		int switchErrors = 0;
 		try (FastaFileReader reader = new FastaFileReader(assemblyFile)) {
 			Iterator <QualifiedSequence> it = reader.iterator();
@@ -107,11 +109,11 @@ public class KmerBasedSwitchErrorsFinder {
 				DNAMaskedSequence seq = (DNAMaskedSequence) qseq.getCharacters();
 				String seqStr = seq.toString();
 				long [] kmerCodesF = KmersExtractor.extractDNAKmerCodes(seqStr, 15, 0, seqStr.length());	
-				Map<Integer,Long> minimizersF = table.computeSequenceCodesAsMap(seqStr, 0, seqStr.length(),kmerCodesF);
+				Map<Integer,Long> minimizersF = sampler.computeSequenceCodesAsMap(seqStr, 0, seqStr.length(),kmerCodesF);
 				DNAMaskedSequence rcseq = seq.getReverseComplement();
 				String rcseqStr = rcseq.toString();
 				long [] kmerCodesR = KmersExtractor.extractDNAKmerCodes(rcseqStr, 15, 0, rcseqStr.length());
-				Map<Integer,Long> minimizersR = table.computeSequenceCodesAsMap(rcseqStr, 0, rcseq.length(),kmerCodesR);
+				Map<Integer,Long> minimizersR = sampler.computeSequenceCodesAsMap(rcseqStr, 0, rcseq.length(),kmerCodesR);
 				int strand = inferStrand (qseq.getName(),qseq.getLength(), minimizersF,minimizersR);
 				if(strand == 1) switchErrors+= processKmerCodes(qseq.getName(), seqStr.length(), kmerCodesF, out);
 				else if(strand == 2) switchErrors+= processKmerCodes(qseq.getName(), rcseqStr.length(), kmerCodesR, out);
