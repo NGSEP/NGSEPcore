@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ngsep.sequences.HammingSequenceDistanceMeasure;
+import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.UngappedSearchHit;
 
 /**
@@ -225,6 +226,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning end "+subjectStr+" of subject subsequence with total length: "+subject.length()+" to end "+queryStr+" of query with total length: "+query.length());
 				String [] alignedFragments = alignFragments(queryStr, subjectStr, subjectIdx, queryLength, alignerEnd, 2);
 				if(alignedFragments!=null) {
+					int numUnalignedEndSubject = calculateUnaligned(subjectStr,alignedFragments[1]);
 					String [] trimmedAlignedFragments = trimEndDeletions(alignedFragments);
 					int trimmedBP = alignedFragments[0].length()-trimmedAlignedFragments[0].length();
 					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned end fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\ntrimmed bp: "+trimmedBP+" Last bp1: "+alignedFragments[0].substring(alignedFragments[0].length()-10)+" lastbp2: "+alignedFragments[1].substring(alignedFragments[1].length()-10));
@@ -232,7 +234,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 					alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 					double mismatchesSegment = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]); 
 					numMismatches+=mismatchesSegment;
-					alnEnd = end-trimmedBP;
+					alnEnd = end-numUnalignedEndSubject-trimmedBP;
 					if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligned and trimmed end fragments: \n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\nSegment mismatches: "+mismatchesSegment+" total mismatches: "+numMismatches+" aln end: "+alnEnd);
 					endAligned = true;
 				}	
@@ -257,10 +259,27 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		finalAlignment.clipBorders(5);
 		return finalAlignment;
 	}
+	private int calculateUnaligned(String sequence, String alignedSequence) {
+		int n1 = sequence.length();
+		int n2 = alignedSequence.length();
+		int i=0;
+		int j=0;
+		while(i<n1 && j<n2) {
+			if(alignedSequence.charAt(j)==LimitedSequence.GAP_CHARACTER) {
+				j++;
+			} else if (sequence.charAt(i)==alignedSequence.charAt(j)) {
+				i++;
+				j++;
+			} else {
+				throw new RuntimeException("Inconsistent base pair between sequence and alignment. Positions: "+i+" "+j+" sequences\n"+sequence+"\n"+alignedSequence);
+			}
+		}
+		return n1-i;
+	}
 	private String[] trimStartDeletions(String[] alignedFragments) {
 		int n = alignedFragments[0].length();
 		int i;
-		for(i=0;i<n && alignedFragments[0].charAt(i)=='-';i++);
+		for(i=0;i<n && alignedFragments[0].charAt(i)==LimitedSequence.GAP_CHARACTER;i++);
 		String[] answer = new String[2];
 		answer[0]=alignedFragments[0].substring(i);
 		answer[1]=alignedFragments[1].substring(i);
@@ -269,7 +288,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 	private String[] trimEndDeletions(String[] alignedFragments) {
 		int n = alignedFragments[0].length();
 		int i;
-		for(i=n-1;i>=0 && alignedFragments[0].charAt(i)=='-';i--);
+		for(i=n-1;i>=0 && alignedFragments[0].charAt(i)==LimitedSequence.GAP_CHARACTER;i--);
 		String[] answer = new String[2];
 		//System.out.println("Last bp1: "+alignedFragments[0].charAt(n-1)+" lastbp2: "+alignedFragments[1].charAt(n-1)+" i: "+i);
 		answer[0]=alignedFragments[0].substring(0,i+1);
@@ -291,9 +310,8 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		else if(maxLength < minLength+11 ) {
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Trying banded alignment");
 			PairwiseAlignerStaticBanded alignerB = new PairwiseAlignerStaticBanded();
-			//End coordinates can be miscalculated if not forced
 			//alignerB.setForceStart2(type!=0);
-			//alignerB.setForceEnd2(type!=2);
+			alignerB.setForceEnd2(type!=2);
 			alignedFragments = (alignerB.calculateAlignment(queryStr, subjectStr));
 			if(alignedFragments!=null) {
 				double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
