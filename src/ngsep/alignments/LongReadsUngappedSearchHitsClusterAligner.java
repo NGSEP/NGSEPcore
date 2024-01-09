@@ -117,13 +117,13 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 					} else if(queryStr.length()<maxLengthEndsPairwiseAlignment && subjectStr.length()<maxLengthEndsPairwiseAlignment){
 						alignedFragments = alignerStart.calculateAlignment(queryStr, subjectStr);
 					}
-					if(alignedFragments==null && maxLength < minLength+10 ) {
+					/*if(alignedFragments==null && maxLength < minLength+10 ) {
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying banded alignment");
 						alignedFragments = (new PairwiseAlignerStaticBanded().calculateAlignment(queryStr, subjectStr));
 						double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Banded alignment done. Num mismatches: "+mismatchesAln);
 						if(mismatchesAln>0.2*minLength) alignedFragments = null;
-					}
+					}*/
 					if(alignedFragments!=null) {
 						alignmentEncoding.addAll(ReadAlignment.encodePairwiseAlignment(alignedFragments));
 						numMismatches+=hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
@@ -174,22 +174,22 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying naive alignment");
 						alignedFragments = (new PairwiseAlignerNaive(true)).calculateAlignment(queryStr, subjectStr);
 					}
-					if(alignedFragments==null && maxLength < minLength+10 ) {
+					/*if(alignedFragments==null && maxLength < minLength+10 ) {
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying banded alignment");
 						alignedFragments = (new PairwiseAlignerStaticBanded().calculateAlignment(queryStr, subjectStr));
 						double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Banded alignment done. Num mismatches: "+mismatchesAln);
 						if(mismatchesAln>0.2*minLength) alignedFragments = null;
 						else numMismatches+=mismatchesAln;
-					}
-					if(alignedFragments==null ) {
+					}*/
+					/*if(alignedFragments==null ) {
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying single gap alignment");
 						alignedFragments = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
 						double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Single gap alignment done. Num mismatches: "+mismatchesAln);
 						if(mismatchesAln>0.2*minLength) alignedFragments = null;
 						else numMismatches+=mismatchesAln;
-					}
+					}*/
 					if(alignedFragments==null) {
 						if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying default alignment");
 						if(maxLength>0.2*query.length()) return null;
