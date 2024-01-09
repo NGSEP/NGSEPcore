@@ -37,7 +37,38 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 
 	private int  indel = 2; 
 
-	private int band = 20;
+	private int band = 10;
+	private boolean forceStart1 = true;
+	private boolean forceStart2 = true;
+	private boolean forceEnd1 = true;
+	private boolean forceEnd2 = true;
+	
+	
+	
+	public boolean isForceStart1() {
+		return forceStart1;
+	}
+	public void setForceStart1(boolean forceStart1) {
+		this.forceStart1 = forceStart1;
+	}
+	public boolean isForceStart2() {
+		return forceStart2;
+	}
+	public void setForceStart2(boolean forceStart2) {
+		this.forceStart2 = forceStart2;
+	}
+	public boolean isForceEnd1() {
+		return forceEnd1;
+	}
+	public void setForceEnd1(boolean forceEnd1) {
+		this.forceEnd1 = forceEnd1;
+	}
+	public boolean isForceEnd2() {
+		return forceEnd2;
+	}
+	public void setForceEnd2(boolean forceEnd2) {
+		this.forceEnd2 = forceEnd2;
+	}
 	
 	public PairwiseAlignerStaticBanded () {}
 	public PairwiseAlignerStaticBanded (int band) {
@@ -63,7 +94,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
 		//int alignmentBand = band;
-		int alignmentBand = Math.max(band, 5*Math.abs(n1-n2));
+		int alignmentBand = Math.max(band, 2*Math.abs(n1-n2));
 		if(debug) System.out.println("N1: "+n1+" N2: "+n2+" band: "+alignmentBand);
 		Map<Integer,Integer> dp = new HashMap<>(n1*band);
 		for (int row = 0; row <=n1; row++ ) {
@@ -73,10 +104,12 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 				if (row == 0 && col == 0 ){
 					dp.put(getHash(n1, 0, 0), 0);
 				} else if (row == 0){
-					dp.put(getHash(n1, row,col), dp.get(getHash(n1, row, col-1))+ insertionCost(sequence2.charAt(col-1)));
+					if (forceStart2) dp.put(getHash(n1, row,col), dp.get(getHash(n1, row, col-1))+ insertionCost(sequence2.charAt(col-1)));
+					else dp.put(getHash(n1, row,col), 0);
 					if(debug && col==2) System.out.println("hash first row: "+getHash(n1, row, col)+" value: "+dp.get(getHash(n1, row, col)));
 				} else if (col == 0){
-					dp.put(getHash(n1, row,col), dp.get(getHash(n1, row-1, col))+deletionCost(sequence1.charAt(row-1)));
+					if (forceStart1) dp.put(getHash(n1, row,col), dp.get(getHash(n1, row-1, col))+deletionCost(sequence1.charAt(row-1)));
+					else dp.put(getHash(n1, row,col), 0);
 				} else {
 					Integer diagonal = dp.get(getHash(n1, row-1, col-1));
 					Integer up = dp.get(getHash(n1, row-1, col));
@@ -105,7 +138,30 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		int n2 = sequence2.length();
 		int i = n1;
 		int j = n2;
-		
+		Integer val = dp.get(getHash(n1, i, j));
+		if (!forceEnd1) {
+    		// Find better score over the last column
+    		for (int h=n1-1;h>=0 && h>=n1-2*band;h--) {
+    			Integer score = dp.get(getHash(n1, h, n2));
+    			if (score!=null && (val==null || score>val)) {
+    				i=h;
+    				val = score; 
+    			}
+    		}
+    	}
+	    else if (!forceEnd2) {
+    		// Find better score over the last row
+    		for (int h=n2-1;h>=0 && h>=n2-2*band;h--) {
+    			Integer score = dp.get(getHash(n1, n1, h));
+    			if (score!=null && (val==null || score>val)) {
+    				i=n1;
+    				j=h;
+    				val = score; 
+    			}
+    		}
+    	}
+		//No good alignment was found
+		if(val == null) return null;
 		StringBuffer ns1 = new StringBuffer(n1);
 		StringBuffer ns2 = new StringBuffer(n2);
 		while (j>0 || i>0){

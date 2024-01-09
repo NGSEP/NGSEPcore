@@ -17,7 +17,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
-		if(n2 == debugLength) System.out.println("Aligning sequences "+sequence1+" and "+sequence2);
+		if(n2 == debugLength) System.out.println("Aligning sequences\n"+sequence1+"\n"+sequence2);
 		if(n1<n2) {
 			String[] alnRev = calculateAlignment(sequence2, sequence1);
 			if(alnRev == null) return null;
@@ -35,7 +35,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 			//System.err.println("WARN: Unbalanced lengths for global alignment: "+n1+" "+n2);
 			return null;
 		}
-		int kmerLength = Math.max(5, Math.min(n1, n2)/50);
+		int kmerLength = Math.max(11, Math.min(n1, n2)/50);
 		kmerLength = Math.min(31, kmerLength);
 		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodesAsMap(sequence1, kmerLength, 0, sequence1.length());
 		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodesAsMap(sequence2, kmerLength, 0, sequence2.length());
