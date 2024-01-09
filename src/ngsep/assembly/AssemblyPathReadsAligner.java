@@ -182,8 +182,8 @@ public class AssemblyPathReadsAligner {
 			AssemblyEdge edge = edges.get(j);
 			AssemblyVertex nextVertex = edge.getConnectingVertex(lastVertex);
 			if ((j+1)%500==0) {
-				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
-				log.info("Path "+pathIdx+". Aligning. Processed path edges: "+(j+1)+" of "+n+" alignments: "+alignedReads.size()+" Memory (Mbp): "+usedMemory);
+				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000000;
+				log.info("Path "+pathIdx+". Aligning. Processed path edges: "+(j+1)+" of "+n+" alignments: "+alignedReads.size()+" Memory (Gbp): "+usedMemory);
 			}
 			if(!edge.isSameSequenceEdge()) {
 				lastVertex = nextVertex;
@@ -203,7 +203,7 @@ public class AssemblyPathReadsAligner {
 			//Synchronic call to calculate actual backbone read ends
 			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex, alignedReads);
 			
-			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" sequence: "+seq.length()+" alignment: "+alnRead);
+			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" length: "+seq.length()+" alignment: "+alnRead);
 			
 			if(alnRead!=null) {
 				startConsensusPathVertex = alnRead.getFirst()-alnRead.getSoftClipStart();
@@ -354,14 +354,14 @@ public class AssemblyPathReadsAligner {
 		String readStr = read.toString();
 		
 		Map<Integer, Long> codesQuery = codesSampler.computeSequenceCodesAsMap(readStr, 0, read.length());
-		//if(read.length()==14871) System.out.println("Number of codes query: "+codesQuery.size());
+		if(read.length()==-1) System.out.println("Number of codes query: "+codesQuery.size());
 		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, ShortKmerCodesSampler.DEF_KMER_LENGTH);
 		if(bestCluster==null) return null;
 		ReadAlignment aln;
 		synchronized (aligner) {
 			aln = aligner.buildAlignment(readStr, subject, bestCluster);
 		}
-		//if(read.length()==14871) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
+		if(read.length()==-1) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
 		if(!evaluateAlignment(aln)) aln = null;
 		return aln;
 	}

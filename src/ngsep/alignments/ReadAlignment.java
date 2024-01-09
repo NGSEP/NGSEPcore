@@ -1288,7 +1288,7 @@ public class ReadAlignment implements GenomicRegion {
 			this.readLength = expectedReadLength;
 		}
 		if(expectedEnd -1 != this.last) {
-			System.out.println("WARN. New alignment changes last alignment position for read at "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1));
+			System.out.println("WARN. New alignment changes last alignment position for read mapped at "+sequenceIndex+" "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1)+" read name: "+getReadName()+" read length "+this.readLength);
 			this.last = expectedEnd - 1;
 		}
 		alleleCallsUpdated = false;

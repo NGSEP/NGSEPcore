@@ -84,19 +84,22 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 	}
 	@Override
 	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2 ) {
-		Map<Integer,Integer> dp = calculateHashMap(sequence1, sequence2);
+		
+		int n1 = sequence1.length();
+		int n2 = sequence2.length();
+		int alignmentBand = Math.max(band, 2*Math.abs(n1-n2));
+		//int alignmentBand = band;
+		Map<Integer,Integer> dp = calculateHashMap(sequence1, sequence2,alignmentBand);
 		//return null;
-		return alignSequences(dp, sequence1, sequence2);
+		return alignSequences(dp, sequence1, sequence2,alignmentBand);
     }
 	
-	private Map<Integer,Integer> calculateHashMap(CharSequence sequence1, CharSequence sequence2) {
+	private Map<Integer,Integer> calculateHashMap(CharSequence sequence1, CharSequence sequence2, int alignmentBand) {
 		boolean debug = false;
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
-		//int alignmentBand = band;
-		int alignmentBand = Math.max(band, 2*Math.abs(n1-n2));
 		if(debug) System.out.println("N1: "+n1+" N2: "+n2+" band: "+alignmentBand);
-		Map<Integer,Integer> dp = new HashMap<>(n1*band);
+		Map<Integer,Integer> dp = new HashMap<>();
 		for (int row = 0; row <=n1; row++ ) {
 			int firstCol = Math.max(0,row-alignmentBand);
 			int lastCol = Math.min(row+alignmentBand, sequence2.length());
@@ -133,7 +136,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		if(debug) System.out.println("Final score: "+dp.get(getHash(n1, n1, n2)));
 		return dp;
     }
-	private String[] alignSequences(Map<Integer,Integer> dp, CharSequence sequence1, CharSequence sequence2) {
+	private String[] alignSequences(Map<Integer,Integer> dp, CharSequence sequence1, CharSequence sequence2, int alignmentBand) {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
 		int i = n1;
@@ -141,7 +144,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		Integer val = dp.get(getHash(n1, i, j));
 		if (!forceEnd1) {
     		// Find better score over the last column
-    		for (int h=n1-1;h>=0 && h>=n1-2*band;h--) {
+    		for (int h=n1-1;h>=0 && h>=n1-2*alignmentBand;h--) {
     			Integer score = dp.get(getHash(n1, h, n2));
     			if (score!=null && (val==null || score>val)) {
     				i=h;
@@ -151,7 +154,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
     	}
 	    else if (!forceEnd2) {
     		// Find better score over the last row
-    		for (int h=n2-1;h>=0 && h>=n2-2*band;h--) {
+    		for (int h=n2-1;h>=0 && h>=n2-2*alignmentBand;h--) {
     			Integer score = dp.get(getHash(n1, n1, h));
     			if (score!=null && (val==null || score>val)) {
     				i=n1;
