@@ -98,12 +98,13 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		int nextMatchLength = 0;
 		for(UngappedSearchHit kmerHit:kmerHits) {
 			int hitLength = kmerHit.getHitLength();
-			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getSubjectStart());
+			int hitPredictedStart = kmerHit.getSubjectStart()-kmerHit.getQueryStart();
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Processing Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext+" subject hit start: "+kmerHit.getSubjectStart()+" Predicted start subject by kmer: "+hitPredictedStart);
 			if(alnStart==-1) {
-				//Inconsistent kmer hit
-				int hitPredictedStart = kmerHit.getSubjectStart()-kmerHit.getQueryStart();
+				
 				int absDiffPredictedStarts = Math.abs(kmerHitsCluster.getSubjectPredictedStart()-hitPredictedStart);
 				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Candidate hit start. QueryPos: "+kmerHit.getQueryStart()+" subject start: "+kmerHit.getSubjectStart()+" Predicted start kmer: "+hitPredictedStart);
+				//Inconsistent kmer hit
 				if (kmerHit.getSubjectStart()<kmerHitsCluster.getSubjectPredictedStart() || absDiffPredictedStarts>30) continue;
 				alnStart = kmerHit.getSubjectStart();
 				queryStart = kmerHit.getQueryStart();

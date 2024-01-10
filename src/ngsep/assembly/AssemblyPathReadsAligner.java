@@ -142,7 +142,7 @@ public class AssemblyPathReadsAligner {
 					if(pathIdx == debugIdx && j<10) System.err.println("Calculated start new suffix from alignment: "+startSuffixQuery );
 				} else {
 					//if(pathIdx == debugIdx && j<10) System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
-					System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" did not align to last consensus. Using overlap: "+edge.getOverlap());
+					System.err.println("WARN: Consensus backbone read "+nextVertex.getRead().getName()+" with length: "+nextPathSequence.length()+" did not align to last consensus. Consensus length: "+rawConsensus.length()+" Consensus suffix length "+(rawConsensus.length()-startSuffixConsensus)+" Query segment length: "+segmentQuery.length()+". Using overlap: "+edge.getOverlap());
 					startSuffixQuery = edge.getOverlap();
 					
 				}
@@ -326,7 +326,7 @@ public class AssemblyPathReadsAligner {
 			}
 		}
 		ReadAlignment aln2 = alignRead(aligner,pathIdx, consensus, sequence, kmersSubject);
-		if(aln2!=null) {
+		if(aln2!=null && aln2.getAlignmentQuality()>70) {
 			System.err.println("WARN: Alignment found for previously unaligned read "+readId+" "+readName+" reverse: "+reverse+". Given limits: "+startConsensus+" "+endConsensus+" aln: "+aln2);
 			aln2.setReadName(readName);
 			aln2.setReadNumber(readId);

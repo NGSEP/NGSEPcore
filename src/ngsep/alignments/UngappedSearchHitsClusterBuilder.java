@@ -21,6 +21,7 @@ package ngsep.alignments;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,7 +90,7 @@ public class UngappedSearchHitsClusterBuilder {
 		//UngappedSearchHit firstHit = sequenceHits.get(0);
 		//int subjectIdx = firstHit.getSequenceIdx();
 		//Initial clustering
-		Map<Integer,List<UngappedSearchHit>> hitsByBin = new HashMap<Integer, List<UngappedSearchHit>>();
+		Map<Integer,List<UngappedSearchHit>> hitsByBin = new TreeMap<Integer, List<UngappedSearchHit>>();
 		for(UngappedSearchHit hit:sequenceHits) {
 			int estStart = estimateSubjectStart(hit);
 			int bin = estStart/1000;
@@ -100,30 +101,74 @@ public class UngappedSearchHitsClusterBuilder {
 		}
 		if(debug) System.out.println("Clustering kmer hits. Initial bin starts: "+hitsByBin.keySet()+" estimated number of clusters: "+estimatedClusters);
 		//Second cluster centered in best averages
-		List<List<UngappedSearchHit>> sortedClusters = new ArrayList<List<UngappedSearchHit>>(hitsByBin.size());
-		sortedClusters.addAll(hitsByBin.values());
-		Collections.sort(sortedClusters,(c1,c2)->c2.size()-c1.size());
-		hitsByBin.clear();
-		List<Integer> clusterAverages = new ArrayList<Integer>((int) (2*estimatedClusters+1));
-		for(int i=0;i<sortedClusters.size() && i<=2*(estimatedClusters);i++) {
-			List<UngappedSearchHit> cluster = sortedClusters.get(i);
-			//if(cluster.size()<minHits) break;
-			int average = getAverageEstimatedSubjectStart(cluster);
-			if(debug) System.out.println("Clustering kmer hits. Estimated start First hit: "+estimateSubjectStart(cluster.get(0))+" Average predicted start next cluster: "+average+" size: "+cluster.size());
-			clusterAverages.add(average);
+		int maxClusters = (int) Math.ceil(2*estimatedClusters)+1;
+		Set<Integer> estimatedStarts = calculateEstimatedStarts(hitsByBin.values(), maxClusters, false);
+		
+		if (estimatedStarts.size()==0) return answer;
+		estimatedStarts = clumpByDistance(estimatedStarts);
+		hitsByBin = clusterByEstimatedStarts(sequenceHits, estimatedStarts);
+		if(debug) System.out.println("Clustering kmer hits. Clusters after first relocation");
+		if(debug) printClusters(hitsByBin);
+		estimatedStarts = calculateEstimatedStarts (hitsByBin.values(), maxClusters, true);
+		hitsByBin = clusterByEstimatedStarts(sequenceHits, estimatedStarts);
+ 		List<List<UngappedSearchHit>> hitsClusters=new ArrayList<List<UngappedSearchHit>>(hitsByBin.values());
+		Collections.sort(hitsClusters,(l1,l2)->l2.size()-l1.size());
+		if(debug) System.out.println("Clustering kmer hits. Clusters after second relocation");
+		if(debug) printClusters(hitsByBin);
+		for(List<UngappedSearchHit> hits:hitsClusters) {
+			if(debug) System.out.println("Next candidate cluster size: "+hits.size()+" current limit: "+minHits);
+			if(hits.size()<minHits) break;
+			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
+			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
+			for(List<UngappedSearchHit> subcluster:subclusters) {
+				if(subcluster.size()<minHits) continue;
+				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
+				if(selectedHits.size()<minHits) continue;
+				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
+				cluster.setRawKmerHits(sequenceHits.size());
+				cluster.setRawKmerHitsSubjectStartSD(1);
+				if(debug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" unique kmers: "+cluster.getNumDifferentKmers());
+				if(cluster.getNumDifferentKmers()>=minHits) answer.add(cluster);
+				minHits = Math.max(minHits, cluster.getNumDifferentKmers()/2);
+			}
 		}
-		if (clusterAverages.size()==0) return answer;
-		Collections.sort(clusterAverages, (c1,c2)->c1-c2);
-		int next = clusterAverages.get(0);
-		for(int average:clusterAverages) {
+		return answer;
+	}
+	private Set<Integer> calculateEstimatedStarts(Collection<List<UngappedSearchHit>> clusters, int maxClusters, boolean useModeDiff) {
+		List<List<UngappedSearchHit>> sortedClusters = new ArrayList<List<UngappedSearchHit>>(clusters);
+		Collections.sort(sortedClusters,(c1,c2)->c2.size()-c1.size());
+		Set<Integer> answer = new HashSet<>();
+		for(int i=0;i<sortedClusters.size() && i<maxClusters;i++) {
+			List<UngappedSearchHit> cluster = sortedClusters.get(i);
+			double [] stats = calculateStatsEstimatedSubjectStart(cluster);
+			int avg = (int) Math.round(stats[0]);
+			int modeDiff = (int) stats[4];
+			if(useModeDiff && Math.abs(modeDiff)>100) {
+				answer.add(avg+modeDiff);
+			} else {
+				answer.add(avg);
+			}
+		}
+		return answer;
+	}
+	private Set<Integer> clumpByDistance(Set<Integer> clusterAverages) {
+		Set<Integer> answer = new HashSet<>();
+		List<Integer> avgsList = new ArrayList<>(clusterAverages);
+		Collections.sort(avgsList, (c1,c2)->c1-c2);
+		int next = avgsList.get(0);
+		for(int average:avgsList) {
 			if(average-next<500) next = (next+average)/2;
 			else {
-				hitsByBin.put(next, new ArrayList<UngappedSearchHit>());
-				if(debug) System.out.println("Clustering kmer hits. Next average start: "+next);
+				answer.add(next);
 				next = average;
 			}
 		}
-		hitsByBin.put(next, new ArrayList<UngappedSearchHit>());
+		answer.add(next);
+		return answer;
+	}
+	private Map<Integer, List<UngappedSearchHit>> clusterByEstimatedStarts(List<UngappedSearchHit> sequenceHits, Set<Integer> estimatedStarts) {
+		Map<Integer, List<UngappedSearchHit>> hitsByBin = new TreeMap<>();
+		for(int start:estimatedStarts) hitsByBin.put(start, new ArrayList<>());
 		for(UngappedSearchHit hit:sequenceHits) {
 			int estStart = estimateSubjectStart(hit);
 			int minS = 0;
@@ -139,26 +184,13 @@ public class UngappedSearchHitsClusterBuilder {
 			//if(subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) 
 			if(minD<500) hitsByBin.get(minS).add(hit);
 		}
-		if(debug) System.out.println("Clustering kmer hits. Final bin starts: "+hitsByBin.keySet());
-		List<List<UngappedSearchHit>> hitsClusters=new ArrayList<List<UngappedSearchHit>>(hitsByBin.values());
-		Collections.sort(hitsClusters,(l1,l2)->l2.size()-l1.size());
-		for(List<UngappedSearchHit> hits:hitsClusters) {
-			if(debug) System.out.println("Next candidate cluster size: "+hits.size()+" current limit: "+minHits);
-			if(hits.size()<minHits) break;
-			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
-			for(List<UngappedSearchHit> subcluster:subclusters) {
-				if(subcluster.size()<minHits) continue;
-				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
-				if(selectedHits.size()<minHits) continue;
-				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
-				cluster.setRawKmerHits(sequenceHits.size());
-				cluster.setRawKmerHitsSubjectStartSD(1);
-				if(debug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" unique kmers: "+cluster.getNumDifferentKmers());
-				if(cluster.getNumDifferentKmers()>=minHits) answer.add(cluster);
-				minHits = Math.max(minHits, cluster.getNumDifferentKmers()/2);
-			}
+		return hitsByBin;
+	}
+	private void printClusters(Map<Integer, List<UngappedSearchHit>> hitsByBin) {
+		for(Map.Entry<Integer, List<UngappedSearchHit>> entry:hitsByBin.entrySet()) {
+			double [] stats = calculateStatsEstimatedSubjectStart(entry.getValue());
+			System.out.println("Start: "+entry.getKey()+" size: "+entry.getValue().size()+" stats: "+stats[0]+" "+stats[1]+" "+stats[3]);
 		}
-		return answer;
 	}
 	private List<List<UngappedSearchHit>> breakByQueryStart(List<UngappedSearchHit> hits) {
 		List<List<UngappedSearchHit>> answer = new ArrayList<List<UngappedSearchHit>>();
@@ -177,13 +209,42 @@ public class UngappedSearchHitsClusterBuilder {
 		if(nextSubcluster.size()>0) answer.add(nextSubcluster);
 		return answer;
 	}
-	private int getAverageEstimatedSubjectStart(List<UngappedSearchHit> clusterHits) {
-		long average = 0;
+	private double [] calculateStatsEstimatedSubjectStart(List<UngappedSearchHit> clusterHits) {
+		double sum = 0;
+		int n=0;
+		List<Integer> starts = new ArrayList<>();
 		for(UngappedSearchHit hit:clusterHits) {
-			average+= estimateSubjectStart(hit);
-			
+			int start = estimateSubjectStart(hit);
+			starts.add(start);
+			sum+=start;
+			n++;
 		}
-		return (int) (average/clusterHits.size());
+		Collections.sort(starts);
+		double [] answer = {0,0,1,1,0};
+		if(n>0) {
+			answer[0] = sum/n;
+			answer[1] = starts.get(n/2);
+			if(n%2==0) {
+				answer[1] += starts.get(n/2-1);
+				answer[1] /=2;
+			}
+		}
+		if(n>1) {
+			//Better than sum squares because numbers are big
+			double sumd2 = 0;
+			Distribution dist = new Distribution(-500, 500, 50);
+			for(int start:starts) {
+				double d = start-answer[0];
+				dist.processDatapoint(d);
+				sumd2+=d*d;
+			}
+			answer[2] = sumd2/(n-1);
+			//if(answer[2]<0) answer[2]=0;
+			answer[3] = Math.sqrt(answer[2]);
+			int modeDist = (int) Math.round(dist.getLocalMode(-500, 500));
+			answer[4] = modeDist;
+		}
+		return answer;
 	}
 	private int estimateSubjectStart(UngappedSearchHit hit) {
 		return hit.getSubjectStart() - hit.getQueryStart();
@@ -202,36 +263,17 @@ public class UngappedSearchHitsClusterBuilder {
 		
 		if(debug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Subject idx: "+subjectIdx);
 		
-		//Index hits by query kmer start
-		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
-		for(UngappedSearchHit hit:inputHits) {
-			//if (subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" kmer: "+hit.getQuery()+ " estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
-			List<UngappedSearchHit> list = hitsMultiMap.computeIfAbsent(hit.getQueryStart(), l -> new ArrayList<UngappedSearchHit>());
-			list.add(hit);
-		}
-		if(debug) System.out.println("KmerHitsCluster. Num different kmers: "+hitsMultiMap.size());
-		List<Integer> subjectStarts = new ArrayList<Integer>();
-		double sum = 0;
-		double sum2 = 0;
-		double n = 0;
-		for(List<UngappedSearchHit> hits:hitsMultiMap.values()) {
-			for(UngappedSearchHit hit:hits) {
-				int estStart = estimateSubjectStart(hit);
-				subjectStarts.add(estStart);
-				sum+=1.0*estStart;
-				sum2+=(1.0*estStart*estStart);
-				n++;
-			}
-		}
 		
-		Collections.sort(subjectStarts);
-		int median = subjectStarts.get(subjectStarts.size()/2);
+		double [] stats = calculateStatsEstimatedSubjectStart(inputHits);
+		
+		int median = (int) Math.round(stats[1]);
 		//System.out.println("Sum: "+sum+" sum2: "+sum2);
-		double variance = (sum2-sum*sum/n)/(n-1);
-		double rawKmerHitsSubjectStartSD = (variance>0)?Math.sqrt(variance):1;
-		Distribution dist = new Distribution(-400, 400, 50);
+		double variance = stats[2];
+		double rawKmerHitsSubjectStartSD = stats[3];
+		Distribution dist = new Distribution(-500, 500, 50);
 		Distribution distAbs = new Distribution(0, 500, 1);
-		for(int start:subjectStarts) {
+		for(UngappedSearchHit hit:inputHits) {
+			int start = estimateSubjectStart(hit);
 			int distance = start-median;
 			int distanceAbs = Math.abs(distance);
 			if (distanceAbs < 2*rawKmerHitsSubjectStartSD) {
@@ -239,7 +281,7 @@ public class UngappedSearchHitsClusterBuilder {
 				distAbs.processDatapoint(distanceAbs);
 			}
 		}
-		int modeDist = (int) Math.round(dist.getLocalMode(-300, 300));
+		int modeDist = (int) Math.round(dist.getLocalMode(-400, 400));
 		if(Math.abs(modeDist)>=100) median+=(modeDist/2);
 		
 		//System.out.println(subjectStarts);
@@ -250,8 +292,10 @@ public class UngappedSearchHitsClusterBuilder {
 		maxDistance=Math.max(queryLength/40,maxDistance);
 		maxDistance=Math.max(10,maxDistance);
 		//if(maxDistance<0.01*query.length()) maxDistance*=2;
-		if(debug) System.out.println("KmerHitsCluster. Num hits: "+n+" median: "+median+" average: "+(sum/n)+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" abs distance avg: "+distAbs.getAverage()+" stdev "+Math.sqrt(distAbs.getVariance())+" max distance: "+maxDistance);
-		
+		if(debug) System.out.println("KmerHitsCluster. Num hits: "+inputHits.size()+" median: "+median+" average: "+stats[0]+" variance: "+variance+" stdev: "+rawKmerHitsSubjectStartSD+" abs distance avg: "+distAbs.getAverage()+" stdev "+Math.sqrt(distAbs.getVariance())+" max distance: "+maxDistance);
+		//Index hits by query kmer start
+		Map<Integer, List<UngappedSearchHit>> hitsMultiMap = indexByQueryStart(inputHits);
+		if(debug) System.out.println("KmerHitsCluster. Num different kmers: "+hitsMultiMap.size());
 		List<UngappedSearchHit> selectedHits = selectHitsByDistanceWithMedian(hitsMultiMap, median, maxDistance);
 		if(selectedHits.size()<1) { 
 			if(debug) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx);
@@ -273,6 +317,15 @@ public class UngappedSearchHitsClusterBuilder {
 			
 		}
 		return filteredHits;
+	}
+	private Map<Integer, List<UngappedSearchHit>> indexByQueryStart(List<UngappedSearchHit> inputHits) {
+		Map<Integer,List<UngappedSearchHit>> hitsMultiMap = new TreeMap<Integer, List<UngappedSearchHit>>();
+		for(UngappedSearchHit hit:inputHits) {
+			//if (subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug) System.out.println("Next qpos "+hit.getQueryIdx()+" hit: "+hit.getStart()+" kmer: "+hit.getQuery()+ " estq: "+estimateQueryStart(hit)+" - "+estimateQueryEnd(hit)+" estS: "+estimateSubjectStart(hit)+" - "+estimateSubjectEnd(hit));
+			List<UngappedSearchHit> list = hitsMultiMap.computeIfAbsent(hit.getQueryStart(), l -> new ArrayList<UngappedSearchHit>());
+			list.add(hit);
+		}
+		return hitsMultiMap;
 	}
 	private List<UngappedSearchHit> selectHitsByDistanceWithMedian(Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance) {
 		List<UngappedSearchHit> selectedHits = new ArrayList<UngappedSearchHit>(hitsMultiMap.size());
