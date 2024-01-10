@@ -204,10 +204,10 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 				}
 			}
 			
-			//System.out.println("Processed Kmer hit at pos: "+kmerHit.getQueryIdx()+" query next: "+queryNext+" subject next: "+subjectNext);
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Processed Kmer hit at pos: "+kmerHit.getQueryStart()+" query next: "+queryNext+" subject next: "+subjectNext);
 		}
 		if(subjectNext==-1) {
-			System.err.println("WARN. Alignment could not be started for aln to: "+kmerHitsCluster.getSubjectIdx()+" query length: "+queryLength+" alnEncoding: "+alignmentEncoding);
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("WARN. Alignment could not be started for aln to: "+kmerHitsCluster.getSubjectIdx()+" query length: "+queryLength+" alnEncoding: "+alignmentEncoding);
 			return null;
 		}
 		if(nextMatchLength>0) {
@@ -254,8 +254,10 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		finalAlignment.setCoverageSharedKmers(coverageSharedKmers);
 		finalAlignment.setWeightedCoverageSharedKmers((int)Math.round(weightedCoverageSharedKmers));
 		//TODO: Define better alignment quality
-		double cov = 1.0*(queryNext-queryStart)/query.length();
-		finalAlignment.setAlignmentQuality((byte) Math.round(100*cov));
+		double covScore = 1.0*(queryNext-queryStart)/query.length();
+		double estMaxMismatches = queryLength/5;
+		double mismatchScore = Math.max(0, 1.0*(estMaxMismatches-numMismatches)/estMaxMismatches);
+		finalAlignment.setAlignmentQuality((byte) Math.round(100*covScore*mismatchScore));
 		finalAlignment.clipBorders(5);
 		return finalAlignment;
 	}
@@ -310,7 +312,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		else if(maxLength < minLength+11 ) {
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Trying banded alignment");
 			PairwiseAlignerStaticBanded alignerB = new PairwiseAlignerStaticBanded();
-			//alignerB.setForceStart2(type!=0);
+			alignerB.setForceStart2(type!=0);
 			alignerB.setForceEnd2(type!=2);
 			alignedFragments = (alignerB.calculateAlignment(queryStr, subjectStr));
 			if(alignedFragments!=null) {
