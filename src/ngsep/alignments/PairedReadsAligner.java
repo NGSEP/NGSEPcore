@@ -438,7 +438,7 @@ public class PairedReadsAligner {
 	private List<ReadAlignment> alignAsSingle(CharSequence query, boolean r1, List<UngappedSearchHitsCluster> clusters) {
 		SingleReadsAligner singleReadsAligner = new SingleReadsAligner(genome, clustersFinder, aligner);
 		singleReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		List<ReadAlignment> answer = singleReadsAligner.buildAlignments(query, clusters);
+		List<ReadAlignment> answer = singleReadsAligner.buildAlignments(query, clusters, 1);
 		for(ReadAlignment aln:answer) {
 			aln.setNegativeStrand(r1);
 			aln.setPaired(true);

@@ -56,11 +56,21 @@ public class SingleReadsAligner {
 			reverseQS = new StringBuilder(qual).reverse().toString();
 		}
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
-		
-		alignments.addAll(alignQuerySequence(readSeq));
-		//System.out.println("Read: "+read.getName()+" Forward inexact alignments: "+alignments.size());
+		//Filter clusters together for forward and reverse
+		List<UngappedSearchHitsCluster> clustersF = hitClustersFinder.findHitClusters(readSeq);
+		double maxCount = summarize(clustersF);
+		//System.out.println("Read: "+read.getName()+" Forward clusters: "+clustersF.size()+" max count F: "+maxCount);
+		List<UngappedSearchHitsCluster> clustersR = null;
 		if(reverseComplement!=null) {
-			List<ReadAlignment> alnsR = alignQuerySequence(reverseComplement);
+			clustersR = hitClustersFinder.findHitClusters(reverseComplement);
+			double maxCountR = summarize(clustersR);
+			//System.out.println("Read: "+read.getName()+" Reverse clusters: "+clustersR.size()+" max count R: "+maxCountR);
+			maxCount = Math.max(maxCount, maxCountR);
+		}
+		double limitCount = Math.max(minWeightedCount, minProportionBestCount*maxCount);
+		alignments.addAll(buildAlignments(readSeq, clustersF, limitCount));
+		if(clustersR!=null) {
+			List<ReadAlignment> alnsR = buildAlignments(reverseComplement, clustersR, limitCount);
 			//System.out.println("Read: "+read.getName()+" Reverse inexact alignments: "+alnsR.size());
 			for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
 			alignments.addAll(alnsR);
@@ -76,16 +86,18 @@ public class SingleReadsAligner {
 	}
 	public List<ReadAlignment> alignQuerySequence(CharSequence query) {
 		List<UngappedSearchHitsCluster> clusters = hitClustersFinder.findHitClusters(query);
-		return buildAlignments(query, clusters);
+		double maxCount = summarize(clusters);
+		double limitCount = Math.max(minWeightedCount, minProportionBestCount*maxCount);
+		return buildAlignments(query, clusters, limitCount);
 	}
 	
-	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters) {
-		double maxCount = summarize(clusters);
+	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters, double limitCount) {
+		
 		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
-		double limitCount = Math.min(minWeightedCount, minProportionBestCount*maxCount);
-		int limitClusters = Math.min(clusters.size(), Math.max(5, 3*maxAlnsPerRead));
+		
+		int limitClusters = Math.min(clusters.size(), 3*maxAlnsPerRead);
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
-		//System.out.println("Filtering clusters. Max alns per read: "+maxAlnsPerRead);
+		//System.out.println("Building alignments for sequence with length: "+query.length()+" Clusters: "+clusters.size()+" limit count: "+limitCount+" limit clusters: "+limitClusters+" Max alns per read: "+maxAlnsPerRead);
 		for (int i=0;i<limitClusters;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
