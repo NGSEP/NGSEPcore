@@ -16,6 +16,7 @@ import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
+import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.ReadAlignmentPositionComparator;
@@ -355,12 +356,12 @@ public class AssemblyPathReadsAligner {
 		
 		Map<Integer, Long> codesQuery = codesSampler.computeSequenceCodesAsMap(readStr, 0, read.length());
 		if(read.length()==-1) System.out.println("Number of codes query: "+codesQuery.size());
-		UngappedSearchHitsCluster bestCluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, ShortKmerCodesSampler.DEF_KMER_LENGTH);
+		UngappedSearchHitsCluster bestCluster = MinimizersUngappedSearchHitsClustersFinder.findBestKmersCluster(subject.length(), codesSubject, read.length(), codesQuery, ShortKmerCodesSampler.DEF_KMER_LENGTH);
 		if(bestCluster==null) return null;
 		ReadAlignment aln;
-		synchronized (aligner) {
-			aln = aligner.buildAlignment(readStr, subject, bestCluster);
-		}
+		//synchronized (aligner) {
+		aln = aligner.buildAlignment(readStr, subject, bestCluster);
+		//}
 		if(read.length()==-1) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
 		if(!evaluateAlignment(aln)) aln = null;
 		return aln;

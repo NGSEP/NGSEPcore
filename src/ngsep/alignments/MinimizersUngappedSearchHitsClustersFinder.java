@@ -21,6 +21,7 @@ package ngsep.alignments;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -190,6 +191,69 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		}
 		//System.out.println("Final number of clusters: "+clusters.size());
 		return clusters;
+	}
+	/*public static UngappedSearchHitsCluster findBestKmersCluster (CharSequence subjectSequence, int subjectFirst, int subjectLast, CharSequence querySequence, int queryFirst, int queryLast, int kmerLength) {
+		Map<Integer,Long> codesSubject = KmersExtractor.extractDNAKmerCodesAsMap(subjectSequence, kmerLength, subjectFirst, subjectLast);
+		Map<Integer,Long> codesQuery = KmersExtractor.extractDNAKmerCodesAsMap(querySequence, kmerLength, queryFirst, queryLast);
+		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
+		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
+		if(initialKmerHits.size()==0) return null;
+		List<UngappedSearchHit> filteredKmerHits = new ArrayList<>();
+		for(UngappedSearchHit hit: initialKmerHits) {
+			int distanceStartSubject = hit.getSubjectStart()-subjectFirst;
+			int distanceStartQuery = hit.getQueryStart()-queryFirst;
+			int distanceEndSubject = subjectLast-hit.getSubjectStart();
+			int distanceEndQuery = queryLast-hit.getQueryStart();
+			int diff1 = Math.abs(distanceStartSubject-distanceStartQuery);
+			int diff2 = Math.abs(distanceEndSubject-distanceEndQuery);
+			if(diff1 < 200 || diff2<200) filteredKmerHits.add(hit);
+		}
+		
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(querySequence.length(), 0, subjectSequence.length(), filteredKmerHits, 0);
+		//System.out.println("Number of clusters: "+clusters.size());
+		//printClusters(clusters);
+		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
+		else if (clusters.size()==0) return null;
+		return clusters.get(0);
+	}*/
+	
+	public static UngappedSearchHitsCluster findBestKmersCluster (int subjectLength, Map<Integer, Long> codesSubject, int queryLength, Map<Integer, Long> codesQuery, int kmerLength) {
+		List<UngappedSearchHit> initialKmerHits = alignKmerCodes(codesSubject, codesQuery, kmerLength);
+		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
+		if(initialKmerHits.size()==0) return null;
+		
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits, 0);
+		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
+		else if (clusters.size()==0) return null;
+		return clusters.get(0);
+	}
+	public static void printClusters(List<UngappedSearchHitsCluster> clusters) {
+		System.out.println("Clusters: "+clusters.size());
+		for(UngappedSearchHitsCluster cluster:clusters) {
+			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
+		}
+		
+	}
+	private static List<UngappedSearchHit> alignKmerCodes(Map<Integer, Long> codesSubject, Map<Integer, Long> codesQuery, int kmerLength) {
+		Map<Long,List<Integer>> reverseSubjectMap = new HashMap<Long, List<Integer>>();
+		for(Map.Entry<Integer, Long> entry:codesSubject.entrySet()) {
+			List<Integer> starts = reverseSubjectMap.computeIfAbsent(entry.getValue(), v->new ArrayList<Integer>());
+			starts.add(entry.getKey());
+		}
+		List<UngappedSearchHit> initialKmerHits = new ArrayList<UngappedSearchHit>();
+		for(int i:codesQuery.keySet()) {
+			Long codeRead = codesQuery.get(i);
+			List<Integer> subjectPosList = reverseSubjectMap.get(codeRead);
+			if(subjectPosList==null) continue;
+			for(int subjectPos:subjectPosList) {
+				UngappedSearchHit hit = new UngappedSearchHit(0 , subjectPos);
+				hit.setQueryStart(i);
+				hit.setHitLength((short)kmerLength);
+				initialKmerHits.add(hit);
+				//if(i<30) System.out.println("Next hit for kmer at "+i+" pos "+subjectPos); 
+			}
+		}
+		return initialKmerHits;
 	}
 }
 

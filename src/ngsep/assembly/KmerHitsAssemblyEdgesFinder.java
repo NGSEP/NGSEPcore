@@ -295,7 +295,7 @@ public class KmerHitsAssemblyEdgesFinder {
 				return false;
 			}
 		} else {
-			simulatedAlnData =  PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  LongReadsUngappedSearchHitsClusterAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, graph.getSequence(subjectSeqIdx), startSubject, endSubject);
 		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
@@ -372,7 +372,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			}
 			overlap = subjectLength-aln.getFirst();
 		} else {
-			simulatedAlnData =  PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  LongReadsUngappedSearchHitsClusterAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		
 		AssemblyEdge edge = new AssemblyEdge(vertexSubject, vertexQuery, overlap);
@@ -450,7 +450,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			}
 			overlap = aln.getLast();
 		} else {
-			simulatedAlnData =  PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
+			simulatedAlnData =  LongReadsUngappedSearchHitsClusterAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		AssemblyEdge edge = new AssemblyEdge(vertexQuery, vertexSubject, overlap);
 		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
@@ -497,12 +497,5 @@ public class KmerHitsAssemblyEdgesFinder {
 		}*/
 		relationships.add(edge);
 		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
-	}
-	private int[] redoSimulation(int subjectSeqIdx, CharSequence subjectSequence, int startSubject, int endSubject, int querySequenceId, CharSequence query, int queryStart, int queryEnd, int [] initialSimulation) {
-		UngappedSearchHitsCluster cluster = PairwiseAlignerDynamicKmers.findBestKmersCluster(subjectSequence, startSubject, endSubject, query, queryStart, queryEnd,15);
-		if(cluster ==null) return initialSimulation;
-		int [] newSim = PairwiseAlignerDynamicKmers.simulateAlignment(subjectSeqIdx, subjectSequence.length(), querySequenceId, query.length(), cluster);
-		if(newSim[2]>=initialSimulation[2]) return initialSimulation;
-		return newSim;
 	}
 }
