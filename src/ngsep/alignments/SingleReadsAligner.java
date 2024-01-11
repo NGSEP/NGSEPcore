@@ -45,6 +45,7 @@ public class SingleReadsAligner {
 	}
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		boolean debug = false;
+		if (debug) System.out.println("Read: "+read.getName()+" length: : "+read.getLength());
 		List<ReadAlignment> alignments = new ArrayList<>();
 		String readSeq = read.getCharacters().toString();
 		String qual = read.getQualityScores();

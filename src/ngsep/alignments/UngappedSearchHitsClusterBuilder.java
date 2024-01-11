@@ -48,6 +48,7 @@ public class UngappedSearchHitsClusterBuilder {
 		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
 		double minHits = Math.min(20,0.01*queryLength);
 		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
+		if(debug) System.out.println("Clustering hits: "+sequenceHits.size()+" minHits: "+minHits);
 		if(sequenceHits.size()<minHits) return new ArrayList<UngappedSearchHitsCluster>();
 		for(UngappedSearchHit hit:sequenceHits) {
 			//if (debug && hit.getSubjectStart()<10000) System.out.println("Next qpos "+hit.getQueryStart()+" hit: "+hit.getSubjectStart());
@@ -325,7 +326,7 @@ public class UngappedSearchHitsClusterBuilder {
 		int median = (int) Math.round(stats[1]);
 		//System.out.println("Sum: "+sum+" sum2: "+sum2);
 		double variance = stats[2];
-		double rawKmerHitsSubjectStartSD = stats[3];
+		double rawKmerHitsSubjectStartSD = Math.max(1, stats[3]);
 		Distribution dist = new Distribution(-500, 500, 50);
 		Distribution distAbs = new Distribution(0, 500, 1);
 		for(UngappedSearchHit hit:inputHits) {

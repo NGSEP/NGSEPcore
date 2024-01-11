@@ -68,9 +68,9 @@ public class ShortKmerCodesSampler {
 	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, String sequence,int start,int end) {
 		//new PrimeNumbers(1000000);
 		long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
-		//log.info("Extracted codes for sequence "+sequenceId+" from "+start+" to "+end+" Number of codes: "+codes.size());
-		//return new ArrayList<KmerCodesTableEntry>();
-		return computeSequenceCodes(sequenceId, start, segmentCodes);
+		List<KmerCodesTableEntry> selectedCodes = computeSequenceCodes(sequenceId, start, segmentCodes);
+		//System.out.println("Selected codes for sequence "+sequenceId+" from "+start+" to "+end+" Number of codes: "+selectedCodes.size()+" pct: "+(100*selectedCodes.size()/segmentCodes.length));
+		return selectedCodes;
 	}
 	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, long[] segmentCodes) {
 		int debugIdx = -2;
