@@ -20,7 +20,6 @@
 package ngsep.assembly;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -422,8 +421,14 @@ public class Assembler {
 			weightIndels = 1;
 		}
 		//Save final graph and corrected reads
+		Thread saveReadsThread = null;
 		if(graphFile==null || errorCorrectionRounds>0) {
-			saveGraphAndCorrectedReads(outputPrefix, sequences, graph);
+			saveGraph(outputPrefix, graph);
+			final List<QualifiedSequence> correctedSeqs = sequences;
+			String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
+			saveReadsThread = new Thread(()->saveCorrectedReads(outFileCorrectedReads, correctedSeqs));
+			saveReadsThread.start();
+			log.info("Started saving reads to "+outFileCorrectedReads);
 		}
 		long time2 = System.currentTimeMillis();
 		List<QualifiedSequence> assembledSequences = new ArrayList<QualifiedSequence>();
@@ -513,25 +518,37 @@ public class Assembler {
 		diff1 = (time4-time3)/1000;
 		diff2 = (time4-startTime)/1000;
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
+		saveReadsThread.join();
 	}
-	private void saveGraphAndCorrectedReads(String outputPrefix, List<QualifiedSequence> sequences, AssemblyGraph graph)
-			throws IOException, FileNotFoundException {
+	private void saveGraph(String outputPrefix, AssemblyGraph graph) {
 		String outFileGraph = outputPrefix+".graph.gz";
 		if(errorCorrectionRounds>0 && saveCorrected) {
-			String outFileCorrectedReads = outputPrefix+"_correctedReads.fa.gz";
-			try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outFileCorrectedReads));
+			outFileGraph = outputPrefix+"_corrected.graph.gz";
+		}
+		if(errorCorrectionRounds==0 || saveCorrected) {
+			try {
+				AssemblyGraphFileHandler.save(graph, outFileGraph);
+				log.info("Saved graph to "+outFileGraph);
+			} catch (IOException e) {
+				e.printStackTrace();
+				log.warning("Error saving graph to "+outFileGraph+". "+e.getMessage());
+			}		
+		}
+	}
+	private void saveCorrectedReads(String outputFile, List<QualifiedSequence> sequences) {
+		if(errorCorrectionRounds>0 && saveCorrected) {
+			try (OutputStream os = new GZIPOutputStream(new FileOutputStream(outputFile));
 				 PrintStream outReads = new PrintStream(os)) {
 				for(QualifiedSequence seq:sequences) {
 					outReads.println(">"+seq.getName());
 					outReads.println(seq.getCharacters());
 				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				log.warning("Error saving the corrected reads to "+outputFile+". "+e.getMessage());
 			}
-			log.info("Saved corrected reads to "+outFileCorrectedReads);
-			outFileGraph = outputPrefix+"_corrected.graph.gz";
-		}
-		if(errorCorrectionRounds==0 || saveCorrected) {
-			AssemblyGraphFileHandler.save(graph, outFileGraph);
-			log.info("Saved graph to "+outFileGraph);
+			log.info("Saved corrected reads to "+outputFile);
+			
 		}
 	}
 	private ConsensusBuilder createConsensusBuilder() {

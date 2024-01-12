@@ -137,7 +137,7 @@ public class ReadAlignmentObjectsFactory {
 		usedMemory/=1000000000;
 		long time2 = System.currentTimeMillis();
 		long diff = (time2-startTime)/1000;
-		log.info("Created first clusters finder. Time (s): "+diff+". Memory: "+usedMemory);
+		if(diff>5) log.info("Created first clusters finder. Time (s): "+diff+". Memory: "+usedMemory);
 	}
 	private List<LongReadsUngappedSearchHitsClusterAligner> aligners = new ArrayList<LongReadsUngappedSearchHitsClusterAligner>();
 	private int lastAlignerIndex = 0;
