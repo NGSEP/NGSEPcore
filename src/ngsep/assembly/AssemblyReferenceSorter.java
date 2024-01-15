@@ -20,6 +20,8 @@ import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.GenomicRegionSortedCollection;
+import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -33,6 +35,9 @@ public class AssemblyReferenceSorter {
 	public static final int DEF_PLOIDY = 1;
 	public static final int DEF_KMER_LENGTH = 25;
 	public static final int DEF_WINDOW_LENGTH = 40;
+	public static final int RENAME_CONTIGS_POLICY_REFNAMES = 1;
+	public static final int RENAME_CONTIGS_POLICY_CONSECUTIVE = 2;
+	public static final int RENAME_CONTIGS_POLICY_KEEPNAMES = 0;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	// Logging and progress
@@ -46,6 +51,7 @@ public class AssemblyReferenceSorter {
 	private int ploidy = DEF_PLOIDY;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
+	private int renameContigsPolicy = RENAME_CONTIGS_POLICY_REFNAMES;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	//Model attributes
@@ -116,7 +122,17 @@ public class AssemblyReferenceSorter {
 	public void setWindowLength(String value) {
 		setWindowLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-
+	
+	public int getRenameContigsPolicy() {
+		return renameContigsPolicy;
+	}
+	public void setRenameContigsPolicy(int renameContigsPolicy) {
+		this.renameContigsPolicy = renameContigsPolicy;
+	}
+	public void setRenameContigsPolicy(String value) {
+		setRenameContigsPolicy((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -183,32 +199,68 @@ public class AssemblyReferenceSorter {
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
-    	if(!pool.isShutdown()) {
+		if(!pool.isShutdown()) {
 			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 		}
-    	log.info("Mapped "+contigAlns.size()+" contigs");
-    	GenomicRegionComparator cmp = new GenomicRegionComparator(referenceGenome.getSequencesMetadata());
-    	List<ReadAlignment> alns = new ArrayList<ReadAlignment>(contigAlns.values());
-    	Collections.sort(alns,cmp);
-    	QualifiedSequenceList outSeqs = new QualifiedSequenceList();
-    	Set<String> namesMapped = new HashSet<String>();
-    	for(ReadAlignment aln:alns) {
-    		String contigName = aln.getReadName();
-    		DNAMaskedSequence seq = (DNAMaskedSequence) assembly.getSequenceByName(contigName).getCharacters();
-    		if(aln.isNegativeStrand()) seq = seq.getReverseComplement();
-    		outSeqs.add(new QualifiedSequence(contigName, seq));
-    		namesMapped.add(contigName);
-    	}
-    	log.info("Sorted "+outSeqs.size()+" contigs");
-    	for (QualifiedSequence seq:sequences) {
-    		if(!namesMapped.contains(seq.getName())) {
-    			outSeqs.add(seq);
-    		}
-    	}
-    	log.info("Added remaining contigs. Total: "+outSeqs.size());
+		log.info("Mapped "+contigAlns.size()+" contigs");
+		GenomicRegionComparator cmp = new GenomicRegionComparator(refMetadata);
+		List<ReadAlignment> alns = new ArrayList<ReadAlignment>(contigAlns.values());
+		Collections.sort(alns,cmp);
+		QualifiedSequenceList primarySeqs = new QualifiedSequenceList();
+		QualifiedSequenceList redundantSeqs = new QualifiedSequenceList();
+		GenomicRegionSortedCollection<ReadAlignment> referenceAlnsGenome = new GenomicRegionSortedCollection<ReadAlignment>(refMetadata);
+		Set<String> namesMapped = new HashSet<String>();
+		int numPrimarySeqsChr = 0;
+		int lastChr = -1;
+		for(ReadAlignment aln:alns) {
+			String contigName = aln.getReadName();
+			DNAMaskedSequence seq = (DNAMaskedSequence) assembly.getSequenceByName(contigName).getCharacters();
+			if(aln.isNegativeStrand()) seq = seq.getReverseComplement();
+			List<ReadAlignment> genomeOverlappingAlns = referenceAlnsGenome.findSpanningRegions(aln).asList();
+			boolean found = false;
+			for(ReadAlignment aln2:genomeOverlappingAlns) {
+				int overlap = GenomicRegionSpanComparator.getInstance().getSpanLength(aln.getFirst(), aln.getLast(), aln2.getFirst(), aln2.getLast());
+				if(overlap > 0.1*seq.length()) {
+					redundantSeqs.add(assembly.getSequenceByName(contigName));
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				if(lastChr!=aln.getSequenceIndex()) {
+					lastChr = aln.getSequenceIndex();
+					numPrimarySeqsChr = 0;
+				}
+				numPrimarySeqsChr++;
+				primarySeqs.add(new QualifiedSequence(calculateName(contigName, aln, numPrimarySeqsChr, primarySeqs.size()+1, false), seq));
+				referenceAlnsGenome.add(aln);
+			}
+			namesMapped.add(contigName);
+		}
+		log.info("Sorted "+primarySeqs.size()+" primary contigs and "+redundantSeqs.size()+" redundant contigs");
+		QualifiedSequenceList outSeqs = new QualifiedSequenceList();
+		outSeqs.addAll(primarySeqs);
+		outSeqs.addAll(redundantSeqs);
+		int n=0;
+		for (QualifiedSequence seq:sequences) {
+			if(!namesMapped.contains(seq.getName())) {
+				outSeqs.add(seq);
+				n++;
+			}
+		}
+		log.info("Added "+n+" remaining contigs. Total: "+outSeqs.size());
 		return new ReferenceGenome(outSeqs);
 	}
 
+	private String calculateName(String contigName, ReadAlignment aln, int consecutiveChr, int consecutive, boolean redundant) {
+		if(renameContigsPolicy==RENAME_CONTIGS_POLICY_KEEPNAMES) return contigName;
+		else if (renameContigsPolicy==RENAME_CONTIGS_POLICY_CONSECUTIVE) {
+			return "SortedContig"+consecutive;
+		}
+		String name = aln.getSequenceName();
+		name+="_c"+consecutiveChr;
+		return name;
+	}
 	private void mapContig(QualifiedSequence qseq, QualifiedSequenceList refMetadata, MinimizersUngappedSearchHitsClustersFinder minimizerTable, Map<String, ReadAlignment> contigAlns) {
 		ContigClustersComparator cmp = new ContigClustersComparator();
 		String seqName = qseq.getName();
