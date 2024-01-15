@@ -220,7 +220,7 @@ public class UngappedSearchHitsClusterBuilder {
 			if(debug) System.out.println("Next candidate cluster size: "+hits.size()+" current limit: "+minHits);
 			if(hits.size()<minHits) break;
 			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
-			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
+			//if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				if(subcluster.size()<minHits) continue;
 				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);

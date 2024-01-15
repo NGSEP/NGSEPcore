@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
@@ -209,33 +210,66 @@ public class AssemblyReferenceSorter {
 	}
 
 	private void mapContig(QualifiedSequence qseq, QualifiedSequenceList refMetadata, MinimizersUngappedSearchHitsClustersFinder minimizerTable, Map<String, ReadAlignment> contigAlns) {
+		ContigClustersComparator cmp = new ContigClustersComparator();
 		String seqName = qseq.getName();
 		log.info("Mapping contig "+seqName);
 		DNAMaskedSequence contigSeq = (DNAMaskedSequence) qseq.getCharacters();
 		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.findHitClusters(contigSeq.toString());
-		ReadAlignment alnF = buildAlignment(qseq, forwardClusters, refMetadata, false);
-		log.info("Sequence: "+seqName+" Forward clusters: "+forwardClusters.size()+" alignment: "+alnF);
+		log.info("Sequence: "+seqName+" Forward clusters: "+forwardClusters.size());
+		//printClusters(forwardClusters);
+		UngappedSearchHitsCluster bestClusterForward = null;
+		if(forwardClusters.size()>0) {
+			Collections.sort(forwardClusters, cmp);
+			bestClusterForward = forwardClusters.get(0);
+		}
+		
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(contigSeq).toString();
 		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.findHitClusters(reverseComplement);
-		ReadAlignment alnR = buildAlignment(qseq, reverseClusters, refMetadata, true);
-		log.info("Sequence: "+seqName+" Reverse clusters: "+reverseClusters.size()+" alignment: "+alnR);
-		ReadAlignment aln = alnF;
-		if (alnF==null && alnR==null) return;
-		else if (alnF==null || (alnR!=null && alnR.getAlignmentQuality()>alnF.getAlignmentQuality())) aln = alnR;
-		contigAlns.put(qseq.getName(), aln);
+		log.info("Sequence: "+seqName+" Reverse clusters: "+reverseClusters.size());
+		//printClusters(reverseClusters);
+		UngappedSearchHitsCluster bestClusterReverse = null;
+		if(reverseClusters.size()>0) {
+			Collections.sort(reverseClusters, cmp);
+			bestClusterReverse = reverseClusters.get(0);
+		}
+		UngappedSearchHitsCluster bestCluster = bestClusterForward;
+		if (bestClusterForward == null && bestClusterReverse == null) return;
+		else if (bestClusterForward ==null) bestCluster = bestClusterReverse;
+		else if (bestClusterReverse!= null && cmp.compare(bestClusterForward, bestClusterReverse) >0 ) bestCluster = bestClusterReverse;
+		ReadAlignment aln = buildAlignment(qseq, bestCluster, refMetadata, bestCluster==bestClusterReverse);
+		System.out.println("Alignment of contig "+qseq.getName()+" with length "+qseq.getLength()+" "+aln);
+		if(aln!=null) contigAlns.put(qseq.getName(), aln);
 	}
-
-	private ReadAlignment buildAlignment(QualifiedSequence qseq, List<UngappedSearchHitsCluster> clusters, QualifiedSequenceList refMetadata, boolean reverse) {
-		if(clusters.size()==0) return null;
-		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
-		UngappedSearchHitsCluster bestCluster = clusters.get(0);
-		ReadAlignment aln = new ReadAlignment(bestCluster.getSubjectIdx(), bestCluster.getSubjectPredictedStart(), bestCluster.getSubjectPredictedEnd(), qseq.getLength(), 0);
+	private ReadAlignment buildAlignment(QualifiedSequence qseq, UngappedSearchHitsCluster cluster, QualifiedSequenceList refMetadata, boolean reverse) {
+		
+		//System.out.println("Clusters: "+clusters.size()+" best weighted count: "+bestCluster.getWeightedCount());
+		ReadAlignment aln = new ReadAlignment(cluster.getSubjectIdx(), cluster.getSubjectPredictedStart(), cluster.getSubjectPredictedEnd(), qseq.getLength(), 0);
 		aln.setSequenceName(refMetadata.get(aln.getSequenceIndex()).getName());
 		aln.setReadName(qseq.getName());
 		if(reverse) aln.setNegativeStrand(true);
-		double q = 1000*bestCluster.getWeightedCount()/qseq.getLength();
+		double q = 1000*cluster.getWeightedCount()/qseq.getLength();
 		q = Math.max(120, q);
 		aln.setAlignmentQuality((byte) q);
 		return aln;
 	}
+	public void printClusters(List<UngappedSearchHitsCluster> clusters) {
+		for(UngappedSearchHitsCluster cluster: clusters) {
+			System.out.print("Aln: "+cluster.getSubjectIdx()+" "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd());
+			System.out.print(" ev: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" "+cluster.getRawKmerHits());
+			System.out.println(" "+cluster.getNumDifferentKmers()+" "+cluster.getWeightedCount());
+		}
+		
+	}
+}
+class ContigClustersComparator implements Comparator<UngappedSearchHitsCluster> {
+
+	@Override
+	public int compare(UngappedSearchHitsCluster o1, UngappedSearchHitsCluster o2) {
+		int evLength1 = (o1.getSubjectEvidenceEnd()-o1.getSubjectEvidenceStart())/100000;
+		int evLength2 = (o2.getSubjectEvidenceEnd()-o2.getSubjectEvidenceStart())/100000;
+		if(evLength1!=evLength2) return evLength2-evLength1;
+		if(o1.getNumDifferentKmers()!=o2.getNumDifferentKmers()) return o2.getNumDifferentKmers()-o1.getNumDifferentKmers();
+		return (int)o2.getWeightedCount()-(int)o1.getWeightedCount();
+	}
+	
 }
