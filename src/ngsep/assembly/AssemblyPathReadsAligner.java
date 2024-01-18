@@ -568,11 +568,10 @@ public class AssemblyPathReadsAligner {
 		List<AssemblyPath> internalPaths = path.getAlternativeSmallPaths();
 		if(internalPaths.size()==0 ) return new ArrayList<>();
 		log.info("Aligning internal paths for path: "+path.getPathId()+" number of paths: "+internalPaths.size());
-		ReadsAligner aligner = new ReadsAligner();
 		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence("", path.getConsensus()));
-		aligner.setGenome(genome);
 		//TODO: Select correct platform
-		aligner.setPlatform(Platform.PACBIO);
+		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
+		aligner.setLog(log);
 		//log.info("Aligning internal paths for path: "+path.getPathId()+" loaded kmer codes table");
 		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
 		int totalReads = 0;

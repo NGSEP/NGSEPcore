@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignmentPair;
 import ngsep.alignments.ReadsAligner;
+import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegionComparator;
@@ -451,8 +452,8 @@ public class VCFRelativeCoordinatesTranslator {
 		String debugConsensusName = null;
 		Map<String, ReadAlignment> alignments = new HashMap<String, ReadAlignment>();
 		
-		ReadsAligner aligner = new ReadsAligner();
-		aligner.setGenome(genome);
+		ReadsAligner aligner = new ReadsAligner(genome,Platform.ILLUMINA);
+		aligner.setLog(log);
 		if(fmIndexFile!=null) {
 			aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
 		}

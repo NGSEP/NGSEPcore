@@ -456,9 +456,10 @@ Sequence name (chromosome), region first base pair coordinate (1-based, inclusiv
 <option id="s" type="STRING" attribute="sampleId" defaultConstant="DEF_SAMPLE_ID">
 Id of the sample.
 </option>
-<option id="p" type="STRING" attribute="platform" defaultConstant="DEF_PLATFORM">
+<option id="p" type="STRING" attribute="platform">
 Sequencing platform used to produce the reads. 
 Supported platforms include ILLUMINA, IONTORRENT, PACBIO and ONT.
+If not provided, it will be guessed sampling the first 1000 reads.
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
 Format of the input file. It can be 0 for fastq or 1 for fasta.

@@ -55,7 +55,6 @@ public class ReadsAligner {
 	// Constants for default values
 	
 	public static final String DEF_SAMPLE_ID = "Sample";
-	public static final ReadAlignment.Platform DEF_PLATFORM = ReadAlignment.Platform.ILLUMINA;
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
 	public static final int DEF_MAX_ALNS_PER_READ=1;
@@ -79,7 +78,7 @@ public class ReadsAligner {
 	private String fmIndexFile = null;
 	private String knownSTRsFile = null;
 	private String sampleId = DEF_SAMPLE_ID;
-	private ReadAlignment.Platform platform = DEF_PLATFORM;
+	private ReadAlignment.Platform platform = null;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private int maxAlnsPerRead = DEF_MAX_ALNS_PER_READ;
 	private int kmerLength = DEF_KMER_LENGTH;
@@ -133,6 +132,7 @@ public class ReadsAligner {
 	}
 	public void setInputFile2(String inputFile2) {
 		this.inputFile2 = inputFile2;
+		this.setPlatform(ReadAlignment.Platform.ILLUMINA);
 	}
 	public ReferenceGenome getGenome() {
 		return genome;
@@ -315,10 +315,6 @@ public class ReadsAligner {
 	public ReadsAligner() {
 	}
 	
-	public ReadsAligner(ReferenceGenome genome) {
-		this(genome,Platform.PACBIO);
-	}
-	
 	public ReadsAligner(ReferenceGenome genome, Platform platform) {
 		this.genome = genome;
 		this.platform = platform;
@@ -327,6 +323,15 @@ public class ReadsAligner {
 	
 	private void initializeFactory() {
 		if(factory!=null) return;
+		if(platform==null) {
+			if(inputFile!=null)
+				try {
+					guessPlatform(inputFile);
+				} catch (IOException e) {
+					throw new RuntimeException("IO error guessing platform",e);
+				}
+			else throw new RuntimeException("Null platform. The platform must be initialized before mapping reads");
+		}
 		factory = new ReadAlignmentObjectsFactory(genome);
 		factory.setLog(log);
 		factory.setKmerLength(kmerLength);
@@ -344,6 +349,45 @@ public class ReadsAligner {
 		log.info("Initialized aligner");
 	}
 	
+	private void guessPlatform(String inputFile) throws IOException {
+		log.info("Guessing platform");
+		int sampleSize = 1000;
+		int maxLength = 0;
+		int sumQS = 0;
+		int numQSSampled = 0;
+		if(inputFormat == INPUT_FORMAT_FASTQ) {
+			try (FastqFileReader reader = new FastqFileReader(inputFile)) {
+				reader.setSequenceType(DNAMaskedSequence.class);
+				Iterator<RawRead> it = reader.iterator();
+				for(int i=1;it.hasNext() && i<sampleSize;i++) {
+					RawRead read = it.next();
+					String qs = read.getQualityScores();
+					maxLength = Math.max(maxLength, read.getLength());
+					for(int j=10;j<qs.length() && j<200;j+=20) {
+						int nextVal = qs.charAt(j)-33;
+						sumQS+=nextVal;
+						numQSSampled++;
+					}
+				}
+			}
+		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
+			try (FastaFileReader reader = new FastaFileReader(inputFile)) {
+				reader.setSequenceType(DNAMaskedSequence.class);
+				Iterator<QualifiedSequence> it = reader.iterator();
+				for(int i=1;it.hasNext() && i<sampleSize;i++) {
+					QualifiedSequence seq = it.next();
+					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
+					maxLength = Math.max(maxLength, read.getLength());
+				}
+			}
+		}
+		platform = ReadAlignment.Platform.PACBIO;
+		int avgQS = 100;
+		if(numQSSampled>0) avgQS = sumQS/numQSSampled;
+		if(maxLength<400 && avgQS > 25 ) platform = ReadAlignment.Platform.ILLUMINA;
+		else if (maxLength>30000 && avgQS < 25) platform = ReadAlignment.Platform.ONT;
+		log.info("Max length: "+maxLength+" "+" average quality score: "+avgQS+" Guessed platform: "+platform);
+	}
 	private void logParameters() {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
@@ -353,7 +397,7 @@ public class ReadsAligner {
 		if (genome!=null) out.println("Reference genome loaded from file: "+genome.getFilename());
 		if (fmIndexFile!=null) out.println("FM index file "+fmIndexFile);
 		out.println("Sample id: "+ sampleId);
-		out.println("Platform: "+ platform);
+		if(platform!=null) out.println("Platform: "+ platform);
 		out.println("K-mer length: "+ kmerLength);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
@@ -375,6 +419,7 @@ public class ReadsAligner {
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
+		if(platform==null) guessPlatform(readsFile);
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
@@ -434,6 +479,7 @@ public class ReadsAligner {
 	 * @throws InterruptedException 
 	 */
 	public void alignReads( String readsFile1, String readsFile2, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
+		if(platform==null) platform = ReadAlignment.Platform.ILLUMINA;
 		try (FastqFileReader reader1 = new FastqFileReader(readsFile1);
 			 FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
 			reader1.setSequenceType(DNAMaskedSequence.class);

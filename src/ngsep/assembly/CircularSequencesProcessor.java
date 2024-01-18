@@ -255,10 +255,8 @@ public class CircularSequencesProcessor {
 	}
 	private void findStart(QualifiedSequence contig) {
 		ReferenceGenome genome = new ReferenceGenome(contig);
-		ReadsAligner aligner = new ReadsAligner();
-		aligner.setGenome(genome);
-		//TODO: Select correct platform
-		aligner.setPlatform(Platform.PACBIO);
+		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
+		aligner.setLog(log);
 		List<ReadAlignment> alns = new ArrayList<>();
 		for(QualifiedSequence startSeq:starts) {
 			List<ReadAlignment> alnsRead = aligner.alignRead(startSeq);

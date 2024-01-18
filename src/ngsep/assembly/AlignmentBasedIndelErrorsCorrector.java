@@ -327,11 +327,10 @@ public class AlignmentBasedIndelErrorsCorrector {
 	private void correctRemainingReads(AssemblyGraph graph, Map<Integer,AssemblyPath> selectedPathsMap, QualifiedSequenceList pathSequences, Map<Integer,List<CalledGenomicVariant>> selectedPathsCalledIndels, Set<Integer> alignedReadIds) {
 		
 		int n = graph.getNumSequences();
-		ReadsAligner aligner = new ReadsAligner();
-		aligner.setNumThreads(numThreads);
 		ReferenceGenome genome = new ReferenceGenome(pathSequences);
-		aligner.setGenome(genome);
-		aligner.setPlatform(Platform.PACBIO);
+		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
+		aligner.setLog(log);
+		aligner.setNumThreads(numThreads);
 		
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;
