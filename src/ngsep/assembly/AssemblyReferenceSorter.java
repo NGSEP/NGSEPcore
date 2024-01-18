@@ -47,15 +47,13 @@ public class AssemblyReferenceSorter {
 	// Parameters
 	private String inputFile;
 	private String outputFile;
-	private String referenceFile;
+	private ReferenceGenome genome = null;
 	private int ploidy = DEF_PLOIDY;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
 	private int renameContigsPolicy = RENAME_CONTIGS_POLICY_REFNAMES;
 	private int numThreads = DEF_NUM_THREADS;
 	
-	//Model attributes
-	private ReferenceGenome referenceGenome;
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -86,13 +84,17 @@ public class AssemblyReferenceSorter {
 		this.outputFile = outputFile;
 	}
 
-	public String getReferenceFile() {
-		return referenceFile;
+	public ReferenceGenome getGenome() {
+		return genome;
 	}
-	public void setReferenceFile(String referenceFile) {
-		this.referenceFile = referenceFile;
+	public void setGenome(ReferenceGenome genome) {
+		this.genome = genome;
 	}
-
+	public void setGenome(String genomeFile) throws IOException {
+		if(genomeFile==null || genomeFile.length()==0) this.genome = null;
+		else setGenome(OptionValuesDecoder.loadGenome(genomeFile,log));
+	}
+	
 	public int getPloidy() {
 		return ploidy;
 	}
@@ -143,13 +145,6 @@ public class AssemblyReferenceSorter {
 		this.setNumThreads((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 
-	public ReferenceGenome getReferenceGenome() {
-		return referenceGenome;
-	}
-	public void setReferenceGenome(ReferenceGenome referenceGenome) {
-		this.referenceGenome = referenceGenome;
-	}
-
 	public static void main(String[] args) throws Exception {
 		AssemblyReferenceSorter instance = new AssemblyReferenceSorter();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -159,9 +154,8 @@ public class AssemblyReferenceSorter {
 	public void run() throws IOException {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input genome assembly is required");
-		if(referenceFile==null) throw new IOException("The input reference assembly is required");
+		if(genome==null) throw new IOException("The input reference assembly is required");
 		if(outputFile==null) throw new IOException("An output file is required");
-		referenceGenome = new ReferenceGenome(referenceFile);
 		try (PrintStream out = new PrintStream(outputFile)) {
 			sortGenome(inputFile, out);
 		}
@@ -171,7 +165,7 @@ public class AssemblyReferenceSorter {
 		PrintStream out = new PrintStream(os);
 		out.println("Input file:"+ inputFile);
 		out.println("Output file:"+ outputFile);
-		out.println("Reference file:"+ referenceFile);
+		out.println("Reference genome:"+ genome.getFilename());
 		out.println("Kmer length: "+kmerLength);
 		out.println("Window length for minimizers: "+windowLength);
 		//out.println("Sample ploidy: "+ploidy);
@@ -187,9 +181,9 @@ public class AssemblyReferenceSorter {
 
 	public ReferenceGenome sortGenome(ReferenceGenome assembly) {
 		MinimizersUngappedSearchHitsClustersFinder minimizerTable = new MinimizersUngappedSearchHitsClustersFinder();
-		minimizerTable.loadGenome(referenceGenome, kmerLength, windowLength, numThreads);
+		minimizerTable.loadGenome(genome, kmerLength, windowLength, numThreads);
 		minimizerTable.setLog(log);
-		QualifiedSequenceList refMetadata = referenceGenome.getSequencesMetadata();
+		QualifiedSequenceList refMetadata = genome.getSequencesMetadata();
 		QualifiedSequenceList sequences = assembly.getSequencesList();
 		Map<String,ReadAlignment> contigAlns = new Hashtable<String, ReadAlignment>();
 		//TODO: Improve parallel processing

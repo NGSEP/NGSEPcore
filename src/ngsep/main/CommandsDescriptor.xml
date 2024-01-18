@@ -300,7 +300,7 @@ Input genome in FASTA format. It can be gzip compressed.
 <option id="o" type="FILE" attribute="outputFile">
 Output file
 </option>
-<option id="r" type="GENOME" attribute="referenceFile">
+<option id="r" type="GENOME" attribute="genome">
 Reference genome to map contigs in FASTA format. Required parameter. It can be gzip compressed. 
 </option>
 <!-- 
