@@ -158,6 +158,9 @@ public class AssemblyReferenceSorter {
 
 	private void run() throws IOException {
 		logParameters();
+		if(inputFile==null) throw new IOException("The input genome assembly is required");
+		if(referenceFile==null) throw new IOException("The input reference assembly is required");
+		if(outputFile==null) throw new IOException("An output file is required");
 		referenceGenome = new ReferenceGenome(referenceFile);
 		try (PrintStream out = new PrintStream(outputFile)) {
 			sortGenome(inputFile, out);
@@ -171,8 +174,9 @@ public class AssemblyReferenceSorter {
 		out.println("Reference file:"+ referenceFile);
 		out.println("Kmer length: "+kmerLength);
 		out.println("Window length for minimizers: "+windowLength);
-		out.println("Sample ploidy: "+ploidy);
-		out.println("Number of threads "+numThreads);
+		//out.println("Sample ploidy: "+ploidy);
+		out.println("Policy to rename contigs: "+renameContigsPolicy);
+		out.println("Number of threads: "+numThreads);
 		log.info(os.toString());
 	}
 	public void sortGenome(String assemblyFile, PrintStream out) throws IOException {

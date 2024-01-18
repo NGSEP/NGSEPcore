@@ -67,6 +67,7 @@ public class Assembler {
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
+	public static final double DEF_WEIGHT_INDELS = 0;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final int DEF_CIRCULAR_MAX_LENGTH = 0;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
@@ -98,7 +99,7 @@ public class Assembler {
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private boolean saveCorrected = false;
-	private double weightIndels = 0;
+	private double weightIndels = DEF_WEIGHT_INDELS;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	//Model objects
@@ -278,6 +279,16 @@ public class Assembler {
 		this.setSaveCorrected(saveCorrected.booleanValue());
 	}
 	
+	public double getWeightIndels() {
+		return weightIndels;
+	}
+	public void setWeightIndels(double weightIndels) {
+		this.weightIndels = weightIndels;
+	}
+	public void setWeightIndels(String value) {
+		this.setWeightIndels((double) OptionValuesDecoder.decode(value, Double.class));
+	}
+	
 	public int getNumThreads() {
 		return numThreads;
 	}
@@ -313,13 +324,14 @@ public class Assembler {
 		out.println("Kmer length: "+kmerLength);
 		out.println("Window length for minimizers: "+windowLength);
 		out.println("Minimum read length: "+minReadLength);
-		if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
+		//if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
 		out.println("Minimum score proportion (from the maximum score) to keep edges of a sequence: "+ minScoreProportionEdges);
 		out.println("Sample ploidy: "+ploidy);
 		out.println("Maximum length of circular molecules: "+circularMoleculesMaxLength);
 		out.println("Fasta file with known start sequences of circular molecules: "+circularMoleculesStartsFile);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		out.println("Weight given to small indels to calculate edge scores: "+weightIndels);
 		out.println("Number of threads "+numThreads);
 		log.info(os.toString());
 	}
