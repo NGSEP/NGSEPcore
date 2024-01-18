@@ -51,7 +51,7 @@ public class HierarchicalClustering {
     //Parameters
     private String inputFile = null;
     private String outputFile = null;
-    private int algorithm = 0;
+    private int algorithm = NJ;
 
     // Get and set methods
     public Logger getLog() {
@@ -104,7 +104,7 @@ public class HierarchicalClustering {
         service.run();
     }
 
-    private void run () throws Exception {
+    public void run () throws Exception {
         DistanceMatrix matrix;
         if (inputFile != null) {
             log.info("Loading matrix from file "+ inputFile);
