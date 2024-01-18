@@ -330,7 +330,7 @@ Standardize circular contigs in genome assemblies
 <description>
 Standardize the start and orientation of circular sequences in genome assemblies.
 It receives a fasta file with the assembly, identifies sequences with repeated ends, and remove redundancies.
-A set of start sequences can be provided to map and reorient contigs according to these start sequences
+A set of start sequences can be provided to map and reorient contigs according to these start sequences.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome in FASTA format. It can be gzip compressed.
@@ -1563,7 +1563,7 @@ Default: 0.
 <intro>
 Construct a neighbor joining dendrogam given a distance matrix file
 </intro>
-<title>DEPRECATED since version 4.3.3. Use HierarchicalClustering instead </title>
+<title>DEPRECATED since version 5.0.0. Use HierarchicalClustering instead </title>
 <description>
 Given a distance matrix file, this command builds a dendogram for graphical display of genetic
 distances using the Neighbor Joining algorithm. The distance matrix can be provided as an upper, lower

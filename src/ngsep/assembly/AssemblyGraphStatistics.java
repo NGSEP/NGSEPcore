@@ -686,7 +686,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
 		//boolean debug = gsVertex.getSequenceIndex()==513290 || gsVertex.getSequenceIndex()== 213638 || gsVertex.getSequenceIndex()==1267;
-		//boolean debug = gsVertex.getSequenceIndex()==757 || gsVertex.getSequenceIndex()==236 || gsVertex.getSequenceIndex()==752; 
+		//boolean debug = gsVertex.getSequenceIndex()==2932 || gsVertex.getSequenceIndex()==3331 || gsVertex.getSequenceIndex()==2820; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

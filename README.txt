@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 4.3.2 (19-07-2023)
+Version 5.0.0 (26-01-2024)
 
 ===========================================================================
 
@@ -12,10 +12,10 @@ tandem repeats (STRs), inversions, and Copy Number Variants (CNVs). NGSEP also
 provides utilities for downstream analysis of variation in VCF files, including
 functional annotation of variants, filtering, format conversion, comparison,
 clustering, imputation, introgression analysis and different kinds of
-statistics. Version 4 includes new modules for read alignment and de-novo
+statistics. Version 5 includes new modules for read alignment and de-novo
 analysis of short and long reads including calculations of k-mers, error
-correction, de-novo analysis of Genotype-by-sequencing data and (coming soon)
-de-novo assembly of long read whole genome sequencing (WGS) data.
+correction, de-novo analysis of Genotype-by-sequencing data and de-novo
+assembly of long read whole genome sequencing (WGS) data.
 
 --------------------
 Building NGSEP
@@ -24,20 +24,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 11.0.8. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_4.3.2.tar.gz is located:
+NGSEPcore_5.0.0.tar.gz is located:
 
-tar -xzvf NGSEPcore_4.3.2.tar.gz
-cd NGSEPcore_4.3.2
+tar -xzvf NGSEPcore_5.0.0.tar.gz
+cd NGSEPcore_5.0.0
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_4.3.2.jar NGSEPcore.jar
+cp NGSEPcore_5.0.0.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_4.3.2.jar NGSEPcore.jar
+ln -s NGSEPcore_5.0.0.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -268,8 +268,61 @@ OPTIONS:
         		  molecules
 	-ac STRING	: Algorithm used to build the consensus. It can be
 			  Simple or Polishing. Default: Polishing
+	-ecr INT	: Number of rounds of alignment based error correction
+			  to perform. Default: 0
+        -wid DOUBLE	: Weight given to small indel differences in the
+			  calculation of edge costs. Real number between 0 and
+			  1. Increase if the reads have very low error rate
+			  (for example HiFi reads already corrected).
+			  Default: 0
 	-t INT		: Number of threads. Default: 1
 
+------------------------------------
+Sorting contigs of genome assemblies
+------------------------------------
+
+Sorts contigs of a de-novo assembly by mapping to a reference assembly of an
+individual of either the same or a close species. It does not join contigs. It
+only sorts and orient contigs to make the input genome colinear with the
+reference genome.
+
+USAGE:
+
+java -jar NGSEPcore.jar AssemblyReferenceSorter <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input genome in FASTA format. It can be gzip compressed.
+	-o FILE	: Output file
+	-r GENOME	: Reference genome to map contigs in FASTA format.
+			  Required parameter. It can be gzip compressed.
+	-k INT		: K-mer length Default: 25
+	-w INT		: Window length to calculate minimizers. Default: 40
+	-rcp INT	: Policy to rename contigs. 0: keep input names. 1: Use
+			  reference chromosome and relative consecutive numbers.
+			  2: use absolute consecutive numbers. Default: 1
+	-t INT		: Number of threads Default: 1
+        
+-------------------------------
+Circularizing genome assemblies
+-------------------------------
+
+Standardize the start and orientation of circular sequences in genome
+assemblies. It receives a fasta file with the assembly, identifies sequences
+with repeated ends, and remove redundancies. A set of start sequences can be
+provided to map and reorient contigs according to these start sequences.
+
+USAGE:
+
+java -jar NGSEPcore.jar CircularSequencesProcessor <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input genome in FASTA format. It can be gzip compressed.
+	-o FILE	: Output file
+	-s FILE	: Fasta file with sequences to be used as start sequences
+	-ml INT	: Maximum length of a contig to try circularization. Longer
+			  contigs will not be modified Default: 6000000
 
 ------------------------------
 Updating genomes from variants
