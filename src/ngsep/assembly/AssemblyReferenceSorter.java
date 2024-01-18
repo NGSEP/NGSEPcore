@@ -156,7 +156,7 @@ public class AssemblyReferenceSorter {
 		instance.run();
 	}
 
-	private void run() throws IOException {
+	public void run() throws IOException {
 		logParameters();
 		if(inputFile==null) throw new IOException("The input genome assembly is required");
 		if(referenceFile==null) throw new IOException("The input reference assembly is required");

@@ -113,7 +113,7 @@ public class CircularSequencesProcessor {
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
 		instance.run();
 	}
-	private void run() throws IOException {
+	public void run() throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> contigs = handler.loadSequences(inputFile);
 		processContigs(contigs);
