@@ -10,6 +10,8 @@ v5.0.0 26-01-2024
   the calculation of edge costs.
 - RelativeAlleleCountsCalculator: New option -of to generate a complete report
   of allele read depths for all sites having more than one allele called.
+- GenomesAligner: New output file for visualization of synteny blocks with
+  Synvisio
 v4.3.2 19-07-2023
 - VCFConverter: Added option -genepop to export to the GenePop file format
 - GenomesAligner: Added option -r to select one genome as reference and
