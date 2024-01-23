@@ -78,7 +78,10 @@ public class ShortKmerCodesTable {
 		Arrays.fill(sequencesByCodeTableColumnLengths, (short)0);
 		codeCountDifferentSequences = new short [capacity];
 		Arrays.fill(codeCountDifferentSequences, (short)0);
-		if(useThreadToAddCodes) poolAddKmerCodes = new ThreadPoolManager(1, 100);
+		if(useThreadToAddCodes) {
+			poolAddKmerCodes = new ThreadPoolManager(1, 100);
+			//poolAddKmerCodes.setSecondsPerTask(5);
+		}
 	}
 
 	public int getMode() {
@@ -221,7 +224,7 @@ public class ShortKmerCodesTable {
 		long time = (System.currentTimeMillis()-startTime)/1000;
 		if(n>1000000) log.info("Sequence "+sequenceId+" length: "+n+" total minimizers: "+totalMinimizers+" pct: "+(100*totalMinimizers/sequence.length())+" time(s): "+time);
 	}
-	private void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
+	private synchronized void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
 		final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
 		if(poolAddKmerCodes!=null) {
 			try {
@@ -232,7 +235,7 @@ public class ShortKmerCodesTable {
 			}
 		} else addCodesSequence(sequenceId, n, codesSeqToAdd);
 	}
-	private synchronized void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
+	private void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
 		//long startTime = System.currentTimeMillis();
 		for(KmerCodesTableEntry entry:codesSeq) {
 			List<Long> a = new ArrayList<Long>(1);
