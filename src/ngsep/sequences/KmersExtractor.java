@@ -416,7 +416,7 @@ public class KmersExtractor {
 			synchronized (kmersMap) {
 				ShortArrayDNAKmersMapImpl skmersMap = (ShortArrayDNAKmersMapImpl) kmersMap;
 				for(int i=0;i<codes.length;i++) {	
-					skmersMap.addCodeOccurance(codes[i]);
+					if(codes[i]>=0)skmersMap.addCodeOccurance(codes[i]);
 				}
 			}
 			return;
