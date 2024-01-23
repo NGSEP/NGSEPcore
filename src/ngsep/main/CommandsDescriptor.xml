@@ -287,12 +287,14 @@ Number of threads
 
 <command id="AssemblyReferenceSorter" class="ngsep.assembly.AssemblyReferenceSorter" groupId="Reads">
 <intro>
-Sorts contigs of a de-novo assembly by mapping to a reference assembly
+Sorts contigs of a de-novo assembly by mapping to a reference assembly (Beta)
 </intro>
-<title>Sorting contigs of genome assemblies</title>
+<title>Sorting contigs of genome assemblies (Beta)</title>
 <description>
 Sorts contigs of a de-novo assembly by mapping to a reference assembly of an individual of either the same or a close species.
 It does not join contigs. It only sorts and orient contigs to make the input genome colinear with the reference genome.
+WARN: Although we already see good sorting and orientation in many test cases, this functionality is still under testing.
+Further improvements are expected for the coming versions.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome in FASTA format. It can be gzip compressed.

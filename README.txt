@@ -277,14 +277,17 @@ OPTIONS:
 			  Default: 0
 	-t INT		: Number of threads. Default: 1
 
-------------------------------------
-Sorting contigs of genome assemblies
-------------------------------------
+-------------------------------------------
+Sorting contigs of genome assemblies (beta)
+-------------------------------------------
 
 Sorts contigs of a de-novo assembly by mapping to a reference assembly of an
 individual of either the same or a close species. It does not join contigs. It
 only sorts and orient contigs to make the input genome colinear with the
 reference genome.
+WARN: Although we already see good sorting and orientation in many test cases,
+this functionality is still under testing. Further improvements are expected
+for the coming versions.
 
 USAGE:
 
