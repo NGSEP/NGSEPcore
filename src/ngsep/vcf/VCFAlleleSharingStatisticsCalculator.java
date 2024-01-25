@@ -170,7 +170,7 @@ public class VCFAlleleSharingStatisticsCalculator {
 		samplesG1 = Sample.getSampleIds(samples,populationsGroup1.split(","));
 		log.info("Samples group 1: "+samplesG1);
 		samplesG2 = Sample.getSampleIds(samples,populationsGroup2.split(","));
-		log.info("Samples group 2: "+samplesG1);
+		log.info("Samples group 2: "+samplesG2);
 		if(transcriptomeFile!=null) {
 			GFF3TranscriptomeHandler transcriptomeHandler = new GFF3TranscriptomeHandler();
 			transcriptome = transcriptomeHandler.loadMap(transcriptomeFile);
