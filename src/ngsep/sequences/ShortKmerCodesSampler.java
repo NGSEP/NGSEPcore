@@ -87,8 +87,10 @@ public class ShortKmerCodesSampler {
 		for(int i=0;i<hashcodes.length;i++) {
 			if(selected[i]) {
 				long originalCode = segmentCodes[i];
-				KmerCodesTableEntry entry = new KmerCodesTableEntry(originalCode, sequenceId, start+i);
+				int globalStart = start+i;
+				KmerCodesTableEntry entry = new KmerCodesTableEntry(originalCode, sequenceId, globalStart);
 				answer.add(entry);
+				//if(globalStart>56000 && globalStart<58000) System.err.println("New minimizer calculated Start: "+globalStart+" new code: "+originalCode+" kmer: "+new String (DNASequence.getDNASequence(originalCode, kmerLength)));
 			}
 		}
 		if(sequenceId==debugIdx) System.err.println("Selected codes for sequence "+sequenceId+" from "+start+" Codes: "+answer.size());

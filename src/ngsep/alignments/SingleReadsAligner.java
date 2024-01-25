@@ -14,7 +14,7 @@ public class SingleReadsAligner {
 	private UngappedSearchHitsClustersFinder hitClustersFinder;
 	private UngappedSearchHitsClusterAligner aligner;
 	private double minProportionBestCount = 0.2;
-	private double minWeightedCount = 1;
+	private double minClusterKmersCount = 1;
 	private int maxAlnsPerRead=1;
 	
 	
@@ -30,13 +30,13 @@ public class SingleReadsAligner {
 	public void setMinProportionBestCount(double minProportionBestCount) {
 		this.minProportionBestCount = minProportionBestCount;
 	}
-	public double getMinWeightedCount() {
-		return minWeightedCount;
-	}
-	public void setMinWeightedCount(double minWeightedCount) {
-		this.minWeightedCount = minWeightedCount;
-	}
 	
+	public double getMinClusterKmersCount() {
+		return minClusterKmersCount;
+	}
+	public void setMinClusterKmersCount(double minClusterKmersCount) {
+		this.minClusterKmersCount = minClusterKmersCount;
+	}
 	public int getMaxAlnsPerRead() {
 		return maxAlnsPerRead;
 	}
@@ -68,7 +68,7 @@ public class SingleReadsAligner {
 			if (debug) System.out.println("Read: "+read.getName()+" Reverse clusters: "+clustersR.size()+" max count R: "+maxCountR);
 			maxCount = Math.max(maxCount, maxCountR);
 		}
-		double limitCount = Math.max(minWeightedCount, minProportionBestCount*maxCount);
+		double limitCount = Math.max(minClusterKmersCount, minProportionBestCount*maxCount);
 		if (debug) System.out.println("Read: "+read.getName()+" max count: "+maxCount+ " limitCount: "+limitCount);
 		List<ReadAlignment> alnsF = buildAlignments(readSeq, clustersF, limitCount);
 		if (debug) System.out.println("Read: "+read.getName()+" Forward alignments: "+alnsF.size());
@@ -91,14 +91,14 @@ public class SingleReadsAligner {
 	public List<ReadAlignment> alignQuerySequence(CharSequence query) {
 		List<UngappedSearchHitsCluster> clusters = hitClustersFinder.findHitClusters(query);
 		double maxCount = summarize(clusters);
-		double limitCount = Math.max(minWeightedCount, minProportionBestCount*maxCount);
+		double limitCount = Math.max(minClusterKmersCount, minProportionBestCount*maxCount);
 		List<ReadAlignment> alns = buildAlignments(query, clusters, limitCount);
 		return filterAlignments(alns);
 	}
 	
 	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters, double limitCount) {
 		
-		Collections.sort(clusters, (o1,o2)-> ((int)o2.getWeightedCount())-((int)o1.getWeightedCount()));
+		Collections.sort(clusters, (o1,o2)-> ((int)o2.getCountKmerHitsCluster())-((int)o1.getCountKmerHitsCluster()));
 		
 		int limitClusters = Math.min(clusters.size(), 3*maxAlnsPerRead);
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
@@ -106,9 +106,9 @@ public class SingleReadsAligner {
 		for (int i=0;i<limitClusters;i++) {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
-			double wc = cluster.getWeightedCount();
+			double countHits = cluster.getCountKmerHitsCluster();
 			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount());
-			if(wc<limitCount) break;
+			if(countHits<limitCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = aligner.buildAlignment(query, refSeq.getCharacters(), cluster);
 			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
@@ -124,7 +124,7 @@ public class SingleReadsAligner {
 		double maxCount = 0;
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			cluster.summarize();
-			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+			maxCount = Math.max(maxCount,cluster.getCountKmerHitsCluster());
 			//System.out.println("Summarizing clusters. Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
 		}
 		return maxCount;

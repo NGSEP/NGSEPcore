@@ -78,7 +78,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 					return newaln;
 				}
 			}
-			if(kmerHitsCluster.getNumDifferentKmers()>2 && kmerHitsCluster.isAllConsistent()) {
+			if(kmerHitsCluster.getCountKmerHitsCluster()>2 && kmerHitsCluster.isAllConsistent()) {
 				int [] mismatches = countMismatches (query, subject, aln);
 				if(mismatches !=null && mismatches[0]<0.05*query.length() && mismatches[1]+mismatches[2] < 0.1*query.length()) {
 					int ends = mismatches[1]+mismatches[2]; 

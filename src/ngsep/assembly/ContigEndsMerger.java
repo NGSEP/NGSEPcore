@@ -139,15 +139,15 @@ public class ContigEndsMerger {
 			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
 			if (hitsSubject.size() < 20) continue;
 			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, subjectEndIdx, END_LENGTH, hitsSubject, 0);
-			Collections.sort(clusters, (c1,c2)->c2.getNumDifferentKmers()-c1.getNumDifferentKmers());
+			Collections.sort(clusters, (c1,c2)->c2.getCountKmerHitsCluster()-c1.getCountKmerHitsCluster());
 			if(queryEndIdx == debugIdx) {
 				System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" clusters: "+clusters.size());
-				for(UngappedSearchHitsCluster cluster:clusters) System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" next cluster "+cluster.getPredictedOverlap()+" estimated: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers: "+cluster.getNumDifferentKmers());
+				for(UngappedSearchHitsCluster cluster:clusters) System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" next cluster "+cluster.getPredictedOverlap()+" estimated: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers: "+cluster.getCountKmerHitsCluster());
 			}
 			for(int i=0;i<clusters.size() && i<50;i++) {
 				UngappedSearchHitsCluster cluster = clusters.get(i);
-				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getNumDifferentKmers());
-				int numKmers = cluster.getNumDifferentKmers(); 
+				if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" cluster: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evSub "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" kmers "+cluster.getCountKmerHitsCluster());
+				int numKmers = cluster.getCountKmerHitsCluster(); 
 				if(numKmers<countLimit) break;
 				ReadAlignment aln = aligner.buildAlignment(queryEnd, subjectEnd, cluster);
 				if(aln==null) continue;

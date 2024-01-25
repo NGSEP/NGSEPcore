@@ -49,7 +49,7 @@ public class MinimapShortKmerCodesSamplingAlgorithm implements ShortKmerCodesSam
 				minPos = previousMinimizerPos;
 			} else if (newHash!=null && (previousMinimizer==null || newHash <= previousMinimizer)) {
 				minimizerI = newHash;
-				minPos = i+windowLength-1;
+				minPos = posLastKmerWindow;
 			}
 			if(minimizerI == null) {
 				for(int j=0;j<windowLength;j++) {
@@ -59,12 +59,11 @@ public class MinimapShortKmerCodesSamplingAlgorithm implements ShortKmerCodesSam
 						minPos = i+j;
 					}
 				}
-				//if(sequenceId==debugIdx && i>0 && i<3000) System.err.println("Minimizer calculated with cycle. Start: "+i+" New pos: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer+" kmer code: "+kmerCodes.get(minPos)+" total: "+minimizersSeq.size());
+				//if(i>56000 && i<58000) System.err.println("Minimizer calculated with cycle. window start: "+i+" New pos: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer);
 			}
-			if (minimizerI==previousMinimizer) continue;
-			if(minimizerI != null) {
-				selected[minPos] = true;
-			}
+			if (minPos<0 || minPos==previousMinimizerPos) continue;
+			selected[minPos] = true;
+			//if(minPos>56000 && minPos<58000) System.err.println("New minimizer calculated Start: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer);
 			previousMinimizer = minimizerI;
 			previousMinimizerPos = minPos;
 		}

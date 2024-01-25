@@ -48,6 +48,7 @@ public class ShortKmerCodesTable {
 	private int mode=1;
 	private int kmerDistModeLocalSD=5;
 	private int limitHitsPerSequence = 10;
+	private int limitDifferentSequences = 100;
 	
 	//Structures to implement the minimizers like codes hash table
 	//Map with code as key and row of the sequencesByCodeTable as value
@@ -95,6 +96,13 @@ public class ShortKmerCodesTable {
 	}
 	public void setKmerDistModeLocalSD(int kmerDistModeLocalSD) {
 		this.kmerDistModeLocalSD = kmerDistModeLocalSD;
+	}
+	
+	public int getLimitDifferentSequences() {
+		return limitDifferentSequences;
+	}
+	public void setLimitDifferentSequences(int limitDifferentSequences) {
+		this.limitDifferentSequences = limitDifferentSequences;
 	}
 	//Hash table management methods
 	private long[] lookupHits(long code) {
@@ -295,11 +303,10 @@ public class ShortKmerCodesTable {
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
 		int idxDebug = -2;
-		//int idxDebug = -1;
 		int kmerLength = codesSampler.getKmerLength();
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength);
 		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
-		int limitSequences = Math.max(100, 4*mode);
+		int limitSequences = Math.max(limitDifferentSequences, 4*mode);
 		
 		Set<Integer> preselectedSubjectIds = null;
 		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
@@ -326,7 +333,7 @@ public class ShortKmerCodesTable {
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
 			int countSeqs = getCountDifferentSequences(kmerCode);
 			//if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
-			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
+			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" code: "+kmerCode+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
 			if (countSeqs>limitSequences) {
 				multiSequenceCodes++;
 				continue;

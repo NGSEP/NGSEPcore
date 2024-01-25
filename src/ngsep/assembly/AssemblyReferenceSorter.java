@@ -297,7 +297,7 @@ public class AssemblyReferenceSorter {
 		aln.setSequenceName(refMetadata.get(aln.getSequenceIndex()).getName());
 		aln.setReadName(qseq.getName());
 		if(reverse) aln.setNegativeStrand(true);
-		double q = 1000*cluster.getWeightedCount()/qseq.getLength();
+		double q = 1000*cluster.getCountKmerHitsCluster()/qseq.getLength();
 		q = Math.max(120, q);
 		aln.setAlignmentQuality((byte) q);
 		return aln;
@@ -306,7 +306,7 @@ public class AssemblyReferenceSorter {
 		for(UngappedSearchHitsCluster cluster: clusters) {
 			System.out.print("Aln: "+cluster.getSubjectIdx()+" "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd());
 			System.out.print(" ev: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" "+cluster.getRawKmerHits());
-			System.out.println(" "+cluster.getNumDifferentKmers()+" "+cluster.getWeightedCount());
+			System.out.println(" "+cluster.getCountKmerHitsCluster()+" "+cluster.getWeightedCount());
 		}
 		
 	}
@@ -318,8 +318,7 @@ class ContigClustersComparator implements Comparator<UngappedSearchHitsCluster> 
 		int evLength1 = (o1.getSubjectEvidenceEnd()-o1.getSubjectEvidenceStart())/100000;
 		int evLength2 = (o2.getSubjectEvidenceEnd()-o2.getSubjectEvidenceStart())/100000;
 		if(evLength1!=evLength2) return evLength2-evLength1;
-		if(o1.getNumDifferentKmers()!=o2.getNumDifferentKmers()) return o2.getNumDifferentKmers()-o1.getNumDifferentKmers();
-		return (int)o2.getWeightedCount()-(int)o1.getWeightedCount();
+		return o2.getCountKmerHitsCluster()-o1.getCountKmerHitsCluster();
 	}
 	
 }

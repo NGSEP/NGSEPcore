@@ -487,6 +487,6 @@ class UngappedSearchHitClusterPair {
 
 
 	public int getScore() {
-		return (int) (10*cluster1.getWeightedCount()+10*cluster2.getWeightedCount());
+		return (int) (10*cluster1.getCountKmerHitsCluster()+10*cluster2.getCountKmerHitsCluster());
 	}
 }

@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.alignments.UngappedSearchHitsClusterBuilder;
 import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
@@ -111,13 +110,13 @@ public class KmerHitsAssemblyEdgesFinder {
 				List<UngappedSearchHitsCluster> subjectClustersF = createClusters(queryIdx, queryLength, subjectIdxF, hitsForward.getHits(subjectIdxF));
 				for(UngappedSearchHitsCluster clusterF:subjectClustersF) {
 					if (processCluster(queryIdx, queryF, false, clusterF, minClusterSize, relationships)) return relationships;
-					minClusterSize = Math.max(minClusterSize, clusterF.getNumDifferentKmers()/2);
+					minClusterSize = Math.max(minClusterSize, clusterF.getCountKmerHitsCluster()/2);
 				}
 				int subjectIdxR = subjectIdxsR.get(i);
 				List<UngappedSearchHitsCluster> subjectClustersR = createClusters(queryIdx, queryLength, subjectIdxR, hitsReverse.getHits(subjectIdxR));
 				for(UngappedSearchHitsCluster clusterR:subjectClustersR) {
 					if (processCluster(queryIdx, queryR, true, clusterR, minClusterSize, relationships)) return relationships;
-					minClusterSize = Math.max(minClusterSize, clusterR.getNumDifferentKmers()/2);
+					minClusterSize = Math.max(minClusterSize, clusterR.getCountKmerHitsCluster() /2);
 				}
 				i++;
 			}
@@ -178,17 +177,17 @@ public class KmerHitsAssemblyEdgesFinder {
 		List<UngappedSearchHitsCluster> subjectClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, subjectIdx, subjectLength, hits, 0);
 		List<UngappedSearchHitsCluster> answer = new ArrayList<UngappedSearchHitsCluster>(2);
 		if(subjectClusters.size()==0) return answer;
-		Collections.sort(subjectClusters, (o1,o2)-> o2.getNumDifferentKmers()-o1.getNumDifferentKmers());
+		Collections.sort(subjectClusters, (o1,o2)-> o2.getCountKmerHitsCluster()-o1.getCountKmerHitsCluster());
 		UngappedSearchHitsCluster bestCluster = subjectClusters.get(0);
 		answer.add(bestCluster);
-		int numKmers = bestCluster.getNumDifferentKmers();
+		int numKmers = bestCluster.getCountKmerHitsCluster();
 		boolean queryBefore = bestCluster.getSubjectPredictedStart()<0;
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits: "+hits.size()+" subject clusters: "+subjectClusters.size()+" hits best subject cluster: "+numKmers+" subjectId in cluster: "+bestCluster.getSubjectIdx());
 		if(subjectClusters.size()==1) return answer;
 		UngappedSearchHitsCluster secondCluster = subjectClusters.get(1);
-		if(secondCluster.getNumDifferentKmers()>0.8*numKmers && queryBefore != secondCluster.getSubjectPredictedStart()<0) {
+		if(secondCluster.getCountKmerHitsCluster()>0.8*numKmers && queryBefore != secondCluster.getSubjectPredictedStart()<0) {
 			answer.add(secondCluster);
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding second cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+secondCluster.getNumDifferentKmers());
+			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding second cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+secondCluster.getCountKmerHitsCluster());
 		}
 		return answer;
 	}
@@ -200,7 +199,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		int maxCount = 0;
 		int passCount = 0;
 		for(UngappedSearchHitsCluster cluster:allClusters) {
-			int count = cluster.getNumDifferentKmers();
+			int count = cluster.getCountKmerHitsCluster();
 			maxCount = Math.max(maxCount, count);
 			if(count >=minHits) passCount++;
 		}
@@ -250,9 +249,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		double overlap = cluster.getPredictedOverlap();
 		int queryEvidenceLength = cluster.getQueryEvidenceEnd()-cluster.getQueryEvidenceStart();
 		int subjectEvidenceLength = cluster.getSubjectEvidenceEnd() - cluster.getSubjectEvidenceStart();
-		if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. kmers: "+cluster.getNumDifferentKmers()+" min "+minClusterSize+ " subject: "+cluster.getSubjectIdx()+" length: "+subjectLength+" subject predicted "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd());
-		if(cluster.getNumDifferentKmers()<minClusterSize) return false;
-		if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+subjectLength+" Subject: "+cluster.getSubjectIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" min: "+(minProportionOverlap*queryLength));
+		if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. kmers: "+cluster.getCountKmerHitsCluster()+" min "+minClusterSize+ " subject: "+cluster.getSubjectIdx()+" length: "+subjectLength+" subject predicted "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd());
+		if(cluster.getCountKmerHitsCluster()<minClusterSize) return false;
+		if(querySequenceId==idxDebug) System.out.println("EdgesFinder. Evaluating cluster. qlen "+queryLength+" QPred: "+cluster.getQueryPredictedStart()+" - "+cluster.getQueryPredictedEnd()+" QEv: "+cluster.getQueryEvidenceStart()+" - "+cluster.getQueryEvidenceEnd()+" subject len: "+subjectLength+" Subject: "+cluster.getSubjectIdx()+" sPred: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" sEv: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" overlap1 "+overlap+" overlap2: "+cluster.getPredictedOverlap() +" plain count: "+cluster.getCountKmerHitsCluster()+" weighted count: "+cluster.getWeightedCount()+" min: "+(minProportionOverlap*queryLength));
 		if(overlap < minProportionOverlap*queryLength) return false;
 		if(overlap < minProportionOverlap*subjectLength) return false;
 		if(queryEvidenceLength < minProportionEvidence*overlap) return false;
@@ -298,7 +297,7 @@ public class KmerHitsAssemblyEdgesFinder {
 			simulatedAlnData =  LongReadsUngappedSearchHitsClusterAligner.simulateAlignment(subjectSeqIdx, subjectLength, querySequenceId, queryLength, cluster);
 		}
 		AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(querySequenceId, graph.getSequence(querySequenceId), queryRC, subjectSeqIdx, graph.getSequence(subjectSeqIdx), startSubject, endSubject);
-		embeddedEvent.setNumSharedKmers(cluster.getNumDifferentKmers());
+		embeddedEvent.setNumSharedKmers(cluster.getCountKmerHitsCluster());
 		embeddedEvent.setHostStartStandardDeviation((int) Math.round(cluster.getSubjectStartSD()));
 		embeddedEvent.setRawKmerHits(cluster.getRawKmerHits());
 		embeddedEvent.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
@@ -379,7 +378,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setAverageOverlap(cluster.getAveragePredictedOverlap());
 		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
 		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
-		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
+		edge.setNumSharedKmers(cluster.getCountKmerHitsCluster());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		edge.setRawKmerHits(cluster.getRawKmerHits());
 		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));
@@ -457,7 +456,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		edge.setMedianOverlap(cluster.getMedianPredictedOverlap());
 		edge.setFromLimitsOverlap(cluster.getFromLimitsPredictedOverlap());
 		
-		edge.setNumSharedKmers(cluster.getNumDifferentKmers());
+		edge.setNumSharedKmers(cluster.getCountKmerHitsCluster());
 		edge.setOverlapStandardDeviation((int) Math.round(cluster.getPredictedOverlapSD()));
 		edge.setRawKmerHits(cluster.getRawKmerHits());
 		edge.setRawKmerHitsSubjectStartSD((int)Math.round(cluster.getRawKmerHitsSubjectStartSD()));

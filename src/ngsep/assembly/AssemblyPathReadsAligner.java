@@ -362,7 +362,7 @@ public class AssemblyPathReadsAligner {
 		//synchronized (aligner) {
 		aln = aligner.buildAlignment(readStr, subject, bestCluster);
 		//}
-		if(read.length()==-1) System.out.println("Best cluster kmers: "+bestCluster.getNumDifferentKmers()+" alignment "+aln);
+		if(read.length()==-1) System.out.println("Best cluster kmers: "+bestCluster.getCountKmerHitsCluster()+" alignment "+aln);
 		if(!evaluateAlignment(aln)) aln = null;
 		return aln;
 	}

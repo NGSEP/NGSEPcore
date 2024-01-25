@@ -349,14 +349,18 @@ public class TransposableElementsFinder {
 		return answer;
 	}
 	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, QualifiedSequence transposon) {
+		boolean debug = false;
+		//boolean debug = transposon.getName().contains("Pl05_19834351_19842561");
 		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
 		String readSeq = transposon.getCharacters().toString();
 		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true);
 		double maxCount = summarize(forwardClusters);
+		if(debug) logClusters(genome, transposon, forwardClusters);
 		for (UngappedSearchHitsCluster cluster:forwardClusters) rawHits.add(buildTransposon(genome, cluster, false,transposon));
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
 		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,true);
 		maxCount = Math.max(maxCount, summarize(reverseClusters));
+		if(debug) logClusters(genome, transposon, reverseClusters);
 		for (UngappedSearchHitsCluster cluster:reverseClusters) rawHits.add(buildTransposon(genome, cluster, true,transposon));
 		Collections.sort(rawHits, (o1,o2)-> ((int)o2.getCount())-((int)o1.getCount()));
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
@@ -364,12 +368,11 @@ public class TransposableElementsFinder {
 			TransposableElementAnnotation ann = rawHits.get(i);
 			if(ann.length()<minTELength) continue;
 			double wc = ann.getCount();
-			//System.out.println("Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" count: "+wc+" min: "+minWeightedCount);
+			if(debug) System.out.println("Next candidate TE "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast()+" count: "+wc+" min: "+minWeightedCount);
 			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
 			
 			answer.add(ann);
 		}
-		//if(transposon.getName().contains("Blc58_hum-B-P992")) logClusters(genome, transposon, clusters);
 		
 		if(seqId%100==0) log.info("Processed element index "+seqId+" name: "+transposon.getName()+" hits: "+answer.size());
 		return answer;
@@ -378,7 +381,7 @@ public class TransposableElementsFinder {
 		double maxCount = 0;
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			cluster.summarize();
-			maxCount = Math.max(maxCount,cluster.getWeightedCount());
+			maxCount = Math.max(maxCount,cluster.getCountKmerHitsCluster());
 			//System.out.println("Summarizing clusters. Next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" count: "+cluster.getWeightedCount()+" maxCount: "+maxCount);
 		}
 		return maxCount;
@@ -391,7 +394,7 @@ public class TransposableElementsFinder {
 		TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),first, last);
 		
 		alignedTransposon.setNegativeStrand(negativeStrand);
-		alignedTransposon.setCount(cluster.getWeightedCount());
+		alignedTransposon.setCount(cluster.getCountKmerHitsCluster());
 		alignedTransposon.setTaxonomy(transposon.getName());
 		return alignedTransposon;
 	}
@@ -400,7 +403,7 @@ public class TransposableElementsFinder {
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
-			System.out.println("SeqName: "+refSeq.getName()+" expected: "+cluster.getSubjectPredictedStart() +" - "+ cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" weight: "+cluster.getWeightedCount());
+			System.out.println("SeqName: "+refSeq.getName()+" expected: "+cluster.getSubjectPredictedStart() +" - "+ cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" - "+cluster.getSubjectEvidenceEnd()+" count: "+cluster.getCountKmerHitsCluster());
 			
 		}
 		

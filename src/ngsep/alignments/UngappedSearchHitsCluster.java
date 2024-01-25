@@ -21,7 +21,6 @@ package ngsep.alignments;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -369,7 +368,7 @@ public class UngappedSearchHitsCluster {
 	 * 
 	 * @return the kmerNumbers
 	 */
-	public int getNumDifferentKmers() {
+	public int getCountKmerHitsCluster() {
 		return hitsMap.size();
 	}
 	
@@ -403,68 +402,4 @@ public class UngappedSearchHitsCluster {
 	public void disposeHits () {
 		hitsMap.clear();
 	}
-	
-	public void completeMissingHits(Map<Integer,Long> subjectCodes, Map<Integer, Long> queryCodes, int kmerLength) {
-		
-		Map<Long,List<Integer>> subjectCodesPos = new HashMap<Long, List<Integer>>();
-		for(int i:subjectCodes.keySet()) {
-			long code = subjectCodes.get(i);
-			List<Integer> posList = subjectCodesPos.computeIfAbsent(code, v->new ArrayList<Integer>());
-			posList.add(i);
-		}
-		int lastQueryStart = -1;
-		int lastSubjectStart = -1;
-		UngappedSearchHit lastHit = null;
-		ArrayList<Integer> queryStarts = new ArrayList<Integer>(hitsMap.size());
-		queryStarts.addAll(hitsMap.keySet());
-		for(int queryStart:queryStarts) {
-			UngappedSearchHit hit = hitsMap.get(queryStart);
-			int subjectStart = hit.getSubjectStart();
-			int diffQ = queryStart-lastQueryStart;
-			int diffS = subjectStart - lastSubjectStart;
-			int diffC = Math.abs(diffQ-diffS);
-			if(lastHit!=null && diffC<10 && diffQ<100 && diffS>0) {
-				int j=lastSubjectStart+1;
-				for(int i=lastQueryStart+1;i<queryStart;i++) {
-					Long code = queryCodes.get(i);
-					if(code == null) continue;
-					List<Integer> posList = subjectCodesPos.get(code);
-					if(posList==null) continue;
-					Integer selectedPos = null;
-					if(posList.size()<10) {
-						for(int k:posList) {
-							if(k>=j && k<j+10) {
-								selectedPos = k;
-								break;
-							}
-						}
-					} else {
-						for(int k=j;k<j+10;k++) {
-							Long codeS = subjectCodes.get(k);
-							if(codeS!=null && codeS.longValue() == code.longValue()) {
-								selectedPos = k;
-								break;
-							}
-						}
-					}
-					if(selectedPos==null) {
-						j++;
-					} else {
-						
-						UngappedSearchHit rescuedHit = new UngappedSearchHit(subjectIdx, selectedPos);
-						rescuedHit.setHitLength((short)kmerLength);
-						rescuedHit.setQueryStart(i);
-						double weight = (lastHit.getWeight()+hit.getWeight())/2;
-						rescuedHit.setWeight(weight);
-						addHit(rescuedHit);
-						j = selectedPos+1;
-					}
-				}
-			}
-			lastQueryStart = queryStart;
-			lastSubjectStart = subjectStart;
-			lastHit = hit;
-		}
-	}
-	
 }

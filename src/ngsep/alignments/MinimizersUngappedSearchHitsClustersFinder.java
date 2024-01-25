@@ -142,11 +142,16 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 	public List<UngappedSearchHitsCluster> buildHitClusters (CharSequence query, boolean extensiveKmersSearch) {
 		int queryLength = query.length();
 		//System.out.println("Mapping sequence with length: "+queryLength);
+		UngappedSearchHitsClusterBuilder clustersBuilder = new UngappedSearchHitsClusterBuilder();
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
 		if(extensiveKmersSearch) {
+			//By now this only affects TEs
+			clustersBuilder.setClusteringAlgorithm(UngappedSearchHitsClusterBuilder.CLUSTERING_ALGORITHM_KMEANS_LIKE);
+			kmerCodesTable.setLimitDifferentSequences(10000);
 			Map<Integer,Long> codes = KmersExtractor.extractDNAKmerCodesAsMap(query.toString(), tableKmerLength , 0, query.length());
 			KmerSearchResultsCompressedTable results = kmerCodesTable.matchCompressed(-1, query.length(), codes, -1);
-			hitsByReference = results.getAllHits();	
+			hitsByReference = results.getAllHits();
+			//System.out.println("Searched "+codes.size()+" kmers of length: "+tableKmerLength+". Hit sequences: "+hitsByReference.size()+" first seq hits: "+hitsByReference.get(0).size());
 		}
 		else hitsByReference = kmerCodesTable.match(-1,query);
 		//System.out.println("Mapping sequence with length: "+queryLength+" references hits: "+hitsByReference.size());
@@ -156,22 +161,22 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 			int sequenceLength = genome.getSequenceByIndex(sequenceIdx).getLength();
 			List<UngappedSearchHit> totalHitsSubject = hitsByReference.get(sequenceIdx);
 			//System.out.println("Reference id: "+sequenceIdx+" total raw hits subject: "+totalHitsSubject.size());
-			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getQueryIdx()>21000 && hit.getQueryIdx()<27000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
-			//for(UngappedSearchHit hit: totalHitsSubject) if(query.length()==11805 && hit.getStart()>0 && hit.getStart()<1000000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
+			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getQueryStart()>20000 && hit.getQueryStart()<27000) System.out.println("Next hit. "+hit.getQueryIdx()+" "+hit.getQuery()+" "+hit.getStart()+" "+hit.getWeight()+" "+(hit.getStart()-hit.getQueryIdx()));
+			//for(UngappedSearchHit hit: totalHitsSubject) if(hit.getSubjectStart()>50000 && hit.getSubjectStart()<70000) System.out.println("Next hit. "+hit.getQueryStart()+" "+hit.getSubjectStart()+" "+hit.getWeight()+" "+(hit.getSubjectStart()-hit.getQueryStart()));
 			Collections.sort(totalHitsSubject, (h1,h2)->h1.getSubjectStart()-h2.getSubjectStart());
 			List<UngappedSearchHit> rawClusterKmers = new ArrayList<UngappedSearchHit>();
 			UngappedSearchHitsCluster cluster = null;
 			for(UngappedSearchHit hit:totalHitsSubject) {
-				if(hit.getWeight()<0.01) {
-					//System.out.println("Hit with low weight. Pos: "+hit.getQueryStart()+" weight: "+hit.getWeight());
-					continue;
-				}
+				//if(hit.getWeight()<0.01) {
+				//	System.out.println("Hit with low weight. Pos: "+hit.getQueryStart()+" weight: "+hit.getWeight());
+				//	continue;
+				//}
 				if(cluster==null) {
 					cluster = new UngappedSearchHitsCluster(queryLength, sequenceIdx, sequenceLength, hit);
 					//System.out.println("Created first cluster. Evidence limits: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hit length: "+hit.getHitLength()+" weight: "+hit.getWeight());
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (rawClusterKmers.size()>=minRawHitsSize) {
-						List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
+						List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
 						//System.out.println("Qlen: "+query.length()+" next raw cluster inside "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					} 
@@ -182,8 +187,8 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 				rawClusterKmers.add(hit);
 			}
 			if(cluster!=null && rawClusterKmers.size()>=minRawHitsSize) {
-				List<UngappedSearchHitsCluster> regionClusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
-				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getNumDifferentKmers()+" subclusters "+regionClusters.size());
+				List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
+				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getCountKmerHitsCluster()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
 			//else System.out.println("Qlen: "+query.length()+" next raw small cluster discarded "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" limit: "+minRawHitsSize);
@@ -223,14 +228,14 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		if(initialKmerHits.size()==0) return null;
 		
 		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits, 0);
-		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getNumDifferentKmers()-o1.getNumDifferentKmers());	
+		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getCountKmerHitsCluster()-o1.getCountKmerHitsCluster());	
 		else if (clusters.size()==0) return null;
 		return clusters.get(0);
 	}
 	public static void printClusters(List<UngappedSearchHitsCluster> clusters) {
 		System.out.println("Clusters: "+clusters.size());
 		for(UngappedSearchHitsCluster cluster:clusters) {
-			System.out.println("kmers: "+cluster.getNumDifferentKmers()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
+			System.out.println("kmers: "+cluster.getCountKmerHitsCluster()+" predicted limits: "+cluster.getSubjectPredictedStart()+" - "+cluster.getSubjectPredictedEnd()+" query limits "+cluster.getQueryEvidenceStart()+"-"+cluster.getQueryEvidenceEnd());
 		}
 		
 	}

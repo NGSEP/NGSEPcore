@@ -41,9 +41,19 @@ import ngsep.sequences.UngappedSearchHit;
  *
  */
 public class UngappedSearchHitsClusterBuilder {
+	public static final int CLUSTERING_ALGORITHM_KRUSKAL_LIKE = 0;
+	public static final int CLUSTERING_ALGORITHM_KMEANS_LIKE = 1;
 	private int idxSubjectDebug = -1;
 	private int queryLengthDebug = -1;
 	private boolean debug = false;
+	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
+	
+	public int getClusteringAlgorithm() {
+		return clusteringAlgorithm;
+	}
+	public void setClusteringAlgorithm(int clusteringAlgorithm) {
+		this.clusteringAlgorithm = clusteringAlgorithm;
+	}
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits, double minQueryCoverage) {
 		Map<Integer,Integer> countsByQueryIdx = new HashMap<Integer, Integer>();
 		double minHits = Math.min(20,0.01*queryLength);
@@ -61,12 +71,12 @@ public class UngappedSearchHitsClusterBuilder {
 		double estimatedClusters = avg;
 		 
 		if(debug) System.out.println("Clustering hits: "+sequenceHits.size()+" query starts: "+countsByQueryIdx.size()+" estimatedClusters: "+estimatedClusters);
-		
-		//if(minQueryCoverage==0) 
-		//List<List<UngappedSearchHit>> hitsClusters = clusterRegionKmerAlnsMultiple(queryLength, subjectIdx, subjectLength, sequenceHits, estimatedClusters);
-		List<List<UngappedSearchHit>> hitsClusters = clusterRegionKmerAlnsKruskal(queryLength, subjectIdx, subjectLength, sequenceHits, estimatedClusters);
+		 
+		List<List<UngappedSearchHit>> hitsClusters;
+		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) hitsClusters = clusterRegionKmerAlnsKruskal(queryLength, subjectIdx, subjectLength, sequenceHits, estimatedClusters);
+		else hitsClusters = clusterRegionKmerAlnsMultiple(queryLength, subjectIdx, subjectLength, sequenceHits, estimatedClusters);
 		return buildClusterObjectsFromClusteredHits(queryLength, subjectIdx, subjectLength, hitsClusters, minHits, sequenceHits.size());
-		//if(estimatedClusters>1.5) return clusterRegionKmerAlnsMultiple(queryLength, subjectLength, sequenceHits, estimatedClusters);
+		//if(estimatedClusters>1.5) 
 		/*List<UngappedSearchHitsCluster> answer = new ArrayList<>();
 		List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectLength, sequenceHits);
 		UngappedSearchHitsCluster uniqueCluster = new UngappedSearchHitsCluster(queryLength, subjectLength, selectedHits);
@@ -228,9 +238,9 @@ public class UngappedSearchHitsClusterBuilder {
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(rawHits);
 				cluster.setRawKmerHitsSubjectStartSD(1);
-				if(debug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" unique kmers: "+cluster.getNumDifferentKmers());
-				if(cluster.getNumDifferentKmers()>=minHits) answer.add(cluster);
-				minHits = Math.max(minHits, cluster.getNumDifferentKmers()/2);
+				if(debug) System.out.println("Next cluster subject predicted coords: "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" subject evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" query evidence: "+cluster.getQueryEvidenceStart()+" "+cluster.getQueryEvidenceEnd()+" number of hits: "+cluster.getCountKmerHitsCluster());
+				if(cluster.getCountKmerHitsCluster()>=minHits) answer.add(cluster);
+				minHits = Math.max(minHits, cluster.getCountKmerHitsCluster()/2);
 			}
 		}
 		return answer;
@@ -358,7 +368,7 @@ public class UngappedSearchHitsClusterBuilder {
 			if(debug) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx);
 			return selectedHits;
 		}
-		Set<Integer> outliersToRemove = replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
+		/*Set<Integer> outliersToRemove =*/ replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
 		List<UngappedSearchHit> filteredHits = new ArrayList<UngappedSearchHit>();
 		//if(outliersToRemove.size()>0 && outliersToRemove.size()<0.2*selectedHits.size()) {
 			//for(int i=0;i<selectedHits.size();i++) {
