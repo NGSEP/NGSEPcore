@@ -99,6 +99,7 @@ public class Assembler {
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
 	private boolean saveCorrected = false;
+	private boolean skipChimeraDetection = false;
 	private double weightIndels = DEF_WEIGHT_INDELS;
 	private int numThreads = DEF_NUM_THREADS;
 	
@@ -279,6 +280,16 @@ public class Assembler {
 		this.setSaveCorrected(saveCorrected.booleanValue());
 	}
 	
+	public boolean isSkipChimeraDetection() {
+		return skipChimeraDetection;
+	}
+	public void setSkipChimeraDetection(boolean skipChimeraDetection) {
+		this.skipChimeraDetection = skipChimeraDetection;
+	}
+	public void setSkipChimeraDetection(Boolean skipChimeraDetection) {
+		this.setSkipChimeraDetection(skipChimeraDetection.booleanValue());
+	}
+	
 	public double getWeightIndels() {
 		return weightIndels;
 	}
@@ -449,7 +460,9 @@ public class Assembler {
 		//while(value > 0) {
 			AssemblyGraph copyGraph = graph.buildSubgraph(null);
 			log.info("Copied graph. New graph has "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
-			copyGraph.removeVerticesChimericReads();
+			if(!skipChimeraDetection) {
+				copyGraph.removeVerticesChimericReads();
+			}
 			copyGraph.updateScores(weightIndels);
 			relationshipsFilter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
@@ -473,8 +486,11 @@ public class Assembler {
 			value /=2;
 		}
 		
-		graph.removeVerticesChimericReads();
-		log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		if(!skipChimeraDetection) {
+			graph.removeVerticesChimericReads();
+			log.info("Filtered chimeric reads. Vertices: "+graph.getVertices().size()+" edges: "+graph.getEdges().size());
+		}
+		
 		
 		graph.updateScores(weightIndels);
 		relationshipsFilter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);

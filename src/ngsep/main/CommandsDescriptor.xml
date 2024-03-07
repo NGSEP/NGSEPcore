@@ -276,6 +276,9 @@ Algorithm used to build the consensus. It can be Simple or Polishing.
 <option id="ecr" type="INT" attribute="errorCorrectionRounds" defaultConstant="DEF_ERROR_CORRCTION_ROUNDS">
 Number of rounds of alignment based error correction to perform.
 </option>
+<option id="skcd" type="BOOLEAN" attribute="skipChimeraDetection">
+Turns off the algorithm to detect chimeric sequences.  
+</option>
 <option id="wid" type="DOUBLE" attribute="weightIndels" defaultConstant="DEF_WEIGHT_INDELS">
 Weight given to small indel differences in the calculation of edge costs. Real number between 0 and 1.
 Increase if the reads have very low error rate (for example HiFi reads already corrected).  
