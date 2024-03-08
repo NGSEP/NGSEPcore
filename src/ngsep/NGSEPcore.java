@@ -26,8 +26,8 @@ import java.util.Arrays;
 import ngsep.main.Command;
 import ngsep.main.CommandsDescriptor;
 
-public class NGSEPcore {
 
+public class NGSEPcore {
 		
 	/**
 	 * @param args
