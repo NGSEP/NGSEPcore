@@ -57,8 +57,6 @@ public class SimpleGenomicRegionFileHandler {
 	public List<GenomicRegion> loadRegions (String filename) throws IOException  {
 		List<GenomicRegion> regions = new ArrayList<GenomicRegion>();
 		
-		// TODO IMPLEMENT THIS WAY TO READ FILES
-		
 		try (FileReader fis = new FileReader(filename);
 				BufferedReader in = new BufferedReader(fis)) {
 			String line=in.readLine();

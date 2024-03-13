@@ -59,7 +59,6 @@ import ngsep.transcriptome.io.GFF3TranscriptomeWriter;
  * @author Daniel Tello
  * @author Laura Gonzalez
  * @author Jorge Duitama
- * 
  */
 public class GenomesAligner {
 
@@ -73,6 +72,7 @@ public class GenomesAligner {
 	public static final int DEF_MAX_DISTANCE_BETWEEN_UNITS = PairwiseSyntenyBlocksFinder.DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	public static final double DEF_MIN_FREQUENCY_SOFT_CORE = 0.9;
 	public static final int DEF_NUM_THREADS = 1;
+
 	// Logging and progress
 	private Logger log = Logger.getLogger(GenomesAligner.class.getName());
 	private ProgressNotifier progressNotifier=null;
@@ -223,9 +223,6 @@ public class GenomesAligner {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
-	public List<HomologyCluster> getHomologyClusters(){
-		return homologyClusters;
-	}
 	public static void main(String[] args) throws Exception 
 	{
 		GenomesAligner instance = new GenomesAligner();
@@ -239,7 +236,7 @@ public class GenomesAligner {
 		instance.run();
 	}
 	
-	public void calculateClusters() throws Exception {
+	public void run () throws IOException {
 		if(getInputFile()!= null) loadGenomesFromFile();
 		logParameters ();
 		
@@ -257,10 +254,6 @@ public class GenomesAligner {
 			alignGenomes();
 			buildPAMatrix();
 		}
-	}
-
-	public void run () throws Exception {
-		calculateClusters();
 		printResults();
 		log.info("Process finished");
 	}
