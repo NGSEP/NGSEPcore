@@ -17,10 +17,16 @@ import java.util.regex.Pattern;
 import ngsep.main.CommandsDescriptor;
 
 public class OrthogroupsFunctionalAnnotator {
+	  int[] functionalNotationColums = new int[] { 2, 6 };
+	  private final int KEGG_COLUMN = 11;
+	  private final String USELESS_NOTATION_STRING = ".";
 	
 	  Map<String, Set<String>> genMapNotations = new HashMap<>();
 	  Map<String, Set<String>> clusterMapNotations = new HashMap<>();
-	  int[] functionalNotationColums = new int[] { 2, 6 };
+
+	  Map<String, Set<String>> keggNotationsByGen = new HashMap<>();
+	  Map<String, Set<String>> clusterMapKeggNotations = new HashMap<>();
+	
 
 	  private String clustersFilePath;
 	  private String fileOut;
@@ -50,14 +56,12 @@ public class OrthogroupsFunctionalAnnotator {
 	    this.fileOut = fileOut;
 	  }
 
-	  public void run(
-	   ) {
+	  public void run() {
 	    try (BufferedReader functionalNotationFile = new BufferedReader(new FileReader(functionalNotationFilePath));
 	        BufferedReader clustersFile = new BufferedReader(new FileReader(clustersFilePath))) {
 
-	      processFunctionalNotationFile(functionalNotationFile);
-	      processClustersFile(clustersFile);
-
+			processFunctionalAnotationFile(functionalNotationFile);
+	      	processClustersFile(clustersFile);
 	    } catch (IOException e) {
 	      e.printStackTrace();
 	    }
@@ -72,15 +76,31 @@ public class OrthogroupsFunctionalAnnotator {
 	      String cluster = data[0];
 	      for (int i = 1; i < data.length; i++) {
 	        String genName = data[i];
-	        Set<String> currentClusterNotations = genMapNotations.getOrDefault(genName, Collections.emptySet());
-	        if (!currentClusterNotations.isEmpty()) {
-	          clusterMapNotations.computeIfAbsent(cluster, k -> new HashSet<>()).addAll(currentClusterNotations);
+
+			Set<String> currentGenNotation = genMapNotations.getOrDefault(genName, Collections.emptySet());
+	        if (!currentGenNotation.isEmpty()) {
+	          clusterMapNotations.computeIfAbsent(cluster, k -> new HashSet<>()).addAll(currentGenNotation);
+	        }
+
+			Set<String> currentGenKeggNotation = keggNotationsByGen.getOrDefault(genName, Collections.emptySet());
+			if (!currentGenKeggNotation.isEmpty()) {
+	          clusterMapKeggNotations.computeIfAbsent(cluster, k -> new HashSet<>()).addAll(currentGenKeggNotation);
 	        }
 	      }
 	    }
 	  }
+	  
+	  private Set<String> createKEGGNotationsSet(String keggNotationLine) {
+		Set<String> keggNotations = new HashSet<>();
+	    String[] keggNotationArray = keggNotationLine.split("`");
+	    for (String keggNotation : keggNotationArray) {
+	      keggNotations.add(keggNotation);
+	    }
+	    
+	    return keggNotations;
+	  }
 
-	  private void processFunctionalNotationFile(BufferedReader functionalNotationFile) throws IOException {
+	  private void processFunctionalAnotationFile(BufferedReader functionalNotationFile) throws IOException {
 	    String line;
 	    functionalNotationFile.readLine(); // Skip header
 	    while ((line = functionalNotationFile.readLine()) != null) {
@@ -91,13 +111,18 @@ public class OrthogroupsFunctionalAnnotator {
 	      for (int columNumber : functionalNotationColums) {
 	        String functionalNotation = data[columNumber].trim();
 
-	        if (!functionalNotation.equals(".")) {
+	        if (!functionalNotation.equals(USELESS_NOTATION_STRING)) {
 	          functionalNotations.add(cleanBlastResult(functionalNotation));
 	        }
 	      }
 
 	      if (!functionalNotations.isEmpty()) {
 	        genMapNotations.put(gen, functionalNotations);
+	      }
+	      
+	      String KEGGNotation = data[KEGG_COLUMN].trim();
+	      if (!KEGGNotation.equals(USELESS_NOTATION_STRING)) {
+			  keggNotationsByGen.put(gen, createKEGGNotationsSet(KEGGNotation));
 	      }
 	    }
 	  }
@@ -125,7 +150,15 @@ public class OrthogroupsFunctionalAnnotator {
 	          allNotationsString.append(notation).append(",");
 	        }
 
-	        writer.write(cluster + "\t" + allNotationsString);
+			StringBuilder allKeggNotationsString = new StringBuilder();
+			Set<String> keggSet =  clusterMapKeggNotations.get(cluster);
+			if (keggSet != null) {
+				for (String notation : keggSet) {
+					allKeggNotationsString.append(notation).append(",");
+				}
+			}
+
+	        writer.write(cluster + "\t" + allNotationsString + "\t" + allKeggNotationsString);
 	        writer.newLine();
 	      }
 	    } catch (IOException e) {
@@ -133,11 +166,9 @@ public class OrthogroupsFunctionalAnnotator {
 	    }
 	  }
 
-
 	  public static void main(String[] args) throws Exception{
 		OrthogroupsFunctionalAnnotator instance = new OrthogroupsFunctionalAnnotator();
 	    CommandsDescriptor.getInstance().loadOptions(instance, args);
 	    instance.run();
 	  }
-
 }
