@@ -166,11 +166,11 @@ public class GFF3TranscriptomeHandler {
 		for(GFF3GenomicFeature feature:featuresWithId.values()) {
 			if(GFF3GenomicFeatureLine.FEATURE_TYPE_GENE.equals(feature.getType()) || GFF3GenomicFeatureLine.FEATURE_TYPE_TRGENE.equals(feature.getType())|| GFF3GenomicFeatureLine.FEATURE_TYPE_PCGENE.equals(feature.getType()) || GFF3GenomicFeatureLine.FEATURE_TYPE_PSEUDOGENE.equals(feature.getType()) ) {
 				Gene gene = createGeneFromGeneFeature(feature);
-				numGenes++;
 				gene.setOntologyTerms(feature.getOntologyTerms());
 				gene.setDatabaseReferences(feature.getDatabaseReferences());
 				String note = feature.getAnnotation(GFF3GenomicFeatureLine.ATTRIBUTE_NOTE);
 				if(loadTextAnnotations && note!=null) gene.addTextFunctionalAnnotation(note);
+				boolean transcriptsAdded = false;
 				for(GFF3GenomicFeature geneChild:feature.getChildren()) {
 					if(loadTextAnnotations) gene.addTextFunctionalAnnotations(geneChild.getProducts());
 					Transcript transcript = null;
@@ -185,6 +185,10 @@ public class GFF3TranscriptomeHandler {
 								segments.addAll(createFeatureSegments(mrnaChild, transcript));
 							}
 						}
+						if(segments.size()==0) {
+							log.warning("CDS not found for mRNA: "+transcript.getId()+". Transcript not loaded");
+							continue;
+						}
 					} else if (GFF3GenomicFeatureLine.FEATURE_TYPE_CDS.equals(geneChild.getType())) {
 						//Direct CDs without transcript
 						transcript = createTranscriptFromCDSFeature(geneChild);
@@ -197,9 +201,13 @@ public class GFF3TranscriptomeHandler {
 						transcript.setTranscriptSegments(segments);
 						answer.addTranscript(transcript);
 						numTranscripts++;
+						transcriptsAdded = true;
+					} else {
+						
 					}
-					
 				}
+				if(transcriptsAdded) numGenes++;
+				else log.warning("No transcripts could be loaded for gene: "+gene.getId()+". Gene not loaded"); 
 			}
 		}
 		//Add orphan CDS
