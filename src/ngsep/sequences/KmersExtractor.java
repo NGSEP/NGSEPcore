@@ -72,6 +72,7 @@ public class KmersExtractor {
 	private boolean ignoreLowComplexity = false;
 	private int numThreads = DEF_NUM_THREADS;
 	private int minReadLength = 0;
+	private int minReadAverageQuality = 0;
 	private boolean readNCharacters = true;
 	
 	// Model attributes
@@ -179,6 +180,14 @@ public class KmersExtractor {
 	public void setMinReadLength(int minReadLength) {
 		this.minReadLength = minReadLength;
 	}
+	
+	
+	public int getMinReadAverageQuality() {
+		return minReadAverageQuality;
+	}
+	public void setMinReadAverageQuality(int minReadAverageQuality) {
+		this.minReadAverageQuality = minReadAverageQuality;
+	}
 	/**
 	 * @return the hashKmers
 	 */
@@ -283,7 +292,8 @@ public class KmersExtractor {
 			if(freeText) reader.setSequenceType(StringBuilder.class);
 			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
 			else reader.setSequenceType(DNASequence.class);
-			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
+			if(minReadAverageQuality==0) reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
+			else reader.setMinAverageQuality(minReadAverageQuality);
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();

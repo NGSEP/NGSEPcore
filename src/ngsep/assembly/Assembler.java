@@ -63,6 +63,7 @@ public class Assembler {
 	public static final int DEF_KMER_LENGTH = 25;
 	public static final int DEF_WINDOW_LENGTH = 40;
 	public static final int DEF_MIN_READ_LENGTH = 5000;
+	public static final int DEF_MIN_READ_AVG_QUAL = 0;
 	public static final int DEF_PLOIDY = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
@@ -87,6 +88,7 @@ public class Assembler {
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
 	private int minReadLength = DEF_MIN_READ_LENGTH;
+	private int minReadAverageQuality = DEF_MIN_READ_AVG_QUAL;
 	private byte inputFormat = INPUT_FORMAT_FASTQ;
 	private String graphFile = null;
 	private String graphConstructionAlgorithm=GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS;
@@ -167,7 +169,15 @@ public class Assembler {
 	public void setMinReadLength(String value) {
 		setMinReadLength((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
-	
+	public int getMinReadAverageQuality() {
+		return minReadAverageQuality;
+	}
+	public void setMinReadAverageQuality(int minReadAverageQuality) {
+		this.minReadAverageQuality = minReadAverageQuality;
+	}
+	public void setMinReadAverageQuality(String value) {
+		setMinReadAverageQuality((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	public byte getInputFormat() {
 		return inputFormat;
 	}
@@ -335,6 +345,7 @@ public class Assembler {
 		out.println("Kmer length: "+kmerLength);
 		out.println("Window length for minimizers: "+windowLength);
 		out.println("Minimum read length: "+minReadLength);
+		out.println("Minimum average read quality: "+minReadAverageQuality);
 		//if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
 		out.println("Minimum score proportion (from the maximum score) to keep edges of a sequence: "+ minScoreProportionEdges);
 		out.println("Sample ploidy: "+ploidy);
@@ -375,6 +386,7 @@ public class Assembler {
 			extractor.setLoadSequences(true);
 			extractor.setInputFormat(inputFormat);
 			extractor.setMinReadLength(minReadLength);
+			extractor.setMinReadAverageQuality(minReadAverageQuality);
 			//The conditional avoids creating twice the large array in ShortArrayKmersMapImpl
 			//if(extractor.getKmerLength()!=kmerLength) extractor.setKmerLength(kmerLength);
 			extractor.processFile(inputFile);
@@ -726,8 +738,7 @@ public class Assembler {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
 			reader.setSequenceType(DNASequence.class);
-			//TODO: Option to load quality scores
-			reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
+			reader.setMinAverageQuality(minReadAverageQuality);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();

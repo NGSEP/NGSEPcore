@@ -68,6 +68,8 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	
 	private boolean keepLowerCase = false;
 	
+	private int minAverageQuality = 0;
+	
 	private Class<? extends CharSequence> sequenceType = null;
 	
 	private Constructor<? extends CharSequence> charSequenceConstructor = null;
@@ -106,6 +108,14 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	 */
 	public void setKeepLowerCase(boolean keepLowerCase) {
 		this.keepLowerCase = keepLowerCase;
+	}
+	
+	public int getMinAverageQuality() {
+		return minAverageQuality;
+	}
+	public void setMinAverageQuality(int minAverageQuality) {
+		if(minAverageQuality<0) throw new IllegalArgumentException("Min average quality can not be negative");
+		this.minAverageQuality = minAverageQuality;
 	}
 	/**
 	 * @return Class datatype for sequences to load
@@ -186,10 +196,24 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	}
 	
 	private boolean passFilters (RawRead read) {
-		//TODO: Implement filters
+		if(minAverageQuality>0 && read.getQualityScores()!=null) {
+			int avgQual = calculateAverageQuality(read.getQualityScores());
+			if(avgQual<minAverageQuality) return false;
+		}
 		return true;
 	}
 	
+	private int calculateAverageQuality(String qualityScores) {
+		int n = qualityScores.length(); 
+		if(n==0) return 0;
+		int sum = 0;
+		for(int i=0;i<n;i++) {
+			int q =qualityScores.charAt(i)-33;
+			sum+=q;
+		}
+		return sum/n;
+	}
+
 	private class FastqFileIterator implements Iterator<RawRead> {
 		private RawRead nextRecord;
 		public FastqFileIterator() {
