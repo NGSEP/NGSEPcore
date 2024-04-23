@@ -106,8 +106,8 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
 		completeAlns++;
 		PairwiseAlignerAffineGap alignerFullRead = createAlignerFullRead(Math.max(query.length(), refSeq.length()));
-		String [] rawAln = alignerFullRead.calculateAlignment(query, refSeq.toString());
-		int mismatches = countMismatches(rawAln);
+		PairwiseAlignment rawAln = alignerFullRead.calculateAlignment(query, refSeq.toString());
+		int mismatches = rawAln.getMismatches();
 		if(mismatches>0.1*query.length()) return null;
 		LinkedList<Integer> alnCodes = ReadAlignment.encodePairwiseAlignment(rawAln);
 		aln = buildAln(query, subjectIdx, subject, first, last, alnCodes);
@@ -136,23 +136,6 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		alignerFullRead.setForceStart2(false);
 		alignerFullRead.setForceEnd2(false);
 		return alignerFullRead;
-	}
-	public int countMismatches(String[] alignedSequences) {
-		int answer = 0;
-		boolean lastIsGap = true;
-		for(int i=0;i<alignedSequences[0].length();i++) {
-			char c1 = alignedSequences[0].charAt(i);
-			char c2 = alignedSequences[1].charAt(i);
-			if(c1==LimitedSequence.GAP_CHARACTER || c2 == LimitedSequence.GAP_CHARACTER) {
-				if(!lastIsGap) answer+=2;
-				lastIsGap = true;
-			} else {
-				if(c1!=c2) answer++;
-				lastIsGap = false;
-			}
-		}
-		if(lastIsGap) answer-=2;
-		return answer;
 	}
 	public int [] countMismatches(CharSequence query, CharSequence subject, ReadAlignment aln) {
 		int [] answer = {0,0,0};
@@ -239,8 +222,8 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
 				PairwiseAlignerAffineGap alignerSTRsLeft = createAlignerLeftTR(Math.max(readSegment.length(), refSeq.length()));
-				String [] alignmentLeft = alignerSTRsLeft.calculateAlignment(readSegment, refSeq.toString());
-				leftMismatches = countMismatches(alignmentLeft);
+				PairwiseAlignment alignmentLeft = alignerSTRsLeft.calculateAlignment(readSegment, refSeq.toString());
+				leftMismatches = alignmentLeft.getMismatches();
 				encodedLeftAln = ReadAlignment.encodePairwiseAlignment(alignmentLeft);
 				int lastCode = encodedLeftAln.getLast();
 				if (leftMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(lastCode)==ReadAlignment.ALIGNMENT_INSERTION) {
@@ -260,8 +243,8 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 				//System.out.println(refSeq);
 				//System.out.println(readSegment);
 				PairwiseAlignerAffineGap alignerSTRsRight = createAlignerRightTR(Math.max(readSegment.length(), refSeq.length()));
-				String [] alignmentRight = alignerSTRsRight.calculateAlignment(readSegment, refSeq.toString());
-				rightMismatches = countMismatches(alignmentRight);
+				PairwiseAlignment alignmentRight = alignerSTRsRight.calculateAlignment(readSegment, refSeq.toString());
+				rightMismatches = alignmentRight.getMismatches();
 				encodedRightAln = ReadAlignment.encodePairwiseAlignment(alignmentRight);
 				int firstCode = encodedRightAln.getFirst();
 				if (rightMismatches<=readSegment.length()/10 && ReadAlignment.getOperator(firstCode)==ReadAlignment.ALIGNMENT_INSERTION) {

@@ -83,7 +83,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		this.band = band;
 	}
 	@Override
-	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2 ) {
+	public PairwiseAlignment calculateAlignment(CharSequence sequence1, CharSequence sequence2 ) {
 		
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
@@ -91,7 +91,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		//int alignmentBand = band;
 		Map<Integer,Integer> dp = calculateHashMap(sequence1, sequence2,alignmentBand);
 		//return null;
-		return alignSequences(dp, sequence1, sequence2,alignmentBand);
+		return alignSequences(dp, sequence1, sequence2, alignmentBand);
     }
 	
 	private Map<Integer,Integer> calculateHashMap(CharSequence sequence1, CharSequence sequence2, int alignmentBand) {
@@ -136,7 +136,8 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 		if(debug) System.out.println("Final score: "+dp.get(getHash(n1, n1, n2)));
 		return dp;
     }
-	private String[] alignSequences(Map<Integer,Integer> dp, CharSequence sequence1, CharSequence sequence2, int alignmentBand) {
+	private PairwiseAlignment alignSequences(Map<Integer,Integer> dp, CharSequence sequence1, CharSequence sequence2, int alignmentBand) {
+		PairwiseAlignment aln = new PairwiseAlignment(sequence1, sequence2);
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
 		int i = n1;
@@ -165,6 +166,7 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
     	}
 		//No good alignment was found
 		if(val == null) return null;
+		aln.setScore(val);
 		StringBuffer ns1 = new StringBuffer(n1);
 		StringBuffer ns2 = new StringBuffer(n2);
 		while (j>0 || i>0){
@@ -211,10 +213,8 @@ public class PairwiseAlignerStaticBanded implements PairwiseAligner {
 				}
 			}
 		}
-		String[] seqs = new String[2]; 
-		seqs[0] = ns1.reverse().toString();
-		seqs[1] = ns2.reverse().toString();
-		return seqs;
+		aln.setAlignedSequences(ns1.reverse().toString(), ns2.reverse().toString());
+		return aln;
 	}
 
 	private int insertionCost(char l1) {

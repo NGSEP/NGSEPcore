@@ -33,7 +33,6 @@ import ngsep.sequences.UngappedSearchHit;
  *
  */
 public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearchHitsClusterAligner {
-	private HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 	private int maxLengthFullPairwiseAlignment = 10000;
 	private int maxLengthEndsPairwiseAlignment = 10000;
 	private PairwiseAligner alignerCenter;
@@ -86,7 +85,8 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		List<UngappedSearchHit> kmerHits = kmerHitsCluster.getHitsByQueryIdx();
 		String queryS = query.toString();
 		int queryLength= query.length();
-		
+		//System.out.println("Query length: "+queryLength);
+		HammingSequenceDistanceMeasure hamming = new HammingSequenceDistanceMeasure();
 		int subjectNext = -1;
 		short numMismatches = 0;
 		int coverageSharedKmers = 0;
@@ -305,48 +305,52 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		int minLength = Math.min(ql, sl);
 		int maxLength = Math.max(ql, sl);
 		if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Aligning segment of length "+ql+" of query to segment with length "+sl+" of subject \n"+queryStr+"\n"+subjectStr);
-		String [] alignedFragments = null;
+		PairwiseAlignment alignment = null;
 		if(minLength<6 && maxLength>=minLength+11 && type == 1) {
 			//Try to find a (quasi) perfect match
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Trying substring alignment");
-			alignedFragments = (new PairwiseAlignerSubstring()).calculateAlignment(queryStr, subjectStr);
+			alignment = (new PairwiseAlignerSubstring()).calculateAlignment(queryStr, subjectStr);
 		}
-		if(alignedFragments==null && minLength<0.1*maxLength) {
+		if(alignment==null && minLength<0.1*maxLength) {
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Very large difference between segments. Trying naive alignment");
-			alignedFragments = (new PairwiseAlignerNaive(type==0)).calculateAlignment(queryStr, subjectStr);
+			alignment = (new PairwiseAlignerNaive(type==0)).calculateAlignment(queryStr, subjectStr);
 		}
-		if(alignedFragments==null && maxLength < minLength+11 ) {
+		if(alignment==null && maxLength < minLength+11 ) {
 			//Try first with banded alignment if lengths are close
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Trying banded alignment");
 			PairwiseAlignerStaticBanded alignerB = new PairwiseAlignerStaticBanded();
 			alignerB.setForceStart2(type!=0);
 			alignerB.setForceEnd2(type!=2);
-			alignedFragments = (alignerB.calculateAlignment(queryStr, subjectStr));
-			if(alignedFragments!=null) {
-				double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+			alignment = (alignerB.calculateAlignment(queryStr, subjectStr));
+			if(alignment!=null) { 
+				double mismatchesAln = alignment.getMismatches();
 				if (type==0) {
-					String [] trimmed = trimStartDeletions(alignedFragments);
-					int nt = alignedFragments[0].length()-trimmed[0].length();
+					String[] seqs = {alignment.getAlignedSequence1(),alignment.getAlignedSequence2()}; 
+					String [] trimmed = trimStartDeletions(seqs);
+					int nt = alignment.getAlignedSequence1().length()-trimmed[0].length();
 					mismatchesAln-=nt;
 				} else if (type ==2) {
-					String [] trimmed = trimEndDeletions(alignedFragments);
-					int nt = alignedFragments[0].length()-trimmed[0].length();
+					String[] seqs = {alignment.getAlignedSequence1(),alignment.getAlignedSequence2()}; 
+					String [] trimmed = trimEndDeletions(seqs);
+					int nt = alignment.getAlignedSequence1().length()-trimmed[0].length();
 					mismatchesAln-=nt;
 				}
-				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Banded alignment done. Alignment\n"+alignedFragments[0]+"\n"+alignedFragments[1]+"\nNum mismatches: "+mismatchesAln);
-				if(mismatchesAln>0.1*minLength) alignedFragments = null;
+				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Banded alignment done. Alignment\n"+alignment.getAlignedSequence1()+"\n"+alignment.getAlignedSequence2()+"\nNum mismatches: "+mismatchesAln);
+				if(mismatchesAln>0.1*minLength) alignment = null;
 			}
 		}
-		if(alignedFragments==null) {
-			alignedFragments = aligner.calculateAlignment(queryStr,subjectStr);
+		if(alignment==null) {
+			alignment = aligner.calculateAlignment(queryStr,subjectStr);
 		}
-		if(alignedFragments==null && trySimpleGap && maxLength<maxLengthFullPairwiseAlignment ) {
+		if(alignment==null && trySimpleGap && maxLength<maxLengthFullPairwiseAlignment ) {
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying single gap alignment");
-			alignedFragments = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
-			double mismatchesAln = hamming.calculateDistance(alignedFragments[0], alignedFragments[1]);
+			alignment = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
+			double mismatchesAln = alignment.getMismatches();
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Single gap alignment done. Num mismatches: "+mismatchesAln);
-			if(mismatchesAln>0.2*minLength) alignedFragments = null;
+			if(mismatchesAln>0.2*minLength) alignment = null;
 		}
+		if(alignment==null) return null;
+		String [] alignedFragments= {alignment.getAlignedSequence1(),alignment.getAlignedSequence2()};
 		return alignedFragments;
 	}
 	public static int[] simulateAlignment(int subjectSeqIdx, int subjectLength, int querySeqIdx, int queryLength, UngappedSearchHitsCluster kmerHitsCluster) {

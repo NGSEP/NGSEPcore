@@ -25,6 +25,7 @@ import ngsep.sequences.LimitedSequence;
  * Performs pairwise alignment using the simple gap scoring method.
  * Adapted from https://www.itu.dk/~sestoft/bsa/Match2.java
  * @author David Guevara
+ * @author Jorge Duitama
  */
 public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	
@@ -39,7 +40,6 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	private boolean local = false;
 	
 	private int[][] matchScores;
-	private int maxScore = 0;
 	
 	public PairwiseAlignerSimpleGap() {
 		
@@ -104,15 +104,13 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	public void setForceEnd2(boolean forceEnd2) {
 		this.forceEnd2 = forceEnd2;
 	}
-	
-	
 
 	public boolean isLocal() {
 		return local;
 	}
 	public void setLocal(boolean local) {
 		this.local = local;
-		forceStart1 = forceEnd1 = forceStart2 = forceEnd2 = false;
+		forceStart1 = forceEnd1 = forceStart2 = forceEnd2 = !local;
 	}
 	
 	
@@ -120,12 +118,8 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	public int[][] getMatchScores() {
 		return matchScores;
 	}
-
-	public int getMaxScore() {
-		return maxScore;
-	}
 	
-	public String[] calculateAlignment(CharSequence s1, CharSequence s2) 
+	public PairwiseAlignment calculateAlignment(CharSequence s1, CharSequence s2) 
 	{		
 		initMatrices(s1, s2);
 	    calculateMatrices(s1, s2);	    
@@ -153,7 +147,6 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	
 	private void calculateMatrices(CharSequence s1, CharSequence s2)
 	{
-		maxScore = 0;
 		for (int i = 1; i <= s1.length(); i++)
 	    {
 	    	for (int j = 1; j <= s2.length(); j++)
@@ -161,7 +154,6 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	    		int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
 	    		matchScores[i][j] = Math.max(matchScores[i-1][j-1] + matchScore, Math.max(matchScores[i-1][j] - openGap, matchScores[i][j-1] - openGap));
 	    		if(local) matchScores[i][j] = Math.max(matchScores[i][j], 0);
-	    		maxScore = Math.max(maxScore, matchScores[i][j]);
 	    	}
 	    }
 	}
@@ -176,13 +168,13 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 	
 	
 	
-	private String[] getAlignedStrings(CharSequence s1, CharSequence s2)
-	{
+	private PairwiseAlignment getAlignedStrings(CharSequence s1, CharSequence s2) {
+		PairwiseAlignment alignment = new PairwiseAlignment(s1, s2);
 		StringBuffer sb1 = new StringBuffer();
 		StringBuffer sb2 = new StringBuffer();
 		int i = s1.length();
 		int j = s2.length();
-	    int val = matchScores[i][j];
+	    int maxScore = matchScores[i][j];
 	    if (local) {
 	    	int maxI=0;
 	    	int maxJ=0;
@@ -190,36 +182,38 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 		    {
 		    	for (j = 1; j <= s2.length(); j++)
 		    	{
-		    		if(maxScore==matchScores[i][j]) {
+		    		if(maxScore<matchScores[i][j]) {
 		    			maxI = i;
 		    			maxJ = j;
+		    			maxScore = matchScores[i][j];
 		    		}
 		    	}
 		    }
-	    	i=maxI;
-	    	j=maxJ;
-	    }
-	    else if (!forceEnd1) {
+	    	i = maxI;
+	    	j = maxJ;
+	    } else if (!forceEnd1) {
     		// Find better score over the last column
     		for (int h=i;h>=0;h--) {
     			int score = matchScores[h][s2.length()];
-    			if (score>val) {
+    			if (score>maxScore) {
     				i=h;
-    				val = score; 
+    				maxScore = score; 
     			}
     		}
-    	}
-	    else if (!forceEnd2) {
+    		
+    	} else if (!forceEnd2) {
     		// Find better score over the last row
     		for (int h=j;h>=0;h--) {
     			int score = matchScores[s1.length()][h];
-    			if (score>val) {
+    			if (score>maxScore) {
     				i=s1.length();
     				j=h;
-    				val = score; 
+    				maxScore = score; 
     			}
     		}
     	}
+	    alignment.setEndLimits(i, j);
+	    alignment.setScore(maxScore);
 	    if(!local) {
 	    	for (int h = s1.length();h>i;h--) {
 	    		sb1.append(s1.charAt(h - 1));
@@ -230,8 +224,6 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 				sb2.append(s2.charAt(h - 1));
 	    	}
 	    }
-    	
-    	
     	// Traceback cycle
 		while(i>0 && j>0) {
 			int matchScore = getMatchScore(s1.charAt(i - 1), s2.charAt(j - 1));
@@ -254,6 +246,7 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
     		}
     		else throw new RuntimeException("Unexpected score error at "+i+" "+j);
         }
+		alignment.setStartLimits(i, j);
 		if(!local) {
 			while (i>0) {
 				sb1.append(s1.charAt(i - 1));
@@ -266,10 +259,8 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 				j--;
 			}
 		}
-        String[] seqs = new String[2]; 
-        seqs[0] = sb1.reverse().toString();
-        seqs[1] = sb2.reverse().toString();
-        return seqs;
+		alignment.setAlignedSequences(sb1.reverse().toString(), sb2.reverse().toString());
+        return alignment;
 	}
 	
 	public void printAlignmentMatrix(int[][] matrix, String s1, String s2)

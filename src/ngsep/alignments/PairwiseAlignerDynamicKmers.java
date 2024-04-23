@@ -1,9 +1,5 @@
 package ngsep.alignments;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,15 +10,19 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 	private static int debugLength = -1;
 	private PairwiseAlignerStaticBanded alignerBanded = new PairwiseAlignerStaticBanded();
 	@Override
-	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
+	public PairwiseAlignment calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
 		if(n2 == debugLength) System.out.println("Aligning sequences\n"+sequence1+"\n"+sequence2);
 		if(n1<n2) {
-			String[] alnRev = calculateAlignment(sequence2, sequence1);
+			PairwiseAlignment alnRev = calculateAlignment(sequence2, sequence1);
 			if(alnRev == null) return null;
-			String [] answer = {alnRev[1].toString(),alnRev[0].toString()};
-			return answer;
+			PairwiseAlignment aln = new PairwiseAlignment(sequence1, sequence2);
+			aln.setScore(alnRev.getScore());
+			aln.setStartLimits(alnRev.getStart2(), alnRev.getStart1());
+			aln.setEndLimits(alnRev.getEnd2(), alnRev.getEnd1());
+			aln.setAlignedSequences(alnRev.getAlignedSequence2(), alnRev.getAlignedSequence1());
+			return aln;
 		}
 		if(n1<50 && n2==0) return (new PairwiseAlignerNaive(false)).calculateAlignment(sequence1, sequence2);
 		if(n1<100 && n2<20) {
@@ -62,11 +62,11 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				String seq2Fragment = sequence2.subSequence(0,kmerHit.getQueryStart()).toString();
 				if(seq1Fragment.length()>0 || seq2Fragment.length()>0) {
 					if(n2 == debugLength) System.out.println("Aligning "+seq1Fragment+" with "+seq2Fragment+" lengths: "+seq1Fragment.length()+" "+seq2Fragment.length());
-					String [] alignedFragments = calculateAlignment(seq1Fragment, seq2Fragment);
-					if(n2 == debugLength && alignedFragments==null) System.out.println("Null start alignment between "+seq1Fragment+" and "+seq2Fragment);
-					if(alignedFragments==null) return null;
-					aln1.append(alignedFragments[0]);
-					aln2.append(alignedFragments[1]);
+					PairwiseAlignment alignment = calculateAlignment(seq1Fragment, seq2Fragment);
+					if(n2 == debugLength && alignment==null) System.out.println("Null start alignment between "+seq1Fragment+" and "+seq2Fragment);
+					if(alignment==null) return null;
+					aln1.append(alignment.getAlignedSequence1());
+					aln2.append(alignment.getAlignedSequence2());
 				}
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getSubjectStart()+kmerLength;
@@ -95,15 +95,15 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 					String seq1Fragment = sequence1.subSequence(subjectNext,kmerHit.getSubjectStart()).toString();
 					String seq2Fragment = sequence2.subSequence(queryNext,kmerHit.getQueryStart()).toString();
 					if(n2 == debugLength)  System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
-					String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
-					if(n2 == debugLength && alignedFragments==null) System.out.println("Null middle alignment between "+seq1Fragment+" and "+seq2Fragment);  
-					if(alignedFragments==null && diffLength<=10) {
+					PairwiseAlignment midAln = calculateAlignment(seq1Fragment,seq2Fragment);
+					if(n2 == debugLength && midAln==null) System.out.println("Null middle alignment between "+seq1Fragment+" and "+seq2Fragment);  
+					if(midAln==null && diffLength<=10) {
 						//Try with the static band if the length difference is small
-						alignedFragments = alignerBanded.calculateAlignment(seq1Fragment, seq2Fragment);
+						midAln = alignerBanded.calculateAlignment(seq1Fragment, seq2Fragment);
 					}
-					if(alignedFragments==null) return null;
-					aln1.append(alignedFragments[0]);
-					aln2.append(alignedFragments[1]);
+					if(midAln==null) return null;
+					aln1.append(midAln.getAlignedSequence1());
+					aln2.append(midAln.getAlignedSequence2());
 				}
 				nextMatchLength+=kmerLength;
 				subjectNext = kmerHit.getSubjectStart()+kmerLength;
@@ -135,14 +135,15 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 				String seq1Fragment = (subjectNextLength>0)?sequence1.subSequence(subjectNext,n1).toString():"";
 				String seq2Fragment = (queryNextLength>0)?sequence2.subSequence(queryNext,n2).toString():"";
 				if(n2 == debugLength) System.out.println("Aligning segment of length "+subjectNextLength+" of subject with total length: "+n1+" to segment with length "+queryNextLength+" of query with total length: "+n2);
-				String [] alignedFragments = calculateAlignment(seq1Fragment,seq2Fragment);
-				if(n2 == debugLength && alignedFragments==null) System.out.println("Null end alignment between "+seq1Fragment+" and "+seq2Fragment);
-				if(alignedFragments==null) return null;
-				aln1.append(alignedFragments[0]);
-				aln2.append(alignedFragments[1]);
+				PairwiseAlignment alnEnd = calculateAlignment(seq1Fragment,seq2Fragment);
+				if(n2 == debugLength && alnEnd==null) System.out.println("Null end alignment between "+seq1Fragment+" and "+seq2Fragment);
+				if(alnEnd==null) return null;
+				aln1.append(alnEnd.getAlignedSequence1());
+				aln2.append(alnEnd.getAlignedSequence2());
 			}
 		}
-		String [] answer = {aln1.toString(),aln2.toString()};
+		PairwiseAlignment answer = new PairwiseAlignment(sequence1, sequence2);
+		answer.setAlignedSequences(aln1.toString(),aln2.toString());
 		//System.out.println("Segment alignment\n"+aln1+"\n"+aln2);
 		return answer;
 	}

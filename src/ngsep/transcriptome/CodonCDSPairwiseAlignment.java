@@ -3,23 +3,18 @@ package ngsep.transcriptome;
 import java.util.List;
 
 import ngsep.alignments.PairwiseAligner;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 public class CodonCDSPairwiseAlignment implements PairwiseAligner {
-	private String alignment1;
-	private String alignment2;
-	private int score;
 	private double pctIdentity;
 	
 	@Override
-	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
-		pairwiseAlignment(sequence1.toString(), sequence2.toString());
-		String[] answer = {alignment1,alignment2};
-		return answer;
-	}
-	
-	public void pairwiseAlignment(String cds1, String cds2) {
+	public PairwiseAlignment calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
+		String cds1 = sequence1.toString();
+		String cds2 = sequence2.toString();
+		PairwiseAlignment alignment = new PairwiseAlignment(cds1, cds2);
 		int proteinLengthCDS1=cds1.length()/3;
 		int proteinLengthCDS2=cds2.length()/3;
 		int[][] scores = new int[proteinLengthCDS1+1][proteinLengthCDS2+1];
@@ -64,6 +59,7 @@ public class CodonCDSPairwiseAlignment implements PairwiseAligner {
 		int maxI = scores.length-1;
 		int maxJ = scores[maxI].length-1;
 		int score = scores[maxI][maxJ];
+		alignment.setScore(score);
 		/*for(int i=maxI-1;i>=0.5*scores.length;i--) {
 			if(scores[i][maxJ]>score) {
 				maxI = i;
@@ -77,7 +73,6 @@ public class CodonCDSPairwiseAlignment implements PairwiseAligner {
 				score = scores[maxI][maxJ];
 			}
 		}*/
-		this.score = score;
 		String gapCodon = "---";
 		int countIdentical = 0;
 		int i= maxI;
@@ -103,13 +98,14 @@ public class CodonCDSPairwiseAlignment implements PairwiseAligner {
 			}
 		}
 		
-		alignment1 = aln1.reverse().toString();
-		alignment2 = aln2.reverse().toString();
+		String alignment1 = aln1.reverse().toString();
+		String alignment2 = aln2.reverse().toString();
 		if(alignment1.length()>0) {
 			pctIdentity = 100.0*countIdentical;
 			pctIdentity /= alignment1.length();
 		} else pctIdentity = 0;
-		
+		alignment.setAlignedSequences(alignment1, alignment2);
+		return alignment;
 	}
 
 	private void printMatrix(int[][] scores) {
@@ -136,18 +132,6 @@ public class CodonCDSPairwiseAlignment implements PairwiseAligner {
 		aln.append(codon.charAt(0));
 	}
 
-	public String getAlignment1() {
-		return alignment1;
-	}
-
-	public String getAlignment2() {
-		return alignment2;
-	}
-
-	public int getScore() {
-		return score;
-	}
-
 	public double getPctIdentity() {
 		return pctIdentity;
 	}
@@ -157,9 +141,9 @@ public class CodonCDSPairwiseAlignment implements PairwiseAligner {
 		CodonCDSPairwiseAlignment aligner = new CodonCDSPairwiseAlignment();
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> seqs = handler.loadSequences(args[0]);
-		String [] answer = aligner.calculateAlignment(seqs.get(0).getCharacters(), seqs.get(1).getCharacters());
-		System.out.println(answer[0]);
-		System.out.println(answer[1]);
+		PairwiseAlignment aln = aligner.calculateAlignment(seqs.get(0).getCharacters(), seqs.get(1).getCharacters());
+		System.out.println(aln.getAlignedSequence1());
+		System.out.println(aln.getAlignedSequence2());
 		
 	}
 	

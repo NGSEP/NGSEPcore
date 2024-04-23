@@ -14,7 +14,7 @@ class PairwiseAlignerNaive implements PairwiseAligner {
 
 
 	@Override
-	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
+	public PairwiseAlignment calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int diff = sequence1.length()- sequence2.length();
 		
 		StringBuilder aln1 = new StringBuilder();
@@ -23,9 +23,9 @@ class PairwiseAlignerNaive implements PairwiseAligner {
 		aln1.append(sequence1);
 		aln2.append(sequence2);
 		if(!gapsLeft) appendGaps(diff, aln1, aln2);
-		
-		String [] answer = {aln1.toString(),aln2.toString()};
-		return answer;
+		PairwiseAlignment aln = new PairwiseAlignment(sequence1, sequence2);
+		aln.setAlignedSequences(aln1.toString(), aln2.toString());
+		return aln;
 	}
 
 

@@ -6,9 +6,11 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 import ngsep.alignments.PairwiseAligner;
+import ngsep.alignments.PairwiseAlignerAffineGap;
 import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignerStaticBanded;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.QualifiedSequence;
@@ -106,20 +108,20 @@ public class PairwiseAlignmentTest extends TestCase {
 			//Set K-band value-Positive number
 			
 			System.out.println("Starting alignments. P1: "+i+" Name1: "+sequences.get(i).getName()+ " L1: "+seq1.length()+" P2: "+j+" Name 2: "+sequences.get(j).getName()+" L2: "+seq2.length());
-			String [] aln1 = aligner1.calculateAlignment(seq1, seq2);
-			System.out.println(aln1[0]+"\n"+aln1[1]);
+			PairwiseAlignment aln1 = aligner1.calculateAlignment(seq1, seq2);
+			System.out.println(aln1.getAlignedSequence1()+"\n"+aln1.getAlignedSequence2());
 			
 			//Score static banded
 
-			int maxScoreAligner1 = FindScore(aln1[0],aln1[1]); 
+			int maxScoreAligner1 = FindScore(aln1.getAlignedSequence1(),aln1.getAlignedSequence2()); 
 
 		
 			//Simple Gap Alignment
-			String [] aln2 = aligner2.calculateAlignment(seq1,seq2);
-			System.out.println(aln2[0]+"\n"+aln2[1]);
+			PairwiseAlignment aln2 = aligner2.calculateAlignment(seq1,seq2);
+			System.out.println(aln2.getAlignedSequence1()+"\n"+aln2.getAlignedSequence2());
 			
 			//Score simple gap
-			int maxScoreAligner2 = FindScore(aln2[0],aln2[1]); 
+			int maxScoreAligner2 = FindScore(aln2.getAlignedSequence1(),aln2.getAlignedSequence2()); 
 			
 			//System.out.println(maxScoreAligner1+" "+maxScoreAligner2);
 			
@@ -249,20 +251,20 @@ public class PairwiseAlignmentTest extends TestCase {
 			//Set K-band value-Positive number
 			
 			System.out.println("Starting alignments. P1: "+i+" Name1: "+sequences.get(i).getName()+ " L1: "+seq1.length()+" P2: "+j+" Name 2: "+sequences.get(j).getName()+" L2: "+seq2.length());
-			String [] aln1 = aligner1.calculateAlignment(seq1, seq2);
-			System.out.println(aln1[0]+"\n"+aln1[1]);
+			PairwiseAlignment aln1 = aligner1.calculateAlignment(seq1, seq2);
+			System.out.println(aln1.getAlignedSequence1()+"\n"+aln1.getAlignedSequence2());
 			
 			//Score static banded
 
-			int maxScoreAligner1 = FindScore(aln1[0],aln1[1]); 
+			int maxScoreAligner1 = FindScore(aln1.getAlignedSequence1(),aln1.getAlignedSequence2()); 
 
 		
 			//Simple Gap Alignment
-			String [] aln2 = aligner2.calculateAlignment(seq1,seq2);
-			System.out.println(aln2[0]+"\n"+aln2[1]);
+			PairwiseAlignment aln2 = aligner2.calculateAlignment(seq1,seq2);
+			System.out.println(aln2.getAlignedSequence1()+"\n"+aln2.getAlignedSequence2());
 			
 			//Score simple gap
-			int maxScoreAligner2 = FindScore(aln2[0],aln2[1]); 
+			int maxScoreAligner2 = FindScore(aln2.getAlignedSequence1(),aln2.getAlignedSequence2());  
 			
 			//System.out.println(maxScoreAligner1+" "+maxScoreAligner2);
 			
@@ -280,6 +282,8 @@ public class PairwiseAlignmentTest extends TestCase {
 		calculateRuntime(sequences, new PairwiseAlignerStaticBanded());
 		System.out.println("Simple gap");
 		calculateRuntime(sequences, new PairwiseAlignerSimpleGap());
+		System.out.println("Affine gap");
+		calculateRuntime(sequences, new PairwiseAlignerAffineGap(5000));
 		System.out.println("Dynamic kmers");
 		calculateRuntime(sequences, new PairwiseAlignerDynamicKmers());
 		

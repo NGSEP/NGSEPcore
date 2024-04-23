@@ -5,14 +5,18 @@ import ngsep.sequences.LimitedSequence;
 public class PairwiseAlignerSubstring implements PairwiseAligner {
 
 	@Override
-	public String[] calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
+	public PairwiseAlignment calculateAlignment(CharSequence sequence1, CharSequence sequence2) {
 		int n1 = sequence1.length();
 		int n2 = sequence2.length();
 		if(n1<n2) {
-			String[] alnRev = calculateAlignment(sequence2, sequence1);
+			PairwiseAlignment alnRev = calculateAlignment(sequence2, sequence1);
 			if(alnRev == null) return null;
-			String [] answer = {alnRev[1].toString(),alnRev[0].toString()};
-			return answer;
+			PairwiseAlignment aln = new PairwiseAlignment(sequence1, sequence2);
+			aln.setScore(alnRev.getScore());
+			aln.setStartLimits(alnRev.getStart2(), alnRev.getStart1());
+			aln.setEndLimits(alnRev.getEnd2(), alnRev.getEnd1());
+			aln.setAlignedSequences(alnRev.getAlignedSequence2(), alnRev.getAlignedSequence1());
+			return aln;
 		}
 		String strSeq1 = sequence1.toString();
 		String strSeq2 = sequence2.toString();
@@ -27,8 +31,8 @@ public class PairwiseAlignerSubstring implements PairwiseAligner {
 		for(i=aln2.length();i<n1;i++) {
 			aln2.append(LimitedSequence.GAP_CHARACTER);	
 		}
-		String [] answer = {strSeq1,aln2.toString()};
-		return answer;
+		PairwiseAlignment aln = new PairwiseAlignment(sequence1, sequence2);
+		aln.setAlignedSequences(strSeq1, aln2.toString());
+		return aln;
 	}
-
 }

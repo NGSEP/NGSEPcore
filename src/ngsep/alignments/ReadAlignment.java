@@ -1477,6 +1477,11 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		return false;
 	}
+	public static LinkedList<Integer> encodePairwiseAlignment(PairwiseAlignment queryToSubjectAln ) {
+		String[] seqs = {queryToSubjectAln.getAlignedSequence1(),queryToSubjectAln.getAlignedSequence2()}; 
+		return encodePairwiseAlignment(seqs);
+	}
+	
 	public static LinkedList<Integer> encodePairwiseAlignment(String [] queryToSubjectAln ) {
 		LinkedList<Integer> answer = new LinkedList<Integer>();
 		byte nextOperator = 0;

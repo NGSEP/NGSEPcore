@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 
 import JSci.maths.statistics.ChiSqrDistribution;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.math.Distribution;
 import ngsep.math.ShannonEntropyCalculator;
 import ngsep.sequences.AbstractLimitedSequence;
@@ -214,10 +215,10 @@ public class HomologRelationshipsFinder {
 			}
 		}
 		if(first1>=last1 || first2>=last2) return false;
-		String [] alignment = aligner.calculateAlignment(seq1.substring(first1,last1), seq2.substring(first2,last2));
-		if(debug) System.out.println("Aln: "+alignment[0]+" "+alignment[1]+" score: "+aligner.getMaxScore());
+		PairwiseAlignment alignment = aligner.calculateAlignment(seq1.substring(first1,last1), seq2.substring(first2,last2));
+		if(debug) System.out.println("Aln: "+alignment.getAlignedSequence1()+" "+alignment.getAlignedSequence2()+" score: "+alignment.getScore());
 		
-		return aligner.getMaxScore()>=2*kmerLength;
+		return alignment.getScore()>=2*kmerLength;
 	}
 	
 	//Old FMindex algorithm

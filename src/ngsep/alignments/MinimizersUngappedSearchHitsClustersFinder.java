@@ -43,7 +43,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 	
 	
 	private int minRawHits = 10;
-	private double minProportionReadLength = 0.01;
+	private double minProportionReadLength = 0.001;
 	
 	private ReferenceGenome genome;
 	private ShortKmerCodesTable kmerCodesTable;

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadsAligner;
 import ngsep.alignments.ReadAlignment.Platform;
@@ -158,8 +159,9 @@ public class CircularSequencesProcessor {
 			String subseqend= sequence.substring(sequence.length()-i);
 			//System.err.println("subseq ini: "+subseqini);
 			//System.err.println("subseq end: "+subseqend);
-			String [] alignment = aligner.calculateAlignment(subseqini,subseqend);
-			String [] matchingZone = fixAlignment(alignment);
+			PairwiseAlignment alignment = aligner.calculateAlignment(subseqini,subseqend);
+			String[] seqs = {alignment.getAlignedSequence1(),alignment.getAlignedSequence2()}; 
+			String [] matchingZone = fixAlignment(seqs);
 			log.info("End length: "+i+" Next match: "+ matchingZone[0].length());
 			if (passFilterMethod(matchingZone[0], matchingZone[1],i)) {
 				int duplicatedLength=calculateDuplicatedLength(subseqini, matchingZone[0]);
