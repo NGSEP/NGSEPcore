@@ -113,6 +113,7 @@ public class Transcript implements GenomicRegion {
 				if(codingRelativeStart==-1) {
 					codingRelativeStart = length;
 					if(fOff>=0) codingRelativeStart+=fOff;
+					codingLength = -fOff;
 				} else if(fOff>=0 && (codingLength+fOff)%3!=0) {
 					System.err.println("WARN. for transcript: "+id+". Phase of CDS at "+segment.getFirst()+"-"+segment.getLast()+" looks inconsistent. Coding length "+codingLength+" given offset: "+segment.getFirstCodonPositionOffset());
 				}
