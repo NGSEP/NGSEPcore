@@ -85,7 +85,9 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 					//if (ends > mismatches[0]) System.err.println("Problem counting mismatches for "+sequenceName+":"+first+" read: "+query+" mismatches: "+mismatches[0]+" "+mismatches[1]+" "+mismatches[2]);
 					if (ends>0) aln = buildAln(query, subjectIdx, subject, first+mismatches[1], lastPerfect-mismatches[2], encodeAlignment(query.length(),mismatches));
 					if(aln!=null) {
-						aln.setAlignmentQuality((byte) Math.round(100-5*mismatches[0]));
+						byte quality = (byte) Math.round(100-5*mismatches[0]);
+						quality=(byte) Math.max(quality, 20);
+						aln.setAlignmentQuality(quality);
 						aln.setNumMismatches((short) mismatches[0]);
 						fewMismatchesAlns++;
 						//System.out.println("Few mismatches alignment: "+aln);
