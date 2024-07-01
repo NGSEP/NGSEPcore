@@ -275,6 +275,7 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param alignmentQuality New Quality as a phred score
 	 */
 	public void setAlignmentQuality(byte alignmentQuality) {
+		if(alignmentQuality<0) throw new IllegalArgumentException("Invalid negative quality "+alignmentQuality+" for read: "+toString());
 		this.alignmentQuality = alignmentQuality;
 	}
 	

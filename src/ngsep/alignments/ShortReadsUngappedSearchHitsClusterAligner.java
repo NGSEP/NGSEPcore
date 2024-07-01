@@ -114,7 +114,9 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		if(aln==null) return null;
 		if (!aln.clipBorders(minMatchLength)) return null;
 		//System.out.println("New genomic coordinates : "+first+"-"+last+" CIGAR:" +aln.getCigarString()+" mismatches: "+mismatches);
-		aln.setAlignmentQuality((byte) Math.round(100-5*mismatches));
+		byte quality = (byte) Math.round(100-5*mismatches);
+		quality=(byte) Math.max(quality, 20);
+		aln.setAlignmentQuality(quality);
 		aln.setNumMismatches((short)mismatches);
 		
 		return aln;
