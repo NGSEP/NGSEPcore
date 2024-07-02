@@ -23,6 +23,8 @@ package ngsep.math;
  * @author Jorge Duitama
  */
 public class PhredScoreHelper {
+	private static double probCache [] = new double [255];
+	private static boolean filledCache = false;
 	/**
 	 * Calculates the phred score given the probability
 	 * @param p Probability to calculate
@@ -41,12 +43,17 @@ public class PhredScoreHelper {
 	/**
 	 * Calculates the probability related with the given score
 	 * @param phredScore Score in Phred scale
-	 * @return double probability=Math.pow(10.0, (-phredScore/10.0)). Zero if the score is equal to 255
+	 * @return double probability=Math.pow(10.0, (-phredScore/10.0)). Zero if the score is equal or larger than 255
 	 */
 	public static double calculateProbability(short phredScore) {
 		if(phredScore >= 255) {
 			return 0; 
+		} else if (!filledCache) {
+			synchronized (probCache) {
+				for(int i=0;i<255;i++) probCache[i] = Math.pow(10.0, -0.1*i);
+				filledCache = true;
+			}
 		}
-		return Math.pow(10.0, -0.1*phredScore);
+		return probCache[phredScore]; 
 	}
 }

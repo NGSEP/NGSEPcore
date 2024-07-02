@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
+import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.RawRead;
 
 /**
@@ -197,13 +198,25 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 	
 	private boolean passFilters (RawRead read) {
 		if(minAverageQuality>0 && read.getQualityScores()!=null) {
-			int avgQual = calculateAverageQuality(read.getQualityScores());
+			int avgQual = calculateAverageQualityErrorMean(read.getQualityScores());
 			if(avgQual<minAverageQuality) return false;
 		}
 		return true;
 	}
 	
-	private int calculateAverageQuality(String qualityScores) {
+	private int calculateAverageQualityErrorMean(String qualityScores) {
+		int n = qualityScores.length(); 
+		if(n==0) return 0;
+		double avg = 0;
+		for(int i=0;i<n;i++) {
+			int q =qualityScores.charAt(i)-33;
+			double p = PhredScoreHelper.calculateProbability((short) q);
+			avg+=p;
+		}
+		avg /=n;
+		return PhredScoreHelper.calculatePhredScore(avg);
+	}
+	private int calculateAverageQualitySimpleMean(String qualityScores) {
 		int n = qualityScores.length(); 
 		if(n==0) return 0;
 		int sum = 0;
