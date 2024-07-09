@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 5.0.0 (26-01-2024)
+Version 5.0.1 (02-08-2024)
 
 ===========================================================================
 
@@ -24,20 +24,20 @@ Building NGSEP
 NGSEP has been compiled and run successfully on the standard jdk version
 11.0.8. To build the distribution library NGSEPcore.jar on a unix based
 command line environment run the following commands in the directory where
-NGSEPcore_5.0.0.tar.gz is located:
+NGSEPcore_5.0.1.tar.gz is located:
 
-tar -xzvf NGSEPcore_5.0.0.tar.gz
-cd NGSEPcore_5.0.0
+tar -xzvf NGSEPcore_5.0.1.tar.gz
+cd NGSEPcore_5.0.1
 make all
 
 Note: Usage fields below do not include the version number. To remove the
 version number, users can either copy the executable jar file:
 
-cp NGSEPcore_5.0.0.jar NGSEPcore.jar
+cp NGSEPcore_5.0.1.jar NGSEPcore.jar
 
 or just make a symbolic link:
 
-ln -s NGSEPcore_5.0.0.jar NGSEPcore.jar
+ln -s NGSEPcore_5.0.1.jar NGSEPcore.jar
 
 ---------------
 Asking for help
@@ -1236,53 +1236,65 @@ GenomeN
 
 For each genome, the module will look into the directory referred with the
 option -d for one fasta file and one gff3 file having as prefix the genome
-identifier.
-Possible suffixes for the fasta file include .fa, .fna, .fas and .fasta
-and their gzip compressed extensions .fa.gz, .fna.gz, .fas.gz and .fasta.gz
-Possible suffixes for the annotation file include .gff and .gff3 and their
-gzip compressed extensions .gff.gz and .gff3.gz
+identifier.Possible suffixes for the fasta file include .fa, .fna, .fas and
+.fasta and their gzip compressed extensions .fa.gz, .fna.gz, .fas.gz and
+.fasta.gz. Possible suffixes for the annotation file include .gff and .gff3 and
+their gzip compressed extensions .gff.gz and .gff3.gz
 
 		
-The output is a series of text files having the ids and physical coordinates of
-the paralogs within each genome and the orthologs between the two genomes.
-The ortholog files, called <PREFIX>_orthologsG1.tsv and <PREFIX>_orthologsG2.tsv,
-have the following format:
+The output is a series of text files describing the different results of the
+analysis.
 
-1. Id of the gene in the first genome
-2. Chromosome of the gene in the first genome
-3. Start of the gene in the first genome
-4. End of the gene in the first genome
-5. Number of paralogs of the gene in the first genome
-6. Id of the second genome
-7. Id of the ortholog in the second genome
-8. Chromosome of the ortholog in the second genome
-9. Start of the ortholog in the second genome
-10. End of the ortholog in the second genome
-11. Alignment type. It can be "L" if the gene has an ortholog in the
-   second genome and it makes part of a synteny block. "U" if the gene has
-   a unique ortholog but it does not make part of the syntheny block, and
-   "M" if the gene has multiple orthologs in the second genome.
+The file called <PREFIX>_relationships.tsv contains raw pairwise homolog
+relationships. It is a tab delimited file with the following format:
 
-The files with the paralogs, called <PREFIX>_paralogsG1.tsv and
-<PREFIX>_paralogsG2.tsv, have the same 10 first columns but columns 7 to 10
-contain genes within the same genome as genes in column 1 to 4. 
+1. Genome ID of the first gene
+2. Id of the gene in the first genome
+3. Chromosome of the gene in the first genome
+4. Start of the gene in the first genome
+5. End of the gene in the first genome
+6. Id of the orthogroup in which the gene was assigned
+7. Genome ID of the second gene
+8. Id of the gene in the second genome
+9. Chromosome of the gene in the second genome
+10. Start of the gene in the second genome
+11. End of the gene in the second genome
+12. Id of the orthogroup in which the second gene was assigned
+13. Alignment score
+14. Synteny block in which this relationship was included. -1 if this
+relationship was not assigned to a synteny block.
 
-Pangenome files are:
 The file <PREFIX>_clusters.txt contains the clusters of homolog genes across
-genomes that can be inferred from the pairwise homolog relationships.
+genomes that can be inferred from the pairwise homolog relationships. It is a
+tab-delimited file with the id of the orthogroup in the first column and the
+ids of the genes in the next columns.
+
+The file <PREFIX>_syntenyBlocks.txt contains the synteny blocks that can be
+inferred from collinear homologs. It is a tab-delimited file with the following
+columns:
+
+1. Synteny block id
+2. Id of the first genome
+3. Chromosome of the block in the first genome
+4. Length of the chromosome
+5. Start of the block in the first genome
+6. End of the block in the first genome
+7. Id of the second genome
+8. Chromosome of the block in the second genome
+9. Length of the chromosome
+10. Start of the block in the second genome
+11. End of the block in the second genome
+12. Relative orientation in the second genome
+
 The file <PREFIX>_paMatrix.txt contains the Presence/Absence matrix where each
 row corresponds to a gene family and each column corresponds to a genome.
 The file <PREFIX>_gfFreqs.txt contains the frequency of each gene family within
 the genomes and its classification into exact/soft core/accesory genomes.
 
-Finally, the files:
-
-<PREFIX>_linearOrthologView.html
-<PREFIX>_circularOrthologView.html and
-<PREFIX>_circularParalogView.html
-
-can be loaded in a web browser and provide an interactive view of the alignment
-based on the d3 web development technology (https://d3js.org/).
+Finally, the file <PREFIX>_linearOrthologView.html can be loaded in a web
+browser and provides an interactive view of the alignment based on the d3 web
+development technology (https://d3js.org/). It uses the javascript file
+<PREFIX>_vizVariables.js as source of information.
 
 ---------------------------------------
 Clustering orthologs from CDNA catalogs
@@ -2174,14 +2186,79 @@ cluster, heterozygous test variants per cluster and genome span per cluster
 Citing and supporting packages
 ------------------------------
 
-The latest algorithms implemented in NGSEP 3 to improve accuracy for variants
-detection and genotyping were recently published in bioinformatics:
+The manuscript of NGSEP 4, focused on orthologs and genome alignment is
+available at Molecular Ecology Resources:
+      
+Tello D, Gonzalez-Garcia LN, Gomez J, et al. (2023).
+NGSEP 4: Efficient and accurate identification of orthogroups and whole-genome alignment.
+Molecular Ecology Resources 23(3): 712-724.
+https://doi.org/10.1111/1755-0998.13737
+      
+The manuscript describing the new functionality of NGSEP for de-novo genome
+assembly of long reads is available at Life Science Alliance:
+      
+Gonzalez-Garcia L, Guevara-Barrientos D, Lozano-Arce D et al. (2023).
+New algorithms for accurate and efficient de novo genome assembly from long DNA sequencing reads.
+Life Science Alliance 6(5): e202201719.
+http://doi.org/10.26508/lsa.202201719
+      
+The first manuscript with the initial description of the main modules of NGSEP
+is available at Nucleic Acids research:
+      
+Duitama J, Quintero JC, Cruz DF, et al. (2014).
+An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments.
+Nucleic Acids Research. 42(6): e44. http://doi.org/10.1093/nar/gkt1381
 
-Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019)
+Details of different algorithms implemented in NGSEP can be found in different
+publications. Feel free to cite the most appropriate paper(s) depending on the
+analysis task(s) for which NGSEP was helpful.
+
+Variants detection and genotyping
+
+The latest algorithms implemented in NGSEP 3 to improve accuracy for variants
+detection and genotyping ca be found in bioinformatics:
+
+Tello D, Gil J, Loaiza CD, Riascos JJ, Cardozo N, and Duitama J. (2019).
 NGSEP3: accurate variant calling across species and sequencing protocols.
-Bioinformatics 35(22): 4716–4723.
+Bioinformatics 35(22): 4716-4723.
 http://doi.org/10.1093/bioinformatics/btz275
 
+Transposable elements
+Our approach to map known transposable elements to a genome assembly, based on
+minimizers can be found in Applications in Plant Sciences
+Gonzalez-García LN, Lozano-Arce D, Londoño JP, Guyot R and Duitama J. (2023).
+Efficient homology-based annotation of transposable elements using minimizers.
+Applications in Plant Sciences 11(4): e11520.
+http://doi.org/10.1002/aps3.11520
+
+Structural variants detection
+
+For long reads, our approach based on the DBScan clustering algorithm can be
+found in GigaScience
+
+Gaitán N and Duitama J. (2024).
+A graph clustering algorithm for detection and genotyping of structural variants from long reads.
+GigaScience 13: giad112. https://doi.org/10.1093/gigascience/giad112
+
+For short reads, since version 2.1.2, we implemented an algorithm to integrate
+paired-end and split-read analysis for detection of large indels. Benchmark
+experiments of this algorithm against other software tools using data from the
+3000 rice genomes project is available at Genome Research:
+
+Fuentes RR, Chebotarov D, Duitama J, Smith S, De la Hoz JF, Mohiyuddin M, et al. (2019).
+Structural variants in 3000 rice genomes.
+Genome Research 29: 870-880.
+http://doi.org/10.1101/gr.241240.118
+
+TILLING
+Functionalities related to the TILLING experimental setup can be found in Frontiers in Genetics:
+
+Gil J, Andrade-Martínez JS and Duitama J. (2021).
+Accurate, Efficient and User-Friendly Mutation Calling and Sample Identification for TILLING Experiments.
+Frontiers in Genetics 12: 54.
+http://doi.org/10.3389/fgene.2021.624513
+
+GBS pipelines
 Further details on the pipeline built for variants detection on
 Genotype-By-Sequencing (GBS) data can be found at BMC Genomics:
 
@@ -2190,50 +2267,47 @@ Bioinformatic analysis of genotype by sequencing (GBS) data with NGSEP.
 BMC Genomics, 17:498.
 http://doi.org/10.1186/s12864-016-2827-7
 
-The first manuscript with the initial description of the main modules of NGSEP
-is available at Nucleic Acids research:
+The manuscript describing the functionality to perform de-novo analysis of GBS
+reads can be found at Molecular Ecology Resources:
 
-Duitama J, Quintero JC, Cruz DF, Quintero C, Hubmann G, Foulquie-Moreno MR, Verstrepen KJ, Thevelein JM, and Tohme J. (2014). 
-An integrated framework for discovery and genotyping of genomic variants from high-throughput sequencing experiments. 
-Nucleic Acids Research. 42(6): e44. 
-http://doi.org/10.1093/nar/gkt1381
+Parra-Salazar A, Gomez J, Lozano-Arce D, Reyes-Herrera PH and Duitama J. (2022).
+Robust and efficient software for reference-free genomic diversity analysis of GBS data on diploid and polyploid species.
+Molecular Ecology Resources 22(1): 439-454.
+http://doi.org/10.1101/2020.11.28.402131
 
+Molecular haplotyping:
 
-Details of algorithms implemented in NGSEP for different functionalities can be
-found in the following publications:
+Duitama J, McEwen GK, Huebsch T, Palczewski S, Schulz S, Verstrepen K, et al. (2011)
+Fosmid-based whole genome haplotyping of a HapMap trio child: evaluation of Single Individual Haplotyping techniques.
+Nucleic Acids Research 40(5):2041-2053.
+http://doi.org/10.1093/nar/gkr1042
 
 CNV detection (Read depth analysis):
-Abyzov, A., Urban, A. E., Snyder, M., and Gerstein, M. (2011). 
+Abyzov A, Urban AE, Snyder M, and Gerstein M. (2011).
 CNVnator: an approach to discover, genotype, and characterize typical and atypical CNVs from family and population genome sequencing.
-Genome research, 21(6), 974–84. 
+Genome research, 21(6), 974–984.
 http://doi.org/10.1101/gr.114876.110
 
 Yoon S, Xuan Z, Makarov V, Ye K, Sebat J. (2009).
-Sensitive and accurate detection of copy number variants using read depth of coverage. 
-Genome Research 19(9):1586-1592.
-http://doi.org/10.1101/gr.092981.109
+Sensitive and accurate detection of copy number variants using read depth of coverage.
+Genome Research. Sep; 19(9):1586-1592.
 
-Genotype imputation:
-Scheet, P and Stephens, M. (2006).
+Genotype imputation
+Scheet P and Stephens M. (2006).
 A Fast and Flexible Statistical Model for Large-Scale Population Genotype Data: Applications to Inferring Missing Genotypes and Haplotypic Phase.
 American Journal of Human Genetics 78: 629-644.
-http://doi.org/10.1086/502802
 
-Read Depth comparison:
+Read Depth comparison
 Xie C and Tammi MT. (2009).
 CNV-seq, a new method to detect copy number variation using high-throughput sequencing.
 BMC Bioinformatics 10:80.
-http://doi.org/10.1186/1471-2105-10-80
 
-Since version 2.1.2, we implemented a new model to integrate paired-end
-and split-read analysis for detection of large indels. A recent benchmark
-experiment of this algorithm against other software tools using data from the
-3000 rice genomes project is available at Genome Research:
 
-Fuentes RR, Chebotarov D, Duitama J, Smith S, De la Hoz JF, Mohiyuddin M, et al. (2019).
-Structural variants in 3000 rice genomes.
-Genome Research 29: 870-880.
-http://doi.org/10.1101/gr.241240.118
+Haplotype introgression analysis:
+Duitama J, Silva A, Sanabria Y, Cruz DF, Quintero C, Ballen C, et al. (2015)
+Whole Genome Sequencing of Elite Rice Cultivars as a Comprehensive Information Resource for Marker Assisted Selection.
+PLoS ONE 10(4): e0124617.
+http://doi.org/10.1371/journal.pone.0124617
 
 NGSEP is also supported by the following open source software packages:
 

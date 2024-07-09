@@ -325,4 +325,24 @@ public class GenomicRegionSortedCollection<T extends GenomicRegion> implements C
 	public <U> U[] toArray(U[] a) {
 		return asList().toArray(a);
 	}
+
+	public int getTotalSpan() {
+		sort();
+		int answer = 0;
+		String lastSeqName = null;
+		int lastBP =0;
+		for(GenomicRegion r:this) {
+			if(!r.getSequenceName().equals(lastSeqName) || lastBP<r.getFirst()) answer+=r.length();
+			else {
+				answer+=Math.max(0, r.getLast()-lastBP);
+			}
+			if(!r.getSequenceName().equals(lastSeqName)) {
+				lastSeqName = r.getSequenceName();
+				lastBP = r.getLast();
+			} else {
+				lastBP = Math.max(lastBP, r.getLast());
+			}		
+		}
+		return answer;
+	}
 }
