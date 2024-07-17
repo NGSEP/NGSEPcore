@@ -69,8 +69,8 @@ public class FastaSequencesHandler {
 	 * @param is stream to load sequences in fasta format 
 	 * @throws IOException If the file can not be read
 	 */
-	public QualifiedSequenceList loadSequences(InputStream is) throws IOException {
-		QualifiedSequenceList answer = new QualifiedSequenceList();
+	public List<QualifiedSequence> loadSequences(InputStream is) throws IOException {
+		List<QualifiedSequence> answer = new QualifiedSequenceList();
 		try (FastaFileReader reader = new FastaFileReader(is)) {
 			reader.setSequenceType(sequenceType);
 			reader.setKeepLowerCase(keepLowerCase);
