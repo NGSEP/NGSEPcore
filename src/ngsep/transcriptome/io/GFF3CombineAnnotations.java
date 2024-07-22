@@ -22,6 +22,7 @@ public class GFF3CombineAnnotations {
 	}
 	private void process(String gff1, String gff2, PrintStream out) throws IOException {
 		GFF3TranscriptomeHandler handler = new GFF3TranscriptomeHandler(genome.getSequencesMetadata());
+		handler.setLoadTextAnnotations(true);
 		Transcriptome t1 = handler.loadMap(gff1);
 		t1.fillSequenceTranscripts(genome,null);
 		System.err.println("Loaded transcriptome 1 with "+t1.getAllTranscripts().size()+" transcripts");
@@ -46,14 +47,17 @@ public class GFF3CombineAnnotations {
 				toAdd.add(t);
 				continue;
 			}
+			boolean completeN = t.getStartCodon()!=null && t.getStartCodon().isStart() && t.getStopCodon()!=null && t.getStopCodon().isStop();
 			Transcript betterTranscript = null;
 			for(Transcript existing:overlappingTranscripts) {
 				Codon start = existing.getStartCodon();
 				Codon stop = existing.getStopCodon();
 				String existingProtein = existing.getProteinSequence(translator);
+				boolean completeE = start!=null && start.isStart() && stop!=null && stop.isStop();
+				
 				//if(t.getGeneId().contains("gene-0.48")) System.err.println("Existing: "+existing.getId()+" coding: "+existing.isCoding()+" start: "+start+" stop: "+stop);
 				//if(existing.getId().equals("MSTRG.17.1")) System.err.println("Existing: "+existing.getId()+" coding: "+existing.isCoding()+" start: "+start+" stop: "+stop+" protein length: "+existingProtein.length()+" compared to: "+t.getId()+" length: "+protein.length());
-				if(existing.isCoding() && start!=null && start.isStart() && stop!=null && stop.isStop() && existingProtein.length()>= protein.length()) {
+				if(existing.isCoding() && (completeE || !completeN) && existingProtein.length()>= protein.length()) {
 					betterTranscript = existing;
 					System.err.println("Transcript: "+t.getId()+" filtered by better transcript: "+existing.getId());
 					break;
