@@ -32,13 +32,13 @@ public class GFF3TranscriptomeWriter {
 
 	private void printGene(Gene gene, PrintStream out) {
 		String negStr = gene.isNegativeStrand()?"-":"+";
-		out.println(gene.getSequenceName()+"\tNGSEP\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_GENE+"\t"+gene.getFirst()+"\t"+gene.getLast()+"\t.\t"+negStr+"\t.\tID="+gene.getId());
+		out.println(gene.getSequenceName()+"\t"+gene.getSource()+"\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_GENE+"\t"+gene.getFirst()+"\t"+gene.getLast()+"\t.\t"+negStr+"\t.\tID="+gene.getId());
 	}
 
 	private void printTranscript(Transcript transcript, PrintStream out) {
 		String negStr = transcript.isNegativeStrand()?"-":"+";
 		//Write mRNA feature
-		out.println(transcript.getSequenceName()+"\tNGSEP\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA+"\t"+transcript.getFirst()+"\t"+transcript.getLast()+"\t.\t"+negStr+"\t.\tID="+transcript.getId()+";Parent="+transcript.getGeneId());
+		out.println(transcript.getSequenceName()+"\t"+transcript.getSource()+"\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA+"\t"+transcript.getFirst()+"\t"+transcript.getLast()+"\t.\t"+negStr+"\t.\tID="+transcript.getId()+";Parent="+transcript.getGeneId());
 		List<TranscriptSegment> segments = transcript.getTranscriptSegments();
 		printRawExons(transcript, segments, negStr, out);
 		//int sId = 1;
@@ -52,7 +52,7 @@ public class GFF3TranscriptomeWriter {
 				phase = ""+segment.getFirstCodonPositionOffset();
 			}
 			//out.println(transcript.getSequenceName()+"\tNGSEP\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t"+phase+"\tID="+transcript.getId()+"_s"+sId+";Parent="+transcript.getId());
-			out.println(transcript.getSequenceName()+"\tNGSEP\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t"+phase+"\tParent="+transcript.getId());
+			out.println(transcript.getSequenceName()+"\t"+transcript.getSource()+"\t"+type+"\t"+segment.getFirst()+"\t"+segment.getLast()+"\t.\t"+negStr+"\t"+phase+"\tParent="+transcript.getId());
 			//sId++;
 		}
 		for(Polypeptide p:transcript.getPolypeptides()) {
@@ -66,7 +66,7 @@ public class GFF3TranscriptomeWriter {
 		for(TranscriptSegment segment:segments) {
 			if(nextExon == null || nextExon.getLast()+1<segment.getFirst()) {
 				if(nextExon!=null) {
-					out.println(nextExon.getSequenceName()+"\tNGSEP\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_EXON+"\t"+nextExon.getFirst()+"\t"+nextExon.getLast()+"\t.\t"+negStr+"\t.\tID="+t.getId()+"_e"+exId+";Parent="+t.getId());
+					out.println(nextExon.getSequenceName()+"\t"+t.getSource()+"\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_EXON+"\t"+nextExon.getFirst()+"\t"+nextExon.getLast()+"\t.\t"+negStr+"\t.\tID="+t.getId()+"_e"+exId+";Parent="+t.getId());
 					exId++;
 				}
 				nextExon = new GenomicRegionImpl(segment.getSequenceName(), segment.getFirst(), segment.getLast());
@@ -74,13 +74,13 @@ public class GFF3TranscriptomeWriter {
 			if(segment.getLast()>nextExon.getLast()) nextExon.setLast(segment.getLast());
 		}
 		if(nextExon!=null) {
-			out.println(nextExon.getSequenceName()+"\tNGSEP\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_EXON+"\t"+nextExon.getFirst()+"\t"+nextExon.getLast()+"\t.\t"+negStr+"\t.\tID="+t.getId()+"_e"+exId+";Parent="+t.getId());
+			out.println(nextExon.getSequenceName()+"\t"+t.getSource()+"\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_EXON+"\t"+nextExon.getFirst()+"\t"+nextExon.getLast()+"\t.\t"+negStr+"\t.\tID="+t.getId()+"_e"+exId+";Parent="+t.getId());
 		}
 	}
 	private void printPolypeptide(Polypeptide p, PrintStream out) {
 		Transcript t = p.getTranscript();
 		String negStr = t.isNegativeStrand()?"-":"+";
-		out.print(t.getSequenceName()+"\tNGSEP\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_POLYPEPTIDE+"\t"+t.getFirst()+"\t"+t.getLast()+"\t.\t"+negStr+"\t.\tID="+p.getId()+";Derives_from="+t.getId());
+		out.print(t.getSequenceName()+"\t"+p.getSource()+"\t"+GFF3GenomicFeatureLine.FEATURE_TYPE_POLYPEPTIDE+"\t"+t.getFirst()+"\t"+t.getLast()+"\t.\t"+negStr+"\t.\tID="+p.getId()+";Derives_from="+t.getId());
 		printList(GFF3GenomicFeatureLine.ATTRIBUTE_PRODUCT, p.getProducts(), out);
 		printList(GFF3GenomicFeatureLine.ATTRIBUTE_ONTOLOGY, p.getOntologyTerms(), out);
 		out.println();

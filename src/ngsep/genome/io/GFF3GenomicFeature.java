@@ -29,11 +29,14 @@ public class GFF3GenomicFeature {
 	private List<GFF3GenomicFeatureLine> lines = new ArrayList<>();
 	private List<GFF3GenomicFeature> children = new ArrayList<GFF3GenomicFeature>();
 	private String id;
+	private String source;
 	private String type;
+	
 	
 	public GFF3GenomicFeature(GFF3GenomicFeatureLine line) {
 		id = line.getId();
 		type = line.getType();
+		source = line.getSource();
 		lines.add(line);
 	}
 	
@@ -67,6 +70,9 @@ public class GFF3GenomicFeature {
 	}
 	public String getId() {
 		return id;
+	}
+	public String getSource() {
+		return source;
 	}
 	public String getName() {
 		for(GFF3GenomicFeatureLine line:lines) {

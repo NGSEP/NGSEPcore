@@ -42,6 +42,7 @@ public class Transcript implements GenomicRegion {
 	private int first;
 	private int last; //Always greater or equal than first
 	private boolean negativeStrand;
+	private String source;
 	private DNAMaskedSequence cdnaSequence;
 	private boolean coding=false;
 	private List<TranscriptSegment> transcriptSegments=new ArrayList<TranscriptSegment>();
@@ -564,4 +565,11 @@ public class Transcript implements GenomicRegion {
 	public void addPolypeptide(Polypeptide p) {
 		polypeptides.add(p);
 	}
+	public String getSource() {
+		return source;
+	}
+	public void setSource(String source) {
+		this.source = source;
+	}
+	
 }

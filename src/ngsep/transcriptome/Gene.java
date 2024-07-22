@@ -36,6 +36,7 @@ public class Gene implements GenomicRegion {
 	private int first;
 	private int last;
 	private boolean negativeStrand;
+	private String source;
 	private List<String> ontologyTerms;
 	private List<String> databaseReferences;
 	private Set<String> textFunctionalAnnotations = new HashSet<>();
@@ -171,5 +172,10 @@ public class Gene implements GenomicRegion {
 	public boolean isPositiveStrand() {
 		return !negativeStrand;
 	}
-	
+	public String getSource() {
+		return source;
+	}
+	public void setSource(String source) {
+		this.source = source;
+	}
 }

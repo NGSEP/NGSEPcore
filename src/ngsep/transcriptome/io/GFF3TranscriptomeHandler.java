@@ -240,6 +240,7 @@ public class GFF3TranscriptomeHandler {
 	}
 	private void loadPolypeptide(Transcript transcript, GFF3GenomicFeature feature) {
 		Polypeptide p = new Polypeptide(feature.getId(), transcript);
+		p.setSource(feature.getSource());
 		p.setOntologyTerms(feature.getOntologyTerms());
 		p.setProducts(feature.getProducts());
 		for(GFF3GenomicFeature child:feature.getChildren()) {
@@ -285,6 +286,7 @@ public class GFF3TranscriptomeHandler {
 		String name = feature.getName();
 		if(name ==null) name = feature.getAnnotation("name");
 		Gene gene = new Gene(feature.getId(), name, geneLine.getSequenceName(), geneLine.getFirst(), geneLine.getLast(), geneLine.isNegativeStrand() );
+		gene.setSource(feature.getSource());
 		return gene;
 	}
 	private Transcript createTranscriptFromMRNAFeature(GFF3GenomicFeature feature) {
@@ -296,6 +298,7 @@ public class GFF3TranscriptomeHandler {
 		}
 		GFF3GenomicFeatureLine mrnaLine = mrnaLines.get(0);
 		Transcript transcript = new Transcript(feature.getId(), mrnaLine.getSequenceName(), mrnaLine.getFirst(), mrnaLine.getLast(), mrnaLine.isNegativeStrand() );
+		transcript.setSource(feature.getSource());
 		return transcript;
 	}
 	private List<TranscriptSegment> createFeatureSegments(GFF3GenomicFeature feature, Transcript transcript) {

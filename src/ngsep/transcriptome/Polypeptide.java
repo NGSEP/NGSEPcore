@@ -7,6 +7,7 @@ import java.util.Map;
 public class Polypeptide {
 	private String id;
 	private Transcript transcript;
+	private String source;
 	private List<String> products;
 	private List<String> ontologyTerms;
 	private Map<String,String> pfamTerms= new HashMap<>();
@@ -24,6 +25,9 @@ public class Polypeptide {
 	public String getId() {
 		return id;
 	}
+	public void setId(String id) {
+		this.id = id;
+	}
 	public Transcript getTranscript() {
 		return transcript;
 	}
@@ -40,6 +44,10 @@ public class Polypeptide {
 	public void addPfamTerm(String id, String description) {
 		pfamTerms.put(id, description);
 	}
-	
-	
+	public String getSource() {
+		return source;
+	}
+	public void setSource(String source) {
+		this.source = source;
+	}
 }
