@@ -54,6 +54,7 @@ public class Transcript implements GenomicRegion {
 	private int codingAbsoluteStart = -1;
 	private int codingAbsoluteEnd = -1;
 	private int length = 0;
+	private List<Polypeptide> polypeptides=new ArrayList<>();
 	
 	/**
 	 * Creates a new transcript with the given information
@@ -556,5 +557,11 @@ public class Transcript implements GenomicRegion {
 		}
 		if(nextExon!=null) answer.add(nextExon);
 		return answer;
+	}
+	public List<Polypeptide> getPolypeptides() {
+		return polypeptides;
+	}
+	public void addPolypeptide(Polypeptide p) {
+		polypeptides.add(p);
 	}
 }

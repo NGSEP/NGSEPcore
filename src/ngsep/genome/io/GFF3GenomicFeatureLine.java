@@ -41,6 +41,7 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	public static final String FEATURE_TYPE_CDS = "CDS";
 	public static final String FEATURE_TYPE_POLYPEPTIDE = "polypeptide";
 	public static final String FEATURE_TYPE_SIMILARITY = "similarity";
+	public static final String FEATURE_TYPE_PROTEIN_MATCH = "protein_match";
 	
 	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_PCGENE, FEATURE_TYPE_PSEUDOGENE, FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR, FEATURE_TYPE_SIMILARITY};
 	//TODO: Use a file resource
@@ -58,6 +59,8 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	public static final String ATTRIBUTE_DBXREF = "Dbxref";
 	public static final String ATTRIBUTE_ONTOLOGY = "Ontology_term";
 	public static final String ATTRIBUTE_CIRCULAR = "Is_circular";
+	public static final String ATTRIBUTE_SIGNATURE_DESC = "signature_desc";
+	
 	private String sequenceName;
 	private String source;
 	private String type;

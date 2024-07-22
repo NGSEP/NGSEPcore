@@ -39,6 +39,7 @@ import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.TranscriptSegment;
 import ngsep.transcriptome.Gene;
+import ngsep.transcriptome.Polypeptide;
 import ngsep.transcriptome.Transcript;
 import ngsep.transcriptome.Transcriptome;
 
@@ -179,9 +180,12 @@ public class GFF3TranscriptomeHandler {
 						transcript = createTranscriptFromMRNAFeature(geneChild);
 						if(transcript == null) continue;
 						for(GFF3GenomicFeature mrnaChild:geneChild.getChildren()) {
-							if(GFF3GenomicFeatureLine.FEATURE_TYPE_POLYPEPTIDE.equals(mrnaChild.getId())) {
-								if(loadTextAnnotations) gene.addTextFunctionalAnnotations(mrnaChild.getProducts());
+							if(GFF3GenomicFeatureLine.FEATURE_TYPE_POLYPEPTIDE.equals(mrnaChild.getType())) {
+								if(loadTextAnnotations) {
+									loadPolypeptide(transcript, mrnaChild);
+								}
 							} else {
+								//CDS
 								segments.addAll(createFeatureSegments(mrnaChild, transcript));
 							}
 						}
@@ -233,6 +237,17 @@ public class GFF3TranscriptomeHandler {
 		if(numTranscripts==0) log.warning("No transcripts found in transcriptome file. Check that transcript features have \""+GFF3GenomicFeatureLine.FEATURE_TYPE_MRNA+"\" as the exact feature type");
 		//log.warning("Loaded "+numTranscripts+" transcripts for "+numGenes+" genes");
 		return answer;
+	}
+	private void loadPolypeptide(Transcript transcript, GFF3GenomicFeature feature) {
+		Polypeptide p = new Polypeptide(feature.getId(), transcript);
+		p.setOntologyTerms(feature.getOntologyTerms());
+		p.setProducts(feature.getProducts());
+		for(GFF3GenomicFeature child:feature.getChildren()) {
+			if(GFF3GenomicFeatureLine.FEATURE_TYPE_PROTEIN_MATCH.equals(child.getType())) {
+				p.addPfamTerm(child.getName(), child.getAnnotation(GFF3GenomicFeatureLine.ATTRIBUTE_SIGNATURE_DESC));
+			}
+		}
+		transcript.addPolypeptide(p);
 	}
 	private Transcript createTranscriptFromCDSFeature(GFF3GenomicFeature feature) {
 		String sequenceName = null;
