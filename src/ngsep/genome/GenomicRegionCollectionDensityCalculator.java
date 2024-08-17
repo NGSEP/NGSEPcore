@@ -92,7 +92,7 @@ public class GenomicRegionCollectionDensityCalculator {
 			Arrays.fill(windowCounts, 0);
 			List<GenomicRegion> seqRegions = sortedRegions.getSequenceRegions(seq.getName()).asList();
 			for(GenomicRegion region:seqRegions) {
-				if(region.getFirst()<0 || region.getLast()>=seqLen) {
+				if(region.getFirst()<0 || region.getLast()>seqLen) {
 					System.err.println("Weird region "+region.getSequenceName()+":"+region.getFirst()+"-"+region.getLast()+" for sequence "+seq.getName()+" with length: "+seqLen);
 				} else {
 					for(int i=region.getFirst();i<=region.getLast();i++) {
