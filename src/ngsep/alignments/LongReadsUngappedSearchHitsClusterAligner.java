@@ -256,7 +256,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		finalAlignment.setCoverageSharedKmers(coverageSharedKmers);
 		finalAlignment.setWeightedCoverageSharedKmers((int)Math.round(weightedCoverageSharedKmers));
 		//TODO: Define better alignment quality
-		double covScore = 1.0*(queryNext-queryStart)/query.length();
+		double covScore = Math.max(0,1.0*(queryNext-queryStart)/query.length());
 		double estMaxMismatches = queryLength/5;
 		double mismatchScore = Math.max(0, 1.0*(estMaxMismatches-numMismatches)/estMaxMismatches);
 		finalAlignment.setAlignmentQuality((byte) Math.round(100*covScore*mismatchScore));
