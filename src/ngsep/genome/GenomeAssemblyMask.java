@@ -35,10 +35,13 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 
+/**
+ * @author Jorge Duitama
+ */
 public class GenomeAssemblyMask {
 	
 	// Logging and progress
-	private Logger log = Logger.getLogger(TransposableElementsFinder.class.getName());
+	private Logger log = Logger.getLogger(GenomeAssemblyMask.class.getName());
 	private ProgressNotifier progressNotifier=null;
 	
 	

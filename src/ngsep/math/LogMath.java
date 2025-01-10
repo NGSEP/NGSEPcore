@@ -54,6 +54,19 @@ public class LogMath {
 		return log1+log2;
 	}
 	/**
+	 * Null aware maximum of two probabilities
+	 * @param log1 Log of the first probability
+	 * @param log2 Log of the second probability
+	 * @return Double logarithm of the maximum of the probabilities. Null if both parameters are null
+	 */
+	public static Double logMax (Double log1, Double log2) {
+		Double max;
+		if (log1==null && log2==null) return null;
+		if (log1==null) return log2;
+		if (log2==null) return log1;
+		return Math.max(log1, log2);
+	}
+	/**
 	 * Null aware 10 power 
 	 * @param exponent
 	 * @return double power(10,exponent). Zero if exponent is null

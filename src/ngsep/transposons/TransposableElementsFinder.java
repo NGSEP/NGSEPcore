@@ -17,7 +17,7 @@
  *     You should have received a copy of the GNU General Public License
  *     along with NGSEP.  If not, see <http://www.gnu.org/licenses/>.
  *******************************************************************************/
-package ngsep.genome;
+package ngsep.transposons;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,7 +31,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
+import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.UngappedSearchHitsCluster;
+import ngsep.genome.GenomicRegionSortedCollection;
+import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
@@ -454,6 +459,24 @@ public class TransposableElementsFinder {
 				outTransposon.println();
 			}
 		}
+	}
+	
+	private int [] findLTREnds(String ltrSequence) {
+		PairwiseAlignerSimpleGap pairAligner = new PairwiseAlignerSimpleGap();
+		pairAligner.setLocal(true);
+		int querysize = ltrSequence.length();
+		CharSequence leftLTR= ltrSequence.subSequence(0, 1200);
+		CharSequence rigthLTR = ltrSequence.subSequence(querysize-1200, querysize);
+		PairwiseAlignment alignment=  pairAligner.calculateAlignment(leftLTR, rigthLTR);
+		int start1=alignment.getStart1();
+		int end1=alignment.getEnd2();
+		int start2=alignment.getStart2()+querysize-1200;
+		int end2=alignment.getEnd2()+querysize-1200;
+	    return new int[] { start1, end1, start2, end2 };
+	}
+	private boolean checkScore(double score) {
+		double threshold = 0.8;
+		return score>= threshold;
 	}
 }
 	

@@ -1,4 +1,4 @@
-package ngsep.genome;
+package ngsep.transposons;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
+import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 

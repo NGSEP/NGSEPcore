@@ -1178,7 +1178,7 @@ Number of threads.
 </option>
 </command>
 
-<command id="TransposonsFinder" class="ngsep.genome.TransposableElementsFinder" groupId="Genomes">
+<command id="TransposonsFinder" class="ngsep.transposons.TransposableElementsFinder" groupId="Genomes">
 <intro>
 Annotates transposable elements in a genome assembly
 </intro>
@@ -1207,7 +1207,7 @@ Number of threads.
 </option>
 </command>
 
-<command id="TransposonStats" class="ngsep.genome.TransposableElementStatistics" groupId="Genomes">
+<command id="TransposonStats" class="ngsep.transposons.TransposableElementStatistics" groupId="Genomes">
 <intro>
 Calculates statistics for annotations of transposable elements
 </intro>
