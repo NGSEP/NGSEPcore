@@ -25,7 +25,9 @@ import java.util.logging.Logger;
 
 import ngsep.math.LogMath;
 
-
+/**
+ * @author Jorge Duitama
+ */
 public abstract class AbstractHMM implements HMM {
 	
 	public static final int DEF_STARTS_BAUM_WELCH = 5;

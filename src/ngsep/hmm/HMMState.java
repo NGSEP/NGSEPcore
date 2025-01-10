@@ -19,6 +19,9 @@
  *******************************************************************************/
 package ngsep.hmm;
 
+/**
+ * @author Jorge Duitama
+ */
 public interface HMMState {
 	/**
 	 * Returns the logarithm (base 10) of the probability of emission of the given value

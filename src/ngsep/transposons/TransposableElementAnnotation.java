@@ -22,9 +22,7 @@ package ngsep.transposons;
 import ngsep.genome.GenomicRegion;
 
 /**
- * 
  * @author Jorge Duitama
- *
  */
 public class TransposableElementAnnotation implements GenomicRegion{
 	private String sequenceName;

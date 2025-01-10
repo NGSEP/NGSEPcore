@@ -22,6 +22,9 @@ package ngsep.hmm;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * @author Jorge Duitama
+ */
 public class RecombinationHMM extends VariableTransitionHMM {
 	
 	private List<Integer> positions = null;

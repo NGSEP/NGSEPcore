@@ -25,6 +25,9 @@ import java.util.Random;
 
 import ngsep.math.LogMath;
 
+/**
+ * @author Jorge Duitama
+ */
 public class VariableTransitionHMM extends AbstractHMM {
 
 	private int iterationsBaumWelch = DEF_ITER_BAUM_WELCH;

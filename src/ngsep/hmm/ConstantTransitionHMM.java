@@ -21,6 +21,9 @@ package ngsep.hmm;
 
 import java.util.List;
 
+/**
+ * @author Jorge Duitama
+ */
 public class ConstantTransitionHMM extends AbstractHMM {
 	private List<? extends HMMState> states;
 	private int n;

@@ -21,6 +21,9 @@ package ngsep.hmm;
 
 import java.util.List;
 
+/**
+ * @author Jorge Duitama
+ */
 public interface HMM {
 
 	/**
