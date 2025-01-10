@@ -22,6 +22,7 @@ package ngsep.transposons;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -43,8 +44,8 @@ import ngsep.transcriptome.ProteinTranslator;
  */
 public class HMMTransposonDomainsFinder {
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
-	public List<TransposonDomain> findDomains(QualifiedSequence qdnaSequence) {
-		List<TransposonDomain> answer = new ArrayList<TransposonDomain>();
+	public List<TransposonDomainAlignment> findDomains(QualifiedSequence qdnaSequence) {
+		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		DNAMaskedSequence seqForward = (DNAMaskedSequence) qdnaSequence.getCharacters();
 		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
 		Map<Integer,String> orfsForward = calculateORFs(seqForward);
@@ -64,8 +65,8 @@ public class HMMTransposonDomainsFinder {
 		Collections.sort(answer,(d1,d2)-> d1.getStart()-d2.getStart());
 		return answer;
 	}
-	private List<TransposonDomain> findDomainsFromORFs(QualifiedSequence qdnaSequence, Map<Integer, String> orfs, boolean reverse) {
-		List<TransposonDomain> answer = new ArrayList<TransposonDomain>();
+	private List<TransposonDomainAlignment> findDomainsFromORFs(QualifiedSequence qdnaSequence, Map<Integer, String> orfs, boolean reverse) {
+		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
 			int startDNA = orf.getKey();
 			String aaSeq = orf.getValue();
@@ -74,7 +75,7 @@ public class HMMTransposonDomainsFinder {
 				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId());
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
 				if(aaDomain!=null) {
-					TransposonDomain domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
+					TransposonDomainAlignment domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
 					answer.add(domain);
 				}
 			}
@@ -107,20 +108,28 @@ public class HMMTransposonDomainsFinder {
 		for(String orf:orfs.values()) max=Math.max(max, orf.length());
 		return max;
 	}
-	private TransposonDomain buildTEDomain(QualifiedSequence qdnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
+	private TransposonDomainAlignment buildTEDomain(QualifiedSequence qdnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
 		int start = startDNA+3*aaDomain.getStart();
 		int end = startDNA+3*aaDomain.getEnd();
 		if(reverseStrand) {
 			end = qdnaSequence.getLength() - 1 - startDNA - 3*aaDomain.getStart();
 			start = qdnaSequence.getLength() - 1 - startDNA - 3*aaDomain.getEnd(); 
 		}
-		TransposonDomain domain = new TransposonDomain(qdnaSequence, start, end, aaDomain);
+		TransposonDomainAlignment domain = new TransposonDomainAlignment(qdnaSequence, start, end, aaDomain);
 		domain.setReverse(reverseStrand);
 		return domain;
 	}
+	private List<TransposableElementFamily> loadTEFamilies() {
+		List<TransposableElementFamily> families = new ArrayList<TransposableElementFamily>();
+		String [] rlcDomains = {"GAG","AP","INT","RT","RNASEH"};
+		families.add(new TransposableElementFamily("RLC", Arrays.asList(rlcDomains)));
+		String [] rlgDomains = {"GAG","AP","RT","RNASEH","INT"};
+		families.add(new TransposableElementFamily("RLG", Arrays.asList(rlgDomains)));
+		return families;
+	}
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
-		String domainsDir = args[1];
+		String domainsDirName = args[1];
 		String outPrefix = args[2];
 		String domainsOutput=outPrefix+"_domainsOutputnew.txt";
 		String familiesOutput=outPrefix+"_familiesOutputnew.txt";
@@ -131,23 +140,33 @@ public class HMMTransposonDomainsFinder {
 		ProteinNullModel nullModel = new ProteinNullModel();
         
 		// Load available HMMs
-		String [] hmmFilenames = {"GAGPF03732.hmm","APPF13650.hmm","ENVPF00517.hmm","INTPF00665.hmm","RHPF00075.hmm","RTPF00078.hmm"};
+		File domainsDir = new File(domainsDirName);
+		if(!domainsDir.isDirectory()) throw new Exception("The file " + domainsDirName+" must be a directory");
+		String [] hmmFilenames = domainsDir.list((d,n)->n.endsWith(".hmm"));
 		for(String hmmFilename:hmmFilenames) {
-			ProfileAlignmentHMM hmm = ProfileAlignmentHMMLoader.loadHMM(domainsDir+File.separator+hmmFilename,nullModel);
+			ProfileAlignmentHMM hmm = ProfileAlignmentHMMLoader.loadHMM(domainsDirName+File.separator+hmmFilename,nullModel);
+			System.out.println("Loaded hmm: "+hmm.getId());
 			instance.hmms.add(hmm);
 		}
-		
+		//Load families
+		List<TransposableElementFamily> families = instance.loadTEFamilies();
 		long start = System.currentTimeMillis();
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
 			// Escribir el encabezado
 			outDomains.println("id\tStart\tLength\tClass\tE-value");
-			outFamilies.println("id\tStart\tLength\tFamily");
+			outFamilies.println("id\tFamily");
 			int i=0;
 			for (QualifiedSequence seq : sequences) {
 				System.out.println(seq.getName()+" "+i);
-				List<TransposonDomain> domains = instance.findDomains(seq);
+				List<TransposonDomainAlignment> domains = instance.findDomains(seq);
 				instance.printDomains(domains,outDomains);
+				for(TransposableElementFamily family:families) {
+					if(family.matchFamily(domains)) {
+						outFamilies.println(seq.getName()+"\t"+family.getId());
+						break;
+					}
+				}
 				i++;
 			}
 		}
@@ -156,8 +175,8 @@ public class HMMTransposonDomainsFinder {
         System.out.println("Process finished. Time (s): " + (time/1000.0));
 
     }
-	private void printDomains(List<TransposonDomain> domains, PrintStream out) {
-		for(TransposonDomain domain:domains) {
+	private void printDomains(List<TransposonDomainAlignment> domains, PrintStream out) {
+		for(TransposonDomainAlignment domain:domains) {
 			out.print(domain.getQseq().getName());
 			out.print("\t"+domain.getQseq().getLength());
 			out.print("\t"+domain.getStart());

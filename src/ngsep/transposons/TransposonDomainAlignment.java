@@ -26,13 +26,13 @@ import ngsep.sequences.QualifiedSequence;
  * @author Leonidas Villamil
  * @author Jorge Duitama
  */
-public class TransposonDomain {
+public class TransposonDomainAlignment {
 	private QualifiedSequence qseq;
 	private int start;
 	private int end;
 	private boolean reverse = false;
 	private ProfileAlignmentDomain alnDomain;
-	public TransposonDomain(QualifiedSequence qseq, int start, int end, ProfileAlignmentDomain alnDomain) {
+	public TransposonDomainAlignment(QualifiedSequence qseq, int start, int end, ProfileAlignmentDomain alnDomain) {
 		this.qseq = qseq;
 		this.start = start;
 		this.end = end;
