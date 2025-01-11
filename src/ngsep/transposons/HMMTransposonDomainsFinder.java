@@ -22,7 +22,6 @@ package ngsep.transposons;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -119,14 +118,6 @@ public class HMMTransposonDomainsFinder {
 		domain.setReverse(reverseStrand);
 		return domain;
 	}
-	private List<TransposableElementFamily> loadTEFamilies() {
-		List<TransposableElementFamily> families = new ArrayList<TransposableElementFamily>();
-		String [] rlcDomains = {"GAG","AP","INT","RT","RNASEH"};
-		families.add(new TransposableElementFamily("RLC", Arrays.asList(rlcDomains)));
-		String [] rlgDomains = {"GAG","AP","RT","RNASEH","INT"};
-		families.add(new TransposableElementFamily("RLG", Arrays.asList(rlgDomains)));
-		return families;
-	}
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
 		String domainsDirName = args[1];
@@ -148,23 +139,27 @@ public class HMMTransposonDomainsFinder {
 			System.out.println("Loaded hmm: "+hmm.getId());
 			instance.hmms.add(hmm);
 		}
-		//Load families
-		List<TransposableElementFamily> families = instance.loadTEFamilies();
 		long start = System.currentTimeMillis();
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
 			// Escribir el encabezado
 			outDomains.println("id\tStart\tLength\tClass\tE-value");
-			outFamilies.println("id\tFamily");
+			outFamilies.println("id\tOrder\tFamily");
 			int i=0;
 			for (QualifiedSequence seq : sequences) {
 				System.out.println(seq.getName()+" "+i);
 				List<TransposonDomainAlignment> domains = instance.findDomains(seq);
 				instance.printDomains(domains,outDomains);
-				for(TransposableElementFamily family:families) {
-					if(family.matchFamily(domains)) {
-						outFamilies.println(seq.getName()+"\t"+family.getId());
-						break;
+				if(domains.size()>0) {
+					//TODO: Better calculation of strand
+					if(domains.get(0).isReverse()) {
+						Collections.reverse(domains);
+					}
+					TransposableElementFamily family = TransposableElementFamily.matchFamily(domains);
+					if(family!=null) {
+						outFamilies.println(seq.getName()+"\t"+family.getOrder()+"\t"+family.getId());
+					} else {
+						outFamilies.println(seq.getName()+"\tUnknown\tUnknown");
 					}
 				}
 				i++;
