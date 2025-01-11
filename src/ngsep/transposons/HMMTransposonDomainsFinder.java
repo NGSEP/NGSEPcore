@@ -75,6 +75,7 @@ public class HMMTransposonDomainsFinder {
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
 				if(aaDomain!=null) {
 					TransposonDomainAlignment domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
+					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId());
 					answer.add(domain);
 				}
 			}
@@ -120,8 +121,9 @@ public class HMMTransposonDomainsFinder {
 	}
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
-		String domainsDirName = args[1];
-		String outPrefix = args[2];
+		String domainsName = args[1];
+		String domainsMetadata = args[2];
+		String outPrefix = args[3];
 		String domainsOutput=outPrefix+"_domainsOutputnew.txt";
 		String familiesOutput=outPrefix+"_familiesOutputnew.txt";
 		HMMTransposonDomainsFinder instance = new HMMTransposonDomainsFinder();
@@ -131,19 +133,28 @@ public class HMMTransposonDomainsFinder {
 		ProteinNullModel nullModel = new ProteinNullModel();
         
 		// Load available HMMs
-		File domainsDir = new File(domainsDirName);
-		if(!domainsDir.isDirectory()) throw new Exception("The file " + domainsDirName+" must be a directory");
-		String [] hmmFilenames = domainsDir.list((d,n)->n.endsWith(".hmm"));
+		File domainsFile = new File(domainsName);
+		if(!domainsFile.exists()) throw new Exception("The file " + domainsFile+" was not found");
+		String [] hmmFilenames;
+		if(domainsFile.isDirectory()) {
+			hmmFilenames = domainsFile.list((d,n)->n.endsWith(".hmm"));
+			for(int i=0;i<hmmFilenames.length;i++) hmmFilenames[i] = domainsName+File.separator+hmmFilenames[i];
+		} else {
+			hmmFilenames = new String [1];
+			hmmFilenames[0] = domainsName;
+		}
+		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
+		hmmLoader.loadDomainCodes(domainsMetadata);
 		for(String hmmFilename:hmmFilenames) {
-			ProfileAlignmentHMM hmm = ProfileAlignmentHMMLoader.loadHMM(domainsDirName+File.separator+hmmFilename,nullModel);
-			System.out.println("Loaded hmm: "+hmm.getId());
-			instance.hmms.add(hmm);
+			List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs(hmmFilename);
+			for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
+			instance.hmms.addAll(hmmsFile);
 		}
 		long start = System.currentTimeMillis();
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
 			// Escribir el encabezado
-			outDomains.println("id\tStart\tLength\tClass\tE-value");
+			outDomains.println("id\tStart\tLength\tClass\tProfileID\tE-value");
 			outFamilies.println("id\tOrder\tFamily");
 			int i=0;
 			for (QualifiedSequence seq : sequences) {
@@ -177,11 +188,10 @@ public class HMMTransposonDomainsFinder {
 			out.print("\t"+domain.getStart());
 			out.print("\t"+domain.getLength());
 			out.print("\t"+(domain.isReverse()?"-":"+"));
-			out.print("\t"+domain.getAlnDomain().getHmmID());
-			out.println("\t"+domain.getAlnDomain().getEvalue());
+			out.print("\t"+domain.getDomainCode());
+			out.print("\t"+domain.getHmmID());
+			out.println("\t"+domain.getEvalue());
 		}
-		
-		
 	}
 }
 class ProteinNullModel implements ProfileAlignmentNullModel {

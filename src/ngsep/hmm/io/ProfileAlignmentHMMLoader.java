@@ -4,15 +4,49 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import ngsep.hmm.ProfileAlignmentHMM;
 import ngsep.hmm.ProfileAlignmentHMMState;
 import ngsep.hmm.ProfileAlignmentNullModel;
 
 public class ProfileAlignmentHMMLoader {
+	private ProfileAlignmentNullModel nullModel;
+	private Map<String,String> hmmDomainCodes = new HashMap<String, String>();
 	
-	public static ProfileAlignmentHMM loadHMM(String filePath, ProfileAlignmentNullModel nullModel) throws IOException {
+	public ProfileAlignmentHMMLoader(ProfileAlignmentNullModel nullModel) {
+		super();
+		this.nullModel = nullModel;
+	}
+	public void setDomainCode (String id, String code) {
+		hmmDomainCodes.put(id, code);
+	}
+	public void loadDomainCodes (String filePath) throws IOException {
+		try (FileReader fr = new FileReader(filePath);
+			 BufferedReader reader = new BufferedReader(fr)) {
+				String line = reader.readLine();
+				while(line!=null) {
+					String [] items = line.split("\t");
+					if(items.length>=2) setDomainCode(items[0], items[1]);
+					line = reader.readLine();
+				}
+			}
+	}
+	public List<ProfileAlignmentHMM> loadHMMs (String filePath) throws IOException {
+		List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
+		try (FileReader fr = new FileReader(filePath);
+			 BufferedReader reader = new BufferedReader(fr)) {
+			String line = reader.readLine();
+			while(line!=null) {
+				if(line.startsWith("HMMER")) hmms.add(loadHMM(reader));
+				line = reader.readLine();
+			}
+		}
+		return hmms;
+	}
+	private ProfileAlignmentHMM loadHMM(BufferedReader reader) throws IOException {
 		ProfileAlignmentHMM hmm = null;
 		ProfileAlignmentHMMState matchState = null;
 		ProfileAlignmentHMMState insertionState = null;
@@ -20,92 +54,77 @@ public class ProfileAlignmentHMMLoader {
 		Double[][][] transitionMatrix = null;
 		//TODO: Make dynamic alphabet
 		String alphabet = "ACDEFGHIKLMNPQRSTVWY";
-		try (FileReader fr = new FileReader(filePath);
-			 BufferedReader reader = new BufferedReader(fr)) {
-			String line;
-			String name = null;
-			Double miu=0.0;
-			Double lambda=0.0;
-			int numSteps = 0;
-			List<ProfileAlignmentHMMState> states= new ArrayList<>(3);
-			
-			while ((line = reader.readLine()) != null) {
-				if (line.startsWith("NAME")) {
-					name =line.split("\\s+")[1];
-                }
-            	
-            	else if (line.startsWith("NSEQ")) {
-            		//nseq = Integer.parseInt(line.split("\\s+")[1]);
-            		//System.out.println("nseq: "+nseq);
-            	}
-            	
-            	else if (line.startsWith("STATS LOCAL VITERBI")) {
-            		miu = Double.parseDouble(line.split("\\s+")[3]);
-            		lambda= Double.parseDouble(line.split("\\s+")[4]);
-//            		System.out.println("miu: "+miu);
-//            		System.out.println("lambda: "+lambda);
-            		hmm=new ProfileAlignmentHMM(name, numSteps, states,nullModel);
-            		hmm.setMiu(miu);
-            		hmm.setLambda(lambda);
-            	}
-            	else if (line.startsWith("LENG")) {
-                    // Extraer el número de steps
-                    numSteps = Integer.parseInt(line.split("\\s+")[1])+1;
-                    matchState=new ProfileAlignmentHMMState("match", alphabet, numSteps);
-                    insertionState=new ProfileAlignmentHMMState("insetion", alphabet, numSteps);
-                    deletionState=new ProfileAlignmentHMMState("deletion", alphabet, numSteps);
+		String name = null;
+		String id = null;
+		Double miu=0.0;
+		Double lambda=0.0;
+		int numSteps = 0;
+		List<ProfileAlignmentHMMState> states= new ArrayList<>(3);
+		String line = reader.readLine();
+		while (line != null && !"//".equals(line) ) {
+			String [] items = line.split("\\s+");
+			if (line.startsWith("NAME")) {
+				name = items[1];
+			} else if (line.startsWith("ACC")) {
+            	id = items[1];
+            } else if (line.startsWith("STATS LOCAL VITERBI")) {
+				
+				miu = Double.parseDouble(items[3]);
+				lambda= Double.parseDouble(items[4]);
+				hmm=new ProfileAlignmentHMM(id, numSteps, states,nullModel);
+				hmm.setName(name);
+				hmm.setDomainCode(hmmDomainCodes.get(id));
+				hmm.setMiu(miu);
+				hmm.setLambda(lambda);
+			}
+			else if (line.startsWith("LENG")) {
+				numSteps = Integer.parseInt(items[1])+1;
+				matchState=new ProfileAlignmentHMMState("match", alphabet, numSteps);
+				insertionState=new ProfileAlignmentHMMState("insetion", alphabet, numSteps);
+				deletionState=new ProfileAlignmentHMMState("deletion", alphabet, numSteps);                    
+				states.add(matchState);
+				states.add(insertionState);
+				states.add(deletionState);
+				transitionMatrix= new Double [numSteps][3][3];
+			}
+			if (line.startsWith("  COMPO")) {
+				line=reader.readLine();
+				int step = 0;
+				String[] insertTokens = line.trim().split("\\s+");
+				Double[] insertEmissions = new Double[alphabet.length()];
+				for (int i = 0; i < insertEmissions.length; i++) {
+					insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
+				}
+				insertionState.setStepEmissions(step, insertEmissions);    
+				line=reader.readLine();
+				readTransitionValues(transitionMatrix, line, step);
+			} else if (line.matches("\\s*\\d+\\s+.*")) {
+				// read transitions and emmisions for each step
+				String[] tokens = line.trim().split("\\s+");
+				int step = Integer.parseInt(tokens[0]);
                     
-                    states.add(matchState);
-                    states.add(insertionState);
-                    states.add(deletionState);
+				// Read match emission probabilities
+				Double[] matchEmissions = new Double[alphabet.length()];
+				for (int i = 1; i <= matchEmissions.length; i++) {
+					matchEmissions[i - 1] = -Double.parseDouble(tokens[i]);
+				}
+				matchState.setStepEmissions(step, matchEmissions);
+				// Read emission probabilities for the insertion state (next line)
+				line = reader.readLine();
+				String[] insertTokens = line.trim().split("\\s+");
+				Double[] insertEmissions = new Double[alphabet.length()];
+				for (int i = 0; i < insertEmissions.length; i++) {
+					insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
+				}
+				insertionState.setStepEmissions(step, insertEmissions);
                     
-                    transitionMatrix= new Double [numSteps][3][3];
-
-
-
-                }
-            	if (line.startsWith("  COMPO")) {
-                	line=reader.readLine();
-                	int step = 0;
-                	String[] insertTokens = line.trim().split("\\s+");
-                    Double[] insertEmissions = new Double[alphabet.length()];
-                	for (int i = 0; i < insertEmissions.length; i++) {
-                        insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
-                    }
-                    insertionState.setStepEmissions(step, insertEmissions);
-                    
-                    line=reader.readLine();
-                    readTransitionValues(transitionMatrix, line, step);
-                }
-                else if (line.matches("\\s*\\d+\\s+.*")) {
-                    // Aquí leeríamos las probabilidades de emisión y transición por cada step
-                    // Implementar el procesamiento de la línea para extraer las probabilidades.
-                    String[] tokens = line.trim().split("\\s+");
-                    int step = Integer.parseInt(tokens[0]);
-                    
-                    // Leer las probabilidades de emisión para el estado match
-                    Double[] matchEmissions = new Double[20];
-                    for (int i = 1; i <= 20; i++) {
-                        matchEmissions[i - 1] = -Double.parseDouble(tokens[i]);
-                    }
-                    //deberia ser de la clase HMMState pero el metodo no esta definido, prefiero no tocar la interfaz
-                    matchState.setStepEmissions(step, matchEmissions);
-                    // Leer las probabilidades de emisión para el estado de inserción (en la siguiente línea)
-                    line = reader.readLine();
-                    String[] insertTokens = line.trim().split("\\s+");
-                    Double[] insertEmissions = new Double[20];
-                    for (int i = 0; i < 20; i++) {
-                        insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
-                    }
-                    insertionState.setStepEmissions(step, insertEmissions);
-                    
-                    // Read transition probabilities in the next line
-                    line = reader.readLine();
-                    readTransitionValues(transitionMatrix, line, step);
-                }
-            }
-            hmm.setTransitionMatrix(transitionMatrix);
+				// Read transition probabilities in the next line
+				line = reader.readLine();
+				readTransitionValues(transitionMatrix, line, step);
+			}
+            line = reader.readLine();
     	}
+		hmm.setTransitionMatrix(transitionMatrix);
         return hmm;
     }
 

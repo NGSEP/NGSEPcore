@@ -53,17 +53,17 @@ public class TransposableElementFamily {
 		boolean tasePresent = false;
 		int pos=0;
 		for(TransposonDomainAlignment aln:alns) {
-			String domainId = aln.getAlnDomain().getHmmID();
-			alignedDomainIds.add(domainId);
-			if("GAG".equals(domainId)) gagPos = pos;
-			if("INT".equals(domainId)) intPos = pos;
-			if("RT".equals(domainId)) rtPos = pos;
-			if("RNASEH".equals(domainId)) rhPos = pos;
-			if("ENV".equals(domainId)) envPos = pos;
-			if("YR".equals(domainId)) yrPos = pos;
-			if("APE".equals(domainId)) apePresent = true;
-			if("EN".equals(domainId)) enPresent = true;
-			if("Tase".equals(domainId)) tasePresent = true;
+			String domainCode = aln.getDomainCode();
+			alignedDomainIds.add(domainCode);
+			if("GAG".equals(domainCode)) gagPos = pos;
+			if("INT".equals(domainCode)) intPos = pos;
+			if("RT".equals(domainCode)) rtPos = pos;
+			if("RNASEH".equals(domainCode)) rhPos = pos;
+			if("ENV".equals(domainCode)) envPos = pos;
+			if("YR".equals(domainCode)) yrPos = pos;
+			if("APE".equals(domainCode)) apePresent = true;
+			if("EN".equals(domainCode)) enPresent = true;
+			if("Tase".equals(domainCode)) tasePresent = true;
 			pos++;
 		}
 		int nAlnDoms = alignedDomainIds.size();

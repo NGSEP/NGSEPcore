@@ -56,7 +56,13 @@ public class TransposonDomainAlignment {
 	public int getLength() {
 		return end-start;
 	}
-	public ProfileAlignmentDomain getAlnDomain() {
-		return alnDomain;
+	public double getEvalue() {
+		return alnDomain.getEvalue();
+	}
+	public String getHmmID() {
+		return alnDomain.getHmmID();
+	}
+	public String getDomainCode() {
+		return alnDomain.getDomainCode();
 	}
 }

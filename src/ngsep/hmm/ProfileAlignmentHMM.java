@@ -30,6 +30,8 @@ import ngsep.math.LogMath;
 public class ProfileAlignmentHMM extends AbstractHMM {
 	private ProfileAlignmentNullModel nullmodel;
 	private String id;
+	private String name;
+	private String domainCode;
 	private List<? extends HMMState> states;
 	private int numStates;
 	private int steps;
@@ -51,6 +53,20 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	
 	public String getId() {
 		return id;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	public String getDomainCode() {
+		return domainCode;
+	}
+	public void setDomainCode(String domainCode) {
+		this.domainCode = domainCode;
 	}
 
 
@@ -144,6 +160,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		//System.out.println("Limits query in profile: " +queryStart+ "\t"+ queryEnd+" evalue: "+eValue);
 		if (passFilter(eValue)) {
 			domain = new ProfileAlignmentDomain(query, queryStart, queryEnd, id);
+			domain.setDomainCode(domainCode);
 			domain.setEvalue(eValue);
 			for (;j>0;j--) profile.append('S');
 			domain.setAlignment(alignmentQuery.reverse().toString(), profile.reverse().toString());

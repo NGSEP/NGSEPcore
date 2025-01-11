@@ -28,6 +28,7 @@ public class ProfileAlignmentDomain {
 	private int start;
 	private int end;
 	private String hmmID;
+	private String domainCode;
 	private double evalue;
 	private String alignmentQuery;
 	private String alignmentProfile;
@@ -57,6 +58,12 @@ public class ProfileAlignmentDomain {
 		return hmmID;
 	}
 	
+	public String getDomainCode() {
+		return domainCode;
+	}
+	public void setDomainCode(String domainCode) {
+		this.domainCode = domainCode;
+	}
 	public String getAlignmentQuery() {
 		return alignmentQuery;
 	}
