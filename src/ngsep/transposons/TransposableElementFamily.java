@@ -11,6 +11,7 @@ public class TransposableElementFamily {
 	private String order;
 	private List<String> teDomainIds;
 	private static final Map<String,List<TransposableElementFamily>> TE_FAMILIES = loadTEFamilies();
+	
 	public static final TransposableElementFamily LTR_UNKNOWN = new TransposableElementFamily("LTR", "Unknown", new ArrayList<String>());
 	public static final TransposableElementFamily LINE_UNKNOWN = new TransposableElementFamily("LINE", "Unknown", new ArrayList<String>());
 	public static final TransposableElementFamily SINE_UNKNOWN = new TransposableElementFamily("SINE", "Unknown", new ArrayList<String>());
@@ -165,5 +166,19 @@ public class TransposableElementFamily {
 		answer.put("INE",ineFamilies);
 		answer.put("TIR",tirFamilies);
 		return answer;
+	}
+
+
+	public static TransposableElementFamily findFamily(String orderStr, String familyStr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	public static TransposableElementFamily findUnknown(String orderStr) {
+		if("LTR".equals(orderStr)) return LTR_UNKNOWN;
+		if("LINE".equals(orderStr)) return LINE_UNKNOWN;
+		if("SINE".equals(orderStr)) return SINE_UNKNOWN;
+		return null;
 	}
 }

@@ -28,6 +28,8 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	private String sequenceName;
 	private int first;
 	private int last;
+	private String queryName;
+	private TransposableElementFamily family;
 	private String taxonomy;
 	private double count = 0;
 	private boolean negativeStrand=false;
@@ -44,11 +46,47 @@ public class TransposableElementAnnotation implements GenomicRegion{
 		this.first = first;
 		this.last = last;
 	}
+	
+	public String getQueryName() {
+		return queryName;
+	}
+
+	public TransposableElementFamily getFamily() {
+		return family;
+	}
+
 	public String getTaxonomy() {
 		return taxonomy;
 	}
+	
+	public void setQueryName(String queryName) {
+		this.queryName = queryName;
+	}
+
 	public void setTaxonomy(String taxonomy) {
 		this.taxonomy = taxonomy;
+	}
+
+	public void setSourceInfo(String sourceInfo) {
+		int i = sourceInfo.indexOf('#');
+		if(i<0) {
+			queryName = sourceInfo;
+			return;
+		}
+		queryName = sourceInfo.substring(0,i);
+		taxonomy = sourceInfo.substring(i+1);
+		i=taxonomy.indexOf('/');
+		if(i<0) i=taxonomy.length();
+		String orderStr = taxonomy.substring(0,i);
+		if (i<taxonomy.length()) {
+			String familyInfo2 = taxonomy.substring(i+1);
+			i=familyInfo2.indexOf('/');
+			if(i<0) i=familyInfo2.length();
+			String familyStr = familyInfo2.substring(0,i);
+			family = TransposableElementFamily.findFamily(orderStr, familyStr);
+		} else {
+			family = TransposableElementFamily.findUnknown(orderStr);
+		}
 	}
 	public String getSequenceName() {
 		return sequenceName;

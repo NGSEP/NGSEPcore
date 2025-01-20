@@ -322,7 +322,7 @@ public class TransposableElementsFinder {
 				log.warning("No sequence for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
 				continue;
 			}
-			QualifiedSequence qseq = new QualifiedSequence(ann.getTaxonomy(),sequence);
+			QualifiedSequence qseq = new QualifiedSequence(ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"#"+ann.getTaxonomy(),sequence);
 			sequences.add(qseq);
 		}
 		return sequences;
@@ -400,7 +400,7 @@ public class TransposableElementsFinder {
 		
 		alignedTransposon.setNegativeStrand(negativeStrand);
 		alignedTransposon.setCount(cluster.getCountKmerHitsCluster());
-		alignedTransposon.setTaxonomy(transposon.getName());
+		alignedTransposon.setSourceInfo(transposon.getName());
 		return alignedTransposon;
 	}
 	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
@@ -425,7 +425,10 @@ public class TransposableElementsFinder {
 			//System.out.println("Next annotation. "+ann.getSequenceName()+":"+ann.getFirst()+" "+ann.getLast()+" family: "+ann.getTaxonomy());
 			if(next==null) next = ann;
 			else if (merge(next,ann)) {
-				if(ann.length()>next.length()) next.setTaxonomy(ann.getTaxonomy());
+				if(ann.length()>next.length()) {
+					next.setQueryName(ann.getQueryName());
+					next.setTaxonomy(ann.getTaxonomy());
+				}
 				next.setLast(Math.max(next.getLast(),ann.getLast()));
 			} else {
 				answer.add(next);
@@ -437,9 +440,13 @@ public class TransposableElementsFinder {
 		return answer;
 	}
 	private boolean merge(TransposableElementAnnotation next, TransposableElementAnnotation ann) {
+		if(next.getFamily()!=ann.getFamily()) return false;
 		if(!next.getSequenceName().equals(ann.getSequenceName())) return false;
 		int spanLength = GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast()); 
-		return spanLength > next.length()/4 || spanLength > ann.length()/4;
+		double p1 = 1.0*spanLength/next.length();
+		double p2 = 1.0*spanLength/ann.length();
+		if(p1>0.95 || p2>0.95) return true;
+		return p1 > 0.7 && p2>0.7 && Math.max(ann.getLast(), next.getLast())-Math.min(ann.getFirst(), next.getFirst())<20000;
 	}
 	/**
 	 * Save found the transposons 
@@ -451,11 +458,12 @@ public class TransposableElementsFinder {
 		try (PrintStream outTransposon =  new PrintStream(outputFile)) {	
 			for(TransposableElementAnnotation t:transposonAnnotations) 
 			{
-				outTransposon.print(t.getSequenceName()+"\t");
-				outTransposon.print(t.getFirst()+"\t");
-				outTransposon.print(t.getLast()+"\t");
-				outTransposon.print((t.isNegativeStrand()?"-":"+")+"\t");
-				outTransposon.print(t.getTaxonomy());
+				outTransposon.print(t.getSequenceName());
+				outTransposon.print("\t"+t.getFirst());
+				outTransposon.print("\t"+t.getLast()+"\t");
+				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
+				outTransposon.print("\t"+t.getTaxonomy());
+				outTransposon.print("\t"+t.getQueryName());
 				outTransposon.println();
 			}
 		}
