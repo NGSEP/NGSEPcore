@@ -435,19 +435,25 @@ public class ShortKmerCodesTable {
 	}
 
 	public double calculateWeight(long code) {
-		//if(kmersMap==null) return 1;
-		int countDifferent = getCountDifferentSequences(code);
-		/*int totalCount = getTotalHits(minimizer);
-		int diff1 = countDifferent-mode;
-		int diff2 = totalCount/countQuery-mode;
-		if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
-		int diff3=diff1+diff2-2*kmerDistModeLocalSD;
-		if(diff3<1) diff3=1;*/
-		int modeMinimizers = Math.max(1, mode/2);
-		int diff1 = countDifferent-modeMinimizers;
-		if(diff1<=kmerDistModeLocalSD) return 1;
-		int diff3=diff1-kmerDistModeLocalSD;
-		return 1.0*modeMinimizers/(modeMinimizers+diff3);
+		if(mode > 1) {
+			//if(kmersMap==null) return 1;
+			int countDifferent = getCountDifferentSequences(code);
+			/*int totalCount = getTotalHits(minimizer);
+			int diff1 = countDifferent-mode;
+			int diff2 = totalCount/countQuery-mode;
+			if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
+			int diff3=diff1+diff2-2*kmerDistModeLocalSD;
+			if(diff3<1) diff3=1;*/
+			int modeMinimizers = Math.max(1, mode/2);
+			int diff1 = countDifferent-modeMinimizers;
+			if(diff1<=kmerDistModeLocalSD) return 1;
+			int diff3=diff1-kmerDistModeLocalSD;
+			return 1.0*modeMinimizers/(modeMinimizers+diff3);
+		} else {
+			//TODO: Weight for reference alignment
+			return 1;
+		}
+		
 	}
 	public Distribution calculateDistributionHits() {
 		Distribution dist = new Distribution(1, 300, 1);
