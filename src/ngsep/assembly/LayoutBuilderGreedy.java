@@ -9,6 +9,15 @@ import java.util.Set;
 
 public class LayoutBuilderGreedy implements LayoutBuilder 
 {
+	private int minPathLength = LayoutBuilder.DEF_MIN_PATH_LENGTH;
+	
+	public int getMinPathLength() {
+		return minPathLength;
+	}
+	public void setMinPathLength(int minPathLength) {
+		this.minPathLength = minPathLength;
+	}
+	
 	private Comparator<AssemblyEdge> edgesComparator;
 	@Override
 	public void findPaths(AssemblyGraph graph) {

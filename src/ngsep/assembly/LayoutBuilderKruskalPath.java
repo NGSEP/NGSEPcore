@@ -44,8 +44,8 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 	
 	private Logger log = Logger.getLogger(LayoutBuilderKruskalPath.class.getName());
 
-	private int minPathLength = 6;
-	//private int minPathLength = 1;
+	private int minPathLength = LayoutBuilder.DEF_MIN_PATH_LENGTH;
+	
 	private boolean runImprovementAlgorithms = true;
 	
 	

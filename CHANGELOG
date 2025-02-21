@@ -1,3 +1,10 @@
+v5.0.1 26-02-2025
+- New command FastqFileFilter to filter raw reads by length and average quality
+- New command TransposonStats to calculate statistics of transposable elements
+  annotated with the TransposonsFinder command
+- Assembler: Added option -q to select reads based on a minimum average quality
+- Assembler: Added option -mpl to select reads based on a minimum average quality
+
 v5.0.0 26-01-2024
 - New command AssemblyReferenceSorter to sort de-novo genome assemblies
   according to a reference genome.

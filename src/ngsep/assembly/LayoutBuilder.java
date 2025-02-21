@@ -23,9 +23,10 @@ package ngsep.assembly;
  * @author Jorge Duitama
  */
 public interface LayoutBuilder {
+	
+	public static final int DEF_MIN_PATH_LENGTH = 6;
+	
 	public void findPaths(AssemblyGraph graph);
-
-	public static LayoutBuilder NONE = (AssemblyGraph graph) -> {
-		
-	};
+	
+	public void setMinPathLength(int minPathLength);
 }

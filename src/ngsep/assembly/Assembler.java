@@ -68,6 +68,7 @@ public class Assembler {
 	public static final int DEF_BP_HOMOPOLYMER_COMPRESSION = 0;
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
+	public static final int DEF_MIN_PATH_LENGTH = LayoutBuilder.DEF_MIN_PATH_LENGTH;
 	public static final double DEF_WEIGHT_INDELS = 0;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final int DEF_CIRCULAR_MAX_LENGTH = 0;
@@ -100,6 +101,7 @@ public class Assembler {
 	private String circularMoleculesStartsFile;
 	private int bpHomopolymerCompression = DEF_BP_HOMOPOLYMER_COMPRESSION;
 	private double minScoreProportionEdges = DEF_MIN_SCORE_PROPORTION_EDGES;
+	private int minPathLength = DEF_MIN_PATH_LENGTH;
 	private boolean saveCorrected = false;
 	private boolean skipChimeraDetection = false;
 	private double weightIndels = DEF_WEIGHT_INDELS;
@@ -267,6 +269,15 @@ public class Assembler {
 	}
 	public void setMinScoreProportionEdges(String value) {
 		this.setMinScoreProportionEdges((double) OptionValuesDecoder.decode(value, Double.class));
+	}
+	public int getMinPathLength() {
+		return minPathLength;
+	}
+	public void setMinPathLength(int minPathLength) {
+		this.minPathLength = minPathLength;
+	}
+	public void setMinPathLength(String value) {
+		this.setMinPathLength((int) OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
 	public int getErrorCorrectionRounds() {
@@ -479,7 +490,6 @@ public class Assembler {
 			relationshipsFilter.filterEdgesAndEmbedded(copyGraph, minScoreProportionEdges);
 			//diploidGraph.updateScores();
 			log.info("Filtered copy graph. New graph has now "+copyGraph.getVertices().size()+" vertices and "+copyGraph.getEdges().size()+" edges");
-			//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(0);
 			pathsFinder.findPaths(copyGraph);
 			log.info("Filtering graph by phasing");
 			if (compressedSeqs!=sequences) {
@@ -507,7 +517,6 @@ public class Assembler {
 		graph.updateScores(weightIndels);
 		relationshipsFilter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
 		//graph.updateScores();
-		//if (pathsFinder instanceof LayoutBuilderKruskalPath) ((LayoutBuilderKruskalPath)pathsFinder).setMinPathLength(6);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		if (compressedSeqs!=sequences) {
@@ -612,6 +621,7 @@ public class Assembler {
 			pathsFinder= new LayoutBuilderKruskalPath();
 			//((LayoutBuilderKruskalPath)pathsFinder).setRunImprovementAlgorithms(false);
 		}
+		pathsFinder.setMinPathLength(minPathLength);
 		return pathsFinder;
 	}
 	private void saveReadsPhasingData(AssemblyGraph graph, Map<Integer, ReadPathPhasingData> readsData, String outFilename) throws IOException {
