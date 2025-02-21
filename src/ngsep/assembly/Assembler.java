@@ -359,6 +359,7 @@ public class Assembler {
 		out.println("Minimum average read quality: "+minReadAverageQuality);
 		//if(bpHomopolymerCompression>0) out.println("Run homopolymer compression keeping at most "+bpHomopolymerCompression+" consecutive base pairs");
 		out.println("Minimum score proportion (from the maximum score) to keep edges of a sequence: "+ minScoreProportionEdges);
+		out.println("Minimum path length: "+minPathLength);
 		out.println("Sample ploidy: "+ploidy);
 		out.println("Maximum length of circular molecules: "+circularMoleculesMaxLength);
 		out.println("Fasta file with known start sequences of circular molecules: "+circularMoleculesStartsFile);
