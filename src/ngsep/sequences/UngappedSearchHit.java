@@ -79,4 +79,10 @@ public class UngappedSearchHit {
 	public double getWeight () {
 		return 0.01*weight;
 	}
+	public int estimateSubjectStart() {
+		return getSubjectStart() - getQueryStart();
+	}
+	public int estimateQueryStart() {
+		return getQueryStart() - getSubjectStart();
+	}
 }

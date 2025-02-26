@@ -138,7 +138,7 @@ public class ContigEndsMerger {
 			List<UngappedSearchHit> hitsSubject = entry.getValue();
 			if(queryEndIdx == debugIdx) System.err.println("Query: "+querySeqId+" subject: "+subjectSeqId+" end: "+subjectEndIdx+" qstart: "+queryStartSeq+" hits: "+hitsSubject.size());
 			if (hitsSubject.size() < 20) continue;
-			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, subjectEndIdx, END_LENGTH, hitsSubject, 0);
+			List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(END_LENGTH, subjectEndIdx, END_LENGTH, hitsSubject);
 			Collections.sort(clusters, (c1,c2)->c2.getCountKmerHitsCluster()-c1.getCountKmerHitsCluster());
 			if(queryEndIdx == debugIdx) {
 				System.err.println("Query: "+querySeqId+" subject end: "+subjectEndIdx+" clusters: "+clusters.size());

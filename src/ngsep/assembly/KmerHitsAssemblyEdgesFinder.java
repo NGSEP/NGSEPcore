@@ -174,7 +174,7 @@ public class KmerHitsAssemblyEdgesFinder {
 	private List<UngappedSearchHitsCluster> createClusters (int queryIdx, int queryLength, int subjectIdx, List<UngappedSearchHit> hits) {
 		QualifiedSequence subjectSequence = graph.getSequence(subjectIdx);
 		int subjectLength = subjectSequence.getLength();
-		List<UngappedSearchHitsCluster> subjectClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, subjectIdx, subjectLength, hits, 0);
+		List<UngappedSearchHitsCluster> subjectClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, subjectIdx, subjectLength, hits);
 		List<UngappedSearchHitsCluster> answer = new ArrayList<UngappedSearchHitsCluster>(2);
 		if(subjectClusters.size()==0) return answer;
 		Collections.sort(subjectClusters, (o1,o2)-> o2.getCountKmerHitsCluster()-o1.getCountKmerHitsCluster());

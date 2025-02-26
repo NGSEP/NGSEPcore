@@ -146,7 +146,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
 		if(extensiveKmersSearch) {
 			//By now this only affects TEs
-			clustersBuilder.setClusteringAlgorithm(UngappedSearchHitsClusterBuilder.CLUSTERING_ALGORITHM_KMEANS_LIKE);
+			//clustersBuilder.setClusteringAlgorithm(UngappedSearchHitsClusterBuilder.CLUSTERING_ALGORITHM_KMEANS_LIKE);
 			kmerCodesTable.setLimitDifferentSequences(10000);
 			Map<Integer,Long> codes = KmersExtractor.extractDNAKmerCodesAsMap(query.toString(), tableKmerLength , 0, query.length());
 			KmerSearchResultsCompressedTable results = kmerCodesTable.matchCompressed(-1, query.length(), codes, -1);
@@ -176,7 +176,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 					//System.out.println("Created first cluster. Evidence limits: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hit length: "+hit.getHitLength()+" weight: "+hit.getWeight());
 				} else if (!cluster.addKmerHit(hit, 0)) {
 					if (rawClusterKmers.size()>=minRawHitsSize) {
-						List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
+						List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers);
 						//System.out.println("Qlen: "+query.length()+" next raw cluster inside "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+rawClusterKmers.size()+" subclusters "+regionClusters.size());
 						clusters.addAll(regionClusters);
 					} 
@@ -187,7 +187,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 				rawClusterKmers.add(hit);
 			}
 			if(cluster!=null && rawClusterKmers.size()>=minRawHitsSize) {
-				List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers, 0);
+				List<UngappedSearchHitsCluster> regionClusters = clustersBuilder.clusterRegionKmerAlns(queryLength, sequenceIdx, sequenceLength, rawClusterKmers);
 				//System.out.println("Qlen: "+query.length()+" next raw cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" evidence: "+cluster.getSubjectEvidenceStart()+" "+cluster.getSubjectEvidenceEnd()+" hits: "+cluster.getCountKmerHitsCluster()+" subclusters "+regionClusters.size());
 				clusters.addAll(regionClusters);
 			}
@@ -227,7 +227,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		//System.out.println("Number of kmer hits: "+initialKmerHits.size());
 		if(initialKmerHits.size()==0) return null;
 		
-		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits, 0);
+		List<UngappedSearchHitsCluster> clusters = (new UngappedSearchHitsClusterBuilder()).clusterRegionKmerAlns(queryLength, 0, subjectLength, initialKmerHits);
 		if(clusters.size()>1) Collections.sort(clusters, (o1,o2)->o2.getCountKmerHitsCluster()-o1.getCountKmerHitsCluster());	
 		else if (clusters.size()==0) return null;
 		return clusters.get(0);
