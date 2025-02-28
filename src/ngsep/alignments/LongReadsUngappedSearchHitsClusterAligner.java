@@ -317,6 +317,14 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Very large difference between segments. Trying naive alignment");
 			alignment = (new PairwiseAlignerNaive(type==0)).calculateAlignment(queryStr, subjectStr);
 		}
+		if(alignment==null && maxLength < 50) {
+			//Trying single gap alignment for short sequencs
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying single gap alignment short sequences. Lengths: "+maxLength+" "+minLength);
+			alignment = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
+			double mismatchesAln = alignment.getMismatches();
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Single gap alignment done. Num mismatches: "+mismatchesAln);
+			if(mismatchesAln>0.3*minLength) alignment = null;
+		}
 		if(alignment==null && maxLength < minLength+11 ) {
 			//Try first with banded alignment if lengths are close
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Trying banded alignment");
@@ -338,10 +346,11 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 					mismatchesAln-=nt;
 				}
 				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Banded alignment done. Alignment\n"+alignment.getAlignedSequence1()+"\n"+alignment.getAlignedSequence2()+"\nNum mismatches: "+mismatchesAln);
-				if(mismatchesAln>0.1*minLength) alignment = null;
+				if(mismatchesAln>0.2*minLength) alignment = null;
 			}
 		}
 		if(alignment==null) {
+			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Null alignment. Trying with aligner: "+aligner.getClass().getName());
 			alignment = aligner.calculateAlignment(queryStr,subjectStr);
 		}
 		if(alignment==null && trySimpleGap && maxLength<maxLengthFullPairwiseAlignment ) {
@@ -349,7 +358,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 			alignment = (new PairwiseAlignerSimpleGap().calculateAlignment(queryStr, subjectStr));
 			double mismatchesAln = alignment.getMismatches();
 			if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Single gap alignment done. Num mismatches: "+mismatchesAln);
-			if(mismatchesAln>0.2*minLength) alignment = null;
+			if(mismatchesAln>0.3*minLength) alignment = null;
 		}
 		if(alignment==null) return null;
 		String [] alignedFragments= {alignment.getAlignedSequence1(),alignment.getAlignedSequence2()};
