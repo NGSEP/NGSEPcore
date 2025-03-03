@@ -24,39 +24,40 @@ import java.util.HashMap;
 /**
  * @author Nicolas Rozo Fajardo
  */
-public class ShannonEntropyCalculator implements EntropyCalculator {
-	
-	private static double[][] LOG_CACHE = new double[100][100];;
-	private static double LOG2_BASE10 = Math.log10(2d);
+public class CollisionEntropyCalculator implements EntropyCalculator {
+    
+    private static double[][] SQUARES_CACHE = new double[100][100]; 
+    private static double LOG2_BASE10 = Math.log10(2);
 
     static{
         for(int i = 0; i < 100; i++) {
-			int n = i + 1;
-			for(int j = 0; j <= i; j++) {
-				double count = j + 1;
-				LOG_CACHE[i][j] = calculateTerm(count, n);
-			}
-		}
+            int n = i + 1;
+            for(int j = 0; j <= i; j++) {
+                double count = j + 1;
+                SQUARES_CACHE[i][j] = calculateTerm(count, n);
+            }
+        }
     }
 
     public static double calculateTerm(double count, int n) {
         double probability = count / n;
-		double inverse = 1 / probability;
-		return (probability * Math.log10(inverse) / LOG2_BASE10);
+        double square = Math.pow(probability, 2d);
+        return square;   
     }
 
     public double calculateEntropy(CharSequence sequence) {
-		HashMap<Character, Integer> charFrequencies = new HashMap<Character, Integer>();
-		int n = sequence.length();
-		if (n == 0) return 0;
-		for(int i = 0; i < n; i++) {
-			charFrequencies.compute(sequence.charAt(i), (k,v) -> (v == null) ? 1 : v+1);
+        HashMap<Character, Integer> charFrequencies = new HashMap<Character, Integer>();
+        int n = sequence.length();
+        if (n == 0) return 0;
+        for(int i = 0; i < n; i++) {
+            charFrequencies.compute(sequence.charAt(i), (k,v) -> (v == null)? 1 : v + 1);
+        }
+        double sum = 0d;
+        for(int count : charFrequencies.values()) {
+			if (n < 100) sum += SQUARES_CACHE[n-1][count-1];
+			else sum += calculateTerm(count, n);
 		}
-		double entropy = 0d;
-		for(int count : charFrequencies.values()) {
-			if (n < 100) entropy += LOG_CACHE[n-1][count-1];
-			else entropy += calculateTerm(count, n);
-		}
-		return entropy;
-	}
+        double entropy = -1d * (Math.log10(sum) / LOG2_BASE10);
+        return entropy;
+    }
 }

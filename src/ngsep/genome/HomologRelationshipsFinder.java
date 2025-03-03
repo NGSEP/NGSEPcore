@@ -43,6 +43,8 @@ import ngsep.sequences.KmersExtractor;
  */
 public class HomologRelationshipsFinder {
 	
+	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator();
+
 	public static final byte DEF_KMER_LENGTH = 6;
 	public static final int DEF_MIN_PCT_KMERS = 11;
 	public static final int DEF_MIN_WEIGHTED_COUNT = 5;
@@ -153,7 +155,7 @@ public class HomologRelationshipsFinder {
 				if(debug) {
 					String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
 					int limit = (queryUnits==subjectUnits)?1:0;
-					if(subjectUnitIdxsKmer.size()>limit) System.out.println("next kmer: "+kmer+" entropy: "+ShannonEntropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" pvalue: "+pValueCode+" score: "+score+" weight: "+weight);
+					if(subjectUnitIdxsKmer.size()>limit) System.out.println("next kmer: "+kmer+" entropy: "+entropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" pvalue: "+pValueCode+" score: "+score+" weight: "+weight);
 				}
 				
 				for(int i:subjectUnitIdxsKmer) {
