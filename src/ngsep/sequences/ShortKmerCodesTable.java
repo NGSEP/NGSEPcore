@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.main.ThreadPoolManager;
+import ngsep.math.CollisionEntropyCalculator;
 import ngsep.math.Distribution;
 
 /**
@@ -37,6 +38,7 @@ import ngsep.math.Distribution;
  */
 public class ShortKmerCodesTable {
 	
+	private CollisionEntropyCalculator entropyCalculator = new CollisionEntropyCalculator();
 	private static final long [] EMPTY_LONG_ARRAY = new long[0];
 	
 	private Logger log = Logger.getLogger(ShortKmerCodesTable.class.getName());
@@ -380,7 +382,7 @@ public class ShortKmerCodesTable {
 		result.setNotFoundCodesCount(notFoundCodes);
 		result.setDistinctUsedCodesCount(usedCodes.size());
 		result.setNormalizedCountsDist(normalizedCountsDist);
-		result.setKmerWeights(calculateCodeWeights(codes));
+		result.setKmerWeights(calculateCodeWeights(codes, kmerLength));
 		result.setHighDepthUsedKmerCodes(highDepthUsedCodes);
 		result.setInternalMultihitUsedKmerCodes(internalMultiUsedCodes);
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Total codes used: "+numUsedCodes+" not found: "+notFoundCodes+" self sequence count: "+selfSequenceCount+" codes with hits in multiple sequences: "+multiSequenceCodes);
@@ -426,15 +428,15 @@ public class ShortKmerCodesTable {
 		}
 		return answer;
 	}
-	public Map<Long,Double> calculateCodeWeights(Map<Integer, Long> codes) {
+	public Map<Long,Double> calculateCodeWeights(Map<Integer, Long> codes, int length) {
 		Map<Long,Double> answer = new HashMap<>();
 		for(long code:codes.values()) {
-			answer.computeIfAbsent(code, v->calculateWeight(code));
+			answer.computeIfAbsent(code, v->calculateWeight(code, length));
 		}
 		return answer;
 	}
 
-	public double calculateWeight(long code) {
+	public double calculateWeight(long code, int length) {
 		if(mode > 1) {
 			//if(kmersMap==null) return 1;
 			int countDifferent = getCountDifferentSequences(code);
@@ -449,9 +451,11 @@ public class ShortKmerCodesTable {
 			if(diff1<=kmerDistModeLocalSD) return 1;
 			int diff3=diff1-kmerDistModeLocalSD;
 			return 1.0*modeMinimizers/(modeMinimizers+diff3);
-		} else {
-			//TODO: Weight for reference alignment
-			return 1;
+		} 
+		else {
+			CharSequence sequence = new String (DNASequence.getDNASequence(code, length));
+			double entropy = entropyCalculator.calculateEntropy(sequence);
+			return entropy;
 		}
 		
 	}
