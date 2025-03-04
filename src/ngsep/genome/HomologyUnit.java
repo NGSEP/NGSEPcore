@@ -45,6 +45,7 @@ public class HomologyUnit implements GenomicRegion {
 	private boolean negativeStrand = false;
 	private CharSequence unitSequence;
 	private CharSequence cdsSequence;
+	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator();
 	
 	//Homolog relationships
 	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();
@@ -263,7 +264,7 @@ public class HomologyUnit implements GenomicRegion {
 		for(int i=0; i<unitSequence.length()-kmerLength+1; i+=kmerOffset) { 
 			long kmerCode = AbstractLimitedSequence.getHash(unitSequence, i, i+kmerLength, (AbstractLimitedSequence)unitSequence);
 			String kmer = new String(AbstractLimitedSequence.getSequence(kmerCode, kmerLength, AminoacidSequence.EMPTY_AA_SEQUENCE));
-			double entropy = ShannonEntropyCalculator.calculateEntropy(kmer);
+			double entropy = entropyCalculator.calculateEntropy(kmer);
 			//System.out.println("code: "+kmerCode+" kmer: "+kmer+" weight: "+weight );
 			answer.put(kmerCode,entropy);
 		}
