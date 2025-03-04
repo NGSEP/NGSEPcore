@@ -44,7 +44,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 			return aln;
 		}
 		if(n1<50 && n2==0) return (new PairwiseAlignerNaive(false)).calculateAlignment(sequence1, sequence2);
-		if(n1<100 && n2<20) {
+		if(n1<100 && n2<100) {
 			PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
 			aligner.setForceStart1(false);
 			aligner.setForceEnd1(false);
@@ -65,7 +65,7 @@ public class PairwiseAlignerDynamicKmers implements PairwiseAligner {
 		}
 		List<UngappedSearchHit> kmerHits = bestCluster.getHitsByQueryIdx();
 		int subjectNext = 0;
-		if(n2 == debugLength) System.out.println("S1 length: "+n1+". S2 length: "+n2+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+" cluster predicted start: "+bestCluster.getSubjectPredictedStart()+" kmer length: "+kmerLength);
+		if(n2 == debugLength) System.out.println("S1 length: "+n1+". S2 length: "+n2+" kmer length: "+kmerLength+" kmer hits: "+kmerHits.size()+" subject next: "+subjectNext+" cluster predicted start: "+bestCluster.getSubjectPredictedStart()+" kmer length: "+kmerLength);
 		int queryNext = 0;
 		int alnStart = -1;
 		StringBuilder aln1 = new StringBuilder();
