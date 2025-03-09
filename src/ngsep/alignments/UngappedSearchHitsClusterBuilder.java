@@ -19,41 +19,46 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import ngsep.sequences.UngappedSearchHit;
+import ngsep.math.Distribution;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.TreeMap;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
-import ngsep.math.Distribution;
-import ngsep.sequences.UngappedSearchHit;
 
 /**
  * 
  * @author Jorge Duitama
  * @author Nicolas Rozo Fajardo
  *
- */
+ **/
+
+
 public class UngappedSearchHitsClusterBuilder {
+
 	public static final int CLUSTERING_ALGORITHM_KRUSKAL_LIKE = 0;
 	public static final int CLUSTERING_ALGORITHM_KMEANS_LIKE = 1;
-	private int idxSubjectDebug = -1;
-	private int queryLengthDebug = -1;
-	private boolean debug = false;
 	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
+	private int queryLengthDebug = -1;
+	private int idxSubjectDebug = -1;
+	private boolean debug = false;
 	
 	public int getClusteringAlgorithm() {
 		return clusteringAlgorithm;
 	}
+
 	public void setClusteringAlgorithm(int clusteringAlgorithm) {
 		this.clusteringAlgorithm = clusteringAlgorithm;
 	}
+
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits) {
-		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
+		debug = subjectIdx == idxSubjectDebug && queryLength == queryLengthDebug;
 		double minHits = Math.min(20,0.01*queryLength);
 		if(sequenceHits.size()<minHits) return new ArrayList<>();
 		UngappedSearchHitClusteringAlgorithm alg;
@@ -63,8 +68,8 @@ public class UngappedSearchHitsClusterBuilder {
 		
 		//Select hits and within clusters and build objects
 		Collections.sort(hitsClusters,(l1,l2)->l2.size()-l1.size());
-		
 		List<UngappedSearchHitsCluster> answer = new ArrayList<>();
+
 		for(List<UngappedSearchHit> hits:hitsClusters) {
 			if(debug) System.out.println("Next candidate cluster size: "+hits.size()+" current limit: "+minHits);
 			if(hits.size()<minHits) break;
@@ -72,7 +77,6 @@ public class UngappedSearchHitsClusterBuilder {
 			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				if(subcluster.size()<minHits) continue;
-				//TODO: Nicolas: switch commented line
 				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
 				System.out.println("Mine Mine Mine");
 				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
