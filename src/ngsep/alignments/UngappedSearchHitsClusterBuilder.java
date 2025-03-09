@@ -35,6 +35,7 @@ import ngsep.sequences.UngappedSearchHit;
 /**
  * 
  * @author Jorge Duitama
+ * @author Nicolas Rozo Fajardo
  *
  */
 public class UngappedSearchHitsClusterBuilder {
@@ -72,8 +73,9 @@ public class UngappedSearchHitsClusterBuilder {
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				if(subcluster.size()<minHits) continue;
 				//TODO: Nicolas: switch commented line
-				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
-				//List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
+				System.out.println("Mine Mine Mine");
+				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
 				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
@@ -111,9 +113,49 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
+	//Implemented Method
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
-		// TODO Nicolas, implement here
-		return null;
+		double [] stats = calculateStatsEstimatedSubjectStart(hits);
+		int median = (int) Math.round(stats[1]);
+		//double variance = stats[2];
+		double rawKmerHitsSubjectStartSD = Math.max(1, stats[3]);
+		Distribution dist = new Distribution(-500, 500, 50);
+		Distribution distAbs = new Distribution(0, 500, 1);
+		for(UngappedSearchHit hit:hits) {
+			int start = hit.estimateSubjectStart();
+			int distance = start-median;
+			int distanceAbs = Math.abs(distance);
+			if (distanceAbs < 2*rawKmerHitsSubjectStartSD) {
+				dist.processDatapoint(distance);
+				distAbs.processDatapoint(distanceAbs);
+			}
+		}
+		int modeDist = (int) Math.round(dist.getLocalMode(-400, 400));
+		if(Math.abs(modeDist)>=100) median+=(modeDist/2);
+
+		int maxDistance = (int) Math.max(distAbs.getAverage(), Math.sqrt(distAbs.getVariance()+1));
+		maxDistance *=5;
+		maxDistance=Math.max(queryLength/40,maxDistance);
+		maxDistance=Math.min(300,maxDistance);
+		maxDistance=Math.max(10,maxDistance);
+
+		Map<Integer, List<UngappedSearchHit>> hitsMultiMap = indexByQueryStart(hits);
+		
+		List<UngappedSearchHit> selectedHits = selectHitsByDistanceWithMedianAndEntropy(hitsMultiMap, median, maxDistance, 5d);
+		if(selectedHits.size()<1) { 
+			if(debug) System.err.println("WARN. Empty list of selected hits for subject: "+subjectIdx);
+			return selectedHits;
+		}
+
+		List<UngappedSearchHit> filteredHits = new ArrayList<UngappedSearchHit>();
+		replaceHitsByLocalAgreement(selectedHits, hitsMultiMap, median, maxDistance, queryLength);
+		filteredHits.addAll(selectedHits);
+		filteredHits = removeDisorganized (filteredHits, median);
+		if(filteredHits.size()<1) {
+			if(debug) System.err.println("WARN. Empty list of sorted hits for subject: "+subjectIdx+" selected hits: "+selectedHits.size()+" query length: "+queryLength);
+			
+		}
+		return filteredHits;
 	}
 	
 	/**
@@ -242,6 +284,19 @@ public class UngappedSearchHitsClusterBuilder {
 		return selectedHits;
 	}
 
+	//Implemented Method
+	private List<UngappedSearchHit> selectHitsByDistanceWithMedianAndEntropy(Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance, double alpha) {
+		List<UngappedSearchHit> selectedHits = new ArrayList<UngappedSearchHit>(hitsMultiMap.size());
+		for(List<UngappedSearchHit> hits: hitsMultiMap.values()){
+			UngappedSearchHit hit = selectHitDistanceAndEntropy(hits, median, maxDistance, alpha);
+			if(hit!=null) {
+				if (debug) System.out.println("Selected hits. Next qpos "+hit.getQueryStart()+" hit: "+hit.getSubjectStart()+" estq: "+hit.estimateQueryStart()+" estS: "+hit.estimateSubjectStart()+" all starts: "+calculateHitStarts(hits));
+				selectedHits.add(hit);
+			}
+		}
+		return selectedHits;
+	}
+
 	private List<Integer> calculateHitStarts(List<UngappedSearchHit> hits) {
 		List<Integer> hitStarts = new ArrayList<Integer>();
 		for(UngappedSearchHit hit2:hits) hitStarts.add(hit2.estimateSubjectStart());
@@ -265,6 +320,25 @@ public class UngappedSearchHitsClusterBuilder {
 			}
 		}
 		return answer;
+	}
+
+	//Implemented Method
+	private UngappedSearchHit selectHitDistanceAndEntropy(List<UngappedSearchHit> hits, int median, int maxDistance, double alpha) {
+		UngappedSearchHit bestHit = null;
+		double bestScore = Double.NEGATIVE_INFINITY;
+
+		for(UngappedSearchHit hit: hits){
+			int estStart = hit.estimateSubjectStart();
+			int distance = Math.abs(estStart-median);
+			if(distance <= maxDistance) {
+				double score = hit.getWeight() - (alpha * (distance / (double) maxDistance));
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestHit = hit;
+                }
+			}
+		}
+		return bestHit;
 	}
 	
 	private Set<Integer> replaceHitsByLocalAgreement(List<UngappedSearchHit> selectedHits, Map<Integer, List<UngappedSearchHit>> hitsMultiMap, int median, int maxDistance, int queryLength) {

@@ -33,7 +33,8 @@ public class UngappedSearchHit {
 	private int subjectStart;
 	private short hitLength;
 	//Weight of this hit encoded as a byte
-	private byte weight = 100;
+	//private byte weight = 100;
+	private double weight;
 	
 	/**
 	 * Creates a new ungapped hit to a subject sequence
@@ -69,13 +70,16 @@ public class UngappedSearchHit {
 		this.hitLength = hitLength;
 	}
 
-	public void setWeight (double weight) {
-		if(weight>1) weight=1;
-		if(weight<0) weight = 0;
-		this.weight = (byte)Math.round(100.0*weight);
+	//public void setWeight (double weight) {
+	//	if(weight>1) weight=1;
+	//	if(weight<0) weight = 0;
+	//	this.weight = (byte)Math.round(100.0*weight);
+	//}
+
+	public void setWeight(double weight) {
+		this.weight = weight;
 	}
-	
-	
+
 	public double getWeight () {
 		return 0.01*weight;
 	}
