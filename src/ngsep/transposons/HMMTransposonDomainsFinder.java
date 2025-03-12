@@ -32,6 +32,7 @@ import ngsep.hmm.ProfileAlignmentDomain;
 import ngsep.hmm.ProfileAlignmentHMM;
 import ngsep.hmm.ProfileAlignmentNullModel;
 import ngsep.hmm.io.ProfileAlignmentHMMLoader;
+import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.io.FastaSequencesHandler;
@@ -47,8 +48,10 @@ public class HMMTransposonDomainsFinder {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		DNAMaskedSequence seqForward = (DNAMaskedSequence) qdnaSequence.getCharacters();
 		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
-		Map<Integer,String> orfsForward = calculateORFs(seqForward);
-		Map<Integer,String> orfsReverse = calculateORFs(seqReverse);
+		//Map<Integer,String> orfsForward = calculateORFs(seqForward);
+		//Map<Integer,String> orfsReverse = calculateORFs(seqReverse);
+		Map<Integer,String> orfsForward = calculateORFConcat(seqForward);
+		Map<Integer,String> orfsReverse = calculateORFConcat(seqReverse);
 		int tlf = calculateTotalLength(orfsForward);
 		int tlr = calculateTotalLength(orfsReverse);
 		int mlf = calculateMaxLength(orfsForward);
@@ -59,23 +62,24 @@ public class HMMTransposonDomainsFinder {
 		//boolean reverse = true;
 		//if(reverse) orfs = orfsReverse;
 		//answer.addAll(findDomainsFromORFs(qdnaSequence, orfs, reverse));
-		answer.addAll(findDomainsFromORFs(qdnaSequence, orfsForward, false));
-		answer.addAll(findDomainsFromORFs(qdnaSequence, orfsReverse, true));
-		Collections.sort(answer,(d1,d2)-> d1.getStart()-d2.getStart());
-		return answer;
+		List<TransposonDomainAlignment> domainsForward = findDomainsFromORFs(qdnaSequence, orfsForward, false);
+		List<TransposonDomainAlignment> domainsReverse = findDomainsFromORFs(qdnaSequence, orfsReverse, true);
+		answer = selectStrand(domainsForward,domainsReverse);
+		return sortAndFilterDomains(answer);
 	}
+	
 	private List<TransposonDomainAlignment> findDomainsFromORFs(QualifiedSequence qdnaSequence, Map<Integer, String> orfs, boolean reverse) {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
 			int startDNA = orf.getKey();
 			String aaSeq = orf.getValue();
-			//System.out.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse);
+			//System.out.println("Testing of at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse);
 			for (ProfileAlignmentHMM hmm :hmms) {
-				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId());
+				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
 				if(aaDomain!=null) {
 					TransposonDomainAlignment domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
-					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId());
+					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein start: "+aaDomain.getStart()+" pos domain: "+domain.getStart());
 					answer.add(domain);
 				}
 			}
@@ -94,6 +98,41 @@ public class HMMTransposonDomainsFinder {
 				i+=3*orf.length();
 			} else {
 				i++;
+			}
+		}
+		return answer;
+	}
+	private Map<Integer, String> calculateORFConcat(CharSequence seq) {
+		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
+		ProteinTranslator translator = ProteinTranslator.getInstance();
+		int n = seq.length();
+		int i = 0;
+		int iA = 0;
+		StringBuilder orfConcatenated = new StringBuilder();
+		Map<Integer, String> independentORFs = calculateORFs(seq);
+		for(Map.Entry<Integer, String> entry:independentORFs.entrySet()) {
+			int start = entry.getKey();
+			String orf = entry.getValue();
+			if(start  - i > 20) {
+				String orfInternal = calculateLongestORF(seq.subSequence(i, start));
+				orfConcatenated.append(orfInternal);
+			}
+			if(i==0) iA =i-orfConcatenated.length(); 
+			i=start;
+			orfConcatenated.append(orf);
+			i+=3*orf.length();
+		}
+		answer.put(0,orfConcatenated.toString());
+		return answer;
+	}
+	private String calculateLongestORF(CharSequence seq) {
+		Map<Integer, String> orfs = calculateORFs(seq);
+		String answer = "";
+		int max = 0;
+		for (String orf:orfs.values()) {
+			if(orf.length()>max) {
+				max = orf.length();
+				answer = orf;
 			}
 		}
 		return answer;
@@ -119,6 +158,34 @@ public class HMMTransposonDomainsFinder {
 		domain.setReverse(reverseStrand);
 		return domain;
 	}
+	private List<TransposonDomainAlignment> selectStrand(List<TransposonDomainAlignment> domainsForward, List<TransposonDomainAlignment> domainsReverse) {
+		double scoreF = calculateScore(domainsForward);
+		double scoreR = calculateScore(domainsReverse);
+		if(scoreF>scoreR) return domainsForward;
+		return domainsReverse;
+	}
+	private double calculateScore(List<TransposonDomainAlignment> domains) {
+		double score = 0;
+		for(TransposonDomainAlignment aln:domains) {
+			score+= PhredScoreHelper.calculatePhredScore(aln.getEvalue());
+		}
+		return score;
+	}
+	private List<TransposonDomainAlignment> sortAndFilterDomains(List<TransposonDomainAlignment> domains) {
+		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>(domains.size());
+		Collections.sort(domains,(d1,d2)-> d1.getStart()-d2.getStart());
+		TransposonDomainAlignment last = null;
+		for(TransposonDomainAlignment aln:domains) {
+			if(last == null || last.getEnd()<aln.getStart() || !last.getDomainCode().equals(aln.getDomainCode())) {
+				answer.add(aln);
+				last = aln;
+			} else if (last.getEvalue()>aln.getEvalue()) {
+				answer.set(answer.size()-1, aln);
+				last = aln;
+			}
+		}
+		return answer;
+	}
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
 		String domainsName = args[1];
@@ -130,7 +197,8 @@ public class HMMTransposonDomainsFinder {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> sequences = handler.loadSequences(filename);
 		if (sequences.size() == 0) throw new Exception("No sequences found in file: " + filename);
-		ProteinNullModel nullModel = new ProteinNullModel();
+		//ProteinNullModel nullModel = new ProteinNullModel();
+		NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
         
 		// Load available HMMs
 		File domainsFile = new File(domainsName);
@@ -195,40 +263,69 @@ public class HMMTransposonDomainsFinder {
 	}
 }
 class ProteinNullModel implements ProfileAlignmentNullModel {
-	private final Map<Character, Double> aminoAcidProbabilities;
+	private final Map<Character, Double> aminoAcidLogProbs;
     //private final double log2 = Math.log(2);
 
     public ProteinNullModel() {
-        aminoAcidProbabilities = new HashMap<>();
-        aminoAcidProbabilities.put('A', 0.0777);
-        aminoAcidProbabilities.put('C', 0.0157);
-        aminoAcidProbabilities.put('D', 0.053);
-        aminoAcidProbabilities.put('E', 0.0656);
-        aminoAcidProbabilities.put('F', 0.0405);
-        aminoAcidProbabilities.put('G', 0.0704);
-        aminoAcidProbabilities.put('H', 0.0231);
-        aminoAcidProbabilities.put('I', 0.0484);
-        aminoAcidProbabilities.put('K', 0.0692);
-        aminoAcidProbabilities.put('L', 0.096);
-        aminoAcidProbabilities.put('M', 0.0238);
-        aminoAcidProbabilities.put('N', 0.0427);
-        aminoAcidProbabilities.put('P', 0.0469);
-        aminoAcidProbabilities.put('Q', 0.0393);
-        aminoAcidProbabilities.put('R', 0.0526);
-        aminoAcidProbabilities.put('S', 0.0694);
-        aminoAcidProbabilities.put('T', 0.055);
-        aminoAcidProbabilities.put('V', 0.0667);
-        aminoAcidProbabilities.put('W', 0.0118);
-        aminoAcidProbabilities.put('Y', 0.0311);
+        aminoAcidLogProbs = new HashMap<>();
+        aminoAcidLogProbs.put('A', Math.log10(0.0777));
+        aminoAcidLogProbs.put('C', Math.log10(0.0157));
+        aminoAcidLogProbs.put('D', Math.log10(0.053));
+        aminoAcidLogProbs.put('E', Math.log10(0.0656));
+        aminoAcidLogProbs.put('F', Math.log10(0.0405));
+        aminoAcidLogProbs.put('G', Math.log10(0.0704));
+        aminoAcidLogProbs.put('H', Math.log10(0.0231));
+        aminoAcidLogProbs.put('I', Math.log10(0.0484));
+        aminoAcidLogProbs.put('K', Math.log10(0.0692));
+        aminoAcidLogProbs.put('L', Math.log10(0.096));
+        aminoAcidLogProbs.put('M', Math.log10(0.0238));
+        aminoAcidLogProbs.put('N', Math.log10(0.0427));
+        aminoAcidLogProbs.put('P', Math.log10(0.0469));
+        aminoAcidLogProbs.put('Q', Math.log10(0.0393));
+        aminoAcidLogProbs.put('R', Math.log10(0.0526));
+        aminoAcidLogProbs.put('S', Math.log10(0.0694));
+        aminoAcidLogProbs.put('T', Math.log10(0.055));
+        aminoAcidLogProbs.put('V', Math.log10(0.0667));
+        aminoAcidLogProbs.put('W', Math.log10(0.0118));
+        aminoAcidLogProbs.put('Y', Math.log10(0.0311));
     }
 
     public Double calculateScore(String sequence) {
         double score = 0.0;
         for (char aa : sequence.toCharArray()) {
         	//System.out.print(aa);
-            Double prob = aminoAcidProbabilities.get(aa);
-            if (prob != null) {
-                score += Math.log(prob);
+            Double logProb = aminoAcidLogProbs.get(aa);
+            if (logProb != null) {
+                score += logProb;
+            }
+        }
+        return score;
+    }
+
+    //public double calculateBitScore(double hmmScore, String sequence) {
+    //    double nullScore = calculateNullScore(sequence);
+    //    return (hmmScore - nullScore) / log2;
+    //}
+}
+class NaiveProteinNullModel implements ProfileAlignmentNullModel {
+	private final Map<Character, Double> aminoAcidLogProbs;
+    //private final double log2 = Math.log(2);
+
+    public NaiveProteinNullModel() {
+        aminoAcidLogProbs = new HashMap<>();
+        String alphabet = "ACDEFGHIKLMNPQRSTVWY";
+        for(int i=0;i<alphabet.length();i++) {
+        	aminoAcidLogProbs.put(alphabet.charAt(i), Math.log10(1.0/alphabet.length()));
+        }
+    }
+
+    public Double calculateScore(String sequence) {
+        double score = 0.0;
+        for (char aa : sequence.toCharArray()) {
+        	//System.out.print(aa);
+            Double logProb = aminoAcidLogProbs.get(aa);
+            if (logProb != null) {
+                score += logProb;
             }
         }
         return score;

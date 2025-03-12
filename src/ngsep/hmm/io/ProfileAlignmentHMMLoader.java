@@ -14,6 +14,7 @@ import ngsep.hmm.ProfileAlignmentNullModel;
 
 public class ProfileAlignmentHMMLoader {
 	private ProfileAlignmentNullModel nullModel;
+	public static final double LOGE10 = Math.log(10);
 	private Map<String,String> hmmDomainCodes = new HashMap<String, String>();
 	
 	public ProfileAlignmentHMMLoader(ProfileAlignmentNullModel nullModel) {
@@ -40,7 +41,10 @@ public class ProfileAlignmentHMMLoader {
 			 BufferedReader reader = new BufferedReader(fr)) {
 			String line = reader.readLine();
 			while(line!=null) {
-				if(line.startsWith("HMMER")) hmms.add(loadHMM(reader));
+				if(line.startsWith("HMMER")) {
+					ProfileAlignmentHMM hmm = loadHMM(reader); 
+					if(hmm !=null)hmms.add(hmm);
+				}
 				line = reader.readLine();
 			}
 		}
@@ -69,7 +73,7 @@ public class ProfileAlignmentHMMLoader {
             	id = items[1];
             } else if (line.startsWith("STATS LOCAL VITERBI")) {
 				
-				miu = Double.parseDouble(items[3]);
+				miu = Double.parseDouble(items[3])/LOGE10;
 				lambda= Double.parseDouble(items[4]);
 				hmm=new ProfileAlignmentHMM(id, numSteps, states,nullModel);
 				hmm.setName(name);
@@ -93,7 +97,7 @@ public class ProfileAlignmentHMMLoader {
 				String[] insertTokens = line.trim().split("\\s+");
 				Double[] insertEmissions = new Double[alphabet.length()];
 				for (int i = 0; i < insertEmissions.length; i++) {
-					insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
+					insertEmissions[i] = -Double.parseDouble(insertTokens[i])/LOGE10;
 				}
 				insertionState.setStepEmissions(step, insertEmissions);    
 				line=reader.readLine();
@@ -106,7 +110,7 @@ public class ProfileAlignmentHMMLoader {
 				// Read match emission probabilities
 				Double[] matchEmissions = new Double[alphabet.length()];
 				for (int i = 1; i <= matchEmissions.length; i++) {
-					matchEmissions[i - 1] = -Double.parseDouble(tokens[i]);
+					matchEmissions[i - 1] = -Double.parseDouble(tokens[i])/LOGE10;
 				}
 				matchState.setStepEmissions(step, matchEmissions);
 				// Read emission probabilities for the insertion state (next line)
@@ -114,7 +118,7 @@ public class ProfileAlignmentHMMLoader {
 				String[] insertTokens = line.trim().split("\\s+");
 				Double[] insertEmissions = new Double[alphabet.length()];
 				for (int i = 0; i < insertEmissions.length; i++) {
-					insertEmissions[i] = -Double.parseDouble(insertTokens[i]);
+					insertEmissions[i] = -Double.parseDouble(insertTokens[i])/LOGE10;
 				}
 				insertionState.setStepEmissions(step, insertEmissions);
                     
@@ -124,23 +128,23 @@ public class ProfileAlignmentHMMLoader {
 			}
             line = reader.readLine();
     	}
-		hmm.setTransitionMatrix(transitionMatrix);
+		if(hmm!=null) hmm.setTransitionMatrix(transitionMatrix);
         return hmm;
     }
 
 	private static void readTransitionValues(Double[][][] transitionMatrix, String line, int step) {
 		String[] transitionTokens = line.trim().split("\\s+");
 		// Assign transition values : m->m, m->i, m->d, etc.
-		transitionMatrix[step][0][0] = transitionTokens[0].equals("*") ? null : -Double.parseDouble(transitionTokens[0]);  // m -> m
-		transitionMatrix[step][0][1] = transitionTokens[1].equals("*") ? null : -Double.parseDouble(transitionTokens[1]);  // m -> i
-		transitionMatrix[step][0][2] = transitionTokens[2].equals("*") ? null : -Double.parseDouble(transitionTokens[2]);  // m -> d
+		transitionMatrix[step][0][0] = transitionTokens[0].equals("*") ? null : -Double.parseDouble(transitionTokens[0])/LOGE10;  // m -> m
+		transitionMatrix[step][0][1] = transitionTokens[1].equals("*") ? null : -Double.parseDouble(transitionTokens[1])/LOGE10;  // m -> i
+		transitionMatrix[step][0][2] = transitionTokens[2].equals("*") ? null : -Double.parseDouble(transitionTokens[2])/LOGE10;  // m -> d
 
-		transitionMatrix[step][1][0] =transitionTokens[3].equals("*") ? null : -Double.parseDouble(transitionTokens[3]); // i -> m
-		transitionMatrix[step][1][1] = transitionTokens[4].equals("*") ? null : -Double.parseDouble(transitionTokens[4]);// i -> i
+		transitionMatrix[step][1][0] =transitionTokens[3].equals("*") ? null : -Double.parseDouble(transitionTokens[3])/LOGE10; // i -> m
+		transitionMatrix[step][1][1] = transitionTokens[4].equals("*") ? null : -Double.parseDouble(transitionTokens[4])/LOGE10;// i -> i
 		transitionMatrix[step][1][2] = null;  // i -> d not possible
 
-		transitionMatrix[step][2][0] = transitionTokens[5].equals("*") ? null : -Double.parseDouble(transitionTokens[5]);  // d -> m
+		transitionMatrix[step][2][0] = transitionTokens[5].equals("*") ? null : -Double.parseDouble(transitionTokens[5])/LOGE10;  // d -> m
 		transitionMatrix[step][2][1] = null;  // d -> i not possible
-		transitionMatrix[step][2][2] = transitionTokens[6].equals("*") ? null : -Double.parseDouble(transitionTokens[6]); // d -> d
+		transitionMatrix[step][2][2] = transitionTokens[6].equals("*") ? null : -Double.parseDouble(transitionTokens[6])/LOGE10; // d -> d
 	}
 }

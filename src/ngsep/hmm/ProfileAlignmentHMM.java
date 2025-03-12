@@ -93,6 +93,11 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	public Double[][][] getTransitionMatrix() {
 		return transitionMatrix;
 	}
+	
+	public int getSteps() {
+		return steps;
+	}
+
 
 	@Override
 	public int getNumStates() {
@@ -122,8 +127,13 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		// Start in the last position
 		int k = 0; // end in match
 		int j = steps-1;
-		int i = getMaxProbabilityPosition();
-		if(i<0) return domain;
+		int i = getMaxProbabilityQuery();
+		if(i<0) {
+			return domain;
+			//i = query.length();
+			//j = getMaxProbabilityHMM();
+			//if(j<0) return domain;
+		}
 		int queryEnd = i-1;
 		
 		// Look for max value
@@ -178,7 +188,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	        for (int j = 0; j < steps; j++) {
 	            for (int k = 0; k < 3; k++) {
 	                byte prevState = -1; // Usar -1 para indicar valor no asignado
-	                // casos base
+	                // base cases
 	                if (i==0) {
 	                	if(j==0 && (k==0)) {
 	                		viterbiMatrix[i][j][k] = 0.0;
@@ -191,8 +201,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	                }
 	                else {
 
-	                	// casos para los primeros estados despues del origen. viterbi del origen es 1 -> 0 (log)
-	                	// no hay necesidad de ponerlo.
+	                	// cases for the first states after the start viterbi of the start is 1 -> 0 (log)
 	                	if (j==1 && k==0) {
 	                		Double emissionProbability=states.get(k).getEmission(queryArray[i-1], j);
 	                		emissionProbability = emissionProbability-nullmodel.calculateScore(query.substring(i-1, i));
@@ -258,7 +267,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	                        
 	                        tracebackMatrix[i][j][k] = prevState;
 	                    } else {
-	                        tracebackMatrix[i][j][k] = -1; // Usar -1 en lugar de null
+	                        tracebackMatrix[i][j][k] = -1;
 	                    }
 	                }
 	                
@@ -316,15 +325,30 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 //	    printViterbiMatrix(2);
 	}
 	
-	private int getMaxProbabilityPosition() {
-		Double maxProbability=Double.MIN_VALUE;
+	private int getMaxProbabilityQuery() {
+		Double maxProbability= -5.0*steps;
 		int position=-1;
 		for (int i=0; i<viterbiMatrix.length;i++) {
 			Double probability=viterbiMatrix[i][steps-1][0];
-			//System.out.println("probability "+i+": "+probability);
+			//if("PF00077.25".equals(id) && probability!=null && probability>-5) System.out.println("probability "+i+": "+probability);
 			if (probability!=null && probability>maxProbability) {
 				maxProbability=probability;
 				position=i;
+			}
+		}
+		//if("PF00077.25".equals(id)) System.out.println("Maximum probability: "+maxProbability+" pos: "+position);
+		return position;
+	}
+	private int getMaxProbabilityHMM() {
+		Double maxProbability=-5.0*steps;
+		int n = viterbiMatrix.length-1;
+		int position=-1;
+		for (int j=10; j<viterbiMatrix[0].length;j++) {
+			Double probability=viterbiMatrix[n][j][0];
+			//if("PF00077.25".equals(id)) System.out.println("probability "+j+": "+probability);
+			if (probability!=null && probability>maxProbability) {
+				maxProbability=probability;
+				position=j;
 				//System.out.println("Local maximum "+maxProbability+" pos: "+i);
 			}
 		}
@@ -355,13 +379,13 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		//Double density = 1- Math.exp(-Math.exp(-lambda*(maxScore-miu)));
 		//Double eValue = 1- Math.exp(-density)*nModel;
 		//System.out.println("New E value: "+ eValue);
-		Double asd = (double) (m*(this.steps-1)*Math.exp(-lambda*(maxScore-miu)));
+		Double asd = (double) (m*(this.steps-1)*Math.pow(10,-lambda*(maxScore-miu)));
 		//System.out.println("Old eValue: " + asd);
 		return asd;
 	}
 	
 	public boolean passFilter (Double evalue) {
-		if (evalue<0.1) {return true;}
+		if (evalue<0.01) {return true;}
 		else {return false;}
 	}
 
