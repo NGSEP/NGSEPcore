@@ -19,6 +19,7 @@
  *******************************************************************************/
 package ngsep.transposons;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,6 +44,19 @@ import ngsep.transcriptome.ProteinTranslator;
  */
 public class HMMTransposonDomainsFinder {
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
+	
+	public void loadHMMsFromClasspath() throws IOException {
+		//ProteinNullModel nullModel = new ProteinNullModel();
+				NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
+		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
+		hmmLoader.loadDomainCodes();
+		
+		List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
+		for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
+		hmms.addAll(hmmsFile);
+		
+	}
+	
 	public List<TransposonDomainAlignment> findDomains(QualifiedSequence qdnaSequence) {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		DNAMaskedSequence seqForward = (DNAMaskedSequence) qdnaSequence.getCharacters();
@@ -178,16 +192,11 @@ public class HMMTransposonDomainsFinder {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		List<QualifiedSequence> sequences = handler.loadSequences(filename);
 		if (sequences.size() == 0) throw new Exception("No sequences found in file: " + filename);
-		//ProteinNullModel nullModel = new ProteinNullModel();
-		NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
+		
         
 		// Load available HMMs
-		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
-		hmmLoader.loadDomainCodes();
+		instance.loadHMMsFromClasspath();
 		
-		List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
-		for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
-		instance.hmms.addAll(hmmsFile);
 		long start = System.currentTimeMillis();
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
@@ -219,6 +228,8 @@ public class HMMTransposonDomainsFinder {
         System.out.println("Process finished. Time (s): " + (time/1000.0));
 
     }
+	
+
 	private void printDomains(List<TransposonDomainAlignment> domains, PrintStream out) {
 		for(TransposonDomainAlignment domain:domains) {
 			out.print(domain.getQseq().getName());
