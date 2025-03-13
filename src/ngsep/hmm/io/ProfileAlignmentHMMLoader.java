@@ -3,6 +3,8 @@ package ngsep.hmm.io;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,29 +26,53 @@ public class ProfileAlignmentHMMLoader {
 	public void setDomainCode (String id, String code) {
 		hmmDomainCodes.put(id, code);
 	}
+	public void loadDomainCodes () throws IOException {
+		try (InputStream in = this.getClass().getClassLoader().getResourceAsStream("ngsep/hmm/io/Pfam-A_selectedDomains_metadata.txt");
+			 InputStreamReader r = new InputStreamReader(in);
+			 BufferedReader reader = new BufferedReader(r)) {
+				loadDomainCodes(reader);
+		}
+	}
 	public void loadDomainCodes (String filePath) throws IOException {
 		try (FileReader fr = new FileReader(filePath);
-			 BufferedReader reader = new BufferedReader(fr)) {
-				String line = reader.readLine();
-				while(line!=null) {
-					String [] items = line.split("\t");
-					if(items.length>=2) setDomainCode(items[0], items[1]);
-					line = reader.readLine();
-				}
-			}
+		     BufferedReader reader = new BufferedReader(fr)) {
+				loadDomainCodes(reader);
+		}
+	}
+	private void loadDomainCodes(BufferedReader reader) throws IOException {
+		String line = reader.readLine();
+		while(line!=null) {
+			String [] items = line.split("\t");
+			if(items.length>=2) setDomainCode(items[0], items[1]);
+			line = reader.readLine();
+		}
+	}
+	public List<ProfileAlignmentHMM> loadHMMs () throws IOException {
+		List<ProfileAlignmentHMM> hmms;
+		try (InputStream in = this.getClass().getClassLoader().getResourceAsStream("ngsep/hmm/io/Pfam-A_selectedDomains.hmm");
+			 InputStreamReader r = new InputStreamReader(in);
+			 BufferedReader reader = new BufferedReader(r)) {
+			hmms = loadHMMs(reader);
+		}
+		return hmms;
 	}
 	public List<ProfileAlignmentHMM> loadHMMs (String filePath) throws IOException {
-		List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
+		List<ProfileAlignmentHMM> hmms;
 		try (FileReader fr = new FileReader(filePath);
 			 BufferedReader reader = new BufferedReader(fr)) {
-			String line = reader.readLine();
-			while(line!=null) {
-				if(line.startsWith("HMMER")) {
-					ProfileAlignmentHMM hmm = loadHMM(reader); 
-					if(hmm !=null)hmms.add(hmm);
-				}
-				line = reader.readLine();
+			hmms = loadHMMs(reader);
+		}
+		return hmms;
+	}
+	private List<ProfileAlignmentHMM> loadHMMs(BufferedReader reader) throws IOException {
+		List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
+		String line = reader.readLine();
+		while(line!=null) {
+			if(line.startsWith("HMMER")) {
+				ProfileAlignmentHMM hmm = loadHMM(reader); 
+				if(hmm !=null)hmms.add(hmm);
 			}
+			line = reader.readLine();
 		}
 		return hmms;
 	}

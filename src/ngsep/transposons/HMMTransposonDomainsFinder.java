@@ -19,7 +19,6 @@
  *******************************************************************************/
 package ngsep.transposons;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,20 +47,9 @@ public class HMMTransposonDomainsFinder {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		DNAMaskedSequence seqForward = (DNAMaskedSequence) qdnaSequence.getCharacters();
 		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
-		//Map<Integer,String> orfsForward = calculateORFs(seqForward);
-		//Map<Integer,String> orfsReverse = calculateORFs(seqReverse);
 		Map<Integer,String> orfsForward = calculateORFConcat(seqForward);
 		Map<Integer,String> orfsReverse = calculateORFConcat(seqReverse);
-		int tlf = calculateTotalLength(orfsForward);
-		int tlr = calculateTotalLength(orfsReverse);
-		int mlf = calculateMaxLength(orfsForward);
-		int mlr = calculateMaxLength(orfsReverse);
-		//System.out.println("Forward orfs: "+orfsForward.size()+" length: " +tlf+" max "+mlf+" Reverse orfs: "+orfsReverse.size()+" length: " +tlr+" max "+mlr);
-		//Map<Integer,String> orfs = orfsForward;
-		//boolean reverse = tlr>tlf;
-		//boolean reverse = true;
-		//if(reverse) orfs = orfsReverse;
-		//answer.addAll(findDomainsFromORFs(qdnaSequence, orfs, reverse));
+		//System.out.println("Forward orfs: "+orfsForward.size()+" Reverse orfs: "+orfsReverse.size());
 		List<TransposonDomainAlignment> domainsForward = findDomainsFromORFs(qdnaSequence, orfsForward, false);
 		List<TransposonDomainAlignment> domainsReverse = findDomainsFromORFs(qdnaSequence, orfsReverse, true);
 		answer = selectStrand(domainsForward,domainsReverse);
@@ -104,8 +92,6 @@ public class HMMTransposonDomainsFinder {
 	}
 	private Map<Integer, String> calculateORFConcat(CharSequence seq) {
 		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
-		ProteinTranslator translator = ProteinTranslator.getInstance();
-		int n = seq.length();
 		int i = 0;
 		int iA = 0;
 		StringBuilder orfConcatenated = new StringBuilder();
@@ -122,7 +108,7 @@ public class HMMTransposonDomainsFinder {
 			orfConcatenated.append(orf);
 			i+=3*orf.length();
 		}
-		answer.put(0,orfConcatenated.toString());
+		answer.put(iA,orfConcatenated.toString());
 		return answer;
 	}
 	private String calculateLongestORF(CharSequence seq) {
@@ -136,16 +122,6 @@ public class HMMTransposonDomainsFinder {
 			}
 		}
 		return answer;
-	}
-	private int calculateTotalLength(Map<Integer, String> orfs) {
-		int total = 0;
-		for(String orf:orfs.values()) total+=orf.length();
-		return total;
-	}
-	private int calculateMaxLength(Map<Integer, String> orfs) {
-		int max = 0;
-		for(String orf:orfs.values()) max=Math.max(max, orf.length());
-		return max;
 	}
 	private TransposonDomainAlignment buildTEDomain(QualifiedSequence qdnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
 		int start = startDNA+3*aaDomain.getStart();
@@ -195,9 +171,7 @@ public class HMMTransposonDomainsFinder {
 
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
-		String domainsName = args[1];
-		String domainsMetadata = args[2];
-		String outPrefix = args[3];
+		String outPrefix = args[1];
 		String domainsOutput=outPrefix+"_domainsOutputnew.txt";
 		String familiesOutput=outPrefix+"_familiesOutputnew.txt";
 		HMMTransposonDomainsFinder instance = new HMMTransposonDomainsFinder();
@@ -208,23 +182,12 @@ public class HMMTransposonDomainsFinder {
 		NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
         
 		// Load available HMMs
-		File domainsFile = new File(domainsName);
-		if(!domainsFile.exists()) throw new Exception("The file " + domainsFile+" was not found");
-		String [] hmmFilenames;
-		if(domainsFile.isDirectory()) {
-			hmmFilenames = domainsFile.list((d,n)->n.endsWith(".hmm"));
-			for(int i=0;i<hmmFilenames.length;i++) hmmFilenames[i] = domainsName+File.separator+hmmFilenames[i];
-		} else {
-			hmmFilenames = new String [1];
-			hmmFilenames[0] = domainsName;
-		}
 		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
-		hmmLoader.loadDomainCodes(domainsMetadata);
-		for(String hmmFilename:hmmFilenames) {
-			List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs(hmmFilename);
-			for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
-			instance.hmms.addAll(hmmsFile);
-		}
+		hmmLoader.loadDomainCodes();
+		
+		List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
+		for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
+		instance.hmms.addAll(hmmsFile);
 		long start = System.currentTimeMillis();
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
