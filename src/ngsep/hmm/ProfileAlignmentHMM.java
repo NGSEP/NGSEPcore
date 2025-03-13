@@ -166,7 +166,8 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		//System.out.println("Start sequence: "+i);
 		int queryStart=i;
 		int m = queryEnd-queryStart;
-		Double eValue = calculateEValue(maxScore, m);
+		//Double eValue = calculateEValue(maxScore, m);
+		Double eValue = calculateEValue(maxScore, query.length());
 		//System.out.println("Limits query in profile: " +queryStart+ "\t"+ queryEnd+" evalue: "+eValue);
 		if (passFilter(eValue)) {
 			domain = new ProfileAlignmentDomain(query, queryStart, queryEnd, id);
@@ -379,8 +380,9 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		//Double density = 1- Math.exp(-Math.exp(-lambda*(maxScore-miu)));
 		//Double eValue = 1- Math.exp(-density)*nModel;
 		//System.out.println("New E value: "+ eValue);
-		Double asd = (double) (m*(this.steps-1)*Math.pow(10,-lambda*(maxScore-miu)));
-		//System.out.println("Old eValue: " + asd);
+		//Double asd = (double) (m*(this.steps-1)*Math.pow(10,-lambda*(maxScore-miu)));
+		Double asd = (double) (m*(this.steps-1)*Math.pow(10,-(maxScore-miu)));
+		//System.out.println("query length: " + m +" steps: "+this.steps+" lambda: "+lambda+" score: "+maxScore+" miu: "+miu);
 		return asd;
 	}
 	

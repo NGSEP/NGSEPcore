@@ -79,7 +79,7 @@ public class HMMTransposonDomainsFinder {
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
 				if(aaDomain!=null) {
 					TransposonDomainAlignment domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
-					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein start: "+aaDomain.getStart()+" pos domain: "+domain.getStart());
+					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein limits: "+aaDomain.getStart()+" "+aaDomain.getEnd()+" pos domain: "+domain.getStart());
 					answer.add(domain);
 				}
 			}
@@ -176,7 +176,7 @@ public class HMMTransposonDomainsFinder {
 		Collections.sort(domains,(d1,d2)-> d1.getStart()-d2.getStart());
 		TransposonDomainAlignment last = null;
 		for(TransposonDomainAlignment aln:domains) {
-			if(last == null || last.getEnd()<aln.getStart() || !last.getDomainCode().equals(aln.getDomainCode())) {
+			if(last == null || last.getEnd()<aln.getStart()) {
 				answer.add(aln);
 				last = aln;
 			} else if (last.getEvalue()>aln.getEvalue()) {
