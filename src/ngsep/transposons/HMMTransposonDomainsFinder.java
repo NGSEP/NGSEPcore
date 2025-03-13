@@ -56,7 +56,7 @@ public class HMMTransposonDomainsFinder {
 		int tlr = calculateTotalLength(orfsReverse);
 		int mlf = calculateMaxLength(orfsForward);
 		int mlr = calculateMaxLength(orfsReverse);
-		System.out.println("Forward orfs: "+orfsForward.size()+" length: " +tlf+" max "+mlf+" Reverse orfs: "+orfsReverse.size()+" length: " +tlr+" max "+mlr);
+		//System.out.println("Forward orfs: "+orfsForward.size()+" length: " +tlf+" max "+mlf+" Reverse orfs: "+orfsReverse.size()+" length: " +tlr+" max "+mlr);
 		//Map<Integer,String> orfs = orfsForward;
 		//boolean reverse = tlr>tlf;
 		//boolean reverse = true;
@@ -176,7 +176,8 @@ public class HMMTransposonDomainsFinder {
 		Collections.sort(domains,(d1,d2)-> d1.getStart()-d2.getStart());
 		TransposonDomainAlignment last = null;
 		for(TransposonDomainAlignment aln:domains) {
-			if(last == null || last.getEnd()<aln.getStart()) {
+			//System.out.println("Next aln: "+aln.getDomainCode()+" "+aln.getHmmID()+" limits: "+aln.getStart()+" "+aln.getEnd()+" evalue: "+aln.getEvalue());
+			if(!overlap(last,aln)) {
 				answer.add(aln);
 				last = aln;
 			} else if (last.getEvalue()>aln.getEvalue()) {
@@ -186,6 +187,12 @@ public class HMMTransposonDomainsFinder {
 		}
 		return answer;
 	}
+	private boolean overlap(TransposonDomainAlignment last, TransposonDomainAlignment aln) {
+		if(last==null) return false;
+		int overlap = last.getEnd()-aln.getStart();
+		return overlap > 0.3*aln.getLength();
+	}
+
 	public static void main(String[] args) throws Exception {
 		String filename = args[0];
 		String domainsName = args[1];

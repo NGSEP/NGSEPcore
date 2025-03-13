@@ -331,13 +331,13 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		int position=-1;
 		for (int i=0; i<viterbiMatrix.length;i++) {
 			Double probability=viterbiMatrix[i][steps-1][0];
-			//if("PF00077.25".equals(id) && probability!=null && probability>-5) System.out.println("probability "+i+": "+probability);
+			//if("PF00075.29".equals(id) && probability!=null && probability>0) System.out.println("probability "+i+": "+probability);
 			if (probability!=null && probability>maxProbability) {
 				maxProbability=probability;
 				position=i;
 			}
 		}
-		//if("PF00077.25".equals(id)) System.out.println("Maximum probability: "+maxProbability+" pos: "+position);
+		//if("PF00075.29".equals(id)) System.out.println("Maximum probability: "+maxProbability+" pos: "+position);
 		return position;
 	}
 	private int getMaxProbabilityHMM() {
@@ -382,12 +382,12 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		//System.out.println("New E value: "+ eValue);
 		//Double asd = (double) (m*(this.steps-1)*Math.pow(10,-lambda*(maxScore-miu)));
 		Double asd = (double) (m*(this.steps-1)*Math.pow(10,-(maxScore-miu)));
-		//System.out.println("query length: " + m +" steps: "+this.steps+" lambda: "+lambda+" score: "+maxScore+" miu: "+miu);
+		//if("PF00075.29".equals(id)) System.out.println("query length: " + m +" steps: "+this.steps+" lambda: "+lambda+" score: "+maxScore+" miu: "+miu+" asd: "+ asd);
 		return asd;
 	}
 	
 	public boolean passFilter (Double evalue) {
-		if (evalue<0.01) {return true;}
+		if (evalue<0.05) {return true;}
 		else {return false;}
 	}
 
