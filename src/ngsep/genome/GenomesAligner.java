@@ -33,7 +33,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +81,7 @@ public class GenomesAligner {
 	private String outputPrefix = DEF_OUT_PREFIX;
 	private int maxHomologsUnit = DEF_MAX_HOMOLOGS_UNIT;
 	private boolean skipMCL= false;
+	private boolean skipSynteny = false;
 	private int minHomologUnitsBlock = DEF_MIN_HOMOLOGY_UNITS_BLOCK;
 	private int maxDistanceBetweenUnits = DEF_MAX_DISTANCE_BETWEEN_UNITS;
 	private double minFrequencySoftCore = DEF_MIN_FREQUENCY_SOFT_CORE;
@@ -89,6 +89,7 @@ public class GenomesAligner {
 	private String inputDirectory = null;
 	private int referenceGenomeId = 0;
 	private int numThreads = 1;
+	
 
 	
 	// Model attributes
@@ -129,7 +130,18 @@ public class GenomesAligner {
 	public void setSkipMCL(Boolean value) {
 		setSkipMCL(value.booleanValue());
 	}
-
+	
+	public boolean isSkipSynteny() {
+		return skipSynteny;
+	}
+	public void setSkipSynteny(boolean skipSynteny) {
+		this.skipSynteny = skipSynteny;
+	}
+	public void setSkipSynteny(Boolean value) {
+		setSkipSynteny(value.booleanValue());
+	}
+	
+	
 	public byte getKmerLength() {
 		return homologRelationshipsFinder.getKmerLength();
 	}
@@ -242,7 +254,7 @@ public class GenomesAligner {
 		
 		if(genomes.size()==0) throw new IOException("At least one genome and its annotation should be provided");
 		if(outputPrefix==null) throw new IOException("A prefix for output files is required");
-		if(referenceGenomeId>0) {
+		if(!skipSynteny && referenceGenomeId>0) {
 			inferOrthologs();
 			identifyHomologyClusters();
 			sortAndOrientGenomes();
@@ -251,7 +263,7 @@ public class GenomesAligner {
 		inferOrthologs();
 		identifyHomologyClusters();
 		if(genomes.size()>1) {
-			alignGenomes();
+			if(!skipSynteny) alignGenomes();
 			buildPAMatrix();
 		}
 		printResults();
@@ -656,23 +668,29 @@ public class GenomesAligner {
         	for(HomologyUnit unit:cluster.getHomologyUnitsCluster()) clusterIdsByHomologyUnit.put(unit.getUniqueKey(), cluster.getClusterId());
         }
         Map<String,Integer> syntenyBlockIdByPair = new HashMap<String, Integer>();
-        for(int i=0;i<orthologsSyntenyBlocks.size();i++) {
-        	PairwiseSyntenyBlock block = orthologsSyntenyBlocks.get(i);
-        	for(SyntenyVertex vertex:block.getHomologies()) {
-        		List<HomologyUnit> units1 = vertex.getLocalRegion1().getHomologyUnitsCluster();
-        		List<HomologyUnit> units2 = vertex.getLocalRegion2().getHomologyUnitsCluster();
-        		for(HomologyUnit u1:units1) {
-        			for(HomologyUnit u2:units2) {
-        				syntenyBlockIdByPair.put(u1.getUniqueKey()+"-"+u2.getUniqueKey(), i+1);
-        				syntenyBlockIdByPair.put(u2.getUniqueKey()+"-"+u1.getUniqueKey(), i+1);
-        			}
-        		}
-        	}
-        	
-        }
+        if(!skipSynteny) {
+            for(int i=0;i<orthologsSyntenyBlocks.size();i++) {
+            	PairwiseSyntenyBlock block = orthologsSyntenyBlocks.get(i);
+            	for(SyntenyVertex vertex:block.getHomologies()) {
+            		List<HomologyUnit> units1 = vertex.getLocalRegion1().getHomologyUnitsCluster();
+            		List<HomologyUnit> units2 = vertex.getLocalRegion2().getHomologyUnitsCluster();
+            		for(HomologyUnit u1:units1) {
+            			for(HomologyUnit u2:units2) {
+            				syntenyBlockIdByPair.put(u1.getUniqueKey()+"-"+u2.getUniqueKey(), i+1);
+            				syntenyBlockIdByPair.put(u2.getUniqueKey()+"-"+u1.getUniqueKey(), i+1);
+            			}
+            		}
+            	}
+            }
+        } 
+        
 
 		/*try (PrintStream outD3Paralogs = new PrintStream(outputPrefix+"_circularParalogView.html");) {
 			printD3Visualization(outD3Paralogs,"GenomesAlignerCircularParalogVisualizer.js", jsFilename, 5);
+		}*/
+
+		/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
+			printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
 		}*/
 		try (PrintStream outRelationships = new PrintStream(outputPrefix+"_relationships.tsv")) {
 			for(int i=0;i<genomes.size();i++) {
@@ -685,7 +703,6 @@ public class GenomesAligner {
 			}
 		}
 		
-
 		//Print ortholog clusters
 		CDNACatalogAligner.printResults(outputPrefix, homologyClusters);
 		
@@ -719,11 +736,10 @@ public class GenomesAligner {
 			try (PrintStream outD3Linear = new PrintStream(outputPrefix+"_linearOrthologView.html");) {
 				printD3Visualization(outD3Linear,"GenomesAlignerLinearOrthologVisualizer.js", jsFilename, 5);
 			}
-			printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt", outputPrefix +"_SynvisioCollinearity.txt", jsFilename);
-			printSynVisioAnnotFile(outputPrefix+"_SynvisioAnnot.txt");
-			/*try (PrintStream outD3Circular = new PrintStream(outputPrefix+"_circularOrthologView.html");) {
-				printD3Visualization(outD3Circular,"GenomesAlignerCircularOrthologVisualizer.js", jsFilename, 5);
-			}*/
+			if(!skipSynteny) {
+				printSyntenyBlocks(outputPrefix+"_syntenyBlocks.txt", outputPrefix +"_SynvisioCollinearity.txt", jsFilename);
+				printSynVisioAnnotFile(outputPrefix+"_SynvisioAnnot.txt");
+			}
 		}
 
 	}

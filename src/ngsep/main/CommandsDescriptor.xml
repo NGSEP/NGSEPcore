@@ -1134,6 +1134,9 @@ By default genomes will not be modified.
 <option id="s" type="BOOLEAN" attribute="skipMCL">
 Skip the MCL clustering phase and return unfiltered orthogroups.
 </option>
+<option id="sy" type="BOOLEAN" attribute="skipSynteny">
+Skip the synteny analysis.
+</option>
 <option id="yh" type="INT" attribute="minHomologUnitsBlock" defaultConstant="DEF_MIN_HOMOLOGY_UNITS_BLOCK">
 Minimum number of consistent homology units to call a synteny block.
 </option>
