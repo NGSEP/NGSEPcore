@@ -1,0 +1,108 @@
+package ngsep.transposons;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import ngsep.genome.ReferenceGenome;
+import ngsep.sequences.DNASequence;
+import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.KmersMap;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
+
+public class DeNovoTransposableElementsFinderKmerAbundance implements DeNovoTransposableElementsFinder {
+
+	@Override
+	public List<TransposableElement> findTransposons(ReferenceGenome genome) {
+		// TODO Auto-generated method stub
+		return new ArrayList<TransposableElement>();
+	}
+	/**
+	 * Find deNovo transposons given a genome
+	 * @param genome to which the transposons will be found 
+	 * @return List<TransposableElementAnnotation> list of transposons found with chromosome, starting and ending position
+	 * @throws InterruptedException if this exception is caught, it is because for the kmer table the genome could not be loaded
+	 */
+	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) throws InterruptedException {
+		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
+		
+		QualifiedSequenceList list = genome.getSequencesList();
+		KmersExtractor tableKmer = new KmersExtractor();
+		tableKmer.processQualifiedSequences(list);
+		KmersMap kmap= tableKmer.getKmersMap();
+		int totalTranspoSize= 0;
+	    //traverses the genome, chromosome by chromosome 
+		for(QualifiedSequence chromosome:list)
+		{
+			//gives the chromosome sequence
+			CharSequence chromosomeSequence = chromosome.getCharacters();
+			int n = chromosome.getLength();
+			int regionStart=0;
+			int regionEnd=1;
+			int regionFrequency=0;			
+			//extract kmer by kmer of the entire genome
+			for(int i=0;i<n-15;i++) 
+			{
+				int end = i+15;
+				String kmer = chromosomeSequence.subSequence(i, end).toString();
+				//check if kmer is DNA
+				if(DNASequence.isDNA(kmer)) 
+				{
+					int kmerFrequency = kmap.getCount(kmer); 
+					//filter kmers with given frequency
+					if (kmerFrequency >=10)
+					{ 
+						int dif= Math.abs(regionEnd-i);
+						// report regions
+						// does the kmer belongs to the region?
+						if (dif<=50)
+						{
+							regionEnd=end;
+							
+							// the frequency of the region will be the lowest frequency of the kmers
+							if(regionFrequency==0)
+							{
+								regionFrequency= kmerFrequency;
+							}
+							if (kmerFrequency<regionFrequency)
+							{
+								regionFrequency= kmerFrequency;
+							}
+							// validate if the kmer is the last int the chromosome 
+							if(regionEnd==n-1)
+							{
+								int sizeRegion= regionEnd-regionStart;
+								totalTranspoSize+= sizeRegion;
+								TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
+								answer.add(transposon);
+								//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
+								// update 
+								regionStart=0;
+								regionEnd= 1;
+								regionFrequency=0;	
+							}
+						}
+						// find a new region	
+						else 
+						{
+							int sizeRegion= regionEnd-regionStart;
+							totalTranspoSize+= sizeRegion;
+							TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
+							answer.add(transposon);
+							//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;	
+							// update
+							regionStart=i;
+							regionEnd= end;
+							regionFrequency=kmerFrequency;	
+						}
+					
+					}
+				}
+			
+			}
+ 	
+		}
+		System.out.println(totalTranspoSize); 	
+		return answer;
+	}
+}

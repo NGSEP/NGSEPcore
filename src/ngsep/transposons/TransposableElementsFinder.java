@@ -40,11 +40,7 @@ import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
-import ngsep.sequences.DNASequence;
-import ngsep.sequences.KmersExtractor;
-import ngsep.sequences.KmersMap;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 
 /**
@@ -179,99 +175,14 @@ public class TransposableElementsFinder {
 	 * @throws IOException catches the IOException thrown if the specified part of the transposon database file is locked or the path does not exist
 	 */
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) throws InterruptedException, IOException {
+		DeNovoTransposableElementsFinder deNovoFinder = new DeNovoTransposableElementsFinderKmerAbundance();
+		List<TransposableElement> deNovoElements = deNovoFinder.findTransposons(genome);
+		if(deNovoElements.size()==0 && transposonsDatabaseFile!=null) return new ArrayList<TransposableElementAnnotation>();
 		GenomicRegionSortedCollection<TransposableElementAnnotation> annotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
 		//annotations.addAll(findTransposonsDeNovo(genome));
-		if(transposonsDatabaseFile!=null) annotations.addAll(findTransposonsBySimilarity(genome));
+		 annotations.addAll(findTransposonsBySimilarity(genome));
 		System.out.println("Removing redundancies from final dataset with "+annotations.size()+" annotations");
 		return removeRedundantAnnotations(annotations);
-	}
-	/**
-	 * Find deNovo transposons given a genome
-	 * @param genome to which the transposons will be found 
-	 * @return List<TransposableElementAnnotation> list of transposons found with chromosome, starting and ending position
-	 * @throws InterruptedException if this exception is caught, it is because for the kmer table the genome could not be loaded
-	 */
-	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) throws InterruptedException {
-		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		
-		QualifiedSequenceList list = genome.getSequencesList();
-		KmersExtractor tableKmer = new KmersExtractor();
-		tableKmer.processQualifiedSequences(list);
-		KmersMap kmap= tableKmer.getKmersMap();
-		int totalTranspoSize= 0;
-	    //traverses the genome, chromosome by chromosome 
-		for(QualifiedSequence chromosome:list)
-		{
-			//gives the chromosome sequence
-			CharSequence chromosomeSequence = chromosome.getCharacters();
-			int n = chromosome.getLength();
-			int regionStart=0;
-			int regionEnd=1;
-			int regionFrequency=0;			
-			//extract kmer by kmer of the entire genome
-			for(int i=0;i<n-15;i++) 
-			{
-				int end = i+15;
-				String kmer = chromosomeSequence.subSequence(i, end).toString();
-				//check if kmer is DNA
-				if(DNASequence.isDNA(kmer)) 
-				{
-					int kmerFrequency = kmap.getCount(kmer); 
-					//filter kmers with given frequency
-					if (kmerFrequency >=10)
-					{ 
-						int dif= Math.abs(regionEnd-i);
-						// report regions
-						// does the kmer belongs to the region?
-						if (dif<=50)
-						{
-							regionEnd=end;
-							
-							// the frequency of the region will be the lowest frequency of the kmers
-							if(regionFrequency==0)
-							{
-								regionFrequency= kmerFrequency;
-							}
-							if (kmerFrequency<regionFrequency)
-							{
-								regionFrequency= kmerFrequency;
-							}
-							// validate if the kmer is the last int the chromosome 
-							if(regionEnd==n-1)
-							{
-								int sizeRegion= regionEnd-regionStart;
-								totalTranspoSize+= sizeRegion;
-								TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
-								answer.add(transposon);
-								//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;
-								// update 
-								regionStart=0;
-								regionEnd= 1;
-								regionFrequency=0;	
-							}
-						}
-						// find a new region	
-						else 
-						{
-							int sizeRegion= regionEnd-regionStart;
-							totalTranspoSize+= sizeRegion;
-							TransposableElementAnnotation transposon = new TransposableElementAnnotation(chromosome.getName(), regionStart, regionEnd); 
-							answer.add(transposon);
-							//System.out.println("" + chromosome.getName()+ "   " + regionStart + " "  + regionEnd + "   " +  regionFrequency + "  " + sizeRegion) ;	
-							// update
-							regionStart=i;
-							regionEnd= end;
-							regionFrequency=kmerFrequency;	
-						}
-					
-					}
-				}
-			
-			}
- 	
-		}
-		System.out.println(totalTranspoSize); 	
-		return answer;
 	}
 	/**
 	 * find transposons by similarity given a genome and a transposon database
@@ -291,82 +202,81 @@ public class TransposableElementsFinder {
 		//load the fasta
 		FastaSequencesHandler load = new FastaSequencesHandler();
 		//loading known transposons
-		List<QualifiedSequence> knownTransposons = load.loadSequences(transposonsDatabaseFile);
+		List<QualifiedSequence> knownTESequences = load.loadSequences(transposonsDatabaseFile);
+		List<TransposableElement> knownTEs = new ArrayList<TransposableElement>();
+		for(QualifiedSequence seq:knownTESequences) knownTEs.add(new TransposableElement(seq));
 		log.info("Searching transposons db");
-		List<TransposableElementAnnotation> elements = alignTransposonSequences(genome, minimizerTable, knownTransposons);
-		answer.addAll(elements);
+		List<TransposableElementAnnotation> teAnnotations = alignTransposonSequences(genome, minimizerTable, knownTEs);
+		answer.addAll(teAnnotations);
 		if(answer.size() ==0 ) {
 			log.info("Finished first round. No TEs found with the given database.");
 			return answer;
 		}
-		log.info("Finished first round. Identified "+elements.size()+" regions.");
+		log.info("Finished first round. Identified "+teAnnotations.size()+" regions.");
 		for(int i=2;i<=rounds;i++) {
 			//Second round
 			log.info("Starting round "+i);
-			GenomicRegionSortedCollection<TransposableElementAnnotation> sortedElements = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
-			sortedElements.addAll(elements);
-			elements = removeRedundantAnnotations(sortedElements);
-			log.info("Regions after removing redundancies: "+elements.size());
-			List<QualifiedSequence> foundSequences = extractSequences(genome,elements);
-			elements = alignTransposonSequences(genome, minimizerTable, foundSequences);
-			answer.addAll(elements);
-			log.info("Finished round "+i+". Identified "+elements.size()+" regions. Total: "+answer.size());
+			GenomicRegionSortedCollection<TransposableElementAnnotation> sortedAnn = new GenomicRegionSortedCollection<>(genome.getSequencesMetadata());
+			sortedAnn.addAll(teAnnotations);
+			teAnnotations = removeRedundantAnnotations(sortedAnn);
+			log.info("Regions after removing redundancies: "+teAnnotations.size());
+			List<TransposableElement> foundSequences = extractTEs(genome,teAnnotations);
+			teAnnotations = alignTransposonSequences(genome, minimizerTable, foundSequences);
+			answer.addAll(teAnnotations);
+			log.info("Finished round "+i+". Identified "+teAnnotations.size()+" regions. Total: "+answer.size());
 		}
 		return answer;
 	}
-	private List<QualifiedSequence> extractSequences(ReferenceGenome genome, List<TransposableElementAnnotation> elements) {
-		List<QualifiedSequence> sequences = new ArrayList<>();
+	private List<TransposableElement> extractTEs(ReferenceGenome genome, List<TransposableElementAnnotation> elements) {
+		List<TransposableElement> sequences = new ArrayList<>();
 		for(TransposableElementAnnotation ann:elements) {
 			CharSequence sequence = genome.getReference(ann.getSequenceName(), ann.getFirst(), ann.getLast());
 			if(sequence==null) {
 				log.warning("No sequence for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
 				continue;
 			}
-			QualifiedSequence qseq = new QualifiedSequence(ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"#"+ann.getTaxonomy(),sequence);
-			sequences.add(qseq);
+			TransposableElement te = new TransposableElement(ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"#"+ann.getTaxonomy(),sequence);
+			te.setFamily(ann.getFamily());
+			sequences.add(te);
 		}
 		return sequences;
 	}
-	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable, List<QualifiedSequence> knownTransposons) {
+	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable, List<TransposableElement> knownTransposons) {
 		List<List<TransposableElementAnnotation>> predictions = new ArrayList<>();
 		for(int i=0;i<knownTransposons.size();i++) {
 			predictions.add(new ArrayList<>());
 		}
-		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, knownTransposons.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		for (int i=0;i<knownTransposons.size();i++) {
-			QualifiedSequence transposon = knownTransposons.get(i);
-			final int x = i;
-			pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, x, transposon)));
+		try (ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, knownTransposons.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>())) {
+			for (int i=0;i<knownTransposons.size();i++) {
+				TransposableElement transposon = knownTransposons.get(i);
+				final int x = i;
+				pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, x, transposon)));
+			}
+			pool.shutdown();
+			if(!pool.isShutdown()) {
+				throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
+			}
 		}
-		pool.shutdown();
-		try {
-			pool.awaitTermination(knownTransposons.size(), TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-    	if(!pool.isShutdown()) {
-			throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
-		}
-    	List<TransposableElementAnnotation> answer = new ArrayList<>();
+		List<TransposableElementAnnotation> answer = new ArrayList<>();
     	for (int i=0;i<knownTransposons.size();i++) {
     		answer.addAll(predictions.get(i));
     	}
 		return answer;
 	}
-	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, QualifiedSequence transposon) {
+	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, TransposableElement transposon) {
 		boolean debug = false;
 		//boolean debug = transposon.getName().contains("Pl05_19834351_19842561");
 		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
-		String readSeq = transposon.getCharacters().toString();
+		String readSeq = transposon.getSequence().toString();
 		List<UngappedSearchHitsCluster> forwardClusters = minimizerTable.buildHitClusters(readSeq,true);
 		double maxCount = summarize(forwardClusters);
 		if(debug) logClusters(genome, transposon, forwardClusters);
-		for (UngappedSearchHitsCluster cluster:forwardClusters) rawHits.add(buildTransposon(genome, cluster, false,transposon));
+		for (UngappedSearchHitsCluster cluster:forwardClusters) rawHits.add(buildTEAnnotation(genome, cluster, false,transposon));
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
 		List<UngappedSearchHitsCluster> reverseClusters = minimizerTable.buildHitClusters(reverseComplement,true);
 		maxCount = Math.max(maxCount, summarize(reverseClusters));
 		if(debug) logClusters(genome, transposon, reverseClusters);
-		for (UngappedSearchHitsCluster cluster:reverseClusters) rawHits.add(buildTransposon(genome, cluster, true,transposon));
+		for (UngappedSearchHitsCluster cluster:reverseClusters) rawHits.add(buildTEAnnotation(genome, cluster, true,transposon));
 		Collections.sort(rawHits, (o1,o2)-> ((int)o2.getCount())-((int)o1.getCount()));
 		List<TransposableElementAnnotation> answer = new ArrayList<>();
 		for (int i=0;i<rawHits.size() && i<maxAlnsPerTransposon;i++) {
@@ -379,7 +289,7 @@ public class TransposableElementsFinder {
 			answer.add(ann);
 		}
 		
-		if(seqId%100==0) log.info("Processed element index "+seqId+" name: "+transposon.getName()+" hits: "+answer.size());
+		if(seqId%100==0) log.info("Processed element index "+seqId+" name: "+transposon.getId()+" hits: "+answer.size());
 		return answer;
 	}
 	private double summarize(List<UngappedSearchHitsCluster> clusters) {
@@ -391,7 +301,7 @@ public class TransposableElementsFinder {
 		}
 		return maxCount;
 	}
-	private TransposableElementAnnotation buildTransposon(ReferenceGenome genome, UngappedSearchHitsCluster cluster, boolean negativeStrand, QualifiedSequence transposon) {
+	private TransposableElementAnnotation buildTEAnnotation(ReferenceGenome genome, UngappedSearchHitsCluster cluster, boolean negativeStrand, TransposableElement transposon) {
 		int sequenceIdx = cluster.getSubjectIdx();
 		QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 		int first = Math.max(1, cluster.getSubjectEvidenceStart());
@@ -400,11 +310,11 @@ public class TransposableElementsFinder {
 		
 		alignedTransposon.setNegativeStrand(negativeStrand);
 		alignedTransposon.setCount(cluster.getCountKmerHitsCluster());
-		alignedTransposon.setSourceInfo(transposon.getName());
+		alignedTransposon.setSource(transposon);
 		return alignedTransposon;
 	}
-	private void logClusters(ReferenceGenome genome, QualifiedSequence transposon, List<UngappedSearchHitsCluster> clusters) {
-		System.out.println("Transposon sequence id: "+transposon.getName()+" length: "+transposon.getLength()+" clusters: "+clusters.size());
+	private void logClusters(ReferenceGenome genome, TransposableElement transposon, List<UngappedSearchHitsCluster> clusters) {
+		System.out.println("Transposon sequence id: "+transposon.getId()+" length: "+transposon.getSequence().length()+" clusters: "+clusters.size());
 		for (UngappedSearchHitsCluster cluster:clusters) {
 			int sequenceIdx = cluster.getSubjectIdx();
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
@@ -426,8 +336,7 @@ public class TransposableElementsFinder {
 			if(next==null) next = ann;
 			else if (merge(next,ann)) {
 				if(ann.length()>next.length()) {
-					next.setQueryName(ann.getQueryName());
-					next.setTaxonomy(ann.getTaxonomy());
+					next.setSource(ann.getSource());
 				}
 				next.setLast(Math.max(next.getLast(),ann.getLast()));
 			} else {

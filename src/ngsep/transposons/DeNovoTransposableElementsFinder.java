@@ -10,7 +10,7 @@ public interface DeNovoTransposableElementsFinder {
 	/**
 	 * Finds transposable elements in a refrence genome
 	 * @param genome to analyze
-	 * @return List<QualifiedSequence> List of sequences identified as transposable elements
+	 * @return List<TransposableElement> List of sequences identified as transposable elements
 	 */
-	public List<QualifiedSequence> findTransposons(ReferenceGenome genome);
+	public List<TransposableElement> findTransposons(ReferenceGenome genome);
 }
