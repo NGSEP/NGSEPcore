@@ -52,25 +52,32 @@ public class HMMTransposonDomainsFinder {
 		hmmLoader.loadDomainCodes();
 		
 		List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
-		for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
+		//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
 		hmms.addAll(hmmsFile);
 		
 	}
 	
-	public List<TransposonDomainAlignment> findDomains(QualifiedSequence qdnaSequence) {
+	public TransposableElementFamily assignFamily (DNAMaskedSequence dnaSequence) {
+		List<TransposonDomainAlignment> domains = findDomains(dnaSequence);
+		if(domains.size()==0) return null;
+		if(domains.get(0).isReverse()) {
+			Collections.reverse(domains);
+		}
+		return TransposableElementFamily.matchFamily(domains);
+	}
+	public List<TransposonDomainAlignment> findDomains(DNAMaskedSequence dnaSequence) {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
-		DNAMaskedSequence seqForward = (DNAMaskedSequence) qdnaSequence.getCharacters();
-		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
-		Map<Integer,String> orfsForward = calculateORFConcat(seqForward);
-		Map<Integer,String> orfsReverse = calculateORFConcat(seqReverse);
+		DNAMaskedSequence seqForward = dnaSequence;
 		//System.out.println("Forward orfs: "+orfsForward.size()+" Reverse orfs: "+orfsReverse.size());
-		List<TransposonDomainAlignment> domainsForward = findDomainsFromORFs(qdnaSequence, orfsForward, false);
-		List<TransposonDomainAlignment> domainsReverse = findDomainsFromORFs(qdnaSequence, orfsReverse, true);
+		List<TransposonDomainAlignment> domainsForward = findDomainsFromORFs(seqForward, false);
+		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
+		List<TransposonDomainAlignment> domainsReverse = findDomainsFromORFs(seqReverse, true);
 		answer = selectStrand(domainsForward,domainsReverse);
 		return sortAndFilterDomains(answer);
 	}
 	
-	private List<TransposonDomainAlignment> findDomainsFromORFs(QualifiedSequence qdnaSequence, Map<Integer, String> orfs, boolean reverse) {
+	private List<TransposonDomainAlignment> findDomainsFromORFs(DNAMaskedSequence dnaSequence, boolean reverse) {
+		Map<Integer,String> orfs = calculateORFConcat(dnaSequence);
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
 			int startDNA = orf.getKey();
@@ -80,7 +87,7 @@ public class HMMTransposonDomainsFinder {
 				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
 				if(aaDomain!=null) {
-					TransposonDomainAlignment domain = buildTEDomain(qdnaSequence, startDNA, aaDomain, reverse);
+					TransposonDomainAlignment domain = buildTEDomain(dnaSequence, startDNA, aaDomain, reverse);
 					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein limits: "+aaDomain.getStart()+" "+aaDomain.getEnd()+" pos domain: "+domain.getStart());
 					answer.add(domain);
 				}
@@ -137,14 +144,14 @@ public class HMMTransposonDomainsFinder {
 		}
 		return answer;
 	}
-	private TransposonDomainAlignment buildTEDomain(QualifiedSequence qdnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
+	private TransposonDomainAlignment buildTEDomain(DNAMaskedSequence dnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
 		int start = startDNA+3*aaDomain.getStart();
 		int end = startDNA+3*aaDomain.getEnd();
 		if(reverseStrand) {
-			end = qdnaSequence.getLength() - 1 - startDNA - 3*aaDomain.getStart();
-			start = qdnaSequence.getLength() - 1 - startDNA - 3*aaDomain.getEnd(); 
+			end = dnaSequence.length() - 1 - startDNA - 3*aaDomain.getStart();
+			start = dnaSequence.length() - 1 - startDNA - 3*aaDomain.getEnd(); 
 		}
-		TransposonDomainAlignment domain = new TransposonDomainAlignment(qdnaSequence, start, end, aaDomain);
+		TransposonDomainAlignment domain = new TransposonDomainAlignment(start, end, aaDomain);
 		domain.setReverse(reverseStrand);
 		return domain;
 	}
@@ -201,13 +208,13 @@ public class HMMTransposonDomainsFinder {
 		try (PrintStream outDomains = new PrintStream(domainsOutput);
 			 PrintStream outFamilies = new PrintStream(familiesOutput)) {
 			// Escribir el encabezado
-			outDomains.println("id\tStart\tLength\tClass\tProfileID\tE-value");
+			outDomains.println("id\tSeqlength\tStart\tLength\tStrand\tClass\tProfileID\tE-value");
 			outFamilies.println("id\tOrder\tFamily");
 			int i=0;
 			for (QualifiedSequence seq : sequences) {
 				System.out.println(seq.getName()+" "+i);
-				List<TransposonDomainAlignment> domains = instance.findDomains(seq);
-				instance.printDomains(domains,outDomains);
+				List<TransposonDomainAlignment> domains = instance.findDomains((DNAMaskedSequence) seq.getCharacters());
+				instance.printDomains(seq, domains,outDomains);
 				if(domains.size()>0) {
 					//TODO: Better calculation of strand
 					if(domains.get(0).isReverse()) {
@@ -230,10 +237,10 @@ public class HMMTransposonDomainsFinder {
     }
 	
 
-	private void printDomains(List<TransposonDomainAlignment> domains, PrintStream out) {
+	private void printDomains(QualifiedSequence seq, List<TransposonDomainAlignment> domains, PrintStream out) {
 		for(TransposonDomainAlignment domain:domains) {
-			out.print(domain.getQseq().getName());
-			out.print("\t"+domain.getQseq().getLength());
+			out.print(seq.getName());
+			out.print("\t"+seq.getLength());
 			out.print("\t"+domain.getStart());
 			out.print("\t"+domain.getLength());
 			out.print("\t"+(domain.isReverse()?"-":"+"));

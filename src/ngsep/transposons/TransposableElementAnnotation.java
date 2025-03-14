@@ -29,7 +29,8 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	private int first;
 	private int last;
 	private TransposableElement source;
-	private double count = 0;
+	private TransposableElementFamily inferredFamily;
+	private int count = 0;
 	private boolean negativeStrand=false;
 	
 	/**
@@ -80,22 +81,30 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public void setSource(TransposableElement source) {
 		this.source = source;
 	}
+	
+	public TransposableElementFamily getInferredFamily() {
+		return inferredFamily;
+	}
+
+	public void setInferredFamily(TransposableElementFamily inferredFamily) {
+		this.inferredFamily = inferredFamily;
+	}
 
 	public String getQueryName() {
 		return source.getId();
 	}
 
-	public TransposableElementFamily getFamily() {
+	public TransposableElementFamily getSourceFamily() {
 		return source.getFamily();
 	}
 
 	public String getTaxonomy() {
 		return source.getTaxonomy();
 	}
-	public double getCount() {
+	public int getCount() {
 		return count;
 	}
-	public void setCount(double count) {
+	public void setCount(int count) {
 		this.count = count;
 	}
 }
