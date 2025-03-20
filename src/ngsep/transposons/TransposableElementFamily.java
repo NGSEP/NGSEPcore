@@ -12,9 +12,10 @@ public class TransposableElementFamily {
 	private List<String> teDomainIds;
 	private static final Map<String,List<TransposableElementFamily>> TE_FAMILIES = loadTEFamilies();
 	
-	public static final TransposableElementFamily LTR_UNKNOWN = new TransposableElementFamily("LTR", "Unknown", new ArrayList<String>());
-	public static final TransposableElementFamily LINE_UNKNOWN = new TransposableElementFamily("LINE", "Unknown", new ArrayList<String>());
-	public static final TransposableElementFamily SINE_UNKNOWN = new TransposableElementFamily("SINE", "Unknown", new ArrayList<String>());
+	public static final String UNKNOWN = "Unknown";
+	public static final TransposableElementFamily LTR_UNKNOWN = new TransposableElementFamily("LTR", UNKNOWN, new ArrayList<String>());
+	public static final TransposableElementFamily LINE_UNKNOWN = new TransposableElementFamily("LINE", UNKNOWN, new ArrayList<String>());
+	public static final TransposableElementFamily SINE_UNKNOWN = new TransposableElementFamily("SINE", UNKNOWN, new ArrayList<String>());
 	private TransposableElementFamily(String order, String id, List<String> teDomainIds) {
 		super();
 		this.order = order;
@@ -170,7 +171,11 @@ public class TransposableElementFamily {
 
 
 	public static TransposableElementFamily findFamily(String orderStr, String familyStr) {
-		// TODO Auto-generated method stub
+		for(List<TransposableElementFamily> famList : TE_FAMILIES.values()) {
+			for(TransposableElementFamily family:famList) {
+				if(family.getOrder().equals(orderStr) && family.getId().equals(familyStr)) return family;
+			}
+		}
 		return null;
 	}
 

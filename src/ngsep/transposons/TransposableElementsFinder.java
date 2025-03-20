@@ -41,7 +41,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.transposons.io.TransposableElementLibraryHandler;
 
 /**
  * 
@@ -151,7 +151,7 @@ public class TransposableElementsFinder {
 		if(transposonsDatabaseFile==null) throw new IOException("The transposons database file is a required parameter");
 		ReferenceGenome genome = new ReferenceGenome(inputFile);
 		List<TransposableElementAnnotation> transposonAnnotations = findTransposons(genome);
-		saveTransposons(transposonAnnotations,outputFile);
+		saveTransposonAnnotations(transposonAnnotations,outputFile);
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
 		log.info("Process finished in "+seconds+" seconds");
@@ -182,13 +182,8 @@ public class TransposableElementsFinder {
 	}
 	private List<TransposableElement> loadKnownTransposons() throws IOException {
 		log.info("Loading known transposons");
-		//load the fasta
-		FastaSequencesHandler load = new FastaSequencesHandler();
-		//loading known transposons
-		List<QualifiedSequence> knownTESequences = load.loadSequences(transposonsDatabaseFile);
-		List<TransposableElement> knownTEs = new ArrayList<TransposableElement>();
-		for(QualifiedSequence seq:knownTESequences) knownTEs.add(new TransposableElement(seq));
-		return knownTEs;
+		TransposableElementLibraryHandler handler = new TransposableElementLibraryHandler();
+		return handler.load(transposonsDatabaseFile);
 	}
 	/**
 	 * find transposons by similarity given a genome and a transposon database
@@ -345,12 +340,7 @@ public class TransposableElementsFinder {
 	private void assignFamily(TransposableElementAnnotation ann, ReferenceGenome genome) {
 		if(ann.length()<5000) return;
 		HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
-		try {
-			domainsFinder.loadHMMsFromClasspath();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return;
-		}
+		domainsFinder.loadHMMsFromClasspath();
 		CharSequence seq = genome.getReference(ann);
 		TransposableElementFamily family = domainsFinder.assignFamily((DNAMaskedSequence) seq);
 		if(family==null) return;
@@ -365,12 +355,12 @@ public class TransposableElementsFinder {
 		return p1 > 0.7 && p2>0.7 && Math.max(ann.getLast(), next.getLast())-Math.min(ann.getFirst(), next.getFirst())<20000;
 	}
 	/**
-	 * Save found the transposons 
+	 * Save transposons 
 	 * @param transposonAnnotations list of transposons found deNovo and similarity methods
 	 * @param outputFile name of the output file where the transposon annotation will be saved
 	 * @throws IOException catch the IOException thrown if the specified part of the file is locked or does not exist
 	 */
-	public void saveTransposons(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) throws IOException {
+	public void saveTransposonAnnotations(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) throws IOException {
 		try (PrintStream outTransposon =  new PrintStream(outputFile)) {	
 			for(TransposableElementAnnotation t:transposonAnnotations) 
 			{
@@ -383,24 +373,6 @@ public class TransposableElementsFinder {
 				outTransposon.println();
 			}
 		}
-	}
-	
-	private int [] findLTREnds(String ltrSequence) {
-		PairwiseAlignerSimpleGap pairAligner = new PairwiseAlignerSimpleGap();
-		pairAligner.setLocal(true);
-		int querysize = ltrSequence.length();
-		CharSequence leftLTR= ltrSequence.subSequence(0, 1200);
-		CharSequence rigthLTR = ltrSequence.subSequence(querysize-1200, querysize);
-		PairwiseAlignment alignment=  pairAligner.calculateAlignment(leftLTR, rigthLTR);
-		int start1=alignment.getStart1();
-		int end1=alignment.getEnd2();
-		int start2=alignment.getStart2()+querysize-1200;
-		int end2=alignment.getEnd2()+querysize-1200;
-	    return new int[] { start1, end1, start2, end2 };
-	}
-	private boolean checkScore(double score) {
-		double threshold = 0.8;
-		return score>= threshold;
 	}
 }
 	

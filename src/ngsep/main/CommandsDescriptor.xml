@@ -1231,6 +1231,25 @@ Output file with statistics per family
 </option>
 </command>
 
+<command id="TransposonLibraryFilter" class="ngsep.transposons.TransposableElementLibraryFilter" groupId="Genomes">
+<intro>
+Verifies annotations of a library of transposable elements and filters incomplete elements
+</intro>
+<title>Filtering transposable element libraries</title>
+<description>
+Receives a library of transposable elements and checks for each element if the order and family can be inferred from the annotated domains and structure.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input library of TEs. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with the filtered library
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
+</option>
+</command>
+
 <command id="GenomeAssemblyMask" class="ngsep.genome.GenomeAssemblyMask" groupId="Genomes">
 <intro>
 Masks regions in a genome assembly

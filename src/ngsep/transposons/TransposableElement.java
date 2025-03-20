@@ -1,5 +1,7 @@
 package ngsep.transposons;
 
+import java.util.List;
+
 import ngsep.sequences.QualifiedSequence;
 
 public class TransposableElement {
@@ -7,6 +9,8 @@ public class TransposableElement {
 	private CharSequence sequence;
 	private TransposableElementFamily family;
 	private String taxonomy;
+	private List<TransposonDomainAlignment> domainAlns;
+	
 	public TransposableElement(String id, CharSequence sequence) {
 		super();
 		this.id = id;
@@ -32,6 +36,13 @@ public class TransposableElement {
 	public CharSequence getSequence() {
 		return sequence;
 	}
+	
+	public List<TransposonDomainAlignment> getDomainAlns() {
+		return domainAlns;
+	}
+	public void setDomainAlns(List<TransposonDomainAlignment> domainAlns) {
+		this.domainAlns = domainAlns;
+	}
 	private void decodeSequenceId() {
 		int i = id.indexOf('#');
 		if(i<0) return;
@@ -52,5 +63,15 @@ public class TransposableElement {
 		} else {
 			family = TransposableElementFamily.findUnknown(orderStr);
 		}
+	}
+	public void modifyIdFromFamily () {
+		StringBuilder newTaxonomy = new StringBuilder();
+		int i = id.indexOf('#');
+		if(i>0) id = id.substring(0,i);
+		newTaxonomy.append(family.getOrder());
+		newTaxonomy.append('/');
+		newTaxonomy.append(family.getId());
+		taxonomy = newTaxonomy.toString();
+		id = id + '#'+taxonomy;
 	}
 }

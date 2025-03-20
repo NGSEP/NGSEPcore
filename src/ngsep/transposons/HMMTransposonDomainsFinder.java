@@ -45,16 +45,18 @@ import ngsep.transcriptome.ProteinTranslator;
 public class HMMTransposonDomainsFinder {
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
 	
-	public void loadHMMsFromClasspath() throws IOException {
+	public void loadHMMsFromClasspath() {
 		//ProteinNullModel nullModel = new ProteinNullModel();
 				NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
 		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
-		hmmLoader.loadDomainCodes();
-		
-		List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
-		//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
-		hmms.addAll(hmmsFile);
-		
+		try {
+			hmmLoader.loadDomainCodes();
+			List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
+			//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
+			hmms.addAll(hmmsFile);
+		} catch (IOException e) {
+			throw new RuntimeException("HMM profiles could not be loaded from classpath.",e);
+		}
 	}
 	
 	public TransposableElementFamily assignFamily (DNAMaskedSequence dnaSequence) {
@@ -64,6 +66,14 @@ public class HMMTransposonDomainsFinder {
 			Collections.reverse(domains);
 		}
 		return TransposableElementFamily.matchFamily(domains);
+	}
+	public void assignFamily(TransposableElement te) {
+		List<TransposonDomainAlignment> domains = findDomains((DNAMaskedSequence) te.getSequence());
+		if(domains.get(0).isReverse()) {
+			Collections.reverse(domains);
+		}
+		te.setDomainAlns(domains);
+		te.setFamily(TransposableElementFamily.matchFamily(domains));
 	}
 	public List<TransposonDomainAlignment> findDomains(DNAMaskedSequence dnaSequence) {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
