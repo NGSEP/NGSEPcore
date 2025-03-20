@@ -45,30 +45,41 @@ public class TransposableElementFamily {
 	public static TransposableElementFamily matchFamily(List<TransposonDomainAlignment> alns) {
 		List<String> alignedDomainIds = new ArrayList<String>();
 		int gagPos = -1;
+		double gagEvalue = 10;
 		int intPos = -1;
 		int rtPos = -1;
 		int rhPos = -1;
 		int envPos = -1;
 		int  yrPos = -1;
-		boolean apePresent = false;
-		boolean enPresent = false;
-		boolean tasePresent = false;
+		boolean endPresent = false;
+		boolean hthPresent = false;
+		double hthEvalue = 10;
 		int pos=0;
 		for(TransposonDomainAlignment aln:alns) {
 			String domainCode = aln.getDomainCode();
 			alignedDomainIds.add(domainCode);
-			if("GAG".equals(domainCode)) gagPos = pos;
+			if("GAG".equals(domainCode)) {
+				gagPos = pos;
+				gagEvalue = Math.min(gagEvalue,aln.getEvalue());
+			}
 			if("INT".equals(domainCode)) intPos = pos;
 			if("RT".equals(domainCode)) rtPos = pos;
 			if("RNASEH".equals(domainCode)) rhPos = pos;
 			if("ENV".equals(domainCode)) envPos = pos;
 			if("YR".equals(domainCode)) yrPos = pos;
-			if("APE".equals(domainCode)) apePresent = true;
-			if("EN".equals(domainCode)) enPresent = true;
-			if("Tase".equals(domainCode)) tasePresent = true;
+			if("END".equals(domainCode)) endPresent = true;
+			if("HTH".equals(domainCode)) {
+				hthPresent = true;
+				hthEvalue = Math.min(hthEvalue, aln.getEvalue());
+			}
 			pos++;
 		}
 		int nAlnDoms = alignedDomainIds.size();
+		if(gagPos>=0 && hthPresent) {
+			if(gagEvalue< hthEvalue) hthPresent = false;
+			else gagPos = -1;
+		}
+		if(hthPresent) return findFamily(TE_FAMILIES.get("TIR"),"TIR");
 		if(gagPos>=0) {
 			if(intPos>gagPos) {
 				//LTR
@@ -105,18 +116,18 @@ public class TransposableElementFamily {
 			else return findFamily(TE_FAMILIES.get("YR"),"RYD");
 		}
 		//LINEs
-		if(apePresent || enPresent) {
+		if(endPresent) {
 			List<TransposableElementFamily> fams = TE_FAMILIES.get("INE"); 
 			for(TransposableElementFamily family:fams) {
 				if(family.matchStrict(alignedDomainIds)) return family;
 			}
-			if(apePresent) {
+			if(endPresent) {
 				if(rhPos>=0) return findFamily(fams,"RII");
 				return findFamily(fams,"RIT");
 			}
 			return findFamily(fams,"RIR");
 		}
-		if(tasePresent) return findFamily(TE_FAMILIES.get("TIR"),"TIR");
+		
 		return null;
 	}
 	
