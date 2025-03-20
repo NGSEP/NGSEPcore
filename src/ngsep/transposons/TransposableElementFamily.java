@@ -59,8 +59,11 @@ public class TransposableElementFamily {
 			String domainCode = aln.getDomainCode();
 			alignedDomainIds.add(domainCode);
 			if("GAG".equals(domainCode)) {
-				gagPos = pos;
-				gagEvalue = Math.min(gagEvalue,aln.getEvalue());
+				if(gagPos == -1 || gagEvalue>aln.getEvalue()) {
+					gagPos = pos;
+					gagEvalue = aln.getEvalue();
+				}
+				
 			}
 			if("INT".equals(domainCode)) intPos = pos;
 			if("RT".equals(domainCode)) rtPos = pos;
@@ -90,11 +93,10 @@ public class TransposableElementFamily {
 				//TODO: Return something more specific in these cases
 				if(envPos>intPos) return findFamily(fams,"RLR");
 				if(envPos>=0 || nAlnDoms==2) return LTR_UNKNOWN;
-				if(intPos<nAlnDoms-1) {
-					if(rtPos>intPos || rhPos>intPos) return findFamily(fams,"RLC");
-					return LTR_UNKNOWN;
-				}
-				return findFamily(fams,"RLG");
+				if(rtPos>intPos || rhPos>intPos) return findFamily(fams,"RLC");
+				if(rtPos>-1 && rtPos<intPos) return findFamily(fams,"RLG");
+				if(rhPos>-1 && rhPos<intPos) return findFamily(fams,"RLG");
+				return LTR_UNKNOWN;
 				
 			} else if (yrPos>gagPos) {
 				//DIRS

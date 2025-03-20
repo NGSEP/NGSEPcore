@@ -155,6 +155,10 @@ public class TransposableElementLibraryFilter {
 	}
 
 	private TransposableElement verifyTransposon(TransposableElement te) {
+		if(!verifyEnds(te)) {
+			log.info("Terminal repeats at ends of TE: "+te.getId()+" could not be found.");
+			return null;
+		}
 		HMMTransposonDomainsFinder finder = new HMMTransposonDomainsFinder();
 		finder.loadHMMsFromClasspath();
 		TransposableElementFamily givenFamily = te.getFamily();
@@ -183,10 +187,6 @@ public class TransposableElementLibraryFilter {
 			revElem.setDomainAlns(te.getDomainAlns());
 			answer = revElem;
 		}
-		if(!verifyEnds(answer)) {
-			log.info("Terminal repeats at ends of TE: "+te.getId()+" could not be found.");
-			return null;
-		}
 		
 		return answer;
 	}
@@ -203,7 +203,7 @@ public class TransposableElementLibraryFilter {
 		int length2 = end2 - start2;
 		int minLength = Math.min(length1, length2);
 		int maxLength = Math.max(length1, length2);
-		//System.out.println("End alignment. TE length: "+querysize+" Lengths: "+minLength+" "+maxLength+". Starts: "+start1+" "+start2+" Ends: "+end1+" "+end2+". Mismatches: "+alignment.getMismatches());
+		System.out.println("End alignment. TE length: "+querysize+" Lengths: "+minLength+" "+maxLength+". Starts: "+start1+" "+start2+" Ends: "+end1+" "+end2+". Mismatches: "+alignment.getMismatches());
 		return minLength > 0.9 * maxLength && minLength > 100 && alignment.getMismatches() < 0.2 * minLength;
 	}
 
