@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import ngsep.math.CollisionEntropyCalculator;
 import ngsep.math.Distribution;
+import ngsep.math.EntropyCalculator;
 import ngsep.sequences.UngappedSearchHit;
 
 /**
@@ -44,6 +46,7 @@ public class UngappedSearchHitsClusterBuilder {
 	private int queryLengthDebug = -1;
 	private boolean debug = false;
 	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
+	private EntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
 	
 	public int getClusteringAlgorithm() {
 		return clusteringAlgorithm;
@@ -71,9 +74,8 @@ public class UngappedSearchHitsClusterBuilder {
 			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				if(subcluster.size()<minHits) continue;
-				//TODO: Nicolas: switch commented line
-				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
-				//List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
+				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
 				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
@@ -112,8 +114,71 @@ public class UngappedSearchHitsClusterBuilder {
 	}
 	
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
-		// TODO Nicolas, implement here
-		return null;
+		// Se ordenan los hits en funcion del query start, de menor a mayor
+		Collections.sort(hits, (h1, h2) -> Integer.compare(h1.getQueryStart(), h2.getQueryStart()));
+
+		// Estructuras para manejar la informacion del camino más pesado
+		double[] maxWeight = new double[hits.size()];
+		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
+		int[] predecessor = new int[hits.size()];
+		Arrays.fill(predecessor, -1);
+
+		maxWeight[0] = 0;
+		// Se recorre el grafo siguiendo el orden definido anteriormente
+		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
+			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
+				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
+					double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
+					if(newWeight > maxWeight[destinationHit]){
+						maxWeight[destinationHit] = newWeight;
+						predecessor[destinationHit] = sourceHit;
+					}
+				}
+			}
+		}
+
+		// Obtenemos la informacion del mejor camino
+		double finalMaxWeight = Double.NEGATIVE_INFINITY;
+		int finalHitIndex = -1;
+		for (int i = 0; i < maxWeight.length; i++) {
+    		if (maxWeight[i] > finalMaxWeight) {
+        		finalMaxWeight = maxWeight[i];
+        		finalHitIndex = i;
+    		}
+		}
+
+		List<UngappedSearchHit> path = new ArrayList<>();
+    	int actualHitIndex = finalHitIndex;
+
+    	while (actualHitIndex != -1) {
+        	path.add(hits.get(actualHitIndex));
+        	actualHitIndex = predecessor[actualHitIndex];
+    	}
+
+		// El camino está en orden inverso, lo corregimos
+    	Collections.reverse(path);
+    	return path;
+
+
+		//return null;
+	}
+
+	// Funcion para verificar si existe un eje entre dos hits
+	private boolean checkIfExistEdge(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		return !((destinationHit.getQueryStart() - sourceHit.getQueryStart()) < 0);
+	}
+
+	// Funcion para calcular el peso de un eje, teniendo en cuenta entropias y distancias
+	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
+		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
+
+		// No se usa valor absoluto ya que por precondicion se garantiza que esta distancia siempre es positiva
+		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();
+		// Esta no se puede garantizar que siempre es positiva, por eso se usa abs
+		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+
+		return (sourceHitEntropy * destinationHitEntropy) / (queryDistance + subjectDistance);
 	}
 	
 	/**
