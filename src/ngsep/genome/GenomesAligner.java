@@ -963,7 +963,7 @@ public class GenomesAligner {
 	private String htmlStyleCode() {
 		String code = "<style>\n" + 
 				"		svg {\n" + 
-				"		  font: 13px sans-serif;\n" + 
+				"		  font: 16px sans-serif;\n" + 
 				"		}\n" + 
 				"		.background path {\n" + 
 				"		  fill: none;\n" + 
@@ -989,7 +989,9 @@ public class GenomesAligner {
 				"		.axis text {\n" + 
 				"		  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;\n" + 
 				"		  cursor: move;\n" + 
-				"		}\n" + 
+				"		}\n" +
+				"		.y1-axis { font: 14px sans-serif; }\n"+
+			    "		.y2-axis { font: 14px sans-serif; }\n"+
 				"\n" + 
 				"		</style>";
 

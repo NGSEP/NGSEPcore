@@ -51,7 +51,8 @@ public class TransposableElementFamily {
 		int rhPos = -1;
 		int envPos = -1;
 		int  yrPos = -1;
-		boolean endPresent = false;
+		int endPos = -1;
+		double endEvalue = 10;
 		boolean hthPresent = false;
 		double hthEvalue = 10;
 		int pos=0;
@@ -70,19 +71,30 @@ public class TransposableElementFamily {
 			if("RNASEH".equals(domainCode)) rhPos = pos;
 			if("ENV".equals(domainCode)) envPos = pos;
 			if("YR".equals(domainCode)) yrPos = pos;
-			if("END".equals(domainCode)) endPresent = true;
+			if("END".equals(domainCode)) {
+				if(endPos==-1 || endEvalue>aln.getEvalue()) {
+					endPos = pos;
+					endEvalue = aln.getEvalue();
+				}
+			}
 			if("HTH".equals(domainCode)) {
 				hthPresent = true;
 				hthEvalue = Math.min(hthEvalue, aln.getEvalue());
 			}
 			pos++;
 		}
+		
 		int nAlnDoms = alignedDomainIds.size();
 		if(gagPos>=0 && hthPresent) {
 			if(gagEvalue< hthEvalue) hthPresent = false;
 			else gagPos = -1;
 		}
+		if(gagPos>=0 && endPos>=0) {
+			if(gagEvalue< endEvalue) endPos = -1;
+			else gagPos = -1;
+		}
 		if(hthPresent) return findFamily(TE_FAMILIES.get("TIR"),"TIR");
+		//System.out.println("END data: "+endPos+" "+endEvalue+" GAG: "+gagPos+" "+gagEvalue+" INT: "+intPos+" YR: "+yrPos);
 		if(gagPos>=0) {
 			if(intPos>gagPos) {
 				//LTR
@@ -105,6 +117,20 @@ public class TransposableElementFamily {
 				return LTR_UNKNOWN;
 			}
 		}
+		//LINEs
+		if(endPos>=0) {
+			List<TransposableElementFamily> fams = TE_FAMILIES.get("INE"); 
+			//for(TransposableElementFamily family:fams) {
+			//	if(family.matchStrict(alignedDomainIds)) return family;
+			//}
+			//System.out.println("Pos: "+endPos+" "+rtPos+" "+rhPos+" alns: "+alns.size());
+			if(rtPos<endPos) return findFamily(fams,"RIR");
+			if(rhPos>=0) return findFamily(fams,"RII");
+			if(alns.size()==2) return findFamily(fams,"RIT");
+			//TODO: Differentiate RIL, RII and RIJ 
+			return findFamily(fams,"RIL");
+		}
+		
 		if(intPos>=0) {
 			List<TransposableElementFamily> fams = TE_FAMILIES.get("LTR1");
 			//TODO: Return something more specific in these cases
@@ -117,18 +143,7 @@ public class TransposableElementFamily {
 			if(alignedDomainIds.size()==1) return findFamily(TE_FAMILIES.get("YR"),"DYC");
 			else return findFamily(TE_FAMILIES.get("YR"),"RYD");
 		}
-		//LINEs
-		if(endPresent) {
-			List<TransposableElementFamily> fams = TE_FAMILIES.get("INE"); 
-			for(TransposableElementFamily family:fams) {
-				if(family.matchStrict(alignedDomainIds)) return family;
-			}
-			if(endPresent) {
-				if(rhPos>=0) return findFamily(fams,"RII");
-				return findFamily(fams,"RIT");
-			}
-			return findFamily(fams,"RIR");
-		}
+		
 		
 		return null;
 	}
@@ -162,13 +177,16 @@ public class TransposableElementFamily {
 		String [] cryptonDomains = {"YR"};
 		yrFamilies.add(new TransposableElementFamily("Crypton","DYC", Arrays.asList(cryptonDomains)));
 		
-		String [] rirDomains = {"RT","EN"};
+		String [] rirDomains = {"RT","END"};
 		ineFamilies.add(new TransposableElementFamily("LINE","RIR", Arrays.asList(rirDomains)));
 		
-		String [] riiDomains = {"APE", "RT", "RH"};
+		String [] riiDomains = {"END", "RT", "RH"};
 		ineFamilies.add(new TransposableElementFamily("LINE","RII", Arrays.asList(riiDomains)));
 		
-		String [] ritDomains = {"APE", "RT"};
+		String [] rilDomains = {"END", "RT"};
+		ineFamilies.add(new TransposableElementFamily("LINE","RIL", Arrays.asList(rilDomains)));
+		
+		String [] ritDomains = {"END", "RT"};
 		ineFamilies.add(new TransposableElementFamily("LINE","RIT", Arrays.asList(ritDomains)));
 		
 		String [] dtpDomains = {"Tase"};
