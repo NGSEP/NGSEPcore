@@ -28,6 +28,7 @@ public class CollisionEntropyCalculator implements EntropyCalculator {
     
     private static double[][] SQUARES_CACHE = new double[100][100]; 
     private static double LOG2_BASE10 = Math.log10(2);
+    private double maxEntropy;
 
     static{
         for(int i = 0; i < 100; i++) {
@@ -37,6 +38,10 @@ public class CollisionEntropyCalculator implements EntropyCalculator {
                 SQUARES_CACHE[i][j] = calculateTerm(count, n);
             }
         }
+    }
+
+    public CollisionEntropyCalculator(int alphabetSize) {
+        maxEntropy = (alphabetSize == 0) ? 0 : (Math.log10(alphabetSize) / LOG2_BASE10);
     }
 
     public static double calculateTerm(double count, int n) {
@@ -59,5 +64,9 @@ public class CollisionEntropyCalculator implements EntropyCalculator {
 		}
         double entropy = -1d * (Math.log10(sum) / LOG2_BASE10);
         return entropy;
+    }
+
+    public double getMaxEntropy() {
+        return this.maxEntropy;
     }
 }

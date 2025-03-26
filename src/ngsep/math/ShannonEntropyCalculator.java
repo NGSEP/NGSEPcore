@@ -28,6 +28,7 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
 	
 	private static double[][] LOG_CACHE = new double[100][100];;
 	private static double LOG2_BASE10 = Math.log10(2d);
+	private double maxEntropy;
 
     static{
         for(int i = 0; i < 100; i++) {
@@ -38,6 +39,10 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
 			}
 		}
     }
+
+	public ShannonEntropyCalculator(int alphabetSize) {
+		maxEntropy = (alphabetSize == 0) ? 0 : (Math.log10(alphabetSize) / LOG2_BASE10);
+	}
 
     public static double calculateTerm(double count, int n) {
         double probability = count / n;
@@ -59,4 +64,8 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
 		}
 		return entropy;
 	}
+
+	public double getMaxEntropy() {
+        return this.maxEntropy;
+    }
 }

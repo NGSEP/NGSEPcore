@@ -38,7 +38,7 @@ import ngsep.math.Distribution;
  */
 public class ShortKmerCodesTable {
 	
-	private CollisionEntropyCalculator entropyCalculator = new CollisionEntropyCalculator();
+	private CollisionEntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
 	private static final long [] EMPTY_LONG_ARRAY = new long[0];
 	
 	private Logger log = Logger.getLogger(ShortKmerCodesTable.class.getName());
@@ -455,7 +455,7 @@ public class ShortKmerCodesTable {
 		else {
 			CharSequence sequence = new String (DNASequence.getDNASequence(code, length));
 			double entropy = entropyCalculator.calculateEntropy(sequence);
-			return entropy;
+			return entropyCalculator.normalizeEntropy(entropy);
 		}
 		
 	}

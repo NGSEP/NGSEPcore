@@ -24,4 +24,14 @@ package ngsep.math;
  */
 public interface EntropyCalculator {
     public double calculateEntropy(CharSequence sequence);
+    public double getMaxEntropy();
+
+    default double normalizeEntropy(double entropy) {
+        double maxEntropy = getMaxEntropy();
+        return (maxEntropy == 0) ? 0 : entropy / maxEntropy;
+    }
+
+    default double denormalizeEntropy(double normalizedEntropy) {
+        return normalizedEntropy * getMaxEntropy();
+    }
 }

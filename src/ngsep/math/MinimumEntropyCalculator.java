@@ -27,6 +27,11 @@ import java.util.HashMap;
 public class MinimumEntropyCalculator implements EntropyCalculator {
     
     private static double LOG2_BASE10 = Math.log10(2);
+    private double maxEntropy;
+
+    public MinimumEntropyCalculator(int alphabetSize) {
+        maxEntropy = (alphabetSize == 0) ? 0 : (Math.log10(alphabetSize) / LOG2_BASE10);
+    }
 
     public double calculateEntropy(CharSequence sequence) {
         HashMap<Character, Integer> charFrequencies = new HashMap<Character, Integer>();
@@ -42,5 +47,9 @@ public class MinimumEntropyCalculator implements EntropyCalculator {
         }
         double entropy = -1d * (Math.log10(max) / LOG2_BASE10);
         return entropy;
+    }
+
+    public double getMaxEntropy() {
+        return this.maxEntropy;
     }
 }
