@@ -29,8 +29,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import ngsep.alignments.PairwiseAlignerSimpleGap;
-import ngsep.alignments.PairwiseAlignment;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
@@ -155,7 +153,7 @@ public class TransposableElementLibraryFilter {
 	}
 
 	private TransposableElement verifyTransposon(TransposableElement te) {
-		if(!verifyEnds(te)) {
+		if(!te.verifyEnds()) {
 			log.info("Terminal repeats at ends of TE: "+te.getId()+" could not be found.");
 			return null;
 		}
@@ -189,30 +187,5 @@ public class TransposableElementLibraryFilter {
 		}
 		
 		return answer;
-	}
-
-	private boolean verifyEnds(TransposableElement te) {
-		if (!"LTR".equals(te.getFamily().getOrder())) return true;
-		PairwiseAlignment alignment = findLTREndsAlignment(te.getSequence().toString());
-		int querysize = te.getSequence().length();
-		int start1 = alignment.getStart1();
-		int end1 = alignment.getEnd1();
-		int length1 = end1 - start1;
-		int start2 = alignment.getStart2() + querysize - 1200;
-		int end2 = alignment.getEnd2() + querysize - 1200;
-		int length2 = end2 - start2;
-		int minLength = Math.min(length1, length2);
-		int maxLength = Math.max(length1, length2);
-		System.out.println("End alignment. TE length: "+querysize+" Lengths: "+minLength+" "+maxLength+". Starts: "+start1+" "+start2+" Ends: "+end1+" "+end2+". Mismatches: "+alignment.getMismatches());
-		return minLength > 0.9 * maxLength && minLength > 100 && alignment.getMismatches() < 0.2 * minLength;
-	}
-
-	private PairwiseAlignment findLTREndsAlignment(String ltrSequence) {
-		PairwiseAlignerSimpleGap pairAligner = new PairwiseAlignerSimpleGap();
-		pairAligner.setLocal(true);
-		int querysize = ltrSequence.length();
-		CharSequence leftLTR = ltrSequence.subSequence(0, 1200);
-		CharSequence rigthLTR = ltrSequence.subSequence(querysize - 1200, querysize);
-		return pairAligner.calculateAlignment(leftLTR, rigthLTR);
 	}
 }

@@ -32,6 +32,7 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	private TransposableElementFamily inferredFamily;
 	private int count = 0;
 	private boolean negativeStrand=false;
+	private boolean bordersFixed = false;
 	
 	/**
 	 * Build New Transposable Element 
@@ -52,6 +53,11 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public int getFirst() {
 		return first;
 	}
+	
+	public void setFirst(int first) {
+		this.first = first;
+	}
+
 	public int getLast() {
 		return last;
 	}
@@ -107,4 +113,17 @@ public class TransposableElementAnnotation implements GenomicRegion{
 	public void setCount(int count) {
 		this.count = count;
 	}
+
+	public boolean isBordersFixed() {
+		return bordersFixed;
+	}
+
+	public void setBordersFixed(boolean bordersFixed) {
+		this.bordersFixed = bordersFixed;
+	}
+
+	public boolean isValidated() {
+		return isBordersFixed() && getSourceFamily()!=null;
+	}
+	
 }

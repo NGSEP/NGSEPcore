@@ -217,4 +217,12 @@ public class TransposableElementFamily {
 		if("SINE".equals(orderStr)) return SINE_UNKNOWN;
 		return null;
 	}
+
+
+	public boolean isLTR() {
+		return "LTR".equals(order);
+	}
+	public String toString() {
+		return order+"/"+id;
+	}
 }

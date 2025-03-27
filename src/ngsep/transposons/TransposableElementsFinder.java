@@ -24,16 +24,17 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
-import ngsep.alignments.PairwiseAlignerSimpleGap;
-import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.UngappedSearchHitsCluster;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
@@ -71,6 +72,7 @@ public class TransposableElementsFinder {
 	private double minWeightedCount = 10;
 	private int maxAlnsPerTransposon = 10000;
 	private double minProportionBestCount = 0;
+	private boolean validateFamily = false;
 	
 	// Model attributes
 	
@@ -126,6 +128,16 @@ public class TransposableElementsFinder {
 	}
 	public void setRounds(String value) {
 		this.setRounds(Integer.parseInt(value));
+	}
+	
+	public boolean isValidateFamily() {
+		return validateFamily;
+	}
+	public void setValidateFamily(boolean validateFamily) {
+		this.validateFamily = validateFamily;
+	}
+	public void setValidateFamily(Boolean validateFamily) {
+		this.validateFamily = validateFamily;
 	}
 	
 	public int getNumThreads() {
@@ -193,25 +205,35 @@ public class TransposableElementsFinder {
 	 * @throws IOException catches the IOException thrown if the specified part of the transposon database file is locked or the path does not exist
 	 */
 	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome, List<TransposableElement> knownTEs) {
-		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
+		
 	
 		log.info("Creating reference index");
 		MinimizersUngappedSearchHitsClustersFinder minimizerTable = new MinimizersUngappedSearchHitsClustersFinder();
 		minimizerTable.loadGenome(genome, 15, 20, numThreads);
 		minimizerTable.setMinProportionReadLength(0);
-		
-		log.info("Finished first round. Identified "+answer.size()+" regions.");
+		GenomicRegionSortedCollection<TransposableElementAnnotation> validatedAnnotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
+		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		for(int i=1;i<=rounds;i++) {
 			log.info("Starting round "+i);
-			log.info("Searching transposons db");
-			answer = alignTransposonSequences(genome, minimizerTable, knownTEs);
-			if(answer.size() ==0 ) {
-				log.info("Finished round. No TEs found with the given database.");
+			log.info("Searching transposons db. Search TEs: "+knownTEs.size()+" validated: "+validatedAnnotations.size());
+			List<TransposableElementAnnotation> roundAnn = alignTransposonSequences(genome, minimizerTable, knownTEs, validatedAnnotations);
+			answer.clear();
+			answer.addAll(validatedAnnotations);
+			answer.addAll(roundAnn);
+			log.info("Finished round "+i+". Identified "+roundAnn.size()+" regions. Total events: "+answer.size());
+			if(roundAnn.size() == 0 ) {
+				log.info("Finished round. No new TEs found.");
 				return answer;
 			}
-			log.info("Finished round "+i+". Identified "+answer.size()+" regions. Total events: "+answer.size());
-			if(i<rounds) knownTEs = extractTEs(genome,answer);
+			if(i<rounds) {
+				knownTEs = extractTEs(genome,answer);
+				for(TransposableElementAnnotation ann:roundAnn) {
+					if(ann.isValidated()) validatedAnnotations.add(ann);
+				}
+				validatedAnnotations.forceSort();
+			}
 		}
+		Collections.sort(answer, new GenomicRegionComparator(genome.getSequencesMetadata()));
 		return answer;
 	}
 	private List<TransposableElement> extractTEs(ReferenceGenome genome, List<TransposableElementAnnotation> elements) {
@@ -222,14 +244,16 @@ public class TransposableElementsFinder {
 				log.warning("No sequence for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
 				continue;
 			}
-			TransposableElement te = new TransposableElement(ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"#"+ann.getTaxonomy(),sequence);
+			if(ann.isNegativeStrand()) sequence = DNAMaskedSequence.getReverseComplement(sequence);
+			TransposableElement te = new TransposableElement(ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"_"+(ann.isNegativeStrand()?'N':'P')+"#"+ann.getTaxonomy(),sequence);
 			if(ann.getInferredFamily()!=null) te.setFamily(ann.getInferredFamily());
 			else te.setFamily(ann.getSourceFamily());
+			te.setBordersFixed(ann.isBordersFixed());
 			sequences.add(te);
 		}
 		return sequences;
 	}
-	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable, List<TransposableElement> knownTransposons) {
+	private List<TransposableElementAnnotation> alignTransposonSequences(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable, List<TransposableElement> knownTransposons, GenomicRegionSortedCollection<TransposableElementAnnotation> validatedAnnotations) {
 		List<List<TransposableElementAnnotation>> predictions = new ArrayList<>();
 		for(int i=0;i<knownTransposons.size();i++) {
 			predictions.add(new ArrayList<>());
@@ -238,20 +262,24 @@ public class TransposableElementsFinder {
 			for (int i=0;i<knownTransposons.size();i++) {
 				TransposableElement transposon = knownTransposons.get(i);
 				final int x = i;
-				pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, x, transposon)));
+				pool.execute(()->predictions.set(x,alignTransposonSequence(genome, minimizerTable, x, transposon, validatedAnnotations)));
 			}
 			pool.shutdown();
 			if(!pool.isShutdown()) {
 				throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
 			}
 		}
-		GenomicRegionSortedCollection<TransposableElementAnnotation> answer = new GenomicRegionSortedCollection<TransposableElementAnnotation>(genome.getSequencesMetadata());
+		List<TransposableElementAnnotation> answer = new ArrayList<>();
     	for (int i=0;i<knownTransposons.size();i++) {
     		answer.addAll(predictions.get(i));
+    		//System.out.println("Added "+predictions.get(i).size()+" predictions to the answer. Total: "+answer.size());
     	}
-		return removeRedundantAnnotations(genome,answer);
+    	Collections.sort(answer, new GenomicRegionComparator(genome.getSequencesMetadata()));
+    	List<TransposableElementAnnotation> nonRedundantAnn = removeRedundantAnnotations(genome,answer);
+    	validateFamily(nonRedundantAnn, genome);
+    	return nonRedundantAnn;
 	}
-	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, TransposableElement transposon) {
+	private List<TransposableElementAnnotation>  alignTransposonSequence(ReferenceGenome genome, MinimizersUngappedSearchHitsClustersFinder minimizerTable,int seqId, TransposableElement transposon, GenomicRegionSortedCollection<TransposableElementAnnotation> validatedRegions) {
 		boolean debug = false;
 		//boolean debug = transposon.getName().contains("Pl05_19834351_19842561");
 		List<TransposableElementAnnotation> rawHits = new ArrayList<>();
@@ -270,6 +298,8 @@ public class TransposableElementsFinder {
 		for (int i=0;i<rawHits.size() && i<maxAlnsPerTransposon;i++) {
 			TransposableElementAnnotation ann = rawHits.get(i);
 			if(ann.length()<minTELength) continue;
+			//TODO: Check annotation length
+			if(validatedRegions.findSpanningRegions(ann).size()>0) continue;
 			double wc = ann.getCount();
 			if(debug) System.out.println("Next candidate TE "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast()+" count: "+wc+" min: "+minWeightedCount);
 			if(wc<minWeightedCount || wc<minProportionBestCount*maxCount) break;
@@ -294,11 +324,17 @@ public class TransposableElementsFinder {
 		QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 		int first = Math.max(1, cluster.getSubjectEvidenceStart());
 		int last = Math.min(refSeq.getLength()-1, cluster.getSubjectEvidenceEnd());
+		boolean annBordersFixed = transposon.isBordersFixed() && Math.abs(first - cluster.getSubjectPredictedStart()) <10 && Math.abs(last - cluster.getSubjectPredictedEnd()) <10 && last-first >0.95*transposon.getSequence().length(); 
+		if(annBordersFixed) {
+			//TODO: Align ends to predict correctly start and end
+			first = Math.max(1, cluster.getSubjectPredictedStart());
+			last = Math.min(refSeq.getLength()-1, cluster.getSubjectPredictedEnd());
+		}
 		TransposableElementAnnotation alignedTransposon = new TransposableElementAnnotation(refSeq.getName(),first, last);
-		
 		alignedTransposon.setNegativeStrand(negativeStrand);
 		alignedTransposon.setCount(cluster.getCountKmerHitsCluster());
 		alignedTransposon.setSource(transposon);
+		alignedTransposon.setBordersFixed(annBordersFixed);
 		return alignedTransposon;
 	}
 	private void logClusters(ReferenceGenome genome, TransposableElement transposon, List<UngappedSearchHitsCluster> clusters) {
@@ -312,48 +348,131 @@ public class TransposableElementsFinder {
 		
 	}
 	/**
-	 * Removes redundant transposons found by deNovo and similarity methods
-	 * @param annotations the transposons found by deNovo and by similarity
+	 * Removes redundant annotations found by the similarity based algorithm
+	 * @param sortedAnns the annotations found by similarity
 	 * @return List<TransposableElementAnnotation> final list of unique transposable elements with chromosome, starting an ending position
 	 */
-	private List<TransposableElementAnnotation> removeRedundantAnnotations(ReferenceGenome genome, GenomicRegionSortedCollection<TransposableElementAnnotation> annotations) {
+	private List<TransposableElementAnnotation> removeRedundantAnnotations(ReferenceGenome genome, List<TransposableElementAnnotation> sortedAnns) {
+		System.out.println("Removing overlaps from "+sortedAnns.size()+" annotations");
+		//Remove anything overlapping with a validated event
+		Set<Integer> toRemove1 = new HashSet<Integer>();
+		for(int i=0;i<sortedAnns.size();i++) {
+			TransposableElementAnnotation ann = sortedAnns.get(i);
+			if(ann.isValidated()) {
+				toRemove1.addAll(fixOverlappingEventsForward(sortedAnns,i));
+			} else {
+				if(overlapWithValidated(sortedAnns,i)) toRemove1.add(i);
+			}
+		}
+		List<TransposableElementAnnotation> annsList2 = new ArrayList<TransposableElementAnnotation>();
+		for(int i=0;i<sortedAnns.size();i++) {
+			if(!toRemove1.contains(i)) annsList2.add(sortedAnns.get(i));
+		}
+		//Merge based on simple overlapping
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		TransposableElementAnnotation next = null;
-		for(TransposableElementAnnotation ann:annotations) {
+		for(TransposableElementAnnotation ann:annsList2) {
 			//System.out.println("Next annotation. "+ann.getSequenceName()+":"+ann.getFirst()+" "+ann.getLast()+" family: "+ann.getTaxonomy());
 			if(next==null) next = ann;
-			else if (merge(next,ann)) {
+			else if (calculateOverlapStatus(next,ann)<2) {
 				if(next.getInferredFamily()==null && ann.length()>next.length()) {
 					next.setSource(ann.getSource());
 				}
 				next.setLast(Math.max(next.getLast(),ann.getLast()));
-				//assignFamily(next, genome);
 			} else {
 				answer.add(next);
 				next = ann;
 			}
 		}
 		if(next!=null)answer.add(next);
-		
 		return answer;
 	}
-	private void assignFamily(TransposableElementAnnotation ann, ReferenceGenome genome) {
-		if(ann.length()<5000) return;
-		HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
-		domainsFinder.loadHMMsFromClasspath();
-		CharSequence seq = genome.getReference(ann);
-		TransposableElementFamily family = domainsFinder.assignFamily((DNAMaskedSequence) seq);
-		if(family==null) return;
-		ann.setInferredFamily(family);
+	private boolean overlapWithValidated(List<TransposableElementAnnotation> annsList, int pos) {
+		TransposableElementAnnotation partial = annsList.get(pos);
+		for(int i=pos+1;i<annsList.size();i++) {
+			TransposableElementAnnotation ann = annsList.get(pos);
+			int status = calculateOverlapStatus(partial,ann); 
+			if(status > 2 ) break;
+			if(ann.isBordersFixed() && ann.getSourceFamily()!=null) {
+				if(status == 2) partial.setLast(ann.getFirst()-1);
+				else return true;
+			}
+		}
+		return false;
 	}
-	private boolean merge(TransposableElementAnnotation next, TransposableElementAnnotation ann) {
-		if(!next.getSequenceName().equals(ann.getSequenceName())) return false;
-		int spanLength = GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast()); 
+	private List<Integer> fixOverlappingEventsForward(List<TransposableElementAnnotation> annsList, int pos) {
+		List<Integer> answer = new ArrayList<Integer>();
+		TransposableElementAnnotation validated = annsList.get(pos);
+		for(int i=pos+1;i<annsList.size();i++) {
+			TransposableElementAnnotation ann = annsList.get(pos);
+			int status = calculateOverlapStatus(validated,ann); 
+			if(status > 2 ) break;
+			if(ann.isBordersFixed() && ann.getSourceFamily()!=null) {
+				log.info("Found two overlapping validated events. First. "+validated.getSequenceName()+":"+validated.getFirst()+"-"+validated.getLast()+" Second. "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
+				break;
+			}
+			if(status == 2) ann.setFirst(validated.getLast()+1);
+			else answer.add(i);
+		}
+		return answer;
+	}
+	private int calculateOverlapStatus (TransposableElementAnnotation next, TransposableElementAnnotation ann) {
+		if(!next.getSequenceName().equals(ann.getSequenceName())) return 4;
+		int spanLength = GenomicRegionSpanComparator.getInstance().getSpanLength(next.getFirst(), next.getLast(), ann.getFirst(), ann.getLast());
+		if(spanLength==0) return 3;
 		double p1 = 1.0*spanLength/next.length();
 		double p2 = 1.0*spanLength/ann.length();
-		if(p1>0.95 || p2>0.95) return true;
-		return p1 > 0.7 && p2>0.7 && Math.max(ann.getLast(), next.getLast())-Math.min(ann.getFirst(), next.getFirst())<20000;
+		if(p1>0.95 || p2>0.95) return 0;
+		boolean overlap = p1 > 0.7 && p2>0.7 && Math.max(ann.getLast(), next.getLast())-Math.min(ann.getFirst(), next.getFirst())<20000;
+		return overlap?1:2;
 	}
+	private void validateFamily(List<TransposableElementAnnotation> nonRedundantAnn, ReferenceGenome genome) {
+		System.out.println("Validating families for "+nonRedundantAnn.size()+" annotations. Flag: "+validateFamily);
+		if(!validateFamily) return;
+		try (ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, nonRedundantAnn.size(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>())) {
+			for(TransposableElementAnnotation ann:nonRedundantAnn) {
+				if(ann.isValidated()) continue;
+				pool.execute(()->assignFamily(ann, genome));
+			}
+			pool.shutdown();
+			if(!pool.isShutdown()) {
+				throw new RuntimeException("The ThreadPoolExecutor was not shutdown after an await termination call");
+			}
+		}
+		
+	}
+	private void assignFamily(TransposableElementAnnotation ann, ReferenceGenome genome) {
+		System.out.println("Validating annotation at "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
+		CharSequence seq = genome.getReference(ann);
+		if(ann.length()>3000) {
+			//TODO: Avoid loading from file
+			HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
+			domainsFinder.loadHMMsFromClasspath();
+			domainsFinder.assignFamily(ann,(DNAMaskedSequence) seq);
+		}
+		fixBorders(ann, seq);
+	}
+	private void fixBorders(TransposableElementAnnotation ann, CharSequence seq) {
+		//System.out.println("Fixing borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
+		TransposableElementFamily family = ann.getInferredFamily();
+		if(family == null) family = ann.getSourceFamily();
+		if(family==null) return;
+		//System.out.println("Fixing borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast()+ "family "+family.getOrder()+" "+family.getId());
+		if(ann.isNegativeStrand()) seq = DNAMaskedSequence.getReverseComplement(seq);
+		TransposableElement element = new TransposableElement("", seq);
+		element.setFamily(family);
+		int [] borders = element.alignEnds();
+		if(borders!=null) {
+			if(borders[0]>0) ann.setFirst(ann.getFirst()+borders[0]);
+			if(borders[3]<seq.length()-1) {
+				int diffRight = seq.length()-1-borders[3];
+				ann.setLast(ann.getLast()-diffRight);
+			}
+			//System.out.println("Fixed borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast()+ "family "+family.getOrder()+" "+family.getId());
+			ann.setBordersFixed(true);
+		}
+	}
+	
 	/**
 	 * Save transposons 
 	 * @param transposonAnnotations list of transposons found deNovo and similarity methods
@@ -370,6 +489,9 @@ public class TransposableElementsFinder {
 				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
 				outTransposon.print("\t"+t.getTaxonomy());
 				outTransposon.print("\t"+t.getQueryName());
+				outTransposon.print("\t"+t.getSourceFamily());
+				outTransposon.print("\t"+t.getInferredFamily());
+				outTransposon.print("\t"+t.isBordersFixed());
 				outTransposon.println();
 			}
 		}

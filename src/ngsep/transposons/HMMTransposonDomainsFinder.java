@@ -59,16 +59,24 @@ public class HMMTransposonDomainsFinder {
 		}
 	}
 	
-	public TransposableElementFamily assignFamily (DNAMaskedSequence dnaSequence) {
+	public void assignFamily(TransposableElementAnnotation ann, DNAMaskedSequence dnaSequence) {
 		List<TransposonDomainAlignment> domains = findDomains(dnaSequence);
-		if(domains.size()==0) return null;
-		if(domains.get(0).isReverse()) {
+		if(domains.size()==0) return;
+		boolean negativeStrand = domains.get(0).isReverse();
+		if(negativeStrand) {
 			Collections.reverse(domains);
 		}
-		return TransposableElementFamily.matchFamily(domains);
+		TransposableElementFamily family = TransposableElementFamily.matchFamily(domains);
+		if(family!=null) {
+			//TODO: Check if inferred family is actually better 
+			//System.out.println("Inferred family "+family.getOrder()+" "+family.getId()+" for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
+			ann.setInferredFamily(family);
+			ann.setNegativeStrand(negativeStrand);
+		}
 	}
 	public void assignFamily(TransposableElement te) {
 		List<TransposonDomainAlignment> domains = findDomains((DNAMaskedSequence) te.getSequence());
+		if(domains.size()==0) return;
 		if(domains.get(0).isReverse()) {
 			Collections.reverse(domains);
 		}
