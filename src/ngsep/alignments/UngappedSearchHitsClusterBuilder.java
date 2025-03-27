@@ -128,7 +128,7 @@ public class UngappedSearchHitsClusterBuilder {
 		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
 				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
-					double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
+					double newWeight = maxWeight[sourceHit] + calculateScoreWithoutNormalization(hits.get(sourceHit), hits.get(destinationHit));
 					if(newWeight > maxWeight[destinationHit]){
 						maxWeight[destinationHit] = newWeight;
 						predecessor[destinationHit] = sourceHit;
@@ -169,7 +169,7 @@ public class UngappedSearchHitsClusterBuilder {
 	}
 
 	// Funcion para calcular el peso de un eje, teniendo en cuenta entropias y distancias
-	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+	private double calculateScoreWithoutNormalization(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
 		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
 		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
 
@@ -179,6 +179,24 @@ public class UngappedSearchHitsClusterBuilder {
 		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
 
 		return (sourceHitEntropy * destinationHitEntropy) / (queryDistance + subjectDistance);
+	}
+
+	private double calculateScoreWithNormalization(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
+		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
+
+		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();
+		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+
+		// Que pasa cuando una de las distancias es 0?
+		// Yo optaria por poner un condicional en esto
+		// Penalización por inconsistencias en la distancia, penaliza diferencias grandes
+		double distancePenalty = 1.0 + Math.pow(Math.abs(queryDistance - subjectDistance), 2); 
+
+		// Normalizando el puntaje de dsitancia
+		double normalizedDistance = (queryDistance + subjectDistance) / distancePenalty; 
+
+		return (sourceHitEntropy * destinationHitEntropy) / normalizedDistance;
 	}
 	
 	/**
