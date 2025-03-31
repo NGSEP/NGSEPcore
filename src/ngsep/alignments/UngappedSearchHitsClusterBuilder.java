@@ -57,6 +57,7 @@ public class UngappedSearchHitsClusterBuilder {
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits) {
 		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
 		double minHits = Math.min(20,0.01*queryLength);
+		//System.out.println("minHits:" + minHits);
 		if(sequenceHits.size()<minHits) return new ArrayList<>();
 		UngappedSearchHitClusteringAlgorithm alg;
 		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) alg = new UngappedSearchHitClusteringAlgorithmKruskal();
@@ -73,9 +74,11 @@ public class UngappedSearchHitsClusterBuilder {
 			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
 			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
+				// if (subcluster.size() < 20) System.out.println("Cantidad de hits: " + subcluster.size());
 				if(subcluster.size()<minHits) continue;
 				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
 				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				// if(selectedHits.size() < minHits) System.out.println("Selected hits: " + selectedHits.size() + " --- Minimum Hits: " + minHits);
 				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
@@ -144,11 +147,13 @@ public class UngappedSearchHitsClusterBuilder {
 				// Si la suma actual es 10 veces mayor (o igual) a la minima suma la ignoro y hago break, cerrando el ciclo interno
 				// De paso, tambien se actualiza la minima suma
 				if(currentSum < minimumSum) minimumSum = currentSum;
-				else if(minimumSum != Double.POSITIVE_INFINITY && currentSum >= 10 * minimumSum) break;
+				else if(minimumSum != Double.POSITIVE_INFINITY && currentSum >= 100 * minimumSum) break;
+
+				// System.out.println("Minima suma:" + minimumSum);
 				// Se verifica si se cumplen las condicones para que exista un eje entre los hits
 				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
 					// Se calcula el nuevo peso teniendo en cuenta el puntaje escogido
-					double newWeight = maxWeight[sourceHit] + calculateScoreWithoutPenalty(hits.get(sourceHit), hits.get(destinationHit));
+					double newWeight = maxWeight[sourceHit] + calculateScoreWithPenalty(hits.get(sourceHit), hits.get(destinationHit));
 					// Se lleva a cabo el proceso de relajacion de los pesos
 					if(newWeight > maxWeight[destinationHit]){
 						maxWeight[destinationHit] = newWeight;
