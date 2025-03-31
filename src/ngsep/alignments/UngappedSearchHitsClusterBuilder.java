@@ -113,22 +113,43 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
+	// Metodo para seleccionar los hits a usar en el alineamiento de una lectura. Se seleccionan haciendo uso de un grafo de
+	// compatibilidad en el cual se busca el camino mas pesado
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
-		// Se ordenan los hits en funcion del query start, de menor a mayor
+
+		// Se ordenan los hits en funcion de su posicion de inicio en el query
 		Collections.sort(hits, (h1, h2) -> Integer.compare(h1.getQueryStart(), h2.getQueryStart()));
 
 		// Estructuras para manejar la informacion del camino más pesado
 		double[] maxWeight = new double[hits.size()];
-		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
 		int[] predecessor = new int[hits.size()];
+
+		// Llenado de las estructuras a los valores por defecto 
+		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
 		Arrays.fill(predecessor, -1);
 
+		// Se inicializa la minima suma de distancias en infinito positivo
+		double  minimumSum = Double.POSITIVE_INFINITY;
+
+		// Se inicializa el peso del primer hit en cero para que el algoritmo tenga un punto de partida
 		maxWeight[0] = 0;
-		// Se recorre el grafo siguiendo el orden definido anteriormente
+
+		// Se recorre el grafo siguiendo el orden definido por el inicio del hit en el query
 		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
+			// Unicamente se recorren los hits que estan a la derecha del hit seleccionado
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
+				// Existe un eje entre dos hits si el destination hit esta estrictamente a la derecha del source hit en el query y
+				// si la distancia no excede el limite planteado por la minima distancia
+				int currentSum = calculateDistancesSum(hits.get(sourceHit), hits.get(destinationHit));
+				// Si la suma actual es 10 veces mayor (o igual) a la minima suma la ignoro y hago break, cerrando el ciclo interno
+				// De paso, tambien se actualiza la minima suma
+				if(currentSum < minimumSum) minimumSum = currentSum;
+				else if(minimumSum != Double.POSITIVE_INFINITY && currentSum >= 10 * minimumSum) break;
+				// Se verifica si se cumplen las condicones para que exista un eje entre los hits
 				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
-					double newWeight = maxWeight[sourceHit] + calculateScoreWithoutNormalization(hits.get(sourceHit), hits.get(destinationHit));
+					// Se calcula el nuevo peso teniendo en cuenta el puntaje escogido
+					double newWeight = maxWeight[sourceHit] + calculateScoreWithoutPenalty(hits.get(sourceHit), hits.get(destinationHit));
+					// Se lleva a cabo el proceso de relajacion de los pesos
 					if(newWeight > maxWeight[destinationHit]){
 						maxWeight[destinationHit] = newWeight;
 						predecessor[destinationHit] = sourceHit;
@@ -137,9 +158,11 @@ public class UngappedSearchHitsClusterBuilder {
 			}
 		}
 
-		// Obtenemos la informacion del mejor camino
+		// Se obtiene el hit en el cual termina el mejor camino
 		double finalMaxWeight = Double.NEGATIVE_INFINITY;
 		int finalHitIndex = -1;
+		// Para encontra el hit en el cual termina el mejor camino se itera
+		// sobre todos los hits y se actualiza las variables de informacion
 		for (int i = 0; i < maxWeight.length; i++) {
     		if (maxWeight[i] > finalMaxWeight) {
         		finalMaxWeight = maxWeight[i];
@@ -147,56 +170,79 @@ public class UngappedSearchHitsClusterBuilder {
     		}
 		}
 
+		// Estructuras para almacenar el camino que logra el mayor peso
 		List<UngappedSearchHit> path = new ArrayList<>();
     	int actualHitIndex = finalHitIndex;
 
+		// Se reconstruye el camino mas pesado usando bracktraking
     	while (actualHitIndex != -1) {
         	path.add(hits.get(actualHitIndex));
         	actualHitIndex = predecessor[actualHitIndex];
     	}
 
-		// El camino está en orden inverso, lo corregimos
+		// Se invierte el orden del camino para que sea correcto
     	Collections.reverse(path);
     	return path;
-
-
-		//return null;
 	}
 
-	// Funcion para verificar si existe un eje entre dos hits
+	// Funcion para verificar si existe un eje entre dos hits, el destination hit debe estar estrictamente a la derecha
+	// del subjet hit en el query 
 	private boolean checkIfExistEdge(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		return !((destinationHit.getQueryStart() - sourceHit.getQueryStart()) < 0);
+		return (destinationHit.getQueryStart() - sourceHit.getQueryStart()) > 0;
 	}
 
-	// Funcion para calcular el peso de un eje, teniendo en cuenta entropias y distancias
-	private double calculateScoreWithoutNormalization(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+	private int calculateDistancesSum(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Para la distancia en el query no se utiliza el valor absoluto ya que por precondicion se garantiza que esta distancia
+		// siempre es positiva. Para la distancia en el subject si se utiliza el valor absoluto ya que pueden existir inversiones
+		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();		
+		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+
+		return queryDistance + subjectDistance;
+	}
+
+	// Funcion para calcular el peso de un eje, teniendo en cuenta la entropia de los hits y la distancia entre los mismos 
+	// sin penalidad
+	private double calculateScoreWithoutPenalty(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Extraccion de las entropias de los hits
 		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
 		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
 
-		// No se usa valor absoluto ya que por precondicion se garantiza que esta distancia siempre es positiva
-		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();
-		// Esta no se puede garantizar que siempre es positiva, por eso se usa abs
-		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+		// Se calcula la suma de las distancias en el subject y en el query
+		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
 
-		return (sourceHitEntropy * destinationHitEntropy) / (queryDistance + subjectDistance);
+		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
+		// decimales, a mayor puntaje mejor calidad de hit
+		return (100 * sourceHitEntropy * destinationHitEntropy) / distancesSum;
 	}
 
-	private double calculateScoreWithNormalization(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+	// Funcion para calcular el peso de un eje, teniendo en cuenta la entropia de los hits y la distancia entre los mismos.
+	// Se aplica un puntaje de penalizacion usando la consistencia de las distancias
+	private double calculateScoreWithPenalty(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Extraccion de las entropias de los hits
 		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
 		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
 
+		// Para la distancia en el query no se utiliza el valor absoluto ya que por precondicion se garantiza que esta distancia
+		// siempre es positiva. Para la distancia en el subject si se utiliza el valor absoluto ya que pueden existir inversiones
 		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();
 		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
 
-		// Que pasa cuando una de las distancias es 0?
-		// Yo optaria por poner un condicional en esto
-		// Penalización por inconsistencias en la distancia, penaliza diferencias grandes
+		// Se calcula la penalizacion asociada a la consistencia de las distancias
 		double distancePenalty = 1.0 + Math.pow(Math.abs(queryDistance - subjectDistance), 2); 
 
-		// Normalizando el puntaje de dsitancia
-		double normalizedDistance = (queryDistance + subjectDistance) / distancePenalty; 
+		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
+		// decimales, a mayor puntaje mejor calidad de hit
+		return (100 * sourceHitEntropy * destinationHitEntropy * distancePenalty) / (queryDistance + subjectDistance);
+	}
 
-		return (sourceHitEntropy * destinationHitEntropy) / normalizedDistance;
+	// Funcion para calcular el peso de un eje, teniendo en cuenta la distancia entre los hits sin penalidad
+	private double calculateScoreWithoutEntropy(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Se calcula la suma de las distancias en el subject y en el query
+		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
+		
+		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
+		// decimales, a mayor puntaje mejor calidad de hit
+		return (1d / distancesSum);
 	}
 	
 	/**
