@@ -131,14 +131,13 @@ public class UngappedSearchHitsClusterBuilder {
 		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
 		Arrays.fill(predecessor, -1);
 
-		// Se inicializa la minima suma de distancias en infinito positivo
-		double  minimumSum = Double.POSITIVE_INFINITY;
-
 		// Se inicializa el peso del primer hit en cero para que el algoritmo tenga un punto de partida
 		maxWeight[0] = 0;
 
 		// Se recorre el grafo siguiendo el orden definido por el inicio del hit en el query
 		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
+			// Se inicializa la minima suma de distancias en infinito positivo
+			double minimumSum = Double.POSITIVE_INFINITY;
 			// Unicamente se recorren los hits que estan a la derecha del hit seleccionado
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
 				// Existe un eje entre dos hits si el destination hit esta estrictamente a la derecha del source hit en el query y
