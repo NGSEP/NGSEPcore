@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.math.PhredScoreHelper;
+
 public class TransposableElementFamily {
 	private String id;
 	private String order;
@@ -32,129 +34,74 @@ public class TransposableElementFamily {
 		return id;
 	}
 	
-	private boolean matchStrict (List<String> alignedDomainIds) {
-		if(teDomainIds.size()!=alignedDomainIds.size()) return false;
-		for(int i=0;i<teDomainIds.size();i++) {
-			String domainId = teDomainIds.get(i);
-			String alnDId = alignedDomainIds.get(i);
-			if(!domainId.equals(alnDId)) return false;
-		}
-		return true;
+	public boolean isLTR() {
+		return "LTR".equals(order);
 	}
-
-	public static TransposableElementFamily matchFamily(List<TransposonDomainAlignment> alns) {
-		List<String> alignedDomainIds = new ArrayList<String>();
-		int gagPos = -1;
-		double gagEvalue = 10;
-		int intPos = -1;
-		int rtPos = -1;
-		int rhPos = -1;
-		int envPos = -1;
-		int  yrPos = -1;
-		int endPos = -1;
-		double endEvalue = 10;
-		boolean hthPresent = false;
-		double hthEvalue = 10;
-		int pos=0;
-		for(TransposonDomainAlignment aln:alns) {
-			String domainCode = aln.getDomainCode();
-			alignedDomainIds.add(domainCode);
-			if("GAG".equals(domainCode)) {
-				if(gagPos == -1 || gagEvalue>aln.getEvalue()) {
-					gagPos = pos;
-					gagEvalue = aln.getEvalue();
-				}
-				
-			}
-			if("INT".equals(domainCode)) intPos = pos;
-			if("RT".equals(domainCode)) rtPos = pos;
-			if("RNASEH".equals(domainCode)) rhPos = pos;
-			if("ENV".equals(domainCode)) envPos = pos;
-			if("YR".equals(domainCode)) yrPos = pos;
-			if("END".equals(domainCode)) {
-				if(endPos==-1 || endEvalue>aln.getEvalue()) {
-					endPos = pos;
-					endEvalue = aln.getEvalue();
-				}
-			}
-			if("HTH".equals(domainCode)) {
-				hthPresent = true;
-				hthEvalue = Math.min(hthEvalue, aln.getEvalue());
-			}
-			pos++;
-		}
-		
-		int nAlnDoms = alignedDomainIds.size();
-		if(gagPos>=0 && hthPresent) {
-			if(gagEvalue< hthEvalue) hthPresent = false;
-			else gagPos = -1;
-		}
-		if(gagPos>=0 && endPos>=0) {
-			if(gagEvalue< endEvalue) endPos = -1;
-			else gagPos = -1;
-		}
-		if(hthPresent) return findFamily(TE_FAMILIES.get("TIR"),"TIR");
-		//System.out.println("END data: "+endPos+" "+endEvalue+" GAG: "+gagPos+" "+gagEvalue+" INT: "+intPos+" YR: "+yrPos);
-		if(gagPos>=0) {
-			if(intPos>gagPos) {
-				//LTR
-				List<TransposableElementFamily> fams = TE_FAMILIES.get("LTR1"); 
-				for(TransposableElementFamily family:fams) {
-					if(family.matchStrict(alignedDomainIds)) return family;
-				}
-				//TODO: Return something more specific in these cases
-				if(envPos>intPos) return findFamily(fams,"RLR");
-				if(envPos>=0 || nAlnDoms==2) return LTR_UNKNOWN;
-				if(rtPos>intPos || rhPos>intPos) return findFamily(fams,"RLC");
-				if(rtPos>-1 && rtPos<intPos) return findFamily(fams,"RLG");
-				if(rhPos>-1 && rhPos<intPos) return findFamily(fams,"RLG");
-				return LTR_UNKNOWN;
-				
-			} else if (yrPos>gagPos) {
-				//DIRS
-				return findFamily(TE_FAMILIES.get("YR"),"RYD");
-			} else {
-				return LTR_UNKNOWN;
-			}
-		}
-		//LINEs
-		if(endPos>=0) {
-			List<TransposableElementFamily> fams = TE_FAMILIES.get("INE"); 
-			//for(TransposableElementFamily family:fams) {
-			//	if(family.matchStrict(alignedDomainIds)) return family;
-			//}
-			//System.out.println("Pos: "+endPos+" "+rtPos+" "+rhPos+" alns: "+alns.size());
-			if(rtPos<endPos) return findFamily(fams,"RIR");
-			if(rhPos>=0) return findFamily(fams,"RII");
-			if(alns.size()==2) return findFamily(fams,"RIT");
-			//TODO: Differentiate RIL, RII and RIJ 
-			return findFamily(fams,"RIL");
-		}
-		
-		if(intPos>=0) {
-			List<TransposableElementFamily> fams = TE_FAMILIES.get("LTR1");
-			//TODO: Return something more specific in these cases
-			if(alignedDomainIds.contains("ENV")) return findFamily(fams,"RLR");
-			int posInt = alignedDomainIds.indexOf("INT");
-			if(posInt<alignedDomainIds.size()-1) return findFamily(fams,"RLC");
-			return LTR_UNKNOWN;
-		}
-		if(yrPos>=0) {
-			if(alignedDomainIds.size()==1) return findFamily(TE_FAMILIES.get("YR"),"DYC");
-			else return findFamily(TE_FAMILIES.get("YR"),"RYD");
-		}
-		
-		
-		return null;
+	public String toString() {
+		return order+"/"+id;
 	}
 	
-	private static TransposableElementFamily findFamily(List<TransposableElementFamily> fams, String id) {
-		for(TransposableElementFamily family:fams) {
-			if(id.equals(family.getId())) return family;
+	public int calculateMatchScoreDP(List<TransposonDomainAlignment> alns) {
+		int n1 = teDomainIds.size();
+		int n2 = alns.size();
+		int [][] dp = new int [n1+1][n2+1];
+		for(int i=0;i<=n1;i++) {
+			for(int j=0;j<=n2;j++) {
+				if(i==0 || j==0) {
+					dp[i][j] = 0;
+					continue;
+				}
+				String d1 = teDomainIds.get(i-1);
+				TransposonDomainAlignment aln = alns.get(j-1);
+				int score = PhredScoreHelper.calculatePhredScore(aln.getEvalue());
+				if(d1.equals(aln.getDomainCode())) {
+					dp[i][j] = dp[i-1][j-1]+score;
+				} else {
+					dp[i][j] = Math.max(dp[i-1][j]-10, dp[i][j-1]-score);
+				}
+			}
 		}
-		return null;
+		return dp[n1][n2];
 	}
-
+	
+	
+	public static TransposableElementFamily matchFamily(List<TransposonDomainAlignment> alns) {
+		return matchFamilyDP(alns);
+	}
+	
+	public static TransposableElementFamily matchFamilyDP(List<TransposonDomainAlignment> alns) {
+		List<TransposableElementFamily> allFams = new ArrayList<TransposableElementFamily>();
+		for(List<TransposableElementFamily> famList : TE_FAMILIES.values()) {
+			for(TransposableElementFamily family:famList) {
+				allFams.add(family);
+			}
+		}
+		int n = allFams.size();
+		int [] scores = new int[n];
+		for(int i=0;i<n;i++) {
+			TransposableElementFamily family = allFams.get(i);
+			scores[i] = family.calculateMatchScoreDP(alns);
+			//System.out.println("Score family: "+family+":"+scores[i]);
+		}
+		double max = 0;
+		double secondMax = 0;
+		TransposableElementFamily answer = null;
+		TransposableElementFamily answer2 = null;
+		for(int i=0;i<n;i++) {
+			if(scores[i]>=max) {
+				secondMax = max;
+				max = scores[i];
+				answer2 = answer;
+				answer = allFams.get(i);
+			}
+		}
+		//System.out.println("Max: "+max+" second: "+secondMax+" order1: "+answer.getOrder()+" order2: "+answer2.getOrder());
+		if(max-secondMax<10) {
+			if (answer.getOrder().equals(answer2.getOrder())) return findUnknown(answer.getOrder());
+			return null;
+		}
+		return answer;
+	}
 
 	private static Map<String,List<TransposableElementFamily>> loadTEFamilies() {
 		List<TransposableElementFamily> ltr1Families = new ArrayList<TransposableElementFamily>();
@@ -189,7 +136,7 @@ public class TransposableElementFamily {
 		String [] ritDomains = {"END", "RT"};
 		ineFamilies.add(new TransposableElementFamily("LINE","RIT", Arrays.asList(ritDomains)));
 		
-		String [] dtpDomains = {"Tase"};
+		String [] dtpDomains = {"HTH"};
 		tirFamilies.add(new TransposableElementFamily("TIR","TIR", Arrays.asList(dtpDomains)));
 		
 		Map<String,List<TransposableElementFamily>> answer = new HashMap<String, List<TransposableElementFamily>>();
@@ -200,7 +147,6 @@ public class TransposableElementFamily {
 		return answer;
 	}
 
-
 	public static TransposableElementFamily findFamily(String orderStr, String familyStr) {
 		for(List<TransposableElementFamily> famList : TE_FAMILIES.values()) {
 			for(TransposableElementFamily family:famList) {
@@ -209,20 +155,11 @@ public class TransposableElementFamily {
 		}
 		return null;
 	}
-
-
+	
 	public static TransposableElementFamily findUnknown(String orderStr) {
 		if("LTR".equals(orderStr)) return LTR_UNKNOWN;
 		if("LINE".equals(orderStr)) return LINE_UNKNOWN;
 		if("SINE".equals(orderStr)) return SINE_UNKNOWN;
 		return null;
-	}
-
-
-	public boolean isLTR() {
-		return "LTR".equals(order);
-	}
-	public String toString() {
-		return order+"/"+id;
 	}
 }
