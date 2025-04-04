@@ -28,9 +28,9 @@ import java.util.HashMap;
 public class MinimumEntropyCalculator implements EntropyCalculator {
     
     // Value of log_10(2) to avoid redundant calculations
-    private static double LOG2_BASE10 = Math.log10(2);
+    private static final double LOG2_BASE10 = Math.log10(2);
     // Maximum entropy value for an alphabet of size n
-    private double maxEntropy;
+    private final double maxEntropy;
 
     /**
      * Class constructor

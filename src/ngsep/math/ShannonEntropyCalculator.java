@@ -28,11 +28,11 @@ import java.util.HashMap;
 public class ShannonEntropyCalculator implements EntropyCalculator {
 	
 	// Matrix to stores precomputed log inverse probability values
-	private static double[][] LOG_CACHE = new double[100][100];
+	private static final double[][] LOG_CACHE = new double[100][100];
 	// Value of log_10(2) to avoid redundant calculations
-	private static double LOG2_BASE10 = Math.log10(2d);
+	private static final double LOG2_BASE10 = Math.log10(2d);
 	// Maximum entropy value for an alphabet of size n
-	private double maxEntropy;
+	private final double maxEntropy;
 
 	// For every possible combination of count and n between 1 and 100, the value 
     // of log_2(n / count) is stored. This helps avoid redundant calculations and 
