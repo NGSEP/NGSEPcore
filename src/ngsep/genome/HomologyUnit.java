@@ -45,7 +45,7 @@ public class HomologyUnit implements GenomicRegion {
 	private boolean negativeStrand = false;
 	private CharSequence unitSequence;
 	private CharSequence cdsSequence;
-	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator();
+	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator(0);
 	
 	//Homolog relationships
 	private Map<Integer, Map<String,HomologyEdge>> homologsMap = new HashMap<>();

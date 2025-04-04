@@ -19,41 +19,49 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import ngsep.math.CollisionEntropyCalculator;
+import ngsep.sequences.UngappedSearchHit;
+import ngsep.math.EntropyCalculator;
+import ngsep.math.Distribution;
+
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.TreeMap;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-
-import ngsep.math.Distribution;
-import ngsep.sequences.UngappedSearchHit;
 
 /**
  * 
  * @author Jorge Duitama
- *
+ * @author Nicolas Rozo Fajardo
  */
+
 public class UngappedSearchHitsClusterBuilder {
+
+	private EntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
+	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
 	public static final int CLUSTERING_ALGORITHM_KRUSKAL_LIKE = 0;
 	public static final int CLUSTERING_ALGORITHM_KMEANS_LIKE = 1;
-	private int idxSubjectDebug = -1;
 	private int queryLengthDebug = -1;
+	private int idxSubjectDebug = -1;
 	private boolean debug = false;
-	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
 	
 	public int getClusteringAlgorithm() {
 		return clusteringAlgorithm;
 	}
+
 	public void setClusteringAlgorithm(int clusteringAlgorithm) {
 		this.clusteringAlgorithm = clusteringAlgorithm;
 	}
+
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits) {
 		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
 		double minHits = Math.min(20,0.01*queryLength);
+		//System.out.println("minHits:" + minHits);
 		if(sequenceHits.size()<minHits) return new ArrayList<>();
 		UngappedSearchHitClusteringAlgorithm alg;
 		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) alg = new UngappedSearchHitClusteringAlgorithmKruskal();
@@ -70,10 +78,11 @@ public class UngappedSearchHitsClusterBuilder {
 			List<List<UngappedSearchHit>> subclusters = breakByQueryStart(hits);
 			if(subclusters.size()>1) System.err.println("WARN. Cluster broken in subclusters by query starts. SubjectIdx: "+subjectIdx+" query length: "+queryLength);
 			for(List<UngappedSearchHit> subcluster:subclusters) {
+				// if (subcluster.size() < 20) System.out.println("Cantidad de hits: " + subcluster.size());
 				if(subcluster.size()<minHits) continue;
-				//TODO: Nicolas: switch commented line
-				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
-				//List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
+				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				// if(selectedHits.size() < minHits) System.out.println("Selected hits: " + selectedHits.size() + " --- Minimum Hits: " + minHits);
 				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
@@ -86,7 +95,6 @@ public class UngappedSearchHitsClusterBuilder {
 		}
 		return answer;
 	}
-	
 	
 	/**
 	 * Breaks a hits cluster based on large differences in query start. This should not be needed if a good initial clustering algorithm is used
@@ -111,9 +119,123 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
+	/**
+	 * Method for selecting the hits from which the query alignment process will be carried out. 
+	 * The selection of hits is carried out taking into account their entropy and the consistency 
+	 * of distances both in the query and the subject
+	 * 
+	 * @param queryLength Query or read length
+	 * @param subjectIdx 
+	 * @param subjectLength Lenght of the subject or reference against which the alignment is to 
+	 * be carried out
+	 * @param hits List with the hits between the kmers of the query and the minimizers of the 
+	 * subject
+	 * @return List with the hits selected to carry out the process of aligning the query against 
+	 * the subject
+	 */
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
-		// TODO Nicolas, implement here
-		return null;
+
+		// Sort hits by query start, from lowest to highest
+		Collections.sort(hits, (h1, h2) -> Integer.compare(h1.getQueryStart(), h2.getQueryStart()));
+
+		// Structures for storing the information associated with the heaviest path
+		double[] maxWeight = new double[hits.size()];
+		int[] predecessor = new int[hits.size()];
+		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
+		Arrays.fill(predecessor, -1);
+
+		// The starting point of the algorithm is set to the hit with the smallest query start
+		maxWeight[0] = 0;
+
+		// The graph generated from the hits is traversed
+		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
+			// Only the hits that have a higher query start than the source are traversed 
+			// The information of the minimum sum of distances achieved by each query start is maintained
+			double minimumSum = Double.POSITIVE_INFINITY;
+			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
+				int currentSum = calculateDistancesSum(hits.get(sourceHit), hits.get(destinationHit));
+				// If the sum of distances is 100 times greater than or equal to the minimum sum of distances 
+				// stored, the process is stopped and the source is updated
+				if(currentSum < minimumSum) minimumSum = currentSum;
+				else if(currentSum >= 100 * minimumSum) break;
+				// An edge only exists between hits if the destination is strictly to the right of the source 
+				// in the query
+				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
+					// The maximum weight is relaxed taking into account the calculated score
+					double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
+					if(newWeight > maxWeight[destinationHit]){
+						maxWeight[destinationHit] = newWeight;
+						predecessor[destinationHit] = sourceHit;
+					}
+				}
+			}
+		}
+
+		// Search for the hit at which the calculated heaviest path ends
+		// Both the weight and the index associated with the hit are maintained
+		double finalMaxWeight = Double.NEGATIVE_INFINITY;
+		int finalHitIndex = -1;
+		for (int i = 0; i < maxWeight.length; i++) {
+    		if (maxWeight[i] > finalMaxWeight) {
+        		finalMaxWeight = maxWeight[i];
+        		finalHitIndex = i;
+    		}
+		}
+
+		// Structures for storing the heaviest path information
+		List<UngappedSearchHit> path = new ArrayList<>();
+    	int actualHitIndex = finalHitIndex;
+
+		// Reconstruction of the heaviest path using backtracking
+    	while (actualHitIndex != -1) {
+        	path.add(hits.get(actualHitIndex));
+        	actualHitIndex = predecessor[actualHitIndex];
+    	}
+    	Collections.reverse(path);
+
+		// The list with the selected hits is returned in the correct order
+    	return path;
+	}
+
+	/**
+	 * 
+	 * 
+	 * @param sourceHit
+	 * @param destinationHit
+	 * @return
+	 */
+	private boolean checkIfExistEdge(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		return (destinationHit.getQueryStart() - sourceHit.getQueryStart()) > 0;
+	}
+
+	/**
+	 * Method that calculates the sum of distances (query and subject) between two hits 
+	 * 
+	 * @param sourceHit Source hit in the graph
+	 * @param destinationHit Destination hit in the graph
+	 * @return Sum of distances (query and subject) between the hits
+	 */
+	private int calculateDistancesSum(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();		
+		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+		return queryDistance + subjectDistance;
+	}
+
+	/**
+	 * Method that calculates the compatibility score between two hits
+	 * 
+	 * @param sourceHit Source hit in the graph
+	 * @param destinationHit Destination hit in the graph
+	 * @return Compatibility score between two hits
+	 */
+	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Entropies 
+		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
+		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
+		// Distances sum
+		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
+		// Computed socre
+		return (100 * sourceHitEntropy * destinationHitEntropy) / distancesSum;
 	}
 	
 	/**
@@ -124,9 +246,7 @@ public class UngappedSearchHitsClusterBuilder {
 	 * @return
 	 */
 	private List<UngappedSearchHit> collapseAndSelectSortedHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> inputHits) {
-		
 		if(debug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Subject idx: "+subjectIdx);
-		
 		
 		double [] stats = calculateStatsEstimatedSubjectStart(inputHits);
 		

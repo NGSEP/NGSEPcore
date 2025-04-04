@@ -24,23 +24,56 @@ import java.util.HashMap;
 /**
  * @author Nicolas Rozo Fajardo
  */
+
 public class MinimumEntropyCalculator implements EntropyCalculator {
     
-    private static double LOG2_BASE10 = Math.log10(2);
+    // Value of log_10(2) to avoid redundant calculations
+    private static final double LOG2_BASE10 = Math.log10(2);
+    // Maximum entropy value for an alphabet of size n
+    private final double maxEntropy;
 
+    /**
+     * Class constructor
+     * 
+     * @param alphabetSize Size of the alphabet to be used in the calculation.
+     * Set to 0 if the information is unavailable or if computing the maximum entropy is 
+     * not relevant
+     */
+    public MinimumEntropyCalculator(int alphabetSize) {
+        maxEntropy = (alphabetSize == 0) ? 0 : (Math.log10(alphabetSize) / LOG2_BASE10);
+    }
+
+    /**
+     * Method that calculates the minimum entropy for a given sequence
+     * 
+     * @param sequence Input sequence used to compute the minimum entropy
+     * @return Minimum entropy for the given sequence
+     */
     public double calculateEntropy(CharSequence sequence) {
         HashMap<Character, Integer> charFrequencies = new HashMap<Character, Integer>();
         int n = sequence.length();
         if (n == 0) return 0;
+        // Step to compute the ocurrence frequence for each character in the sequence
         for(int i = 0; i < n; i++) {
             charFrequencies.compute(sequence.charAt(i), (k,v) -> (v == null)? 1 : v + 1);
         }
         double max = 0d;
+        // Step to find the maximum probability
         for(int count : charFrequencies.values()) {
             double probability = (double) count / n;
             max = Math.max(max, probability);
         }
+         // Computes the minimum entropy for the given sequence
         double entropy = -1d * (Math.log10(max) / LOG2_BASE10);
         return entropy;
+    }
+
+    /**
+     * Method that retrive the maximum entropy for the given alphabet
+     * 
+     * @return Maximum entropy for the alphabet
+     */
+    public double getMaxEntropy() {
+        return this.maxEntropy;
     }
 }

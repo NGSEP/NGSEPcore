@@ -43,7 +43,7 @@ import ngsep.sequences.KmersExtractor;
  */
 public class HomologRelationshipsFinder {
 	
-	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator();
+	private ShannonEntropyCalculator entropyCalculator = new ShannonEntropyCalculator(0);
 
 	public static final byte DEF_KMER_LENGTH = 6;
 	public static final int DEF_MIN_PCT_KMERS = 11;
