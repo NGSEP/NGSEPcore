@@ -22,15 +22,29 @@ package ngsep.math;
 /**
  * @author Nicolas Rozo Fajardo
  */
+
 public interface EntropyCalculator {
+
     public double calculateEntropy(CharSequence sequence);
     public double getMaxEntropy();
 
+    /**
+     * Method for normalizing the entropy value
+     * 
+     * @param entropy Entropy value to be normalized
+     * @return Entropy value normalized (using maximum entropy value)
+     */
     default double normalizeEntropy(double entropy) {
         double maxEntropy = getMaxEntropy();
         return (maxEntropy == 0) ? 0 : entropy / maxEntropy;
     }
 
+    /**
+     * Method for denormalizing the entropy value
+     * 
+     * @param normalizedEntropy Normalized entropy value (using maximum entropy value)
+     * @return Original entropy value, without normalization
+     */
     default double denormalizeEntropy(double normalizedEntropy) {
         return normalizedEntropy * getMaxEntropy();
     }

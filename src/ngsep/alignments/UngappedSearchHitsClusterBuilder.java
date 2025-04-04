@@ -19,41 +19,45 @@
  *******************************************************************************/
 package ngsep.alignments;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import ngsep.math.CollisionEntropyCalculator;
+import ngsep.sequences.UngappedSearchHit;
+import ngsep.math.EntropyCalculator;
+import ngsep.math.Distribution;
+
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.TreeMap;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-
-import ngsep.math.CollisionEntropyCalculator;
-import ngsep.math.Distribution;
-import ngsep.math.EntropyCalculator;
-import ngsep.sequences.UngappedSearchHit;
 
 /**
  * 
  * @author Jorge Duitama
- *
+ * @author Nicolas Rozo Fajardo
  */
+
 public class UngappedSearchHitsClusterBuilder {
+
+	private EntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
+	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
 	public static final int CLUSTERING_ALGORITHM_KRUSKAL_LIKE = 0;
 	public static final int CLUSTERING_ALGORITHM_KMEANS_LIKE = 1;
-	private int idxSubjectDebug = -1;
 	private int queryLengthDebug = -1;
+	private int idxSubjectDebug = -1;
 	private boolean debug = false;
-	private int clusteringAlgorithm = CLUSTERING_ALGORITHM_KRUSKAL_LIKE;
-	private EntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
 	
 	public int getClusteringAlgorithm() {
 		return clusteringAlgorithm;
 	}
+
 	public void setClusteringAlgorithm(int clusteringAlgorithm) {
 		this.clusteringAlgorithm = clusteringAlgorithm;
 	}
+
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits) {
 		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
 		double minHits = Math.min(20,0.01*queryLength);
@@ -92,7 +96,6 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
-	
 	/**
 	 * Breaks a hits cluster based on large differences in query start. This should not be needed if a good initial clustering algorithm is used
 	 * @param hits
@@ -116,44 +119,50 @@ public class UngappedSearchHitsClusterBuilder {
 		return answer;
 	}
 	
-	// Metodo para seleccionar los hits a usar en el alineamiento de una lectura. Se seleccionan haciendo uso de un grafo de
-	// compatibilidad en el cual se busca el camino mas pesado
+	/**
+	 * Method for selecting the hits from which the query alignment process will be carried out. 
+	 * The selection of hits is carried out taking into account their entropy and the consistency 
+	 * of distances both in the query and the subject
+	 * 
+	 * @param queryLength Query or read length
+	 * @param subjectIdx 
+	 * @param subjectLength Lenght of the subject or reference against which the alignment is to 
+	 * be carried out
+	 * @param hits List with the hits between the kmers of the query and the minimizers of the 
+	 * subject
+	 * @return List with the hits selected to carry out the process of aligning the query against 
+	 * the subject
+	 */
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
 
-		// Se ordenan los hits en funcion de su posicion de inicio en el query
+		// Sort hits by query start, from lowest to highest
 		Collections.sort(hits, (h1, h2) -> Integer.compare(h1.getQueryStart(), h2.getQueryStart()));
 
-		// Estructuras para manejar la informacion del camino más pesado
+		// Structures for storing the information associated with the heaviest path
 		double[] maxWeight = new double[hits.size()];
 		int[] predecessor = new int[hits.size()];
-
-		// Llenado de las estructuras a los valores por defecto 
 		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
 		Arrays.fill(predecessor, -1);
 
-		// Se inicializa el peso del primer hit en cero para que el algoritmo tenga un punto de partida
+		// The starting point of the algorithm is set to the hit with the smallest query start
 		maxWeight[0] = 0;
 
-		// Se recorre el grafo siguiendo el orden definido por el inicio del hit en el query
+		// The graph generated from the hits is traversed
 		for(int sourceHit = 0; sourceHit < hits.size(); sourceHit++) {
-			// Se inicializa la minima suma de distancias en infinito positivo
+			// Only the hits that have a higher query start than the source are traversed 
+			// The information of the minimum sum of distances achieved by each query start is maintained
 			double minimumSum = Double.POSITIVE_INFINITY;
-			// Unicamente se recorren los hits que estan a la derecha del hit seleccionado
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
-				// Existe un eje entre dos hits si el destination hit esta estrictamente a la derecha del source hit en el query y
-				// si la distancia no excede el limite planteado por la minima distancia
 				int currentSum = calculateDistancesSum(hits.get(sourceHit), hits.get(destinationHit));
-				// Si la suma actual es 10 veces mayor (o igual) a la minima suma la ignoro y hago break, cerrando el ciclo interno
-				// De paso, tambien se actualiza la minima suma
+				// If the sum of distances is 100 times greater than or equal to the minimum sum of distances 
+				// stored, the process is stopped and the source is updated
 				if(currentSum < minimumSum) minimumSum = currentSum;
-				else if(minimumSum != Double.POSITIVE_INFINITY && currentSum >= 100 * minimumSum) break;
-
-				// System.out.println("Minima suma:" + minimumSum);
-				// Se verifica si se cumplen las condicones para que exista un eje entre los hits
+				else if(currentSum >= 100 * minimumSum) break;
+				// An edge only exists between hits if the destination is strictly to the right of the source 
+				// in the query
 				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
-					// Se calcula el nuevo peso teniendo en cuenta el puntaje escogido
-					double newWeight = maxWeight[sourceHit] + calculateScoreWithPenalty(hits.get(sourceHit), hits.get(destinationHit));
-					// Se lleva a cabo el proceso de relajacion de los pesos
+					// The maximum weight is relaxed taking into account the calculated score
+					double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
 					if(newWeight > maxWeight[destinationHit]){
 						maxWeight[destinationHit] = newWeight;
 						predecessor[destinationHit] = sourceHit;
@@ -162,11 +171,10 @@ public class UngappedSearchHitsClusterBuilder {
 			}
 		}
 
-		// Se obtiene el hit en el cual termina el mejor camino
+		// Search for the hit at which the calculated heaviest path ends
+		// Both the weight and the index associated with the hit are maintained
 		double finalMaxWeight = Double.NEGATIVE_INFINITY;
 		int finalHitIndex = -1;
-		// Para encontra el hit en el cual termina el mejor camino se itera
-		// sobre todos los hits y se actualiza las variables de informacion
 		for (int i = 0; i < maxWeight.length; i++) {
     		if (maxWeight[i] > finalMaxWeight) {
         		finalMaxWeight = maxWeight[i];
@@ -174,79 +182,60 @@ public class UngappedSearchHitsClusterBuilder {
     		}
 		}
 
-		// Estructuras para almacenar el camino que logra el mayor peso
+		// Structures for storing the heaviest path information
 		List<UngappedSearchHit> path = new ArrayList<>();
     	int actualHitIndex = finalHitIndex;
 
-		// Se reconstruye el camino mas pesado usando bracktraking
+		// Reconstruction of the heaviest path using backtracking
     	while (actualHitIndex != -1) {
         	path.add(hits.get(actualHitIndex));
         	actualHitIndex = predecessor[actualHitIndex];
     	}
-
-		// Se invierte el orden del camino para que sea correcto
     	Collections.reverse(path);
+
+		// The list with the selected hits is returned in the correct order
     	return path;
 	}
 
-	// Funcion para verificar si existe un eje entre dos hits, el destination hit debe estar estrictamente a la derecha
-	// del subjet hit en el query 
+	/**
+	 * 
+	 * 
+	 * @param sourceHit
+	 * @param destinationHit
+	 * @return
+	 */
 	private boolean checkIfExistEdge(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
 		return (destinationHit.getQueryStart() - sourceHit.getQueryStart()) > 0;
 	}
 
+	/**
+	 * Method that calculates the sum of distances (query and subject) between two hits 
+	 * 
+	 * @param sourceHit Source hit in the graph
+	 * @param destinationHit Destination hit in the graph
+	 * @return Sum of distances (query and subject) between the hits
+	 */
 	private int calculateDistancesSum(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		// Para la distancia en el query no se utiliza el valor absoluto ya que por precondicion se garantiza que esta distancia
-		// siempre es positiva. Para la distancia en el subject si se utiliza el valor absoluto ya que pueden existir inversiones
 		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();		
 		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
-
 		return queryDistance + subjectDistance;
 	}
 
-	// Funcion para calcular el peso de un eje, teniendo en cuenta la entropia de los hits y la distancia entre los mismos 
-	// sin penalidad
-	private double calculateScoreWithoutPenalty(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		// Extraccion de las entropias de los hits
+	/**
+	 * Method that calculates the compatibility score between two hits
+	 * 
+	 * @param sourceHit Source hit in the graph
+	 * @param destinationHit Destination hit in the graph
+	 * @return Compatibility score between two hits
+	 */
+	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
+		// Entropies 
 		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
 		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
-
-		// Se calcula la suma de las distancias en el subject y en el query
+		// Distances sum
 		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
-
-		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
-		// decimales, a mayor puntaje mejor calidad de hit
+		// Computed socre
 		return (100 * sourceHitEntropy * destinationHitEntropy) / distancesSum;
-	}
-
-	// Funcion para calcular el peso de un eje, teniendo en cuenta la entropia de los hits y la distancia entre los mismos.
-	// Se aplica un puntaje de penalizacion usando la consistencia de las distancias
-	private double calculateScoreWithPenalty(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		// Extraccion de las entropias de los hits
-		double sourceHitEntropy = entropyCalculator.denormalizeEntropy(sourceHit.getWeight());
-		double destinationHitEntropy = entropyCalculator.denormalizeEntropy(destinationHit.getWeight());
-
-		// Para la distancia en el query no se utiliza el valor absoluto ya que por precondicion se garantiza que esta distancia
-		// siempre es positiva. Para la distancia en el subject si se utiliza el valor absoluto ya que pueden existir inversiones
-		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();
-		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
-
-		// Se calcula la penalizacion asociada a la consistencia de las distancias
-		double distancePenalty = 1.0 + Math.pow(Math.abs(queryDistance - subjectDistance), 2); 
-
-		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
-		// decimales, a mayor puntaje mejor calidad de hit
-		return (100 * sourceHitEntropy * destinationHitEntropy * distancePenalty) / (queryDistance + subjectDistance);
-	}
-
-	// Funcion para calcular el peso de un eje, teniendo en cuenta la distancia entre los hits sin penalidad
-	private double calculateScoreWithoutEntropy(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		// Se calcula la suma de las distancias en el subject y en el query
-		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
-		
-		// Se  calcula el puntaje de los hits, se multiplica el numerador por 100 para evitar problemas de precision asociado a los 
-		// decimales, a mayor puntaje mejor calidad de hit
-		return (1d / distancesSum);
 	}
 	
 	/**
@@ -257,9 +246,7 @@ public class UngappedSearchHitsClusterBuilder {
 	 * @return
 	 */
 	private List<UngappedSearchHit> collapseAndSelectSortedHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> inputHits) {
-		
 		if(debug) System.out.println("KmerHitsCluster. Clustering "+inputHits.size()+" hits. Subject idx: "+subjectIdx);
-		
 		
 		double [] stats = calculateStatsEstimatedSubjectStart(inputHits);
 		

@@ -24,12 +24,19 @@ import java.util.HashMap;
 /**
  * @author Nicolas Rozo Fajardo
  */
+
 public class ShannonEntropyCalculator implements EntropyCalculator {
 	
-	private static double[][] LOG_CACHE = new double[100][100];;
+	// Matrix to stores precomputed log inverse probability values
+	private static double[][] LOG_CACHE = new double[100][100];
+	// Value of log_10(2) to avoid redundant calculations
 	private static double LOG2_BASE10 = Math.log10(2d);
+	// Maximum entropy value for an alphabet of size n
 	private double maxEntropy;
 
+	// For every possible combination of count and n between 1 and 100, the value 
+    // of log_2(n / count) is stored. This helps avoid redundant calculations and 
+    // improves performance
     static{
         for(int i = 0; i < 100; i++) {
 			int n = i + 1;
@@ -40,31 +47,60 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
 		}
     }
 
+	/**
+     * Class constructor
+     * 
+     * @param alphabetSize Size of the alphabet to be used in the calculation.
+     * Set to 0 if the information is unavailable or if computing the maximum entropy is 
+     * not relevant
+     */
 	public ShannonEntropyCalculator(int alphabetSize) {
 		maxEntropy = (alphabetSize == 0) ? 0 : (Math.log10(alphabetSize) / LOG2_BASE10);
 	}
 
+	/**
+     * Method that calculates the log_2 of the inverse probability of a character occurring in a 
+     * sequence, based on the number of times it appears and the total length of the sequence
+     * 
+     * @param count Number of appearances or occurrences of the character in the sequence
+     * @param n Length of the sequence
+     * @return Log_2 of the  inverse probability of occurrence of the character within the sequence
+     */
     public static double calculateTerm(double count, int n) {
         double probability = count / n;
 		double inverse = 1 / probability;
 		return (probability * Math.log10(inverse) / LOG2_BASE10);
     }
 
+	/**
+     * Method that calculates the shannon entropy for a given sequence
+     * 
+     * @param sequence Input sequence used to compute the shannon entropy
+     * @return Shannon entropy for the given sequence
+     */
     public double calculateEntropy(CharSequence sequence) {
 		HashMap<Character, Integer> charFrequencies = new HashMap<Character, Integer>();
 		int n = sequence.length();
 		if (n == 0) return 0;
+		// Step to compute the ocurrence frequence for each character in the sequence
 		for(int i = 0; i < n; i++) {
 			charFrequencies.compute(sequence.charAt(i), (k,v) -> (v == null) ? 1 : v+1);
 		}
 		double entropy = 0d;
-		for(int count : charFrequencies.values()) {
+		// Step to compute the log_2 inverse probability of each character in the sequence
+		// and compute the total entropy
+		for(int count : charFrequencies.values()) { 
 			if (n < 100) entropy += LOG_CACHE[n-1][count-1];
 			else entropy += calculateTerm(count, n);
 		}
 		return entropy;
 	}
 
+	/**
+     * Method that retrive the maximum entropy for the given alphabet
+     * 
+     * @return Maximum entropy for the alphabet
+     */
 	public double getMaxEntropy() {
         return this.maxEntropy;
     }
