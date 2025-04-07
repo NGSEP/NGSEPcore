@@ -169,6 +169,7 @@ public class AssemblyPathReadsAligner {
 		int n = path.getPathLength();
 		int pathIdx = path.getPathId();
 		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
+		List<ReadAlignment> alignedEmbedded = new ArrayList<ReadAlignment>();
 		String consensus = path.getConsensus();
 		Map<Integer,Integer> pathVerticesEnds = path.getPathVerticesConsensusEnds();
 		
@@ -202,8 +203,8 @@ public class AssemblyPathReadsAligner {
 			Map<Integer, Long> kmersSubject = codesSampler.computeSequenceCodesAsMap(consensus, startConsensusPathVertex, endConsensusPathVertex);
 			totalReads++;
 			//Synchronic call to calculate actual backbone read ends
-			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex, alignedReads);
-			
+			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex);
+			alignedReads.add(alnRead);
 			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" length: "+seq.length()+" alignment: "+alnRead);
 			
 			if(alnRead!=null) {
@@ -224,11 +225,14 @@ public class AssemblyPathReadsAligner {
 					}
 					//if(embedded.getSequenceId()==1940) System.out.println("Consensus length: "+rawConsensus.length()+" limits: "+startConsensus+" "+endConsensus+" reverseEmb: "+reverseE+" host: "+readIndex+" "+read.getName()+" Reverse host: "+reverse+" rel: "+embedded);
 					totalReads++;
+					
 					try {
 						final int s = startConsensusEmbedded;
 						final int e = endConsensusEmbedded;
 						CharSequence q = embeddedSeq;
-						poolAlign.queueTask(()->alignReadProcess(pathIdx, consensus, kmersSubject, embedded.getSequenceId(), embeddedRead.getName(), q, reverseE, s, e, alignedReads));
+						final int posEmbedded = alignedEmbedded.size();
+						alignedEmbedded.add(null);
+						poolAlign.queueTask(()->alignedEmbedded.set(posEmbedded, alignReadProcess(pathIdx, consensus, kmersSubject, embedded.getSequenceId(), embeddedRead.getName(), q, reverseE, s, e)));
 					} catch (InterruptedException e) {
 						//TODO: Better handling
 						e.printStackTrace();
@@ -256,6 +260,9 @@ public class AssemblyPathReadsAligner {
 			// TODO Better handling
 			e.printStackTrace();
 		}
+		for(ReadAlignment aln:alignedEmbedded) {
+			if(aln!=null) alignedReads.add(aln);
+		}
 		alignedReads.addAll(alignInternalPaths(graph, path,numThreads));
 		Collections.sort(alignedReads, ReadAlignmentPositionComparator.getInstance() );
 		usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
@@ -271,7 +278,7 @@ public class AssemblyPathReadsAligner {
 		return answer;
 	}
 	private ReadAlignment alignReadProcess(int pathIdx, String consensus, Map<Integer, Long> kmersSubject,
-			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus, List<ReadAlignment> alignedReads) {
+			int readId, String readName, CharSequence sequence, boolean reverse, int startConsensus, int endConsensus) {
 		int debugReadIdx = -1;
 		//MinimizersTableReadAlignmentAlgorithm aligner = factory.requestLongReadsAligner(MinimizersTableReadAlignmentAlgorithm.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(LongReadsUngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
@@ -285,9 +292,6 @@ public class AssemblyPathReadsAligner {
 			aln.setReadCharacters(sequence);
 			//aln.setReadCharacters(null);
 			if(readId == debugReadIdx) System.out.println("Read name: "+readName+"First alignment attempt: "+aln+" mismatches: "+aln.getNumMismatches());
-			synchronized (alignedReads) {
-				alignedReads.add(aln);
-			}
 			return aln;
 		}
 		if(!haploid) {
@@ -309,9 +313,6 @@ public class AssemblyPathReadsAligner {
 				selected.setReadCharacters(sequence);
 				//TODO: Do this better
 				selected.setCigarString(selected.getCigarString()+(sequence.length()-n)+"S");
-				synchronized (alignedReads) {
-					alignedReads.add(selected);
-				}
 				return selected;
 			} else if (selected!=null) {
 				selected.setReadName(readName);
@@ -320,9 +321,6 @@ public class AssemblyPathReadsAligner {
 				selected.setReadCharacters(sequence);
 				//TODO: Do this better
 				selected.setCigarString(""+n+"S"+selected.getCigarString());
-				synchronized (alignedReads) {
-					alignedReads.add(selected);
-				}
 				return selected;
 			}
 		}
@@ -333,16 +331,11 @@ public class AssemblyPathReadsAligner {
 			aln2.setReadNumber(readId);
 			aln2.setNegativeStrand(reverse);
 			aln2.setReadCharacters(sequence);
-			synchronized (alignedReads) {
-				alignedReads.add(aln2);
-			}
 			return aln2;
 		}
 		if(buildUnalignedReadRecords && aln==null) {
 			ReadAlignment unalignedReadRecord = buildUnalignedReadRecord(readId,readName,sequence);
-			synchronized (alignedReads) {
-				alignedReads.add(unalignedReadRecord);
-			}
+			return unalignedReadRecord;
 		}
 		return aln;
 	}
