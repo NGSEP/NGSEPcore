@@ -523,6 +523,7 @@ public class Assembler {
 		if (compressedSeqs!=sequences) {
 			graph.replaceSequences(sequences);
 		}
+		consensus.setNumThreads(numThreads);
 		assembledSequences.addAll(consensus.makeConsensus(graph));
 		
 		FastaSequencesHandler handler = new FastaSequencesHandler();
