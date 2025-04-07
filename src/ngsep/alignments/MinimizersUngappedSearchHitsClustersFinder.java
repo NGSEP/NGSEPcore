@@ -98,7 +98,6 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		kmerCodesTable.setLog(log);
 		//TODO: Fix introduced bias
 		kmerCodesTable.setMaxHitsKmerCode(1000);
-		kmerCodesTable.setLimitHitsPerSequence(1000);
 		log.info("Filling kmer codes");
 		
 		int nt = Math.max(1, numThreads-1);
@@ -146,8 +145,6 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		Map<Integer,List<UngappedSearchHit>> hitsByReference;
 		if(extensiveKmersSearch) {
 			//By now this only affects TEs
-			//clustersBuilder.setClusteringAlgorithm(UngappedSearchHitsClusterBuilder.CLUSTERING_ALGORITHM_KMEANS_LIKE);
-			kmerCodesTable.setLimitDifferentSequences(10000);
 			Map<Integer,Long> codes = KmersExtractor.extractDNAKmerCodesAsMap(query.toString(), tableKmerLength , 0, query.length());
 			KmerSearchResultsCompressedTable results = kmerCodesTable.matchCompressed(-1, query.length(), codes, -1);
 			hitsByReference = results.getAllHits();

@@ -49,8 +49,6 @@ public class ShortKmerCodesTable {
 	
 	private int mode=1;
 	private int kmerDistModeLocalSD=5;
-	private int limitHitsPerSequence = 10;
-	private int limitDifferentSequences = 100;
 	
 	//Structures to implement the minimizers like codes hash table
 	//Map with code as key and row of the sequencesByCodeTable as value
@@ -59,8 +57,6 @@ public class ShortKmerCodesTable {
 	private long [][] sequencesByCodeTable;
 	//Actual lengths of the lists within the table
 	private short [] sequencesByCodeTableColumnLengths;
-	//Count of different sequences reporting each code
-	private short [] codeCountDifferentSequences;
 	
 	private long totalEntries = 0;
 	private ThreadPoolManager poolAddKmerCodes;
@@ -79,8 +75,6 @@ public class ShortKmerCodesTable {
 		for(int i=0;i<sequencesByCodeTable.length;i++) Arrays.fill(sequencesByCodeTable[i], 0);
 		sequencesByCodeTableColumnLengths = new short [capacity];
 		Arrays.fill(sequencesByCodeTableColumnLengths, (short)0);
-		codeCountDifferentSequences = new short [capacity];
-		Arrays.fill(codeCountDifferentSequences, (short)0);
 		if(useThreadToAddCodes) {
 			poolAddKmerCodes = new ThreadPoolManager(1, 100);
 			//poolAddKmerCodes.setSecondsPerTask(5);
@@ -100,17 +94,12 @@ public class ShortKmerCodesTable {
 		this.kmerDistModeLocalSD = kmerDistModeLocalSD;
 	}
 	
-	public int getLimitDifferentSequences() {
-		return limitDifferentSequences;
-	}
-	public void setLimitDifferentSequences(int limitDifferentSequences) {
-		this.limitDifferentSequences = limitDifferentSequences;
-	}
 	//Hash table management methods
 	private long[] lookupHits(long code) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) return EMPTY_LONG_ARRAY;
-		return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
+		return sequencesByCodeTable[row];
+		//return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
 	}
 	public int size() {
 		return matrixRowMap.size();
@@ -125,17 +114,6 @@ public class ShortKmerCodesTable {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) return 0;
 		return sequencesByCodeTableColumnLengths[row];
-	}
-	
-	/**
-	 * Calculates the number of sequences where the minimizer has been observed
-	 * @param minimizer number to query
-	 * @return int number of different sequences where the minimizer has been observed
-	 */
-	public int getCountDifferentSequences(long code) {
-		Integer row = matrixRowMap.get(code);
-		if(row==null) return 0;
-		return codeCountDifferentSequences[row];
 	}
 	
 	private void addCodeSequence (long code, List<Long> entries) {
@@ -154,7 +132,6 @@ public class ShortKmerCodesTable {
 		if (newCount<Short.MAX_VALUE && (maxHitsKmerCode==0 || newCount<maxHitsKmerCode)) {
 			for (long entry:entries) addToTable(row, entry);
 			totalEntries+=entries.size();
-			codeCountDifferentSequences[row]++;
 		} 
 		//else System.out.println("Rejected codes for kmer: "+new String(DNASequence.getDNASequence(code, kmerLength))+" current count: "+currentCount+" new entries: "+entries.size());
 	}
@@ -163,7 +140,6 @@ public class ShortKmerCodesTable {
 		int newCapacity =  2*sequencesByCodeTable.length;
 		if(newCapacity<0) newCapacity = Integer.MAX_VALUE;
 		sequencesByCodeTableColumnLengths = Arrays.copyOf(sequencesByCodeTableColumnLengths, newCapacity);
-		codeCountDifferentSequences = Arrays.copyOf(codeCountDifferentSequences, newCapacity);
 		long [][] newTable = new long [newCapacity][0];
 		for(int i=0;i<newCapacity;i++) {
 			if(i<sequencesByCodeTable.length) newTable[i] = sequencesByCodeTable[i];
@@ -196,13 +172,6 @@ public class ShortKmerCodesTable {
 		this.maxHitsKmerCode = maxHitsKmerCode;
 	}
 
-	public int getLimitHitsPerSequence() {
-		return limitHitsPerSequence;
-	}
-	public void setLimitHitsPerSequence(int limitHitsPerSequence) {
-		this.limitHitsPerSequence = limitHitsPerSequence;
-	}
-	
 	/**
 	 * Adds selected codes of the given sequence to the table
 	 * @param sequenceId Id of the sequence to add
@@ -306,14 +275,17 @@ public class ShortKmerCodesTable {
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
 		int idxDebug = -2;
 		int kmerLength = codesSampler.getKmerLength();
-		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength);
-		//int limitSequences = Math.max(sequenceLengths.size()/10, 4*mode);
-		int limitSequences = Math.max(limitDifferentSequences, 4*mode);
+		int limitHits = 10000;
+		if(mode>1) limitHits = Math.min(limitHits, 10*mode);
+		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength+" limit hits: "+limitHits);
+		//int limitSequences = Math.max(limitDifferentSequences, 4*mode);
+		
 		
 		Set<Integer> preselectedSubjectIds = null;
-		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, limitSequences, limitHitsPerSequence, codes);
+		if(queryLength>100000) preselectedSubjectIds = preselectSubjectIds(queryLength, codes);
 		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, 10);
 		Set<Long> internalMultiHitCodes = calculateInternalMultihitKmers(codes);
+		
 		/*Map<Long,Integer> codesLocalCounts = new HashMap<Long, Integer>();
 		for(Long code:codes.values()) {
 			codesLocalCounts.compute(code, (k,v)->(v==null?1:v+1));
@@ -333,30 +305,22 @@ public class ShortKmerCodesTable {
 			int startQuery = entry.getKey();
 			long kmerCode = entry.getValue();
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
-			int countSeqs = getCountDifferentSequences(kmerCode);
 			//if (queryIdx == idxDebug && (countSeqs>10 || startQuery==0)) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
-			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" code: "+kmerCode+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" count sequences: "+countSeqs+" limit "+limitSequences);
-			if (countSeqs>limitSequences) {
-				multiSequenceCodes++;
-				continue;
-			}
+			if (queryIdx == idxDebug ) System.out.println("Minimizers table. For pos "+startQuery+" code: "+kmerCode+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength)));
 			
 			long [] codesMatching = lookupHits(kmerCode);
 			int numHits = codesMatching.length;
 			int normalized = (int)Math.round((double)numHits/mode);
 			if(normalized<normalizedCountsDist.length) normalizedCountsDist[normalized]++;
 			else normalizedCountsDist[normalizedCountsDist.length-1]++;
-			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" limit: "+(limitHitsPerSequence*countSeqs));
-			if(numHits>limitHitsPerSequence*countSeqs) {
+			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length);
+			if(numHits>limitHits) {
 				multihitCodes++;
 				continue;
-			}
-			else if(numHits>0) {
-				usedCodes.add(kmerCode);
-				 
+			} else if(numHits>0) {
+				usedCodes.add(kmerCode);	 
 				numUsedCodes++;
-			}
-			else notFoundCodes++;
+			} else notFoundCodes++;
 			if(normalized>=2) {
 				highDepthUsedCodes.add(kmerCode);
 				if(internalMultiHitCodes.contains(kmerCode)) internalMultiUsedCodes.add(kmerCode);
@@ -390,19 +354,14 @@ public class ShortKmerCodesTable {
 		
 	}
 	
-	private Set<Integer> preselectSubjectIds(int queryLength, int limitSequences, int limitHitsPerSequence, Map<Integer, Long> codes) {
+	private Set<Integer> preselectSubjectIds(int queryLength, Map<Integer, Long> codes) {
 		int minHits = queryLength/100;
 		
 		Map<Integer,Integer> subjectHitCounts = new HashMap<>();
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
 			long kmerCode = entry.getValue();
 			//int count = codesLocalCounts.getOrDefault(kmerCode, 0);
-			int countSeqs = getCountDifferentSequences(kmerCode);
-			if (countSeqs>limitSequences) continue;
-			
 			long [] codesMatching = lookupHits(kmerCode);
-			if(codesMatching.length>limitHitsPerSequence*countSeqs) continue;
-			
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
 				int subjectIdx = dec[0];
@@ -439,15 +398,15 @@ public class ShortKmerCodesTable {
 	public double calculateWeight(long code, int length) {
 		if(mode > 1) {
 			//if(kmersMap==null) return 1;
-			int countDifferent = getCountDifferentSequences(code);
-			/*int totalCount = getTotalHits(minimizer);
-			int diff1 = countDifferent-mode;
+			//int countDifferent = getCountDifferentSequences(code);
+			int totalCount = getTotalHits(code);
+			/*int diff1 = countDifferent-mode;
 			int diff2 = totalCount/countQuery-mode;
 			if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
 			int diff3=diff1+diff2-2*kmerDistModeLocalSD;
 			if(diff3<1) diff3=1;*/
 			int modeMinimizers = Math.max(1, mode/2);
-			int diff1 = countDifferent-modeMinimizers;
+			int diff1 = totalCount-modeMinimizers;
 			if(diff1<=kmerDistModeLocalSD) return 1;
 			int diff3=diff1-kmerDistModeLocalSD;
 			return 1.0*modeMinimizers/(modeMinimizers+diff3);
@@ -457,7 +416,6 @@ public class ShortKmerCodesTable {
 			double entropy = entropyCalculator.calculateEntropy(sequence);
 			return entropyCalculator.normalizeEntropy(entropy);
 		}
-		
 	}
 	public Distribution calculateDistributionHits() {
 		Distribution dist = new Distribution(1, 300, 1);

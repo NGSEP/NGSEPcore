@@ -61,7 +61,7 @@ public class UngappedSearchHitsClusterBuilder {
 	public List<UngappedSearchHitsCluster> clusterRegionKmerAlns(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> sequenceHits) {
 		debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug;
 		double minHits = Math.min(20,0.01*queryLength);
-		//System.out.println("minHits:" + minHits);
+		if(debug) System.out.println("minHits:" + minHits+" subjectIdx: "+subjectIdx+" raw hits: "+sequenceHits.size()+" start subject: "+sequenceHits.get(0).getSubjectStart());
 		if(sequenceHits.size()<minHits) return new ArrayList<>();
 		UngappedSearchHitClusteringAlgorithm alg;
 		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) alg = new UngappedSearchHitClusteringAlgorithmKruskal();
