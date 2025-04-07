@@ -80,9 +80,9 @@ public class UngappedSearchHitsClusterBuilder {
 			for(List<UngappedSearchHit> subcluster:subclusters) {
 				// if (subcluster.size() < 20) System.out.println("Cantidad de hits: " + subcluster.size());
 				if(subcluster.size()<minHits) continue;
-				//List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
-				List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
-				// if(selectedHits.size() < minHits) System.out.println("Selected hits: " + selectedHits.size() + " --- Minimum Hits: " + minHits);
+				List<UngappedSearchHit> selectedHits = collapseAndSelectSortedHits(queryLength, subjectIdx, subjectLength, subcluster);
+				//List<UngappedSearchHit> selectedHits = selectHits(queryLength, subjectIdx, subjectLength, subcluster);
+				if(debug) System.out.println("Selected hits: " + selectedHits.size() + " --- Minimum Hits: " + minHits);
 				if(selectedHits.size()<minHits) continue;
 				UngappedSearchHitsCluster cluster = new UngappedSearchHitsCluster(queryLength, subjectIdx, subjectLength, selectedHits);
 				cluster.setRawKmerHits(sequenceHits.size());
@@ -153,20 +153,21 @@ public class UngappedSearchHitsClusterBuilder {
 			// The information of the minimum sum of distances achieved by each query start is maintained
 			double minimumSum = Double.POSITIVE_INFINITY;
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
-				int currentSum = calculateDistancesSum(hits.get(sourceHit), hits.get(destinationHit));
+				UngappedSearchHit h1 = hits.get(sourceHit);
+				UngappedSearchHit h2 = hits.get(destinationHit);
+				if(!checkIfExistEdge(h1, h2)) continue;
+				int currentSum = calculateDistancesSum(h1, h2);
 				// If the sum of distances is 100 times greater than or equal to the minimum sum of distances 
 				// stored, the process is stopped and the source is updated
 				if(currentSum < minimumSum) minimumSum = currentSum;
 				else if(currentSum >= 100 * minimumSum) break;
 				// An edge only exists between hits if the destination is strictly to the right of the source 
 				// in the query
-				if(checkIfExistEdge(hits.get(sourceHit), hits.get(destinationHit))) {
-					// The maximum weight is relaxed taking into account the calculated score
-					double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
-					if(newWeight > maxWeight[destinationHit]){
-						maxWeight[destinationHit] = newWeight;
-						predecessor[destinationHit] = sourceHit;
-					}
+				// The maximum weight is relaxed taking into account the calculated score
+				double newWeight = maxWeight[sourceHit] + calculateScore(hits.get(sourceHit), hits.get(destinationHit));
+				if(newWeight > maxWeight[destinationHit]){
+					maxWeight[destinationHit] = newWeight;
+					predecessor[destinationHit] = sourceHit;
 				}
 			}
 		}
@@ -205,7 +206,7 @@ public class UngappedSearchHitsClusterBuilder {
 	 * @return
 	 */
 	private boolean checkIfExistEdge(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		return (destinationHit.getQueryStart() - sourceHit.getQueryStart()) > 0;
+		return (destinationHit.getQueryStart() - sourceHit.getQueryStart()) > 0 && destinationHit.getSubjectStart() - sourceHit.getSubjectStart() > 0;
 	}
 
 	/**

@@ -84,6 +84,7 @@ public class UngappedSearchHitsCluster {
 				initialized = true;
 			}
 			addHit(hit);
+			//if(hits.size()==534) System.out.println("UngappedSeaarchHitsCluster. Added hit: "+hit.getQueryStart()+" "+hit.getSubjectStart()+" subjectPredicted: "+estimateSubjectStart(hit)+" "+estimateSubjectEnd(hit));
 		}
 		summarize();
 	}
