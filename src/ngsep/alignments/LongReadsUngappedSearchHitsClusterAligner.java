@@ -106,7 +106,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 				int absDiffPredictedStarts = Math.abs(kmerHitsCluster.getSubjectPredictedStart()-hitPredictedStart);
 				if (subjectIdx == subjectIdxDebug && queryLength==queryLengthDebug) System.out.println("Candidate hit start. QueryPos: "+kmerHit.getQueryStart()+" subject start: "+kmerHit.getSubjectStart()+" Predicted start kmer: "+hitPredictedStart);
 				//Inconsistent kmer hit
-				if (kmerHit.getSubjectStart()<kmerHitsCluster.getSubjectPredictedStart() || absDiffPredictedStarts>30) continue;
+				if (kmerHit.getSubjectStart()<kmerHitsCluster.getSubjectPredictedStart() || absDiffPredictedStarts>100) continue;
 				alnStart = kmerHit.getSubjectStart();
 				queryStart = kmerHit.getQueryStart();
 				boolean startAligned = queryStart<=0;
@@ -155,7 +155,7 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 				else {
 					int minLength = Math.min(subjectNextLength, queryNextLength);
 					int maxLength = Math.max(subjectNextLength, queryNextLength);
-					if(maxLength>minLength+3 && 0.95*maxLength>minLength) {
+					if(maxLength>minLength+3 && 0.8*maxLength>minLength) {
 						//Possible invalid kmer hit. Delay alignment
 						if (subjectIdx == subjectIdxDebug  && queryLength==queryLengthDebug) System.out.println("Possible invalid kmer hit. Kmer hit at pos: "+kmerHit.getQueryStart()+" subject hit start: "+kmerHit.getSubjectStart()+" Subject length "+subjectNextLength+" query length "+queryNextLength);
 						continue;
@@ -256,10 +256,10 @@ public class LongReadsUngappedSearchHitsClusterAligner implements UngappedSearch
 		finalAlignment.setCoverageSharedKmers(coverageSharedKmers);
 		finalAlignment.setWeightedCoverageSharedKmers((int)Math.round(weightedCoverageSharedKmers));
 		//TODO: Define better alignment quality
-		double covScore = Math.max(0,1.0*(queryNext-queryStart)/query.length());
+		double covScore = Math.max(0.1,1.0*(queryNext-queryStart)/query.length());
 		covScore = Math.min(1.0, covScore);
 		double estMaxMismatches = queryLength/5;
-		double mismatchScore = Math.max(0, 1.0*(estMaxMismatches-numMismatches)/estMaxMismatches);
+		double mismatchScore = Math.max(0.1, 1.0*(estMaxMismatches-numMismatches)/estMaxMismatches);
 		mismatchScore = Math.min(1.0, mismatchScore);
 		finalAlignment.setAlignmentQuality((byte) Math.round(100*covScore*mismatchScore));
 		finalAlignment.clipBorders(5);

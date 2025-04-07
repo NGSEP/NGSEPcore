@@ -140,7 +140,7 @@ public class SingleReadsAligner {
 		for (int i=0;i<alignments.size();i++) {
 			ReadAlignment aln = alignments.get(i);	
 			//System.out.println("Aln: "+aln+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
-			if(aln.getAlignmentQuality()<=threshold) break;
+			if(aln.getAlignmentQuality()<threshold) break;
 			if(i>0) aln.setSecondary(true);
 			filteredAlignments.add(aln);
 		}
