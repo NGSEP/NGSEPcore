@@ -569,7 +569,7 @@ public class Assembler {
 		diff1 = (time4-time3)/1000;
 		diff2 = (time4-startTime)/1000;
 		log.info("Finished consensus. Memory: "+usedMemory+" Time consensus (s): "+diff1+" total time (s): "+diff2);
-		saveReadsThread.join();
+		if(saveReadsThread!=null) saveReadsThread.join();
 	}
 	private void saveGraph(String outputPrefix, AssemblyGraph graph) {
 		String outFileGraph = outputPrefix+".graph.gz";
