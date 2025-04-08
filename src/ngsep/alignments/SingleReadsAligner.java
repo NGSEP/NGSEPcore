@@ -155,7 +155,7 @@ public class SingleReadsAligner {
 		List<ReadAlignment> finalAlignments = new ArrayList<>();
 		for (int i=0;i<limit;i++) finalAlignments.add(filteredAlignments.get(i));
 		
-		//System.out.println("Initial alignments: "+alignments.size()+" final: "+filteredAlignments.size());
+		//System.out.println("Initial alignments: "+alignments.size()+" filtered "+filteredAlignments.size()+" param: "+maxAlnsPerRead+" limit: "+limit+" final: "+finalAlignments.size());
 		return finalAlignments;
 	}
 

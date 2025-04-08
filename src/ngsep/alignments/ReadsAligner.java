@@ -513,6 +513,7 @@ public class ReadsAligner {
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		initializeFactory();
 		SingleReadsAligner aligner = new SingleReadsAligner(genome, factory.requestClustersFinder(), factory.requestAligner());
+		aligner.setMaxAlnsPerRead(maxAlnsPerRead);
 		return aligner.alignRead(read);
 	}
 	
