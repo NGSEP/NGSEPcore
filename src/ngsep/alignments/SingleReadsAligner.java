@@ -107,11 +107,11 @@ public class SingleReadsAligner {
 			UngappedSearchHitsCluster cluster = clusters.get(i);
 			int sequenceIdx = cluster.getSubjectIdx();
 			double countHits = cluster.getCountKmerHitsCluster();
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount());
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+countHits+" weighted count: "+cluster.getWeightedCount()+" limit: "+limitCount);
 			if(countHits<limitCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = aligner.buildAlignment(query, refSeq.getCharacters(), cluster);
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+cluster.getNumDifferentKmers()+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+countHits+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
 			if(aln!=null) {
 				aln.setSequenceName(refSeq.getName());
 				answer.add(aln);
