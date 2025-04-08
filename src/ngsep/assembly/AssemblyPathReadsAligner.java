@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import ngsep.alignments.PairwiseAlignerDynamicKmers;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
@@ -204,7 +203,7 @@ public class AssemblyPathReadsAligner {
 			totalReads++;
 			//Synchronic call to calculate actual backbone read ends
 			ReadAlignment alnRead = alignReadProcess(pathIdx, consensus, kmersSubject, readIndex, read.getName(), seq, reverse, startConsensusPathVertex,endConsensusPathVertex);
-			alignedReads.add(alnRead);
+			if(alnRead!=null) alignedReads.add(alnRead);
 			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" length: "+seq.length()+" alignment: "+alnRead);
 			
 			if(alnRead!=null) {
