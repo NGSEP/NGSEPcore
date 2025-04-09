@@ -421,29 +421,46 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
+			boolean debug = left.getReadNumber()==1265;
 			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
 			leftSeq.setLength(left.getReadLength());
-			
+			int leftStart = left.getFirst()-left.getSoftClipStart();
+			int leftEnd = left.getLast()+left.getSoftClipEnd();
+			if(debug) System.out.println("GoldStandardGraph. Left aln: "+left+" limits: "+leftStart+" "+leftEnd);
 			AssemblyVertex vertexLeft = graph.getVertex(left.getReadNumber(), left.isNegativeStrand());
 			for(int j=i+1;j<alignments.size();j++) {
 				ReadAlignment right = alignments.get(j);
 				int cmp = comparator.compare(right, left);
+				if(debug) System.out.println("GoldStandardGraph. Next aln to compare: "+right+" cmp: "+cmp);
 				if(cmp>1) break;
 				QualifiedSequence rightSeq = new QualifiedSequence(right.getReadName());
 				rightSeq.setLength(right.getReadLength());
-				//if(right.getReadNumber()==5387)System.out.println("Comparing with alignment: "+left+" right: "+right);
-				AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
-				int overlap = left.getLast() - right.getFirst() + 1;
-				AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
-				edge.setAverageOverlap(overlap);
-				edge.setMedianOverlap(overlap);
-				edge.setFromLimitsOverlap(overlap);
-				graph.addEdge(edge);
+				int rightStart = right.getFirst()-right.getSoftClipStart();
+				int rightEnd = right.getLast()+right.getSoftClipEnd();
+				if(rightStart>=leftStart && rightEnd > leftEnd-50) {
+					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
+					int overlap = leftEnd - rightStart + 1;
+					if(debug) System.out.println("GoldStandardGraph. Left right edge Next aln: "+right+" overlap: "+overlap+" limits: "+rightStart+" "+rightEnd);
+					AssemblyEdge edge = new AssemblyEdge(vertexLeft, vertexRight, overlap);
+					edge.setAverageOverlap(overlap);
+					edge.setMedianOverlap(overlap);
+					edge.setFromLimitsOverlap(overlap);
+					graph.addEdge(edge);
+				} else if (rightStart<leftStart && rightEnd < leftEnd) {
+					AssemblyVertex vertexRight = graph.getVertex(right.getReadNumber(), !right.isNegativeStrand());
+					int overlap = rightEnd - leftStart + 1;
+					if(debug) System.out.println("GoldStandardGraph. Right left edge. Next aln: "+right+" overlap: "+overlap+" limits: "+rightStart+" "+rightEnd);
+					AssemblyEdge edge = new AssemblyEdge(vertexRight, vertexLeft, overlap);
+					edge.setAverageOverlap(overlap);
+					edge.setMedianOverlap(overlap);
+					edge.setFromLimitsOverlap(overlap);
+					graph.addEdge(edge);
+				}
 				
 				boolean relativeNegative = left.isNegativeStrand()!=right.isNegativeStrand();
 				int relativeStart;
 				
-				if(left.getFirst()== right.getFirst() && left.getLast()<=right.getLast()) {
+				if(leftStart >= rightStart && leftEnd<=rightEnd) {
 					//left is embedded in right
 					int relativeEnd;
 					if(right.isNegativeStrand()) {
@@ -455,7 +472,8 @@ public class AssemblyGraphStatistics {
 					}
 					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(left.getReadNumber(), leftSeq, relativeNegative, right.getReadNumber(), rightSeq, relativeStart, relativeEnd);
 					graph.addEmbedded(embeddedEvent);
-					if(right.getLast()<=left.getLast()) {
+					if(debug) System.out.println("GoldStandardGraph. Added embedded relationship right - left");
+					if(leftStart == rightStart && rightEnd<=leftEnd) {
 						//right is also embedded in left
 						if(left.isNegativeStrand()) {
 							relativeStart = right.getLast() - left.getFirst();
@@ -466,8 +484,9 @@ public class AssemblyGraphStatistics {
 						}
 						embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), leftSeq, relativeStart, relativeEnd );
 						graph.addEmbedded(embeddedEvent);
+						if(debug) System.out.println("GoldStandardGraph. Added reciprocal embedded relationship left-right");
 					}
-				} else if(right.getLast()<=left.getLast()) {
+				} else if(leftStart <= rightStart && rightEnd<=leftEnd) {
 					//Right is embedded in left
 					int relativeEnd;
 					if(left.isNegativeStrand()) {
@@ -479,6 +498,7 @@ public class AssemblyGraphStatistics {
 					}
 					AssemblyEmbedded embeddedEvent = new AssemblyEmbedded(right.getReadNumber(), rightSeq, relativeNegative, left.getReadNumber(), leftSeq, relativeStart, relativeEnd );
 					graph.addEmbedded(embeddedEvent);
+					if(debug) System.out.println("GoldStandardGraph. Added embedded relationship left-right");
 				}
 			}
 		}
@@ -686,7 +706,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
 		//boolean debug = gsVertex.getSequenceIndex()==513290 || gsVertex.getSequenceIndex()== 213638 || gsVertex.getSequenceIndex()==1267;
-		//boolean debug = gsVertex.getSequenceIndex()==2932 || gsVertex.getSequenceIndex()==3331 || gsVertex.getSequenceIndex()==2820; 
+		//boolean debug = gsVertex.getSequenceIndex()==10601 || gsVertex.getSequenceIndex()==1266 || gsVertex.getSequenceIndex()==4534; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

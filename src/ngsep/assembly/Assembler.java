@@ -670,7 +670,9 @@ public class Assembler {
 	}
 	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map) {
 		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(map, false);
-		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler(new MinimapShortKmerCodesSamplingAlgorithm(), new CountsBasedShortKmerCodesHashFunction(kmerLength, kmersAnalyzer));
+		MinimapShortKmerCodesSamplingAlgorithm samplingAlg = new MinimapShortKmerCodesSamplingAlgorithm();
+		samplingAlg.setMinDistance(kmerLength/2);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler(samplingAlg, new CountsBasedShortKmerCodesHashFunction(kmerLength, kmersAnalyzer));
 		sampler.setKmerLength(kmerLength);
 		sampler.setWindowLength(windowLength);
 		AssemblyGraph graph;

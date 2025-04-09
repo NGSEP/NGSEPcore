@@ -23,6 +23,7 @@ import java.util.Arrays;
 
 public class MinimapShortKmerCodesSamplingAlgorithm implements ShortKmerCodesSamplingAlgorithm {
 	private int windowLength = ShortKmerCodesSampler.DEF_WINDOW_LENGTH;
+	private int minDistance = 0;
 
 	public int getWindowLength() {
 		return windowLength;
@@ -30,13 +31,21 @@ public class MinimapShortKmerCodesSamplingAlgorithm implements ShortKmerCodesSam
 	public void setWindowLength(int windowLength) {
 		this.windowLength = windowLength;
 	}
+	
 
+	public int getMinDistance() {
+		return minDistance;
+	}
+	public void setMinDistance(int minDistance) {
+		this.minDistance = minDistance;
+	}
 	@Override
 	public boolean[] sample(Integer[] hashcodes) {
 		boolean[] selected = new boolean[hashcodes.length];
 		Arrays.fill(selected, false);
 		Integer previousMinimizer = null;
 		int previousMinimizerPos = -1;
+		int minSelected = -1;
 		for(int i=0;true;i++) {
 			int posLastKmerWindow = i+windowLength-1;
 			if(posLastKmerWindow>=hashcodes.length) break;
@@ -62,7 +71,11 @@ public class MinimapShortKmerCodesSamplingAlgorithm implements ShortKmerCodesSam
 				//if(i>56000 && i<58000) System.err.println("Minimizer calculated with cycle. window start: "+i+" New pos: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer);
 			}
 			if (minPos<0 || minPos==previousMinimizerPos) continue;
-			selected[minPos] = true;
+			if(minSelected==-1 || minPos - minSelected >=minDistance) {
+				selected[minPos] = true;
+				minSelected = minPos;
+			}
+			
 			//if(minPos>56000 && minPos<58000) System.err.println("New minimizer calculated Start: "+minPos+" new minimizer: "+minimizerI+" previous: "+previousMinimizer);
 			previousMinimizer = minimizerI;
 			previousMinimizerPos = minPos;
