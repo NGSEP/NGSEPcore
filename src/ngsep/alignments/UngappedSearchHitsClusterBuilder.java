@@ -64,7 +64,10 @@ public class UngappedSearchHitsClusterBuilder {
 		if(debug) System.out.println("minHits:" + minHits+" subjectIdx: "+subjectIdx+" raw hits: "+sequenceHits.size()+" start subject: "+sequenceHits.get(0).getSubjectStart());
 		if(sequenceHits.size()<minHits) return new ArrayList<>();
 		UngappedSearchHitClusteringAlgorithm alg;
-		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) alg = new UngappedSearchHitClusteringAlgorithmKruskal();
+		if(clusteringAlgorithm == CLUSTERING_ALGORITHM_KRUSKAL_LIKE) {
+			alg = new UngappedSearchHitClusteringAlgorithmKruskal();
+			((UngappedSearchHitClusteringAlgorithmKruskal)alg).setDebug(debug);
+		}
 		else alg = new UngappedSearchHitClusteringAlgorithmKmeansLike();
 		List<List<UngappedSearchHit>> hitsClusters = alg.clusterLocalSearchHits(sequenceHits);
 		

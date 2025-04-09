@@ -80,18 +80,17 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		addConnectingEdges(graph, safePaths, pathEdges);
 		List<AssemblyPath> rawPathsCostsAlgorithm = graph.buildPaths(pathEdges);
 		log.info("Paths costs algorithm: "+rawPathsCostsAlgorithm.size());
-		List<AssemblyPath> paths = new ArrayList<>();
-		for(AssemblyPath path:rawPathsCostsAlgorithm) {
-			if(path.getPathLength()>1) paths.add(path);
+		//List<AssemblyPath> paths = new ArrayList<>();
+		//for(AssemblyPath path:rawPathsCostsAlgorithm) {
+			//if(path.getPathLength()>1) paths.add(path);
 			//else path.print(System.out);
-		}
-		log.info("Paths removing unconnected reads: "+paths.size());
+		//}
+		List<AssemblyPath> paths = collectAlternativeSmallPaths(graph, rawPathsCostsAlgorithm);
+		log.info("Paths after collecting small paths: "+paths.size());
 		if(runImprovementAlgorithms) {
 			Distribution [] distsEdges = calculateDistributions(pathEdges);
 			log.info("Average path edge cost: "+distsEdges[0].getAverage());
 			distsEdges[0].printDistributionInt(System.out);
-			paths = collectAlternativeSmallPaths(graph, paths);
-			log.info("Paths after collecting small paths: "+paths.size());
 			paths = mergeClosePaths(graph, paths, distsEdges);
 			log.info("Paths after first round of merging: "+paths.size());
 			expandPathsWithEmbedded(graph, paths, distsEdges);
@@ -231,13 +230,17 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 			if(0.1*hostPath.getPathLength()<path.getPathLength()) continue;
 			if(Math.abs(leftLocation.getPathPosition()-rightLocation.getPathPosition())>1.5*path.getPathLength()) continue;
 			//log.info("CollectSmallPaths. Integration of path: "+(i+1)+" into path with length: "+hostPath.getPathLength()+" conecting pos: "+leftLocation.getPathPosition()+" "+rightLocation.getPathPosition());
-			hostPath.addAlternativeSmallPath(path);
+			hostPath.addAlternativeSmallPath(path,leftEdge,rightEdge);
 			indexesToRemove.add(i);
 		}
 		log.info("Internal path ids: "+indexesToRemove.size());
 		List<AssemblyPath> answer = new ArrayList<AssemblyPath>();
 		for(int i=0;i<paths.size();i++) {
-			if(!indexesToRemove.contains(i)) answer.add(paths.get(i));
+			if(!indexesToRemove.contains(i)) {
+				AssemblyPath path = paths.get(i);
+				//path.integrateAlternativeSmallPaths();
+				answer.add(path);
+			}
 		}
 		return answer;
 	}

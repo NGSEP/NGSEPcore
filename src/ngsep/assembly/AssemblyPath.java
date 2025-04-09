@@ -4,9 +4,12 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 public class AssemblyPath {
 	private LinkedList<AssemblyEdge> edges = new LinkedList<AssemblyEdge>();
@@ -14,7 +17,7 @@ public class AssemblyPath {
 	private AssemblyVertex vertexRight;
 	private int pathId;
 	private String sequenceName;
-	private List<AssemblyPath> alternativeSmallPaths=new ArrayList<AssemblyPath>();
+	private List<AssemblyPath> alternativeSmallPaths=new ArrayList<>();
 	private String consensus;
 	private Map<Integer, Integer> pathVerticesConsensusEnds;
 	
@@ -249,7 +252,9 @@ public class AssemblyPath {
 		vertexRight = t;
 		
 	}
-	public void addAlternativeSmallPath(AssemblyPath path) {
+	public void addAlternativeSmallPath(AssemblyPath path, AssemblyEdge leftEdge, AssemblyEdge rightEdge) {
+		//int idx = Math.min(locLeft.getPathPosition(), locRight.getPathPosition());
+		//if(idx == locRight.getPathPosition()) path.reverse();
 		alternativeSmallPaths.add(path);
 	}
 	public List<AssemblyPath> getAlternativeSmallPaths() {
@@ -275,6 +280,71 @@ public class AssemblyPath {
 		}
 		System.out.println();
 	}
-	
-	
+	public void integrateAlternativeSmallPaths() {
+		Map<Integer,Integer> verticesLocations = new HashMap<Integer, Integer>();
+		AssemblyVertex v = vertexLeft;
+		verticesLocations.put(v.getUniqueNumber(), 0);
+		int i=1;
+		
+		for(AssemblyEdge edge:edges) {
+			v = edge.getConnectingVertex(v);
+			verticesLocations.put(v.getUniqueNumber(), i);
+			System.out.println("Added vertex "+v+" with id: "+v.getUniqueNumber()+" pos "+i);
+			i++;
+		}
+		int j=0;
+		Set<Integer> idxsToRemove = new HashSet<Integer>();
+		Map<Integer,AssemblyPath> pathsToIntegrateMap = new TreeMap<Integer, AssemblyPath>();
+		System.out.println("Path start: "+vertexLeft+" length: "+edges.size()+" internal paths: "+alternativeSmallPaths.size());
+		for(AssemblyPath path:alternativeSmallPaths) {
+			AssemblyVertex l1 = path.getVertexLeft();
+			AssemblyVertex l2 = path.getVertexRight();
+			Integer p1 = verticesLocations.get(l1.getUniqueNumber());
+			Integer p2 = verticesLocations.get(l2.getUniqueNumber());
+			System.out.println("Next small Path borders: "+l1+" "+l2+" ids: "+l1.getUniqueNumber()+" "+l2.getUniqueNumber()+" pos: "+p1+" "+p2);
+			if(p1!=null && p2!=null && Math.abs(p1-p2)==1) {
+				if(p1>p2)path.reverse();
+				int pos = Math.min(p1, p2);
+				if(!pathsToIntegrateMap.containsKey(pos)) {
+					pathsToIntegrateMap.put(pos, path);
+					idxsToRemove.add(j);
+				}
+			}
+			j++;
+		}
+		if(pathsToIntegrateMap.size()==0) return;
+		v = vertexLeft;
+		LinkedList<AssemblyEdge> newEdges = new LinkedList<AssemblyEdge>();
+		List<AssemblyPath> pathsToIntegrate = new ArrayList<AssemblyPath>(pathsToIntegrateMap.values());
+		i=0;
+		for(AssemblyEdge edge:edges) {
+			if(edge.isSameSequenceEdge()) {
+				newEdges.add(edge);
+				v = edge.getConnectingVertex(v);
+				continue;
+			}
+			
+			AssemblyPath nextPath = pathsToIntegrate.get(i);
+			if(v.getUniqueNumber()==nextPath.getVertexLeft().getUniqueNumber()) {
+				AssemblyVertex v2 = edge.getConnectingVertex(v);
+				if(v2.getUniqueNumber()==nextPath.getVertexRight().getUniqueNumber()) {
+					newEdges.addAll(nextPath.edges);
+				} else {
+					System.err.println("Inconsistent end vertex to integrate alternative path. Expected: "+v2+" given: "+nextPath.getVertexRight());
+					newEdges.add(edge);
+				}
+				i++;
+			} else {
+				newEdges.add(edge);
+				
+			}
+			v = edge.getConnectingVertex(v);
+		}
+		edges = newEdges;
+		List<AssemblyPath> newAlternativeSmallPaths=new ArrayList<AssemblyPath>();
+		for(int k=0;k<alternativeSmallPaths.size();k++) {
+			if(!idxsToRemove.contains(k)) newAlternativeSmallPaths.add(alternativeSmallPaths.get(k));
+		}
+		alternativeSmallPaths = newAlternativeSmallPaths;
+	}
 }

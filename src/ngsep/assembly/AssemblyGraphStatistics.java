@@ -421,7 +421,7 @@ public class AssemblyGraphStatistics {
 		Collections.sort(alignments, comparator);
 		for(int i=0;i<alignments.size();i++) {
 			ReadAlignment left = alignments.get(i);
-			boolean debug = left.getReadNumber()==1265;
+			boolean debug = left.getReadNumber()==-1;
 			QualifiedSequence leftSeq = new QualifiedSequence(left.getReadName());
 			leftSeq.setLength(left.getReadLength());
 			int leftStart = left.getFirst()-left.getSoftClipStart();
@@ -706,7 +706,7 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
 		//boolean debug = gsVertex.getSequenceIndex()==513290 || gsVertex.getSequenceIndex()== 213638 || gsVertex.getSequenceIndex()==1267;
-		//boolean debug = gsVertex.getSequenceIndex()==10601 || gsVertex.getSequenceIndex()==1266 || gsVertex.getSequenceIndex()==4534; 
+		//boolean debug = gsVertex.getSequenceIndex()==2123 || gsVertex.getSequenceIndex()==4681 || gsVertex.getSequenceIndex()==239; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);

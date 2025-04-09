@@ -11,6 +11,14 @@ import ngsep.sequences.UngappedSearchHit;
 
 public class UngappedSearchHitClusteringAlgorithmKruskal implements UngappedSearchHitClusteringAlgorithm {
 
+	private boolean debug = false;
+	
+	public boolean isDebug() {
+		return debug;
+	}
+	public void setDebug(boolean debug) {
+		this.debug = debug;
+	}
 	@Override
 	public List<List<UngappedSearchHit>> clusterLocalSearchHits(List<UngappedSearchHit> hits) {
 		int n = hits.size();
@@ -24,14 +32,16 @@ public class UngappedSearchHitClusteringAlgorithmKruskal implements UngappedSear
 		List<Integer> sortedPos = new ArrayList<>(n-1);
 		for(int i=1;i<n;i++) {
 			sortedPos.add(i-1);
-			int estI = sortedHits.get(i).estimateSubjectStart();
+			UngappedSearchHit hit = sortedHits.get(i);
+			int estI = hit.estimateSubjectStart();
 			distanceNext[i-1] = estI-estP;
+			if(debug) System.out.println("Next: "+hit.getQueryStart()+" subjectPos: "+hit.getSubjectStart()+" estimate "+estI+" distance: "+distanceNext[i-1]);
 			estP = estI;
 		}
  		Collections.sort(sortedPos, (p1,p2)->distanceNext[p1]-distanceNext[p2]);
  		for (int i:sortedPos) {
  			int d = distanceNext[i];
- 			if(d>20) break;
+ 			if(d>30) break;
  			if(!sets.sameSubsets(i, i+1)) sets.union(i, i+1);
  			//if(d>0 && sets.getNumSubsets()<=2*estimatedClusters) break;
  		}
