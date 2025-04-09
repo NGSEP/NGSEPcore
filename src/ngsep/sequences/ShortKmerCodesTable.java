@@ -275,7 +275,7 @@ public class ShortKmerCodesTable {
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
 		int idxDebug = -2;
 		int kmerLength = codesSampler.getKmerLength();
-		int limitHits = 10000;
+		int limitHits = 1000;
 		//if(mode>1) limitHits = Math.min(limitHits, 10*mode);
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength+" limit hits: "+limitHits);
 		
@@ -303,10 +303,10 @@ public class ShortKmerCodesTable {
 			if(normalized<normalizedCountsDist.length) normalizedCountsDist[normalized]++;
 			else normalizedCountsDist[normalizedCountsDist.length-1]++;
 			if (queryIdx == idxDebug && startQuery==0) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length);
-			//if(numHits>limitHits) {
-			//	multihitCodes++;
-			//	continue;
-			//} else
+			if(numHits>limitHits) {
+				multihitCodes++;
+				continue;
+			}
 			if(numHits>0) {
 				usedCodes.add(kmerCode);	 
 				numUsedCodes++;
