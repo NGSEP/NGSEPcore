@@ -279,7 +279,11 @@ public class ShortKmerCodesTable {
 		if(mode>1) limitHits = Math.max(limitHits, 5*mode);
 		if (queryIdx == idxDebug) System.out.println("ShortKmerCodesTable. Aligning a total of "+codes.size()+" codes. Mode: "+mode+" kmer length: "+kmerLength+" limit hits: "+limitHits);
 		
-		Set<Integer> preselectedSubjectIds = preselectSubjectIds(queryLength, codes);
+		Set<Integer> preselectedSubjectIds = null;
+		if(queryLength>20000) {
+			preselectedSubjectIds = preselectSubjectIds(queryLength, codes);
+		}
+		
 		KmerSearchResultsCompressedTable result = new KmerSearchResultsCompressedTable(codes, kmerLength, 10);
 		Map<Long,Integer> internalMultiHitCodes = calculateInternalMultihitKmers(codes);
 		
@@ -366,7 +370,7 @@ public class ShortKmerCodesTable {
 		return answer;
 	}
 	private Set<Integer> preselectSubjectIds(int queryLength, Map<Integer, Long> codes) {
-		int minHits = queryLength/100;
+		int minHits = queryLength/200;
 		
 		Map<Integer,Integer> subjectHitCounts = new HashMap<>();
 		for(Map.Entry<Integer, Long> entry:codes.entrySet()) {
