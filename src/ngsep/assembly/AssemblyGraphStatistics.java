@@ -409,6 +409,7 @@ public class AssemblyGraphStatistics {
 			ReadAlignment aln = new ReadAlignment(seqName.getName(), first, first+seq.getLength()-1, seq.getLength(), flags);
 			aln.setReadNumber(i);
 			aln.setReadName(readName);
+			aln.setCigarString(seq.getLength()+"M");
 			alignments.add(aln);
 		}
 		return alignments;
