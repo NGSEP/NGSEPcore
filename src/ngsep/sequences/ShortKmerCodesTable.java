@@ -273,7 +273,7 @@ public class ShortKmerCodesTable {
 	 * @return
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
-		int idxDebug = -2;
+		int idxDebug = 161766;
 		int kmerLength = codesSampler.getKmerLength();
 		int limitHits = 200;
 		if(mode>1) limitHits = Math.max(limitHits, 5*mode);

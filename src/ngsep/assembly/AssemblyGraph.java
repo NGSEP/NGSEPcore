@@ -676,19 +676,110 @@ public class AssemblyGraph {
 		
 		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" ends left: "+hostEvidenceEndsLeft+" starts right: "+hostEvidenceStartsRight);
 		if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0) return false;
-		//if(hostEvidenceStartsRight.size()==0 || hostEvidenceEndsLeft.size()==0 || hostEvidenceStartsRight.size()+numIncompleteEdgesRight<5 || hostEvidenceEndsLeft.size()+numIncompleteEdgesLeft<5 ) return false;
-		//if(numIncompleteEdgesLeft<3 && numIncompleteEdgesRight<3 && (hostEvidenceStartsRight.size()<3 || hostEvidenceEndsLeft.size()<3)) return false;
 		Collections.sort(hostEvidenceEndsLeft,(n1,n2)->n1-n2);
-		int hostEvidenceEndLeft = hostEvidenceEndsLeft.size()>0?hostEvidenceEndsLeft.get(hostEvidenceEndsLeft.size()/2):0;
 		Collections.sort(hostEvidenceStartsRight,(n1,n2)->n1-n2);
-		int hostEvidenceStartRight = hostEvidenceStartsRight.size()>0?hostEvidenceStartsRight.get(hostEvidenceStartsRight.size()/2):0;
-		if(hostEvidenceEndLeft==0 && hostEvidenceStartRight>0) hostEvidenceEndLeft = hostEvidenceStartRight;
-		else if(hostEvidenceEndLeft>0 && hostEvidenceStartRight==0) hostEvidenceStartRight = hostEvidenceEndLeft;
-		else if(hostEvidenceStartRight==0) hostEvidenceStartRight = seqLength;
-		
-		int minEvidenceStart = Math.min(hostEvidenceStartRight, hostEvidenceEndLeft);
-		int maxEvidenceEnd = Math.max(hostEvidenceStartRight, hostEvidenceEndLeft);
-		
+		List<Integer> pairs = findMatchingPairs(hostEvidenceEndsLeft,hostEvidenceStartsRight, sequenceId==idxDebug);
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Pairs "+pairs);
+		for(int i=0;i<pairs.size();i+=2) {
+			int hostEvidenceEndLeft = pairs.get(i);
+			int hostEvidenceStartRight = pairs.get(i+1);
+			
+			int minEvidenceStart = Math.min(hostEvidenceStartRight, hostEvidenceEndLeft);
+			int maxEvidenceEnd = Math.max(hostEvidenceStartRight, hostEvidenceEndLeft);
+			
+			int [] stats = calculateCrossingStats(sequenceId, seqLength, embeddedList, vS, edgesS, vE, edgesE, minEvidenceStart, maxEvidenceEnd);
+			int numCrossing = stats[0];
+			
+			if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" embedded size: "+embeddedList.size()+" is emb: "+isEmbedded(sequenceId));
+			int d1 = hostEvidenceEndLeft-hostPredictedStartRight;
+			int d2 = hostPredictedEndLeft-hostEvidenceStartRight;
+			int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
+			int d4 = hostEvidenceStartRight-hostPredictedStartRight;
+			int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
+			if( numCrossing==0  && d1>1000 && d2>1000 && d3>1000 && d4>1000 && d5<seqLength/10) {
+				System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
+				return true;
+			} /*else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
+				System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
+				return true;
+			} else if (numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && countPassS<=numIncompleteEdgesLeft) || (hostEvidenceEndsLeft.size()>5 && countPassE<=numIncompleteEdgesRight))) {
+				System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" countpassEvProp: "+countPassS+" "+countPassE);
+				return true;
+			} */
+			
+			/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
+				System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
+				return true;
+			} else if (numCrossing==0 && hostEvidenceEndLeft<seqLength-1000 && hostEvidenceStartRight==seqLength && numIncompleteEdgesRight>5) {
+				System.out.println("Possible chimera identified for end of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
+				return true;
+			}*/
+		}
+		return false;
+	}
+	
+	private List<Integer> findMatchingPairs(List<Integer> hostEvidenceEndsLeft, List<Integer> hostEvidenceStartsRight, boolean debug) {
+		List<Integer> pairs = new ArrayList<Integer>();
+		List<Integer> clusteredLeft = clusterNumbers(hostEvidenceEndsLeft);
+		List<Integer> clusteredRight = clusterNumbers(hostEvidenceStartsRight);
+		int i=0;
+		int j=0;
+		while(i<clusteredLeft.size() && j<clusteredRight.size()) {
+			int nextI = clusteredLeft.get(i);
+			int nextJ = clusteredRight.get(j);
+			if (debug) System.out.println("Next pos: "+i+" "+j+" pair: "+nextI+" "+nextJ);
+			if(Math.abs(nextI-nextJ)<500) {
+				pairs.add(nextI);
+				pairs.add(nextJ);
+				i++;
+				j++;
+			} else if (nextI<nextJ) {
+				pairs.add(nextI);
+				pairs.add(nextI);
+				i++;
+			} else {
+				pairs.add(nextJ);
+				pairs.add(nextJ);
+				j++;
+			}
+		}
+		while (i<clusteredLeft.size()) {
+			if (debug) System.out.println("Next pos i: "+i+" number: "+clusteredLeft.get(i));
+			pairs.add(clusteredLeft.get(i));
+			pairs.add(clusteredLeft.get(i));
+			i++;
+		}
+		while (j<clusteredRight.size()) {
+			if (debug) System.out.println("Next pos j: "+j+" number: "+clusteredRight.get(j));
+			pairs.add(clusteredRight.get(j));
+			pairs.add(clusteredRight.get(j));
+			j++;
+		}
+		return pairs;
+	}
+	private List<Integer> clusterNumbers(List<Integer> sortedNumbers) {
+		List<Integer> clusterNumbers = new ArrayList<Integer>();
+		List<Integer> nextCluster = new ArrayList<Integer>();
+		int last = -1;
+		for(int n:sortedNumbers) {
+			if(last == -1 || n-last > 200) {
+				if(nextCluster.size()>=3) clusterNumbers.add(average(nextCluster));
+				nextCluster.clear();
+			}
+			nextCluster.add(n);
+			last=n;
+		}
+		if(nextCluster.size()>=3) clusterNumbers.add(average(nextCluster));
+		return clusterNumbers;
+	}
+	
+	private int average(List<Integer> nextCluster) {
+		int s = 0;
+		for(int n:nextCluster) s+=n;
+		return s/nextCluster.size();
+	}
+	private int [] calculateCrossingStats (int sequenceId, int seqLength, List<AssemblyEmbedded> embeddedList, AssemblyVertex vS, List<AssemblyEdge> edgesS, AssemblyVertex vE, List<AssemblyEdge> edgesE, int minEvidenceStart, int maxEvidenceEnd) {
+		int idxDebug = -1;
 		int numCrossing = 0;
 		for(AssemblyEmbedded embedded:embeddedList) {
 			int unknownLeft = embedded.getHostEvidenceStart() - embedded.getHostStart();
@@ -739,33 +830,11 @@ public class AssemblyGraph {
 				if(edge.getEvidenceProportion()>=limitEvProp) countPassE++;
 			}
 		}
-		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" median evidence: "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE+" embedded size: "+embeddedList.size()+" is emb: "+isEmbedded(sequenceId));
-		int d1 = hostEvidenceEndLeft-hostPredictedStartRight;
-		int d2 = hostPredictedEndLeft-hostEvidenceStartRight;
-		int d3 = hostPredictedEndLeft-hostEvidenceEndLeft;
-		int d4 = hostEvidenceStartRight-hostPredictedStartRight;
-		int d5 = hostEvidenceEndLeft - hostEvidenceStartRight;
-		if( numCrossing==0  && d1>1000 && d2>1000 && d3>1000 && d4>1000 && d5<seqLength/10) {
-			System.out.println("Possible chimera identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing);
-			return true;
-		} /*else if ((countGoodOverlapS > 5 && countPassS ==0 && hostEvidenceEndsLeft.size()>0) || (countGoodOverlapE>5 && countPassE ==0 && hostEvidenceStartsRight.size()>0)) {
-			System.out.println("Possible dangling end identified for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE);
-			return true;
-		} else if (numCrossing==0  && ((hostEvidenceStartsRight.size()>5 && countPassS<=numIncompleteEdgesLeft) || (hostEvidenceEndsLeft.size()>5 && countPassE<=numIncompleteEdgesRight))) {
-			System.out.println("No evidence on one side for sequence "+sequenceId+" "+getSequence(sequenceId).getName()+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" crossing: "+numCrossing+" incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight+" countpassEvProp: "+countPassS+" "+countPassE);
-			return true;
-		} */
-		
-		/* else if (numCrossing==0 && hostEvidenceEndLeft==0 && hostEvidenceStartRight>1000 && numIncompleteEdgesLeft>5) {
-			System.out.println("Possible chimera identified for start of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
-			return true;
-		} else if (numCrossing==0 && hostEvidenceEndLeft<seqLength-1000 && hostEvidenceStartRight==seqLength && numIncompleteEdgesRight>5) {
-			System.out.println("Possible chimera identified for end of sequence "+sequenceId+". length "+seqLength+" num unknown: "+hostEvidenceEndsLeft.size()+" "+hostEvidenceStartsRight.size()+" evidence end : "+hostEvidenceEndLeft+" "+hostEvidenceStartRight+" predicted: "+hostPredictedEndLeft+" "+hostPredictedStartRight+" num incomplete: "+numIncompleteEdgesLeft+" "+numIncompleteEdgesRight);
-			return true;
-		}*/
-		
-		return false;
+		int [] answer = {numCrossing};
+		if(sequenceId==idxDebug) System.out.println("Finding chimeras. Sequence "+sequenceId+". length "+seqLength+" num crossing: "+numCrossing+" edges good overlap: "+countGoodOverlapS+" "+countGoodOverlapE+" countpassEvProp: "+countPassS+" "+countPassE+" embedded size: "+embeddedList.size()+" is emb: "+isEmbedded(sequenceId));
+		return answer;
 	}
+	
 	
 	public boolean isChimeric(int sequenceId) {
 		return chimericSequenceIds.contains(sequenceId);

@@ -359,7 +359,7 @@ public class AssemblyGraphStatistics {
 				pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			} else {
 				LayoutBuilderKruskalPath kruskal = new LayoutBuilderKruskalPath();
-				//kruskal.setRunImprovementAlgorithms(false);
+				kruskal.setRunImprovementAlgorithms(false);
 				pathsFinder = kruskal;
 				
 			}
@@ -705,8 +705,8 @@ public class AssemblyGraphStatistics {
 		//Find path edge of this vertex
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
-		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==513290 || gsVertex.getSequenceIndex()== 213638 || gsVertex.getSequenceIndex()==1267;
+		//boolean debug = gsVertex.getSequenceIndex()==-1;
+		boolean debug = gsVertex.getSequenceIndex()==15821 || gsVertex.getSequenceIndex()== 161766 || gsVertex.getSequenceIndex()==88466;
 		//boolean debug = gsVertex.getSequenceIndex()==2123 || gsVertex.getSequenceIndex()==4681 || gsVertex.getSequenceIndex()==239; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
