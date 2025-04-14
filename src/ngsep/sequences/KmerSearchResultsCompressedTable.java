@@ -97,7 +97,7 @@ public class KmerSearchResultsCompressedTable {
 		int n = sequencesBySubjectTableColumnLengths[row];
 		Set<Long> kmers = new HashSet<>(n);
 		long [] encodedHits = sequencesBySubjectTable[row];
-		for(int i=0;i<encodedHits.length;i++) {
+		for(int i=0;i<n;i++) {
 			int [] dec = KmerCodesTableEntry.decode(encodedHits[i]);
 			int queryStart = dec[0];
 			Long code = searchCodes.get(queryStart);
@@ -115,6 +115,7 @@ public class KmerSearchResultsCompressedTable {
 			int [] dec = KmerCodesTableEntry.decode(encodedHits[i]);
 			int queryStart = dec[0];
 			int subjectStart = dec[1];
+			//if(subjectIdx==0) System.out.println("DecodingHits. Next query start: "+queryStart+" next subject start: "+subjectStart);
 			UngappedSearchHit hit = new UngappedSearchHit(subjectIdx, subjectStart);
 			hit.setHitLength((short)kmerLength);
 			hit.setQueryStart(queryStart);

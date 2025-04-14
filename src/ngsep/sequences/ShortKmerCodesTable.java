@@ -98,8 +98,8 @@ public class ShortKmerCodesTable {
 	private long[] lookupHits(long code) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) return EMPTY_LONG_ARRAY;
-		return sequencesByCodeTable[row];
-		//return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
+		//Select hits up to the real number of hits
+		return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
 	}
 	public int size() {
 		return matrixRowMap.size();
@@ -273,7 +273,7 @@ public class ShortKmerCodesTable {
 	 * @return
 	 */
 	public KmerSearchResultsCompressedTable matchCompressed (int queryIdx, int queryLength, Map<Integer, Long> codes, int maxSubjectIdx) {
-		int idxDebug = 161766;
+		int idxDebug = -2;
 		int kmerLength = codesSampler.getKmerLength();
 		int limitHits = 200;
 		if(mode>1) limitHits = Math.max(limitHits, 5*mode);
@@ -330,7 +330,7 @@ public class ShortKmerCodesTable {
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
 				int subjectIdx = dec[0];
-				if (queryIdx == idxDebug && startQuery==0) System.err.println("KmerCodesTable. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" next match: "+subjectIdx+" start: "+dec[1]);
+				if (queryIdx == idxDebug && subjectIdx==0) System.err.println("KmerCodesTable. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" next match: "+subjectIdx+" start: "+dec[1]);
 				if (subjectIdx < 0) {
 					System.err.println("Invalid subject "+subjectIdx+" query code: "+kmerCode+" matching code: "+entryCode+" start: "+dec[1]);
 					continue;
