@@ -961,18 +961,20 @@ public class AssemblyGraph {
 		Distribution overlapSDDistributionSafe = new Distribution(0, 500, 10);
 		Distribution evPropDistributionSafe = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionSafe = new Distribution(0, 100, 1);
-		Distribution [] distsSafe = {overlapDistributionSafe, wcskDistributionSafe, wcskPropOverlapSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
+		Distribution [] distsSafe = {overlapDistributionSafe, cskDistributionSafe, wcskPropOverlapSafe, overlapSDDistributionSafe,evPropDistributionSafe,indelsKbpDistributionSafe};
 		Distribution overlapDistributionAll = new Distribution(0, limit, 1000);
+		Distribution cskDistributionAll = new Distribution(0, limit, 1000);
 		Distribution wcskDistributionAll = new Distribution(0, limit, 1000);
 		Distribution wcskPropOverlapAll = new Distribution(0, 1.1, 0.01);
 		Distribution overlapSDDistributionAll = new Distribution(0, 50, 10);
 		Distribution evPropDistributionAll = new Distribution(0, 1.1, 0.02);
 		Distribution indelsKbpDistributionAll = new Distribution(0, 100, 1);
-		Distribution [] distsAll = {overlapDistributionAll, wcskDistributionAll, wcskPropOverlapAll, overlapSDDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
+		Distribution [] distsAll = {overlapDistributionAll, cskDistributionAll, wcskPropOverlapAll, overlapSDDistributionAll,evPropDistributionAll,indelsKbpDistributionAll};
 		for(AssemblyEdge edge:edges) {
 			if (edge.isSameSequenceEdge()) continue;
 			double overlap = edge.getOverlap();
 			overlapDistributionAll.processDatapoint(overlap);
+			cskDistributionAll.processDatapoint(edge.getCoverageSharedKmers());
 			wcskDistributionAll.processDatapoint(edge.getWeightedCoverageSharedKmers());
 			wcskPropOverlapAll.processDatapoint((double)edge.getWeightedCoverageSharedKmers()/(edge.getOverlap()+1));
 			overlapSDDistributionAll.processDatapoint((double)edge.getOverlapStandardDeviation());
@@ -1034,7 +1036,7 @@ public class AssemblyGraph {
 		Set<Integer> repetitiveVertices = predictRepetitiveVertices();
 		NormalDistribution [] edgesDists = estimateDistributions(getEdges(),repetitiveVertices);
 		System.out.println("Average overlap: "+edgesDists[0].getMean()+" SD: "+Math.sqrt(edgesDists[0].getVariance()));
-		System.out.println("Average weighted coverage shared kmers: "+edgesDists[1].getMean()+" SD: "+Math.sqrt(edgesDists[1].getVariance()));
+		System.out.println("Average coverage shared kmers: "+edgesDists[1].getMean()+" SD: "+Math.sqrt(edgesDists[1].getVariance()));
 		System.out.println("Average WCSK proportion overlap: "+edgesDists[2].getMean()+" SD: "+Math.sqrt(edgesDists[2].getVariance()));
 		System.out.println("Average overlap standard deviation: "+edgesDists[3].getMean()+" SD: "+Math.sqrt(edgesDists[3].getVariance()));
 		System.out.println("Average Evidence proportion: "+edgesDists[4].getMean()+" SD: "+Math.sqrt(edgesDists[4].getVariance()));

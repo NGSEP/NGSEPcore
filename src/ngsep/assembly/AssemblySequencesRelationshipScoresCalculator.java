@@ -68,7 +68,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 	}
 	public int calculateCost(AssemblySequencesRelationship relationship, NormalDistribution[] edgesDists) {
 		NormalDistribution overlapD = edgesDists[0];
-		NormalDistribution wcskD = edgesDists[1];
+		NormalDistribution cskD = edgesDists[1];
 		NormalDistribution wcskPropD = edgesDists[2];
 		NormalDistribution overlapSD = edgesDists[3];
 		NormalDistribution evPropD = edgesDists[4];
@@ -90,8 +90,8 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double cost1 = maxIndividualCost*(1-cumulativeOverlap);
 		
 		//double cumulativeWCSK = wcskD.cumulative(relationship.getWeightedCoverageSharedKmers());
-		double cumulativeWCSK = wcskD.cumulative(relationship.getCoverageSharedKmers());
-		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],cumulativeWCSK),maxIndividualCost);
+		double cumulativeCSK = cskD.cumulative(relationship.getCoverageSharedKmers());
+		individualCosts[1] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[1],cumulativeCSK),maxIndividualCost);
 		
 		double cumulativeWCSKProp = wcskPropD.cumulative((double)relationship.getWeightedCoverageSharedKmers()/(relationship.getOverlap()+1));
 		//individualCosts[2] = maxIndividualCost*(1-cumulativeWCSK);
@@ -117,12 +117,12 @@ public class AssemblySequencesRelationshipScoresCalculator {
 			costD+=individualCosts[i]*weights[i];
 		}
 
-		int cost = (int)(10000.0*costD);
+		int cost = (int)Math.round(10000.0*costD);
 		cost += 10*cumulativeOverlap;
 		//cost+= (int) (100.0*(1-cumulativeOverlap));
 		//cost+= (int) (1000*(1-pValueOTP)*(1-pValueWCTP));
 
-		if( logRelationship(relationship)) System.out.println("CalculateCost. Rel: "+relationship+" Values "+cumulativeOverlap+" "+cumulativeWCSK+" "+cumulativeWCSKProp+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[1]+" "+individualCosts[2]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost+" IKBP rel: "+relationship.getIndelsPerKbp());
+		if( logRelationship(relationship)) System.out.println("CalculateCost. Rel: "+relationship+" Values "+cumulativeOverlap+" "+cumulativeCSK+" "+cumulativeWCSKProp+" "+cumulativeEvProp+" "+pValueIKBP+" costs: "+individualCosts[0]+" "+individualCosts[1]+" "+individualCosts[2]+" "+individualCosts[4]+" "+individualCosts[5]+" cost: " +cost+" IKBP rel: "+relationship.getIndelsPerKbp());
 		
 		return cost;
 	}
