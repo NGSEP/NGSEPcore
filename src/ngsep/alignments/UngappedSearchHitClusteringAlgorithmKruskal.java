@@ -41,7 +41,7 @@ public class UngappedSearchHitClusteringAlgorithmKruskal implements UngappedSear
  		Collections.sort(sortedPos, (p1,p2)->distanceNext[p1]-distanceNext[p2]);
  		for (int i:sortedPos) {
  			int d = distanceNext[i];
- 			if(d>30) break;
+ 			if(d>50) break;
  			if(!sets.sameSubsets(i, i+1)) sets.union(i, i+1);
  			//if(d>0 && sets.getNumSubsets()<=2*estimatedClusters) break;
  		}
