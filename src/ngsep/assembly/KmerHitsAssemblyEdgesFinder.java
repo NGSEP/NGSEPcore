@@ -74,13 +74,13 @@ public class KmerHitsAssemblyEdgesFinder {
 		int queryLength = queryF.length();
 		
 		int numSelfHits = hitsForward.getKmerHitCount(queryIdx); 
-		int distinctKmersCount = hitsForward.countDistinctKmerHits(queryIdx);
-		if(distinctKmersCount==0) distinctKmersCount = queryLength/10;
+		int distinctQueryStarts = hitsForward.countDistinctQueryStarts(queryIdx);
+		if(distinctQueryStarts==0) distinctQueryStarts = queryLength/20;
 		
-		int minHits = (int) Math.max(distinctKmersCount/8,DEF_MIN_HITS);
+		int minHits = (int) Math.max(distinctQueryStarts/10,DEF_MIN_HITS);
 		//minHits = calculateMinimumHitsFromTotal(queryIdx, hitsForward, hitsReverse, minHits);
 		if(!extensiveSearch) minHits*=2;
-		if (queryIdx == idxDebug) log.info("EdgesFinder. Query: "+queryIdx+" self hits: "+numSelfHits+" self distinct kmers: "+distinctKmersCount+" min hits: "+minHits+" Memory: "+calculateMemoryGbp());
+		if (queryIdx == idxDebug) log.info("EdgesFinder. Query: "+queryIdx+" self hits: "+numSelfHits+" self distinct starts: "+distinctQueryStarts+" min hits: "+minHits+" Memory: "+calculateMemoryGbp());
 		//Initial selection based on raw hit counts
 		List<Integer> subjectIdxsF = filterAndSortSubjectIds(queryIdx, hitsForward, minHits);
 		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" Selected subject idxs forward: "+subjectIdxsF.size()+" Memory: "+calculateMemoryGbp());
@@ -151,8 +151,8 @@ public class KmerHitsAssemblyEdgesFinder {
 			int subjectIdx = entry.getKey();
 			int subjectRawCount = entry.getValue(); 
 			if(subjectIdx>= queryIdx) continue;
-			int numQueryKmers = results.countDistinctKmerHits(subjectIdx);
-			if (queryIdx == idxDebug && subjectRawCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" Subject sequence: "+subjectIdx+" hits: "+subjectRawCount+" distinct kmers: "+numQueryKmers+" min hits: "+minHits);
+			int numQueryKmers = results.countDistinctQueryStarts(subjectIdx);
+			if (queryIdx == idxDebug && subjectRawCount>DEF_MIN_HITS) System.out.println("EdgesFinder. Query: "+queryIdx+" Subject sequence: "+subjectIdx+" hits: "+subjectRawCount+" distinct starts: "+numQueryKmers+" min hits: "+minHits);
 			if(subjectRawCount<minHits) continue;
 			if(numQueryKmers<minHits) continue;
 			numQueryKmersSubject.put(subjectIdx, numQueryKmers);

@@ -43,6 +43,7 @@ public class CollisionEntropyCalculator implements EntropyCalculator {
             for(int j = 0; j <= i; j++) {
                 double count = j + 1;
                 SQUARES_CACHE[i][j] = calculateTerm(count, n);
+                //System.out.println("Next entropy at "+i+" "+j+":"+SQUARES_CACHE[i][j] );
             }
         }
     }
@@ -67,6 +68,7 @@ public class CollisionEntropyCalculator implements EntropyCalculator {
      * @return Square of the probability of occurrence of the character within the sequence
      */
     public static double calculateTerm(double count, int n) {
+    	//TODO: Verify probability calculation
         double probability = count / n;
         double square = Math.pow(probability, 2d);
         return square;   

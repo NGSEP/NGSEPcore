@@ -43,6 +43,7 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
 			for(int j = 0; j <= i; j++) {
 				double count = j + 1;
 				LOG_CACHE[i][j] = calculateTerm(count, n);
+				//System.out.println("Next entropy at "+i+" "+j+":"+LOG_CACHE[i][j] );
 			}
 		}
     }
@@ -67,6 +68,7 @@ public class ShannonEntropyCalculator implements EntropyCalculator {
      * @return Log_2 of the  inverse probability of occurrence of the character within the sequence
      */
     public static double calculateTerm(double count, int n) {
+    	if(count==0) return 0;
         double probability = count / n;
 		double inverse = 1 / probability;
 		return (probability * Math.log10(inverse) / LOG2_BASE10);

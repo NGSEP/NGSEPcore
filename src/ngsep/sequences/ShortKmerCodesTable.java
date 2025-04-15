@@ -30,15 +30,16 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.main.ThreadPoolManager;
-import ngsep.math.CollisionEntropyCalculator;
 import ngsep.math.Distribution;
+import ngsep.math.EntropyCalculator;
+import ngsep.math.ShannonEntropyCalculator;
 
 /**
  * @author Jorge Duitama
  */
 public class ShortKmerCodesTable {
 	
-	private CollisionEntropyCalculator entropyCalculator = new CollisionEntropyCalculator(4);
+	private EntropyCalculator entropyCalculator = new ShannonEntropyCalculator(4);
 	private static final long [] EMPTY_LONG_ARRAY = new long[0];
 	
 	private Logger log = Logger.getLogger(ShortKmerCodesTable.class.getName());
@@ -420,16 +421,16 @@ public class ShortKmerCodesTable {
 			if(diff1<=kmerDistModeLocalSD && diff2<=kmerDistModeLocalSD) return 1;
 			int diff3=diff1+diff2-2*kmerDistModeLocalSD;
 			if(diff3<1) diff3=1;*/
-			int modeMinimizers = Math.max(1, mode/2);
-			int diff1 = totalCount-modeMinimizers;
+			int diff1 = totalCount-mode;
 			if(diff1<=kmerDistModeLocalSD) return 1;
 			int diff3=diff1-kmerDistModeLocalSD;
-			return 1.0*modeMinimizers/(modeMinimizers+diff3);
+			return 1.0*mode/(mode+diff3);
 		} 
 		else {
 			CharSequence sequence = new String (DNASequence.getDNASequence(code, length));
 			double entropy = entropyCalculator.calculateEntropy(sequence);
-			return entropyCalculator.normalizeEntropy(entropy);
+			return entropy;
+			//return entropyCalculator.normalizeEntropy(entropy);
 		}
 	}
 	public Distribution calculateDistributionHits() {

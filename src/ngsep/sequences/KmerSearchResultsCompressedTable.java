@@ -91,19 +91,18 @@ public class KmerSearchResultsCompressedTable {
 		}
 		return counts;
 	}
-	public int countDistinctKmerHits(int subjectIdx) {
+	public int countDistinctQueryStarts(int subjectIdx) {
 		Integer row = matrixRowMap.get(subjectIdx);
 		if(row==null) return 0;
 		int n = sequencesBySubjectTableColumnLengths[row];
-		Set<Long> kmers = new HashSet<>(n);
+		Set<Integer> starts = new HashSet<>(n);
 		long [] encodedHits = sequencesBySubjectTable[row];
 		for(int i=0;i<n;i++) {
 			int [] dec = KmerCodesTableEntry.decode(encodedHits[i]);
 			int queryStart = dec[0];
-			Long code = searchCodes.get(queryStart);
-			if(code!=null) kmers.add(code);
+			starts.add(queryStart);
 		}
-		return kmers.size();
+		return starts.size();
 	}
 	public List<UngappedSearchHit> getHits(int subjectIdx) {
 		Integer row = matrixRowMap.get(subjectIdx);
