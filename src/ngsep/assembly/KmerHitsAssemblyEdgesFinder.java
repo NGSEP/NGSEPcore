@@ -181,14 +181,17 @@ public class KmerHitsAssemblyEdgesFinder {
 		UngappedSearchHitsCluster bestCluster = subjectClusters.get(0);
 		answer.add(bestCluster);
 		int numKmers = bestCluster.getCountKmerHitsCluster();
-		boolean queryBefore = bestCluster.getSubjectPredictedStart()<0;
-		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits: "+hits.size()+" subject clusters: "+subjectClusters.size()+" hits best subject cluster: "+numKmers+" subjectId in cluster: "+bestCluster.getSubjectIdx());
-		if(subjectClusters.size()==1) return answer;
-		UngappedSearchHitsCluster secondCluster = subjectClusters.get(1);
-		if(secondCluster.getCountKmerHitsCluster()>0.8*numKmers && queryBefore != secondCluster.getSubjectPredictedStart()<0) {
-			answer.add(secondCluster);
-			if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding second cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+secondCluster.getCountKmerHitsCluster());
+		
+		if (queryIdx == idxDebug) System.out.println("EdgesFinder. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits: "+hits.size()+" subject clusters: "+subjectClusters.size()+" hits best subject cluster: "+numKmers+" predicted start: "+bestCluster.getSubjectPredictedStart());
+		if(!extensiveSearch) return answer;
+		for(int i=1;i<subjectClusters.size() && i<10;i++) {
+			UngappedSearchHitsCluster cluster = subjectClusters.get(i);
+			if(cluster.getCountKmerHitsCluster()>0.8*numKmers) {
+				answer.add(cluster);
+				if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding alternative cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+cluster.getCountKmerHitsCluster()+" predicted start: "+cluster.getSubjectPredictedStart());
+			} else break;
 		}
+		
 		return answer;
 	}
 	
@@ -336,13 +339,15 @@ public class KmerHitsAssemblyEdgesFinder {
 		/*synchronized (graph) {
 			graph.addEmbedded(embeddedEvent);
 		}*/
-		relationships.add(embeddedEvent);
-		
-		if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
-		return isGoodEmbedded(embeddedEvent);
+		if(embeddedEvent.getNumIndels()<0.03*queryLength) {
+			relationships.add(embeddedEvent);
+			if (querySequenceId==idxDebug) System.out.println("Query: "+querySequenceId+" embedded in "+subjectSeqIdx+" proportion evidence: "+proportionEvidence);
+			return isGoodEmbedded(embeddedEvent);
+		}
+		return false;
 	}
 	public static boolean isGoodEmbedded(AssemblyEmbedded embeddedEvent) {
-		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<1 && embeddedEvent.getWeightedCoverageSharedKmers()>0.9*embeddedEvent.getRead().getLength();
+		return embeddedEvent.getEvidenceProportion()>0.99 && embeddedEvent.getIndelsPerKbp()<1 && embeddedEvent.getCoverageSharedKmers()>0.95*embeddedEvent.getRead().getLength();
 	}
 	private void addQueryAfterSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
 		int queryLength = graph.getSequenceLength(querySequenceId);
@@ -418,8 +423,10 @@ public class KmerHitsAssemblyEdgesFinder {
 		/*synchronized (graph) {
 			graph.addEdge(edge);
 		}*/
-		relationships.add(edge);
-		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
+		if(edge.getNumIndels()<0.03*overlap) {
+			relationships.add(edge);
+			if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
+		}	
 	}
 
 	private void addQueryBeforeSubjectEdge(int querySequenceId, CharSequence query, boolean queryRC, UngappedSearchHitsCluster cluster, List<AssemblySequencesRelationship> relationships) {
@@ -494,7 +501,9 @@ public class KmerHitsAssemblyEdgesFinder {
 		/*synchronized (graph) {
 			graph.addEdge(edge);
 		}*/
-		relationships.add(edge);
-		if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
+		if(edge.getNumIndels()<0.03*overlap) {
+			relationships.add(edge);
+			if(querySequenceId==idxDebug) System.out.println("New edge: "+edge);
+		}
 	}
 }

@@ -69,7 +69,7 @@ public class Assembler {
 	public static final int DEF_ERROR_CORRCTION_ROUNDS = 0;
 	public static final double DEF_MIN_SCORE_PROPORTION_EDGES = 0.5;
 	public static final int DEF_MIN_PATH_LENGTH = LayoutBuilder.DEF_MIN_PATH_LENGTH;
-	public static final double DEF_WEIGHT_INDELS = 0;
+	public static final double DEF_WEIGHT_INDELS = 0.25;
 	public static final int DEF_NUM_THREADS = GraphBuilderMinimizers.DEF_NUM_THREADS;
 	public static final int DEF_CIRCULAR_MAX_LENGTH = 0;
 	public static final String GRAPH_CONSTRUCTION_ALGORITHM_MINIMIZERS="Minimizers";
