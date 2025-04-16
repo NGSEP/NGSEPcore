@@ -274,7 +274,9 @@ public class AssemblyGraphStatistics {
 	}
 	private void run(String inputFile, String outputFile) throws IOException {
 		List<ReadAlignment> alignments = null;
+		log.info("Loading sequence names from: "+inputFile);
 		List<QualifiedSequence> sequences = AssemblyGraphFileHandler.loadSequenceNamesFromGraphFile(inputFile);
+		log.info("Loading graph from: "+inputFile);
 		AssemblyGraph graph = AssemblyGraphFileHandler.load(sequences, inputFile);
 		Map<String,Integer> seqIds = new HashMap<String, Integer>();
 		for(int i=0;i<sequences.size();i++) {
@@ -336,7 +338,7 @@ public class AssemblyGraphStatistics {
 			degreeDist.printDistributionInt(out);
 			//Infer distributions to calculate costs
 			log.info("Updating scores");
-			graph.updateScores(0);
+			graph.updateScores(0.1);
 			log.info("Comparing initial graph");
 			if(goldStandardGraph!=null) compareGraphs(goldStandardGraph, graph, out);
 			out.println("Initial graph statistics. Vertices: "+graph.getVertices().size()+" edges: "+graph.getNumEdges());
@@ -706,8 +708,8 @@ public class AssemblyGraphStatistics {
 		List<AssemblyEdge> gsEdges = goldStandardGraph.getEdges(gsVertex);
 		List<AssemblyEdge> testEdges = testGraph.getEdges(testVertex);
 		boolean debug = gsVertex.getSequenceIndex()==-1;
-		//boolean debug = gsVertex.getSequenceIndex()==15821 || gsVertex.getSequenceIndex()== 161766 || gsVertex.getSequenceIndex()==88466;
-		//boolean debug = gsVertex.getSequenceIndex()==1472 || gsVertex.getSequenceIndex()==2825 || gsVertex.getSequenceIndex()==3047; 
+		//boolean debug = gsVertex.getSequenceIndex()==22133 || gsVertex.getSequenceIndex()== 24385 || gsVertex.getSequenceIndex()==348469;
+		//boolean debug = gsVertex.getSequenceIndex()==14 || gsVertex.getSequenceIndex()==752 || gsVertex.getSequenceIndex()==245; 
 		if(debug) {
 			printEdgeList("Gold standard", gsVertex, gsEdges, goldStandardGraph, false, false, out);
 			printEdgeList("Test", testVertex, testEdges, testGraph, true, true, out);
@@ -762,7 +764,7 @@ public class AssemblyGraphStatistics {
 						distOverlapSDTPPathEdges.processDatapoint(matchedTestEdge.getRawKmerHitsSubjectStartSD());
 						distNumIndelsTPPathEdges.processDatapoint(matchedTestEdge.getNumIndels());
 						distIndelsKbpTPPathEdges.processDatapoint(matchedTestEdge.getIndelsPerKbp());
-						if(matchedTestEdge.getIndelsPerKbp()>7) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
+						if(matchedTestEdge.getIndelsPerKbp()>10) log.info("Large indels per kbp for path edge: "+matchedTestEdge);
 						if(matchedTestEdge.getEvidenceProportion()<0.9) log.info("Low evidence proportion for path edge: "+matchedTestEdge);
 						int lengthSum = testGraph.getSequenceLength(matchedTestEdge.getVertex1().getSequenceIndex())+testGraph.getSequenceLength(matchedTestEdge.getVertex2().getSequenceIndex());
 						distSumLengthsIKbpLayout.processDatapoint(matchedTestEdge.getIndelsPerKbp(), lengthSum);
