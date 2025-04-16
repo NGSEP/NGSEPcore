@@ -1210,6 +1210,9 @@ Minimum length (in basepairs) to call a transposable element.
 <option id="r" type="INT" attribute="rounds" defaultConstant="DEF_ROUNDS">
 Number of search rounds to identify new TEs from previously identified TEs.
 </option>
+<option id="v" type="BOOLEAN" attribute="validateFamily">
+Infer the family of large TE annotations using HMM alignments. WARN: It causes an important increase in runtime.
+</option>
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads.
 </option>

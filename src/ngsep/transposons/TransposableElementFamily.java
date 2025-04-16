@@ -96,7 +96,7 @@ public class TransposableElementFamily {
 			}
 		}
 		//System.out.println("Max: "+max+" second: "+secondMax+" order1: "+answer.getOrder()+" order2: "+answer2.getOrder());
-		if(max-secondMax<10) {
+		if(answer!=null && answer2!=null && max-secondMax<10) {
 			if (answer.getOrder().equals(answer2.getOrder())) return findUnknown(answer.getOrder());
 			return null;
 		}
