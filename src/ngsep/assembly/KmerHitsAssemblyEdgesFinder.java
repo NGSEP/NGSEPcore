@@ -186,7 +186,7 @@ public class KmerHitsAssemblyEdgesFinder {
 		if(!extensiveSearch) return answer;
 		for(int i=1;i<subjectClusters.size() && i<10;i++) {
 			UngappedSearchHitsCluster cluster = subjectClusters.get(i);
-			if(cluster.getCountKmerHitsCluster()>0.8*numKmers) {
+			if(cluster.getCountKmerHitsCluster()>0.5*numKmers) {
 				answer.add(cluster);
 				if (queryIdx == idxDebug) System.out.println("EdgesFinder. Adding alternative cluster. Query: "+queryIdx+" "+graph.getSequence(queryIdx).getName()+" Subject: "+subjectIdx+" "+subjectSequence.getName()+" hits second subject cluster: "+cluster.getCountKmerHitsCluster()+" predicted start: "+cluster.getSubjectPredictedStart());
 			} else break;

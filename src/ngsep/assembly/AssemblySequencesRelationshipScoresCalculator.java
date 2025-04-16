@@ -23,6 +23,7 @@ import java.util.Map;
 
 import JSci.maths.statistics.BetaDistribution;
 import JSci.maths.statistics.ChiSqrDistribution;
+import JSci.maths.statistics.ExponentialDistribution;
 import JSci.maths.statistics.NormalDistribution;
 import ngsep.math.LogMath;
 
@@ -77,12 +78,13 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		//double avg = Math.max(indelsKbpD.getMean(), maxIKBP);
 		//NormalDistribution normalDistIkbp = new NormalDistribution(avg,Math.max(avg,indelsKbpD.getVariance()));
 		BetaDistribution betaDistEvProp = new BetaDistribution(10, 1);
-		ChiSqrDistribution chiSqDistIkbp = new ChiSqrDistribution(indelsKbpD.getMean()+Math.sqrt(indelsKbpD.getVariance()));
+		ExponentialDistribution expDist = new ExponentialDistribution(0.5);
+		//ChiSqrDistribution chiSqDistIkbp = new ChiSqrDistribution(indelsKbpD.getMean()+Math.sqrt(indelsKbpD.getVariance()));
 		int maxIndividualCost = 10;
 		double w = weightsSecondaryFeatures;
 		double [] individualCosts = new double[6];
-		double [] limitPValues = {1,1,0.1,0.05,0.5,0.25};
-		double [] weights      = {0,  1,0,   0,0,w};
+		double [] limitPValues = {1, 1, 0.1,0.05,0.5,0.1};
+		double [] weights      = {0.5,  1,0,   0,0,w};
 		
 		double cumulativeOverlap = overlapD.cumulative(relationship.getOverlap());
 		//if(pValueOTP>0.5) pValueOTP = 1- pValueOTP;
@@ -107,7 +109,7 @@ public class AssemblySequencesRelationshipScoresCalculator {
 		individualCosts[4] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[4], cumulativeEvProp),maxIndividualCost);
 		//individualCosts[4] = 100.0*(1.0-relationship.getEvidenceProportion());
 		
-		double pValueIKBP = 1-chiSqDistIkbp.cumulative(relationship.getIndelsPerKbp());
+		double pValueIKBP = 1-expDist.cumulative(relationship.getIndelsPerKbp());
 		individualCosts[5] = LogMath.negativeLog10WithLimit(Math.min(limitPValues[5],pValueIKBP),maxIndividualCost);
 		//individualCosts[5] = Math.max(indelsKbpD.getMean(), relationship.getIndelsPerKbp());
 		

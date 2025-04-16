@@ -145,7 +145,7 @@ public class AssemblySequencesRelationshipFilter {
 		int sequenceLength = graph.getSequenceLength(sequenceId);
 		double medianRelationship = 1.0*sequenceLength/(double)medianLength;
 		//double costInflationEmbedded = Math.max(1, 1.0/medianRelationship);
-		double costInflationEmbedded = 1.25;
+		double costInflationEmbedded = 1.3;
 		//if(minScoreProportionEmbedded<0.5) minScoreProportionEmbedded = 0.5;
 		double costLimit = minCostEdges*costInflationEmbedded;
 		//double costLimit = minCostEdges;

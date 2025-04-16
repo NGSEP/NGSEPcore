@@ -142,7 +142,7 @@ public class UngappedSearchHitsClusterBuilder {
 		// Structures for storing the information associated with the heaviest path
 		double[] maxWeight = new double[hits.size()];
 		int[] predecessor = new int[hits.size()];
-		Arrays.fill(maxWeight, Double.NEGATIVE_INFINITY);
+		Arrays.fill(maxWeight, 0);
 		Arrays.fill(predecessor, -1);
 
 		// The starting point of the algorithm is set to the hit with the smallest query start
@@ -193,6 +193,7 @@ public class UngappedSearchHitsClusterBuilder {
 		// Reconstruction of the heaviest path using backtracking
     	while (actualHitIndex != -1) {
         	path.add(hits.get(actualHitIndex));
+        	if(maxWeight[actualHitIndex]<0.1) break;
         	actualHitIndex = predecessor[actualHitIndex];
     	}
     	Collections.reverse(path);
@@ -234,12 +235,17 @@ public class UngappedSearchHitsClusterBuilder {
 	 */
 	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
 		// Entropies 
-		double sourceHitWeight = Math.max(0.5, sourceHit.getWeight());
-		double destinationHitWeight = Math.max(0.5, destinationHit.getWeight());
-		// Distances sum
-		int distancesSum = calculateDistancesSum(sourceHit, destinationHit);
-		// Computed socre
-		return (100 * sourceHitWeight * destinationHitWeight) / distancesSum;
+		double sourceHitWeight = Math.max(0.51, sourceHit.getWeight());
+		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();		
+		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
+		double avgdKbp = (queryDistance+subjectDistance)/2000;
+		double w1 = 1.0/(1.0+avgdKbp);
+		double w2 = sourceHit.getWeight();
+		double diff = Math.abs(queryDistance-subjectDistance);
+		
+		
+		// Computed score
+		return w1*w2-0.02*diff;
 	}
 	
 	/**

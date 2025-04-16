@@ -429,8 +429,7 @@ public class ShortKmerCodesTable {
 		else {
 			CharSequence sequence = new String (DNASequence.getDNASequence(code, length));
 			double entropy = entropyCalculator.calculateEntropy(sequence);
-			return entropy;
-			//return entropyCalculator.normalizeEntropy(entropy);
+			return entropyCalculator.normalizeEntropy(entropy);
 		}
 	}
 	public Distribution calculateDistributionHits() {
