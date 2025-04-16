@@ -206,7 +206,7 @@ public class AssemblyPathReadsAligner {
 			if(alnRead!=null) alignedReads.add(alnRead);
 			if(pathIdx == debugIdx) System.out.println("Consensus length: "+consensus.length()+" Limits consensus: "+startConsensusPathVertex+" "+endConsensusPathVertex+" Next path read: "+read.getName()+" length: "+seq.length()+" alignment: "+alnRead);
 			
-			if(alnRead!=null) {
+			if(alnRead!=null && !alnRead.isReadUnmapped()) {
 				startConsensusPathVertex = alnRead.getFirst()-alnRead.getSoftClipStart();
 				endConsensusPathVertex = alnRead.getLast()+alnRead.getSoftClipEnd();
 				List<AssemblyEmbedded> embeddedList = graph.getAllEmbedded(readIndex);
