@@ -5,7 +5,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -14,6 +16,7 @@ import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.sequences.io.FastqFileReader;
+import ngsep.sequences.io.SimpleSequenceListLoader;
 
 public class FastqFileFilter {
 
@@ -30,6 +33,7 @@ public class FastqFileFilter {
 	private String outputFile = null;
 	private int minReadLength = DEF_MIN_READ_LENGTH;
 	private int minReadAverageQuality = DEF_MIN_READ_AVG_QUAL;
+	private String selectReadIdsFile = null;
 	
 	// Get and set methods
 	public Logger getLog() {
@@ -77,6 +81,13 @@ public class FastqFileFilter {
 		setMinReadAverageQuality((int)OptionValuesDecoder.decode(value, Integer.class));
 	}
 	
+	public String getSelectReadIdsFile() {
+		return selectReadIdsFile;
+	}
+	public void setSelectReadIdsFile(String selectReadIdsFile) {
+		this.selectReadIdsFile = selectReadIdsFile;
+	}
+	
 	public static void main(String[] args) throws Exception {
 		FastqFileFilter instance = new FastqFileFilter();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -97,10 +108,16 @@ public class FastqFileFilter {
 		out.println("Output file:"+ outputFile);
 		out.println("Minimum read length: "+minReadLength);
 		out.println("Minimum average read quality: "+minReadAverageQuality);
+		if(selectReadIdsFile!=null) out.println("File with read ids to select: "+selectReadIdsFile);
 		log.info(os.toString());
 	}
 	public void run(String inputFile, String outputFile) throws IOException {
 		int n = 0;
+		int np = 0;
+		Set<String> readIdsToSelect = null;
+		if(selectReadIdsFile!=null) {
+			readIdsToSelect = loadReadIdsFile(selectReadIdsFile);
+		}
 		if(!outputFile.toLowerCase().endsWith(".gz")) outputFile=outputFile+".gz";
 		try (FastqFileReader reader = new FastqFileReader(inputFile);
 			 OutputStream os = new GZIPOutputStream(new FileOutputStream(outputFile));
@@ -110,10 +127,22 @@ public class FastqFileFilter {
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
 				RawRead read = it.next();
-				if(read.getLength()>=minReadLength) read.save(out);
+				boolean pass = read.getLength()>=minReadLength;
+				if(readIdsToSelect!=null) pass = pass && readIdsToSelect.contains(read.getName());
+				if(pass) {
+					read.save(out);
+					np++;
+				}
 				n++;
 			}
 		}
-		log.info("PASS reads: "+n);
+		log.info("Total reads: "+n+". PASS reads: "+np);
+	}
+	private Set<String> loadReadIdsFile(String filename) throws IOException {
+		SimpleSequenceListLoader loader = new SimpleSequenceListLoader();
+		QualifiedSequenceList seqIds = loader.loadSequences(filename);
+		Set<String> answer = new HashSet<String>();
+		for(QualifiedSequence seq:seqIds) answer.add(seq.getName());
+		return answer;
 	}
 }

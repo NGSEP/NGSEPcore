@@ -97,6 +97,9 @@ Minimum read length.
 <option id="q" type="INT" attribute="minReadAverageQuality" defaultConstant="DEF_MIN_READ_AVG_QUAL">
 Minimum read average quality score.
 </option>
+<option id="s" type="FILE" attribute="selectReadIdsFile">
+FIle with read ids to select. One line per read id.
+</option>
 </command>
 
 <command id="KmersExtractor" class="ngsep.sequences.KmersExtractor" groupId="Reads" formerId="KmersCounter">

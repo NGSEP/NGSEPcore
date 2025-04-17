@@ -20,9 +20,8 @@
 package ngsep.sequences.io;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 import ngsep.sequences.QualifiedSequenceList;
 
@@ -38,12 +37,9 @@ public class SimpleSequenceListLoader {
 	 */
 	public QualifiedSequenceList loadSequences(String filename) throws IOException {
 		QualifiedSequenceList answer = new QualifiedSequenceList();
-		FileInputStream fis = null;
-		BufferedReader in = null;
-		try {
-			fis = new FileInputStream(filename);
-			//Open buffer
-			in = new BufferedReader(new InputStreamReader (fis));
+		
+		try (FileReader fr = new FileReader(filename);
+			BufferedReader in = new BufferedReader(fr)) {
 			String line=in.readLine();
 			while(line!=null) {
 				String [] items = line.split("\t| ");
@@ -51,9 +47,6 @@ public class SimpleSequenceListLoader {
 				line=in.readLine();
 			}
 			
-		} finally {
-			if(in!=null) in.close();
-			if(fis!=null) fis.close();
 		}
 		answer.setAllowChanges(false);
 		return answer;
