@@ -86,21 +86,20 @@ public class TransposableElement {
 		taxonomy = newTaxonomy.toString();
 		id = id + '#'+taxonomy;
 	}
-	public boolean verifyEnds() {
-		if (!getFamily().isLTR()) return true;
-		return findEndsAlignment()!=null; 
-	}
+	
 	public int [] alignEnds() {
-		PairwiseAlignment alignment = findEndsAlignment();
+		PairwiseAlignment alignment = findEndsAlignment(false);
+		boolean reverse = (alignment == null);
+		if (reverse) alignment = findEndsAlignment(true);
 		if (alignment == null) return null;
-		return getBordersInSequence(alignment);
+		return getBordersInSequence(alignment, reverse);
 	}
-	private PairwiseAlignment findEndsAlignment() {
+	private PairwiseAlignment findEndsAlignment(boolean reverse) {
 		int length = sequence.length();
-		boolean reverse = false;
+		
 		if(length< 2*ENDS_LENGTH_ALIGNMENT) return null; 
-		if(family == null) return null;
-		if(!family.isLTR()) return null;
+		//if(family == null) return null;
+		//if(!family.isLTR()) return null;
 		PairwiseAlignerSimpleGap pairAligner = new PairwiseAlignerSimpleGap();
 		pairAligner.setLocal(true);
 		
@@ -108,7 +107,7 @@ public class TransposableElement {
 		CharSequence rightSeq = sequence.subSequence(length - ENDS_LENGTH_ALIGNMENT, length);
 		if(reverse) rightSeq = DNAMaskedSequence.getReverseComplement(rightSeq);
 		PairwiseAlignment alignment =  pairAligner.calculateAlignment(leftSeq, rightSeq);
-		int [] borders = getBordersInSequence(alignment);
+		int [] borders = getBordersInSequence(alignment, reverse);
 		int length1 = borders[1] - borders[0];
 		int length2 = borders[3] - borders[2];
 		int minLength = Math.min(length1, length2);
@@ -119,13 +118,14 @@ public class TransposableElement {
 		}
 		return null;
 	}
-	private int[] getBordersInSequence(PairwiseAlignment alignment) {
+	private int[] getBordersInSequence(PairwiseAlignment alignment, boolean reverse) {
 		int length = sequence.length();
 		int start1 = alignment.getStart1();
 		int end1 = alignment.getEnd1();
 		int start2 = alignment.getStart2() + length - ENDS_LENGTH_ALIGNMENT;
 		int end2 = alignment.getEnd2() + length - ENDS_LENGTH_ALIGNMENT;
-		int [] answer = {start1,end1,start2,end2};
+		int revN = (reverse?1:0);
+		int [] answer = {start1,end1,start2,end2,revN};
 		return answer;
 	}
 }

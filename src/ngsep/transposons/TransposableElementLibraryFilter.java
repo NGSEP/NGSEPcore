@@ -153,7 +153,9 @@ public class TransposableElementLibraryFilter {
 	}
 
 	private TransposableElement verifyTransposon(TransposableElement te) {
-		if(!te.verifyEnds()) {
+		int [] aln = te.alignEnds();
+		if(te.getFamily().isLTR() && (aln==null || aln[4]==1)) {
+			//TODO: Improve rules for other transposons
 			log.info("Terminal repeats at ends of TE: "+te.getId()+" could not be found.");
 			return null;
 		}

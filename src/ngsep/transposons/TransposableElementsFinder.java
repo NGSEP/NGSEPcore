@@ -451,7 +451,7 @@ public class TransposableElementsFinder {
 		DNAMaskedSequence seqChars = (DNAMaskedSequence) seq.getCharacters();
 		DNAMaskedSequence teChars = (DNAMaskedSequence) seqChars.subSequence(ann.getFirst()-1, ann.getLast());
 		
-		if(ann.length()>3000) {
+		if(ann.length()>1000) {
 			//TODO: Avoid loading from file
 			HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
 			domainsFinder.loadHMMsFromClasspath();
@@ -460,10 +460,9 @@ public class TransposableElementsFinder {
 		fixBorders(ann, teChars);
 	}
 	private void fixBorders(TransposableElementAnnotation ann, CharSequence seq) {
-		//System.out.println("Fixing borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
+		System.out.println("Fixing borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
 		TransposableElementFamily family = ann.getInferredFamily();
 		if(family == null) family = ann.getSourceFamily();
-		if(family==null) return;
 		//System.out.println("Fixing borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast()+ "family "+family.getOrder()+" "+family.getId());
 		if(ann.isNegativeStrand()) seq = DNAMaskedSequence.getReverseComplement(seq);
 		TransposableElement element = new TransposableElement("", seq);
@@ -475,7 +474,7 @@ public class TransposableElementsFinder {
 				int diffRight = seq.length()-1-borders[3];
 				ann.setLast(ann.getLast()-diffRight);
 			}
-			//System.out.println("Fixed borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast()+ "family "+family.getOrder()+" "+family.getId());
+			System.out.println("Fixed borders for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast()+ "family "+family+" reverse borders: "+borders[4]);
 			ann.setBordersFixed(true);
 		}
 	}
