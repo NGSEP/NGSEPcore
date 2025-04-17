@@ -36,6 +36,7 @@ public class AssemblyVertex {
 	private boolean start;
 	private int sequenceIndex;
 	private int degreeUnfilteredGraph = 1;
+	private boolean inPhasedRegion = false;
 
 	public AssemblyVertex(QualifiedSequence read, boolean start, int sequenceIndex) {
 		this.read = read;
@@ -73,6 +74,15 @@ public class AssemblyVertex {
 	public void setDegreeUnfilteredGraph(int degreeUnfilteredGraph) {
 		this.degreeUnfilteredGraph = degreeUnfilteredGraph;
 	}
+	
+	public boolean isInPhasedRegion() {
+		return inPhasedRegion;
+	}
+
+	public void setInPhasedRegion(boolean inPhasedRegion) {
+		this.inPhasedRegion = inPhasedRegion;
+	}
+
 	public String toString() {
 		return ""+getUniqueNumber()+" "+getSequenceIndex()+ " "+getRead().getName()+" "+getRead().getLength();
 	}

@@ -502,7 +502,7 @@ public class Assembler {
 			hapsCalculator.setGlobalPloidy(value);
 			Map<Integer,ReadPathPhasingData> readsData = hapsCalculator.calculatePathReadsPhasingData(copyGraph, ploidy);
 			saveReadsPhasingData (graph, readsData, outputPrefix+"_FV"+value+"_phasedReadsData.txt");
-			filterGraphWithPhasingData(graph,readsData);
+			graph.updateWithPhasingData(readsData);
 			String outFileGraph = outputPrefix+"_FV"+value+".graph.gz";
 			AssemblyGraphFileHandler.save(graph, outFileGraph);
 			log.info("Saved graph with phase filtering to "+outFileGraph);
@@ -646,28 +646,7 @@ public class Assembler {
 		
 		
 	}
-	private void filterGraphWithPhasingData(AssemblyGraph graph, Map<Integer, ReadPathPhasingData> readsData) {
-		for(AssemblyEdge edge: graph.getEdges()) {
-			if(edge.isSameSequenceEdge()) continue;
-			ReadPathPhasingData d1 = readsData.get(edge.getVertex1().getSequenceIndex());
-			ReadPathPhasingData d2 = readsData.get(edge.getVertex2().getSequenceIndex());
-			if(d1==null || d2==null) continue;
-			if(d1.isOppositePhase(d2)) {
-				if(ploidy==1) System.out.println("Filtering by phasing edge: "+edge);
-				graph.removeEdge(edge);
-			}
-		}
-		for (AssemblyEmbedded embedded:graph.getAllEmbedded()) {
-			ReadPathPhasingData d1 = readsData.get(embedded.getSequenceId());
-			ReadPathPhasingData d2 = readsData.get(embedded.getHostId());
-			if(d1==null || d2==null) continue;
-			if(d1.isOppositePhase(d2)) {
-				if(ploidy==1) System.out.println("Filtering by phasing embedded: "+embedded);
-				graph.removeEmbedded(embedded);
-			}
-		}
-		
-	}
+	
 	private AssemblyGraph buildGraph(List<QualifiedSequence> sequences, KmersMap map) {
 		KmersMapAnalyzer kmersAnalyzer = new KmersMapAnalyzer(map, false);
 		MinimapShortKmerCodesSamplingAlgorithm samplingAlg = new MinimapShortKmerCodesSamplingAlgorithm();

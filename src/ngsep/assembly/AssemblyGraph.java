@@ -1113,5 +1113,57 @@ public class AssemblyGraph {
 			seq1.setCharacters(seq2.getCharacters());
 		}
 	}
-	
+	public void updateWithPhasingData(Map<Integer, ReadPathPhasingData> readsData) {
+		System.out.println("AssemblyGraph. Removing edges crossing haplotype blocks");
+		List<AssemblyEdge> edges = getEdges();
+		int n1 = 0;
+		for(AssemblyEdge edge: edges) {
+			if(edge.isSameSequenceEdge()) continue;
+			ReadPathPhasingData d1 = readsData.get(edge.getVertex1().getSequenceIndex());
+			ReadPathPhasingData d2 = readsData.get(edge.getVertex2().getSequenceIndex());
+			if(d1==null || d2==null) continue;
+			if(d1.isOppositePhase(d2)) {
+				if(ploidy==1) System.out.println("Filtering by phasing edge: "+edge);
+				removeEdge(edge);
+				n1++;
+			}
+		}
+		System.out.println("AssemblyGraph. Removed "+n1+" edges crossing haplotype blocks");
+		int n2=0;
+		System.out.println("Removing embedded crossing haplotype blocks");
+		List<AssemblyEmbedded> embeddedList = getAllEmbedded();
+		for (AssemblyEmbedded embedded:embeddedList) {
+			ReadPathPhasingData d1 = readsData.get(embedded.getSequenceId());
+			ReadPathPhasingData d2 = readsData.get(embedded.getHostId());
+			if(d1==null || d2==null) continue;
+			if(d1.isOppositePhase(d2)) {
+				if(ploidy==1) System.out.println("Filtering by phasing embedded: "+embedded);
+				removeEmbedded(embedded);
+				n2++;
+			}
+		}
+		System.out.println("Removed "+n2+" embedded relationships crossing haplotype blocks");
+		System.out.println("Marking as phased reads within phased blocks");
+		int n3=0;
+		for(ReadPathPhasingData data:readsData.values()) {
+			if(!data.isInHomozygousRegion()) {
+				setInPhasedRegion(data.getReadId());
+				n3++;
+			}
+		}
+		System.out.println("Marked as phased "+n3+" reads within phased blocks");
+	}
+	public boolean isSequenceInPhasedRegion(int seqId) {
+		AssemblyVertex v1 = getVertex(seqId, false);
+		if(v1==null) throw new IllegalArgumentException("Invalid sequence id: "+seqId+" sequneces: "+sequences.size());
+		return v1.isInPhasedRegion();
+		
+	}
+	public void setInPhasedRegion(int seqId) {
+		AssemblyVertex v1 = getVertex(seqId, false);
+		if(v1==null) throw new IllegalArgumentException("Invalid sequence id: "+seqId+" sequneces: "+sequences.size());
+		v1.setInPhasedRegion(true);
+		AssemblyVertex v2 = getVertex(seqId, true);
+		v2.setInPhasedRegion(true);
+	}
 }

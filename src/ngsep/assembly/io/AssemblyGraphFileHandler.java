@@ -50,7 +50,9 @@ public class AssemblyGraphFileHandler {
 			out.println("#SEQUENCES");
 			int id=0;
 			for(QualifiedSequence seq:sequences) {
-				out.println(""+id+"\t"+seq.getName()+"\t"+seq.getLength());
+				out.print(""+id+"\t"+seq.getName()+"\t"+seq.getLength());
+				if(graph.isSequenceInPhasedRegion(id)) out.print("\tP");
+				out.println();
 				id++;
 			}
 			
@@ -86,6 +88,9 @@ public class AssemblyGraphFileHandler {
 				//System.out.println("Loaded and sorted sequence: "+seq.getName()+" "+seq.getLength()+" loaded line. "+line+" seqname: "+items[1]);
 				if(!seq.getName().equals(items[1]))  throw new IOException("Unexpected sequence name at line " +(seqId+2)+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getName()+" "+seq.getLength()+" loaded: "+line);
 				//if(seq.getLength()!=Integer.parseInt(items[2])) throw new IOException("Unexpected sequence length at line" +(seqId+2)+". Sequence name: "+seq.getName()+". Double check that the graph was built from the given sequences or build again the graph. Expected: "+seq.getLength()+" loaded: "+items[2]);
+				if(items.length>3) {
+					graph.setInPhasedRegion(seqId);
+				}
 				seqId++;
 				line=in.readLine();
 			}
