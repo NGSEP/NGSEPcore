@@ -1146,24 +1146,24 @@ public class AssemblyGraph {
 		System.out.println("Marking as phased reads within phased blocks");
 		int n3=0;
 		for(ReadPathPhasingData data:readsData.values()) {
-			if(!data.isInHomozygousRegion()) {
-				setInPhasedRegion(data.getReadId());
+			if(data.isInHomozygousRegion()) {
+				setInHomozygousRegion(data.getReadId());
 				n3++;
 			}
 		}
-		System.out.println("Marked as phased "+n3+" reads within phased blocks");
+		System.out.println("Marked as in homozygous region "+n3+" reads");
 	}
-	public boolean isSequenceInPhasedRegion(int seqId) {
+	public boolean isSequenceInHomozygousRegion(int seqId) {
 		AssemblyVertex v1 = getVertex(seqId, false);
 		if(v1==null) throw new IllegalArgumentException("Invalid sequence id: "+seqId+" sequneces: "+sequences.size());
-		return v1.isInPhasedRegion();
+		return v1.isInHomozygousRegion();
 		
 	}
-	public void setInPhasedRegion(int seqId) {
+	public void setInHomozygousRegion(int seqId) {
 		AssemblyVertex v1 = getVertex(seqId, false);
 		if(v1==null) throw new IllegalArgumentException("Invalid sequence id: "+seqId+" sequneces: "+sequences.size());
-		v1.setInPhasedRegion(true);
+		v1.setInHomozygousRegion(true);
 		AssemblyVertex v2 = getVertex(seqId, true);
-		v2.setInPhasedRegion(true);
+		v2.setInHomozygousRegion(true);
 	}
 }

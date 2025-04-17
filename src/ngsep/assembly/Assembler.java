@@ -109,7 +109,7 @@ public class Assembler {
 	
 	//Model objects
 	private AssemblySequencesRelationshipFilter relationshipsFilter = new AssemblySequencesRelationshipFilter();
-	private LayoutBuilder pathsFinder = createLayoutBuilder();
+	private LayoutBuilder pathsFinder = createLayoutBuilder(false);
 	private ConsensusBuilder consensus = createConsensusBuilder();
 	
 	// Get and set methods
@@ -214,7 +214,7 @@ public class Assembler {
 	public void setLayoutAlgorithm(String layoutAlgorithm) {
 		if(!LAYOUT_ALGORITHM_KRUSKAL_PATH.equals(layoutAlgorithm) && !LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) throw new IllegalArgumentException("Unrecognized layout algorithm "+layoutAlgorithm);
 		this.layoutAlgorithm = layoutAlgorithm;
-		pathsFinder = createLayoutBuilder();	
+		pathsFinder = createLayoutBuilder(false);	
 	}
 	public String getConsensusAlgorithm() {
 		return consensusAlgorithm;
@@ -517,7 +517,7 @@ public class Assembler {
 		
 		graph.updateScores(weightIndels);
 		relationshipsFilter.filterEdgesAndEmbedded(graph, minScoreProportionEdges);
-		//graph.updateScores();
+		if(ploidy>1) pathsFinder = createLayoutBuilder(true);
 		pathsFinder.findPaths(graph);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(60)) return;
 		if (compressedSeqs!=sequences) {
@@ -614,14 +614,16 @@ public class Assembler {
 		}
 		return consensus;
 	}
-	private LayoutBuilder createLayoutBuilder() {
+	private LayoutBuilder createLayoutBuilder(boolean reuseNonPhasedPaths) {
 		LayoutBuilder pathsFinder;
 		if(LAYOUT_ALGORITHM_MAX_OVERLAP.equals(layoutAlgorithm)) {
 			pathsFinder = new LayoutBuilderGreedyMaxOverlap();
 			//LayoutBuilder pathsFinder = new LayoutBuilderGreedyMinCost();
 		} else {
-			pathsFinder= new LayoutBuilderKruskalPath();
-			//((LayoutBuilderKruskalPath)pathsFinder).setRunImprovementAlgorithms(false);
+			LayoutBuilderKruskalPath kf = new LayoutBuilderKruskalPath();
+			if(ploidy>1) kf.setReuseNonPhasedPaths(reuseNonPhasedPaths);
+			//kf.setRunImprovementAlgorithms(false);
+			pathsFinder= kf;
 		}
 		pathsFinder.setMinPathLength(minPathLength);
 		return pathsFinder;

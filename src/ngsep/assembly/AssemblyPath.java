@@ -347,4 +347,30 @@ public class AssemblyPath {
 		}
 		alternativeSmallPaths = newAlternativeSmallPaths;
 	}
+	public List<AssemblyPath> extractUnphasedPaths(AssemblyGraph graph) {
+		List<AssemblyPath> answer = new ArrayList<AssemblyPath>();
+		AssemblyPath unphasedPath = null;
+		AssemblyVertex v = vertexLeft;
+		
+		for(AssemblyEdge edge:edges) {
+			AssemblyVertex v2 = edge.getConnectingVertex(v);
+			if(v.isInHomozygousRegion() && v2.isInHomozygousRegion()) {
+				if(unphasedPath==null && edge.isSameSequenceEdge()) {
+					unphasedPath = new AssemblyPath(edge);
+				} else if (unphasedPath!=null && !edge.isSameSequenceEdge()) {
+					unphasedPath.connectEdgeRight(graph, edge);
+				}
+			} else if(unphasedPath!=null) {
+				answer.add(unphasedPath);
+				if(getPathLength()>=5) System.out.println("Found unphased path within path starting from: "+vertexLeft+" length: "+unphasedPath.getPathLength()+" first read: "+graph.getSequence(unphasedPath.vertexLeft.getSequenceIndex()).getName()+" last: "+graph.getSequence(unphasedPath.vertexRight.getSequenceIndex()).getName());
+				unphasedPath = null;
+			}
+			v=v2;
+		}
+		if(unphasedPath!=null) {
+			answer.add(unphasedPath);
+			if(getPathLength()>=5) System.out.println("Found unphased path within path starting from: "+vertexLeft+" length: "+unphasedPath.getPathLength()+" first read: "+graph.getSequence(unphasedPath.vertexLeft.getSequenceIndex()).getName()+" last: "+graph.getSequence(unphasedPath.vertexRight.getSequenceIndex()).getName());
+		}
+		return answer;
+	}
 }

@@ -36,7 +36,7 @@ public class AssemblyVertex {
 	private boolean start;
 	private int sequenceIndex;
 	private int degreeUnfilteredGraph = 1;
-	private boolean inPhasedRegion = false;
+	private boolean inHomozygousRegion = false;
 
 	public AssemblyVertex(QualifiedSequence read, boolean start, int sequenceIndex) {
 		this.read = read;
@@ -75,12 +75,13 @@ public class AssemblyVertex {
 		this.degreeUnfilteredGraph = degreeUnfilteredGraph;
 	}
 	
-	public boolean isInPhasedRegion() {
-		return inPhasedRegion;
+
+	public boolean isInHomozygousRegion() {
+		return inHomozygousRegion;
 	}
 
-	public void setInPhasedRegion(boolean inPhasedRegion) {
-		this.inPhasedRegion = inPhasedRegion;
+	public void setInHomozygousRegion(boolean inHomozygousRegion) {
+		this.inHomozygousRegion = inHomozygousRegion;
 	}
 
 	public String toString() {
