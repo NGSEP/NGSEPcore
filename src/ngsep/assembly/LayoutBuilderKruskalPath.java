@@ -114,7 +114,12 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		if(reuseNonPhasedPaths) {
 			log.info("Running algorithm to reuse non phased paths");
-			paths = reuseNonPhasedPaths(graph,paths, distsEdges);
+			boolean changed = expandPathsWithHomozygous(graph,paths, distsEdges);
+			if(changed) {
+				paths = mergeClosePaths(graph, paths, distsEdges);
+				log.info("Paths for merging after expanding in homozygous regions: "+paths.size());
+			}
+			
 		}
 		Collections.sort(paths,(p1,p2)->p2.getPathLength()-p1.getPathLength());
 		for(AssemblyPath path:paths) {
@@ -503,24 +508,42 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		}
 		return answer;
 	}
-	private List<AssemblyPath> reuseNonPhasedPaths(AssemblyGraph graph, List<AssemblyPath> paths, Distribution [] distsEdges) {
-		List<AssemblyPath> pathsToMerge = new ArrayList<AssemblyPath>();
-		List<AssemblyPath> smallPaths = new ArrayList<AssemblyPath>();
+	private boolean expandPathsWithHomozygous(AssemblyGraph graph, List<AssemblyPath> paths, Distribution [] distsEdges) {
+		Set<Integer> homozygousSequenceIds = graph.getHomozygousSequenceIds();
+		Set<Integer> usedSequences = new HashSet<Integer>();
 		for(AssemblyPath path:paths) {
-			List<AssemblyPath> unphasedPaths = path.extractUnphasedPaths(graph);
 			
-			if(path.getPathLength()>=5) {
-				pathsToMerge.add(path);
-				pathsToMerge.addAll(unphasedPaths);
-			} else smallPaths.add(path);
-			log.info("Found "+unphasedPaths.size()+" unphased paths within path starting with: "+path.getVertexLeft()+ " with length "+path.getPathLength()+" total paths to merge: "+pathsToMerge.size()+" small paths: "+smallPaths.size());
+			//System.out.println("Expanding paths with embedded. Next start: "+endVertex);
+			while(true) {
+				AssemblyVertex endVertex = path.getVertexLeft();
+				AssemblyEdge edge = graph.getEdgeMinCost(endVertex);
+				if(edge==null) break;
+				//if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
+				AssemblyVertex next = edge.getConnectingVertex(endVertex);
+				int seqId = next.getSequenceIndex();
+				if(homozygousSequenceIds.contains(seqId) && !usedSequences.contains(seqId) ) {
+					System.out.println("Expanding path starting with: "+path.getVertexLeft()+" with homozygous. Edge: "+edge);
+					path.connectEdgeLeft(graph, edge);
+					usedSequences.add(seqId);
+				} else break;
+			}
+			//System.out.println("Expanding paths with embedded. Next end: "+endVertex);
+			while(true) {
+				AssemblyVertex endVertex = path.getVertexRight();
+				AssemblyEdge edge = graph.getEdgeMinCost(endVertex);
+				//if(endVertex.getUniqueNumber()==24728) System.out.println("Expanding paths with embedded. Best overlap: "+edge);
+				if(edge==null) break;
+				//if(edge.getCost()>2*averageCost || edge.getIndelsPerKbp()>averageIKBP) break;
+				AssemblyVertex next = edge.getConnectingVertex(endVertex);
+				int seqId = next.getSequenceIndex();
+				if(homozygousSequenceIds.contains(seqId) && !usedSequences.contains(seqId) ) {
+					System.out.println("Expanding path ending with: "+path.getVertexRight()+" with embedded. Edge: "+edge);
+					path.connectEdgeRight(graph, edge);
+					usedSequences.add(seqId);
+				} else break;
+			}
 		}
-		log.info("Trying to merge "+pathsToMerge.size()+ " paths");
-		List<AssemblyPath> mergedPaths = mergeClosePaths(graph, pathsToMerge, distsEdges);
-		log.info("Merged "+pathsToMerge.size()+ " paths into "+mergedPaths.size());
-		List<AssemblyPath> answer = new ArrayList<AssemblyPath>(mergedPaths);
-		answer.addAll(smallPaths);
-		return answer;
+		return usedSequences.size()>0;
 	}
 	
 

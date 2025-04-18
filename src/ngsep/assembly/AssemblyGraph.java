@@ -227,14 +227,6 @@ public class AssemblyGraph {
 			removeEmbedded(embedded);
 		}
 	}
-	
-	public void pruneEmbeddedSequences() {
-		for(int i:embeddedMapBySequence.keySet()) {
-			if(verticesStart.get(i)!=null) {
-				removeVertices(i);
-			}
-		}
-	}
 
 	/**
 	 * @return the sequences
@@ -1165,5 +1157,13 @@ public class AssemblyGraph {
 		v1.setInHomozygousRegion(true);
 		AssemblyVertex v2 = getVertex(seqId, true);
 		v2.setInHomozygousRegion(true);
+	}
+	public Set<Integer> getHomozygousSequenceIds() {
+		Set<Integer> answer = new HashSet<Integer>();
+		for(int i=0;i<sequences.size();i++) {
+			AssemblyVertex v1 = getVertex(i, false);
+			if(v1!=null && v1.isInHomozygousRegion()) answer.add(i);
+		}
+		return answer;
 	}
 }
