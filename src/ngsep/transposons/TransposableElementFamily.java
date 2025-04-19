@@ -95,7 +95,7 @@ public class TransposableElementFamily {
 				answer = allFams.get(i);
 			}
 		}
-		//System.out.println("Max: "+max+" second: "+secondMax+" order1: "+answer.getOrder()+" order2: "+answer2.getOrder());
+		//System.out.println("Max: "+answer + " "+max+" second: "+answer2+" "+secondMax);
 		if(answer!=null && answer2!=null && max-secondMax<10) {
 			if (answer.getOrder().equals(answer2.getOrder())) return findUnknown(answer.getOrder());
 			return null;
@@ -133,8 +133,9 @@ public class TransposableElementFamily {
 		String [] rilDomains = {"END", "RT"};
 		ineFamilies.add(new TransposableElementFamily("LINE","RIL", Arrays.asList(rilDomains)));
 		
-		String [] ritDomains = {"END", "RT"};
-		ineFamilies.add(new TransposableElementFamily("LINE","RIT", Arrays.asList(ritDomains)));
+		//TODO: Difference with RIL
+		//String [] ritDomains = {"END", "RT"};
+		//ineFamilies.add(new TransposableElementFamily("LINE","RIT", Arrays.asList(ritDomains)));
 		
 		String [] dtpDomains = {"HTH"};
 		tirFamilies.add(new TransposableElementFamily("TIR","TIR", Arrays.asList(dtpDomains)));
