@@ -154,14 +154,14 @@ public class TransposableElementLibraryFilter {
 
 	private TransposableElement verifyTransposon(TransposableElement te) {
 		int [] aln = te.alignEnds();
-		if(te.getFamily().isLTR() && (aln==null || aln[4]==1)) {
+		TransposableElementFamily givenFamily = te.getFamily();
+		if(givenFamily!=null && givenFamily.isLTR() && (aln==null || aln[4]==1)) {
 			//TODO: Improve rules for other transposons
 			log.info("Terminal repeats at ends of TE: "+te.getId()+" could not be found.");
 			return null;
 		}
 		HMMTransposonDomainsFinder finder = new HMMTransposonDomainsFinder();
 		finder.loadHMMsFromClasspath();
-		TransposableElementFamily givenFamily = te.getFamily();
 		finder.assignFamily(te);
 		TransposableElementFamily newFamily = te.getFamily();
 		if(newFamily==null) {
