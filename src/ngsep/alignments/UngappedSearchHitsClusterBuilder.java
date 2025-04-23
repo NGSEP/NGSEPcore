@@ -135,7 +135,7 @@ public class UngappedSearchHitsClusterBuilder {
 	 * the subject
 	 */
 	private List<UngappedSearchHit> selectHits(int queryLength, int subjectIdx, int subjectLength, List<UngappedSearchHit> hits) {
-		boolean debug = subjectIdx==idxSubjectDebug && queryLength == queryLengthDebug && hits.size()>100;
+		boolean debug = subjectIdx == idxSubjectDebug && queryLength == queryLengthDebug && hits.size() > 100;
 		// Sort hits by query start, from lowest to highest
 		Collections.sort(hits, (h1, h2) -> Integer.compare(h1.getQueryStart(), h2.getQueryStart()));
 
@@ -153,7 +153,7 @@ public class UngappedSearchHitsClusterBuilder {
 			// Only the hits that have a higher query start than the source are traversed 
 			// The information of the minimum sum of distances achieved by each query start is maintained
 			UngappedSearchHit h1 = hits.get(sourceHit);
-			if (debug) System.out.println("ClustersBuilder. Current node: "+sourceHit+" starts: "+ h1.getQueryStart()+" "+h1.getSubjectStart()+" weight: "+maxWeight[sourceHit]+" pred: "+predecessor[sourceHit]+" kmer weight "+h1.getWeight());
+			if (debug) System.out.println("ClustersBuilder. Current node: " + sourceHit + " starts: " + h1.getQueryStart() + " " + h1.getSubjectStart() + " weight: " + maxWeight[sourceHit] + " pred: " + predecessor[sourceHit] + " kmer weight " + h1.getWeight());
 			double minimumSum = Double.POSITIVE_INFINITY;
 			for(int destinationHit = sourceHit + 1; destinationHit < hits.size(); destinationHit++) {
 				
@@ -193,6 +193,8 @@ public class UngappedSearchHitsClusterBuilder {
 		// Reconstruction of the heaviest path using backtracking
     	while (actualHitIndex != -1) {
         	path.add(hits.get(actualHitIndex));
+			// If the score is less than 0.1 the hit is not significant and the 
+			// reconstruction is stopped early
         	if(maxWeight[actualHitIndex]<0.1) break;
         	actualHitIndex = predecessor[actualHitIndex];
     	}
@@ -234,18 +236,22 @@ public class UngappedSearchHitsClusterBuilder {
 	 * @return Compatibility score between two hits
 	 */
 	private double calculateScore(UngappedSearchHit sourceHit, UngappedSearchHit destinationHit) {
-		// Entropies 
+		// To avoid very low entropies that can lead to scores close to zero, the maximum between 
+		// the entropy and the value 0.51 is calculated
 		double sourceHitWeight = Math.max(0.51, sourceHit.getWeight());
 		int queryDistance = destinationHit.getQueryStart() - sourceHit.getQueryStart();		
 		int subjectDistance = Math.abs(destinationHit.getSubjectStart() - sourceHit.getSubjectStart());
-		double avgdKbp = (queryDistance+subjectDistance)/2000;
-		double w1 = 1.0/(1.0+avgdKbp);
-		double w2 = sourceHit.getWeight();
-		double diff = Math.abs(queryDistance-subjectDistance);
-		
-		
-		// Computed score
-		return w1*w2-0.02*diff;
+		// Average distance in kpb
+		double avgdKbp = (queryDistance + subjectDistance) / 2000;
+		// Penalty multiplier factor of distance. At very large distances it reduces the strength 
+		// of the penalty
+		double w1 = 1.0 / (1.0 + avgdKbp);
+		double w2 = sourceHitWeight;
+		// Number of bases in which the hit differs between subject and query
+		double diff = Math.abs(queryDistance - subjectDistance);
+		// Computed score. Takes into account distance and source hit entropy. It also penalizes 
+		// the distance 
+		return w1 * w2 - 0.02 * diff;
 	}
 	
 	/**
