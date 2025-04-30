@@ -38,6 +38,7 @@ import ngsep.sequences.io.FastaSequencesHandler;
 public class ReferenceGenome { 
 	private QualifiedSequenceList sequences;
 	private String filename;
+	private GenomicRegionComparator comparator;
 	
 	/**
 	 * Creates a new ReferenceGenome with the given data
@@ -60,6 +61,7 @@ public class ReferenceGenome {
 		handler.setKeepLowerCase(keepLowerCase);
 		sequences = new QualifiedSequenceList(handler.loadSequences(filename));
 		sequences.setAllowChanges(false);
+		comparator = new GenomicRegionComparator(sequences);
 	}
 	/**
 	 * Creates a reference genome sequence with the given sequence
@@ -68,6 +70,7 @@ public class ReferenceGenome {
 	public ReferenceGenome(QualifiedSequence refQS) {
 		sequences = new QualifiedSequenceList();
 		sequences.add(refQS);
+		comparator = new GenomicRegionComparator(sequences);
 	}
 	/**
 	 * Creates a reference genome sequence with the given sequence
@@ -76,6 +79,7 @@ public class ReferenceGenome {
 	public ReferenceGenome(QualifiedSequenceList sequences) {
 		this.sequences = new QualifiedSequenceList(sequences);
 		this.sequences.setAllowChanges(false);
+		comparator = new GenomicRegionComparator(sequences);
 	}
 	
 	/**
@@ -258,5 +262,9 @@ public class ReferenceGenome {
 		for(QualifiedSequence seq:sequences) max = Math.max(max, seq.getLength());
 		return max;
 	}
+	public GenomicRegionComparator getComparator() {
+		return comparator;
+	}
+	
 
 }

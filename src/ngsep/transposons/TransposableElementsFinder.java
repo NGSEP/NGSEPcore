@@ -34,7 +34,6 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
 import ngsep.alignments.UngappedSearchHitsCluster;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
@@ -60,6 +59,7 @@ public class TransposableElementsFinder {
 	
 	public static final int DEF_MIN_TE_LENGTH = 200;
 	public static final int DEF_ROUNDS = 2;
+	public static final int DEF_LIMIT_GENOME_LENGTH = 0;
 	public static final int DEF_NUM_THREADS = 1;
 	
 	
@@ -73,6 +73,7 @@ public class TransposableElementsFinder {
 	private double minWeightedCount = 10;
 	private int maxAlnsPerTransposon = 10000;
 	private double minProportionBestCount = 0;
+	private int limitGenomeLength = 0;
 	private boolean validateFamily = false;
 	
 	// Model attributes
@@ -129,6 +130,16 @@ public class TransposableElementsFinder {
 	}
 	public void setRounds(String value) {
 		this.setRounds(Integer.parseInt(value));
+	}
+	
+	public int getLimitGenomeLength() {
+		return limitGenomeLength;
+	}
+	public void setLimitGenomeLength(int limitGenomeLength) {
+		this.limitGenomeLength = limitGenomeLength;
+	}
+	public void setLimitGenomeLength(String value) {
+		this.setLimitGenomeLength(Integer.parseInt(value));
 	}
 	
 	public boolean isValidateFamily() {
@@ -207,13 +218,12 @@ public class TransposableElementsFinder {
 	 */
 	private List<TransposableElementAnnotation> findTransposonsBySimilarity(ReferenceGenome genome, List<TransposableElement> knownTEs) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		int limitBatch = 1000000000;
-		if(genome.getNumSequences()>1 && genome.getTotalLength()>limitBatch) {
+		if(limitGenomeLength>0 && genome.getNumSequences()>1 && genome.getTotalLength()>limitGenomeLength) {
 			List<QualifiedSequence> sequences = genome.getSequencesList();
 			QualifiedSequenceList nextBatch = new QualifiedSequenceList();
 			int totalLength = 0;
 			for(QualifiedSequence seq: sequences) {
-				if(totalLength+seq.getLength()>limitBatch) {
+				if(totalLength+seq.getLength()>limitGenomeLength) {
 					answer.addAll(findTransposonsBySimilarity(new ReferenceGenome(nextBatch),knownTEs));
 					nextBatch.clear();
 					totalLength=0;
@@ -238,7 +248,7 @@ public class TransposableElementsFinder {
 			log.info("Finished round "+i+". Identified "+roundAnn.size()+" regions. Total events: "+answer.size());
 			if(roundAnn.size() == 0 ) {
 				log.info("Finished round. No new TEs found.");
-				return answer;
+				break;
 			}
 			if(i<rounds) {
 				knownTEs = extractTEs(genome,answer);
@@ -248,7 +258,7 @@ public class TransposableElementsFinder {
 				validatedAnnotations.forceSort();
 			}
 		}
-		Collections.sort(answer, GenomicRegionPositionComparator.getInstance());
+		Collections.sort(answer, genome.getComparator());
 		return answer;
 		
 	}
@@ -293,7 +303,7 @@ public class TransposableElementsFinder {
     		answer.addAll(predictions.get(i));
     		//System.out.println("Added "+predictions.get(i).size()+" predictions to the answer. Total: "+answer.size());
     	}
-    	Collections.sort(answer, GenomicRegionPositionComparator.getInstance());
+    	Collections.sort(answer, genome.getComparator());
     	List<TransposableElementAnnotation> nonRedundantAnn = removeRedundantAnnotations(answer);
     	validateFamily(nonRedundantAnn, genome);
     	return nonRedundantAnn;
