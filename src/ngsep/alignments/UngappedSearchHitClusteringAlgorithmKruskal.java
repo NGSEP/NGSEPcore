@@ -23,7 +23,7 @@ public class UngappedSearchHitClusteringAlgorithmKruskal implements UngappedSear
 	}
 	@Override
 	public List<List<UngappedSearchHit>> clusterLocalSearchHits(List<UngappedSearchHit> hits) {
-		int maxDistance = 160;
+		int maxDistance = 200;
 		List<List<UngappedSearchHit>> clusters = clusterLocalSearchHits(hits,maxDistance);
 		List<List<UngappedSearchHit>> answer = new ArrayList<List<UngappedSearchHit>>();
 		int rounds = 5;
@@ -67,7 +67,7 @@ public class UngappedSearchHitClusteringAlgorithmKruskal implements UngappedSear
 			UngappedSearchHit hit = sortedHits.get(i);
 			int estI = hit.estimateSubjectStart();
 			distanceNext[i-1] = estI-estP;
-			if(debug && maxDistance==160) System.err.println("Next: "+hit.getQueryStart()+" subjectPos: "+hit.getSubjectStart()+" estimate "+estI+" distance: "+distanceNext[i-1]);
+			if(debug && maxDistance==200) System.err.println("Next: "+hit.getQueryStart()+" subjectPos: "+hit.getSubjectStart()+" estimate "+estI+" distance: "+distanceNext[i-1]);
 			estP = estI;
 		}
  		Collections.sort(sortedPos, (p1,p2)->distanceNext[p1]-distanceNext[p2]);

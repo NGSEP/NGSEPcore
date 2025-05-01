@@ -52,7 +52,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 	
 	private int ploidy = AssemblyGraph.DEF_PLOIDY_ASSEMBLY;
 	private int numThreads = DEF_NUM_THREADS;
-	private int depthCompleteIndexing = 10;
+	private int depthCompleteIndexing = 20;
 	private KmersMapAnalyzer kmersAnalyzer;
 	private ShortKmerCodesSampler sampler; 
 	
