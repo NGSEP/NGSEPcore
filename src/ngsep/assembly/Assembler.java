@@ -465,7 +465,6 @@ public class Assembler {
 			extractor.processQualifiedSequences(sequences);
 			map = extractor.getKmersMap();
 			graph = buildGraph(sequences, map);
-			weightIndels = 0.5;
 		}
 		//Save final graph and corrected reads
 		Thread saveReadsThread = null;
