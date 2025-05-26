@@ -129,6 +129,7 @@ OPTIONS:
 		  format.
 	-m INT  : Minimum read length. Default: 0
 	-q INT  : Minimum read average quality score. Default: 0
+	-s FILE : File with read ids to select. One line per read id.
 
 ----------------------------------------
 Obtaining k-mers spectrum from sequences
@@ -1236,8 +1237,12 @@ OPTIONS:
 	-k INT		: K-mer length to find orthologs. Default: 6
 	-p INT		: Minimum percentage of k-mers to call orthologs. 
 			  Default: 11
+	-r INT		: One-based id of the genome to be used as a reference
+			  to align other genomes. By default genomes will not
+			  be modified.
 	-s		: Skip the MCL clustering phase and return unfiltered
 			  orthogroups.
+	-sy		: Skip the synteny analysis.
 	-yh INT		: Minimum number of consistent homology units to call a synteny
 			  block. Default: 6
 	-yd INT		: Maximum distance (in basepairs) between homology units to
@@ -1258,7 +1263,7 @@ GenomeN
 
 For each genome, the module will look into the directory referred with the
 option -d for one fasta file and one gff3 file having as prefix the genome
-identifier.Possible suffixes for the fasta file include .fa, .fna, .fas and
+identifier. Possible suffixes for the fasta file include .fa, .fna, .fas and
 .fasta and their gzip compressed extensions .fa.gz, .fna.gz, .fas.gz and
 .fasta.gz. Possible suffixes for the annotation file include .gff and .gff3 and
 their gzip compressed extensions .gff.gz and .gff3.gz
@@ -1375,6 +1380,10 @@ OPTIONS:
 		  element. Default: 200
 	-r INT	: Number of search rounds to identify new TEs from
 		  previously identified TEs. Default: 2
+	-l INT  : Maximum length of sequences to analyze together. This
+		  parameter helps to control the amount of memory spent by the
+		  process at the expense of increased runtime. 
+		  Default: 0 (no limit).
 	-t INT	: Number of threads. Default: 1
 
 -----------------------------------------------

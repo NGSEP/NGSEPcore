@@ -98,7 +98,7 @@ Minimum read length.
 Minimum read average quality score.
 </option>
 <option id="s" type="FILE" attribute="selectReadIdsFile">
-FIle with read ids to select. One line per read id.
+File with read ids to select. One line per read id.
 </option>
 </command>
 
