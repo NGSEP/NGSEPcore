@@ -3,6 +3,7 @@ v5.1.0 29-05-2025
 - GenomesAligner: New option -sy to skip the synteny analysis.
 - TransposonsFinder: New option -l to limit the length of genome sequences
   analyzed together.
+- ReadsAligner and Assembler: New algorithm for chaining of kmer hits.
 
 v5.0.1 26-02-2025
 - New command FastqFileFilter to filter raw reads by length and average quality.
