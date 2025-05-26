@@ -4,7 +4,7 @@ move JSci dist/
 jar -xf lib/htsjdk-2.22.jar htsjdk
 move htsjdk dist/
 xcopy /E bin dist
-jar -cfe NGSEPcore_5.0.1.jar ngsep.NGSEPcore -C dist . 
+jar -cfe NGSEPcore_5.1.0.jar ngsep.NGSEPcore -C dist . 
 rmdir /s /q dist
 :END
 cmd /k
