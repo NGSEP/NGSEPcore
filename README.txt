@@ -1785,12 +1785,12 @@ OPTIONS:
 		  (-s option) is the raw allele depths to recalculate allele
 		  dosage based on these counts. Default: 2
 
---------------------------------------------------------
-Building dendograms using the Neighbor-Joining algorithm
---------------------------------------------------------
+--------------------------------------------------------------
+Building dendograms from a distance based clustering algorithm
+--------------------------------------------------------------
 
 Given a distance matrix file, this command builds a dendogram for graphical
-display of genetic distances using the Neighbor Joining algorithm. The distance
+display of genetic distances using distance based methods. The distance
 matrix can be provided as an upper, lower or full matrix. The dendogram is
 written in Newick format. Reads from standard input unless the -i option is
 used to specify an input file. Writes to standard output unless the -o option
@@ -1798,13 +1798,15 @@ is used to specify an output file.
 
 USAGE:
 
-java -jar NGSEPcore.jar NeighborJoining <OPTIONS>
+java -jar NGSEPcore.jar HierarchicalClustering <OPTIONS>
 
 OPTIONS:
 
 	-i FILE	: Input file with a distance matrix.
 	-o FILE	: Output file with the dendrogam in Newick format.
-
+	-a INT	: The algorithm to be used to build the dendrogram from one of
+		  the following options: 0: Classic Neighbor Joining algorithm.
+		  1: FastNJ algorithm. 2: UPGMA algorithm. Default: 0.
 
 -------------------------------------
 Calculating allele sharing statistics
