@@ -1,9 +1,15 @@
+v5.1.0 29-05-2025
+- FastqFileFilter: New option -s to provide a file with read ids to select.
+- GenomesAligner: New option -sy to skip the synteny analysis.
+- TransposonsFinder: New option -l to limit the length of genome sequences
+  analyzed together.
+
 v5.0.1 26-02-2025
-- New command FastqFileFilter to filter raw reads by length and average quality
+- New command FastqFileFilter to filter raw reads by length and average quality.
 - New command TransposonStats to calculate statistics of transposable elements
-  annotated with the TransposonsFinder command
-- Assembler: Added option -q to select reads based on a minimum average quality
-- Assembler: Added option -mpl to select reads based on a minimum average quality
+  annotated with the TransposonsFinder command.
+- Assembler: Added option -q to select reads based on a minimum average quality.
+- Assembler: Added option -mpl to select reads based on a minimum average quality.
 
 v5.0.0 26-01-2024
 - New command AssemblyReferenceSorter to sort de-novo genome assemblies

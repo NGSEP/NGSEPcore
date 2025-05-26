@@ -1240,7 +1240,7 @@ Output file with statistics per family
 </option>
 </command>
 
-<command id="TransposonLibraryFilter" class="ngsep.transposons.TransposableElementLibraryFilter" groupId="Genomes">
+<command id="TransposonLibraryFilter" class="ngsep.transposons.TransposableElementLibraryFilter" groupId="Genomes" printHelp="false">
 <intro>
 Verifies annotations of a library of transposable elements and filters incomplete elements
 </intro>
