@@ -200,7 +200,8 @@ public class TransposableElementsFinder {
 	 */
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) throws InterruptedException, IOException {
 		DeNovoTransposableElementsFinder deNovoFinder = new DeNovoTransposableElementsFinderKmerAbundance();
-		List<TransposableElement> knownElements = deNovoFinder.findTransposons(genome);
+		//List<TransposableElement> knownElements = deNovoFinder.findTransposons(genome);
+		List<TransposableElement> knownElements = new ArrayList<TransposableElement>();
 		if(transposonsDatabaseFile!=null) knownElements.addAll(loadKnownTransposons());
 		return findTransposonsBySimilarity(genome,knownElements);
 	}

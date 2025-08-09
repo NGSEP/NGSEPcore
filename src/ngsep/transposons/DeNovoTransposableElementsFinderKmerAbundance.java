@@ -12,18 +12,16 @@ import ngsep.sequences.QualifiedSequenceList;
 
 public class DeNovoTransposableElementsFinderKmerAbundance implements DeNovoTransposableElementsFinder {
 
-	@Override
-	public List<TransposableElement> findTransposons(ReferenceGenome genome) {
-		// TODO Auto-generated method stub
-		return new ArrayList<TransposableElement>();
-	}
+	
+	
 	/**
 	 * Find deNovo transposons given a genome
 	 * @param genome to which the transposons will be found 
 	 * @return List<TransposableElementAnnotation> list of transposons found with chromosome, starting and ending position
 	 * @throws InterruptedException if this exception is caught, it is because for the kmer table the genome could not be loaded
 	 */
-	private List<TransposableElementAnnotation> findTransposonsDeNovo(ReferenceGenome genome) throws InterruptedException {
+	@Override
+	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		
 		QualifiedSequenceList list = genome.getSequencesList();
@@ -35,6 +33,7 @@ public class DeNovoTransposableElementsFinderKmerAbundance implements DeNovoTran
 		for(QualifiedSequence chromosome:list)
 		{
 			//gives the chromosome sequence
+			System.err.println("Processing sequence: "+chromosome.getName());
 			CharSequence chromosomeSequence = chromosome.getCharacters();
 			int n = chromosome.getLength();
 			int regionStart=0;
@@ -102,7 +101,15 @@ public class DeNovoTransposableElementsFinderKmerAbundance implements DeNovoTran
 			}
  	
 		}
-		System.out.println(totalTranspoSize); 	
+		//System.out.println(totalTranspoSize); 	
 		return answer;
+	}
+	public static void main(String[] args) throws Exception {
+		ReferenceGenome genome = new ReferenceGenome(args[0]);
+		DeNovoTransposableElementsFinderKmerAbundance instance = new DeNovoTransposableElementsFinderKmerAbundance();
+		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
+		for(TransposableElementAnnotation ann:anns) {
+			System.out.println(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.getCount());
+		}
 	}
 }

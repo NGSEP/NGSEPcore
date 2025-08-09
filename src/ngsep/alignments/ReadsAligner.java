@@ -318,6 +318,7 @@ public class ReadsAligner {
 	public ReadsAligner(ReferenceGenome genome, Platform platform) {
 		this.genome = genome;
 		this.platform = platform;
+		initializeFactory();
 		//if (platform.isLongReads()) initializeLongReadsFactory();
 	}
 	
