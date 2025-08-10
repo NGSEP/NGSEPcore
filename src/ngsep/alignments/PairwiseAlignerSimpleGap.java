@@ -175,7 +175,7 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 		int i = s1.length();
 		int j = s2.length();
 	    int maxScore = matchScores[i][j];
-	    if (local) {
+	    if (!forceEnd1 && !forceEnd2) {
 	    	int maxI=0;
 	    	int maxJ=0;
 	    	for (i = 1; i <= s1.length(); i++)

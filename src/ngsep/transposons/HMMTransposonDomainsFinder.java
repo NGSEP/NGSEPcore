@@ -72,6 +72,7 @@ public class HMMTransposonDomainsFinder {
 			//System.out.println("Inferred family "+family.getOrder()+" "+family.getId()+" for "+ann.getSequenceName()+":"+ann.getFirst()+"-"+ann.getLast());
 			ann.setInferredFamily(family);
 			ann.setNegativeStrand(negativeStrand);
+			ann.setDomainAlignments(domains);
 		}
 	}
 	public void assignFamily(TransposableElement te) {

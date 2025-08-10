@@ -13,7 +13,9 @@ public class TransposableElement {
 	private TransposableElementFamily family;
 	private String taxonomy;
 	private List<TransposonDomainAlignment> domainAlns;
-	private boolean bordersFixed = false;
+	private int leftEndRepeat = -1;
+	private int rightStartRepeat = -1;
+	private byte orientation = -1;
 	private static final int ENDS_LENGTH_ALIGNMENT = 1200;
 	
 	public TransposableElement(String id, CharSequence sequence) {
@@ -49,12 +51,26 @@ public class TransposableElement {
 		this.domainAlns = domainAlns;
 	}
 	
-	public boolean isBordersFixed() {
-		return bordersFixed;
+	
+	public int getLeftEndRepeat() {
+		return leftEndRepeat;
 	}
-	public void setBordersFixed(boolean bordersFixed) {
-		this.bordersFixed = bordersFixed;
+	public int getRightStartRepeat() {
+		return rightStartRepeat;
 	}
+	public byte getOrientation() {
+		return orientation;
+	}
+	public void setRepeatLimits(int leftEnd, int rightStart, byte orientation) {
+		this.leftEndRepeat = leftEnd;
+		this.rightStartRepeat = rightStart;
+		this.orientation = orientation;
+	}
+	
+	public boolean isValidated() {
+		return leftEndRepeat>0 && getFamily()!=null;
+	}
+	
 	private void decodeSequenceId() {
 		int i = id.indexOf('#');
 		if(i<0) return;

@@ -4,6 +4,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.ReadsAligner;
@@ -16,9 +18,13 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 
 	private int debugPos = -1;
 	private HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
+	PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap(2000);
+	private TransposableElementFamily filterOrder = TransposableElementFamily.LTR_UNKNOWN;
 	
 	public DeNovoTransposableElementsFinderConservedEnds () {
 		domainsFinder.loadHMMsFromClasspath();
+		aligner.setForceEnd1(false);
+		aligner.setForceEnd2(false);
 	}
 	
 	@Override
@@ -87,30 +93,71 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 	}
 
 	private TransposableElementAnnotation inferTEFromEndAlignment(QualifiedSequence seq, int start, ReadAlignment aln) {
-		int start2 = Math.max(0, start-500);
-		int end2 = Math.min(seq.getLength(), aln.getLast()+500);
-		QualifiedSequence rawSeq = new QualifiedSequence("",seq.getCharacters().subSequence(start2, end2));
-		System.err.println("Checking hit of seq from "+start2+" seqLength: "+rawSeq.getLength()+" last: "+end2+" end aln: "+aln);
-		TransposableElement te = new TransposableElement(rawSeq);
-		int [] ends = te.alignEnds();
-		if(ends == null) return null;
-		System.err.println("ends: "+ends[0]+" "+ends[1]+" "+ends[2]+" "+ends[3]+" "+ends[4]);
-		TransposableElementAnnotation ann = new TransposableElementAnnotation(seq.getName(), start+ends[0]+1, start+ends[3]);
+		System.err.println("Checking hit of sequence. Start: "+start+" aln: "+aln);
+		//Find start alignment before hit
+		DNAMaskedSequence dna = (DNAMaskedSequence) seq.getCharacters();
+		DNAMaskedSequence leftSegment = ((DNAMaskedSequence)dna.subSequence(Math.max(0, start-300), start)).getReverseComplement();
+		DNAMaskedSequence rightSegment;
+		if(aln.isPositiveStrand()) rightSegment = ((DNAMaskedSequence)dna.subSequence(Math.max(0, aln.getFirst()-300), aln.getFirst())).getReverseComplement();
+		else rightSegment = (DNAMaskedSequence)dna.subSequence(aln.getLast(), Math.min(seq.getLength(), aln.getLast()+300));
 		
-		domainsFinder.assignFamily(ann,(DNAMaskedSequence)rawSeq.getCharacters());
+		
+		PairwiseAlignment alnBeforeHit = aligner.calculateAlignment(leftSegment, rightSegment);
+		int start2 = Math.max(0, start - alnBeforeHit.getEnd1());
+		//Updated later if same strand
+		int end2 = Math.min(seq.getLength(), aln.getLast()+alnBeforeHit.getEnd2());
+		//Updated later if opposite strand
+		int internalRight = Math.max(0, aln.getFirst()-alnBeforeHit.getEnd2());
+		
+		//Find end alignment after hit
+		leftSegment = (DNAMaskedSequence)dna.subSequence(start, Math.min(seq.getLength(), start+2000));
+		if(aln.isPositiveStrand()) rightSegment = (DNAMaskedSequence)dna.subSequence(aln.getFirst()-1, Math.min(seq.getLength(), aln.getFirst()+1999));
+		else rightSegment = ((DNAMaskedSequence)dna.subSequence(Math.max(0, aln.getLast()-2000), aln.getLast())).getReverseComplement();
+		PairwiseAlignment alnAfterHit = aligner.calculateAlignment(leftSegment, rightSegment);
+		int internalLeft = start+alnAfterHit.getEnd1();
+		if(aln.isPositiveStrand()) end2 = Math.min(seq.getLength(), aln.getFirst()+alnAfterHit.getEnd2());
+		else internalRight = Math.max(0, aln.getLast()-alnAfterHit.getEnd2());
+		
+		System.err.println("Checked borders. Start: "+start2+" internal left "+internalLeft+" internal right: "+internalRight+" end "+end2);
+		if(internalLeft<start2+aln.getReadLength() || internalLeft>end2) return null;
+		if(internalRight<internalLeft || internalRight>end2-aln.getReadLength()) return null;
+		
+		TransposableElementAnnotation ann = new TransposableElementAnnotation(seq.getName(), start2+1, end2);
+		ann.setRepeatLimits(internalLeft+1, internalRight+1, aln.isPositiveStrand()?TransposableElementFamily.REPEAT_ORIENTATION_FF:TransposableElementFamily.REPEAT_ORIENTATION_FR);
+		DNAMaskedSequence dnaTE = (DNAMaskedSequence) seq.getCharacters().subSequence(internalLeft, internalRight);
+		domainsFinder.assignFamily(ann,dnaTE);
 		if(ann.getInferredFamily()==null) {
-			domainsFinder.assignFamily(ann,((DNAMaskedSequence)rawSeq.getCharacters()).getReverseComplement());
+			domainsFinder.assignFamily(ann,dnaTE.getReverseComplement());
 			if(ann.getInferredFamily()!=null) ann.setNegativeStrand(true);
 		}
-		ann.setBordersFixed(true);
+		if(!passFilters(ann)) return null;
 		return ann;
 	}
+	
+	
+	private boolean passFilters(TransposableElementAnnotation ann) {
+		if(filterOrder!=null) {
+			TransposableElementFamily family = ann.getInferredFamily();
+			if(family==null || !family.getOrder().equals(filterOrder.getOrder())) return false;
+		}
+		return true;
+	}
+
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
 		DeNovoTransposableElementsFinderConservedEnds instance = new DeNovoTransposableElementsFinderConservedEnds();
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
 		try (PrintStream out=new PrintStream(args[1])) {
-			for(TransposableElementAnnotation ann:anns) out.println(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.isPositiveStrand()+"\t"+ann.getInferredFamily());
+			for(TransposableElementAnnotation ann:anns) {
+				out.print(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.isPositiveStrand()+"\t"+ann.getInferredFamily()+"\t"+ann.getLeftEndRepeat()+"\t"+ann.getRightStartRepeat()+"\t"+ann.getOrientation());
+				if(ann.getDomainAlignments()!=null && ann.getDomainAlignments().size()>0) {
+					out.print("\t");
+					for(TransposonDomainAlignment daln:ann.getDomainAlignments()) {
+						out.print(daln.getDomainCode()+":"+daln.getStart()+":"+daln.getEvalue()+";");
+					}
+				}
+				out.println();
+			}
 		}	
 	}
 }

@@ -18,6 +18,10 @@ public class TransposableElementFamily {
 	public static final TransposableElementFamily LTR_UNKNOWN = new TransposableElementFamily("LTR", UNKNOWN, new ArrayList<String>());
 	public static final TransposableElementFamily LINE_UNKNOWN = new TransposableElementFamily("LINE", UNKNOWN, new ArrayList<String>());
 	public static final TransposableElementFamily SINE_UNKNOWN = new TransposableElementFamily("SINE", UNKNOWN, new ArrayList<String>());
+	
+	public static final byte REPEAT_ORIENTATION_FF = 0;
+	public static final byte REPEAT_ORIENTATION_FR = 1;
+	
 	private TransposableElementFamily(String order, String id, List<String> teDomainIds) {
 		super();
 		this.order = order;
